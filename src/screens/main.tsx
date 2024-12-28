@@ -1,5 +1,6 @@
 import { Option, Tabs } from "../components/ui/tabs";
 import { actions, Tab, useAppState } from "../services/state";
+import { NotFound } from "./not-found";
 import { Setup } from "./setup";
 
 const tabs: Option<Tab>[] = [
@@ -15,7 +16,7 @@ const map = new Map([[Tab.Setup, Setup]]);
 export const Main = () => {
   const state = useAppState();
 
-  const Content = map.get(state.ui.tab);
+  const Content = map.get(state.ui.tab) || NotFound;
 
   return (
     <div className="h-dvh bg-stone-900 flex flex-col">
@@ -29,7 +30,9 @@ export const Main = () => {
       </div>
 
       {/* content */}
-      <div className="flex-1">{Content && <Content />}</div>
+      <div className="flex-1">
+        <Content />
+      </div>
     </div>
   );
 };
