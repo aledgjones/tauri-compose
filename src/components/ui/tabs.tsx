@@ -37,7 +37,7 @@ export const Tabs = <T,>({ value, options, onChange }: Props<T>) => {
   return (
     <div
       ref={containerRef}
-      className="relative inline-block bg-stone-800 rounded-lg whitespace-nowrap"
+      className="relative inline-block bg-neutral-800 rounded-lg whitespace-nowrap"
     >
       <ul className="relative z-10">
         {options.map((option, index) => {
@@ -49,10 +49,10 @@ export const Tabs = <T,>({ value, options, onChange }: Props<T>) => {
                 ref={(el) => (tabRefs.current[index] = el)}
                 onClick={() => onChange(option.value)}
                 className={classNames(
-                  "py-2 px-4 text-sm transition-colors duration-300",
+                  "py-2 px-4 text-sm transition-[color] duration-300 rounded-lg",
                   {
                     "text-white": isSelected,
-                    "text-stone-400": !isSelected,
+                    "text-neutral-300": !isSelected,
                   }
                 )}
               >
@@ -64,7 +64,7 @@ export const Tabs = <T,>({ value, options, onChange }: Props<T>) => {
       </ul>
       {tabOffsets.length > 0 && (
         <div
-          className="absolute top-0 left-0 h-full bg-stone-600 transition-all duration-300 rounded-lg"
+          className="absolute top-0 left-0 h-full bg-neutral-600 transition-all duration-300 rounded-lg"
           style={{
             width: tabOffsets[selectedIndex]?.width || 0,
             left: tabOffsets[selectedIndex]?.left || 0,
