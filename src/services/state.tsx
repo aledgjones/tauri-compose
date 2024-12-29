@@ -11,19 +11,24 @@ export enum Tab {
   Print = 4,
 }
 
-type AppState = { ui: { tab: Tab } };
+type AppState = { ui: { tab: Tab; layout: string } };
 
 export const AppContext = createContext<AppState | null>(null);
 
 export const actions = {
   ui: {
-    setTab: (tab: Tab) => invoke("ui_set_tab", { tab }),
+    setTab: (tab: Tab) => {
+      invoke("ui_set_tab", { tab });
+    },
+    setActiveLayoutId: (layout_id: string) => {
+      invoke("ui_set_active_layout_id", { layout_id });
+    },
   },
 };
 
 export const AppStateProvider: FunctionComponent = ({ children }) => {
   const [appState, setAppState] = useState<AppState>({
-    ui: { tab: Tab.Setup },
+    ui: { tab: Tab.Setup, layout: "full-score" },
   });
 
   useEffect(() => {

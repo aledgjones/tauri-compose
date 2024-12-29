@@ -3,7 +3,7 @@ mod ui;
 use serde::Serialize;
 use std::sync::Mutex;
 use tauri::{Emitter, Manager, State};
-use ui::{ui_set_tab, Ui};
+use ui::{ui_set_active_layout_id, ui_set_tab, Ui};
 
 #[derive(Serialize, Clone)]
 struct AppStateInner {
@@ -35,7 +35,11 @@ pub fn run() {
             app.manage(AppStateInner::new());
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![initialize, ui_set_tab])
+        .invoke_handler(tauri::generate_handler![
+            initialize,
+            ui_set_tab,
+            ui_set_active_layout_id
+        ])
         .plugin(tauri_plugin_opener::init())
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

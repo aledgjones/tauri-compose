@@ -1,9 +1,10 @@
-import { Option, Tabs } from "../components/ui/tabs";
+import { Select } from "../components/ui/select";
+import { TabsOption, Tabs } from "../components/ui/tabs";
 import { actions, Tab, useAppState } from "../services/state";
 import { NotFound } from "./not-found";
 import { Setup } from "./setup";
 
-const tabs: Option<Tab>[] = [
+const tabs: TabsOption<Tab>[] = [
   { label: "Setup", value: Tab.Setup },
   { label: "Write", value: Tab.Write },
   { label: "Engrave", value: Tab.Engrave },
@@ -21,11 +22,21 @@ export const Main = () => {
   return (
     <div className="h-dvh bg-neutral-900 flex flex-col">
       {/* header */}
-      <div className="p-2 border-b-2 border-neutral-950">
+      <div className="p-2">
         <Tabs
           value={state.ui.tab}
           options={tabs}
           onChange={actions.ui.setTab}
+          className="mr-2"
+        />
+        <Select
+          value={state.ui.layout}
+          onChange={actions.ui.setActiveLayoutId}
+          options={[
+            { value: "full-score", label: "Full Score" },
+            { value: "456", label: "Violin 1" },
+            { value: "789", label: "Violin 2" },
+          ]}
         />
       </div>
 

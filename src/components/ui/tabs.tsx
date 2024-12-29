@@ -1,20 +1,26 @@
 import classNames from "classnames";
 import { useEffect, useRef, useState } from "preact/hooks";
 
-export type Option<T> = {
+export type TabsOption<T> = {
   value: T;
   label: string;
 };
 
-type Props<T> = {
+type TabsProps<T> = {
   value: T;
-  options: Option<T>[];
+  options: TabsOption<T>[];
   onChange: (value: T) => void;
+  className?: string;
 };
 
 type Offset = { left: number; width: number };
 
-export const Tabs = <T,>({ value, options, onChange }: Props<T>) => {
+export const Tabs = <T,>({
+  value,
+  options,
+  onChange,
+  className,
+}: TabsProps<T>) => {
   const [tabOffsets, setTabOffsets] = useState<Offset[]>([]);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
@@ -37,7 +43,10 @@ export const Tabs = <T,>({ value, options, onChange }: Props<T>) => {
   return (
     <div
       ref={containerRef}
-      className="relative inline-block bg-neutral-800 rounded-lg whitespace-nowrap"
+      className={classNames(
+        "relative inline-block bg-neutral-800 rounded-lg whitespace-nowrap",
+        className
+      )}
     >
       <ul className="relative z-10">
         {options.map((option, index) => {
@@ -51,8 +60,8 @@ export const Tabs = <T,>({ value, options, onChange }: Props<T>) => {
                 className={classNames(
                   "py-2 px-4 text-sm transition-[color] duration-300 rounded-lg",
                   {
-                    "text-white": isSelected,
-                    "text-neutral-300": !isSelected,
+                    "text-black": isSelected,
+                    "text-white": !isSelected,
                   }
                 )}
               >
@@ -64,7 +73,7 @@ export const Tabs = <T,>({ value, options, onChange }: Props<T>) => {
       </ul>
       {tabOffsets.length > 0 && (
         <div
-          className="absolute top-0 left-0 h-full bg-neutral-600 transition-all duration-300 rounded-lg"
+          className="absolute top-0 left-0 h-full bg-sky-500 transition-all duration-300 rounded-lg"
           style={{
             width: tabOffsets[selectedIndex]?.width || 0,
             left: tabOffsets[selectedIndex]?.left || 0,
