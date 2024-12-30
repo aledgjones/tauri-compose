@@ -1,0 +1,10 @@
+import { render } from "preact";
+import { AppStateProvider } from "./services/state";
+import { App } from "./app";
+
+render(
+  <AppStateProvider>
+    <App />
+  </AppStateProvider>,
+  document.getElementById("root")!
+);

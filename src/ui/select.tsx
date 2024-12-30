@@ -1,3 +1,5 @@
+import { mdiChevronDown } from "@mdi/js";
+import Icon from "@mdi/react";
 import classNames from "classnames";
 import { useEffect, useRef, useState } from "preact/hooks";
 
@@ -11,6 +13,7 @@ type SelectProps<T> = {
   options: SelectOption<T>[];
   onChange: (value: T) => void;
   direction?: "up" | "down";
+  className?: string;
 };
 
 export const Select = <T,>({
@@ -18,6 +21,7 @@ export const Select = <T,>({
   options,
   onChange,
   direction = "down",
+  className,
 }: SelectProps<T>) => {
   const [isOpen, setIsOpen] = useState(false);
   const selectRef = useRef<HTMLDivElement>(null);
@@ -44,31 +48,34 @@ export const Select = <T,>({
   };
 
   return (
-    <div className="relative inline-block" ref={selectRef}>
+    <div
+      className={classNames("relative inline-block", className)}
+      ref={selectRef}
+    >
       <button
         onClick={() => setIsOpen((prev) => !prev)}
-        className="pr-10 bg-neutral-800 text-white text-sm px-4 py-2 rounded-lg focus:outline-none"
+        className={classNames("pr-10 text-white text-sm px-4 py-2 rounded-lg", {
+          "bg-neutral-800 hover:bg-neutral-700": !isOpen,
+          "bg-neutral-700": isOpen,
+        })}
       >
         {options.find((option) => option.value === value)?.label || "Select"}
         <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-          <svg
+          <Icon
+            path={mdiChevronDown}
+            size={0.75}
             className={classNames(
-              "w-4 h-4 text-neutral-300 transform transition-transform",
+              "text-neutral-300 transform transition-transform",
               { "rotate-180": isOpen }
             )}
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 20 20"
-            fill="currentColor"
-          >
-            <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
-          </svg>
+          />
         </div>
       </button>
 
       {isOpen && (
         <ul
           className={classNames(
-            "min-w-48 absolute z-10 bg-neutral-700 text-white text-sm rounded-lg shadow-lg mt-1 overflow-hidden",
+            "min-w-48 absolute z-10 bg-neutral-800 text-white text-sm rounded-lg shadow-lg mt-1 overflow-hidden",
             {
               "bottom-full mb-2": direction === "up",
               "top-full mt-2": direction === "down",
@@ -80,7 +87,7 @@ export const Select = <T,>({
               <li
                 key={option.value}
                 onClick={() => handleOptionClick(option.value)}
-                className="px-4 py-2 hover:bg-neutral-600"
+                className="px-4 py-2 hover:bg-neutral-700"
               >
                 {option.label}
               </li>

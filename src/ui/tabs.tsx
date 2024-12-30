@@ -44,7 +44,7 @@ export const Tabs = <T,>({
     <div
       ref={containerRef}
       className={classNames(
-        "relative inline-block bg-neutral-800 rounded-lg whitespace-nowrap",
+        "relative inline-block whitespace-nowrap",
         className
       )}
     >
@@ -53,7 +53,7 @@ export const Tabs = <T,>({
           const isSelected = value === option.value;
 
           return (
-            <li key={option.value} className="inline-block">
+            <li key={option.value} className="inline-block mr-1">
               <button
                 ref={(el) => (tabRefs.current[index] = el)}
                 onClick={() => onChange(option.value)}
@@ -61,7 +61,7 @@ export const Tabs = <T,>({
                   "py-2 px-4 text-sm transition-[color] duration-300 rounded-lg",
                   {
                     "text-black": isSelected,
-                    "text-white": !isSelected,
+                    "text-white hover:bg-neutral-800": !isSelected,
                   }
                 )}
               >
