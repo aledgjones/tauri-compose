@@ -539,7 +539,6 @@ dependencies = [
 name = "compose"
 version = "0.1.0"
 dependencies = [
- "cocoa",
  "rustc-hash",
  "serde",
  "serde_json",
