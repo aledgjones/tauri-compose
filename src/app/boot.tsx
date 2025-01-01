@@ -1,6 +1,6 @@
 import { render } from "preact";
-import { AppStateProvider } from "./services/state";
-import { App } from "./app";
+import { AppStateProvider } from "../services/state";
+import { App } from ".";
 
 render(
   <AppStateProvider>

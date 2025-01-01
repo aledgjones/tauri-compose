@@ -1,45 +1,32 @@
-import {
-  mdiMetronome,
-  mdiMovieRoll,
-  mdiPlay,
-  mdiRecord,
-  mdiSkipPrevious,
-} from "@mdi/js";
+import { mdiMetronome, mdiPlay, mdiRecord, mdiSkipPrevious } from "@mdi/js";
 import { IconButton } from "../../ui/icon-button";
+import { FunctionComponent } from "preact";
+import classNames from "classnames";
 
-export const Transport = () => {
+type Props = {
+  className?: string;
+};
+
+export const Transport: FunctionComponent<Props> = ({ className }) => {
   return (
-    <div className="flex">
+    <div className={classNames("flex gap-1", className)}>
+      <IconButton variant="filled" onClick={() => {}} path={mdiSkipPrevious} />
       <IconButton
-        className="mr-1"
-        onClick={() => {}}
         variant="filled"
-        path={mdiSkipPrevious}
-      />
-      <IconButton
-        className="mr-1"
         color="#0f0"
         onClick={() => {}}
-        variant="filled"
         path={mdiPlay}
       />
       <IconButton
-        className="mr-1"
+        variant="filled"
         color="#f00"
         onClick={() => {}}
-        variant="filled"
         path={mdiRecord}
       />
-      <p className="text-white font-mono text-sm bg-neutral-800 px-3 py-2 mr-1 rounded-lg">
+      <p className="text-white font-mono text-sm bg-neutral-900 px-3 py-2 rounded-lg">
         1.1.1.000
       </p>
-      <IconButton
-        className="mr-1"
-        onClick={() => {}}
-        variant="filled"
-        path={mdiMetronome}
-      />
-      <IconButton onClick={() => {}} variant="filled" path={mdiMovieRoll} />
+      <IconButton variant="filled" onClick={() => {}} path={mdiMetronome} />
     </div>
   );
 };

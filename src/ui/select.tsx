@@ -55,8 +55,8 @@ export const Select = <T,>({
       <button
         onClick={() => setIsOpen((prev) => !prev)}
         className={classNames("pr-10 text-white text-sm px-4 py-2 rounded-lg", {
-          "bg-neutral-800 hover:bg-neutral-700": !isOpen,
-          "bg-neutral-700": isOpen,
+          "bg-neutral-900 hover:bg-neutral-800": !isOpen,
+          "bg-neutral-800": isOpen,
         })}
       >
         {options.find((option) => option.value === value)?.label || "Select"}

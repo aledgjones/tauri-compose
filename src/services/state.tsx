@@ -11,25 +11,60 @@ export enum Tab {
   Print = 4,
 }
 
-type AppState = { ui: { tab: Tab; layout: string } };
+export type AppState = {
+  ui: { tab: Tab; layout_id: string };
+  score: {
+    meta: {
+      app_version: string;
+      title: string;
+      subtitle: string;
+      composer: string;
+      arranger: string;
+      lyricist: string;
+      copyright: string;
+      created: number;
+    };
+  };
+};
+
+export const initialAppState: AppState = {
+  ui: { tab: Tab.Setup, layout_id: "full-score" },
+  score: {
+    meta: {
+      app_version: "0.1.0",
+      title: "",
+      subtitle: "",
+      composer: "",
+      arranger: "",
+      lyricist: "",
+      copyright: "",
+      created: 1735592276909,
+    },
+  },
+};
 
 export const AppContext = createContext<AppState | null>(null);
 
 export const actions = {
   ui: {
     setTab: (tab: Tab) => {
-      invoke("ui_set_tab", { tab });
+      invoke("set_ui_tab", { tab });
     },
     setActiveLayoutId: (layout_id: string) => {
-      invoke("ui_set_active_layout_id", { layout_id });
+      invoke("set_ui_layout_id", { layout_id });
+    },
+  },
+  score: {
+    meta: {
+      setTitle: (title: string) => {
+        invoke("set_score_meta_title", { title });
+      },
     },
   },
 };
 
 export const AppStateProvider: FunctionComponent = ({ children }) => {
-  const [appState, setAppState] = useState<AppState>({
-    ui: { tab: Tab.Setup, layout: "full-score" },
-  });
+  const [appState, setAppState] = useState<AppState>(initialAppState);
 
   useEffect(() => {
     let unlisten: UnlistenFn | null = null;

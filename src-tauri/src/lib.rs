@@ -1,18 +1,26 @@
+mod score;
 mod ui;
+mod utils;
 
+use score::meta::set_score_meta_title;
+use score::Score;
 use serde::Serialize;
 use std::sync::Mutex;
 use tauri::{Emitter, Manager, State};
-use ui::{ui_set_active_layout_id, ui_set_tab, Ui};
+use ui::{set_ui_layout_id, set_ui_tab, Ui};
 
 #[derive(Serialize, Clone)]
 struct AppStateInner {
     ui: Ui,
+    score: Score,
 }
 
 impl AppStateInner {
     fn new() -> AppState {
-        Mutex::new(Self { ui: Ui::new() })
+        Mutex::new(Self {
+            ui: Ui::new(),
+            score: Score::new(),
+        })
     }
 
     fn emit(&self, app: &tauri::AppHandle) {
@@ -37,8 +45,9 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             initialize,
-            ui_set_tab,
-            ui_set_active_layout_id
+            set_ui_tab,
+            set_ui_layout_id,
+            set_score_meta_title
         ])
         .plugin(tauri_plugin_opener::init())
         .run(tauri::generate_context!())

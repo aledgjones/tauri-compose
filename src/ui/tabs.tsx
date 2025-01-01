@@ -41,45 +41,44 @@ export const Tabs = <T,>({
   const selectedIndex = options.findIndex((option) => option.value === value);
 
   return (
-    <div
-      ref={containerRef}
-      className={classNames(
-        "relative inline-block whitespace-nowrap",
-        className
-      )}
-    >
-      <ul className="relative z-10">
-        {options.map((option, index) => {
-          const isSelected = value === option.value;
+    <div className={className}>
+      <div
+        ref={containerRef}
+        className="relative whitespace-nowrap rounded-lg overflow-hidden bg-neutral-900"
+      >
+        <ul className="relative z-10 flex">
+          {options.map((option, index) => {
+            const isSelected = value === option.value;
 
-          return (
-            <li key={option.value} className="inline-block mr-1">
-              <button
-                ref={(el) => (tabRefs.current[index] = el)}
-                onClick={() => onChange(option.value)}
-                className={classNames(
-                  "py-2 px-4 text-sm transition-[color] duration-300 rounded-lg",
-                  {
-                    "text-black": isSelected,
-                    "text-white hover:bg-neutral-800": !isSelected,
-                  }
-                )}
-              >
-                {option.label}
-              </button>
-            </li>
-          );
-        })}
-      </ul>
-      {tabOffsets.length > 0 && (
-        <div
-          className="absolute top-0 left-0 h-full bg-sky-500 transition-all duration-300 rounded-lg"
-          style={{
-            width: tabOffsets[selectedIndex]?.width || 0,
-            left: tabOffsets[selectedIndex]?.left || 0,
-          }}
-        />
-      )}
+            return (
+              <li key={option.value}>
+                <button
+                  ref={(el) => (tabRefs.current[index] = el)}
+                  onClick={() => onChange(option.value)}
+                  className={classNames(
+                    "py-2 px-4 text-sm transition-[color] duration-300",
+                    {
+                      "text-black": isSelected,
+                      "text-white hover:bg-neutral-800": !isSelected,
+                    }
+                  )}
+                >
+                  {option.label}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+        {tabOffsets.length > 0 && (
+          <div
+            className="absolute top-0 left-0 h-full bg-sky-500 transition-all duration-300"
+            style={{
+              width: tabOffsets[selectedIndex]?.width || 0,
+              left: tabOffsets[selectedIndex]?.left || 0,
+            }}
+          />
+        )}
+      </div>
     </div>
   );
 };
