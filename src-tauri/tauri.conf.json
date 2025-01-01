@@ -18,12 +18,8 @@
         "height": 600,
         "titleBarStyle": "Overlay",
         "hiddenTitle": true,
-        "url": "index.html"
-      },
-      {
-        "label": "debugger",
-        "title": "Debugger",
-        "url": "debugger.html"
+        "url": "index.html",
+        "acceptFirstMouse": true
       }
     ],
     "security": {

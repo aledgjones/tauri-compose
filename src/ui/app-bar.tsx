@@ -1,0 +1,42 @@
+import { window } from "@tauri-apps/api";
+import classNames from "classnames";
+import { FunctionalComponent } from "preact";
+import { useEffect, useState } from "preact/hooks";
+
+type Props = { title: string; filename?: string };
+
+export const AppBar: FunctionalComponent<Props> = ({ title, filename }) => {
+  const [isFocused, setIsFocused] = useState(true);
+
+  useEffect(() => {
+    const win = window.getCurrentWindow();
+    win.listen("tauri://blur", () => {
+      setIsFocused(false);
+    });
+    win.listen("tauri://focus", () => {
+      setIsFocused(true);
+    });
+  });
+
+  return (
+    <div
+      data-tauri-drag-region
+      className="h-[28px] flex-shrink-0 flex items-center px-20"
+    >
+      <p
+        className={classNames(
+          "flex-1 text-center text-xs pointer-events-none font-bold line-clamp-1 break-all",
+          {
+            "text-white": isFocused,
+            "text-neutral-600": !isFocused,
+          }
+        )}
+      >
+        {title} -{" "}
+        <span className={classNames({ italic: !filename })}>
+          {filename || "Untitled"}
+        </span>
+      </p>
+    </div>
+  );
+};

@@ -1,12 +1,13 @@
-import { TabsOption, Tabs } from "../ui/tabs";
-import { actions, Tab, useAppState } from "../services/state";
+import { TabsOption, Tabs } from "../../ui/tabs";
+import { actions, Tab, useAppState } from "../../services/state";
 import { NotFound } from "./screens/not-found";
 import { Setup } from "./screens/setup";
 import { Tools } from "./components/tools";
 import { Transport } from "./components/transport";
-import { Select } from "../ui/select";
-import { IconButton } from "../ui/icon-button";
+import { Select } from "../../ui/select";
+import { IconButton } from "../../ui/icon-button";
 import { mdiMovieRoll, mdiTuneVertical } from "@mdi/js";
+import { AppBar } from "../../ui/app-bar";
 
 const tabs: TabsOption<Tab>[] = [
   { label: "Setup", value: Tab.Setup },
@@ -18,19 +19,14 @@ const tabs: TabsOption<Tab>[] = [
 
 const map = new Map([[Tab.Setup, Setup]]);
 
-export const App = () => {
+export const Main = () => {
   const state = useAppState();
 
   const Content = map.get(state.ui.tab) || NotFound;
 
   return (
     <div className="h-dvh bg-neutral-950 flex flex-col">
-      <div
-        data-tauri-drag-region
-        className="h-[28px] flex items-center justify-center"
-      >
-        <p className="text-white text-xs">Solo Composer</p>
-      </div>
+      <AppBar title="Solo Compose" filename={state.score.meta.title} />
       <div className="p-2 flex items-center">
         <Tabs
           className="flex flex-1 justify-start"

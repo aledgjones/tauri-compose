@@ -1,5 +1,5 @@
 import { mdiMetronome, mdiPlay, mdiRecord, mdiSkipPrevious } from "@mdi/js";
-import { IconButton } from "../../ui/icon-button";
+import { IconButton } from "../../../ui/icon-button";
 import { FunctionComponent } from "preact";
 import classNames from "classnames";
 

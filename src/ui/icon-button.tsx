@@ -29,6 +29,7 @@ export const IconButton: FunctionComponent<IconProps & Props> = ({
 }) => {
   return (
     <button
+      onClick={onClick}
       className={classNames(
         getTheme(variant),
         {

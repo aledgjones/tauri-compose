@@ -1,10 +1,10 @@
 import { render } from "preact";
-import { AppStateProvider } from "../services/state";
-import { App } from ".";
+import { AppStateProvider } from "../../services/state";
+import { Main } from ".";
 
 render(
   <AppStateProvider>
-    <App />
+    <Main />
   </AppStateProvider>,
   document.getElementById("root")!
 );

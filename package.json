@@ -16,12 +16,14 @@
     "@tauri-apps/api": "2.1.1",
     "@tauri-apps/plugin-opener": "2.2.2",
     "classnames": "2.5.1",
+    "humanize-duration": "^3.32.1",
     "preact": "10.25.4",
     "react-inspector": "^6.0.2"
   },
   "devDependencies": {
     "@preact/preset-vite": "2.9.3",
     "@tauri-apps/cli": "2.1.0",
+    "@types/humanize-duration": "^3.27.4",
     "autoprefixer": "10.4.20",
     "postcss": "8.4.49",
     "tailwindcss": "3.4.17",
