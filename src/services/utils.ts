@@ -1,28 +1,38 @@
-import humanizeDuration from "humanize-duration";
 import { useEffect, useState } from "preact/hooks";
+import prettyMilliseconds from "pretty-ms";
 
-export const useHumanizedTime = (timestamp: number): string => {
-  const [humanizedTime, setHumanizedTime] = useState("");
+const THIRTY_SECONDS = 30 * 1000;
+const ONE_WEEK = 7 * 24 * 60 * 60 * 1000;
+
+const getDisplay = (when: number) => {
+  const calc = Date.now() - when;
+
+  if (calc < THIRTY_SECONDS) {
+    return "Just now";
+  } else if (calc > ONE_WEEK) {
+    return new Date(when).toLocaleDateString();
+  } else {
+    const str = prettyMilliseconds(calc, {
+      compact: true,
+      separateMilliseconds: true,
+      unitCount: 1,
+      verbose: true,
+    });
+    return str + " ago";
+  }
+};
+
+export const useHumanizedTime = (when: number) => {
+  const [display, setDisplay] = useState(getDisplay(when));
 
   useEffect(() => {
-    const updateHumanizedTime = () => {
-      const now = Date.now();
-      const durationInMs = timestamp * 1000 - now;
-      const oneWeekInMs = 7 * 24 * 60 * 60 * 1000;
-
-      if (durationInMs < oneWeekInMs) {
-        setHumanizedTime(humanizeDuration(durationInMs, { largest: 2 }));
-      } else {
-        const date = new Date(timestamp * 1000);
-        setHumanizedTime(date.toLocaleDateString());
-      }
+    const interval = setInterval(() => {
+      setDisplay(getDisplay(when));
+    }, 1000);
+    return () => {
+      clearInterval(interval);
     };
+  }, [when]);
 
-    updateHumanizedTime();
-    const intervalId = setInterval(updateHumanizedTime, 1000);
-
-    return () => clearInterval(intervalId);
-  }, [timestamp]);
-
-  return humanizedTime;
+  return display;
 };

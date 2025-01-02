@@ -7,7 +7,7 @@ export enum Tab {
   Setup = 0,
   Write = 1,
   Engrave = 2,
-  Play = 3,
+  Sequence = 3,
   Print = 4,
 }
 

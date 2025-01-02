@@ -4,9 +4,10 @@ import { useState } from "preact/hooks";
 
 interface InputProps {
   value: string;
-  onChange: (value: string) => void;
+  onChange?: (value: string) => void;
   className?: string;
   label: string;
+  readonly?: boolean;
 }
 
 export const Input: FunctionalComponent<InputProps> = ({
@@ -14,6 +15,7 @@ export const Input: FunctionalComponent<InputProps> = ({
   onChange,
   className,
   label,
+  readonly,
 }) => {
   const [isFocused, setIsFocused] = useState(false);
 
@@ -21,16 +23,17 @@ export const Input: FunctionalComponent<InputProps> = ({
     <div className={classNames("relative", className)}>
       <label
         className={classNames("text-xs", {
-          "text-neutral-500": !isFocused,
+          "text-neutral-400": !isFocused,
           "text-sky-500": isFocused,
         })}
       >
         {label}
       </label>
       <input
+        readonly={readonly}
         type="text"
         value={value}
-        onInput={(e: any) => onChange(e.target.value)}
+        onInput={(e: any) => onChange?.(e.target.value)}
         onFocus={() => setIsFocused(true)}
         onBlur={() => setIsFocused(false)}
         className="block w-full bg-neutral-800 rounded px-3 py-[6px] text-sm focus:outline-none border-transparent border-2 border-neutral-800 focus:border-sky-500 text-white"

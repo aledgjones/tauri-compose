@@ -7,6 +7,14 @@
   cursor: default;
 }
 
+::-webkit-scrollbar {
+  width: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: #888;
+}
+
 button {
   cursor: default;
 }

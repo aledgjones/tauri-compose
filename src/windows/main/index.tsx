@@ -13,7 +13,7 @@ const tabs: TabsOption<Tab>[] = [
   { label: "Setup", value: Tab.Setup },
   { label: "Write", value: Tab.Write },
   { label: "Engrave", value: Tab.Engrave },
-  { label: "Play", value: Tab.Play },
+  { label: "Sequence", value: Tab.Sequence },
   { label: "Print", value: Tab.Print },
 ];
 
@@ -35,32 +35,34 @@ export const Main = () => {
           onChange={actions.ui.setTab}
         />
 
-        <Select
-          className="mr-2"
-          value={state.ui.layout_id}
-          onChange={actions.ui.setActiveLayoutId}
-          options={[
-            { value: "full-score", label: "Full Score" },
-            { value: "456", label: "Violin 1" },
-            { value: "789", label: "Violin 2" },
-          ]}
-        />
+        <div className="flex mx-2">
+          <Select
+            className="mr-2"
+            value={state.ui.layout_id}
+            onChange={actions.ui.setActiveLayoutId}
+            options={[
+              { value: "full-score", label: "Full Score" },
+              { value: "456", label: "Violin 1" },
+              { value: "789", label: "Violin 2" },
+            ]}
+          />
 
-        <Transport className="mr-2" />
+          <Transport className="mr-2" />
 
-        <IconButton
-          className="mr-1"
-          variant="filled"
-          onClick={() => {}}
-          path={mdiTuneVertical}
-          isDisabled
-        />
-        <IconButton
-          variant="filled"
-          onClick={() => {}}
-          path={mdiMovieRoll}
-          isDisabled
-        />
+          <IconButton
+            className="mr-1"
+            variant="filled"
+            onClick={() => {}}
+            path={mdiTuneVertical}
+            isDisabled
+          />
+          <IconButton
+            variant="filled"
+            onClick={() => {}}
+            path={mdiMovieRoll}
+            isDisabled
+          />
+        </div>
 
         <Tools className="flex-1 justify-end" />
       </div>

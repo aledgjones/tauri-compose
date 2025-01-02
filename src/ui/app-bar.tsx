@@ -3,9 +3,13 @@ import classNames from "classnames";
 import { FunctionalComponent } from "preact";
 import { useEffect, useState } from "preact/hooks";
 
-type Props = { title: string; filename?: string };
+type Props = { title: string; filename?: string; className?: string };
 
-export const AppBar: FunctionalComponent<Props> = ({ title, filename }) => {
+export const AppBar: FunctionalComponent<Props> = ({
+  title,
+  filename,
+  className,
+}) => {
   const [isFocused, setIsFocused] = useState(true);
 
   useEffect(() => {
@@ -21,7 +25,10 @@ export const AppBar: FunctionalComponent<Props> = ({ title, filename }) => {
   return (
     <div
       data-tauri-drag-region
-      className="h-[28px] flex-shrink-0 flex items-center px-20"
+      className={classNames(
+        "h-[28px] flex-shrink-0 flex items-center px-20",
+        className
+      )}
     >
       <p
         className={classNames(

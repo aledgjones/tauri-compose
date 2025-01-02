@@ -19,7 +19,8 @@
         "titleBarStyle": "Overlay",
         "hiddenTitle": true,
         "url": "index.html",
-        "acceptFirstMouse": true
+        "acceptFirstMouse": true,
+        "minWidth": 1300
       }
     ],
     "security": {
