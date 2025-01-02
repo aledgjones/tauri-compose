@@ -59,6 +59,21 @@ export const actions = {
       setTitle: (title: string) => {
         invoke("set_score_meta_title", { title });
       },
+      setSubtitle: (subtitle: string) => {
+        invoke("set_score_meta_subtitle", { subtitle });
+      },
+      setComposer: (composer: string) => {
+        invoke("set_score_meta_composer", { composer });
+      },
+      setArranger: (arranger: string) => {
+        invoke("set_score_meta_arranger", { arranger });
+      },
+      setLyricist: (lyricist: string) => {
+        invoke("set_score_meta_lyricist", { lyricist });
+      },
+      setCopyright: (copyright: string) => {
+        invoke("set_score_meta_copyright", { copyright });
+      },
     },
   },
 };

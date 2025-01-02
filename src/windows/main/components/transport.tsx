@@ -23,7 +23,7 @@ export const Transport: FunctionComponent<Props> = ({ className }) => {
         onClick={() => {}}
         path={mdiRecord}
       />
-      <p className="text-white font-mono text-sm bg-neutral-900 px-3 py-2 rounded-lg">
+      <p className="text-white font-mono text-sm bg-neutral-900 px-3 py-2">
         1.1.1.000
       </p>
       <IconButton variant="filled" onClick={() => {}} path={mdiMetronome} />

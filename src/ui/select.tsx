@@ -54,7 +54,7 @@ export const Select = <T,>({
     >
       <button
         onClick={() => setIsOpen((prev) => !prev)}
-        className={classNames("pr-10 text-white text-sm px-4 py-2 rounded-lg", {
+        className={classNames("pr-10 text-white text-sm px-4 py-2", {
           "bg-neutral-900 hover:bg-neutral-800": !isOpen,
           "bg-neutral-800": isOpen,
         })}
@@ -75,7 +75,7 @@ export const Select = <T,>({
       {isOpen && (
         <ul
           className={classNames(
-            "min-w-48 absolute z-10 bg-neutral-800 text-white text-sm rounded-lg shadow-lg mt-1 overflow-hidden",
+            "min-w-48 absolute z-10 bg-neutral-800 text-white text-sm shadow-lg mt-1 overflow-hidden",
             {
               "bottom-full mb-2": direction === "up",
               "top-full mt-2": direction === "down",

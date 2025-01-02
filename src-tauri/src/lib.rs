@@ -2,7 +2,10 @@ mod score;
 mod ui;
 mod utils;
 
-use score::meta::set_score_meta_title;
+use score::meta::{
+    set_score_meta_arranger, set_score_meta_composer, set_score_meta_copyright,
+    set_score_meta_lyricist, set_score_meta_subtitle, set_score_meta_title,
+};
 use score::Score;
 use serde::Serialize;
 use std::sync::Mutex;
@@ -47,7 +50,12 @@ pub fn run() {
             initialize,
             set_ui_tab,
             set_ui_layout_id,
-            set_score_meta_title
+            set_score_meta_title,
+            set_score_meta_subtitle,
+            set_score_meta_composer,
+            set_score_meta_arranger,
+            set_score_meta_lyricist,
+            set_score_meta_copyright
         ])
         .plugin(tauri_plugin_opener::init())
         .run(tauri::generate_context!())

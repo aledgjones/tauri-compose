@@ -13,9 +13,9 @@ type Props = {
 const getTheme = (variant: Variant) => {
   switch (variant) {
     case "filled":
-      return "flex items-center justify-center bg-neutral-900 hover:bg-neutral-800 h-[36px] w-[36px] rounded-lg";
+      return "flex items-center justify-center bg-neutral-900 hover:bg-neutral-800 h-[36px] w-[36px]";
     default:
-      return "flex items-center justify-center h-[36px] w-[36px] rounded-lg";
+      return "flex items-center justify-center h-[36px] w-[36px]";
   }
 };
 

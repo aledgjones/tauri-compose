@@ -44,7 +44,7 @@ export const Tabs = <T,>({
     <div className={className}>
       <div
         ref={containerRef}
-        className="relative whitespace-nowrap rounded-lg overflow-hidden bg-neutral-900"
+        className="relative whitespace-nowrap overflow-hidden bg-neutral-900"
       >
         <ul className="relative z-10 flex">
           {options.map((option, index) => {

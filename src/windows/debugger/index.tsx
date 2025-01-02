@@ -20,7 +20,7 @@ export const Main = () => {
     <div className="h-dvh bg-neutral-950 flex flex-col">
       <AppBar title="Debugger" filename={state.score.meta.title} />
       <div className="flex-1 p-2">
-        <div className="bg-neutral-900 rounded-lg overflow-hidden h-full p-2">
+        <div className="bg-neutral-900 overflow-hidden h-full p-2">
           <Inspector
             data={state}
             theme={{ ...chromeDark, BASE_BACKGROUND_COLOR: "transparent" }}

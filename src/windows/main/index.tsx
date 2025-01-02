@@ -1,6 +1,6 @@
 import { TabsOption, Tabs } from "../../ui/tabs";
 import { actions, Tab, useAppState } from "../../services/state";
-import { NotFound } from "./screens/not-found";
+import { NotFound } from "../../ui/not-found";
 import { Setup } from "./screens/setup";
 import { Tools } from "./components/tools";
 import { Transport } from "./components/transport";
@@ -17,12 +17,12 @@ const tabs: TabsOption<Tab>[] = [
   { label: "Print", value: Tab.Print },
 ];
 
-const map = new Map([[Tab.Setup, Setup]]);
+const screens = new Map([[Tab.Setup, Setup]]);
 
 export const Main = () => {
   const state = useAppState();
 
-  const Content = map.get(state.ui.tab) || NotFound;
+  const Content = screens.get(state.ui.tab) || NotFound;
 
   return (
     <div className="h-dvh bg-neutral-950 flex flex-col">

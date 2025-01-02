@@ -1,11 +1,38 @@
 import { window } from "@tauri-apps/api";
-import { actions, useAppState } from "../../services/state";
-import { useEffect } from "preact/hooks";
+import { useAppState } from "../../services/state";
+import { useEffect, useState } from "preact/hooks";
 import { AppBar } from "../../ui/app-bar";
-import { Input } from "../../ui/input";
+import { Menu, MenuItem } from "../../ui/menu";
+import { Meta } from "./screens/meta";
+import { NotFound } from "../../ui/not-found";
+import { Info } from "./screens/info";
+
+enum MenuOption {
+  General = 0,
+  Info,
+}
+
+const options: MenuItem<MenuOption>[] = [
+  {
+    label: "General",
+    value: MenuOption.General,
+  },
+  {
+    label: "Information",
+    value: MenuOption.Info,
+  },
+];
+
+const screens = new Map([
+  [MenuOption.General, Meta],
+  [MenuOption.Info, Info],
+]);
 
 export const Main = () => {
   const state = useAppState();
+  const [selection, setSelection] = useState(MenuOption.General);
+
+  const Content = screens.get(selection) || NotFound;
 
   useEffect(() => {
     const show = async () => {
@@ -23,38 +50,11 @@ export const Main = () => {
         title="Project Settings"
         filename={state.score.meta.title}
       />
-      <div className="bg-neutral-900 rounded-lg overflow-auto"></div>
-      <div className="bg-neutral-900 rounded-lg p-2 pt-1 overflow-y-auto">
-        <Input
-          value={state.score.meta.title}
-          onChange={actions.score.meta.setTitle}
-          label="Title"
-        />
-        <Input
-          value={state.score.meta.subtitle}
-          onChange={actions.score.meta.setTitle}
-          label="Subtitle"
-        />
-        <Input
-          value={state.score.meta.composer}
-          onChange={actions.score.meta.setTitle}
-          label="Composer"
-        />
-        <Input
-          value={state.score.meta.arranger}
-          onChange={actions.score.meta.setTitle}
-          label="Arranger"
-        />
-        <Input
-          value={state.score.meta.lyricist}
-          onChange={actions.score.meta.setTitle}
-          label="Lyricist"
-        />
-        <Input
-          value={state.score.meta.copyright}
-          onChange={actions.score.meta.setTitle}
-          label="Copyright"
-        />
+      <div className="bg-neutral-900 overflow-auto">
+        <Menu selection={selection} items={options} onSelect={setSelection} />
+      </div>
+      <div className="bg-neutral-900 overflow-y-auto">
+        <Content />
       </div>
     </div>
   );

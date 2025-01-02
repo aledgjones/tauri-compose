@@ -37,3 +37,58 @@ pub fn set_score_meta_title(app: tauri::AppHandle, state: State<'_, AppState>, t
     state.score.meta.title = title;
     state.emit(&app);
 }
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn set_score_meta_subtitle(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    subtitle: String,
+) {
+    let mut state = state.lock().unwrap();
+    state.score.meta.subtitle = subtitle;
+    state.emit(&app);
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn set_score_meta_composer(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    composer: String,
+) {
+    let mut state = state.lock().unwrap();
+    state.score.meta.composer = composer;
+    state.emit(&app);
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn set_score_meta_arranger(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    arranger: String,
+) {
+    let mut state = state.lock().unwrap();
+    state.score.meta.arranger = arranger;
+    state.emit(&app);
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn set_score_meta_lyricist(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    lyricist: String,
+) {
+    let mut state = state.lock().unwrap();
+    state.score.meta.lyricist = lyricist;
+    state.emit(&app);
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn set_score_meta_copyright(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    copyright: String,
+) {
+    let mut state = state.lock().unwrap();
+    state.score.meta.copyright = copyright;
+    state.emit(&app);
+}

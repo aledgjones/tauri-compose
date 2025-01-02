@@ -7,7 +7,7 @@ interface InputProps {
   onChange?: (value: string) => void;
   className?: string;
   label: string;
-  readonly?: boolean;
+  readOnly?: boolean;
 }
 
 export const Input: FunctionalComponent<InputProps> = ({
@@ -15,12 +15,12 @@ export const Input: FunctionalComponent<InputProps> = ({
   onChange,
   className,
   label,
-  readonly,
+  readOnly,
 }) => {
   const [isFocused, setIsFocused] = useState(false);
 
   return (
-    <div className={classNames("relative", className)}>
+    <div className={className}>
       <label
         className={classNames("text-xs", {
           "text-neutral-400": !isFocused,
@@ -30,13 +30,13 @@ export const Input: FunctionalComponent<InputProps> = ({
         {label}
       </label>
       <input
-        readonly={readonly}
+        readOnly={readOnly}
         type="text"
         value={value}
         onInput={(e: any) => onChange?.(e.target.value)}
         onFocus={() => setIsFocused(true)}
         onBlur={() => setIsFocused(false)}
-        className="block w-full bg-neutral-800 rounded px-3 py-[6px] text-sm focus:outline-none border-transparent border-2 border-neutral-800 focus:border-sky-500 text-white"
+        className="block w-full bg-neutral-800 px-2 py-[6px] text-sm focus:outline-none border-transparent border-2 border-neutral-800 focus:border-sky-500 text-white"
       />
     </div>
   );

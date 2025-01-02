@@ -21,8 +21,8 @@ export const Tools: FunctionComponent<Props> = ({ className }) => {
             titleBarStyle: "overlay",
             hiddenTitle: true,
             acceptFirstMouse: true,
-            height: 420,
-            width: 420,
+            height: 500,
+            width: 750,
             // resizable: false,
           });
 
