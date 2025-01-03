@@ -5,11 +5,9 @@ import { AppBar } from "../../ui/app-bar";
 import { Menu, MenuItem } from "../../ui/menu";
 import { Meta } from "./screens/meta";
 import { NotFound } from "../../ui/not-found";
-import { Info } from "./screens/info";
 
 enum MenuOption {
   General = 0,
-  Info,
 }
 
 const options: MenuItem<MenuOption>[] = [
@@ -17,16 +15,9 @@ const options: MenuItem<MenuOption>[] = [
     label: "General",
     value: MenuOption.General,
   },
-  {
-    label: "Information",
-    value: MenuOption.Info,
-  },
 ];
 
-const screens = new Map([
-  [MenuOption.General, Meta],
-  [MenuOption.Info, Info],
-]);
+const screens = new Map([[MenuOption.General, Meta]]);
 
 export const Main = () => {
   const state = useAppState();
@@ -50,10 +41,10 @@ export const Main = () => {
         title="Project Settings"
         filename={state.score.meta.title}
       />
-      <div className="bg-neutral-900 overflow-auto">
+      <div className="rounded-lg bg-neutral-900 overflow-auto">
         <Menu selection={selection} items={options} onSelect={setSelection} />
       </div>
-      <div className="bg-neutral-900 overflow-y-auto">
+      <div className="rounded-lg bg-neutral-900 overflow-y-auto">
         <Content />
       </div>
     </div>

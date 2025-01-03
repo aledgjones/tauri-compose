@@ -9,10 +9,19 @@ pub struct Meta {
     app_version: String,
     title: String,
     subtitle: String,
+    dedication: String,
     composer: String,
     arranger: String,
     lyricist: String,
+    artist: String,
+    copyist: String,
+    publisher: String,
+    editor: String,
     copyright: String,
+    work_number: String,
+    composition_year: String,
+    composer_dates: String,
+    other_information: String,
     created: u128,
 }
 
@@ -22,10 +31,19 @@ impl Meta {
             app_version: String::from(VERSION),
             title: String::from(""),
             subtitle: String::from(""),
+            dedication: String::from(""),
             composer: String::from(""),
             arranger: String::from(""),
             lyricist: String::from(""),
+            artist: String::from(""),
+            copyist: String::from(""),
+            publisher: String::from(""),
+            editor: String::from(""),
             copyright: String::from(""),
+            work_number: String::from(""),
+            composition_year: String::from(""),
+            composer_dates: String::from(""),
+            other_information: String::from(""),
             created: now(),
         }
     }
@@ -46,6 +64,17 @@ pub fn set_score_meta_subtitle(
 ) {
     let mut state = state.lock().unwrap();
     state.score.meta.subtitle = subtitle;
+    state.emit(&app);
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn set_score_meta_dedication(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    dedication: String,
+) {
+    let mut state = state.lock().unwrap();
+    state.score.meta.dedication = dedication;
     state.emit(&app);
 }
 
@@ -83,6 +112,38 @@ pub fn set_score_meta_lyricist(
 }
 
 #[tauri::command(rename_all = "snake_case")]
+pub fn set_score_meta_artist(app: tauri::AppHandle, state: State<'_, AppState>, artist: String) {
+    let mut state = state.lock().unwrap();
+    state.score.meta.artist = artist;
+    state.emit(&app);
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn set_score_meta_copyist(app: tauri::AppHandle, state: State<'_, AppState>, copyist: String) {
+    let mut state = state.lock().unwrap();
+    state.score.meta.copyist = copyist;
+    state.emit(&app);
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn set_score_meta_publisher(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    publisher: String,
+) {
+    let mut state = state.lock().unwrap();
+    state.score.meta.publisher = publisher;
+    state.emit(&app);
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn set_score_meta_editor(app: tauri::AppHandle, state: State<'_, AppState>, editor: String) {
+    let mut state = state.lock().unwrap();
+    state.score.meta.editor = editor;
+    state.emit(&app);
+}
+
+#[tauri::command(rename_all = "snake_case")]
 pub fn set_score_meta_copyright(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
@@ -90,5 +151,49 @@ pub fn set_score_meta_copyright(
 ) {
     let mut state = state.lock().unwrap();
     state.score.meta.copyright = copyright;
+    state.emit(&app);
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn set_score_meta_work_number(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    work_number: String,
+) {
+    let mut state = state.lock().unwrap();
+    state.score.meta.work_number = work_number;
+    state.emit(&app);
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn set_score_meta_composition_year(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    composition_year: String,
+) {
+    let mut state = state.lock().unwrap();
+    state.score.meta.composition_year = composition_year;
+    state.emit(&app);
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn set_score_meta_composer_dates(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    composer_dates: String,
+) {
+    let mut state = state.lock().unwrap();
+    state.score.meta.composer_dates = composer_dates;
+    state.emit(&app);
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn set_score_meta_other_information(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    other_information: String,
+) {
+    let mut state = state.lock().unwrap();
+    state.score.meta.other_information = other_information;
     state.emit(&app);
 }

@@ -32,6 +32,7 @@ export const IconButton: FunctionComponent<IconProps & Props> = ({
       onClick={onClick}
       className={classNames(
         getTheme(variant),
+        "rounded-lg",
         {
           "text-white": !isDisabled,
           "pointer-events-none text-neutral-600": isDisabled,

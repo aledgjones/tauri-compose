@@ -3,8 +3,11 @@ mod ui;
 mod utils;
 
 use score::meta::{
-    set_score_meta_arranger, set_score_meta_composer, set_score_meta_copyright,
-    set_score_meta_lyricist, set_score_meta_subtitle, set_score_meta_title,
+    set_score_meta_arranger, set_score_meta_artist, set_score_meta_composer,
+    set_score_meta_composer_dates, set_score_meta_composition_year, set_score_meta_copyist,
+    set_score_meta_copyright, set_score_meta_dedication, set_score_meta_editor,
+    set_score_meta_lyricist, set_score_meta_other_information, set_score_meta_publisher,
+    set_score_meta_subtitle, set_score_meta_title, set_score_meta_work_number,
 };
 use score::Score;
 use serde::Serialize;
@@ -52,10 +55,19 @@ pub fn run() {
             set_ui_layout_id,
             set_score_meta_title,
             set_score_meta_subtitle,
+            set_score_meta_dedication,
             set_score_meta_composer,
             set_score_meta_arranger,
             set_score_meta_lyricist,
-            set_score_meta_copyright
+            set_score_meta_artist,
+            set_score_meta_copyist,
+            set_score_meta_publisher,
+            set_score_meta_editor,
+            set_score_meta_copyright,
+            set_score_meta_work_number,
+            set_score_meta_composition_year,
+            set_score_meta_composer_dates,
+            set_score_meta_other_information
         ])
         .plugin(tauri_plugin_opener::init())
         .run(tauri::generate_context!())
