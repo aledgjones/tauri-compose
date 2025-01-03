@@ -69,12 +69,15 @@ export const loggedInvoke = async (
   args?: InvokeArgs,
   options?: InvokeOptions
 ) => {
+  console.log(process.env);
+  if (process.env.TAURI_DEBUG === "false") {
+    return invoke(cmd, args, options);
+  }
+
   actions.console.log(`[invoke] ${cmd} - ${JSON.stringify(args)}`);
 
   try {
-    const result = await invoke(cmd, args, options);
-    actions.console.log(`[invoke:result]: ${cmd} - ${JSON.stringify(result)}`);
-    return result;
+    return invoke(cmd, args, options);
   } catch (error) {
     actions.console.error(`[invoke:error]: ${cmd} - ${JSON.stringify(error)}`);
     throw error;

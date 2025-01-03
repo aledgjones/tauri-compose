@@ -21,9 +21,8 @@ export const Tools: FunctionComponent<Props> = ({ className }) => {
             titleBarStyle: "overlay",
             hiddenTitle: true,
             acceptFirstMouse: true,
-            height: 500,
+            height: 976,
             width: 750,
-            // resizable: false,
           });
 
           webview.setFocus();

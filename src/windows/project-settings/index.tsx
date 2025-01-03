@@ -44,7 +44,7 @@ export const Main = () => {
       <div className="rounded-lg bg-neutral-900 overflow-auto">
         <Menu selection={selection} items={options} onSelect={setSelection} />
       </div>
-      <div className="rounded-lg bg-neutral-900 overflow-y-auto">
+      <div className="rounded-lg bg-neutral-900 overflow-auto">
         <Content />
       </div>
     </div>
