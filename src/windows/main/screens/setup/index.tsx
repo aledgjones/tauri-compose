@@ -1,3 +1,4 @@
+import { Renderer } from "../../components/renderer";
 import { Panel } from "./components/panel";
 
 export const Setup = () => {
@@ -6,7 +7,7 @@ export const Setup = () => {
       <div class="grid grid-cols-[360px_1fr_360px] gap-2">
         <Panel title="Players" />
         <div class="grid grid-rows-[auto_170px] gap-2">
-          <div className="rounded-lg bg-neutral-900"></div>
+          <Renderer />
           <Panel title="Flows" />
         </div>
         <Panel title="Layouts" />

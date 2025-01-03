@@ -1,7 +1,9 @@
+mod renderer;
 mod score;
 mod ui;
 mod utils;
 
+use renderer::render;
 use score::meta::{
     set_score_meta_arranger, set_score_meta_artist, set_score_meta_composer,
     set_score_meta_composer_dates, set_score_meta_composition_year, set_score_meta_copyist,
@@ -51,6 +53,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             initialize,
+            render,
             set_ui_tab,
             set_ui_layout_id,
             set_score_meta_title,
