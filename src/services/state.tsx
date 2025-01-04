@@ -12,6 +12,11 @@ export enum Tab {
   Print = 4,
 }
 
+export enum AutoCountStyle {
+  Arabic = 0,
+  Roman = 1,
+}
+
 export type AppState = {
   ui: { tab: Tab; layout_id: string };
   score: {
@@ -112,6 +117,20 @@ export const actions = {
     },
   },
   score: {
+    config: {
+      autoCountStyles: {
+        solo: (auto_count_style: AutoCountStyle) => {
+          loggedInvoke("set_score_config_auto_count_styles_solo", {
+            auto_count_style,
+          });
+        },
+        section: (auto_count_style: AutoCountStyle) => {
+          loggedInvoke("set_score_config_auto_count_styles_section", {
+            auto_count_style,
+          });
+        },
+      },
+    },
     meta: {
       setTitle: (title: string) => {
         loggedInvoke("set_score_meta_title", { title });

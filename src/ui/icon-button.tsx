@@ -15,7 +15,7 @@ const getTheme = (variant: Variant) => {
     case "filled":
       return "flex items-center justify-center bg-neutral-900 hover:bg-neutral-800 h-[36px] w-[36px]";
     default:
-      return "flex items-center justify-center h-[36px] w-[36px]";
+      return "flex items-center justify-center h-[36px] w-[36px] hover:bg-neutral-800";
   }
 };
 

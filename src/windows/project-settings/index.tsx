@@ -3,7 +3,7 @@ import { useAppState } from "../../services/state";
 import { useEffect, useState } from "preact/hooks";
 import { AppBar } from "../../components/app-bar";
 import { Menu, MenuItem } from "../../ui/menu";
-import { Meta } from "./screens/meta";
+import { Meta } from "./screens/general";
 import { NotFound } from "../../components/not-found";
 
 enum MenuOption {

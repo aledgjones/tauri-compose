@@ -15,7 +15,7 @@ export const Renderer: FunctionalComponent<Props> = ({ className, style }) => {
         className
       )}
     >
-      <div className="p-10 inline-block">
+      <div className="p-20 inline-block">
         <img
           draggable={false}
           className="max-w-none"
