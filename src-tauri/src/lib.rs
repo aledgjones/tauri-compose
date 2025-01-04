@@ -55,12 +55,13 @@ pub fn run() {
         .register_asynchronous_uri_scheme_protocol(
             "solocompose",
             move |_ctx, _request, responder| {
-                let png_bytes = render();
+                let bytes = render();
+                let response = Response::builder()
+                    .header("Content-Type", "image/webp")
+                    .header("Cache-Control", "no-store")
+                    .body(bytes);
 
-                match Response::builder()
-                    .header("Content-Type", "image/png")
-                    .body(png_bytes)
-                {
+                match response {
                     Ok(response) => responder.respond(response),
                     Err(_) => {
                         responder.respond(Response::builder().status(500).body(vec![]).unwrap())

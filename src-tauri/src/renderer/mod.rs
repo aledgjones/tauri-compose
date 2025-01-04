@@ -28,7 +28,7 @@ impl Renderer {
     pub fn data(&mut self) -> Vec<u8> {
         let image = self.surface.image_snapshot();
         let mut context = self.surface.direct_context();
-        match image.encode(context.as_mut(), EncodedImageFormat::PNG, None) {
+        match image.encode(context.as_mut(), EncodedImageFormat::WEBP, None) {
             Some(data) => data.as_bytes().to_vec(),
             None => vec![],
         }
@@ -38,10 +38,6 @@ impl Renderer {
 #[tauri::command(rename_all = "snake_case")]
 pub fn render() -> Vec<u8> {
     let mut renderer = Renderer::new(1500, 400);
-    renderer.line(vec![
-        Point::new(10.0, 100.0),
-        Point::new(100.0, 100.0),
-        Point::new(200.0, 50.0),
-    ]);
+    renderer.line(vec![Point::new(100.0, 100.5), Point::new(200.0, 100.5)]);
     renderer.data()
 }

@@ -8,13 +8,13 @@
 }
 
 ::-webkit-scrollbar {
-  width: 4px;
-  height: 4px;
+  width: 0px;
+  height: 0px;
 }
 
-::-webkit-scrollbar-thumb {
+/* ::-webkit-scrollbar-thumb {
   background-color: #333;
-}
+} */
 
 button {
   cursor: default;

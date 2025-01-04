@@ -16,7 +16,11 @@ export const Renderer: FunctionalComponent<Props> = ({ className, style }) => {
       )}
     >
       <div className="p-10 inline-block">
-        <img className="max-w-none" src="solocompose://render.png" />
+        <img
+          draggable={false}
+          className="max-w-none"
+          src="solocompose://render.webp"
+        />
       </div>
     </div>
   );
