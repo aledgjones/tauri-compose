@@ -14,6 +14,7 @@ use score::meta::{
 use score::Score;
 use serde::Serialize;
 use std::sync::Mutex;
+use tauri::http::Response;
 use tauri::{Emitter, Manager, State};
 use ui::{set_ui_layout_id, set_ui_tab, Ui};
 
@@ -51,9 +52,24 @@ pub fn run() {
             app.manage(AppStateInner::new());
             Ok(())
         })
+        .register_asynchronous_uri_scheme_protocol(
+            "solocompose",
+            move |_ctx, _request, responder| {
+                let png_bytes = render();
+
+                match Response::builder()
+                    .header("Content-Type", "image/png")
+                    .body(png_bytes)
+                {
+                    Ok(response) => responder.respond(response),
+                    Err(_) => {
+                        responder.respond(Response::builder().status(500).body(vec![]).unwrap())
+                    }
+                }
+            },
+        )
         .invoke_handler(tauri::generate_handler![
             initialize,
-            render,
             set_ui_tab,
             set_ui_layout_id,
             set_score_meta_title,

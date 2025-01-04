@@ -1,33 +1,23 @@
-import { invoke } from "@tauri-apps/api/core";
-import { FunctionComponent } from "preact";
-import { useEffect, useRef } from "preact/hooks";
+import classNames from "classnames";
+import { FunctionalComponent } from "preact";
+import { CSSProperties } from "preact/compat";
 
-export const Renderer: FunctionComponent = () => {
-  const img = useRef<HTMLImageElement>(null);
+import bg from "../../../assets/images/bg.jpg";
 
-  useEffect(() => {
-    const render = async () => {
-      if (img.current === null) {
-        return;
-      }
+type Props = { className?: string; style?: CSSProperties };
 
-      const t1 = performance.now();
-      const bytes: any = await invoke("render");
-      const uint8Array = new Uint8Array(bytes);
-      console.log(uint8Array);
-      const blob = new Blob([uint8Array], { type: "image/png" });
-      const data = URL.createObjectURL(blob);
-      console.log(data);
-      img.current.src = data;
-      console.log("Rendered in", performance.now() - t1, "ms");
-    };
-
-    render();
-  }, []);
-
+export const Renderer: FunctionalComponent<Props> = ({ className, style }) => {
   return (
-    <div className="rounded-lg bg-neutral-900 text-white">
-      <img ref={img} />
+    <div
+      style={{ ...style, backgroundImage: `url(${bg})` }}
+      className={classNames(
+        "overflow-auto rounded-lg bg-fixed bg-center bg-cover",
+        className
+      )}
+    >
+      <div className="p-10 inline-block">
+        <img className="max-w-none" src="solocompose://render.png" />
+      </div>
     </div>
   );
 };

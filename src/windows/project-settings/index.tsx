@@ -1,10 +1,10 @@
 import { window } from "@tauri-apps/api";
 import { useAppState } from "../../services/state";
 import { useEffect, useState } from "preact/hooks";
-import { AppBar } from "../../ui/app-bar";
+import { AppBar } from "../../components/app-bar";
 import { Menu, MenuItem } from "../../ui/menu";
 import { Meta } from "./screens/meta";
-import { NotFound } from "../../ui/not-found";
+import { NotFound } from "../../components/not-found";
 
 enum MenuOption {
   General = 0,

@@ -2,7 +2,7 @@ import { chromeDark, Inspector } from "react-inspector";
 import { useAppState } from "../../services/state";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { window } from "@tauri-apps/api";
-import { AppBar } from "../../ui/app-bar";
+import { AppBar } from "../../components/app-bar";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
 import classNames from "classnames";
 

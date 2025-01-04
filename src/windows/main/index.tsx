@@ -1,13 +1,13 @@
 import { TabsOption, Tabs } from "../../ui/tabs";
 import { actions, Tab, useAppState } from "../../services/state";
-import { NotFound } from "../../ui/not-found";
+import { NotFound } from "../../components/not-found";
 import { Setup } from "./screens/setup";
 import { Tools } from "./components/tools";
 import { Transport } from "./components/transport";
 import { Select } from "../../ui/select";
 import { IconButton } from "../../ui/icon-button";
 import { mdiMovieRoll, mdiTuneVertical } from "@mdi/js";
-import { AppBar } from "../../ui/app-bar";
+import { AppBar } from "../../components/app-bar";
 
 const tabs: TabsOption<Tab>[] = [
   { label: "Setup", value: Tab.Setup },
@@ -25,7 +25,7 @@ export const Main = () => {
   const Content = screens.get(state.ui.tab) || NotFound;
 
   return (
-    <div className="h-dvh bg-neutral-950 flex flex-col">
+    <div className="h-dvh w-dvw grid grid-rows-[28px_52px_1fr] bg-neutral-950">
       <AppBar title="Solo Compose" filename={state.score.meta.title} />
       <div className="p-2 flex items-center">
         <Tabs
@@ -67,9 +67,7 @@ export const Main = () => {
         <Tools className="flex-1 justify-end" />
       </div>
 
-      <div className="flex-1">
-        <Content />
-      </div>
+      <Content />
     </div>
   );
 };

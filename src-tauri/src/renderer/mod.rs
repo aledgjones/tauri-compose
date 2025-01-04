@@ -12,7 +12,10 @@ impl Renderer {
     }
 
     pub fn line(&mut self, points: Vec<Point>) {
-        let paint = Paint::default();
+        let mut paint = Paint::default();
+        paint.set_anti_alias(true);
+        paint.set_stroke(true);
+
         let mut path = Path::new();
 
         path.move_to(points[0]);
@@ -33,10 +36,10 @@ impl Renderer {
 }
 
 #[tauri::command(rename_all = "snake_case")]
-pub fn render(app: tauri::AppHandle) -> Vec<u8> {
-    let mut renderer = Renderer::new(800, 600);
+pub fn render() -> Vec<u8> {
+    let mut renderer = Renderer::new(1500, 400);
     renderer.line(vec![
-        Point::new(10.0, 10.0),
+        Point::new(10.0, 100.0),
         Point::new(100.0, 100.0),
         Point::new(200.0, 50.0),
     ]);
