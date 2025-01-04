@@ -1,4 +1,9 @@
-import { mdiBugPlayOutline, mdiFolderCog, mdiRedo, mdiUndo } from "@mdi/js";
+import {
+  mdiBugPlayOutline,
+  mdiFolderCogOutline,
+  mdiRedo,
+  mdiUndo,
+} from "@mdi/js";
 import { IconButton } from "../../../ui/icon-button";
 import { FunctionComponent } from "preact";
 import classNames from "classnames";
@@ -28,7 +33,7 @@ export const Tools: FunctionComponent<Props> = ({ className }) => {
           webview.setFocus();
         }}
         variant="filled"
-        path={mdiFolderCog}
+        path={mdiFolderCogOutline}
       />
       <IconButton
         className="mr-2"

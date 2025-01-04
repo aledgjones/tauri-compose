@@ -20,6 +20,12 @@ export enum AutoCountStyle {
 export type AppState = {
   ui: { tab: Tab; layout_id: string };
   score: {
+    config: {
+      auto_count_styles: {
+        solo: AutoCountStyle;
+        section: AutoCountStyle;
+      };
+    };
     meta: {
       app_version: string;
       title: string;
@@ -45,6 +51,12 @@ export type AppState = {
 export const initialAppState: AppState = {
   ui: { tab: Tab.Setup, layout_id: "full-score" },
   score: {
+    config: {
+      auto_count_styles: {
+        solo: AutoCountStyle.Roman,
+        section: AutoCountStyle.Roman,
+      },
+    },
     meta: {
       app_version: "0.1.0",
       title: "",

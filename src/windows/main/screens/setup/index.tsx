@@ -1,6 +1,6 @@
 import { Renderer } from "../../components/renderer";
 import { Panel } from "../../components/panel";
-import { mdiAccountCog, mdiFileCogOutline, mdiPlus } from "@mdi/js";
+import { mdiAccountCogOutline, mdiFileCogOutline, mdiPlus } from "@mdi/js";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 
 export const Setup = () => {
@@ -11,7 +11,7 @@ export const Setup = () => {
         title="Players"
         icons={[
           {
-            path: mdiAccountCog,
+            path: mdiAccountCogOutline,
             onClick: () => {
               const webview = new WebviewWindow("project-settings", {
                 url: "/player-settings.html",
