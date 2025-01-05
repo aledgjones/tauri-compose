@@ -23,8 +23,8 @@ export const Input: FunctionalComponent<InputProps> = ({
     <div className={className}>
       <label
         className={classNames("text-xs", {
-          "text-neutral-400": !isFocused,
           "text-sky-500": isFocused,
+          "text-neutral-400": !isFocused,
         })}
       >
         {label}

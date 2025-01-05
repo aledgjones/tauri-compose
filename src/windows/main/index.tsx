@@ -4,10 +4,10 @@ import { NotFound } from "../../components/not-found";
 import { Setup } from "./screens/setup";
 import { Tools } from "./components/tools";
 import { Transport } from "./components/transport";
-import { Select } from "../../ui/select";
 import { IconButton } from "../../ui/icon-button";
 import { mdiMovieRoll, mdiTuneVertical } from "@mdi/js";
 import { AppBar } from "../../components/app-bar";
+import { Select } from "../../ui/select";
 
 const tabs: TabsOption<Tab>[] = [
   { label: "Setup", value: Tab.Setup },
@@ -37,7 +37,8 @@ export const Main = () => {
 
         <div className="flex mx-2">
           <Select
-            className="mr-2"
+            variant="standard"
+            className="mr-2 inline-block"
             value={state.ui.layout_id}
             onChange={actions.ui.setActiveLayoutId}
             options={[

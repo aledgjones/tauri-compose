@@ -19,7 +19,7 @@ pub struct AutoCountStyles {
 impl AutoCountStyles {
     pub fn new() -> AutoCountStyles {
         AutoCountStyles {
-            solo: AutoCountStyle::Roman,
+            solo: AutoCountStyle::Arabic,
             section: AutoCountStyle::Roman,
         }
     }

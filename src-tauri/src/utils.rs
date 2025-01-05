@@ -6,3 +6,5 @@ pub fn now() -> u128 {
         .unwrap()
         .as_millis()
 }
+
+pub type UniqueId = u64;

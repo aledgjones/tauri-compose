@@ -14,6 +14,8 @@ type SelectProps<T> = {
   onChange: (value: T) => void;
   direction?: "up" | "down";
   className?: string;
+  variant: "standard" | "filled";
+  label?: string;
 };
 
 export const Select = <T,>({
@@ -22,6 +24,8 @@ export const Select = <T,>({
   onChange,
   direction = "down",
   className,
+  variant,
+  label,
 }: SelectProps<T>) => {
   const [isOpen, setIsOpen] = useState(false);
   const selectRef = useRef<HTMLDivElement>(null);
@@ -47,20 +51,38 @@ export const Select = <T,>({
     setIsOpen(false);
   };
 
+  const isStandard = variant === "standard";
+
   return (
-    <div
-      className={classNames("relative inline-block", className)}
-      ref={selectRef}
-    >
+    <div className={classNames("relative", className)} ref={selectRef}>
+      {label && (
+        <label
+          className={classNames("text-xs", {
+            "text-sky-500": isOpen,
+            "text-neutral-400": !isOpen,
+          })}
+        >
+          {label}
+        </label>
+      )}
       <button
         onClick={() => setIsOpen((prev) => !prev)}
-        className={classNames("rounded-lg pr-10 text-white text-sm px-4 py-2", {
-          "bg-neutral-900 hover:bg-neutral-800": !isOpen,
-          "bg-neutral-800": isOpen,
-        })}
+        className={classNames(
+          "h-[36px] flex items-center w-full text-left rounded-lg text-white text-sm pl-3 border-2",
+          {
+            "bg-neutral-900 hover:bg-neutral-800 border-transparent":
+              !isOpen && isStandard,
+            "bg-neutral-800 border-transparent": isOpen && isStandard,
+            "bg-neutral-800 hover:bg-neutral-700 border-transparent":
+              !isOpen && !isStandard,
+            "bg-neutral-700 border-sky-500": isOpen && !isStandard,
+          }
+        )}
       >
-        {options.find((option) => option.value === value)?.label || "Select"}
-        <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+        <span className="flex-1">
+          {options.find((option) => option.value === value)?.label || "Select"}
+        </span>
+        <div className="flex items-center pr-3 pointer-events-none pl-3">
           <Icon
             path={mdiChevronDown}
             size={0.75}
@@ -75,10 +97,12 @@ export const Select = <T,>({
       {isOpen && (
         <ul
           className={classNames(
-            "rounded-lg min-w-48 absolute z-10 bg-neutral-800 text-white text-sm shadow-lg mt-1 overflow-hidden",
+            "rounded-lg min-w-48 w-full absolute z-10 text-white text-sm shadow-lg mt-1 overflow-hidden",
             {
               "bottom-full mb-2": direction === "up",
               "top-full mt-2": direction === "down",
+              "bg-neutral-800": isStandard,
+              "bg-neutral-700": !isStandard,
             }
           )}
         >
@@ -87,7 +111,10 @@ export const Select = <T,>({
               <li
                 key={option.value}
                 onClick={() => handleOptionClick(option.value)}
-                className="px-4 py-2 hover:bg-neutral-700"
+                className={classNames("px-4 py-2", {
+                  "hover:bg-neutral-700": isStandard,
+                  "hover:bg-neutral-600": !isStandard,
+                })}
               >
                 {option.label}
               </li>

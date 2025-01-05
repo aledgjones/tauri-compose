@@ -1,6 +1,6 @@
 import classNames from "classnames";
 import { FunctionalComponent } from "preact";
-import { IconButton } from "../../../ui/icon-button";
+import { IconButton } from "../../../../../ui/icon-button";
 
 type IconConfig = {
   onClick: () => void;
@@ -17,11 +17,12 @@ export const Panel: FunctionalComponent<Props> = ({
   title,
   className,
   icons,
+  children,
 }) => {
   return (
     <div
       className={classNames(
-        "rounded-lg bg-neutral-900 overflow-hidden h-full",
+        "rounded-lg bg-neutral-900 overflow-hidden h-full flex flex-col",
         className
       )}
     >
@@ -37,6 +38,7 @@ export const Panel: FunctionalComponent<Props> = ({
           );
         })}
       </div>
+      {children}
     </div>
   );
 };

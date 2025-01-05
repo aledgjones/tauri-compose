@@ -6,51 +6,76 @@ import { Log } from "../windows/debugger";
 
 export enum Tab {
   Setup = 0,
-  Write = 1,
-  Engrave = 2,
-  Sequence = 3,
-  Print = 4,
+  Write,
+  Engrave,
+  Sequence,
+  Print,
+}
+
+export enum PlayerType {
+  Solo = 0,
+  Section,
 }
 
 export enum AutoCountStyle {
   Arabic = 0,
-  Roman = 1,
+  Roman,
 }
+
+type Meta = {
+  app_version: string;
+  title: string;
+  subtitle: string;
+  dedication: string;
+  composer: string;
+  arranger: string;
+  lyricist: string;
+  artist: string;
+  copyist: string;
+  publisher: string;
+  editor: string;
+  copyright: string;
+  work_number: string;
+  composition_year: string;
+  composer_dates: string;
+  other_information: string;
+  created: number;
+};
+
+type Config = {
+  auto_count_styles: {
+    solo: AutoCountStyle;
+    section: AutoCountStyle;
+  };
+};
+
+export type Player = {
+  id: number;
+  player_type: PlayerType;
+  instruments: number[];
+};
+
+type Players = {
+  order: number[];
+  by_id: Record<number, Player>;
+};
 
 export type AppState = {
   ui: { tab: Tab; layout_id: string };
   score: {
-    config: {
-      auto_count_styles: {
-        solo: AutoCountStyle;
-        section: AutoCountStyle;
-      };
-    };
-    meta: {
-      app_version: string;
-      title: string;
-      subtitle: string;
-      dedication: string;
-      composer: string;
-      arranger: string;
-      lyricist: string;
-      artist: string;
-      copyist: string;
-      publisher: string;
-      editor: string;
-      copyright: string;
-      work_number: string;
-      composition_year: string;
-      composer_dates: string;
-      other_information: string;
-      created: number;
-    };
+    players: Players;
+    config: Config;
+    meta: Meta;
   };
 };
 
 export const initialAppState: AppState = {
   ui: { tab: Tab.Setup, layout_id: "full-score" },
   score: {
+    players: {
+      order: [],
+      by_id: {},
+    },
     config: {
       auto_count_styles: {
         solo: AutoCountStyle.Roman,
@@ -129,14 +154,19 @@ export const actions = {
     },
   },
   score: {
+    createPlayer: (player_type: PlayerType) => {
+      loggedInvoke("create_player", {
+        player_type,
+      });
+    },
     config: {
       autoCountStyles: {
-        solo: (auto_count_style: AutoCountStyle) => {
+        setSolo: (auto_count_style: AutoCountStyle) => {
           loggedInvoke("set_score_config_auto_count_styles_solo", {
             auto_count_style,
           });
         },
-        section: (auto_count_style: AutoCountStyle) => {
+        setSection: (auto_count_style: AutoCountStyle) => {
           loggedInvoke("set_score_config_auto_count_styles_section", {
             auto_count_style,
           });

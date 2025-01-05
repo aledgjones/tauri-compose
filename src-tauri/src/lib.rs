@@ -14,17 +14,20 @@ use score::meta::{
     set_score_meta_lyricist, set_score_meta_other_information, set_score_meta_publisher,
     set_score_meta_subtitle, set_score_meta_title, set_score_meta_work_number,
 };
+use score::players::create_player;
 use score::Score;
 use serde::Serialize;
 use std::sync::Mutex;
 use tauri::http::Response;
 use tauri::{Emitter, Manager, State};
 use ui::{set_ui_layout_id, set_ui_tab, Ui};
+use utils::UniqueId;
 
 #[derive(Serialize, Clone)]
 struct AppStateInner {
     ui: Ui,
     score: Score,
+    next_id: UniqueId,
 }
 
 impl AppStateInner {
@@ -32,11 +35,18 @@ impl AppStateInner {
         Mutex::new(Self {
             ui: Ui::new(),
             score: Score::new(),
+            next_id: 0,
         })
     }
 
     fn emit(&self, app: &tauri::AppHandle) {
         app.emit("solocompose://state", self.clone()).unwrap();
+    }
+
+    pub fn generate_id(&mut self) -> UniqueId {
+        let id = self.next_id;
+        self.next_id += 1;
+        id
     }
 }
 
@@ -74,6 +84,7 @@ pub fn run() {
         )
         .invoke_handler(tauri::generate_handler![
             initialize,
+            create_player,
             set_ui_tab,
             set_ui_layout_id,
             set_score_config_auto_count_styles_solo,
