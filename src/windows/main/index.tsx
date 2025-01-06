@@ -51,13 +51,14 @@ export const Main = () => {
           <Transport className="mr-2" />
 
           <IconButton
-            className="mr-1"
+            className="mr-1 text-white"
             variant="filled"
             onClick={() => {}}
             path={mdiTuneVertical}
             isDisabled
           />
           <IconButton
+            className="text-white"
             variant="filled"
             onClick={() => {}}
             path={mdiMovieRoll}

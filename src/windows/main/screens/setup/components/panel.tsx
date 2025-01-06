@@ -31,6 +31,7 @@ export const Panel: FunctionalComponent<Props> = ({
         {icons?.map((config) => {
           return (
             <IconButton
+              className="text-white"
               onClick={config.onClick}
               variant="standard"
               path={config.path}

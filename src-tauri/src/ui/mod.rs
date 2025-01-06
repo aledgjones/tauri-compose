@@ -1,6 +1,9 @@
+pub mod setup;
+
 use crate::AppState;
 use serde::Serialize;
 use serde_repr::{Deserialize_repr, Serialize_repr};
+use setup::Setup;
 use tauri::State;
 
 type LayoutId = String;
@@ -19,6 +22,7 @@ pub enum Tab {
 pub struct Ui {
     tab: Tab,
     layout_id: LayoutId,
+    setup: Setup,
 }
 
 impl Ui {
@@ -26,6 +30,7 @@ impl Ui {
         Self {
             tab: Tab::Setup,
             layout_id: "full-score".to_owned(),
+            setup: Setup::new(),
         }
     }
 }

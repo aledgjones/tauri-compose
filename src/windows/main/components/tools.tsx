@@ -17,7 +17,7 @@ export const Tools: FunctionComponent<Props> = ({ className }) => {
   return (
     <div className={classNames("flex", className)}>
       <IconButton
-        className="mr-2"
+        className="mr-2 text-white"
         onClick={() => {
           const webview = new WebviewWindow("project-settings", {
             url: "/project-settings.html",
@@ -36,7 +36,7 @@ export const Tools: FunctionComponent<Props> = ({ className }) => {
         path={mdiFolderCogOutline}
       />
       <IconButton
-        className="mr-2"
+        className="mr-2 text-white"
         onClick={() => {
           const webview = new WebviewWindow("debugger", {
             url: "/debugger.html",
@@ -53,12 +53,17 @@ export const Tools: FunctionComponent<Props> = ({ className }) => {
         path={mdiBugPlayOutline}
       />
       <IconButton
-        className="mr-1"
+        className="mr-1 text-white"
         onClick={() => {}}
         variant="filled"
         path={mdiUndo}
       />
-      <IconButton onClick={() => {}} variant="filled" path={mdiRedo} />
+      <IconButton
+        className="text-white"
+        onClick={() => {}}
+        variant="filled"
+        path={mdiRedo}
+      />
     </div>
   );
 };

@@ -10,7 +10,12 @@ type Props = {
 export const Transport: FunctionComponent<Props> = ({ className }) => {
   return (
     <div className={classNames("flex gap-1", className)}>
-      <IconButton variant="filled" onClick={() => {}} path={mdiSkipPrevious} />
+      <IconButton
+        className="text-white"
+        variant="filled"
+        onClick={() => {}}
+        path={mdiSkipPrevious}
+      />
       <IconButton
         variant="filled"
         color="#0f0"
@@ -26,7 +31,12 @@ export const Transport: FunctionComponent<Props> = ({ className }) => {
       <p className="text-white font-mono text-sm bg-neutral-900 px-3 py-2">
         1.1.1.000
       </p>
-      <IconButton variant="filled" onClick={() => {}} path={mdiMetronome} />
+      <IconButton
+        className="text-white"
+        variant="filled"
+        onClick={() => {}}
+        path={mdiMetronome}
+      />
     </div>
   );
 };

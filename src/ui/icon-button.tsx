@@ -15,7 +15,7 @@ const getTheme = (variant: Variant) => {
     case "filled":
       return "flex items-center justify-center bg-neutral-900 hover:bg-neutral-800 h-[36px] w-[36px]";
     default:
-      return "flex items-center justify-center h-[36px] w-[36px] hover:bg-neutral-800";
+      return "flex items-center justify-center h-[36px] w-[36px]";
   }
 };
 
@@ -33,14 +33,13 @@ export const IconButton: FunctionComponent<IconProps & Props> = ({
       className={classNames(
         getTheme(variant),
         "rounded-lg",
-        {
-          "text-white": !isDisabled,
-          "pointer-events-none text-neutral-600": isDisabled,
-        },
+        { "pointer-events-none": isDisabled },
         className
       )}
     >
-      <MdiIcon size={size} {...props} />
+      <div className={classNames({ "opacity-25": isDisabled })}>
+        <MdiIcon size={size} {...props} />
+      </div>
     </button>
   );
 };

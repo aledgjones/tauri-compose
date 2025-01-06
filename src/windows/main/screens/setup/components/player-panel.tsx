@@ -6,7 +6,7 @@ import {
   PlayerType,
   useAppState,
 } from "../../../../../services/state";
-import { PlayerPanelPlayer } from "./player-panel-player";
+import { PlayerPanelItem } from "./player-panel-item";
 
 export const PlayerPlanel = () => {
   const state = useAppState();
@@ -45,7 +45,14 @@ export const PlayerPlanel = () => {
         {state.score.players.order.map((playerId) => {
           const player = state.score.players.by_id[playerId];
 
-          return <PlayerPanelPlayer key={playerId} player={player} />;
+          return (
+            <PlayerPanelItem
+              key={playerId}
+              player={player}
+              isExpanded={state.ui.setup.expanded.includes(playerId)}
+              isSelected={state.ui.setup.selection?.id === playerId}
+            />
+          );
         })}
       </div>
     </Panel>

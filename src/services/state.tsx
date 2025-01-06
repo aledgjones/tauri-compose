@@ -12,6 +12,12 @@ export enum Tab {
   Print,
 }
 
+export enum SelectionType {
+  Player = 0,
+  Flow,
+  Layout,
+}
+
 export enum PlayerType {
   Solo = 0,
   Section,
@@ -61,7 +67,14 @@ type Players = {
 };
 
 export type AppState = {
-  ui: { tab: Tab; layout_id: string };
+  ui: {
+    tab: Tab;
+    layout_id: string;
+    setup: {
+      selection: { id: number; selection_type: SelectionType } | null;
+      expanded: number[];
+    };
+  };
   score: {
     players: Players;
     config: Config;
@@ -70,7 +83,14 @@ export type AppState = {
 };
 
 export const initialAppState: AppState = {
-  ui: { tab: Tab.Setup, layout_id: "full-score" },
+  ui: {
+    tab: Tab.Setup,
+    layout_id: "full-score",
+    setup: {
+      selection: null,
+      expanded: [],
+    },
+  },
   score: {
     players: {
       order: [],
@@ -151,6 +171,20 @@ export const actions = {
     },
     setActiveLayoutId: (layout_id: string) => {
       loggedInvoke("set_ui_layout_id", { layout_id });
+    },
+    setup: {
+      setSelection: (selection_type: SelectionType, id: number) => {
+        loggedInvoke("set_ui_setup_selection", { selection_type, id });
+      },
+      clearSelection: () => {
+        loggedInvoke("clear_ui_setup_selection");
+      },
+      setExpanded: (id: number) => {
+        loggedInvoke("insert_ui_setup_expanded", { id });
+      },
+      clearExpanded: (id: number) => {
+        loggedInvoke("remove_ui_setup_expanded", { id });
+      },
     },
   },
   score: {

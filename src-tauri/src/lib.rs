@@ -20,6 +20,10 @@ use serde::Serialize;
 use std::sync::Mutex;
 use tauri::http::Response;
 use tauri::{Emitter, Manager, State};
+use ui::setup::{
+    clear_ui_setup_selection, insert_ui_setup_expanded, remove_ui_setup_expanded,
+    set_ui_setup_selection,
+};
 use ui::{set_ui_layout_id, set_ui_tab, Ui};
 use utils::UniqueId;
 
@@ -85,8 +89,9 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             initialize,
             create_player,
-            set_ui_tab,
-            set_ui_layout_id,
+            clear_ui_setup_selection,
+            insert_ui_setup_expanded,
+            remove_ui_setup_expanded,
             set_score_config_auto_count_styles_solo,
             set_score_config_auto_count_styles_section,
             set_score_meta_title,
@@ -103,7 +108,10 @@ pub fn run() {
             set_score_meta_work_number,
             set_score_meta_composition_year,
             set_score_meta_composer_dates,
-            set_score_meta_other_information
+            set_score_meta_other_information,
+            set_ui_tab,
+            set_ui_layout_id,
+            set_ui_setup_selection
         ])
         .plugin(tauri_plugin_opener::init())
         .run(tauri::generate_context!())
