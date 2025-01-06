@@ -2,7 +2,13 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Capability for the main window",
-  "windows": ["main", "debugger", "project-settings", "player-settings"],
+  "windows": [
+    "main",
+    "debugger",
+    "project-settings",
+    "player-settings",
+    "instrument-picker"
+  ],
   "permissions": [
     "core:default",
     "core:webview:allow-create-webview-window",
@@ -10,6 +16,8 @@
     "core:window:allow-set-focus",
     "core:window:allow-start-dragging",
     "core:window:allow-show",
+    "core:window:allow-close",
+    "core:window:allow-center",
     "opener:default"
   ]
 }

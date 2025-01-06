@@ -15,6 +15,7 @@ import { Icon } from "../../../../../ui/icon";
 import classNames from "classnames";
 import { FunctionalComponent } from "preact";
 import { IconButton } from "../../../../../ui/icon-button";
+import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 
 const getIcon = (playerType: PlayerType) => {
   switch (playerType) {
@@ -76,8 +77,35 @@ export const PlayerPanelItem: FunctionalComponent<Props> = ({
                 className={fg}
                 variant="standard"
                 path={mdiPlus}
-                onClick={() => {
-                  // onAddInstrument(playerKey)
+                onClick={async () => {
+                  actions.console.log("[instrument-picker] open");
+
+                  const webview = new WebviewWindow("instrument-picker", {
+                    url: "/instrument-picker.html",
+                    title: "Instrument Picker",
+                    visible: false,
+                    titleBarStyle: "overlay",
+                    hiddenTitle: true,
+                    acceptFirstMouse: true,
+                    height: 500,
+                    width: 900,
+                  });
+
+                  const unlisten = await webview.once(
+                    "solocompose://select-instrument",
+                    async (e) => {
+                      actions.console.log(
+                        "[instrument-picker] select instrument"
+                      );
+                      console.log(player.id, e.payload);
+                    }
+                  );
+
+                  webview.once("tauri://close-requested", async () => {
+                    actions.console.log("[instrument-picker] close");
+                    unlisten();
+                    webview.close();
+                  });
                 }}
               />
             )}

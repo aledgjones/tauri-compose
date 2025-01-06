@@ -126,7 +126,7 @@ export const initialAppState: AppState = {
 
 export const AppContext = createContext<AppState | null>(null);
 
-export const loggedInvoke = async (
+export const loggedInvoke = async <T = unknown,>(
   cmd: string,
   args?: InvokeArgs,
   options?: InvokeOptions
@@ -134,7 +134,7 @@ export const loggedInvoke = async (
   actions.console.log(`[invoke] ${cmd} - ${JSON.stringify(args)}`);
 
   try {
-    return invoke(cmd, args, options);
+    return invoke<T>(cmd, args, options);
   } catch (error) {
     actions.console.error(`[invoke:error]: ${cmd} - ${JSON.stringify(error)}`);
     throw error;
@@ -167,41 +167,41 @@ export const actions = {
   },
   ui: {
     setTab: (tab: Tab) => {
-      loggedInvoke("set_ui_tab", { tab });
+      return loggedInvoke("set_ui_tab", { tab });
     },
     setActiveLayoutId: (layout_id: string) => {
-      loggedInvoke("set_ui_layout_id", { layout_id });
+      return loggedInvoke("set_ui_layout_id", { layout_id });
     },
     setup: {
       setSelection: (selection_type: SelectionType, id: number) => {
-        loggedInvoke("set_ui_setup_selection", { selection_type, id });
+        return loggedInvoke("set_ui_setup_selection", { selection_type, id });
       },
       clearSelection: () => {
-        loggedInvoke("clear_ui_setup_selection");
+        return loggedInvoke("clear_ui_setup_selection");
       },
       setExpanded: (id: number) => {
-        loggedInvoke("insert_ui_setup_expanded", { id });
+        return loggedInvoke("insert_ui_setup_expanded", { id });
       },
       clearExpanded: (id: number) => {
-        loggedInvoke("remove_ui_setup_expanded", { id });
+        return loggedInvoke("remove_ui_setup_expanded", { id });
       },
     },
   },
   score: {
     createPlayer: (player_type: PlayerType) => {
-      loggedInvoke("create_player", {
+      return loggedInvoke<number>("create_player", {
         player_type,
       });
     },
     config: {
       autoCountStyles: {
         setSolo: (auto_count_style: AutoCountStyle) => {
-          loggedInvoke("set_score_config_auto_count_styles_solo", {
+          return loggedInvoke("set_score_config_auto_count_styles_solo", {
             auto_count_style,
           });
         },
         setSection: (auto_count_style: AutoCountStyle) => {
-          loggedInvoke("set_score_config_auto_count_styles_section", {
+          return loggedInvoke("set_score_config_auto_count_styles_section", {
             auto_count_style,
           });
         },
@@ -209,49 +209,55 @@ export const actions = {
     },
     meta: {
       setTitle: (title: string) => {
-        loggedInvoke("set_score_meta_title", { title });
+        return loggedInvoke("set_score_meta_title", { title });
       },
       setSubtitle: (subtitle: string) => {
-        loggedInvoke("set_score_meta_subtitle", { subtitle });
+        return loggedInvoke("set_score_meta_subtitle", { subtitle });
       },
       setDedication: (dedication: string) => {
-        loggedInvoke("set_score_meta_dedication", { dedication });
+        return loggedInvoke("set_score_meta_dedication", { dedication });
       },
       setComposer: (composer: string) => {
-        loggedInvoke("set_score_meta_composer", { composer });
+        return loggedInvoke("set_score_meta_composer", { composer });
       },
       setArranger: (arranger: string) => {
-        loggedInvoke("set_score_meta_arranger", { arranger });
+        return loggedInvoke("set_score_meta_arranger", { arranger });
       },
       setLyricist: (lyricist: string) => {
-        loggedInvoke("set_score_meta_lyricist", { lyricist });
+        return loggedInvoke("set_score_meta_lyricist", { lyricist });
       },
       setArtist: (artist: string) => {
-        loggedInvoke("set_score_meta_artist", { artist });
+        return loggedInvoke("set_score_meta_artist", { artist });
       },
       setCopyist: (copyist: string) => {
-        loggedInvoke("set_score_meta_copyist", { copyist });
+        return loggedInvoke("set_score_meta_copyist", { copyist });
       },
       setPublisher: (publisher: string) => {
-        loggedInvoke("set_score_meta_publisher", { publisher });
+        return loggedInvoke("set_score_meta_publisher", { publisher });
       },
       setEditor: (editor: string) => {
-        loggedInvoke("set_score_meta_editor", { editor });
+        return loggedInvoke("set_score_meta_editor", { editor });
       },
       setCopyright: (copyright: string) => {
-        loggedInvoke("set_score_meta_copyright", { copyright });
+        return loggedInvoke("set_score_meta_copyright", { copyright });
       },
       setWorkNumber: (work_number: string) => {
-        loggedInvoke("set_score_meta_work_number", { work_number });
+        return loggedInvoke("set_score_meta_work_number", { work_number });
       },
       setCompositionYear: (composition_year: string) => {
-        loggedInvoke("set_score_meta_composition_year", { composition_year });
+        return loggedInvoke("set_score_meta_composition_year", {
+          composition_year,
+        });
       },
       setComposerDates: (composer_dates: string) => {
-        loggedInvoke("set_score_meta_composer_dates", { composer_dates });
+        return loggedInvoke("set_score_meta_composer_dates", {
+          composer_dates,
+        });
       },
       setOtherInformation: (other_information: string) => {
-        loggedInvoke("set_score_meta_other_information", { other_information });
+        return loggedInvoke("set_score_meta_other_information", {
+          other_information,
+        });
       },
     },
   },

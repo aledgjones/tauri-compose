@@ -4,6 +4,7 @@ import { Panel } from "./panel";
 import {
   actions,
   PlayerType,
+  SelectionType,
   useAppState,
 } from "../../../../../services/state";
 import { PlayerPanelItem } from "./player-panel-item";
@@ -35,8 +36,36 @@ export const PlayerPlanel = () => {
         },
         {
           path: mdiPlus,
-          onClick: () => {
-            actions.score.createPlayer(PlayerType.Solo);
+          onClick: async () => {
+            const playerId = await actions.score.createPlayer(PlayerType.Solo);
+            await actions.ui.setup.setSelection(SelectionType.Player, playerId);
+
+            actions.console.log("[instrument-picker] open");
+
+            const webview = new WebviewWindow("instrument-picker", {
+              url: "/instrument-picker.html",
+              title: "Instrument Picker",
+              visible: false,
+              titleBarStyle: "overlay",
+              hiddenTitle: true,
+              acceptFirstMouse: true,
+              height: 500,
+              width: 750,
+            });
+
+            const unlisten = await webview.once(
+              "solocompose://select-instrument",
+              async (e) => {
+                actions.console.log("[instrument-picker] select instrument");
+                console.log(playerId, e.payload);
+              }
+            );
+
+            webview.once("tauri://close-requested", async () => {
+              actions.console.log("[instrument-picker] close");
+              unlisten();
+              webview.close();
+            });
           },
         },
       ]}
