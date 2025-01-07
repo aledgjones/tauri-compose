@@ -27,7 +27,7 @@ impl AutoCountStyles {
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Config {
-    auto_count_styles: AutoCountStyles,
+    pub auto_count_styles: AutoCountStyles,
 }
 
 impl Config {
@@ -46,7 +46,7 @@ pub fn set_score_config_auto_count_styles_solo(
 ) {
     let mut state = state.lock().unwrap();
     state.score.config.auto_count_styles.solo = auto_count_style;
-    // self.calculate_counts();
+    state.score.update_counts();
     state.emit(&app);
 }
 
@@ -58,6 +58,6 @@ pub fn set_score_config_auto_count_styles_section(
 ) {
     let mut state = state.lock().unwrap();
     state.score.config.auto_count_styles.section = auto_count_style;
-    // self.calculate_counts();
+    state.score.update_counts();
     state.emit(&app);
 }

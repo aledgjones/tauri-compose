@@ -1,8 +1,12 @@
+pub mod components;
 pub mod config;
+pub mod entries;
+pub mod instruments;
 pub mod meta;
 pub mod players;
 
 use config::Config;
+use instruments::Instruments;
 use meta::Meta;
 use players::Players;
 use serde::Serialize;
@@ -13,6 +17,7 @@ pub struct Score {
     config: Config,
     meta: Meta,
     players: Players,
+    instruments: Instruments,
 }
 
 impl Score {
@@ -22,6 +27,7 @@ impl Score {
             config: Config::new(),
             meta: Meta::new(),
             players: Players::new(),
+            instruments: Instruments::new(),
         }
     }
 }

@@ -1,4 +1,6 @@
-import { actions, AutoCountStyle, useAppState } from "../../../services/state";
+import { actions } from "../../../services/actions";
+import { useAppState } from "../../../services/state";
+import { AutoCountStyle } from "../../../services/types";
 import { Select, SelectOption } from "../../../ui/select";
 
 const autoCountOptions: SelectOption<AutoCountStyle>[] = [

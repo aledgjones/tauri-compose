@@ -1,13 +1,10 @@
 import { mdiAccountCog, mdiPlus } from "@mdi/js";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { Panel } from "./panel";
-import {
-  actions,
-  PlayerType,
-  SelectionType,
-  useAppState,
-} from "../../../../../services/state";
+import { PlayerType, SelectionType } from "../../../../../services/types";
 import { PlayerPanelItem } from "./player-panel-item";
+import { useAppState } from "../../../../../services/state";
+import { actions } from "../../../../../services/actions";
 
 export const PlayerPlanel = () => {
   const state = useAppState();

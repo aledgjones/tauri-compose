@@ -6,16 +6,16 @@ import {
   mdiPlus,
 } from "@mdi/js";
 import {
-  actions,
   Player,
   PlayerType,
   SelectionType,
-} from "../../../../../services/state";
+} from "../../../../../services/types";
 import { Icon } from "../../../../../ui/icon";
 import classNames from "classnames";
 import { FunctionalComponent } from "preact";
 import { IconButton } from "../../../../../ui/icon-button";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
+import { actions } from "../../../../../services/actions";
 
 const getIcon = (playerType: PlayerType) => {
   switch (playerType) {

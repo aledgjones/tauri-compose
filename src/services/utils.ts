@@ -4,7 +4,7 @@ import prettyMilliseconds from "pretty-ms";
 const THIRTY_SECONDS = 30 * 1000;
 const ONE_WEEK = 7 * 24 * 60 * 60 * 1000;
 
-const getDisplay = (when: number) => {
+const convertTimestampToHuman = (when: number) => {
   const calc = Date.now() - when;
 
   if (calc < THIRTY_SECONDS) {
@@ -23,11 +23,11 @@ const getDisplay = (when: number) => {
 };
 
 export const useHumanizedTime = (when: number) => {
-  const [display, setDisplay] = useState(getDisplay(when));
+  const [display, setDisplay] = useState(convertTimestampToHuman(when));
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setDisplay(getDisplay(when));
+      setDisplay(convertTimestampToHuman(when));
     }, 1000);
     return () => {
       clearInterval(interval);

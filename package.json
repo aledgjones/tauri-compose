@@ -15,14 +15,14 @@
     "@mdi/js": "7.4.47",
     "@mdi/react": "1.6.1",
     "@tauri-apps/api": "2.2.0",
-    "@tauri-apps/plugin-opener": "2.2.2",
+    "@tauri-apps/plugin-opener": "2.2.3",
     "classnames": "2.5.1",
     "preact": "10.25.4",
     "pretty-ms": "9.2.0",
     "react-inspector": "6.0.2"
   },
   "devDependencies": {
-    "@preact/preset-vite": "2.9.3",
+    "@preact/preset-vite": "2.9.4",
     "@tauri-apps/cli": "2.2.2",
     "autoprefixer": "10.4.20",
     "postcss": "8.4.49",
