@@ -2,11 +2,12 @@ import { window } from "@tauri-apps/api";
 import { useAppState } from "../../services/state";
 import { useEffect, useMemo, useState } from "preact/hooks";
 import { AppBar } from "../../components/app-bar";
-import { UnlistenFn } from "@tauri-apps/api/event";
+import { emit } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import classNames from "classnames";
 import { Icon } from "../../ui/icon";
 import { mdiChevronRight } from "@mdi/js";
+import { Button } from "../../ui/button";
 
 type InstrumentDefinition = {
   id: string;
@@ -48,7 +49,7 @@ const InstrumentItemButton = ({
 type InstrumentColumnProps = {
   column: string[];
   columnIndex: number;
-  selection: InstrumentDefinition | null;
+  selection: InstrumentDefinition;
   onSelect: (path: string[]) => void;
   columns: InstrumentColumns;
 };
@@ -61,9 +62,9 @@ const InstrumentColumn = ({
   columns,
 }: InstrumentColumnProps) => {
   return (
-    <div className="bg-neutral-900 rounded-lg flex-1 p-2">
+    <div className="bg-neutral-900 rounded-lg flex-1 p-2 overflow-auto">
       {column.map((item) => {
-        const isSelected = item === selection?.path[columnIndex];
+        const isSelected = item === selection.path[columnIndex];
         const isFinal = !(isSelected && columns[columnIndex + 1]?.length > 0);
 
         return (
@@ -73,10 +74,7 @@ const InstrumentColumn = ({
             isSelected={isSelected}
             isFinal={isFinal}
             onClick={() => {
-              const path = [
-                ...(selection?.path.slice(0, columnIndex) || []),
-                item,
-              ];
+              const path = [...selection.path.slice(0, columnIndex), item];
               onSelect(path);
             }}
           />
@@ -115,19 +113,15 @@ const calculateColumns = (
 
 export const Main = () => {
   const state = useAppState();
-  const [instruments, setInstruments] = useState<InstrumentDefinition[] | null>(
-    null
-  );
-  const [selection, setSelection] = useState<InstrumentDefinition | null>(null);
+  const [instruments, setInstruments] = useState<InstrumentDefinition[]>([]);
+  const [selection, setSelection] = useState<InstrumentDefinition>({
+    id: "brass.bass-trombone",
+    path: ["Brass", "Bass Trombone"],
+  });
 
   useEffect(() => {
-    let unlisten: UnlistenFn | null = null;
-
     (async () => {
       const win = window.getCurrentWindow();
-      unlisten = await win.listen("tauri://blur", async () => {
-        await win.close();
-      });
       await win.show();
       await win.center();
     })();
@@ -139,26 +133,22 @@ export const Main = () => {
       setInstruments(result);
       setSelection(result[0]);
     })();
-
-    return () => {
-      unlisten?.();
-    };
   }, []);
 
   const columns = useMemo(
-    () => calculateColumns(instruments ?? [], selection),
+    () => calculateColumns(instruments, selection),
     [instruments, selection]
   );
 
   const handleSelect = (path: string[]) => {
-    const selectedInstrument = instruments?.find((instrument) =>
+    const selectedInstrument = instruments.find((instrument) =>
       path.every((segment, index) => segment === instrument.path[index])
     );
     setSelection(selectedInstrument!);
   };
 
   return (
-    <div className="h-dvh bg-neutral-950 grid grid-rows-[28px_1fr] grid-cols-[1fr_1fr_1fr] gap-2 pt-0 p-2 overflow-hidden">
+    <div className="h-dvh bg-neutral-950 grid grid-rows-[28px_1fr_36px] grid-cols-[1fr_1fr_1fr] gap-2 pt-0 p-2 overflow-hidden">
       <AppBar
         className="col-span-3"
         title="Instrument Picker"
@@ -174,6 +164,17 @@ export const Main = () => {
           columns={columns}
         />
       ))}
+      <div className="flex col-span-3 justify-end">
+        <Button
+          onClick={() => {
+            emit("solocompose://select-instrument", {
+              instrument_id: selection?.id,
+            });
+          }}
+        >
+          Select
+        </Button>
+      </div>
     </div>
   );
 };

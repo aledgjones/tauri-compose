@@ -7,6 +7,7 @@ use renderer::render;
 use score::config::{
     set_score_config_auto_count_styles_section, set_score_config_auto_count_styles_solo,
 };
+use score::instruments::create_instrument;
 use score::instruments::defs::get_all_instrument_definitions;
 use score::meta::{
     set_score_meta_arranger, set_score_meta_artist, set_score_meta_composer,
@@ -15,7 +16,7 @@ use score::meta::{
     set_score_meta_lyricist, set_score_meta_other_information, set_score_meta_publisher,
     set_score_meta_subtitle, set_score_meta_title, set_score_meta_work_number,
 };
-use score::players::create_player;
+use score::players::{assign_instrument_to_player, create_player};
 use score::Score;
 use serde::Serialize;
 use std::sync::Mutex;
@@ -89,7 +90,9 @@ pub fn run() {
         )
         .invoke_handler(tauri::generate_handler![
             initialize,
+            assign_instrument_to_player,
             create_player,
+            create_instrument,
             clear_ui_setup_selection,
             get_all_instrument_definitions,
             insert_ui_setup_expanded,

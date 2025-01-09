@@ -6,6 +6,7 @@ import {
   mdiPlus,
 } from "@mdi/js";
 import {
+  Instrument,
   Player,
   PlayerType,
   SelectionType,
@@ -14,26 +15,28 @@ import { Icon } from "../../../../../ui/icon";
 import classNames from "classnames";
 import { FunctionalComponent } from "preact";
 import { IconButton } from "../../../../../ui/icon-button";
-import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { actions } from "../../../../../services/actions";
+import { useMemo } from "preact/hooks";
+import { PlayerPanelInstrumentListItem } from "./player-panel-instrument-list-item";
 
-const getIcon = (playerType: PlayerType) => {
-  switch (playerType) {
-    case PlayerType.Solo:
-      return mdiAccount;
-    default:
-      return mdiAccountGroup;
+const onAddInstrumentPress = async (playerId: number) => {
+  const definitionId = await actions.pickAnInstrument();
+  if (definitionId) {
+    const instrumentId = await actions.score.createInstrument(definitionId);
+    await actions.score.player.assignInstrument(playerId, instrumentId);
   }
 };
 
 type Props = {
   player: Player;
+  instruments: Record<number, Instrument>;
   isExpanded: boolean;
   isSelected: boolean;
 };
 
 export const PlayerPanelItem: FunctionalComponent<Props> = ({
   player,
+  instruments,
   isSelected,
   isExpanded,
 }) => {
@@ -44,21 +47,49 @@ export const PlayerPanelItem: FunctionalComponent<Props> = ({
   const fg = isSelected ? "text-black" : "text-white";
   const bg = isSelected ? "bg-sky-500" : "bg-neutral-800";
 
+  const icon = useMemo(() => {
+    switch (player.player_type) {
+      case PlayerType.Solo:
+        return mdiAccount;
+      default:
+        return mdiAccountGroup;
+    }
+  }, [player.player_type]);
+
+  const playerName = useMemo(() => {
+    const instrumentNames = player.instruments.map((instrumentId) => {
+      const instrument = instruments[instrumentId];
+      return (
+        instrument.long_name + (instrument.count ? ` ${instrument.count}` : "")
+      );
+    });
+
+    if (instrumentNames.length === 0) {
+      return "Empty-handed Player";
+    }
+
+    if (instrumentNames.length === 1) {
+      return instrumentNames[0];
+    }
+
+    const last = instrumentNames.pop();
+
+    return `${instrumentNames.join(", ")} & ${last}`;
+  }, [player, instruments]);
+
   return (
     <div
-      className={classNames(`mb-2 rounded-lg`, fg, bg)}
+      className={classNames(`rounded-lg`, fg, bg)}
       onClick={() => {
-        actions.ui.setup.setSelection(SelectionType.Player, player.id);
+        if (!isSelected) {
+          actions.ui.setup.setSelection(SelectionType.Player, player.id);
+        }
       }}
     >
       <div className="flex items-center h-[48px] text-sm pr-1 pl-3">
-        <Icon
-          className={classNames("mr-3", fg)}
-          path={getIcon(player.player_type)}
-          size={1}
-        />
+        <Icon className={classNames("mr-3", fg)} path={icon} size={1} />
 
-        <p className={classNames(`truncate flex-1`, fg)}>Empty-handed Player</p>
+        <p className={classNames(`truncate flex-1`, fg)}>{playerName}</p>
 
         {isSelected && (
           <>
@@ -77,36 +108,7 @@ export const PlayerPanelItem: FunctionalComponent<Props> = ({
                 className={fg}
                 variant="standard"
                 path={mdiPlus}
-                onClick={async () => {
-                  actions.console.log("[instrument-picker] open");
-
-                  const webview = new WebviewWindow("instrument-picker", {
-                    url: "/instrument-picker.html",
-                    title: "Instrument Picker",
-                    visible: false,
-                    titleBarStyle: "overlay",
-                    hiddenTitle: true,
-                    acceptFirstMouse: true,
-                    height: 500,
-                    width: 900,
-                  });
-
-                  const unlisten = await webview.once(
-                    "solocompose://select-instrument",
-                    async (e) => {
-                      actions.console.log(
-                        "[instrument-picker] select instrument"
-                      );
-                      console.log(player.id, e.payload);
-                    }
-                  );
-
-                  webview.once("tauri://close-requested", async () => {
-                    actions.console.log("[instrument-picker] close");
-                    unlisten();
-                    webview.close();
-                  });
-                }}
+                onClick={() => onAddInstrumentPress(player.id)}
               />
             )}
           </>
@@ -141,6 +143,20 @@ export const PlayerPanelItem: FunctionalComponent<Props> = ({
           />
         )}
       </div>
+      {isExpanded && (
+        <div className="flex flex-col p-2 gap-2">
+          {player.instruments.map((instrumentId) => {
+            const instrument = instruments[instrumentId];
+            return (
+              <PlayerPanelInstrumentListItem
+                isSelected={isSelected}
+                playerId={player.id}
+                instrument={instrument}
+              />
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };

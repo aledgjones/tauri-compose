@@ -6,6 +6,31 @@ import { PlayerPanelItem } from "./player-panel-item";
 import { useAppState } from "../../../../../services/state";
 import { actions } from "../../../../../services/actions";
 
+const onPlayerSettingsPress = () => {
+  const webview = new WebviewWindow("player-settings", {
+    url: "/player-settings.html",
+    title: "Player Settings",
+    visible: false,
+    titleBarStyle: "overlay",
+    hiddenTitle: true,
+    acceptFirstMouse: true,
+    height: 500,
+    width: 750,
+  });
+
+  webview.setFocus();
+};
+
+const onAddInstrumentPress = async () => {
+  const playerId = await actions.score.createPlayer(PlayerType.Solo);
+  await actions.ui.setup.setSelection(SelectionType.Player, playerId);
+  const definition_id = await actions.pickAnInstrument();
+  if (definition_id) {
+    const instrumentId = await actions.score.createInstrument(definition_id);
+    await actions.score.player.assignInstrument(playerId, instrumentId);
+  }
+};
+
 export const PlayerPlanel = () => {
   const state = useAppState();
 
@@ -16,58 +41,15 @@ export const PlayerPlanel = () => {
       icons={[
         {
           path: mdiAccountCog,
-          onClick: () => {
-            const webview = new WebviewWindow("player-settings", {
-              url: "/player-settings.html",
-              title: "Player Settings",
-              visible: false,
-              titleBarStyle: "overlay",
-              hiddenTitle: true,
-              acceptFirstMouse: true,
-              height: 500,
-              width: 750,
-            });
-
-            webview.setFocus();
-          },
+          onClick: onPlayerSettingsPress,
         },
         {
           path: mdiPlus,
-          onClick: async () => {
-            const playerId = await actions.score.createPlayer(PlayerType.Solo);
-            await actions.ui.setup.setSelection(SelectionType.Player, playerId);
-
-            actions.console.log("[instrument-picker] open");
-
-            const webview = new WebviewWindow("instrument-picker", {
-              url: "/instrument-picker.html",
-              title: "Instrument Picker",
-              visible: false,
-              titleBarStyle: "overlay",
-              hiddenTitle: true,
-              acceptFirstMouse: true,
-              height: 500,
-              width: 750,
-            });
-
-            const unlisten = await webview.once(
-              "solocompose://select-instrument",
-              async (e) => {
-                actions.console.log("[instrument-picker] select instrument");
-                console.log(playerId, e.payload);
-              }
-            );
-
-            webview.once("tauri://close-requested", async () => {
-              actions.console.log("[instrument-picker] close");
-              unlisten();
-              webview.close();
-            });
-          },
+          onClick: onAddInstrumentPress,
         },
       ]}
     >
-      <div className="px-2 flex-1 overflow-auto">
+      <div className="flex flex-col gap-2 px-2 flex-1 overflow-auto">
         {state.score.players.order.map((playerId) => {
           const player = state.score.players.by_id[playerId];
 
@@ -75,6 +57,7 @@ export const PlayerPlanel = () => {
             <PlayerPanelItem
               key={playerId}
               player={player}
+              instruments={state.score.instruments.by_id}
               isExpanded={state.ui.setup.expanded.includes(playerId)}
               isSelected={state.ui.setup.selection?.id === playerId}
             />

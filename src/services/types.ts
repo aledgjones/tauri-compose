@@ -54,6 +54,28 @@ export type Config = {
   };
 };
 
+export enum InstrumentType {
+  Melodic = 0,
+  Percussive,
+}
+
+export type Instrument = {
+  id: number;
+  definition_id: string;
+  instrument_type: InstrumentType;
+  long_name: string;
+  short_name: string;
+  staves: number[];
+  count: string | null;
+  volume: number;
+  solo: boolean;
+  mute: boolean;
+};
+
+export type Instruments = {
+  by_id: Record<number, Instrument>;
+};
+
 export type Player = {
   id: number;
   player_type: PlayerType;
@@ -78,5 +100,6 @@ export type AppState = {
     players: Players;
     config: Config;
     meta: Meta;
+    instruments: Instruments;
   };
 };

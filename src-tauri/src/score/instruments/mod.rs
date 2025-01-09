@@ -1,16 +1,17 @@
 pub mod defs;
 
 use super::{config::AutoCountStyle, Score};
-use crate::score::players::PlayerType;
 use crate::utils::UniqueId;
-use defs::InstrumentType;
+use crate::{score::players::PlayerType, AppState};
+use defs::{get_instrument_definition, InstrumentType};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
+use tauri::State;
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Instrument {
     pub id: UniqueId,
-    pub key: String,
+    pub definition_id: String,
     pub instrument_type: InstrumentType,
     pub long_name: String,
     pub short_name: String,
@@ -85,4 +86,45 @@ impl Score {
             }
         }
     }
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn create_instrument(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    definition_id: String,
+) -> UniqueId {
+    let mut state = state.lock().unwrap();
+
+    let instrument_id = state.generate_id();
+
+    let def = get_instrument_definition(&definition_id).unwrap();
+    let staves = def
+        .staves
+        .iter()
+        .map(|_| state.generate_id())
+        .collect::<Vec<UniqueId>>();
+
+    let instrument = Instrument {
+        id: instrument_id,
+        definition_id: definition_id.clone(),
+        instrument_type: def.instrument_type,
+        long_name: String::from(def.long_name),
+        short_name: String::from(def.short_name),
+        staves,
+        count: None,
+        volume: 80,
+        solo: false,
+        mute: false,
+    };
+
+    state
+        .score
+        .instruments
+        .by_id
+        .insert(instrument_id, instrument);
+
+    state.emit(&app);
+
+    instrument_id
 }

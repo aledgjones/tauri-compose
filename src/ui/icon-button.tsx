@@ -13,9 +13,9 @@ type Props = {
 const getTheme = (variant: Variant) => {
   switch (variant) {
     case "filled":
-      return "flex items-center justify-center bg-neutral-900 hover:bg-neutral-800 h-[36px] w-[36px]";
+      return "bg-neutral-900 hover:bg-neutral-800";
     default:
-      return "flex items-center justify-center h-[36px] w-[36px]";
+      return "";
   }
 };
 
@@ -31,6 +31,7 @@ export const IconButton: FunctionComponent<IconProps & Props> = ({
     <button
       onClick={onClick}
       className={classNames(
+        "flex items-center justify-center h-[36px] w-[36px]",
         getTheme(variant),
         "rounded-lg",
         { "pointer-events-none": isDisabled },

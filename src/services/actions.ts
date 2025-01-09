@@ -1,6 +1,7 @@
 import { invoke, InvokeArgs, InvokeOptions } from "@tauri-apps/api/core";
 import { emit } from "@tauri-apps/api/event";
 import { AutoCountStyle, Log, PlayerType, SelectionType, Tab } from "./types";
+import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 
 export const loggedInvoke = async <T = unknown>(
   cmd: string,
@@ -18,6 +19,49 @@ export const loggedInvoke = async <T = unknown>(
 };
 
 export const actions = {
+  pickAnInstrument: () => {
+    return new Promise<string | null>(async (resolve) => {
+      actions.console.log("[instrument-picker] open");
+
+      const webview = new WebviewWindow("instrument-picker", {
+        url: "/instrument-picker.html",
+        title: "Instrument Picker",
+        visible: false,
+        titleBarStyle: "overlay",
+        hiddenTitle: true,
+        acceptFirstMouse: true,
+        height: 500,
+        width: 900,
+      });
+
+      let selection: string | null = null;
+
+      const blurUnlisten = await webview.once("tauri://blur", async () => {
+        actions.console.log("[instrument-picker] blur");
+        webview.close();
+      });
+
+      const selectInstrumentUnlisten = await webview.once<{
+        instrument_id: string;
+      }>("solocompose://select-instrument", async (e) => {
+        actions.console.log(
+          `[instrument-picker] select-instrument - payload ${JSON.stringify(
+            e.payload
+          )}`
+        );
+
+        selection = e.payload?.instrument_id;
+        webview.close();
+      });
+
+      await webview.once("tauri://destroyed", async () => {
+        actions.console.log("[instrument-picker] close");
+        blurUnlisten();
+        selectInstrumentUnlisten();
+        resolve(selection);
+      });
+    });
+  },
   console: {
     log: (message: string) => {
       const log: Log = {
@@ -69,7 +113,19 @@ export const actions = {
         player_type,
       });
     },
-    createInstrument: () => {},
+    createInstrument: (definition_id: string) => {
+      return loggedInvoke<number>("create_instrument", {
+        definition_id,
+      });
+    },
+    player: {
+      assignInstrument: (player_id: number, instrument_id: number) => {
+        return loggedInvoke<void>("assign_instrument_to_player", {
+          player_id,
+          instrument_id,
+        });
+      },
+    },
     config: {
       autoCountStyles: {
         setSolo: (auto_count_style: AutoCountStyle) => {

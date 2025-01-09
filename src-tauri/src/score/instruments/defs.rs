@@ -5,7 +5,7 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 
 use crate::score::entries::clef::{Clef, ClefDrawType};
 
-#[derive(Clone, Hash, Eq, PartialEq, Serialize_repr, Deserialize_repr)]
+#[derive(Copy, Clone, Hash, Eq, PartialEq, Serialize_repr, Deserialize_repr)]
 #[repr(u8)]
 pub enum Expression {
     Natural = 0,
@@ -16,7 +16,7 @@ pub enum Expression {
     Mute, // may have to convert to MuteStaccato etc. later for mixed expressions
 }
 
-#[derive(Clone, Serialize_repr, Deserialize_repr)]
+#[derive(Copy, Clone, Serialize_repr, Deserialize_repr)]
 #[repr(u8)]
 pub enum InstrumentType {
     Melodic = 0,
@@ -818,4 +818,8 @@ pub fn get_all_instrument_definitions() -> Vec<InstrumentIdPath> {
             path: instrument.path.clone(),
         })
         .collect()
+}
+
+pub fn get_instrument_definition(id: &String) -> Option<&InstrumentDefinition> {
+    INSTRUMENT_DEFINITIONS.iter().find(|&def| def.id == id)
 }

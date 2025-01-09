@@ -67,3 +67,27 @@ pub fn create_player(
 
     id
 }
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn assign_instrument_to_player(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    player_id: UniqueId,
+    instrument_id: UniqueId,
+) {
+    let mut state = state.lock().unwrap();
+
+    let player = state.score.players.by_id.get_mut(&player_id).unwrap();
+    player.instruments.push(instrument_id);
+
+    // let flows = self.file.score.flows.order.clone();
+    // for flow_key in flows {
+    //     let flow = &self.file.score.flows.by_key[&flow_key];
+    //     if flow.players.contains(player_key) {
+    //         self.assign_instrument_to_flow(&flow_key, instrument_key);
+    //     }
+    // }
+
+    state.score.update_counts();
+    state.emit(&app);
+}
