@@ -16,7 +16,7 @@ use score::meta::{
     set_score_meta_lyricist, set_score_meta_other_information, set_score_meta_publisher,
     set_score_meta_subtitle, set_score_meta_title, set_score_meta_work_number,
 };
-use score::players::{assign_instrument_to_player, create_player};
+use score::players::{assign_instrument_to_player, create_player, reorder_players};
 use score::Score;
 use serde::Serialize;
 use std::sync::Mutex;
@@ -97,6 +97,7 @@ pub fn run() {
             get_all_instrument_definitions,
             insert_ui_setup_expanded,
             remove_ui_setup_expanded,
+            reorder_players,
             set_score_config_auto_count_styles_solo,
             set_score_config_auto_count_styles_section,
             set_score_meta_title,

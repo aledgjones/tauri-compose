@@ -16,13 +16,14 @@ import classNames from "classnames";
 import { FunctionalComponent } from "preact";
 import { IconButton } from "../../../../../ui/icon-button";
 import { actions } from "../../../../../services/actions";
-import { useMemo } from "preact/hooks";
+import { useEffect, useMemo, useRef } from "preact/hooks";
 import { PlayerPanelInstrumentListItem } from "./player-panel-instrument-list-item";
+import Sortable from "sortablejs";
 
 const onAddInstrumentPress = async (playerId: number) => {
   const definitionId = await actions.pickAnInstrument();
   if (definitionId) {
-    const instrumentId = await actions.score.createInstrument(definitionId);
+    const instrumentId = await actions.score.instruments.create(definitionId);
     await actions.score.player.assignInstrument(playerId, instrumentId);
   }
 };
@@ -77,10 +78,37 @@ export const PlayerPanelItem: FunctionalComponent<Props> = ({
     return `${instrumentNames.join(", ")} & ${last}`;
   }, [player, instruments]);
 
+  const ref = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!ref.current) {
+      return;
+    }
+
+    const sortable = Sortable.create(ref.current, {
+      animation: 150,
+      forceFallback: true,
+      ghostClass: "opacity-0",
+      delay: 150,
+      group: "instruments",
+      onSort: (e) => {
+        // reorder instruments (possibly across players)
+        console.log(
+          e.oldIndex,
+          e.newIndex,
+          e.from.dataset.playerId,
+          e.to.dataset.playerId
+        );
+      },
+    });
+
+    return sortable.destroy;
+  }, []);
+
   return (
     <div
+      data-player-id={player.id}
       className={classNames(`rounded-lg`, fg, bg)}
-      onClick={() => {
+      onPointerDown={() => {
         if (!isSelected) {
           actions.ui.setup.setSelection(SelectionType.Player, player.id);
         }
@@ -143,20 +171,23 @@ export const PlayerPanelItem: FunctionalComponent<Props> = ({
           />
         )}
       </div>
-      {isExpanded && (
-        <div className="flex flex-col p-2 gap-2">
-          {player.instruments.map((instrumentId) => {
-            const instrument = instruments[instrumentId];
-            return (
-              <PlayerPanelInstrumentListItem
-                isSelected={isSelected}
-                playerId={player.id}
-                instrument={instrument}
-              />
-            );
-          })}
-        </div>
-      )}
+      <div
+        ref={ref}
+        data-player-id={player.id}
+        className={classNames("flex flex-col p-2 gap-2 min-h-[64px]", {
+          hidden: !isExpanded,
+        })}
+      >
+        {player.instruments.map((instrumentId) => {
+          const instrument = instruments[instrumentId];
+          return (
+            <PlayerPanelInstrumentListItem
+              isSelected={isSelected}
+              instrument={instrument}
+            />
+          );
+        })}
+      </div>
     </div>
   );
 };

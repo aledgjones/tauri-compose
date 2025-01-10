@@ -1,7 +1,7 @@
 import { defineConfig } from "vite";
+import { resolve } from "path";
 import preact from "@preact/preset-vite";
 
-// @ts-expect-error process is a nodejs global
 const host = process.env.TAURI_DEV_HOST;
 
 // https://vitejs.dev/config/
@@ -27,6 +27,18 @@ export default defineConfig(async () => ({
     watch: {
       // 3. tell vite to ignore watching `src-tauri`
       ignored: ["**/src-tauri/**"],
+    },
+  },
+  // multi entry points
+  build: {
+    rollupOptions: {
+      input: {
+        debugger: resolve(__dirname, "debugger.html"),
+        index: resolve(__dirname, "index.html"),
+        instrumentPicker: resolve(__dirname, "instrument-picker.html"),
+        playerSettings: resolve(__dirname, "player-settings.html"),
+        projectSettings: resolve(__dirname, "project-settings.html"),
+      },
     },
   },
 }));

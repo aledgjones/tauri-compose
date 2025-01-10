@@ -8,13 +8,11 @@ import { IconButton } from "../../../../../ui/icon-button";
 interface Props {
   isSelected: boolean;
   instrument: Instrument;
-  playerId: number;
 }
 
 export const PlayerPanelInstrumentListItem: FunctionalComponent<Props> = ({
   isSelected,
   instrument,
-  playerId,
 }) => {
   const bg = isSelected ? "bg-sky-50" : "bg-neutral-700";
   const fg = isSelected ? "text-black" : "text-white";
@@ -27,6 +25,7 @@ export const PlayerPanelInstrumentListItem: FunctionalComponent<Props> = ({
 
   return (
     <div
+      data-player-id={instrument.id}
       className={classNames(
         `flex items-center pl-3 pr-1 rounded-lg ${bg} ${fg} min-h-[48px]`
       )}

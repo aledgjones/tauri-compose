@@ -8,12 +8,20 @@ export const loggedInvoke = async <T = unknown>(
   args?: InvokeArgs,
   options?: InvokeOptions
 ) => {
-  actions.console.log(`[invoke] ${cmd} - ${JSON.stringify(args)}`);
+  const t1 = performance.now();
 
   try {
-    return invoke<T>(cmd, args, options);
+    const result = await invoke<T>(cmd, args, options);
+    actions.console.log(
+      `[invoke] ${cmd} - ${JSON.stringify(args)} - ${performance.now() - t1}ms`
+    );
+    return result;
   } catch (error) {
-    actions.console.error(`[invoke:error]: ${cmd} - ${JSON.stringify(error)}`);
+    actions.console.error(
+      `[invoke:error]: ${cmd} - ${JSON.stringify(error)} - ${
+        performance.now() - t1
+      }ms`
+    );
     throw error;
   }
 };
@@ -108,21 +116,31 @@ export const actions = {
     },
   },
   score: {
-    createPlayer: (player_type: PlayerType) => {
-      return loggedInvoke<number>("create_player", {
-        player_type,
-      });
-    },
-    createInstrument: (definition_id: string) => {
-      return loggedInvoke<number>("create_instrument", {
-        definition_id,
-      });
-    },
     player: {
       assignInstrument: (player_id: number, instrument_id: number) => {
         return loggedInvoke<void>("assign_instrument_to_player", {
           player_id,
           instrument_id,
+        });
+      },
+    },
+    players: {
+      create: (player_type: PlayerType) => {
+        return loggedInvoke<number>("create_player", {
+          player_type,
+        });
+      },
+      reorder: (from: number, to: number) => {
+        return loggedInvoke<void>("reorder_players", {
+          from,
+          to,
+        });
+      },
+    },
+    instruments: {
+      create: (definition_id: string) => {
+        return loggedInvoke<number>("create_instrument", {
+          definition_id,
         });
       },
     },

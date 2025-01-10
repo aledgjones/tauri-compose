@@ -69,6 +69,17 @@ pub fn create_player(
 }
 
 #[tauri::command(rename_all = "snake_case")]
+pub fn reorder_players(app: tauri::AppHandle, state: State<'_, AppState>, from: usize, to: usize) {
+    let mut state = state.lock().unwrap();
+
+    let moved = state.score.players.order.remove(from);
+    state.score.players.order.insert(to, moved);
+
+    state.score.update_counts();
+    state.emit(&app);
+}
+
+#[tauri::command(rename_all = "snake_case")]
 pub fn assign_instrument_to_player(
     app: tauri::AppHandle,
     state: State<'_, AppState>,

@@ -20,7 +20,8 @@
         "hiddenTitle": true,
         "url": "index.html",
         "acceptFirstMouse": true,
-        "minWidth": 1300
+        "minWidth": 1300,
+        "dragDropEnabled": false
       }
     ],
     "security": {

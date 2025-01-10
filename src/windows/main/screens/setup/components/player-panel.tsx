@@ -5,6 +5,8 @@ import { PlayerType, SelectionType } from "../../../../../services/types";
 import { PlayerPanelItem } from "./player-panel-item";
 import { useAppState } from "../../../../../services/state";
 import { actions } from "../../../../../services/actions";
+import { useEffect, useRef } from "preact/hooks";
+import Sortable from "sortablejs";
 
 const onPlayerSettingsPress = () => {
   const webview = new WebviewWindow("player-settings", {
@@ -22,17 +24,42 @@ const onPlayerSettingsPress = () => {
 };
 
 const onAddInstrumentPress = async () => {
-  const playerId = await actions.score.createPlayer(PlayerType.Solo);
+  const playerId = await actions.score.players.create(PlayerType.Solo);
   await actions.ui.setup.setSelection(SelectionType.Player, playerId);
   const definition_id = await actions.pickAnInstrument();
   if (definition_id) {
-    const instrumentId = await actions.score.createInstrument(definition_id);
+    const instrumentId = await actions.score.instruments.create(definition_id);
     await actions.score.player.assignInstrument(playerId, instrumentId);
   }
 };
 
 export const PlayerPlanel = () => {
   const state = useAppState();
+
+  const ref = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!ref.current) {
+      return;
+    }
+
+    const sortable = Sortable.create(ref.current, {
+      group: "players",
+      animation: 150,
+      forceFallback: true,
+      ghostClass: "opacity-0",
+      delay: 150,
+      onSort: async (e) => {
+        console.log(e.oldIndex, e.newIndex);
+        if (e.oldIndex === undefined || e.newIndex === undefined) {
+          return;
+        }
+
+        await actions.score.players.reorder(e.oldIndex, e.newIndex);
+      },
+    });
+
+    return sortable.destroy;
+  }, []);
 
   return (
     <Panel
@@ -49,7 +76,7 @@ export const PlayerPlanel = () => {
         },
       ]}
     >
-      <div className="flex flex-col gap-2 px-2 flex-1 overflow-auto">
+      <div ref={ref} className="flex flex-col gap-2 px-2 flex-1 overflow-auto">
         {state.score.players.order.map((playerId) => {
           const player = state.score.players.by_id[playerId];
 
