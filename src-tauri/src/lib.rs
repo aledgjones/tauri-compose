@@ -5,28 +5,30 @@ mod utils;
 
 use renderer::render;
 use score::config::{
-    set_score_config_auto_count_styles_section, set_score_config_auto_count_styles_solo,
+    score_config_auto_count_styles_section_set, score_config_auto_count_styles_solo_set,
 };
-use score::instruments::defs::get_all_instrument_definitions;
-use score::instruments::{create_instrument, move_instrument};
+use score::instruments::defs::score_instruments_get_all_definitions;
+use score::instruments::{
+    score_instruments_create, score_instruments_move, score_instruments_remove,
+};
 use score::meta::{
-    set_score_meta_arranger, set_score_meta_artist, set_score_meta_composer,
-    set_score_meta_composer_dates, set_score_meta_composition_year, set_score_meta_copyist,
-    set_score_meta_copyright, set_score_meta_dedication, set_score_meta_editor,
-    set_score_meta_lyricist, set_score_meta_other_information, set_score_meta_publisher,
-    set_score_meta_subtitle, set_score_meta_title, set_score_meta_work_number,
+    score_meta_arranger_set, score_meta_artist_set, score_meta_composer_dates_set,
+    score_meta_composer_set, score_meta_composition_year_set, score_meta_copyist_set,
+    score_meta_copyright_set, score_meta_dedication_set, score_meta_editor_set,
+    score_meta_lyricist_set, score_meta_other_information_set, score_meta_publisher_set,
+    score_meta_subtitle_set, score_meta_title_set, score_meta_work_number_set,
 };
-use score::players::{assign_instrument_to_player, create_player, move_player};
+use score::players::{score_players_assign_instrument, score_players_create, score_players_move};
 use score::Score;
 use serde::Serialize;
 use std::sync::Mutex;
 use tauri::http::Response;
 use tauri::{Emitter, Manager, State};
 use ui::setup::{
-    clear_ui_setup_selection, insert_ui_setup_expanded, remove_ui_setup_expanded,
-    set_ui_setup_selection,
+    ui_setup_expanded_insert, ui_setup_expanded_remove, ui_setup_selection_clear,
+    ui_setup_selection_set,
 };
-use ui::{set_ui_layout_id, set_ui_tab, Ui};
+use ui::{ui_layout_id_set, ui_tab_set, Ui};
 use utils::UniqueId;
 
 #[derive(Serialize, Clone)]
@@ -90,35 +92,36 @@ pub fn run() {
         )
         .invoke_handler(tauri::generate_handler![
             initialize,
-            assign_instrument_to_player,
-            create_player,
-            create_instrument,
-            clear_ui_setup_selection,
-            get_all_instrument_definitions,
-            insert_ui_setup_expanded,
-            remove_ui_setup_expanded,
-            move_instrument,
-            move_player,
-            set_score_config_auto_count_styles_solo,
-            set_score_config_auto_count_styles_section,
-            set_score_meta_title,
-            set_score_meta_subtitle,
-            set_score_meta_dedication,
-            set_score_meta_composer,
-            set_score_meta_arranger,
-            set_score_meta_lyricist,
-            set_score_meta_artist,
-            set_score_meta_copyist,
-            set_score_meta_publisher,
-            set_score_meta_editor,
-            set_score_meta_copyright,
-            set_score_meta_work_number,
-            set_score_meta_composition_year,
-            set_score_meta_composer_dates,
-            set_score_meta_other_information,
-            set_ui_tab,
-            set_ui_layout_id,
-            set_ui_setup_selection,
+            score_instruments_create,
+            score_instruments_get_all_definitions,
+            score_instruments_move,
+            score_instruments_remove,
+            score_players_assign_instrument,
+            score_players_create,
+            score_players_move,
+            score_config_auto_count_styles_solo_set,
+            score_config_auto_count_styles_section_set,
+            score_meta_arranger_set,
+            score_meta_copyist_set,
+            score_meta_artist_set,
+            score_meta_composer_set,
+            score_meta_composer_dates_set,
+            score_meta_composition_year_set,
+            score_meta_copyright_set,
+            score_meta_dedication_set,
+            score_meta_editor_set,
+            score_meta_lyricist_set,
+            score_meta_other_information_set,
+            score_meta_publisher_set,
+            score_meta_subtitle_set,
+            score_meta_title_set,
+            score_meta_work_number_set,
+            ui_layout_id_set,
+            ui_setup_expanded_remove,
+            ui_setup_expanded_insert,
+            ui_setup_selection_clear,
+            ui_setup_selection_set,
+            ui_tab_set,
         ])
         .plugin(tauri_plugin_opener::init())
         .run(tauri::generate_context!())

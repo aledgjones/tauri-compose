@@ -39,7 +39,7 @@ impl Config {
 }
 
 #[tauri::command(rename_all = "snake_case")]
-pub fn set_score_config_auto_count_styles_solo(
+pub fn score_config_auto_count_styles_solo_set(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
     auto_count_style: AutoCountStyle,
@@ -51,7 +51,7 @@ pub fn set_score_config_auto_count_styles_solo(
 }
 
 #[tauri::command(rename_all = "snake_case")]
-pub fn set_score_config_auto_count_styles_section(
+pub fn score_config_auto_count_styles_section_set(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
     auto_count_style: AutoCountStyle,

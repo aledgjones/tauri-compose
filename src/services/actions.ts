@@ -95,41 +95,41 @@ export const actions = {
   },
   ui: {
     setTab: (tab: Tab) => {
-      return loggedInvoke("set_ui_tab", { tab });
+      return loggedInvoke("ui_tab_set", { tab });
     },
     setActiveLayoutId: (layout_id: string) => {
-      return loggedInvoke("set_ui_layout_id", { layout_id });
+      return loggedInvoke("ui_layout_id_set", { layout_id });
     },
     setup: {
       setSelection: (selection_type: SelectionType, id: number) => {
-        return loggedInvoke("set_ui_setup_selection", { selection_type, id });
+        return loggedInvoke("ui_setup_selection_set", { selection_type, id });
       },
       clearSelection: () => {
-        return loggedInvoke("clear_ui_setup_selection");
+        return loggedInvoke("ui_setup_selection_clear");
       },
       setExpanded: (id: number) => {
-        return loggedInvoke("insert_ui_setup_expanded", { id });
+        return loggedInvoke("ui_setup_expanded_insert", { id });
       },
       clearExpanded: (id: number) => {
-        return loggedInvoke("remove_ui_setup_expanded", { id });
+        return loggedInvoke("ui_setup_expanded_remove", { id });
       },
     },
   },
   score: {
     player: {
       create: (player_type: PlayerType) => {
-        return loggedInvoke<number>("create_player", {
+        return loggedInvoke<number>("score_players_create", {
           player_type,
         });
       },
       assignInstrument: (player_id: number, instrument_id: number) => {
-        return loggedInvoke<void>("assign_instrument_to_player", {
+        return loggedInvoke<void>("score_players_assign_instrument", {
           player_id,
           instrument_id,
         });
       },
       move: (from_index: number, to_index: number) => {
-        return loggedInvoke<void>("move_player", {
+        return loggedInvoke<void>("score_players_move", {
           from_index,
           to_index,
         });
@@ -137,7 +137,7 @@ export const actions = {
     },
     instrument: {
       create: (definition_id: string) => {
-        return loggedInvoke<number>("create_instrument", {
+        return loggedInvoke<number>("score_instruments_create", {
           definition_id,
         });
       },
@@ -147,7 +147,7 @@ export const actions = {
         from_player_id: number,
         to_player_id: number
       ) => {
-        return loggedInvoke<void>("move_instrument", {
+        return loggedInvoke<void>("score_instruments_move", {
           from_index,
           to_index,
           from_player_id,
@@ -158,12 +158,12 @@ export const actions = {
     config: {
       autoCountStyles: {
         setSolo: (auto_count_style: AutoCountStyle) => {
-          return loggedInvoke("set_score_config_auto_count_styles_solo", {
+          return loggedInvoke("score_config_auto_count_styles_solo_set", {
             auto_count_style,
           });
         },
         setSection: (auto_count_style: AutoCountStyle) => {
-          return loggedInvoke("set_score_config_auto_count_styles_section", {
+          return loggedInvoke("score_config_auto_count_styles_section_set", {
             auto_count_style,
           });
         },
@@ -171,53 +171,53 @@ export const actions = {
     },
     meta: {
       setTitle: (title: string) => {
-        return loggedInvoke("set_score_meta_title", { title });
+        return loggedInvoke("score_meta_title_set", { title });
       },
       setSubtitle: (subtitle: string) => {
-        return loggedInvoke("set_score_meta_subtitle", { subtitle });
+        return loggedInvoke("score_meta_subtitle_set", { subtitle });
       },
       setDedication: (dedication: string) => {
-        return loggedInvoke("set_score_meta_dedication", { dedication });
+        return loggedInvoke("score_meta_dedication_set", { dedication });
       },
       setComposer: (composer: string) => {
-        return loggedInvoke("set_score_meta_composer", { composer });
+        return loggedInvoke("score_meta_composer_set", { composer });
       },
       setArranger: (arranger: string) => {
-        return loggedInvoke("set_score_meta_arranger", { arranger });
+        return loggedInvoke("score_meta_arranger_set", { arranger });
       },
       setLyricist: (lyricist: string) => {
-        return loggedInvoke("set_score_meta_lyricist", { lyricist });
+        return loggedInvoke("score_meta_lyricist_set", { lyricist });
       },
       setArtist: (artist: string) => {
-        return loggedInvoke("set_score_meta_artist", { artist });
+        return loggedInvoke("score_meta_artist_set", { artist });
       },
       setCopyist: (copyist: string) => {
-        return loggedInvoke("set_score_meta_copyist", { copyist });
+        return loggedInvoke("score_meta_copyist_set", { copyist });
       },
       setPublisher: (publisher: string) => {
-        return loggedInvoke("set_score_meta_publisher", { publisher });
+        return loggedInvoke("score_meta_publisher_set", { publisher });
       },
       setEditor: (editor: string) => {
-        return loggedInvoke("set_score_meta_editor", { editor });
+        return loggedInvoke("score_meta_editor_set", { editor });
       },
       setCopyright: (copyright: string) => {
-        return loggedInvoke("set_score_meta_copyright", { copyright });
+        return loggedInvoke("score_meta_copyright_set", { copyright });
       },
       setWorkNumber: (work_number: string) => {
-        return loggedInvoke("set_score_meta_work_number", { work_number });
+        return loggedInvoke("score_meta_work_number_set", { work_number });
       },
       setCompositionYear: (composition_year: string) => {
-        return loggedInvoke("set_score_meta_composition_year", {
+        return loggedInvoke("score_meta_composition_year_set", {
           composition_year,
         });
       },
       setComposerDates: (composer_dates: string) => {
-        return loggedInvoke("set_score_meta_composer_dates", {
+        return loggedInvoke("score_meta_composer_dates_set", {
           composer_dates,
         });
       },
       setOtherInformation: (other_information: string) => {
-        return loggedInvoke("set_score_meta_other_information", {
+        return loggedInvoke("score_meta_other_information_set", {
           other_information,
         });
       },

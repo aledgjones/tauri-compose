@@ -44,7 +44,7 @@ impl Players {
 }
 
 #[tauri::command(rename_all = "snake_case")]
-pub fn create_player(
+pub fn score_players_create(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
     player_type: PlayerType,
@@ -69,7 +69,7 @@ pub fn create_player(
 }
 
 #[tauri::command(rename_all = "snake_case")]
-pub fn move_player(
+pub fn score_players_move(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
     from_index: usize,
@@ -85,7 +85,7 @@ pub fn move_player(
 }
 
 #[tauri::command(rename_all = "snake_case")]
-pub fn assign_instrument_to_player(
+pub fn score_players_assign_instrument(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
     player_id: UniqueId,

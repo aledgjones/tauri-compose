@@ -128,7 +128,7 @@ export const Main = () => {
 
     (async () => {
       const result = await invoke<InstrumentDefinition[]>(
-        "get_all_instrument_definitions"
+        "score_instruments_get_all_definitions"
       );
       setInstruments(result);
       setSelection(result[0]);
