@@ -35,8 +35,8 @@ const onAddInstrumentPress = async () => {
 
 export const PlayerPlanel = () => {
   const state = useAppState();
-
   const ref = useRef<HTMLDivElement | null>(null);
+
   useEffect(() => {
     if (!ref.current) {
       return;
@@ -57,7 +57,9 @@ export const PlayerPlanel = () => {
       },
     });
 
-    return sortable.destroy;
+    return () => {
+      sortable.destroy();
+    };
   }, []);
 
   return (

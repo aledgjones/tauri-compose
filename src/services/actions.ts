@@ -147,13 +147,12 @@ export const actions = {
         from_player_id: number,
         to_player_id: number
       ) => {
-        console.log({ from_index, to_index, from_player_id, to_player_id });
-        // return loggedInvoke<void>("move_instrument", {
-        //   from_index,
-        //   to_index,
-        //   from_player_id,
-        //   to_player_id,
-        // });
+        return loggedInvoke<void>("move_instrument", {
+          from_index,
+          to_index,
+          from_player_id,
+          to_player_id,
+        });
       },
     },
     config: {

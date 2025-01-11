@@ -41,6 +41,8 @@ export const PlayerPanelItem: FunctionalComponent<Props> = ({
   isSelected,
   isExpanded,
 }) => {
+  const ref = useRef<HTMLDivElement | null>(null);
+
   const isAssignable = false;
   const isInstrumentAssignable =
     player.player_type === PlayerType.Solo || player.instruments.length === 0;
@@ -78,7 +80,6 @@ export const PlayerPanelItem: FunctionalComponent<Props> = ({
     return `${instrumentNames.join(", ")} & ${last}`;
   }, [player, instruments]);
 
-  const ref = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     if (!ref.current) {
       return;
@@ -105,7 +106,6 @@ export const PlayerPanelItem: FunctionalComponent<Props> = ({
           return;
         }
 
-        // reorder instruments (possibly across players)
         actions.score.instrument.move(
           e.oldIndex,
           e.newIndex,
@@ -115,7 +115,9 @@ export const PlayerPanelItem: FunctionalComponent<Props> = ({
       },
     });
 
-    return sortable.destroy;
+    return () => {
+      sortable.destroy();
+    };
   }, [player.id]);
 
   return (
@@ -196,6 +198,7 @@ export const PlayerPanelItem: FunctionalComponent<Props> = ({
           const instrument = instruments[instrumentId];
           return (
             <PlayerPanelInstrumentListItem
+              key={instrumentId}
               isSelected={isSelected}
               instrument={instrument}
             />

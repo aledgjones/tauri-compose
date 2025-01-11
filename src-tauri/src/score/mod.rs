@@ -13,7 +13,7 @@ use serde::Serialize;
 
 #[derive(Serialize, Clone)]
 pub struct Score {
-    ticks_per_quarter: u8,
+    ticks_per_quarter: u16,
     config: Config,
     meta: Meta,
     players: Players,
@@ -23,7 +23,7 @@ pub struct Score {
 impl Score {
     pub fn new() -> Self {
         Self {
-            ticks_per_quarter: 128,
+            ticks_per_quarter: 256,
             config: Config::new(),
             meta: Meta::new(),
             players: Players::new(),
