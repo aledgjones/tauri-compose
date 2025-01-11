@@ -23,7 +23,7 @@ import Sortable from "sortablejs";
 const onAddInstrumentPress = async (playerId: number) => {
   const definitionId = await actions.pickAnInstrument();
   if (definitionId) {
-    const instrumentId = await actions.score.instruments.create(definitionId);
+    const instrumentId = await actions.score.instrument.create(definitionId);
     await actions.score.player.assignInstrument(playerId, instrumentId);
   }
 };
@@ -91,18 +91,32 @@ export const PlayerPanelItem: FunctionalComponent<Props> = ({
       delay: 150,
       group: "instruments",
       onSort: (e) => {
+        if (
+          e.oldIndex === undefined ||
+          e.newIndex === undefined ||
+          !e.from.dataset.playerId ||
+          !e.to.dataset.playerId
+        ) {
+          return;
+        }
+
+        // only handle the sort once in the origin player (if across players)
+        if (parseInt(e.from.dataset.playerId) !== player.id) {
+          return;
+        }
+
         // reorder instruments (possibly across players)
-        console.log(
+        actions.score.instrument.move(
           e.oldIndex,
           e.newIndex,
-          e.from.dataset.playerId,
-          e.to.dataset.playerId
+          parseInt(e.from.dataset.playerId),
+          parseInt(e.to.dataset.playerId)
         );
       },
     });
 
     return sortable.destroy;
-  }, []);
+  }, [player.id]);
 
   return (
     <div

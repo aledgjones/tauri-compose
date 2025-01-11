@@ -25,7 +25,7 @@ export const PlayerPanelInstrumentListItem: FunctionalComponent<Props> = ({
 
   return (
     <div
-      data-player-id={instrument.id}
+      data-instrument-id={instrument.id}
       className={classNames(
         `flex items-center pl-3 pr-1 rounded-lg ${bg} ${fg} min-h-[48px]`
       )}

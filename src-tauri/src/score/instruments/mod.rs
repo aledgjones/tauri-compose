@@ -128,3 +128,26 @@ pub fn create_instrument(
 
     instrument_id
 }
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn move_instrument(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    from_index: usize,
+    to_index: usize,
+    from_player_id: UniqueId,
+    to_player_id: UniqueId,
+) {
+    let mut state = state.lock().unwrap();
+    let from_player = state.score.players.by_id.get_mut(&from_player_id).unwrap();
+    let removed = from_player.instruments.remove(from_index);
+
+    if from_player_id == to_player_id {
+        from_player.instruments.insert(to_index, removed);
+    } else {
+        let to_player = state.score.players.by_id.get_mut(&to_player_id).unwrap();
+        to_player.instruments.insert(to_index, removed);
+    }
+
+    state.emit(&app);
+}

@@ -7,8 +7,8 @@ use renderer::render;
 use score::config::{
     set_score_config_auto_count_styles_section, set_score_config_auto_count_styles_solo,
 };
-use score::instruments::create_instrument;
 use score::instruments::defs::get_all_instrument_definitions;
+use score::instruments::{create_instrument, move_instrument};
 use score::meta::{
     set_score_meta_arranger, set_score_meta_artist, set_score_meta_composer,
     set_score_meta_composer_dates, set_score_meta_composition_year, set_score_meta_copyist,
@@ -97,6 +97,7 @@ pub fn run() {
             get_all_instrument_definitions,
             insert_ui_setup_expanded,
             remove_ui_setup_expanded,
+            move_instrument,
             move_player,
             set_score_config_auto_count_styles_solo,
             set_score_config_auto_count_styles_section,

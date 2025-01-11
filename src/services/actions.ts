@@ -128,18 +128,32 @@ export const actions = {
           instrument_id,
         });
       },
-      move: (from: number, to: number) => {
+      move: (from_index: number, to_index: number) => {
         return loggedInvoke<void>("move_player", {
-          from,
-          to,
+          from_index,
+          to_index,
         });
       },
     },
-    instruments: {
+    instrument: {
       create: (definition_id: string) => {
         return loggedInvoke<number>("create_instrument", {
           definition_id,
         });
+      },
+      move: (
+        from_index: number,
+        to_index: number,
+        from_player_id: number,
+        to_player_id: number
+      ) => {
+        console.log({ from_index, to_index, from_player_id, to_player_id });
+        // return loggedInvoke<void>("move_instrument", {
+        //   from_index,
+        //   to_index,
+        //   from_player_id,
+        //   to_player_id,
+        // });
       },
     },
     config: {

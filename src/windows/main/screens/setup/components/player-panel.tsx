@@ -28,7 +28,7 @@ const onAddInstrumentPress = async () => {
   await actions.ui.setup.setSelection(SelectionType.Player, playerId);
   const definition_id = await actions.pickAnInstrument();
   if (definition_id) {
-    const instrumentId = await actions.score.instruments.create(definition_id);
+    const instrumentId = await actions.score.instrument.create(definition_id);
     await actions.score.player.assignInstrument(playerId, instrumentId);
   }
 };
