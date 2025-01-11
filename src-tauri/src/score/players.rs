@@ -107,3 +107,55 @@ pub fn score_players_assign_instrument(
     state.score.update_counts();
     state.emit(&app);
 }
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn score_players_unassign_instrument(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    player_id: UniqueId,
+    instrument_id: UniqueId,
+) {
+    let mut state = state.lock().unwrap();
+
+    let player = state.score.players.by_id.get_mut(&player_id).unwrap();
+    player.instruments.retain(|e| *e != instrument_id);
+
+    // let flows = self.file.score.flows.order.clone();
+    // for flow_key in flows {
+    //     let flow = &self.file.score.flows.by_key[&flow_key];
+    //     if flow.players.contains(player_key) {
+    //         self.unassign_instrument_from_flow(&flow_key, instrument_key);
+    //     }
+    // }
+
+    state.score.update_counts();
+    state.emit(&app);
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn score_players_remove(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    player_id: UniqueId,
+) {
+    let mut state = state.lock().unwrap();
+
+    // let flows = self.file.score.flows.order.clone();
+    // for flow_key in flows {
+    //     self.unassign_player_from_flow(&flow_key, player_key);
+    // }
+
+    let player = state.score.players.by_id.get(&player_id).unwrap();
+    for instrument_id in player.instruments.clone() {
+        state.score.instruments.by_id.remove(&instrument_id);
+    }
+
+    state.score.players.order.retain(|item| *item != player_id);
+    state.score.players.by_id.remove(&player_id);
+
+    state.ui.setup.expanded.remove(&player_id);
+    state.ui.setup.selection = None;
+
+    state.score.update_counts();
+    state.emit(&app);
+}

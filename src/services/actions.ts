@@ -101,16 +101,16 @@ export const actions = {
       return loggedInvoke("ui_layout_id_set", { layout_id });
     },
     setup: {
-      setSelection: (selection_type: SelectionType, id: number) => {
+      select: (selection_type: SelectionType, id: number) => {
         return loggedInvoke("ui_setup_selection_set", { selection_type, id });
       },
       clearSelection: () => {
         return loggedInvoke("ui_setup_selection_clear");
       },
-      setExpanded: (id: number) => {
+      expand: (id: number) => {
         return loggedInvoke("ui_setup_expanded_insert", { id });
       },
-      clearExpanded: (id: number) => {
+      collapse: (id: number) => {
         return loggedInvoke("ui_setup_expanded_remove", { id });
       },
     },
@@ -128,10 +128,21 @@ export const actions = {
           instrument_id,
         });
       },
+      unassignInstrument: (player_id: number, instrument_id: number) => {
+        return loggedInvoke<void>("score_players_unassign_instrument", {
+          player_id,
+          instrument_id,
+        });
+      },
       move: (from_index: number, to_index: number) => {
         return loggedInvoke<void>("score_players_move", {
           from_index,
           to_index,
+        });
+      },
+      remove: (player_id: number) => {
+        return loggedInvoke<void>("score_players_remove", {
+          player_id,
         });
       },
     },
@@ -152,6 +163,11 @@ export const actions = {
           to_index,
           from_player_id,
           to_player_id,
+        });
+      },
+      remove: (instrument_id: number) => {
+        return loggedInvoke<number>("score_instruments_remove", {
+          instrument_id,
         });
       },
     },

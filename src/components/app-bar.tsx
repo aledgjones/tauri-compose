@@ -26,7 +26,7 @@ export const AppBar: FunctionalComponent<Props> = ({
     <div
       data-tauri-drag-region
       className={classNames(
-        "h-[28px] flex-shrink-0 flex items-center px-20",
+        "h-[28px] flex-shrink-0 flex items-center px-20 bg-neutral-900",
         className
       )}
     >

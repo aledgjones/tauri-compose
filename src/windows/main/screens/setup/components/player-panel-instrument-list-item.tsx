@@ -4,15 +4,26 @@ import { FunctionalComponent } from "preact";
 import { useMemo } from "preact/hooks";
 import { Instrument } from "../../../../../services/types";
 import { IconButton } from "../../../../../ui/icon-button";
+import { actions } from "../../../../../services/actions";
+
+const onRemoveInstrumentPress = async (
+  playerId: number,
+  instrumentId: number
+) => {
+  await actions.score.player.unassignInstrument(playerId, instrumentId);
+  await actions.score.instrument.remove(instrumentId);
+};
 
 interface Props {
-  isSelected: boolean;
+  playerId: number;
   instrument: Instrument;
+  isSelected: boolean;
 }
 
 export const PlayerPanelInstrumentListItem: FunctionalComponent<Props> = ({
-  isSelected,
+  playerId,
   instrument,
+  isSelected,
 }) => {
   const bg = isSelected ? "bg-sky-50" : "bg-neutral-700";
   const fg = isSelected ? "text-black" : "text-white";
@@ -37,10 +48,7 @@ export const PlayerPanelInstrumentListItem: FunctionalComponent<Props> = ({
           variant="standard"
           className={fg}
           path={mdiDelete}
-          onClick={() => {
-            // core.unassign_instrument_from_player(playerKey, instrumentId);
-            // core.remove_instrument(instrumentId);
-          }}
+          onClick={() => onRemoveInstrumentPress(playerId, instrument.id)}
         />
       )}
     </div>

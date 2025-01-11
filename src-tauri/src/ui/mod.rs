@@ -22,7 +22,7 @@ pub enum Tab {
 pub struct Ui {
     tab: Tab,
     layout_id: LayoutId,
-    setup: Setup,
+    pub setup: Setup,
 }
 
 impl Ui {

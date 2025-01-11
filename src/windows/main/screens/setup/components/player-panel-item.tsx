@@ -126,7 +126,7 @@ export const PlayerPanelItem: FunctionalComponent<Props> = ({
       className={classNames(`rounded-lg`, fg, bg)}
       onPointerDown={() => {
         if (!isSelected) {
-          actions.ui.setup.setSelection(SelectionType.Player, player.id);
+          actions.ui.setup.select(SelectionType.Player, player.id);
         }
       }}
     >
@@ -141,10 +141,8 @@ export const PlayerPanelItem: FunctionalComponent<Props> = ({
               className={fg}
               variant="standard"
               path={mdiDelete}
-              onClick={() => {
-                // core.remove_player(playerKey);
-                // core.ui_setup_clear_selection();
-                // core.ui_setup_collapse(playerKey);
+              onClick={async () => {
+                await actions.score.player.remove(player.id);
               }}
             />
             {isInstrumentAssignable && (
@@ -179,9 +177,9 @@ export const PlayerPanelItem: FunctionalComponent<Props> = ({
             })}
             onClick={() => {
               if (isExpanded) {
-                actions.ui.setup.clearExpanded(player.id);
+                actions.ui.setup.collapse(player.id);
               } else {
-                actions.ui.setup.setExpanded(player.id);
+                actions.ui.setup.expand(player.id);
               }
             }}
           />
@@ -199,6 +197,7 @@ export const PlayerPanelItem: FunctionalComponent<Props> = ({
           return (
             <PlayerPanelInstrumentListItem
               key={instrumentId}
+              playerId={player.id}
               isSelected={isSelected}
               instrument={instrument}
             />

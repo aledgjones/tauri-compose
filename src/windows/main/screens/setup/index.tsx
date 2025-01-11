@@ -5,7 +5,7 @@ import { PlayerPlanel } from "./components/player-panel";
 
 export const Setup = () => {
   return (
-    <div class="overflow-hidden px-2 grid grid-rows-[1fr_170px_32px] grid-cols-[360px_1fr_360px] gap-2">
+    <div class="overflow-hidden p-2 grid grid-rows-[1fr_170px_32px] grid-cols-[360px_1fr_360px] gap-2">
       <PlayerPlanel />
       <Renderer />
       <Panel

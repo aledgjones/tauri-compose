@@ -29,7 +29,7 @@ export const Main = () => {
   return (
     <div className="h-dvh w-dvw grid grid-rows-[28px_52px_1fr] bg-neutral-950">
       <AppBar title="Solo Compose" filename={state.score.meta.title} />
-      <div className="p-2 flex items-center">
+      <div className="p-2 flex items-center bg-neutral-900">
         <Tabs
           className="flex flex-1 justify-start"
           value={state.ui.tab}

@@ -18,7 +18,10 @@ use score::meta::{
     score_meta_lyricist_set, score_meta_other_information_set, score_meta_publisher_set,
     score_meta_subtitle_set, score_meta_title_set, score_meta_work_number_set,
 };
-use score::players::{score_players_assign_instrument, score_players_create, score_players_move};
+use score::players::{
+    score_players_assign_instrument, score_players_create, score_players_move,
+    score_players_remove, score_players_unassign_instrument,
+};
 use score::Score;
 use serde::Serialize;
 use std::sync::Mutex;
@@ -92,13 +95,15 @@ pub fn run() {
         )
         .invoke_handler(tauri::generate_handler![
             initialize,
+            score_players_assign_instrument,
             score_instruments_create,
             score_instruments_get_all_definitions,
             score_instruments_move,
             score_instruments_remove,
-            score_players_assign_instrument,
+            score_players_unassign_instrument,
             score_players_create,
             score_players_move,
+            score_players_remove,
             score_config_auto_count_styles_solo_set,
             score_config_auto_count_styles_section_set,
             score_meta_arranger_set,
