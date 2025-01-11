@@ -69,7 +69,7 @@ pub fn create_player(
 }
 
 #[tauri::command(rename_all = "snake_case")]
-pub fn reorder_players(app: tauri::AppHandle, state: State<'_, AppState>, from: usize, to: usize) {
+pub fn move_player(app: tauri::AppHandle, state: State<'_, AppState>, from: usize, to: usize) {
     let mut state = state.lock().unwrap();
 
     let moved = state.score.players.order.remove(from);

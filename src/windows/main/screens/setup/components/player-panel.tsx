@@ -24,7 +24,7 @@ const onPlayerSettingsPress = () => {
 };
 
 const onAddInstrumentPress = async () => {
-  const playerId = await actions.score.players.create(PlayerType.Solo);
+  const playerId = await actions.score.player.create(PlayerType.Solo);
   await actions.ui.setup.setSelection(SelectionType.Player, playerId);
   const definition_id = await actions.pickAnInstrument();
   if (definition_id) {
@@ -49,12 +49,11 @@ export const PlayerPlanel = () => {
       ghostClass: "opacity-0",
       delay: 150,
       onSort: async (e) => {
-        console.log(e.oldIndex, e.newIndex);
         if (e.oldIndex === undefined || e.newIndex === undefined) {
           return;
         }
 
-        await actions.score.players.reorder(e.oldIndex, e.newIndex);
+        await actions.score.player.move(e.oldIndex, e.newIndex);
       },
     });
 

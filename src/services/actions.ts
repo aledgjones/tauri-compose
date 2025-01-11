@@ -117,21 +117,19 @@ export const actions = {
   },
   score: {
     player: {
+      create: (player_type: PlayerType) => {
+        return loggedInvoke<number>("create_player", {
+          player_type,
+        });
+      },
       assignInstrument: (player_id: number, instrument_id: number) => {
         return loggedInvoke<void>("assign_instrument_to_player", {
           player_id,
           instrument_id,
         });
       },
-    },
-    players: {
-      create: (player_type: PlayerType) => {
-        return loggedInvoke<number>("create_player", {
-          player_type,
-        });
-      },
-      reorder: (from: number, to: number) => {
-        return loggedInvoke<void>("reorder_players", {
+      move: (from: number, to: number) => {
+        return loggedInvoke<void>("move_player", {
           from,
           to,
         });
