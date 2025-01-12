@@ -56,7 +56,7 @@ export const Tabs = <T,>({
                   ref={(el) => (tabRefs.current[index] = el)}
                   onClick={() => onChange(option.value)}
                   className={classNames(
-                    "py-2 px-4 text-sm transition-[color] duration-300 rounded-lg",
+                    "py-2 px-4 text-sm transition-[color] duration-300 ",
                     {
                       "text-black": isSelected,
                       "text-white hover:bg-neutral-800": !isSelected,
@@ -71,7 +71,7 @@ export const Tabs = <T,>({
         </ul>
         {tabOffsets.length > 0 && (
           <div
-            className="absolute top-0 left-0 h-full bg-sky-500 transition-all duration-300 rounded-lg"
+            className="absolute top-0 left-0 h-full bg-sky-500 transition-all duration-300 "
             style={{
               width: tabOffsets[selectedIndex]?.width || 0,
               left: tabOffsets[selectedIndex]?.left || 0,

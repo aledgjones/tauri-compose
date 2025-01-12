@@ -42,14 +42,14 @@ export const Main = () => {
   return (
     <div className="h-dvh bg-neutral-950 grid grid-rows-[28px_2fr_1fr] gap-2 overflow-hidden">
       <AppBar title="Debugger" filename={state.score.meta.title} />
-      <div className="rounded-lg bg-neutral-900 p-2 overflow-auto mx-2">
+      <div className=" bg-neutral-900 p-2 overflow-auto mx-2">
         <Inspector
           data={state}
           theme={{ ...chromeDark, BASE_BACKGROUND_COLOR: "transparent" }}
           expandPaths={["$"]}
         />
       </div>
-      <div className="rounded-lg bg-neutral-900 p-2 overflow-auto mx-2 mb-2">
+      <div className=" bg-neutral-900 p-2 overflow-auto mx-2 mb-2">
         {logs.map((log, i) => {
           return (
             <div key={i}>

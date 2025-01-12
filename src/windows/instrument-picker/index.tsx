@@ -32,7 +32,7 @@ const InstrumentItemButton = ({
   return (
     <button
       className={classNames(
-        "flex items-center rounded-lg p-2 pl-3 w-full text-left text-sm h-[40px]",
+        "flex items-center  p-2 pl-3 w-full text-left text-sm h-[40px]",
         {
           "bg-sky-400 text-black": isSelected,
           "text-white": !isSelected,
@@ -62,7 +62,7 @@ const InstrumentColumn = ({
   columns,
 }: InstrumentColumnProps) => {
   return (
-    <div className="bg-neutral-900 rounded-lg flex-1 p-2 overflow-auto">
+    <div className="bg-neutral-900  flex-1 p-2 overflow-auto">
       {column.map((item) => {
         const isSelected = item === selection.path[columnIndex];
         const isFinal = !(isSelected && columns[columnIndex + 1]?.length > 0);

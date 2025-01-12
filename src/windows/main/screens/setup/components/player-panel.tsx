@@ -8,6 +8,8 @@ import { actions } from "../../../../../services/actions";
 import { useEffect, useRef } from "preact/hooks";
 import Sortable from "sortablejs";
 
+import "./player-panel.css";
+
 const onPlayerSettingsPress = () => {
   const webview = new WebviewWindow("player-settings", {
     url: "/player-settings.html",
@@ -46,7 +48,7 @@ export const PlayerPlanel = () => {
       group: "players",
       animation: 150,
       forceFallback: true,
-      ghostClass: "opacity-0",
+      ghostClass: "ghost-player",
       delay: 150,
       onSort: async (e) => {
         if (e.oldIndex === undefined || e.newIndex === undefined) {

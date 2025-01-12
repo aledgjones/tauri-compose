@@ -25,21 +25,19 @@ export const PlayerPanelInstrumentListItem: FunctionalComponent<Props> = ({
   instrument,
   isSelected,
 }) => {
-  const bg = isSelected ? "bg-sky-50" : "bg-neutral-700";
+  const bg = isSelected ? "bg-sky-300" : "bg-neutral-700";
   const fg = isSelected ? "text-black" : "text-white";
 
   const name = useMemo(() => {
     return (
       instrument.long_name + (instrument.count ? ` ${instrument.count}` : "")
     );
-  }, []);
+  }, [instrument.long_name, instrument.count]);
 
   return (
     <div
       data-instrument-id={instrument.id}
-      className={classNames(
-        `flex items-center pl-3 pr-1 rounded-lg ${bg} ${fg} min-h-[48px]`
-      )}
+      className={classNames("flex items-center pl-3 pr-1 min-h-[48px]", bg, fg)}
     >
       <p className="truncate flex-1 text-sm">{name}</p>
 

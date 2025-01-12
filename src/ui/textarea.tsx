@@ -41,7 +41,7 @@ export const Textarea: FunctionalComponent<TextareaProps> = ({
         }}
         onFocus={() => setIsFocused(true)}
         onBlur={() => setIsFocused(false)}
-        className="rounded-lg block w-full h-[36px] bg-neutral-800 px-2 py-[6px] text-sm focus:outline-none border-transparent border-2 border-neutral-800 focus:border-sky-500 text-white resize-none"
+        className=" block w-full h-[36px] bg-neutral-800 px-2 py-[6px] text-sm focus:outline-none border-transparent border-2 border-neutral-800 focus:border-sky-500 text-white resize-none"
         style={{ minHeight: `${lines * 20 + 16}px` }}
       />
     </div>

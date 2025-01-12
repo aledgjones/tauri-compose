@@ -33,7 +33,7 @@ export const Menu = <T,>({
           <div className="pb-1" key={item.value}>
             <button
               onClick={() => onSelect(item.value)}
-              className={classNames("rounded-lg w-full text-left text-sm p-2", {
+              className={classNames(" w-full text-left text-sm p-2", {
                 "bg-neutral-800 hover:bg-neutral-700 text-white": !isSelected,
                 "bg-sky-500 text-black": isSelected,
               })}
@@ -46,7 +46,7 @@ export const Menu = <T,>({
                   <button
                     key={section.value}
                     onClick={() => {}}
-                    className="rounded-lg w-full text-white text-sm text-left pl-6 pr-2 py-2 bg-neutral-800 hover:bg-neutral-700"
+                    className=" w-full text-white text-sm text-left pl-6 pr-2 py-2 bg-neutral-800 hover:bg-neutral-700"
                   >
                     {section.label}
                   </button>

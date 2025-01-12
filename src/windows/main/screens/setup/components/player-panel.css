@@ -1,0 +1,18 @@
+.ghost-instrument {
+    border-width: 2px;
+    border-color: rgb(125 211 252 / var(--tw-bg-opacity, 1));
+    background-color: transparent;
+    border-style: dashed;
+}
+
+.ghost-player {
+    border-width: 2px;
+    border-color: rgb(14 165 233 / var(--tw-bg-opacity, 1));
+    background-color: transparent;
+    border-style: dashed;
+}
+
+.ghost-instrument > *,
+.ghost-player > * {
+    visibility: hidden;
+}

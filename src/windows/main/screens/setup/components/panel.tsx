@@ -22,7 +22,7 @@ export const Panel: FunctionalComponent<Props> = ({
   return (
     <div
       className={classNames(
-        "rounded-lg bg-neutral-900 overflow-hidden h-full flex flex-col",
+        " bg-neutral-900 overflow-hidden h-full flex flex-col",
         className
       )}
     >

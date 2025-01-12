@@ -150,6 +150,7 @@ pub fn score_instruments_move(
         to_player.instruments.insert(to_index, removed);
     }
 
+    state.score.update_counts();
     state.emit(&app);
 }
 

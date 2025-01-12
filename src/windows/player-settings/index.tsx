@@ -41,10 +41,10 @@ export const Main = () => {
         title="Player Settings"
         filename={state.score.meta.title}
       />
-      <div className="rounded-lg bg-neutral-900 overflow-auto ml-2 mb-2">
+      <div className=" bg-neutral-900 overflow-auto ml-2 mb-2">
         <Menu selection={selection} items={options} onSelect={setSelection} />
       </div>
-      <div className="rounded-lg bg-neutral-900 overflow-auto mr-2 mb-2">
+      <div className=" bg-neutral-900 overflow-auto mr-2 mb-2">
         <Content />
       </div>
     </div>

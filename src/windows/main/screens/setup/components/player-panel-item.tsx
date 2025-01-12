@@ -88,10 +88,10 @@ export const PlayerPanelItem: FunctionalComponent<Props> = ({
     const sortable = Sortable.create(ref.current, {
       animation: 150,
       forceFallback: true,
-      ghostClass: "opacity-0",
+      ghostClass: "ghost-instrument",
       delay: 150,
       group: "instruments",
-      onSort: (e) => {
+      onSort: async (e) => {
         if (
           e.oldIndex === undefined ||
           e.newIndex === undefined ||
@@ -101,17 +101,16 @@ export const PlayerPanelItem: FunctionalComponent<Props> = ({
           return;
         }
 
-        // only handle the sort once in the origin player (if across players)
-        if (parseInt(e.from.dataset.playerId) !== player.id) {
-          return;
+        // only handle the sort once in the destination player (can be itself)
+        if (parseInt(e.to.dataset.playerId) === player.id) {
+          await actions.score.instrument.move(
+            e.oldIndex,
+            e.newIndex,
+            parseInt(e.from.dataset.playerId),
+            parseInt(e.to.dataset.playerId)
+          );
+          await actions.ui.setup.select(SelectionType.Player, player.id);
         }
-
-        actions.score.instrument.move(
-          e.oldIndex,
-          e.newIndex,
-          parseInt(e.from.dataset.playerId),
-          parseInt(e.to.dataset.playerId)
-        );
       },
     });
 
@@ -123,7 +122,7 @@ export const PlayerPanelItem: FunctionalComponent<Props> = ({
   return (
     <div
       data-player-id={player.id}
-      className={classNames(`rounded-lg`, fg, bg)}
+      className={classNames("border-2 border-transparent", fg, bg)}
       onPointerDown={() => {
         if (!isSelected) {
           actions.ui.setup.select(SelectionType.Player, player.id);
@@ -169,20 +168,22 @@ export const PlayerPanelItem: FunctionalComponent<Props> = ({
         )} */}
 
         {!isAssignable && (
-          <IconButton
-            variant="standard"
-            path={mdiChevronDown}
-            className={classNames("transition-transform", fg, {
-              "rotate-180": isExpanded,
-            })}
-            onClick={() => {
-              if (isExpanded) {
-                actions.ui.setup.collapse(player.id);
-              } else {
-                actions.ui.setup.expand(player.id);
-              }
-            }}
-          />
+          <div onPointerDown={(e) => e.stopPropagation()}>
+            <IconButton
+              variant="standard"
+              path={mdiChevronDown}
+              className={classNames("transition-transform", fg, {
+                "rotate-180": isExpanded,
+              })}
+              onClick={async () => {
+                if (isExpanded) {
+                  await actions.ui.setup.collapse(player.id);
+                } else {
+                  await actions.ui.setup.expand(player.id);
+                }
+              }}
+            />
+          </div>
         )}
       </div>
       <div
