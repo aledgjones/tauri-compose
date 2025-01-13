@@ -5,18 +5,20 @@ import classNames from "classnames";
 import { FunctionalComponent } from "preact";
 import { IconButton } from "../../../../../ui/icon-button";
 import { actions } from "../../../../../services/actions";
-import Checkbox from "../../../../../ui/checkbox";
+import { Checkbox } from "../../../../../ui/checkbox";
 
 type Props = {
   flow: Flow;
   isSelected: boolean;
   isAssignable: boolean;
+  isAssigned: boolean;
 };
 
 export const FlowPanelItem: FunctionalComponent<Props> = ({
   flow,
   isSelected,
   isAssignable,
+  isAssigned,
 }) => {
   const fg = isSelected ? "text-black" : "text-white";
   const bg = isSelected ? "bg-sky-500" : "bg-neutral-800";
@@ -35,7 +37,12 @@ export const FlowPanelItem: FunctionalComponent<Props> = ({
         }
       }}
     >
-      <div className="text-sm px-3">
+      <div
+        className={classNames("text-sm", {
+          "pl-3 pr-2": isAssignable,
+          "px-3": !isAssignable,
+        })}
+      >
         <div className="flex items-center h-[48px]">
           <Icon
             className={classNames("mr-3", fg)}
@@ -73,9 +80,8 @@ export const FlowPanelItem: FunctionalComponent<Props> = ({
           {isAssignable && (
             <div className="mr-[-2px]">
               <Checkbox
-                // value={isAssigned}
-                value={true}
-                // onPointerDown={(e) => e.stopPropagation()}
+                value={isAssigned}
+                onPointerDown={(e) => e.stopPropagation()}
                 onChange={() => {}}
               />
             </div>

@@ -90,6 +90,7 @@ export type Players = {
 export type Flow = {
   id: number;
   title: string;
+  player_ids: number[];
 };
 
 export type Flows = {
