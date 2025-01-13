@@ -2,6 +2,7 @@ import { Renderer } from "../../components/renderer";
 import { Panel } from "./components/panel";
 import { mdiFileCogOutline, mdiPlus } from "@mdi/js";
 import { PlayerPlanel } from "./components/player-panel";
+import { FlowPanel } from "./components/flow-panel";
 
 export const Setup = () => {
   return (
@@ -22,7 +23,7 @@ export const Setup = () => {
           },
         ]}
       />
-      <Panel title="Flows" />
+      <FlowPanel />
     </div>
   );
 };

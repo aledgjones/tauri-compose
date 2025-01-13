@@ -116,6 +116,11 @@ export const actions = {
     },
   },
   score: {
+    flow: {
+      create: () => {
+        return loggedInvoke<void>("score_flows_create");
+      },
+    },
     player: {
       create: (player_type: PlayerType) => {
         return loggedInvoke<number>("score_players_create", {

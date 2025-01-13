@@ -7,6 +7,7 @@ use renderer::render;
 use score::config::{
     score_config_auto_count_styles_section_set, score_config_auto_count_styles_solo_set,
 };
+use score::flows::score_flows_create;
 use score::instruments::defs::score_instruments_get_all_definitions;
 use score::instruments::{
     score_instruments_create, score_instruments_move, score_instruments_remove,
@@ -95,17 +96,13 @@ pub fn run() {
         )
         .invoke_handler(tauri::generate_handler![
             initialize,
-            score_players_assign_instrument,
+            score_config_auto_count_styles_solo_set,
+            score_config_auto_count_styles_section_set,
+            score_flows_create,
             score_instruments_create,
             score_instruments_get_all_definitions,
             score_instruments_move,
             score_instruments_remove,
-            score_players_unassign_instrument,
-            score_players_create,
-            score_players_move,
-            score_players_remove,
-            score_config_auto_count_styles_solo_set,
-            score_config_auto_count_styles_section_set,
             score_meta_arranger_set,
             score_meta_copyist_set,
             score_meta_artist_set,
@@ -121,9 +118,14 @@ pub fn run() {
             score_meta_subtitle_set,
             score_meta_title_set,
             score_meta_work_number_set,
+            score_players_assign_instrument,
+            score_players_unassign_instrument,
+            score_players_create,
+            score_players_move,
+            score_players_remove,
             ui_layout_id_set,
-            ui_setup_expanded_remove,
             ui_setup_expanded_insert,
+            ui_setup_expanded_remove,
             ui_setup_selection_clear,
             ui_setup_selection_set,
             ui_tab_set,

@@ -87,6 +87,16 @@ export type Players = {
   by_id: Record<number, Player>;
 };
 
+export type Flow = {
+  id: number;
+  title: string;
+};
+
+export type Flows = {
+  order: number[];
+  by_id: Record<number, Flow>;
+};
+
 export type AppState = {
   ui: {
     tab: Tab;
@@ -101,5 +111,6 @@ export type AppState = {
     config: Config;
     meta: Meta;
     instruments: Instruments;
+    flows: Flows;
   };
 };

@@ -1,9 +1,11 @@
+use crate::score::{
+    components::pitch::{Accidental, Pitch},
+    entries::clef::{Clef, ClefDrawType},
+};
 use lazy_static::lazy_static;
 use rustc_hash::FxHashMap;
 use serde::Serialize;
 use serde_repr::{Deserialize_repr, Serialize_repr};
-
-use crate::score::entries::clef::{Clef, ClefDrawType};
 
 #[derive(Copy, Clone, Hash, Eq, PartialEq, Serialize_repr, Deserialize_repr)]
 #[repr(u8)]
@@ -50,7 +52,13 @@ lazy_static! {
                 short_name: "B. Tbn.",
                 staves: vec![StaveDefinition {
                     lines: vec![1, 1, 1, 1, 1],
-                    clef: Clef::new(0, 53, -2, ClefDrawType::F),
+                    clef: Clef::new(
+                        0,
+                        0,
+                        Pitch::new(53, Accidental::Natural),
+                        -2,
+                        ClefDrawType::F,
+                    ),
                 }],
                 solo_patches: FxHashMap::from_iter([(
                     Expression::Natural,
@@ -69,7 +77,13 @@ lazy_static! {
                 short_name: "F Hn.",
                 staves: vec![StaveDefinition {
                     lines: vec![1, 1, 1, 1, 1],
-                    clef: Clef::new(0, 67, 2, ClefDrawType::G),
+                    clef: Clef::new(
+                        0,
+                        0,
+                        Pitch::new(67, Accidental::Natural),
+                        2,
+                        ClefDrawType::G,
+                    ),
                 }],
                 solo_patches: FxHashMap::from_iter([
                     (Expression::Natural, "/patches/horn/natural.json"),
@@ -90,7 +104,13 @@ lazy_static! {
                 short_name: "Tbn.",
                 staves: vec![StaveDefinition {
                     lines: vec![1, 1, 1, 1, 1],
-                    clef: Clef::new(0, 53, -2, ClefDrawType::F),
+                    clef: Clef::new(
+                        0,
+                        0,
+                        Pitch::new(53, Accidental::Natural),
+                        -2,
+                        ClefDrawType::F,
+                    ),
                 }],
                 solo_patches: FxHashMap::from_iter([
                     (Expression::Natural, "/patches/trombone/natural.json"),
@@ -109,7 +129,13 @@ lazy_static! {
                 short_name: "B${flat} Tpt.",
                 staves: vec![StaveDefinition {
                     lines: vec![1, 1, 1, 1, 1],
-                    clef: Clef::new(0, 67, 2, ClefDrawType::G),
+                    clef: Clef::new(
+                        0,
+                        0,
+                        Pitch::new(67, Accidental::Natural),
+                        2,
+                        ClefDrawType::G,
+                    ),
                 }],
                 solo_patches: FxHashMap::from_iter([
                     (Expression::Natural, "/patches/trumpet/natural.json"),
@@ -130,7 +156,13 @@ lazy_static! {
                 short_name: "C Tpt.",
                 staves: vec![StaveDefinition {
                     lines: vec![1, 1, 1, 1, 1],
-                    clef: Clef::new(0, 67, 2, ClefDrawType::G),
+                    clef: Clef::new(
+                        0,
+                        0,
+                        Pitch::new(67, Accidental::Natural),
+                        2,
+                        ClefDrawType::G,
+                    ),
                 }],
                 solo_patches: FxHashMap::from_iter([
                     (Expression::Natural, "/patches/trumpet/natural.json"),
@@ -151,7 +183,13 @@ lazy_static! {
                 short_name: "Tba.",
                 staves: vec![StaveDefinition {
                     lines: vec![1, 1, 1, 1, 1],
-                    clef: Clef::new(0, 53, -2, ClefDrawType::F),
+                    clef: Clef::new(
+                        0,
+                        0,
+                        Pitch::new(53, Accidental::Natural),
+                        -2,
+                        ClefDrawType::F,
+                    ),
                 }],
                 solo_patches: FxHashMap::from_iter([
                     (Expression::Natural, "/patches/tuba/natural.json"),
@@ -170,7 +208,13 @@ lazy_static! {
                 short_name: "A. Gtr.",
                 staves: vec![StaveDefinition {
                     lines: vec![1, 1, 1, 1, 1],
-                    clef: Clef::new(0, 53, -2, ClefDrawType::F),
+                    clef: Clef::new(
+                        0,
+                        0,
+                        Pitch::new(53, Accidental::Natural),
+                        -2,
+                        ClefDrawType::F,
+                    ),
                 }],
                 solo_patches: FxHashMap::from_iter([(
                     Expression::Natural,
@@ -189,7 +233,13 @@ lazy_static! {
                 short_name: "B. Gtr.",
                 staves: vec![StaveDefinition {
                     lines: vec![1, 1, 1, 1, 1],
-                    clef: Clef::new(0, 53, -2, ClefDrawType::F),
+                    clef: Clef::new(
+                        0,
+                        0,
+                        Pitch::new(53, Accidental::Natural),
+                        -2,
+                        ClefDrawType::F,
+                    ),
                 }],
                 solo_patches: FxHashMap::from_iter([(
                     Expression::Natural,
@@ -208,7 +258,13 @@ lazy_static! {
                 short_name: "Gtr.",
                 staves: vec![StaveDefinition {
                     lines: vec![1, 1, 1, 1, 1],
-                    clef: Clef::new(0, 53, -2, ClefDrawType::F),
+                    clef: Clef::new(
+                        0,
+                        0,
+                        Pitch::new(53, Accidental::Natural),
+                        -2,
+                        ClefDrawType::F,
+                    ),
                 }],
                 solo_patches: FxHashMap::from_iter([(
                     Expression::Natural,
@@ -227,7 +283,13 @@ lazy_static! {
                 short_name: "Cym.",
                 staves: vec![StaveDefinition {
                     lines: vec![1],
-                    clef: Clef::new(0, 60, 0, ClefDrawType::Percussion),
+                    clef: Clef::new(
+                        0,
+                        0,
+                        Pitch::new(60, Accidental::Natural),
+                        0,
+                        ClefDrawType::Percussion,
+                    ),
                 }],
                 solo_patches: FxHashMap::from_iter([(
                     Expression::Natural,
@@ -246,7 +308,13 @@ lazy_static! {
                 short_name: "HH.",
                 staves: vec![StaveDefinition {
                     lines: vec![1],
-                    clef: Clef::new(0, 60, 0, ClefDrawType::Percussion),
+                    clef: Clef::new(
+                        0,
+                        0,
+                        Pitch::new(60, Accidental::Natural),
+                        0,
+                        ClefDrawType::Percussion,
+                    ),
                 }],
                 solo_patches: FxHashMap::from_iter([(
                     Expression::Natural,
@@ -265,7 +333,13 @@ lazy_static! {
                 short_name: "K Drm.",
                 staves: vec![StaveDefinition {
                     lines: vec![1],
-                    clef: Clef::new(0, 60, 0, ClefDrawType::Percussion),
+                    clef: Clef::new(
+                        0,
+                        0,
+                        Pitch::new(60, Accidental::Natural),
+                        0,
+                        ClefDrawType::Percussion,
+                    ),
                 }],
                 solo_patches: FxHashMap::from_iter([(
                     Expression::Natural,
@@ -284,7 +358,13 @@ lazy_static! {
                 short_name: "Sn.",
                 staves: vec![StaveDefinition {
                     lines: vec![1],
-                    clef: Clef::new(0, 60, 0, ClefDrawType::Percussion),
+                    clef: Clef::new(
+                        0,
+                        0,
+                        Pitch::new(60, Accidental::Natural),
+                        0,
+                        ClefDrawType::Percussion,
+                    ),
                 }],
                 solo_patches: FxHashMap::from_iter([(
                     Expression::Natural,
@@ -303,7 +383,13 @@ lazy_static! {
                 short_name: "Glock.",
                 staves: vec![StaveDefinition {
                     lines: vec![1, 1, 1, 1, 1],
-                    clef: Clef::new(0, 67, 2, ClefDrawType::G),
+                    clef: Clef::new(
+                        0,
+                        0,
+                        Pitch::new(67, Accidental::Natural),
+                        2,
+                        ClefDrawType::G,
+                    ),
                 }],
                 solo_patches: FxHashMap::from_iter([(
                     Expression::Natural,
@@ -323,11 +409,23 @@ lazy_static! {
                 staves: vec![
                     StaveDefinition {
                         lines: vec![1, 1, 1, 1, 1],
-                        clef: Clef::new(0, 67, 2, ClefDrawType::G),
+                        clef: Clef::new(
+                            0,
+                            0,
+                            Pitch::new(67, Accidental::Natural),
+                            2,
+                            ClefDrawType::G,
+                        ),
                     },
                     StaveDefinition {
                         lines: vec![1, 1, 1, 1, 1],
-                        clef: Clef::new(0, 53, -2, ClefDrawType::F),
+                        clef: Clef::new(
+                            0,
+                            0,
+                            Pitch::new(53, Accidental::Natural),
+                            -2,
+                            ClefDrawType::F,
+                        ),
                     },
                 ],
                 solo_patches: FxHashMap::from_iter([(
@@ -348,11 +446,23 @@ lazy_static! {
                 staves: vec![
                     StaveDefinition {
                         lines: vec![1, 1, 1, 1, 1],
-                        clef: Clef::new(0, 67, 2, ClefDrawType::G),
+                        clef: Clef::new(
+                            0,
+                            0,
+                            Pitch::new(67, Accidental::Natural),
+                            2,
+                            ClefDrawType::G,
+                        ),
                     },
                     StaveDefinition {
                         lines: vec![1, 1, 1, 1, 1],
-                        clef: Clef::new(0, 53, -2, ClefDrawType::F),
+                        clef: Clef::new(
+                            0,
+                            0,
+                            Pitch::new(53, Accidental::Natural),
+                            -2,
+                            ClefDrawType::F,
+                        ),
                     },
                 ],
                 solo_patches: FxHashMap::from_iter([(
@@ -372,7 +482,13 @@ lazy_static! {
                 short_name: "Timp.",
                 staves: vec![StaveDefinition {
                     lines: vec![1, 1, 1, 1, 1],
-                    clef: Clef::new(0, 53, -2, ClefDrawType::F),
+                    clef: Clef::new(
+                        0,
+                        0,
+                        Pitch::new(53, Accidental::Natural),
+                        -2,
+                        ClefDrawType::F,
+                    ),
                 }],
                 solo_patches: FxHashMap::from_iter([
                     (Expression::Natural, "/patches/timpani/natural.json"),
@@ -391,7 +507,13 @@ lazy_static! {
                 short_name: "Vib.",
                 staves: vec![StaveDefinition {
                     lines: vec![1, 1, 1, 1, 1],
-                    clef: Clef::new(0, 67, 2, ClefDrawType::G),
+                    clef: Clef::new(
+                        0,
+                        0,
+                        Pitch::new(67, Accidental::Natural),
+                        2,
+                        ClefDrawType::G,
+                    ),
                 }],
                 solo_patches: FxHashMap::from_iter([(
                     Expression::Natural,
@@ -410,7 +532,13 @@ lazy_static! {
                 short_name: "Xyl.",
                 staves: vec![StaveDefinition {
                     lines: vec![1, 1, 1, 1, 1],
-                    clef: Clef::new(0, 79, 2, ClefDrawType::G),
+                    clef: Clef::new(
+                        0,
+                        0,
+                        Pitch::new(79, Accidental::Natural),
+                        2,
+                        ClefDrawType::G,
+                    ),
                 }],
                 solo_patches: FxHashMap::from_iter([(
                     Expression::Natural,
@@ -430,11 +558,23 @@ lazy_static! {
                 staves: vec![
                     StaveDefinition {
                         lines: vec![1, 1, 1, 1, 1],
-                        clef: Clef::new(0, 79, 2, ClefDrawType::G),
+                        clef: Clef::new(
+                            0,
+                            0,
+                            Pitch::new(79, Accidental::Natural),
+                            2,
+                            ClefDrawType::G,
+                        ),
                     },
                     StaveDefinition {
                         lines: vec![1, 1, 1, 1, 1],
-                        clef: Clef::new(0, 65, -2, ClefDrawType::F),
+                        clef: Clef::new(
+                            0,
+                            0,
+                            Pitch::new(65, Accidental::Natural),
+                            -2,
+                            ClefDrawType::F,
+                        ),
                     },
                 ],
                 solo_patches: FxHashMap::from_iter([(
@@ -455,11 +595,23 @@ lazy_static! {
                 staves: vec![
                     StaveDefinition {
                         lines: vec![1, 1, 1, 1, 1],
-                        clef: Clef::new(0, 67, 2, ClefDrawType::G),
+                        clef: Clef::new(
+                            0,
+                            0,
+                            Pitch::new(67, Accidental::Natural),
+                            2,
+                            ClefDrawType::G,
+                        ),
                     },
                     StaveDefinition {
                         lines: vec![1, 1, 1, 1, 1],
-                        clef: Clef::new(0, 53, -2, ClefDrawType::F),
+                        clef: Clef::new(
+                            0,
+                            0,
+                            Pitch::new(53, Accidental::Natural),
+                            -2,
+                            ClefDrawType::F,
+                        ),
                     },
                 ],
                 solo_patches: FxHashMap::from_iter([(
@@ -479,7 +631,13 @@ lazy_static! {
                 short_name: "Cb.",
                 staves: vec![StaveDefinition {
                     lines: vec![1, 1, 1, 1, 1],
-                    clef: Clef::new(0, 41, -2, ClefDrawType::F),
+                    clef: Clef::new(
+                        0,
+                        0,
+                        Pitch::new(41, Accidental::Natural),
+                        -2,
+                        ClefDrawType::F,
+                    ),
                 }],
                 solo_patches: FxHashMap::from_iter([
                     (Expression::Natural, "/patches/contrabass/natural.json"),
@@ -509,7 +667,13 @@ lazy_static! {
                 short_name: "Vla.",
                 staves: vec![StaveDefinition {
                     lines: vec![1, 1, 1, 1, 1],
-                    clef: Clef::new(0, 60, 0, ClefDrawType::C),
+                    clef: Clef::new(
+                        0,
+                        0,
+                        Pitch::new(60, Accidental::Natural),
+                        0,
+                        ClefDrawType::C,
+                    ),
                 }],
                 solo_patches: FxHashMap::from_iter([
                     (Expression::Natural, "/patches/viola/natural.json"),
@@ -533,7 +697,13 @@ lazy_static! {
                 short_name: "Vln.",
                 staves: vec![StaveDefinition {
                     lines: vec![1, 1, 1, 1, 1],
-                    clef: Clef::new(0, 67, 2, ClefDrawType::G),
+                    clef: Clef::new(
+                        0,
+                        0,
+                        Pitch::new(67, Accidental::Natural),
+                        2,
+                        ClefDrawType::G,
+                    ),
                 }],
                 solo_patches: FxHashMap::from_iter([
                     (Expression::Natural, "/patches/violin/natural.json"),
@@ -562,7 +732,13 @@ lazy_static! {
                 short_name: "Vc.",
                 staves: vec![StaveDefinition {
                     lines: vec![1, 1, 1, 1, 1],
-                    clef: Clef::new(0, 53, -2, ClefDrawType::F),
+                    clef: Clef::new(
+                        0,
+                        0,
+                        Pitch::new(53, Accidental::Natural),
+                        -2,
+                        ClefDrawType::F,
+                    ),
                 }],
                 solo_patches: FxHashMap::from_iter([
                     (Expression::Natural, "/patches/violoncello/natural.json"),
@@ -592,7 +768,13 @@ lazy_static! {
                 short_name: "A. Fl.",
                 staves: vec![StaveDefinition {
                     lines: vec![1, 1, 1, 1, 1],
-                    clef: Clef::new(0, 67, 2, ClefDrawType::G),
+                    clef: Clef::new(
+                        0,
+                        0,
+                        Pitch::new(67, Accidental::Natural),
+                        2,
+                        ClefDrawType::G,
+                    ),
                 }],
                 solo_patches: FxHashMap::from_iter([(
                     Expression::Natural,
@@ -611,7 +793,13 @@ lazy_static! {
                 short_name: "A. Sax.",
                 staves: vec![StaveDefinition {
                     lines: vec![1, 1, 1, 1, 1],
-                    clef: Clef::new(0, 67, 2, ClefDrawType::G),
+                    clef: Clef::new(
+                        0,
+                        0,
+                        Pitch::new(67, Accidental::Natural),
+                        2,
+                        ClefDrawType::G,
+                    ),
                 }],
                 solo_patches: FxHashMap::from_iter([
                     (Expression::Natural, "/patches/alto-saxophone/natural.json"),
@@ -636,7 +824,13 @@ lazy_static! {
                 short_name: "Bsn.",
                 staves: vec![StaveDefinition {
                     lines: vec![1, 1, 1, 1, 1],
-                    clef: Clef::new(0, 53, -2, ClefDrawType::F),
+                    clef: Clef::new(
+                        0,
+                        0,
+                        Pitch::new(53, Accidental::Natural),
+                        -2,
+                        ClefDrawType::F,
+                    ),
                 }],
                 solo_patches: FxHashMap::from_iter([
                     (Expression::Natural, "/patches/bassoon/natural.json"),
@@ -655,7 +849,13 @@ lazy_static! {
                 short_name: "B. Cl.",
                 staves: vec![StaveDefinition {
                     lines: vec![1, 1, 1, 1, 1],
-                    clef: Clef::new(0, 53, 2, ClefDrawType::G),
+                    clef: Clef::new(
+                        0,
+                        0,
+                        Pitch::new(53, Accidental::Natural),
+                        2,
+                        ClefDrawType::G,
+                    ),
                 }],
                 solo_patches: FxHashMap::from_iter([
                     (Expression::Natural, "/patches/bass-clarinet/natural.json"),
@@ -674,7 +874,13 @@ lazy_static! {
                 short_name: "A Cl.",
                 staves: vec![StaveDefinition {
                     lines: vec![1, 1, 1, 1, 1],
-                    clef: Clef::new(0, 67, 2, ClefDrawType::G),
+                    clef: Clef::new(
+                        0,
+                        0,
+                        Pitch::new(67, Accidental::Natural),
+                        2,
+                        ClefDrawType::G,
+                    ),
                 }],
                 solo_patches: FxHashMap::from_iter([
                     (Expression::Natural, "/patches/clarinet/natural.json"),
@@ -693,7 +899,13 @@ lazy_static! {
                 short_name: "B${flat} Cl.",
                 staves: vec![StaveDefinition {
                     lines: vec![1, 1, 1, 1, 1],
-                    clef: Clef::new(0, 67, 2, ClefDrawType::G),
+                    clef: Clef::new(
+                        0,
+                        0,
+                        Pitch::new(67, Accidental::Natural),
+                        2,
+                        ClefDrawType::G,
+                    ),
                 }],
                 solo_patches: FxHashMap::from_iter([
                     (Expression::Natural, "/patches/clarinet/natural.json"),
@@ -712,7 +924,13 @@ lazy_static! {
                 short_name: "Cbsn.",
                 staves: vec![StaveDefinition {
                     lines: vec![1, 1, 1, 1, 1],
-                    clef: Clef::new(0, 53, -2, ClefDrawType::F),
+                    clef: Clef::new(
+                        0,
+                        0,
+                        Pitch::new(53, Accidental::Natural),
+                        -2,
+                        ClefDrawType::F,
+                    ),
                 }],
                 solo_patches: FxHashMap::from_iter([(
                     Expression::Natural,
@@ -731,7 +949,13 @@ lazy_static! {
                 short_name: "E Hn.",
                 staves: vec![StaveDefinition {
                     lines: vec![1, 1, 1, 1, 1],
-                    clef: Clef::new(0, 67, 2, ClefDrawType::G),
+                    clef: Clef::new(
+                        0,
+                        0,
+                        Pitch::new(67, Accidental::Natural),
+                        2,
+                        ClefDrawType::G,
+                    ),
                 }],
                 solo_patches: FxHashMap::from_iter([
                     (Expression::Natural, "/patches/cor-anglais/natural.json"),
@@ -750,7 +974,13 @@ lazy_static! {
                 short_name: "Fl.",
                 staves: vec![StaveDefinition {
                     lines: vec![1, 1, 1, 1, 1],
-                    clef: Clef::new(0, 67, 2, ClefDrawType::G),
+                    clef: Clef::new(
+                        0,
+                        0,
+                        Pitch::new(67, Accidental::Natural),
+                        2,
+                        ClefDrawType::G,
+                    ),
                 }],
                 solo_patches: FxHashMap::from_iter([
                     (Expression::Natural, "/patches/flute/natural.json"),
@@ -769,7 +999,13 @@ lazy_static! {
                 short_name: "Ob.",
                 staves: vec![StaveDefinition {
                     lines: vec![1, 1, 1, 1, 1],
-                    clef: Clef::new(0, 67, 2, ClefDrawType::G),
+                    clef: Clef::new(
+                        0,
+                        0,
+                        Pitch::new(67, Accidental::Natural),
+                        2,
+                        ClefDrawType::G,
+                    ),
                 }],
                 solo_patches: FxHashMap::from_iter([
                     (Expression::Natural, "/patches/oboe/natural.json"),
@@ -788,7 +1024,13 @@ lazy_static! {
                 short_name: "Pc.",
                 staves: vec![StaveDefinition {
                     lines: vec![1, 1, 1, 1, 1],
-                    clef: Clef::new(0, 79, 2, ClefDrawType::G),
+                    clef: Clef::new(
+                        0,
+                        0,
+                        Pitch::new(79, Accidental::Natural),
+                        2,
+                        ClefDrawType::G,
+                    ),
                 }],
                 solo_patches: FxHashMap::from_iter([
                     (Expression::Natural, "/patches/piccolo/natural.json"),

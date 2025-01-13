@@ -1,11 +1,13 @@
 use serde::{Deserialize, Serialize};
+use serde_repr::{Deserialize_repr, Serialize_repr};
 
-use crate::score::components::{
-    duration::Tick,
-    pitch::{Accidental, Pitch},
+use crate::{
+    score::components::{duration::Tick, pitch::Pitch},
+    utils::UniqueId,
 };
 
-#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Hash, Eq, PartialEq, Serialize_repr, Deserialize_repr)]
+#[repr(u8)]
 pub enum ClefDrawType {
     Hidden,
     G,
@@ -16,18 +18,20 @@ pub enum ClefDrawType {
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Clef {
+    pub id: UniqueId,
     pub tick: Tick,
     pub draw_as: ClefDrawType,
-    pub pitch: Pitch, // the pitch that the clef sits on
+    pub pitch: Pitch, // the pitch that the clef represents (treble => G, Alto => C etc.)
     pub offset: i8,   // visual offset from middle stave line
 }
 
 impl Clef {
-    pub fn new(tick: Tick, pitch: u8, offset: i8, draw_as: ClefDrawType) -> Self {
+    pub fn new(id: UniqueId, tick: Tick, pitch: Pitch, offset: i8, draw_as: ClefDrawType) -> Self {
         Self {
+            id,
             tick,
             draw_as,
-            pitch: Pitch::new(pitch, Accidental::Natural),
+            pitch,
             offset,
         }
     }

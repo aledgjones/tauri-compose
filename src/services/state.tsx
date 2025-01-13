@@ -8,16 +8,11 @@ export const initialAppState: AppState = {
   ui: {
     tab: Tab.Setup,
     layout_id: "full-score",
-    setup: {
-      selection: null,
-      expanded: [],
-    },
+    setup: { selection: null, expanded: [] },
   },
   score: {
-    players: {
-      order: [],
-      by_id: {},
-    },
+    flows: { order: [], by_id: {} },
+    players: { order: [], by_id: {} },
     instruments: { by_id: {} },
     config: {
       auto_count_styles: {

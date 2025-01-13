@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
-#[derive(Clone, Hash, Eq, PartialEq, Serialize_repr, Deserialize_repr)]
+#[derive(Copy, Clone, Hash, Eq, PartialEq, Serialize_repr, Deserialize_repr)]
 #[repr(u8)]
 pub enum Accidental {
     DoubleSharp = 0,
@@ -11,7 +11,7 @@ pub enum Accidental {
     DoubleFlat,
 }
 
-#[derive(Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct Pitch {
     pub int: u8, // the midi number
     pub accidental: Accidental,
