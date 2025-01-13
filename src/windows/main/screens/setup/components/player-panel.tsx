@@ -70,10 +70,12 @@ export const PlayerPlanel = () => {
       title="Players"
       icons={[
         {
+          key: "cog",
           path: mdiAccountCog,
           onClick: onPlayerSettingsPress,
         },
         {
+          key: "plus",
           path: mdiPlus,
           onClick: onAddInstrumentPress,
         },

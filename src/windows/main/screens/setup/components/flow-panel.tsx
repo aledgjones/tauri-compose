@@ -47,6 +47,7 @@ export const FlowPanel = () => {
       title="Flows"
       icons={[
         {
+          key: "plus",
           path: mdiPlus,
           onClick: onAddFlowPress,
         },

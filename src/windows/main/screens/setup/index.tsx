@@ -14,10 +14,12 @@ export const Setup = () => {
         title="Layouts"
         icons={[
           {
+            key: "cog",
             path: mdiFileCogOutline,
             onClick: () => {},
           },
           {
+            key: "plus",
             path: mdiPlus,
             onClick: () => {},
           },

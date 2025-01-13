@@ -3,6 +3,7 @@ import { FunctionalComponent } from "preact";
 import { IconButton } from "../../../../../ui/icon-button";
 
 type IconConfig = {
+  key: string;
   onClick: () => void;
   path: string;
 };
@@ -31,6 +32,7 @@ export const Panel: FunctionalComponent<Props> = ({
         {icons?.map((config) => {
           return (
             <IconButton
+              key={config.key}
               className="text-white"
               onClick={config.onClick}
               variant="standard"
