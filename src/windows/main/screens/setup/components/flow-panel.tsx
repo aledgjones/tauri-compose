@@ -43,7 +43,7 @@ export const FlowPanel = () => {
           return;
         }
 
-        // await actions.score.player.move(e.oldIndex, e.newIndex);
+        await actions.score.flow.move(e.oldIndex, e.newIndex);
       },
     });
 

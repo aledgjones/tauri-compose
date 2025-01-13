@@ -120,6 +120,9 @@ export const actions = {
       create: () => {
         return loggedInvoke<void>("score_flows_create");
       },
+      move: (from_index: number, to_index: number) => {
+        return loggedInvoke<void>("score_flows_move", { from_index, to_index });
+      },
     },
     player: {
       create: (player_type: PlayerType) => {

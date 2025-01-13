@@ -7,7 +7,7 @@ use renderer::render;
 use score::config::{
     score_config_auto_count_styles_section_set, score_config_auto_count_styles_solo_set,
 };
-use score::flows::score_flows_create;
+use score::flows::{score_flows_create, score_flows_move};
 use score::instruments::defs::score_instruments_get_all_definitions;
 use score::instruments::{
     score_instruments_create, score_instruments_move, score_instruments_remove,
@@ -99,6 +99,7 @@ pub fn run() {
             score_config_auto_count_styles_solo_set,
             score_config_auto_count_styles_section_set,
             score_flows_create,
+            score_flows_move,
             score_instruments_create,
             score_instruments_get_all_definitions,
             score_instruments_move,

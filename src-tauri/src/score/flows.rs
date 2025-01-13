@@ -139,3 +139,19 @@ pub fn score_flows_create(app: tauri::AppHandle, state: State<'_, AppState>) -> 
 
     flow_id
 }
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn score_flows_move(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    from_index: usize,
+    to_index: usize,
+) {
+    let mut state = state.lock().unwrap();
+
+    let moved = state.score.flows.order.remove(from_index);
+    state.score.flows.order.insert(to_index, moved);
+
+    state.score.update_counts();
+    state.emit(&app);
+}
