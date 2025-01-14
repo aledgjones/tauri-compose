@@ -20,8 +20,8 @@ impl Staves {
 pub struct Stave {
     pub id: UniqueId,
     pub lines: Vec<u8>,
-    pub master: UniqueId,
-    pub tracks: Vec<UniqueId>,
+    pub master_id: UniqueId,
+    pub track_ids: Vec<UniqueId>,
 }
 
 impl Stave {
@@ -29,8 +29,8 @@ impl Stave {
         Stave {
             id,
             lines: stave_def.lines.clone(),
-            master: master_id,
-            tracks: Vec::new(),
+            master_id,
+            track_ids: Vec::new(),
         }
     }
 }

@@ -15,7 +15,7 @@ pub struct Instrument {
     pub instrument_type: InstrumentType,
     pub long_name: String,
     pub short_name: String,
-    pub staves: Vec<UniqueId>,
+    pub stave_ids: Vec<UniqueId>,
     pub count: Option<String>,
     pub volume: u8, // 0-127
     pub solo: bool,
@@ -43,7 +43,7 @@ impl Score {
         for player_id in &self.players.order {
             let player = &self.players.by_id[player_id];
 
-            for instrument_id in &player.instruments {
+            for instrument_id in &player.instrument_ids {
                 let instrument = self.instruments.by_id.get_mut(instrument_id).unwrap();
 
                 // Reset the current count
@@ -99,7 +99,7 @@ pub fn score_instruments_create(
     let instrument_id = state.generate_id();
 
     let def = get_instrument_definition(&definition_id).unwrap();
-    let staves = def
+    let stave_ids = def
         .staves
         .iter()
         .map(|_| state.generate_id())
@@ -111,7 +111,7 @@ pub fn score_instruments_create(
         instrument_type: def.instrument_type,
         long_name: String::from(def.long_name),
         short_name: String::from(def.short_name),
-        staves,
+        stave_ids,
         count: None,
         volume: 80,
         solo: false,
@@ -141,13 +141,13 @@ pub fn score_instruments_move(
     let mut state = state.lock().unwrap();
 
     let from_player = state.score.players.by_id.get_mut(&from_player_id).unwrap();
-    let removed = from_player.instruments.remove(from_index);
+    let removed = from_player.instrument_ids.remove(from_index);
 
     if from_player_id == to_player_id {
-        from_player.instruments.insert(to_index, removed);
+        from_player.instrument_ids.insert(to_index, removed);
     } else {
         let to_player = state.score.players.by_id.get_mut(&to_player_id).unwrap();
-        to_player.instruments.insert(to_index, removed);
+        to_player.instrument_ids.insert(to_index, removed);
     }
 
     state.score.update_counts();

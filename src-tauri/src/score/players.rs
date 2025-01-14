@@ -15,7 +15,7 @@ pub enum PlayerType {
 pub struct Player {
     pub id: UniqueId,
     pub player_type: PlayerType,
-    pub instruments: Vec<UniqueId>,
+    pub instrument_ids: Vec<UniqueId>,
 }
 
 impl Player {
@@ -23,7 +23,7 @@ impl Player {
         Player {
             id,
             player_type,
-            instruments: Vec::new(),
+            instrument_ids: Vec::new(),
         }
     }
 }
@@ -93,7 +93,7 @@ pub fn score_players_assign_instrument(
     let mut state = state.lock().unwrap();
 
     let player = state.score.players.by_id.get_mut(&player_id).unwrap();
-    player.instruments.push(instrument_id);
+    player.instrument_ids.push(instrument_id);
 
     for flow_id in state.score.flows.order.clone() {
         state.assign_instrument_to_flow(flow_id, instrument_id);
@@ -113,7 +113,7 @@ pub fn score_players_unassign_instrument(
     let mut state = state.lock().unwrap();
 
     let player = state.score.players.by_id.get_mut(&player_id).unwrap();
-    player.instruments.retain(|id| *id != instrument_id);
+    player.instrument_ids.retain(|id| *id != instrument_id);
 
     for flow_id in state.score.flows.order.clone() {
         state.unassign_instrument_from_flow(flow_id, instrument_id);
@@ -138,7 +138,7 @@ pub fn score_players_remove(
 
     // cleanup player instruments
     let player = state.score.players.by_id.get(&player_id).unwrap();
-    for instrument_id in player.instruments.clone() {
+    for instrument_id in player.instrument_ids.clone() {
         state.score.instruments.by_id.remove(&instrument_id);
     }
 

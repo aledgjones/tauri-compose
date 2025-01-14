@@ -59,7 +59,7 @@ impl AppStateInner {
         flow.player_ids.insert(player_id);
 
         let player = &self.score.players.by_id[&player_id];
-        let instruments = player.instruments.clone();
+        let instruments = player.instrument_ids.clone();
         for instrument_id in instruments {
             self.assign_instrument_to_flow(flow_id, instrument_id)
         }
@@ -69,7 +69,7 @@ impl AppStateInner {
         let instrument = self.score.instruments.by_id[&instrument_id].clone();
         let def = get_instrument_definition(&instrument.definition_id).unwrap();
 
-        for (i, stave_id) in instrument.staves.iter().enumerate() {
+        for (i, stave_id) in instrument.stave_ids.iter().enumerate() {
             let stave_def = &def.staves[i];
 
             // Create master track
@@ -92,7 +92,7 @@ impl AppStateInner {
 
             // Create stave
             let mut stave = Stave::new(*stave_id, stave_def, master_id);
-            stave.tracks.push(track_id);
+            stave.track_ids.push(track_id);
 
             // Insert tracks into score
             self.score.tracks.by_id.insert(track_id, track);
@@ -109,7 +109,7 @@ impl AppStateInner {
 
         flow.player_ids.remove(&player_id);
 
-        for instrument_id in self.score.players.by_id[&player_id].instruments.clone() {
+        for instrument_id in self.score.players.by_id[&player_id].instrument_ids.clone() {
             self.unassign_instrument_from_flow(flow_id, instrument_id);
         }
     }
@@ -117,10 +117,10 @@ impl AppStateInner {
     pub fn unassign_instrument_from_flow(&mut self, flow_id: UniqueId, instrument_id: UniqueId) {
         let flow = self.score.flows.by_id.get_mut(&flow_id).unwrap();
 
-        for stave_id in &self.score.instruments.by_id[&instrument_id].staves {
+        for stave_id in &self.score.instruments.by_id[&instrument_id].stave_ids {
             if let Some(stave) = flow.staves.by_id.get(stave_id) {
-                self.score.tracks.by_id.remove(&stave.master);
-                for track_id in &stave.tracks {
+                self.score.tracks.by_id.remove(&stave.master_id);
+                for track_id in &stave.track_ids {
                     self.score.tracks.by_id.remove(track_id);
                 }
                 flow.staves.by_id.remove(stave_id);
