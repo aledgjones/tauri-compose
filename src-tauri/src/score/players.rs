@@ -58,8 +58,8 @@ pub fn score_players_create(
     state.score.players.by_id.insert(player_id, player);
 
     let flows = state.score.flows.order.clone();
-    for flow_key in flows {
-        state.assign_player_to_flow(flow_key, player_id);
+    for flow_id in flows {
+        state.assign_player_to_flow(flow_id, player_id);
     }
 
     state.emit(&app);

@@ -155,8 +155,8 @@ pub fn score_flows_create(app: tauri::AppHandle, state: State<'_, AppState>) -> 
 
     // add all the player keys into the new flow
     let players = state.score.players.order.clone();
-    for player_key in players {
-        state.assign_player_to_flow(flow_id, player_key);
+    for player_id in players {
+        state.assign_player_to_flow(flow_id, player_id);
     }
 
     state.emit(&app);
