@@ -127,6 +127,9 @@ export const actions = {
       create: () => {
         return loggedInvoke<void>("score_flows_create");
       },
+      rename: (flow_id: UniqueId, title: string) => {
+        return loggedInvoke<void>("score_flows_rename", { flow_id, title });
+      },
       move: (from_index: number, to_index: number) => {
         return loggedInvoke<void>("score_flows_move", { from_index, to_index });
       },
@@ -141,6 +144,9 @@ export const actions = {
           flow_id,
           player_id,
         });
+      },
+      remove: (flow_id: UniqueId) => {
+        return loggedInvoke<void>("score_flows_remove", { flow_id });
       },
     },
     player: {

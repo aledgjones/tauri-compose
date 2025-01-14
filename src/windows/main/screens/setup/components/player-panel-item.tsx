@@ -45,7 +45,8 @@ export const PlayerPanelItem: FunctionalComponent<Props> = ({
 
   const isAssignable = false;
   const isInstrumentAssignable =
-    player.player_type === PlayerType.Solo || player.instruments.length === 0;
+    player.player_type === PlayerType.Solo ||
+    player.instrument_ids.length === 0;
 
   const fg = isSelected ? "text-black" : "text-white";
   const bg = isSelected ? "bg-sky-500" : "bg-neutral-800";
@@ -60,7 +61,7 @@ export const PlayerPanelItem: FunctionalComponent<Props> = ({
   }, [player.player_type]);
 
   const playerName = useMemo(() => {
-    const instrumentNames = player.instruments.map((instrumentId) => {
+    const instrumentNames = player.instrument_ids.map((instrumentId) => {
       const instrument = instruments[instrumentId];
       return (
         instrument.long_name + (instrument.count ? ` ${instrument.count}` : "")
@@ -193,7 +194,7 @@ export const PlayerPanelItem: FunctionalComponent<Props> = ({
           hidden: !isExpanded,
         })}
       >
-        {player.instruments.map((instrumentId) => {
+        {player.instrument_ids.map((instrumentId) => {
           const instrument = instruments[instrumentId];
           return (
             <PlayerPanelInstrumentListItem

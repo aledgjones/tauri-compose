@@ -67,7 +67,7 @@ export type Instrument = {
   instrument_type: InstrumentType;
   long_name: string;
   short_name: string;
-  staves: UniqueId[];
+  stave_ids: UniqueId[];
   count: string | null;
   volume: number;
   solo: boolean;
@@ -81,7 +81,7 @@ export type Instruments = {
 export type Player = {
   id: UniqueId;
   player_type: PlayerType;
-  instruments: UniqueId[];
+  instrument_ids: UniqueId[];
 };
 
 export type Players = {
@@ -100,8 +100,8 @@ export type Tracks = {
 export type Stave = {
   id: UniqueId;
   lines: Array<0 | 1>;
-  master: UniqueId;
-  tracks: UniqueId[];
+  master_id: UniqueId;
+  track_ids: UniqueId[];
 };
 
 type Staves = {

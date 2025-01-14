@@ -35,28 +35,31 @@ export const Renderer: FunctionalComponent<Props> = ({ className, style }) => {
 
                       return {
                         ...player,
-                        instruments: player.instruments.map((instrumentId) => {
-                          const instrument =
-                            state.score.instruments.by_id[instrumentId];
-                          return {
-                            ...instrument,
-                            staves: instrument.staves.map((staveId) => {
-                              const stave = flow.staves.by_id[staveId];
-                              return {
-                                ...stave,
-                                master: state.score.tracks.by_id[stave.master],
-                                tracks: stave.tracks.map((trackId) => {
-                                  const track =
-                                    state.score.tracks.by_id[trackId];
+                        instruments: player.instrument_ids.map(
+                          (instrumentId) => {
+                            const instrument =
+                              state.score.instruments.by_id[instrumentId];
+                            return {
+                              ...instrument,
+                              staves: instrument.stave_ids.map((staveId) => {
+                                const stave = flow.staves.by_id[staveId];
+                                return {
+                                  ...stave,
+                                  master:
+                                    state.score.tracks.by_id[stave.master_id],
+                                  tracks: stave.track_ids.map((trackId) => {
+                                    const track =
+                                      state.score.tracks.by_id[trackId];
 
-                                  return {
-                                    ...track,
-                                  };
-                                }),
-                              };
-                            }),
-                          };
-                        }),
+                                    return {
+                                      ...track,
+                                    };
+                                  }),
+                                };
+                              }),
+                            };
+                          }
+                        ),
                       };
                     }),
                   },

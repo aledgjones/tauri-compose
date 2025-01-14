@@ -1,10 +1,5 @@
 import { mdiDelete, mdiHeatWave, mdiPencil } from "@mdi/js";
-import {
-  AppState,
-  Flow,
-  SelectionType,
-  UniqueId,
-} from "../../../../../services/types";
+import { AppState, Flow, SelectionType } from "../../../../../services/types";
 import { Icon } from "../../../../../ui/icon";
 import classNames from "classnames";
 import { FunctionalComponent } from "preact";
@@ -91,7 +86,7 @@ export const FlowPanelItem: FunctionalComponent<Props> = ({ flow }) => {
                 variant="standard"
                 path={mdiDelete}
                 onClick={async () => {
-                  // delete
+                  await actions.score.flow.remove(flow.id);
                 }}
               />
             </>
