@@ -113,7 +113,7 @@ pub fn score_players_unassign_instrument(
     let mut state = state.lock().unwrap();
 
     let player = state.score.players.by_id.get_mut(&player_id).unwrap();
-    player.instruments.retain(|e| *e != instrument_id);
+    player.instruments.retain(|id| *id != instrument_id);
 
     for flow_id in state.score.flows.order.clone() {
         state.unassign_instrument_from_flow(flow_id, instrument_id);
@@ -143,7 +143,7 @@ pub fn score_players_remove(
     }
 
     // cleanup player
-    state.score.players.order.retain(|item| *item != player_id);
+    state.score.players.order.retain(|id| *id != player_id);
     state.score.players.by_id.remove(&player_id);
 
     // cleanup ui state
