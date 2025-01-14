@@ -1,25 +1,45 @@
 import { mdiDelete, mdiHeatWave, mdiPencil } from "@mdi/js";
-import { Flow, SelectionType } from "../../../../../services/types";
+import {
+  AppState,
+  Flow,
+  SelectionType,
+  UniqueId,
+} from "../../../../../services/types";
 import { Icon } from "../../../../../ui/icon";
 import classNames from "classnames";
 import { FunctionalComponent } from "preact";
 import { IconButton } from "../../../../../ui/icon-button";
 import { actions } from "../../../../../services/actions";
 import { Checkbox } from "../../../../../ui/checkbox";
+import { useAppState } from "../../../../../services/state";
+
+const assignableSet = new Set<SelectionType | undefined>([
+  SelectionType.Player,
+  SelectionType.Layout,
+]);
+
+const getIsAssigned = (state: AppState, flowId: number) => {
+  const selection = state.ui.setup.selection;
+
+  if (selection?.selection_type === SelectionType.Player) {
+    return state.score.flows.by_id[flowId].player_ids.includes(selection.id);
+  }
+
+  return false;
+};
 
 type Props = {
   flow: Flow;
-  isSelected: boolean;
-  isAssignable: boolean;
-  isAssigned: boolean;
 };
 
-export const FlowPanelItem: FunctionalComponent<Props> = ({
-  flow,
-  isSelected,
-  isAssignable,
-  isAssigned,
-}) => {
+export const FlowPanelItem: FunctionalComponent<Props> = ({ flow }) => {
+  const state = useAppState();
+  const selection = state.ui.setup.selection;
+
+  const isSelected = selection?.id === flow.id;
+  const isAssigned = getIsAssigned(state, flow.id);
+  const isAssignable = assignableSet.has(selection?.selection_type);
+
   const fg = isSelected ? "text-black" : "text-white";
   const bg = isSelected ? "bg-sky-500" : "bg-neutral-800";
 
@@ -82,7 +102,25 @@ export const FlowPanelItem: FunctionalComponent<Props> = ({
               <Checkbox
                 value={isAssigned}
                 onPointerDown={(e) => e.stopPropagation()}
-                onChange={() => {}}
+                onChange={async (checked) => {
+                  if (!selection) {
+                    return;
+                  }
+
+                  if (selection.selection_type === SelectionType.Player) {
+                    if (checked) {
+                      await actions.score.flow.assignPlayer(
+                        flow.id,
+                        selection.id
+                      );
+                    } else {
+                      await actions.score.flow.unassignPlayer(
+                        flow.id,
+                        selection.id
+                      );
+                    }
+                  }
+                }}
               />
             </div>
           )}

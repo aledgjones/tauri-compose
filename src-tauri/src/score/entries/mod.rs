@@ -24,6 +24,7 @@ impl Entries {
 }
 
 #[derive(Clone, Serialize, Deserialize)]
+#[serde(tag = "type")]
 pub enum Entry {
     Clef(Clef),
     TimeSignature(TimeSignature),

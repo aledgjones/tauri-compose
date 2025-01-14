@@ -1,6 +1,13 @@
 import { invoke, InvokeArgs, InvokeOptions } from "@tauri-apps/api/core";
 import { emit } from "@tauri-apps/api/event";
-import { AutoCountStyle, Log, PlayerType, SelectionType, Tab } from "./types";
+import {
+  AutoCountStyle,
+  Log,
+  PlayerType,
+  SelectionType,
+  Tab,
+  UniqueId,
+} from "./types";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 
 export const loggedInvoke = async <T = unknown>(
@@ -122,6 +129,18 @@ export const actions = {
       },
       move: (from_index: number, to_index: number) => {
         return loggedInvoke<void>("score_flows_move", { from_index, to_index });
+      },
+      assignPlayer: (flow_id: UniqueId, player_id: UniqueId) => {
+        return loggedInvoke<void>("score_flows_assign_player", {
+          flow_id,
+          player_id,
+        });
+      },
+      unassignPlayer: (flow_id: UniqueId, player_id: UniqueId) => {
+        return loggedInvoke<void>("score_flows_unassign_player", {
+          flow_id,
+          player_id,
+        });
       },
     },
     player: {

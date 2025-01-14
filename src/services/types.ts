@@ -1,3 +1,5 @@
+export type UniqueId = number;
+
 export type Log = {
   type: "log" | "error" | "warn";
   message: string;
@@ -60,12 +62,12 @@ export enum InstrumentType {
 }
 
 export type Instrument = {
-  id: number;
+  id: UniqueId;
   definition_id: string;
   instrument_type: InstrumentType;
   long_name: string;
   short_name: string;
-  staves: number[];
+  staves: UniqueId[];
   count: string | null;
   volume: number;
   solo: boolean;
@@ -73,29 +75,50 @@ export type Instrument = {
 };
 
 export type Instruments = {
-  by_id: Record<number, Instrument>;
+  by_id: Record<UniqueId, Instrument>;
 };
 
 export type Player = {
-  id: number;
+  id: UniqueId;
   player_type: PlayerType;
-  instruments: number[];
+  instruments: UniqueId[];
 };
 
 export type Players = {
-  order: number[];
-  by_id: Record<number, Player>;
+  order: UniqueId[];
+  by_id: Record<UniqueId, Player>;
+};
+
+export type Track = {
+  id: UniqueId;
+};
+
+export type Tracks = {
+  by_id: Record<UniqueId, Track>;
+};
+
+export type Stave = {
+  id: UniqueId;
+  lines: Array<0 | 1>;
+  master: UniqueId;
+  tracks: UniqueId[];
+};
+
+type Staves = {
+  by_id: Record<UniqueId, Stave>;
 };
 
 export type Flow = {
-  id: number;
+  id: UniqueId;
   title: string;
-  player_ids: number[];
+  player_ids: UniqueId[];
+  staves: Staves;
+  master_id: UniqueId;
 };
 
 export type Flows = {
-  order: number[];
-  by_id: Record<number, Flow>;
+  order: UniqueId[];
+  by_id: Record<UniqueId, Flow>;
 };
 
 export type AppState = {
@@ -103,8 +126,8 @@ export type AppState = {
     tab: Tab;
     layout_id: string;
     setup: {
-      selection: { id: number; selection_type: SelectionType } | null;
-      expanded: number[];
+      selection: { id: UniqueId; selection_type: SelectionType } | null;
+      expanded: UniqueId[];
     };
   };
   score: {
@@ -113,5 +136,6 @@ export type AppState = {
     meta: Meta;
     instruments: Instruments;
     flows: Flows;
+    tracks: Tracks;
   };
 };

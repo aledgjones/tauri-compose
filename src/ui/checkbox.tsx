@@ -16,13 +16,9 @@ export const Checkbox: FunctionalComponent<Props> = ({
   className,
   onPointerDown,
 }) => {
-  const handleChange = (event: Event) => {
-    onChange((event.target as HTMLInputElement).checked);
-  };
-
   return (
     <div
-      onClick={handleChange}
+      onClick={() => onChange(!value)}
       onPointerDown={onPointerDown}
       className={`relative h-[36px] w-[36px] flex items-center justify-center ${className}`}
     >

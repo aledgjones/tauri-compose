@@ -53,12 +53,14 @@ export const Tools: FunctionComponent<Props> = ({ className }) => {
         path={mdiBugPlayOutline}
       />
       <IconButton
+        isDisabled
         className="mr-1 text-white"
         onClick={() => {}}
         variant="filled"
         path={mdiUndo}
       />
       <IconButton
+        isDisabled
         className="text-white"
         onClick={() => {}}
         variant="filled"

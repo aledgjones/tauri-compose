@@ -34,15 +34,15 @@ impl Track {
     }
 
     /// Insert and entry into the track
-    pub fn insert(&mut self, entry: Entry) {
+    pub fn insert_entry(&mut self, entry: Entry) {
         let tick = self.entries.by_tick.entry(entry.tick()).or_default();
         tick.push(entry.id());
         self.entries.by_id.insert(entry.id(), entry);
     }
 
     /// Move an entry to a new tick
-    pub fn shift(&mut self, id: UniqueId, new_tick: Tick) {
-        let entry = match self.entries.by_id.get_mut(&id) {
+    pub fn shift_entry(&mut self, entry_id: UniqueId, new_tick: Tick) {
+        let entry = match self.entries.by_id.get_mut(&entry_id) {
             Some(entry) => entry,
             None => return,
         };
@@ -54,21 +54,21 @@ impl Track {
             entry.set_tick(new_tick);
             // move the entry key to the new tick
             if let Some(keys) = self.entries.by_tick.get_mut(&old_tick) {
-                keys.retain(|item_id| *item_id != id);
+                keys.retain(|item_id| *item_id != entry_id);
             };
             let tick = self.entries.by_tick.entry(new_tick).or_default();
-            tick.push(id);
+            tick.push(entry_id);
         }
     }
 
     /// remove an entry and return the removed entry
-    pub fn remove(&mut self, id: UniqueId) -> Option<Entry> {
-        let entry = self.entries.by_id.get(&id)?;
+    pub fn remove_entry(&mut self, entry_id: UniqueId) -> Option<Entry> {
+        let entry = self.entries.by_id.get(&entry_id)?;
 
         if let Some(ids) = self.entries.by_tick.get_mut(&entry.tick()) {
-            ids.retain(|item_id| *item_id != id);
+            ids.retain(|item_id| *item_id != entry_id);
         };
 
-        self.entries.by_id.remove(&id)
+        self.entries.by_id.remove(&entry_id)
     }
 }

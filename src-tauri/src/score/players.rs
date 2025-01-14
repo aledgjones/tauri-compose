@@ -51,21 +51,20 @@ pub fn score_players_create(
 ) -> UniqueId {
     let mut state = state.lock().unwrap();
 
-    let id = state.generate_id();
+    let player_id = state.generate_id();
+    let player = Player::new(player_id, player_type);
 
-    let player = Player::new(id, player_type);
+    state.score.players.order.push(player_id);
+    state.score.players.by_id.insert(player_id, player);
 
-    state.score.players.order.push(id);
-    state.score.players.by_id.insert(id, player);
-
-    // let flows = self.file.score.flows.order.clone();
-    // for flow_key in flows {
-    //     self.assign_player_to_flow(&flow_key, &key.clone());
-    // }
+    let flows = state.score.flows.order.clone();
+    for flow_key in flows {
+        state.assign_player_to_flow(flow_key, player_id);
+    }
 
     state.emit(&app);
 
-    id
+    player_id
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -96,13 +95,13 @@ pub fn score_players_assign_instrument(
     let player = state.score.players.by_id.get_mut(&player_id).unwrap();
     player.instruments.push(instrument_id);
 
-    // let flows = self.file.score.flows.order.clone();
-    // for flow_key in flows {
-    //     let flow = &self.file.score.flows.by_key[&flow_key];
-    //     if flow.players.contains(player_key) {
-    //         self.assign_instrument_to_flow(&flow_key, instrument_key);
-    //     }
-    // }
+    let flows = state.score.flows.order.clone();
+    for flow_id in flows {
+        let flow = &state.score.flows.by_id[&flow_id];
+        if flow.player_ids.contains(&player_id) {
+            state.assign_instrument_to_flow(flow_id, instrument_id);
+        }
+    }
 
     state.score.update_counts();
     state.emit(&app);
@@ -120,13 +119,13 @@ pub fn score_players_unassign_instrument(
     let player = state.score.players.by_id.get_mut(&player_id).unwrap();
     player.instruments.retain(|e| *e != instrument_id);
 
-    // let flows = self.file.score.flows.order.clone();
-    // for flow_key in flows {
-    //     let flow = &self.file.score.flows.by_key[&flow_key];
-    //     if flow.players.contains(player_key) {
-    //         self.unassign_instrument_from_flow(&flow_key, instrument_key);
-    //     }
-    // }
+    let flows = state.score.flows.order.clone();
+    for flow_id in flows {
+        let flow = &state.score.flows.by_id[&flow_id];
+        if flow.player_ids.contains(&player_id) {
+            state.unassign_instrument_from_flow(flow_id, instrument_id);
+        }
+    }
 
     state.score.update_counts();
     state.emit(&app);
@@ -140,19 +139,23 @@ pub fn score_players_remove(
 ) {
     let mut state = state.lock().unwrap();
 
-    // let flows = self.file.score.flows.order.clone();
-    // for flow_key in flows {
-    //     self.unassign_player_from_flow(&flow_key, player_key);
-    // }
+    // remove player & instruments from flows
+    let flows = state.score.flows.order.clone();
+    for flow_id in flows {
+        state.unassign_player_from_flow(flow_id, player_id);
+    }
 
+    // cleanup player instruments
     let player = state.score.players.by_id.get(&player_id).unwrap();
     for instrument_id in player.instruments.clone() {
         state.score.instruments.by_id.remove(&instrument_id);
     }
 
+    // cleanup player
     state.score.players.order.retain(|item| *item != player_id);
     state.score.players.by_id.remove(&player_id);
 
+    // cleanup ui state
     state.ui.setup.expanded.remove(&player_id);
     state.ui.setup.selection = None;
 

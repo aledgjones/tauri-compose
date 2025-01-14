@@ -78,7 +78,7 @@ impl AppStateInner {
 
             // Create and insert clef entry
             let clef_id = self.generate_id();
-            master.insert(Entry::Clef(Clef::new(
+            master.insert_entry(Entry::Clef(Clef::new(
                 clef_id,
                 0,
                 stave_def.clef.pitch,
@@ -103,6 +103,32 @@ impl AppStateInner {
             flow.staves.by_id.insert(*stave_id, stave);
         }
     }
+
+    pub fn unassign_player_from_flow(&mut self, flow_id: UniqueId, player_id: UniqueId) {
+        let flow = self.score.flows.by_id.get_mut(&flow_id).unwrap();
+        flow.player_ids.remove(&player_id);
+
+        let player = &self.score.players.by_id[&player_id];
+        let instruments = player.instruments.clone();
+        for instrument_id in instruments {
+            self.unassign_instrument_from_flow(flow_id, instrument_id);
+        }
+    }
+
+    pub fn unassign_instrument_from_flow(&mut self, flow_id: UniqueId, instrument_id: UniqueId) {
+        let flow = self.score.flows.by_id.get_mut(&flow_id).unwrap();
+
+        let instrument = &self.score.instruments.by_id[&instrument_id];
+        for stave_id in &instrument.staves {
+            if let Some(stave) = flow.staves.by_id.get(stave_id) {
+                self.score.tracks.by_id.remove(&stave.master);
+                for track_id in &stave.tracks {
+                    self.score.tracks.by_id.remove(track_id);
+                }
+                flow.staves.by_id.remove(stave_id);
+            };
+        }
+    }
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -116,7 +142,7 @@ pub fn score_flows_create(app: tauri::AppHandle, state: State<'_, AppState>) -> 
     let mut master = Track::new(master_id);
     let flow = Flow::new(flow_id, master_id);
 
-    master.insert(Entry::TimeSignature(TimeSignature::new(
+    master.insert_entry(Entry::TimeSignature(TimeSignature::new(
         time_signature_id,
         0,
         4,
@@ -151,6 +177,36 @@ pub fn score_flows_move(
 
     let moved = state.score.flows.order.remove(from_index);
     state.score.flows.order.insert(to_index, moved);
+
+    state.score.update_counts();
+    state.emit(&app);
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn score_flows_assign_player(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    flow_id: UniqueId,
+    player_id: UniqueId,
+) {
+    let mut state = state.lock().unwrap();
+
+    state.assign_player_to_flow(flow_id, player_id);
+
+    state.score.update_counts();
+    state.emit(&app);
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn score_flows_unassign_player(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    flow_id: UniqueId,
+    player_id: UniqueId,
+) {
+    let mut state = state.lock().unwrap();
+
+    state.unassign_player_from_flow(flow_id, player_id);
 
     state.score.update_counts();
     state.emit(&app);

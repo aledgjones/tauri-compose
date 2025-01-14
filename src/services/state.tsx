@@ -14,6 +14,7 @@ export const initialAppState: AppState = {
     flows: { order: [], by_id: {} },
     players: { order: [], by_id: {} },
     instruments: { by_id: {} },
+    tracks: { by_id: {} },
     config: {
       auto_count_styles: {
         solo: AutoCountStyle.Roman,

@@ -5,19 +5,8 @@ import { actions } from "../../../../../services/actions";
 import { useEffect, useRef } from "preact/hooks";
 import Sortable from "sortablejs";
 import { FlowPanelItem } from "./flow-panel-item";
-import { AppState, SelectionType } from "../../../../../services/types";
 
 import "./flow-panel.css";
-
-const isAssigned = (state: AppState, flowId: number) => {
-  const selection = state.ui.setup.selection;
-
-  if (selection?.selection_type === SelectionType.Player) {
-    return state.score.flows.by_id[flowId].player_ids.includes(selection.id);
-  }
-
-  return false;
-};
 
 const onAddFlowPress = async () => {
   await actions.score.flow.create();
@@ -66,25 +55,10 @@ export const FlowPanel = () => {
       <div ref={ref} className="flex gap-2 px-2 pb-2 flex-1 overflow-auto">
         {state.score.flows.order.map((flowId) => {
           const flow = state.score.flows.by_id[flowId];
-          const selection = state.ui.setup.selection;
-          const isAssignable = assignableSet.has(selection?.selection_type);
 
-          return (
-            <FlowPanelItem
-              key={flowId}
-              flow={flow}
-              isSelected={selection?.id === flowId}
-              isAssignable={isAssignable}
-              isAssigned={isAssigned(state, flowId)}
-            />
-          );
+          return <FlowPanelItem key={flowId} flow={flow} />;
         })}
       </div>
     </Panel>
   );
 };
-
-const assignableSet = new Set<SelectionType | undefined>([
-  SelectionType.Player,
-  SelectionType.Layout,
-]);
