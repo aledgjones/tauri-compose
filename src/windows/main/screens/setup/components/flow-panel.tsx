@@ -5,11 +5,13 @@ import { actions } from "../../../../../services/actions";
 import { useEffect, useRef } from "preact/hooks";
 import Sortable from "sortablejs";
 import { FlowPanelItem } from "./flow-panel-item";
+import { SelectionType } from "../../../../../services/types";
 
 import "./flow-panel.css";
 
 const onAddFlowPress = async () => {
-  await actions.score.flow.create();
+  const flowId = await actions.score.flow.create();
+  await actions.ui.setup.select(SelectionType.Flow, flowId);
 };
 
 export const FlowPanel = () => {

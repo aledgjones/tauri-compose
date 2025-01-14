@@ -62,7 +62,7 @@ export const PlayerPlanel = () => {
     return () => {
       sortable.destroy();
     };
-  }, []);
+  }, [state.score.players.order]);
 
   return (
     <Panel
@@ -85,15 +85,7 @@ export const PlayerPlanel = () => {
         {state.score.players.order.map((playerId) => {
           const player = state.score.players.by_id[playerId];
 
-          return (
-            <PlayerPanelItem
-              key={playerId}
-              player={player}
-              instruments={state.score.instruments.by_id}
-              isExpanded={state.ui.setup.expanded.includes(playerId)}
-              isSelected={state.ui.setup.selection?.id === playerId}
-            />
-          );
+          return <PlayerPanelItem key={playerId} player={player} />;
         })}
       </div>
     </Panel>

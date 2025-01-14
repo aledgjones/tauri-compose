@@ -237,5 +237,7 @@ pub fn score_flows_remove(app: tauri::AppHandle, state: State<'_, AppState>, flo
     state.score.flows.order.retain(|id| *id != flow_id);
     state.score.tracks.by_id.remove(&flow.master_id);
 
+    state.ui.setup.selection = None;
+
     state.emit(&app);
 }

@@ -125,7 +125,7 @@ export const actions = {
   score: {
     flow: {
       create: () => {
-        return loggedInvoke<void>("score_flows_create");
+        return loggedInvoke<number>("score_flows_create");
       },
       rename: (flow_id: UniqueId, title: string) => {
         return loggedInvoke<void>("score_flows_rename", { flow_id, title });
