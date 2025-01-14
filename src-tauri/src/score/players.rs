@@ -95,12 +95,8 @@ pub fn score_players_assign_instrument(
     let player = state.score.players.by_id.get_mut(&player_id).unwrap();
     player.instruments.push(instrument_id);
 
-    let flows = state.score.flows.order.clone();
-    for flow_id in flows {
-        let flow = &state.score.flows.by_id[&flow_id];
-        if flow.player_ids.contains(&player_id) {
-            state.assign_instrument_to_flow(flow_id, instrument_id);
-        }
+    for flow_id in state.score.flows.order.clone() {
+        state.assign_instrument_to_flow(flow_id, instrument_id);
     }
 
     state.score.update_counts();
@@ -119,12 +115,8 @@ pub fn score_players_unassign_instrument(
     let player = state.score.players.by_id.get_mut(&player_id).unwrap();
     player.instruments.retain(|e| *e != instrument_id);
 
-    let flows = state.score.flows.order.clone();
-    for flow_id in flows {
-        let flow = &state.score.flows.by_id[&flow_id];
-        if flow.player_ids.contains(&player_id) {
-            state.unassign_instrument_from_flow(flow_id, instrument_id);
-        }
+    for flow_id in state.score.flows.order.clone() {
+        state.unassign_instrument_from_flow(flow_id, instrument_id);
     }
 
     state.score.update_counts();
@@ -140,8 +132,7 @@ pub fn score_players_remove(
     let mut state = state.lock().unwrap();
 
     // remove player & instruments from flows
-    let flows = state.score.flows.order.clone();
-    for flow_id in flows {
+    for flow_id in state.score.flows.order.clone() {
         state.unassign_player_from_flow(flow_id, player_id);
     }
 
