@@ -141,13 +141,36 @@ pub fn score_instruments_move(
     let mut state = state.lock().unwrap();
 
     let from_player = state.score.players.by_id.get_mut(&from_player_id).unwrap();
-    let removed = from_player.instrument_ids.remove(from_index);
+    let instrument_id = from_player.instrument_ids.remove(from_index);
 
     if from_player_id == to_player_id {
-        from_player.instrument_ids.insert(to_index, removed);
+        from_player.instrument_ids.insert(to_index, instrument_id);
     } else {
+        for flow_id in state.score.flows.order.clone() {
+            let flow = &state.score.flows.by_id[&flow_id];
+            let is_from_player_in_flow = flow.player_ids.contains(&from_player_id);
+            let is_to_player_in_flow = flow.player_ids.contains(&to_player_id);
+
+            // the players are either both in the flow or both not in the flow.
+            // either way we don't have to do anything.
+            if is_from_player_in_flow == is_to_player_in_flow {
+                continue;
+            }
+
+            if is_from_player_in_flow {
+                // moving instrument from player in flow -> player not in flow
+                state.assign_player_to_flow(flow_id, to_player_id);
+            } else {
+                // moving instrument from player not in flow -> player in flow
+                state.assign_instrument_to_flow(flow_id, instrument_id);
+            }
+        }
+
+        // only assign to the new player after the flows loop to cover the situation where:
+        // the instrument is already in the flow but the other instruments the to player has aren't
+        // we can simply use the assign_player_to_flow helper without the new instrument (as it's already assigned)
         let to_player = state.score.players.by_id.get_mut(&to_player_id).unwrap();
-        to_player.instrument_ids.insert(to_index, removed);
+        to_player.instrument_ids.insert(to_index, instrument_id);
     }
 
     state.score.update_counts();

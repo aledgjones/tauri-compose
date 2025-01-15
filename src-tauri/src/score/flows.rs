@@ -203,8 +203,7 @@ pub fn score_flows_assign_player(
 ) {
     let mut state = state.lock().unwrap();
 
-    let flow = state.score.flows.by_id.get_mut(&flow_id).unwrap();
-    flow.player_ids.insert(player_id);
+    state.assign_player_to_flow(flow_id, player_id);
 
     state.emit(&app);
 }
@@ -218,8 +217,7 @@ pub fn score_flows_unassign_player(
 ) {
     let mut state = state.lock().unwrap();
 
-    let flow = state.score.flows.by_id.get_mut(&flow_id).unwrap();
-    flow.player_ids.remove(&player_id);
+    state.unassign_player_from_flow(flow_id, player_id);
 
     state.emit(&app);
 }

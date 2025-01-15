@@ -96,7 +96,10 @@ pub fn score_players_assign_instrument(
     player.instrument_ids.push(instrument_id);
 
     for flow_id in state.score.flows.order.clone() {
-        state.assign_instrument_to_flow(flow_id, instrument_id);
+        let flow = &state.score.flows.by_id[&flow_id];
+        if flow.player_ids.contains(&player_id) {
+            state.assign_instrument_to_flow(flow_id, instrument_id);
+        }
     }
 
     state.score.update_counts();
@@ -116,7 +119,10 @@ pub fn score_players_unassign_instrument(
     player.instrument_ids.retain(|id| *id != instrument_id);
 
     for flow_id in state.score.flows.order.clone() {
-        state.unassign_instrument_from_flow(flow_id, instrument_id);
+        let flow = &state.score.flows.by_id[&flow_id];
+        if flow.player_ids.contains(&player_id) {
+            state.unassign_instrument_from_flow(flow_id, instrument_id);
+        }
     }
 
     state.score.update_counts();
