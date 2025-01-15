@@ -7,6 +7,7 @@ import { IconButton } from "../../../../../ui/icon-button";
 import { actions } from "../../../../../services/actions";
 import { Checkbox } from "../../../../../ui/checkbox";
 import { useAppState } from "../../../../../services/state";
+import { useCallback, useRef, useState } from "preact/hooks";
 
 const assignableSet = new Set<SelectionType | undefined>([
   SelectionType.Player,
@@ -28,15 +29,89 @@ type Props = {
 };
 
 export const FlowPanelItem: FunctionalComponent<Props> = ({ flow }) => {
-  const state = useAppState();
-  const selection = state.ui.setup.selection;
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  const isSelected = selection?.id === flow.id;
+  const state = useAppState();
+  const [savedValue, setSavedValue] = useState(flow.title);
+  const [editing, setEditing] = useState(false);
+
+  const isSelected = state.ui.setup.selection?.id === flow.id;
   const isAssigned = getIsAssigned(state, flow.id);
-  const isAssignable = assignableSet.has(selection?.selection_type);
+  const isAssignable = assignableSet.has(
+    state.ui.setup.selection?.selection_type
+  );
 
   const fg = isSelected ? "text-black" : "text-white";
   const bg = isSelected ? "bg-sky-500" : "bg-neutral-800";
+
+  const title = editing ? flow.title : flow.title || "Untitled Flow";
+
+  const onEdit = useCallback(() => {
+    if (inputRef.current) {
+      setSavedValue(flow.title);
+      inputRef.current.focus();
+    }
+    setEditing(true);
+  }, [flow.title]);
+
+  const onDelete = useCallback(async () => {
+    await actions.score.flow.remove(flow.id);
+  }, [flow.id]);
+
+  const onKeyDown = useCallback(
+    async (e: any) => {
+      switch (e.key) {
+        case "Enter":
+          // confirm
+          if (inputRef.current) {
+            inputRef.current.blur();
+          }
+          break;
+        case "Escape":
+          // revert
+          await actions.score.flow.rename(flow.id, savedValue);
+          inputRef.current?.blur();
+          break;
+        default:
+          break;
+      }
+    },
+    [flow.id]
+  );
+
+  const onInput = useCallback(
+    async (e: any) => {
+      await actions.score.flow.rename(flow.id, e.target.value);
+    },
+    [flow.id]
+  );
+
+  const onBlur = useCallback(() => {
+    setEditing(false);
+  }, []);
+
+  const onToggleAssigned = useCallback(
+    async (checked: boolean) => {
+      if (!state.ui.setup.selection) {
+        return;
+      }
+
+      if (state.ui.setup.selection.selection_type === SelectionType.Player) {
+        if (checked) {
+          await actions.score.flow.assignPlayer(
+            flow.id,
+            state.ui.setup.selection.id
+          );
+        } else {
+          await actions.score.flow.unassignPlayer(
+            flow.id,
+            state.ui.setup.selection.id
+          );
+        }
+      }
+    },
+    [state.ui.setup.selection, flow.id]
+  );
 
   return (
     <div
@@ -66,9 +141,16 @@ export const FlowPanelItem: FunctionalComponent<Props> = ({ flow }) => {
           />
 
           <input
-            readOnly
-            value={flow.title || "Untitled Flow"}
-            className={classNames(`truncate flex-1 bg-transparent`, fg)}
+            ref={inputRef}
+            onBlur={onBlur}
+            readOnly={!editing}
+            value={title}
+            className={classNames(
+              `truncate flex-1 bg-transparent outline-none`,
+              fg
+            )}
+            onKeyDown={onKeyDown}
+            onInput={onInput}
           />
 
           {isSelected && (
@@ -77,17 +159,13 @@ export const FlowPanelItem: FunctionalComponent<Props> = ({ flow }) => {
                 className={fg}
                 variant="standard"
                 path={mdiPencil}
-                onClick={async () => {
-                  // edit tilte
-                }}
+                onClick={onEdit}
               />
               <IconButton
                 className={fg}
                 variant="standard"
                 path={mdiDelete}
-                onClick={async () => {
-                  await actions.score.flow.remove(flow.id);
-                }}
+                onClick={onDelete}
               />
             </>
           )}
@@ -97,25 +175,7 @@ export const FlowPanelItem: FunctionalComponent<Props> = ({ flow }) => {
               <Checkbox
                 value={isAssigned}
                 onPointerDown={(e) => e.stopPropagation()}
-                onChange={async (checked) => {
-                  if (!selection) {
-                    return;
-                  }
-
-                  if (selection.selection_type === SelectionType.Player) {
-                    if (checked) {
-                      await actions.score.flow.assignPlayer(
-                        flow.id,
-                        selection.id
-                      );
-                    } else {
-                      await actions.score.flow.unassignPlayer(
-                        flow.id,
-                        selection.id
-                      );
-                    }
-                  }
-                }}
+                onChange={onToggleAssigned}
               />
             </div>
           )}
