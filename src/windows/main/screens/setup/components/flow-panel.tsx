@@ -55,10 +55,10 @@ export const FlowPanel = () => {
       ]}
     >
       <div ref={ref} className="flex gap-2 px-2 pb-2 flex-1 overflow-auto">
-        {state.score.flows.order.map((flowId) => {
+        {state.score.flows.order.map((flowId, index) => {
           const flow = state.score.flows.by_id[flowId];
 
-          return <FlowPanelItem key={flowId} flow={flow} />;
+          return <FlowPanelItem key={flowId} flow={flow} index={index} />;
         })}
       </div>
     </Panel>

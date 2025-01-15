@@ -25,10 +25,11 @@ const getIsAssigned = (state: AppState, flowId: number) => {
 };
 
 type Props = {
+  index: number;
   flow: Flow;
 };
 
-export const FlowPanelItem: FunctionalComponent<Props> = ({ flow }) => {
+export const FlowPanelItem: FunctionalComponent<Props> = ({ flow, index }) => {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const state = useAppState();
@@ -117,7 +118,7 @@ export const FlowPanelItem: FunctionalComponent<Props> = ({ flow }) => {
     <div
       data-flow-id={flow.id}
       className={classNames(
-        "flex-1 border-2 border-transparent min-w-[260px]",
+        "flex flex-col flex-1 border-2 border-transparent min-w-[260px]",
         fg,
         bg
       )}
@@ -130,7 +131,7 @@ export const FlowPanelItem: FunctionalComponent<Props> = ({ flow }) => {
       <div
         className={classNames("text-sm", {
           "pl-3 pr-2": isAssignable,
-          "px-3": !isAssignable,
+          "px-2": !isAssignable,
         })}
       >
         <div className="flex items-center h-[48px]">
@@ -179,6 +180,11 @@ export const FlowPanelItem: FunctionalComponent<Props> = ({ flow }) => {
               />
             </div>
           )}
+        </div>
+      </div>
+      <div className="flex items-end justify-end flex-1 px-2">
+        <div className="flex items-center justify-center h-[48px] w-[36px]">
+          {index + 1}
         </div>
       </div>
     </div>
