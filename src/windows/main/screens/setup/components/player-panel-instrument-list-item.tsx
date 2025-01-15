@@ -25,7 +25,7 @@ export const PlayerPanelInstrumentListItem: FunctionalComponent<Props> = ({
   instrument,
   isSelected,
 }) => {
-  const bg = isSelected ? "bg-sky-300" : "bg-neutral-700";
+  const bg = isSelected ? "bg-white" : "bg-neutral-700";
   const fg = isSelected ? "text-black" : "text-white";
 
   const name = useMemo(() => {
