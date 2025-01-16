@@ -41,7 +41,7 @@ export const FlowPanel = () => {
     return () => {
       sortable.destroy();
     };
-  }, []);
+  }, [state.score.flows.order]);
 
   return (
     <Panel
