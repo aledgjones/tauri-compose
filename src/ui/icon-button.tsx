@@ -33,7 +33,6 @@ export const IconButton: FunctionComponent<IconProps & Props> = ({
       className={classNames(
         "flex items-center justify-center h-[36px] w-[36px]",
         getTheme(variant),
-        "",
         { "pointer-events-none": isDisabled },
         className
       )}

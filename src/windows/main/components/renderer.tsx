@@ -58,7 +58,7 @@ export const Renderer: FunctionalComponent<Props> = ({ className, style }) => {
                     };
                   }),
                 },
-                (key, value) => {
+                (_key, value) => {
                   if (
                     Array.isArray(value) &&
                     value.every((item) => typeof item === "number")

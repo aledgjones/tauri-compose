@@ -4,7 +4,7 @@ export const NotFound = () => {
       <p className="text-4xl font-bold text-neutral-700">
         Nothing here, yet...
       </p>
-      <p className="text-neutral-700">I'll get to this at some point!</p>
+      <p className="text-neutral-700">I&apos;ll get to this at some point!</p>
     </div>
   );
 };

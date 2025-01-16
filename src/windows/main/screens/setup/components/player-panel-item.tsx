@@ -115,7 +115,7 @@ export const PlayerPanelItem: FunctionalComponent<Props> = ({ player }) => {
         }
       }
     },
-    [state.ui.setup.selection]
+    [player.id, state.ui.setup.selection]
   );
 
   useEffect(() => {

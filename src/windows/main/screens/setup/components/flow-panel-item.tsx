@@ -77,7 +77,7 @@ export const FlowPanelItem: FunctionalComponent<Props> = ({ flow, index }) => {
           break;
       }
     },
-    [flow.id]
+    [flow.id, savedValue]
   );
 
   const onInput = useCallback(
