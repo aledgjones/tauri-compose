@@ -18,12 +18,7 @@ type Props<T> = {
   className?: string;
 };
 
-export const Menu = <T,>({
-  items,
-  selection,
-  onSelect,
-  className,
-}: Props<T>) => {
+export const Menu = <T,>({ items, selection, onSelect, className }: Props<T>) => {
   return (
     <div className={classNames("p-2", className)}>
       {items.map((item) => {

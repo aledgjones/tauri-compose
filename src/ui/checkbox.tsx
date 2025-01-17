@@ -10,12 +10,7 @@ type Props = {
   onPointerDown?: (event: PointerEvent) => void;
 };
 
-export const Checkbox: FunctionalComponent<Props> = ({
-  value,
-  onChange,
-  className,
-  onPointerDown,
-}) => {
+export const Checkbox: FunctionalComponent<Props> = ({ value, onChange, className, onPointerDown }) => {
   return (
     <div
       onClick={() => onChange(!value)}

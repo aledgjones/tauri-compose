@@ -1,16 +1,5 @@
-import {
-  mdiAccount,
-  mdiAccountGroup,
-  mdiChevronDown,
-  mdiDelete,
-  mdiPlus,
-} from "@mdi/js";
-import {
-  AppState,
-  Player,
-  PlayerType,
-  SelectionType,
-} from "../../../../../services/types";
+import { mdiAccount, mdiAccountGroup, mdiChevronDown, mdiDelete, mdiPlus } from "@mdi/js";
+import { AppState, Player, PlayerType, SelectionType } from "../../../../../services/types";
 import { Icon } from "../../../../../ui/icon";
 import classNames from "classnames";
 import { FunctionalComponent } from "preact";
@@ -21,6 +10,7 @@ import { PlayerPanelInstrumentListItem } from "./player-panel-instrument-list-it
 import Sortable from "sortablejs";
 import { useAppState } from "../../../../../services/state";
 import { Checkbox } from "../../../../../ui/checkbox";
+import { TokenizedText } from "../../../../../ui/text";
 
 const assignableSet = new Set<SelectionType | undefined>([
   SelectionType.Flow,
@@ -39,9 +29,7 @@ const getIsAssigned = (state: AppState, playerId: number) => {
   }
 
   if (selection?.selection_type === SelectionType.Layout) {
-    return state.score.layouts.by_id[selection.id].player_ids.includes(
-      playerId
-    );
+    return state.score.layouts.by_id[selection.id].player_ids.includes(playerId);
   }
 
   return false;
@@ -59,8 +47,7 @@ export const PlayerPanelItem: FunctionalComponent<Props> = ({ player }) => {
   const isAssigned = getIsAssigned(state, player.id);
   const isAssignable = getIsAssignable(state);
   const isInstrumentAssignable =
-    player.player_type === PlayerType.Solo ||
-    player.instrument_ids.length === 0;
+    player.player_type === PlayerType.Solo || player.instrument_ids.length === 0;
 
   const ref = useRef<HTMLDivElement | null>(null);
 
@@ -79,9 +66,7 @@ export const PlayerPanelItem: FunctionalComponent<Props> = ({ player }) => {
   const playerName = useMemo(() => {
     const instrumentNames = player.instrument_ids.map((instrumentId) => {
       const instrument = state.score.instruments.by_id[instrumentId];
-      return (
-        instrument.long_name + (instrument.count ? ` ${instrument.count}` : "")
-      );
+      return instrument.long_name + (instrument.count ? ` ${instrument.count}` : "");
     });
 
     if (instrumentNames.length === 0) {
@@ -202,16 +187,13 @@ export const PlayerPanelItem: FunctionalComponent<Props> = ({ player }) => {
       <div className="flex items-center h-[48px] text-sm pr-1 pl-3">
         <Icon className={classNames("mr-3", fg)} path={icon} size={1} />
 
-        <p className={classNames(`truncate flex-1`, fg)}>{playerName}</p>
+        <p className={classNames(`truncate flex-1`, fg)}>
+          <TokenizedText>{playerName}</TokenizedText>
+        </p>
 
         {isSelected && (
           <>
-            <IconButton
-              className={fg}
-              variant="standard"
-              path={mdiDelete}
-              onClick={onDelete}
-            />
+            <IconButton className={fg} variant="standard" path={mdiDelete} onClick={onDelete} />
             {isInstrumentAssignable && (
               <IconButton
                 className={fg}

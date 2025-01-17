@@ -1,11 +1,7 @@
 import { mdiAccountCog, mdiPlus } from "@mdi/js";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { Panel } from "./panel";
-import {
-  LayoutType,
-  PlayerType,
-  SelectionType,
-} from "../../../../../services/types";
+import { LayoutType, PlayerType, SelectionType } from "../../../../../services/types";
 import { PlayerPanelItem } from "./player-panel-item";
 import { useAppState } from "../../../../../services/state";
 import { actions } from "../../../../../services/actions";

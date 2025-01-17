@@ -14,19 +14,9 @@ type Props = {
   icons?: IconConfig[];
 };
 
-export const Panel: FunctionalComponent<Props> = ({
-  title,
-  className,
-  icons,
-  children,
-}) => {
+export const Panel: FunctionalComponent<Props> = ({ title, className, icons, children }) => {
   return (
-    <div
-      className={classNames(
-        " bg-neutral-900 overflow-hidden h-full flex flex-col",
-        className
-      )}
-    >
+    <div className={classNames(" bg-neutral-900 overflow-hidden h-full flex flex-col", className)}>
       <div className="py-2 pl-4 pr-2 flex items-center">
         <p className="text-white text-sm flex-1">{title}</p>
         {icons?.map((config) => {

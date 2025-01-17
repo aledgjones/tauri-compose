@@ -1,15 +1,5 @@
-import {
-  mdiBookOpenBlankVariantOutline,
-  mdiChevronDown,
-  mdiDelete,
-  mdiPencil,
-} from "@mdi/js";
-import {
-  AppState,
-  Layout,
-  LayoutType,
-  SelectionType,
-} from "../../../../../services/types";
+import { mdiBookOpenBlankVariantOutline, mdiChevronDown, mdiDelete, mdiPencil } from "@mdi/js";
+import { AppState, Layout, LayoutType, SelectionType } from "../../../../../services/types";
 import { Icon } from "../../../../../ui/icon";
 import classNames from "classnames";
 import { FunctionalComponent } from "preact";
@@ -32,9 +22,7 @@ const getIsAssigned = (state: AppState, layoutId: number) => {
   const selection = state.ui.setup.selection;
 
   if (selection?.selection_type === SelectionType.Player) {
-    return state.score.layouts.by_id[layoutId].player_ids.includes(
-      selection.id
-    );
+    return state.score.layouts.by_id[layoutId].player_ids.includes(selection.id);
   }
 
   if (selection?.selection_type === SelectionType.Flow) {
@@ -77,10 +65,7 @@ export const LayoutPanelItem: FunctionalComponent<Props> = ({ layout }) => {
         const player = state.score.players.by_id[playerId];
         return player.instrument_ids.map((instrumentId) => {
           const instrument = state.score.instruments.by_id[instrumentId];
-          return (
-            instrument.long_name +
-            (instrument.count ? ` ${instrument.count}` : "")
-          );
+          return instrument.long_name + (instrument.count ? ` ${instrument.count}` : "");
         });
       });
 
@@ -192,39 +177,22 @@ export const LayoutPanelItem: FunctionalComponent<Props> = ({ layout }) => {
       onPointerDown={onSelect}
     >
       <div className="flex items-center h-[48px] text-sm pr-1 pl-3">
-        <Icon
-          className={classNames("mr-3", fg)}
-          path={mdiBookOpenBlankVariantOutline}
-          size={1}
-        />
+        <Icon className={classNames("mr-3", fg)} path={mdiBookOpenBlankVariantOutline} size={1} />
 
         <input
           ref={inputRef}
           onBlur={onBlur}
           readOnly={!editing}
           value={layoutName}
-          className={classNames(
-            `truncate flex-1 bg-transparent outline-none`,
-            fg
-          )}
+          className={classNames(`truncate flex-1 bg-transparent outline-none`, fg)}
           onKeyDown={onKeyDown}
           onInput={onInput}
         />
 
         {isSelected && (
           <>
-            <IconButton
-              className={fg}
-              variant="standard"
-              path={mdiPencil}
-              onClick={onEdit}
-            />
-            <IconButton
-              className={fg}
-              variant="standard"
-              path={mdiDelete}
-              onClick={onDelete}
-            />
+            <IconButton className={fg} variant="standard" path={mdiPencil} onClick={onEdit} />
+            <IconButton className={fg} variant="standard" path={mdiDelete} onClick={onDelete} />
           </>
         )}
 

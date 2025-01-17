@@ -42,9 +42,7 @@ export const FlowPanelItem: FunctionalComponent<Props> = ({ flow, index }) => {
 
   const isSelected = state.ui.setup.selection?.id === flow.id;
   const isAssigned = getIsAssigned(state, flow.id);
-  const isAssignable = assignableSet.has(
-    state.ui.setup.selection?.selection_type
-  );
+  const isAssignable = assignableSet.has(state.ui.setup.selection?.selection_type);
 
   const fg = isSelected ? "text-black" : "text-white";
   const bg = isSelected ? "bg-sky-500" : "bg-neutral-800";
@@ -103,29 +101,17 @@ export const FlowPanelItem: FunctionalComponent<Props> = ({ flow, index }) => {
 
       if (state.ui.setup.selection.selection_type === SelectionType.Player) {
         if (checked) {
-          await actions.score.flow.assignPlayer(
-            flow.id,
-            state.ui.setup.selection.id
-          );
+          await actions.score.flow.assignPlayer(flow.id, state.ui.setup.selection.id);
         } else {
-          await actions.score.flow.unassignPlayer(
-            flow.id,
-            state.ui.setup.selection.id
-          );
+          await actions.score.flow.unassignPlayer(flow.id, state.ui.setup.selection.id);
         }
       }
 
       if (state.ui.setup.selection.selection_type === SelectionType.Layout) {
         if (checked) {
-          await actions.score.layout.assignFlow(
-            state.ui.setup.selection.id,
-            flow.id
-          );
+          await actions.score.layout.assignFlow(state.ui.setup.selection.id, flow.id);
         } else {
-          await actions.score.layout.unassignFlow(
-            state.ui.setup.selection.id,
-            flow.id
-          );
+          await actions.score.layout.unassignFlow(state.ui.setup.selection.id, flow.id);
         }
       }
     },
@@ -159,39 +145,22 @@ export const FlowPanelItem: FunctionalComponent<Props> = ({ flow, index }) => {
         })}
       >
         <div className="flex items-center h-[48px]">
-          <Icon
-            className={classNames("mr-3", fg)}
-            path={mdiHeatWave}
-            size={1}
-          />
+          <Icon className={classNames("mr-3", fg)} path={mdiHeatWave} size={1} />
 
           <input
             ref={inputRef}
             onBlur={onBlur}
             readOnly={!editing}
             value={title}
-            className={classNames(
-              `truncate flex-1 bg-transparent outline-none`,
-              fg
-            )}
+            className={classNames(`truncate flex-1 bg-transparent outline-none`, fg)}
             onKeyDown={onKeyDown}
             onInput={onInput}
           />
 
           {isSelected && (
             <>
-              <IconButton
-                className={fg}
-                variant="standard"
-                path={mdiPencil}
-                onClick={onEdit}
-              />
-              <IconButton
-                className={fg}
-                variant="standard"
-                path={mdiDelete}
-                onClick={onDelete}
-              />
+              <IconButton className={fg} variant="standard" path={mdiPencil} onClick={onEdit} />
+              <IconButton className={fg} variant="standard" path={mdiDelete} onClick={onDelete} />
             </>
           )}
 
@@ -207,9 +176,7 @@ export const FlowPanelItem: FunctionalComponent<Props> = ({ flow, index }) => {
         </div>
       </div>
       <div className="flex items-end justify-end flex-1 px-2">
-        <div className="flex items-center justify-center h-[48px] w-[36px]">
-          {index + 1}
-        </div>
+        <div className="flex items-center justify-center h-[48px] w-[36px]">{index + 1}</div>
       </div>
     </div>
   );

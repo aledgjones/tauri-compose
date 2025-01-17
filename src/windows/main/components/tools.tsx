@@ -1,9 +1,4 @@
-import {
-  mdiBugPlayOutline,
-  mdiFolderCogOutline,
-  mdiRedo,
-  mdiUndo,
-} from "@mdi/js";
+import { mdiBugPlayOutline, mdiFolderCogOutline, mdiRedo, mdiUndo } from "@mdi/js";
 import { IconButton } from "../../../ui/icon-button";
 import { FunctionComponent } from "preact";
 import classNames from "classnames";

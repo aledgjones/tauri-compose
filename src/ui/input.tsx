@@ -10,13 +10,7 @@ interface InputProps {
   readOnly?: boolean;
 }
 
-export const Input: FunctionalComponent<InputProps> = ({
-  value,
-  onChange,
-  className,
-  label,
-  readOnly,
-}) => {
+export const Input: FunctionalComponent<InputProps> = ({ value, onChange, className, label, readOnly }) => {
   const [isFocused, setIsFocused] = useState(false);
 
   return (

@@ -1,10 +1,13 @@
 import { render } from "preact";
 import { AppStateProvider } from "../../services/state";
 import { Main } from ".";
+import { TokenizationProvider } from "../../ui/text/context";
 
 render(
   <AppStateProvider>
-    <Main />
+    <TokenizationProvider>
+      <Main />
+    </TokenizationProvider>
   </AppStateProvider>,
   document.getElementById("root")!
 );

@@ -15,12 +15,7 @@ type TabsProps<T> = {
 
 type Offset = { left: number; width: number };
 
-export const Tabs = <T,>({
-  value,
-  options,
-  onChange,
-  className,
-}: TabsProps<T>) => {
+export const Tabs = <T,>({ value, options, onChange, className }: TabsProps<T>) => {
   const [tabOffsets, setTabOffsets] = useState<Offset[]>([]);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
@@ -42,10 +37,7 @@ export const Tabs = <T,>({
 
   return (
     <div className={className}>
-      <div
-        ref={containerRef}
-        className="relative whitespace-nowrap bg-neutral-900"
-      >
+      <div ref={containerRef} className="relative whitespace-nowrap bg-neutral-900">
         <ul className="relative z-10 flex">
           {options.map((option, index) => {
             const isSelected = value === option.value;
@@ -55,13 +47,10 @@ export const Tabs = <T,>({
                 <button
                   ref={(el) => (tabRefs.current[index] = el)}
                   onClick={() => onChange(option.value)}
-                  className={classNames(
-                    "py-2 px-4 text-sm transition-[color] duration-300 ",
-                    {
-                      "text-black": isSelected,
-                      "text-white hover:bg-neutral-800": !isSelected,
-                    }
-                  )}
+                  className={classNames("py-2 px-4 text-sm transition-[color] duration-300 ", {
+                    "text-black": isSelected,
+                    "text-white hover:bg-neutral-800": !isSelected,
+                  })}
                 >
                   {option.label}
                 </button>

@@ -8,12 +8,7 @@ type ButtonProps = {
   isDisabled?: boolean;
 };
 
-export const Button: FunctionalComponent<ButtonProps> = ({
-  className,
-  children,
-  onClick,
-  isDisabled,
-}) => {
+export const Button: FunctionalComponent<ButtonProps> = ({ className, children, onClick, isDisabled }) => {
   return (
     <button
       onClick={onClick}

@@ -8,11 +8,7 @@ export const Meta = () => {
 
   return (
     <div className="p-2 pt-1 overflow-y-auto">
-      <Input
-        value={state.score.meta.title}
-        onChange={actions.score.meta.setTitle}
-        label="Title"
-      />
+      <Input value={state.score.meta.title} onChange={actions.score.meta.setTitle} label="Title" />
       <Input
         value={state.score.meta.subtitle}
         onChange={actions.score.meta.setSubtitle}
