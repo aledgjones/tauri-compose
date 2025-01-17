@@ -132,6 +132,16 @@ export const FlowPanelItem: FunctionalComponent<Props> = ({ flow, index }) => {
     [state.ui.setup.selection, flow.id]
   );
 
+  const onSelect = useCallback(() => {
+    if (!isSelected) {
+      actions.ui.setup.select(SelectionType.Flow, flow.id);
+    }
+  }, [flow.id, isSelected]);
+
+  const onBlockPointerDown = useCallback((e: PointerEvent) => {
+    e.stopPropagation();
+  }, []);
+
   return (
     <div
       data-flow-id={flow.id}
@@ -140,11 +150,7 @@ export const FlowPanelItem: FunctionalComponent<Props> = ({ flow, index }) => {
         fg,
         bg
       )}
-      onPointerDown={() => {
-        if (!isSelected) {
-          actions.ui.setup.select(SelectionType.Flow, flow.id);
-        }
-      }}
+      onPointerDown={onSelect}
     >
       <div
         className={classNames("text-sm", {
@@ -193,7 +199,7 @@ export const FlowPanelItem: FunctionalComponent<Props> = ({ flow, index }) => {
             <div className="mr-[-2px]">
               <Checkbox
                 value={isAssigned}
-                onPointerDown={(e) => e.stopPropagation()}
+                onPointerDown={onBlockPointerDown}
                 onChange={onToggleAssigned}
               />
             </div>

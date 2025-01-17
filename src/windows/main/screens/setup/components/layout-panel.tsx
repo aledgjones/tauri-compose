@@ -4,6 +4,7 @@ import { useAppState } from "../../../../../services/state";
 import { useEffect, useRef } from "preact/hooks";
 import Sortable from "sortablejs";
 import { LayoutPanelItem } from "./layout-panel-item";
+import { actions } from "../../../../../services/actions";
 
 import "./layout-panel.css";
 
@@ -27,7 +28,7 @@ export const LayoutPlanel = () => {
           return;
         }
 
-        // await actions.score.player.move(e.oldIndex, e.newIndex);
+        await actions.score.layout.move(e.oldIndex, e.newIndex);
       },
     });
 
@@ -57,7 +58,7 @@ export const LayoutPlanel = () => {
         {state.score.layouts.order.map((layoutId) => {
           const layout = state.score.layouts.by_id[layoutId];
 
-          return <LayoutPanelItem layout={layout} />;
+          return <LayoutPanelItem key={layoutId} layout={layout} />;
         })}
       </div>
     </Panel>

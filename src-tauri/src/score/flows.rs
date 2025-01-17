@@ -154,9 +154,13 @@ pub fn score_flows_create(app: tauri::AppHandle, state: State<'_, AppState>) -> 
     state.score.flows.by_id.insert(flow_id, flow);
 
     // add all the player keys into the new flow
-    let players = state.score.players.order.clone();
-    for player_id in players {
+    for player_id in state.score.players.order.clone() {
         state.assign_player_to_flow(flow_id, player_id);
+    }
+
+    // add flow to all layouts
+    for layout_id in state.score.layouts.order.clone() {
+        state.assign_flow_to_layout(layout_id, flow_id);
     }
 
     state.emit(&app);
@@ -236,6 +240,10 @@ pub fn score_flows_remove(app: tauri::AppHandle, state: State<'_, AppState>, flo
     state.score.tracks.by_id.remove(&flow.master_id);
 
     state.ui.setup.selection = None;
+
+    for layout_id in state.score.layouts.order.clone() {
+        state.unassign_flow_from_layout(layout_id, flow_id);
+    }
 
     state.emit(&app);
 }

@@ -47,14 +47,6 @@ const getIsAssigned = (state: AppState, playerId: number) => {
   return false;
 };
 
-const onAddInstrumentPress = async (playerId: number) => {
-  const definitionId = await actions.pickAnInstrument();
-  if (definitionId) {
-    const instrumentId = await actions.score.instrument.create(definitionId);
-    await actions.score.player.assignInstrument(playerId, instrumentId);
-  }
-};
-
 type Props = {
   player: Player;
 };
@@ -171,15 +163,41 @@ export const PlayerPanelItem: FunctionalComponent<Props> = ({ player }) => {
     };
   }, [player.id]);
 
+  const onDelete = useCallback(async () => {
+    await actions.score.player.remove(player.id);
+  }, [player.id]);
+
+  const onAddInstrument = useCallback(async () => {
+    const definitionId = await actions.pickAnInstrument();
+    if (definitionId) {
+      const instrumentId = await actions.score.instrument.create(definitionId);
+      await actions.score.player.assignInstrument(player.id, instrumentId);
+    }
+  }, [player.id]);
+
+  const onToggleExpand = useCallback(async () => {
+    if (isExpanded) {
+      await actions.ui.setup.collapse(player.id);
+    } else {
+      await actions.ui.setup.expand(player.id);
+    }
+  }, [isExpanded, player.id]);
+
+  const onBlockPointerDown = useCallback((e: PointerEvent) => {
+    e.stopPropagation();
+  }, []);
+
+  const onSelect = useCallback(() => {
+    if (!isSelected) {
+      actions.ui.setup.select(SelectionType.Player, player.id);
+    }
+  }, [isSelected, player.id]);
+
   return (
     <div
       data-player-id={player.id}
       className={classNames("border-2 border-transparent", fg, bg)}
-      onPointerDown={() => {
-        if (!isSelected) {
-          actions.ui.setup.select(SelectionType.Player, player.id);
-        }
-      }}
+      onPointerDown={onSelect}
     >
       <div className="flex items-center h-[48px] text-sm pr-1 pl-3">
         <Icon className={classNames("mr-3", fg)} path={icon} size={1} />
@@ -192,16 +210,14 @@ export const PlayerPanelItem: FunctionalComponent<Props> = ({ player }) => {
               className={fg}
               variant="standard"
               path={mdiDelete}
-              onClick={async () => {
-                await actions.score.player.remove(player.id);
-              }}
+              onClick={onDelete}
             />
             {isInstrumentAssignable && (
               <IconButton
                 className={fg}
                 variant="standard"
                 path={mdiPlus}
-                onClick={() => onAddInstrumentPress(player.id)}
+                onClick={onAddInstrument}
               />
             )}
           </>
@@ -211,27 +227,21 @@ export const PlayerPanelItem: FunctionalComponent<Props> = ({ player }) => {
           <div className="mr-[-2px]">
             <Checkbox
               value={isAssigned}
-              onPointerDown={(e) => e.stopPropagation()}
+              onPointerDown={onBlockPointerDown}
               onChange={onAssignmentChange}
             />
           </div>
         )}
 
         {!isAssignable && (
-          <div onPointerDown={(e) => e.stopPropagation()}>
+          <div onPointerDown={onBlockPointerDown}>
             <IconButton
               variant="standard"
               path={mdiChevronDown}
               className={classNames("transition-transform", fg, {
                 "rotate-180": isExpanded,
               })}
-              onClick={async () => {
-                if (isExpanded) {
-                  await actions.ui.setup.collapse(player.id);
-                } else {
-                  await actions.ui.setup.expand(player.id);
-                }
-              }}
+              onClick={onToggleExpand}
             />
           </div>
         )}

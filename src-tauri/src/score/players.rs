@@ -163,6 +163,17 @@ pub fn score_players_remove(
     state.ui.setup.expanded.remove(&player_id);
     state.ui.setup.selection = None;
 
+    // remove player from layouts and remove any empty parts
+    for layout_id in state.score.layouts.order.clone() {
+        let layout = state.score.layouts.by_id.get_mut(&layout_id).unwrap();
+        layout.player_ids.remove(&player_id);
+
+        if layout.layout_type == LayoutType::Part && layout.player_ids.is_empty() {
+            state.score.layouts.order.retain(|id| *id != layout_id);
+            state.score.layouts.by_id.remove(&layout_id);
+        }
+    }
+
     state.score.update_counts();
     state.emit(&app);
 }

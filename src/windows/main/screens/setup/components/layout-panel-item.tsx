@@ -15,7 +15,7 @@ import classNames from "classnames";
 import { FunctionalComponent } from "preact";
 import { IconButton } from "../../../../../ui/icon-button";
 import { actions } from "../../../../../services/actions";
-import { useCallback, useMemo } from "preact/hooks";
+import { useCallback, useMemo, useRef, useState } from "preact/hooks";
 import { useAppState } from "../../../../../services/state";
 import { Checkbox } from "../../../../../ui/checkbox";
 
@@ -49,18 +49,21 @@ type Props = {
 };
 
 export const LayoutPanelItem: FunctionalComponent<Props> = ({ layout }) => {
-  const state = useAppState();
+  const inputRef = useRef<HTMLInputElement>(null);
 
+  const state = useAppState();
   const isExpanded = state.ui.setup.expanded.includes(layout.id);
   const isSelected = state.ui.setup.selection?.id === layout.id;
   const isAssigned = getIsAssigned(state, layout.id);
   const isAssignable = getIsAssignable(state);
+  const [savedValue, setSavedValue] = useState(layout.title);
+  const [editing, setEditing] = useState(false);
 
   const fg = isSelected ? "text-black" : "text-white";
   const bg = isSelected ? "bg-sky-500" : "bg-neutral-800";
 
   const layoutName = useMemo(() => {
-    if (layout.title) {
+    if (editing || layout.title) {
       return layout.title;
     }
 
@@ -92,6 +95,7 @@ export const LayoutPanelItem: FunctionalComponent<Props> = ({ layout }) => {
     const last = instrumentNames.pop();
     return `${instrumentNames.join(", ")} & ${last}`;
   }, [
+    editing,
     layout.layout_type,
     layout.player_ids,
     layout.title,
@@ -99,6 +103,50 @@ export const LayoutPanelItem: FunctionalComponent<Props> = ({ layout }) => {
     state.score.players.by_id,
     state.score.players.order,
   ]);
+
+  const onEdit = useCallback(() => {
+    if (inputRef.current) {
+      setSavedValue(layout.title);
+      inputRef.current.focus();
+    }
+    setEditing(true);
+  }, [layout.title]);
+
+  const onDelete = useCallback(async () => {
+    await actions.score.layout.remove(layout.id);
+  }, [layout.id]);
+
+  const onKeyDown = useCallback(
+    async (e: any) => {
+      switch (e.key) {
+        case "Enter":
+          // confirm
+          if (inputRef.current) {
+            inputRef.current.blur();
+          }
+          break;
+        case "Escape":
+          // revert
+          await actions.score.layout.rename(layout.id, savedValue);
+          inputRef.current?.blur();
+          break;
+        default:
+          break;
+      }
+    },
+    [layout.id, savedValue]
+  );
+
+  const onInput = useCallback(
+    async (e: any) => {
+      await actions.score.layout.rename(layout.id, e.target.value);
+    },
+    [layout.id]
+  );
+
+  const onBlur = useCallback(() => {
+    setEditing(false);
+  }, []);
 
   const onAssignmentChange = useCallback(
     async (checked: boolean) => {
@@ -127,15 +175,21 @@ export const LayoutPanelItem: FunctionalComponent<Props> = ({ layout }) => {
     [layout.id, state.ui.setup.selection]
   );
 
+  const onBlockPointerDown = useCallback((e: PointerEvent) => {
+    e.stopPropagation();
+  }, []);
+
+  const onSelect = useCallback(() => {
+    if (!isSelected) {
+      actions.ui.setup.select(SelectionType.Layout, layout.id);
+    }
+  }, [isSelected, layout.id]);
+
   return (
     <div
       data-layout-id={layout.id}
       className={classNames("border-2 border-transparent", fg, bg)}
-      onPointerDown={() => {
-        if (!isSelected) {
-          actions.ui.setup.select(SelectionType.Layout, layout.id);
-        }
-      }}
+      onPointerDown={onSelect}
     >
       <div className="flex items-center h-[48px] text-sm pr-1 pl-3">
         <Icon
@@ -144,7 +198,18 @@ export const LayoutPanelItem: FunctionalComponent<Props> = ({ layout }) => {
           size={1}
         />
 
-        <p className={classNames(`truncate flex-1`, fg)}>{layoutName}</p>
+        <input
+          ref={inputRef}
+          onBlur={onBlur}
+          readOnly={!editing}
+          value={layoutName}
+          className={classNames(
+            `truncate flex-1 bg-transparent outline-none`,
+            fg
+          )}
+          onKeyDown={onKeyDown}
+          onInput={onInput}
+        />
 
         {isSelected && (
           <>
@@ -152,13 +217,13 @@ export const LayoutPanelItem: FunctionalComponent<Props> = ({ layout }) => {
               className={fg}
               variant="standard"
               path={mdiPencil}
-              onClick={() => {}}
+              onClick={onEdit}
             />
             <IconButton
               className={fg}
               variant="standard"
               path={mdiDelete}
-              onClick={() => {}}
+              onClick={onDelete}
             />
           </>
         )}
@@ -167,14 +232,14 @@ export const LayoutPanelItem: FunctionalComponent<Props> = ({ layout }) => {
           <div className="mr-[-2px]">
             <Checkbox
               value={isAssigned}
-              onPointerDown={(e) => e.stopPropagation()}
+              onPointerDown={onBlockPointerDown}
               onChange={onAssignmentChange}
             />
           </div>
         )}
 
         {!isAssignable && (
-          <div onPointerDown={(e) => e.stopPropagation()}>
+          <div onPointerDown={onBlockPointerDown}>
             <IconButton
               variant="standard"
               path={mdiChevronDown}

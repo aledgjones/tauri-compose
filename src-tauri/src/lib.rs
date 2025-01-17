@@ -17,7 +17,8 @@ use score::instruments::{
 };
 use score::layouts::{
     score_layouts_assign_flow, score_layouts_assign_player, score_layouts_create,
-    score_layouts_unassign_flow, score_layouts_unassign_player,
+    score_layouts_move, score_layouts_remove, score_layouts_rename, score_layouts_unassign_flow,
+    score_layouts_unassign_player,
 };
 use score::meta::{
     score_meta_arranger_set, score_meta_artist_set, score_meta_composer_dates_set,
@@ -116,10 +117,13 @@ pub fn run() {
             score_instruments_move,
             score_instruments_remove,
             score_layouts_create,
+            score_layouts_rename,
             score_layouts_assign_flow,
             score_layouts_unassign_flow,
             score_layouts_assign_player,
             score_layouts_unassign_player,
+            score_layouts_move,
+            score_layouts_remove,
             score_meta_arranger_set,
             score_meta_copyist_set,
             score_meta_artist_set,

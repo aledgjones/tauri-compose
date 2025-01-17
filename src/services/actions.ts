@@ -156,6 +156,12 @@ export const actions = {
           layout_type,
         });
       },
+      rename: (layout_id: UniqueId, title: string) => {
+        return loggedInvoke<void>("score_layouts_rename", {
+          layout_id,
+          title,
+        });
+      },
       assignPlayer: (layout_id: UniqueId, player_id: UniqueId) => {
         return loggedInvoke<void>("score_layouts_assign_player", {
           layout_id,
@@ -178,6 +184,17 @@ export const actions = {
         return loggedInvoke<void>("score_layouts_unassign_flow", {
           layout_id,
           player_id,
+        });
+      },
+      move: (from_index: number, to_index: number) => {
+        return loggedInvoke<void>("score_layouts_move", {
+          from_index,
+          to_index,
+        });
+      },
+      remove: (layout_id: UniqueId) => {
+        return loggedInvoke<void>("score_layouts_remove", {
+          layout_id,
         });
       },
     },
