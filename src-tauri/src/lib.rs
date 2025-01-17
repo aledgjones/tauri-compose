@@ -15,6 +15,10 @@ use score::instruments::defs::score_instruments_get_all_definitions;
 use score::instruments::{
     score_instruments_create, score_instruments_move, score_instruments_remove,
 };
+use score::layouts::{
+    score_layouts_assign_flow, score_layouts_assign_player, score_layouts_create,
+    score_layouts_unassign_flow, score_layouts_unassign_player,
+};
 use score::meta::{
     score_meta_arranger_set, score_meta_artist_set, score_meta_composer_dates_set,
     score_meta_composer_set, score_meta_composition_year_set, score_meta_copyist_set,
@@ -50,7 +54,7 @@ impl AppStateInner {
         Mutex::new(Self {
             ui: Ui::new(),
             score: Score::new(),
-            next_id: 0,
+            next_id: 1,
         })
     }
 
@@ -111,6 +115,11 @@ pub fn run() {
             score_instruments_get_all_definitions,
             score_instruments_move,
             score_instruments_remove,
+            score_layouts_create,
+            score_layouts_assign_flow,
+            score_layouts_unassign_flow,
+            score_layouts_assign_player,
+            score_layouts_unassign_player,
             score_meta_arranger_set,
             score_meta_copyist_set,
             score_meta_artist_set,

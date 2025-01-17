@@ -5,6 +5,6 @@
     border-style: dashed;
 }
 
-.ghost-flow > * {
+.ghost-flow>* {
     visibility: hidden;
 }

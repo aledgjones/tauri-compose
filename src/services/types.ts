@@ -121,6 +121,24 @@ export type Flows = {
   by_id: Record<UniqueId, Flow>;
 };
 
+export enum LayoutType {
+  FullScore = 0,
+  Part,
+}
+
+export type Layout = {
+  id: UniqueId;
+  title: string;
+  layout_type: LayoutType;
+  player_ids: UniqueId[];
+  flow_ids: UniqueId[];
+};
+
+export type Layouts = {
+  order: UniqueId[];
+  by_id: Record<UniqueId, Layout>;
+};
+
 export type AppState = {
   ui: {
     tab: Tab;
@@ -137,5 +155,6 @@ export type AppState = {
     instruments: Instruments;
     flows: Flows;
     tracks: Tracks;
+    layouts: Layouts;
   };
 };

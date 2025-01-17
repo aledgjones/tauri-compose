@@ -1,3 +1,4 @@
+use super::layouts::LayoutType;
 use crate::{utils::UniqueId, AppState};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
@@ -57,9 +58,15 @@ pub fn score_players_create(
     state.score.players.order.push(player_id);
     state.score.players.by_id.insert(player_id, player);
 
-    let flows = state.score.flows.order.clone();
-    for flow_id in flows {
+    for flow_id in state.score.flows.order.clone() {
         state.assign_player_to_flow(flow_id, player_id);
+    }
+
+    for layout_id in state.score.layouts.order.clone() {
+        let layout = &state.score.layouts.by_id[&layout_id];
+        if layout.layout_type == LayoutType::FullScore {
+            state.assign_player_to_layout(layout_id, player_id);
+        }
     }
 
     state.emit(&app);

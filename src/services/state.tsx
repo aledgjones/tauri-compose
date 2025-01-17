@@ -11,6 +11,7 @@ export const initialAppState: AppState = {
     setup: { selection: null, expanded: [] },
   },
   score: {
+    layouts: { order: [], by_id: {} },
     flows: { order: [], by_id: {} },
     players: { order: [], by_id: {} },
     instruments: { by_id: {} },

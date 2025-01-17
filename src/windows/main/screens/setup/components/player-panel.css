@@ -12,7 +12,7 @@
     border-style: dashed;
 }
 
-.ghost-instrument > *,
-.ghost-player > * {
+.ghost-instrument>*,
+.ghost-player>* {
     visibility: hidden;
 }

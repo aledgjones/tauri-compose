@@ -38,6 +38,12 @@ const getIsAssigned = (state: AppState, playerId: number) => {
     return state.score.flows.by_id[selection.id].player_ids.includes(playerId);
   }
 
+  if (selection?.selection_type === SelectionType.Layout) {
+    return state.score.layouts.by_id[selection.id].player_ids.includes(
+      playerId
+    );
+  }
+
   return false;
 };
 
@@ -112,6 +118,14 @@ export const PlayerPanelItem: FunctionalComponent<Props> = ({ player }) => {
           await actions.score.flow.assignPlayer(selection.id, player.id);
         } else {
           await actions.score.flow.unassignPlayer(selection.id, player.id);
+        }
+      }
+
+      if (selection.selection_type === SelectionType.Layout) {
+        if (checked) {
+          await actions.score.layout.assignPlayer(selection.id, player.id);
+        } else {
+          await actions.score.layout.unassignPlayer(selection.id, player.id);
         }
       }
     },

@@ -2,6 +2,7 @@ import { invoke, InvokeArgs, InvokeOptions } from "@tauri-apps/api/core";
 import { emit } from "@tauri-apps/api/event";
 import {
   AutoCountStyle,
+  LayoutType,
   Log,
   PlayerType,
   SelectionType,
@@ -147,6 +148,37 @@ export const actions = {
       },
       remove: (flow_id: UniqueId) => {
         return loggedInvoke<void>("score_flows_remove", { flow_id });
+      },
+    },
+    layout: {
+      create: (layout_type: LayoutType) => {
+        return loggedInvoke<number>("score_layouts_create", {
+          layout_type,
+        });
+      },
+      assignPlayer: (layout_id: UniqueId, player_id: UniqueId) => {
+        return loggedInvoke<void>("score_layouts_assign_player", {
+          layout_id,
+          player_id,
+        });
+      },
+      unassignPlayer: (layout_id: UniqueId, player_id: UniqueId) => {
+        return loggedInvoke<void>("score_layouts_unassign_player", {
+          layout_id,
+          player_id,
+        });
+      },
+      assignFlow: (layout_id: UniqueId, player_id: UniqueId) => {
+        return loggedInvoke<void>("score_layouts_assign_flow", {
+          layout_id,
+          player_id,
+        });
+      },
+      unassignFlow: (layout_id: UniqueId, player_id: UniqueId) => {
+        return loggedInvoke<void>("score_layouts_unassign_flow", {
+          layout_id,
+          player_id,
+        });
       },
     },
     player: {

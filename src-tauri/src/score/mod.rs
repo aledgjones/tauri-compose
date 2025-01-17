@@ -3,6 +3,7 @@ pub mod config;
 pub mod entries;
 pub mod flows;
 pub mod instruments;
+pub mod layouts;
 pub mod meta;
 pub mod players;
 pub mod staves;
@@ -11,6 +12,7 @@ pub mod tracks;
 use config::Config;
 use flows::Flows;
 use instruments::Instruments;
+use layouts::Layouts;
 use meta::Meta;
 use players::Players;
 use serde::Serialize;
@@ -24,11 +26,13 @@ pub struct Score {
     instruments: Instruments,
     flows: Flows,
     tracks: Tracks,
+    layouts: Layouts,
 }
 
 impl Score {
     pub fn new() -> Self {
         Self {
+            layouts: Layouts::new(),
             config: Config::new(),
             meta: Meta::new(),
             players: Players::new(),

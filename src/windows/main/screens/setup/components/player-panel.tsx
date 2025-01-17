@@ -1,7 +1,11 @@
 import { mdiAccountCog, mdiPlus } from "@mdi/js";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { Panel } from "./panel";
-import { PlayerType, SelectionType } from "../../../../../services/types";
+import {
+  LayoutType,
+  PlayerType,
+  SelectionType,
+} from "../../../../../services/types";
 import { PlayerPanelItem } from "./player-panel-item";
 import { useAppState } from "../../../../../services/state";
 import { actions } from "../../../../../services/actions";
@@ -25,9 +29,11 @@ const onPlayerSettingsPress = () => {
   webview.setFocus();
 };
 
-const onAddInstrumentPress = async () => {
+const onAddPlayerPress = async () => {
   const playerId = await actions.score.player.create(PlayerType.Solo);
   await actions.ui.setup.select(SelectionType.Player, playerId);
+  const layoutId = await actions.score.layout.create(LayoutType.Part);
+  await actions.score.layout.assignPlayer(layoutId, playerId);
   const definition_id = await actions.pickAnInstrument();
   if (definition_id) {
     const instrumentId = await actions.score.instrument.create(definition_id);
@@ -77,7 +83,7 @@ export const PlayerPlanel = () => {
         {
           key: "plus",
           path: mdiPlus,
-          onClick: onAddInstrumentPress,
+          onClick: onAddPlayerPress,
         },
       ]}
     >
