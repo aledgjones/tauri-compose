@@ -1,10 +1,11 @@
 import { mdiFileCogOutline, mdiPlus } from "@mdi/js";
 import { Panel } from "./panel";
 import { useAppState } from "../../../../../services/state";
-import { useEffect, useRef } from "preact/hooks";
+import { useCallback, useEffect, useRef } from "preact/hooks";
 import Sortable from "sortablejs";
 import { LayoutPanelItem } from "./layout-panel-item";
 import { actions } from "../../../../../services/actions";
+import { LayoutType } from "../../../../../services/types";
 
 import "./layout-panel.css";
 
@@ -37,6 +38,10 @@ export const LayoutPlanel = () => {
     };
   }, [state.score.layouts.order]);
 
+  const onAddLayoutPress = useCallback(async () => {
+    await actions.score.layout.create(LayoutType.Part);
+  }, []);
+
   return (
     <Panel
       className="row-span-2"
@@ -50,7 +55,7 @@ export const LayoutPlanel = () => {
         {
           key: "plus",
           path: mdiPlus,
-          onClick: () => {},
+          onClick: onAddLayoutPress,
         },
       ]}
     >

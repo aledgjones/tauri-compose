@@ -20,7 +20,7 @@ export const AppBar: FunctionalComponent<Props> = ({
     win.listen("tauri://focus", () => {
       setIsFocused(true);
     });
-  });
+  }, []);
 
   return (
     <div
