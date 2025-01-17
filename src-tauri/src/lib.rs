@@ -78,6 +78,15 @@ fn initialize(app: tauri::AppHandle, state: State<'_, AppState>) {
     state.emit(&app);
 }
 
+#[tauri::command(rename_all = "snake_case")]
+fn reset(app: tauri::AppHandle, state: State<'_, AppState>) {
+    let mut state = state.lock().unwrap();
+    state.ui = Ui::new();
+    state.score = Score::new();
+    state.next_id = 1;
+    state.emit(&app);
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -104,6 +113,7 @@ pub fn run() {
         )
         .invoke_handler(tauri::generate_handler![
             initialize,
+            reset,
             score_config_auto_count_styles_solo_set,
             score_config_auto_count_styles_section_set,
             score_flows_create,

@@ -20,8 +20,11 @@ export const loggedInvoke = async <T = unknown>(
 
   try {
     const result = await invoke<T>(cmd, args, options);
+    const argString = args ? [JSON.stringify(args)] : [];
     actions.console.log(
-      `[invoke] ${cmd} - ${JSON.stringify(args)} - ${performance.now() - t1}ms`
+      [`[invoke] ${cmd}`, ...argString, `${performance.now() - t1}ms`].join(
+        " - "
+      )
     );
     return result;
   } catch (error) {
@@ -35,6 +38,35 @@ export const loggedInvoke = async <T = unknown>(
 };
 
 export const actions = {
+  initialize: () => {
+    return loggedInvoke("initialize");
+  },
+  reset: () => {
+    return loggedInvoke("reset");
+  },
+  console: {
+    log: (message: string) => {
+      const log: Log = {
+        type: "log",
+        message,
+      };
+      emit("solocompose://logging", log);
+    },
+    warn: (message: string) => {
+      const log: Log = {
+        type: "warn",
+        message,
+      };
+      emit("solocompose://logging", log);
+    },
+    error: (message: string) => {
+      const log: Log = {
+        type: "error",
+        message,
+      };
+      emit("solocompose://logging", log);
+    },
+  },
   pickAnInstrument: () => {
     return new Promise<string | null>(async (resolve) => {
       actions.console.log("[instrument-picker] open");
@@ -77,29 +109,6 @@ export const actions = {
         resolve(selection);
       });
     });
-  },
-  console: {
-    log: (message: string) => {
-      const log: Log = {
-        type: "log",
-        message,
-      };
-      emit("solocompose://logging", log);
-    },
-    warn: (message: string) => {
-      const log: Log = {
-        type: "warn",
-        message,
-      };
-      emit("solocompose://logging", log);
-    },
-    error: (message: string) => {
-      const log: Log = {
-        type: "error",
-        message,
-      };
-      emit("solocompose://logging", log);
-    },
   },
   ui: {
     setTab: (tab: Tab) => {

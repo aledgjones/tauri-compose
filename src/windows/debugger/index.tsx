@@ -6,6 +6,8 @@ import { AppBar } from "../../components/app-bar";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
 import classNames from "classnames";
 import { Log } from "../../services/types";
+import { Button } from "../../ui/button";
+import { actions } from "../../services/actions";
 
 export const Main = () => {
   const state = useAppState();
@@ -42,14 +44,14 @@ export const Main = () => {
   return (
     <div className="h-dvh bg-neutral-950 grid grid-rows-[28px_2fr_1fr] gap-2 overflow-hidden">
       <AppBar title="Debugger" filename={state.score.meta.title} />
-      <div className=" bg-neutral-900 p-2 overflow-auto mx-2">
+      <div className="bg-neutral-900 p-2 overflow-auto mx-2">
         <Inspector
           data={state}
           theme={{ ...chromeDark, BASE_BACKGROUND_COLOR: "transparent" }}
           expandPaths={["$"]}
         />
       </div>
-      <div className=" bg-neutral-900 p-2 overflow-auto mx-2 mb-2">
+      <div className="bg-neutral-900 p-2 overflow-auto mx-2">
         {logs.map((log, i) => {
           return (
             <div key={i}>
@@ -66,6 +68,15 @@ export const Main = () => {
           );
         })}
         <div className="h-0" ref={messagesEndRef} />
+      </div>
+      <div className="overflow-auto mx-2 mb-2">
+        <Button
+          onClick={async () => {
+            actions.reset();
+          }}
+        >
+          Reset
+        </Button>
       </div>
     </div>
   );

@@ -1,8 +1,8 @@
-import { invoke } from "@tauri-apps/api/core";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
 import { createContext, FunctionComponent } from "preact";
 import { useContext, useEffect, useState } from "preact/hooks";
 import { AppState, AutoCountStyle, Tab } from "./types";
+import { actions } from "./actions";
 
 export const initialAppState: AppState = {
   ui: {
@@ -57,7 +57,7 @@ export const AppStateProvider: FunctionComponent = ({ children }) => {
         setAppState(e.payload);
       });
 
-      await invoke("initialize");
+      await actions.initialize();
     })();
 
     return () => {
