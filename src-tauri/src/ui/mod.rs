@@ -36,15 +36,27 @@ impl Ui {
 }
 
 #[tauri::command(rename_all = "snake_case")]
-pub fn ui_tab_set(app: tauri::AppHandle, state: State<'_, AppState>, tab: Tab) {
+pub async fn ui_tab_set(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    tab: Tab,
+) -> Result<(), ()> {
     let mut state = state.lock().unwrap();
     state.ui.tab = tab;
     state.emit(&app);
+
+    Ok(())
 }
 
 #[tauri::command(rename_all = "snake_case")]
-pub fn ui_layout_id_set(app: tauri::AppHandle, state: State<'_, AppState>, layout_id: LayoutId) {
+pub async fn ui_layout_id_set(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    layout_id: LayoutId,
+) -> Result<(), ()> {
     let mut state = state.lock().unwrap();
     state.ui.layout_id = layout_id;
     state.emit(&app);
+
+    Ok(())
 }

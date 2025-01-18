@@ -130,7 +130,10 @@ impl AppStateInner {
 }
 
 #[tauri::command(rename_all = "snake_case")]
-pub fn score_flows_create(app: tauri::AppHandle, state: State<'_, AppState>) -> UniqueId {
+pub async fn score_flows_create(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+) -> Result<UniqueId, ()> {
     let mut state = state.lock().unwrap();
 
     let flow_id = state.generate_id();
@@ -165,69 +168,81 @@ pub fn score_flows_create(app: tauri::AppHandle, state: State<'_, AppState>) -> 
 
     state.emit(&app);
 
-    flow_id
+    Ok(flow_id)
 }
 
 #[tauri::command(rename_all = "snake_case")]
-pub fn score_flows_rename(
+pub async fn score_flows_rename(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
     flow_id: UniqueId,
     title: String,
-) {
+) -> Result<(), ()> {
     let mut state = state.lock().unwrap();
 
     let flow = state.score.flows.by_id.get_mut(&flow_id).unwrap();
     flow.title = title;
 
     state.emit(&app);
+
+    Ok(())
 }
 
 #[tauri::command(rename_all = "snake_case")]
-pub fn score_flows_move(
+pub async fn score_flows_move(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
     from_index: usize,
     to_index: usize,
-) {
+) -> Result<(), ()> {
     let mut state = state.lock().unwrap();
 
     let moved = state.score.flows.order.remove(from_index);
     state.score.flows.order.insert(to_index, moved);
 
     state.emit(&app);
+
+    Ok(())
 }
 
 #[tauri::command(rename_all = "snake_case")]
-pub fn score_flows_assign_player(
+pub async fn score_flows_assign_player(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
     flow_id: UniqueId,
     player_id: UniqueId,
-) {
+) -> Result<(), ()> {
     let mut state = state.lock().unwrap();
 
     state.assign_player_to_flow(flow_id, player_id);
 
     state.emit(&app);
+
+    Ok(())
 }
 
 #[tauri::command(rename_all = "snake_case")]
-pub fn score_flows_unassign_player(
+pub async fn score_flows_unassign_player(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
     flow_id: UniqueId,
     player_id: UniqueId,
-) {
+) -> Result<(), ()> {
     let mut state = state.lock().unwrap();
 
     state.unassign_player_from_flow(flow_id, player_id);
 
     state.emit(&app);
+
+    Ok(())
 }
 
 #[tauri::command(rename_all = "snake_case")]
-pub fn score_flows_remove(app: tauri::AppHandle, state: State<'_, AppState>, flow_id: UniqueId) {
+pub async fn score_flows_remove(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    flow_id: UniqueId,
+) -> Result<(), ()> {
     let mut state = state.lock().unwrap();
 
     for player_id in state.score.players.order.clone() {
@@ -246,4 +261,6 @@ pub fn score_flows_remove(app: tauri::AppHandle, state: State<'_, AppState>, flo
     }
 
     state.emit(&app);
+
+    Ok(())
 }

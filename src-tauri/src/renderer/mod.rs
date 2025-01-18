@@ -38,7 +38,7 @@ impl Renderer {
 }
 
 #[tauri::command(rename_all = "snake_case")]
-pub fn render(state: State<'_, AppState>) -> Response {
+pub async fn render(state: State<'_, AppState>) -> Result<Response, ()> {
     let mut renderer = Renderer::new(1500, 400);
 
     let state = state.lock().unwrap();
@@ -49,5 +49,5 @@ pub fn render(state: State<'_, AppState>) -> Response {
         ]);
     }
 
-    Response::new(renderer.data())
+    Ok(Response::new(renderer.data()))
 }

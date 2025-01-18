@@ -41,38 +41,57 @@ impl Default for Setup {
 }
 
 #[tauri::command(rename_all = "snake_case")]
-pub fn ui_setup_selection_set(
+pub async fn ui_setup_selection_set(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
     selection_type: SelectionType,
     id: UniqueId,
-) {
+) -> Result<(), ()> {
     let mut state = state.lock().unwrap();
     state.ui.setup.selection = Some(Selection { id, selection_type });
 
     state.emit(&app);
+
+    Ok(())
 }
 
 #[tauri::command(rename_all = "snake_case")]
-pub fn ui_setup_selection_clear(app: tauri::AppHandle, state: State<'_, AppState>) {
+pub async fn ui_setup_selection_clear(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+) -> Result<(), ()> {
     let mut state = state.lock().unwrap();
     state.ui.setup.selection = None;
 
     state.emit(&app);
+
+    Ok(())
 }
 
 #[tauri::command(rename_all = "snake_case")]
-pub fn ui_setup_expanded_insert(app: tauri::AppHandle, state: State<'_, AppState>, id: UniqueId) {
+pub async fn ui_setup_expanded_insert(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    id: UniqueId,
+) -> Result<(), ()> {
     let mut state = state.lock().unwrap();
     state.ui.setup.expanded.insert(id);
 
     state.emit(&app);
+
+    Ok(())
 }
 
 #[tauri::command(rename_all = "snake_case")]
-pub fn ui_setup_expanded_remove(app: tauri::AppHandle, state: State<'_, AppState>, id: UniqueId) {
+pub async fn ui_setup_expanded_remove(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    id: UniqueId,
+) -> Result<(), ()> {
     let mut state = state.lock().unwrap();
     state.ui.setup.expanded.remove(&id);
 
     state.emit(&app);
+
+    Ok(())
 }

@@ -72,18 +72,20 @@ impl AppStateInner {
 type AppState = Mutex<AppStateInner>;
 
 #[tauri::command]
-fn initialize(app: tauri::AppHandle, state: State<'_, AppState>) {
+async fn initialize(app: tauri::AppHandle, state: State<'_, AppState>) -> Result<(), ()> {
     let state = state.lock().unwrap();
     state.emit(&app);
+    Ok(())
 }
 
 #[tauri::command(rename_all = "snake_case")]
-fn reset(app: tauri::AppHandle, state: State<'_, AppState>) {
+async fn reset(app: tauri::AppHandle, state: State<'_, AppState>) -> Result<(), ()> {
     let mut state = state.lock().unwrap();
     state.ui = Ui::new();
     state.score = Score::new();
     state.next_id = 1;
     state.emit(&app);
+    Ok(())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

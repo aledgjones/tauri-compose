@@ -89,11 +89,11 @@ impl Score {
 }
 
 #[tauri::command(rename_all = "snake_case")]
-pub fn score_instruments_create(
+pub async fn score_instruments_create(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
     definition_id: String,
-) -> UniqueId {
+) -> Result<UniqueId, ()> {
     let mut state = state.lock().unwrap();
 
     let instrument_id = state.generate_id();
@@ -126,18 +126,18 @@ pub fn score_instruments_create(
 
     state.emit(&app);
 
-    instrument_id
+    Ok(instrument_id)
 }
 
 #[tauri::command(rename_all = "snake_case")]
-pub fn score_instruments_move(
+pub async fn score_instruments_move(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
     from_index: usize,
     to_index: usize,
     from_player_id: UniqueId,
     to_player_id: UniqueId,
-) {
+) -> Result<(), ()> {
     let mut state = state.lock().unwrap();
 
     let from_player = state.score.players.by_id.get_mut(&from_player_id).unwrap();
@@ -175,17 +175,21 @@ pub fn score_instruments_move(
 
     state.score.update_counts();
     state.emit(&app);
+
+    Ok(())
 }
 
 #[tauri::command(rename_all = "snake_case")]
-pub fn score_instruments_remove(
+pub async fn score_instruments_remove(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
     instrument_id: UniqueId,
-) {
+) -> Result<(), ()> {
     let mut state = state.lock().unwrap();
 
     state.score.instruments.by_id.remove(&instrument_id);
 
     state.emit(&app);
+
+    Ok(())
 }
