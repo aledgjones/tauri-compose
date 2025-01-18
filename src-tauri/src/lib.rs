@@ -34,7 +34,6 @@ use score::players::{
 use score::Score;
 use serde::Serialize;
 use std::sync::Mutex;
-use tauri::http::Response;
 use tauri::{Emitter, Manager, State};
 use ui::setup::{
     ui_setup_expanded_insert, ui_setup_expanded_remove, ui_setup_selection_clear,
@@ -94,26 +93,10 @@ pub fn run() {
             app.manage(AppStateInner::new());
             Ok(())
         })
-        .register_asynchronous_uri_scheme_protocol(
-            "solocompose",
-            move |_ctx, _request, responder| {
-                let bytes = render();
-                let response = Response::builder()
-                    .header("Content-Type", "image/webp")
-                    .header("Cache-Control", "no-store")
-                    .body(bytes);
-
-                match response {
-                    Ok(response) => responder.respond(response),
-                    Err(_) => {
-                        responder.respond(Response::builder().status(500).body(vec![]).unwrap())
-                    }
-                }
-            },
-        )
         .invoke_handler(tauri::generate_handler![
             initialize,
             reset,
+            render,
             score_config_auto_count_styles_solo_set,
             score_config_auto_count_styles_section_set,
             score_flows_create,

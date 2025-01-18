@@ -10,7 +10,8 @@
     "tauri": "tauri",
     "start:dev": "tauri dev",
     "test": "vitest",
-    "lint": "eslint --fix"
+    "lint": "eslint --fix",
+    "release": "tauri build"
   },
   "dependencies": {
     "@mdi/js": "7.4.47",

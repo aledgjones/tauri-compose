@@ -20,13 +20,13 @@ use tracks::Tracks;
 
 #[derive(Serialize, Clone)]
 pub struct Score {
-    config: Config,
-    meta: Meta,
-    players: Players,
-    instruments: Instruments,
-    flows: Flows,
-    tracks: Tracks,
-    layouts: Layouts,
+    pub config: Config,
+    pub meta: Meta,
+    pub players: Players,
+    pub instruments: Instruments,
+    pub flows: Flows,
+    pub tracks: Tracks,
+    pub layouts: Layouts,
 }
 
 impl Score {

@@ -1,4 +1,6 @@
+use crate::AppState;
 use skia_safe::{surfaces, Color, EncodedImageFormat, Paint, Path, Point, Surface};
+use tauri::{ipc::Response, State};
 
 pub struct Renderer {
     surface: Surface,
@@ -36,8 +38,16 @@ impl Renderer {
 }
 
 #[tauri::command(rename_all = "snake_case")]
-pub fn render() -> Vec<u8> {
+pub fn render(state: State<'_, AppState>) -> Response {
     let mut renderer = Renderer::new(1500, 400);
-    renderer.line(vec![Point::new(100.0, 100.5), Point::new(200.0, 100.5)]);
-    renderer.data()
+
+    let state = state.lock().unwrap();
+    for (i, _) in state.score.players.order.iter().enumerate() {
+        renderer.line(vec![
+            Point::new(100.0, 100.5 * i as f32),
+            Point::new(200.0, 100.5 * i as f32),
+        ]);
+    }
+
+    Response::new(renderer.data())
 }

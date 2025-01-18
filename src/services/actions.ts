@@ -1,14 +1,6 @@
 import { invoke, InvokeArgs, InvokeOptions } from "@tauri-apps/api/core";
 import { emit } from "@tauri-apps/api/event";
-import {
-  AutoCountStyle,
-  LayoutType,
-  Log,
-  PlayerType,
-  SelectionType,
-  Tab,
-  UniqueId,
-} from "./types";
+import { AutoCountStyle, LayoutType, Log, PlayerType, SelectionType, Tab, UniqueId } from "./types";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 
 export const loggedInvoke = async <T = unknown>(
@@ -22,16 +14,12 @@ export const loggedInvoke = async <T = unknown>(
     const result = await invoke<T>(cmd, args, options);
     const argString = args ? [JSON.stringify(args)] : [];
     actions.console.log(
-      [`[invoke] ${cmd}`, ...argString, `${performance.now() - t1}ms`].join(
-        " - "
-      )
+      [`[invoke] ${cmd}`, ...argString, `${performance.now() - t1}ms`].join(" - ")
     );
     return result;
   } catch (error) {
     actions.console.error(
-      `[invoke:error]: ${cmd} - ${JSON.stringify(error)} - ${
-        performance.now() - t1
-      }ms`
+      `[invoke:error]: ${cmd} - ${JSON.stringify(error)} - ${performance.now() - t1}ms`
     );
     throw error;
   }
@@ -43,6 +31,9 @@ export const actions = {
   },
   reset: () => {
     return loggedInvoke("reset");
+  },
+  render: () => {
+    return loggedInvoke<ArrayBuffer>("render");
   },
   console: {
     log: (message: string) => {
@@ -93,9 +84,7 @@ export const actions = {
         instrument_id: string;
       }>("solocompose://select-instrument", async (e) => {
         actions.console.log(
-          `[instrument-picker] select-instrument - payload ${JSON.stringify(
-            e.payload
-          )}`
+          `[instrument-picker] select-instrument - payload ${JSON.stringify(e.payload)}`
         );
 
         selection = e.payload?.instrument_id;
