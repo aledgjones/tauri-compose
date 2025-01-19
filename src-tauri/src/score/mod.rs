@@ -1,5 +1,6 @@
 pub mod components;
 pub mod config;
+pub mod engraves;
 pub mod entries;
 pub mod flows;
 pub mod instruments;
@@ -10,6 +11,7 @@ pub mod staves;
 pub mod tracks;
 
 use config::Config;
+use engraves::Engraves;
 use flows::Flows;
 use instruments::Instruments;
 use layouts::Layouts;
@@ -27,6 +29,7 @@ pub struct Score {
     pub flows: Flows,
     pub tracks: Tracks,
     pub layouts: Layouts,
+    pub engraves: Engraves,
 }
 
 impl Score {
@@ -39,6 +42,7 @@ impl Score {
             instruments: Instruments::new(),
             flows: Flows::new(),
             tracks: Tracks::new(),
+            engraves: Engraves::new(),
         }
     }
 }

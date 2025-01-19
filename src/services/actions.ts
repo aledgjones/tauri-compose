@@ -32,8 +32,8 @@ export const actions = {
   reset: () => {
     return loggedInvoke("reset");
   },
-  render: () => {
-    return loggedInvoke<ArrayBuffer>("render");
+  render: (flow_id: number) => {
+    return loggedInvoke<ArrayBuffer>("render", { flow_id });
   },
   console: {
     log: (message: string) => {
