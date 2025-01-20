@@ -1,9 +1,11 @@
+mod parse;
+mod render;
 mod renderer;
 mod score;
 mod ui;
 mod utils;
 
-use renderer::render;
+use render::render;
 use score::config::{
     score_config_auto_count_styles_section_set, score_config_auto_count_styles_solo_set,
 };
