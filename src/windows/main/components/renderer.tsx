@@ -29,7 +29,7 @@ export const Renderer: FC<Props> = ({ className, style }) => {
       }
 
       const result = await actions.render(firstFlow);
-      const blob = new Blob([result], { type: "image/svg+xml" });
+      const blob = new Blob([result], { type: "image/webp" });
       imageUrl = URL.createObjectURL(blob);
       setSrc(imageUrl);
     };

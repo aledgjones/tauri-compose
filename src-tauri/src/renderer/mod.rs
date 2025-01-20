@@ -6,9 +6,11 @@ use crate::score::components::units::Converter;
 use crate::score::layouts::LayoutType;
 use crate::utils::UniqueId;
 use crate::AppState;
-use skia_safe::svg::canvas::Canvas;
 use skia_safe::utils::text_utils::Align as SkiaAlign;
-use skia_safe::{Color, Font as SkiaFont, FontMgr, Paint, Path, Point, Rect, TextBlob, Typeface};
+use skia_safe::{
+    surfaces, Color, EncodedImageFormat, Font as SkiaFont, FontMgr, Paint, Path, Point, Surface,
+    Typeface,
+};
 use tauri::{ipc::Response, State};
 
 pub struct Fonts {
@@ -42,77 +44,78 @@ impl Fonts {
 }
 
 pub struct Renderer {
-    canvas: Option<Canvas>,
+    surface: Surface,
     fonts: Fonts,
 }
 
 impl Renderer {
     pub fn new(width: i32, height: i32) -> Renderer {
-        let canvas = Canvas::new(Rect::from_wh(width as f32, height as f32), None);
-
-        canvas.clear(Color::WHITE);
+        let mut surface = surfaces::raster_n32_premul((width, height)).expect("surface");
+        surface.canvas().clear(Color::WHITE);
 
         let fonts = Fonts::new();
 
-        Renderer {
-            canvas: Some(canvas),
-            fonts,
-        }
+        Renderer { surface, fonts }
     }
 
     pub fn line(&mut self, points: Vec<Point>) {
-        if let Some(canvas) = &mut self.canvas {
-            let mut paint = Paint::default();
-            paint.set_anti_alias(true);
-            paint.set_stroke(true);
+        let mut paint = Paint::default();
+        paint.set_anti_alias(true);
+        paint.set_stroke(true);
 
-            let mut path = Path::new();
+        let mut path = Path::new();
 
-            path.move_to(points[0]);
-            for point in &points[1..] {
-                path.line_to(*point);
-            }
-            canvas.draw_path(&path, &paint);
+        path.move_to(points[0]);
+        for point in &points[1..] {
+            path.line_to(*point);
         }
+        self.surface.canvas().draw_path(&path, &paint);
     }
 
     pub fn text(&mut self, text: &str, font: &Font, point: Point) {
-        if let Some(canvas) = &mut self.canvas {
-            let typeface = match font.family {
-                FontFamily::Bravura => &self.fonts.bravura,
-                FontFamily::LibreBaskerville => &self.fonts.libre_baskerville,
-            };
+        let typeface = match font.family {
+            FontFamily::Bravura => &self.fonts.bravura,
+            FontFamily::LibreBaskerville => &self.fonts.libre_baskerville,
+        };
 
-            let skia_font = SkiaFont::new(typeface.clone(), font.size);
+        let skia_font = SkiaFont::new(typeface.clone(), font.size);
 
-            let mut paint = Paint::default();
-            paint.set_anti_alias(true);
-            paint.set_color(Color::BLACK);
+        let mut paint = Paint::default();
+        paint.set_anti_alias(true);
+        paint.set_color(Color::BLACK);
 
-            let (_, metrics) = skia_font.metrics();
+        let (_, metrics) = skia_font.metrics();
 
-            let justify = match font.justify {
-                Justify::Start => SkiaAlign::Left,
-                Justify::Middle => SkiaAlign::Center,
-                Justify::End => SkiaAlign::Right,
-            };
+        let justify = match font.justify {
+            Justify::Start => SkiaAlign::Left,
+            Justify::Middle => SkiaAlign::Center,
+            Justify::End => SkiaAlign::Right,
+        };
 
-            let y = match font.align {
-                Align::Top => point.y + font.padding.top + metrics.x_height,
-                Align::Middle => point.y + font.padding.top + (metrics.x_height) / 2.0,
-                Align::Bottom => point.y - font.padding.bottom,
-            };
+        let y = match font.align {
+            Align::Top => point.y + font.padding.top + metrics.x_height,
+            Align::Middle => point.y + font.padding.top + (metrics.x_height) / 2.0,
+            Align::Bottom => point.y - font.padding.bottom,
+        };
 
-            canvas.draw_text_align(text, Point { x: point.x, y }, &skia_font, &paint, justify);
-        }
+        self.surface.canvas().draw_text_align(
+            text,
+            Point { x: point.x, y },
+            &skia_font,
+            &paint,
+            justify,
+        );
     }
 
     pub fn data(&mut self) -> Vec<u8> {
-        if let Some(canvas) = self.canvas.take() {
-            let data = canvas.end();
-            data.as_bytes().to_vec()
-        } else {
-            vec![]
+        let image = self.surface.image_snapshot();
+        let mut context = self.surface.direct_context();
+        match image.encode(context.as_mut(), EncodedImageFormat::WEBP, None) {
+            Some(data) => data.as_bytes().to_vec(),
+            None => {
+                println!("None");
+                vec![]
+            }
         }
     }
 }
