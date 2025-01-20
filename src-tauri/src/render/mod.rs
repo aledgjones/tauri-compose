@@ -1,116 +1,80 @@
-use skia_safe::Point;
-use tauri::{ipc::Response, State};
+mod draw_names;
+mod draw_staves;
 
-use crate::renderer::Renderer;
-use crate::score::components::measurements::PaddingSpaces;
-use crate::score::components::text::{Align, Font, FontFamily, Justify};
-use crate::score::components::units::Converter;
+use crate::renderer::converter::Converter;
+use crate::renderer::fonts::Fonts;
+use crate::renderer::text_measurer::TextMeasurer;
+use crate::score::components::measurements::Point;
 use crate::score::layouts::LayoutType;
 use crate::utils::UniqueId;
 use crate::AppState;
+use crate::{parse::measure_instrument_names::measure_instrument_names, renderer::Renderer};
+use draw_names::draw_names;
+use draw_staves::{draw_staves, STAVE_LINE_WIDTH};
+use tauri::{ipc::Response, State};
 
 #[tauri::command(rename_all = "snake_case")]
 pub async fn render(state: State<'_, AppState>, flow_id: UniqueId) -> Result<Response, ()> {
     // ** TODO: pass these into the function
-    let mm: f32 = 3.77;
+    let px_per_mm: f32 = 3.77;
     let layout_type = LayoutType::FullScore;
     // **
 
     let state = state.lock().unwrap();
 
+    let flow = &state.score.flows.by_id[&flow_id];
+    let instruments = state.get_instruments(flow);
     let engrave = &state.score.engraves.by_layout_type[&layout_type];
-    let converter = Converter::new(mm, engrave.space);
 
-    let vertical_spacing = state.measure_vertical_spacing(flow_id, engrave);
+    let fonts = Fonts::new();
+    let converter = Converter::new(px_per_mm, engrave.space);
+    let text_measurer = TextMeasurer::new(&fonts, &converter);
 
-    let frame_padding = engrave.frame_padding.to_spaces(&converter);
+    let vertical_spacing = state.measure_vertical_spacing(flow, &instruments, engrave);
+    let frame_padding = engrave.frame_padding.to_spaces(&engrave.space);
+    let max_name_width = measure_instrument_names(&instruments, engrave, &text_measurer);
 
-    let height =
-        converter.spaces_to_px(frame_padding.top + vertical_spacing.height + frame_padding.bottom);
-    let width = converter.spaces_to_px(frame_padding.left + 50.0 + frame_padding.right);
+    let height = frame_padding.top + vertical_spacing.height + frame_padding.bottom;
+    let width = frame_padding.left + max_name_width + 50.0 + frame_padding.right;
 
-    let mut renderer = Renderer::new(width as i32, height as i32);
+    let mut renderer = Renderer::new(width, height, fonts, converter);
 
-    renderer.text(
-        "Violin I",
-        &Font {
-            size: 18.0,
-            family: FontFamily::LibreBaskerville,
-            justify: Justify::End,
-            align: Align::Middle,
-            padding: PaddingSpaces {
-                top: 0.0,
-                right: 0.0,
-                bottom: 0.0,
-                left: 0.0,
-            },
+    draw_names(
+        &instruments,
+        &Point {
+            x: frame_padding.left + max_name_width,
+            y: frame_padding.top,
         },
-        Point { x: 100.0, y: 120.0 },
+        &vertical_spacing,
+        engrave,
+        &mut renderer,
     );
 
-    renderer.line(vec![
-        Point { x: 100.0, y: 110.0 },
-        Point { x: 100.0, y: 130.0 },
-    ]);
-
-    renderer.line(vec![
-        Point { x: 90.0, y: 120.0 },
-        Point { x: 110.0, y: 120.0 },
-    ]);
-
-    renderer.text(
-        "Violin II",
-        &Font {
-            size: 18.0,
-            family: FontFamily::LibreBaskerville,
-            justify: Justify::End,
-            align: Align::Middle,
-            padding: PaddingSpaces {
-                top: 0.0,
-                right: 0.0,
-                bottom: 0.0,
-                left: 0.0,
-            },
+    draw_staves(
+        flow,
+        &instruments,
+        &Point {
+            x: frame_padding.left + max_name_width,
+            y: frame_padding.top,
         },
-        Point { x: 100.0, y: 180.0 },
+        50.0,
+        &vertical_spacing,
+        &mut renderer,
     );
 
-    renderer.line(vec![
-        Point { x: 100.0, y: 170.0 },
-        Point { x: 100.0, y: 190.0 },
-    ]);
-
-    renderer.line(vec![
-        Point { x: 90.0, y: 180.0 },
-        Point { x: 110.0, y: 180.0 },
-    ]);
-
-    renderer.text(
-        "Viola",
-        &Font {
-            size: 18.0,
-            family: FontFamily::LibreBaskerville,
-            justify: Justify::End,
-            align: Align::Middle,
-            padding: PaddingSpaces {
-                top: 0.0,
-                right: 0.0,
-                bottom: 0.0,
-                left: 0.0,
+    renderer.line(
+        STAVE_LINE_WIDTH,
+        vec![
+            Point {
+                x: frame_padding.left + max_name_width,
+                y: frame_padding.top,
             },
-        },
-        Point { x: 100.0, y: 240.0 },
+            Point {
+                x: frame_padding.left + max_name_width,
+                y: frame_padding.top + vertical_spacing.height,
+            },
+        ],
     );
-
-    renderer.line(vec![
-        Point { x: 100.0, y: 230.0 },
-        Point { x: 100.0, y: 250.0 },
-    ]);
-
-    renderer.line(vec![
-        Point { x: 90.0, y: 240.0 },
-        Point { x: 110.0, y: 240.0 },
-    ]);
 
     Ok(Response::new(renderer.data()))
 }

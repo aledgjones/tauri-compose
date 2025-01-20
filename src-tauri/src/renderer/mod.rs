@@ -1,76 +1,63 @@
+pub mod converter;
+pub mod fonts;
+pub mod text_measurer;
+
+use crate::score::components::measurements::Point;
 use crate::score::components::text::{Align, Font, FontFamily, Justify};
+use converter::{Converter, Space};
+use fonts::Fonts;
 use skia_safe::utils::text_utils::Align as SkiaAlign;
 use skia_safe::{
-    surfaces, Color, EncodedImageFormat, Font as SkiaFont, FontMgr, Paint, Path, Point, Surface,
-    Typeface,
+    surfaces, Color, EncodedImageFormat, Font as SkiaFont, Paint, Path, Point as SkiaPoint, Surface,
 };
-
-pub struct Fonts {
-    pub bravura: Typeface,
-    pub libre_baskerville: Typeface,
-}
-
-impl Fonts {
-    pub fn new() -> Self {
-        let font_mgr = FontMgr::new();
-
-        // Load the fixed set of fonts
-        let bravura_font_data = include_bytes!("../../../src/assets/fonts/bravura.woff2");
-        let libre_baskerville_font_data =
-            include_bytes!("../../../src/assets/fonts/libre-baskerville.woff2");
-
-        // Load the typefaces
-        let bravura = font_mgr
-            .new_from_data(bravura_font_data, None)
-            .expect("Failed to load Bravura font");
-
-        let libre_baskerville = font_mgr
-            .new_from_data(libre_baskerville_font_data, None)
-            .expect("Failed to load Libre Baskerville font");
-
-        Fonts {
-            bravura,
-            libre_baskerville,
-        }
-    }
-}
 
 pub struct Renderer {
     surface: Surface,
+    converter: Converter,
     fonts: Fonts,
 }
 
 impl Renderer {
-    pub fn new(width: i32, height: i32) -> Renderer {
+    pub fn new(width: Space, height: Space, fonts: Fonts, converter: Converter) -> Renderer {
+        let width = converter.spaces_to_px(width) as i32;
+        let height = converter.spaces_to_px(height) as i32;
+
         let mut surface = surfaces::raster_n32_premul((width, height)).expect("surface");
         surface.canvas().clear(Color::WHITE);
 
-        let fonts = Fonts::new();
-
-        Renderer { surface, fonts }
+        Renderer {
+            surface,
+            fonts,
+            converter,
+        }
     }
 
-    pub fn line(&mut self, points: Vec<Point>) {
+    pub fn line(&mut self, width: Space, points: Vec<Point>) {
         let mut paint = Paint::default();
         paint.set_anti_alias(true);
         paint.set_stroke(true);
+        paint.set_stroke_width(self.converter.spaces_to_px(width));
 
         let mut path = Path::new();
+        let first = points[0].to_skia(&self.converter);
 
-        path.move_to(points[0]);
+        path.move_to(first);
         for point in &points[1..] {
-            path.line_to(*point);
+            path.line_to(point.to_skia(&self.converter));
         }
+
         self.surface.canvas().draw_path(&path, &paint);
     }
 
     pub fn text(&mut self, text: &str, font: &Font, point: Point) {
+        let origin = point.to_skia(&self.converter);
+
         let typeface = match font.family {
             FontFamily::Bravura => &self.fonts.bravura,
             FontFamily::LibreBaskerville => &self.fonts.libre_baskerville,
         };
 
-        let skia_font = SkiaFont::new(typeface.clone(), font.size);
+        let skia_font = SkiaFont::new(typeface.clone(), self.converter.spaces_to_px(font.size));
 
         let mut paint = Paint::default();
         paint.set_anti_alias(true);
@@ -84,15 +71,18 @@ impl Renderer {
             Justify::End => SkiaAlign::Right,
         };
 
-        let y = match font.align {
-            Align::Top => point.y + font.padding.top + metrics.x_height,
-            Align::Middle => point.y + font.padding.top + (metrics.x_height) / 2.0,
-            Align::Bottom => point.y - font.padding.bottom,
+        let offset_y = match font.align {
+            Align::Top => metrics.x_height,
+            Align::Middle => (metrics.x_height) / 2.0,
+            Align::Bottom => 0.0,
         };
 
         self.surface.canvas().draw_text_align(
             text,
-            Point { x: point.x, y },
+            SkiaPoint {
+                x: origin.x,
+                y: origin.y + offset_y,
+            },
             &skia_font,
             &paint,
             justify,

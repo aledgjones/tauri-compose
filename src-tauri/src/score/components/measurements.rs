@@ -1,6 +1,12 @@
+use crate::renderer::converter::{Converter, Mm, Space};
 use serde::{Deserialize, Serialize};
+use skia_safe::Point as SkiaPoint;
 
-use super::units::{Converter, Mm, Space};
+#[derive(Clone, Serialize, Deserialize)]
+pub struct BoundingBox {
+    pub width: Space,
+    pub height: Space,
+}
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct PaddingSpaces {
@@ -39,12 +45,12 @@ impl PaddingMm {
         }
     }
 
-    pub fn to_spaces(&self, converter: &Converter) -> PaddingSpaces {
+    pub fn to_spaces(&self, mm_per_space: &f32) -> PaddingSpaces {
         PaddingSpaces::new(
-            converter.mm_to_spaces(self.top),
-            converter.mm_to_spaces(self.right),
-            converter.mm_to_spaces(self.bottom),
-            converter.mm_to_spaces(self.left),
+            self.top / mm_per_space,
+            self.right / mm_per_space,
+            self.bottom / mm_per_space,
+            self.left / mm_per_space,
         )
     }
 }
@@ -53,6 +59,15 @@ impl PaddingMm {
 pub struct Point {
     pub x: Space,
     pub y: Space,
+}
+
+impl Point {
+    pub fn to_skia(self, converter: &Converter) -> SkiaPoint {
+        SkiaPoint {
+            x: converter.spaces_to_px(self.x),
+            y: converter.spaces_to_px(self.y),
+        }
+    }
 }
 
 #[derive(Copy, Clone, Serialize, Deserialize)]

@@ -1,9 +1,8 @@
-use super::measurements::PaddingSpaces;
-use super::units::Space;
+use crate::renderer::converter::Space;
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
-#[derive(Clone, Serialize_repr, Deserialize_repr)]
+#[derive(Copy, Clone, Serialize_repr, Deserialize_repr)]
 #[repr(u8)]
 pub enum Justify {
     Start,
@@ -11,7 +10,7 @@ pub enum Justify {
     End,
 }
 
-#[derive(Clone, Serialize_repr, Deserialize_repr)]
+#[derive(Copy, Clone, Serialize_repr, Deserialize_repr)]
 #[repr(u8)]
 pub enum Align {
     Top,
@@ -19,7 +18,7 @@ pub enum Align {
     Bottom,
 }
 
-#[derive(Clone, Serialize_repr, Deserialize_repr)]
+#[derive(Copy, Clone, Serialize_repr, Deserialize_repr)]
 #[repr(u8)]
 pub enum FontFamily {
     Bravura,
@@ -32,5 +31,4 @@ pub struct Font {
     pub family: FontFamily,
     pub justify: Justify,
     pub align: Align,
-    pub padding: PaddingSpaces,
 }

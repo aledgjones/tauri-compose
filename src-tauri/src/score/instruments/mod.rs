@@ -22,6 +22,23 @@ pub struct Instrument {
     pub mute: bool,
 }
 
+impl Instrument {
+    pub fn family(&self) -> &str {
+        let mut parts = self.definition_id.split('.');
+        match parts.next() {
+            None => "unknown",
+            Some(part) => part,
+        }
+    }
+
+    pub fn name(&self) -> String {
+        match &self.count {
+            Some(count) => format!("{} {}", self.long_name, count),
+            None => self.long_name.clone(),
+        }
+    }
+}
+
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Instruments {
     pub by_id: FxHashMap<UniqueId, Instrument>,

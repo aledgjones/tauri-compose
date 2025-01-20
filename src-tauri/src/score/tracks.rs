@@ -1,7 +1,5 @@
-use super::{
-    components::duration::Tick,
-    entries::{Entries, Entry},
-};
+use super::components::duration::Tick;
+use super::entries::{Entries, Entry};
 use crate::utils::UniqueId;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};

@@ -1,7 +1,7 @@
 use super::components::measurements::{PaddingMm, PaddingSpaces};
 use super::components::text::{Align, Font, FontFamily, Justify};
-use super::components::units::{Mm, Space};
 use super::layouts::LayoutType;
+use crate::renderer::converter::{Mm, Space};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
@@ -46,7 +46,6 @@ impl Engraves {
                     family: FontFamily::LibreBaskerville,
                     justify: Justify::End,
                     align: Align::Middle,
-                    padding: PaddingSpaces::new(0.0, 2.0, 0.0, 0.0),
                 },
 
                 systemic_barline_single_instrument_system: false,
