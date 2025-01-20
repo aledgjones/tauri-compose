@@ -1,5 +1,6 @@
 mod draw_names;
 mod draw_staves;
+mod draw_systemic_barline;
 
 use crate::renderer::converter::Converter;
 use crate::renderer::fonts::Fonts;
@@ -10,14 +11,16 @@ use crate::utils::UniqueId;
 use crate::AppState;
 use crate::{parse::measure_instrument_names::measure_instrument_names, renderer::Renderer};
 use draw_names::draw_names;
-use draw_staves::{draw_staves, STAVE_LINE_WIDTH};
+use draw_staves::draw_staves;
+use draw_systemic_barline::draw_systemic_barline;
 use tauri::{ipc::Response, State};
 
 #[tauri::command(rename_all = "snake_case")]
 pub async fn render(state: State<'_, AppState>, flow_id: UniqueId) -> Result<Response, ()> {
-    // ** TODO: pass these into the function
+    // ** TODO: get these dynamically
     let px_per_mm: f32 = 3.77;
     let layout_type = LayoutType::FullScore;
+    let stave_width = 50.0;
     // **
 
     let state = state.lock().unwrap();
@@ -33,16 +36,27 @@ pub async fn render(state: State<'_, AppState>, flow_id: UniqueId) -> Result<Res
     let vertical_spacing = state.measure_vertical_spacing(flow, &instruments, engrave);
     let frame_padding = engrave.frame_padding.to_spaces(&engrave.space);
     let max_name_width = measure_instrument_names(&instruments, engrave, &text_measurer);
+    let stave_left = frame_padding.left + max_name_width + engrave.instrument_name_spacing;
 
     let height = frame_padding.top + vertical_spacing.height + frame_padding.bottom;
-    let width = frame_padding.left + max_name_width + 50.0 + frame_padding.right;
+    let width = stave_left + stave_width + frame_padding.right;
 
     let mut renderer = Renderer::new(width, height, fonts, converter);
 
     draw_names(
-        &instruments,
         &Point {
             x: frame_padding.left + max_name_width,
+            y: frame_padding.top,
+        },
+        &instruments,
+        &vertical_spacing,
+        engrave,
+        &mut renderer,
+    );
+
+    draw_systemic_barline(
+        &Point {
+            x: stave_left,
             y: frame_padding.top,
         },
         &vertical_spacing,
@@ -51,29 +65,15 @@ pub async fn render(state: State<'_, AppState>, flow_id: UniqueId) -> Result<Res
     );
 
     draw_staves(
-        flow,
-        &instruments,
         &Point {
-            x: frame_padding.left + max_name_width,
+            x: stave_left,
             y: frame_padding.top,
         },
-        50.0,
+        stave_width,
+        flow,
+        &instruments,
         &vertical_spacing,
         &mut renderer,
-    );
-
-    renderer.line(
-        STAVE_LINE_WIDTH,
-        vec![
-            Point {
-                x: frame_padding.left + max_name_width,
-                y: frame_padding.top,
-            },
-            Point {
-                x: frame_padding.left + max_name_width,
-                y: frame_padding.top + vertical_spacing.height,
-            },
-        ],
     );
 
     Ok(Response::new(renderer.data()))

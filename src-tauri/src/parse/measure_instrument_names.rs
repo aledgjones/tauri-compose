@@ -12,7 +12,7 @@ pub fn measure_instrument_names(
 
     for instrument in instruments {
         let text = instrument.name();
-        let bounds = text_measurer.measure(&text, &engrave.instrument_name);
+        let bounds = text_measurer.measure(&text, &engrave.instrument_name_font);
         if bounds.width > max {
             max = bounds.width;
         }

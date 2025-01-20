@@ -8,10 +8,10 @@ use crate::score::instruments::Instrument;
 pub const STAVE_LINE_WIDTH: Space = 0.125;
 
 pub fn draw_staves(
-    flow: &Flow,
-    instruments: &Vec<&Instrument>,
     origin: &Point,
     width: Space,
+    flow: &Flow,
+    instruments: &Vec<&Instrument>,
     vertical_spacing: &VerticalSpacing,
     renderer: &mut Renderer,
 ) {

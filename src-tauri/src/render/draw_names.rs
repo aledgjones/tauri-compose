@@ -7,8 +7,8 @@ use crate::score::engraves::Engrave;
 use crate::score::instruments::Instrument;
 
 pub fn draw_names(
-    instruments: &Vec<&Instrument>,
     origin: &Point,
+    instruments: &Vec<&Instrument>,
     vertical_spacing: &VerticalSpacing,
     engrave: &Engrave,
     renderer: &mut Renderer,
@@ -20,10 +20,10 @@ pub fn draw_names(
         renderer.text(
             &instrument.name(),
             &Font {
-                family: engrave.instrument_name.family,
-                align: engrave.instrument_name.align,
-                justify: engrave.instrument_name.justify,
-                size: engrave.instrument_name.size,
+                family: engrave.instrument_name_font.family,
+                align: engrave.instrument_name_font.align,
+                justify: engrave.instrument_name_font.justify,
+                size: engrave.instrument_name_font.size,
             },
             Point {
                 x: origin.x,

@@ -2,7 +2,7 @@ use super::converter::Converter;
 use super::fonts::Fonts;
 use crate::score::components::measurements::BoundingBox;
 use crate::score::components::text::{Font, FontFamily};
-use skia_safe::{Font as SkiaFont, TextBlob};
+use skia_safe::Font as SkiaFont;
 
 pub struct TextMeasurer<'a> {
     fonts: &'a Fonts,
@@ -21,13 +21,11 @@ impl<'a> TextMeasurer<'a> {
         };
 
         let skia_font = SkiaFont::new(typeface.clone(), self.converter.spaces_to_px(font.size));
-        let blob = TextBlob::new(text, &skia_font).unwrap();
-
-        let bounds = blob.bounds();
+        let (_, rect) = skia_font.measure_str(text, None);
 
         BoundingBox {
-            width: self.converter.px_to_spaces(bounds.width()),
-            height: self.converter.px_to_spaces(bounds.height()),
+            width: self.converter.px_to_spaces(rect.width()),
+            height: self.converter.px_to_spaces(rect.height()),
         }
     }
 }

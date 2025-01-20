@@ -41,12 +41,13 @@ impl Engraves {
                 stave_spacing: 6.0,
                 system_start_padding: 0.75,
 
-                instrument_name: Font {
+                instrument_name_font: Font {
                     size: 1.75,
                     family: FontFamily::LibreBaskerville,
                     justify: Justify::End,
                     align: Align::Middle,
                 },
+                instrument_name_spacing: 1.0,
 
                 systemic_barline_single_instrument_system: false,
                 bracketing_approach: BracketingApproach::Orchestral,
@@ -76,7 +77,8 @@ pub struct Engrave {
     pub stave_spacing: Space,
     pub system_start_padding: Space,
 
-    pub instrument_name: Font,
+    pub instrument_name_font: Font,
+    pub instrument_name_spacing: Space,
 
     pub systemic_barline_single_instrument_system: bool,
     pub bracketing_approach: BracketingApproach,
