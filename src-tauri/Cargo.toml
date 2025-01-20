@@ -24,7 +24,7 @@ serde = { version = "1.0.217", features = ["derive"] }
 serde_json = "1.0.137"
 serde_repr = "0.1.19"
 rustc-hash = "2.1.0"
-skia-safe = { version = "0.81.0", features = ["webp-encode", "svg"] }
+skia-safe = { version = "0.81.0", features = ["svg"] }
 lazy_static = "1.5.0"
 roman = "0.1.6"
 

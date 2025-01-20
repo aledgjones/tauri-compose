@@ -1,14 +1,13 @@
 import classNames from "classnames";
-import { FunctionalComponent } from "preact";
-import { CSSProperties, useEffect, useState } from "preact/compat";
 import { actions } from "../../../services/actions";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
 import { AppState } from "../../../services/types";
 import { useAppState } from "../../../services/state";
+import { CSSProperties, FC, useEffect, useState } from "react";
 
 type Props = { className?: string; style?: CSSProperties };
 
-export const Renderer: FunctionalComponent<Props> = ({ className, style }) => {
+export const Renderer: FC<Props> = ({ className, style }) => {
   const state = useAppState();
   const [src, setSrc] = useState<string | null>(null);
 
@@ -47,7 +46,10 @@ export const Renderer: FunctionalComponent<Props> = ({ className, style }) => {
     };
 
     (async () => {
-      unlisten = await listen<AppState>("solocompose://state", handleStateUpdate);
+      unlisten = await listen<AppState>(
+        "solocompose://state",
+        handleStateUpdate
+      );
     })();
 
     return () => {

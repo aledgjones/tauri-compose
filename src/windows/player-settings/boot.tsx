@@ -1,10 +1,9 @@
-import { render } from "preact";
+import { createRoot } from "react-dom/client";
 import { AppStateProvider } from "../../services/state";
 import { Main } from ".";
 
-render(
+createRoot(document.getElementById("root")!).render(
   <AppStateProvider>
     <Main />
-  </AppStateProvider>,
-  document.getElementById("root")!
+  </AppStateProvider>
 );

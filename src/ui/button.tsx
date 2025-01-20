@@ -1,14 +1,19 @@
 import classNames from "classnames";
-import { FunctionalComponent } from "preact";
+import { FC, PropsWithChildren } from "react";
 
-type ButtonProps = {
+type ButtonProps = PropsWithChildren<{
   onClick: () => void;
   className?: string;
   label?: string;
   isDisabled?: boolean;
-};
+}>;
 
-export const Button: FunctionalComponent<ButtonProps> = ({ className, children, onClick, isDisabled }) => {
+export const Button: FC<ButtonProps> = ({
+  className,
+  children,
+  onClick,
+  isDisabled,
+}) => {
   return (
     <button
       onClick={onClick}

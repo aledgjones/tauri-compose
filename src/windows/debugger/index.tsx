@@ -1,7 +1,7 @@
-import { chromeDark, Inspector } from "react-inspector";
+import { chromeDark, ObjectInspector } from "react-inspector";
 import { useAppState } from "../../services/state";
-import { useEffect, useRef, useState } from "preact/hooks";
-import { window } from "@tauri-apps/api";
+import { useEffect, useRef, useState } from "react";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { AppBar } from "../../components/app-bar";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
 import classNames from "classnames";
@@ -16,7 +16,7 @@ export const Main = () => {
 
   useEffect(() => {
     const show = async () => {
-      const win = window.getCurrentWindow();
+      const win = getCurrentWindow();
       await win.show();
     };
 
@@ -45,9 +45,14 @@ export const Main = () => {
     <div className="h-dvh bg-neutral-950 grid grid-rows-[28px_2fr_1fr] gap-2 overflow-hidden">
       <AppBar title="Debugger" filename={state.score.meta.title} />
       <div className="bg-neutral-900 p-2 overflow-auto mx-2">
-        <Inspector
+        <ObjectInspector
           data={state}
-          theme={{ ...chromeDark, BASE_BACKGROUND_COLOR: "transparent" }}
+          theme={
+            {
+              ...chromeDark,
+              BASE_BACKGROUND_COLOR: "transparent",
+            } as unknown as string
+          }
           expandPaths={["$"]}
         />
       </div>

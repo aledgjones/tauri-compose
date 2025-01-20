@@ -1,16 +1,21 @@
-import { FunctionalComponent } from "preact";
 import { mdiCheck } from "@mdi/js";
 import { Icon } from "./icon";
 import classNames from "classnames";
+import { FC, PointerEvent } from "react";
 
 type Props = {
   value: boolean;
   onChange: (value: boolean) => void;
   className?: string;
-  onPointerDown?: (event: PointerEvent) => void;
+  onPointerDown?: (event: PointerEvent<HTMLDivElement>) => void;
 };
 
-export const Checkbox: FunctionalComponent<Props> = ({ value, onChange, className, onPointerDown }) => {
+export const Checkbox: FC<Props> = ({
+  value,
+  onChange,
+  className,
+  onPointerDown,
+}) => {
   return (
     <div
       onClick={() => onChange(!value)}

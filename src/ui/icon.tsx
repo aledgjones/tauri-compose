@@ -1,8 +1,8 @@
 import MdiIcon from "@mdi/react";
 import { IconProps } from "@mdi/react/dist/IconProps";
-import { FunctionComponent } from "preact";
+import { FC } from "react";
 
-export const Icon: FunctionComponent<IconProps> = ({ className, size = 1, ...props }) => {
+export const Icon: FC<IconProps> = ({ className, size = 1, ...props }) => {
   return (
     <div className={className}>
       <MdiIcon size={size} {...props} />

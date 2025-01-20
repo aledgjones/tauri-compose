@@ -1,7 +1,7 @@
 import { mdiChevronDown } from "@mdi/js";
 import Icon from "@mdi/react";
 import classNames from "classnames";
-import { useEffect, useRef, useState } from "preact/hooks";
+import { Key, useEffect, useRef, useState } from "react";
 
 export type SelectOption<T> = {
   value: T;
@@ -18,7 +18,7 @@ type SelectProps<T> = {
   label?: string;
 };
 
-export const Select = <T,>({
+export const Select = <T extends Key>({
   value,
   options,
   onChange,
@@ -32,7 +32,10 @@ export const Select = <T,>({
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (selectRef.current && !selectRef.current.contains(event.target as Node)) {
+      if (
+        selectRef.current &&
+        !selectRef.current.contains(event.target as Node)
+      ) {
         setIsOpen(false);
       }
     };
@@ -67,9 +70,11 @@ export const Select = <T,>({
         className={classNames(
           "h-[36px] flex items-center w-full text-left  text-white text-sm pl-3 border-2",
           {
-            "bg-neutral-900 hover:bg-neutral-800 border-transparent": !isOpen && isStandard,
+            "bg-neutral-900 hover:bg-neutral-800 border-transparent":
+              !isOpen && isStandard,
             "bg-neutral-800 border-transparent": isOpen && isStandard,
-            "bg-neutral-800 hover:bg-neutral-700 border-transparent": !isOpen && !isStandard,
+            "bg-neutral-800 hover:bg-neutral-700 border-transparent":
+              !isOpen && !isStandard,
             "bg-neutral-700 border-sky-500": isOpen && !isStandard,
           }
         )}
@@ -81,9 +86,12 @@ export const Select = <T,>({
           <Icon
             path={mdiChevronDown}
             size={0.75}
-            className={classNames("text-neutral-300 transform transition-transform", {
-              "rotate-180": isOpen,
-            })}
+            className={classNames(
+              "text-neutral-300 transform transition-transform",
+              {
+                "rotate-180": isOpen,
+              }
+            )}
           />
         </div>
       </button>

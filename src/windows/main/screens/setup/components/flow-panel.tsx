@@ -2,7 +2,7 @@ import { mdiPlus } from "@mdi/js";
 import { Panel } from "./panel";
 import { useAppState } from "../../../../../services/state";
 import { actions } from "../../../../../services/actions";
-import { useEffect, useRef } from "preact/hooks";
+import { useEffect, useRef } from "react";
 import Sortable from "sortablejs";
 import { FlowPanelItem } from "./flow-panel-item";
 import { SelectionType } from "../../../../../services/types";

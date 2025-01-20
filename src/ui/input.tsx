@@ -1,6 +1,5 @@
 import classNames from "classnames";
-import { FunctionalComponent } from "preact";
-import { useState } from "preact/hooks";
+import { FC, useState } from "react";
 
 interface InputProps {
   value: string;
@@ -10,7 +9,13 @@ interface InputProps {
   readOnly?: boolean;
 }
 
-export const Input: FunctionalComponent<InputProps> = ({ value, onChange, className, label, readOnly }) => {
+export const Input: FC<InputProps> = ({
+  value,
+  onChange,
+  className,
+  label,
+  readOnly,
+}) => {
   const [isFocused, setIsFocused] = useState(false);
 
   return (

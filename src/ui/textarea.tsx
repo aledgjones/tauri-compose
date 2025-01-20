@@ -1,6 +1,5 @@
 import classNames from "classnames";
-import { FunctionalComponent } from "preact";
-import { useState } from "preact/hooks";
+import { FC, useState } from "react";
 
 interface TextareaProps {
   value: string;
@@ -11,7 +10,7 @@ interface TextareaProps {
   lines: number;
 }
 
-export const Textarea: FunctionalComponent<TextareaProps> = ({
+export const Textarea: FC<TextareaProps> = ({
   value,
   onChange,
   className,

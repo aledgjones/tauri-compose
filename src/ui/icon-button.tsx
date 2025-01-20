@@ -1,7 +1,7 @@
 import MdiIcon from "@mdi/react";
 import { IconProps } from "@mdi/react/dist/IconProps";
 import classNames from "classnames";
-import { FunctionComponent } from "preact";
+import { FC } from "react";
 
 type Variant = "standard" | "filled";
 type Props = {
@@ -19,7 +19,7 @@ const getTheme = (variant: Variant) => {
   }
 };
 
-export const IconButton: FunctionComponent<IconProps & Props> = ({
+export const IconButton: FC<IconProps & Props> = ({
   variant,
   className,
   size = 1,

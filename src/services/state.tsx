@@ -1,8 +1,14 @@
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
-import { createContext, FunctionComponent } from "preact";
-import { useContext, useEffect, useState } from "preact/hooks";
 import { AppState, AutoCountStyle, Tab } from "./types";
 import { actions } from "./actions";
+import {
+  createContext,
+  FC,
+  PropsWithChildren,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
 
 export const initialAppState: AppState = {
   ui: {
@@ -46,7 +52,7 @@ export const initialAppState: AppState = {
 
 export const AppContext = createContext<AppState | null>(null);
 
-export const AppStateProvider: FunctionComponent = ({ children }) => {
+export const AppStateProvider: FC<PropsWithChildren> = ({ children }) => {
   const [appState, setAppState] = useState<AppState>(initialAppState);
 
   useEffect(() => {

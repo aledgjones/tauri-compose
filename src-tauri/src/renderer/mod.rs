@@ -7,6 +7,7 @@ use crate::score::layouts::LayoutType;
 use crate::utils::UniqueId;
 use crate::AppState;
 use skia_safe::svg::canvas::Canvas;
+use skia_safe::utils::text_utils::Align as SkiaAlign;
 use skia_safe::{Color, Font as SkiaFont, FontMgr, Paint, Path, Point, Rect, TextBlob, Typeface};
 use tauri::{ipc::Response, State};
 
@@ -20,9 +21,9 @@ impl Fonts {
         let font_mgr = FontMgr::new();
 
         // Load the fixed set of fonts
-        let bravura_font_data = include_bytes!("../../../src/fonts/bravura.woff2");
+        let bravura_font_data = include_bytes!("../../../src/assets/fonts/bravura.woff2");
         let libre_baskerville_font_data =
-            include_bytes!("../../../src/fonts/libre-baskerville.woff2");
+            include_bytes!("../../../src/assets/fonts/libre-baskerville.woff2");
 
         // Load the typefaces
         let bravura = font_mgr
@@ -89,12 +90,11 @@ impl Renderer {
             paint.set_color(Color::BLACK);
 
             let (_, metrics) = skia_font.metrics();
-            let (_, bounds) = skia_font.measure_str(text, Some(&paint));
 
-            let x = match font.justify {
-                Justify::Start => point.x + font.padding.left,
-                Justify::Middle => point.x + font.padding.left - bounds.width() / 2.0,
-                Justify::End => point.x - bounds.width() - font.padding.right,
+            let justify = match font.justify {
+                Justify::Start => SkiaAlign::Left,
+                Justify::Middle => SkiaAlign::Center,
+                Justify::End => SkiaAlign::Right,
             };
 
             let y = match font.align {
@@ -103,9 +103,7 @@ impl Renderer {
                 Align::Bottom => point.y - font.padding.bottom,
             };
 
-            let blob = TextBlob::new(text, &skia_font).unwrap();
-
-            canvas.draw_text_blob(&blob, Point { x, y }, &paint);
+            canvas.draw_text_align(text, Point { x: point.x, y }, &skia_font, &paint, justify);
         }
     }
 
@@ -142,12 +140,12 @@ pub async fn render(state: State<'_, AppState>, flow_id: UniqueId) -> Result<Res
     let mut renderer = Renderer::new(width as i32, height as i32);
 
     renderer.text(
-        "Texty",
+        "Violin I",
         &Font {
-            size: 12.0,
+            size: 18.0,
             family: FontFamily::LibreBaskerville,
-            justify: Justify::Start,
-            align: Align::Top,
+            justify: Justify::End,
+            align: Align::Middle,
             padding: PaddingSpaces {
                 top: 0.0,
                 right: 0.0,
@@ -169,11 +167,11 @@ pub async fn render(state: State<'_, AppState>, flow_id: UniqueId) -> Result<Res
     ]);
 
     renderer.text(
-        "Texty",
+        "Violin II",
         &Font {
-            size: 12.0,
+            size: 18.0,
             family: FontFamily::LibreBaskerville,
-            justify: Justify::Start,
+            justify: Justify::End,
             align: Align::Middle,
             padding: PaddingSpaces {
                 top: 0.0,
@@ -196,12 +194,12 @@ pub async fn render(state: State<'_, AppState>, flow_id: UniqueId) -> Result<Res
     ]);
 
     renderer.text(
-        "Texty",
+        "Viola",
         &Font {
-            size: 12.0,
+            size: 18.0,
             family: FontFamily::LibreBaskerville,
-            justify: Justify::Start,
-            align: Align::Bottom,
+            justify: Justify::End,
+            align: Align::Middle,
             padding: PaddingSpaces {
                 top: 0.0,
                 right: 0.0,

@@ -1,6 +1,6 @@
-import { window } from "@tauri-apps/api";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useAppState } from "../../services/state";
-import { useEffect, useMemo, useState } from "preact/hooks";
+import { useEffect, useMemo, useState } from "react";
 import { AppBar } from "../../components/app-bar";
 import { emit } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
@@ -31,10 +31,13 @@ const InstrumentItemButton = ({
 }: InstrumentItemButtonProps) => {
   return (
     <button
-      className={classNames("flex items-center  p-2 pl-3 w-full text-left text-sm h-[40px]", {
-        "bg-sky-400 text-black": isSelected,
-        "text-white": !isSelected,
-      })}
+      className={classNames(
+        "flex items-center  p-2 pl-3 w-full text-left text-sm h-[40px]",
+        {
+          "bg-sky-400 text-black": isSelected,
+          "text-white": !isSelected,
+        }
+      )}
       onClick={onClick}
     >
       <p className="flex-1">{item}</p>
@@ -87,7 +90,11 @@ const calculateColumns = (
 ): InstrumentColumns => {
   if (!instruments || !selection) return [[], [], []];
 
-  const [first, second, third] = [new Set<string>(), new Set<string>(), new Set<string>()];
+  const [first, second, third] = [
+    new Set<string>(),
+    new Set<string>(),
+    new Set<string>(),
+  ];
 
   instruments.forEach(({ path }) => {
     first.add(path[0]);
@@ -114,19 +121,24 @@ export const Main = () => {
 
   useEffect(() => {
     (async () => {
-      const win = window.getCurrentWindow();
+      const win = getCurrentWindow();
       await win.show();
       await win.center();
     })();
 
     (async () => {
-      const result = await invoke<InstrumentDefinition[]>("score_instruments_get_all_definitions");
+      const result = await invoke<InstrumentDefinition[]>(
+        "score_instruments_get_all_definitions"
+      );
       setInstruments(result);
       setSelection(result[0]);
     })();
   }, []);
 
-  const columns = useMemo(() => calculateColumns(instruments, selection), [instruments, selection]);
+  const columns = useMemo(
+    () => calculateColumns(instruments, selection),
+    [instruments, selection]
+  );
 
   const handleSelect = (path: string[]) => {
     const selectedInstrument = instruments.find((instrument) =>
@@ -137,7 +149,11 @@ export const Main = () => {
 
   return (
     <div className="h-dvh bg-neutral-950 grid grid-rows-[28px_1fr_36px] grid-cols-[1fr_1fr_1fr] gap-2 pt-0 p-2 overflow-hidden">
-      <AppBar className="col-span-3" title="Instrument Picker" filename={state.score.meta.title} />
+      <AppBar
+        className="col-span-3"
+        title="Instrument Picker"
+        filename={state.score.meta.title}
+      />
       {columns.map((column, i) => (
         <InstrumentColumn
           key={column[0] ?? `empty-${i}`}

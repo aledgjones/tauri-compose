@@ -1,7 +1,7 @@
 import { mdiFileCogOutline, mdiPlus } from "@mdi/js";
 import { Panel } from "./panel";
 import { useAppState } from "../../../../../services/state";
-import { useCallback, useEffect, useRef } from "preact/hooks";
+import { useCallback, useEffect, useRef } from "react";
 import Sortable from "sortablejs";
 import { LayoutPanelItem } from "./layout-panel-item";
 import { actions } from "../../../../../services/actions";

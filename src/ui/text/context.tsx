@@ -1,13 +1,18 @@
-import { useContext, useMemo } from "preact/hooks";
+import {
+  createContext,
+  FC,
+  PropsWithChildren,
+  useContext,
+  useMemo,
+} from "react";
 import { useAppState } from "../../services/state";
-import { createContext, FunctionalComponent } from "preact";
 
 type Dictionary = [string, { render: () => string; sym: boolean }][];
 type TokenMap = Map<string, { render: () => string; sym: boolean }>;
 
 const TokenizationContext = createContext<TokenMap>(new Map());
 
-export const TokenizationProvider: FunctionalComponent = ({ children }) => {
+export const TokenizationProvider: FC<PropsWithChildren> = ({ children }) => {
   const state = useAppState();
 
   const symbols = useMemo(() => {
@@ -26,10 +31,22 @@ export const TokenizationProvider: FunctionalComponent = ({ children }) => {
       ["${project-publisher}", { render: () => meta.publisher, sym: false }],
       ["${project-editor}", { render: () => meta.editor, sym: false }],
       ["${project-copyright}", { render: () => meta.copyright, sym: false }],
-      ["${project-work-number}", { render: () => meta.work_number, sym: false }],
-      ["${project-composition-year}", { render: () => meta.composition_year, sym: false }],
-      ["${project-composer-dates}", { render: () => meta.composer_dates, sym: false }],
-      ["${project-other-information}", { render: () => meta.other_information, sym: false }],
+      [
+        "${project-work-number}",
+        { render: () => meta.work_number, sym: false },
+      ],
+      [
+        "${project-composition-year}",
+        { render: () => meta.composition_year, sym: false },
+      ],
+      [
+        "${project-composer-dates}",
+        { render: () => meta.composer_dates, sym: false },
+      ],
+      [
+        "${project-other-information}",
+        { render: () => meta.other_information, sym: false },
+      ],
     ];
     /* prettier-ignore-end */
 
@@ -43,13 +60,19 @@ export const TokenizationProvider: FunctionalComponent = ({ children }) => {
     return new Map([...userDefinedSymbols, ...staticSymbols]);
   }, [state.score.meta]);
 
-  return <TokenizationContext.Provider value={symbols}>{children}</TokenizationContext.Provider>;
+  return (
+    <TokenizationContext.Provider value={symbols}>
+      {children}
+    </TokenizationContext.Provider>
+  );
 };
 
 export const useTokenization = () => {
   const context = useContext(TokenizationContext);
   if (context === undefined) {
-    throw new Error("useTokenization must be used within a TokenizationProvider");
+    throw new Error(
+      "useTokenization must be used within a TokenizationProvider"
+    );
   }
   return context;
 };

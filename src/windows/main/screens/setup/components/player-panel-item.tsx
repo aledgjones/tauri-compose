@@ -1,11 +1,28 @@
-import { mdiAccount, mdiAccountGroup, mdiChevronDown, mdiDelete, mdiPlus } from "@mdi/js";
-import { AppState, Player, PlayerType, SelectionType } from "../../../../../services/types";
+import {
+  mdiAccount,
+  mdiAccountGroup,
+  mdiChevronDown,
+  mdiDelete,
+  mdiPlus,
+} from "@mdi/js";
+import {
+  AppState,
+  Player,
+  PlayerType,
+  SelectionType,
+} from "../../../../../services/types";
 import { Icon } from "../../../../../ui/icon";
 import classNames from "classnames";
-import { FunctionalComponent } from "preact";
 import { IconButton } from "../../../../../ui/icon-button";
 import { actions } from "../../../../../services/actions";
-import { useCallback, useEffect, useMemo, useRef } from "preact/hooks";
+import {
+  FC,
+  PointerEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+} from "react";
 import { PlayerPanelInstrumentListItem } from "./player-panel-instrument-list-item";
 import Sortable from "sortablejs";
 import { useAppState } from "../../../../../services/state";
@@ -29,7 +46,9 @@ const getIsAssigned = (state: AppState, playerId: number) => {
   }
 
   if (selection?.selection_type === SelectionType.Layout) {
-    return state.score.layouts.by_id[selection.id].player_ids.includes(playerId);
+    return state.score.layouts.by_id[selection.id].player_ids.includes(
+      playerId
+    );
   }
 
   return false;
@@ -39,7 +58,7 @@ type Props = {
   player: Player;
 };
 
-export const PlayerPanelItem: FunctionalComponent<Props> = ({ player }) => {
+export const PlayerPanelItem: FC<Props> = ({ player }) => {
   const state = useAppState();
 
   const isExpanded = state.ui.setup.expanded.includes(player.id);
@@ -47,7 +66,8 @@ export const PlayerPanelItem: FunctionalComponent<Props> = ({ player }) => {
   const isAssigned = getIsAssigned(state, player.id);
   const isAssignable = getIsAssignable(state);
   const isInstrumentAssignable =
-    player.player_type === PlayerType.Solo || player.instrument_ids.length === 0;
+    player.player_type === PlayerType.Solo ||
+    player.instrument_ids.length === 0;
 
   const ref = useRef<HTMLDivElement | null>(null);
 
@@ -66,7 +86,9 @@ export const PlayerPanelItem: FunctionalComponent<Props> = ({ player }) => {
   const playerName = useMemo(() => {
     const instrumentNames = player.instrument_ids.map((instrumentId) => {
       const instrument = state.score.instruments.by_id[instrumentId];
-      return instrument.long_name + (instrument.count ? ` ${instrument.count}` : "");
+      return (
+        instrument.long_name + (instrument.count ? ` ${instrument.count}` : "")
+      );
     });
 
     if (instrumentNames.length === 0) {
@@ -168,7 +190,7 @@ export const PlayerPanelItem: FunctionalComponent<Props> = ({ player }) => {
     }
   }, [isExpanded, player.id]);
 
-  const onBlockPointerDown = useCallback((e: PointerEvent) => {
+  const onBlockPointerDown = useCallback((e: PointerEvent<HTMLDivElement>) => {
     e.stopPropagation();
   }, []);
 
@@ -193,7 +215,12 @@ export const PlayerPanelItem: FunctionalComponent<Props> = ({ player }) => {
 
         {isSelected && (
           <>
-            <IconButton className={fg} variant="standard" path={mdiDelete} onClick={onDelete} />
+            <IconButton
+              className={fg}
+              variant="standard"
+              path={mdiDelete}
+              onClick={onDelete}
+            />
             {isInstrumentAssignable && (
               <IconButton
                 className={fg}

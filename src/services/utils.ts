@@ -1,5 +1,5 @@
-import { useEffect, useState } from "preact/hooks";
 import prettyMilliseconds from "pretty-ms";
+import { useEffect, useState } from "react";
 
 const THIRTY_SECONDS = 30 * 1000;
 const ONE_WEEK = 7 * 24 * 60 * 60 * 1000;

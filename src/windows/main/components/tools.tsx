@@ -1,14 +1,19 @@
-import { mdiBugPlayOutline, mdiFolderCogOutline, mdiRedo, mdiUndo } from "@mdi/js";
+import {
+  mdiBugPlayOutline,
+  mdiFolderCogOutline,
+  mdiRedo,
+  mdiUndo,
+} from "@mdi/js";
 import { IconButton } from "../../../ui/icon-button";
-import { FunctionComponent } from "preact";
 import classNames from "classnames";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
+import { FC } from "react";
 
 type Props = {
   className?: string;
 };
 
-export const Tools: FunctionComponent<Props> = ({ className }) => {
+export const Tools: FC<Props> = ({ className }) => {
   return (
     <div className={classNames("flex", className)}>
       <IconButton
@@ -32,7 +37,7 @@ export const Tools: FunctionComponent<Props> = ({ className }) => {
       />
       <IconButton
         className="mr-2 text-white"
-        onClick={() => {
+        onClick={async () => {
           const webview = new WebviewWindow("debugger", {
             url: "/debugger.html",
             title: "Debugger",
@@ -42,7 +47,7 @@ export const Tools: FunctionComponent<Props> = ({ className }) => {
             acceptFirstMouse: true,
           });
 
-          webview.setFocus();
+          await webview.setFocus();
         }}
         variant="filled"
         path={mdiBugPlayOutline}

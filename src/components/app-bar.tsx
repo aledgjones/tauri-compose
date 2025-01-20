@@ -1,19 +1,14 @@
-import { window } from "@tauri-apps/api";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import classNames from "classnames";
-import { FunctionalComponent } from "preact";
-import { useEffect, useState } from "preact/hooks";
+import { FC, useEffect, useState } from "react";
 
 type Props = { title: string; filename?: string; className?: string };
 
-export const AppBar: FunctionalComponent<Props> = ({
-  title,
-  filename,
-  className,
-}) => {
+export const AppBar: FC<Props> = ({ title, filename, className }) => {
   const [isFocused, setIsFocused] = useState(true);
 
   useEffect(() => {
-    const win = window.getCurrentWindow();
+    const win = getCurrentWindow();
     win.listen("tauri://blur", () => {
       setIsFocused(false);
     });
