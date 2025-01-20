@@ -12,6 +12,8 @@ export const Renderer: FunctionalComponent<Props> = ({ className, style }) => {
   const state = useAppState();
   const [src, setSrc] = useState<string | null>(null);
 
+  const firstFlow = state.score.flows.order[0];
+
   useEffect(() => {
     let unlisten: UnlistenFn | null = null;
     let imageUrl: string | null = null;
@@ -23,15 +25,12 @@ export const Renderer: FunctionalComponent<Props> = ({ className, style }) => {
         imageUrl = null;
       }
 
-      // TODO: render more clever
-      const flowId = state.score.flows.order[0];
-
-      if (!flowId) {
+      if (!firstFlow) {
         return;
       }
 
-      const result = await actions.render(flowId);
-      const blob = new Blob([result], { type: "image/webp" });
+      const result = await actions.render(firstFlow);
+      const blob = new Blob([result], { type: "image/svg+xml" });
       imageUrl = URL.createObjectURL(blob);
       setSrc(imageUrl);
     };
@@ -41,8 +40,8 @@ export const Renderer: FunctionalComponent<Props> = ({ className, style }) => {
         cancelAnimationFrame(animationFrameId);
       }
 
-      animationFrameId = requestAnimationFrame(() => {
-        run();
+      animationFrameId = requestAnimationFrame(async () => {
+        await run();
         animationFrameId = null;
       });
     };
@@ -57,7 +56,7 @@ export const Renderer: FunctionalComponent<Props> = ({ className, style }) => {
         cancelAnimationFrame(animationFrameId);
       }
     };
-  }, [state.score.flows.order]);
+  }, [firstFlow]);
 
   return (
     <div
