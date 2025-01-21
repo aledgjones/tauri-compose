@@ -1,4 +1,3 @@
-mod parse;
 mod render;
 mod renderer;
 mod score;

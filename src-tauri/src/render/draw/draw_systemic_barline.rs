@@ -1,5 +1,5 @@
 use super::draw_staves::STAVE_LINE_WIDTH;
-use crate::parse::measure_vertical_spacing::VerticalSpacing;
+use crate::render::parse::get_vertical_spacing::VerticalSpacing;
 use crate::renderer::Renderer;
 use crate::score::components::measurements::Point;
 use crate::score::engraves::Engrave;

@@ -49,7 +49,7 @@ impl Renderer {
         self.surface.canvas().draw_path(&path, &paint);
     }
 
-    pub fn text(&mut self, text: &str, font: &Font, point: Point) {
+    pub fn text(&mut self, text: &str, font: &Font, point: &Point) {
         let origin = point.to_skia(&self.converter);
 
         let typeface = match font.family {

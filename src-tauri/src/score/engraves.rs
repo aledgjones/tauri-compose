@@ -1,4 +1,4 @@
-use super::components::measurements::{PaddingMm, PaddingSpaces};
+use super::components::measurements::PaddingMm;
 use super::components::text::{Align, Font, FontFamily, Justify};
 use super::layouts::LayoutType;
 use crate::renderer::converter::{Mm, Space};
@@ -27,47 +27,6 @@ pub struct Engraves {
     pub by_layout_type: FxHashMap<LayoutType, Engrave>,
 }
 
-impl Engraves {
-    pub fn new() -> Self {
-        let mut by_layout_type = FxHashMap::default();
-
-        by_layout_type.insert(
-            LayoutType::FullScore,
-            Engrave {
-                space: 2.0,
-
-                frame_padding: PaddingMm::new(35.0, 25.0, 35.0, 25.0),
-                instrument_spacing: 8.0,
-                stave_spacing: 6.0,
-                system_start_padding: 0.75,
-
-                instrument_name_font: Font {
-                    size: 1.75,
-                    family: FontFamily::LibreBaskerville,
-                    justify: Justify::End,
-                    align: Align::Middle,
-                },
-                instrument_name_spacing: 1.0,
-
-                systemic_barline_single_instrument_system: false,
-                bracketing_approach: BracketingApproach::Orchestral,
-                bracket_style: BracketStyle::Wing,
-                bracket_single_staves: false,
-                sub_bracket: true,
-
-                base_note_space: 3.0,
-                minimum_note_space: 0.6,
-                minimum_tie_space: 1.0,
-                note_space_ratio: 1.41,
-
-                max_beam_slant: 0.5,
-            },
-        );
-
-        Self { by_layout_type }
-    }
-}
-
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Engrave {
     pub space: Mm,
@@ -94,29 +53,46 @@ pub struct Engrave {
     pub max_beam_slant: f32,
 }
 
-// #[wasm_bindgen]
-// impl Core {
-//     pub fn create_engrave(&mut self, layout_type: LayoutType, name: &str) {
-//         let config = Engrave::new(layout_type, String::from(name));
-//         self.file.score.engrave.order.push(config.key.clone());
-//         self.file
-//             .score
-//             .engrave
-//             .by_key
-//             .insert(config.key.clone(), config);
+impl Engraves {
+    pub fn new() -> Self {
+        let mut by_layout_type = FxHashMap::default();
 
-//         self.emit();
-//     }
+        by_layout_type.insert(
+            LayoutType::FullScore,
+            Engrave {
+                space: 2.0,
 
-//     #[wasm_bindgen(getter)]
-//     pub fn engraves(&self) -> JsValue {
-//         JsValue::from_serde(&self.file.score.engrave.order).unwrap()
-//     }
+                frame_padding: PaddingMm::new(35.0, 25.0, 35.0, 25.0),
+                instrument_spacing: 8.0,
+                stave_spacing: 6.0,
+                system_start_padding: 0.75,
 
-//     pub fn engrave_name(&self, key: &str) -> String {
-//         let config = &self.file.score.engrave.by_key[key];
-//         config.display_name.clone()
-//     }
+                instrument_name_font: Font {
+                    size: 1.75,
+                    family: FontFamily::LibreBaskerville,
+                    justify: Justify::End,
+                    align: Align::Middle,
+                },
+                instrument_name_spacing: 2.0,
+
+                systemic_barline_single_instrument_system: false,
+                bracketing_approach: BracketingApproach::Orchestral,
+                bracket_style: BracketStyle::Wing,
+                bracket_single_staves: false,
+                sub_bracket: true,
+
+                base_note_space: 3.0,
+                minimum_note_space: 0.6,
+                minimum_tie_space: 1.0,
+                note_space_ratio: 1.41,
+
+                max_beam_slant: 0.5,
+            },
+        );
+
+        Self { by_layout_type }
+    }
+}
 
 //     pub fn get_systemic_barline_single_instrument_system(&self, key: &str) -> bool {
 //         let config = &self.file.score.engrave.by_key[key];
@@ -237,4 +213,3 @@ pub struct Engrave {
 
 //         self.emit();
 //     }
-// }

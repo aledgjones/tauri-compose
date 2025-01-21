@@ -1,4 +1,4 @@
-use crate::parse::measure_vertical_spacing::VerticalSpacing;
+use crate::render::parse::get_vertical_spacing::VerticalSpacing;
 use crate::renderer::converter::Space;
 use crate::renderer::Renderer;
 use crate::score::components::measurements::Point;
@@ -25,7 +25,7 @@ pub fn draw_names(
                 justify: engrave.instrument_name_font.justify,
                 size: engrave.instrument_name_font.size,
             },
-            Point {
+            &Point {
                 x: origin.x,
                 y: top,
             },

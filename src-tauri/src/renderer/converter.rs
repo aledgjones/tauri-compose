@@ -15,15 +15,11 @@ impl Converter {
         }
     }
 
-    pub fn mm_to_spaces(&self, mm: Mm) -> Space {
-        mm / self.mm_per_space
-    }
-
     pub fn spaces_to_px(&self, spaces: Space) -> Px {
-        spaces * self.mm_per_space * self.px_per_mm
+        spaces * self.mm_per_space * self.px_per_mm * 2.0
     }
 
     pub fn px_to_spaces(&self, px: Px) -> Space {
-        px / self.px_per_mm / self.mm_per_space
+        px / self.px_per_mm / self.mm_per_space / 2.0
     }
 }

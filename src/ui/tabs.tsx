@@ -23,7 +23,7 @@ export const Tabs = <T extends Key>({
 }: TabsProps<T>) => {
   const [tabOffsets, setTabOffsets] = useState<Offset[]>([]);
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const tabRefs = useRef<HTMLButtonElement[]>([]);
 
   useEffect(() => {
     const container = containerRef.current?.getBoundingClientRect();
@@ -53,7 +53,11 @@ export const Tabs = <T extends Key>({
             return (
               <li key={option.value}>
                 <button
-                  ref={(el) => (tabRefs.current[index] = el)}
+                  ref={(el) => {
+                    if (el) {
+                      tabRefs.current[index] = el;
+                    }
+                  }}
                   onClick={() => onChange(option.value)}
                   className={classNames(
                     "py-2 px-4 text-sm transition-[color] duration-300 ",

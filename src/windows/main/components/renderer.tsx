@@ -5,6 +5,19 @@ import { AppState } from "../../../services/types";
 import { useAppState } from "../../../services/state";
 import { CSSProperties, FC, useEffect, useState } from "react";
 
+const getMM = () => {
+  const div = document.createElement("div");
+  div.style.position = "fixed";
+  div.style.width = "1mm";
+  document.body.appendChild(div);
+  const width = div.clientWidth;
+  document.body.removeChild(div);
+
+  return width;
+};
+
+export const pxPerMm = getMM();
+
 type Props = { className?: string; style?: CSSProperties };
 
 export const Renderer: FC<Props> = ({ className, style }) => {
@@ -28,7 +41,7 @@ export const Renderer: FC<Props> = ({ className, style }) => {
         return;
       }
 
-      const result = await actions.render(firstFlow);
+      const result = await actions.render(firstFlow, pxPerMm);
       const blob = new Blob([result], { type: "image/webp" });
       imageUrl = URL.createObjectURL(blob);
       setSrc(imageUrl);
@@ -68,7 +81,9 @@ export const Renderer: FC<Props> = ({ className, style }) => {
         className
       )}
     >
-      <div className="p-20 flex gap-5 text-xs">{src && <img src={src} />}</div>
+      <div className="p-20 flex gap-5 text-xs">
+        {src && <img className="origin-top-left scale-50" src={src} />}
+      </div>
     </div>
   );
 };

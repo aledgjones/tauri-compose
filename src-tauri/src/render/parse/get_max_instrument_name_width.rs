@@ -3,7 +3,7 @@ use crate::renderer::text_measurer::TextMeasurer;
 use crate::score::engraves::Engrave;
 use crate::score::instruments::Instrument;
 
-pub fn measure_instrument_names(
+pub fn get_max_instrument_name_width(
     instruments: &Vec<&Instrument>,
     engrave: &Engrave,
     text_measurer: &TextMeasurer,

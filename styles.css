@@ -19,3 +19,8 @@
 button {
   cursor: default;
 }
+
+img {
+  max-width: initial;
+  height: initial;
+}
