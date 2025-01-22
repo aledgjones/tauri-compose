@@ -36,6 +36,7 @@ export default defineConfig(async () => ({
         debugger: resolve(__dirname, "debugger.html"),
         index: resolve(__dirname, "index.html"),
         instrumentPicker: resolve(__dirname, "instrument-picker.html"),
+        layoutSettings: resolve(__dirname, "layout-settings.html"),
         playerSettings: resolve(__dirname, "player-settings.html"),
         projectSettings: resolve(__dirname, "project-settings.html"),
       },

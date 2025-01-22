@@ -29,6 +29,18 @@ export enum AutoCountStyle {
   Roman,
 }
 
+export enum BracketingApproach {
+  None,
+  Orchestral,
+  SmallEnsemble,
+}
+
+export enum BracketStyle {
+  None,
+  Wing,
+  Line,
+}
+
 export type Meta = {
   app_version: string;
   title: string;
@@ -139,6 +151,62 @@ export type Layouts = {
   by_id: Record<UniqueId, Layout>;
 };
 
+export enum FontFamily {
+  Bravura,
+  LibreBaskerville,
+}
+
+export enum Justify {
+  Start,
+  Middle,
+  End,
+}
+
+export enum Align {
+  Top,
+  Middle,
+  Bottom,
+}
+
+export type Font = {
+  size: number;
+  family: FontFamily;
+  justify: Justify;
+  align: Align;
+};
+
+export type Padding = {
+  top: number;
+  right: number;
+  bottom: number;
+  left: number;
+};
+
+export type Engrave = {
+  space: number;
+  frame_padding: Padding;
+  instrument_spacing: number;
+  stave_spacing: number;
+  instrument_name_font: Font;
+  instrument_name_spacing: number;
+  systemic_barline_single_instrument_system: boolean;
+  bracketing_approach: BracketingApproach;
+  bracket_style: BracketStyle;
+  bracket_single_stave: boolean;
+  sub_bracket: boolean;
+  base_note_spacing: number;
+  minimum_note_space: number;
+  minimum_tie_space: number;
+  maximum_beam_slant: number;
+};
+
+export type Engraves = {
+  by_layout_type: {
+    [LayoutType.FullScore]: Engrave;
+    [LayoutType.Part]: Engrave;
+  };
+};
+
 export type AppState = {
   ui: {
     tab: Tab;
@@ -156,5 +224,6 @@ export type AppState = {
     flows: Flows;
     tracks: Tracks;
     layouts: Layouts;
+    engraves: Engraves;
   };
 };

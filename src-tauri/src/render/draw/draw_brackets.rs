@@ -32,11 +32,11 @@ pub fn draw_brackets(
                     vec![
                         Point {
                             x: origin.x - 0.75,
-                            y: top,
+                            y: top - (STAVE_LINE_WIDTH / 2.0),
                         },
                         Point {
                             x: origin.x - 0.75,
-                            y: bottom,
+                            y: bottom + (STAVE_LINE_WIDTH / 2.0),
                         },
                     ],
                 );

@@ -5,6 +5,7 @@
   "windows": [
     "main",
     "debugger",
+    "layout-settings",
     "project-settings",
     "player-settings",
     "instrument-picker"

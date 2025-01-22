@@ -2,9 +2,11 @@ use super::components::measurements::PaddingMm;
 use super::components::text::{Align, Font, FontFamily, Justify};
 use super::layouts::LayoutType;
 use crate::renderer::converter::{Mm, Space};
+use crate::AppState;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
+use tauri::State;
 
 #[derive(Clone, Serialize_repr, Deserialize_repr)]
 #[repr(u8)]
@@ -50,7 +52,7 @@ pub struct Engrave {
     pub minimum_tie_space: Space,
     pub note_space_ratio: f32,
 
-    pub max_beam_slant: f32,
+    pub maximum_beam_slant: f32,
 }
 
 impl Engraves {
@@ -86,7 +88,7 @@ impl Engraves {
                 minimum_tie_space: 1.0,
                 note_space_ratio: 1.41,
 
-                max_beam_slant: 0.5,
+                maximum_beam_slant: 0.5,
             },
         );
 
@@ -94,17 +96,27 @@ impl Engraves {
     }
 }
 
-//     pub fn get_systemic_barline_single_instrument_system(&self, key: &str) -> bool {
-//         let config = &self.file.score.engrave.by_key[key];
-//         config.systemic_barline_single_instrument_system
-//     }
+#[tauri::command(rename_all = "snake_case")]
+pub async fn score_engraves_systemic_barline_single_instrument_system_set(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    layout_type: LayoutType,
+    value: bool,
+) -> Result<(), ()> {
+    let mut state = state.lock().unwrap();
 
-//     pub fn set_systemic_barline_single_instrument_system(&mut self, key: &str, value: bool) {
-//         let config = self.file.score.engrave.by_key.get_mut(key).unwrap();
-//         config.systemic_barline_single_instrument_system = value;
+    let config = state
+        .score
+        .engraves
+        .by_layout_type
+        .get_mut(&layout_type)
+        .unwrap();
+    config.systemic_barline_single_instrument_system = value;
 
-//         self.emit();
-//     }
+    state.emit(&app);
+
+    Ok(())
+}
 
 //     pub fn get_bracketing_approach(&self, key: &str) -> BracketingApproach {
 //         let config = &self.file.score.engrave.by_key[key];
@@ -118,17 +130,27 @@ impl Engraves {
 //         self.emit();
 //     }
 
-//     pub fn get_bracket_style(&self, key: &str) -> BracketStyle {
-//         let config = &self.file.score.engrave.by_key[key];
-//         config.bracket_style
-//     }
+#[tauri::command(rename_all = "snake_case")]
+pub async fn score_engraves_bracket_style_set(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    layout_type: LayoutType,
+    bracket_style: BracketStyle,
+) -> Result<(), ()> {
+    let mut state = state.lock().unwrap();
 
-//     pub fn set_bracket_style(&mut self, key: &str, value: BracketStyle) {
-//         let config = self.file.score.engrave.by_key.get_mut(key).unwrap();
-//         config.bracket_style = value;
+    let config = state
+        .score
+        .engraves
+        .by_layout_type
+        .get_mut(&layout_type)
+        .unwrap();
+    config.bracket_style = bracket_style;
 
-//         self.emit();
-//     }
+    state.emit(&app);
+
+    Ok(())
+}
 
 //     pub fn get_bracket_single_staves(&self, key: &str) -> bool {
 //         let config = &self.file.score.engrave.by_key[key];

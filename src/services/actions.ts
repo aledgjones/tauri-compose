@@ -2,6 +2,7 @@ import { invoke, InvokeArgs, InvokeOptions } from "@tauri-apps/api/core";
 import { emit } from "@tauri-apps/api/event";
 import {
   AutoCountStyle,
+  BracketStyle,
   LayoutType,
   Log,
   PlayerType,
@@ -136,6 +137,26 @@ export const actions = {
     },
   },
   score: {
+    engrave: {
+      setSystemicBarlineSingleInstrumentSystem: (
+        layout_type: LayoutType,
+        value: boolean
+      ) => {
+        return loggedInvoke<void>(
+          "score_engraves_systemic_barline_single_instrument_system_set",
+          { layout_type, value }
+        );
+      },
+      setBracketStyle: (
+        layout_type: LayoutType,
+        bracket_style: BracketStyle
+      ) => {
+        return loggedInvoke<void>("score_engraves_bracket_style_set", {
+          layout_type,
+          bracket_style,
+        });
+      },
+    },
     flow: {
       create: () => {
         return loggedInvoke<number>("score_flows_create");

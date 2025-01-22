@@ -47,7 +47,7 @@ export const Menu = <T extends Key>({
                   <button
                     key={section.value}
                     onClick={() => {}}
-                    className=" w-full text-white text-sm text-left pl-6 pr-2 py-2 bg-neutral-800 hover:bg-neutral-700"
+                    className="w-full text-white text-sm text-left pl-2 pr-2 py-2 bg-sky-900"
                   >
                     {section.label}
                   </button>

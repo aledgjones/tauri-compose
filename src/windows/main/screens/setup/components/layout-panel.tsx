@@ -6,6 +6,7 @@ import Sortable from "sortablejs";
 import { LayoutPanelItem } from "./layout-panel-item";
 import { actions } from "../../../../../services/actions";
 import { LayoutType } from "../../../../../services/types";
+import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 
 import "./layout-panel.css";
 
@@ -38,6 +39,21 @@ export const LayoutPlanel = () => {
     };
   }, [state.score.layouts.order]);
 
+  const onLayoutSettingsPress = useCallback(() => {
+    const webview = new WebviewWindow("layout-settings", {
+      url: "/layout-settings.html",
+      title: "Layout Settings",
+      visible: false,
+      titleBarStyle: "overlay",
+      hiddenTitle: true,
+      acceptFirstMouse: true,
+      height: 500,
+      width: 750,
+    });
+
+    webview.setFocus();
+  }, []);
+
   const onAddLayoutPress = useCallback(async () => {
     await actions.score.layout.create(LayoutType.Part);
   }, []);
@@ -50,7 +66,7 @@ export const LayoutPlanel = () => {
         {
           key: "cog",
           path: mdiFileCogOutline,
-          onClick: () => {},
+          onClick: onLayoutSettingsPress,
         },
         {
           key: "plus",

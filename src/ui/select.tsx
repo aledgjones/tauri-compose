@@ -82,7 +82,7 @@ export const Select = <T extends Key>({
         <span className="flex-1">
           {options.find((option) => option.value === value)?.label || "Select"}
         </span>
-        <div className="flex items-center pr-3 pointer-events-none pl-3">
+        <div className="flex items-center pr-2 pointer-events-none pl-3">
           <Icon
             path={mdiChevronDown}
             size={0.75}
