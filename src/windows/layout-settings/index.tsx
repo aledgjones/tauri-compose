@@ -8,7 +8,7 @@ import { NotFound } from "../../components/not-found";
 import { LayoutType } from "../../services/types";
 
 enum MenuOption {
-  BracketsAndBraces,
+  BracketsAndBraces = 0,
   NoteSpacing,
   PageSettings,
   PageSettingStaveSize,
@@ -38,7 +38,7 @@ const screens = new Map([[MenuOption.BracketsAndBraces, BracketsAndBraces]]);
 
 export const Main = () => {
   const state = useAppState();
-  const [selection, setSelection] = useState(MenuOption.PageSettings);
+  const [selection, setSelection] = useState(MenuOption.BracketsAndBraces);
 
   const Content: FC<{ layoutType: LayoutType }> =
     screens.get(selection) || NotFound;
@@ -46,6 +46,7 @@ export const Main = () => {
   useEffect(() => {
     const show = async () => {
       const win = getCurrentWindow();
+      console.log(win);
       await win.show();
     };
 

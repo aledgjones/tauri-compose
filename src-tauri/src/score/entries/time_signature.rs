@@ -1,10 +1,7 @@
+use crate::score::components::duration::{NoteDuration, Tick};
+use crate::utils::UniqueId;
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
-
-use crate::{
-    score::components::duration::{NoteDuration, Tick},
-    utils::UniqueId,
-};
 
 pub enum TimeSignatureType {
     Simple,

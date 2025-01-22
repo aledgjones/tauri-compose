@@ -92,6 +92,39 @@ impl Engraves {
             },
         );
 
+        by_layout_type.insert(
+            LayoutType::Part,
+            Engrave {
+                space: 2.0,
+
+                frame_padding: PaddingMm::new(35.0, 25.0, 35.0, 25.0),
+                instrument_spacing: 8.0,
+                stave_spacing: 6.0,
+                system_start_padding: 0.75,
+
+                instrument_name_font: Font {
+                    size: 1.75,
+                    family: FontFamily::LibreBaskerville,
+                    justify: Justify::End,
+                    align: Align::Middle,
+                },
+                instrument_name_spacing: 2.0,
+
+                systemic_barline_single_instrument_system: false,
+                bracketing_approach: BracketingApproach::Orchestral,
+                bracket_style: BracketStyle::Wing,
+                bracket_single_staves: false,
+                sub_bracket: true,
+
+                base_note_space: 3.0,
+                minimum_note_space: 0.6,
+                minimum_tie_space: 1.0,
+                note_space_ratio: 1.41,
+
+                maximum_beam_slant: 0.5,
+            },
+        );
+
         Self { by_layout_type }
     }
 }

@@ -59,6 +59,7 @@ export const Renderer: FC<Props> = ({ className, style }) => {
     };
 
     (async () => {
+      await run();
       unlisten = await listen<AppState>(
         "solocompose://state",
         handleStateUpdate

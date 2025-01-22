@@ -1,5 +1,15 @@
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
-import { AppState, AutoCountStyle, Tab } from "./types";
+import {
+  Align,
+  AppState,
+  AutoCountStyle,
+  BracketingApproach,
+  BracketStyle,
+  FontFamily,
+  Justify,
+  LayoutType,
+  Tab,
+} from "./types";
 import { actions } from "./actions";
 import {
   createContext,
@@ -26,6 +36,68 @@ export const initialAppState: AppState = {
       auto_count_styles: {
         solo: AutoCountStyle.Roman,
         section: AutoCountStyle.Roman,
+      },
+    },
+    engraves: {
+      by_layout_type: {
+        [LayoutType.FullScore]: {
+          space: 3,
+
+          frame_padding: { top: 35, right: 25, bottom: 35, left: 25 },
+          instrument_spacing: 8,
+          stave_spacing: 6,
+          system_start_padding: 0.75,
+
+          instrument_name_font: {
+            size: 1.75,
+            family: FontFamily.LibreBaskerville,
+            justify: Justify.End,
+            align: Align.Middle,
+          },
+          instrument_name_spacing: 2,
+
+          systemic_barline_single_instrument_system: false,
+          bracketing_approach: BracketingApproach.Orchestral,
+          bracket_style: BracketStyle.Wing,
+          bracket_single_stave: false,
+          sub_bracket: true,
+
+          base_note_space: 3.0,
+          minimum_note_space: 0.6,
+          minimum_tie_space: 1.0,
+          note_space_ratio: 1.41,
+
+          maximum_beam_slant: 0.5,
+        },
+        [LayoutType.Part]: {
+          space: 3,
+
+          frame_padding: { top: 35, right: 25, bottom: 35, left: 25 },
+          instrument_spacing: 8,
+          stave_spacing: 6,
+          system_start_padding: 0.75,
+
+          instrument_name_font: {
+            size: 1.75,
+            family: FontFamily.LibreBaskerville,
+            justify: Justify.End,
+            align: Align.Middle,
+          },
+          instrument_name_spacing: 2,
+
+          systemic_barline_single_instrument_system: false,
+          bracketing_approach: BracketingApproach.Orchestral,
+          bracket_style: BracketStyle.Wing,
+          bracket_single_stave: false,
+          sub_bracket: true,
+
+          base_note_space: 3.0,
+          minimum_note_space: 0.6,
+          minimum_tie_space: 1.0,
+          note_space_ratio: 1.41,
+
+          maximum_beam_slant: 0.5,
+        },
       },
     },
     meta: {
