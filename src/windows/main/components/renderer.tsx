@@ -4,6 +4,7 @@ import { listen, UnlistenFn } from "@tauri-apps/api/event";
 import { AppState } from "../../../services/types";
 import { useAppState } from "../../../services/state";
 import { CSSProperties, FC, useEffect, useState } from "react";
+import { DragScroll } from "../../../components/drag-scroll";
 
 const getMM = () => {
   const div = document.createElement("div");
@@ -79,18 +80,17 @@ export const Renderer: FC<Props> = ({ className, style }) => {
   }, [firstFlow, state.ui.layout_id]);
 
   return (
-    <div
-      style={{ ...style }}
+    <DragScroll
       className={classNames(
-        "overflow-auto bg-fixed bg-center bg-cover from-sky-700 to-sky-900 bg-linear-to-b",
+        "bg-fixed bg-center bg-cover from-sky-700 to-sky-900 bg-linear-to-b",
         className
       )}
     >
       <div className="flex min-h-full items-center">
         <div className="p-20 inline-block">
-          {src && <img style={{ zoom: "50%" }} src={src} />}
+          {src && <img draggable="false" style={{ zoom: "50%" }} src={src} />}
         </div>
       </div>
-    </div>
+    </DragScroll>
   );
 };
