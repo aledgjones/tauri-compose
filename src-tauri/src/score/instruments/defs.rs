@@ -1052,14 +1052,14 @@ pub struct InstrumentIdPath {
 }
 
 #[tauri::command(rename_all = "snake_case")]
-pub async fn score_instruments_get_all_definitions() -> Result<Vec<InstrumentIdPath>, ()> {
-    Ok(INSTRUMENT_DEFINITIONS
+pub fn score_instruments_get_all_definitions() -> Vec<InstrumentIdPath> {
+    INSTRUMENT_DEFINITIONS
         .iter()
         .map(|instrument| InstrumentIdPath {
             id: instrument.id,
             path: instrument.path.clone(),
         })
-        .collect())
+        .collect()
 }
 
 pub fn get_instrument_definition(id: &String) -> Option<&InstrumentDefinition> {

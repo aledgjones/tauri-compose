@@ -60,7 +60,6 @@ export const initialAppState: AppState = {
           bracketing_approach: BracketingApproach.Orchestral,
           bracket_style: BracketStyle.Wing,
           bracket_single_stave: false,
-          sub_bracket: true,
 
           base_note_space: 3.0,
           minimum_note_space: 0.6,
@@ -89,7 +88,6 @@ export const initialAppState: AppState = {
           bracketing_approach: BracketingApproach.Orchestral,
           bracket_style: BracketStyle.Wing,
           bracket_single_stave: false,
-          sub_bracket: true,
 
           base_note_space: 3.0,
           minimum_note_space: 0.6,

@@ -21,11 +21,7 @@ use parse::get_vertical_spans::get_vertical_spans;
 use tauri::{ipc::Response, State};
 
 #[tauri::command(rename_all = "snake_case")]
-pub async fn render(
-    state: State<'_, AppState>,
-    flow_id: UniqueId,
-    px_per_mm: f32,
-) -> Result<Response, ()> {
+pub fn render(state: State<'_, AppState>, flow_id: UniqueId, px_per_mm: f32) -> Response {
     // ** TODO: get these dynamically
     let layout_type = LayoutType::FullScore;
     let stave_width = 50.0;
@@ -119,5 +115,5 @@ pub async fn render(
         &mut renderer,
     );
 
-    Ok(Response::new(renderer.data()))
+    Response::new(renderer.data())
 }

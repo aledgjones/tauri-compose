@@ -77,11 +77,11 @@ impl AppStateInner {
 }
 
 #[tauri::command(rename_all = "snake_case")]
-pub async fn score_layouts_create(
+pub fn score_layouts_create(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
     layout_type: LayoutType,
-) -> Result<UniqueId, ()> {
+) -> UniqueId {
     let mut state = state.lock().unwrap();
 
     let layout_id = state.generate_id();
@@ -102,113 +102,101 @@ pub async fn score_layouts_create(
 
     state.emit(&app);
 
-    Ok(layout_id)
+    layout_id
 }
 
 #[tauri::command(rename_all = "snake_case")]
-pub async fn score_layouts_rename(
+pub fn score_layouts_rename(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
     layout_id: UniqueId,
     title: String,
-) -> Result<(), ()> {
+) {
     let mut state = state.lock().unwrap();
 
     let layout = state.score.layouts.by_id.get_mut(&layout_id).unwrap();
     layout.title = title;
 
     state.emit(&app);
-
-    Ok(())
 }
 
 #[tauri::command(rename_all = "snake_case")]
-pub async fn score_layouts_assign_player(
+pub fn score_layouts_assign_player(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
     layout_id: UniqueId,
     player_id: UniqueId,
-) -> Result<(), ()> {
+) {
     let mut state = state.lock().unwrap();
 
     state.assign_player_to_layout(layout_id, player_id);
 
     state.emit(&app);
-
-    Ok(())
 }
 
 #[tauri::command(rename_all = "snake_case")]
-pub async fn score_layouts_unassign_player(
+pub fn score_layouts_unassign_player(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
     layout_id: UniqueId,
     player_id: UniqueId,
-) -> Result<(), ()> {
+) {
     let mut state = state.lock().unwrap();
 
     state.unassign_player_from_layout(layout_id, player_id);
 
     state.emit(&app);
-
-    Ok(())
 }
 
 #[tauri::command(rename_all = "snake_case")]
-pub async fn score_layouts_assign_flow(
+pub fn score_layouts_assign_flow(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
     layout_id: UniqueId,
     player_id: UniqueId,
-) -> Result<(), ()> {
+) {
     let mut state = state.lock().unwrap();
 
     state.assign_flow_to_layout(layout_id, player_id);
 
     state.emit(&app);
-
-    Ok(())
 }
 
 #[tauri::command(rename_all = "snake_case")]
-pub async fn score_layouts_unassign_flow(
+pub fn score_layouts_unassign_flow(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
     layout_id: UniqueId,
     player_id: UniqueId,
-) -> Result<(), ()> {
+) {
     let mut state = state.lock().unwrap();
 
     state.unassign_flow_from_layout(layout_id, player_id);
 
     state.emit(&app);
-
-    Ok(())
 }
 
 #[tauri::command(rename_all = "snake_case")]
-pub async fn score_layouts_move(
+pub fn score_layouts_move(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
     from_index: usize,
     to_index: usize,
-) -> Result<(), ()> {
+) {
     let mut state = state.lock().unwrap();
 
     let moved = state.score.layouts.order.remove(from_index);
     state.score.layouts.order.insert(to_index, moved);
 
     state.emit(&app);
-
-    Ok(())
 }
 
 #[tauri::command(rename_all = "snake_case")]
-pub async fn score_layouts_remove(
+pub fn score_layouts_remove(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
     layout_id: UniqueId,
-) -> Result<(), ()> {
+) {
     let mut state = state.lock().unwrap();
 
     state.score.layouts.order.retain(|id| *id != layout_id);
@@ -218,6 +206,4 @@ pub async fn score_layouts_remove(
     state.ui.setup.selection = None;
 
     state.emit(&app);
-
-    Ok(())
 }

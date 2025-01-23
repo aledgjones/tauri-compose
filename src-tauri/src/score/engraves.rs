@@ -45,7 +45,6 @@ pub struct Engrave {
     pub bracketing_approach: BracketingApproach,
     pub bracket_style: BracketStyle,
     pub bracket_single_staves: bool,
-    pub sub_bracket: bool,
 
     pub base_note_space: Space,
     pub minimum_note_space: Space,
@@ -77,11 +76,10 @@ impl Engraves {
                 },
                 instrument_name_spacing: 2.0,
 
-                systemic_barline_single_instrument_system: false,
+                systemic_barline_single_instrument_system: true,
                 bracketing_approach: BracketingApproach::Orchestral,
                 bracket_style: BracketStyle::Wing,
                 bracket_single_staves: false,
-                sub_bracket: true,
 
                 base_note_space: 3.0,
                 minimum_note_space: 0.6,
@@ -114,7 +112,6 @@ impl Engraves {
                 bracketing_approach: BracketingApproach::Orchestral,
                 bracket_style: BracketStyle::Wing,
                 bracket_single_staves: false,
-                sub_bracket: true,
 
                 base_note_space: 3.0,
                 minimum_note_space: 0.6,
@@ -130,12 +127,12 @@ impl Engraves {
 }
 
 #[tauri::command(rename_all = "snake_case")]
-pub async fn score_engraves_systemic_barline_single_instrument_system_set(
+pub fn score_engraves_systemic_barline_single_instrument_system_set(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
     layout_type: LayoutType,
     value: bool,
-) -> Result<(), ()> {
+) {
     let mut state = state.lock().unwrap();
 
     let config = state
@@ -147,8 +144,6 @@ pub async fn score_engraves_systemic_barline_single_instrument_system_set(
     config.systemic_barline_single_instrument_system = value;
 
     state.emit(&app);
-
-    Ok(())
 }
 
 //     pub fn get_bracketing_approach(&self, key: &str) -> BracketingApproach {
@@ -164,12 +159,12 @@ pub async fn score_engraves_systemic_barline_single_instrument_system_set(
 //     }
 
 #[tauri::command(rename_all = "snake_case")]
-pub async fn score_engraves_bracket_style_set(
+pub fn score_engraves_bracket_style_set(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
     layout_type: LayoutType,
     bracket_style: BracketStyle,
-) -> Result<(), ()> {
+) {
     let mut state = state.lock().unwrap();
 
     let config = state
@@ -181,8 +176,6 @@ pub async fn score_engraves_bracket_style_set(
     config.bracket_style = bracket_style;
 
     state.emit(&app);
-
-    Ok(())
 }
 
 //     pub fn get_bracket_single_staves(&self, key: &str) -> bool {

@@ -99,7 +99,7 @@ pub fn get_vertical_spans(instruments: &Vec<&Instrument>, engrave: &Engrave) -> 
         };
 
         // SUB-BRACKETS
-        if engrave.sub_bracket && span_type == BracketSpan::Continue {
+        if span_type == BracketSpan::Continue {
             if let Some(previous_instrument) = previous_instrument {
                 if instrument.definition_id == previous_instrument.definition_id {
                     match output.sub_brackets.last_mut() {

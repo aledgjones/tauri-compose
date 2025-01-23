@@ -197,7 +197,6 @@ export type Engrave = {
   bracketing_approach: BracketingApproach;
   bracket_style: BracketStyle;
   bracket_single_stave: boolean;
-  sub_bracket: boolean;
 
   base_note_space: number;
   note_space_ratio: number;

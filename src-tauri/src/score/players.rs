@@ -45,11 +45,11 @@ impl Players {
 }
 
 #[tauri::command(rename_all = "snake_case")]
-pub async fn score_players_create(
+pub fn score_players_create(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
     player_type: PlayerType,
-) -> Result<UniqueId, ()> {
+) -> UniqueId {
     let mut state = state.lock().unwrap();
 
     let player_id = state.generate_id();
@@ -71,16 +71,16 @@ pub async fn score_players_create(
 
     state.emit(&app);
 
-    Ok(player_id)
+    player_id
 }
 
 #[tauri::command(rename_all = "snake_case")]
-pub async fn score_players_move(
+pub fn score_players_move(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
     from_index: usize,
     to_index: usize,
-) -> Result<(), ()> {
+) {
     let mut state = state.lock().unwrap();
 
     let moved = state.score.players.order.remove(from_index);
@@ -88,17 +88,15 @@ pub async fn score_players_move(
 
     state.score.update_counts();
     state.emit(&app);
-
-    Ok(())
 }
 
 #[tauri::command(rename_all = "snake_case")]
-pub async fn score_players_assign_instrument(
+pub fn score_players_assign_instrument(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
     player_id: UniqueId,
     instrument_id: UniqueId,
-) -> Result<(), ()> {
+) {
     let mut state = state.lock().unwrap();
 
     let player = state.score.players.by_id.get_mut(&player_id).unwrap();
@@ -113,17 +111,15 @@ pub async fn score_players_assign_instrument(
 
     state.score.update_counts();
     state.emit(&app);
-
-    Ok(())
 }
 
 #[tauri::command(rename_all = "snake_case")]
-pub async fn score_players_unassign_instrument(
+pub fn score_players_unassign_instrument(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
     player_id: UniqueId,
     instrument_id: UniqueId,
-) -> Result<(), ()> {
+) {
     let mut state = state.lock().unwrap();
 
     let player = state.score.players.by_id.get_mut(&player_id).unwrap();
@@ -138,16 +134,14 @@ pub async fn score_players_unassign_instrument(
 
     state.score.update_counts();
     state.emit(&app);
-
-    Ok(())
 }
 
 #[tauri::command(rename_all = "snake_case")]
-pub async fn score_players_remove(
+pub fn score_players_remove(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
     player_id: UniqueId,
-) -> Result<(), ()> {
+) {
     let mut state = state.lock().unwrap();
 
     // remove player & instruments from flows
@@ -182,6 +176,4 @@ pub async fn score_players_remove(
 
     state.score.update_counts();
     state.emit(&app);
-
-    Ok(())
 }
