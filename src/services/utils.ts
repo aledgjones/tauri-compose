@@ -1,5 +1,6 @@
 import prettyMilliseconds from "pretty-ms";
 import { useEffect, useState } from "react";
+import { AppState, LayoutType, UniqueId } from "./types";
 
 const THIRTY_SECONDS = 30 * 1000;
 const ONE_WEEK = 7 * 24 * 60 * 60 * 1000;
@@ -35,4 +36,40 @@ export const useHumanizedTime = (when: number) => {
   }, [when]);
 
   return display;
+};
+
+export const getLayoutName = (state: AppState, layoutId: UniqueId) => {
+  const layout = state.score.layouts.by_id[layoutId];
+
+  if (layout.title) {
+    return layout.title;
+  }
+
+  if (layout.layout_type === LayoutType.FullScore) {
+    return "Full Score";
+  }
+
+  const instrumentNames = state.score.players.order
+    .filter((playerId) => layout.player_ids.includes(playerId))
+    .flatMap((playerId) => {
+      const player = state.score.players.by_id[playerId];
+      return player.instrument_ids.map((instrumentId) => {
+        const instrument = state.score.instruments.by_id[instrumentId];
+        return (
+          instrument.long_name +
+          (instrument.count ? ` ${instrument.count}` : "")
+        );
+      });
+    });
+
+  if (instrumentNames.length === 0) {
+    return "Empty Part";
+  }
+
+  if (instrumentNames.length === 1) {
+    return instrumentNames[0];
+  }
+
+  const last = instrumentNames.pop();
+  return `${instrumentNames.join(", ")} & ${last}`;
 };

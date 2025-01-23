@@ -1,12 +1,10 @@
 pub mod setup;
 
-use crate::AppState;
+use crate::{utils::UniqueId, AppState};
 use serde::Serialize;
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use setup::Setup;
 use tauri::State;
-
-type LayoutId = String;
 
 #[derive(Serialize_repr, Deserialize_repr, Clone)]
 #[repr(u8)]
@@ -21,7 +19,7 @@ pub enum Tab {
 #[derive(Serialize, Clone)]
 pub struct Ui {
     tab: Tab,
-    layout_id: LayoutId,
+    layout_id: UniqueId,
     pub setup: Setup,
 }
 
@@ -29,7 +27,7 @@ impl Ui {
     pub fn new() -> Self {
         Self {
             tab: Tab::Setup,
-            layout_id: "full-score".to_owned(),
+            layout_id: 0,
             setup: Setup::new(),
         }
     }
@@ -43,7 +41,7 @@ pub fn ui_tab_set(app: tauri::AppHandle, state: State<'_, AppState>, tab: Tab) {
 }
 
 #[tauri::command(rename_all = "snake_case")]
-pub fn ui_layout_id_set(app: tauri::AppHandle, state: State<'_, AppState>, layout_id: LayoutId) {
+pub fn ui_layout_id_set(app: tauri::AppHandle, state: State<'_, AppState>, layout_id: UniqueId) {
     let mut state = state.lock().unwrap();
     state.ui.layout_id = layout_id;
     state.emit(&app);

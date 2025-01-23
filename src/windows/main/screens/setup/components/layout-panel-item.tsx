@@ -25,6 +25,7 @@ import {
 } from "react";
 import { useAppState } from "../../../../../services/state";
 import { Checkbox } from "../../../../../ui/checkbox";
+import { getLayoutName } from "../../../../../services/utils";
 
 const assignableSet = new Set<SelectionType | undefined>([
   SelectionType.Flow,
@@ -70,46 +71,12 @@ export const LayoutPanelItem: FC<Props> = ({ layout }) => {
   const bg = isSelected ? "bg-sky-500" : "bg-neutral-800";
 
   const layoutName = useMemo(() => {
-    if (editing || layout.title) {
+    if (editing) {
       return layout.title;
     }
 
-    if (layout.layout_type === LayoutType.FullScore) {
-      return "Full Score";
-    }
-
-    const instrumentNames = state.score.players.order
-      .filter((playerId) => layout.player_ids.includes(playerId))
-      .flatMap((playerId) => {
-        const player = state.score.players.by_id[playerId];
-        return player.instrument_ids.map((instrumentId) => {
-          const instrument = state.score.instruments.by_id[instrumentId];
-          return (
-            instrument.long_name +
-            (instrument.count ? ` ${instrument.count}` : "")
-          );
-        });
-      });
-
-    if (instrumentNames.length === 0) {
-      return "Empty Part";
-    }
-
-    if (instrumentNames.length === 1) {
-      return instrumentNames[0];
-    }
-
-    const last = instrumentNames.pop();
-    return `${instrumentNames.join(", ")} & ${last}`;
-  }, [
-    editing,
-    layout.layout_type,
-    layout.player_ids,
-    layout.title,
-    state.score.instruments.by_id,
-    state.score.players.by_id,
-    state.score.players.order,
-  ]);
+    return getLayoutName(state, layout.id);
+  }, [editing, state, layout.id]);
 
   const onEdit = useCallback(() => {
     if (inputRef.current) {

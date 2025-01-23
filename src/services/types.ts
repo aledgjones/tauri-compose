@@ -216,7 +216,7 @@ export type Engraves = {
 export type AppState = {
   ui: {
     tab: Tab;
-    layout_id: string;
+    layout_id: UniqueId;
     setup: {
       selection: { id: UniqueId; selection_type: SelectionType } | null;
       expanded: UniqueId[];

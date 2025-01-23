@@ -119,7 +119,7 @@ export const actions = {
     setTab: (tab: Tab) => {
       return loggedInvoke("ui_tab_set", { tab });
     },
-    setActiveLayoutId: (layout_id: string) => {
+    setActiveLayoutId: (layout_id: number) => {
       return loggedInvoke("ui_layout_id_set", { layout_id });
     },
     setup: {

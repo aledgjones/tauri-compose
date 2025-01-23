@@ -10,6 +10,8 @@ import { AppBar } from "../../components/app-bar";
 import { Select } from "../../ui/select";
 import { Tab } from "../../services/types";
 import { actions } from "../../services/actions";
+import { useMemo } from "react";
+import { getLayoutName } from "../../services/utils";
 
 const tabs: TabsOption<Tab>[] = [
   { label: "Setup", value: Tab.Setup },
@@ -25,6 +27,17 @@ export const Main = () => {
   const state = useAppState();
 
   const Content = screens.get(state.ui.tab) || NotFound;
+
+  const layouts = useMemo(() => {
+    return state.score.layouts.order.map((layoutId) => {
+      const name = getLayoutName(state, layoutId);
+
+      return {
+        value: layoutId,
+        label: name,
+      };
+    });
+  }, [state]);
 
   return (
     <div className="h-dvh w-dvw grid grid-rows-[28px_52px_1fr] bg-neutral-950">
@@ -43,11 +56,7 @@ export const Main = () => {
             className="mr-2 inline-block"
             value={state.ui.layout_id}
             onChange={actions.ui.setActiveLayoutId}
-            options={[
-              { value: "full-score", label: "Full Score" },
-              { value: "456", label: "Violin 1" },
-              { value: "789", label: "Violin 2" },
-            ]}
+            options={layouts}
           />
 
           <Transport className="mr-2" />
