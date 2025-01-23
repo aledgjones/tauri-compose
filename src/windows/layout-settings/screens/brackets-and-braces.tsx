@@ -21,14 +21,8 @@ const bracketingApproachOptions: SelectOption<BracketingApproach>[] = [
 ];
 
 const bracketSingleStavesOptions: SelectOption<"true" | "false">[] = [
-  {
-    label: "No bracket",
-    value: "false",
-  },
-  {
-    label: "Use bracket",
-    value: "true",
-  },
+  { label: "No bracket", value: "false" },
+  { label: "Use bracket", value: "true" },
 ];
 
 type Props = { layoutType: LayoutType };
