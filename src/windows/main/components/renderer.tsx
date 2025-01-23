@@ -41,7 +41,11 @@ export const Renderer: FC<Props> = ({ className, style }) => {
         return;
       }
 
-      const result = await actions.render(firstFlow, pxPerMm);
+      const result = await actions.render(
+        state.ui.layout_id,
+        firstFlow,
+        pxPerMm
+      );
       const blob = new Blob([result], { type: "image/webp" });
       imageUrl = URL.createObjectURL(blob);
       setSrc(imageUrl);
@@ -72,7 +76,7 @@ export const Renderer: FC<Props> = ({ className, style }) => {
         cancelAnimationFrame(animationFrameId);
       }
     };
-  }, [firstFlow]);
+  }, [firstFlow, state.ui.layout_id]);
 
   return (
     <div
@@ -82,8 +86,10 @@ export const Renderer: FC<Props> = ({ className, style }) => {
         className
       )}
     >
-      <div className="p-20 flex gap-5 text-xs">
-        {src && <img className="origin-top-left scale-50" src={src} />}
+      <div className="flex min-h-full items-center">
+        <div className="p-20 inline-block">
+          {src && <img style={{ zoom: "50%" }} src={src} />}
+        </div>
       </div>
     </div>
   );

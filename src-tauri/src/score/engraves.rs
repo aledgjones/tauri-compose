@@ -61,7 +61,7 @@ impl Engraves {
         by_layout_type.insert(
             LayoutType::FullScore,
             Engrave {
-                space: 2.0,
+                space: 1.5,
 
                 frame_padding: PaddingMm::new(35.0, 25.0, 35.0, 25.0),
                 instrument_spacing: 8.0,
@@ -93,7 +93,7 @@ impl Engraves {
         by_layout_type.insert(
             LayoutType::Part,
             Engrave {
-                space: 2.0,
+                space: 1.75,
 
                 frame_padding: PaddingMm::new(35.0, 25.0, 35.0, 25.0),
                 instrument_spacing: 8.0,

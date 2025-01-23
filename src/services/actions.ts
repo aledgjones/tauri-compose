@@ -46,8 +46,12 @@ export const actions = {
   reset: () => {
     return loggedInvoke("reset");
   },
-  render: (flow_id: number, px_per_mm: number) => {
-    return loggedInvoke<ArrayBuffer>("render", { flow_id, px_per_mm });
+  render: (layout_id: UniqueId, flow_id: UniqueId, px_per_mm: number) => {
+    return loggedInvoke<ArrayBuffer>("render", {
+      layout_id,
+      flow_id,
+      px_per_mm,
+    });
   },
   console: {
     log: (message: string) => {
