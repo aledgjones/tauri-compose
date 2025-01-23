@@ -1,15 +1,15 @@
 import { FC } from "react";
-import { actions } from "../../../services/actions";
-import { useAppState } from "../../../services/state";
-import { BracketStyle, LayoutType } from "../../../services/types";
+import { actions } from "../../../../services/actions";
+import { useAppState } from "../../../../services/state";
+import { BracketStyle, LayoutType } from "../../../../services/types";
 import {
   SelectByImage,
   SelectByImageOption,
-} from "../../../components/select-by-image";
+} from "../../../../components/select-by-image";
 
-import bracketStyleNoneImg from "../assets/brackets-none.webp";
-import bracketStyleLineImg from "../assets/brackets-line.webp";
-import bracketStyleWingImg from "../assets/brackets-wing.webp";
+import bracketStyleNoneImg from "./assets/brackets-none.webp";
+import bracketStyleLineImg from "./assets/brackets-line.webp";
+import bracketStyleWingImg from "./assets/brackets-wing.webp";
 
 const brackStyleOptions: SelectByImageOption<BracketStyle>[] = [
   { label: "Wings", image: bracketStyleWingImg, value: BracketStyle.Wing },

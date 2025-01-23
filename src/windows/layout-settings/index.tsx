@@ -3,12 +3,15 @@ import { useAppState } from "../../services/state";
 import { FC, useEffect, useState } from "react";
 import { AppBar } from "../../components/app-bar";
 import { Menu, MenuItem } from "../../ui/menu";
-import { BracketsAndBraces } from "./screens/brackets-and-braces";
 import { NotFound } from "../../components/not-found";
 import { LayoutType } from "../../services/types";
 
+import { BracketsAndBraces } from "./screens/brackets-and-braces";
+import { Barlines } from "./screens/barlines";
+
 enum MenuOption {
-  BracketsAndBraces = 0,
+  Barlines = 0,
+  BracketsAndBraces,
   NoteSpacing,
   PageSettings,
   PageSettingStaveSize,
@@ -16,6 +19,10 @@ enum MenuOption {
 }
 
 const options: MenuItem<MenuOption>[] = [
+  {
+    label: "Barlines",
+    value: MenuOption.Barlines,
+  },
   {
     label: "Brackets and Braces",
     value: MenuOption.BracketsAndBraces,
@@ -34,11 +41,14 @@ const options: MenuItem<MenuOption>[] = [
   },
 ];
 
-const screens = new Map([[MenuOption.BracketsAndBraces, BracketsAndBraces]]);
+const screens = new Map([
+  [MenuOption.Barlines, Barlines],
+  [MenuOption.BracketsAndBraces, BracketsAndBraces],
+]);
 
 export const Main = () => {
   const state = useAppState();
-  const [selection, setSelection] = useState(MenuOption.BracketsAndBraces);
+  const [selection, setSelection] = useState(MenuOption.Barlines);
 
   const Content: FC<{ layoutType: LayoutType }> =
     screens.get(selection) || NotFound;

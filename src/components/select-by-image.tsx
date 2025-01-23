@@ -40,7 +40,7 @@ export const SelectByImage = <T extends Key>({
                   "border-sky-500": isSelected,
                 })}
               />
-              <p className="text-white text-sm">{option.label}</p>
+              <p className="text-white text-xs">{option.label}</p>
             </button>
           );
         })}
