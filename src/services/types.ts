@@ -196,7 +196,7 @@ export type Engrave = {
   systemic_barline_single_instrument_system: boolean;
   bracketing_approach: BracketingApproach;
   bracket_style: BracketStyle;
-  bracket_single_stave: boolean;
+  bracket_single_staves: boolean;
 
   base_note_space: number;
   note_space_ratio: number;

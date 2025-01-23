@@ -151,7 +151,7 @@ pub fn score_engraves_bracketing_approach_set(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
     layout_type: LayoutType,
-    bracketing_approach: BracketingApproach,
+    value: BracketingApproach,
 ) {
     let mut state = state.lock().unwrap();
 
@@ -161,7 +161,7 @@ pub fn score_engraves_bracketing_approach_set(
         .by_layout_type
         .get_mut(&layout_type)
         .unwrap();
-    config.bracketing_approach = bracketing_approach;
+    config.bracketing_approach = value;
 
     state.emit(&app);
 }
@@ -171,7 +171,7 @@ pub fn score_engraves_bracket_style_set(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
     layout_type: LayoutType,
-    bracket_style: BracketStyle,
+    value: BracketStyle,
 ) {
     let mut state = state.lock().unwrap();
 
@@ -181,7 +181,27 @@ pub fn score_engraves_bracket_style_set(
         .by_layout_type
         .get_mut(&layout_type)
         .unwrap();
-    config.bracket_style = bracket_style;
+    config.bracket_style = value;
+
+    state.emit(&app);
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn score_engraves_bracket_single_staves_set(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    layout_type: LayoutType,
+    value: bool,
+) {
+    let mut state = state.lock().unwrap();
+
+    let config = state
+        .score
+        .engraves
+        .by_layout_type
+        .get_mut(&layout_type)
+        .unwrap();
+    config.bracket_single_staves = value;
 
     state.emit(&app);
 }

@@ -20,6 +20,17 @@ const bracketingApproachOptions: SelectOption<BracketingApproach>[] = [
   { label: "Small ensemble", value: BracketingApproach.SmallEnsemble },
 ];
 
+const bracketSingleStavesOptions: SelectOption<"true" | "false">[] = [
+  {
+    label: "No bracket",
+    value: "false",
+  },
+  {
+    label: "Use bracket",
+    value: "true",
+  },
+];
+
 type Props = { layoutType: LayoutType };
 
 export const BracketsAndBraces: FC<Props> = ({ layoutType }) => {
@@ -46,6 +57,23 @@ export const BracketsAndBraces: FC<Props> = ({ layoutType }) => {
         options={bracketingApproachOptions}
         onChange={(bracketStyle) =>
           actions.score.engrave.setBracketingApproach(layoutType, bracketStyle)
+        }
+      />
+
+      <Select
+        variant="filled"
+        label="Bracketed groups with only one instrument"
+        value={
+          state.score.engraves.by_layout_type[layoutType].bracket_single_staves
+            ? "true"
+            : "false"
+        }
+        options={bracketSingleStavesOptions}
+        onChange={(enabled) =>
+          actions.score.engrave.setBracketSingleStaves(
+            layoutType,
+            enabled === "true" ? true : false
+          )
         }
       />
     </div>

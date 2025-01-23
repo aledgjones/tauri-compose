@@ -6,7 +6,7 @@ import { Select, SelectOption } from "../../../ui/select";
 
 const singleSystemicOptions: SelectOption<"true" | "false">[] = [
   {
-    label: "Show for one omore staves",
+    label: "Show for one or more staves",
     value: "true",
   },
   {

@@ -150,20 +150,23 @@ export const actions = {
       },
       setBracketingApproach: (
         layout_type: LayoutType,
-        bracketing_approach: BracketingApproach
+        value: BracketingApproach
       ) => {
         return loggedInvoke<void>("score_engraves_bracketing_approach_set", {
           layout_type,
-          bracketing_approach,
+          value,
         });
       },
-      setBracketStyle: (
-        layout_type: LayoutType,
-        bracket_style: BracketStyle
-      ) => {
+      setBracketStyle: (layout_type: LayoutType, value: BracketStyle) => {
         return loggedInvoke<void>("score_engraves_bracket_style_set", {
           layout_type,
-          bracket_style,
+          value,
+        });
+      },
+      setBracketSingleStaves: (layout_type: LayoutType, value: boolean) => {
+        return loggedInvoke<void>("score_engraves_bracket_single_staves_set", {
+          layout_type,
+          value,
         });
       },
     },
