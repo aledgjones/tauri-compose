@@ -2,6 +2,7 @@ import {
   mdiBookOpenBlankVariantOutline,
   mdiChevronDown,
   mdiDelete,
+  mdiFileOutline,
   mdiPencil,
 } from "@mdi/js";
 import {
@@ -191,6 +192,16 @@ export const LayoutPanelItem: FC<Props> = ({ layout }) => {
     }
   }, [isSelected, layout.id]);
 
+  const icon = useMemo(() => {
+    switch (layout.layout_type) {
+      case LayoutType.Part:
+        return mdiFileOutline;
+
+      default:
+        return mdiBookOpenBlankVariantOutline;
+    }
+  }, [layout.layout_type]);
+
   return (
     <div
       data-layout-id={layout.id}
@@ -198,11 +209,7 @@ export const LayoutPanelItem: FC<Props> = ({ layout }) => {
       onPointerDown={onSelect}
     >
       <div className="flex items-center h-[48px] text-sm pr-1 pl-3">
-        <Icon
-          className={classNames("mr-3", fg)}
-          path={mdiBookOpenBlankVariantOutline}
-          size={1}
-        />
+        <Icon className={classNames("mr-3", fg)} path={icon} size={1} />
 
         <input
           ref={inputRef}
