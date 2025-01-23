@@ -1,24 +1,16 @@
 import { FC } from "react";
-import { actions } from "../../../../services/actions";
-import { useAppState } from "../../../../services/state";
-import { LayoutType } from "../../../../services/types";
-import {
-  SelectByImage,
-  SelectByImageOption,
-} from "../../../../components/select-by-image";
+import { actions } from "../../../services/actions";
+import { useAppState } from "../../../services/state";
+import { LayoutType } from "../../../services/types";
+import { Select, SelectOption } from "../../../ui/select";
 
-import singleSystemicImg from "./assets/single-systemic.webp";
-import noSingleSystemicImg from "./assets/no-single-systemic.webp";
-
-const singleSystemicOptions: SelectByImageOption<"true" | "false">[] = [
+const singleSystemicOptions: SelectOption<"true" | "false">[] = [
   {
     label: "Show for one omore staves",
-    image: singleSystemicImg,
     value: "true",
   },
   {
     label: "Show for two or more staves",
-    image: noSingleSystemicImg,
     value: "false",
   },
 ];
@@ -30,7 +22,8 @@ export const Barlines: FC<Props> = ({ layoutType }) => {
 
   return (
     <div className="p-2 overflow-y-auto min-h-full">
-      <SelectByImage
+      <Select
+        variant="filled"
         label="Systemic Barlines"
         value={
           state.score.engraves.by_layout_type[layoutType]

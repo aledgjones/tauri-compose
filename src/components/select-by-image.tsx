@@ -25,7 +25,7 @@ export const SelectByImage = <T extends Key>({
   return (
     <div className={classNames("bg-neutral-800 p-2", className)}>
       <p className="text-white text-sm mb-2">{label}</p>
-      <div className="flex gap-2">
+      <div className="flex gap-2 items-start">
         {options.map((option) => {
           const isSelected = value === option.value;
           return (

@@ -146,17 +146,25 @@ pub fn score_engraves_systemic_barline_single_instrument_system_set(
     state.emit(&app);
 }
 
-//     pub fn get_bracketing_approach(&self, key: &str) -> BracketingApproach {
-//         let config = &self.file.score.engrave.by_key[key];
-//         config.bracketing_approach
-//     }
+#[tauri::command(rename_all = "snake_case")]
+pub fn score_engraves_bracketing_approach_set(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    layout_type: LayoutType,
+    bracketing_approach: BracketingApproach,
+) {
+    let mut state = state.lock().unwrap();
 
-//     pub fn set_bracketing_approach(&mut self, key: &str, value: BracketingApproach) {
-//         let config = self.file.score.engrave.by_key.get_mut(key).unwrap();
-//         config.bracketing_approach = value;
+    let config = state
+        .score
+        .engraves
+        .by_layout_type
+        .get_mut(&layout_type)
+        .unwrap();
+    config.bracketing_approach = bracketing_approach;
 
-//         self.emit();
-//     }
+    state.emit(&app);
+}
 
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_engraves_bracket_style_set(

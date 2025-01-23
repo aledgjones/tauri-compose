@@ -2,6 +2,7 @@ import { invoke, InvokeArgs, InvokeOptions } from "@tauri-apps/api/core";
 import { emit } from "@tauri-apps/api/event";
 import {
   AutoCountStyle,
+  BracketingApproach,
   BracketStyle,
   LayoutType,
   Log,
@@ -146,6 +147,15 @@ export const actions = {
           "score_engraves_systemic_barline_single_instrument_system_set",
           { layout_type, value }
         );
+      },
+      setBracketingApproach: (
+        layout_type: LayoutType,
+        bracketing_approach: BracketingApproach
+      ) => {
+        return loggedInvoke<void>("score_engraves_bracketing_approach_set", {
+          layout_type,
+          bracketing_approach,
+        });
       },
       setBracketStyle: (
         layout_type: LayoutType,

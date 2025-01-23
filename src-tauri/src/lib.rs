@@ -9,7 +9,8 @@ use score::config::{
     score_config_auto_count_styles_section_set, score_config_auto_count_styles_solo_set,
 };
 use score::engraves::{
-    score_engraves_bracket_style_set, score_engraves_systemic_barline_single_instrument_system_set,
+    score_engraves_bracket_style_set, score_engraves_bracketing_approach_set,
+    score_engraves_systemic_barline_single_instrument_system_set,
 };
 use score::flows::{
     score_flows_assign_player, score_flows_create, score_flows_move, score_flows_remove,
@@ -103,6 +104,7 @@ pub fn run() {
             render,
             score_config_auto_count_styles_solo_set,
             score_config_auto_count_styles_section_set,
+            score_engraves_bracketing_approach_set,
             score_engraves_bracket_style_set,
             score_engraves_systemic_barline_single_instrument_system_set,
             score_flows_create,
