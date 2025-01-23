@@ -3,7 +3,7 @@ import { actions } from "../../../services/actions";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
 import { AppState } from "../../../services/types";
 import { useAppState } from "../../../services/state";
-import { CSSProperties, FC, useEffect, useState } from "react";
+import { FC, useEffect, useState } from "react";
 import { DragScroll } from "../../../components/drag-scroll";
 
 const getMM = () => {
@@ -19,9 +19,9 @@ const getMM = () => {
 
 export const pxPerMm = getMM();
 
-type Props = { className?: string; style?: CSSProperties };
+type Props = { className?: string };
 
-export const Renderer: FC<Props> = ({ className, style }) => {
+export const Renderer: FC<Props> = ({ className }) => {
   const state = useAppState();
   const [src, setSrc] = useState<string | null>(null);
 

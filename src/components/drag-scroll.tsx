@@ -1,19 +1,17 @@
 import classNames from "classnames";
-import { FC, PropsWithChildren, useRef, useState } from "react";
+import { FC, PropsWithChildren, useCallback, useRef } from "react";
 
 type Props = PropsWithChildren<{ className?: string }>;
 
 export const DragScroll: FC<Props> = ({ children, className }) => {
   const divRef = useRef<HTMLDivElement>(null);
 
-  const [isDragging, setIsDragging] = useState(false);
-
-  const handlePointerDown = (e: any) => {
+  const handlePointerDown = useCallback((e: any) => {
     if (!divRef.current) {
       return;
     }
 
-    setIsDragging(true);
+    let isDragging = true;
 
     const startX = e.clientX;
     const startY = e.clientY;
@@ -21,7 +19,7 @@ export const DragScroll: FC<Props> = ({ children, className }) => {
     const scrollTop = divRef.current.scrollTop;
 
     const handlePointerMove = (e: any) => {
-      if (!divRef.current) {
+      if (!isDragging || !divRef.current) {
         return;
       }
 
@@ -35,13 +33,12 @@ export const DragScroll: FC<Props> = ({ children, className }) => {
     const handlePointerUp = () => {
       document.removeEventListener("pointermove", handlePointerMove);
       document.removeEventListener("pointerup", handlePointerUp);
-      setIsDragging(false);
-      console.log("UP");
+      isDragging = false;
     };
 
     document.addEventListener("pointermove", handlePointerMove);
     document.addEventListener("pointerup", handlePointerUp);
-  };
+  }, []);
 
   return (
     <div

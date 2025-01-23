@@ -99,7 +99,7 @@ export const Select = <T extends Key>({
       {isOpen && (
         <ul
           className={classNames(
-            " min-w-48 w-full absolute z-10 text-white text-sm shadow-lg mt-1 overflow-hidden",
+            "py-2 min-w-48 w-full absolute z-10 text-white text-sm shadow-lg mt-1 overflow-hidden",
             {
               "bottom-full mb-2": direction === "up",
               "top-full mt-2": direction === "down",

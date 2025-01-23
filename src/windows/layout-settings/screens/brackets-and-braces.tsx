@@ -9,9 +9,9 @@ import {
 import { Select, SelectOption } from "../../../ui/select";
 
 const bracketStyleOptions: SelectOption<BracketStyle>[] = [
-  { label: "Wings", value: BracketStyle.Wing },
-  { label: "Horizontal line", value: BracketStyle.Line },
   { label: "None", value: BracketStyle.None },
+  { label: "Horizontal line", value: BracketStyle.Line },
+  { label: "Wings", value: BracketStyle.Wing },
 ];
 
 const bracketingApproachOptions: SelectOption<BracketingApproach>[] = [
