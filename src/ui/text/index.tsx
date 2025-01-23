@@ -25,7 +25,7 @@ export const TokenizedText: FC<PropsWithChildren> = ({ children }) => {
           return (
             <span
               key={i}
-              className="font-bravura leading-[0] text-[1.4em] align-middle"
+              className="font-bravura leading-0 text-[1.4em] align-middle"
             >
               {token.render()}
             </span>

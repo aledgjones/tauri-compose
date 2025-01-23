@@ -35,7 +35,7 @@ export const Input: FC<InputProps> = ({
         onInput={(e: any) => onChange?.(e.target.value)}
         onFocus={() => setIsFocused(true)}
         onBlur={() => setIsFocused(false)}
-        className=" block w-full bg-neutral-800 px-2 py-[6px] text-sm focus:outline-none border-transparent border-2 border-neutral-800 focus:border-sky-500 text-white"
+        className=" block w-full bg-neutral-800 px-2 py-[6px] text-sm focus:outline-hidden border-2 border-neutral-800 focus:border-sky-500 text-white"
       />
     </div>
   );

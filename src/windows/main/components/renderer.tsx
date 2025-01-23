@@ -78,7 +78,7 @@ export const Renderer: FC<Props> = ({ className, style }) => {
     <div
       style={{ ...style }}
       className={classNames(
-        "overflow-auto bg-fixed bg-center bg-cover from-sky-700 to-sky-900 bg-gradient-to-b",
+        "overflow-auto bg-fixed bg-center bg-cover from-sky-700 to-sky-900 bg-linear-to-b",
         className
       )}
     >

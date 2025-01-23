@@ -210,7 +210,7 @@ export const LayoutPanelItem: FC<Props> = ({ layout }) => {
           readOnly={!editing}
           value={layoutName}
           className={classNames(
-            `truncate flex-1 bg-transparent outline-none`,
+            `truncate flex-1 bg-transparent outline-hidden`,
             fg
           )}
           onKeyDown={onKeyDown}

@@ -170,7 +170,7 @@ export const FlowPanelItem: FC<Props> = ({ flow, index }) => {
             readOnly={!editing}
             value={title}
             className={classNames(
-              `truncate flex-1 bg-transparent outline-none`,
+              `truncate flex-1 bg-transparent outline-hidden`,
               fg
             )}
             onKeyDown={onKeyDown}
