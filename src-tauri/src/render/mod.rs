@@ -6,7 +6,6 @@ use crate::renderer::fonts::Fonts;
 use crate::renderer::text_measurer::TextMeasurer;
 use crate::renderer::Renderer;
 use crate::score::components::measurements::Point;
-use crate::score::layouts::LayoutType;
 use crate::utils::UniqueId;
 use crate::AppState;
 use draw::draw_brackets::draw_brackets;

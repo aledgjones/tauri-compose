@@ -23,7 +23,7 @@ import {
 export const initialAppState: AppState = {
   ui: {
     tab: Tab.Setup,
-    layout_id: "full-score",
+    layout_id: 0,
     setup: { selection: null, expanded: [] },
   },
   score: {
@@ -59,7 +59,7 @@ export const initialAppState: AppState = {
           systemic_barline_single_instrument_system: false,
           bracketing_approach: BracketingApproach.Orchestral,
           bracket_style: BracketStyle.Wing,
-          bracket_single_stave: false,
+          bracket_single_staves: false,
 
           base_note_space: 3.0,
           minimum_note_space: 0.6,
@@ -87,7 +87,7 @@ export const initialAppState: AppState = {
           systemic_barline_single_instrument_system: false,
           bracketing_approach: BracketingApproach.Orchestral,
           bracket_style: BracketStyle.Wing,
-          bracket_single_stave: false,
+          bracket_single_staves: false,
 
           base_note_space: 3.0,
           minimum_note_space: 0.6,
