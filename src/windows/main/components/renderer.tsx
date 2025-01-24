@@ -86,7 +86,7 @@ export const Renderer: FC<Props> = ({ className }) => {
         className
       )}
     >
-      <div className="flex min-h-full items-center">
+      <div className="flex min-h-full items-center justify-center">
         <div className="p-20 inline-block">
           {src && <img draggable="false" style={{ zoom: "50%" }} src={src} />}
         </div>

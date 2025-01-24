@@ -35,4 +35,14 @@ impl Clef {
             offset,
         }
     }
+
+    pub fn glyph(&self) -> Option<String> {
+        match self.draw_as {
+            ClefDrawType::Hidden => None,
+            ClefDrawType::G => Some(String::from("\u{E050}")),
+            ClefDrawType::F => Some(String::from("\u{E062}")),
+            ClefDrawType::C => Some(String::from("\u{E05C}")),
+            ClefDrawType::Percussion => Some(String::from("\u{E069}")),
+        }
+    }
 }
