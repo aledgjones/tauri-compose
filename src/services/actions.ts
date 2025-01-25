@@ -85,10 +85,10 @@ export const actions = {
         title: "Instrument Picker",
         visible: false,
         titleBarStyle: "overlay",
-        hiddenTitle: true,
         acceptFirstMouse: true,
         height: 500,
         width: 900,
+        theme: "dark",
       });
 
       let selection: string | null = null;

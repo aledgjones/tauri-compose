@@ -24,10 +24,10 @@ export const Tools: FC<Props> = ({ className }) => {
             title: "Project Settings",
             visible: false,
             titleBarStyle: "overlay",
-            hiddenTitle: true,
             acceptFirstMouse: true,
             height: 976,
             width: 750,
+            theme: "dark",
           });
 
           webview.setFocus();
@@ -43,8 +43,8 @@ export const Tools: FC<Props> = ({ className }) => {
             title: "Debugger",
             visible: false,
             titleBarStyle: "overlay",
-            hiddenTitle: true,
             acceptFirstMouse: true,
+            theme: "dark",
           });
 
           await webview.setFocus();

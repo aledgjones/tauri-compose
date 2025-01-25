@@ -56,7 +56,6 @@ export const Main = () => {
   useEffect(() => {
     const show = async () => {
       const win = getCurrentWindow();
-      console.log(win);
       await win.show();
     };
 

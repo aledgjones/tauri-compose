@@ -16,12 +16,12 @@
         "maximized": true,
         "width": 800,
         "height": 600,
-        "titleBarStyle": "Overlay",
-        "hiddenTitle": true,
         "url": "index.html",
         "acceptFirstMouse": true,
         "minWidth": 1300,
-        "dragDropEnabled": false
+        "dragDropEnabled": false,
+        "theme": "Dark",
+        "titleBarStyle": "Overlay"
       }
     ],
     "security": {

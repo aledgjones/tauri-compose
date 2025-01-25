@@ -45,10 +45,10 @@ export const LayoutPlanel = () => {
       title: "Layout Settings",
       visible: false,
       titleBarStyle: "overlay",
-      hiddenTitle: true,
       acceptFirstMouse: true,
       height: 500,
       width: 750,
+      theme: "dark",
     });
 
     webview.setFocus();
