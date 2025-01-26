@@ -5,8 +5,26 @@ export type Log = {
   message: string;
 };
 
+export enum NoteDuration {
+  Whole,
+  Half,
+  Quarter,
+  Eighth,
+  Sixteenth,
+  ThirtySecond,
+  SixtyFourth,
+  HudredTwentyEighth,
+}
+
+export enum Tool {
+  Select,
+  Write,
+  Slice,
+  Erase,
+}
+
 export enum Tab {
-  Setup = 0,
+  Setup,
   Write,
   Engrave,
   Sequence,
@@ -14,18 +32,18 @@ export enum Tab {
 }
 
 export enum SelectionType {
-  Player = 0,
+  Player,
   Flow,
   Layout,
 }
 
 export enum PlayerType {
-  Solo = 0,
+  Solo,
   Section,
 }
 
 export enum AutoCountStyle {
-  Arabic = 0,
+  Arabic,
   Roman,
 }
 
@@ -220,6 +238,15 @@ export type AppState = {
     setup: {
       selection: { id: UniqueId; selection_type: SelectionType } | null;
       expanded: UniqueId[];
+    };
+    sequencer: {
+      x: number;
+      y: number;
+      tool: Tool;
+      snap: NoteDuration;
+      flow: UniqueId | null;
+      instrument: UniqueId | null;
+      track: UniqueId | null;
     };
   };
   score: {

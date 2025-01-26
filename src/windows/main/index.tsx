@@ -12,6 +12,7 @@ import { Tab } from "../../services/types";
 import { actions } from "../../services/actions";
 import { useMemo } from "react";
 import { getLayoutName } from "../../services/utils";
+import { Write } from "./screens/write";
 
 const tabs: TabsOption<Tab>[] = [
   { label: "Setup", value: Tab.Setup },
@@ -21,7 +22,10 @@ const tabs: TabsOption<Tab>[] = [
   { label: "Print", value: Tab.Print },
 ];
 
-const screens = new Map([[Tab.Setup, Setup]]);
+const screens = new Map([
+  [Tab.Setup, Setup],
+  [Tab.Write, Write],
+]);
 
 export const Main = () => {
   const state = useAppState();

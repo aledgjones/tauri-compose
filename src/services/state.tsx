@@ -8,7 +8,9 @@ import {
   FontFamily,
   Justify,
   LayoutType,
+  NoteDuration,
   Tab,
+  Tool,
 } from "./types";
 import { actions } from "./actions";
 import {
@@ -25,6 +27,15 @@ export const initialAppState: AppState = {
     tab: Tab.Setup,
     layout_id: 0,
     setup: { selection: null, expanded: [] },
+    sequencer: {
+      x: 0,
+      y: 0,
+      tool: Tool.Select,
+      snap: NoteDuration.Eighth,
+      flow: null,
+      instrument: null,
+      track: null,
+    },
   },
   score: {
     layouts: { order: [], by_id: {} },

@@ -140,6 +140,14 @@ export const actions = {
         return loggedInvoke("ui_setup_expanded_remove", { id });
       },
     },
+    sequencer: {
+      setInstrument: (id: UniqueId) => {
+        return loggedInvoke("ui_sequencer_instrument_set", { id });
+      },
+      setTrack: (id: UniqueId) => {
+        return loggedInvoke("ui_sequencer_track_set", { id });
+      },
+    },
   },
   score: {
     engrave: {

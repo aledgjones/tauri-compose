@@ -41,6 +41,7 @@ use score::Score;
 use serde::Serialize;
 use std::sync::Mutex;
 use tauri::{Emitter, Manager, State};
+use ui::sequencer::{ui_sequencer_instrument_set, ui_sequencer_track_set};
 use ui::setup::{
     ui_setup_expanded_insert, ui_setup_expanded_remove, ui_setup_selection_clear,
     ui_setup_selection_set,
@@ -148,6 +149,8 @@ pub fn run() {
             score_players_move,
             score_players_remove,
             ui_layout_id_set,
+            ui_sequencer_instrument_set,
+            ui_sequencer_track_set,
             ui_setup_expanded_insert,
             ui_setup_expanded_remove,
             ui_setup_selection_clear,
