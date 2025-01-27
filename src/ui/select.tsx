@@ -16,7 +16,6 @@ type SelectProps<T> = {
   className?: string;
   variant: "standard" | "filled";
   label?: string;
-  icon?: string;
 };
 
 export const Select = <T extends Key>({
@@ -27,7 +26,6 @@ export const Select = <T extends Key>({
   className,
   variant,
   label,
-  icon,
 }: SelectProps<T>) => {
   const [isOpen, setIsOpen] = useState(false);
   const selectRef = useRef<HTMLDivElement>(null);
@@ -98,7 +96,7 @@ export const Select = <T extends Key>({
       {isOpen && (
         <ul
           className={classNames(
-            "py-2 min-w-48 w-full absolute z-10 text-white text-sm shadow-lg mt-1 overflow-hidden",
+            "whitespace-nowrap py-1 min-w-48 absolute z-10 text-white text-sm shadow-lg mt-1 overflow-hidden",
             {
               "bottom-full mb-2": direction === "up",
               "top-full mt-2": direction === "down",
@@ -112,7 +110,7 @@ export const Select = <T extends Key>({
               <li
                 key={option.value}
                 onClick={() => handleOptionClick(option.value)}
-                className={classNames("px-4 py-2", {
+                className={classNames("px-3 py-2", {
                   "hover:bg-neutral-700": isStandard,
                   "hover:bg-neutral-600": !isStandard,
                 })}

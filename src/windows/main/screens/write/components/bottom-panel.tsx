@@ -9,7 +9,6 @@ import {
   mdiEraser,
   mdiFormatHorizontalAlignCenter,
   mdiPen,
-  mdiPiano,
   mdiTuneVertical,
 } from "@mdi/js";
 import { IconButton } from "../../../../../ui/icon-button";
@@ -37,16 +36,6 @@ const SNAP_OPTIONS = [
     value: NoteDuration.ThirtySecond,
     icon: mdiFormatHorizontalAlignCenter,
   },
-];
-const VIEW_OPTIONS = [
-  { label: "Sequencer", value: 0 },
-  { label: "Mixer", value: 0 },
-];
-const TOOL_OPTIONS = [
-  { label: "Select", value: Tool.Select, icon: mdiCursorDefault },
-  { label: "Write", value: Tool.Write, icon: mdiPen },
-  { label: "Slice", value: Tool.Slice, icon: mdiBoxCutter },
-  { label: "Erase", value: Tool.Erase, icon: mdiEraser },
 ];
 
 export const BottomPanel: FC = () => {
@@ -181,7 +170,6 @@ export const BottomPanel: FC = () => {
             color={tool === Tool.Erase ? "#000" : "#fff"}
           />
           <Select
-            icon={mdiFormatHorizontalAlignCenter}
             variant="filled"
             value={state.ui.sequencer.snap}
             options={SNAP_OPTIONS}
