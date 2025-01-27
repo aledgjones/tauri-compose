@@ -6,9 +6,11 @@ import {
   BracketStyle,
   LayoutType,
   Log,
+  NoteDuration,
   PlayerType,
   SelectionType,
   Tab,
+  Tool,
   UniqueId,
 } from "./types";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
@@ -146,6 +148,12 @@ export const actions = {
       },
       setTrack: (id: UniqueId) => {
         return loggedInvoke("ui_sequencer_track_set", { id });
+      },
+      setTool: (tool: Tool) => {
+        return loggedInvoke("ui_sequencer_tool_set", { tool });
+      },
+      setSnap: (snap: NoteDuration) => {
+        return loggedInvoke("ui_sequencer_snap_set", { snap });
       },
     },
   },

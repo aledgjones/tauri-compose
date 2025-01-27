@@ -1,4 +1,3 @@
-import { mdiChevronDown } from "@mdi/js";
 import Icon from "@mdi/react";
 import classNames from "classnames";
 import { Key, useEffect, useRef, useState } from "react";
@@ -6,6 +5,7 @@ import { Key, useEffect, useRef, useState } from "react";
 export type SelectOption<T> = {
   value: T;
   label: string;
+  icon?: string;
 };
 
 type SelectProps<T> = {
@@ -16,6 +16,7 @@ type SelectProps<T> = {
   className?: string;
   variant: "standard" | "filled";
   label?: string;
+  icon?: string;
 };
 
 export const Select = <T extends Key>({
@@ -26,6 +27,7 @@ export const Select = <T extends Key>({
   className,
   variant,
   label,
+  icon,
 }: SelectProps<T>) => {
   const [isOpen, setIsOpen] = useState(false);
   const selectRef = useRef<HTMLDivElement>(null);
@@ -53,6 +55,8 @@ export const Select = <T extends Key>({
 
   const isStandard = variant === "standard";
 
+  const selection = options.find((option) => option.value === value);
+
   return (
     <div className={classNames("relative", className)} ref={selectRef}>
       {label && (
@@ -68,7 +72,7 @@ export const Select = <T extends Key>({
       <button
         onClick={() => setIsOpen((prev) => !prev)}
         className={classNames(
-          "h-[36px] flex items-center w-full text-left  text-white text-sm pl-3 border-2",
+          "h-[36px] flex items-center w-full text-left text-white text-sm px-3 border-2",
           {
             "bg-neutral-900 hover:bg-neutral-800 border-transparent":
               !isOpen && isStandard,
@@ -79,21 +83,16 @@ export const Select = <T extends Key>({
           }
         )}
       >
-        <span className="flex-1">
-          {options.find((option) => option.value === value)?.label || "Select"}
-        </span>
-        <div className="flex items-center pr-2 pointer-events-none pl-3">
-          <Icon
-            path={mdiChevronDown}
-            size={0.75}
-            className={classNames(
-              "text-neutral-300 transform transition-transform",
-              {
-                "rotate-180": isOpen,
-              }
-            )}
-          />
-        </div>
+        {selection?.icon && (
+          <div className="flex items-center pr-2 pointer-events-none">
+            <Icon
+              path={selection.icon}
+              size={1}
+              className="text-neutral-300 transform transition-transform"
+            />
+          </div>
+        )}
+        <span className="flex-1">{selection?.label || "Select"}</span>
       </button>
 
       {isOpen && (

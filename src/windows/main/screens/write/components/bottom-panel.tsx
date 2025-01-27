@@ -1,11 +1,53 @@
 import { FC, useMemo } from "react";
 import { useAppState } from "../../../../../services/state";
 import { Select, SelectOption } from "../../../../../ui/select";
-import { UniqueId } from "../../../../../services/types";
+import { NoteDuration, Tool, UniqueId } from "../../../../../services/types";
 import { actions } from "../../../../../services/actions";
+import {
+  mdiBoxCutter,
+  mdiCursorDefault,
+  mdiEraser,
+  mdiFormatHorizontalAlignCenter,
+  mdiPen,
+  mdiPiano,
+  mdiTuneVertical,
+} from "@mdi/js";
+import { IconButton } from "../../../../../ui/icon-button";
 
 const ALPHABET = ["A", "B"];
 const TRACK_LABEL = ["Up-stem", "Down-stem"];
+const SNAP_OPTIONS = [
+  {
+    label: "Quarter",
+    value: NoteDuration.Quarter,
+    icon: mdiFormatHorizontalAlignCenter,
+  },
+  {
+    label: "Eighth",
+    value: NoteDuration.Eighth,
+    icon: mdiFormatHorizontalAlignCenter,
+  },
+  {
+    label: "Sixteenth",
+    value: NoteDuration.Sixteenth,
+    icon: mdiFormatHorizontalAlignCenter,
+  },
+  {
+    label: "Thirty-Second",
+    value: NoteDuration.ThirtySecond,
+    icon: mdiFormatHorizontalAlignCenter,
+  },
+];
+const VIEW_OPTIONS = [
+  { label: "Sequencer", value: 0 },
+  { label: "Mixer", value: 0 },
+];
+const TOOL_OPTIONS = [
+  { label: "Select", value: Tool.Select, icon: mdiCursorDefault },
+  { label: "Write", value: Tool.Write, icon: mdiPen },
+  { label: "Slice", value: Tool.Slice, icon: mdiBoxCutter },
+  { label: "Erase", value: Tool.Erase, icon: mdiEraser },
+];
 
 export const BottomPanel: FC = () => {
   const state = useAppState();
@@ -103,27 +145,77 @@ export const BottomPanel: FC = () => {
     return tracks[0].value;
   }, [state]);
 
-  console.log(tracks);
+  const tool = state.ui.sequencer.tool;
 
   return (
     <div className="bg-neutral-900 flex flex-col">
       <div className="flex p-2 h-[52px] items-center">
-        {instrumentId && instruments.length > 0 && (
-          <Select
-            variant="standard"
-            value={instrumentId}
-            options={instruments}
-            onChange={actions.ui.sequencer.setInstrument}
+        <div className="flex flex-1">
+          <IconButton
+            path={mdiCursorDefault}
+            variant="filled"
+            isSelected={tool === Tool.Select}
+            onClick={() => actions.ui.sequencer.setTool(Tool.Select)}
+            color={tool === Tool.Select ? "#000" : "#fff"}
           />
-        )}
-        {trackId && tracks.length > 0 && (
-          <Select
-            variant="standard"
-            value={trackId}
-            options={tracks}
-            onChange={actions.ui.sequencer.setTrack}
+          <IconButton
+            path={mdiPen}
+            variant="filled"
+            isSelected={tool === Tool.Write}
+            onClick={() => actions.ui.sequencer.setTool(Tool.Write)}
+            color={tool === Tool.Write ? "#000" : "#fff"}
           />
-        )}
+          <IconButton
+            path={mdiBoxCutter}
+            variant="filled"
+            isSelected={tool === Tool.Slice}
+            onClick={() => actions.ui.sequencer.setTool(Tool.Slice)}
+            color={tool === Tool.Slice ? "#000" : "#fff"}
+          />
+          <IconButton
+            className="mr-2"
+            path={mdiEraser}
+            variant="filled"
+            isSelected={tool === Tool.Erase}
+            onClick={() => actions.ui.sequencer.setTool(Tool.Erase)}
+            color={tool === Tool.Erase ? "#000" : "#fff"}
+          />
+          <Select
+            icon={mdiFormatHorizontalAlignCenter}
+            variant="filled"
+            value={state.ui.sequencer.snap}
+            options={SNAP_OPTIONS}
+            onChange={actions.ui.sequencer.setSnap}
+          />
+        </div>
+        <div className="flex flex-1 justify-center">
+          {instrumentId && instruments.length > 0 && (
+            <Select
+              className="mr-1"
+              variant="filled"
+              value={instrumentId}
+              options={instruments}
+              onChange={actions.ui.sequencer.setInstrument}
+            />
+          )}
+          {trackId && tracks.length > 0 && (
+            <Select
+              variant="filled"
+              value={trackId}
+              options={tracks}
+              onChange={actions.ui.sequencer.setTrack}
+            />
+          )}
+        </div>
+        <div className="flex flex-1 justify-end">
+          <IconButton
+            path={mdiTuneVertical}
+            variant="filled"
+            isSelected={true}
+            onClick={() => {}}
+            color="#000"
+          />
+        </div>
       </div>
       {!flowId && (
         <div className="flex flex-1 items-center justify-center">{/*  */}</div>

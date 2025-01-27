@@ -12,18 +12,18 @@ export const Transport: FC<Props> = ({ className }) => {
     <div className={classNames("flex gap-1", className)}>
       <IconButton
         className="text-white"
-        variant="filled"
+        variant="standard"
         onClick={() => {}}
         path={mdiSkipPrevious}
       />
       <IconButton
-        variant="filled"
+        variant="standard"
         color="#0f0"
         onClick={() => {}}
         path={mdiPlay}
       />
       <IconButton
-        variant="filled"
+        variant="standard"
         color="#f00"
         onClick={() => {}}
         path={mdiRecord}
@@ -33,7 +33,7 @@ export const Transport: FC<Props> = ({ className }) => {
       </p>
       <IconButton
         className="text-white"
-        variant="filled"
+        variant="standard"
         onClick={() => {}}
         path={mdiMetronome}
       />

@@ -32,7 +32,7 @@ export const Tools: FC<Props> = ({ className }) => {
 
           webview.setFocus();
         }}
-        variant="filled"
+        variant="standard"
         path={mdiFolderCogOutline}
       />
       <IconButton
@@ -49,21 +49,21 @@ export const Tools: FC<Props> = ({ className }) => {
 
           await webview.setFocus();
         }}
-        variant="filled"
+        variant="standard"
         path={mdiBugPlayOutline}
       />
       <IconButton
         isDisabled
         className="mr-1 text-white"
         onClick={() => {}}
-        variant="filled"
+        variant="standard"
         path={mdiUndo}
       />
       <IconButton
         isDisabled
         className="text-white"
         onClick={() => {}}
-        variant="filled"
+        variant="standard"
         path={mdiRedo}
       />
     </div>

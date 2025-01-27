@@ -5,10 +5,15 @@ import { Setup } from "./screens/setup";
 import { Tools } from "./components/tools";
 import { Transport } from "./components/transport";
 import { IconButton } from "../../ui/icon-button";
-import { mdiMovieRoll, mdiTuneVertical } from "@mdi/js";
+import {
+  mdiBookOpenBlankVariantOutline,
+  mdiFileOutline,
+  mdiMovieRoll,
+  mdiTuneVertical,
+} from "@mdi/js";
 import { AppBar } from "../../components/app-bar";
 import { Select } from "../../ui/select";
-import { Tab } from "../../services/types";
+import { LayoutType, Tab } from "../../services/types";
 import { actions } from "../../services/actions";
 import { useMemo } from "react";
 import { getLayoutName } from "../../services/utils";
@@ -67,14 +72,14 @@ export const Main = () => {
 
           <IconButton
             className="mr-1 text-white"
-            variant="filled"
+            variant="standard"
             onClick={() => {}}
             path={mdiTuneVertical}
             isDisabled
           />
           <IconButton
             className="text-white"
-            variant="filled"
+            variant="standard"
             onClick={() => {}}
             path={mdiMovieRoll}
             isDisabled

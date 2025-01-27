@@ -57,6 +57,24 @@ pub fn ui_sequencer_track_set(app: tauri::AppHandle, state: State<'_, AppState>,
     state.emit(&app);
 }
 
+#[tauri::command(rename_all = "snake_case")]
+pub fn ui_sequencer_tool_set(app: tauri::AppHandle, state: State<'_, AppState>, tool: Tool) {
+    let mut state = state.lock().unwrap();
+    state.ui.sequencer.tool = tool;
+    state.emit(&app);
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn ui_sequencer_snap_set(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    snap: NoteDuration,
+) {
+    let mut state = state.lock().unwrap();
+    state.ui.sequencer.snap = snap;
+    state.emit(&app);
+}
+
 // #[wasm_bindgen]
 // impl Core {
 //     pub fn ui_sequence_get_x(&self) -> i16 {
