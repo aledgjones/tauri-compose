@@ -27,6 +27,7 @@ rustc-hash = "2.1.0"
 skia-safe = { version = "0.81.0", features = ["webp"] }
 lazy_static = "1.5.0"
 roman = "0.1.6"
+tauri-plugin-devtools = "2.0.0"
 
 [profile.release]
 # less code to include into binary

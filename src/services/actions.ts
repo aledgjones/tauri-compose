@@ -1,5 +1,4 @@
-import { invoke, InvokeArgs, InvokeOptions } from "@tauri-apps/api/core";
-import { emit } from "@tauri-apps/api/event";
+import { invoke } from "@tauri-apps/api/core";
 import {
   AutoCountStyle,
   BracketingApproach,
@@ -15,41 +14,15 @@ import {
 } from "./types";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 
-export const loggedInvoke = async <T = unknown>(
-  cmd: string,
-  args?: InvokeArgs,
-  options?: InvokeOptions
-) => {
-  const t1 = performance.now();
-
-  try {
-    const result = await invoke<T>(cmd, args, options);
-    const argString = args ? [JSON.stringify(args)] : [];
-    actions.console.log(
-      [`[invoke] ${cmd}`, ...argString, `${performance.now() - t1}ms`].join(
-        " - "
-      )
-    );
-    return result;
-  } catch (error) {
-    actions.console.error(
-      `[invoke:error]: ${cmd} - ${JSON.stringify(error)} - ${
-        performance.now() - t1
-      }ms`
-    );
-    throw error;
-  }
-};
-
 export const actions = {
   initialize: () => {
-    return loggedInvoke("initialize");
+    return invoke("initialize");
   },
   reset: () => {
-    return loggedInvoke("reset");
+    return invoke("reset");
   },
   render: (layout_id: UniqueId, flow_id: UniqueId, px_per_mm: number) => {
-    return loggedInvoke<ArrayBuffer>("render", {
+    return invoke<ArrayBuffer>("render", {
       layout_id,
       flow_id,
       px_per_mm,
@@ -123,37 +96,37 @@ export const actions = {
   },
   ui: {
     setTab: (tab: Tab) => {
-      return loggedInvoke("ui_tab_set", { tab });
+      return invoke("ui_tab_set", { tab });
     },
     setActiveLayoutId: (layout_id: number) => {
-      return loggedInvoke("ui_layout_id_set", { layout_id });
+      return invoke("ui_layout_id_set", { layout_id });
     },
     setup: {
       select: (selection_type: SelectionType, id: number) => {
-        return loggedInvoke("ui_setup_selection_set", { selection_type, id });
+        return invoke("ui_setup_selection_set", { selection_type, id });
       },
       clearSelection: () => {
-        return loggedInvoke("ui_setup_selection_clear");
+        return invoke("ui_setup_selection_clear");
       },
       expand: (id: number) => {
-        return loggedInvoke("ui_setup_expanded_insert", { id });
+        return invoke("ui_setup_expanded_insert", { id });
       },
       collapse: (id: number) => {
-        return loggedInvoke("ui_setup_expanded_remove", { id });
+        return invoke("ui_setup_expanded_remove", { id });
       },
     },
     sequencer: {
       setInstrument: (id: UniqueId) => {
-        return loggedInvoke("ui_sequencer_instrument_set", { id });
+        return invoke("ui_sequencer_instrument_set", { id });
       },
       setTrack: (id: UniqueId) => {
-        return loggedInvoke("ui_sequencer_track_set", { id });
+        return invoke("ui_sequencer_track_set", { id });
       },
       setTool: (tool: Tool) => {
-        return loggedInvoke("ui_sequencer_tool_set", { tool });
+        return invoke("ui_sequencer_tool_set", { tool });
       },
       setSnap: (snap: NoteDuration) => {
-        return loggedInvoke("ui_sequencer_snap_set", { snap });
+        return invoke("ui_sequencer_snap_set", { snap });
       },
     },
   },
@@ -163,7 +136,7 @@ export const actions = {
         layout_type: LayoutType,
         value: boolean
       ) => {
-        return loggedInvoke<void>(
+        return invoke<void>(
           "score_engraves_systemic_barline_single_instrument_system_set",
           { layout_type, value }
         );
@@ -172,19 +145,19 @@ export const actions = {
         layout_type: LayoutType,
         value: BracketingApproach
       ) => {
-        return loggedInvoke<void>("score_engraves_bracketing_approach_set", {
+        return invoke<void>("score_engraves_bracketing_approach_set", {
           layout_type,
           value,
         });
       },
       setBracketStyle: (layout_type: LayoutType, value: BracketStyle) => {
-        return loggedInvoke<void>("score_engraves_bracket_style_set", {
+        return invoke<void>("score_engraves_bracket_style_set", {
           layout_type,
           value,
         });
       },
       setBracketSingleStaves: (layout_type: LayoutType, value: boolean) => {
-        return loggedInvoke<void>("score_engraves_bracket_single_staves_set", {
+        return invoke<void>("score_engraves_bracket_single_staves_set", {
           layout_type,
           value,
         });
@@ -192,111 +165,111 @@ export const actions = {
     },
     flow: {
       create: () => {
-        return loggedInvoke<number>("score_flows_create");
+        return invoke<number>("score_flows_create");
       },
       rename: (flow_id: UniqueId, title: string) => {
-        return loggedInvoke<void>("score_flows_rename", { flow_id, title });
+        return invoke<void>("score_flows_rename", { flow_id, title });
       },
       move: (from_index: number, to_index: number) => {
-        return loggedInvoke<void>("score_flows_move", { from_index, to_index });
+        return invoke<void>("score_flows_move", { from_index, to_index });
       },
       assignPlayer: (flow_id: UniqueId, player_id: UniqueId) => {
-        return loggedInvoke<void>("score_flows_assign_player", {
+        return invoke<void>("score_flows_assign_player", {
           flow_id,
           player_id,
         });
       },
       unassignPlayer: (flow_id: UniqueId, player_id: UniqueId) => {
-        return loggedInvoke<void>("score_flows_unassign_player", {
+        return invoke<void>("score_flows_unassign_player", {
           flow_id,
           player_id,
         });
       },
       remove: (flow_id: UniqueId) => {
-        return loggedInvoke<void>("score_flows_remove", { flow_id });
+        return invoke<void>("score_flows_remove", { flow_id });
       },
     },
     layout: {
       create: (layout_type: LayoutType) => {
-        return loggedInvoke<number>("score_layouts_create", {
+        return invoke<number>("score_layouts_create", {
           layout_type,
         });
       },
       rename: (layout_id: UniqueId, title: string) => {
-        return loggedInvoke<void>("score_layouts_rename", {
+        return invoke<void>("score_layouts_rename", {
           layout_id,
           title,
         });
       },
       assignPlayer: (layout_id: UniqueId, player_id: UniqueId) => {
-        return loggedInvoke<void>("score_layouts_assign_player", {
+        return invoke<void>("score_layouts_assign_player", {
           layout_id,
           player_id,
         });
       },
       unassignPlayer: (layout_id: UniqueId, player_id: UniqueId) => {
-        return loggedInvoke<void>("score_layouts_unassign_player", {
+        return invoke<void>("score_layouts_unassign_player", {
           layout_id,
           player_id,
         });
       },
       assignFlow: (layout_id: UniqueId, player_id: UniqueId) => {
-        return loggedInvoke<void>("score_layouts_assign_flow", {
+        return invoke<void>("score_layouts_assign_flow", {
           layout_id,
           player_id,
         });
       },
       unassignFlow: (layout_id: UniqueId, player_id: UniqueId) => {
-        return loggedInvoke<void>("score_layouts_unassign_flow", {
+        return invoke<void>("score_layouts_unassign_flow", {
           layout_id,
           player_id,
         });
       },
       move: (from_index: number, to_index: number) => {
-        return loggedInvoke<void>("score_layouts_move", {
+        return invoke<void>("score_layouts_move", {
           from_index,
           to_index,
         });
       },
       remove: (layout_id: UniqueId) => {
-        return loggedInvoke<void>("score_layouts_remove", {
+        return invoke<void>("score_layouts_remove", {
           layout_id,
         });
       },
     },
     player: {
       create: (player_type: PlayerType) => {
-        return loggedInvoke<number>("score_players_create", {
+        return invoke<number>("score_players_create", {
           player_type,
         });
       },
       assignInstrument: (player_id: number, instrument_id: number) => {
-        return loggedInvoke<void>("score_players_assign_instrument", {
+        return invoke<void>("score_players_assign_instrument", {
           player_id,
           instrument_id,
         });
       },
       unassignInstrument: (player_id: number, instrument_id: number) => {
-        return loggedInvoke<void>("score_players_unassign_instrument", {
+        return invoke<void>("score_players_unassign_instrument", {
           player_id,
           instrument_id,
         });
       },
       move: (from_index: number, to_index: number) => {
-        return loggedInvoke<void>("score_players_move", {
+        return invoke<void>("score_players_move", {
           from_index,
           to_index,
         });
       },
       remove: (player_id: number) => {
-        return loggedInvoke<void>("score_players_remove", {
+        return invoke<void>("score_players_remove", {
           player_id,
         });
       },
     },
     instrument: {
       create: (definition_id: string) => {
-        return loggedInvoke<number>("score_instruments_create", {
+        return invoke<number>("score_instruments_create", {
           definition_id,
         });
       },
@@ -306,7 +279,7 @@ export const actions = {
         from_player_id: number,
         to_player_id: number
       ) => {
-        return loggedInvoke<void>("score_instruments_move", {
+        return invoke<void>("score_instruments_move", {
           from_index,
           to_index,
           from_player_id,
@@ -314,7 +287,7 @@ export const actions = {
         });
       },
       remove: (instrument_id: number) => {
-        return loggedInvoke<number>("score_instruments_remove", {
+        return invoke<number>("score_instruments_remove", {
           instrument_id,
         });
       },
@@ -322,12 +295,12 @@ export const actions = {
     config: {
       autoCountStyles: {
         setSolo: (auto_count_style: AutoCountStyle) => {
-          return loggedInvoke("score_config_auto_count_styles_solo_set", {
+          return invoke("score_config_auto_count_styles_solo_set", {
             auto_count_style,
           });
         },
         setSection: (auto_count_style: AutoCountStyle) => {
-          return loggedInvoke("score_config_auto_count_styles_section_set", {
+          return invoke("score_config_auto_count_styles_section_set", {
             auto_count_style,
           });
         },
@@ -335,53 +308,53 @@ export const actions = {
     },
     meta: {
       setTitle: (title: string) => {
-        return loggedInvoke("score_meta_title_set", { title });
+        return invoke("score_meta_title_set", { title });
       },
       setSubtitle: (subtitle: string) => {
-        return loggedInvoke("score_meta_subtitle_set", { subtitle });
+        return invoke("score_meta_subtitle_set", { subtitle });
       },
       setDedication: (dedication: string) => {
-        return loggedInvoke("score_meta_dedication_set", { dedication });
+        return invoke("score_meta_dedication_set", { dedication });
       },
       setComposer: (composer: string) => {
-        return loggedInvoke("score_meta_composer_set", { composer });
+        return invoke("score_meta_composer_set", { composer });
       },
       setArranger: (arranger: string) => {
-        return loggedInvoke("score_meta_arranger_set", { arranger });
+        return invoke("score_meta_arranger_set", { arranger });
       },
       setLyricist: (lyricist: string) => {
-        return loggedInvoke("score_meta_lyricist_set", { lyricist });
+        return invoke("score_meta_lyricist_set", { lyricist });
       },
       setArtist: (artist: string) => {
-        return loggedInvoke("score_meta_artist_set", { artist });
+        return invoke("score_meta_artist_set", { artist });
       },
       setCopyist: (copyist: string) => {
-        return loggedInvoke("score_meta_copyist_set", { copyist });
+        return invoke("score_meta_copyist_set", { copyist });
       },
       setPublisher: (publisher: string) => {
-        return loggedInvoke("score_meta_publisher_set", { publisher });
+        return invoke("score_meta_publisher_set", { publisher });
       },
       setEditor: (editor: string) => {
-        return loggedInvoke("score_meta_editor_set", { editor });
+        return invoke("score_meta_editor_set", { editor });
       },
       setCopyright: (copyright: string) => {
-        return loggedInvoke("score_meta_copyright_set", { copyright });
+        return invoke("score_meta_copyright_set", { copyright });
       },
       setWorkNumber: (work_number: string) => {
-        return loggedInvoke("score_meta_work_number_set", { work_number });
+        return invoke("score_meta_work_number_set", { work_number });
       },
       setCompositionYear: (composition_year: string) => {
-        return loggedInvoke("score_meta_composition_year_set", {
+        return invoke("score_meta_composition_year_set", {
           composition_year,
         });
       },
       setComposerDates: (composer_dates: string) => {
-        return loggedInvoke("score_meta_composer_dates_set", {
+        return invoke("score_meta_composer_dates_set", {
           composer_dates,
         });
       },
       setOtherInformation: (other_information: string) => {
-        return loggedInvoke("score_meta_other_information_set", {
+        return invoke("score_meta_other_information_set", {
           other_information,
         });
       },

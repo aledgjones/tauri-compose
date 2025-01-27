@@ -98,6 +98,8 @@ fn reset(app: tauri::AppHandle, state: State<'_, AppState>) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let devtools = tauri_plugin_devtools::init();
+
     tauri::Builder::default()
         .setup(|app| {
             app.manage(AppStateInner::new());
@@ -162,6 +164,7 @@ pub fn run() {
             ui_setup_selection_set,
             ui_tab_set,
         ])
+        .plugin(devtools)
         .plugin(tauri_plugin_opener::init())
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

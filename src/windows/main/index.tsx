@@ -5,15 +5,10 @@ import { Setup } from "./screens/setup";
 import { Tools } from "./components/tools";
 import { Transport } from "./components/transport";
 import { IconButton } from "../../ui/icon-button";
-import {
-  mdiBookOpenBlankVariantOutline,
-  mdiFileOutline,
-  mdiMovieRoll,
-  mdiTuneVertical,
-} from "@mdi/js";
+import { mdiMovieRoll, mdiTuneVertical } from "@mdi/js";
 import { AppBar } from "../../components/app-bar";
 import { Select } from "../../ui/select";
-import { LayoutType, Tab } from "../../services/types";
+import { Tab } from "../../services/types";
 import { actions } from "../../services/actions";
 import { useMemo } from "react";
 import { getLayoutName } from "../../services/utils";
