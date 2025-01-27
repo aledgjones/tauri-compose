@@ -3,7 +3,7 @@ import { IconProps } from "@mdi/react/dist/IconProps";
 import classNames from "classnames";
 import { FC } from "react";
 
-type Variant = "standard" | "filled";
+type Variant = "standard" | "interactive" | "filled";
 type Props = {
   variant: Variant;
   onClick: () => void;
@@ -19,8 +19,10 @@ const getTheme = (variant: Variant, isSelected?: boolean) => {
   switch (variant) {
     case "filled":
       return "bg-neutral-800 hover:bg-neutral-700";
-    default:
+    case "interactive":
       return "hover:bg-neutral-800";
+    default:
+      return "";
   }
 };
 

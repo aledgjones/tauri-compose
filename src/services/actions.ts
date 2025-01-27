@@ -61,21 +61,21 @@ export const actions = {
         type: "log",
         message,
       };
-      emit("solocompose://logging", log);
+      console.log(log);
     },
     warn: (message: string) => {
       const log: Log = {
         type: "warn",
         message,
       };
-      emit("solocompose://logging", log);
+      console.warn(log);
     },
     error: (message: string) => {
       const log: Log = {
         type: "error",
         message,
       };
-      emit("solocompose://logging", log);
+      console.error(log);
     },
   },
   pickAnInstrument: () => {

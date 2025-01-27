@@ -30,7 +30,7 @@ export const Panel: FC<Props> = ({ title, className, icons, children }) => {
               key={config.key}
               className="text-white"
               onClick={config.onClick}
-              variant="standard"
+              variant="interactive"
               path={config.path}
             />
           );

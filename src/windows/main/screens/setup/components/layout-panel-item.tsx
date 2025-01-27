@@ -1,6 +1,5 @@
 import {
   mdiBookOpenBlankVariantOutline,
-  mdiChevronDown,
   mdiDelete,
   mdiFileOutline,
   mdiPencil,
@@ -60,7 +59,6 @@ export const LayoutPanelItem: FC<Props> = ({ layout }) => {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const state = useAppState();
-  const isExpanded = state.ui.setup.expanded.includes(layout.id);
   const isSelected = state.ui.setup.selection?.id === layout.id;
   const isAssigned = getIsAssigned(state, layout.id);
   const isAssignable = getIsAssignable(state);
@@ -217,32 +215,6 @@ export const LayoutPanelItem: FC<Props> = ({ layout }) => {
             />
           </div>
         )}
-
-        {!isAssignable && (
-          <div onPointerDown={onBlockPointerDown}>
-            <IconButton
-              variant="standard"
-              path={mdiChevronDown}
-              className={classNames("transition-transform", fg, {
-                "rotate-180": isExpanded,
-              })}
-              onClick={async () => {
-                if (isExpanded) {
-                  await actions.ui.setup.collapse(layout.id);
-                } else {
-                  await actions.ui.setup.expand(layout.id);
-                }
-              }}
-            />
-          </div>
-        )}
-      </div>
-      <div
-        className={classNames("flex flex-col p-2 gap-2 min-h-[64px]", {
-          hidden: !isExpanded,
-        })}
-      >
-        Content
       </div>
     </div>
   );

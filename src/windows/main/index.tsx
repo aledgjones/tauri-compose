@@ -72,14 +72,14 @@ export const Main = () => {
 
           <IconButton
             className="mr-1 text-white"
-            variant="standard"
+            variant="interactive"
             onClick={() => {}}
             path={mdiTuneVertical}
             isDisabled
           />
           <IconButton
             className="text-white"
-            variant="standard"
+            variant="interactive"
             onClick={() => {}}
             path={mdiMovieRoll}
             isDisabled
