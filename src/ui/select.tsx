@@ -1,3 +1,4 @@
+import { mdiChevronDown } from "@mdi/js";
 import Icon from "@mdi/react";
 import classNames from "classnames";
 import { Key, useEffect, useRef, useState } from "react";
@@ -90,7 +91,21 @@ export const Select = <T extends Key>({
             />
           </div>
         )}
+
         <span className="flex-1">{selection?.label || "Select"}</span>
+
+        <div className="flex items-center pointer-events-none pl-3">
+          <Icon
+            path={mdiChevronDown}
+            size={0.75}
+            className={classNames(
+              "text-neutral-300 transform transition-transform",
+              {
+                "rotate-180": isOpen,
+              }
+            )}
+          />
+        </div>
       </button>
 
       {isOpen && (
