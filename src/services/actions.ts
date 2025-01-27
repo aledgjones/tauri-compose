@@ -128,6 +128,9 @@ export const actions = {
       setSnap: (snap: NoteDuration) => {
         return invoke("ui_sequencer_snap_set", { snap });
       },
+      setCoords: (x: number, y: number) => {
+        return invoke("ui_sequencer_coords_set", { x, y });
+      },
     },
   },
   score: {
