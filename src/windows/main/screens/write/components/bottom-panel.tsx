@@ -12,6 +12,7 @@ import {
   mdiTuneVertical,
 } from "@mdi/js";
 import { IconButton } from "../../../../../ui/icon-button";
+import { Sequencer } from "../../../components/sequencer";
 
 const ALPHABET = ["A", "B"];
 const TRACK_LABEL = ["Up-stem", "Down-stem"];
@@ -137,8 +138,8 @@ export const BottomPanel: FC = () => {
   const tool = state.ui.sequencer.tool;
 
   return (
-    <div className="bg-neutral-900 flex flex-col">
-      <div className="flex p-2 h-[52px] items-center">
+    <div className="bg-neutral-900 flex flex-col min-h-0">
+      <div className="flex p-2 h-[52px] items-center z-50">
         <div className="flex flex-1">
           <IconButton
             path={mdiCursorDefault}
@@ -205,9 +206,12 @@ export const BottomPanel: FC = () => {
           />
         </div>
       </div>
-      {!flowId && (
-        <div className="flex flex-1 items-center justify-center">{/*  */}</div>
-      )}
+      <Sequencer
+        octaves={10}
+        flowId={flowId}
+        instrumentId={instrumentId}
+        trackId={trackId}
+      />
     </div>
   );
 };
