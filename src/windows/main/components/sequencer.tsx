@@ -3,7 +3,11 @@ import { KEYBOARD_WIDTH } from "../config";
 import { DragScroll } from "../../../components/drag-scroll";
 import { Keyboard } from "./keyboard";
 import { UniqueId } from "../../../services/types";
-import { useSlotPattern } from "../utils/slots";
+import { useSlotPattern } from "../hooks/use-slots";
+import { useTicks } from "../hooks/use-ticks";
+import { useAppState } from "../../../services/state";
+import { TickBar } from "./tick-bar";
+import { SequencerTrack } from "./sequencer-track";
 
 type Props = {
   flowId: UniqueId | null;
@@ -18,10 +22,18 @@ export const Sequencer: FC<Props> = ({
   trackId,
   octaves,
 }) => {
+  const state = useAppState();
+  const flow = flowId ? state.score.flows.by_id[flowId] : null;
+  const master = flow?.master_id
+    ? state.score.tracks.by_id[flow.master_id]
+    : null;
+
   const slots = useSlotPattern(octaves, 1);
+  const ticks = useTicks(flow, master);
+
   if (!flowId) {
     return (
-      <div className="mx-2 mb-2 flex flex-1 items-center justify-center bg-neutral-800 text-neutral-700">
+      <div className="flex items-center justify-center w-full h-full bg-neutral-900 relative text-neutral-700">
         <p>You don't have any flows yet...</p>
       </div>
     );
@@ -29,7 +41,7 @@ export const Sequencer: FC<Props> = ({
 
   if (!instrumentId) {
     return (
-      <div className="mx-2 mb-2 flex flex-1 items-center justify-center bg-neutral-800 text-neutral-700">
+      <div className="flex items-center justify-center w-full h-full bg-neutral-900 relative text-neutral-700">
         <p>You don't have any instruments yet...</p>
       </div>
     );
@@ -37,34 +49,31 @@ export const Sequencer: FC<Props> = ({
 
   if (!trackId) {
     return (
-      <div className="mx-2 mb-2 flex flex-1 items-center justify-center bg-neutral-800 text-neutral-700">
+      <div className="flex items-center justify-center w-full h-full bg-neutral-900 relative text-neutral-700">
         <p>This instrument is not included in this flow...</p>
       </div>
     );
   }
 
   return (
-    <DragScroll className="mx-2 mb-2 flex flex-1 bg-neutral-800 relative">
-      <div>
-        <div className="sticky left-0 z-20" style={{ width: KEYBOARD_WIDTH }}>
-          <div className="sticky top-0 z-30 h-[28px] bg-neutral-800 w-full" />
-          <Keyboard slots={slots} />
-        </div>
-        <div
-          style={{ paddingLeft: KEYBOARD_WIDTH }}
-          className="ignore-y absolute top-0 z-10 min-w-full pr-[80px]"
-        >
-          {/* <TickBar ticks={ticks} className="sticky top-0 z-30" />
-          <SequencerTrack
-            tool={tool}
-            slots={slots}
-            color={color || "#000"}
-            flowKey={flowKey}
-            instrumentKey={instrumentKey}
-            trackKey={trackKey}
-            ticks={ticks}
-          /> */}
-        </div>
+    <DragScroll className="w-full h-full bg-neutral-900 relative">
+      <div
+        className="ignore-x sticky left-0 z-20"
+        style={{ width: KEYBOARD_WIDTH }}
+      >
+        <div className="sticky top-0 z-30 h-[28px] bg-neutral-800 w-full" />
+        <Keyboard slots={slots} />
+      </div>
+      <div
+        style={{ paddingLeft: KEYBOARD_WIDTH }}
+        className="ignore-y absolute top-0 z-10 min-w-full"
+      >
+        <TickBar ticks={ticks} className="sticky top-0 z-30 bg-neutral-800" />
+        <SequencerTrack
+          ticks={ticks}
+          slots={slots}
+          tool={state.ui.sequencer.tool}
+        />
       </div>
     </DragScroll>
   );

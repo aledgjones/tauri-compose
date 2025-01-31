@@ -1,6 +1,21 @@
 import classNames from "classnames";
 import { FC, PropsWithChildren, useCallback, useRef } from "react";
 
+const allow = (target: HTMLElement, ignore?: string) => {
+  if (ignore) {
+    const nodes = document.getElementsByClassName(ignore);
+    for (let i = 0; i < nodes.length; i++) {
+      const node = nodes.item(i);
+      if (node && (node === target || node.contains(target))) {
+        return false;
+      }
+    }
+    return true;
+  } else {
+    return true;
+  }
+};
+
 type Props = PropsWithChildren<{ className?: string }>;
 
 export const DragScroll: FC<Props> = ({ children, className }) => {
@@ -17,6 +32,8 @@ export const DragScroll: FC<Props> = ({ children, className }) => {
     const startY = e.clientY;
     const scrollLeft = divRef.current.scrollLeft;
     const scrollTop = divRef.current.scrollTop;
+    const allowX = Boolean(allow(e.target as HTMLElement, "ignore-x"));
+    const allowY = Boolean(allow(e.target as HTMLElement, "ignore-y"));
 
     const handlePointerMove = (e: any) => {
       if (!isDragging || !divRef.current) {
@@ -24,10 +41,17 @@ export const DragScroll: FC<Props> = ({ children, className }) => {
       }
 
       e.preventDefault();
+
       const x = e.clientX - startX;
       const y = e.clientY - startY;
-      divRef.current.scrollLeft = scrollLeft - x;
-      divRef.current.scrollTop = scrollTop - y;
+
+      if (allowX) {
+        divRef.current.scrollLeft = scrollLeft - x;
+      }
+
+      if (allowY) {
+        divRef.current.scrollTop = scrollTop - y;
+      }
     };
 
     const handlePointerUp = () => {
@@ -43,7 +67,8 @@ export const DragScroll: FC<Props> = ({ children, className }) => {
   return (
     <div
       ref={divRef}
-      className={classNames("overflow-auto touch-none", className)}
+      style={{ overflow: "overlay" }}
+      className={classNames("touch-none", className)}
       onPointerDown={handlePointerDown}
     >
       {children}

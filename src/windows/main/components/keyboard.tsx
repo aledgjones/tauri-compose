@@ -1,5 +1,5 @@
 import { FC } from "react";
-import { KeyType, Slots } from "../utils/slots";
+import { KeyType, Slots } from "../hooks/use-slots";
 import classNames from "classnames";
 
 interface Props {

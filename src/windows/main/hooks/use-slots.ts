@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 
-import { repeatArray } from "./repeat-array";
+import { repeatArray } from "../utils/repeat-array";
 
 export const SLOT_HEIGHT = 21;
 

@@ -6,14 +6,14 @@ export type Log = {
 };
 
 export enum NoteDuration {
-  Whole,
-  Half,
-  Quarter,
-  Eighth,
-  Sixteenth,
-  ThirtySecond,
-  SixtyFourth,
-  HudredTwentyEighth,
+  Whole = 1,
+  Half = 2,
+  Quarter = 4,
+  Eighth = 8,
+  Sixteenth = 16,
+  ThirtySecond = 32,
+  SixtyFourth = 64,
+  HudredTwentyEighth = 128,
 }
 
 export enum Tool {
@@ -119,8 +119,20 @@ export type Players = {
   by_id: Record<UniqueId, Player>;
 };
 
+export type TimeSignature = {
+  type: "TimeSignature";
+  beats: number;
+  beat_type: NoteDuration;
+};
+
+export type Entry = TimeSignature;
+
 export type Track = {
   id: UniqueId;
+  entries: {
+    by_tick: Record<UniqueId, UniqueId[]>;
+    by_id: Record<UniqueId, Entry>;
+  };
 };
 
 export type Tracks = {
@@ -142,8 +154,10 @@ export type Flow = {
   id: UniqueId;
   title: string;
   player_ids: UniqueId[];
-  staves: Staves;
+  length: number;
+  subdivisions: number;
   master_id: UniqueId;
+  staves: Staves;
 };
 
 export type Flows = {
