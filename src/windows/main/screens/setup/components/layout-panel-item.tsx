@@ -74,7 +74,7 @@ export const LayoutPanelItem: FC<Props> = ({ layout }) => {
     }
 
     return getLayoutName(state, layout.id);
-  }, [editing, state, layout.id]);
+  }, [editing, state, layout.id, layout.title]);
 
   const onEdit = useCallback(() => {
     if (inputRef.current) {

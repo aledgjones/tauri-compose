@@ -66,5 +66,5 @@ export const useTicks = (
     }
 
     return { entries, tickWidth, length };
-  }, [flow, master]);
+  }, [flow, master, zoom]);
 };

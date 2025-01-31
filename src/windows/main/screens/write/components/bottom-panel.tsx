@@ -62,7 +62,7 @@ export const BottomPanel: FC = () => {
   }, [state]);
 
   const instrumentId = useMemo(() => {
-    if (instruments.length == 0) {
+    if (instruments.length === 0) {
       return null;
     }
 
@@ -78,7 +78,7 @@ export const BottomPanel: FC = () => {
 
     // fallback to the first instrument
     return instruments[0].value;
-  }, [state]);
+  }, [instruments, state.ui.sequencer.instrument]);
 
   const tracks = useMemo(() => {
     if (!flowId || !instrumentId) {
@@ -114,10 +114,15 @@ export const BottomPanel: FC = () => {
         };
       });
     });
-  }, [state]);
+  }, [
+    flowId,
+    instrumentId,
+    state.score.flows.by_id,
+    state.score.instruments.by_id,
+  ]);
 
   const trackId = useMemo(() => {
-    if (tracks.length == 0) {
+    if (tracks.length === 0) {
       return null;
     }
 
@@ -133,7 +138,7 @@ export const BottomPanel: FC = () => {
 
     // fallback to the first instrument
     return tracks[0].value;
-  }, [state]);
+  }, [state.ui.sequencer.track, tracks]);
 
   const tool = state.ui.sequencer.tool;
 
