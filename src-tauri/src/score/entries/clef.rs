@@ -1,10 +1,8 @@
+use crate::score::components::duration::Tick;
+use crate::score::components::pitch::Pitch;
+use crate::utils::UniqueId;
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
-
-use crate::{
-    score::components::{duration::Tick, pitch::Pitch},
-    utils::UniqueId,
-};
 
 #[derive(Clone, Copy, Hash, Eq, PartialEq, Serialize_repr, Deserialize_repr)]
 #[repr(u8)]

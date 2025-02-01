@@ -31,7 +31,7 @@ export const Sequencer: FC<Props> = ({
   const slots = useSlotPattern(octaves, 1);
   const ticks = useTicks(flow, master);
 
-  if (!flowId) {
+  if (!flowId || !flow) {
     return (
       <div className="flex items-center justify-center w-full h-full bg-neutral-900 relative text-neutral-700">
         <p>You don't have any flows yet...</p>
@@ -70,6 +70,8 @@ export const Sequencer: FC<Props> = ({
       >
         <TickBar ticks={ticks} className="sticky top-0 z-30 bg-neutral-800" />
         <SequencerTrack
+          flow={flow}
+          snapDuration={state.ui.sequencer.snap}
           ticks={ticks}
           slots={slots}
           tool={state.ui.sequencer.tool}

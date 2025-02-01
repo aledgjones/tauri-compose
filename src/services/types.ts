@@ -1,9 +1,7 @@
 export type UniqueId = number;
 
-export type Log = {
-  type: "log" | "error" | "warn";
-  message: string;
-};
+export type Tick = number;
+export type Ticks = number;
 
 export enum NoteDuration {
   Whole = 1,
@@ -14,6 +12,22 @@ export enum NoteDuration {
   ThirtySecond = 32,
   SixtyFourth = 64,
   HudredTwentyEighth = 128,
+}
+
+export enum Accidental {
+  DoubleSharp = 2,
+  Sharp = 1,
+  Natural = 0,
+  Flat = -1,
+  DoubleFlat = -2,
+}
+
+export enum Articulation {
+  None,
+  Staccato,
+  Staccatissimo,
+  Tenuto,
+  StaccatoTenuto,
 }
 
 export enum Tool {

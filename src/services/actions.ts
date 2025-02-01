@@ -1,14 +1,17 @@
 import { invoke } from "@tauri-apps/api/core";
 import {
+  Accidental,
+  Articulation,
   AutoCountStyle,
   BracketingApproach,
   BracketStyle,
   LayoutType,
-  Log,
   NoteDuration,
   PlayerType,
   SelectionType,
   Tab,
+  Tick,
+  Ticks,
   Tool,
   UniqueId,
 } from "./types";
@@ -28,32 +31,9 @@ export const actions = {
       px_per_mm,
     });
   },
-  console: {
-    log: (message: string) => {
-      const log: Log = {
-        type: "log",
-        message,
-      };
-      console.log(log);
-    },
-    warn: (message: string) => {
-      const log: Log = {
-        type: "warn",
-        message,
-      };
-      console.warn(log);
-    },
-    error: (message: string) => {
-      const log: Log = {
-        type: "error",
-        message,
-      };
-      console.error(log);
-    },
-  },
   pickAnInstrument: () => {
     return new Promise<string | null>(async (resolve) => {
-      actions.console.log("[instrument-picker] open");
+      console.log("[instrument-picker] open");
 
       const webview = new WebviewWindow("instrument-picker", {
         url: "/instrument-picker.html",
@@ -69,14 +49,14 @@ export const actions = {
       let selection: string | null = null;
 
       const blurUnlisten = await webview.once("tauri://blur", async () => {
-        actions.console.log("[instrument-picker] blur");
+        console.log("[instrument-picker] blur");
         webview.close();
       });
 
       const selectInstrumentUnlisten = await webview.once<{
         instrument_id: string;
       }>("solocompose://select-instrument", async (e) => {
-        actions.console.log(
+        console.log(
           `[instrument-picker] select-instrument - payload ${JSON.stringify(
             e.payload
           )}`
@@ -87,7 +67,7 @@ export const actions = {
       });
 
       await webview.once("tauri://destroyed", async () => {
-        actions.console.log("[instrument-picker] close");
+        console.log("[instrument-picker] close");
         blurUnlisten();
         selectInstrumentUnlisten();
         resolve(selection);
@@ -359,6 +339,27 @@ export const actions = {
       setOtherInformation: (other_information: string) => {
         return invoke("score_meta_other_information_set", {
           other_information,
+        });
+      },
+    },
+    tone: {
+      create: (
+        track_id: UniqueId,
+        tick: Tick,
+        duration: Ticks,
+        pitch_int: number,
+        accidental: Accidental | null,
+        velocity: number,
+        articulation: Articulation
+      ) => {
+        return invoke("score_entries_tone_create", {
+          track_id,
+          tick,
+          duration,
+          pitch_int,
+          accidental,
+          velocity,
+          articulation,
         });
       },
     },

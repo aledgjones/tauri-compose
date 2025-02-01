@@ -1,7 +1,10 @@
 use crate::score::components::duration::{NoteDuration, Tick};
+use crate::score::tracks::Track;
 use crate::utils::UniqueId;
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
+
+use super::Entry;
 
 pub enum TimeSignatureType {
     Simple,
@@ -50,11 +53,6 @@ impl TimeSignature {
             },
             draw_type,
         }
-    }
-
-    /// Return the time signature type Open, Compound, Simple or Complex.
-    pub fn kind(&self) -> TimeSignatureType {
-        TimeSignature::kind_from_beats(self.beats)
     }
 
     /// Return the time signature type Open, Compound, Simple or Complex.

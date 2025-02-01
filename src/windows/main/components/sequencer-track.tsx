@@ -2,18 +2,48 @@ import { FC, PointerEvent, useCallback, useRef } from "react";
 import { TickConfig } from "../hooks/use-ticks";
 import { KeyType, Slots } from "../hooks/use-slots";
 import classNames from "classnames";
-import { Tool } from "../../../services/types";
+import { Flow, NoteDuration, Tool } from "../../../services/types";
+
+export const getSnappedXPosition = (
+  x: number,
+  tickWidth: number,
+  ticksPerSnap: number,
+  direction: "up" | "down" | "nearest"
+) => {
+  const tick = Math.floor(x / tickWidth);
+
+  const extra = tick % ticksPerSnap;
+
+  if (extra === 0) {
+    return tick;
+  }
+
+  switch (direction) {
+    case "up":
+      return tick - extra + ticksPerSnap;
+    case "down":
+      return tick - extra;
+    default:
+      return extra < ticksPerSnap / 2
+        ? tick - extra
+        : tick - extra + ticksPerSnap;
+  }
+};
 
 type SequencerTrackProps = {
+  flow: Flow;
   ticks: TickConfig;
   slots: Slots;
   tool: Tool;
+  snapDuration: NoteDuration;
 };
 
 export const SequencerTrack: FC<SequencerTrackProps> = ({
+  flow,
   ticks,
   slots,
   tool,
+  snapDuration,
 }) => {
   const sequencerRef = useRef<HTMLDivElement>(null);
 
@@ -32,14 +62,17 @@ export const SequencerTrack: FC<SequencerTrackProps> = ({
 
       e.stopPropagation();
 
+      const ticksPerSnap = (flow.subdivisions * 4) / snapDuration;
       const x = e.clientX - box.left;
       const y = e.clientY - box.top;
 
-      console.log(x, y);
-
-      // const tick = getTickFromXPosition(x, ticks.tick_width);
       // const pitch = getPitchFromYPosition(y, slots.slot_height);
-      // const start = getSnappedTick(tick, ticks.ticks_per_snap, "down");
+      const start = getSnappedXPosition(
+        x,
+        ticks.tickWidth,
+        ticksPerSnap,
+        "down"
+      );
 
       // const key = core.create_tone(
       //   trackKey,
@@ -56,9 +89,9 @@ export const SequencerTrack: FC<SequencerTrackProps> = ({
       const handlePointerMove = (e: any) => {
         const x = e.clientX - box.left;
 
-        console.log(x);
-        // const tick = getTickFromXPosition(x, ticks.tick_width);
-        // const end = getSnappedTick(tick, ticks.ticks_per_snap, "up");
+        const end = getSnappedXPosition(x, ticks.tickWidth, ticksPerSnap, "up");
+
+        console.log(start, "->", end);
 
         // if (end > data.start) {
         //   core.set_tone_duration(trackKey, data.toneKey, end - data.start);
@@ -73,7 +106,7 @@ export const SequencerTrack: FC<SequencerTrackProps> = ({
       document.addEventListener("pointermove", handlePointerMove);
       document.addEventListener("pointerup", handlePointerUp);
     },
-    [tool]
+    [flow.subdivisions, snapDuration, ticks.tickWidth, tool]
   );
 
   return (
