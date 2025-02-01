@@ -42,6 +42,7 @@ impl Tone {
 }
 
 #[tauri::command(rename_all = "snake_case")]
+#[allow(clippy::too_many_arguments)]
 pub fn score_entries_tone_create(
     app: tauri::AppHandle,
     state: State<'_, AppState>,

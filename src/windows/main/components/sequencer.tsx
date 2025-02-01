@@ -27,6 +27,7 @@ export const Sequencer: FC<Props> = ({
   const master = flow?.master_id
     ? state.score.tracks.by_id[flow.master_id]
     : null;
+  const track = trackId ? state.score.tracks.by_id[trackId] : null;
 
   const slots = useSlotPattern(octaves, 1);
   const ticks = useTicks(flow, master);
@@ -47,7 +48,7 @@ export const Sequencer: FC<Props> = ({
     );
   }
 
-  if (!trackId) {
+  if (!trackId || !track) {
     return (
       <div className="flex items-center justify-center w-full h-full bg-neutral-900 relative text-neutral-700">
         <p>This instrument is not included in this flow...</p>
@@ -71,6 +72,7 @@ export const Sequencer: FC<Props> = ({
         <TickBar ticks={ticks} className="sticky top-0 z-30 bg-neutral-800" />
         <SequencerTrack
           flow={flow}
+          track={track}
           snapDuration={state.ui.sequencer.snap}
           ticks={ticks}
           slots={slots}

@@ -2,7 +2,14 @@ import { FC, PointerEvent, useCallback, useRef } from "react";
 import { TickConfig } from "../hooks/use-ticks";
 import { KeyType, Slots } from "../hooks/use-slots";
 import classNames from "classnames";
-import { Flow, NoteDuration, Tool } from "../../../services/types";
+import {
+  Articulation,
+  Flow,
+  NoteDuration,
+  Tool,
+  Track,
+} from "../../../services/types";
+import { actions } from "../../../services/actions";
 
 export const getSnappedXPosition = (
   x: number,
@@ -30,8 +37,26 @@ export const getSnappedXPosition = (
   }
 };
 
+export const getPitchFromYPosition = (y: number, slotHeight: number) => {
+  const slot = Math.floor(y / slotHeight);
+  const lowestNote = 12;
+  const highestNote = lowestNote + 10 * 12 - 1;
+  let int = highestNote - slot;
+
+  if (int < 12) {
+    int = 12;
+  }
+
+  if (int > 131) {
+    int = 131;
+  }
+
+  return int;
+};
+
 type SequencerTrackProps = {
   flow: Flow;
+  track: Track;
   ticks: TickConfig;
   slots: Slots;
   tool: Tool;
@@ -40,6 +65,7 @@ type SequencerTrackProps = {
 
 export const SequencerTrack: FC<SequencerTrackProps> = ({
   flow,
+  track,
   ticks,
   slots,
   tool,
@@ -48,12 +74,10 @@ export const SequencerTrack: FC<SequencerTrackProps> = ({
   const sequencerRef = useRef<HTMLDivElement>(null);
 
   const onPointerDown = useCallback(
-    (e: PointerEvent<HTMLDivElement>) => {
+    async (e: PointerEvent<HTMLDivElement>) => {
       if (tool !== Tool.Write) {
         return;
       }
-
-      console.log("DOWN");
 
       const box = sequencerRef.current?.getBoundingClientRect();
       if (!box) {
@@ -66,7 +90,7 @@ export const SequencerTrack: FC<SequencerTrackProps> = ({
       const x = e.clientX - box.left;
       const y = e.clientY - box.top;
 
-      // const pitch = getPitchFromYPosition(y, slots.slot_height);
+      const pitch = getPitchFromYPosition(y, slots.slotHeight);
       const start = getSnappedXPosition(
         x,
         ticks.tickWidth,
@@ -74,16 +98,17 @@ export const SequencerTrack: FC<SequencerTrackProps> = ({
         "down"
       );
 
-      // const key = core.create_tone(
-      //   trackKey,
-      //   start,
-      //   ticks.ticks_per_snap,
-      //   pitch,
-      //   undefined,
-      //   100,
-      //   Articulation.None
-      // );
+      const key = await actions.score.tone.create(
+        track.id,
+        start,
+        ticksPerSnap,
+        pitch,
+        null,
+        255,
+        Articulation.None
+      );
 
+      // TODO:
       // audition(instrumentKey, pitch);
 
       const handlePointerMove = (e: any) => {
@@ -106,7 +131,14 @@ export const SequencerTrack: FC<SequencerTrackProps> = ({
       document.addEventListener("pointermove", handlePointerMove);
       document.addEventListener("pointerup", handlePointerUp);
     },
-    [flow.subdivisions, snapDuration, ticks.tickWidth, tool]
+    [
+      flow.subdivisions,
+      slots.slotHeight,
+      snapDuration,
+      ticks.tickWidth,
+      tool,
+      track.id,
+    ]
   );
 
   return (
