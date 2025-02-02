@@ -1,4 +1,4 @@
-import { FC, PointerEvent, useCallback, useRef } from "react";
+import { FC, PointerEvent, useCallback, useMemo, useRef } from "react";
 import { TickConfig } from "../hooks/use-ticks";
 import { KeyType, Slots } from "../hooks/use-slots";
 import classNames from "classnames";
@@ -89,6 +89,7 @@ export const SequencerTrack: FC<SequencerTrackProps> = ({
       const ticksPerSnap = (flow.subdivisions * 4) / snapDuration;
       const x = e.clientX - box.left;
       const y = e.clientY - box.top;
+      let duration = ticksPerSnap;
 
       const pitch = getPitchFromYPosition(y, slots.slotHeight);
       const start = getSnappedXPosition(
@@ -113,16 +114,15 @@ export const SequencerTrack: FC<SequencerTrackProps> = ({
       // TODO:
       // audition(instrumentKey, pitch);
 
-      const handlePointerMove = (e: any) => {
+      const handlePointerMove = async (e: any) => {
         const x = e.clientX - box.left;
-
         const end = getSnappedXPosition(x, ticks.tickWidth, ticksPerSnap, "up");
+        const newDuration = end - start;
 
-        console.log(start, "->", end);
-
-        // if (end > data.start) {
-        //   core.set_tone_duration(trackKey, data.toneKey, end - data.start);
-        // }
+        if (end > start && duration !== newDuration) {
+          duration = newDuration;
+          await actions.score.tone.setDuration(track.id, tone_id, end - start);
+        }
       };
 
       const handlePointerUp = () => {
@@ -142,6 +142,12 @@ export const SequencerTrack: FC<SequencerTrackProps> = ({
       track.id,
     ]
   );
+
+  const tones = useMemo(() => {
+    return Object.values(track.entries.by_id).filter(
+      (entry) => entry.type === "Tone"
+    );
+  }, [track.entries.by_id]);
 
   return (
     <div
@@ -181,6 +187,20 @@ export const SequencerTrack: FC<SequencerTrackProps> = ({
               height: slots.height,
               width: 1,
               translate: `${entry.x}px`,
+            }}
+          />
+        );
+      })}
+
+      {tones.map((tone) => {
+        return (
+          <div
+            className="absolute bg-red-500"
+            style={{
+              bottom: slots.slotHeight * (tone.pitch.int - 12),
+              height: slots.slotHeight - 1,
+              left: ticks.tickWidth * tone.tick + 1,
+              width: ticks.tickWidth * tone.duration - 1,
             }}
           />
         );

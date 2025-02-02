@@ -352,7 +352,7 @@ export const actions = {
         velocity: number,
         articulation: Articulation
       ) => {
-        return invoke("score_entries_tone_create", {
+        return invoke<UniqueId>("score_entries_tone_create", {
           track_id,
           tick,
           duration,
@@ -360,6 +360,13 @@ export const actions = {
           accidental,
           velocity,
           articulation,
+        });
+      },
+      setDuration: (track_id: UniqueId, tone_id: UniqueId, duration: Ticks) => {
+        return invoke("score_entries_tone_duration_set", {
+          track_id,
+          tone_id,
+          duration,
         });
       },
     },

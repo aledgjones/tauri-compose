@@ -13,7 +13,7 @@ use score::engraves::{
     score_engraves_bracketing_approach_set,
     score_engraves_systemic_barline_single_instrument_system_set,
 };
-use score::entries::tone::score_entries_tone_create;
+use score::entries::tone::{score_entries_tone_create, score_entries_tone_duration_set};
 use score::flows::{
     score_flows_assign_player, score_flows_create, score_flows_move, score_flows_remove,
     score_flows_rename, score_flows_unassign_player,
@@ -124,6 +124,7 @@ pub fn run() {
             score_engraves_bracket_style_set,
             score_engraves_systemic_barline_single_instrument_system_set,
             score_entries_tone_create,
+            score_entries_tone_duration_set,
             score_flows_create,
             score_flows_rename,
             score_flows_move,

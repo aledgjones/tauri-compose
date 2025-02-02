@@ -85,3 +85,22 @@ pub fn score_entries_tone_create(
 
     tone_id
 }
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn score_entries_tone_duration_set(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    track_id: UniqueId,
+    tone_id: UniqueId,
+    duration: Ticks,
+) {
+    let mut state = state.lock().unwrap();
+
+    let track = state.score.tracks.by_id.get_mut(&track_id).unwrap();
+    let entry = track.entries.by_id.get_mut(&tone_id).unwrap();
+    if let Entry::Tone(tone) = entry {
+        tone.duration = duration;
+    }
+
+    state.emit(&app);
+}

@@ -133,13 +133,47 @@ export type Players = {
   by_id: Record<UniqueId, Player>;
 };
 
+export type Pitch = {
+  int: number;
+  accidental: Accidental;
+};
+
+export type Velocity = {
+  int: number;
+};
+
+export enum KeySignatureMode {
+  Major,
+  Minor,
+}
+
 export type TimeSignature = {
+  id: UniqueId;
+  tick: Tick;
   type: "TimeSignature";
   beats: number;
   beat_type: NoteDuration;
 };
 
-export type Entry = TimeSignature;
+export type KeySignature = {
+  id: UniqueId;
+  tick: Tick;
+  type: "KeySignature";
+  mode: KeySignatureMode;
+  offset: number;
+};
+
+export type Tone = {
+  id: UniqueId;
+  tick: Tick;
+  type: "Tone";
+  duration: Ticks;
+  pitch: Pitch;
+  velocity: Velocity;
+  articulation: Articulation;
+};
+
+export type Entry = TimeSignature | KeySignature | Tone;
 
 export type Track = {
   id: UniqueId;
