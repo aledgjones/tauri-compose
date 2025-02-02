@@ -29,15 +29,10 @@ export const Renderer: FC<Props> = ({ className }) => {
 
   useEffect(() => {
     let unlisten: UnlistenFn | null = null;
-    let imageUrl: string | null = null;
+    let imageUrls: Set<string> = new Set();
     let animationFrameId: number | null = null;
 
     const run = async () => {
-      if (imageUrl) {
-        URL.revokeObjectURL(imageUrl);
-        imageUrl = null;
-      }
-
       if (!firstFlow) {
         return;
       }
@@ -47,8 +42,15 @@ export const Renderer: FC<Props> = ({ className }) => {
         firstFlow,
         pxPerMm
       );
+
+      imageUrls.forEach((url) => {
+        imageUrls.delete(url);
+        URL.revokeObjectURL(url);
+      });
+
       const blob = new Blob([result], { type: "image/webp" });
-      imageUrl = URL.createObjectURL(blob);
+      const imageUrl = URL.createObjectURL(blob);
+      imageUrls.add(imageUrl);
       setSrc(imageUrl);
     };
 
