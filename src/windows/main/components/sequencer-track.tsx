@@ -98,7 +98,7 @@ export const SequencerTrack: FC<SequencerTrackProps> = ({
         "down"
       );
 
-      const key = await actions.score.tone.create(
+      const tone_id = await actions.score.tone.create(
         track.id,
         start,
         ticksPerSnap,
@@ -107,6 +107,8 @@ export const SequencerTrack: FC<SequencerTrackProps> = ({
         255,
         Articulation.None
       );
+
+      console.log(tone_id);
 
       // TODO:
       // audition(instrumentKey, pitch);
