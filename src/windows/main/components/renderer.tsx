@@ -88,7 +88,7 @@ export const Renderer: FC<Props> = ({ className }) => {
         className
       )}
     >
-      <div className="flex min-h-full items-center justify-center">
+      <div className="flex min-h-full">
         <div className="p-20 inline-block">
           {src && (
             <img

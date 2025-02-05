@@ -4,6 +4,8 @@ use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
+const C0: u8 = 12;
+
 lazy_static! {
     pub static ref ACCIDENTAL_MAP: FxHashMap<(i8, KeySignatureMode), [Accidental; 12]> = {
         let mut map = FxHashMap::default();
@@ -592,6 +594,18 @@ pub enum Accidental {
     DoubleFlat = -2,
 }
 
+impl Accidental {
+    pub fn to_glyph(&self) -> String {
+        match self {
+            Accidental::DoubleSharp => String::from("\u{E263}"),
+            Accidental::Sharp => String::from("\u{E262}"),
+            Accidental::Natural => String::from("\u{E261}"),
+            Accidental::Flat => String::from("\u{E260}"),
+            Accidental::DoubleFlat => String::from("\u{E264}"),
+        }
+    }
+}
+
 #[derive(Copy, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct Pitch {
     pub int: u8, // the midi number
@@ -612,5 +626,47 @@ impl Pitch {
         };
 
         Pitch { int, accidental }
+    }
+
+    /// gets the base note pitch (natural) for an accidental note
+    /// ie 61 (C#) -> 60 (C), 61 (D flat) -> 62 (D)
+    fn base(&self) -> u8 {
+        let int = self.int;
+        match self.accidental {
+            Accidental::DoubleSharp => int - 2,
+            Accidental::Sharp => int - 1,
+            Accidental::Natural => int,
+            Accidental::Flat => int + 1,
+            Accidental::DoubleFlat => int + 2,
+        }
+    }
+
+    /// gets the number of semitones the tone is from C
+    pub fn half_steps(&self) -> u8 {
+        self.base() % 12
+    }
+
+    /// gets the number of steps the tone is from C
+    pub fn steps(&self) -> u8 {
+        match self.half_steps() {
+            0 => 0,
+            2 => 1,
+            4 => 2,
+            5 => 3,
+            7 => 4,
+            9 => 5,
+            11 => 6,
+            _ => 0,
+        }
+    }
+
+    pub fn octave(&self) -> u8 {
+        let natural = self.base();
+        (natural - C0) / 12
+    }
+
+    pub fn steps_between(a: &Pitch, b: &Pitch) -> i8 {
+        let octave_offset = (b.octave() as i8 - a.octave() as i8) * 7;
+        octave_offset + b.steps() as i8 - a.steps() as i8
     }
 }

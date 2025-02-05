@@ -1,4 +1,4 @@
-use crate::score::components::duration::{NoteDuration, Tick};
+use crate::score::components::duration::{NoteDuration, Tick, Ticks};
 use crate::score::tracks::Track;
 use crate::utils::UniqueId;
 use serde::{Deserialize, Serialize};
@@ -31,6 +31,19 @@ pub struct TimeSignature {
     pub beat_type: NoteDuration,
     pub draw_type: TimeSignatureDrawType,
     pub groupings: Vec<u8>,
+}
+
+impl Default for TimeSignature {
+    fn default() -> Self {
+        TimeSignature::new(
+            0,
+            0,
+            4,
+            NoteDuration::Quarter,
+            TimeSignatureDrawType::Hidden,
+            None,
+        )
+    }
 }
 
 impl TimeSignature {
@@ -88,5 +101,35 @@ impl TimeSignature {
                 TimeSignatureType::Open => vec![2, 2],
             }
         }
+    }
+
+    pub fn bar_length_in_ticks(&self, subdivisions: Ticks) -> Ticks {
+        self.beat_type.to_ticks(subdivisions) * (self.beats as Ticks)
+    }
+}
+
+impl Track {
+    /// Returns the time signature entry at a given tick if it exists
+    pub fn get_time_signature_at_tick(&self, at: &Tick) -> Option<&TimeSignature> {
+        let entry_keys = self.entries.by_tick.get(at)?;
+
+        for key in entry_keys {
+            if let Some(Entry::TimeSignature(time_signature)) = self.entries.by_id.get(key) {
+                return Some(time_signature);
+            }
+        }
+
+        None
+    }
+
+    /// Returns the time signature entry *at* or *before* a given tick if it exists
+    pub fn get_time_signature_before_tick_inclusive(&self, tick: Tick) -> Option<&TimeSignature> {
+        for i in (0..tick + 1).rev() {
+            if let Some(time_signature) = self.get_time_signature_at_tick(&i) {
+                return Some(time_signature);
+            };
+        }
+
+        None
     }
 }

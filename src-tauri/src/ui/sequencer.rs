@@ -1,6 +1,6 @@
-use crate::{
-    renderer::Renderer, score::components::duration::NoteDuration, utils::UniqueId, AppState,
-};
+use crate::score::components::duration::NoteDuration;
+use crate::utils::UniqueId;
+use crate::AppState;
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use tauri::State;

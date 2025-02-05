@@ -4,6 +4,7 @@ use crate::score::components::articulation::Articulation;
 use crate::score::components::duration::{Tick, Ticks};
 use crate::score::components::pitch::{Accidental, Pitch};
 use crate::score::components::velocity::Velocity;
+use crate::score::tracks::Track;
 use crate::utils::UniqueId;
 use crate::AppState;
 use serde::{Deserialize, Serialize};
@@ -84,6 +85,26 @@ pub fn score_entries_tone_create(
     state.emit(&app);
 
     tone_id
+}
+
+impl Track {
+    /// Returns the time signature entry at a given tick if it exists
+    pub fn get_tones_at_tick(&self, tick: &Tick) -> Vec<&Tone> {
+        let mut output = Vec::new();
+
+        let entry_ids = match self.entries.by_tick.get(tick) {
+            Some(entries) => entries,
+            None => return output,
+        };
+
+        for entry_id in entry_ids {
+            if let Some(Entry::Tone(tone)) = self.entries.by_id.get(entry_id) {
+                output.push(tone);
+            }
+        }
+
+        output
+    }
 }
 
 #[tauri::command(rename_all = "snake_case")]

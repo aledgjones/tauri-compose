@@ -1,3 +1,4 @@
+mod debug;
 mod draw;
 mod parse;
 
@@ -8,6 +9,7 @@ use crate::renderer::Renderer;
 use crate::score::components::measurements::Point;
 use crate::utils::UniqueId;
 use crate::AppState;
+use debug::debug_tone_drawing::debug_tone_drawing;
 use draw::draw_brackets::draw_brackets;
 use draw::draw_staves::draw_staves;
 use draw::draw_sub_brackets::draw_sub_brackets;
@@ -15,6 +17,7 @@ use draw::draw_systemic_barline::draw_systemic_barline;
 use draw::{draw_braces::draw_braces, draw_names::draw_names};
 use parse::get_max_brackets_width::get_max_brackets_width;
 use parse::get_max_instrument_name_width::get_max_instrument_name_width;
+use parse::get_tone_offsets::get_tone_offsets;
 use parse::get_vertical_spacing::get_vertical_spacing;
 use parse::get_vertical_spans::get_vertical_spans;
 use tauri::{ipc::Response, State};
@@ -26,10 +29,6 @@ pub fn render(
     flow_id: UniqueId,
     px_per_mm: f32,
 ) -> Response {
-    // ** TODO: get these dynamically
-    let stave_width = 50.0;
-    // **
-
     let state = state.lock().unwrap();
 
     let flow = &state.score.flows.by_id[&flow_id];
@@ -47,6 +46,12 @@ pub fn render(
     let frame_padding = engrave.frame_padding.to_spaces(&engrave.space);
     let max_name_width = get_max_instrument_name_width(&instruments, engrave, &text_measurer);
     let max_bracket_width = get_max_brackets_width(&vertical_spacing, &vertical_spans, engrave);
+
+    let tone_offsets = get_tone_offsets(flow, &instruments, &state.score.tracks);
+
+    // ** TODO: this is just fixed to 1 tick = 0.01 space. Update.
+    let stave_width: f32 = flow.length as f32 * 0.02;
+    // **
 
     let stave_left =
         frame_padding.left + max_name_width + engrave.instrument_name_spacing + max_bracket_width;
@@ -116,6 +121,19 @@ pub fn render(
         flow,
         &instruments,
         &vertical_spacing,
+        &mut renderer,
+    );
+
+    debug_tone_drawing(
+        &Point {
+            x: stave_left,
+            y: frame_padding.top,
+        },
+        flow,
+        &instruments,
+        &state.score.tracks,
+        &vertical_spacing,
+        &tone_offsets,
         &mut renderer,
     );
 
