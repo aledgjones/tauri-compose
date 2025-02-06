@@ -55,4 +55,28 @@ impl NoteDuration {
             NoteDuration::HudredTwentyEighth => "\u{E0A4}",
         }
     }
+
+    pub fn half(&self) -> NoteDuration {
+        match self {
+            NoteDuration::Whole => NoteDuration::Half,
+            NoteDuration::Half => NoteDuration::Quarter,
+            NoteDuration::Quarter => NoteDuration::Eighth,
+            NoteDuration::Eighth => NoteDuration::Sixteenth,
+            NoteDuration::Sixteenth => NoteDuration::ThirtySecond,
+            NoteDuration::ThirtySecond => NoteDuration::SixtyFourth,
+            NoteDuration::SixtyFourth => NoteDuration::HudredTwentyEighth,
+            NoteDuration::HudredTwentyEighth => NoteDuration::HudredTwentyEighth,
+        }
+    }
 }
+
+pub const NOTE_DURATIONS: [NoteDuration; 8] = [
+    NoteDuration::Whole,
+    NoteDuration::Half,
+    NoteDuration::Quarter,
+    NoteDuration::Eighth,
+    NoteDuration::Sixteenth,
+    NoteDuration::ThirtySecond,
+    NoteDuration::SixtyFourth,
+    NoteDuration::HudredTwentyEighth,
+];

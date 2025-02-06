@@ -103,8 +103,34 @@ impl TimeSignature {
         }
     }
 
-    pub fn bar_length_in_ticks(&self, subdivisions: Ticks) -> Ticks {
+    pub fn get_tick_at_beat(&self, start: Tick, beat: u8, subdivisions: Ticks) -> Tick {
+        start + (((beat - 1) as Tick) * self.beat_type.to_ticks(subdivisions))
+    }
+
+    // Returns the number of ticks per beat
+    pub fn ticks_per_beat(&self, subdivisions: Ticks) -> Ticks {
+        self.beat_type.to_ticks(subdivisions)
+    }
+
+    // Returns the number of ticks per bar
+    pub fn ticks_per_bar(&self, subdivisions: Ticks) -> Ticks {
         self.beat_type.to_ticks(subdivisions) * (self.beats as Ticks)
+    }
+
+    // Returns true if the tick is on a beat
+    pub fn is_on_beat(&self, tick: Tick, subdivisions: Ticks) -> bool {
+        self.is_on_beat_type(tick, &self.beat_type, subdivisions)
+    }
+
+    /// Return true if a tick is on an arbitrary beat type
+    pub fn is_on_beat_type(
+        &self,
+        tick: Tick,
+        beat_type: &NoteDuration,
+        subdivisions: Ticks,
+    ) -> bool {
+        let ticks_per_beat = beat_type.to_ticks(subdivisions);
+        ((tick - self.tick) % ticks_per_beat) == 0
     }
 }
 

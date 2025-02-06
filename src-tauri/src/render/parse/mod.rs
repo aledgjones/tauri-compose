@@ -5,3 +5,4 @@ pub mod get_max_instrument_name_width;
 pub mod get_tone_offsets;
 pub mod get_vertical_spacing;
 pub mod get_vertical_spans;
+pub mod get_written_durations;

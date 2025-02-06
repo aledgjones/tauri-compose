@@ -93,7 +93,7 @@ impl Engraves {
         by_layout_type.insert(
             LayoutType::Part,
             Engrave {
-                space: 1.75,
+                space: 2.0,
 
                 frame_padding: PaddingMm::new(35.0, 25.0, 35.0, 25.0),
                 instrument_spacing: 8.0,

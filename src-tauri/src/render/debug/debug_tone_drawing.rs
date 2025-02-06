@@ -1,18 +1,18 @@
 use crate::render::parse::get_tone_offsets::ToneVerticalOffsets;
 use crate::render::parse::get_vertical_spacing::VerticalSpacing;
+use crate::render::parse::get_written_durations::NotationByTrack;
 use crate::renderer::Renderer;
 use crate::score::components::duration::NoteDuration;
 use crate::score::components::measurements::Point;
 use crate::score::components::text::{Align, Font, FontFamily, Justify};
 use crate::score::flows::Flow;
 use crate::score::instruments::Instrument;
-use crate::score::tracks::Tracks;
 
 pub fn debug_tone_drawing(
     origin: &Point,
     flow: &Flow,
     instruments: &Vec<&Instrument>,
-    tracks: &Tracks,
+    notation_tracks: &NotationByTrack,
     vertical_spacing: &VerticalSpacing,
     tone_offsets: &ToneVerticalOffsets,
     renderer: &mut Renderer,
@@ -24,24 +24,26 @@ pub fn debug_tone_drawing(
 
             let stave = &flow.staves.by_id[stave_id];
             for track_id in &stave.track_ids {
-                let track = &tracks.by_id[track_id];
+                let notation_track = &notation_tracks[track_id];
 
-                for (tone_id, tone) in &track.entries.by_id {
-                    let tone_offset = tone_offsets[tone_id] as f32 / 2.0;
+                for notation in notation_track.track.values() {
+                    for tone in &notation.tones {
+                        let tone_offset = tone_offsets[&tone.id] as f32 / 2.0;
 
-                    renderer.text(
-                        NoteDuration::Quarter.to_notehead_glyph(),
-                        &Font {
-                            family: FontFamily::Bravura,
-                            justify: Justify::Start,
-                            align: Align::Bottom,
-                            size: 4.0,
-                        },
-                        &Point {
-                            x: origin.x + (tone.tick() as f32 * 0.02),
-                            y: top + tone_offset,
-                        },
-                    );
+                        renderer.text(
+                            NoteDuration::Quarter.to_notehead_glyph(),
+                            &Font {
+                                family: FontFamily::Bravura,
+                                justify: Justify::Start,
+                                align: Align::Bottom,
+                                size: 4.0,
+                            },
+                            &Point {
+                                x: origin.x + (notation.tick as f32 * 0.02),
+                                y: top + tone_offset,
+                            },
+                        );
+                    }
                 }
             }
         }

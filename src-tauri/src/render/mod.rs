@@ -15,11 +15,13 @@ use draw::draw_staves::draw_staves;
 use draw::draw_sub_brackets::draw_sub_brackets;
 use draw::draw_systemic_barline::draw_systemic_barline;
 use draw::{draw_braces::draw_braces, draw_names::draw_names};
+use parse::get_bars::get_bars;
 use parse::get_max_brackets_width::get_max_brackets_width;
 use parse::get_max_instrument_name_width::get_max_instrument_name_width;
 use parse::get_tone_offsets::get_tone_offsets;
 use parse::get_vertical_spacing::get_vertical_spacing;
 use parse::get_vertical_spans::get_vertical_spans;
+use parse::get_written_durations::get_written_durations;
 use tauri::{ipc::Response, State};
 
 #[tauri::command(rename_all = "snake_case")]
@@ -47,7 +49,9 @@ pub fn render(
     let max_name_width = get_max_instrument_name_width(&instruments, engrave, &text_measurer);
     let max_bracket_width = get_max_brackets_width(&vertical_spacing, &vertical_spans, engrave);
 
+    let bars = get_bars(flow, &state.score.tracks);
     let tone_offsets = get_tone_offsets(flow, &instruments, &state.score.tracks);
+    let written_durations = get_written_durations(flow, &instruments, &state.score.tracks, &bars);
 
     // ** TODO: this is just fixed to 1 tick = 0.01 space. Update.
     let stave_width: f32 = flow.length as f32 * 0.02;
@@ -131,7 +135,7 @@ pub fn render(
         },
         flow,
         &instruments,
-        &state.score.tracks,
+        &written_durations,
         &vertical_spacing,
         &tone_offsets,
         &mut renderer,
