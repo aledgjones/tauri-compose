@@ -4,6 +4,7 @@ use crate::renderer::Renderer;
 use crate::score::components::measurements::Point;
 use crate::score::flows::Flow;
 use crate::score::instruments::Instrument;
+use skia_safe::Color;
 
 pub const STAVE_LINE_WIDTH: Space = 0.125;
 
@@ -27,6 +28,7 @@ pub fn draw_staves(
 
                     renderer.line(
                         STAVE_LINE_WIDTH,
+                        Color::BLACK,
                         vec![
                             Point {
                                 x: origin.x,

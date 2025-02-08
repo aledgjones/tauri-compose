@@ -135,6 +135,7 @@ pub fn render(
         },
         flow,
         &instruments,
+        &bars,
         &written_durations,
         &vertical_spacing,
         &tone_offsets,

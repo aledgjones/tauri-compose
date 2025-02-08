@@ -3,6 +3,7 @@ use crate::render::parse::get_vertical_spacing::VerticalSpacing;
 use crate::render::parse::get_vertical_spans::VerticalSpans;
 use crate::renderer::Renderer;
 use crate::score::components::measurements::Point;
+use skia_safe::Color;
 
 pub fn draw_sub_brackets(
     origin: &Point,
@@ -19,6 +20,7 @@ pub fn draw_sub_brackets(
 
         renderer.line(
             STAVE_LINE_WIDTH,
+            Color::BLACK,
             vec![
                 Point {
                     x: origin.x,

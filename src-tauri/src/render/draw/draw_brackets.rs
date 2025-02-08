@@ -5,6 +5,7 @@ use crate::renderer::Renderer;
 use crate::score::components::measurements::Point;
 use crate::score::components::text::{Align, Font, FontFamily, Justify};
 use crate::score::engraves::{BracketStyle, Engrave};
+use skia_safe::Color;
 
 pub fn draw_brackets(
     origin: &Point,
@@ -29,6 +30,7 @@ pub fn draw_brackets(
                 // think line
                 renderer.line(
                     0.5,
+                    Color::BLACK,
                     vec![
                         Point {
                             x: origin.x - 0.75,
@@ -45,6 +47,7 @@ pub fn draw_brackets(
                 // think line
                 renderer.line(
                     0.5,
+                    Color::BLACK,
                     vec![
                         Point {
                             x: origin.x - 0.75,
@@ -59,6 +62,7 @@ pub fn draw_brackets(
                 // thin lines
                 renderer.line(
                     STAVE_LINE_WIDTH,
+                    Color::BLACK,
                     vec![
                         Point {
                             x: origin.x - 1.0,
@@ -72,6 +76,7 @@ pub fn draw_brackets(
                 );
                 renderer.line(
                     STAVE_LINE_WIDTH,
+                    Color::BLACK,
                     vec![
                         Point {
                             x: origin.x - 1.0,
@@ -88,6 +93,7 @@ pub fn draw_brackets(
                 // think line
                 renderer.line(
                     0.5,
+                    Color::BLACK,
                     vec![
                         Point {
                             x: origin.x - 0.75,

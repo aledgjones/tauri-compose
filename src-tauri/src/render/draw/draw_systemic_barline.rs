@@ -3,6 +3,7 @@ use crate::render::parse::get_vertical_spacing::VerticalSpacing;
 use crate::renderer::Renderer;
 use crate::score::components::measurements::Point;
 use crate::score::engraves::Engrave;
+use skia_safe::Color;
 
 pub fn draw_systemic_barline(
     origin: &Point,
@@ -17,6 +18,7 @@ pub fn draw_systemic_barline(
 
         renderer.line(
             STAVE_LINE_WIDTH,
+            Color::BLACK,
             vec![
                 Point {
                     x: origin.x,

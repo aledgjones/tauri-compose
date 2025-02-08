@@ -32,11 +32,12 @@ impl Renderer {
         }
     }
 
-    pub fn line(&mut self, width: Space, points: Vec<Point>) {
+    pub fn line(&mut self, width: Space, color: Color, points: Vec<Point>) {
         let mut paint = Paint::default();
         paint.set_anti_alias(true);
         paint.set_stroke(true);
         paint.set_stroke_width(self.converter.spaces_to_px(width));
+        paint.set_color(color);
 
         let mut path = Path::new();
         let first = points[0].to_skia(&self.converter);
