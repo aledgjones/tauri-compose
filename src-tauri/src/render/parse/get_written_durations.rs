@@ -7,6 +7,7 @@ use crate::score::instruments::Instrument;
 use crate::score::tracks::Track;
 use crate::score::tracks::Tracks;
 use crate::utils::UniqueId;
+use std::collections::BTreeSet;
 
 use super::get_bars::Bars;
 use rustc_hash::FxHashMap;
@@ -49,7 +50,7 @@ impl NotationTrack {
     }
 
     pub fn split_at_events(&mut self, track: &Track, barlines: &Bars) {
-        let mut split_points: FxHashSet<Tick> = FxHashSet::default();
+        let mut split_points: BTreeSet<Tick> = BTreeSet::new();
 
         // barline events
         for tick in barlines.keys() {
@@ -70,22 +71,21 @@ impl NotationTrack {
             }
         }
 
-        let mut sorted_split_points: Vec<Tick> = split_points.iter().cloned().collect();
-        sorted_split_points.sort_unstable();
-
         let mut prev_split_point = self.length;
 
-        for &split_point in sorted_split_points.iter().rev() {
+        for &split_point in split_points.iter().rev() {
             let notation = Notation::new(split_point, prev_split_point - split_point);
             self.track.insert(split_point, notation);
             prev_split_point = split_point;
         }
 
         for entry in track.entries.by_id.values() {
-            let mut is_split = false;
-
             if let Entry::Tone(tone) = entry {
-                for tick in (tone.tick..tone.tick + tone.duration).rev() {
+                let mut is_split = false;
+                let start_tick = tone.tick;
+                let end_tick = tone.tick + tone.duration;
+
+                for tick in (start_tick..end_tick).rev() {
                     if let Some(notation) = self.track.get_mut(&tick) {
                         notation.tones.push(tone.clone());
                         if is_split {
