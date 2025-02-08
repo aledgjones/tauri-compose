@@ -1,6 +1,7 @@
 use crate::score::components::duration::Tick;
 use crate::score::components::duration::Ticks;
 use crate::score::entries::tone::Tone;
+use crate::score::entries::Entry;
 use crate::score::flows::Flow;
 use crate::score::instruments::Instrument;
 use crate::score::tracks::Track;
@@ -21,6 +22,15 @@ pub struct Notation {
 }
 
 impl Notation {
+    pub fn new(tick: Tick, duration: Ticks) -> Notation {
+        Notation {
+            tick,
+            tones: Vec::new(),
+            duration,
+            ties: FxHashSet::default(),
+        }
+    }
+
     pub fn is_rest(&self) -> bool {
         self.tones.is_empty()
     }
@@ -32,94 +42,59 @@ pub struct NotationTrack {
 }
 
 impl NotationTrack {
-    pub fn new(length: Ticks) -> Self {
-        let mut track = FxHashMap::default();
-        track.insert(
-            0,
-            Notation {
-                tick: 0,
-                tones: Vec::new(),
-                duration: length,
-                ties: FxHashSet::default(),
-            },
-        );
-        Self { length, track }
+    pub fn new(length: Ticks) -> NotationTrack {
+        let track = FxHashMap::default();
+
+        NotationTrack { length, track }
     }
 
-    pub fn get_previous_notation(&self, at: Tick) -> Option<(Tick, &Notation)> {
-        for tick in (0..at + 1).rev() {
-            match self.track.get(&tick) {
-                Some(notation) => return Some((tick, notation)),
-                None => continue,
+    pub fn split_at_events(&mut self, track: &Track, barlines: &Bars) {
+        let mut split_points: FxHashSet<Tick> = FxHashSet::default();
+
+        // barline events
+        for tick in barlines.keys() {
+            split_points.insert(*tick);
+        }
+
+        // tone events
+        for entry in track.entries.by_id.values() {
+            match entry {
+                Entry::Tone(tone) => {
+                    split_points.insert(tone.tick);
+                    split_points.insert(tone.tick + tone.duration);
+                }
+                Entry::Barline(barline) => {
+                    split_points.insert(barline.tick);
+                }
+                _ => {}
             }
         }
 
-        None
-    }
+        let mut sorted_split_points: Vec<Tick> = split_points.iter().cloned().collect();
+        sorted_split_points.sort_unstable();
 
-    pub fn insert(&mut self, tick: Tick, notation: Notation) {
-        self.track.insert(tick, notation);
-    }
+        let mut prev_split_point = self.length;
 
-    pub fn split(&mut self, split_at: Tick) {
-        if let Some((event_at, notation)) = self.get_previous_notation(split_at) {
-            // only split if:
-            // 1. split index not already the start of an event.
-            // 2. split index is not the end of an event (ie; end of flow);
-            if event_at != split_at && split_at != event_at + notation.duration {
-                let tones = notation.tones.clone();
-                let ties = notation.ties.clone();
-                let duration = notation.duration;
-
-                self.insert(
-                    event_at,
-                    Notation {
-                        tick: event_at,
-                        tones: tones.clone(),
-                        duration: split_at - event_at,
-                        ties: tones.iter().map(|tone| tone.id).collect(),
-                    },
-                );
-
-                self.insert(
-                    split_at,
-                    Notation {
-                        tick: split_at,
-                        tones,
-                        duration: event_at + duration - split_at,
-                        ties,
-                    },
-                );
-            }
+        for &split_point in sorted_split_points.iter().rev() {
+            let notation = Notation::new(split_point, prev_split_point - split_point);
+            self.track.insert(split_point, notation);
+            prev_split_point = split_point;
         }
-    }
 
-    pub fn split_at_tone_events(&mut self, track: &Track) {
-        for tick in 0..self.length {
-            let tones = track.get_tones_at_tick(&tick);
-            if !tones.is_empty() {
-                self.split(tick);
+        for entry in track.entries.by_id.values() {
+            let mut is_split = false;
 
-                for tone in tones {
-                    self.split(tick + tone.duration);
-                    let mut is_split = false;
-                    for inner_tick in (tick..tick + tone.duration).rev() {
-                        if let Some(notation) = self.track.get_mut(&inner_tick) {
-                            notation.tones.push(tone.clone());
-                            if is_split {
-                                notation.ties.insert(tone.id);
-                            }
-                            is_split = true
+            if let Entry::Tone(tone) = entry {
+                for tick in (tone.tick..tone.tick + tone.duration).rev() {
+                    if let Some(notation) = self.track.get_mut(&tick) {
+                        notation.tones.push(tone.clone());
+                        if is_split {
+                            notation.ties.insert(tone.id);
                         }
+                        is_split = true
                     }
                 }
             }
-        }
-    }
-
-    pub fn split_at_measures(&mut self, barlines: &Bars) {
-        for tick in barlines.keys() {
-            self.split(*tick);
         }
     }
 }
@@ -139,8 +114,7 @@ pub fn get_written_durations(
             for track_id in &stave.track_ids {
                 let track = &tracks.by_id[track_id];
                 let mut notation = NotationTrack::new(flow.length);
-                notation.split_at_tone_events(track);
-                notation.split_at_measures(bars);
+                notation.split_at_events(track, bars);
                 entries.insert(track.id, notation);
             }
         }

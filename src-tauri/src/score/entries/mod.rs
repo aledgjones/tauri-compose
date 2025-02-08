@@ -1,3 +1,4 @@
+pub mod barline;
 pub mod clef;
 pub mod key_signature;
 pub mod time_signature;
@@ -5,6 +6,7 @@ pub mod tone;
 
 use super::components::duration::Tick;
 use crate::utils::UniqueId;
+use barline::Barline;
 use clef::Clef;
 use key_signature::KeySignature;
 use rustc_hash::FxHashMap;
@@ -30,30 +32,33 @@ impl Entries {
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum Entry {
+    Barline(Barline),
     Clef(Clef),
+    KeySignature(KeySignature),
     TimeSignature(TimeSignature),
     Tone(Tone),
-    KeySignature(KeySignature),
 }
 
 impl Entry {
     /// Get the entries key without having to manually unwrap the entry
     pub fn id(&self) -> UniqueId {
         match self {
+            Entry::Barline(barline) => barline.id,
             Entry::Clef(clef) => clef.id,
+            Entry::KeySignature(key_signature) => key_signature.id,
             Entry::TimeSignature(time_signature) => time_signature.id,
             Entry::Tone(tone) => tone.id,
-            Entry::KeySignature(key_signature) => key_signature.id,
         }
     }
 
     /// Get the entries tick without having to manually unwrap the entry
     pub fn tick(&self) -> Tick {
         match self {
+            Entry::Barline(barline) => barline.tick,
             Entry::Clef(clef) => clef.tick,
+            Entry::KeySignature(key_signature) => key_signature.tick,
             Entry::TimeSignature(time_signature) => time_signature.tick,
             Entry::Tone(tone) => tone.tick,
-            Entry::KeySignature(key_signature) => key_signature.tick,
         }
     }
 
@@ -63,10 +68,11 @@ impl Entry {
     /// Track interface.
     pub fn set_tick(&mut self, tick: Tick) {
         match self {
+            Entry::Barline(barline) => barline.tick = tick,
             Entry::Clef(clef) => clef.tick = tick,
+            Entry::KeySignature(key_signature) => key_signature.tick = tick,
             Entry::TimeSignature(time_signature) => time_signature.tick = tick,
             Entry::Tone(tone) => tone.tick = tick,
-            Entry::KeySignature(key_signature) => key_signature.tick = tick,
         }
     }
 }
