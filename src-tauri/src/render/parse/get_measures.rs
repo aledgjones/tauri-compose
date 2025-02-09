@@ -1,14 +1,13 @@
-use rustc_hash::FxHashMap;
-
 use crate::score::components::duration::Tick;
 use crate::score::entries::time_signature::TimeSignature;
 use crate::score::flows::Flow;
 use crate::score::tracks::Tracks;
+use rustc_hash::FxHashMap;
 
-pub type Bars = FxHashMap<Tick, TimeSignature>;
+pub type Measures = FxHashMap<Tick, TimeSignature>;
 
-pub fn get_bars(flow: &Flow, tracks: &Tracks) -> Bars {
-    let mut output: Bars = FxHashMap::default();
+pub fn get_measures(flow: &Flow, tracks: &Tracks) -> Measures {
+    let mut output: Measures = FxHashMap::default();
     let mut current_tick = 0;
     let mut current_time_signature = TimeSignature::default();
 

@@ -1,7 +1,8 @@
 use skia_safe::Color;
 
 use crate::render::draw::draw_staves::STAVE_LINE_WIDTH;
-use crate::render::parse::get_bars::Bars;
+use crate::render::parse::get_horizontal_spacing::HorizontalSpacing;
+use crate::render::parse::get_measures::Measures;
 use crate::render::parse::get_tone_offsets::ToneVerticalOffsets;
 use crate::render::parse::get_vertical_spacing::VerticalSpacing;
 use crate::render::parse::get_written_durations::NotationByTrack;
@@ -16,9 +17,10 @@ pub fn debug_tone_drawing(
     origin: &Point,
     flow: &Flow,
     instruments: &Vec<&Instrument>,
-    bars: &Bars,
+    bars: &Measures,
     notation_tracks: &NotationByTrack,
     vertical_spacing: &VerticalSpacing,
+    horizontal_spacing: &HorizontalSpacing,
     tone_offsets: &ToneVerticalOffsets,
     renderer: &mut Renderer,
 ) {
@@ -26,23 +28,6 @@ pub fn debug_tone_drawing(
         for stave_id in &instrument.stave_ids {
             let stave_spacing = &vertical_spacing.staves[stave_id];
             let top = origin.y + stave_spacing.y;
-
-            for tick in bars.keys() {
-                renderer.line(
-                    STAVE_LINE_WIDTH,
-                    Color::BLACK,
-                    vec![
-                        Point {
-                            x: origin.x + (*tick as f32 * 0.02),
-                            y: top - 2.0,
-                        },
-                        Point {
-                            x: origin.x + (*tick as f32 * 0.02),
-                            y: top + 2.0,
-                        },
-                    ],
-                );
-            }
 
             let stave = &flow.staves.by_id[stave_id];
             for track_id in &stave.track_ids {

@@ -1,5 +1,5 @@
-use crate::score::components::duration::Tick;
 use crate::score::components::pitch::Pitch;
+use crate::score::components::{duration::Tick, measurements::BoundingBox};
 use crate::score::tracks::Track;
 use crate::utils::UniqueId;
 use serde::{Deserialize, Serialize};
@@ -34,6 +34,19 @@ impl Clef {
             draw_as,
             pitch,
             offset,
+        }
+    }
+
+    pub fn metrics(&self) -> BoundingBox {
+        match self.draw_as {
+            ClefDrawType::Hidden => BoundingBox {
+                width: 0.0,
+                height: 4.0,
+            },
+            _ => BoundingBox {
+                width: 2.8,
+                height: 4.0,
+            },
         }
     }
 

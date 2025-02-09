@@ -171,6 +171,12 @@ impl KeySignature {
     }
 }
 
+impl Default for KeySignature {
+    fn default() -> Self {
+        KeySignature::new(0, 0, KeySignatureMode::Major, 0)
+    }
+}
+
 impl Track {
     /// Returns the key signature entry at a given tick if it exists
     pub fn get_key_signature_at_tick(&self, at: &Tick) -> Option<&KeySignature> {

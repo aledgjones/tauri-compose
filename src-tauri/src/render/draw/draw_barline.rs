@@ -1,0 +1,279 @@
+// fn draw_barline_dots(
+//     x: Space,
+//     y: Space,
+//     staves: &[&Stave],
+//     vertical_spacing: &VerticalSpacing,
+//     converter: &Converter,
+//     instructions: &mut Vec<Instruction>,
+// ) {
+//     for stave in staves {
+//         let top = y + vertical_spacing.staves[&stave.key].y;
+//         instructions.push(Instruction::Circle {
+//             color: String::from("#000"),
+//             radius: converter.spaces_to_px(0.25),
+//             point: Point {
+//                 x: converter.spaces_to_px(x),
+//                 y: converter.spaces_to_px(top - 0.5),
+//             },
+//         });
+//         instructions.push(Instruction::Circle {
+//             color: String::from("#000"),
+//             radius: converter.spaces_to_px(0.25),
+//             point: Point {
+//                 x: converter.spaces_to_px(x),
+//                 y: converter.spaces_to_px(top + 0.5),
+//             },
+//         });
+//     }
+// }
+
+use super::draw_staves::STAVE_LINE_WIDTH;
+use crate::render::parse::get_vertical_spacing::VerticalSpacing;
+use crate::render::parse::get_vertical_spans::VerticalSpans;
+use crate::renderer::Renderer;
+use crate::score::components::measurements::Point;
+use crate::score::entries::barline::BarlineDrawType;
+use skia_safe::Color;
+
+pub fn draw_barline(
+    origin: &Point,
+    draw_type: &BarlineDrawType,
+    vertical_spacing: &VerticalSpacing,
+    vertical_spans: &VerticalSpans,
+    renderer: &mut Renderer,
+) {
+    let tweak_for_stave_line_width = STAVE_LINE_WIDTH / 2.0;
+
+    for span in &vertical_spans.barlines {
+        let start = &vertical_spacing.instruments[&span.start];
+        let stop = &vertical_spacing.instruments[&span.stop];
+
+        let top = origin.y + start.y - tweak_for_stave_line_width;
+        let bottom = origin.y + stop.y + stop.height + tweak_for_stave_line_width;
+
+        match draw_type {
+            BarlineDrawType::Single => {
+                renderer.line(
+                    STAVE_LINE_WIDTH,
+                    Color::BLACK,
+                    vec![
+                        Point {
+                            x: origin.x,
+                            y: top,
+                        },
+                        Point {
+                            x: origin.x,
+                            y: bottom,
+                        },
+                    ],
+                );
+            }
+            BarlineDrawType::Double => {
+                renderer.line(
+                    STAVE_LINE_WIDTH,
+                    Color::BLACK,
+                    vec![
+                        Point {
+                            x: origin.x,
+                            y: top,
+                        },
+                        Point {
+                            x: origin.x,
+                            y: bottom,
+                        },
+                    ],
+                );
+                renderer.line(
+                    STAVE_LINE_WIDTH,
+                    Color::BLACK,
+                    vec![
+                        Point {
+                            x: origin.x + 0.5,
+                            y: top,
+                        },
+                        Point {
+                            x: origin.x + 0.5,
+                            y: bottom,
+                        },
+                    ],
+                );
+            }
+            _ => {} // BarlineDrawType::EndRepeat => {
+                    //     instructions.push(Instruction::Line {
+                    //         color: String::from("#000"),
+                    //         width: converter.spaces_to_px(STAVE_LINE_WIDTH),
+                    //         points: vec![
+                    //             Point {
+                    //                 x: converter.spaces_to_px(x + 1.0),
+                    //                 y: converter.spaces_to_px(top),
+                    //             },
+                    //             Point {
+                    //                 x: converter.spaces_to_px(x + 1.0),
+                    //                 y: converter.spaces_to_px(bottom),
+                    //             },
+                    //         ],
+                    //     });
+                    //     instructions.push(Instruction::Line {
+                    //         color: String::from("#000"),
+                    //         width: converter.spaces_to_px(STAVE_LINE_WIDTH * 4.0),
+                    //         points: vec![
+                    //             Point {
+                    //                 x: converter.spaces_to_px(x + 1.75),
+                    //                 y: converter.spaces_to_px(top),
+                    //             },
+                    //             Point {
+                    //                 x: converter.spaces_to_px(x + 1.75),
+                    //                 y: converter.spaces_to_px(bottom),
+                    //             },
+                    //         ],
+                    //     });
+                    // }
+                    // BarlineDrawType::EndStartRepeat => {
+                    //     instructions.push(Instruction::Line {
+                    //         color: String::from("#000"),
+                    //         width: converter.spaces_to_px(STAVE_LINE_WIDTH),
+                    //         points: vec![
+                    //             Point {
+                    //                 x: converter.spaces_to_px(x + 1.0),
+                    //                 y: converter.spaces_to_px(top),
+                    //             },
+                    //             Point {
+                    //                 x: converter.spaces_to_px(x + 1.0),
+                    //                 y: converter.spaces_to_px(bottom),
+                    //             },
+                    //         ],
+                    //     });
+                    //     instructions.push(Instruction::Line {
+                    //         color: String::from("#000"),
+                    //         width: converter.spaces_to_px(STAVE_LINE_WIDTH * 4.0),
+                    //         points: vec![
+                    //             Point {
+                    //                 x: converter.spaces_to_px(x + 1.75),
+                    //                 y: converter.spaces_to_px(top),
+                    //             },
+                    //             Point {
+                    //                 x: converter.spaces_to_px(x + 1.75),
+                    //                 y: converter.spaces_to_px(bottom),
+                    //             },
+                    //         ],
+                    //     });
+                    //     instructions.push(Instruction::Line {
+                    //         color: String::from("#000"),
+                    //         width: converter.spaces_to_px(STAVE_LINE_WIDTH),
+                    //         points: vec![
+                    //             Point {
+                    //                 x: converter.spaces_to_px(x + 2.5),
+                    //                 y: converter.spaces_to_px(top),
+                    //             },
+                    //             Point {
+                    //                 x: converter.spaces_to_px(x + 2.5),
+                    //                 y: converter.spaces_to_px(bottom),
+                    //             },
+                    //         ],
+                    //     });
+                    // }
+                    // BarlineDrawType::StartRepeat => {
+                    //     instructions.push(Instruction::Line {
+                    //         color: String::from("#000"),
+                    //         width: converter.spaces_to_px(STAVE_LINE_WIDTH * 4.0),
+                    //         points: vec![
+                    //             Point {
+                    //                 x: converter.spaces_to_px(x + 0.25),
+                    //                 y: converter.spaces_to_px(top),
+                    //             },
+                    //             Point {
+                    //                 x: converter.spaces_to_px(x + 0.25),
+                    //                 y: converter.spaces_to_px(bottom),
+                    //             },
+                    //         ],
+                    //     });
+                    //     instructions.push(Instruction::Line {
+                    //         color: String::from("#000"),
+                    //         width: converter.spaces_to_px(STAVE_LINE_WIDTH),
+                    //         points: vec![
+                    //             Point {
+                    //                 x: converter.spaces_to_px(x + 1.0),
+                    //                 y: converter.spaces_to_px(top),
+                    //             },
+                    //             Point {
+                    //                 x: converter.spaces_to_px(x + 1.0),
+                    //                 y: converter.spaces_to_px(bottom),
+                    //             },
+                    //         ],
+                    //     });
+                    // }
+                    // BarlineDrawType::Final => {
+                    //     instructions.push(Instruction::Line {
+                    //         color: String::from("#000"),
+                    //         width: converter.spaces_to_px(STAVE_LINE_WIDTH),
+                    //         points: vec![
+                    //             Point {
+                    //                 x: converter.spaces_to_px(x),
+                    //                 y: converter.spaces_to_px(top),
+                    //             },
+                    //             Point {
+                    //                 x: converter.spaces_to_px(x),
+                    //                 y: converter.spaces_to_px(bottom),
+                    //             },
+                    //         ],
+                    //     });
+                    //     instructions.push(Instruction::Line {
+                    //         color: String::from("#000"),
+                    //         width: converter.spaces_to_px(STAVE_LINE_WIDTH * 4.0),
+                    //         points: vec![
+                    //             Point {
+                    //                 x: converter.spaces_to_px(x + 0.75),
+                    //                 y: converter.spaces_to_px(top),
+                    //             },
+                    //             Point {
+                    //                 x: converter.spaces_to_px(x + 0.75),
+                    //                 y: converter.spaces_to_px(bottom),
+                    //             },
+                    //         ],
+                    //     });
+                    // }
+        }
+    }
+
+    // match draw_type {
+    //     BarlineDrawType::EndRepeat => {
+    //         draw_barline_dots(
+    //             x + 0.25,
+    //             y,
+    //             staves,
+    //             vertical_spacing,
+    //             converter,
+    //             instructions,
+    //         );
+    //     }
+    //     BarlineDrawType::EndStartRepeat => {
+    //         draw_barline_dots(
+    //             x + 0.25,
+    //             y,
+    //             staves,
+    //             vertical_spacing,
+    //             converter,
+    //             instructions,
+    //         );
+    //         draw_barline_dots(
+    //             x + 3.25,
+    //             y,
+    //             staves,
+    //             vertical_spacing,
+    //             converter,
+    //             instructions,
+    //         );
+    //     }
+    //     BarlineDrawType::StartRepeat => {
+    //         draw_barline_dots(
+    //             x + 1.75,
+    //             y,
+    //             staves,
+    //             vertical_spacing,
+    //             converter,
+    //             instructions,
+    //         );
+    //     }
+    //     _ => (),
+    // }
+}

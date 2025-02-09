@@ -1,3 +1,4 @@
+pub mod draw_barline;
 pub mod draw_braces;
 pub mod draw_brackets;
 pub mod draw_names;

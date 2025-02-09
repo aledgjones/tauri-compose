@@ -9,7 +9,7 @@ use crate::score::tracks::Tracks;
 use crate::utils::UniqueId;
 use std::collections::BTreeSet;
 
-use super::get_bars::Bars;
+use super::get_measures::Measures;
 use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
 
@@ -49,15 +49,15 @@ impl NotationTrack {
         NotationTrack { length, track }
     }
 
-    pub fn split_at_events(&mut self, track: &Track, barlines: &Bars) {
+    pub fn split_at_events(&mut self, track: &Track, measures: &Measures) {
         let mut split_points: BTreeSet<Tick> = BTreeSet::new();
 
-        // barline events
-        for tick in barlines.keys() {
+        // measure dictated barline events
+        for tick in measures.keys() {
             split_points.insert(*tick);
         }
 
-        // tone events
+        // tone / explicit barline events
         for entry in track.entries.by_id.values() {
             match entry {
                 Entry::Tone(tone) => {
@@ -103,7 +103,7 @@ pub fn get_written_durations(
     flow: &Flow,
     instruments: &Vec<&Instrument>,
     tracks: &Tracks,
-    bars: &Bars,
+    measures: &Measures,
 ) -> NotationByTrack {
     let mut entries = NotationByTrack::default();
 
@@ -114,7 +114,7 @@ pub fn get_written_durations(
             for track_id in &stave.track_ids {
                 let track = &tracks.by_id[track_id];
                 let mut notation = NotationTrack::new(flow.length);
-                notation.split_at_events(track, bars);
+                notation.split_at_events(track, measures);
                 entries.insert(track.id, notation);
             }
         }
