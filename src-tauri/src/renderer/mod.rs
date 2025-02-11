@@ -113,6 +113,18 @@ impl Renderer {
         );
     }
 
+    pub fn circle(&mut self, radius: Space, color: Color, origin: Point) {
+        let mut paint = Paint::default();
+        paint.set_anti_alias(true);
+        paint.set_color(color);
+
+        self.surface.canvas().draw_circle(
+            origin.to_skia(&self.converter),
+            self.converter.spaces_to_px(radius),
+            &paint,
+        );
+    }
+
     pub fn data(&mut self) -> Vec<u8> {
         let image = self.surface.image_snapshot();
         let mut context = self.surface.direct_context();

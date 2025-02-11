@@ -1,32 +1,3 @@
-// fn draw_barline_dots(
-//     x: Space,
-//     y: Space,
-//     staves: &[&Stave],
-//     vertical_spacing: &VerticalSpacing,
-//     converter: &Converter,
-//     instructions: &mut Vec<Instruction>,
-// ) {
-//     for stave in staves {
-//         let top = y + vertical_spacing.staves[&stave.key].y;
-//         instructions.push(Instruction::Circle {
-//             color: String::from("#000"),
-//             radius: converter.spaces_to_px(0.25),
-//             point: Point {
-//                 x: converter.spaces_to_px(x),
-//                 y: converter.spaces_to_px(top - 0.5),
-//             },
-//         });
-//         instructions.push(Instruction::Circle {
-//             color: String::from("#000"),
-//             radius: converter.spaces_to_px(0.25),
-//             point: Point {
-//                 x: converter.spaces_to_px(x),
-//                 y: converter.spaces_to_px(top + 0.5),
-//             },
-//         });
-//     }
-// }
-
 use super::draw_staves::STAVE_LINE_WIDTH;
 use crate::render::parse::get_vertical_spacing::VerticalSpacing;
 use crate::render::parse::get_vertical_spans::VerticalSpans;
@@ -217,8 +188,6 @@ pub fn draw_barline(
                         },
                     ],
                 );
-
-                // DRAW DOTS
             }
             BarlineDrawType::EndRepeat => {
                 renderer.line(
@@ -249,8 +218,6 @@ pub fn draw_barline(
                         },
                     ],
                 );
-
-                // DRAW DOTS
             }
             BarlineDrawType::EndStartRepeat => {
                 renderer.line(
@@ -295,51 +262,87 @@ pub fn draw_barline(
                         },
                     ],
                 );
-
-                // DRAW DOTS
             }
         }
     }
 
-    // match draw_type {
-    //     BarlineDrawType::EndRepeat => {
-    //         draw_barline_dots(
-    //             x + 0.25,
-    //             y,
-    //             staves,
-    //             vertical_spacing,
-    //             converter,
-    //             instructions,
-    //         );
-    //     }
-    //     BarlineDrawType::EndStartRepeat => {
-    //         draw_barline_dots(
-    //             x + 0.25,
-    //             y,
-    //             staves,
-    //             vertical_spacing,
-    //             converter,
-    //             instructions,
-    //         );
-    //         draw_barline_dots(
-    //             x + 3.25,
-    //             y,
-    //             staves,
-    //             vertical_spacing,
-    //             converter,
-    //             instructions,
-    //         );
-    //     }
-    //     BarlineDrawType::StartRepeat => {
-    //         draw_barline_dots(
-    //             x + 1.75,
-    //             y,
-    //             staves,
-    //             vertical_spacing,
-    //             converter,
-    //             instructions,
-    //         );
-    //     }
-    //     _ => (),
-    // }
+    match draw_type {
+        BarlineDrawType::EndRepeat => {
+            for position in vertical_spacing.staves.values() {
+                renderer.circle(
+                    0.25,
+                    Color::BLACK,
+                    Point {
+                        x: origin.x + 0.25,
+                        y: origin.y + position.y - 0.5,
+                    },
+                );
+                renderer.circle(
+                    0.25,
+                    Color::BLACK,
+                    Point {
+                        x: origin.x + 0.25,
+                        y: origin.y + position.y + 0.5,
+                    },
+                );
+            }
+        }
+        BarlineDrawType::EndStartRepeat => {
+            for position in vertical_spacing.staves.values() {
+                renderer.circle(
+                    0.25,
+                    Color::BLACK,
+                    Point {
+                        x: origin.x + 0.25,
+                        y: origin.y + position.y - 0.5,
+                    },
+                );
+                renderer.circle(
+                    0.25,
+                    Color::BLACK,
+                    Point {
+                        x: origin.x + 0.25,
+                        y: origin.y + position.y + 0.5,
+                    },
+                );
+                renderer.circle(
+                    0.25,
+                    Color::BLACK,
+                    Point {
+                        x: origin.x + 3.25,
+                        y: origin.y + position.y - 0.5,
+                    },
+                );
+                renderer.circle(
+                    0.25,
+                    Color::BLACK,
+                    Point {
+                        x: origin.x + 3.25,
+                        y: origin.y + position.y + 0.5,
+                    },
+                );
+            }
+        }
+        BarlineDrawType::StartRepeat => {
+            for position in vertical_spacing.staves.values() {
+                renderer.circle(
+                    0.25,
+                    Color::BLACK,
+                    Point {
+                        x: origin.x + 1.75,
+                        y: origin.y + position.y - 0.5,
+                    },
+                );
+                renderer.circle(
+                    0.25,
+                    Color::BLACK,
+                    Point {
+                        x: origin.x + 1.75,
+                        y: origin.y + position.y + 0.5,
+                    },
+                );
+            }
+        }
+        _ => (),
+    }
 }
