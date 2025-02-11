@@ -142,140 +142,162 @@ pub fn draw_barline(
                     ],
                 );
             }
-            _ => {} // BarlineDrawType::EndRepeat => {
-                    //     instructions.push(Instruction::Line {
-                    //         color: String::from("#000"),
-                    //         width: converter.spaces_to_px(STAVE_LINE_WIDTH),
-                    //         points: vec![
-                    //             Point {
-                    //                 x: converter.spaces_to_px(x + 1.0),
-                    //                 y: converter.spaces_to_px(top),
-                    //             },
-                    //             Point {
-                    //                 x: converter.spaces_to_px(x + 1.0),
-                    //                 y: converter.spaces_to_px(bottom),
-                    //             },
-                    //         ],
-                    //     });
-                    //     instructions.push(Instruction::Line {
-                    //         color: String::from("#000"),
-                    //         width: converter.spaces_to_px(STAVE_LINE_WIDTH * 4.0),
-                    //         points: vec![
-                    //             Point {
-                    //                 x: converter.spaces_to_px(x + 1.75),
-                    //                 y: converter.spaces_to_px(top),
-                    //             },
-                    //             Point {
-                    //                 x: converter.spaces_to_px(x + 1.75),
-                    //                 y: converter.spaces_to_px(bottom),
-                    //             },
-                    //         ],
-                    //     });
-                    // }
-                    // BarlineDrawType::EndStartRepeat => {
-                    //     instructions.push(Instruction::Line {
-                    //         color: String::from("#000"),
-                    //         width: converter.spaces_to_px(STAVE_LINE_WIDTH),
-                    //         points: vec![
-                    //             Point {
-                    //                 x: converter.spaces_to_px(x + 1.0),
-                    //                 y: converter.spaces_to_px(top),
-                    //             },
-                    //             Point {
-                    //                 x: converter.spaces_to_px(x + 1.0),
-                    //                 y: converter.spaces_to_px(bottom),
-                    //             },
-                    //         ],
-                    //     });
-                    //     instructions.push(Instruction::Line {
-                    //         color: String::from("#000"),
-                    //         width: converter.spaces_to_px(STAVE_LINE_WIDTH * 4.0),
-                    //         points: vec![
-                    //             Point {
-                    //                 x: converter.spaces_to_px(x + 1.75),
-                    //                 y: converter.spaces_to_px(top),
-                    //             },
-                    //             Point {
-                    //                 x: converter.spaces_to_px(x + 1.75),
-                    //                 y: converter.spaces_to_px(bottom),
-                    //             },
-                    //         ],
-                    //     });
-                    //     instructions.push(Instruction::Line {
-                    //         color: String::from("#000"),
-                    //         width: converter.spaces_to_px(STAVE_LINE_WIDTH),
-                    //         points: vec![
-                    //             Point {
-                    //                 x: converter.spaces_to_px(x + 2.5),
-                    //                 y: converter.spaces_to_px(top),
-                    //             },
-                    //             Point {
-                    //                 x: converter.spaces_to_px(x + 2.5),
-                    //                 y: converter.spaces_to_px(bottom),
-                    //             },
-                    //         ],
-                    //     });
-                    // }
-                    // BarlineDrawType::StartRepeat => {
-                    //     instructions.push(Instruction::Line {
-                    //         color: String::from("#000"),
-                    //         width: converter.spaces_to_px(STAVE_LINE_WIDTH * 4.0),
-                    //         points: vec![
-                    //             Point {
-                    //                 x: converter.spaces_to_px(x + 0.25),
-                    //                 y: converter.spaces_to_px(top),
-                    //             },
-                    //             Point {
-                    //                 x: converter.spaces_to_px(x + 0.25),
-                    //                 y: converter.spaces_to_px(bottom),
-                    //             },
-                    //         ],
-                    //     });
-                    //     instructions.push(Instruction::Line {
-                    //         color: String::from("#000"),
-                    //         width: converter.spaces_to_px(STAVE_LINE_WIDTH),
-                    //         points: vec![
-                    //             Point {
-                    //                 x: converter.spaces_to_px(x + 1.0),
-                    //                 y: converter.spaces_to_px(top),
-                    //             },
-                    //             Point {
-                    //                 x: converter.spaces_to_px(x + 1.0),
-                    //                 y: converter.spaces_to_px(bottom),
-                    //             },
-                    //         ],
-                    //     });
-                    // }
-                    // BarlineDrawType::Final => {
-                    //     instructions.push(Instruction::Line {
-                    //         color: String::from("#000"),
-                    //         width: converter.spaces_to_px(STAVE_LINE_WIDTH),
-                    //         points: vec![
-                    //             Point {
-                    //                 x: converter.spaces_to_px(x),
-                    //                 y: converter.spaces_to_px(top),
-                    //             },
-                    //             Point {
-                    //                 x: converter.spaces_to_px(x),
-                    //                 y: converter.spaces_to_px(bottom),
-                    //             },
-                    //         ],
-                    //     });
-                    //     instructions.push(Instruction::Line {
-                    //         color: String::from("#000"),
-                    //         width: converter.spaces_to_px(STAVE_LINE_WIDTH * 4.0),
-                    //         points: vec![
-                    //             Point {
-                    //                 x: converter.spaces_to_px(x + 0.75),
-                    //                 y: converter.spaces_to_px(top),
-                    //             },
-                    //             Point {
-                    //                 x: converter.spaces_to_px(x + 0.75),
-                    //                 y: converter.spaces_to_px(bottom),
-                    //             },
-                    //         ],
-                    //     });
-                    // }
+            BarlineDrawType::Dashed => {
+                renderer.dashed_line(
+                    STAVE_LINE_WIDTH,
+                    Color::BLACK,
+                    vec![
+                        Point {
+                            x: origin.x,
+                            y: top,
+                        },
+                        Point {
+                            x: origin.x,
+                            y: bottom,
+                        },
+                    ],
+                );
+            }
+            BarlineDrawType::Final => {
+                renderer.line(
+                    STAVE_LINE_WIDTH,
+                    Color::BLACK,
+                    vec![
+                        Point {
+                            x: origin.x,
+                            y: top,
+                        },
+                        Point {
+                            x: origin.x,
+                            y: bottom,
+                        },
+                    ],
+                );
+                renderer.line(
+                    STAVE_LINE_WIDTH * 4.0,
+                    Color::BLACK,
+                    vec![
+                        Point {
+                            x: origin.x + 0.75,
+                            y: top,
+                        },
+                        Point {
+                            x: origin.x + 0.75,
+                            y: bottom,
+                        },
+                    ],
+                );
+            }
+            BarlineDrawType::StartRepeat => {
+                renderer.line(
+                    STAVE_LINE_WIDTH * 4.0,
+                    Color::BLACK,
+                    vec![
+                        Point {
+                            x: origin.x + 0.25,
+                            y: top,
+                        },
+                        Point {
+                            x: origin.x + 0.25,
+                            y: bottom,
+                        },
+                    ],
+                );
+                renderer.line(
+                    STAVE_LINE_WIDTH,
+                    Color::BLACK,
+                    vec![
+                        Point {
+                            x: origin.x + 1.0,
+                            y: top,
+                        },
+                        Point {
+                            x: origin.x + 1.0,
+                            y: bottom,
+                        },
+                    ],
+                );
+
+                // DRAW DOTS
+            }
+            BarlineDrawType::EndRepeat => {
+                renderer.line(
+                    STAVE_LINE_WIDTH,
+                    Color::BLACK,
+                    vec![
+                        Point {
+                            x: origin.x + 1.0,
+                            y: top,
+                        },
+                        Point {
+                            x: origin.x + 1.0,
+                            y: bottom,
+                        },
+                    ],
+                );
+                renderer.line(
+                    STAVE_LINE_WIDTH * 4.0,
+                    Color::BLACK,
+                    vec![
+                        Point {
+                            x: origin.x + 1.75,
+                            y: top,
+                        },
+                        Point {
+                            x: origin.x + 1.75,
+                            y: bottom,
+                        },
+                    ],
+                );
+
+                // DRAW DOTS
+            }
+            BarlineDrawType::EndStartRepeat => {
+                renderer.line(
+                    STAVE_LINE_WIDTH,
+                    Color::BLACK,
+                    vec![
+                        Point {
+                            x: origin.x + 1.0,
+                            y: top,
+                        },
+                        Point {
+                            x: origin.x + 1.0,
+                            y: bottom,
+                        },
+                    ],
+                );
+                renderer.line(
+                    STAVE_LINE_WIDTH * 4.0,
+                    Color::BLACK,
+                    vec![
+                        Point {
+                            x: origin.x + 1.75,
+                            y: top,
+                        },
+                        Point {
+                            x: origin.x + 1.75,
+                            y: bottom,
+                        },
+                    ],
+                );
+                renderer.line(
+                    STAVE_LINE_WIDTH,
+                    Color::BLACK,
+                    vec![
+                        Point {
+                            x: origin.x + 2.5,
+                            y: top,
+                        },
+                        Point {
+                            x: origin.x + 2.5,
+                            y: bottom,
+                        },
+                    ],
+                );
+
+                // DRAW DOTS
+            }
         }
     }
 

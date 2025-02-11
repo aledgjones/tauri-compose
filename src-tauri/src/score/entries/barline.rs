@@ -100,7 +100,7 @@ pub fn score_entries_barline_create(
     flow_id: UniqueId,
     tick: Tick,
     barline_draw_type: BarlineDrawType,
-) {
+) -> UniqueId {
     let mut state = state.lock().unwrap();
     let barline_id = state.generate_id();
 
@@ -116,6 +116,29 @@ pub fn score_entries_barline_create(
     // insert the new time signature
     let new = Barline::new(barline_id, tick, barline_draw_type);
     master.insert_entry(Entry::Barline(new));
+
+    state.emit(&app);
+
+    barline_id
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn score_entries_barline_clear(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    flow_id: UniqueId,
+    tick: Tick,
+) {
+    let mut state = state.lock().unwrap();
+
+    let flow = &state.score.flows.by_id[&flow_id];
+    let master_id = flow.master_id;
+    let master = state.score.tracks.by_id.get_mut(&master_id).unwrap();
+
+    // remove old time signative if defined
+    if let Some(old) = master.get_barline_at_tick(&tick) {
+        master.remove_entry(old.id);
+    };
 
     state.emit(&app);
 }

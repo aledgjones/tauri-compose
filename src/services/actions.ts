@@ -355,6 +355,12 @@ export const actions = {
           barline_draw_type,
         });
       },
+      clearAtTick: (flow_id: UniqueId, tick: Tick) => {
+        return invoke("score_entries_barline_clear", {
+          flow_id,
+          tick,
+        });
+      },
     },
     tone: {
       create: (

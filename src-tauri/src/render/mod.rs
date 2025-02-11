@@ -145,11 +145,29 @@ pub fn render(
             // BARLINES
             if let Some(def) = barline_def {
                 if slot == Slot::StartRepeat && def.start_repeat {
-                    todo!()
+                    draw_barline(
+                        &Point {
+                            x: stave_left + x,
+                            y: frame_padding.top,
+                        },
+                        &BarlineDrawType::StartRepeat,
+                        &vertical_spacing,
+                        &vertical_spans,
+                        &mut renderer,
+                    );
                 }
 
                 if slot == Slot::EndRepeat && def.end_repeat {
-                    todo!()
+                    draw_barline(
+                        &Point {
+                            x: stave_left + x,
+                            y: frame_padding.top,
+                        },
+                        &BarlineDrawType::EndRepeat,
+                        &vertical_spacing,
+                        &vertical_spans,
+                        &mut renderer,
+                    );
                 }
 
                 if let Some(draw_type) = def.draw_type {

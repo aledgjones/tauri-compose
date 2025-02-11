@@ -9,6 +9,11 @@ export const parseBarlinePopover = (
   tick: Tick
 ) => {
   switch (input) {
+    case "clear": {
+      actions.score.barline.clearAtTick(flow_id, tick);
+      break;
+    }
+
     case "|":
     case "single":
     case "normal": {
@@ -25,6 +30,42 @@ export const parseBarlinePopover = (
     case "|||":
     case "triple": {
       actions.score.barline.create(flow_id, tick, BarlineDrawType.Triple);
+      break;
+    }
+
+    case ":":
+    case "dashed": {
+      actions.score.barline.create(flow_id, tick, BarlineDrawType.Dashed);
+      break;
+    }
+
+    case "|]":
+    case "final": {
+      actions.score.barline.create(flow_id, tick, BarlineDrawType.Final);
+      break;
+    }
+
+    case "|:":
+    case "start": {
+      actions.score.barline.create(flow_id, tick, BarlineDrawType.StartRepeat);
+      break;
+    }
+
+    case ":|":
+    case "end": {
+      actions.score.barline.create(flow_id, tick, BarlineDrawType.EndRepeat);
+      break;
+    }
+
+    case ":|:":
+    case ":||:":
+    case "end-start":
+    case "endstart": {
+      actions.score.barline.create(
+        flow_id,
+        tick,
+        BarlineDrawType.EndStartRepeat
+      );
       break;
     }
 

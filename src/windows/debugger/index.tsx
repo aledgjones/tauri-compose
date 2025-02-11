@@ -108,6 +108,10 @@ export const Main = () => {
 
         <div className="text-white text-xs p-2 bg-neutral-800 flex-1">
           <div className="flex">
+            <pre className="pr-8 font-bold w-[200px]">Clear At Tick</pre>
+            <pre className="">"clear"</pre>
+          </div>
+          <div className="flex">
             <pre className="pr-8 font-bold w-[200px]">Normal (Single)</pre>
             <pre className="">"|", "single", "normal"</pre>
           </div>
