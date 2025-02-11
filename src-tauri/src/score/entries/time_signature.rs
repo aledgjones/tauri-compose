@@ -147,15 +147,4 @@ impl Track {
 
         None
     }
-
-    /// Returns the time signature entry *at* or *before* a given tick if it exists
-    pub fn get_time_signature_before_tick_inclusive(&self, tick: Tick) -> Option<&TimeSignature> {
-        for i in (0..tick + 1).rev() {
-            if let Some(time_signature) = self.get_time_signature_at_tick(&i) {
-                return Some(time_signature);
-            };
-        }
-
-        None
-    }
 }

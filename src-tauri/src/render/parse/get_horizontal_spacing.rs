@@ -78,7 +78,7 @@ pub fn get_horizontal_spacing(flow: &Flow, barlines: &Barlines) -> HorizontalSpa
         spacings.set(tick, Slot::NoteSpacing, 0.02);
 
         if let Some(def) = barlines.get(&tick) {
-            if (def.start_repeat) {
+            if def.start_repeat {
                 let metrics = Barline::new(0, 0, BarlineDrawType::StartRepeat).metrics();
                 spacings.set(tick, Slot::StartRepeat, metrics.width);
             }
@@ -88,7 +88,7 @@ pub fn get_horizontal_spacing(flow: &Flow, barlines: &Barlines) -> HorizontalSpa
                 spacings.set(tick, Slot::Barline, metrics.width);
             }
 
-            if (def.end_repeat) {
+            if def.end_repeat {
                 let metrics = Barline::new(0, 0, BarlineDrawType::EndRepeat).metrics();
                 spacings.set(tick, Slot::StartRepeat, metrics.width);
             }

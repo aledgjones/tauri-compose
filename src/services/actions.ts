@@ -3,6 +3,7 @@ import {
   Accidental,
   Articulation,
   AutoCountStyle,
+  BarlineDrawType,
   BracketingApproach,
   BracketStyle,
   LayoutType,
@@ -339,6 +340,19 @@ export const actions = {
       setOtherInformation: (other_information: string) => {
         return invoke("score_meta_other_information_set", {
           other_information,
+        });
+      },
+    },
+    barline: {
+      create: (
+        flow_id: UniqueId,
+        tick: Tick,
+        barline_draw_type: BarlineDrawType
+      ) => {
+        return invoke<UniqueId>("score_entries_barline_create", {
+          flow_id,
+          tick,
+          barline_draw_type,
         });
       },
     },

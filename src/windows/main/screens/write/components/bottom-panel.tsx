@@ -1,43 +1,21 @@
 import { FC, useMemo } from "react";
 import { useAppState } from "../../../../../services/state";
 import { Select, SelectOption } from "../../../../../ui/select";
-import { NoteDuration, Tool, UniqueId } from "../../../../../services/types";
+import { Tool, UniqueId } from "../../../../../services/types";
 import { actions } from "../../../../../services/actions";
 import {
   mdiBoxCutter,
   mdiCursorDefault,
   mdiEraser,
-  mdiFormatHorizontalAlignCenter,
   mdiPen,
   mdiTuneVertical,
 } from "@mdi/js";
 import { IconButton } from "../../../../../ui/icon-button";
 import { Sequencer } from "../../../components/sequencer";
+import { SnapPicker } from "../../../../../components/snap-picker";
 
 const ALPHABET = ["A", "B"];
 const TRACK_LABEL = ["Up-stem", "Down-stem"];
-const SNAP_OPTIONS = [
-  {
-    label: "Quarter",
-    value: NoteDuration.Quarter,
-    icon: mdiFormatHorizontalAlignCenter,
-  },
-  {
-    label: "Eighth",
-    value: NoteDuration.Eighth,
-    icon: mdiFormatHorizontalAlignCenter,
-  },
-  {
-    label: "Sixteenth",
-    value: NoteDuration.Sixteenth,
-    icon: mdiFormatHorizontalAlignCenter,
-  },
-  {
-    label: "Thirty-Second",
-    value: NoteDuration.ThirtySecond,
-    icon: mdiFormatHorizontalAlignCenter,
-  },
-];
 
 export const BottomPanel: FC = () => {
   const state = useAppState();
@@ -175,10 +153,8 @@ export const BottomPanel: FC = () => {
             onClick={() => actions.ui.sequencer.setTool(Tool.Erase)}
             color={tool === Tool.Erase ? "#000" : "#fff"}
           />
-          <Select
-            variant="filled"
+          <SnapPicker
             value={state.ui.sequencer.snap}
-            options={SNAP_OPTIONS}
             onChange={actions.ui.sequencer.setSnap}
           />
         </div>

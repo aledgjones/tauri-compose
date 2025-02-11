@@ -18,7 +18,7 @@ export const Button: FC<ButtonProps> = ({
     <button
       onClick={onClick}
       className={classNames(
-        "h-[36px] flex items-center text-left  text-white text-sm px-3 bg-neutral-900 hover:bg-neutral-800",
+        "h-[36px] flex items-center text-left text-white text-sm px-3 bg-neutral-900 hover:bg-neutral-800",
         className
       )}
     >

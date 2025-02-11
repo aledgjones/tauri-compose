@@ -74,15 +74,4 @@ impl Track {
 
         None
     }
-
-    /// Returns the time signature entry *at* or *before* a given tick if it exists
-    pub fn get_clef_before_tick_inclusive(&self, tick: Tick) -> Option<&Clef> {
-        for i in (0..tick + 1).rev() {
-            if let Some(clef) = self.get_clef_at_tick(&i) {
-                return Some(clef);
-            };
-        }
-
-        None
-    }
 }

@@ -44,7 +44,7 @@ pub fn get_barlines(flow: &Flow, tracks: &Tracks, measures: &Measures) -> Barlin
         match barline {
             Some(barline) => {
                 // draw the user defined barline to veto default
-                match barline.barline_type {
+                match barline.barline_draw_type {
                     BarlineDrawType::EndRepeat => {
                         def.end_repeat = true;
                     }
@@ -76,7 +76,7 @@ pub fn get_barlines(flow: &Flow, tracks: &Tracks, measures: &Measures) -> Barlin
                     _ => {
                         output.insert(
                             tick,
-                            BarlineDrawDef::new(false, false, Some(barline.barline_type)),
+                            BarlineDrawDef::new(false, false, Some(barline.barline_draw_type)),
                         );
                     }
                 }

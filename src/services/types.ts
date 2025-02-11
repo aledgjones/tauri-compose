@@ -3,6 +3,17 @@ export type UniqueId = number;
 export type Tick = number;
 export type Ticks = number;
 
+export enum BarlineDrawType {
+  Single = 0,
+  Double,
+  Triple,
+  Dashed,
+  Final,
+  StartRepeat,
+  EndRepeat,
+  EndStartRepeat,
+}
+
 export enum NoteDuration {
   Whole = 1,
   Half = 2,

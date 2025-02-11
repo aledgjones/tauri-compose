@@ -98,6 +98,50 @@ pub fn draw_barline(
                     ],
                 );
             }
+            BarlineDrawType::Triple => {
+                renderer.line(
+                    STAVE_LINE_WIDTH,
+                    Color::BLACK,
+                    vec![
+                        Point {
+                            x: origin.x,
+                            y: top,
+                        },
+                        Point {
+                            x: origin.x,
+                            y: bottom,
+                        },
+                    ],
+                );
+                renderer.line(
+                    STAVE_LINE_WIDTH,
+                    Color::BLACK,
+                    vec![
+                        Point {
+                            x: origin.x + 0.5,
+                            y: top,
+                        },
+                        Point {
+                            x: origin.x + 0.5,
+                            y: bottom,
+                        },
+                    ],
+                );
+                renderer.line(
+                    STAVE_LINE_WIDTH,
+                    Color::BLACK,
+                    vec![
+                        Point {
+                            x: origin.x + 1.0,
+                            y: top,
+                        },
+                        Point {
+                            x: origin.x + 1.0,
+                            y: bottom,
+                        },
+                    ],
+                );
+            }
             _ => {} // BarlineDrawType::EndRepeat => {
                     //     instructions.push(Instruction::Line {
                     //         color: String::from("#000"),
