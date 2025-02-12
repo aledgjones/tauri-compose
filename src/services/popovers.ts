@@ -91,18 +91,74 @@ export const parseKeySignaturePopover = (
       break;
     }
 
-    case "open":
-    case "atonal":
-    case "C":
-    case "0s":
-    case "0f":
-    case "0#":
-    case "0b": {
+    case "C#":
+    case "7s":
+    case "7#": {
       actions.score.keySignature.create(
         flow_id,
         tick,
         KeySignatureMode.Major,
-        0
+        7
+      );
+      break;
+    }
+
+    case "F#":
+    case "6s":
+    case "6#": {
+      actions.score.keySignature.create(
+        flow_id,
+        tick,
+        KeySignatureMode.Major,
+        6
+      );
+      break;
+    }
+
+    case "B":
+    case "5s":
+    case "5#": {
+      actions.score.keySignature.create(
+        flow_id,
+        tick,
+        KeySignatureMode.Major,
+        5
+      );
+      break;
+    }
+
+    case "E":
+    case "4s":
+    case "4#": {
+      actions.score.keySignature.create(
+        flow_id,
+        tick,
+        KeySignatureMode.Major,
+        4
+      );
+      break;
+    }
+
+    case "A":
+    case "3s":
+    case "3#": {
+      actions.score.keySignature.create(
+        flow_id,
+        tick,
+        KeySignatureMode.Major,
+        3
+      );
+      break;
+    }
+
+    case "D":
+    case "2s":
+    case "2#": {
+      actions.score.keySignature.create(
+        flow_id,
+        tick,
+        KeySignatureMode.Major,
+        2
       );
       break;
     }
@@ -119,14 +175,252 @@ export const parseKeySignaturePopover = (
       break;
     }
 
-    case "D":
-    case "2s":
-    case "2#": {
+    case "open":
+    case "atonal":
+    case "C":
+    case "0s":
+    case "0f":
+    case "0#":
+    case "0b": {
       actions.score.keySignature.create(
         flow_id,
         tick,
         KeySignatureMode.Major,
+        0
+      );
+      break;
+    }
+
+    case "F":
+    case "1f":
+    case "1b": {
+      actions.score.keySignature.create(
+        flow_id,
+        tick,
+        KeySignatureMode.Major,
+        -1
+      );
+      break;
+    }
+
+    case "Bb":
+    case "2f":
+    case "2b": {
+      actions.score.keySignature.create(
+        flow_id,
+        tick,
+        KeySignatureMode.Major,
+        -2
+      );
+      break;
+    }
+
+    case "Eb":
+    case "3f":
+    case "3b": {
+      actions.score.keySignature.create(
+        flow_id,
+        tick,
+        KeySignatureMode.Major,
+        -3
+      );
+      break;
+    }
+
+    case "Ab":
+    case "4f":
+    case "4b": {
+      actions.score.keySignature.create(
+        flow_id,
+        tick,
+        KeySignatureMode.Major,
+        -4
+      );
+      break;
+    }
+
+    case "Db":
+    case "5f":
+    case "5b": {
+      actions.score.keySignature.create(
+        flow_id,
+        tick,
+        KeySignatureMode.Major,
+        -5
+      );
+      break;
+    }
+
+    case "Gb":
+    case "6f":
+    case "6b": {
+      actions.score.keySignature.create(
+        flow_id,
+        tick,
+        KeySignatureMode.Major,
+        -6
+      );
+      break;
+    }
+
+    case "Cb":
+    case "7f":
+    case "7b": {
+      actions.score.keySignature.create(
+        flow_id,
+        tick,
+        KeySignatureMode.Major,
+        -7
+      );
+      break;
+    }
+
+    case "a#": {
+      actions.score.keySignature.create(
+        flow_id,
+        tick,
+        KeySignatureMode.Minor,
+        7
+      );
+      break;
+    }
+
+    case "d#": {
+      actions.score.keySignature.create(
+        flow_id,
+        tick,
+        KeySignatureMode.Minor,
+        6
+      );
+      break;
+    }
+
+    case "g#": {
+      actions.score.keySignature.create(
+        flow_id,
+        tick,
+        KeySignatureMode.Minor,
+        5
+      );
+      break;
+    }
+
+    case "c#": {
+      actions.score.keySignature.create(
+        flow_id,
+        tick,
+        KeySignatureMode.Minor,
+        4
+      );
+      break;
+    }
+
+    case "f#": {
+      actions.score.keySignature.create(
+        flow_id,
+        tick,
+        KeySignatureMode.Minor,
+        3
+      );
+      break;
+    }
+
+    case "b": {
+      actions.score.keySignature.create(
+        flow_id,
+        tick,
+        KeySignatureMode.Minor,
         2
+      );
+      break;
+    }
+
+    case "e": {
+      actions.score.keySignature.create(
+        flow_id,
+        tick,
+        KeySignatureMode.Minor,
+        1
+      );
+      break;
+    }
+
+    case "a": {
+      actions.score.keySignature.create(
+        flow_id,
+        tick,
+        KeySignatureMode.Minor,
+        0
+      );
+      break;
+    }
+
+    case "d": {
+      actions.score.keySignature.create(
+        flow_id,
+        tick,
+        KeySignatureMode.Minor,
+        -1
+      );
+      break;
+    }
+
+    case "g": {
+      actions.score.keySignature.create(
+        flow_id,
+        tick,
+        KeySignatureMode.Minor,
+        -2
+      );
+      break;
+    }
+
+    case "c": {
+      actions.score.keySignature.create(
+        flow_id,
+        tick,
+        KeySignatureMode.Minor,
+        -3
+      );
+      break;
+    }
+
+    case "f": {
+      actions.score.keySignature.create(
+        flow_id,
+        tick,
+        KeySignatureMode.Minor,
+        -4
+      );
+      break;
+    }
+
+    case "bb": {
+      actions.score.keySignature.create(
+        flow_id,
+        tick,
+        KeySignatureMode.Minor,
+        -5
+      );
+      break;
+    }
+
+    case "eb": {
+      actions.score.keySignature.create(
+        flow_id,
+        tick,
+        KeySignatureMode.Minor,
+        -6
+      );
+      break;
+    }
+
+    case "ab": {
+      actions.score.keySignature.create(
+        flow_id,
+        tick,
+        KeySignatureMode.Minor,
+        -7
       );
       break;
     }
