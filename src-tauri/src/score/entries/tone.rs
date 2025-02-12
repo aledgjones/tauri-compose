@@ -64,10 +64,9 @@ pub fn score_entries_tone_create(
     let pitch = match accidental {
         Some(accidental) => Pitch::new(pitch_int, accidental),
         None => {
-            // default to C Major if no explicit key
             let key_signature = match track.get_key_signature_before_tick_inclusive(tick) {
                 Some(key_signature) => key_signature,
-                None => &KeySignature::new(0, 0, KeySignatureMode::Major, 0),
+                None => &KeySignature::default(),
             };
             Pitch::from_int(pitch_int, key_signature)
         }

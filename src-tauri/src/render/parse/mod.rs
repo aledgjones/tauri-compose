@@ -1,6 +1,7 @@
 pub mod get_barlines;
 pub mod get_horizontal_spacing;
 pub mod get_instruments;
+pub mod get_key_signatures;
 pub mod get_max_brackets_width;
 pub mod get_max_instrument_name_width;
 pub mod get_measures;

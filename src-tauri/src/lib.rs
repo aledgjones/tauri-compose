@@ -14,6 +14,9 @@ use score::engraves::{
     score_engraves_systemic_barline_single_instrument_system_set,
 };
 use score::entries::barline::{score_entries_barline_clear, score_entries_barline_create};
+use score::entries::key_signature::{
+    score_entries_key_signature_clear, score_entries_key_signature_create,
+};
 use score::entries::tone::{score_entries_tone_create, score_entries_tone_duration_set};
 use score::flows::{
     score_flows_assign_player, score_flows_create, score_flows_move, score_flows_remove,
@@ -126,6 +129,8 @@ pub fn run() {
             score_engraves_systemic_barline_single_instrument_system_set,
             score_entries_barline_create,
             score_entries_barline_clear,
+            score_entries_key_signature_create,
+            score_entries_key_signature_clear,
             score_entries_tone_create,
             score_entries_tone_duration_set,
             score_flows_create,

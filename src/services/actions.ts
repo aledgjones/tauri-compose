@@ -6,6 +6,7 @@ import {
   BarlineDrawType,
   BracketingApproach,
   BracketStyle,
+  KeySignatureMode,
   LayoutType,
   NoteDuration,
   PlayerType,
@@ -349,7 +350,7 @@ export const actions = {
         tick: Tick,
         barline_draw_type: BarlineDrawType
       ) => {
-        return invoke<UniqueId>("score_entries_barline_create", {
+        return invoke<UniqueId | null>("score_entries_barline_create", {
           flow_id,
           tick,
           barline_draw_type,
@@ -357,6 +358,27 @@ export const actions = {
       },
       clearAtTick: (flow_id: UniqueId, tick: Tick) => {
         return invoke("score_entries_barline_clear", {
+          flow_id,
+          tick,
+        });
+      },
+    },
+    keySignature: {
+      create: (
+        flow_id: UniqueId,
+        tick: Tick,
+        mode: KeySignatureMode,
+        offset: number
+      ) => {
+        return invoke<UniqueId>("score_entries_key_signature_create", {
+          flow_id,
+          tick,
+          mode,
+          offset,
+        });
+      },
+      clearAtTick: (flow_id: UniqueId, tick: Tick) => {
+        return invoke("score_entries_key_signature_clear", {
           flow_id,
           tick,
         });

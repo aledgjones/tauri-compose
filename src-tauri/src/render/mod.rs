@@ -8,16 +8,20 @@ use crate::renderer::text_measurer::TextMeasurer;
 use crate::renderer::Renderer;
 use crate::score::components::measurements::Point;
 use crate::score::entries::barline::BarlineDrawType;
+use crate::score::entries::clef::Clef;
 use crate::utils::UniqueId;
 use crate::AppState;
 use draw::draw_barline::draw_barline;
+use draw::draw_braces::draw_braces;
 use draw::draw_brackets::draw_brackets;
+use draw::draw_key_signature::draw_key_signature;
+use draw::draw_names::draw_names;
 use draw::draw_staves::draw_staves;
 use draw::draw_sub_brackets::draw_sub_brackets;
 use draw::draw_systemic_barline::draw_systemic_barline;
-use draw::{draw_braces::draw_braces, draw_names::draw_names};
 use parse::get_barlines::get_barlines;
 use parse::get_horizontal_spacing::{get_horizontal_spacing, Slot};
+use parse::get_key_signatures::get_key_signatures;
 use parse::get_max_brackets_width::get_max_brackets_width;
 use parse::get_max_instrument_name_width::get_max_instrument_name_width;
 use parse::get_measures::get_measures;
@@ -54,11 +58,13 @@ pub fn render(
 
     let measures = get_measures(flow, &state.score.tracks);
     let barlines = get_barlines(flow, &state.score.tracks, &measures);
+    let key_signatures = get_key_signatures(flow, &state.score.tracks);
     let tone_offsets = get_tone_offsets(flow, &instruments, &state.score.tracks);
+
     let written_durations =
         get_written_durations(flow, &instruments, &state.score.tracks, &measures);
 
-    let horizontal_spacing = get_horizontal_spacing(flow, &barlines);
+    let horizontal_spacing = get_horizontal_spacing(flow, &barlines, &key_signatures);
 
     let stave_left =
         frame_padding.left + max_name_width + engrave.instrument_name_spacing + max_bracket_width;
@@ -133,7 +139,6 @@ pub fn render(
 
     let slot_count = Slot::count();
     let mut x: Space = 0.0;
-    let master = &state.score.tracks.by_id[&flow.master_id];
 
     for tick in 0..flow.length {
         let barline_def = barlines.get(&tick);
@@ -143,35 +148,44 @@ pub fn render(
             let width = horizontal_spacing.get(tick, slot);
 
             // BARLINES
-            if let Some(def) = barline_def {
-                if slot == Slot::StartRepeat && def.start_repeat {
-                    draw_barline(
-                        &Point {
-                            x: stave_left + x,
-                            y: frame_padding.top,
-                        },
-                        &BarlineDrawType::StartRepeat,
-                        &vertical_spacing,
-                        &vertical_spans,
-                        &mut renderer,
-                    );
-                }
 
-                if slot == Slot::EndRepeat && def.end_repeat {
-                    draw_barline(
-                        &Point {
-                            x: stave_left + x,
-                            y: frame_padding.top,
-                        },
-                        &BarlineDrawType::EndRepeat,
-                        &vertical_spacing,
-                        &vertical_spans,
-                        &mut renderer,
-                    );
+            if slot == Slot::StartRepeat {
+                if let Some(def) = barline_def {
+                    if def.start_repeat {
+                        draw_barline(
+                            &Point {
+                                x: stave_left + x,
+                                y: frame_padding.top,
+                            },
+                            &BarlineDrawType::StartRepeat,
+                            &vertical_spacing,
+                            &vertical_spans,
+                            &mut renderer,
+                        );
+                    }
                 }
+            }
 
-                if let Some(draw_type) = def.draw_type {
-                    if slot == Slot::Barline {
+            if slot == Slot::EndRepeat {
+                if let Some(def) = barline_def {
+                    if def.end_repeat {
+                        draw_barline(
+                            &Point {
+                                x: stave_left + x,
+                                y: frame_padding.top,
+                            },
+                            &BarlineDrawType::EndRepeat,
+                            &vertical_spacing,
+                            &vertical_spans,
+                            &mut renderer,
+                        );
+                    }
+                }
+            }
+
+            if slot == Slot::Barline {
+                if let Some(def) = barline_def {
+                    if let Some(draw_type) = def.draw_type {
                         draw_barline(
                             &Point {
                                 x: stave_left + x,
@@ -187,6 +201,48 @@ pub fn render(
             }
 
             x += width;
+        }
+    }
+
+    for instrument in &instruments {
+        for stave_id in &instrument.stave_ids {
+            let stave = &flow.staves.by_id[stave_id];
+            let stave_master = &state.score.tracks.by_id[&stave.master_id];
+            let stave_spacing = &vertical_spacing.staves[stave_id];
+            let stave_top = frame_padding.top + stave_spacing.y;
+
+            let mut clef = Clef::default();
+
+            let mut x: Space = 0.0;
+
+            for tick in 0..flow.length {
+                if let Some(found) = stave_master.get_clef_at_tick(&tick) {
+                    clef = found.clone();
+                }
+
+                for slot_index in 0..slot_count {
+                    let slot = Slot::from_usize(slot_index);
+                    let width = horizontal_spacing.get(tick, slot);
+
+                    // KEY SIGNATURES
+                    if slot == Slot::KeySignature {
+                        if let Some(def) = key_signatures.get(&tick) {
+                            draw_key_signature(
+                                &Point {
+                                    x: stave_left + x,
+                                    y: stave_top,
+                                },
+                                &clef,
+                                &def.key_signature,
+                                def.negate,
+                                &mut renderer,
+                            );
+                        };
+                    };
+
+                    x += width;
+                }
+            }
         }
     }
 

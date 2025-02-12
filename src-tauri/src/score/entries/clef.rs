@@ -1,4 +1,4 @@
-use crate::score::components::pitch::Pitch;
+use crate::score::components::pitch::{Accidental, Pitch};
 use crate::score::components::{duration::Tick, measurements::BoundingBox};
 use crate::score::tracks::Track;
 use crate::utils::UniqueId;
@@ -58,6 +58,18 @@ impl Clef {
             ClefDrawType::C => Some(String::from("\u{E05C}")),
             ClefDrawType::Percussion => Some(String::from("\u{E069}")),
         }
+    }
+}
+
+impl Default for Clef {
+    fn default() -> Self {
+        Clef::new(
+            0,
+            0,
+            Pitch::new(60, Accidental::Natural),
+            0,
+            ClefDrawType::C,
+        )
     }
 }
 

@@ -43,35 +43,35 @@ impl Barline {
     pub fn metrics(&self) -> BoundingBox {
         match self.barline_draw_type {
             BarlineDrawType::Single => BoundingBox {
-                width: 0.0,
+                width: 1.0,
                 height: 4.0,
             },
             BarlineDrawType::Double => BoundingBox {
-                width: 0.5,
+                width: 1.5,
                 height: 4.0,
             },
             BarlineDrawType::Triple => BoundingBox {
-                width: 1.0,
+                width: 2.0,
                 height: 4.0,
             },
             BarlineDrawType::Dashed => BoundingBox {
-                width: 0.0,
-                height: 4.0,
-            },
-            BarlineDrawType::Final => BoundingBox {
                 width: 1.0,
                 height: 4.0,
             },
-            BarlineDrawType::StartRepeat => BoundingBox {
+            BarlineDrawType::Final => BoundingBox {
                 width: 2.0,
+                height: 4.0,
+            },
+            BarlineDrawType::StartRepeat => BoundingBox {
+                width: 3.0,
                 height: 4.0,
             },
             BarlineDrawType::EndRepeat => BoundingBox {
-                width: 2.0,
+                width: 3.0,
                 height: 4.0,
             },
             BarlineDrawType::EndStartRepeat => BoundingBox {
-                width: 3.5,
+                width: 4.5,
                 height: 4.0,
             },
         }
@@ -100,7 +100,11 @@ pub fn score_entries_barline_create(
     flow_id: UniqueId,
     tick: Tick,
     barline_draw_type: BarlineDrawType,
-) -> UniqueId {
+) -> Option<UniqueId> {
+    if tick == 0 && barline_draw_type != BarlineDrawType::StartRepeat {
+        return None;
+    }
+
     let mut state = state.lock().unwrap();
     let barline_id = state.generate_id();
 
@@ -108,18 +112,18 @@ pub fn score_entries_barline_create(
     let master_id = flow.master_id;
     let master = state.score.tracks.by_id.get_mut(&master_id).unwrap();
 
-    // remove old time signative if defined
+    // remove old barline if defined
     if let Some(old) = master.get_barline_at_tick(&tick) {
         master.remove_entry(old.id);
     };
 
-    // insert the new time signature
+    // insert the new barline
     let new = Barline::new(barline_id, tick, barline_draw_type);
     master.insert_entry(Entry::Barline(new));
 
     state.emit(&app);
 
-    barline_id
+    Some(barline_id)
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -135,7 +139,6 @@ pub fn score_entries_barline_clear(
     let master_id = flow.master_id;
     let master = state.score.tracks.by_id.get_mut(&master_id).unwrap();
 
-    // remove old time signative if defined
     if let Some(old) = master.get_barline_at_tick(&tick) {
         master.remove_entry(old.id);
     };

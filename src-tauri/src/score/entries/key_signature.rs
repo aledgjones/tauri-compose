@@ -6,9 +6,11 @@ use crate::score::components::measurements::BoundingBox;
 use crate::score::components::pitch::{Accidental, Pitch};
 use crate::score::{components::duration::Tick, tracks::Track};
 use crate::utils::UniqueId;
+use crate::AppState;
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
+use tauri::State;
 
 const SHARPS: [Pitch; 7] = [
     Pitch {
@@ -201,4 +203,54 @@ impl Track {
 
         None
     }
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn score_entries_key_signature_create(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    flow_id: UniqueId,
+    tick: Tick,
+    mode: KeySignatureMode,
+    offset: i8,
+) -> UniqueId {
+    let mut state = state.lock().unwrap();
+    let key_signature_id = state.generate_id();
+
+    let flow = &state.score.flows.by_id[&flow_id];
+    let master_id = flow.master_id;
+    let master = state.score.tracks.by_id.get_mut(&master_id).unwrap();
+
+    // remove old key signature if defined
+    if let Some(old) = master.get_key_signature_at_tick(&tick) {
+        master.remove_entry(old.id);
+    };
+
+    // insert the new key signature
+    let new = KeySignature::new(key_signature_id, tick, mode, offset);
+    master.insert_entry(Entry::KeySignature(new));
+
+    state.emit(&app);
+
+    key_signature_id
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn score_entries_key_signature_clear(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    flow_id: UniqueId,
+    tick: Tick,
+) {
+    let mut state = state.lock().unwrap();
+
+    let flow = &state.score.flows.by_id[&flow_id];
+    let master_id = flow.master_id;
+    let master = state.score.tracks.by_id.get_mut(&master_id).unwrap();
+
+    if let Some(old) = master.get_key_signature_at_tick(&tick) {
+        master.remove_entry(old.id);
+    };
+
+    state.emit(&app);
 }

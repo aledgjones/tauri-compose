@@ -1,7 +1,12 @@
 import { actions } from "./actions";
-import { BarlineDrawType, Tick, UniqueId } from "./types";
+import { BarlineDrawType, KeySignatureMode, Tick, UniqueId } from "./types";
 
-export type PopoverType = "barline" | "clef" | "dynamic" | "measure";
+export type PopoverType =
+  | "barline"
+  | "clef"
+  | "dynamic"
+  | "measure"
+  | "key-signature";
 
 export const parseBarlinePopover = (
   input: string,
@@ -65,6 +70,63 @@ export const parseBarlinePopover = (
         flow_id,
         tick,
         BarlineDrawType.EndStartRepeat
+      );
+      break;
+    }
+
+    default: {
+      throw `Unknown input: ${input}`;
+    }
+  }
+};
+
+export const parseKeySignaturePopover = (
+  input: string,
+  flow_id: UniqueId,
+  tick: Tick
+) => {
+  switch (input) {
+    case "clear": {
+      actions.score.keySignature.clearAtTick(flow_id, tick);
+      break;
+    }
+
+    case "open":
+    case "atonal":
+    case "C":
+    case "0s":
+    case "0f":
+    case "0#":
+    case "0b": {
+      actions.score.keySignature.create(
+        flow_id,
+        tick,
+        KeySignatureMode.Major,
+        0
+      );
+      break;
+    }
+
+    case "G":
+    case "1s":
+    case "1#": {
+      actions.score.keySignature.create(
+        flow_id,
+        tick,
+        KeySignatureMode.Major,
+        1
+      );
+      break;
+    }
+
+    case "D":
+    case "2s":
+    case "2#": {
+      actions.score.keySignature.create(
+        flow_id,
+        tick,
+        KeySignatureMode.Major,
+        2
       );
       break;
     }
