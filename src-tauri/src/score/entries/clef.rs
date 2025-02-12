@@ -44,7 +44,7 @@ impl Clef {
                 height: 4.0,
             },
             _ => BoundingBox {
-                width: 2.8,
+                width: 3.8,
                 height: 4.0,
             },
         }

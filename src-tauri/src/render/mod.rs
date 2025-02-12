@@ -14,6 +14,7 @@ use crate::AppState;
 use draw::draw_barline::draw_barline;
 use draw::draw_braces::draw_braces;
 use draw::draw_brackets::draw_brackets;
+use draw::draw_clef::draw_clef;
 use draw::draw_key_signature::draw_key_signature;
 use draw::draw_names::draw_names;
 use draw::draw_staves::draw_staves;
@@ -64,7 +65,13 @@ pub fn render(
     let written_durations =
         get_written_durations(flow, &instruments, &state.score.tracks, &measures);
 
-    let horizontal_spacing = get_horizontal_spacing(flow, &barlines, &key_signatures);
+    let horizontal_spacing = get_horizontal_spacing(
+        flow,
+        &barlines,
+        &key_signatures,
+        &instruments,
+        &state.score.tracks,
+    );
 
     let stave_left =
         frame_padding.left + max_name_width + engrave.instrument_name_spacing + max_bracket_width;
@@ -226,13 +233,25 @@ pub fn render(
             let mut x: Space = 0.0;
 
             for tick in 0..flow.length {
-                if let Some(found) = stave_master.get_clef_at_tick(&tick) {
+                let should_draw_clef = stave_master.get_clef_at_tick(&tick).is_some_and(|found| {
                     clef = found.clone();
-                }
+                    true
+                });
 
                 for slot_index in 0..slot_count {
                     let slot = Slot::from_usize(slot_index);
                     let width = horizontal_spacing.get(tick, slot);
+
+                    if slot == Slot::Clef && should_draw_clef {
+                        draw_clef(
+                            &Point {
+                                x: stave_left + x,
+                                y: stave_top,
+                            },
+                            &clef,
+                            &mut renderer,
+                        );
+                    }
 
                     // KEY SIGNATURES
                     if slot == Slot::KeySignature {

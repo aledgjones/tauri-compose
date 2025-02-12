@@ -4,6 +4,8 @@ use crate::renderer::converter::Space;
 use crate::score::components::duration::{Tick, Ticks};
 use crate::score::entries::barline::BarlineDrawType;
 use crate::score::flows::Flow;
+use crate::score::instruments::{Instrument, Instruments};
+use crate::score::tracks::Tracks;
 
 #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq)]
 pub enum Slot {
@@ -74,6 +76,8 @@ pub fn get_horizontal_spacing(
     flow: &Flow,
     barlines: &Barlines,
     key_signatures: &KeySignatures,
+    instruments: &Vec<&Instrument>,
+    tracks: &Tracks,
 ) -> HorizontalSpacing {
     let mut spacings = HorizontalSpacing::new(flow.length);
 
@@ -82,7 +86,7 @@ pub fn get_horizontal_spacing(
         spacings.set(tick, Slot::NoteSpacing, 0.02);
 
         if tick == 0 {
-            spacings.set(tick, Slot::PaddingStart, 1.0);
+            spacings.set(tick, Slot::PaddingStart, 0.5);
         }
 
         // BARLINES
@@ -107,6 +111,19 @@ pub fn get_horizontal_spacing(
         if let Some(def) = key_signatures.get(&tick) {
             spacings.set(tick, Slot::KeySignature, def.key_signature.metrics().width);
         };
+    }
+
+    for instrument in instruments {
+        for stave_id in &instrument.stave_ids {
+            let stave = &flow.staves.by_id[stave_id];
+            let stave_master = &tracks.by_id[&stave.master_id];
+
+            for tick in 0..flow.length {
+                if let Some(clef) = stave_master.get_clef_at_tick(&tick) {
+                    spacings.set(tick, Slot::Clef, clef.metrics().width);
+                }
+            }
+        }
     }
 
     spacings
