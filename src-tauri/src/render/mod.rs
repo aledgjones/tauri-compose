@@ -148,7 +148,6 @@ pub fn render(
             let width = horizontal_spacing.get(tick, slot);
 
             // BARLINES
-
             if slot == Slot::StartRepeat {
                 if let Some(def) = barline_def {
                     if def.start_repeat {
@@ -203,6 +202,17 @@ pub fn render(
             x += width;
         }
     }
+
+    draw_barline(
+        &Point {
+            x: stave_left + horizontal_spacing.width() - BarlineDrawType::Final.metrics().width,
+            y: frame_padding.top,
+        },
+        &BarlineDrawType::Final,
+        &vertical_spacing,
+        &vertical_spans,
+        &mut renderer,
+    );
 
     for instrument in &instruments {
         for stave_id in &instrument.stave_ids {

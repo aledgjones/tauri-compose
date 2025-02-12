@@ -2,7 +2,7 @@ use super::get_barlines::Barlines;
 use super::get_key_signatures::KeySignatures;
 use crate::renderer::converter::Space;
 use crate::score::components::duration::{Tick, Ticks};
-use crate::score::entries::barline::{Barline, BarlineDrawType};
+use crate::score::entries::barline::BarlineDrawType;
 use crate::score::flows::Flow;
 
 #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq)]
@@ -53,7 +53,9 @@ impl HorizontalSpacing {
     }
 
     pub fn width(&self) -> Space {
-        self.widths.iter().sum()
+        let width: Space = self.widths.iter().sum();
+
+        width + BarlineDrawType::Final.metrics().width
     }
 
     pub fn get(&self, tick: Tick, slot: Slot) -> Space {
@@ -86,17 +88,17 @@ pub fn get_horizontal_spacing(
         // BARLINES
         if let Some(def) = barlines.get(&tick) {
             if def.start_repeat {
-                let metrics = Barline::new(0, 0, BarlineDrawType::StartRepeat).metrics();
+                let metrics = BarlineDrawType::StartRepeat.metrics();
                 spacings.set(tick, Slot::StartRepeat, metrics.width);
             }
 
             if let Some(draw_type) = def.draw_type {
-                let metrics = Barline::new(0, 0, draw_type).metrics();
+                let metrics = draw_type.metrics();
                 spacings.set(tick, Slot::Barline, metrics.width);
             }
 
             if def.end_repeat {
-                let metrics = Barline::new(0, 0, BarlineDrawType::EndRepeat).metrics();
+                let metrics = BarlineDrawType::EndRepeat.metrics();
                 spacings.set(tick, Slot::EndRepeat, metrics.width);
             }
         }

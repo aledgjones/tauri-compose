@@ -1,3 +1,4 @@
+use super::Entry;
 use crate::score::components::duration::Tick;
 use crate::score::components::measurements::BoundingBox;
 use crate::score::tracks::Track;
@@ -8,8 +9,6 @@ use serde::Serialize;
 use serde_repr::Deserialize_repr;
 use serde_repr::Serialize_repr;
 use tauri::State;
-
-use super::Entry;
 
 #[derive(Clone, Copy, Hash, Eq, PartialEq, Serialize_repr, Deserialize_repr)]
 #[repr(u8)]
@@ -24,24 +23,9 @@ pub enum BarlineDrawType {
     EndStartRepeat,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
-pub struct Barline {
-    pub id: UniqueId,
-    pub tick: Tick,
-    pub barline_draw_type: BarlineDrawType,
-}
-
-impl Barline {
-    pub fn new(id: UniqueId, tick: Tick, barline_draw_type: BarlineDrawType) -> Self {
-        Self {
-            id,
-            tick,
-            barline_draw_type,
-        }
-    }
-
+impl BarlineDrawType {
     pub fn metrics(&self) -> BoundingBox {
-        match self.barline_draw_type {
+        match self {
             BarlineDrawType::Single => BoundingBox {
                 width: 1.0,
                 height: 4.0,
@@ -59,7 +43,7 @@ impl Barline {
                 height: 4.0,
             },
             BarlineDrawType::Final => BoundingBox {
-                width: 2.0,
+                width: 1.0,
                 height: 4.0,
             },
             BarlineDrawType::StartRepeat => BoundingBox {
@@ -74,6 +58,23 @@ impl Barline {
                 width: 4.5,
                 height: 4.0,
             },
+        }
+    }
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct Barline {
+    pub id: UniqueId,
+    pub tick: Tick,
+    pub barline_draw_type: BarlineDrawType,
+}
+
+impl Barline {
+    pub fn new(id: UniqueId, tick: Tick, barline_draw_type: BarlineDrawType) -> Self {
+        Self {
+            id,
+            tick,
+            barline_draw_type,
         }
     }
 }
