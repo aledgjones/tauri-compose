@@ -1,5 +1,11 @@
 import { actions } from "./actions";
-import { BarlineDrawType, KeySignatureMode, Tick, UniqueId } from "./types";
+import {
+  BarlineDrawType,
+  ClefDrawType,
+  KeySignatureMode,
+  Tick,
+  UniqueId,
+} from "./types";
 
 export type PopoverType =
   | "barline"
@@ -44,12 +50,6 @@ export const parseBarlinePopover = (
       break;
     }
 
-    case "|]":
-    case "final": {
-      actions.score.barline.create(flow_id, tick, BarlineDrawType.Final);
-      break;
-    }
-
     case "|:":
     case "start": {
       actions.score.barline.create(flow_id, tick, BarlineDrawType.StartRepeat);
@@ -70,6 +70,68 @@ export const parseBarlinePopover = (
         flow_id,
         tick,
         BarlineDrawType.EndStartRepeat
+      );
+      break;
+    }
+
+    default: {
+      throw `Unknown input: ${input}`;
+    }
+  }
+};
+
+export const parseClefPopover = (
+  input: string,
+  flow_id: UniqueId,
+  tick: Tick,
+  stave_id: UniqueId
+) => {
+  switch (input) {
+    case "clear": {
+      actions.score.clef.clear(flow_id, tick, stave_id);
+      break;
+    }
+
+    case "treble":
+    case "g":
+    case "G":
+    case "sol": {
+      actions.score.clef.create(flow_id, tick, stave_id, 67, 2, ClefDrawType.G);
+      break;
+    }
+
+    case "bass":
+    case "f":
+    case "F":
+    case "fa": {
+      actions.score.clef.create(
+        flow_id,
+        tick,
+        stave_id,
+        53,
+        -2,
+        ClefDrawType.F
+      );
+      break;
+    }
+
+    case "alto":
+    case "ca":
+    case "CA": {
+      actions.score.clef.create(flow_id, tick, stave_id, 60, 0, ClefDrawType.C);
+      break;
+    }
+
+    case "tenor":
+    case "ct":
+    case "CT": {
+      actions.score.clef.create(
+        flow_id,
+        tick,
+        stave_id,
+        60,
+        -2,
+        ClefDrawType.C
       );
       break;
     }

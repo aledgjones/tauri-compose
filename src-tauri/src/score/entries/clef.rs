@@ -2,8 +2,10 @@ use crate::score::components::pitch::{Accidental, Pitch};
 use crate::score::components::{duration::Tick, measurements::BoundingBox};
 use crate::score::tracks::Track;
 use crate::utils::UniqueId;
+use crate::AppState;
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
+use tauri::State;
 
 use super::Entry;
 
@@ -37,15 +39,15 @@ impl Clef {
         }
     }
 
-    pub fn metrics(&self) -> BoundingBox {
+    pub fn metrics(&self, is_full_size: bool) -> BoundingBox {
         match self.draw_as {
             ClefDrawType::Hidden => BoundingBox {
                 width: 0.0,
                 height: 4.0,
             },
             _ => BoundingBox {
-                width: 3.8,
-                height: 4.0,
+                width: if is_full_size { 3.8 } else { 2.375 },
+                height: if is_full_size { 4.0 } else { 2.5 },
             },
         }
     }
@@ -86,4 +88,69 @@ impl Track {
 
         None
     }
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn score_entries_clef_create(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    flow_id: UniqueId,
+    stave_id: UniqueId,
+    tick: Tick,
+    pitch: u8,
+    offset: i8,
+    clef_draw_type: ClefDrawType,
+) -> UniqueId {
+    let mut state = state.lock().unwrap();
+    let clef_id = state.generate_id();
+
+    let flow = &state.score.flows.by_id[&flow_id];
+    let stave = &flow.staves.by_id[&stave_id];
+    let master_id = stave.master_id;
+    let master = state.score.tracks.by_id.get_mut(&master_id).unwrap();
+
+    // remove old clef if defined
+    if let Some(old) = master.get_clef_at_tick(&tick) {
+        master.remove_entry(old.id);
+    };
+
+    // insert the new clef
+    let new = Clef::new(
+        clef_id,
+        tick,
+        Pitch::new(pitch, Accidental::Natural),
+        offset,
+        clef_draw_type,
+    );
+    master.insert_entry(Entry::Clef(new));
+
+    state.emit(&app);
+
+    clef_id
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn score_entries_clef_clear(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    flow_id: UniqueId,
+    stave_id: UniqueId,
+    tick: Tick,
+) {
+    if tick == 0 {
+        return;
+    }
+
+    let mut state = state.lock().unwrap();
+
+    let flow = &state.score.flows.by_id[&flow_id];
+    let stave = &flow.staves.by_id[&stave_id];
+    let master_id = stave.master_id;
+    let master = state.score.tracks.by_id.get_mut(&master_id).unwrap();
+
+    if let Some(old) = master.get_clef_at_tick(&tick) {
+        master.remove_entry(old.id);
+    };
+
+    state.emit(&app);
 }

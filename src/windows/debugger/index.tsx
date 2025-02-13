@@ -1,5 +1,5 @@
 import { useAppState } from "../../services/state";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { AppBar } from "../../components/app-bar";
 import { Input } from "../../ui/input";
@@ -8,10 +8,12 @@ import { SnapPicker } from "../../components/snap-picker";
 import { actions } from "../../services/actions";
 import {
   parseBarlinePopover,
+  parseClefPopover,
   parseKeySignaturePopover,
   PopoverType,
 } from "../../services/popovers";
-import { Flow } from "../../services/types";
+import { Flow, UniqueId } from "../../services/types";
+import { chromeDark, ObjectInspector } from "react-inspector";
 
 const POPOVERS: SelectOption<PopoverType>[] = [
   { value: "barline", label: "Barline" },
@@ -24,14 +26,43 @@ const POPOVERS: SelectOption<PopoverType>[] = [
 export const Main = () => {
   const state = useAppState();
 
-  const flowId = state.score.flows.order[0];
-  const flow: Flow | null = state.score.flows.by_id[flowId] || null;
+  const flowId = state.score.flows.order[0] || null;
+  const flow: Flow | null = (flowId && state.score.flows.by_id[flowId]) || null;
   const subdivisions = flow?.subdivisions || 256;
   const ticksPerSnap = (subdivisions * 4) / state.ui.sequencer.snap;
 
   const [tick, setTick] = useState(0);
   const [popoverType, setPopoverType] = useState<PopoverType>("barline");
   const [popover, setPopover] = useState("");
+  const [instrumentId, setInstrumentId] = useState<UniqueId>(-1);
+  const [staveId, setStaveId] = useState<UniqueId>(-1);
+
+  const instruments: SelectOption<UniqueId>[] = useMemo(() => {
+    return state.score.players.order.flatMap((playerId) => {
+      const player = state.score.players.by_id[playerId];
+      return player.instrument_ids.map((instrumentId) => {
+        const instrument = state.score.instruments.by_id[instrumentId];
+        return {
+          value: instrumentId,
+          label:
+            instrument.long_name +
+            (instrument.count ? ` ${instrument.count}` : ""),
+        };
+      });
+    });
+  }, [state]);
+
+  const staves = useMemo(() => {
+    if (instrumentId !== -1) {
+      return state.score.instruments.by_id[instrumentId].stave_ids.map(
+        (id, index) => {
+          return { label: `Stave ${index + 1}`, value: id };
+        }
+      );
+    }
+
+    return [];
+  }, [instrumentId, state.score.instruments.by_id]);
 
   useEffect(() => {
     const show = async () => {
@@ -43,10 +74,23 @@ export const Main = () => {
   }, []);
 
   const handleEnter = useCallback(async () => {
+    if (!flowId || staveId === -1) {
+      return;
+    }
+
     switch (popoverType) {
       case "barline": {
         try {
           parseBarlinePopover(popover, flowId, tick);
+          setPopover("");
+        } catch (error) {
+          console.log(error);
+        }
+        break;
+      }
+      case "clef": {
+        try {
+          parseClefPopover(popover, flowId, tick, staveId);
           setPopover("");
         } catch (error) {
           console.log(error);
@@ -66,13 +110,13 @@ export const Main = () => {
       default:
         break;
     }
-  }, [flowId, popover, popoverType, tick]);
+  }, [flowId, popover, popoverType, staveId, tick]);
 
   return (
-    <div className="h-dvh bg-neutral-950 grid grid-rows-[28px_1fr] gap-2 overflow-hidden">
+    <div className="h-dvh bg-neutral-950 grid grid-rows-[28px_1fr_1fr] gap-2 overflow-hidden">
       <AppBar title="Debugger" filename={state.score.meta.title} />
 
-      {/* <div className="bg-neutral-900 p-2 overflow-auto mx-2">
+      <div className="bg-neutral-900 p-2 overflow-auto mx-2">
         <ObjectInspector
           data={state}
           theme={
@@ -83,10 +127,10 @@ export const Main = () => {
           }
           expandPaths={["$"]}
         />
-      </div> */}
+      </div>
 
       <div className="bg-neutral-900 p-2 pt-0 mx-2 z-50 mb-2 flex flex-col">
-        <div className="flex gap-2 mb-2">
+        <div className="flex gap-2">
           <SnapPicker
             label="Snap"
             value={state.ui.sequencer.snap}
@@ -102,6 +146,26 @@ export const Main = () => {
             step={ticksPerSnap}
             decimalPlaces={0}
           />
+
+          <Select
+            className="flex-1"
+            label="Instrument"
+            variant="filled"
+            value={instrumentId}
+            options={instruments}
+            onChange={setInstrumentId}
+          />
+          <Select
+            className="flex-1"
+            label="Voice"
+            variant="filled"
+            value={staveId}
+            options={staves}
+            onChange={setStaveId}
+          />
+        </div>
+
+        <div className="flex gap-2 mb-2">
           <Select
             variant="filled"
             label="Popover Type"

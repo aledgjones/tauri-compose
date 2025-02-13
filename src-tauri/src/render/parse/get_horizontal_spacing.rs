@@ -120,7 +120,7 @@ pub fn get_horizontal_spacing(
 
             for tick in 0..flow.length {
                 if let Some(clef) = stave_master.get_clef_at_tick(&tick) {
-                    spacings.set(tick, Slot::Clef, clef.metrics().width);
+                    spacings.set(tick, Slot::Clef, clef.metrics(tick == 0).width);
                 }
             }
         }

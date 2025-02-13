@@ -249,6 +249,7 @@ pub fn render(
                                 y: stave_top,
                             },
                             &clef,
+                            tick == 0,
                             &mut renderer,
                         );
                     }

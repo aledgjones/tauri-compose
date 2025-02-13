@@ -14,6 +14,14 @@ export enum BarlineDrawType {
   EndStartRepeat,
 }
 
+export enum ClefDrawType {
+  Hidden = 0,
+  G,
+  F,
+  C,
+  Percussion,
+}
+
 export enum NoteDuration {
   Whole = 1,
   Half = 2,

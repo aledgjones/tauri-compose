@@ -1,14 +1,15 @@
 use crate::renderer::Renderer;
+use crate::score::components::duration::Tick;
 use crate::score::components::measurements::Point;
 use crate::score::components::text::{Align, Font, FontFamily, Justify};
 use crate::score::entries::clef::Clef;
 
-pub fn draw_clef(origin: &Point, clef: &Clef, renderer: &mut Renderer) {
+pub fn draw_clef(origin: &Point, clef: &Clef, is_full_size: bool, renderer: &mut Renderer) {
     if let Some(glyph) = clef.glyph() {
         renderer.text(
             &glyph,
             &Font {
-                size: 4.0,
+                size: if is_full_size { 4.0 } else { 2.5 },
                 family: FontFamily::Bravura,
                 align: Align::Bottom,
                 justify: Justify::Start,

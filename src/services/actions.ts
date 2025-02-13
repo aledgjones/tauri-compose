@@ -6,6 +6,7 @@ import {
   BarlineDrawType,
   BracketingApproach,
   BracketStyle,
+  ClefDrawType,
   KeySignatureMode,
   LayoutType,
   NoteDuration,
@@ -360,6 +361,32 @@ export const actions = {
         return invoke("score_entries_barline_clear", {
           flow_id,
           tick,
+        });
+      },
+    },
+    clef: {
+      create: (
+        flow_id: UniqueId,
+        tick: Tick,
+        stave_id: UniqueId,
+        pitch: number,
+        offset: number,
+        clef_draw_type: ClefDrawType
+      ) => {
+        return invoke<UniqueId | null>("score_entries_clef_create", {
+          flow_id,
+          tick,
+          stave_id,
+          pitch,
+          offset,
+          clef_draw_type,
+        });
+      },
+      clear: (flow_id: UniqueId, tick: Tick, stave_id: UniqueId) => {
+        return invoke<UniqueId | null>("score_entries_clef_clear", {
+          flow_id,
+          tick,
+          stave_id,
         });
       },
     },
