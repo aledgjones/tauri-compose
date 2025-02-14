@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "start:dev": "tauri dev",
-    "release": "tauri build"
+    "start:release": "tauri build",
+    "release": "scripts/release"
   },
   "dependencies": {
     "@mdi/js": "7.4.47",
