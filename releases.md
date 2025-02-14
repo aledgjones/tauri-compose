@@ -13,3 +13,17 @@
 ### 🪚 Maintainence
 - chore: cleanup releases file
 
+## Release Notes for v0.2.1
+
+### 🐞 Fixes
+- fix: only run release hen orking branch clean
+
+- fix: yarn scripts
+
+- fix: rename bump to release script
+
+- fix: bump release script
+
+### 🪚 Maintainence
+- chore: commit version bump changes
+
