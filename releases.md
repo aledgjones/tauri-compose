@@ -1,3 +1,12 @@
+## Release Notes for v0.2.2
+
+### 🐞 Fixes
+- fix: release script adds new changes to top of file
+
+- fix: release notes order
+
+
+
 ## Release Notes for v0.2.1
 
 ### 🐞 Fixes
