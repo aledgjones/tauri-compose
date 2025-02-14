@@ -2,9 +2,7 @@
 
 ### 🐞 Fixes
 - fix: release script adds new changes to top of file
-
 - fix: release notes order
-
 
 
 ## Release Notes for v0.2.1
@@ -17,6 +15,7 @@
 
 ### 🪚 Maintainence
 - chore: commit version bump changes
+
 
 ## Release Notes for v0.2.0
 
