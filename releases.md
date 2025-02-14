@@ -1,3 +1,11 @@
+## Release Notes for v0.2.3
+
+### 🐞 Fixes
+- fix: avoid extra line spaces
+### 🪚 Maintainence
+- chore: cleanup changelog
+
+
 ## Release Notes for v0.2.2
 
 ### 🐞 Fixes
