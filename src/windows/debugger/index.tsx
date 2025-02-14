@@ -113,7 +113,7 @@ export const Main = () => {
   }, [flowId, popover, popoverType, staveId, tick]);
 
   return (
-    <div className="h-dvh bg-neutral-950 grid grid-rows-[28px_1fr_1fr] gap-2 overflow-hidden">
+    <div className="h-dvh bg-neutral-950 grid grid-rows-[28px_1fr_2fr] gap-2 overflow-hidden">
       <AppBar title="Debugger" filename={state.score.meta.title} />
 
       <div className="bg-neutral-900 p-2 overflow-auto mx-2">

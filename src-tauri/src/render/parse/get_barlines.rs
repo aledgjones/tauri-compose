@@ -7,6 +7,7 @@ use rustc_hash::FxHashMap;
 
 /// context can mean barlines need to be split over positions
 /// esspecially repeat marks, this def allows info about when this happens
+#[derive(Default)]
 pub struct BarlineDrawDef {
     /// seperate end repeat
     pub end_repeat: bool,
@@ -38,7 +39,7 @@ pub fn get_barlines(flow: &Flow, tracks: &Tracks, measures: &Measures) -> Barlin
         let barline = master.get_barline_at_tick(&tick);
         let time_signature = master.get_time_signature_at_tick(&tick);
 
-        let mut def = BarlineDrawDef::new(false, false, None);
+        let mut def = BarlineDrawDef::default();
 
         match barline {
             Some(barline) => {
@@ -48,9 +49,12 @@ pub fn get_barlines(flow: &Flow, tracks: &Tracks, measures: &Measures) -> Barlin
                         def.end_repeat = true;
                     }
                     BarlineDrawType::EndStartRepeat => {
-                        // repeat barlines are seperated if there is a key or time sig :|#3/4|:
+                        // repeat barlines are seperated if there is a clef, key or time sig :| K#3/4 |:
                         // else we can draw as one barline :||:
-                        if key_signature.is_some() || time_signature.is_some() {
+                        if key_signature.is_some()
+                            || time_signature.is_some()
+                            || flow.has_clef_at_tick(&tick, tracks)
+                        {
                             def.start_repeat = true;
                             def.end_repeat = true;
                         } else {

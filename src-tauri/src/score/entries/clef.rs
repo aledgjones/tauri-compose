@@ -1,6 +1,7 @@
 use crate::score::components::pitch::{Accidental, Pitch};
 use crate::score::components::{duration::Tick, measurements::BoundingBox};
-use crate::score::tracks::Track;
+use crate::score::flows::Flow;
+use crate::score::tracks::{Track, Tracks};
 use crate::utils::UniqueId;
 use crate::AppState;
 use serde::{Deserialize, Serialize};
@@ -46,7 +47,7 @@ impl Clef {
                 height: 4.0,
             },
             _ => BoundingBox {
-                width: if is_full_size { 3.8 } else { 2.375 },
+                width: if is_full_size { 3.8 } else { 2.75 },
                 height: if is_full_size { 4.0 } else { 2.5 },
             },
         }
@@ -87,6 +88,15 @@ impl Track {
         }
 
         None
+    }
+}
+
+impl Flow {
+    pub fn has_clef_at_tick(&self, tick: &Tick, tracks: &Tracks) -> bool {
+        self.staves.by_id.values().any(|stave| {
+            let track = &tracks.by_id[&stave.master_id];
+            track.get_clef_at_tick(tick).is_some()
+        })
     }
 }
 
