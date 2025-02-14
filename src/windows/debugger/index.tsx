@@ -224,8 +224,37 @@ export const Main = () => {
           </div>
         )}
 
+        {popoverType === "clef" && (
+          <div className="text-white text-xs p-2 bg-neutral-800 flex-1">
+            <div className="flex">
+              <pre className="pr-8 font-bold w-[200px]">Clear At Tick</pre>
+              <pre className="">"clear"</pre>
+            </div>
+            <div className="flex">
+              <pre className="pr-8 font-bold w-[200px]">Treble</pre>
+              <pre className="">"treble", "G", "g"</pre>
+            </div>
+            <div className="flex">
+              <pre className="pr-8 font-bold w-[200px]">Alto</pre>
+              <pre className="">"alto", "CA", "ca"</pre>
+            </div>
+            <div className="flex">
+              <pre className="pr-8 font-bold w-[200px]">Tenor</pre>
+              <pre className="">"tenor", "CT", "ct"</pre>
+            </div>
+            <div className="flex">
+              <pre className="pr-8 font-bold w-[200px]">Bass</pre>
+              <pre className="">"bass", "F", "f"</pre>
+            </div>
+          </div>
+        )}
+
         {popoverType === "key-signature" && (
           <div className="text-white text-xs p-2 bg-neutral-800 flex-1">
+            <div className="flex">
+              <pre className="pr-8 font-bold w-[200px]">Clear At Tick</pre>
+              <pre className="">"clear"</pre>
+            </div>
             <div className="flex">
               <pre className="pr-8 font-bold w-[200px]">Open/Atonal</pre>
               <pre className="">"open", "atonal"</pre>
@@ -235,6 +264,12 @@ export const Main = () => {
                 Major Keys (uppercase)
               </pre>
               <pre className="">"C", "G", "G#", "Ab" etc.</pre>
+            </div>
+            <div className="flex">
+              <pre className="pr-8 font-bold w-[200px]">
+                Minor Keys (lowercase)
+              </pre>
+              <pre className="">"c", "g", "g#", "ab" etc.</pre>
             </div>
           </div>
         )}
