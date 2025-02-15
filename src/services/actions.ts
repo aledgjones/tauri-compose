@@ -15,7 +15,6 @@ import {
   Tab,
   Tick,
   Ticks,
-  TimeSignature,
   TimeSignatureDrawType,
   Tool,
   UniqueId,
