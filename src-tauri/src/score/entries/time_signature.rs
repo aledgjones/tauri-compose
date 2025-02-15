@@ -3,9 +3,11 @@ use crate::score::components::duration::{NoteDuration, Tick, Ticks};
 use crate::score::components::measurements::BoundingBox;
 use crate::score::tracks::Track;
 use crate::utils::UniqueId;
+use crate::AppState;
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use std::cmp::max;
+use tauri::State;
 
 use super::Entry;
 
@@ -203,4 +205,59 @@ impl Track {
 
         None
     }
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn score_entries_time_signature_create(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    flow_id: UniqueId,
+    tick: Tick,
+    beats: u8,
+    beat_type: NoteDuration,
+    draw_type: TimeSignatureDrawType,
+) -> Option<UniqueId> {
+    let mut state = state.lock().unwrap();
+    let time_signature_id = state.generate_id();
+
+    let flow = &state.score.flows.by_id[&flow_id];
+    let master_id = flow.master_id;
+    let master = state.score.tracks.by_id.get_mut(&master_id).unwrap();
+
+    // remove old barline if defined
+    if let Some(old) = master.get_time_signature_at_tick(&tick) {
+        master.remove_entry(old.id);
+    };
+
+    // insert the new barline
+    let new = TimeSignature::new(time_signature_id, tick, beats, beat_type, draw_type, None);
+    master.insert_entry(Entry::TimeSignature(new));
+
+    state.emit(&app);
+
+    Some(time_signature_id)
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn score_entries_time_signature_clear(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    flow_id: UniqueId,
+    tick: Tick,
+) {
+    if tick == 0 {
+        return;
+    }
+
+    let mut state = state.lock().unwrap();
+
+    let flow = &state.score.flows.by_id[&flow_id];
+    let master_id = flow.master_id;
+    let master = state.score.tracks.by_id.get_mut(&master_id).unwrap();
+
+    if let Some(old) = master.get_time_signature_at_tick(&tick) {
+        master.remove_entry(old.id);
+    };
+
+    state.emit(&app);
 }

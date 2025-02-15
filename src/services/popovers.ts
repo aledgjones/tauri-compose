@@ -3,9 +3,12 @@ import {
   BarlineDrawType,
   ClefDrawType,
   KeySignatureMode,
+  NoteDuration,
   Tick,
+  TimeSignatureDrawType,
   UniqueId,
 } from "./types";
+import { parseTimeSignature } from "./utils";
 
 export type PopoverType =
   | "barline"
@@ -84,8 +87,12 @@ export const parseClefPopover = (
   input: string,
   flow_id: UniqueId,
   tick: Tick,
-  stave_id: UniqueId
+  stave_id?: UniqueId
 ) => {
+  if (!stave_id) {
+    return;
+  }
+
   switch (input) {
     case "clear": {
       actions.score.clef.clear(flow_id, tick, stave_id);
@@ -483,6 +490,135 @@ export const parseKeySignaturePopover = (
         tick,
         KeySignatureMode.Minor,
         -7
+      );
+      break;
+    }
+
+    default: {
+      throw `Unknown input: ${input}`;
+    }
+  }
+};
+
+export const parseTimeSignaturePopover = (
+  input: string,
+  flow_id: UniqueId,
+  tick: Tick
+) => {
+  const parsed = parseTimeSignature(input);
+
+  if (parsed) {
+    switch (parsed.beatType) {
+      case 1: {
+        actions.score.timeSignature.create(
+          flow_id,
+          tick,
+          parsed.beats,
+          NoteDuration.Whole,
+          TimeSignatureDrawType.Regular
+        );
+        return;
+      }
+      case 2: {
+        actions.score.timeSignature.create(
+          flow_id,
+          tick,
+          parsed.beats,
+          NoteDuration.Half,
+          TimeSignatureDrawType.Regular
+        );
+        return;
+      }
+      case 4: {
+        actions.score.timeSignature.create(
+          flow_id,
+          tick,
+          parsed.beats,
+          NoteDuration.Quarter,
+          TimeSignatureDrawType.Regular
+        );
+        return;
+      }
+      case 8: {
+        actions.score.timeSignature.create(
+          flow_id,
+          tick,
+          parsed.beats,
+          NoteDuration.Eighth,
+          TimeSignatureDrawType.Regular
+        );
+        return;
+      }
+      case 16: {
+        actions.score.timeSignature.create(
+          flow_id,
+          tick,
+          parsed.beats,
+          NoteDuration.Sixteenth,
+          TimeSignatureDrawType.Regular
+        );
+        return;
+      }
+      case 32: {
+        actions.score.timeSignature.create(
+          flow_id,
+          tick,
+          parsed.beats,
+          NoteDuration.ThirtySecond,
+          TimeSignatureDrawType.Regular
+        );
+        return;
+      }
+      case 64: {
+        actions.score.timeSignature.create(
+          flow_id,
+          tick,
+          parsed.beats,
+          NoteDuration.SixtyFourth,
+          TimeSignatureDrawType.Regular
+        );
+        return;
+      }
+      case 128: {
+        actions.score.timeSignature.create(
+          flow_id,
+          tick,
+          parsed.beats,
+          NoteDuration.HudredTwentyEighth,
+          TimeSignatureDrawType.Regular
+        );
+        return;
+      }
+
+      default:
+        break;
+    }
+  }
+
+  switch (input) {
+    case "clear": {
+      actions.score.barline.clearAtTick(flow_id, tick);
+      break;
+    }
+
+    case "c": {
+      actions.score.timeSignature.create(
+        flow_id,
+        tick,
+        4,
+        NoteDuration.Quarter,
+        TimeSignatureDrawType.CommonTime
+      );
+      break;
+    }
+
+    case "cutc": {
+      actions.score.timeSignature.create(
+        flow_id,
+        tick,
+        2,
+        NoteDuration.Half,
+        TimeSignatureDrawType.SplitCommonTime
       );
       break;
     }

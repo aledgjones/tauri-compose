@@ -10,6 +10,7 @@ import {
   parseBarlinePopover,
   parseClefPopover,
   parseKeySignaturePopover,
+  parseTimeSignaturePopover,
   PopoverType,
 } from "../../services/popovers";
 import { Flow, UniqueId } from "../../services/types";
@@ -74,7 +75,7 @@ export const Main = () => {
   }, []);
 
   const handleEnter = useCallback(async () => {
-    if (!flowId || staveId === -1) {
+    if (!flowId) {
       return;
     }
 
@@ -90,7 +91,12 @@ export const Main = () => {
       }
       case "clef": {
         try {
-          parseClefPopover(popover, flowId, tick, staveId);
+          parseClefPopover(
+            popover,
+            flowId,
+            tick,
+            staveId > -1 ? staveId : undefined
+          );
           setPopover("");
         } catch (error) {
           console.log(error);
@@ -100,6 +106,15 @@ export const Main = () => {
       case "key-signature": {
         try {
           parseKeySignaturePopover(popover, flowId, tick);
+          setPopover("");
+        } catch (error) {
+          console.log(error);
+        }
+        break;
+      }
+      case "measure": {
+        try {
+          parseTimeSignaturePopover(popover, flowId, tick);
           setPopover("");
         } catch (error) {
           console.log(error);
@@ -270,6 +285,29 @@ export const Main = () => {
                 Minor Keys (lowercase)
               </pre>
               <pre className="">"c", "g", "g#", "ab" etc.</pre>
+            </div>
+          </div>
+        )}
+
+        {popoverType === "measure" && (
+          <div className="text-white text-xs p-2 bg-neutral-800 flex-1">
+            <div className="flex">
+              <pre className="pr-8 font-bold w-[200px]">Clear At Tick</pre>
+              <pre className="">"clear"</pre>
+            </div>
+            <div className="flex">
+              <pre className="pr-8 font-bold w-[200px]">
+                Simple time signatures
+              </pre>
+              <pre className="">"2/4", "6/8", "3/4", "5/4"</pre>
+            </div>
+            <div className="flex">
+              <pre className="pr-8 font-bold w-[200px]">Common Time</pre>
+              <pre className="">"c"</pre>
+            </div>
+            <div className="flex">
+              <pre className="pr-8 font-bold w-[200px]">Cut Common Time</pre>
+              <pre className="">"cutc"</pre>
             </div>
           </div>
         )}

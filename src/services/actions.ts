@@ -15,6 +15,8 @@ import {
   Tab,
   Tick,
   Ticks,
+  TimeSignature,
+  TimeSignatureDrawType,
   Tool,
   UniqueId,
 } from "./types";
@@ -406,6 +408,29 @@ export const actions = {
       },
       clearAtTick: (flow_id: UniqueId, tick: Tick) => {
         return invoke("score_entries_key_signature_clear", {
+          flow_id,
+          tick,
+        });
+      },
+    },
+    timeSignature: {
+      create: (
+        flow_id: UniqueId,
+        tick: Tick,
+        beats: number,
+        beat_type: NoteDuration,
+        draw_type: TimeSignatureDrawType
+      ) => {
+        return invoke<UniqueId>("score_entries_time_signature_create", {
+          flow_id,
+          tick,
+          beats,
+          beat_type,
+          draw_type,
+        });
+      },
+      clearAtTick: (flow_id: UniqueId, tick: Tick) => {
+        return invoke("score_entries_time_signature_clear", {
           flow_id,
           tick,
         });

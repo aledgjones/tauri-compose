@@ -18,6 +18,9 @@ use score::entries::clef::{score_entries_clef_clear, score_entries_clef_create};
 use score::entries::key_signature::{
     score_entries_key_signature_clear, score_entries_key_signature_create,
 };
+use score::entries::time_signature::{
+    score_entries_time_signature_clear, score_entries_time_signature_create,
+};
 use score::entries::tone::{score_entries_tone_create, score_entries_tone_duration_set};
 use score::flows::{
     score_flows_assign_player, score_flows_create, score_flows_move, score_flows_remove,
@@ -134,6 +137,8 @@ pub fn run() {
             score_entries_clef_clear,
             score_entries_key_signature_create,
             score_entries_key_signature_clear,
+            score_entries_time_signature_create,
+            score_entries_time_signature_clear,
             score_entries_tone_create,
             score_entries_tone_duration_set,
             score_flows_create,

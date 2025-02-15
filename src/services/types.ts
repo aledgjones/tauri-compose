@@ -166,6 +166,14 @@ export enum KeySignatureMode {
   Minor,
 }
 
+export enum TimeSignatureDrawType {
+  Hidden, // always hidden
+  Regular, // 4/4 etc
+  CommonTime, // C
+  SplitCommonTime, // ¢
+  Open, // X
+}
+
 export type TimeSignature = {
   id: UniqueId;
   tick: Tick;

@@ -73,3 +73,17 @@ export const getLayoutName = (state: AppState, layoutId: UniqueId) => {
   const last = instrumentNames.pop();
   return `${instrumentNames.join(", ")} & ${last}`;
 };
+
+export const parseTimeSignature = (input: string) => {
+  const validBeatTypes = [1, 2, 4, 8, 16, 32, 64, 128];
+  const match = input.match(/^(\d{1,2})\/(\d{1,3})$/);
+
+  if (!match) return null;
+
+  const beats = parseInt(match[1], 10);
+  const beatType = parseInt(match[2], 10);
+
+  if (!validBeatTypes.includes(beatType)) return null;
+
+  return { beats, beatType };
+};
