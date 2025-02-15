@@ -1,5 +1,4 @@
 use crate::renderer::Renderer;
-use crate::score::components::duration::Tick;
 use crate::score::components::measurements::Point;
 use crate::score::components::text::{Align, Font, FontFamily, Justify};
 use crate::score::entries::clef::Clef;

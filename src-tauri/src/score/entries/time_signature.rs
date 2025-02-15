@@ -1,8 +1,11 @@
+use crate::renderer::converter::Space;
 use crate::score::components::duration::{NoteDuration, Tick, Ticks};
+use crate::score::components::measurements::BoundingBox;
 use crate::score::tracks::Track;
 use crate::utils::UniqueId;
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
+use std::cmp::max;
 
 use super::Entry;
 
@@ -131,6 +134,59 @@ impl TimeSignature {
     ) -> bool {
         let ticks_per_beat = beat_type.to_ticks(subdivisions);
         ((tick - self.tick) % ticks_per_beat) == 0
+    }
+
+    fn digit_to_glyph(input: char) -> String {
+        match input {
+            '0' => String::from("\u{E080}"),
+            '1' => String::from("\u{E081}"),
+            '2' => String::from("\u{E082}"),
+            '3' => String::from("\u{E083}"),
+            '4' => String::from("\u{E084}"),
+            '5' => String::from("\u{E085}"),
+            '6' => String::from("\u{E086}"),
+            '7' => String::from("\u{E087}"),
+            '8' => String::from("\u{E088}"),
+            '9' => String::from("\u{E089}"),
+            _ => String::new(),
+        }
+    }
+
+    pub fn number_to_glyph(input: u8) -> String {
+        let mut output: Vec<String> = Vec::new();
+        let str = input.to_string();
+        for digit in str.chars() {
+            output.push(TimeSignature::digit_to_glyph(digit));
+        }
+        output.concat()
+    }
+
+    pub fn beats_to_glyph(&self) -> String {
+        TimeSignature::number_to_glyph(self.beats)
+    }
+
+    pub fn beat_type_to_glyph(&self) -> String {
+        let number = match &self.beat_type {
+            NoteDuration::Whole => 1,
+            NoteDuration::Half => 2,
+            NoteDuration::Quarter => 4,
+            NoteDuration::Eighth => 8,
+            NoteDuration::Sixteenth => 16,
+            NoteDuration::ThirtySecond => 32,
+            NoteDuration::SixtyFourth => 64,
+            NoteDuration::HudredTwentyEighth => 128,
+        };
+        TimeSignature::number_to_glyph(number)
+    }
+
+    pub fn metrics(&self) -> BoundingBox {
+        let beats = self.beats_to_glyph();
+        let beat_type = self.beat_type_to_glyph();
+
+        BoundingBox {
+            width: (max(beats.chars().count(), beat_type.chars().count()) as Space * 1.7) + 1.0,
+            height: 4.0,
+        }
     }
 }
 

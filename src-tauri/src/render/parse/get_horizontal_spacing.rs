@@ -80,6 +80,7 @@ pub fn get_horizontal_spacing(
     tracks: &Tracks,
 ) -> HorizontalSpacing {
     let mut spacings = HorizontalSpacing::new(flow.length);
+    let flow_master = &tracks.by_id[&flow.master_id];
 
     for tick in 0..flow.length {
         // TEMP: make this dynamically spaced ------------
@@ -111,6 +112,11 @@ pub fn get_horizontal_spacing(
         if let Some(def) = key_signatures.get(&tick) {
             spacings.set(tick, Slot::KeySignature, def.key_signature.metrics().width);
         };
+
+        // TIME SIGNATURE
+        if let Some(time_signature) = flow_master.get_time_signature_at_tick(&tick) {
+            spacings.set(tick, Slot::TimeSignature, time_signature.metrics().width);
+        }
     }
 
     for instrument in instruments {

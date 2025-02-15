@@ -20,6 +20,7 @@ use draw::draw_names::draw_names;
 use draw::draw_staves::draw_staves;
 use draw::draw_sub_brackets::draw_sub_brackets;
 use draw::draw_systemic_barline::draw_systemic_barline;
+use draw::draw_time_signature::draw_time_signature;
 use parse::get_barlines::get_barlines;
 use parse::get_horizontal_spacing::{get_horizontal_spacing, Slot};
 use parse::get_key_signatures::get_key_signatures;
@@ -42,6 +43,7 @@ pub fn render(
     let state = state.lock().unwrap();
 
     let flow = &state.score.flows.by_id[&flow_id];
+    let flow_master = &state.score.tracks.by_id[&flow.master_id];
     let layout = &state.score.layouts.by_id[&layout_id];
     let instruments = state.get_instruments(layout, flow);
     let engrave = &state.score.engraves.by_layout_type[&layout.layout_type];
@@ -233,6 +235,7 @@ pub fn render(
             let mut x: Space = 0.0;
 
             for tick in 0..flow.length {
+                let time_signature = flow_master.get_time_signature_at_tick(&tick);
                 let should_draw_clef = stave_master.get_clef_at_tick(&tick).is_some_and(|found| {
                     clef = found.clone();
                     true
@@ -242,6 +245,7 @@ pub fn render(
                     let slot = Slot::from_usize(slot_index);
                     let width = horizontal_spacing.get(tick, slot);
 
+                    // CLEF
                     if slot == Slot::Clef && should_draw_clef {
                         draw_clef(
                             &Point {
@@ -269,6 +273,20 @@ pub fn render(
                             );
                         };
                     };
+
+                    // TIME SIGNATURE
+                    if slot == Slot::TimeSignature {
+                        if let Some(def) = time_signature {
+                            draw_time_signature(
+                                &Point {
+                                    x: stave_left + x,
+                                    y: stave_top,
+                                },
+                                def,
+                                &mut renderer,
+                            )
+                        }
+                    }
 
                     x += width;
                 }
