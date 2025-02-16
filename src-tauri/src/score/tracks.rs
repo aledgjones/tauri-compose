@@ -47,7 +47,7 @@ impl Track {
 
         let old_tick = entry.tick();
 
-        // move the entry tp the new tick only if it has actually moved
+        // move the entry to the new tick only if it has actually moved
         if old_tick != new_tick {
             entry.set_tick(new_tick);
             // move the entry key to the new tick

@@ -74,6 +74,11 @@ impl TimeSignature {
     }
 
     /// Return the time signature type Open, Compound, Simple or Complex.
+    pub fn kind(&self) -> TimeSignatureType {
+        TimeSignature::kind_from_beats(self.beats)
+    }
+
+    /// Return the time signature type Open, Compound, Simple or Complex.
     fn kind_from_beats(beats: u8) -> TimeSignatureType {
         if beats == 0 {
             TimeSignatureType::Open
@@ -120,6 +125,18 @@ impl TimeSignature {
     // Returns the number of ticks per bar
     pub fn ticks_per_bar(&self, subdivisions: Ticks) -> Ticks {
         self.beat_type.to_ticks(subdivisions) * (self.beats as Ticks)
+    }
+
+    /// Returns how far away the tick is from the nearest barline
+    pub fn distance_from_barline(&self, tick: Tick, subdivisions: Ticks) -> Ticks {
+        match self.kind() {
+            TimeSignatureType::Open => tick - self.tick,
+            _ => (tick - self.tick) % self.ticks_per_bar(subdivisions),
+        }
+    }
+
+    pub fn is_on_first_beat(&self, tick: Tick, subdivisions: Ticks) -> bool {
+        self.distance_from_barline(tick, subdivisions) == 0
     }
 
     // Returns true if the tick is on a beat
@@ -205,6 +222,21 @@ impl Track {
 
         None
     }
+
+    /// Returns the next time signature entry *after* a given tick if it exists
+    pub fn get_time_signature_after_tick(
+        &self,
+        tick: Tick,
+        length: Ticks,
+    ) -> Option<&TimeSignature> {
+        for i in tick + 1..length {
+            if let Some(time_signature) = self.get_time_signature_at_tick(&i) {
+                return Some(time_signature);
+            };
+        }
+
+        None
+    }
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -220,18 +252,55 @@ pub fn score_entries_time_signature_create(
     let mut state = state.lock().unwrap();
     let time_signature_id = state.generate_id();
 
-    let flow = &state.score.flows.by_id[&flow_id];
-    let master_id = flow.master_id;
-    let master = state.score.tracks.by_id.get_mut(&master_id).unwrap();
-
-    // remove old barline if defined
-    if let Some(old) = master.get_time_signature_at_tick(&tick) {
-        master.remove_entry(old.id);
+    let (flow_master_id, flow_length, flow_subdivisions) = {
+        let flow = &state.score.flows.by_id[&flow_id];
+        (flow.master_id, flow.length, flow.subdivisions)
     };
 
-    // insert the new barline
-    let new = TimeSignature::new(time_signature_id, tick, beats, beat_type, draw_type, None);
-    master.insert_entry(Entry::TimeSignature(new));
+    let ticks_per_bar = {
+        let master = state.score.tracks.by_id.get_mut(&flow_master_id).unwrap();
+
+        // remove old time signature if defined
+        if let Some(old) = master.get_time_signature_at_tick(&tick) {
+            master.remove_entry(old.id);
+        };
+
+        // insert the new time signature
+        let new = TimeSignature::new(time_signature_id, tick, beats, beat_type, draw_type, None);
+        let ticks_per_bar = new.ticks_per_bar(flow_subdivisions);
+        master.insert_entry(Entry::TimeSignature(new));
+
+        ticks_per_bar
+    };
+
+    // calculate difference in flow length witht the new time signature in place
+    let next_time_signature_tick = {
+        let master = &state.score.tracks.by_id[&flow_master_id];
+        match master.get_time_signature_after_tick(tick, flow_length) {
+            Some(entry) => entry.tick,
+            None => flow_length,
+        }
+    };
+
+    let overflow = (next_time_signature_tick - tick) % ticks_per_bar;
+    let fill = ticks_per_bar - overflow;
+
+    if fill > 0 {
+        let new_flow_length = {
+            let flow = state.score.flows.by_id.get_mut(&flow_id).unwrap();
+            flow.length += fill;
+            flow.length
+        };
+
+        let master = state.score.tracks.by_id.get_mut(&flow_master_id).unwrap();
+        for tick in (tick + 1..new_flow_length).rev() {
+            if let Some(time_signature) = master.get_time_signature_at_tick(&tick) {
+                let id = time_signature.id;
+                let tick = time_signature.tick + fill;
+                master.shift_entry(id, tick);
+            };
+        }
+    }
 
     state.emit(&app);
 
