@@ -1,3 +1,11 @@
+## Release Notes for v0.4.0
+
+### 🏗️ Features
+- feat(SC-94): when creating time signature more subsequent time signature to avoid non-full bars
+### 🐞 Fixes
+- fix: unused import
+
+
 ## Release Notes for v0.3.0
 
 ### 🏗️ Features
