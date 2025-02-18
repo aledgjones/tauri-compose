@@ -2,7 +2,7 @@ mod debug;
 mod draw;
 mod parse;
 
-use crate::renderer::converter::{Converter, Space};
+use crate::renderer::converter::Converter;
 use crate::renderer::fonts::Fonts;
 use crate::renderer::text_measurer::TextMeasurer;
 use crate::renderer::Renderer;
@@ -11,6 +11,7 @@ use crate::score::entries::barline::BarlineDrawType;
 use crate::score::entries::clef::Clef;
 use crate::utils::UniqueId;
 use crate::AppState;
+use debug::debug_tone_drawing::debug_tone_drawing;
 use draw::draw_barline::draw_barline;
 use draw::draw_braces::draw_braces;
 use draw::draw_brackets::draw_brackets;
@@ -78,7 +79,7 @@ pub fn render(
     let stave_left =
         frame_padding.left + max_name_width + engrave.instrument_name_spacing + max_bracket_width;
     let height = frame_padding.top + vertical_spacing.height + frame_padding.bottom;
-    let width = stave_left + horizontal_spacing.width() + frame_padding.right;
+    let width = stave_left + horizontal_spacing.width + frame_padding.right;
 
     let mut renderer = Renderer::new(width, height, fonts, converter);
 
@@ -139,7 +140,7 @@ pub fn render(
             x: stave_left,
             y: frame_padding.top,
         },
-        horizontal_spacing.width(),
+        horizontal_spacing.width,
         flow,
         &instruments,
         &vertical_spacing,
@@ -147,14 +148,13 @@ pub fn render(
     );
 
     let slot_count = Slot::count();
-    let mut x: Space = 0.0;
 
     for tick in 0..flow.length {
         let barline_def = barlines.get(&tick);
 
         for slot_index in 0..slot_count {
             let slot = Slot::from_usize(slot_index);
-            let width = horizontal_spacing.get(tick, slot);
+            let span = horizontal_spacing.get(tick, slot);
 
             // BARLINES
             if slot == Slot::StartRepeat {
@@ -162,7 +162,7 @@ pub fn render(
                     if def.start_repeat {
                         draw_barline(
                             &Point {
-                                x: stave_left + x,
+                                x: stave_left + span.x,
                                 y: frame_padding.top,
                             },
                             &BarlineDrawType::StartRepeat,
@@ -179,7 +179,7 @@ pub fn render(
                     if def.end_repeat {
                         draw_barline(
                             &Point {
-                                x: stave_left + x,
+                                x: stave_left + span.x,
                                 y: frame_padding.top,
                             },
                             &BarlineDrawType::EndRepeat,
@@ -196,7 +196,7 @@ pub fn render(
                     if let Some(draw_type) = def.draw_type {
                         draw_barline(
                             &Point {
-                                x: stave_left + x,
+                                x: stave_left + span.x,
                                 y: frame_padding.top,
                             },
                             &draw_type,
@@ -207,14 +207,12 @@ pub fn render(
                     }
                 }
             }
-
-            x += width;
         }
     }
 
     draw_barline(
         &Point {
-            x: stave_left + horizontal_spacing.width() - BarlineDrawType::Final.metrics().width,
+            x: stave_left + horizontal_spacing.width - BarlineDrawType::Final.metrics().width,
             y: frame_padding.top,
         },
         &BarlineDrawType::Final,
@@ -232,8 +230,6 @@ pub fn render(
 
             let mut clef = Clef::default();
 
-            let mut x: Space = 0.0;
-
             for tick in 0..flow.length {
                 let time_signature = flow_master.get_time_signature_at_tick(&tick);
                 let should_draw_clef = stave_master.get_clef_at_tick(&tick).is_some_and(|found| {
@@ -243,13 +239,13 @@ pub fn render(
 
                 for slot_index in 0..slot_count {
                     let slot = Slot::from_usize(slot_index);
-                    let width = horizontal_spacing.get(tick, slot);
+                    let span = horizontal_spacing.get(tick, slot);
 
                     // CLEF
                     if slot == Slot::Clef && should_draw_clef {
                         draw_clef(
                             &Point {
-                                x: stave_left + x,
+                                x: stave_left + span.x,
                                 y: stave_top,
                             },
                             &clef,
@@ -263,7 +259,7 @@ pub fn render(
                         if let Some(def) = key_signatures.get(&tick) {
                             draw_key_signature(
                                 &Point {
-                                    x: stave_left + x,
+                                    x: stave_left + span.x,
                                     y: stave_top,
                                 },
                                 &clef,
@@ -279,7 +275,7 @@ pub fn render(
                         if let Some(def) = time_signature {
                             draw_time_signature(
                                 &Point {
-                                    x: stave_left + x,
+                                    x: stave_left + span.x,
                                     y: stave_top,
                                 },
                                 def,
@@ -287,12 +283,24 @@ pub fn render(
                             )
                         }
                     }
-
-                    x += width;
                 }
             }
         }
     }
+
+    debug_tone_drawing(
+        &Point {
+            x: stave_left,
+            y: frame_padding.top,
+        },
+        flow,
+        &instruments,
+        &written_durations,
+        &vertical_spacing,
+        &horizontal_spacing,
+        &tone_offsets,
+        &mut renderer,
+    );
 
     Response::new(renderer.data())
 }

@@ -1,8 +1,7 @@
 use skia_safe::Color;
 
 use crate::render::draw::draw_staves::STAVE_LINE_WIDTH;
-use crate::render::parse::get_horizontal_spacing::HorizontalSpacing;
-use crate::render::parse::get_measures::Measures;
+use crate::render::parse::get_horizontal_spacing::{HorizontalSpacing, Slot};
 use crate::render::parse::get_tone_offsets::ToneVerticalOffsets;
 use crate::render::parse::get_vertical_spacing::VerticalSpacing;
 use crate::render::parse::get_written_durations::NotationByTrack;
@@ -17,7 +16,6 @@ pub fn debug_tone_drawing(
     origin: &Point,
     flow: &Flow,
     instruments: &Vec<&Instrument>,
-    bars: &Measures,
     notation_tracks: &NotationByTrack,
     vertical_spacing: &VerticalSpacing,
     horizontal_spacing: &HorizontalSpacing,
@@ -34,6 +32,10 @@ pub fn debug_tone_drawing(
                 let notation_track = &notation_tracks[track_id];
 
                 for notation in notation_track.track.values() {
+                    let start = horizontal_spacing.get(notation.tick, Slot::NoteSpacing);
+                    let end = horizontal_spacing
+                        .get(notation.tick + notation.duration, Slot::NoteSpacing);
+
                     // DEBUG RESTS
                     if notation.is_rest() {
                         renderer.line(
@@ -41,17 +43,15 @@ pub fn debug_tone_drawing(
                             Color::BLUE,
                             vec![
                                 Point {
-                                    x: origin.x + (notation.tick as f32 * 0.02),
+                                    x: origin.x + start.x,
                                     y: top - 1.0,
                                 },
                                 Point {
-                                    x: origin.x + (notation.tick as f32 * 0.02),
+                                    x: origin.x + start.x,
                                     y: top,
                                 },
                                 Point {
-                                    x: origin.x
-                                        + (notation.tick as f32 * 0.02)
-                                        + (notation.duration as f32 * 0.02),
+                                    x: origin.x + end.x,
                                     y: top,
                                 },
                             ],
@@ -69,23 +69,19 @@ pub fn debug_tone_drawing(
                                 Color::RED,
                                 vec![
                                     Point {
-                                        x: origin.x + (notation.tick as f32 * 0.02),
+                                        x: origin.x + start.x,
                                         y: top + tone_offset,
                                     },
                                     Point {
-                                        x: origin.x + (notation.tick as f32 * 0.02),
+                                        x: origin.x + start.x,
                                         y: top + tone_offset + 1.0,
                                     },
                                     Point {
-                                        x: origin.x
-                                            + (notation.tick as f32 * 0.02)
-                                            + (notation.duration as f32 * 0.02),
+                                        x: origin.x + end.x,
                                         y: top + tone_offset + 1.0,
                                     },
                                     Point {
-                                        x: origin.x
-                                            + (notation.tick as f32 * 0.02)
-                                            + (notation.duration as f32 * 0.02),
+                                        x: origin.x + end.x,
                                         y: top + tone_offset,
                                     },
                                 ],
@@ -93,6 +89,7 @@ pub fn debug_tone_drawing(
                         }
 
                         // DEBUG NOTE HEADS
+
                         renderer.text(
                             NoteDuration::Quarter.to_notehead_glyph(),
                             &Font {
@@ -102,7 +99,7 @@ pub fn debug_tone_drawing(
                                 size: 4.0,
                             },
                             &Point {
-                                x: origin.x + (notation.tick as f32 * 0.02),
+                                x: origin.x + start.x,
                                 y: top + tone_offset,
                             },
                         );
