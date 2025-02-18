@@ -283,9 +283,12 @@ pub fn score_entries_time_signature_create(
     };
 
     let overflow = (next_time_signature_tick - tick) % ticks_per_bar;
-    let fill = ticks_per_bar - overflow;
 
-    if fill > 0 {
+    println!("fill: {}", overflow);
+
+    if overflow > 0 {
+        let fill = ticks_per_bar - overflow;
+
         let new_flow_length = {
             let flow = state.score.flows.by_id.get_mut(&flow_id).unwrap();
             flow.length += fill;
