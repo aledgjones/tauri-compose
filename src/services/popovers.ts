@@ -597,7 +597,7 @@ export const parseTimeSignaturePopover = (
 
   switch (input) {
     case "clear": {
-      actions.score.barline.clearAtTick(flow_id, tick);
+      actions.score.timeSignature.clearAtTick(flow_id, tick);
       break;
     }
 
