@@ -1,3 +1,14 @@
+## Release Notes for v0.6.0
+
+### 🏗️ Features
+- feat(SC-83): delete tones
+### 🐞 Fixes
+- fix: clear tim signature popover
+- fix: only fill remaining bars if the overflow is greater than 0
+### 🪚 Maintainence
+- chore: bump versions
+
+
 ## Release Notes for v0.5.0
 
 ### 🏗️ Features
