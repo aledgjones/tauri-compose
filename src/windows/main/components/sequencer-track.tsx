@@ -10,6 +10,7 @@ import {
   Track,
 } from "../../../services/types";
 import { actions } from "../../../services/actions";
+import { SequencerTrackTone } from "./sequencer-track-tone";
 
 export const getSnappedXPosition = (
   x: number,
@@ -109,8 +110,6 @@ export const SequencerTrack: FC<SequencerTrackProps> = ({
         Articulation.None
       );
 
-      console.log(tone_id);
-
       // TODO:
       // audition(instrumentKey, pitch);
 
@@ -194,14 +193,13 @@ export const SequencerTrack: FC<SequencerTrackProps> = ({
 
       {tones.map((tone) => {
         return (
-          <div
-            className="absolute bg-red-500"
-            style={{
-              bottom: slots.slotHeight * (tone.pitch.int - 12),
-              height: slots.slotHeight - 1,
-              left: ticks.tickWidth * tone.tick + 1,
-              width: ticks.tickWidth * tone.duration - 1,
-            }}
+          <SequencerTrackTone
+            key={tone.id}
+            slotHeight={slots.slotHeight}
+            tickWidth={ticks.tickWidth}
+            tone={tone}
+            tool={tool}
+            trackId={track.id}
           />
         );
       })}

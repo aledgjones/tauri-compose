@@ -21,7 +21,9 @@ use score::entries::key_signature::{
 use score::entries::time_signature::{
     score_entries_time_signature_clear, score_entries_time_signature_create,
 };
-use score::entries::tone::{score_entries_tone_create, score_entries_tone_duration_set};
+use score::entries::tone::{
+    score_entries_tone_create, score_entries_tone_duration_remove, score_entries_tone_duration_set,
+};
 use score::flows::{
     score_flows_assign_player, score_flows_create, score_flows_move, score_flows_remove,
     score_flows_rename, score_flows_unassign_player,
@@ -141,6 +143,7 @@ pub fn run() {
             score_entries_time_signature_clear,
             score_entries_tone_create,
             score_entries_tone_duration_set,
+            score_entries_tone_duration_remove,
             score_flows_create,
             score_flows_rename,
             score_flows_move,

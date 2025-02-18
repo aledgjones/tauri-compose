@@ -462,6 +462,12 @@ export const actions = {
           duration,
         });
       },
+      remove: (track_id: UniqueId, tone_id: UniqueId) => {
+        return invoke("score_entries_tone_duration_remove", {
+          track_id,
+          tone_id,
+        });
+      },
     },
   },
 };

@@ -42,6 +42,26 @@ impl Tone {
     }
 }
 
+impl Track {
+    /// Returns the time signature entry at a given tick if it exists
+    pub fn get_tones_at_tick(&self, tick: &Tick) -> Vec<&Tone> {
+        let mut output = Vec::new();
+
+        let entry_ids = match self.entries.by_tick.get(tick) {
+            Some(entries) => entries,
+            None => return output,
+        };
+
+        for entry_id in entry_ids {
+            if let Some(Entry::Tone(tone)) = self.entries.by_id.get(entry_id) {
+                output.push(tone);
+            }
+        }
+
+        output
+    }
+}
+
 #[tauri::command(rename_all = "snake_case")]
 #[allow(clippy::too_many_arguments)]
 pub fn score_entries_tone_create(
@@ -86,26 +106,6 @@ pub fn score_entries_tone_create(
     tone_id
 }
 
-impl Track {
-    /// Returns the time signature entry at a given tick if it exists
-    pub fn get_tones_at_tick(&self, tick: &Tick) -> Vec<&Tone> {
-        let mut output = Vec::new();
-
-        let entry_ids = match self.entries.by_tick.get(tick) {
-            Some(entries) => entries,
-            None => return output,
-        };
-
-        for entry_id in entry_ids {
-            if let Some(Entry::Tone(tone)) = self.entries.by_id.get(entry_id) {
-                output.push(tone);
-            }
-        }
-
-        output
-    }
-}
-
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_entries_tone_duration_set(
     app: tauri::AppHandle,
@@ -121,6 +121,21 @@ pub fn score_entries_tone_duration_set(
     if let Entry::Tone(tone) = entry {
         tone.duration = duration;
     }
+
+    state.emit(&app);
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn score_entries_tone_duration_remove(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    track_id: UniqueId,
+    tone_id: UniqueId,
+) {
+    let mut state = state.lock().unwrap();
+
+    let track = state.score.tracks.by_id.get_mut(&track_id).unwrap();
+    track.remove_entry(tone_id);
 
     state.emit(&app);
 }
