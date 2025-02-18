@@ -1,3 +1,9 @@
+## Release Notes for v0.5.0
+
+### 🏗️ Features
+- feat: render tone debugging
+
+
 ## Release Notes for v0.4.0
 
 ### 🏗️ Features
