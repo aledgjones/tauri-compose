@@ -1,4 +1,3 @@
-use crate::score::components::duration::NoteDuration;
 use crate::score::components::duration::Tick;
 use crate::score::components::duration::Ticks;
 use crate::score::entries::time_signature::TimeSignature;
@@ -237,7 +236,6 @@ impl NotationTrack {
         beat_three_half: Tick,
         beat_four_half: Tick,
         stop: Tick,
-        is_complete_measure: bool,
     ) -> bool {
         // make sure that there are only events at the correct points in the bar for this pattern
         for tick in beat_one..stop {
@@ -378,7 +376,6 @@ impl NotationTrack {
                         beat_three + half_beat,
                         beat_four + half_beat,
                         stop,
-                        is_complete_measure,
                     ),
                 ];
 
