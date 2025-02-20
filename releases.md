@@ -1,3 +1,11 @@
+## Release Notes for v0.7.0
+
+### 🏗️ Features
+- feat: split notation in comontime
+### 🪚 Maintainence
+- chore: cleanup unused args
+
+
 ## Release Notes for v0.6.0
 
 ### 🏗️ Features
