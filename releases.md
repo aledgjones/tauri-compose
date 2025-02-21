@@ -1,3 +1,12 @@
+## Release Notes for v0.8.0
+
+### 🏗️ Features
+- feat: cleanup
+### 🪚 Maintainence
+- chore: bump versions
+- chore: bump versions
+
+
 ## Release Notes for v0.7.0
 
 ### 🏗️ Features
