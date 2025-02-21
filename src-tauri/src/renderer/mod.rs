@@ -131,7 +131,6 @@ impl Renderer {
         match image.encode(context.as_mut(), EncodedImageFormat::WEBP, None) {
             Some(data) => data.as_bytes().to_vec(),
             None => {
-                println!("None");
                 vec![]
             }
         }

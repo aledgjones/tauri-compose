@@ -1,7 +1,9 @@
+use super::get_measures::Measures;
 use crate::score::components::duration::Tick;
 use crate::score::components::duration::Ticks;
 use crate::score::entries::time_signature::TimeSignature;
 use crate::score::entries::time_signature::TimeSignatureDrawType;
+use crate::score::entries::time_signature::TimeSignatureType;
 use crate::score::entries::tone::Tone;
 use crate::score::entries::Entry;
 use crate::score::flows::Flow;
@@ -9,11 +11,9 @@ use crate::score::instruments::Instrument;
 use crate::score::tracks::Track;
 use crate::score::tracks::Tracks;
 use crate::utils::UniqueId;
-use std::collections::BTreeSet;
-
-use super::get_measures::Measures;
 use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
+use std::collections::BTreeSet;
 
 pub type NotationByTrack = FxHashMap<UniqueId, NotationTrack>;
 
@@ -323,7 +323,7 @@ impl NotationTrack {
         }
     }
 
-    pub fn split_unit(
+    pub fn split_simple_unit(
         &mut self,
         flow: &Flow,
         start: Tick,
@@ -336,26 +336,8 @@ impl NotationTrack {
             return;
         }
 
-        // convert 2 beats to 4 at higher fidelity as it follows exactly
-        // the same patterns at that level
-        if time_signature.beats == 2 {
-            return self.split_unit(
-                flow,
-                start,
-                stop,
-                &TimeSignature::new(
-                    0,
-                    time_signature.tick,
-                    4,
-                    time_signature.beat_type.half(),
-                    TimeSignatureDrawType::Regular,
-                    None,
-                ),
-                false,
-            );
-        }
-
         match time_signature.beats {
+            2 => todo!(),
             3 => todo!(),
             4 => {
                 let beat_one = start;
@@ -380,7 +362,6 @@ impl NotationTrack {
                 ];
 
                 if patterns.iter().any(|&pattern_matched| pattern_matched) {
-                    println!("{} -- PATTERN MATCH {:?}", start, patterns);
                     // these patterns span the entire unit so we can early return as there is no
                     // higher fidelity that is needed.
                     return;
@@ -398,8 +379,8 @@ impl NotationTrack {
                     None,
                 );
 
-                self.split_unit(flow, start, beat_three, &next_unit_time_signature, false);
-                self.split_unit(flow, beat_three, stop, &next_unit_time_signature, false);
+                self.split_simple_unit(flow, start, beat_three, &next_unit_time_signature, false);
+                self.split_simple_unit(flow, beat_three, stop, &next_unit_time_signature, false);
             }
             _ => (),
         }
@@ -425,13 +406,18 @@ pub fn get_written_durations(
 
                 // split as measures
                 for (tick, time_signature) in measures {
-                    notation.split_unit(
-                        flow,
-                        *tick,
-                        tick + time_signature.ticks_per_bar(flow.subdivisions),
-                        time_signature,
-                        true,
-                    );
+                    match time_signature.kind() {
+                        TimeSignatureType::Simple => notation.split_simple_unit(
+                            flow,
+                            *tick,
+                            tick + time_signature.ticks_per_bar(flow.subdivisions),
+                            time_signature,
+                            true,
+                        ),
+                        TimeSignatureType::Compound => todo!(),
+                        TimeSignatureType::Complex => todo!(),
+                        TimeSignatureType::Open => todo!(),
+                    }
                 }
 
                 entries.insert(track.id, notation);

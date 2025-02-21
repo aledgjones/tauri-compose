@@ -284,8 +284,6 @@ pub fn score_entries_time_signature_create(
 
     let overflow = (next_time_signature_tick - tick) % ticks_per_bar;
 
-    println!("fill: {}", overflow);
-
     if overflow > 0 {
         let fill = ticks_per_bar - overflow;
 
