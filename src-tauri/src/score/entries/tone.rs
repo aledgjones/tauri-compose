@@ -1,4 +1,4 @@
-use super::key_signature::{KeySignature, KeySignatureMode};
+use super::key_signature::KeySignature;
 use super::Entry;
 use crate::score::components::articulation::Articulation;
 use crate::score::components::duration::{Tick, Ticks};
