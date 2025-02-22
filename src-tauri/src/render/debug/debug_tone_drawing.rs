@@ -1,5 +1,3 @@
-use skia_safe::Color;
-
 use crate::render::draw::draw_staves::STAVE_LINE_WIDTH;
 use crate::render::parse::get_horizontal_spacing::{HorizontalSpacing, Slot};
 use crate::render::parse::get_tone_offsets::ToneVerticalOffsets;
@@ -11,6 +9,7 @@ use crate::score::components::measurements::Point;
 use crate::score::components::text::{Align, Font, FontFamily, Justify};
 use crate::score::flows::Flow;
 use crate::score::instruments::Instrument;
+use skia_safe::Color;
 
 pub fn debug_tone_drawing(
     origin: &Point,
@@ -60,7 +59,7 @@ pub fn debug_tone_drawing(
 
                     // DEBUG TONES
                     for tone in &notation.tones {
-                        let tone_offset = tone_offsets[&tone.id] as f32 / 2.0;
+                        let tone_offset = tone_offsets.by_tone_id[&tone.id] as f32 / 2.0;
 
                         // DEBUG TIES
                         if notation.ties.contains(&tone.id) {
@@ -89,7 +88,6 @@ pub fn debug_tone_drawing(
                         }
 
                         // DEBUG NOTE HEADS
-
                         renderer.text(
                             NoteDuration::Quarter.to_notehead_glyph(),
                             &Font {

@@ -1,11 +1,7 @@
-use skia_safe::Color;
-
 use crate::renderer::Renderer;
 use crate::score::components::measurements::Point;
 use crate::score::components::text::{Align, Font, FontFamily, Justify};
 use crate::score::entries::time_signature::{TimeSignature, TimeSignatureDrawType};
-
-use super::draw_staves::STAVE_LINE_WIDTH;
 
 pub fn draw_time_signature(
     origin: &Point,

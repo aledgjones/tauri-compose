@@ -164,13 +164,7 @@ impl NotationTrack {
     }
 
     /// [qm.] patterns don't split middle
-    pub fn is_qmdot_pattern(
-        &self,
-        beat_one: Tick,
-        beat_two: Tick,
-        stop: Tick,
-        is_complete_measure: bool,
-    ) -> bool {
+    pub fn is_qmdot_pattern(&self, beat_one: Tick, beat_two: Tick, stop: Tick) -> bool {
         // make sure that there are only events at the correct points in the bar for this pattern
         for tick in beat_one..stop {
             let is_event_expected = tick == beat_one || tick == beat_two;
@@ -187,11 +181,6 @@ impl NotationTrack {
 
         // if the second beat is a rest this is not the pattern
         if self.is_tick_rest(beat_two) {
-            return false;
-        }
-
-        // if the second beat is tied this is not the pattern
-        if !is_complete_measure && self.is_tick_tied(beat_two) {
             return false;
         }
 
@@ -349,7 +338,7 @@ impl NotationTrack {
 
                 let patterns = [
                     self.is_qhq_pattern(beat_one, beat_two, beat_four, stop),
-                    self.is_qmdot_pattern(beat_one, beat_two, stop, is_complete_measure),
+                    self.is_qmdot_pattern(beat_one, beat_two, stop),
                     self.is_mdotq_pattern(beat_one, beat_four, stop, is_complete_measure),
                     self.is_eqqqe_pattern(
                         beat_one,
