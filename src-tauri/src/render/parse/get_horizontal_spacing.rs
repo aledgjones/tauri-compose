@@ -92,7 +92,7 @@ pub fn get_horizontal_spacing(
 
     for tick in 0..flow.length {
         // TEMP: make this dynamically spaced ------------
-        spacings.set_width(tick, Slot::NoteSpacing, 0.02);
+        spacings.set_width(tick, Slot::NoteSpacing, 0.03);
 
         if tick == 0 {
             spacings.set_width(tick, Slot::PaddingStart, 0.5);
