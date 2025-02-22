@@ -1,5 +1,5 @@
-use crate::score::components::pitch::{Accidental, Pitch};
-use crate::score::entries::clef::{Clef, ClefDrawType};
+use crate::score::components::pitch::Pitch;
+use crate::score::entries::clef::Clef;
 use crate::score::flows::Flow;
 use crate::score::instruments::Instrument;
 use crate::score::tracks::Tracks;
@@ -22,13 +22,7 @@ pub fn get_tone_offsets(
 
             for track_id in &stave.track_ids {
                 let track = &tracks.by_id[track_id];
-                let mut clef = &Clef::new(
-                    0,
-                    0,
-                    Pitch::new(60, Accidental::Natural),
-                    0,
-                    ClefDrawType::C,
-                );
+                let mut clef = &Clef::default();
 
                 for tick in 0..flow.length {
                     if let Some(found) = master.get_clef_at_tick(&tick) {
