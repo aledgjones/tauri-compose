@@ -60,25 +60,23 @@ pub fn get_tone_offsets(
                         clef = found;
                     };
 
-                    let mut highest: Option<i8> = None;
-                    let mut lowest: Option<i8> = None;
+                    let mut highest: i8 = 0;
+                    let mut lowest: i8 = 0;
 
                     for tone in track.get_tones_at_tick(&tick) {
                         let offset = Pitch::steps_between(&tone.pitch, &clef.pitch) + clef.offset;
 
-                        if highest.map_or(true, |value| offset < value) {
-                            highest = Some(offset);
+                        if offset < highest {
+                            highest = offset;
                         }
 
-                        if lowest.map_or(true, |value| offset > value) {
-                            lowest = Some(offset);
+                        if offset > lowest {
+                            lowest = offset;
                         }
 
                         output.by_tone_id.insert(tone.id, offset);
                     }
 
-                    let highest = highest.unwrap_or(0);
-                    let lowest = lowest.unwrap_or(0);
                     let furthest = max_by_key(lowest, highest, |value: &i8| i8::abs(*value));
 
                     output

@@ -1,6 +1,8 @@
 use super::get_measures::Measures;
+use crate::score::components::duration::NoteDuration;
 use crate::score::components::duration::Tick;
 use crate::score::components::duration::Ticks;
+use crate::score::components::duration::NOTE_DURATIONS;
 use crate::score::entries::time_signature::TimeSignature;
 use crate::score::entries::time_signature::TimeSignatureDrawType;
 use crate::score::entries::time_signature::TimeSignatureType;
@@ -31,6 +33,70 @@ impl Notation {
             tones: Vec::new(),
             duration,
             ties: FxHashSet::default(),
+        }
+    }
+
+    pub fn glyph(&self, subdivisions: Ticks) -> &str {
+        if self.is_rest() {
+            match self.base_to_note_duration(subdivisions) {
+                Some(base) => match base {
+                    NoteDuration::Whole => "\u{E4E3}",
+                    NoteDuration::Half => "\u{E4E4}",
+                    NoteDuration::Quarter => "\u{E4E5}",
+                    NoteDuration::Eighth => "\u{E4E6}",
+                    NoteDuration::Sixteenth => "\u{E4E7}",
+                    NoteDuration::ThirtySecond => "\u{E4E8}",
+                    NoteDuration::SixtyFourth => todo!(),
+                    NoteDuration::HudredTwentyEighth => todo!(),
+                },
+                None => "\u{E4E5}",
+            }
+        } else {
+            match self.base_to_note_duration(subdivisions) {
+                Some(base) => match base {
+                    NoteDuration::Whole => "\u{E0A4}",
+                    NoteDuration::Half => "\u{E0A3}",
+                    NoteDuration::Quarter => "\u{E0A4}",
+                    NoteDuration::Eighth => "\u{E0A4}",
+                    NoteDuration::Sixteenth => "\u{E0A4}",
+                    NoteDuration::ThirtySecond => "\u{E0A4}",
+                    NoteDuration::SixtyFourth => "\u{E0A4}",
+                    NoteDuration::HudredTwentyEighth => "\u{E0A4}",
+                },
+                None => "\u{E0A4}",
+            }
+        }
+    }
+
+    pub fn is_writable(&self, subdivisions: Ticks) -> bool {
+        for option in NOTE_DURATIONS {
+            if self.duration == option.to_ticks(subdivisions) {
+                return true;
+            }
+        }
+        false
+    }
+
+    // gets base duration from a possibly dotted duration
+    pub fn base_to_ticks(&self, subdivisions: Ticks) -> Option<Ticks> {
+        if self.is_writable(subdivisions) {
+            // original duration is directly writable
+            Some(self.duration)
+        } else {
+            // see if duration is dotted
+            let base_duration = (self.duration as f32 / 3.0) * 2.0;
+            if base_duration.fract() == 0.0 && self.is_writable(subdivisions) {
+                Some(base_duration as Tick)
+            } else {
+                None
+            }
+        }
+    }
+
+    pub fn base_to_note_duration(&self, subdivisions: Ticks) -> Option<NoteDuration> {
+        match self.base_to_ticks(subdivisions) {
+            Some(base) => NoteDuration::from_ticks(base, subdivisions),
+            None => None,
         }
     }
 

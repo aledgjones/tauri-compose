@@ -18,6 +18,7 @@ use draw::draw_brackets::draw_brackets;
 use draw::draw_clef::draw_clef;
 use draw::draw_key_signature::draw_key_signature;
 use draw::draw_names::draw_names;
+use draw::draw_rest::draw_rest;
 use draw::draw_staves::draw_staves;
 use draw::draw_sub_brackets::draw_sub_brackets;
 use draw::draw_systemic_barline::draw_systemic_barline;
@@ -237,50 +238,68 @@ pub fn render(
                     true
                 });
 
-                for slot_index in 0..slot_count {
-                    let slot = Slot::from_usize(slot_index);
-                    let span = horizontal_spacing.get(tick, slot);
+                // CLEF
+                if should_draw_clef {
+                    let span = horizontal_spacing.get(tick, Slot::Clef);
+                    draw_clef(
+                        &Point {
+                            x: stave_left + span.x,
+                            y: stave_top,
+                        },
+                        &clef,
+                        tick == 0,
+                        &mut renderer,
+                    );
+                }
 
-                    // CLEF
-                    if slot == Slot::Clef && should_draw_clef {
-                        draw_clef(
-                            &Point {
-                                x: stave_left + span.x,
-                                y: stave_top,
-                            },
-                            &clef,
-                            tick == 0,
-                            &mut renderer,
-                        );
-                    }
+                // KEY SIGNATURES
+                if let Some(def) = key_signatures.get(&tick) {
+                    let span = horizontal_spacing.get(tick, Slot::KeySignature);
+                    draw_key_signature(
+                        &Point {
+                            x: stave_left + span.x,
+                            y: stave_top,
+                        },
+                        &clef,
+                        &def.key_signature,
+                        def.negate,
+                        &mut renderer,
+                    );
+                };
 
-                    // KEY SIGNATURES
-                    if slot == Slot::KeySignature {
-                        if let Some(def) = key_signatures.get(&tick) {
-                            draw_key_signature(
+                // TIME SIGNATURE
+                if let Some(def) = time_signature {
+                    let span = horizontal_spacing.get(tick, Slot::TimeSignature);
+                    draw_time_signature(
+                        &Point {
+                            x: stave_left + span.x,
+                            y: stave_top,
+                        },
+                        def,
+                        &mut renderer,
+                    )
+                }
+
+                for track_id in &stave.track_ids {
+                    let notation = &written_durations[track_id];
+                    if let Some(entry) = notation.track.get(&tick) {
+                        if entry.is_rest() {
+                            let is_full_bar = measures.contains_key(&tick)
+                                && (measures.contains_key(&(tick + entry.duration))
+                                    || tick + entry.duration == flow.length);
+
+                            draw_rest(
                                 &Point {
-                                    x: stave_left + span.x,
+                                    x: stave_left,
                                     y: stave_top,
                                 },
-                                &clef,
-                                &def.key_signature,
-                                def.negate,
+                                tick,
+                                entry,
+                                flow.subdivisions,
+                                is_full_bar,
+                                &horizontal_spacing,
                                 &mut renderer,
                             );
-                        };
-                    };
-
-                    // TIME SIGNATURE
-                    if slot == Slot::TimeSignature {
-                        if let Some(def) = time_signature {
-                            draw_time_signature(
-                                &Point {
-                                    x: stave_left + span.x,
-                                    y: stave_top,
-                                },
-                                def,
-                                &mut renderer,
-                            )
                         }
                     }
                 }

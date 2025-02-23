@@ -4,9 +4,7 @@ use crate::render::parse::get_tone_offsets::ToneVerticalOffsets;
 use crate::render::parse::get_vertical_spacing::VerticalSpacing;
 use crate::render::parse::get_written_durations::NotationByTrack;
 use crate::renderer::Renderer;
-use crate::score::components::duration::NoteDuration;
 use crate::score::components::measurements::Point;
-use crate::score::components::text::{Align, Font, FontFamily, Justify};
 use crate::score::flows::Flow;
 use crate::score::instruments::Instrument;
 use skia_safe::Color;
@@ -36,26 +34,26 @@ pub fn debug_tone_drawing(
                         .get(notation.tick + notation.duration, Slot::NoteSpacing);
 
                     // DEBUG RESTS
-                    if notation.is_rest() {
-                        renderer.line(
-                            STAVE_LINE_WIDTH * 2.0,
-                            Color::BLUE,
-                            vec![
-                                Point {
-                                    x: origin.x + start.x,
-                                    y: top - 1.0,
-                                },
-                                Point {
-                                    x: origin.x + start.x,
-                                    y: top,
-                                },
-                                Point {
-                                    x: origin.x + end.x,
-                                    y: top,
-                                },
-                            ],
-                        );
-                    };
+                    // if notation.is_rest() {
+                    //     renderer.line(
+                    //         STAVE_LINE_WIDTH * 2.0,
+                    //         Color::BLUE,
+                    //         vec![
+                    //             Point {
+                    //                 x: origin.x + start.x,
+                    //                 y: top - 1.0,
+                    //             },
+                    //             Point {
+                    //                 x: origin.x + start.x,
+                    //                 y: top,
+                    //             },
+                    //             Point {
+                    //                 x: origin.x + end.x,
+                    //                 y: top,
+                    //             },
+                    //         ],
+                    //     );
+                    // };
 
                     // DEBUG TONES
                     for tone in &notation.tones {
@@ -87,19 +85,24 @@ pub fn debug_tone_drawing(
                             );
                         }
 
-                        // DEBUG NOTE HEADS
-                        renderer.text(
-                            NoteDuration::Quarter.to_notehead_glyph(),
-                            &Font {
-                                family: FontFamily::Bravura,
-                                justify: Justify::Start,
-                                align: Align::Bottom,
-                                size: 4.0,
-                            },
-                            &Point {
-                                x: origin.x + start.x,
-                                y: top + tone_offset,
-                            },
+                        // DEBUG NOTE LENGTHS
+                        renderer.line(
+                            STAVE_LINE_WIDTH * 2.0,
+                            Color::CYAN,
+                            vec![
+                                Point {
+                                    x: origin.x + start.x,
+                                    y: top + tone_offset - 1.0,
+                                },
+                                Point {
+                                    x: origin.x + start.x,
+                                    y: top + tone_offset,
+                                },
+                                Point {
+                                    x: origin.x + end.x,
+                                    y: top + tone_offset,
+                                },
+                            ],
                         );
                     }
                 }

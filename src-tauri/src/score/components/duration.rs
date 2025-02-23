@@ -17,6 +17,43 @@ pub enum NoteDuration {
 }
 
 impl NoteDuration {
+    /// convert ticks to NoteDuration. this may fail so wrap in option
+    pub fn from_ticks(ticks: Ticks, subdivisions: Ticks) -> Option<NoteDuration> {
+        if ticks == subdivisions * 4 {
+            return Some(NoteDuration::Whole);
+        }
+
+        if ticks == subdivisions * 2 {
+            return Some(NoteDuration::Half);
+        }
+
+        if ticks == subdivisions {
+            return Some(NoteDuration::Quarter);
+        }
+
+        if ticks == subdivisions / 2 {
+            return Some(NoteDuration::Eighth);
+        }
+
+        if ticks == subdivisions / 4 {
+            return Some(NoteDuration::Sixteenth);
+        }
+
+        if ticks == subdivisions / 8 {
+            return Some(NoteDuration::ThirtySecond);
+        }
+
+        if ticks == subdivisions / 16 {
+            return Some(NoteDuration::SixtyFourth);
+        }
+
+        if ticks == subdivisions / 32 {
+            return Some(NoteDuration::HudredTwentyEighth);
+        }
+
+        None
+    }
+
     pub fn to_ticks(&self, subdivisions: Ticks) -> Ticks {
         match self {
             NoteDuration::Whole => subdivisions * 4,
@@ -40,19 +77,6 @@ impl NoteDuration {
             NoteDuration::ThirtySecond => "\u{1D162}",
             NoteDuration::SixtyFourth => "\u{1D162}",
             NoteDuration::HudredTwentyEighth => "\u{1D162}",
-        }
-    }
-
-    pub fn to_notehead_glyph(&self) -> &str {
-        match self {
-            NoteDuration::Whole => "\u{E0A4}",
-            NoteDuration::Half => "\u{E0A3}",
-            NoteDuration::Quarter => "\u{E0A4}",
-            NoteDuration::Eighth => "\u{E0A4}",
-            NoteDuration::Sixteenth => "\u{E0A4}",
-            NoteDuration::ThirtySecond => "\u{E0A4}",
-            NoteDuration::SixtyFourth => "\u{E0A4}",
-            NoteDuration::HudredTwentyEighth => "\u{E0A4}",
         }
     }
 
