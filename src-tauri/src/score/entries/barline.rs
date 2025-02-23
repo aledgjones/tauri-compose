@@ -27,7 +27,7 @@ impl BarlineDrawType {
     pub fn metrics(&self) -> BoundingBox {
         match self {
             BarlineDrawType::Single => BoundingBox {
-                width: 1.0,
+                width: 1.5,
                 height: 4.0,
             },
             BarlineDrawType::Double => BoundingBox {

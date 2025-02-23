@@ -95,7 +95,7 @@ pub fn get_horizontal_spacing(
         spacings.set_width(tick, Slot::NoteSpacing, 0.03);
 
         if tick == 0 {
-            spacings.set_width(tick, Slot::PaddingStart, 0.5);
+            spacings.set_width(tick, Slot::PaddingStart, 0.75);
         }
 
         // BARLINES
