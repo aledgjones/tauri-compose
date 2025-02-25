@@ -1,3 +1,19 @@
+## Release Notes for v0.9.0
+
+### 🏗️ Features
+- feat: render rests, dotted rests
+- feat: basic draw rests
+- feat: generate tone info with tone offsets
+### 🐞 Fixes
+- fix: adjusted spacing
+- fix: use default clef for simplicity
+- fix: slightly bigger default spacing
+### 🪚 Maintainence
+- chore: cleanup lint errors
+- chore: bump versions
+- chore: cleanup unused imports
+
+
 ## Release Notes for v0.8.0
 
 ### 🏗️ Features
