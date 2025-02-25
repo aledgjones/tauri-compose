@@ -30,7 +30,7 @@ impl BarlineDrawDef {
 pub type Barlines = FxHashMap<Tick, BarlineDrawDef>;
 
 pub fn get_barlines(flow: &Flow, tracks: &Tracks, measures: &Measures) -> Barlines {
-    let mut output: Barlines = FxHashMap::default();
+    let mut output = Barlines::default();
 
     let master = &tracks.by_id[&flow.master_id];
 

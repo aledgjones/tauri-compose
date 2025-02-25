@@ -21,7 +21,7 @@ impl KeySignatureDrawDef {
 pub type KeySignatures = FxHashMap<Tick, KeySignatureDrawDef>;
 
 pub fn get_key_signatures(flow: &Flow, tracks: &Tracks) -> KeySignatures {
-    let mut output: KeySignatures = FxHashMap::default();
+    let mut output = KeySignatures::default();
 
     let master = &tracks.by_id[&flow.master_id];
 

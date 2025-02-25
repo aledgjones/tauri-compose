@@ -57,7 +57,7 @@ pub fn debug_tone_drawing(
 
                     // DEBUG TONES
                     for tone in &notation.tones {
-                        let tone_offset = tone_offsets.by_tone_id[&tone.id] as f32 / 2.0;
+                        let tone_offset = tone_offsets[&tone.id] as f32 / 2.0;
 
                         // DEBUG TIES
                         if notation.ties.contains(&tone.id) {

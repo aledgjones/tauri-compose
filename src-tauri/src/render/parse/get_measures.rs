@@ -7,7 +7,7 @@ use rustc_hash::FxHashMap;
 pub type Measures = FxHashMap<Tick, TimeSignature>;
 
 pub fn get_measures(flow: &Flow, tracks: &Tracks) -> Measures {
-    let mut output: Measures = FxHashMap::default();
+    let mut output = Measures::default();
     let mut current_tick = 0;
     let mut current_time_signature = TimeSignature::default();
 
