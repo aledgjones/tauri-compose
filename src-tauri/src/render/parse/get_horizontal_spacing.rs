@@ -91,9 +91,6 @@ pub fn get_horizontal_spacing(
     let flow_master = &tracks.by_id[&flow.master_id];
 
     for tick in 0..flow.length {
-        // TEMP: make this dynamically spaced ------------
-        spacings.set_width(tick, Slot::NoteSpacing, 0.03);
-
         if tick == 0 {
             spacings.set_width(tick, Slot::PaddingStart, 0.75);
         }
@@ -136,6 +133,10 @@ pub fn get_horizontal_spacing(
                 if let Some(clef) = stave_master.get_clef_at_tick(&tick) {
                     spacings.set_width(tick, Slot::Clef, clef.metrics(tick == 0).width);
                 }
+
+                // TODO: spacing here
+                // TEMP: make this dynamically spaced ------------
+                spacings.set_width(tick, Slot::NoteSpacing, 0.03);
             }
         }
     }
