@@ -113,7 +113,7 @@ impl Renderer {
         );
     }
 
-    pub fn circle(&mut self, radius: Space, color: Color, origin: Point) {
+    pub fn circle(&mut self, radius: Space, color: Color, origin: &Point) {
         let mut paint = Paint::default();
         paint.set_anti_alias(true);
         paint.set_color(color);

@@ -4,6 +4,7 @@ use crate::renderer::Renderer;
 use crate::score::components::duration::{NoteDuration, Tick, Ticks};
 use crate::score::components::measurements::Point;
 use crate::score::components::text::{Align, Font, FontFamily, Justify};
+use skia_safe::Color;
 
 pub fn draw_rest(
     origin: &Point,
@@ -52,5 +53,16 @@ pub fn draw_rest(
             },
             &Point { x: left, y: top },
         );
+
+        if entry.is_dotted(subdivisions) {
+            renderer.circle(
+                0.2,
+                Color::BLACK,
+                &Point {
+                    x: left + entry.glyph_metrics().width + 0.5,
+                    y: top - 0.5,
+                },
+            );
+        }
     }
 }

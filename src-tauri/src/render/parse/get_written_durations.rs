@@ -3,6 +3,7 @@ use crate::score::components::duration::NoteDuration;
 use crate::score::components::duration::Tick;
 use crate::score::components::duration::Ticks;
 use crate::score::components::duration::NOTE_DURATIONS;
+use crate::score::components::measurements::BoundingBox;
 use crate::score::entries::time_signature::TimeSignature;
 use crate::score::entries::time_signature::TimeSignatureDrawType;
 use crate::score::entries::time_signature::TimeSignatureType;
@@ -68,9 +69,33 @@ impl Notation {
         }
     }
 
-    pub fn is_writable(&self, subdivisions: Ticks) -> bool {
+    // TODO: make this more accurate for whole notes
+    pub fn glyph_metrics(&self) -> BoundingBox {
+        if self.is_rest() {
+            BoundingBox {
+                width: 1.175,
+                height: 4.0,
+            }
+        } else {
+            BoundingBox {
+                width: 1.175,
+                height: 4.0,
+            }
+        }
+    }
+
+    pub fn base_duration(&self, subdivisions: Ticks) -> Option<Ticks> {
+        let base = (self.duration as f32 / 3.0) * 2.0;
+        if base.fract() == 0.0 && Notation::is_writable(base as Ticks, subdivisions) {
+            Some(base as Ticks)
+        } else {
+            None
+        }
+    }
+
+    pub fn is_writable(duration: Ticks, subdivisions: Ticks) -> bool {
         for option in NOTE_DURATIONS {
-            if self.duration == option.to_ticks(subdivisions) {
+            if duration == option.to_ticks(subdivisions) {
                 return true;
             }
         }
@@ -79,17 +104,10 @@ impl Notation {
 
     // gets base duration from a possibly dotted duration
     pub fn base_to_ticks(&self, subdivisions: Ticks) -> Option<Ticks> {
-        if self.is_writable(subdivisions) {
-            // original duration is directly writable
+        if Notation::is_writable(self.duration, subdivisions) {
             Some(self.duration)
         } else {
-            // see if duration is dotted
-            let base_duration = (self.duration as f32 / 3.0) * 2.0;
-            if base_duration.fract() == 0.0 && self.is_writable(subdivisions) {
-                Some(base_duration as Tick)
-            } else {
-                None
-            }
+            self.base_duration(subdivisions)
         }
     }
 
@@ -102,6 +120,11 @@ impl Notation {
 
     pub fn is_rest(&self) -> bool {
         self.tones.is_empty()
+    }
+
+    pub fn is_dotted(&self, subdivisions: Ticks) -> bool {
+        !Notation::is_writable(self.duration, subdivisions)
+            && self.base_duration(subdivisions).is_some()
     }
 
     pub fn is_tied(&self) -> bool {
@@ -256,10 +279,10 @@ impl NotationTrack {
     /// [m.q] patterns don't split middle
     pub fn is_mdotq_pattern(
         &self,
+        ticks_per_time_signature_beat: Ticks,
         beat_one: Tick,
         beat_four: Tick,
         stop: Tick,
-        is_complete_measure: bool,
     ) -> bool {
         // make sure that there are only events at the correct points in the bar for this pattern
         for tick in beat_one..stop {
@@ -275,7 +298,9 @@ impl NotationTrack {
             }
         }
 
-        if !is_complete_measure && self.is_tick_rest(beat_four) {
+        // Rests must be split if they extend over the time signature's beat.
+        let is_longer_than_beat = beat_four - beat_one > ticks_per_time_signature_beat;
+        if is_longer_than_beat && self.is_tick_rest(beat_one) {
             return false;
         }
 
@@ -383,8 +408,8 @@ impl NotationTrack {
         flow: &Flow,
         start: Tick,
         stop: Tick,
+        original_time_signature: &TimeSignature,
         time_signature: &TimeSignature,
-        is_complete_measure: bool,
     ) {
         // we stop once there are no events in the range
         if self.is_range_empty(start, stop) {
@@ -405,7 +430,12 @@ impl NotationTrack {
                 let patterns = [
                     self.is_qhq_pattern(beat_one, beat_two, beat_four, stop),
                     self.is_qmdot_pattern(beat_one, beat_two, stop),
-                    self.is_mdotq_pattern(beat_one, beat_four, stop, is_complete_measure),
+                    self.is_mdotq_pattern(
+                        original_time_signature.ticks_per_beat(flow.subdivisions),
+                        beat_one,
+                        beat_four,
+                        stop,
+                    ),
                     self.is_eqqqe_pattern(
                         beat_one,
                         beat_one + half_beat,
@@ -434,8 +464,20 @@ impl NotationTrack {
                     None,
                 );
 
-                self.split_simple_unit(flow, start, beat_three, &next_unit_time_signature, false);
-                self.split_simple_unit(flow, beat_three, stop, &next_unit_time_signature, false);
+                self.split_simple_unit(
+                    flow,
+                    start,
+                    beat_three,
+                    original_time_signature,
+                    &next_unit_time_signature,
+                );
+                self.split_simple_unit(
+                    flow,
+                    beat_three,
+                    stop,
+                    original_time_signature,
+                    &next_unit_time_signature,
+                );
             }
             _ => (),
         }
@@ -467,7 +509,7 @@ pub fn get_written_durations(
                             *tick,
                             tick + time_signature.ticks_per_bar(flow.subdivisions),
                             time_signature,
-                            true,
+                            time_signature,
                         ),
                         TimeSignatureType::Compound => todo!(),
                         TimeSignatureType::Complex => todo!(),

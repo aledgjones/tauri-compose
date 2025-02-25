@@ -272,7 +272,7 @@ pub fn draw_barline(
                 renderer.circle(
                     0.25,
                     Color::BLACK,
-                    Point {
+                    &Point {
                         x: origin.x + 0.25,
                         y: origin.y + position.y - 0.5,
                     },
@@ -280,7 +280,7 @@ pub fn draw_barline(
                 renderer.circle(
                     0.25,
                     Color::BLACK,
-                    Point {
+                    &Point {
                         x: origin.x + 0.25,
                         y: origin.y + position.y + 0.5,
                     },
@@ -292,7 +292,7 @@ pub fn draw_barline(
                 renderer.circle(
                     0.25,
                     Color::BLACK,
-                    Point {
+                    &Point {
                         x: origin.x + 0.25,
                         y: origin.y + position.y - 0.5,
                     },
@@ -300,7 +300,7 @@ pub fn draw_barline(
                 renderer.circle(
                     0.25,
                     Color::BLACK,
-                    Point {
+                    &Point {
                         x: origin.x + 0.25,
                         y: origin.y + position.y + 0.5,
                     },
@@ -308,7 +308,7 @@ pub fn draw_barline(
                 renderer.circle(
                     0.25,
                     Color::BLACK,
-                    Point {
+                    &Point {
                         x: origin.x + 3.25,
                         y: origin.y + position.y - 0.5,
                     },
@@ -316,7 +316,7 @@ pub fn draw_barline(
                 renderer.circle(
                     0.25,
                     Color::BLACK,
-                    Point {
+                    &Point {
                         x: origin.x + 3.25,
                         y: origin.y + position.y + 0.5,
                     },
@@ -328,7 +328,7 @@ pub fn draw_barline(
                 renderer.circle(
                     0.25,
                     Color::BLACK,
-                    Point {
+                    &Point {
                         x: origin.x + 1.75,
                         y: origin.y + position.y - 0.5,
                     },
@@ -336,7 +336,7 @@ pub fn draw_barline(
                 renderer.circle(
                     0.25,
                     Color::BLACK,
-                    Point {
+                    &Point {
                         x: origin.x + 1.75,
                         y: origin.y + position.y + 0.5,
                     },
