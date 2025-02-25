@@ -78,7 +78,7 @@ export const parseBarlinePopover = (
     }
 
     default: {
-      throw `Unknown input: ${input}`;
+      throw new Error(`Unknown input: ${input}`);
     }
   }
 };
@@ -144,7 +144,7 @@ export const parseClefPopover = (
     }
 
     default: {
-      throw `Unknown input: ${input}`;
+      throw new Error(`Unknown input: ${input}`);
     }
   }
 };
@@ -495,7 +495,7 @@ export const parseKeySignaturePopover = (
     }
 
     default: {
-      throw `Unknown input: ${input}`;
+      throw new Error(`Unknown input: ${input}`);
     }
   }
 };
@@ -624,7 +624,7 @@ export const parseTimeSignaturePopover = (
     }
 
     default: {
-      throw `Unknown input: ${input}`;
+      throw new Error(`Unknown input: ${input}`);
     }
   }
 };
