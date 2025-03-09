@@ -1,3 +1,11 @@
+## Release Notes for v0.9.1
+
+### 🪚 Maintainence
+- chore: bump versions
+- chore: cleanup types, remove tone info
+- chore: prep for note spacing
+
+
 ## Release Notes for v0.9.0
 
 ### 🏗️ Features
