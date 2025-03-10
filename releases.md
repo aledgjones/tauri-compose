@@ -1,3 +1,11 @@
+## Release Notes for v0.10.0
+
+### 🏗️ Features
+- feat: get tone offset info
+### 🪚 Maintainence
+- chore: cleanup debug derivation
+
+
 ## Release Notes for v0.9.1
 
 ### 🪚 Maintainence
