@@ -4,7 +4,7 @@ use tauri::State;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Meta {
     app_version: String,
     title: String,

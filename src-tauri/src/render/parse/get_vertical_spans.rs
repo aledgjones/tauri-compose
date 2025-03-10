@@ -9,13 +9,11 @@ enum BracketSpan {
     Continue,
 }
 
-#[derive(Debug)]
 pub struct VerticalSpan {
     pub start: UniqueId,
     pub stop: UniqueId,
 }
 
-#[derive(Debug)]
 pub struct VerticalSpans {
     pub brackets: Vec<VerticalSpan>,
     pub sub_brackets: Vec<VerticalSpan>,

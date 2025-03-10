@@ -5,13 +5,11 @@ use crate::score::instruments::Instrument;
 use crate::utils::UniqueId;
 use rustc_hash::FxHashMap;
 
-#[derive(Debug)]
 pub struct VerticalPosition {
     pub y: Space,
     pub height: Space,
 }
 
-#[derive(Debug)]
 pub struct VerticalSpacing {
     pub height: Space,
     pub instruments: FxHashMap<UniqueId, VerticalPosition>,

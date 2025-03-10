@@ -7,7 +7,7 @@ use crate::score::flows::Flow;
 use crate::score::instruments::Instrument;
 use crate::score::tracks::Tracks;
 
-#[derive(Debug, Clone, Copy, Hash, Eq, PartialEq)]
+#[derive(Clone, Copy, Hash, Eq, PartialEq)]
 pub enum Slot {
     PaddingStart = 0,
     EndRepeat,
