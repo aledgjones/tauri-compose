@@ -143,7 +143,6 @@ impl Notation {
     }
 }
 
-#[derive(Debug)]
 pub struct NotationTrack {
     pub length: u64,
     pub track: FxHashMap<Tick, Notation>,
