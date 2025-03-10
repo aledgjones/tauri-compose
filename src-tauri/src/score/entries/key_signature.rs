@@ -1,5 +1,3 @@
-use std::cmp::Ordering;
-
 use super::clef::{Clef, ClefDrawType};
 use super::Entry;
 use crate::score::components::measurements::BoundingBox;
@@ -10,6 +8,7 @@ use crate::AppState;
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
+use std::cmp::Ordering;
 use tauri::State;
 
 const SHARPS: [Pitch; 7] = [

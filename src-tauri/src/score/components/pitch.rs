@@ -595,7 +595,7 @@ pub enum Accidental {
 }
 
 impl Accidental {
-    pub fn to_glyph(&self) -> String {
+    pub fn to_glyph(self) -> String {
         match self {
             Accidental::DoubleSharp => String::from("\u{E263}"),
             Accidental::Sharp => String::from("\u{E262}"),
@@ -606,7 +606,7 @@ impl Accidental {
     }
 }
 
-#[derive(Copy, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Debug)]
 pub struct Pitch {
     pub int: u8, // the midi number
     pub accidental: Accidental,

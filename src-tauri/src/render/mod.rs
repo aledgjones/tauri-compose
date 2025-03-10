@@ -66,8 +66,13 @@ pub fn render(
     let key_signatures = get_key_signatures(flow, &state.score.tracks);
     let tone_offsets = get_tone_offsets(flow, &instruments, &state.score.tracks);
 
-    let written_durations =
-        get_written_durations(flow, &instruments, &state.score.tracks, &measures);
+    let written_durations = get_written_durations(
+        flow,
+        &instruments,
+        &state.score.tracks,
+        &measures,
+        &tone_offsets,
+    );
 
     let horizontal_spacing = get_horizontal_spacing(
         flow,

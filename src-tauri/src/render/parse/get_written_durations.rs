@@ -1,4 +1,7 @@
 use super::get_measures::Measures;
+use super::get_tone_offset_info::get_tone_offset_info;
+use super::get_tone_offset_info::ToneOffsetInfo;
+use super::get_tone_offsets::ToneVerticalOffsets;
 use crate::score::components::duration::NoteDuration;
 use crate::score::components::duration::Tick;
 use crate::score::components::duration::Ticks;
@@ -20,11 +23,13 @@ use std::collections::BTreeSet;
 
 pub type NotationByTrack = FxHashMap<UniqueId, NotationTrack>;
 
+#[derive(Clone)]
 pub struct Notation {
     pub tick: Tick,
     pub tones: Vec<Tone>,
     pub duration: Ticks,
     pub ties: FxHashSet<UniqueId>,
+    pub info: Option<ToneOffsetInfo>,
 }
 
 impl Notation {
@@ -34,6 +39,7 @@ impl Notation {
             tones: Vec::new(),
             duration,
             ties: FxHashSet::default(),
+            info: None,
         }
     }
 
@@ -130,8 +136,14 @@ impl Notation {
     pub fn is_tied(&self) -> bool {
         !self.ties.is_empty()
     }
+
+    pub fn sort_tones_by_offset(&mut self, tone_offsets: &ToneVerticalOffsets) {
+        self.tones.sort_by_key(|tone| tone_offsets[&tone.id]);
+        self.tones.reverse();
+    }
 }
 
+#[derive(Debug)]
 pub struct NotationTrack {
     pub length: u64,
     pub track: FxHashMap<Tick, Notation>,
@@ -201,6 +213,7 @@ impl NotationTrack {
                         tones: tones.clone(),
                         duration: split_at - event_at,
                         ties: tones.iter().map(|tone| tone.id).collect(),
+                        info: None,
                     },
                 );
 
@@ -211,6 +224,7 @@ impl NotationTrack {
                         tones,
                         duration: event_at + duration - split_at,
                         ties,
+                        info: None,
                     },
                 );
             }
@@ -489,6 +503,7 @@ pub fn get_written_durations(
     instruments: &Vec<&Instrument>,
     tracks: &Tracks,
     measures: &Measures,
+    tone_offsets: &ToneVerticalOffsets,
 ) -> NotationByTrack {
     let mut entries = NotationByTrack::default();
 
@@ -516,6 +531,10 @@ pub fn get_written_durations(
                         TimeSignatureType::Open => todo!(),
                     }
                 }
+
+                // assign tone offset info here so we don't have to pass mutable
+                // notation tracks around
+                get_tone_offset_info(&mut notation, tone_offsets);
 
                 entries.insert(track.id, notation);
             }
