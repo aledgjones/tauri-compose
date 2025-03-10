@@ -606,7 +606,7 @@ impl Accidental {
     }
 }
 
-#[derive(Copy, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Debug)]
+#[derive(Copy, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct Pitch {
     pub int: u8, // the midi number
     pub accidental: Accidental,
