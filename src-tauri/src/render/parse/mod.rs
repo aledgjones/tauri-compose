@@ -1,3 +1,4 @@
+pub mod get_accidentals;
 pub mod get_barlines;
 pub mod get_horizontal_spacing;
 pub mod get_instruments;

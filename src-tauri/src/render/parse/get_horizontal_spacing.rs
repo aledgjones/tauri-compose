@@ -1,8 +1,10 @@
+use super::get_accidentals::AccidentalsByTrack;
 use super::get_barlines::Barlines;
 use super::get_key_signatures::KeySignatures;
 use crate::renderer::converter::Space;
 use crate::score::components::duration::{Tick, Ticks};
 use crate::score::entries::barline::BarlineDrawType;
+use crate::score::entries::Entry;
 use crate::score::flows::Flow;
 use crate::score::instruments::Instrument;
 use crate::score::tracks::Tracks;
@@ -86,6 +88,7 @@ pub fn get_horizontal_spacing(
     key_signatures: &KeySignatures,
     instruments: &Vec<&Instrument>,
     tracks: &Tracks,
+    accidentals_by_track: &AccidentalsByTrack,
 ) -> HorizontalSpacing {
     let mut spacings = HorizontalSpacing::new(flow.length);
     let flow_master = &tracks.by_id[&flow.master_id];
@@ -129,16 +132,18 @@ pub fn get_horizontal_spacing(
             let stave = &flow.staves.by_id[stave_id];
             let stave_master = &tracks.by_id[&stave.master_id];
 
-            for tick in 0..flow.length {
-                if let Some(clef) = stave_master.get_clef_at_tick(&tick) {
-                    spacings.set_width(tick, Slot::Clef, clef.metrics(tick == 0).width);
+            for entry in stave_master.entries.by_id.values() {
+                if let Entry::Clef(clef) = entry {
+                    spacings.set_width(clef.tick, Slot::Clef, clef.metrics(clef.tick == 0).width);
                 }
-
-                // TODO: spacing here
-                // TEMP: make this dynamically spaced ------------
-                spacings.set_width(tick, Slot::NoteSpacing, 0.03);
             }
         }
+    }
+
+    for tick in 0..flow.length {
+        // TODO: spacing here
+        // TEMP: make this dynamically spaced ------------
+        spacings.set_width(tick, Slot::NoteSpacing, 0.03);
     }
 
     let mut x: Space = 0.0;

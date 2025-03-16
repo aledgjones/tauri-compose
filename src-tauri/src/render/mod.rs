@@ -12,6 +12,7 @@ use crate::score::entries::clef::Clef;
 use crate::utils::UniqueId;
 use crate::AppState;
 use debug::debug_tone_drawing::debug_tone_drawing;
+use draw::draw_accidentals::draw_accidental;
 use draw::draw_barline::draw_barline;
 use draw::draw_braces::draw_braces;
 use draw::draw_brackets::draw_brackets;
@@ -23,6 +24,7 @@ use draw::draw_staves::draw_staves;
 use draw::draw_sub_brackets::draw_sub_brackets;
 use draw::draw_systemic_barline::draw_systemic_barline;
 use draw::draw_time_signature::draw_time_signature;
+use parse::get_accidentals::get_accidentals;
 use parse::get_barlines::get_barlines;
 use parse::get_horizontal_spacing::{get_horizontal_spacing, Slot};
 use parse::get_key_signatures::get_key_signatures;
@@ -66,11 +68,19 @@ pub fn render(
     let key_signatures = get_key_signatures(flow, &state.score.tracks);
     let tone_offsets = get_tone_offsets(flow, &instruments, &state.score.tracks);
 
-    let written_durations = get_written_durations(
+    let notation_by_track = get_written_durations(
         flow,
         &instruments,
         &state.score.tracks,
         &measures,
+        &tone_offsets,
+    );
+
+    let accidentals_by_track = get_accidentals(
+        flow,
+        &state.score.tracks,
+        &notation_by_track,
+        &barlines,
         &tone_offsets,
     );
 
@@ -80,6 +90,7 @@ pub fn render(
         &key_signatures,
         &instruments,
         &state.score.tracks,
+        &accidentals_by_track,
     );
 
     let stave_left =
@@ -286,8 +297,11 @@ pub fn render(
                 }
 
                 for track_id in &stave.track_ids {
-                    let notation = &written_durations[track_id];
+                    let notation = &notation_by_track[track_id];
+                    let accidentals = &accidentals_by_track[track_id];
+
                     if let Some(entry) = notation.track.get(&tick) {
+                        // REST
                         if entry.is_rest() {
                             let is_full_bar = measures.contains_key(&tick)
                                 && (measures.contains_key(&(tick + entry.duration))
@@ -306,6 +320,24 @@ pub fn render(
                                 &mut renderer,
                             );
                         }
+
+                        // TONES
+                        for tone in &entry.tones {
+                            if let Some(accidental) = accidentals.by_id.get(&(tick, tone.id)) {
+                                draw_accidental(
+                                    &Point {
+                                        x: stave_left,
+                                        y: stave_top,
+                                    },
+                                    tick,
+                                    accidental,
+                                    tone,
+                                    &tone_offsets,
+                                    &horizontal_spacing,
+                                    &mut renderer,
+                                );
+                            }
+                        }
                     }
                 }
             }
@@ -319,7 +351,7 @@ pub fn render(
         },
         flow,
         &instruments,
-        &written_durations,
+        &notation_by_track,
         &vertical_spacing,
         &horizontal_spacing,
         &tone_offsets,

@@ -630,7 +630,7 @@ impl Pitch {
 
     /// gets the base note pitch (natural) for an accidental note
     /// ie 61 (C#) -> 60 (C), 61 (D flat) -> 62 (D)
-    fn base(&self) -> u8 {
+    pub fn base(&self) -> u8 {
         let int = self.int;
         match self.accidental {
             Accidental::DoubleSharp => int - 2,
