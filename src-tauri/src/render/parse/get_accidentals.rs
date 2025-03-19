@@ -118,8 +118,8 @@ pub fn is_accidental_needed(
         return false;
     }
 
-    // if the tone shares the sam note letter as another tone reuiring a different
-    // accideantal, e dra all these accidentals.
+    // if the tone shares the same note letter as another tone reuiring a different
+    // accideantal, we draw all these accidentals.
     for other_tone in tones {
         if tone.id != other_tone.id
             && tone.pitch.base() % 12 == other_tone.pitch.base() % 12
@@ -142,7 +142,7 @@ pub fn is_accidental_needed(
         }
     }
 
-    // finally if it's just an accidental not covered by the above two cases
+    // finally if it's just an accidental not covered by the above cases
     if tone.pitch.accidental != Accidental::Natural {
         return true;
     }
