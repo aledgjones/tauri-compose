@@ -1,3 +1,12 @@
+## Release Notes for v0.11.0
+
+### 🏗️ Features
+- feat: dra accidentals
+### 🪚 Maintainence
+- chore: cleanup debug code
+- chore: cleanup debug code
+
+
 ## Release Notes for v0.10.0
 
 ### 🏗️ Features
