@@ -164,51 +164,47 @@ pub fn render(
         &mut renderer,
     );
 
-    for tick in 0..flow.length {
-        let barline_def = barlines.get(&tick);
+    for (tick, def) in barlines {
+        if def.start_repeat {
+            let span = horizontal_spacing.get(tick, Slot::StartRepeat);
+            draw_barline(
+                &Point {
+                    x: stave_left + span.x,
+                    y: frame_padding.top,
+                },
+                &BarlineDrawType::StartRepeat,
+                &vertical_spacing,
+                &vertical_spans,
+                &mut renderer,
+            );
+        }
 
-        if let Some(def) = barline_def {
-            if def.start_repeat {
-                let span = horizontal_spacing.get(tick, Slot::StartRepeat);
-                draw_barline(
-                    &Point {
-                        x: stave_left + span.x,
-                        y: frame_padding.top,
-                    },
-                    &BarlineDrawType::StartRepeat,
-                    &vertical_spacing,
-                    &vertical_spans,
-                    &mut renderer,
-                );
-            }
+        if def.end_repeat {
+            let span = horizontal_spacing.get(tick, Slot::EndRepeat);
+            draw_barline(
+                &Point {
+                    x: stave_left + span.x,
+                    y: frame_padding.top,
+                },
+                &BarlineDrawType::EndRepeat,
+                &vertical_spacing,
+                &vertical_spans,
+                &mut renderer,
+            );
+        }
 
-            if def.end_repeat {
-                let span = horizontal_spacing.get(tick, Slot::EndRepeat);
-                draw_barline(
-                    &Point {
-                        x: stave_left + span.x,
-                        y: frame_padding.top,
-                    },
-                    &BarlineDrawType::EndRepeat,
-                    &vertical_spacing,
-                    &vertical_spans,
-                    &mut renderer,
-                );
-            }
-
-            if let Some(draw_type) = def.draw_type {
-                let span = horizontal_spacing.get(tick, Slot::Barline);
-                draw_barline(
-                    &Point {
-                        x: stave_left + span.x,
-                        y: frame_padding.top,
-                    },
-                    &draw_type,
-                    &vertical_spacing,
-                    &vertical_spans,
-                    &mut renderer,
-                );
-            }
+        if let Some(draw_type) = def.draw_type {
+            let span = horizontal_spacing.get(tick, Slot::Barline);
+            draw_barline(
+                &Point {
+                    x: stave_left + span.x,
+                    y: frame_padding.top,
+                },
+                &draw_type,
+                &vertical_spacing,
+                &vertical_spans,
+                &mut renderer,
+            );
         }
     }
 
