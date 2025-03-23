@@ -1,4 +1,3 @@
-mod debug;
 mod draw;
 mod parse;
 
@@ -11,7 +10,6 @@ use crate::score::entries::barline::BarlineDrawType;
 use crate::score::entries::clef::Clef;
 use crate::utils::UniqueId;
 use crate::AppState;
-use debug::debug_tone_drawing::debug_tone_drawing;
 use draw::draw_accidentals::draw_accidental;
 use draw::draw_barline::draw_barline;
 use draw::draw_braces::draw_braces;
@@ -19,6 +17,7 @@ use draw::draw_brackets::draw_brackets;
 use draw::draw_clef::draw_clef;
 use draw::draw_key_signature::draw_key_signature;
 use draw::draw_names::draw_names;
+use draw::draw_notehead::draw_notehead;
 use draw::draw_rest::draw_rest;
 use draw::draw_staves::draw_staves;
 use draw::draw_sub_brackets::draw_sub_brackets;
@@ -26,11 +25,14 @@ use draw::draw_systemic_barline::draw_systemic_barline;
 use draw::draw_time_signature::draw_time_signature;
 use parse::get_accidentals::get_accidentals;
 use parse::get_barlines::get_barlines;
+use parse::get_beams::get_beams;
 use parse::get_horizontal_spacing::{get_horizontal_spacing, Slot};
 use parse::get_key_signatures::get_key_signatures;
 use parse::get_max_brackets_width::get_max_brackets_width;
 use parse::get_max_instrument_name_width::get_max_instrument_name_width;
 use parse::get_measures::get_measures;
+use parse::get_shunts::get_note_shunts;
+use parse::get_stem_directions::get_stem_directions;
 use parse::get_tone_offsets::get_tone_offsets;
 use parse::get_vertical_spacing::get_vertical_spacing;
 use parse::get_vertical_spans::get_vertical_spans;
@@ -76,12 +78,17 @@ pub fn render(
         &tone_offsets,
     );
 
+    let beams = get_beams(flow, &notation_by_track, &measures);
+    let stem_directions = get_stem_directions(&notation_by_track, &beams);
+    let shunts_by_track = get_note_shunts(&notation_by_track, &tone_offsets, &stem_directions);
+
     let accidentals_by_track = get_accidentals(
         flow,
         &state.score.tracks,
         &notation_by_track,
         &barlines,
         &tone_offsets,
+        &shunts_by_track,
     );
 
     let horizontal_spacing = get_horizontal_spacing(
@@ -280,8 +287,12 @@ pub fn render(
                 for track_id in &stave.track_ids {
                     let notation = &notation_by_track[track_id];
                     let accidentals = &accidentals_by_track[track_id];
+                    let shunts = &shunts_by_track[track_id];
 
                     if let Some(entry) = notation.track.get(&tick) {
+                        let glyph = entry.glyph(flow.subdivisions);
+                        let glyph_width = entry.glyph_metrics().width;
+
                         // REST
                         if entry.is_rest() {
                             let is_full_bar = measures.contains_key(&tick)
@@ -294,6 +305,7 @@ pub fn render(
                                     y: stave_top,
                                 },
                                 tick,
+                                glyph,
                                 entry,
                                 flow.subdivisions,
                                 is_full_bar,
@@ -304,6 +316,23 @@ pub fn render(
 
                         // TONES
                         for tone in &entry.tones {
+                            let vertical_offset = tone_offsets[&tone.id];
+
+                            draw_notehead(
+                                &Point {
+                                    x: stave_left,
+                                    y: stave_top,
+                                },
+                                tick,
+                                tone,
+                                glyph,
+                                glyph_width,
+                                vertical_offset,
+                                &horizontal_spacing,
+                                shunts,
+                                &mut renderer,
+                            );
+
                             if let Some(accidental) = accidentals.by_id.get(&(tick, tone.id)) {
                                 draw_accidental(
                                     &Point {
@@ -313,7 +342,7 @@ pub fn render(
                                     tick,
                                     accidental,
                                     tone,
-                                    &tone_offsets,
+                                    vertical_offset,
                                     &horizontal_spacing,
                                     &mut renderer,
                                 );
@@ -324,20 +353,6 @@ pub fn render(
             }
         }
     }
-
-    debug_tone_drawing(
-        &Point {
-            x: stave_left,
-            y: frame_padding.top,
-        },
-        flow,
-        &instruments,
-        &notation_by_track,
-        &vertical_spacing,
-        &horizontal_spacing,
-        &tone_offsets,
-        &mut renderer,
-    );
 
     Response::new(renderer.data())
 }

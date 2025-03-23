@@ -1,11 +1,14 @@
 pub mod get_accidentals;
 pub mod get_barlines;
+pub mod get_beams;
 pub mod get_horizontal_spacing;
 pub mod get_instruments;
 pub mod get_key_signatures;
 pub mod get_max_brackets_width;
 pub mod get_max_instrument_name_width;
 pub mod get_measures;
+pub mod get_shunts;
+pub mod get_stem_directions;
 pub mod get_tone_offset_info;
 pub mod get_tone_offsets;
 pub mod get_vertical_spacing;

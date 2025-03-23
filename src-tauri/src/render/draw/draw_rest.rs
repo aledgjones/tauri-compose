@@ -9,6 +9,7 @@ use skia_safe::Color;
 pub fn draw_rest(
     origin: &Point,
     tick: Tick,
+    glyph: &str,
     entry: &Notation,
     subdivisions: Ticks,
     is_full_bar: bool,
@@ -37,7 +38,7 @@ pub fn draw_rest(
     } else {
         let left = origin.x + start.x;
         let base = entry.base_to_note_duration(subdivisions);
-        let glyph = entry.glyph(subdivisions);
+
         let top = match base {
             Some(NoteDuration::Whole) => origin.y - 1.0,
             _ => origin.y,

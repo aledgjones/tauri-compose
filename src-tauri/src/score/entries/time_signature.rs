@@ -113,6 +113,18 @@ impl TimeSignature {
         }
     }
 
+    pub fn groupings_to_ticks(&self, start: Tick, subdivisions: Ticks) -> Vec<Tick> {
+        let mut output = vec![start];
+
+        let mut acc = start;
+        for group in &self.groupings {
+            acc += *group as Tick * self.ticks_per_beat(subdivisions);
+            output.push(acc);
+        }
+
+        output
+    }
+
     pub fn get_tick_at_beat(&self, start: Tick, beat: u8, subdivisions: Ticks) -> Tick {
         start + (((beat - 1) as Tick) * self.beat_type.to_ticks(subdivisions))
     }

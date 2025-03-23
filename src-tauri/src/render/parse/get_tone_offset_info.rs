@@ -4,9 +4,9 @@ use crate::score::entries::tone::Tone;
 
 #[derive(Clone, Debug)]
 pub struct ToneOffsetInfo {
-    highest: i8,
-    lowest: i8,
-    furthest: i8,
+    pub highest: i8,
+    pub lowest: i8,
+    pub furthest: i8,
 }
 
 impl ToneOffsetInfo {

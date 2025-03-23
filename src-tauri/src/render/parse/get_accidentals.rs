@@ -1,4 +1,5 @@
 use super::get_barlines::Barlines;
+use super::get_shunts::{Shunt, Shunts, ShuntsByTrack};
 use super::get_tone_offsets::ToneVerticalOffsets;
 use super::get_written_durations::{Notation, NotationByTrack, NotationTrack};
 use crate::score::components::duration::Tick;
@@ -44,16 +45,15 @@ pub fn fits_in_slot(
     accidental_offset: i8,
     slots: &[AccidentalNotation],
     tone_offsets: &ToneVerticalOffsets,
-    // shunts: &Shunts,
+    shunts: &Shunts,
 ) -> bool {
-    // TODO: avoid shunted notes in first slot
-    // if slot == 1 {
-    //     for offset in (accidental_offset - 4)..(accidental_offset + 4) {
-    //         if let Some(Shunt::Pre) = shunts.by_offset.get(&(tick, offset)) {
-    //             return false;
-    //         }
-    //     }
-    // }
+    if slot == 1 {
+        for offset in (accidental_offset - 4)..(accidental_offset + 4) {
+            if let Some(Shunt::Pre) = shunts.by_offset.get(&(tick, offset)) {
+                return false;
+            }
+        }
+    }
 
     // avoid other accidentals
     for entry in slots {
@@ -73,13 +73,13 @@ pub fn find_slot(
     tone_id: UniqueId,
     slots: &[AccidentalNotation],
     tone_offsets: &ToneVerticalOffsets,
-    // shunts: &Shunts,
+    shunts: &Shunts,
 ) -> u8 {
     let accidental_offset = tone_offsets[&tone_id];
 
     let mut slot: u8 = 1;
     loop {
-        if fits_in_slot(tick, slot, accidental_offset, slots, tone_offsets) {
+        if fits_in_slot(tick, slot, accidental_offset, slots, tone_offsets, shunts) {
             return slot;
         } else {
             slot += 1;
@@ -181,6 +181,7 @@ pub fn get_accidentals_in_track(
     master: &Track,
     barlines: &Barlines,
     tone_offsets: &ToneVerticalOffsets,
+    shunts: &Shunts,
 ) -> Accidentals {
     let mut output = Accidentals::new();
 
@@ -223,7 +224,7 @@ pub fn get_accidentals_in_track(
 
         let mut slots: Vec<AccidentalNotation> = Vec::new();
         for tone_id in sort_accidentals_alternate(&accidentals) {
-            let slot = find_slot(tick, tone_id, &slots, tone_offsets);
+            let slot = find_slot(tick, tone_id, &slots, tone_offsets, shunts);
             slots.push(AccidentalNotation { tone_id, slot });
         }
 
@@ -246,15 +247,15 @@ pub fn get_accidentals(
     notation_by_track: &NotationByTrack,
     bars: &Barlines,
     tone_offsets: &ToneVerticalOffsets,
-    // shunts_by_track: &ShuntsByTrack,
+    shunts_by_track: &ShuntsByTrack,
 ) -> AccidentalsByTrack {
     let mut output: AccidentalsByTrack = FxHashMap::default();
 
     let master = &tracks.by_id[&flow.master_id];
 
     for (track_id, notation) in notation_by_track {
-        // let shunts = &shunts_by_track[track_key];
-        let accidentals = get_accidentals_in_track(notation, master, bars, tone_offsets);
+        let shunts = &shunts_by_track[track_id];
+        let accidentals = get_accidentals_in_track(notation, master, bars, tone_offsets, shunts);
         output.insert(*track_id, accidentals);
     }
 
