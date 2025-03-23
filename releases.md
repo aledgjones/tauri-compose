@@ -1,3 +1,13 @@
+## Release Notes for v0.11.1
+
+### 🐞 Fixes
+- fix: refactor for performance
+### 🪚 Maintainence
+- chore: performance refactor of barlines
+- chore: bump versions
+- chore: cleanup comments
+
+
 ## Release Notes for v0.11.0
 
 ### 🏗️ Features
