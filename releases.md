@@ -1,3 +1,10 @@
+## Release Notes for v0.13.0
+
+### 🏗️ Features
+- feat: perfrmance restructure of render
+- feat: init stems -- broken!
+
+
 ## Release Notes for v0.12.0
 
 ### 🏗️ Features
