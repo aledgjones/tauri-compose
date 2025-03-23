@@ -293,82 +293,82 @@ pub fn render(
                         &mut renderer,
                     )
                 }
+            }
 
-                for track_id in &stave.track_ids {
-                    let notation = &notation_by_track[track_id];
-                    let accidentals = &accidentals_by_track[track_id];
-                    let shunts = &shunts_by_track[track_id];
-                    let stem_lengths = &stem_lengths_by_track[track_id];
+            for track_id in &stave.track_ids {
+                let notation = &notation_by_track[track_id];
+                let accidentals = &accidentals_by_track[track_id];
+                let shunts = &shunts_by_track[track_id];
+                let stem_lengths = &stem_lengths_by_track[track_id];
 
-                    if let Some(entry) = notation.track.get(&tick) {
-                        let glyph = entry.glyph(flow.subdivisions);
-                        let glyph_width = entry.glyph_metrics().width;
+                for (tick, notation) in &notation.track {
+                    let glyph = notation.glyph(flow.subdivisions);
+                    let glyph_width = notation.glyph_metrics().width;
 
-                        // REST
-                        if entry.is_rest() {
-                            let is_full_bar = measures.contains_key(&tick)
-                                && (measures.contains_key(&(tick + entry.duration))
-                                    || tick + entry.duration == flow.length);
+                    // REST
+                    if notation.is_rest() {
+                        let is_full_bar = measures.contains_key(tick)
+                            && (measures.contains_key(&(tick + notation.duration))
+                                || tick + notation.duration == flow.length);
 
-                            draw_rest(
-                                &Point {
-                                    x: stave_left,
-                                    y: stave_top,
-                                },
-                                tick,
-                                glyph,
-                                entry,
-                                flow.subdivisions,
-                                is_full_bar,
-                                &horizontal_spacing,
-                                &mut renderer,
-                            );
+                        draw_rest(
+                            &Point {
+                                x: stave_left,
+                                y: stave_top,
+                            },
+                            *tick,
+                            glyph,
+                            notation,
+                            flow.subdivisions,
+                            is_full_bar,
+                            &horizontal_spacing,
+                            &mut renderer,
+                        );
 
-                            continue;
-                        }
+                        continue;
+                    }
 
-                        let x = horizontal_spacing.get(tick, Slot::NoteSpacing).x;
-                        let stem_def = stem_lengths.get(&tick);
+                    let x = horizontal_spacing.get(*tick, Slot::NoteSpacing).x;
+                    let stem_def = stem_lengths.get(tick);
 
-                        if let Some(def) = stem_def {
-                            draw_stem(
-                                &Point {
-                                    x: stave_left + x,
-                                    y: stave_top,
-                                },
-                                def,
-                                &mut renderer,
-                            );
-                        }
+                    if let Some(def) = stem_def {
+                        draw_stem(
+                            &Point {
+                                x: stave_left + x,
+                                y: stave_top,
+                            },
+                            def,
+                            &mut renderer,
+                        );
+                    }
 
-                        // TONES
-                        for tone in &entry.tones {
-                            let vertical_offset = tone_offsets[&tone.id];
+                    // TONES
+                    for tone in &notation.tones {
+                        let vertical_offset = tone_offsets[&tone.id];
 
-                            draw_notehead(
+                        draw_notehead(
+                            &Point {
+                                x: stave_left + x,
+                                y: stave_top + (vertical_offset as f32 / 2.0),
+                            },
+                            *tick,
+                            tone,
+                            glyph,
+                            glyph_width,
+                            shunts,
+                            &mut renderer,
+                        );
+
+                        if let Some(accidental) = accidentals.by_id.get(&(*tick, tone.id)) {
+                            draw_accidental(
                                 &Point {
                                     x: stave_left + x,
                                     y: stave_top + (vertical_offset as f32 / 2.0),
                                 },
-                                tick,
+                                accidental,
                                 tone,
-                                glyph,
-                                glyph_width,
-                                shunts,
                                 &mut renderer,
                             );
-
-                            if let Some(accidental) = accidentals.by_id.get(&(tick, tone.id)) {
-                                draw_accidental(
-                                    &Point {
-                                        x: stave_left + x,
-                                        y: stave_top + (vertical_offset as f32 / 2.0),
-                                    },
-                                    accidental,
-                                    tone,
-                                    &mut renderer,
-                                );
-                            }
                         }
                     }
                 }
