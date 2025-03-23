@@ -1,3 +1,9 @@
+## Release Notes for v0.12.0
+
+### 🏗️ Features
+- feat: render noteheads basic
+
+
 ## Release Notes for v0.11.1
 
 ### 🐞 Fixes
