@@ -1,6 +1,4 @@
-use crate::render::parse::get_horizontal_spacing::{HorizontalSpacing, Slot};
 use crate::render::parse::get_shunts::{Shunt, Shunts};
-use crate::render::parse::get_tone_offsets::ToneVerticalOffsets;
 use crate::renderer::Renderer;
 use crate::score::components::duration::Tick;
 use crate::score::components::measurements::Point;
@@ -13,20 +11,14 @@ pub fn draw_notehead(
     tone: &Tone,
     glyph: &str,
     glyph_width: f32,
-    vertical_offset: i8,
-    horizontal_spacing: &HorizontalSpacing,
     shunts: &Shunts,
     renderer: &mut Renderer,
 ) {
-    let start = horizontal_spacing.get(tick, Slot::NoteSpacing);
-
     let left = match &shunts.by_id[&(tick, tone.id)] {
-        Shunt::Pre => origin.x + start.x - glyph_width,
-        Shunt::None => origin.x + start.x,
-        Shunt::Post => origin.x + start.x + glyph_width,
+        Shunt::Pre => origin.x - glyph_width,
+        Shunt::None => origin.x,
+        Shunt::Post => origin.x + glyph_width,
     };
-
-    let top = origin.y + (vertical_offset as f32 / 2.0);
 
     renderer.text(
         glyph,
@@ -36,6 +28,9 @@ pub fn draw_notehead(
             justify: Justify::Start,
             align: Align::Bottom,
         },
-        &Point { x: left, y: top },
+        &Point {
+            x: left,
+            y: origin.y,
+        },
     );
 }

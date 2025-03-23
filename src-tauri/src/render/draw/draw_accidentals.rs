@@ -1,25 +1,17 @@
 use crate::render::parse::get_accidentals::AccidentalNotation;
-use crate::render::parse::get_horizontal_spacing::{HorizontalSpacing, Slot};
 use crate::renderer::Renderer;
-use crate::score::components::duration::Tick;
 use crate::score::components::measurements::Point;
 use crate::score::components::text::{Align, Font, FontFamily, Justify};
 use crate::score::entries::tone::Tone;
 
 pub fn draw_accidental(
     origin: &Point,
-    tick: Tick,
     accidental: &AccidentalNotation,
     tone: &Tone,
-    vertical_offset: i8,
-    horizontal_spacing: &HorizontalSpacing,
     renderer: &mut Renderer,
 ) {
     let glyph = tone.pitch.accidental.to_glyph();
-    let top = origin.y + (vertical_offset as f32 / 2.0);
-
-    let x = horizontal_spacing.get(tick, Slot::NoteSpacing).x;
-    let left = origin.x + x - ((accidental.slot as f32 - 1.0) * 1.1) - 0.25;
+    let left = origin.x - ((accidental.slot as f32 - 1.0) * 1.1) - 0.25;
 
     renderer.text(
         &glyph,
@@ -29,6 +21,9 @@ pub fn draw_accidental(
             align: Align::Bottom,
             justify: Justify::End,
         },
-        &Point { x: left, y: top },
+        &Point {
+            x: left,
+            y: origin.y,
+        },
     );
 }

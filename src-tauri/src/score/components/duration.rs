@@ -3,7 +3,7 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 pub type Tick = u64;
 pub type Ticks = u64;
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, PartialEq, Eq)]
 #[repr(u8)]
 pub enum Direction {
     Up,

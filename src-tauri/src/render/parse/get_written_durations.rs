@@ -2,6 +2,7 @@ use super::get_measures::Measures;
 use super::get_tone_offset_info::get_tone_offset_info;
 use super::get_tone_offset_info::ToneOffsetInfo;
 use super::get_tone_offsets::ToneVerticalOffsets;
+use crate::score::components::duration::Direction;
 use crate::score::components::duration::NoteDuration;
 use crate::score::components::duration::Tick;
 use crate::score::components::duration::Ticks;
@@ -140,6 +141,15 @@ impl Notation {
     pub fn sort_tones_by_offset(&mut self, tone_offsets: &ToneVerticalOffsets) {
         self.tones.sort_by_key(|tone| tone_offsets[&tone.id]);
         self.tones.reverse();
+    }
+
+    pub fn get_beam_guide_note(&self, stem_direction: &Direction) -> i8 {
+        let info = self.info.clone().unwrap();
+
+        match stem_direction {
+            Direction::Up => info.highest,
+            Direction::Down => info.lowest,
+        }
     }
 }
 

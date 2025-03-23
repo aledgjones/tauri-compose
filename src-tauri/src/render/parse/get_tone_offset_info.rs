@@ -2,7 +2,7 @@ use super::get_tone_offsets::ToneVerticalOffsets;
 use super::get_written_durations::NotationTrack;
 use crate::score::entries::tone::Tone;
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct ToneOffsetInfo {
     pub highest: i8,
     pub lowest: i8,
@@ -18,10 +18,11 @@ impl ToneOffsetInfo {
         let highest = tone_offsets[&tones.last().unwrap().id];
         let lowest = tone_offsets[&tones.first().unwrap().id];
 
-        let furthest = if lowest.abs() > highest.abs() {
-            lowest
-        } else {
+        // if lowest explicitly less than highest, use highest -- falback to lowest when equal or explixitly greater.
+        let furthest = if lowest.abs() < highest.abs() {
             highest
+        } else {
+            lowest
         };
 
         Some(ToneOffsetInfo {

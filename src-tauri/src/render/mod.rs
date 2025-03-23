@@ -20,6 +20,7 @@ use draw::draw_names::draw_names;
 use draw::draw_notehead::draw_notehead;
 use draw::draw_rest::draw_rest;
 use draw::draw_staves::draw_staves;
+use draw::draw_stem::draw_stem;
 use draw::draw_sub_brackets::draw_sub_brackets;
 use draw::draw_systemic_barline::draw_systemic_barline;
 use draw::draw_time_signature::draw_time_signature;
@@ -33,6 +34,7 @@ use parse::get_max_instrument_name_width::get_max_instrument_name_width;
 use parse::get_measures::get_measures;
 use parse::get_shunts::get_note_shunts;
 use parse::get_stem_directions::get_stem_directions;
+use parse::get_stem_lengths::get_stem_lengths;
 use parse::get_tone_offsets::get_tone_offsets;
 use parse::get_vertical_spacing::get_vertical_spacing;
 use parse::get_vertical_spans::get_vertical_spans;
@@ -78,9 +80,10 @@ pub fn render(
         &tone_offsets,
     );
 
-    let beams = get_beams(flow, &notation_by_track, &measures);
-    let stem_directions = get_stem_directions(&notation_by_track, &beams);
-    let shunts_by_track = get_note_shunts(&notation_by_track, &tone_offsets, &stem_directions);
+    let beams_by_track = get_beams(flow, &notation_by_track, &measures);
+    let stem_directions_by_track = get_stem_directions(&notation_by_track, &beams_by_track);
+    let shunts_by_track =
+        get_note_shunts(&notation_by_track, &tone_offsets, &stem_directions_by_track);
 
     let accidentals_by_track = get_accidentals(
         flow,
@@ -98,6 +101,13 @@ pub fn render(
         &instruments,
         &state.score.tracks,
         &accidentals_by_track,
+    );
+
+    let stem_lengths_by_track = get_stem_lengths(
+        &notation_by_track,
+        &stem_directions_by_track,
+        &beams_by_track,
+        engrave,
     );
 
     let stave_left =
@@ -288,6 +298,7 @@ pub fn render(
                     let notation = &notation_by_track[track_id];
                     let accidentals = &accidentals_by_track[track_id];
                     let shunts = &shunts_by_track[track_id];
+                    let stem_lengths = &stem_lengths_by_track[track_id];
 
                     if let Some(entry) = notation.track.get(&tick) {
                         let glyph = entry.glyph(flow.subdivisions);
@@ -312,6 +323,22 @@ pub fn render(
                                 &horizontal_spacing,
                                 &mut renderer,
                             );
+
+                            continue;
+                        }
+
+                        let x = horizontal_spacing.get(tick, Slot::NoteSpacing).x;
+                        let stem_def = stem_lengths.get(&tick);
+
+                        if let Some(def) = stem_def {
+                            draw_stem(
+                                &Point {
+                                    x: stave_left + x,
+                                    y: stave_top,
+                                },
+                                def,
+                                &mut renderer,
+                            );
                         }
 
                         // TONES
@@ -320,15 +347,13 @@ pub fn render(
 
                             draw_notehead(
                                 &Point {
-                                    x: stave_left,
-                                    y: stave_top,
+                                    x: stave_left + x,
+                                    y: stave_top + (vertical_offset as f32 / 2.0),
                                 },
                                 tick,
                                 tone,
                                 glyph,
                                 glyph_width,
-                                vertical_offset,
-                                &horizontal_spacing,
                                 shunts,
                                 &mut renderer,
                             );
@@ -336,14 +361,11 @@ pub fn render(
                             if let Some(accidental) = accidentals.by_id.get(&(tick, tone.id)) {
                                 draw_accidental(
                                     &Point {
-                                        x: stave_left,
-                                        y: stave_top,
+                                        x: stave_left + x,
+                                        y: stave_top + (vertical_offset as f32 / 2.0),
                                     },
-                                    tick,
                                     accidental,
                                     tone,
-                                    vertical_offset,
-                                    &horizontal_spacing,
                                     &mut renderer,
                                 );
                             }
