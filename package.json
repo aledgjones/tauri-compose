@@ -15,19 +15,19 @@
   "dependencies": {
     "@mdi/js": "7.4.47",
     "@mdi/react": "1.6.1",
-    "@tauri-apps/api": "2.4.0",
+    "@tauri-apps/api": "2.4.1",
     "@tauri-apps/plugin-opener": "2.2.6",
     "big.js": "6.2.2",
     "classnames": "2.5.1",
     "pretty-ms": "9.2.0",
-    "react": "19.0.0",
-    "react-dom": "19.0.0",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
     "react-inspector": "6.0.2",
     "sortablejs": "1.15.6"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "4.0.15",
-    "@tauri-apps/cli": "2.4.0",
+    "@tailwindcss/postcss": "4.1.0",
+    "@tauri-apps/cli": "2.4.1",
     "@types/big.js": "6.2.2",
     "@types/react": "19.0.12",
     "@types/react-dom": "19.0.4",
@@ -36,9 +36,9 @@
     "eslint": "^8.57.1",
     "eslint-config-react-app": "7.0.1",
     "postcss": "8.5.3",
-    "tailwindcss": "4.0.15",
+    "tailwindcss": "4.1.0",
     "typescript": "5.8.2",
-    "vite": "6.2.2",
+    "vite": "6.2.4",
     "vite-plugin-eslint": "1.8.1"
   },
   "overrides": {
