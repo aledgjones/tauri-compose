@@ -1,7 +1,9 @@
 use super::get_beams::{Beam, Beams, BeamsByTrack};
+use super::get_horizontal_spacing::{HorizontalSpacing, Slot};
 use super::get_stem_directions::{StemDirections, StemDirectionsByTrack};
 use super::get_written_durations::{Notation, NotationByTrack, NotationTrack};
 use crate::render::draw::draw_staves::STAVE_LINE_WIDTH;
+use crate::renderer::converter::Space;
 use crate::score::components::duration::{Direction, Tick};
 use crate::score::components::measurements::Point;
 use crate::score::engraves::Engrave;
@@ -29,47 +31,38 @@ fn adjust_to_beam(
     maximum_beam_slant: f32,
     output: &mut StemLengths,
 ) {
-    // cap at max beam slant
     let diff = low.tail.y - high.tail.y;
+
     let low_y = if diff > maximum_beam_slant {
-        high.tail.y + 0.5
+        high.tail.y + maximum_beam_slant
     } else {
         low.tail.y
     };
 
-    // join inner stems to the angles beam
-    let mut adjustment = 0.0;
     let tan_angle = (low_y - high.tail.y) / (low.tail.x - high.tail.x);
-    {
-        let this = beam.ticks.iter();
-        let f = |(tick, _)| {
-            let original = output.get_mut(tick).unwrap();
 
-            let opp = tan_angle * (low.tail.x - original.tail.x);
-            let beam_dictated_tail = low_y - opp;
+    println!("low_y: {} {}", low.tail.x, high.tail.x);
 
-            if beam_dictated_tail.abs() < original.tail.y.abs() {
-                let offset = original.tail.y - beam_dictated_tail;
-                if offset > adjustment {
-                    adjustment = offset;
-                }
+    let mut adjustment = 0.0;
+
+    for tick in beam.ticks.keys() {
+        let original = output.get_mut(tick).unwrap();
+        let opp = tan_angle * (low.tail.x - original.tail.x);
+        let beam_dictated_tail = low_y - opp;
+
+        if beam_dictated_tail.abs() < original.tail.y.abs() {
+            let offset = original.tail.y - beam_dictated_tail;
+            if offset > adjustment {
+                adjustment = offset;
             }
-
-            original.tail.y = beam_dictated_tail;
-        };
-        #[inline]
-        fn call<T>(mut f: impl FnMut(T)) -> impl FnMut((), T) {
-            move |(), item| f(item)
         }
 
-        this.fold((), call(f));
-    };
+        original.tail.y = beam_dictated_tail;
+    }
 
-    // make sure stems aren't squashed less than natural lengths
-    beam.ticks.iter().for_each(|(tick, _)| {
-        let original = output.get_mut(tick).unwrap();
-        original.tail.y += adjustment;
-    });
+    for tick in beam.ticks.keys() {
+        output.get_mut(tick).unwrap().tail.y += adjustment;
+    }
 }
 
 fn get_beam_slant(beam: &Beam, notation: &NotationTrack, stem_direction: &Direction) -> BeamSlant {
@@ -133,7 +126,7 @@ fn get_furthest_tail(beam: &Beam, stem_lengths: &StemLengths, stem_direction: &D
     furthest
 }
 
-fn get_natural_stem_length(entry: &Notation, stem_direction: &Direction) -> StemDef {
+fn get_natural_stem_length(x: Space, entry: &Notation, stem_direction: &Direction) -> StemDef {
     let info = entry.info.clone().unwrap();
 
     let (x, head, tail) = match stem_direction {
@@ -144,7 +137,7 @@ fn get_natural_stem_length(entry: &Notation, stem_direction: &Direction) -> Stem
                 tail = 0.0
             }
 
-            let x = entry.glyph_metrics().width;
+            let x = x + entry.glyph_metrics().width;
 
             (x - (STAVE_LINE_WIDTH / 2.0), head, tail)
         }
@@ -155,7 +148,7 @@ fn get_natural_stem_length(entry: &Notation, stem_direction: &Direction) -> Stem
                 tail = 0.0
             };
 
-            (STAVE_LINE_WIDTH / 2.0, head, tail)
+            (x + (STAVE_LINE_WIDTH / 2.0), head, tail)
         }
     };
 
@@ -170,14 +163,16 @@ pub fn get_stem_lengths_in_track(
     stem_directions: &StemDirections,
     beams: &Beams,
     engrave: &Engrave,
+    horizontal_spacing: &HorizontalSpacing,
 ) -> StemLengths {
     let mut output: StemLengths = FxHashMap::default();
 
     // get natural lengths of stems
     for (tick, entry) in &notation.track {
         if !entry.is_rest() {
+            let x = horizontal_spacing.get(*tick, Slot::NoteSpacing).x;
             let stem_direction = &stem_directions[tick];
-            output.insert(*tick, get_natural_stem_length(entry, stem_direction));
+            output.insert(*tick, get_natural_stem_length(x, entry, stem_direction));
         }
     }
 
@@ -225,13 +220,15 @@ pub fn get_stem_lengths(
     stem_directions_by_track: &StemDirectionsByTrack,
     beams_by_track: &BeamsByTrack,
     engrave: &Engrave,
+    horizontal_spacing: &HorizontalSpacing,
 ) -> StemLengthsByTrack {
     let mut output: StemLengthsByTrack = FxHashMap::default();
 
     for (track_id, track) in tracks {
         let stem_directions = &stem_directions_by_track[track_id];
         let beams = &beams_by_track[track_id];
-        let stem_lengths = get_stem_lengths_in_track(track, stem_directions, beams, engrave);
+        let stem_lengths =
+            get_stem_lengths_in_track(track, stem_directions, beams, engrave, horizontal_spacing);
         output.insert(*track_id, stem_lengths);
     }
 

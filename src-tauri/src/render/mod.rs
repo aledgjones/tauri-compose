@@ -108,6 +108,7 @@ pub fn render(
         &stem_directions_by_track,
         &beams_by_track,
         engrave,
+        &horizontal_spacing,
     );
 
     let stave_left =
@@ -334,7 +335,7 @@ pub fn render(
                     if let Some(def) = stem_def {
                         draw_stem(
                             &Point {
-                                x: stave_left + x,
+                                x: stave_left,
                                 y: stave_top,
                             },
                             def,
