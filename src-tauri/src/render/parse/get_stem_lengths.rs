@@ -41,8 +41,6 @@ fn adjust_to_beam(
 
     let tan_angle = (low_y - high.tail.y) / (low.tail.x - high.tail.x);
 
-    println!("low_y: {} {}", low.tail.x, high.tail.x);
-
     let mut adjustment = 0.0;
 
     for tick in beam.ticks.keys() {
