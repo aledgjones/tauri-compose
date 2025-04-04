@@ -15,16 +15,6 @@ pub struct Beam {
     pub stop: Tick,
 }
 
-impl Beam {
-    pub fn new() -> Self {
-        Self {
-            ticks: FxHashMap::default(),
-            start: 0,
-            stop: 0,
-        }
-    }
-}
-
 pub type Beams = Vec<Beam>;
 pub type BeamsByTrack = FxHashMap<UniqueId, Beams>;
 

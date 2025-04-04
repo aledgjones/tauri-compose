@@ -92,7 +92,7 @@ impl Notation {
     pub fn get_stem_direction(&self) -> Direction {
         let info = &self.info.clone().unwrap();
 
-        if info.furthest > 0 {
+        if info.furthest >= 0 {
             Direction::Up
         } else {
             Direction::Down
