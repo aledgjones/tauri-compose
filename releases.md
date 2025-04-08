@@ -1,3 +1,14 @@
+## Release Notes for v0.14.0
+
+### 🏗️ Features
+- feat: draw dots
+- feat: draw guide beams
+### 🐞 Fixes
+- fix: tones on central line should default to up stem
+### 🪚 Maintainence
+- chore: better commenting
+
+
 ## Release Notes for v0.13.1
 
 ### 🐞 Fixes
