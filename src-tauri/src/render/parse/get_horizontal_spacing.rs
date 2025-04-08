@@ -120,12 +120,14 @@ pub fn get_horizontal_spacing(
 
         // KEY SIGNATURES
         if let Some(def) = key_signatures.get(&tick) {
-            spacings.set_width(tick, Slot::KeySignature, def.key_signature.metrics().width);
+            let metrics = def.key_signature.metrics();
+            spacings.set_width(tick, Slot::KeySignature, metrics.width);
         };
 
         // TIME SIGNATURE
         if let Some(time_signature) = flow_master.get_time_signature_at_tick(&tick) {
-            spacings.set_width(tick, Slot::TimeSignature, time_signature.metrics().width);
+            let metrics = time_signature.metrics();
+            spacings.set_width(tick, Slot::TimeSignature, metrics.width);
         }
     }
 
