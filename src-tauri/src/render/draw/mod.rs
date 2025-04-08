@@ -1,8 +1,10 @@
 pub mod draw_accidentals;
 pub mod draw_barline;
+pub mod draw_beam;
 pub mod draw_braces;
 pub mod draw_brackets;
 pub mod draw_clef;
+pub mod draw_dot;
 pub mod draw_key_signature;
 pub mod draw_names;
 pub mod draw_notehead;

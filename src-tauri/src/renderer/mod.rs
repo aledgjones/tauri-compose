@@ -8,7 +8,7 @@ use converter::{Converter, Space};
 use fonts::Fonts;
 use skia_safe::utils::text_utils::Align as SkiaAlign;
 use skia_safe::{
-    surfaces, Color, EncodedImageFormat, Font as SkiaFont, Paint, Path, PathEffect,
+    surfaces, Color, EncodedImageFormat, Font as SkiaFont, Paint, PaintStyle, Path, PathEffect,
     Point as SkiaPoint, Surface,
 };
 
@@ -123,6 +123,23 @@ impl Renderer {
             self.converter.spaces_to_px(radius),
             &paint,
         );
+    }
+
+    pub fn shape(&mut self, color: Color, points: Vec<Point>) {
+        let mut paint = Paint::default();
+        paint.set_anti_alias(true);
+        paint.set_color(color);
+        paint.set_style(PaintStyle::Fill);
+
+        let mut path = Path::new();
+        let first = points[0].to_skia(&self.converter);
+
+        path.move_to(first);
+        for point in &points[1..] {
+            path.line_to(point.to_skia(&self.converter));
+        }
+
+        self.surface.canvas().draw_path(&path, &paint);
     }
 
     pub fn data(&mut self) -> Vec<u8> {

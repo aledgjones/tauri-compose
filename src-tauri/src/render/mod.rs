@@ -12,9 +12,11 @@ use crate::utils::UniqueId;
 use crate::AppState;
 use draw::draw_accidentals::draw_accidental;
 use draw::draw_barline::draw_barline;
+use draw::draw_beam::draw_beam;
 use draw::draw_braces::draw_braces;
 use draw::draw_brackets::draw_brackets;
 use draw::draw_clef::draw_clef;
+use draw::draw_dot::draw_dots;
 use draw::draw_key_signature::draw_key_signature;
 use draw::draw_names::draw_names;
 use draw::draw_notehead::draw_notehead;
@@ -27,6 +29,7 @@ use draw::draw_time_signature::draw_time_signature;
 use parse::get_accidentals::get_accidentals;
 use parse::get_barlines::get_barlines;
 use parse::get_beams::get_beams;
+use parse::get_dots::get_dots;
 use parse::get_horizontal_spacing::{get_horizontal_spacing, Slot};
 use parse::get_key_signatures::get_key_signatures;
 use parse::get_max_brackets_width::get_max_brackets_width;
@@ -84,7 +87,7 @@ pub fn render(
     let stem_directions_by_track = get_stem_directions(&notation_by_track, &beams_by_track);
     let shunts_by_track =
         get_note_shunts(&notation_by_track, &tone_offsets, &stem_directions_by_track);
-
+    let dots_by_track = get_dots(flow, &notation_by_track, &tone_offsets);
     let accidentals_by_track = get_accidentals(
         flow,
         &state.score.tracks,
@@ -301,12 +304,31 @@ pub fn render(
                 let accidentals = &accidentals_by_track[track_id];
                 let shunts = &shunts_by_track[track_id];
                 let stem_lengths = &stem_lengths_by_track[track_id];
+                let beams = &beams_by_track[track_id];
+                let dots = &dots_by_track[track_id];
+
+                // BEAMS
+                for beam in beams {
+                    let start = &stem_lengths[&beam.start];
+                    let stop = &stem_lengths[&beam.stop];
+
+                    draw_beam(
+                        &Point {
+                            x: stave_left,
+                            y: stave_top,
+                        },
+                        start,
+                        stop,
+                        &mut renderer,
+                    );
+                }
 
                 for (tick, notation) in &notation.track {
                     let glyph = notation.glyph(flow.subdivisions);
                     let glyph_width = notation.glyph_metrics().width;
+                    let has_post_shunt = notation.has_post_shunt(shunts);
 
-                    // REST
+                    // RESTS
                     if notation.is_rest() {
                         let is_full_bar = measures.contains_key(tick)
                             && (measures.contains_key(&(tick + notation.duration))
@@ -330,15 +352,29 @@ pub fn render(
                     }
 
                     let x = horizontal_spacing.get(*tick, Slot::NoteSpacing).x;
-                    let stem_def = stem_lengths.get(tick);
 
-                    if let Some(def) = stem_def {
+                    // STEMS
+                    if let Some(def) = stem_lengths.get(tick) {
                         draw_stem(
                             &Point {
                                 x: stave_left,
                                 y: stave_top,
                             },
                             def,
+                            &mut renderer,
+                        );
+                    }
+
+                    // DOTS
+                    if let Some(tick_dots) = dots.get(tick) {
+                        draw_dots(
+                            &Point {
+                                x: stave_left + x,
+                                y: stave_top,
+                            },
+                            tick_dots,
+                            glyph_width,
+                            has_post_shunt,
                             &mut renderer,
                         );
                     }
