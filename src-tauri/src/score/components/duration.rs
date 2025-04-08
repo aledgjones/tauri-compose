@@ -108,6 +108,25 @@ impl NoteDuration {
             NoteDuration::HudredTwentyEighth => NoteDuration::HudredTwentyEighth,
         }
     }
+
+    pub fn spacing_ratio(&self, ratio: f32, is_dotted: bool) -> f32 {
+        let base = match self {
+            NoteDuration::Whole => ratio * 2.0,
+            NoteDuration::Half => ratio,
+            NoteDuration::Quarter => 1.0,
+            NoteDuration::Eighth => 1.0 / ratio,
+            NoteDuration::Sixteenth => 1.0 / (ratio * 2.0),
+            NoteDuration::ThirtySecond => 1.0 / (ratio * 4.0),
+            NoteDuration::SixtyFourth => 1.0 / (ratio * 8.0),
+            NoteDuration::HudredTwentyEighth => 1.0 / (ratio * 16.0),
+        };
+
+        if is_dotted {
+            base * 1.2
+        } else {
+            base
+        }
+    }
 }
 
 pub const NOTE_DURATIONS: [NoteDuration; 8] = [

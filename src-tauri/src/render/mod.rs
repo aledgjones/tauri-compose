@@ -99,11 +99,14 @@ pub fn render(
 
     let horizontal_spacing = get_horizontal_spacing(
         flow,
-        &barlines,
-        &key_signatures,
         &instruments,
         &state.score.tracks,
+        &notation_by_track,
+        &barlines,
+        &shunts_by_track,
+        &beams_by_track,
         &accidentals_by_track,
+        engrave,
     );
 
     let stem_lengths_by_track = get_stem_lengths(

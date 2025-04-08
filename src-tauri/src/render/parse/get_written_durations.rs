@@ -1,15 +1,18 @@
+use super::get_beams::Beams;
 use super::get_measures::Measures;
 use super::get_shunts::Shunt;
 use super::get_shunts::Shunts;
 use super::get_tone_offset_info::get_tone_offset_info;
 use super::get_tone_offset_info::ToneOffsetInfo;
 use super::get_tone_offsets::ToneVerticalOffsets;
+use crate::renderer::converter::Space;
 use crate::score::components::duration::Direction;
 use crate::score::components::duration::NoteDuration;
 use crate::score::components::duration::Tick;
 use crate::score::components::duration::Ticks;
 use crate::score::components::duration::NOTE_DURATIONS;
 use crate::score::components::measurements::BoundingBox;
+use crate::score::engraves::Engrave;
 use crate::score::entries::time_signature::TimeSignature;
 use crate::score::entries::time_signature::TimeSignatureDrawType;
 use crate::score::entries::time_signature::TimeSignatureType;
@@ -140,6 +143,16 @@ impl Notation {
         !self.ties.is_empty()
     }
 
+    pub fn has_pre_shunt(&self, shunts: &Shunts) -> bool {
+        for tone in &self.tones {
+            if let Shunt::Pre = shunts.by_id[&(self.tick, tone.id)] {
+                return true;
+            }
+        }
+
+        false
+    }
+
     pub fn has_post_shunt(&self, shunts: &Shunts) -> bool {
         for tone in &self.tones {
             if let Shunt::Post = shunts.by_id[&(self.tick, tone.id)] {
@@ -161,6 +174,83 @@ impl Notation {
         match stem_direction {
             Direction::Up => info.highest,
             Direction::Down => info.lowest,
+        }
+    }
+
+    pub fn is_flagged(&self, beams: &Beams, subdivisions: Ticks) -> bool {
+        !self.is_rest()
+            && !self.has_beam(beams)
+            && self.duration < NoteDuration::Quarter.to_ticks(subdivisions)
+    }
+
+    pub fn has_tie(&self) -> bool {
+        !self.ties.is_empty()
+    }
+
+    pub fn is_chord(&self) -> bool {
+        self.tones.len() > 1
+    }
+
+    pub fn has_beam(&self, beams: &Beams) -> bool {
+        for beam in beams {
+            if beam.ticks.contains_key(&self.tick) {
+                return true;
+            }
+        }
+
+        false
+    }
+
+    pub fn min_spacing(
+        &self,
+        shunts: &Shunts,
+        subdivisions: Ticks,
+        engrave: &Engrave,
+        beams: &Beams,
+    ) -> Space {
+        let mut min_space = self.glyph_metrics().width;
+        if self.has_post_shunt(shunts) {
+            min_space *= 2.0;
+        }
+
+        if self.is_dotted(subdivisions) || self.is_flagged(beams, subdivisions) {
+            min_space += 1.0
+        }
+
+        // only apply min tie space if internal ties (chords)
+        if self.has_tie() && self.is_chord() {
+            min_space += engrave.minimum_tie_space;
+        } else {
+            min_space += engrave.minimum_note_space;
+        };
+
+        min_space
+    }
+
+    pub fn metrics(
+        &self,
+        shunts: &Shunts,
+        subdivisions: Ticks,
+        engrave: &Engrave,
+        beams: &Beams,
+    ) -> BoundingBox {
+        let min = self.min_spacing(shunts, subdivisions, engrave, beams);
+        let spacing = match self.base_to_note_duration(subdivisions) {
+            Some(base) => {
+                let space = engrave.base_note_space
+                    * base.spacing_ratio(engrave.note_space_ratio, self.is_dotted(subdivisions));
+                if space > min {
+                    space
+                } else {
+                    min
+                }
+            }
+            None => min,
+        };
+
+        BoundingBox {
+            width: spacing,
+            height: 1.0,
         }
     }
 }
@@ -208,6 +298,17 @@ impl NotationTrack {
 
     pub fn get_previous_notation(&self, at: Tick) -> Option<(Tick, &Notation)> {
         for tick in (0..at + 1).rev() {
+            match self.track.get(&tick) {
+                Some(notation) => return Some((tick, notation)),
+                None => continue,
+            }
+        }
+
+        None
+    }
+
+    pub fn get_next_notation(&self, at: Tick) -> Option<(Tick, &Notation)> {
+        for tick in at + 1..self.length {
             match self.track.get(&tick) {
                 Some(notation) => return Some((tick, notation)),
                 None => continue,

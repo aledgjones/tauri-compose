@@ -202,6 +202,17 @@ impl Track {
 
         None
     }
+
+    /// Returns the key signature entry *before* a given tick if it exists
+    pub fn get_key_signature_before_tick(&self, tick: Tick) -> Option<&KeySignature> {
+        for i in (0..tick).rev() {
+            if let Some(key_signature) = self.get_key_signature_at_tick(&i) {
+                return Some(key_signature);
+            };
+        }
+
+        None
+    }
 }
 
 #[tauri::command(rename_all = "snake_case")]
