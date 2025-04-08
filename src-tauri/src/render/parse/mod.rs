@@ -1,6 +1,7 @@
 pub mod get_accidentals;
 pub mod get_barlines;
 pub mod get_beams;
+pub mod get_dots;
 pub mod get_horizontal_spacing;
 pub mod get_instruments;
 pub mod get_key_signatures;

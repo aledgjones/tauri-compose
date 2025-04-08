@@ -1,4 +1,6 @@
 use super::get_measures::Measures;
+use super::get_shunts::Shunt;
+use super::get_shunts::Shunts;
 use super::get_tone_offset_info::get_tone_offset_info;
 use super::get_tone_offset_info::ToneOffsetInfo;
 use super::get_tone_offsets::ToneVerticalOffsets;
@@ -136,6 +138,16 @@ impl Notation {
 
     pub fn is_tied(&self) -> bool {
         !self.ties.is_empty()
+    }
+
+    pub fn has_post_shunt(&self, shunts: &Shunts) -> bool {
+        for tone in &self.tones {
+            if let Shunt::Post = shunts.by_id[&(self.tick, tone.id)] {
+                return true;
+            }
+        }
+
+        false
     }
 
     pub fn sort_tones_by_offset(&mut self, tone_offsets: &ToneVerticalOffsets) {
