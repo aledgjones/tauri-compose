@@ -1,3 +1,11 @@
+## Release Notes for v0.15.0
+
+### 🏗️ Features
+- feat: note spacing
+### 🪚 Maintainence
+- chore: refactor metrics for consistency
+
+
 ## Release Notes for v0.14.0
 
 ### 🏗️ Features
