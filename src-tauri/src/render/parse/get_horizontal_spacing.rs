@@ -94,6 +94,8 @@ pub fn get_horizontal_spacing(
     let flow_master = &tracks.by_id[&flow.master_id];
 
     for tick in 0..flow.length {
+        // specifically at the start of a system,
+        // otherwise it is part of the barline metrics
         if tick == 0 {
             spacings.set_width(tick, Slot::PaddingStart, 0.75);
         }
@@ -127,6 +129,7 @@ pub fn get_horizontal_spacing(
         }
     }
 
+    // CLEFS
     for instrument in instruments {
         for stave_id in &instrument.stave_ids {
             let stave = &flow.staves.by_id[stave_id];
