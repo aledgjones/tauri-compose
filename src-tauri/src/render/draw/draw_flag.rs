@@ -1,8 +1,8 @@
+use super::draw_staves::STAVE_LINE_WIDTH;
 use crate::renderer::Renderer;
 use crate::score::components::measurements::Point;
 use crate::score::components::text::{Align, Font, FontFamily, Justify};
 use crate::score::flows::Flow;
-use super::draw_staves::STAVE_LINE_WIDTH;
 
 pub fn draw_flag(
     position: &Point,
@@ -24,9 +24,6 @@ pub fn draw_flag(
             justify: Justify::Start,
             align: Align::Middle,
         },
-        &Point {
-            x: left,
-            y: top,
-        },
+        &Point { x: left, y: top },
     );
 }
