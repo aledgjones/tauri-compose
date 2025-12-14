@@ -8,8 +8,8 @@ use converter::{Converter, Space};
 use fonts::Fonts;
 use skia_safe::utils::text_utils::Align as SkiaAlign;
 use skia_safe::{
-    surfaces, Color, EncodedImageFormat, Font as SkiaFont, Paint, PaintStyle, Path, PathEffect,
-    Point as SkiaPoint, Surface,
+    surfaces, Color, EncodedImageFormat, Font as SkiaFont, Paint, PaintStyle, PathBuilder,
+    PathEffect, Point as SkiaPoint, Surface,
 };
 
 pub struct Renderer {
@@ -40,13 +40,14 @@ impl Renderer {
         paint.set_stroke_width(self.converter.spaces_to_px(width));
         paint.set_color(color);
 
-        let mut path = Path::new();
+        let mut path_builder = PathBuilder::new();
         let first = points[0].to_skia(&self.converter);
 
-        path.move_to(first);
+        path_builder.move_to(first);
         for point in &points[1..] {
-            path.line_to(point.to_skia(&self.converter));
+            path_builder.line_to(point.to_skia(&self.converter));
         }
+        let path = path_builder.detach();
 
         self.surface.canvas().draw_path(&path, &paint);
     }
@@ -62,13 +63,14 @@ impl Renderer {
 
         paint.set_path_effect(PathEffect::dash(&[interval, interval], 0.0));
 
-        let mut path = Path::new();
+        let mut path_builder = PathBuilder::new();
         let first = points[0].to_skia(&self.converter);
 
-        path.move_to(first);
+        path_builder.move_to(first);
         for point in &points[1..] {
-            path.line_to(point.to_skia(&self.converter));
+            path_builder.line_to(point.to_skia(&self.converter));
         }
+        let path = path_builder.detach();
 
         self.surface.canvas().draw_path(&path, &paint);
     }
@@ -131,13 +133,14 @@ impl Renderer {
         paint.set_color(color);
         paint.set_style(PaintStyle::Fill);
 
-        let mut path = Path::new();
+        let mut path_builder = PathBuilder::new();
         let first = points[0].to_skia(&self.converter);
 
-        path.move_to(first);
+        path_builder.move_to(first);
         for point in &points[1..] {
-            path.line_to(point.to_skia(&self.converter));
+            path_builder.line_to(point.to_skia(&self.converter));
         }
+        let path = path_builder.detach();
 
         self.surface.canvas().draw_path(&path, &paint);
     }
