@@ -1,7 +1,6 @@
 use super::get_accidentals::AccidentalsByTrack;
 use super::get_barlines::Barlines;
 use super::get_beams::BeamsByTrack;
-use super::get_key_signatures::KeySignatures;
 use super::get_shunts::ShuntsByTrack;
 use super::get_written_durations::NotationByTrack;
 use crate::renderer::converter::Space;
@@ -87,6 +86,7 @@ impl HorizontalSpacing {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn get_horizontal_spacing(
     flow: &Flow,
     instruments: &Vec<&Instrument>,
