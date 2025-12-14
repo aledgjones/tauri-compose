@@ -26,6 +26,7 @@ serde_repr = "0.1.20"
 rustc-hash = "2.1.1"
 skia-safe = { version = "0.91.0", features = ["webp"] }
 lazy_static = "1.5.0"
+rayon = "1.10"
 roman = "0.1.6"
 tauri-plugin-devtools = "2.0.1"
 

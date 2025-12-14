@@ -23,6 +23,7 @@ use crate::score::instruments::Instrument;
 use crate::score::tracks::Track;
 use crate::score::tracks::Tracks;
 use crate::utils::UniqueId;
+use rayon::prelude::*;
 use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
 use std::collections::BTreeSet;
@@ -629,11 +630,10 @@ pub fn get_written_durations(
 ) -> NotationByTrack {
     let mut entries = NotationByTrack::default();
 
-    for instrument in instruments {
-        for stave_id in &instrument.stave_ids {
+    let results: Vec<_> = instruments.par_iter().flat_map(|instrument| {
+        instrument.stave_ids.par_iter().flat_map(|stave_id| {
             let stave = &flow.staves.by_id[stave_id];
-
-            for track_id in &stave.track_ids {
+            stave.track_ids.par_iter().map(|track_id| {
                 let track = &tracks.by_id[track_id];
                 let mut notation = NotationTrack::new(flow.length);
                 notation.split_at_events(track, measures);
@@ -658,9 +658,13 @@ pub fn get_written_durations(
                 // notation tracks around
                 get_tone_offset_info(&mut notation, tone_offsets);
 
-                entries.insert(track.id, notation);
-            }
-        }
+                (track.id, notation)
+            }).collect::<Vec<_>>()
+        }).collect::<Vec<_>>()
+    }).collect();
+
+    for (track_id, notation) in results {
+        entries.insert(track_id, notation);
     }
 
     entries

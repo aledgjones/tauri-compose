@@ -8,6 +8,7 @@ use super::get_beams::BeamsByTrack;
 use super::get_written_durations::Notation;
 use super::get_written_durations::NotationByTrack;
 use super::get_written_durations::NotationTrack;
+use rayon::prelude::*;
 use rustc_hash::FxHashMap;
 use std::cmp::Ordering;
 
@@ -77,12 +78,15 @@ pub fn get_stem_directions(
     tracks: &NotationByTrack,
     beams_by_track: &BeamsByTrack,
 ) -> StemDirectionsByTrack {
-    let mut output = FxHashMap::default();
-
-    for (track_id, track) in tracks {
+    let results: Vec<(UniqueId, _)> = tracks.par_iter().map(|(track_id, track)| {
         let beams = &beams_by_track[track_id];
         let stem_directions = get_stem_directions_in_track(track, beams);
-        output.insert(*track_id, stem_directions);
+        (*track_id, stem_directions)
+    }).collect();
+
+    let mut output = FxHashMap::default();
+    for (track_id, stem_directions) in results {
+        output.insert(track_id, stem_directions);
     }
 
     output

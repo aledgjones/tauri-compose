@@ -12,6 +12,7 @@ use crate::score::entries::Entry;
 use crate::score::flows::Flow;
 use crate::score::instruments::Instrument;
 use crate::score::tracks::Tracks;
+use rayon::prelude::*;
 
 #[derive(Clone, Copy, Hash, Eq, PartialEq)]
 pub enum Slot {
@@ -161,14 +162,15 @@ pub fn get_horizontal_spacing(
         }
     }
 
-    for (track_key, notation) in notations_by_track {
+    let spacing_updates: Vec<(Tick, Slot, Space, bool)> = notations_by_track.par_iter().flat_map(|(track_key, notation)| {
         let shunts = &shunts_by_track[track_key];
         let accidentals = &accidentals_by_track[track_key];
         let beams = &beams_by_track[track_key];
+        let mut updates = Vec::new();
 
         for (tick, entry) in &notation.track {
             if entry.has_pre_shunt(shunts) {
-                spacings.set_width(*tick, Slot::PreNote, entry.glyph_metrics().width);
+                updates.push((*tick, Slot::PreNote, entry.glyph_metrics().width, false)); // false means always set
             }
 
             let mut spacing = entry
@@ -181,11 +183,8 @@ pub fn get_horizontal_spacing(
             if *tick == 0 || barlines.contains_key(tick) {
                 // start of bars has no previous spacing to extend so we use the accidentals slot
                 if let Some(slots) = accidentals.slots_by_tick.get(tick) {
-                    let current = spacings.get(*tick, Slot::Accidentals);
                     let width = (*slots as f32) * 1.1;
-                    if width > current.width {
-                        spacings.set_width(*tick, Slot::Accidentals, width);
-                    }
+                    updates.push((*tick, Slot::Accidentals, width, true)); // true means set only if larger
                 };
             }
 
@@ -205,7 +204,7 @@ pub fn get_horizontal_spacing(
                         false => 0.0,
                     };
 
-                    let accidentals = match accidentals.slots_by_tick.get(&next_tick) {
+                    let accidentals_width = match accidentals.slots_by_tick.get(&next_tick) {
                         Some(slots) => {
                             // slots + 1.5 notehead padding
                             ((*slots as f32 * 1.1) - pre_shunt + post_shunt)
@@ -218,8 +217,8 @@ pub fn get_horizontal_spacing(
                         spacing = min;
                     }
 
-                    if accidentals > spacing {
-                        spacing = accidentals;
+                    if accidentals_width > spacing {
+                        spacing = accidentals_width;
                     }
                 }
             };
@@ -227,10 +226,22 @@ pub fn get_horizontal_spacing(
             let note_spacing_per_tick = spacing / entry.duration as f32;
             let end = tick + entry.duration;
             for i in *tick..end {
-                if note_spacing_per_tick > spacings.get(i, Slot::NoteSpacing).width {
-                    spacings.set_width(i, Slot::NoteSpacing, note_spacing_per_tick);
-                }
+                updates.push((i, Slot::NoteSpacing, note_spacing_per_tick, true)); // true means set only if larger
             }
+        }
+
+        updates
+    }).collect();
+
+    // Apply all updates sequentially
+    for (tick, slot, width, check_larger) in spacing_updates {
+        if check_larger {
+            let current = spacings.get(tick, slot);
+            if width > current.width {
+                spacings.set_width(tick, slot, width);
+            }
+        } else {
+            spacings.set_width(tick, slot, width);
         }
     }
 

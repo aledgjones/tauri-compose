@@ -5,6 +5,7 @@ use crate::utils::UniqueId;
 use super::get_stem_directions::StemDirectionsByTrack;
 use super::get_tone_offsets::ToneVerticalOffsets;
 use super::get_written_durations::{Notation, NotationByTrack};
+use rayon::prelude::*;
 use rustc_hash::FxHashMap;
 
 pub type Clusters = Vec<Cluster>;
@@ -66,9 +67,7 @@ pub fn get_note_shunts(
     tone_offsets: &ToneVerticalOffsets,
     stem_directions_by_track: &StemDirectionsByTrack,
 ) -> ShuntsByTrack {
-    let mut output: ShuntsByTrack = FxHashMap::default();
-
-    for (track_id, notation) in notation_by_track {
+    let results: Vec<(UniqueId, _)> = notation_by_track.par_iter().map(|(track_id, notation)| {
         let mut shunts = Shunts {
             by_id: FxHashMap::default(),
             by_offset: FxHashMap::default(),
@@ -80,7 +79,12 @@ pub fn get_note_shunts(
                 note_shunts_in_chord(tick, entry, tone_offsets, stem_direction, &mut shunts);
             }
         }
-        output.insert(*track_id, shunts);
+        (*track_id, shunts)
+    }).collect();
+
+    let mut output: ShuntsByTrack = FxHashMap::default();
+    for (track_id, shunts) in results {
+        output.insert(track_id, shunts);
     }
 
     output

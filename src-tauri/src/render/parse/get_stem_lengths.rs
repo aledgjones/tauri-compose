@@ -8,6 +8,7 @@ use crate::score::components::duration::{Direction, Tick};
 use crate::score::components::measurements::Point;
 use crate::score::engraves::Engrave;
 use crate::utils::UniqueId;
+use rayon::prelude::*;
 use rustc_hash::FxHashMap;
 
 pub enum BeamSlant {
@@ -220,14 +221,17 @@ pub fn get_stem_lengths(
     engrave: &Engrave,
     horizontal_spacing: &HorizontalSpacing,
 ) -> StemLengthsByTrack {
-    let mut output: StemLengthsByTrack = FxHashMap::default();
-
-    for (track_id, track) in tracks {
+    let results: Vec<(UniqueId, _)> = tracks.par_iter().map(|(track_id, track)| {
         let stem_directions = &stem_directions_by_track[track_id];
         let beams = &beams_by_track[track_id];
         let stem_lengths =
             get_stem_lengths_in_track(track, stem_directions, beams, engrave, horizontal_spacing);
-        output.insert(*track_id, stem_lengths);
+        (*track_id, stem_lengths)
+    }).collect();
+
+    let mut output: StemLengthsByTrack = FxHashMap::default();
+    for (track_id, stem_lengths) in results {
+        output.insert(track_id, stem_lengths);
     }
 
     output

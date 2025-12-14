@@ -3,6 +3,7 @@ use super::get_written_durations::{Notation, NotationByTrack, NotationTrack};
 use crate::score::components::duration::{Tick, Ticks};
 use crate::score::flows::Flow;
 use crate::utils::UniqueId;
+use rayon::prelude::*;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 pub type DotOffsets = FxHashSet<i8>;
@@ -130,11 +131,14 @@ pub fn get_dots(
     notation_by_track: &NotationByTrack,
     tone_offsets: &ToneVerticalOffsets,
 ) -> DotsByTrack {
-    let mut output: DotsByTrack = FxHashMap::default();
-
-    for (track_id, notation) in notation_by_track {
+    let results: Vec<(UniqueId, _)> = notation_by_track.par_iter().map(|(track_id, notation)| {
         let dots: Dots = get_dots_in_track(notation, tone_offsets, flow.subdivisions);
-        output.insert(*track_id, dots);
+        (*track_id, dots)
+    }).collect();
+
+    let mut output: DotsByTrack = FxHashMap::default();
+    for (track_id, dots) in results {
+        output.insert(track_id, dots);
     }
 
     output

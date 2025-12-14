@@ -8,6 +8,7 @@ use crate::score::entries::{key_signature::KeySignature, tone::Tone};
 use crate::score::flows::Flow;
 use crate::score::tracks::{Track, Tracks};
 use crate::utils::UniqueId;
+use rayon::prelude::*;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 type SlotsByTick = FxHashMap<Tick, u8>;
@@ -249,14 +250,21 @@ pub fn get_accidentals(
     tone_offsets: &ToneVerticalOffsets,
     shunts_by_track: &ShuntsByTrack,
 ) -> AccidentalsByTrack {
-    let mut output: AccidentalsByTrack = FxHashMap::default();
-
     let master = &tracks.by_id[&flow.master_id];
 
-    for (track_id, notation) in notation_by_track {
-        let shunts = &shunts_by_track[track_id];
-        let accidentals = get_accidentals_in_track(notation, master, bars, tone_offsets, shunts);
-        output.insert(*track_id, accidentals);
+    let results: Vec<(UniqueId, _)> = notation_by_track
+        .par_iter()
+        .map(|(track_id, notation)| {
+            let shunts = &shunts_by_track[track_id];
+            let accidentals =
+                get_accidentals_in_track(notation, master, bars, tone_offsets, shunts);
+            (*track_id, accidentals)
+        })
+        .collect();
+
+    let mut output: AccidentalsByTrack = FxHashMap::default();
+    for (track_id, accidentals) in results {
+        output.insert(track_id, accidentals);
     }
 
     output

@@ -4,6 +4,7 @@ use crate::score::components::duration::{NoteDuration, Tick, Ticks};
 use crate::score::entries::time_signature::TimeSignature;
 use crate::score::flows::Flow;
 use crate::utils::UniqueId;
+use rayon::prelude::*;
 use rustc_hash::FxHashMap;
 
 pub type BeamTicks = FxHashMap<Tick, u8>;
@@ -190,11 +191,17 @@ pub fn get_beams_in_track(
 }
 
 pub fn get_beams(flow: &Flow, tracks: &NotationByTrack, bars: &Measures) -> BeamsByTrack {
-    let mut output: BeamsByTrack = FxHashMap::default();
+    let results: Vec<(UniqueId, _)> = tracks
+        .par_iter()
+        .map(|(track_id, track)| {
+            let beams = get_beams_in_track(track, bars, flow.subdivisions);
+            (*track_id, beams)
+        })
+        .collect();
 
-    for (track_id, track) in tracks {
-        let beams = get_beams_in_track(track, bars, flow.subdivisions);
-        output.insert(*track_id, beams);
+    let mut output: BeamsByTrack = FxHashMap::default();
+    for (track_id, beams) in results {
+        output.insert(track_id, beams);
     }
 
     output
