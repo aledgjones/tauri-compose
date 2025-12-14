@@ -5,6 +5,7 @@ pub mod draw_braces;
 pub mod draw_brackets;
 pub mod draw_clef;
 pub mod draw_dot;
+pub mod draw_flag;
 pub mod draw_key_signature;
 pub mod draw_ledger_lines;
 pub mod draw_names;

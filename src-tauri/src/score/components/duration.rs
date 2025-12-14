@@ -96,6 +96,25 @@ impl NoteDuration {
         }
     }
 
+    pub fn to_flag_glyph(&self, stem_direction: &Direction) -> &str {
+        match stem_direction {
+            Direction::Up => match self {
+                NoteDuration::Eighth => "\u{E240}",
+                NoteDuration::Sixteenth => "\u{E242}",
+                NoteDuration::ThirtySecond => "\u{E244}",
+                NoteDuration::SixtyFourth => "\u{E246}",
+                _ => "",
+            },
+            Direction::Down => match self {
+                NoteDuration::Eighth => "\u{E241}",
+                NoteDuration::Sixteenth => "\u{E243}",
+                NoteDuration::ThirtySecond => "\u{E245}",
+                NoteDuration::SixtyFourth => "\u{E247}",
+                _ => "",
+            },
+        }
+    }
+
     pub fn half(&self) -> NoteDuration {
         match self {
             NoteDuration::Whole => NoteDuration::Half,

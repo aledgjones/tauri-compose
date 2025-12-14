@@ -16,6 +16,7 @@ use draw::draw_braces::draw_braces;
 use draw::draw_brackets::draw_brackets;
 use draw::draw_clef::draw_clef;
 use draw::draw_dot::draw_dots;
+use draw::draw_flag::draw_flag;
 use draw::draw_key_signature::draw_key_signature;
 use draw::draw_ledger_lines::draw_ledger_line;
 use draw::draw_names::draw_names;
@@ -314,6 +315,7 @@ pub fn render(
                 let accidentals = &accidentals_by_track[track_id];
                 let shunts = &shunts_by_track[track_id];
                 let stem_lengths = &stem_lengths_by_track[track_id];
+                let stem_directions = &stem_directions_by_track[track_id];
                 let beams = &beams_by_track[track_id];
                 let dots = &dots_by_track[track_id];
 
@@ -363,8 +365,12 @@ pub fn render(
 
                     let x = horizontal_spacing.get(*tick, Slot::NoteSpacing).x;
 
+                    // Get stem data once for reuse
+                    let stem_length = stem_lengths.get(tick);
+                    let stem_direction = stem_directions.get(tick);
+
                     // STEMS
-                    if let Some(def) = stem_lengths.get(tick) {
+                    if let Some(def) = stem_length {
                         draw_stem(
                             &Point {
                                 x: stave_left,
@@ -373,6 +379,23 @@ pub fn render(
                             def,
                             &mut renderer,
                         );
+                    }
+
+                    // FLAGS
+                    if notation.is_flagged(beams, flow.subdivisions) {
+                        if let (Some(stem_dir), Some(stem_len)) = (stem_direction, stem_length) {
+                            draw_flag(
+                                &Point {
+                                    x: stave_left,
+                                    y: stave_top,
+                                },
+                                notation,
+                                stem_dir,
+                                stem_len,
+                                flow,
+                                &mut renderer,
+                            );
+                        }
                     }
 
                     // DOTS

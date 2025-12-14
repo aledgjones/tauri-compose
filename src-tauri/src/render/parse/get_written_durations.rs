@@ -184,6 +184,14 @@ impl Notation {
             && self.duration < NoteDuration::Quarter.to_ticks(subdivisions)
     }
 
+    pub fn flag_glyph(&self, stem_direction: &Direction, subdivisions: Ticks) -> String {
+        let base = self.base_to_note_duration(subdivisions);
+        match base {
+            Some(duration) => duration.to_flag_glyph(stem_direction).to_string(),
+            None => String::new(),
+        }
+    }
+
     pub fn has_tie(&self) -> bool {
         !self.ties.is_empty()
     }
