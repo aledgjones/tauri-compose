@@ -6,6 +6,7 @@ use crate::score::components::measurements::Point;
 use crate::score::components::text::{Align, Font, FontFamily, Justify};
 use skia_safe::Color;
 
+#[allow(clippy::too_many_arguments)]
 pub fn draw_rest(
     origin: &Point,
     tick: Tick,
