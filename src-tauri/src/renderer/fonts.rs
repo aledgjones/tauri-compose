@@ -1,3 +1,4 @@
+use lazy_static::lazy_static;
 use skia_safe::{FontMgr, Typeface};
 
 pub struct Fonts {
@@ -6,7 +7,7 @@ pub struct Fonts {
 }
 
 impl Fonts {
-    pub fn new() -> Self {
+    fn new() -> Self {
         let font_mgr = FontMgr::new();
 
         // Load the fixed set of fonts
@@ -28,4 +29,8 @@ impl Fonts {
             libre_baskerville,
         }
     }
+}
+
+lazy_static! {
+    pub static ref FONTS: Fonts = Fonts::new();
 }

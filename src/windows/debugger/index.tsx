@@ -1,6 +1,7 @@
 import { useAppState } from "../../services/state";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { listen } from "@tauri-apps/api/event";
 import { AppBar } from "../../components/app-bar";
 import { Input } from "../../ui/input";
 import { Select, SelectOption } from "../../ui/select";
@@ -37,6 +38,20 @@ export const Main = () => {
   const [popover, setPopover] = useState("");
   const [instrumentId, setInstrumentId] = useState<UniqueId>(-1);
   const [staveId, setStaveId] = useState<UniqueId>(-1);
+  const [renderTimings, setRenderTimings] = useState<{
+    total_ms: number;
+    parsing_ms: number;
+    drawing_ms: number;
+  } | null>(null);
+
+  useEffect(() => {
+    const unlisten = listen("render-timings", (event) => {
+      setRenderTimings(event.payload as any);
+    });
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, []);
 
   const instruments: SelectOption<UniqueId>[] = useMemo(() => {
     return state.score.players.order.flatMap((playerId) => {
@@ -58,7 +73,7 @@ export const Main = () => {
       return state.score.instruments.by_id[instrumentId].stave_ids.map(
         (id, index) => {
           return { label: `Stave ${index + 1}`, value: id };
-        }
+        },
       );
     }
 
@@ -95,7 +110,7 @@ export const Main = () => {
             popover,
             flowId,
             tick,
-            staveId > -1 ? staveId : undefined
+            staveId > -1 ? staveId : undefined,
           );
           setPopover("");
         } catch (error) {
@@ -128,8 +143,17 @@ export const Main = () => {
   }, [flowId, popover, popoverType, staveId, tick]);
 
   return (
-    <div className="h-dvh bg-neutral-950 grid grid-rows-[28px_1fr_2fr] gap-2 overflow-hidden">
+    <div className="h-dvh bg-neutral-950 grid grid-rows-[28px_auto_1fr_2fr] gap-2 overflow-hidden">
       <AppBar title="Debugger" filename={state.score.meta.title} />
+
+      <div className="bg-neutral-900 p-2 mx-2 rounded">
+        <label className="text-xs text-neutral-400">Render Timings</label>
+        <pre className="text-white text-xs mb-2">
+          total: {renderTimings?.total_ms || 0} ms | parsing:{" "}
+          {renderTimings?.parsing_ms || 0} ms | drawing:{" "}
+          {renderTimings?.drawing_ms || 0} ms
+        </pre>
+      </div>
 
       <div className="bg-neutral-900 p-2 overflow-auto mx-2">
         <ObjectInspector

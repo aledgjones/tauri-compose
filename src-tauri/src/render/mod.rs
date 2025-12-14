@@ -2,7 +2,6 @@ mod draw;
 mod parse;
 
 use crate::renderer::converter::Converter;
-use crate::renderer::fonts::Fonts;
 use crate::renderer::text_measurer::TextMeasurer;
 use crate::renderer::Renderer;
 use crate::score::components::measurements::Point;
@@ -43,15 +42,20 @@ use parse::get_tone_offsets::get_tone_offsets;
 use parse::get_vertical_spacing::get_vertical_spacing;
 use parse::get_vertical_spans::get_vertical_spans;
 use parse::get_written_durations::get_written_durations;
-use tauri::{ipc::Response, State};
+use std::time::Instant;
+use tauri::{ipc::Response, Emitter, State};
 
 #[tauri::command(rename_all = "snake_case")]
 pub fn render(
+    app: tauri::AppHandle,
     state: State<'_, AppState>,
     layout_id: UniqueId,
     flow_id: UniqueId,
     px_per_mm: f32,
 ) -> Response {
+    let start = Instant::now();
+    let parsing_start = Instant::now();
+
     let state = state.lock().unwrap();
 
     let flow = &state.score.flows.by_id[&flow_id];
@@ -60,9 +64,8 @@ pub fn render(
     let instruments = state.get_instruments(layout, flow);
     let engrave = &state.score.engraves.by_layout_type[&layout.layout_type];
 
-    let fonts = Fonts::new();
     let converter = Converter::new(px_per_mm, engrave.space);
-    let text_measurer = TextMeasurer::new(&fonts, &converter);
+    let text_measurer = TextMeasurer::new(&converter);
 
     let vertical_spacing = get_vertical_spacing(flow, &instruments, engrave);
     let vertical_spans = get_vertical_spans(&instruments, engrave);
@@ -118,12 +121,15 @@ pub fn render(
         &horizontal_spacing,
     );
 
+    let parsing_duration = parsing_start.elapsed();
+    let drawing_start = Instant::now();
+
     let stave_left =
         frame_padding.left + max_name_width + engrave.instrument_name_spacing + max_bracket_width;
     let height = frame_padding.top + vertical_spacing.height + frame_padding.bottom;
     let width = stave_left + horizontal_spacing.width + frame_padding.right;
 
-    let mut renderer = Renderer::new(width, height, fonts, converter);
+    let mut renderer = Renderer::new(width, height, converter);
 
     draw_names(
         &Point {
@@ -430,6 +436,15 @@ pub fn render(
             }
         }
     }
+
+    let duration = start.elapsed();
+    let drawing_duration = drawing_start.elapsed();
+    let timings = serde_json::json!({
+        "total_ms": duration.as_millis(),
+        "parsing_ms": parsing_duration.as_millis(),
+        "drawing_ms": drawing_duration.as_millis()
+    });
+    app.emit("render-timings", timings).unwrap();
 
     Response::new(renderer.data())
 }

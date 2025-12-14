@@ -5,7 +5,7 @@ pub mod text_measurer;
 use crate::score::components::measurements::Point;
 use crate::score::components::text::{Align, Font, FontFamily, Justify};
 use converter::{Converter, Space};
-use fonts::Fonts;
+use fonts::FONTS;
 use skia_safe::utils::text_utils::Align as SkiaAlign;
 use skia_safe::{
     surfaces, Color, EncodedImageFormat, Font as SkiaFont, Paint, PaintStyle, PathBuilder,
@@ -15,22 +15,17 @@ use skia_safe::{
 pub struct Renderer {
     surface: Surface,
     converter: Converter,
-    fonts: Fonts,
 }
 
 impl Renderer {
-    pub fn new(width: Space, height: Space, fonts: Fonts, converter: Converter) -> Renderer {
+    pub fn new(width: Space, height: Space, converter: Converter) -> Renderer {
         let width = converter.spaces_to_px(width) as i32;
         let height = converter.spaces_to_px(height) as i32;
 
         let mut surface = surfaces::raster_n32_premul((width, height)).expect("surface");
         surface.canvas().clear(Color::WHITE);
 
-        Renderer {
-            surface,
-            fonts,
-            converter,
-        }
+        Renderer { surface, converter }
     }
 
     pub fn line(&mut self, width: Space, color: Color, points: Vec<Point>) {
@@ -79,8 +74,8 @@ impl Renderer {
         let origin = point.to_skia(&self.converter);
 
         let typeface = match font.family {
-            FontFamily::Bravura => &self.fonts.bravura,
-            FontFamily::LibreBaskerville => &self.fonts.libre_baskerville,
+            FontFamily::Bravura => &FONTS.bravura,
+            FontFamily::LibreBaskerville => &FONTS.libre_baskerville,
         };
 
         let skia_font = SkiaFont::new(typeface.clone(), self.converter.spaces_to_px(font.size));
