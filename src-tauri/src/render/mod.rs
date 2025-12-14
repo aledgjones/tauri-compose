@@ -18,6 +18,7 @@ use draw::draw_brackets::draw_brackets;
 use draw::draw_clef::draw_clef;
 use draw::draw_dot::draw_dots;
 use draw::draw_key_signature::draw_key_signature;
+use draw::draw_ledger_lines::draw_ledger_line;
 use draw::draw_names::draw_names;
 use draw::draw_notehead::draw_notehead;
 use draw::draw_rest::draw_rest;
@@ -410,6 +411,20 @@ pub fn render(
                                 &mut renderer,
                             );
                         }
+                    }
+
+                    if !notation.tones.is_empty() {
+                        draw_ledger_line(
+                            &Point {
+                                x: stave_left + x,
+                                y: stave_top,
+                            },
+                            tick,
+                            notation,
+                            glyph_width,
+                            shunts,
+                            &mut renderer,
+                        );
                     }
                 }
             }

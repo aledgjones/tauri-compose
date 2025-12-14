@@ -6,6 +6,7 @@ pub mod draw_brackets;
 pub mod draw_clef;
 pub mod draw_dot;
 pub mod draw_key_signature;
+pub mod draw_ledger_lines;
 pub mod draw_names;
 pub mod draw_notehead;
 pub mod draw_rest;
