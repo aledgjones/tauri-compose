@@ -2,7 +2,7 @@ pub mod converter;
 pub mod fonts;
 pub mod text_measurer;
 
-use crate::score::components::measurements::Point;
+use crate::score::components::measurements::{CurvePoint, Point};
 use crate::score::components::text::{Align, Font, FontFamily, Justify};
 use converter::{Converter, Space};
 use fonts::FONTS;
@@ -120,6 +120,74 @@ impl Renderer {
             self.converter.spaces_to_px(radius),
             &paint,
         );
+    }
+
+    pub fn curve(&mut self, color: Color, points: [CurvePoint; 3]) {
+        let mut paint = Paint::default();
+        paint.set_anti_alias(true);
+        paint.set_color(color);
+        paint.set_style(PaintStyle::Fill);
+
+        // Create control points for the thick curve outline
+        let p0 = points[0];
+        let p1 = points[1];
+        let p2 = points[2];
+
+        // Calculate the 6 control points for the filled shape
+        let control_points = [
+            // Top curve
+            Point {
+                x: p0.x,
+                y: p0.y + p0.thickness / 2.0,
+            },
+            Point {
+                x: p1.x,
+                y: 2.0 * (p1.y + p1.thickness / 2.0)
+                    - 0.5 * (p0.y + p0.thickness / 2.0)
+                    - 0.5 * (p2.y + p2.thickness / 2.0),
+            },
+            Point {
+                x: p2.x,
+                y: p2.y + p2.thickness / 2.0,
+            },
+            // Bottom curve
+            Point {
+                x: p2.x,
+                y: p2.y - p2.thickness / 2.0,
+            },
+            Point {
+                x: p1.x,
+                y: 2.0 * (p1.y - p1.thickness / 2.0)
+                    - 0.5 * (p0.y - p0.thickness / 2.0)
+                    - 0.5 * (p2.y - p2.thickness / 2.0),
+            },
+            Point {
+                x: p0.x,
+                y: p0.y - p0.thickness / 2.0,
+            },
+        ];
+
+        let mut path_builder = PathBuilder::new();
+        let first = control_points[0].to_skia(&self.converter);
+
+        path_builder.move_to(first);
+        // Draw top curve
+        path_builder.quad_to(
+            control_points[1].to_skia(&self.converter),
+            control_points[2].to_skia(&self.converter),
+        );
+        // Draw to bottom curve start
+        path_builder.line_to(control_points[3].to_skia(&self.converter));
+        // Draw bottom curve
+        path_builder.quad_to(
+            control_points[4].to_skia(&self.converter),
+            control_points[5].to_skia(&self.converter),
+        );
+        // Close the path
+        path_builder.close();
+
+        let path = path_builder.detach();
+        self.surface.canvas().draw_path(&path, &paint);
     }
 
     pub fn shape(&mut self, color: Color, points: Vec<Point>) {
