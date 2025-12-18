@@ -52,7 +52,7 @@ export const useAsync = <T>(
     };
 
     runAsync();
-  }, deps);
+  }, [asyncFn, ...deps]);
 };
 
 export const getLayoutName = (state: AppState, layoutId: UniqueId) => {

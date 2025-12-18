@@ -118,7 +118,13 @@ export function PlaybackProvider({
     });
 
     console.log(`Scheduled ${totalTones} tones for flow`);
-  }, [appState.score.flows, appState.ui.sequencer.flow]);
+  }, [
+    appState.score.flows,
+    appState.score.instruments,
+    appState.score.players,
+    appState.score.tracks,
+    appState.ui.sequencer.flow,
+  ]);
 
   useEffect(() => {
     const onStart = () => {
