@@ -1,8 +1,8 @@
 import { FC, useMemo } from "react";
-import { useAppState } from "../../../../../services/state";
-import { Select, SelectOption } from "../../../../../ui/select";
-import { BottomPanelTab, Tool, UniqueId } from "../../../../../services/types";
-import { actions } from "../../../../../services/actions";
+import { useAppState } from "../../../services/state";
+import { Select, SelectOption } from "../../../ui/select";
+import { BottomPanelTab, Tool, UniqueId } from "../../../services/types";
+import { actions } from "../../../services/actions";
 import {
   mdiBoxCutter,
   mdiChevronDown,
@@ -14,9 +14,10 @@ import {
   mdiPiano,
   mdiTuneVertical,
 } from "@mdi/js";
-import { IconButton } from "../../../../../ui/icon-button";
-import { Sequencer } from "../../../components/sequencer";
-import { SnapPicker } from "../../../../../components/snap-picker";
+import { IconButton } from "../../../ui/icon-button";
+import { Sequencer } from "./sequencer";
+import { SnapPicker } from "../../../components/snap-picker";
+import { Mixer } from "./mixer";
 
 const ALPHABET = ["A", "B"];
 const TRACK_LABEL = ["Up-stem", "Down-stem"];
@@ -139,20 +140,22 @@ const TabButtons: FC<TabButtonsProps> = ({ tab }) => (
 export const BottomPanel: FC = () => {
   const state = useAppState();
 
-  const instruments: SelectOption<UniqueId>[] = useMemo(() => {
+  const instruments = useMemo(() => {
     return state.score.players.order.flatMap((playerId) => {
       const player = state.score.players.by_id[playerId];
       return player.instrument_ids.map((instrumentId) => {
-        const instrument = state.score.instruments.by_id[instrumentId];
-        return {
-          value: instrumentId,
-          label:
-            instrument.long_name +
-            (instrument.count ? ` ${instrument.count}` : ""),
-        };
+        return state.score.instruments.by_id[instrumentId];
       });
     });
   }, [state]);
+
+  const instrumentOptions: SelectOption<UniqueId>[] = useMemo(() => {
+    return instruments.map((instrument) => ({
+      value: instrument.id,
+      label:
+        instrument.long_name + (instrument.count ? ` ${instrument.count}` : ""),
+    }));
+  }, [instruments]);
 
   const flowId = useMemo(() => {
     return state.score.flows.order[0] || null;
@@ -166,15 +169,12 @@ export const BottomPanel: FC = () => {
     const id = state.ui.sequencer.instrument;
 
     // check the selection still exists
-    if (
-      id &&
-      instruments.some((option: SelectOption<UniqueId>) => option.value === id)
-    ) {
+    if (id && instruments.some((instrument) => instrument.id === id)) {
       return id;
     }
 
     // fallback to the first instrument
-    return instruments[0].value;
+    return instruments[0].id;
   }, [instruments, state.ui.sequencer.instrument]);
 
   const tracks = useMemo(() => {
@@ -254,13 +254,13 @@ export const BottomPanel: FC = () => {
   }
 
   return (
-    <div className="bg-neutral-900 flex flex-col min-h-0">
+    <div className="bg-neutral-900 flex flex-col min-h-0 overflow-hidden">
       <div className="flex p-2 h-13 items-center z-50">
         {tab === BottomPanelTab.Sequencer && (
           <SequencerToolbar
             tool={tool}
             instrumentId={instrumentId}
-            instruments={instruments}
+            instruments={instrumentOptions}
             trackId={trackId}
             tracks={tracks}
             snapValue={state.ui.sequencer.snap}
@@ -277,11 +277,7 @@ export const BottomPanel: FC = () => {
           trackId={trackId}
         />
       )}
-      {tab === BottomPanelTab.Mixer && (
-        <div className="flex-1 p-4 text-center text-neutral-400">
-          Mixer content coming soon...
-        </div>
-      )}
+      {tab === BottomPanelTab.Mixer && <Mixer instruments={instruments} />}
     </div>
   );
 };

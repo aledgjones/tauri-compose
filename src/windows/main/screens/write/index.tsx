@@ -1,5 +1,5 @@
 import { Renderer } from "../../components/renderer";
-import { BottomPanel } from "./components/bottom-panel";
+import { BottomPanel } from "../../components/bottom-panel";
 import { useAppState } from "../../../../services/state";
 
 export const Write = () => {
@@ -10,7 +10,7 @@ export const Write = () => {
 
   return (
     <div
-      className={`overflow-hidden p-2 grid grid-cols-[120px_1fr_120px] gap-2`}
+      className="w-screen overflow-hidden p-2 grid grid-cols-[120px_1fr_120px] gap-2"
       style={{ gridTemplateRows: `3fr ${bottomPanelHeight} 32px` }}
     >
       <div className="bg-neutral-900 row-span-2"></div>

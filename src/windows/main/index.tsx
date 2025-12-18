@@ -31,6 +31,8 @@ const screens = new Map([
 export const Main = () => {
   const state = useAppState();
 
+  console.log(JSON.stringify(state, null, 2));
+
   const Content = screens.get(state.ui.tab) || NotFound;
 
   const layouts = useMemo(() => {

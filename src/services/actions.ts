@@ -298,6 +298,20 @@ export const actions = {
           instrument_id,
         });
       },
+      setVolume: (instrument_id: number, volume: number) => {
+        console.log(
+          `Setting volume for instrument ${instrument_id} to ${volume}`,
+        );
+        // TODO: Implement backend call when available
+      },
+      setMute: (instrument_id: number, mute: boolean) => {
+        console.log(`Setting mute for instrument ${instrument_id} to ${mute}`);
+        // TODO: Implement backend call when available
+      },
+      setSolo: (instrument_id: number, solo: boolean) => {
+        console.log(`Setting solo for instrument ${instrument_id} to ${solo}`);
+        // TODO: Implement backend call when available
+      },
     },
     config: {
       autoCountStyles: {
