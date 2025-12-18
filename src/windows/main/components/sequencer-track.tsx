@@ -116,7 +116,13 @@ export const SequencerTrack: FC<SequencerTrackProps> = ({
 
       // Audition the tone
       if (instrumentId) {
-        sampler.play(instrumentId.toString(), 0 as Expression, pitch, 0, 1);
+        sampler.play(
+          instrumentId.toString(),
+          Expression.Natural,
+          pitch,
+          sampler.ctx.currentTime,
+          0.5,
+        );
       }
 
       const handlePointerMove = async (e: any) => {
