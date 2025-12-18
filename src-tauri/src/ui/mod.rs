@@ -4,6 +4,7 @@ pub mod write;
 
 use crate::{utils::UniqueId, AppState};
 use sequencer::Sequencer;
+use serde::Deserialize;
 use serde::Serialize;
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use setup::Setup;
@@ -20,7 +21,7 @@ pub enum Tab {
     Print = 4,
 }
 
-#[derive(Serialize, Clone)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Ui {
     tab: Tab,
     layout_id: UniqueId,

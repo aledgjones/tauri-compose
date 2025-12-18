@@ -17,10 +17,11 @@ use instruments::Instruments;
 use layouts::Layouts;
 use meta::Meta;
 use players::Players;
+use serde::Deserialize;
 use serde::Serialize;
 use tracks::Tracks;
 
-#[derive(Serialize, Clone)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Score {
     pub config: Config,
     pub meta: Meta,

@@ -51,7 +51,7 @@ use score::players::{
     score_players_remove, score_players_unassign_instrument,
 };
 use score::Score;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
 use tauri::{Emitter, Manager, State};
 use ui::sequencer::{
@@ -66,7 +66,7 @@ use ui::write::{ui_write_bottom_panel_minimized_toggle, ui_write_bottom_panel_ta
 use ui::{ui_layout_id_set, ui_tab_set, Ui};
 use utils::UniqueId;
 
-#[derive(Serialize, Clone)]
+#[derive(Serialize, Deserialize, Clone)]
 struct AppStateInner {
     ui: Ui,
     score: Score,
