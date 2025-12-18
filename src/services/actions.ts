@@ -62,8 +62,8 @@ export const actions = {
       }>("solocompose://select-instrument", async (e) => {
         console.log(
           `[instrument-picker] select-instrument - payload ${JSON.stringify(
-            e.payload
-          )}`
+            e.payload,
+          )}`,
         );
 
         selection = e.payload?.instrument_id;
@@ -76,6 +76,15 @@ export const actions = {
         selectInstrumentUnlisten();
         resolve(selection);
       });
+    });
+  },
+  getInstrumentPatches: (id: string, player_type: PlayerType) => {
+    console.log(
+      `[actions] getInstrumentPatches - id: ${id}, playerType: ${player_type}`,
+    );
+    return invoke<Record<number, string>>("score_instruments_get_patches", {
+      id,
+      player_type,
     });
   },
   ui: {
@@ -121,16 +130,16 @@ export const actions = {
     engrave: {
       setSystemicBarlineSingleInstrumentSystem: (
         layout_type: LayoutType,
-        value: boolean
+        value: boolean,
       ) => {
         return invoke<void>(
           "score_engraves_systemic_barline_single_instrument_system_set",
-          { layout_type, value }
+          { layout_type, value },
         );
       },
       setBracketingApproach: (
         layout_type: LayoutType,
-        value: BracketingApproach
+        value: BracketingApproach,
       ) => {
         return invoke<void>("score_engraves_bracketing_approach_set", {
           layout_type,
@@ -264,7 +273,7 @@ export const actions = {
         from_index: number,
         to_index: number,
         from_player_id: number,
-        to_player_id: number
+        to_player_id: number,
       ) => {
         return invoke<void>("score_instruments_move", {
           from_index,
@@ -350,7 +359,7 @@ export const actions = {
       create: (
         flow_id: UniqueId,
         tick: Tick,
-        barline_draw_type: BarlineDrawType
+        barline_draw_type: BarlineDrawType,
       ) => {
         return invoke<UniqueId | null>("score_entries_barline_create", {
           flow_id,
@@ -372,7 +381,7 @@ export const actions = {
         stave_id: UniqueId,
         pitch: number,
         offset: number,
-        clef_draw_type: ClefDrawType
+        clef_draw_type: ClefDrawType,
       ) => {
         return invoke<UniqueId | null>("score_entries_clef_create", {
           flow_id,
@@ -396,7 +405,7 @@ export const actions = {
         flow_id: UniqueId,
         tick: Tick,
         mode: KeySignatureMode,
-        offset: number
+        offset: number,
       ) => {
         return invoke<UniqueId>("score_entries_key_signature_create", {
           flow_id,
@@ -418,7 +427,7 @@ export const actions = {
         tick: Tick,
         beats: number,
         beat_type: NoteDuration,
-        draw_type: TimeSignatureDrawType
+        draw_type: TimeSignatureDrawType,
       ) => {
         return invoke<UniqueId>("score_entries_time_signature_create", {
           flow_id,
@@ -443,7 +452,7 @@ export const actions = {
         pitch_int: number,
         accidental: Accidental | null,
         velocity: number,
-        articulation: Articulation
+        articulation: Articulation,
       ) => {
         return invoke<UniqueId>("score_entries_tone_create", {
           track_id,

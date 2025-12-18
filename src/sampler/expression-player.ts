@@ -51,14 +51,10 @@ export class ExpressionPlayer {
   /**
    * Load a sample with a given pitch
    */
-  public async load(url: string, progress: Progress) {
-    const resp = await fetch(url);
-    const patch: Patch[] = await resp.json();
-
+  public async load(patches: Patch[], progress: Progress) {
     let complete = 0;
     return Promise.all(
-      patch.map(async ([pitch, attack, release, data]) => {
-        // get the sample as a buffer and decode
+      patches.map(async ([pitch, attack, release, data]) => {
         const resp = await fetch(data);
         const buffer = await resp.arrayBuffer();
         const source = await this.ctx.decodeAudioData(buffer);
@@ -69,7 +65,8 @@ export class ExpressionPlayer {
           release,
           source,
         });
-        progress(patch.length, ++complete);
+
+        progress(patches.length, ++complete);
       }),
     );
   }

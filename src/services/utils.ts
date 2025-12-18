@@ -1,5 +1,5 @@
 import prettyMilliseconds from "pretty-ms";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { AppState, LayoutType, UniqueId } from "./types";
 
 const THIRTY_SECONDS = 30 * 1000;
@@ -36,6 +36,23 @@ export const useHumanizedTime = (when: number) => {
   }, [when]);
 
   return display;
+};
+
+export const useAsync = <T>(
+  asyncFn: () => Promise<T>,
+  deps: React.DependencyList = [],
+) => {
+  useEffect(() => {
+    const runAsync = async () => {
+      try {
+        await asyncFn();
+      } catch (err) {
+        console.log(err);
+      }
+    };
+
+    runAsync();
+  }, deps);
 };
 
 export const getLayoutName = (state: AppState, layoutId: UniqueId) => {

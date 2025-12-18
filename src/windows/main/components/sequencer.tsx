@@ -77,6 +77,7 @@ export const Sequencer: FC<Props> = ({
           ticks={ticks}
           slots={slots}
           tool={state.ui.sequencer.tool}
+          instrumentId={instrumentId}
         />
       </div>
     </DragScroll>

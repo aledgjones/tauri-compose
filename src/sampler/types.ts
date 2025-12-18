@@ -1,10 +1,10 @@
 export const enum Expression {
-  Natural = "natural",
-  Pizzicato = "pizzicato",
-  Spiccato = "spiccato",
-  Staccato = "staccato",
-  Tremolo = "tremolo",
-  Mute = "mute",
+  Natural = 0,
+  Pizzicato = 1,
+  Spiccato = 2,
+  Staccato = 3,
+  Tremolo = 4,
+  Mute = 5,
 }
 
 export type Tick = number;
@@ -31,6 +31,6 @@ export type Callback = (when: Seconds, duration: Seconds) => void;
 export type Progress = (total: number, complete: number) => void;
 
 /**
- * [pitch, attack, release, start_loop, end_loop, data];
+ * [pitch, attack, release, data];
  */
 export type Patch = [number, Seconds, Seconds, string];

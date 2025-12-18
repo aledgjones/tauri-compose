@@ -28,7 +28,9 @@ use score::flows::{
     score_flows_assign_player, score_flows_create, score_flows_move, score_flows_remove,
     score_flows_rename, score_flows_unassign_player,
 };
-use score::instruments::defs::score_instruments_get_all_definitions;
+use score::instruments::defs::{
+    score_instruments_get_all_definitions, score_instruments_get_patches,
+};
 use score::instruments::{
     score_instruments_create, score_instruments_move, score_instruments_remove,
 };
@@ -152,6 +154,7 @@ pub fn run() {
             score_flows_remove,
             score_instruments_create,
             score_instruments_get_all_definitions,
+            score_instruments_get_patches,
             score_instruments_move,
             score_instruments_remove,
             score_layouts_create,

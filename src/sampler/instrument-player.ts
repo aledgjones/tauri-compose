@@ -1,5 +1,5 @@
 import { ExpressionPlayer } from "./expression-player";
-import { Expression, Progress, Seconds } from "./types";
+import { Expression, Patch, Progress, Seconds } from "./types";
 import { chain } from "./utils";
 
 /**
@@ -80,9 +80,13 @@ export class InstrumentPlayer {
   /**
    * Load an expression patch
    */
-  public async load(expression: Expression, url: string, progress: Progress) {
+  public async load(
+    expression: Expression,
+    patches: Patch[],
+    progress: Progress,
+  ) {
     const player = new ExpressionPlayer(this.ctx, this);
-    await player.load(url, progress);
+    await player.load(patches, progress);
     this.expressions[expression] = player;
   }
 
@@ -108,7 +112,9 @@ export class InstrumentPlayer {
    * Imediately stops all scheduled and playing sounds
    */
   public stopAll() {
-    const keys = Object.keys(this.expressions) as Expression[];
+    const keys = Object.keys(this.expressions).map(
+      (k) => parseInt(k) as Expression,
+    );
     keys.forEach((key) => {
       this.expressions[key]?.stopAll();
     });
@@ -128,7 +134,9 @@ export class InstrumentPlayer {
     this.volumeNode.disconnect();
     this.muteNode.disconnect();
     this.analyserNode.disconnect();
-    const keys = Object.keys(this.expressions) as Expression[];
+    const keys = Object.keys(this.expressions).map(
+      (k) => parseInt(k) as Expression,
+    );
     keys.forEach((key) => {
       this.expressions[key]?.disconnectAll();
       delete this.expressions[key];

@@ -1,5 +1,5 @@
 import { InstrumentPlayer } from "./instrument-player";
-import { Expression } from "./types";
+import { Expression, Seconds } from "./types";
 
 export class AudioPlayer {
   public ctx: AudioContext;
@@ -48,8 +48,12 @@ export class AudioPlayer {
     return this.instruments[instrument].peak();
   }
 
+  public hasInstrument(key: string): boolean {
+    return this.instruments[key] !== undefined;
+  }
+
   /**
-   * Create a new sampler controled by the audio player
+   * Create a new sampler controled by the audio player, or return existing one
    */
   public createSampler(key: string): InstrumentPlayer {
     const sampler = new InstrumentPlayer(this.ctx);
@@ -65,8 +69,8 @@ export class AudioPlayer {
     instrument: string,
     expression: Expression,
     pitch: number,
-    when: number,
-    duration: number,
+    when: Seconds,
+    duration: Seconds,
   ) {
     this.instruments[instrument].play(expression, pitch, when, duration);
   }

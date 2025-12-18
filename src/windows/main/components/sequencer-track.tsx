@@ -8,15 +8,17 @@ import {
   NoteDuration,
   Tool,
   Track,
+  UniqueId,
 } from "../../../services/types";
 import { actions } from "../../../services/actions";
 import { SequencerTrackTone } from "./sequencer-track-tone";
+import { Expression, sampler } from "../../../sampler";
 
 export const getSnappedXPosition = (
   x: number,
   tickWidth: number,
   ticksPerSnap: number,
-  direction: "up" | "down" | "nearest"
+  direction: "up" | "down" | "nearest",
 ) => {
   const tick = Math.floor(x / tickWidth);
 
@@ -62,6 +64,7 @@ type SequencerTrackProps = {
   slots: Slots;
   tool: Tool;
   snapDuration: NoteDuration;
+  instrumentId: UniqueId | null;
 };
 
 export const SequencerTrack: FC<SequencerTrackProps> = ({
@@ -71,6 +74,7 @@ export const SequencerTrack: FC<SequencerTrackProps> = ({
   slots,
   tool,
   snapDuration,
+  instrumentId,
 }) => {
   const sequencerRef = useRef<HTMLDivElement>(null);
 
@@ -97,7 +101,7 @@ export const SequencerTrack: FC<SequencerTrackProps> = ({
         x,
         ticks.tickWidth,
         ticksPerSnap,
-        "down"
+        "down",
       );
 
       const tone_id = await actions.score.tone.create(
@@ -107,11 +111,13 @@ export const SequencerTrack: FC<SequencerTrackProps> = ({
         pitch,
         null,
         255,
-        Articulation.None
+        Articulation.None,
       );
 
-      // TODO:
-      // audition(instrumentKey, pitch);
+      // Audition the tone
+      if (instrumentId) {
+        sampler.play(instrumentId.toString(), 0 as Expression, pitch, 0, 1);
+      }
 
       const handlePointerMove = async (e: any) => {
         const x = e.clientX - box.left;
@@ -139,12 +145,13 @@ export const SequencerTrack: FC<SequencerTrackProps> = ({
       ticks.tickWidth,
       tool,
       track.id,
-    ]
+      instrumentId,
+    ],
   );
 
   const tones = useMemo(() => {
     return Object.values(track.entries.by_id).filter(
-      (entry) => entry.type === "Tone"
+      (entry) => entry.type === "Tone",
     );
   }, [track.entries.by_id]);
 

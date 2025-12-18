@@ -3,6 +3,6 @@ import { Scheduler } from "./scheduler";
 
 export * from "./types";
 
-const ctx = new AudioContext();
-export const Transport = new Scheduler(ctx);
-export const Player = new AudioPlayer(ctx);
+export const ctx = new AudioContext();
+export const transport = new Scheduler(ctx);
+export const sampler = new AudioPlayer(ctx);

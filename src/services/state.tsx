@@ -13,6 +13,7 @@ import {
   Tool,
 } from "./types";
 import { actions } from "./actions";
+import { useSampler } from "./use-sampler";
 import {
   createContext,
   FC,
@@ -135,6 +136,8 @@ export const AppContext = createContext<AppState | null>(null);
 
 export const AppStateProvider: FC<PropsWithChildren> = ({ children }) => {
   const [appState, setAppState] = useState<AppState>(initialAppState);
+
+  useSampler(appState);
 
   useEffect(() => {
     let unlisten: UnlistenFn | null = null;
