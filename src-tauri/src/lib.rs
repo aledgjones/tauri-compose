@@ -62,6 +62,7 @@ use ui::setup::{
     ui_setup_expanded_insert, ui_setup_expanded_remove, ui_setup_selection_clear,
     ui_setup_selection_set,
 };
+use ui::write::{ui_write_bottom_panel_minimized_toggle, ui_write_bottom_panel_tab_set};
 use ui::{ui_layout_id_set, ui_tab_set, Ui};
 use utils::UniqueId;
 
@@ -196,6 +197,8 @@ pub fn run() {
             ui_setup_selection_clear,
             ui_setup_selection_set,
             ui_tab_set,
+            ui_write_bottom_panel_minimized_toggle,
+            ui_write_bottom_panel_tab_set
         ])
         .plugin(tauri_plugin_opener::init())
         .run(tauri::generate_context!())

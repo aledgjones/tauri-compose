@@ -1,5 +1,6 @@
 pub mod sequencer;
 pub mod setup;
+pub mod write;
 
 use crate::{utils::UniqueId, AppState};
 use sequencer::Sequencer;
@@ -7,6 +8,7 @@ use serde::Serialize;
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use setup::Setup;
 use tauri::State;
+use write::Write;
 
 #[derive(Serialize_repr, Deserialize_repr, Clone)]
 #[repr(u8)]
@@ -23,6 +25,7 @@ pub struct Ui {
     tab: Tab,
     layout_id: UniqueId,
     pub setup: Setup,
+    pub write: Write,
     pub sequencer: Sequencer,
 }
 
@@ -32,6 +35,7 @@ impl Ui {
             tab: Tab::Setup,
             layout_id: 0,
             setup: Setup::new(),
+            write: Write::new(),
             sequencer: Sequencer::new(),
         }
     }

@@ -18,9 +18,9 @@ const getTheme = (variant: Variant, isSelected?: boolean) => {
 
   switch (variant) {
     case "filled":
-      return "bg-neutral-800 hover:bg-neutral-700";
+      return "bg-neutral-800 text-white hover:bg-neutral-700";
     case "interactive":
-      return "hover:bg-neutral-800";
+      return " text-white hover:bg-neutral-800";
     default:
       return "";
   }
@@ -42,7 +42,7 @@ export const IconButton: FC<IconProps & Props> = ({
         "flex items-center justify-center h-[36px] w-[36px]",
         getTheme(variant, isSelected),
         { "pointer-events-none": isDisabled },
-        className
+        className,
       )}
     >
       <div className={classNames({ "opacity-25": isDisabled })}>

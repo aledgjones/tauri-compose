@@ -1,13 +1,17 @@
 import { FC, useMemo } from "react";
 import { useAppState } from "../../../../../services/state";
 import { Select, SelectOption } from "../../../../../ui/select";
-import { Tool, UniqueId } from "../../../../../services/types";
+import { BottomPanelTab, Tool, UniqueId } from "../../../../../services/types";
 import { actions } from "../../../../../services/actions";
 import {
   mdiBoxCutter,
+  mdiChevronDown,
+  mdiChevronUp,
   mdiCursorDefault,
   mdiEraser,
+  mdiFormatListBulletedSquare,
   mdiPen,
+  mdiPiano,
   mdiTuneVertical,
 } from "@mdi/js";
 import { IconButton } from "../../../../../ui/icon-button";
@@ -16,6 +20,121 @@ import { SnapPicker } from "../../../../../components/snap-picker";
 
 const ALPHABET = ["A", "B"];
 const TRACK_LABEL = ["Up-stem", "Down-stem"];
+
+interface SequencerToolbarProps {
+  tool: Tool;
+  instrumentId: UniqueId | null;
+  instruments: SelectOption<UniqueId>[];
+  trackId: UniqueId | null;
+  tracks: SelectOption<UniqueId>[];
+  snapValue: any;
+}
+
+const SequencerToolbar: FC<SequencerToolbarProps> = ({
+  tool,
+  instrumentId,
+  instruments,
+  trackId,
+  tracks,
+  snapValue,
+}) => (
+  <>
+    <div className="flex flex-1">
+      <IconButton
+        path={mdiCursorDefault}
+        variant="filled"
+        isSelected={tool === Tool.Select}
+        onClick={() => actions.ui.sequencer.setTool(Tool.Select)}
+      />
+      <IconButton
+        path={mdiPen}
+        variant="filled"
+        isSelected={tool === Tool.Write}
+        onClick={() => actions.ui.sequencer.setTool(Tool.Write)}
+      />
+      <IconButton
+        path={mdiBoxCutter}
+        variant="filled"
+        isSelected={tool === Tool.Slice}
+        onClick={() => actions.ui.sequencer.setTool(Tool.Slice)}
+      />
+      <IconButton
+        className="mr-2"
+        path={mdiEraser}
+        variant="filled"
+        isSelected={tool === Tool.Erase}
+        onClick={() => actions.ui.sequencer.setTool(Tool.Erase)}
+      />
+      <SnapPicker value={snapValue} onChange={actions.ui.sequencer.setSnap} />
+    </div>
+    <div className="flex flex-1 justify-center">
+      {instrumentId && instruments.length > 0 && (
+        <Select
+          className="mr-1"
+          variant="filled"
+          value={instrumentId}
+          options={instruments}
+          onChange={actions.ui.sequencer.setInstrument}
+        />
+      )}
+      {trackId && tracks.length > 0 && (
+        <Select
+          variant="filled"
+          value={trackId}
+          options={tracks}
+          onChange={actions.ui.sequencer.setTrack}
+        />
+      )}
+    </div>
+  </>
+);
+
+interface MixerToolbarProps {}
+
+const MixerToolbar: FC<MixerToolbarProps> = () => (
+  <>
+    <div className="flex flex-1">
+      {/* Mixer-specific controls can go here */}
+    </div>
+  </>
+);
+
+interface TabButtonsProps {
+  tab: BottomPanelTab;
+}
+
+const TabButtons: FC<TabButtonsProps> = ({ tab }) => (
+  <div className="flex flex-1 justify-end">
+    <IconButton
+      path={mdiFormatListBulletedSquare}
+      variant="filled"
+      isSelected={tab === BottomPanelTab.Properties}
+      onClick={() =>
+        actions.ui.write.bottomPanel.setTab(BottomPanelTab.Properties)
+      }
+    />
+    <IconButton
+      path={mdiPiano}
+      variant="filled"
+      isSelected={tab === BottomPanelTab.Sequencer}
+      onClick={() =>
+        actions.ui.write.bottomPanel.setTab(BottomPanelTab.Sequencer)
+      }
+    />
+    <IconButton
+      className="mr-2"
+      path={mdiTuneVertical}
+      variant="filled"
+      isSelected={tab === BottomPanelTab.Mixer}
+      onClick={() => actions.ui.write.bottomPanel.setTab(BottomPanelTab.Mixer)}
+    />
+    <IconButton
+      path={mdiChevronDown}
+      variant="filled"
+      onClick={() => actions.ui.write.bottomPanel.toggle()}
+    />
+  </div>
+);
 
 export const BottomPanel: FC = () => {
   const state = useAppState();
@@ -119,80 +238,50 @@ export const BottomPanel: FC = () => {
   }, [state.ui.sequencer.track, tracks]);
 
   const tool = state.ui.sequencer.tool;
+  const tab = state.ui.write.bottom_panel_tab;
+  const minimised = state.ui.write.bottom_panel_minimized;
+
+  if (minimised) {
+    return (
+      <div className="bg-neutral-900 flex items-center justify-end p-2">
+        <IconButton
+          path={mdiChevronUp}
+          variant="filled"
+          onClick={() => actions.ui.write.bottomPanel.toggle()}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="bg-neutral-900 flex flex-col min-h-0">
-      <div className="flex p-2 h-[52px] items-center z-50">
-        <div className="flex flex-1">
-          <IconButton
-            path={mdiCursorDefault}
-            variant="filled"
-            isSelected={tool === Tool.Select}
-            onClick={() => actions.ui.sequencer.setTool(Tool.Select)}
-            color={tool === Tool.Select ? "#000" : "#fff"}
+      <div className="flex p-2 h-13 items-center z-50">
+        {tab === BottomPanelTab.Sequencer && (
+          <SequencerToolbar
+            tool={tool}
+            instrumentId={instrumentId}
+            instruments={instruments}
+            trackId={trackId}
+            tracks={tracks}
+            snapValue={state.ui.sequencer.snap}
           />
-          <IconButton
-            path={mdiPen}
-            variant="filled"
-            isSelected={tool === Tool.Write}
-            onClick={() => actions.ui.sequencer.setTool(Tool.Write)}
-            color={tool === Tool.Write ? "#000" : "#fff"}
-          />
-          <IconButton
-            path={mdiBoxCutter}
-            variant="filled"
-            isSelected={tool === Tool.Slice}
-            onClick={() => actions.ui.sequencer.setTool(Tool.Slice)}
-            color={tool === Tool.Slice ? "#000" : "#fff"}
-          />
-          <IconButton
-            className="mr-2"
-            path={mdiEraser}
-            variant="filled"
-            isSelected={tool === Tool.Erase}
-            onClick={() => actions.ui.sequencer.setTool(Tool.Erase)}
-            color={tool === Tool.Erase ? "#000" : "#fff"}
-          />
-          <SnapPicker
-            value={state.ui.sequencer.snap}
-            onChange={actions.ui.sequencer.setSnap}
-          />
-        </div>
-        <div className="flex flex-1 justify-center">
-          {instrumentId && instruments.length > 0 && (
-            <Select
-              className="mr-1"
-              variant="filled"
-              value={instrumentId}
-              options={instruments}
-              onChange={actions.ui.sequencer.setInstrument}
-            />
-          )}
-          {trackId && tracks.length > 0 && (
-            <Select
-              variant="filled"
-              value={trackId}
-              options={tracks}
-              onChange={actions.ui.sequencer.setTrack}
-            />
-          )}
-        </div>
-        <div className="flex flex-1 justify-end">
-          <IconButton
-            path={mdiTuneVertical}
-            variant="filled"
-            isSelected={true}
-            onClick={() => {}}
-            color="#000"
-          />
-        </div>
+        )}
+        {tab === BottomPanelTab.Mixer && <MixerToolbar />}
+        <TabButtons tab={tab} />
       </div>
-      <Sequencer
-        octaves={10}
-        flowId={flowId}
-        instrumentId={instrumentId}
-        trackId={trackId}
-      />
+      {tab === BottomPanelTab.Sequencer && (
+        <Sequencer
+          octaves={10}
+          flowId={flowId}
+          instrumentId={instrumentId}
+          trackId={trackId}
+        />
+      )}
+      {tab === BottomPanelTab.Mixer && (
+        <div className="flex-1 p-4 text-center text-neutral-400">
+          Mixer content coming soon...
+        </div>
+      )}
     </div>
   );
 };

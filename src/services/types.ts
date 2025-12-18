@@ -320,6 +320,12 @@ export type Engraves = {
   };
 };
 
+export enum BottomPanelTab {
+  Properties,
+  Sequencer,
+  Mixer,
+}
+
 export type AppState = {
   ui: {
     tab: Tab;
@@ -327,6 +333,10 @@ export type AppState = {
     setup: {
       selection: { id: UniqueId; selection_type: SelectionType } | null;
       expanded: UniqueId[];
+    };
+    write: {
+      bottom_panel_minimized: boolean;
+      bottom_panel_tab: BottomPanelTab;
     };
     sequencer: {
       x: number;

@@ -4,6 +4,7 @@ import {
   Articulation,
   AutoCountStyle,
   BarlineDrawType,
+  BottomPanelTab,
   BracketingApproach,
   BracketStyle,
   ClefDrawType,
@@ -106,6 +107,16 @@ export const actions = {
       },
       collapse: (id: number) => {
         return invoke("ui_setup_expanded_remove", { id });
+      },
+    },
+    write: {
+      bottomPanel: {
+        toggle: () => {
+          return invoke("ui_write_bottom_panel_minimized_toggle");
+        },
+        setTab: (tab: BottomPanelTab) => {
+          return invoke("ui_write_bottom_panel_tab_set", { tab });
+        },
       },
     },
     sequencer: {

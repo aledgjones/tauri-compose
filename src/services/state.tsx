@@ -3,6 +3,7 @@ import {
   Align,
   AppState,
   AutoCountStyle,
+  BottomPanelTab,
   BracketingApproach,
   BracketStyle,
   FontFamily,
@@ -28,6 +29,10 @@ export const initialAppState: AppState = {
     tab: Tab.Setup,
     layout_id: 0,
     setup: { selection: null, expanded: [] },
+    write: {
+      bottom_panel_minimized: false,
+      bottom_panel_tab: BottomPanelTab.Sequencer,
+    },
     sequencer: {
       x: 0,
       y: 0,
