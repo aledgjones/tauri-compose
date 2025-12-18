@@ -5,7 +5,9 @@ import { BPM, Callback, Seconds, Tick, Ticks } from "./types";
 /**
  * Schedule events along a predefined timeline of events.
  */
-export class Scheduler extends EventEmitter<"start" | "stop" | "tick"> {
+export class Scheduler extends EventEmitter<
+  "start" | "stop" | "pause" | "tick"
+> {
   constructor(ctx: AudioContext) {
     super();
     this.ctx = ctx;
@@ -131,7 +133,7 @@ export class Scheduler extends EventEmitter<"start" | "stop" | "tick"> {
       this.tick = tick;
     }
     if (tick === this.length) {
-      this.pause();
+      this.stop();
     }
     const lookaheadTime = this.ctx.currentTime - this._playStartTime + 0.2;
     for (let tick = this.tick; tick <= this._length; tick++) {
@@ -200,22 +202,22 @@ export class Scheduler extends EventEmitter<"start" | "stop" | "tick"> {
 
   public seek(tick: Tick) {
     if (this._playing) {
-      this.pause(true);
+      this.pause();
       this.tick = tick;
-      this.start(true);
+      this.emit("tick", tick);
+      this.start();
     } else {
       this.tick = tick;
+      this.emit("tick", tick);
     }
   }
 
-  public start(silent?: boolean) {
+  public start() {
     if (this.tick === this.length) {
       return;
     }
 
-    if (!silent) {
-      this.emit("start");
-    }
+    this.emit("start");
     this._playing = true;
     // we work out when tick 0 would have been.
     this._playStartTime = this.ctx.currentTime - this._tickOffsets[this.tick];
@@ -223,16 +225,16 @@ export class Scheduler extends EventEmitter<"start" | "stop" | "tick"> {
     this.loop();
   }
 
-  public stop(silent?: boolean) {
-    this.pause(silent);
-    this.tick = 0;
-  }
-
-  public pause(silent?: boolean) {
-    if (!silent) {
-      this.emit("stop");
-    }
+  public stop() {
     this._playing = false;
     this._scheduledTicks = {};
+    this.emit("stop");
+    this.seek(0);
+  }
+
+  public pause() {
+    this._playing = false;
+    this._scheduledTicks = {};
+    this.emit("pause");
   }
 }

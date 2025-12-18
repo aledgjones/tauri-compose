@@ -13,6 +13,7 @@ import { actions } from "../../services/actions";
 import { useMemo } from "react";
 import { getLayoutName } from "../../services/utils";
 import { Write } from "./screens/write";
+import { PlaybackProvider } from "../../services/playback-context";
 
 const tabs: TabsOption<Tab>[] = [
   { label: "Setup", value: Tab.Setup },
@@ -44,47 +45,49 @@ export const Main = () => {
   }, [state]);
 
   return (
-    <div className="h-dvh w-dvw grid grid-rows-[28px_52px_1fr] bg-neutral-950">
-      <AppBar title="Solo Compose" filename={state.score.meta.title} />
-      <div className="p-2 flex items-center bg-neutral-900">
-        <Tabs
-          className="flex flex-1 justify-start"
-          value={state.ui.tab}
-          options={tabs}
-          onChange={actions.ui.setTab}
-        />
-
-        <div className="flex mx-2">
-          <Select
-            variant="standard"
-            className="mr-2 inline-block"
-            value={state.ui.layout_id}
-            onChange={actions.ui.setActiveLayoutId}
-            options={layouts}
+    <PlaybackProvider appState={state}>
+      <div className="h-dvh w-dvw grid grid-rows-[28px_52px_1fr] bg-neutral-950">
+        <AppBar title="Solo Compose" filename={state.score.meta.title} />
+        <div className="p-2 flex items-center bg-neutral-900">
+          <Tabs
+            className="flex flex-1 justify-start"
+            value={state.ui.tab}
+            options={tabs}
+            onChange={actions.ui.setTab}
           />
 
-          <Transport className="mr-2" />
+          <div className="flex mx-2">
+            <Select
+              variant="standard"
+              className="mr-2 inline-block"
+              value={state.ui.layout_id}
+              onChange={actions.ui.setActiveLayoutId}
+              options={layouts}
+            />
 
-          <IconButton
-            className="mr-1 text-white"
-            variant="interactive"
-            onClick={() => {}}
-            path={mdiTuneVertical}
-            isDisabled
-          />
-          <IconButton
-            className="text-white"
-            variant="interactive"
-            onClick={() => {}}
-            path={mdiMovieRoll}
-            isDisabled
-          />
+            <Transport className="mr-2" />
+
+            <IconButton
+              className="mr-1 text-white"
+              variant="interactive"
+              onClick={() => {}}
+              path={mdiTuneVertical}
+              isDisabled
+            />
+            <IconButton
+              className="text-white"
+              variant="interactive"
+              onClick={() => {}}
+              path={mdiMovieRoll}
+              isDisabled
+            />
+          </div>
+
+          <Tools className="flex-1 justify-end" />
         </div>
 
-        <Tools className="flex-1 justify-end" />
+        <Content />
       </div>
-
-      <Content />
-    </div>
+    </PlaybackProvider>
   );
 };

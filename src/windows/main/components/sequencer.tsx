@@ -8,6 +8,7 @@ import { useTicks } from "../hooks/use-ticks";
 import { useAppState } from "../../../services/state";
 import { TickBar } from "./tick-bar";
 import { SequencerTrack } from "./sequencer-track";
+import { PlaybackLine } from "./playback-line";
 
 type Props = {
   flowId: UniqueId | null;
@@ -62,7 +63,7 @@ export const Sequencer: FC<Props> = ({
         className="ignore-x sticky left-0 z-20"
         style={{ width: KEYBOARD_WIDTH }}
       >
-        <div className="sticky top-0 z-30 h-[28px] bg-neutral-800 w-full" />
+        <div className="sticky top-0 z-30 h-7 bg-neutral-800 w-full" />
         <Keyboard slots={slots} />
       </div>
       <div
@@ -70,15 +71,18 @@ export const Sequencer: FC<Props> = ({
         className="ignore-y absolute top-0 z-10 min-w-full"
       >
         <TickBar ticks={ticks} className="sticky top-0 z-30 bg-neutral-800" />
-        <SequencerTrack
-          flow={flow}
-          track={track}
-          snapDuration={state.ui.sequencer.snap}
-          ticks={ticks}
-          slots={slots}
-          tool={state.ui.sequencer.tool}
-          instrumentId={instrumentId}
-        />
+        <div className="relative">
+          <SequencerTrack
+            flow={flow}
+            track={track}
+            snapDuration={state.ui.sequencer.snap}
+            ticks={ticks}
+            slots={slots}
+            tool={state.ui.sequencer.tool}
+            instrumentId={instrumentId}
+          />
+          <PlaybackLine ticks={ticks} height={slots.height} />
+        </div>
       </div>
     </DragScroll>
   );
