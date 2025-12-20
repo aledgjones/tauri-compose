@@ -3,7 +3,6 @@ import { resolve } from "path";
 import react from "@vitejs/plugin-react";
 import eslint from "vite-plugin-eslint";
 
-// @ts-expect-error process is a nodejs global
 const host = process.env.TAURI_DEV_HOST;
 
 // https://vitejs.dev/config/

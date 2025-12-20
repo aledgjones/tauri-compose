@@ -39,3 +39,11 @@ codegen-units = 1
 lto = "fat"
 # optimize for speed
 opt-level = 3
+# enable more aggressive optimizations
+debug = false
+# strip debug symbols
+strip = true
+# enable overflow checks in release (remove if causing issues)
+overflow-checks = false
+# enable vectorization
+rpath = false
