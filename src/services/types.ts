@@ -132,10 +132,15 @@ export type Instrument = {
   short_name: string;
   stave_ids: UniqueId[];
   count: string | null;
+};
+
+export type SamplerInstrument = {
   volume: number;
   solo: boolean;
   mute: boolean;
 };
+
+export type Sampler = Record<UniqueId, SamplerInstrument>;
 
 export type Instruments = {
   by_id: Record<UniqueId, Instrument>;

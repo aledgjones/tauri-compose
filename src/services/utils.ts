@@ -52,6 +52,7 @@ export const useAsync = <T>(
     };
 
     runAsync();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [asyncFn, ...deps]);
 };
 

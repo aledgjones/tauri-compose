@@ -1,14 +1,17 @@
-import { FC } from "react";
+import { FC, useEffect, useState, useRef } from "react";
 import { mdiSizeM, mdiSizeS } from "@mdi/js";
 import { IconButton } from "../../../ui/icon-button";
 import { Fader } from "./fader";
+import { sampler, transport } from "../../../sampler";
 import { Instrument } from "../../../services/types";
 
 type MixerProps = {
   instrument: Instrument;
   disabled?: boolean;
-  amplitude?: number;
   color?: string;
+  volume: number;
+  isMuted: boolean;
+  isSoloed: boolean;
   onVolumeChange: (volume: number) => void;
   onToggleMute: () => void;
   onToggleSolo: () => void;
@@ -17,18 +20,60 @@ type MixerProps = {
 export const MixerChannel: FC<MixerProps> = ({
   instrument,
   disabled = false,
-  amplitude = 0,
   color,
+  volume,
+  isMuted,
+  isSoloed,
   onVolumeChange,
   onToggleMute,
   onToggleSolo,
 }) => {
+  const [amplitude, setAmplitude] = useState(0);
+  const [playing, setPlaying] = useState(false);
+  const animationRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const handleStart = () => setPlaying(true);
+    const handleStop = () => setPlaying(false);
+
+    transport.on("start", handleStart);
+    transport.on("stop", handleStop);
+    transport.on("pause", handleStop);
+
+    return () => {
+      transport.removeListener("start", handleStart);
+      transport.removeListener("stop", handleStop);
+      transport.removeListener("pause", handleStop);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!playing) {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+      return;
+    }
+
+    const updateAmplitude = () => {
+      setAmplitude(sampler.RMS(instrument.id.toString()));
+      animationRef.current = requestAnimationFrame(updateAmplitude);
+    };
+
+    updateAmplitude();
+
+    return () => {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+    };
+  }, [playing, instrument.id]);
   return (
     <div className="flex flex-col w-24 h-full bg-neutral-800">
       {/* Fader */}
       <div className="flex flex-1 w-full items-center justify-center p-8 pb-5">
         <Fader
-          volume={Math.round((instrument.volume / 127) * 100)}
+          volume={volume}
           disabled={disabled}
           amplitude={amplitude}
           color={color}
@@ -42,14 +87,14 @@ export const MixerChannel: FC<MixerProps> = ({
           path={mdiSizeS}
           variant="outline"
           size={0.9}
-          isSelected={instrument.solo}
+          isSelected={isSoloed}
           onClick={onToggleSolo}
         />
         <IconButton
           path={mdiSizeM}
           variant="outline"
           size={0.9}
-          isSelected={instrument.mute}
+          isSelected={isMuted}
           onClick={onToggleMute}
         />
       </div>

@@ -299,18 +299,22 @@ export const actions = {
         });
       },
       setVolume: (instrument_id: number, volume: number) => {
-        console.log(
-          `Setting volume for instrument ${instrument_id} to ${volume}`,
-        );
-        // TODO: Implement backend call when available
+        return invoke("score_instruments_set_volume", {
+          instrument_id,
+          volume,
+        });
       },
       setMute: (instrument_id: number, mute: boolean) => {
-        console.log(`Setting mute for instrument ${instrument_id} to ${mute}`);
-        // TODO: Implement backend call when available
+        return invoke("score_instruments_set_mute", {
+          instrument_id,
+          mute,
+        });
       },
       setSolo: (instrument_id: number, solo: boolean) => {
-        console.log(`Setting solo for instrument ${instrument_id} to ${solo}`);
-        // TODO: Implement backend call when available
+        return invoke("score_instruments_set_solo", {
+          instrument_id,
+          solo,
+        });
       },
     },
     config: {

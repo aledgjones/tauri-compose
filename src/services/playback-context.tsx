@@ -5,6 +5,7 @@ import {
   useCallback,
   useEffect,
   useState,
+  useRef,
 } from "react";
 import { transport, sampler } from "../sampler";
 import { Expression } from "../sampler/types";
@@ -32,6 +33,9 @@ export function PlaybackProvider({
 }: PlaybackProviderProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTick, setCurrentTick] = useState(transport.tick);
+
+  // Track scheduling-relevant state to avoid re-scheduling on volume changes
+  const lastSchedulingStateRef = useRef<string>("");
 
   const play = useCallback(async () => {
     if (isPlaying) return;
@@ -65,6 +69,26 @@ export function PlaybackProvider({
 
     const flow = appState.score.flows.by_id[flowId];
     if (!flow) return;
+
+    // Create a stable key representing scheduling-relevant state
+    const schedulingKey = JSON.stringify({
+      flowId,
+      flow: {
+        subdivisions: flow.subdivisions,
+        length: flow.length,
+        player_ids: flow.player_ids,
+        staves: flow.staves,
+      },
+      players: appState.score.players,
+      tracks: appState.score.tracks,
+      instruments: appState.score.instruments,
+    });
+
+    // Only re-schedule if scheduling-relevant data has changed
+    if (schedulingKey === lastSchedulingStateRef.current) {
+      return;
+    }
+    lastSchedulingStateRef.current = schedulingKey;
 
     transport.clear();
     transport.subdivisions = flow.subdivisions;

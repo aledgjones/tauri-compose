@@ -10,6 +10,7 @@ import {
   Justify,
   LayoutType,
   NoteDuration,
+  Sampler,
   Tab,
   Tool,
 } from "./types";
@@ -139,28 +140,43 @@ export const initialAppState: AppState = {
 
 export const AppContext = createContext<AppState | null>(null);
 
+export const SamplerContext = createContext<Sampler | null>(null);
+
 export const AppStateProvider: FC<PropsWithChildren> = ({ children }) => {
   const [appState, setAppState] = useState<AppState>(initialAppState);
+  const [samplerState, setSamplerState] = useState<Sampler>({});
 
-  useSampler(appState);
+  useSampler(appState, samplerState);
 
   useEffect(() => {
-    let unlisten: UnlistenFn | null = null;
+    let unlistenApp: UnlistenFn | null = null;
+    let unlistenSampler: UnlistenFn | null = null;
 
     (async () => {
-      unlisten = await listen<AppState>("solocompose://state", (e) => {
+      unlistenApp = await listen<AppState>("solocompose://state", (e) => {
         setAppState(e.payload);
+      });
+
+      unlistenSampler = await listen<Sampler>("solocompose://sampler", (e) => {
+        setSamplerState(e.payload);
       });
 
       await actions.initialize();
     })();
 
     return () => {
-      unlisten?.();
+      unlistenApp?.();
+      unlistenSampler?.();
     };
   }, []);
 
-  return <AppContext.Provider value={appState}>{children}</AppContext.Provider>;
+  return (
+    <AppContext.Provider value={appState}>
+      <SamplerContext.Provider value={samplerState}>
+        {children}
+      </SamplerContext.Provider>
+    </AppContext.Provider>
+  );
 };
 
 export const useAppState = () => {
@@ -168,6 +184,16 @@ export const useAppState = () => {
 
   if (!context) {
     throw new Error("useAppState must be used within an AppStateProvider");
+  }
+
+  return context;
+};
+
+export const useSamplerState = () => {
+  const context = useContext(SamplerContext);
+
+  if (!context) {
+    throw new Error("useSamplerState must be used within an AppStateProvider");
   }
 
   return context;

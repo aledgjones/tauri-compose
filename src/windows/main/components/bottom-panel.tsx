@@ -1,5 +1,5 @@
 import { FC, useMemo } from "react";
-import { useAppState } from "../../../services/state";
+import { useAppState, useSamplerState } from "../../../services/state";
 import { Select, SelectOption } from "../../../ui/select";
 import { BottomPanelTab, Tool, UniqueId } from "../../../services/types";
 import { actions } from "../../../services/actions";
@@ -139,6 +139,7 @@ const TabButtons: FC<TabButtonsProps> = ({ tab }) => (
 
 export const BottomPanel: FC = () => {
   const state = useAppState();
+  const samplerState = useSamplerState();
 
   const instruments = useMemo(() => {
     return state.score.players.order.flatMap((playerId) => {
@@ -277,7 +278,9 @@ export const BottomPanel: FC = () => {
           trackId={trackId}
         />
       )}
-      {tab === BottomPanelTab.Mixer && <Mixer instruments={instruments} />}
+      {tab === BottomPanelTab.Mixer && (
+        <Mixer instruments={instruments} samplerState={samplerState} />
+      )}
     </div>
   );
 };

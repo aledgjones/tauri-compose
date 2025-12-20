@@ -1,7 +1,8 @@
+import { useEffect } from "react";
 import { sampler } from "../sampler";
 import { Expression } from "../sampler/types";
 import { actions } from "./actions";
-import { AppState } from "./types";
+import { AppState, Sampler } from "./types";
 import { useAsync } from "./utils";
 
 type SamplerModule = () => Promise<{ default: any }>;
@@ -9,7 +10,7 @@ type SamplerModule = () => Promise<{ default: any }>;
 /**
  * Hook that manages sampler initialization and instrument loading (self-contained)
  */
-export function useSampler(appState: AppState) {
+export function useSampler(appState: AppState, samplerState: Sampler) {
   // Load instrument patches when instruments are added
   useAsync(async () => {
     const allInstruments = Object.values(appState.score.instruments.by_id);
@@ -55,4 +56,23 @@ export function useSampler(appState: AppState) {
       }
     }
   }, [appState.score.instruments, appState.score.players]);
+
+  // Update sampler state when samplerState changes
+  useEffect(() => {
+    Object.entries(samplerState).forEach(([instrumentId, state]) => {
+      if (sampler.hasInstrument(instrumentId)) {
+        sampler.volume(instrumentId, state.volume / 127.0);
+        if (state.mute) {
+          sampler.mute(instrumentId);
+        } else {
+          sampler.unmute(instrumentId);
+        }
+        if (state.solo) {
+          sampler.solo(instrumentId);
+        } else {
+          sampler.unsolo(instrumentId);
+        }
+      }
+    });
+  }, [samplerState]);
 }

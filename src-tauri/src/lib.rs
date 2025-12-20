@@ -1,10 +1,12 @@
 mod render;
 mod renderer;
+mod sampler;
 mod score;
 mod ui;
 mod utils;
 
 use render::render;
+use sampler::{SamplerInstrument, Sampler};
 use score::config::{
     score_config_auto_count_styles_section_set, score_config_auto_count_styles_solo_set,
 };
@@ -33,6 +35,7 @@ use score::instruments::defs::{
 };
 use score::instruments::{
     score_instruments_create, score_instruments_move, score_instruments_remove,
+    score_instruments_set_mute, score_instruments_set_solo, score_instruments_set_volume,
 };
 use score::layouts::{
     score_layouts_assign_flow, score_layouts_assign_player, score_layouts_create,
@@ -67,9 +70,17 @@ use ui::{ui_layout_id_set, ui_tab_set, Ui};
 use utils::UniqueId;
 
 #[derive(Serialize, Deserialize, Clone)]
+struct AppStateGeneral {
+    ui: Ui,
+    score: Score,
+    next_id: UniqueId,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
 struct AppStateInner {
     ui: Ui,
     score: Score,
+    sampler: Sampler,
     next_id: UniqueId,
 }
 
@@ -78,12 +89,23 @@ impl AppStateInner {
         Mutex::new(Self {
             ui: Ui::new(),
             score: Score::new(),
+            sampler: Sampler::default(),
             next_id: 1,
         })
     }
 
     fn emit(&self, app: &tauri::AppHandle) {
-        app.emit("solocompose://state", self.clone()).unwrap();
+        let general_state = AppStateGeneral {
+            ui: self.ui.clone(),
+            score: self.score.clone(),
+            next_id: self.next_id,
+        };
+        app.emit("solocompose://state", general_state).unwrap();
+    }
+
+    fn emit_sampler(&self, app: &tauri::AppHandle) {
+        app.emit("solocompose://sampler", &self.sampler)
+            .unwrap();
     }
 
     pub fn generate_id(&mut self) -> UniqueId {
@@ -97,8 +119,25 @@ type AppState = Mutex<AppStateInner>;
 
 #[tauri::command]
 fn initialize(app: tauri::AppHandle, state: State<'_, AppState>) {
-    let state = state.lock().unwrap();
+    let mut state = state.lock().unwrap();
+
+    // Ensure sampler is populated for existing instruments
+    if state.sampler.is_empty() && !state.score.instruments.by_id.is_empty() {
+        let instrument_ids: Vec<_> = state.score.instruments.by_id.keys().cloned().collect();
+        for instrument_id in instrument_ids {
+            state.sampler.insert(
+                instrument_id,
+                SamplerInstrument {
+                    volume: 80,
+                    solo: false,
+                    mute: false,
+                },
+            );
+        }
+    }
+
     state.emit(&app);
+    state.emit_sampler(&app);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -106,8 +145,10 @@ fn reset(app: tauri::AppHandle, state: State<'_, AppState>) {
     let mut state = state.lock().unwrap();
     state.ui = Ui::new();
     state.score = Score::new();
+    state.sampler = Sampler::default();
     state.next_id = 1;
     state.emit(&app);
+    state.emit_sampler(&app);
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -158,6 +199,9 @@ pub fn run() {
             score_instruments_get_patches,
             score_instruments_move,
             score_instruments_remove,
+            score_instruments_set_mute,
+            score_instruments_set_solo,
+            score_instruments_set_volume,
             score_layouts_create,
             score_layouts_rename,
             score_layouts_assign_flow,
