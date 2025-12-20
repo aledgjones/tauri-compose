@@ -11,7 +11,7 @@ pub enum Direction {
 }
 
 impl Direction {
-    pub fn to_modifier(&self) -> i8 {
+    pub fn to_modifier(self) -> i8 {
         match self {
             Direction::Up => -1,
             Direction::Down => 1,

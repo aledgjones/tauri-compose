@@ -120,6 +120,7 @@ pub fn render(
         &beams_by_track,
         engrave,
         &horizontal_spacing,
+        flow.subdivisions,
     );
 
     let parsing_duration = parsing_start.elapsed();
@@ -321,16 +322,14 @@ pub fn render(
 
                 // BEAMS
                 for beam in beams {
-                    let start = &stem_lengths[&beam.start];
-                    let stop = &stem_lengths[&beam.stop];
-
                     draw_beam(
                         &Point {
                             x: stave_left,
                             y: stave_top,
                         },
-                        start,
-                        stop,
+                        beam,
+                        stem_lengths,
+                        stem_directions,
                         &mut renderer,
                     );
                 }

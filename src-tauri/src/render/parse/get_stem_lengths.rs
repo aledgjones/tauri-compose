@@ -4,7 +4,7 @@ use super::get_stem_directions::{StemDirections, StemDirectionsByTrack};
 use super::get_written_durations::{Notation, NotationByTrack, NotationTrack};
 use crate::render::draw::draw_staves::STAVE_LINE_WIDTH;
 use crate::renderer::converter::Space;
-use crate::score::components::duration::{Direction, Tick};
+use crate::score::components::duration::{Direction, Tick, Ticks};
 use crate::score::components::measurements::Point;
 use crate::score::engraves::Engrave;
 use crate::utils::UniqueId;
@@ -125,13 +125,30 @@ fn get_furthest_tail(beam: &Beam, stem_lengths: &StemLengths, stem_direction: &D
     furthest
 }
 
-fn get_natural_stem_length(x: Space, entry: &Notation, stem_direction: &Direction) -> StemDef {
+fn get_natural_stem_length(
+    x: Space,
+    entry: &Notation,
+    stem_direction: &Direction,
+    subdivisions: Ticks,
+) -> StemDef {
     let info = entry.info.clone().unwrap();
+
+    // Base stem length
+    let base_stem_length = 3.25;
+    let beam_count = entry.get_beam_count(subdivisions);
+
+    let beam_extension = if beam_count > 2 {
+        (beam_count as f32 - 2.0) * 0.75
+    } else {
+        0.0
+    };
+
+    let total_stem_length = base_stem_length + beam_extension;
 
     let (x, head, tail) = match stem_direction {
         Direction::Up => {
             let head = (info.lowest as f32 - 0.5) / 2.0;
-            let mut tail = (info.highest as f32 - 0.5) / 2.0 - 3.25;
+            let mut tail = (info.highest as f32 - 0.5) / 2.0 - total_stem_length;
             if tail > 0.0 {
                 tail = 0.0
             }
@@ -142,7 +159,7 @@ fn get_natural_stem_length(x: Space, entry: &Notation, stem_direction: &Directio
         }
         Direction::Down => {
             let head = (info.highest as f32 + 0.5) / 2.0;
-            let mut tail = (info.lowest as f32 + 0.5) / 2.0 + 3.25;
+            let mut tail = (info.lowest as f32 + 0.5) / 2.0 + total_stem_length;
             if tail < 0.0 {
                 tail = 0.0
             };
@@ -163,6 +180,7 @@ pub fn get_stem_lengths_in_track(
     beams: &Beams,
     engrave: &Engrave,
     horizontal_spacing: &HorizontalSpacing,
+    subdivisions: Ticks,
 ) -> StemLengths {
     let mut output: StemLengths = FxHashMap::default();
 
@@ -171,7 +189,10 @@ pub fn get_stem_lengths_in_track(
         if !entry.is_rest() {
             let x = horizontal_spacing.get(*tick, Slot::NoteSpacing).x;
             let stem_direction = &stem_directions[tick];
-            output.insert(*tick, get_natural_stem_length(x, entry, stem_direction));
+            output.insert(
+                *tick,
+                get_natural_stem_length(x, entry, stem_direction, subdivisions),
+            );
         }
     }
 
@@ -220,6 +241,7 @@ pub fn get_stem_lengths(
     beams_by_track: &BeamsByTrack,
     engrave: &Engrave,
     horizontal_spacing: &HorizontalSpacing,
+    subdivisions: Ticks,
 ) -> StemLengthsByTrack {
     let results: Vec<(UniqueId, _)> = tracks
         .par_iter()
@@ -232,6 +254,7 @@ pub fn get_stem_lengths(
                 beams,
                 engrave,
                 horizontal_spacing,
+                subdivisions,
             );
             (*track_id, stem_lengths)
         })
