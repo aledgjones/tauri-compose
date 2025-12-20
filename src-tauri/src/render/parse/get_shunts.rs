@@ -67,20 +67,23 @@ pub fn get_note_shunts(
     tone_offsets: &ToneVerticalOffsets,
     stem_directions_by_track: &StemDirectionsByTrack,
 ) -> ShuntsByTrack {
-    let results: Vec<(UniqueId, _)> = notation_by_track.par_iter().map(|(track_id, notation)| {
-        let mut shunts = Shunts {
-            by_id: FxHashMap::default(),
-            by_offset: FxHashMap::default(),
-        };
-        let stem_directions = &stem_directions_by_track[track_id];
-        for (tick, entry) in &notation.track {
-            if !entry.is_rest() {
-                let stem_direction = &stem_directions[tick];
-                note_shunts_in_chord(tick, entry, tone_offsets, stem_direction, &mut shunts);
+    let results: Vec<(UniqueId, _)> = notation_by_track
+        .par_iter()
+        .map(|(track_id, notation)| {
+            let mut shunts = Shunts {
+                by_id: FxHashMap::default(),
+                by_offset: FxHashMap::default(),
+            };
+            let stem_directions = &stem_directions_by_track[track_id];
+            for (tick, entry) in &notation.track {
+                if !entry.is_rest() {
+                    let stem_direction = &stem_directions[tick];
+                    note_shunts_in_chord(tick, entry, tone_offsets, stem_direction, &mut shunts);
+                }
             }
-        }
-        (*track_id, shunts)
-    }).collect();
+            (*track_id, shunts)
+        })
+        .collect();
 
     let mut output: ShuntsByTrack = FxHashMap::default();
     for (track_id, shunts) in results {

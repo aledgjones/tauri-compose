@@ -638,38 +638,49 @@ pub fn get_written_durations(
 ) -> NotationByTrack {
     let mut entries = NotationByTrack::default();
 
-    let results: Vec<_> = instruments.par_iter().flat_map(|instrument| {
-        instrument.stave_ids.par_iter().flat_map(|stave_id| {
-            let stave = &flow.staves.by_id[stave_id];
-            stave.track_ids.par_iter().map(|track_id| {
-                let track = &tracks.by_id[track_id];
-                let mut notation = NotationTrack::new(flow.length);
-                notation.split_at_events(track, measures);
+    let results: Vec<_> = instruments
+        .par_iter()
+        .flat_map(|instrument| {
+            instrument
+                .stave_ids
+                .par_iter()
+                .flat_map(|stave_id| {
+                    let stave = &flow.staves.by_id[stave_id];
+                    stave
+                        .track_ids
+                        .par_iter()
+                        .map(|track_id| {
+                            let track = &tracks.by_id[track_id];
+                            let mut notation = NotationTrack::new(flow.length);
+                            notation.split_at_events(track, measures);
 
-                // split as measures
-                for (tick, time_signature) in measures {
-                    match time_signature.kind() {
-                        TimeSignatureType::Simple => notation.split_simple_unit(
-                            flow,
-                            *tick,
-                            tick + time_signature.ticks_per_bar(flow.subdivisions),
-                            time_signature,
-                            time_signature,
-                        ),
-                        TimeSignatureType::Compound => todo!(),
-                        TimeSignatureType::Complex => todo!(),
-                        TimeSignatureType::Open => todo!(),
-                    }
-                }
+                            // split as measures
+                            for (tick, time_signature) in measures {
+                                match time_signature.kind() {
+                                    TimeSignatureType::Simple => notation.split_simple_unit(
+                                        flow,
+                                        *tick,
+                                        tick + time_signature.ticks_per_bar(flow.subdivisions),
+                                        time_signature,
+                                        time_signature,
+                                    ),
+                                    TimeSignatureType::Compound => todo!(),
+                                    TimeSignatureType::Complex => todo!(),
+                                    TimeSignatureType::Open => todo!(),
+                                }
+                            }
 
-                // assign tone offset info here so we don't have to pass mutable
-                // notation tracks around
-                get_tone_offset_info(&mut notation, tone_offsets);
+                            // assign tone offset info here so we don't have to pass mutable
+                            // notation tracks around
+                            get_tone_offset_info(&mut notation, tone_offsets);
 
-                (track.id, notation)
-            }).collect::<Vec<_>>()
-        }).collect::<Vec<_>>()
-    }).collect();
+                            (track.id, notation)
+                        })
+                        .collect::<Vec<_>>()
+                })
+                .collect::<Vec<_>>()
+        })
+        .collect();
 
     for (track_id, notation) in results {
         entries.insert(track_id, notation);

@@ -131,10 +131,13 @@ pub fn get_dots(
     notation_by_track: &NotationByTrack,
     tone_offsets: &ToneVerticalOffsets,
 ) -> DotsByTrack {
-    let results: Vec<(UniqueId, _)> = notation_by_track.par_iter().map(|(track_id, notation)| {
-        let dots: Dots = get_dots_in_track(notation, tone_offsets, flow.subdivisions);
-        (*track_id, dots)
-    }).collect();
+    let results: Vec<(UniqueId, _)> = notation_by_track
+        .par_iter()
+        .map(|(track_id, notation)| {
+            let dots: Dots = get_dots_in_track(notation, tone_offsets, flow.subdivisions);
+            (*track_id, dots)
+        })
+        .collect();
 
     let mut output: DotsByTrack = FxHashMap::default();
     for (track_id, dots) in results {

@@ -6,7 +6,7 @@ mod ui;
 mod utils;
 
 use render::render;
-use sampler::{SamplerInstrument, Sampler};
+use sampler::{Sampler, SamplerInstrument};
 use score::config::{
     score_config_auto_count_styles_section_set, score_config_auto_count_styles_solo_set,
 };
@@ -104,8 +104,7 @@ impl AppStateInner {
     }
 
     fn emit_sampler(&self, app: &tauri::AppHandle) {
-        app.emit("solocompose://sampler", &self.sampler)
-            .unwrap();
+        app.emit("solocompose://sampler", &self.sampler).unwrap();
     }
 
     pub fn generate_id(&mut self) -> UniqueId {

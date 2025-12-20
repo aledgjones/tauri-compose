@@ -78,11 +78,14 @@ pub fn get_stem_directions(
     tracks: &NotationByTrack,
     beams_by_track: &BeamsByTrack,
 ) -> StemDirectionsByTrack {
-    let results: Vec<(UniqueId, _)> = tracks.par_iter().map(|(track_id, track)| {
-        let beams = &beams_by_track[track_id];
-        let stem_directions = get_stem_directions_in_track(track, beams);
-        (*track_id, stem_directions)
-    }).collect();
+    let results: Vec<(UniqueId, _)> = tracks
+        .par_iter()
+        .map(|(track_id, track)| {
+            let beams = &beams_by_track[track_id];
+            let stem_directions = get_stem_directions_in_track(track, beams);
+            (*track_id, stem_directions)
+        })
+        .collect();
 
     let mut output = FxHashMap::default();
     for (track_id, stem_directions) in results {
