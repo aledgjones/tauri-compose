@@ -140,8 +140,6 @@ export function PlaybackProvider({
         });
       });
     });
-
-    console.log(`Scheduled ${totalTones} tones for flow`);
   }, [
     appState.score.flows,
     appState.score.instruments,

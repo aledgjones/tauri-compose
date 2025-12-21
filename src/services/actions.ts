@@ -38,8 +38,6 @@ export const actions = {
   },
   pickAnInstrument: () => {
     return new Promise<string | null>(async (resolve) => {
-      console.log("[instrument-picker] open");
-
       const webview = new WebviewWindow("instrument-picker", {
         url: "/instrument-picker.html",
         title: "Instrument Picker",
@@ -54,25 +52,17 @@ export const actions = {
       let selection: string | null = null;
 
       const blurUnlisten = await webview.once("tauri://blur", async () => {
-        console.log("[instrument-picker] blur");
         webview.close();
       });
 
       const selectInstrumentUnlisten = await webview.once<{
         instrument_id: string;
       }>("solocompose://select-instrument", async (e) => {
-        console.log(
-          `[instrument-picker] select-instrument - payload ${JSON.stringify(
-            e.payload,
-          )}`,
-        );
-
         selection = e.payload?.instrument_id;
         webview.close();
       });
 
       await webview.once("tauri://destroyed", async () => {
-        console.log("[instrument-picker] close");
         blurUnlisten();
         selectInstrumentUnlisten();
         resolve(selection);
@@ -80,9 +70,6 @@ export const actions = {
     });
   },
   getInstrumentPatches: (id: string, player_type: PlayerType) => {
-    console.log(
-      `[actions] getInstrumentPatches - id: ${id}, playerType: ${player_type}`,
-    );
     return invoke<Record<number, string>>("score_instruments_get_patches", {
       id,
       player_type,
