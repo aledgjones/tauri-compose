@@ -573,40 +573,6 @@ lazy_static! {
                 )]),
             },
             InstrumentDefinition {
-                id: "keyboard.piano",
-                instrument_type: InstrumentType::Melodic,
-                path: vec!["Keyboards", "Piano"],
-                long_name: "Piano",
-                short_name: "Pno.",
-                staves: vec![
-                    StaveDefinition {
-                        lines: vec![1, 1, 1, 1, 1],
-                        clef: Clef::new(
-                            0,
-                            0,
-                            Pitch::new(67, Accidental::Natural),
-                            2,
-                            ClefDrawType::G,
-                        ),
-                    },
-                    StaveDefinition {
-                        lines: vec![1, 1, 1, 1, 1],
-                        clef: Clef::new(
-                            0,
-                            0,
-                            Pitch::new(53, Accidental::Natural),
-                            -2,
-                            ClefDrawType::F,
-                        ),
-                    },
-                ],
-                solo_patches: FxHashMap::from_iter([(Expression::Natural, "piano/natural.json")]),
-                section_patches: FxHashMap::from_iter([(
-                    Expression::Natural,
-                    "piano/natural.json",
-                )]),
-            },
-            InstrumentDefinition {
                 id: "keyboard.harpsichord",
                 instrument_type: InstrumentType::Melodic,
                 path: vec!["Keyboards", "Harpsichord"],
@@ -641,6 +607,40 @@ lazy_static! {
                 section_patches: FxHashMap::from_iter([(
                     Expression::Natural,
                     "harpsichord/natural.json",
+                )]),
+            },
+            InstrumentDefinition {
+                id: "keyboard.piano",
+                instrument_type: InstrumentType::Melodic,
+                path: vec!["Keyboards", "Piano"],
+                long_name: "Piano",
+                short_name: "Pno.",
+                staves: vec![
+                    StaveDefinition {
+                        lines: vec![1, 1, 1, 1, 1],
+                        clef: Clef::new(
+                            0,
+                            0,
+                            Pitch::new(67, Accidental::Natural),
+                            2,
+                            ClefDrawType::G,
+                        ),
+                    },
+                    StaveDefinition {
+                        lines: vec![1, 1, 1, 1, 1],
+                        clef: Clef::new(
+                            0,
+                            0,
+                            Pitch::new(53, Accidental::Natural),
+                            -2,
+                            ClefDrawType::F,
+                        ),
+                    },
+                ],
+                solo_patches: FxHashMap::from_iter([(Expression::Natural, "piano/natural.json")]),
+                section_patches: FxHashMap::from_iter([(
+                    Expression::Natural,
+                    "piano/natural.json",
                 )]),
             },
             InstrumentDefinition {
