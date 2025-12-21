@@ -4,7 +4,7 @@ use super::get_stem_directions::{StemDirections, StemDirectionsByTrack};
 use super::get_written_durations::{Notation, NotationByTrack, NotationTrack};
 use crate::render::draw::draw_staves::STAVE_LINE_WIDTH;
 use crate::renderer::converter::Space;
-use crate::score::components::duration::{Direction, Tick, Ticks};
+use crate::score::components::duration::{Direction, NoteDuration, Tick, Ticks};
 use crate::score::components::measurements::Point;
 use crate::score::engraves::Engrave;
 use crate::utils::UniqueId;
@@ -187,12 +187,17 @@ pub fn get_stem_lengths_in_track(
     // get natural lengths of stems
     for (tick, entry) in &notation.track {
         if !entry.is_rest() {
-            let x = horizontal_spacing.get(*tick, Slot::NoteSpacing).x;
-            let stem_direction = &stem_directions[tick];
-            output.insert(
-                *tick,
-                get_natural_stem_length(x, entry, stem_direction, subdivisions),
-            );
+            // Only notes half or shorter get stems
+            if let Some(duration) = entry.base_to_note_duration(subdivisions) {
+                if duration != NoteDuration::Whole {
+                    let x = horizontal_spacing.get(*tick, Slot::NoteSpacing).x;
+                    let stem_direction = &stem_directions[tick];
+                    output.insert(
+                        *tick,
+                        get_natural_stem_length(x, entry, stem_direction, subdivisions),
+                    );
+                }
+            }
         }
     }
 

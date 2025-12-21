@@ -19,7 +19,7 @@ impl Direction {
     }
 }
 
-#[derive(Clone, Serialize_repr, Deserialize_repr)]
+#[derive(Clone, PartialEq, Serialize_repr, Deserialize_repr)]
 #[repr(u8)]
 pub enum NoteDuration {
     Whole = 1,

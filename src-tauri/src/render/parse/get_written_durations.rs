@@ -68,7 +68,7 @@ impl Notation {
         } else {
             match self.base_to_note_duration(subdivisions) {
                 Some(base) => match base {
-                    NoteDuration::Whole => "\u{E0A4}",
+                    NoteDuration::Whole => "\u{E0A2}",
                     NoteDuration::Half => "\u{E0A3}",
                     NoteDuration::Quarter => "\u{E0A4}",
                     NoteDuration::Eighth => "\u{E0A4}",

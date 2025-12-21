@@ -340,15 +340,19 @@ impl Notation {
             match self.base_to_ticks(subdivisions) {
                 Some(base) => {
                     let eighth_ticks = NoteDuration::Eighth.to_ticks(subdivisions);
-                    let ratio = eighth_ticks / base;
+                    let ratio = eighth_ticks as f32 / base as f32;
 
-                    let mut beam_count = 1;
-                    let mut temp = ratio;
-                    while temp > 1 {
-                        beam_count += 1;
-                        temp /= 2;
+                    if ratio >= 1.0 {
+                        let mut beam_count = 1;
+                        let mut temp = ratio;
+                        while temp >= 2.0 {
+                            beam_count += 1;
+                            temp /= 2.0;
+                        }
+                        beam_count
+                    } else {
+                        0
                     }
-                    beam_count
                 }
                 None => 0,
             }
