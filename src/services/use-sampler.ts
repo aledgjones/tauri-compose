@@ -38,12 +38,12 @@ export function useSampler(appState: AppState, samplerState: Sampler) {
         player.player_type,
       );
 
-      const patchModules = import.meta.glob("../patches/*/*.json");
+      const patchModules = import.meta.glob("../assets/patches/*/*.json");
 
       for (const [expression, patchPath] of Object.entries(patches)) {
         const expr = parseInt(expression) as Expression;
 
-        const key = `../patches/${patchPath}`;
+        const key = `../assets/patches/${patchPath}`;
         const module = patchModules[key] as SamplerModule | undefined;
 
         if (module) {

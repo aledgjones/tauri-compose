@@ -607,6 +607,43 @@ lazy_static! {
                 )]),
             },
             InstrumentDefinition {
+                id: "keyboard.harpsichord",
+                instrument_type: InstrumentType::Melodic,
+                path: vec!["Keyboards", "Harpsichord"],
+                long_name: "Harpsichord",
+                short_name: "Hpd.",
+                staves: vec![
+                    StaveDefinition {
+                        lines: vec![1, 1, 1, 1, 1],
+                        clef: Clef::new(
+                            0,
+                            0,
+                            Pitch::new(67, Accidental::Natural),
+                            2,
+                            ClefDrawType::G,
+                        ),
+                    },
+                    StaveDefinition {
+                        lines: vec![1, 1, 1, 1, 1],
+                        clef: Clef::new(
+                            0,
+                            0,
+                            Pitch::new(53, Accidental::Natural),
+                            -2,
+                            ClefDrawType::F,
+                        ),
+                    },
+                ],
+                solo_patches: FxHashMap::from_iter([(
+                    Expression::Natural,
+                    "harpsichord/natural.json",
+                )]),
+                section_patches: FxHashMap::from_iter([(
+                    Expression::Natural,
+                    "harpsichord/natural.json",
+                )]),
+            },
+            InstrumentDefinition {
                 id: "strings.contrabass",
                 instrument_type: InstrumentType::Melodic,
                 path: vec!["Strings", "Contrabass"],
