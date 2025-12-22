@@ -100,7 +100,8 @@ export const Fader: FC<FaderProps> = ({
       {/* Track */}
       <div
         ref={trackRef}
-        className="relative h-full w-1.5 transform -translate-x-1/2 overflow-hidden z-0 bg-neutral-900 outline-4 outline-neutral-800"
+        className="relative h-full w-1.5 transform -translate-x-1/2 overflow-hidden z-0 bg-neutral-900"
+        style={{ outline: `4px solid ${color}` }}
       >
         {/* Amplitude meter */}
         <div

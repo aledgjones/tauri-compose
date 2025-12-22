@@ -276,6 +276,7 @@ export const BottomPanel: FC = () => {
           flowId={flowId}
           instrumentId={instrumentId}
           trackId={trackId}
+          instruments={instruments}
         />
       )}
       {tab === BottomPanelTab.Mixer && (

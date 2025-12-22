@@ -1,9 +1,10 @@
-import { FC, useEffect, useState, useRef } from "react";
+import { FC, useEffect, useState, useRef, useMemo } from "react";
 import { mdiSizeM, mdiSizeS } from "@mdi/js";
 import { IconButton } from "../../../ui/icon-button";
 import { Fader } from "./fader";
 import { sampler, transport } from "../../../sampler";
 import { Instrument } from "../../../services/types";
+import { desaturateColor } from "../../../services/utils";
 
 type MixerProps = {
   instrument: Instrument;
@@ -31,6 +32,11 @@ export const MixerChannel: FC<MixerProps> = ({
   const [amplitude, setAmplitude] = useState(0);
   const [playing, setPlaying] = useState(false);
   const animationRef = useRef<number | null>(null);
+
+  // Desaturate the color for background and fader border
+  const desaturatedColor = useMemo(() => {
+    return color ? desaturateColor(color, 0.25, 0.4) : undefined;
+  }, [color, volume]);
 
   useEffect(() => {
     const handleStart = () => setPlaying(true);
@@ -69,14 +75,17 @@ export const MixerChannel: FC<MixerProps> = ({
     };
   }, [playing, instrument.id]);
   return (
-    <div className="flex flex-col w-24 h-full bg-neutral-800">
+    <div
+      className="flex flex-col w-24 h-full"
+      style={{ backgroundColor: desaturatedColor }}
+    >
       {/* Fader */}
       <div className="flex flex-1 w-full items-center justify-center p-8 pb-5">
         <Fader
           volume={volume}
           disabled={disabled}
           amplitude={amplitude}
-          color={color}
+          color={desaturatedColor}
           onChange={(val) => onVolumeChange(Math.round((val / 100) * 127))}
         />
       </div>

@@ -65,6 +65,7 @@ type SequencerTrackProps = {
   tool: Tool;
   snapDuration: NoteDuration;
   instrumentId: UniqueId | null;
+  color: string;
 };
 
 export const SequencerTrack: FC<SequencerTrackProps> = ({
@@ -75,6 +76,7 @@ export const SequencerTrack: FC<SequencerTrackProps> = ({
   tool,
   snapDuration,
   instrumentId,
+  color,
 }) => {
   const sequencerRef = useRef<HTMLDivElement>(null);
 
@@ -213,6 +215,7 @@ export const SequencerTrack: FC<SequencerTrackProps> = ({
             tone={tone}
             tool={tool}
             trackId={track.id}
+            color={color}
           />
         );
       })}

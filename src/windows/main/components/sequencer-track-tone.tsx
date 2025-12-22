@@ -8,6 +8,7 @@ type Props = {
   tool: Tool;
   trackId: UniqueId;
   tone: Tone;
+  color: string;
 };
 
 export const SequencerTrackTone: FC<Props> = ({
@@ -16,6 +17,7 @@ export const SequencerTrackTone: FC<Props> = ({
   tone,
   tool,
   trackId,
+  color,
 }) => {
   const handleRemove = useCallback(async () => {
     if (tool === Tool.Erase) {
@@ -25,8 +27,9 @@ export const SequencerTrackTone: FC<Props> = ({
 
   return (
     <div
-      className="absolute bg-red-500"
+      className="absolute"
       style={{
+        backgroundColor: color,
         bottom: slotHeight * (tone.pitch.int - 12),
         height: slotHeight - 1,
         left: tickWidth * tone.tick + 1,

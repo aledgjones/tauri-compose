@@ -1,4 +1,4 @@
-import { FC } from "react";
+import { FC, useMemo } from "react";
 import { KEYBOARD_WIDTH } from "../config";
 import { DragScroll } from "../../../components/drag-scroll";
 import { Keyboard } from "./keyboard";
@@ -9,12 +9,15 @@ import { useAppState } from "../../../services/state";
 import { TickBar } from "./tick-bar";
 import { SequencerTrack } from "./sequencer-track";
 import { PlaybackLine } from "./playback-line";
+import { generateRainbowColors } from "../../../services/utils";
+import { Instrument } from "../../../services/types";
 
 type Props = {
   flowId: UniqueId | null;
   instrumentId?: UniqueId | null;
   trackId?: UniqueId | null;
   octaves: number;
+  instruments: Instrument[];
 };
 
 export const Sequencer: FC<Props> = ({
@@ -22,6 +25,7 @@ export const Sequencer: FC<Props> = ({
   instrumentId,
   trackId,
   octaves,
+  instruments,
 }) => {
   const state = useAppState();
   const flow = flowId ? state.score.flows.by_id[flowId] : null;
@@ -32,6 +36,16 @@ export const Sequencer: FC<Props> = ({
 
   const slots = useSlotPattern(octaves, 1);
   const ticks = useTicks(flow, master);
+
+  const instrumentColors = useMemo(() => {
+    return generateRainbowColors(instruments.length);
+  }, [instruments.length]);
+
+  const color = useMemo(() => {
+    const index = instruments.findIndex((inst) => inst.id === instrumentId);
+
+    return instrumentColors[index];
+  }, [instruments, instrumentId, instrumentColors]);
 
   if (!flowId || !flow) {
     return (
@@ -80,6 +94,7 @@ export const Sequencer: FC<Props> = ({
             slots={slots}
             tool={state.ui.sequencer.tool}
             instrumentId={instrumentId}
+            color={color}
           />
           <PlaybackLine ticks={ticks} height={slots.height} />
         </div>
