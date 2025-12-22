@@ -95,9 +95,6 @@ export function PlaybackProvider({
     transport.length = flow.length + 1;
     transport.seek(0);
 
-    // Schedule all events for the flow
-    let totalTones = 0;
-
     // Schedule tones from all tracks in this flow
     flow.player_ids.forEach((playerId) => {
       const player = appState.score.players.by_id[playerId];
@@ -121,7 +118,6 @@ export function PlaybackProvider({
             Object.values(track.entries.by_id)
               .filter((entry): entry is Tone => entry.type === "Tone")
               .forEach((tone) => {
-                totalTones++;
                 transport.scheduleEvent(
                   tone.tick,
                   tone.duration,
