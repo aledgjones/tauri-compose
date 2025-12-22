@@ -6,6 +6,7 @@ interface FaderProps {
   disabled?: boolean;
   amplitude?: number;
   color?: string;
+  borderColor?: string;
 }
 
 export const Fader: FC<FaderProps> = ({
@@ -14,6 +15,7 @@ export const Fader: FC<FaderProps> = ({
   disabled = false,
   amplitude = 0,
   color = "#9ca3af",
+  borderColor = "#6b7280",
 }) => {
   const trackRef = useRef<HTMLDivElement>(null);
 
@@ -101,7 +103,7 @@ export const Fader: FC<FaderProps> = ({
       <div
         ref={trackRef}
         className="relative h-full w-1.5 transform -translate-x-1/2 overflow-hidden z-0 bg-neutral-900"
-        style={{ outline: `4px solid ${color}` }}
+        style={{ outline: `4px solid ${borderColor}` }}
       >
         {/* Amplitude meter */}
         <div

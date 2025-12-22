@@ -5,6 +5,7 @@ import { Fader } from "./fader";
 import { sampler, transport } from "../../../sampler";
 import { Instrument } from "../../../services/types";
 import { desaturateColor } from "../../../services/utils";
+import { TokenizedText } from "../../../ui/text";
 
 type MixerProps = {
   instrument: Instrument;
@@ -85,7 +86,8 @@ export const MixerChannel: FC<MixerProps> = ({
           volume={volume}
           disabled={disabled}
           amplitude={amplitude}
-          color={desaturatedColor}
+          color={color}
+          borderColor={desaturatedColor}
           onChange={(val) => onVolumeChange(Math.round((val / 100) * 127))}
         />
       </div>
@@ -111,7 +113,7 @@ export const MixerChannel: FC<MixerProps> = ({
       {/* Instrument name and color bar */}
       <div className="w-full" style={{ backgroundColor: color }}>
         <div className="text-center text-xs text-black px-2 py-1 truncate">
-          {instrument.short_name}
+          <TokenizedText>{instrument.short_name}</TokenizedText>
         </div>
       </div>
     </div>

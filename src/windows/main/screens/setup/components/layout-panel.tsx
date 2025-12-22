@@ -75,7 +75,10 @@ export const LayoutPlanel = () => {
         },
       ]}
     >
-      <div ref={ref} className="flex flex-col gap-2 px-2 flex-1 overflow-auto">
+      <div
+        ref={ref}
+        className="flex flex-col gap-2 px-2 pb-2 flex-1 overflow-auto"
+      >
         {state.score.layouts.order.map((layoutId) => {
           const layout = state.score.layouts.by_id[layoutId];
 
