@@ -36,7 +36,7 @@ export const MixerChannel: FC<MixerProps> = ({
   // Desaturate the color for background and fader border
   const desaturatedColor = useMemo(() => {
     return color ? desaturateColor(color, 0.25, 0.4) : undefined;
-  }, [color, volume]);
+  }, [color]);
 
   useEffect(() => {
     const handleStart = () => setPlaying(true);
