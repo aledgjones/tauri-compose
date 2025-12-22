@@ -3,21 +3,86 @@ import { generateRainbowColors } from "../../../services/utils";
 import { MixerChannel } from "./mixer-channel";
 import { actions } from "../../../services/actions";
 import { sampler } from "../../../sampler";
-import { Instrument, Sampler } from "../../../services/types";
+import { Instrument } from "../../../services/types";
+import { IconButton } from "../../../ui/icon-button";
+import { mdiSizeM, mdiSizeS } from "@mdi/js";
+import { useSamplerState } from "../../../services/state";
 
-interface MixerToolbarProps {}
+interface MixerToolbarProps {
+  instruments: Instrument[];
+}
 
-export const MixerToolbar: FC<MixerToolbarProps> = () => (
-  <>
-    <div className="flex flex-1">
-      {/* Mixer-specific controls can go here */}
-    </div>
-  </>
-);
+export const MixerToolbar: FC<MixerToolbarProps> = ({ instruments }) => {
+  const samplerState = useSamplerState();
 
-type Props = { instruments: Instrument[]; samplerState: Sampler };
+  const { hasSolo, hasMute } = useMemo(() => {
+    let hasSolo = false;
+    let hasMute = false;
 
-export const Mixer: FC<Props> = ({ instruments, samplerState }) => {
+    for (const instrument of instruments) {
+      const state = samplerState[instrument.id];
+      if (!state) {
+        continue;
+      }
+
+      if (state.solo) {
+        hasSolo = true;
+      }
+
+      if (state.mute) {
+        hasMute = true;
+      }
+
+      if (hasSolo && hasMute) {
+        break;
+      }
+    }
+
+    return { hasSolo, hasMute };
+  }, [samplerState, instruments]);
+
+  return (
+    <>
+      <div className="flex flex-1 gap-2">
+        <IconButton
+          path={mdiSizeS}
+          isSelected={hasSolo}
+          variant="filled"
+          onClick={() => {
+            instruments.forEach((instrument) => {
+              actions.score.instrument.setSolo(instrument.id, !hasSolo);
+              if (hasSolo) {
+                sampler.unsolo(instrument.id.toString());
+              } else {
+                sampler.solo(instrument.id.toString());
+              }
+            });
+          }}
+        />
+        <IconButton
+          path={mdiSizeM}
+          isSelected={hasMute}
+          variant="filled"
+          onClick={() => {
+            instruments.forEach((instrument) => {
+              actions.score.instrument.setMute(instrument.id, !hasMute);
+              if (hasMute) {
+                sampler.unmute(instrument.id.toString());
+              } else {
+                sampler.mute(instrument.id.toString());
+              }
+            });
+          }}
+        />
+      </div>
+    </>
+  );
+};
+
+type Props = { instruments: Instrument[] };
+
+export const Mixer: FC<Props> = ({ instruments }) => {
+  const samplerState = useSamplerState();
   const instrumentColors = useMemo(() => {
     return generateRainbowColors(instruments.length);
   }, [instruments.length]);
@@ -44,7 +109,7 @@ export const Mixer: FC<Props> = ({ instruments, samplerState }) => {
   }, [instruments, samplerState]);
 
   return (
-    <div className="flex w-full h-full overflow-auto gap-2 p-2 pt-0">
+    <div className="flex w-full h-full overflow-auto gap-2">
       {instruments.map((instrument, index) => {
         const state = samplerState[instrument.id] || {
           volume: 80,

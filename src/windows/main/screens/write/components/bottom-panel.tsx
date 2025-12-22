@@ -1,5 +1,5 @@
 import { FC } from "react";
-import { useAppState, useSamplerState } from "../../../../../services/state";
+import { useAppState } from "../../../../../services/state";
 import { BottomPanelTab } from "../../../../../services/types";
 import { actions } from "../../../../../services/actions";
 import {
@@ -20,7 +20,6 @@ const WRITE_TABS = [
 
 export const BottomPanel: FC = () => {
   const state = useAppState();
-  const samplerState = useSamplerState();
   const {
     instruments,
     instrumentOptions,
@@ -34,8 +33,8 @@ export const BottomPanel: FC = () => {
   const tab = state.ui.write.bottom_panel_tab;
 
   return (
-    <div className="bg-neutral-900 flex flex-col min-h-0 overflow-hidden">
-      <div className="flex p-2 h-13 items-center z-50">
+    <div className="flex flex-col min-h-0 overflow-hidden">
+      <div className="flex pb-2 h-13 items-center z-50">
         {tab === BottomPanelTab.Sequencer && (
           <SequencerToolbar
             tool={tool}
@@ -46,7 +45,9 @@ export const BottomPanel: FC = () => {
             snapValue={snapValue}
           />
         )}
-        {tab === BottomPanelTab.Mixer && <MixerToolbar />}
+        {tab === BottomPanelTab.Mixer && (
+          <MixerToolbar instruments={instruments} />
+        )}
         <div className="flex flex-1 justify-end">
           {WRITE_TABS.map((tabConfig) => (
             <IconButton
@@ -68,9 +69,7 @@ export const BottomPanel: FC = () => {
           instruments={instruments}
         />
       )}
-      {tab === BottomPanelTab.Mixer && (
-        <Mixer instruments={instruments} samplerState={samplerState} />
-      )}
+      {tab === BottomPanelTab.Mixer && <Mixer instruments={instruments} />}
     </div>
   );
 };

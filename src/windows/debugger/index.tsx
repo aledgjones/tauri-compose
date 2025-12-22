@@ -144,7 +144,7 @@ export const Main = () => {
   }, [flowId, popover, popoverType, staveId, tick]);
 
   return (
-    <div className="h-dvh bg-neutral-950 grid grid-rows-[28px_auto_1fr_1fr_2fr] gap-2 overflow-hidden">
+    <div className="h-dvh bg-neutral-950 grid grid-rows-[28px_auto_1fr_2fr] gap-2 overflow-hidden">
       <AppBar title="Debugger" filename={state.score.meta.title} />
 
       <div className="bg-neutral-900 p-2 mx-2 rounded">
@@ -157,25 +157,13 @@ export const Main = () => {
       </div>
 
       <div className="bg-neutral-900 p-2 overflow-auto mx-2">
-        <label className="text-xs text-neutral-400 mb-2 block">App State</label>
         <ObjectInspector
-          data={state}
-          theme={
-            {
-              ...chromeDark,
-              BASE_BACKGROUND_COLOR: "transparent",
-            } as unknown as string
-          }
-          expandPaths={["$"]}
-        />
-      </div>
-
-      <div className="bg-neutral-900 p-2 overflow-auto mx-2">
-        <label className="text-xs text-neutral-400 mb-2 block">
-          Sampler State
-        </label>
-        <ObjectInspector
-          data={samplerState}
+          data={{
+            ui: state.ui,
+            score: state.score,
+            sampler: samplerState,
+            next_id: state.next_id,
+          }}
           theme={
             {
               ...chromeDark,

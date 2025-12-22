@@ -96,14 +96,14 @@ export const MixerChannel: FC<MixerProps> = ({
       <div className="flex items-center gap-2 p-2">
         <IconButton
           path={mdiSizeS}
-          variant="outline"
+          variant="filled"
           size={0.9}
           isSelected={isSoloed}
           onClick={onToggleSolo}
         />
         <IconButton
           path={mdiSizeM}
-          variant="outline"
+          variant="filled"
           size={0.9}
           isSelected={isMuted}
           onClick={onToggleMute}

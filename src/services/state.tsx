@@ -140,6 +140,7 @@ export const initialAppState: AppState = {
       created: Date.now(),
     },
   },
+  next_id: 0,
 };
 
 export const AppContext = createContext<AppState | null>(null);

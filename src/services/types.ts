@@ -367,4 +367,5 @@ export type AppState = {
     layouts: Layouts;
     engraves: Engraves;
   };
+  next_id: UniqueId;
 };
