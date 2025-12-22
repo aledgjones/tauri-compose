@@ -36,7 +36,7 @@ const InstrumentItemButton = ({
         {
           "bg-sky-400 text-black": isSelected,
           "text-white": !isSelected,
-        }
+        },
       )}
       onClick={onClick}
     >
@@ -86,7 +86,7 @@ const InstrumentColumn = ({
 
 const calculateColumns = (
   instruments: InstrumentDefinition[],
-  selection: InstrumentDefinition | null
+  selection: InstrumentDefinition | null,
 ): InstrumentColumns => {
   if (!instruments || !selection) return [[], [], []];
 
@@ -128,7 +128,7 @@ export const Main = () => {
 
     (async () => {
       const result = await invoke<InstrumentDefinition[]>(
-        "score_instruments_get_all_definitions"
+        "score_instruments_get_all_definitions",
       );
       setInstruments(result);
       setSelection(result[0]);
@@ -137,12 +137,12 @@ export const Main = () => {
 
   const columns = useMemo(
     () => calculateColumns(instruments, selection),
-    [instruments, selection]
+    [instruments, selection],
   );
 
   const handleSelect = (path: string[]) => {
     const selectedInstrument = instruments.find((instrument) =>
-      path.every((segment, index) => segment === instrument.path[index])
+      path.every((segment, index) => segment === instrument.path[index]),
     );
     setSelection(selectedInstrument!);
   };
@@ -167,7 +167,7 @@ export const Main = () => {
       <div className="flex col-span-3 justify-end">
         <Button
           onClick={() => {
-            emit("solocompose://select-instrument", {
+            emit("soloc://select-instrument", {
               instrument_id: selection?.id,
             });
           }}

@@ -5,7 +5,7 @@ import { Setup } from "./screens/setup";
 import { Tools } from "./components/tools";
 import { Transport } from "./components/transport";
 import { IconButton } from "../../ui/icon-button";
-import { mdiMovieRoll, mdiTuneVertical } from "@mdi/js";
+import { mdiTuneVertical, mdiMovieRoll } from "@mdi/js";
 import { AppBar } from "../../components/app-bar";
 import { Select } from "../../ui/select";
 import { Tab } from "../../services/types";

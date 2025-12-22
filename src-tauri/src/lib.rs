@@ -6,7 +6,7 @@ mod ui;
 mod utils;
 
 use render::render;
-use sampler::{Sampler, SamplerInstrument};
+use sampler::Sampler;
 use score::config::{
     score_config_auto_count_styles_section_set, score_config_auto_count_styles_solo_set,
 };
@@ -26,6 +26,7 @@ use score::entries::time_signature::{
 use score::entries::tone::{
     score_entries_tone_create, score_entries_tone_duration_remove, score_entries_tone_duration_set,
 };
+use score::files::{load_project_from_file, save_project_to_file};
 use score::flows::{
     score_flows_assign_player, score_flows_create, score_flows_move, score_flows_remove,
     score_flows_rename, score_flows_unassign_player,
@@ -56,6 +57,7 @@ use score::players::{
 use score::Score;
 use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
+use tauri::menu::{AboutMetadata, Menu, MenuItem, PredefinedMenuItem, Submenu};
 use tauri::{Emitter, Manager, State};
 use ui::sequencer::{
     ui_sequencer_coords_set, ui_sequencer_instrument_set, ui_sequencer_snap_set,
@@ -100,11 +102,11 @@ impl AppStateInner {
             score: self.score.clone(),
             next_id: self.next_id,
         };
-        app.emit("solocompose://state", general_state).unwrap();
+        app.emit("soloc://state/general", general_state).unwrap();
     }
 
     fn emit_sampler(&self, app: &tauri::AppHandle) {
-        app.emit("solocompose://sampler", &self.sampler).unwrap();
+        app.emit("soloc://state/sampler", &self.sampler).unwrap();
     }
 
     pub fn generate_id(&mut self) -> UniqueId {
@@ -116,25 +118,11 @@ impl AppStateInner {
 
 type AppState = Mutex<AppStateInner>;
 
+const APP_NAME: &str = "Solo Compose";
+
 #[tauri::command]
 fn initialize(app: tauri::AppHandle, state: State<'_, AppState>) {
-    let mut state = state.lock().unwrap();
-
-    // Ensure sampler is populated for existing instruments
-    if state.sampler.is_empty() && !state.score.instruments.by_id.is_empty() {
-        let instrument_ids: Vec<_> = state.score.instruments.by_id.keys().cloned().collect();
-        for instrument_id in instrument_ids {
-            state.sampler.insert(
-                instrument_id,
-                SamplerInstrument {
-                    volume: 80,
-                    solo: false,
-                    mute: false,
-                },
-            );
-        }
-    }
-
+    let state = state.lock().unwrap();
     state.emit(&app);
     state.emit_sampler(&app);
 }
@@ -163,6 +151,76 @@ pub fn run() {
 
     builder
         .setup(|app| {
+            let separator = PredefinedMenuItem::separator(app)?;
+
+            // App menu
+            let about = PredefinedMenuItem::about(
+                app,
+                Some(&format!("About {}", APP_NAME)),
+                Some(AboutMetadata {
+                    name: Some(APP_NAME.to_string()),
+                    version: Some(app.package_info().version.to_string()),
+                    authors: Some(vec!["Aled Jones <aledjones.viola@gmail.com>".to_string()]),
+                    copyright: Some("© 2025".to_string()),
+                    ..Default::default()
+                }),
+            )?;
+            let services = PredefinedMenuItem::services(app, None)?;
+            let hide = PredefinedMenuItem::hide(app, Some(&format!("Hide {}", APP_NAME)))?;
+            let hide_others = PredefinedMenuItem::hide_others(app, None)?;
+            let show_all = PredefinedMenuItem::show_all(app, None)?;
+            let quit = PredefinedMenuItem::quit(app, None)?;
+
+            let app_menu = Submenu::with_items(
+                app,
+                APP_NAME,
+                true,
+                &[
+                    &about,
+                    &separator,
+                    &services,
+                    &separator,
+                    &hide,
+                    &hide_others,
+                    &show_all,
+                    &separator,
+                    &quit,
+                ],
+            )?;
+
+            // File Menu
+            let new = MenuItem::with_id(app, "new", "New", true, None::<&str>)?;
+            let open = MenuItem::with_id(app, "open", "Open...", true, None::<&str>)?;
+            let save_as = MenuItem::with_id(app, "save_as", "Save As...", true, None::<&str>)?;
+
+            let file_menu =
+                Submenu::with_items(app, "File", true, &[&new, &open, &separator, &save_as])?;
+
+            // Create main menu with app menu first, then File menu
+            let menu = Menu::with_items(app, &[&app_menu, &file_menu])?;
+
+            // Set the menu
+            app.set_menu(menu)?;
+
+            // Handle menu events
+            app.on_menu_event(move |app, event| {
+                match event.id().as_ref() {
+                    "new" => {
+                        // Trigger new project action
+                        let _ = app.emit("soloc://menu/new", ());
+                    }
+                    "save_as" => {
+                        // Trigger save project action
+                        let _ = app.emit("soloc://menu/save-as", ());
+                    }
+                    "open" => {
+                        // Trigger open project action
+                        let _ = app.emit("soloc://menu/open", ());
+                    }
+                    _ => {}
+                }
+            });
+
             app.manage(AppStateInner::new());
             Ok(())
         })
@@ -170,6 +228,8 @@ pub fn run() {
             initialize,
             reset,
             render,
+            save_project_to_file,
+            load_project_from_file,
             score_config_auto_count_styles_solo_set,
             score_config_auto_count_styles_section_set,
             score_engraves_bracketing_approach_set,
@@ -244,6 +304,8 @@ pub fn run() {
             ui_write_bottom_panel_tab_set
         ])
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_fs::init())
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

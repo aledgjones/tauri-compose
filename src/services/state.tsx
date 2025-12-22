@@ -36,7 +36,7 @@ export const initialAppState: AppState = {
     },
     sequencer: {
       x: 0,
-      y: 0,
+      y: 1008,
       tool: Tool.Select,
       snap: NoteDuration.Eighth,
       flow: null,
@@ -52,14 +52,14 @@ export const initialAppState: AppState = {
     tracks: { by_id: {} },
     config: {
       auto_count_styles: {
-        solo: AutoCountStyle.Roman,
+        solo: AutoCountStyle.Arabic,
         section: AutoCountStyle.Roman,
       },
     },
     engraves: {
       by_layout_type: {
         [LayoutType.FullScore]: {
-          space: 3,
+          space: 1.5,
 
           frame_padding: { top: 35, right: 25, bottom: 35, left: 25 },
           instrument_spacing: 8,
@@ -74,20 +74,20 @@ export const initialAppState: AppState = {
           },
           instrument_name_spacing: 2,
 
-          systemic_barline_single_instrument_system: false,
+          systemic_barline_single_instrument_system: true,
           bracketing_approach: BracketingApproach.Orchestral,
           bracket_style: BracketStyle.Wing,
           bracket_single_staves: false,
 
           base_note_space: 3.0,
           minimum_note_space: 0.6,
-          minimum_tie_space: 1.0,
+          minimum_tie_space: 1.6,
           note_space_ratio: 1.41,
 
           maximum_beam_slant: 0.5,
         },
         [LayoutType.Part]: {
-          space: 3,
+          space: 2.0,
 
           frame_padding: { top: 35, right: 25, bottom: 35, left: 25 },
           instrument_spacing: 8,
@@ -109,7 +109,7 @@ export const initialAppState: AppState = {
 
           base_note_space: 3.0,
           minimum_note_space: 0.6,
-          minimum_tie_space: 1.0,
+          minimum_tie_space: 1.6,
           note_space_ratio: 1.41,
 
           maximum_beam_slant: 0.5,
@@ -117,7 +117,7 @@ export const initialAppState: AppState = {
       },
     },
     meta: {
-      app_version: "0.1.0",
+      app_version: "0.15.0",
       title: "",
       subtitle: "",
       dedication: "",
@@ -151,14 +151,29 @@ export const AppStateProvider: FC<PropsWithChildren> = ({ children }) => {
   useEffect(() => {
     let unlistenApp: UnlistenFn | null = null;
     let unlistenSampler: UnlistenFn | null = null;
+    let unlistenMenuSaveAs: UnlistenFn | null = null;
+    let unlistenMenuOpen: UnlistenFn | null = null;
+    let unlistenMenuNew: UnlistenFn | null = null;
 
     (async () => {
-      unlistenApp = await listen<AppState>("solocompose://state", (e) => {
+      unlistenApp = await listen<AppState>("soloc://state/general", (e) => {
         setAppState(e.payload);
       });
 
-      unlistenSampler = await listen<Sampler>("solocompose://sampler", (e) => {
+      unlistenSampler = await listen<Sampler>("soloc://state/sampler", (e) => {
         setSamplerState(e.payload);
+      });
+
+      unlistenMenuSaveAs = await listen("soloc://menu/save-as", () => {
+        actions.save.project().catch(console.error);
+      });
+
+      unlistenMenuOpen = await listen("soloc://menu/open", () => {
+        actions.load.project().catch(console.error);
+      });
+
+      unlistenMenuNew = await listen("soloc://menu/new", () => {
+        actions.reset().catch(console.error);
       });
 
       await actions.initialize();
@@ -167,6 +182,9 @@ export const AppStateProvider: FC<PropsWithChildren> = ({ children }) => {
     return () => {
       unlistenApp?.();
       unlistenSampler?.();
+      unlistenMenuSaveAs?.();
+      unlistenMenuOpen?.();
+      unlistenMenuNew?.();
     };
   }, []);
 

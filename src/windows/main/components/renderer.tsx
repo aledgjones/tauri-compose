@@ -1,9 +1,7 @@
 import classNames from "classnames";
 import { actions } from "../../../services/actions";
-import { listen, UnlistenFn } from "@tauri-apps/api/event";
-import { AppState } from "../../../services/types";
 import { useAppState } from "../../../services/state";
-import { FC, useEffect, useState } from "react";
+import { FC, useEffect, useRef, useState } from "react";
 import { DragScroll } from "../../../components/drag-scroll";
 
 const getMM = () => {
@@ -24,68 +22,56 @@ type Props = { className?: string };
 export const Renderer: FC<Props> = ({ className }) => {
   const state = useAppState();
   const [src, setSrc] = useState<string | null>(null);
-
-  const firstFlow = state.score.flows.order[0];
+  const imageUrls = useRef<Set<string>>(new Set());
+  const animationFrameId = useRef<number | null>(null);
 
   useEffect(() => {
-    let unlisten: UnlistenFn | null = null;
-    let imageUrls: Set<string> = new Set();
-    let animationFrameId: number | null = null;
+    // Cancel any pending animation frame
+    if (animationFrameId.current) {
+      cancelAnimationFrame(animationFrameId.current);
+    }
 
-    const run = async () => {
-      if (!firstFlow) {
+    // Schedule render for next animation frame
+    animationFrameId.current = requestAnimationFrame(async () => {
+      const firstFlow = state.score.flows.order[0];
+
+      if (firstFlow === undefined) {
+        setSrc(null);
         return;
       }
 
       const result = await actions.render(
         state.ui.layout_id,
         firstFlow,
-        pxPerMm
+        pxPerMm,
       );
 
-      imageUrls.forEach((url) => {
-        imageUrls.delete(url);
+      imageUrls.current.forEach((url) => {
+        imageUrls.current.delete(url);
         URL.revokeObjectURL(url);
       });
 
       const blob = new Blob([result], { type: "image/webp" });
       const imageUrl = URL.createObjectURL(blob);
-      imageUrls.add(imageUrl);
+      imageUrls.current.add(imageUrl);
       setSrc(imageUrl);
-    };
 
-    const handleStateUpdate = () => {
-      if (animationFrameId) {
-        cancelAnimationFrame(animationFrameId);
-      }
-
-      animationFrameId = requestAnimationFrame(async () => {
-        await run();
-        animationFrameId = null;
-      });
-    };
-
-    (async () => {
-      await run();
-      unlisten = await listen<AppState>(
-        "solocompose://state",
-        handleStateUpdate
-      );
-    })();
+      animationFrameId.current = null;
+    });
 
     return () => {
-      unlisten?.();
-      if (animationFrameId) {
-        cancelAnimationFrame(animationFrameId);
+      if (animationFrameId.current) {
+        cancelAnimationFrame(animationFrameId.current);
+        animationFrameId.current = null;
       }
     };
-  }, [firstFlow, state.ui.layout_id]);
+  }, [state]);
 
   return (
     <DragScroll
       className={classNames(
         "bg-fixed bg-center bg-cover from-sky-700 to-sky-900 bg-linear-to-b",
-        className
+        className,
       )}
     >
       <div className="flex min-h-full">

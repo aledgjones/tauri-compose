@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { save, open } from "@tauri-apps/plugin-dialog";
 import {
   Accidental,
   Articulation,
@@ -57,7 +58,7 @@ export const actions = {
 
       const selectInstrumentUnlisten = await webview.once<{
         instrument_id: string;
-      }>("solocompose://select-instrument", async (e) => {
+      }>("soloc://select-instrument", async (e) => {
         selection = e.payload?.instrument_id;
         webview.close();
       });
@@ -493,6 +494,55 @@ export const actions = {
           tone_id,
         });
       },
+    },
+  },
+  save: {
+    project: async () => {
+      // Show save dialog
+      const filePath = await save({
+        title: "Save Project",
+        defaultPath: `untitled.soloc`,
+        filters: [
+          {
+            name: "Solo Composer Project",
+            extensions: ["soloc"],
+          },
+        ],
+      });
+
+      if (!filePath) {
+        throw new Error("Save cancelled by user");
+      }
+
+      console.log("Saving project to:", filePath);
+
+      return invoke("save_project_to_file", {
+        file_path: filePath,
+      });
+    },
+  },
+  load: {
+    project: async () => {
+      // Show open dialog
+      const filePath = await open({
+        title: "Open Project",
+        filters: [
+          {
+            name: "Solo Composer Project",
+            extensions: ["soloc"],
+          },
+        ],
+      });
+
+      if (!filePath || Array.isArray(filePath)) {
+        throw new Error("Load cancelled or invalid file selection");
+      }
+
+      console.log("Loading project from:", filePath);
+
+      return invoke("load_project_from_file", {
+        file_path: filePath,
+      });
     },
   },
 };
