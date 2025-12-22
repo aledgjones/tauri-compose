@@ -377,7 +377,7 @@ lazy_static! {
                 id: "pitched-percussion.glockenspiel",
                 instrument_type: InstrumentType::Melodic,
                 path: vec!["Pitched Percussion", "Glockenspiel"],
-                long_name: "Glokenspiel",
+                long_name: "Glockenspiel",
                 short_name: "Glock.",
                 staves: vec![StaveDefinition {
                     lines: vec![1, 1, 1, 1, 1],

@@ -107,6 +107,16 @@ export const actions = {
         },
       },
     },
+    sequence: {
+      bottomPanel: {
+        toggle: () => {
+          return invoke("ui_sequence_bottom_panel_minimized_toggle");
+        },
+        setTab: (tab: BottomPanelTab) => {
+          return invoke("ui_sequence_bottom_panel_tab_set", { tab });
+        },
+      },
+    },
     sequencer: {
       setInstrument: (id: UniqueId) => {
         return invoke("ui_sequencer_instrument_set", { id });

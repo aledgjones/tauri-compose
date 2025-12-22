@@ -343,6 +343,10 @@ export type AppState = {
       bottom_panel_minimized: boolean;
       bottom_panel_tab: BottomPanelTab;
     };
+    sequence: {
+      bottom_panel_minimized: boolean;
+      bottom_panel_tab: BottomPanelTab;
+    };
     sequencer: {
       x: number;
       y: number;

@@ -10,7 +10,8 @@
     "tauri": "tauri",
     "start:dev": "tauri dev",
     "start:release": "tauri build",
-    "release": "scripts/release"
+    "release": "scripts/release",
+    "check-types": "tsc --noEmit"
   },
   "dependencies": {
     "@mdi/js": "7.4.47",

@@ -10,7 +10,7 @@ type TickBarProps = {
 export const TickBar: FC<TickBarProps> = ({ ticks, className }) => {
   return (
     <div
-      className={classNames("h-[28px]", className)}
+      className={classNames("h-7", className)}
       style={{ width: ticks.tickWidth * ticks.length }}
     >
       {ticks.entries.map((entry) => {
@@ -18,17 +18,14 @@ export const TickBar: FC<TickBarProps> = ({ ticks, className }) => {
           <Fragment key={entry.x}>
             <div
               style={{ left: `${entry.x}px` }}
-              className={classNames(
-                "absolute bottom-0 w-[1px] bg-neutral-500",
-                {
-                  "h-full": entry.type === "bar",
-                  "h-[50%]": entry.type === "beat",
-                  "h-[25%]": entry.type === "sub",
-                }
-              )}
+              className={classNames("absolute bottom-0 w-px bg-neutral-500", {
+                "h-full": entry.type === "bar",
+                "h-[50%]": entry.type === "beat",
+                "h-[25%]": entry.type === "sub",
+              })}
             >
               {entry.barNumber && (
-                <p className="text-white h-full pl-3 text-xs leading-[28px]">
+                <p className="text-white h-full pl-3 text-xs leading-7">
                   {entry.barNumber}
                 </p>
               )}

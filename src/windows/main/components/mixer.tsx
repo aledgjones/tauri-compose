@@ -5,6 +5,16 @@ import { actions } from "../../../services/actions";
 import { sampler } from "../../../sampler";
 import { Instrument, Sampler } from "../../../services/types";
 
+interface MixerToolbarProps {}
+
+export const MixerToolbar: FC<MixerToolbarProps> = () => (
+  <>
+    <div className="flex flex-1">
+      {/* Mixer-specific controls can go here */}
+    </div>
+  </>
+);
+
 type Props = { instruments: Instrument[]; samplerState: Sampler };
 
 export const Mixer: FC<Props> = ({ instruments, samplerState }) => {

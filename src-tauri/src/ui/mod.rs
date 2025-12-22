@@ -1,8 +1,10 @@
+pub mod sequence;
 pub mod sequencer;
 pub mod setup;
 pub mod write;
 
 use crate::{utils::UniqueId, AppState};
+use sequence::Sequence;
 use sequencer::Sequencer;
 use serde::Deserialize;
 use serde::Serialize;
@@ -27,6 +29,7 @@ pub struct Ui {
     layout_id: UniqueId,
     pub setup: Setup,
     pub write: Write,
+    pub sequence: Sequence,
     pub sequencer: Sequencer,
 }
 
@@ -37,6 +40,7 @@ impl Ui {
             layout_id: 0,
             setup: Setup::new(),
             write: Write::new(),
+            sequence: Sequence::new(),
             sequencer: Sequencer::new(),
         }
     }

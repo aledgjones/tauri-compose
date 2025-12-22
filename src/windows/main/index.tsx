@@ -13,6 +13,7 @@ import { actions } from "../../services/actions";
 import { useMemo } from "react";
 import { getLayoutName } from "../../services/utils";
 import { Write } from "./screens/write";
+import { Sequence } from "./screens/sequence";
 import { PlaybackProvider } from "../../services/playback-context";
 
 const tabs: TabsOption<Tab>[] = [
@@ -26,6 +27,7 @@ const tabs: TabsOption<Tab>[] = [
 const screens = new Map([
   [Tab.Setup, Setup],
   [Tab.Write, Write],
+  [Tab.Sequence, Sequence],
 ]);
 
 export const Main = () => {

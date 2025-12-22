@@ -2,7 +2,7 @@ import { FC, useMemo } from "react";
 import { KEYBOARD_WIDTH } from "../config";
 import { DragScroll } from "../../../components/drag-scroll";
 import { Keyboard } from "./keyboard";
-import { UniqueId } from "../../../services/types";
+import { Tool, UniqueId } from "../../../services/types";
 import { useSlotPattern } from "../hooks/use-slots";
 import { useTicks } from "../hooks/use-ticks";
 import { useAppState } from "../../../services/state";
@@ -11,6 +11,79 @@ import { SequencerTrack } from "./sequencer-track";
 import { PlaybackLine } from "./playback-line";
 import { generateRainbowColors } from "../../../services/utils";
 import { Instrument } from "../../../services/types";
+import { IconButton } from "../../../ui/icon-button";
+import { mdiBoxCutter, mdiCursorDefault, mdiEraser, mdiPen } from "@mdi/js";
+import { actions } from "../../../services/actions";
+import { SnapPicker } from "../../../components/snap-picker";
+import { Select, SelectOption } from "../../../ui/select";
+
+interface SequencerToolbarProps {
+  tool: Tool;
+  instrumentId: UniqueId | null;
+  instruments: SelectOption<UniqueId>[];
+  trackId: UniqueId | null;
+  tracks: SelectOption<UniqueId>[];
+  snapValue: any;
+}
+
+export const SequencerToolbar: FC<SequencerToolbarProps> = ({
+  tool,
+  instrumentId,
+  instruments,
+  trackId,
+  tracks,
+  snapValue,
+}) => (
+  <>
+    <div className="flex flex-1">
+      <IconButton
+        path={mdiCursorDefault}
+        variant="filled"
+        isSelected={tool === Tool.Select}
+        onClick={() => actions.ui.sequencer.setTool(Tool.Select)}
+      />
+      <IconButton
+        path={mdiPen}
+        variant="filled"
+        isSelected={tool === Tool.Write}
+        onClick={() => actions.ui.sequencer.setTool(Tool.Write)}
+      />
+      <IconButton
+        path={mdiBoxCutter}
+        variant="filled"
+        isSelected={tool === Tool.Slice}
+        onClick={() => actions.ui.sequencer.setTool(Tool.Slice)}
+      />
+      <IconButton
+        className="mr-2"
+        path={mdiEraser}
+        variant="filled"
+        isSelected={tool === Tool.Erase}
+        onClick={() => actions.ui.sequencer.setTool(Tool.Erase)}
+      />
+      <SnapPicker value={snapValue} onChange={actions.ui.sequencer.setSnap} />
+    </div>
+    <div className="flex flex-1 justify-center">
+      {instrumentId && instruments.length > 0 && (
+        <Select
+          className="mr-1"
+          variant="filled"
+          value={instrumentId}
+          options={instruments}
+          onChange={actions.ui.sequencer.setInstrument}
+        />
+      )}
+      {trackId && tracks.length > 0 && (
+        <Select
+          variant="filled"
+          value={trackId}
+          options={tracks}
+          onChange={actions.ui.sequencer.setTrack}
+        />
+      )}
+    </div>
+  </>
+);
 
 type Props = {
   flowId: UniqueId | null;

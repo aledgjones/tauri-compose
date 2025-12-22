@@ -34,6 +34,10 @@ export const initialAppState: AppState = {
       bottom_panel_minimized: false,
       bottom_panel_tab: BottomPanelTab.Sequencer,
     },
+    sequence: {
+      bottom_panel_minimized: false,
+      bottom_panel_tab: BottomPanelTab.Sequencer,
+    },
     sequencer: {
       x: 0,
       y: 1008,
