@@ -26,6 +26,7 @@ use draw::draw_staves::draw_staves;
 use draw::draw_stem::draw_stem;
 use draw::draw_sub_brackets::draw_sub_brackets;
 use draw::draw_systemic_barline::draw_systemic_barline;
+use draw::draw_ties::draw_ties;
 use draw::draw_time_signature::draw_time_signature;
 use parse::get_accidentals::get_accidentals;
 use parse::get_barlines::get_barlines;
@@ -319,6 +320,20 @@ pub fn render(
                 let stem_directions = &stem_directions_by_track[track_id];
                 let beams = &beams_by_track[track_id];
                 let dots = &dots_by_track[track_id];
+
+                // TIES
+                draw_ties(
+                    &Point {
+                        x: stave_left,
+                        y: stave_top,
+                    },
+                    notation,
+                    stem_directions,
+                    &horizontal_spacing,
+                    shunts,
+                    &tone_offsets,
+                    &mut renderer,
+                );
 
                 // BEAMS
                 for beam in beams {

@@ -218,11 +218,11 @@ impl Notation {
         beams: &Beams,
     ) -> Space {
         let mut min_space = self.glyph_metrics().width;
-        if self.has_post_shunt(shunts) {
-            min_space *= 2.0;
-        }
 
-        if self.is_dotted(subdivisions) || self.is_flagged(beams, subdivisions) {
+        if self.is_dotted(subdivisions)
+            || self.is_flagged(beams, subdivisions)
+            || self.has_post_shunt(shunts)
+        {
             min_space += 1.0
         }
 

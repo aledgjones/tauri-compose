@@ -83,7 +83,7 @@ impl Engraves {
 
                 base_note_space: 3.0,
                 minimum_note_space: 0.6,
-                minimum_tie_space: 1.0,
+                minimum_tie_space: 1.6,
                 note_space_ratio: 1.41,
 
                 maximum_beam_slant: 0.5,
@@ -115,7 +115,7 @@ impl Engraves {
 
                 base_note_space: 3.0,
                 minimum_note_space: 0.6,
-                minimum_tie_space: 1.0,
+                minimum_tie_space: 1.6,
                 note_space_ratio: 1.41,
 
                 maximum_beam_slant: 0.5,
