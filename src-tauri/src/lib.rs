@@ -169,7 +169,7 @@ pub fn run() {
             let hide = PredefinedMenuItem::hide(app, Some(&format!("Hide {}", APP_NAME)))?;
             let hide_others = PredefinedMenuItem::hide_others(app, None)?;
             let show_all = PredefinedMenuItem::show_all(app, None)?;
-            let quit = PredefinedMenuItem::quit(app, None)?;
+            let quit = PredefinedMenuItem::quit(app, Some(&format!("Quit {}", APP_NAME)))?;
 
             let app_menu = Submenu::with_items(
                 app,

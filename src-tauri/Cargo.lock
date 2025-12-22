@@ -4049,6 +4049,7 @@ dependencies = [
 name = "solo-compose"
 version = "1.0.0"
 dependencies = [
+ "flate2",
  "lazy_static",
  "rayon",
  "roman",

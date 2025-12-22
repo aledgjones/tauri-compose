@@ -31,6 +31,7 @@ roman = "0.1.6"
 tauri-plugin-devtools = "2.0.1"
 tauri-plugin-dialog = "2"
 tauri-plugin-fs = "2"
+flate2 = "1.0"
 
 [profile.release]
 # less code to include into binary

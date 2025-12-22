@@ -1,6 +1,8 @@
 use crate::AppState;
+use flate2::{read::GzDecoder, write::GzEncoder, Compression};
 use serde_json;
 use std::fs;
+use std::io::{Read, Write};
 use tauri::{AppHandle, State};
 
 #[tauri::command(rename_all = "snake_case")]
@@ -19,12 +21,21 @@ pub fn save_project_to_file(
         "next_id": &state.next_id
     });
 
-    // Serialize to JSON
-    let json_string = serde_json::to_string_pretty(&project_data)
+    // Serialize to minified JSON
+    let json_string = serde_json::to_string(&project_data)
         .map_err(|e| format!("Failed to serialize project data: {}", e))?;
 
-    // Write to file
-    fs::write(&file_path, json_string).map_err(|e| format!("Failed to write file: {}", e))?;
+    // Compress with gzip
+    let mut encoder = GzEncoder::new(Vec::new(), Compression::best());
+    encoder
+        .write_all(json_string.as_bytes())
+        .map_err(|e| format!("Failed to compress data: {}", e))?;
+    let compressed_data = encoder
+        .finish()
+        .map_err(|e| format!("Failed to finish compression: {}", e))?;
+
+    // Write compressed data to file
+    fs::write(&file_path, compressed_data).map_err(|e| format!("Failed to write file: {}", e))?;
 
     Ok(())
 }
@@ -36,8 +47,14 @@ pub fn load_project_from_file(
     file_path: String,
 ) -> Result<(), String> {
     // Read the file
-    let json_string =
-        fs::read_to_string(&file_path).map_err(|e| format!("Failed to read file: {}", e))?;
+    let file_data = fs::read(&file_path).map_err(|e| format!("Failed to read file: {}", e))?;
+
+    // Decompress gzip data
+    let mut decoder = GzDecoder::new(&file_data[..]);
+    let mut json_string = String::new();
+    decoder
+        .read_to_string(&mut json_string)
+        .map_err(|e| format!("Failed to decompress file: {}", e))?;
 
     // Parse the JSON
     let project_data: serde_json::Value = serde_json::from_str(&json_string)
