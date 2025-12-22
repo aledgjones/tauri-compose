@@ -32,7 +32,7 @@ const InstrumentItemButton = ({
   return (
     <button
       className={classNames(
-        "flex items-center  p-2 pl-3 w-full text-left text-sm h-[40px]",
+        "flex items-center  p-2 pl-3 w-full text-left text-sm h-10",
         {
           "bg-sky-400 text-black": isSelected,
           "text-white": !isSelected,

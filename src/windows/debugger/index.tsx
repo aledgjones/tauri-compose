@@ -195,7 +195,7 @@ export const Main = () => {
           />
           <Input
             min={0}
-            className="w-[75px]"
+            className="w-18.75"
             type="number"
             label="Tick"
             value={tick}
@@ -243,39 +243,39 @@ export const Main = () => {
         {popoverType === "barline" && (
           <div className="text-white text-xs p-2 bg-neutral-800 flex-1">
             <div className="flex">
-              <pre className="pr-8 font-bold w-[200px]">Clear At Tick</pre>
+              <pre className="pr-8 font-bold w-50">Clear At Tick</pre>
               <pre className="">"clear"</pre>
             </div>
             <div className="flex">
-              <pre className="pr-8 font-bold w-[200px]">Normal (Single)</pre>
+              <pre className="pr-8 font-bold w-50">Normal (Single)</pre>
               <pre className="">"|", "single", "normal"</pre>
             </div>
             <div className="flex">
-              <pre className="pr-8 font-bold w-[200px]">Double</pre>
+              <pre className="pr-8 font-bold w-50">Double</pre>
               <pre className="">"||", "double"</pre>
             </div>
             <div className="flex">
-              <pre className="pr-8 font-bold w-[200px]">Triple</pre>
+              <pre className="pr-8 font-bold w-50">Triple</pre>
               <pre className="">"|||", "triple"</pre>
             </div>
             <div className="flex">
-              <pre className="pr-8 font-bold w-[200px]">Dashed</pre>
+              <pre className="pr-8 font-bold w-50">Dashed</pre>
               <pre className="">":", "dash", "dashed"</pre>
             </div>
             <div className="flex">
-              <pre className="pr-8 font-bold w-[200px]">Final</pre>
+              <pre className="pr-8 font-bold w-50">Final</pre>
               <pre className="">"|]", "final"</pre>
             </div>
             <div className="flex">
-              <pre className="pr-8 font-bold w-[200px]">Start Repeat</pre>
+              <pre className="pr-8 font-bold w-50">Start Repeat</pre>
               <pre className="">"|:", "start"</pre>
             </div>
             <div className="flex">
-              <pre className="pr-8 font-bold w-[200px]">End Repeat</pre>
+              <pre className="pr-8 font-bold w-50">End Repeat</pre>
               <pre className="">":|", "end"</pre>
             </div>
             <div className="flex">
-              <pre className="pr-8 font-bold w-[200px]">End/Start Repeat</pre>
+              <pre className="pr-8 font-bold w-50">End/Start Repeat</pre>
               <pre className="">":|:", ":||:", "end-start", "endstart"</pre>
             </div>
           </div>
@@ -284,23 +284,23 @@ export const Main = () => {
         {popoverType === "clef" && (
           <div className="text-white text-xs p-2 bg-neutral-800 flex-1">
             <div className="flex">
-              <pre className="pr-8 font-bold w-[200px]">Clear At Tick</pre>
+              <pre className="pr-8 font-bold w-50">Clear At Tick</pre>
               <pre className="">"clear"</pre>
             </div>
             <div className="flex">
-              <pre className="pr-8 font-bold w-[200px]">Treble</pre>
+              <pre className="pr-8 font-bold w-50">Treble</pre>
               <pre className="">"treble", "G", "g"</pre>
             </div>
             <div className="flex">
-              <pre className="pr-8 font-bold w-[200px]">Alto</pre>
+              <pre className="pr-8 font-bold w-50">Alto</pre>
               <pre className="">"alto", "CA", "ca"</pre>
             </div>
             <div className="flex">
-              <pre className="pr-8 font-bold w-[200px]">Tenor</pre>
+              <pre className="pr-8 font-bold w-50">Tenor</pre>
               <pre className="">"tenor", "CT", "ct"</pre>
             </div>
             <div className="flex">
-              <pre className="pr-8 font-bold w-[200px]">Bass</pre>
+              <pre className="pr-8 font-bold w-50">Bass</pre>
               <pre className="">"bass", "F", "f"</pre>
             </div>
           </div>
@@ -309,23 +309,19 @@ export const Main = () => {
         {popoverType === "key-signature" && (
           <div className="text-white text-xs p-2 bg-neutral-800 flex-1">
             <div className="flex">
-              <pre className="pr-8 font-bold w-[200px]">Clear At Tick</pre>
+              <pre className="pr-8 font-bold w-50">Clear At Tick</pre>
               <pre className="">"clear"</pre>
             </div>
             <div className="flex">
-              <pre className="pr-8 font-bold w-[200px]">Open/Atonal</pre>
+              <pre className="pr-8 font-bold w-50">Open/Atonal</pre>
               <pre className="">"open", "atonal"</pre>
             </div>
             <div className="flex">
-              <pre className="pr-8 font-bold w-[200px]">
-                Major Keys (uppercase)
-              </pre>
+              <pre className="pr-8 font-bold w-50">Major Keys (uppercase)</pre>
               <pre className="">"C", "G", "G#", "Ab" etc.</pre>
             </div>
             <div className="flex">
-              <pre className="pr-8 font-bold w-[200px]">
-                Minor Keys (lowercase)
-              </pre>
+              <pre className="pr-8 font-bold w-50">Minor Keys (lowercase)</pre>
               <pre className="">"c", "g", "g#", "ab" etc.</pre>
             </div>
           </div>
@@ -334,21 +330,19 @@ export const Main = () => {
         {popoverType === "measure" && (
           <div className="text-white text-xs p-2 bg-neutral-800 flex-1">
             <div className="flex">
-              <pre className="pr-8 font-bold w-[200px]">Clear At Tick</pre>
+              <pre className="pr-8 font-bold w-50">Clear At Tick</pre>
               <pre className="">"clear"</pre>
             </div>
             <div className="flex">
-              <pre className="pr-8 font-bold w-[200px]">
-                Simple time signatures
-              </pre>
+              <pre className="pr-8 font-bold w-50">Simple time signatures</pre>
               <pre className="">"2/4", "6/8", "3/4", "5/4"</pre>
             </div>
             <div className="flex">
-              <pre className="pr-8 font-bold w-[200px]">Common Time</pre>
+              <pre className="pr-8 font-bold w-50">Common Time</pre>
               <pre className="">"c"</pre>
             </div>
             <div className="flex">
-              <pre className="pr-8 font-bold w-[200px]">Cut Common Time</pre>
+              <pre className="pr-8 font-bold w-50">Cut Common Time</pre>
               <pre className="">"cutc"</pre>
             </div>
           </div>

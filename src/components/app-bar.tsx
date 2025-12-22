@@ -17,7 +17,7 @@ export const AppBar: FC<Props> = ({ title, filename, className }) => {
   return (
     <div
       data-tauri-drag-region
-      className={classNames("h-[28px] bg-neutral-900", className)}
-    ></div>
+      className={classNames("h-7 bg-neutral-900", className)}
+    />
   );
 };

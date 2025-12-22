@@ -71,7 +71,7 @@ export const Select = <T extends Key>({
       <button
         onClick={() => setIsOpen((prev) => !prev)}
         className={classNames(
-          "h-[36px] flex items-center w-full text-left text-white text-sm px-3 border-2",
+          "h-9 flex items-center w-full text-left text-white text-sm px-3 border-2",
           {
             "bg-neutral-900 hover:bg-neutral-800 border-transparent":
               !isOpen && isStandard,
@@ -79,7 +79,7 @@ export const Select = <T extends Key>({
             "bg-neutral-800 hover:bg-neutral-700 border-transparent":
               !isOpen && !isStandard,
             "bg-neutral-700 border-sky-500": isOpen && !isStandard,
-          }
+          },
         )}
       >
         {selection?.icon && (
@@ -102,7 +102,7 @@ export const Select = <T extends Key>({
               "text-neutral-300 transform transition-transform",
               {
                 "rotate-180": isOpen,
-              }
+              },
             )}
           />
         </div>
@@ -117,7 +117,7 @@ export const Select = <T extends Key>({
               "top-full mt-2": direction === "down",
               "bg-neutral-800": isStandard,
               "bg-neutral-700": !isStandard,
-            }
+            },
           )}
         >
           {options.map((option) => {

@@ -11,7 +11,9 @@
     "start:dev": "tauri dev",
     "start:release": "tauri build",
     "release": "scripts/release",
-    "check-types": "tsc --noEmit"
+    "check-types": "tsc --noEmit",
+    "lint": "eslint 'src/**/*.{ts,tsx}'",
+    "lint:fix": "eslint 'src/**/*.{ts,tsx}' --fix"
   },
   "dependencies": {
     "@mdi/js": "7.4.47",

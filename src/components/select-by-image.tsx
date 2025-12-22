@@ -29,10 +29,7 @@ export const SelectByImage = <T extends Key>({
         {options.map((option) => {
           const isSelected = value === option.value;
           return (
-            <button
-              className="w-[150px]"
-              onClick={() => onChange(option.value)}
-            >
+            <button className="w-37.5" onClick={() => onChange(option.value)}>
               <img
                 src={option.image}
                 className={classNames("w-full mb-2 border-4", {
