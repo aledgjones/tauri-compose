@@ -134,6 +134,11 @@ export const actions = {
         return invoke("ui_sequencer_coords_set", { x, y });
       },
     },
+    renderer: {
+      setZoom: (zoom: number) => {
+        return invoke("ui_renderer_zoom_set", { zoom });
+      },
+    },
   },
   score: {
     engrave: {

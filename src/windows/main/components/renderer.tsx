@@ -80,7 +80,7 @@ export const Renderer: FC<Props> = ({ className }) => {
             <img
               alt="Your score"
               draggable="false"
-              style={{ zoom: "50%" }}
+              style={{ zoom: `${(state.ui.renderer.zoom / 100) * 50}%` }}
               src={src}
             />
           )}

@@ -8,6 +8,7 @@ export type SelectOption<T> = {
   value: T;
   label: string;
   icon?: string;
+  iconSize?: number;
 };
 
 type SelectProps<T> = {
@@ -87,7 +88,7 @@ export const Select = <T extends Key>({
           <div className="flex items-center pr-2 pointer-events-none">
             <Icon
               path={selection.icon}
-              size={1}
+              size={selection.iconSize || 1}
               className="text-neutral-300 transform transition-transform"
             />
           </div>
@@ -114,10 +115,11 @@ export const Select = <T extends Key>({
       {isOpen && (
         <ul
           className={classNames(
-            "whitespace-nowrap py-1 min-w-48 w-full absolute z-10 text-white text-sm shadow-lg mt-1 overflow-auto max-h-42.5",
+            "whitespace-nowrap py-1 min-w-48 w-full absolute z-10 text-white text-sm shadow-lg mt-1 overflow-auto",
             {
               "bottom-full mb-2": direction === "up",
               "top-full mt-2": direction === "down",
+              "max-h-69.5": direction === "down",
               "bg-neutral-800": isStandard,
               "bg-neutral-700": !isStandard,
             },

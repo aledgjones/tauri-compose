@@ -356,6 +356,9 @@ export type AppState = {
       instrument: UniqueId | null;
       track: UniqueId | null;
     };
+    renderer: {
+      zoom: number;
+    };
   };
   score: {
     players: Players;

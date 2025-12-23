@@ -1,5 +1,6 @@
 import { Renderer } from "../../components/renderer";
 import { BottomPanel } from "./components/bottom-panel";
+import { ZoomWidget } from "../../components/zoom-widget";
 import { useAppState } from "../../../../services/state";
 import { actions } from "../../../../services/actions";
 import MdiIcon from "@mdi/react";
@@ -26,13 +27,20 @@ export const Write = () => {
         ></div>
         {!minimized && <BottomPanel />}
       </div>
-      <div className="flex justify-center items-center h-7 ml-2 mr-2 mb-2 rounded-b-lg bg-neutral-900">
+
+      <div className="flex justify-center items-center h-7 ml-2 mr-2 mb-2 rounded-b-lg gap-2">
+        <p className="text-white text-xs bg-neutral-900 h-full flex items-center px-2 rounded-bl-lg">
+          No selection
+        </p>
+
         <button
           onClick={() => actions.ui.write.bottomPanel.toggle()}
-          className=" h-full flex-1 flex items-center justify-center w-full text-white  hover:bg-neutral-800 rounded-b-lg"
+          className="h-full flex-1 flex items-center justify-center w-full text-white  hover:bg-neutral-800 bg-neutral-900"
         >
           <MdiIcon size={1} path={minimized ? mdiChevronUp : mdiChevronDown} />
         </button>
+
+        <ZoomWidget />
       </div>
     </>
   );

@@ -47,6 +47,9 @@ export const initialAppState: AppState = {
       instrument: null,
       track: null,
     },
+    renderer: {
+      zoom: 100,
+    },
   },
   score: {
     layouts: { order: [], by_id: {} },

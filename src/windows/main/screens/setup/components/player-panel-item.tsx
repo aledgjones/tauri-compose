@@ -47,7 +47,7 @@ const getIsAssigned = (state: AppState, playerId: number) => {
 
   if (selection?.selection_type === SelectionType.Layout) {
     return state.score.layouts.by_id[selection.id].player_ids.includes(
-      playerId
+      playerId,
     );
   }
 
@@ -128,7 +128,7 @@ export const PlayerPanelItem: FC<Props> = ({ player }) => {
         }
       }
     },
-    [player.id, state.ui.setup.selection]
+    [player.id, state.ui.setup.selection],
   );
 
   useEffect(() => {
@@ -158,7 +158,7 @@ export const PlayerPanelItem: FC<Props> = ({ player }) => {
             e.oldIndex,
             e.newIndex,
             parseInt(e.from.dataset.playerId),
-            parseInt(e.to.dataset.playerId)
+            parseInt(e.to.dataset.playerId),
           );
           await actions.ui.setup.select(SelectionType.Player, player.id);
         }
@@ -206,7 +206,7 @@ export const PlayerPanelItem: FC<Props> = ({ player }) => {
       className={classNames("border-2 border-transparent", fg, bg)}
       onPointerDown={onSelect}
     >
-      <div className="flex items-center h-[48px] text-sm pr-1 pl-3">
+      <div className="flex items-center h-12 text-sm pr-1 pl-3">
         <Icon className={classNames("mr-3", fg)} path={icon} size={1} />
 
         <p className={classNames(`truncate flex-1`, fg)}>
@@ -233,7 +233,7 @@ export const PlayerPanelItem: FC<Props> = ({ player }) => {
         )}
 
         {isAssignable && (
-          <div className="mr-[-2px]">
+          <div className="-mr-0.5">
             <Checkbox
               value={isAssigned}
               onPointerDown={onBlockPointerDown}
@@ -258,7 +258,7 @@ export const PlayerPanelItem: FC<Props> = ({ player }) => {
       <div
         ref={ref}
         data-player-id={player.id}
-        className={classNames("flex flex-col p-2 gap-2 min-h-[64px]", {
+        className={classNames("flex flex-col p-2 gap-2 min-h-16", {
           hidden: !isExpanded,
         })}
       >

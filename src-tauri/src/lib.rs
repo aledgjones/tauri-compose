@@ -63,6 +63,7 @@ use ui::sequencer::{
     ui_sequencer_coords_set, ui_sequencer_instrument_set, ui_sequencer_snap_set,
     ui_sequencer_tool_set, ui_sequencer_track_set,
 };
+use ui::renderer::ui_renderer_zoom_set;
 use ui::setup::{
     ui_setup_expanded_insert, ui_setup_expanded_remove, ui_setup_selection_clear,
     ui_setup_selection_set,
@@ -291,6 +292,7 @@ pub fn run() {
             score_players_move,
             score_players_remove,
             ui_layout_id_set,
+            ui_renderer_zoom_set,
             ui_sequencer_coords_set,
             ui_sequencer_instrument_set,
             ui_sequencer_snap_set,
