@@ -12,7 +12,7 @@ export const Sequence = () => {
   return (
     <>
       <div
-        className="w-screen p-2 grid grid-cols-1 gap-2"
+        className="w-screen p-2 grid grid-cols-1 gap-2 overflow-hidden"
         style={{ gridTemplateRows }}
       >
         {/* Track Overview Placeholder - will show track overviews eventually */}
