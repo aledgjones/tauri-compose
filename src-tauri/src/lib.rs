@@ -59,17 +59,17 @@ use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
 use tauri::menu::{AboutMetadata, Menu, MenuItem, PredefinedMenuItem, Submenu};
 use tauri::{Emitter, Manager, State};
+use ui::renderer::ui_renderer_zoom_set;
+use ui::sequence::{ui_sequence_bottom_panel_minimized_toggle, ui_sequence_bottom_panel_tab_set};
 use ui::sequencer::{
     ui_sequencer_coords_set, ui_sequencer_instrument_set, ui_sequencer_snap_set,
     ui_sequencer_tool_set, ui_sequencer_track_set,
 };
-use ui::renderer::ui_renderer_zoom_set;
 use ui::setup::{
     ui_setup_expanded_insert, ui_setup_expanded_remove, ui_setup_selection_clear,
     ui_setup_selection_set,
 };
 use ui::write::{ui_write_bottom_panel_minimized_toggle, ui_write_bottom_panel_tab_set};
-use ui::sequence::{ui_sequence_bottom_panel_minimized_toggle, ui_sequence_bottom_panel_tab_set};
 use ui::{ui_layout_id_set, ui_tab_set, Ui};
 use utils::UniqueId;
 
