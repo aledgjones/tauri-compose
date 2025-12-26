@@ -6,6 +6,7 @@ mod ui;
 mod utils;
 
 use render::render;
+use renderer::Renderer;
 use sampler::Sampler;
 use score::config::{
     score_config_auto_count_styles_section_set, score_config_auto_count_styles_solo_set,
@@ -119,6 +120,7 @@ impl AppStateInner {
 }
 
 type AppState = Mutex<AppStateInner>;
+type RenderState = Mutex<Renderer>;
 
 const APP_NAME: &str = "Solo Compose";
 
@@ -224,6 +226,7 @@ pub fn run() {
             });
 
             app.manage(AppStateInner::new());
+            app.manage(Renderer::new());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

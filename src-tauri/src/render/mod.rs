@@ -3,12 +3,11 @@ mod parse;
 
 use crate::renderer::converter::Converter;
 use crate::renderer::text_measurer::TextMeasurer;
-use crate::renderer::Renderer;
 use crate::score::components::measurements::Point;
 use crate::score::entries::barline::BarlineDrawType;
 use crate::score::entries::clef::Clef;
 use crate::utils::UniqueId;
-use crate::AppState;
+use crate::{AppState, RenderState};
 use draw::draw_accidentals::draw_accidental;
 use draw::draw_barline::draw_barline;
 use draw::draw_beam::draw_beam;
@@ -51,6 +50,7 @@ use tauri::{ipc::Response, Emitter, State};
 pub fn render(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
+    renderer_state: State<'_, RenderState>,
     layout_id: UniqueId,
     flow_id: UniqueId,
     px_per_mm: f32,
@@ -124,15 +124,15 @@ pub fn render(
         flow.subdivisions,
     );
 
-    let parsing_duration = parsing_start.elapsed();
-    let drawing_start = Instant::now();
-
     let stave_left =
         frame_padding.left + max_name_width + engrave.instrument_name_spacing + max_bracket_width;
     let height = frame_padding.top + vertical_spacing.height + frame_padding.bottom;
     let width = stave_left + horizontal_spacing.width + frame_padding.right;
 
-    let mut renderer = Renderer::new(width, height, converter);
+    let mut renderer = renderer_state.lock().unwrap();
+    renderer.clear_instructions();
+    renderer.set_converter(converter);
+    renderer.set_dimensions(width, height);
 
     draw_names(
         &Point {
@@ -474,8 +474,14 @@ pub fn render(
         }
     }
 
-    let duration = start.elapsed();
+    let parsing_duration = parsing_start.elapsed();
+    let drawing_start = Instant::now();
+
+    let data = renderer.data();
+
     let drawing_duration = drawing_start.elapsed();
+    let duration = start.elapsed();
+
     let timings = serde_json::json!({
         "total_ms": duration.as_millis(),
         "parsing_ms": parsing_duration.as_millis(),
@@ -483,5 +489,5 @@ pub fn render(
     });
     app.emit("render-timings", timings).unwrap();
 
-    Response::new(renderer.data())
+    Response::new(data)
 }
