@@ -297,6 +297,7 @@ export type Padding = {
 export type Engrave = {
   space: number;
 
+  page_padding: Padding;
   frame_padding: Padding;
   instrument_spacing: number;
   stave_spacing: number;

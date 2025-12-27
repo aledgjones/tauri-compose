@@ -28,7 +28,7 @@ pub enum Tab {
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Ui {
     tab: Tab,
-    layout_id: UniqueId,
+    pub layout_id: UniqueId,
     pub setup: Setup,
     pub write: Write,
     pub sequence: Sequence,

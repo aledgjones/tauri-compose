@@ -11,6 +11,7 @@ export const NumberInput: FC<NumberInputProps> = ({
   readOnly,
   step,
   decimalPlaces,
+  units,
 }) => {
   const toValue = useCallback((value: string | undefined) => {
     if (value === undefined || value === "") {
@@ -28,7 +29,7 @@ export const NumberInput: FC<NumberInputProps> = ({
         return new Big(value).toFixed(decimalPlaces);
       }
     },
-    [decimalPlaces]
+    [decimalPlaces],
   );
 
   const [display, setDisplay] = useState<string>(toPrecision(value));
@@ -82,7 +83,7 @@ export const NumberInput: FC<NumberInputProps> = ({
           break;
       }
     },
-    [onIncrease, onDecrease]
+    [onIncrease, onDecrease],
   );
 
   return (
@@ -95,6 +96,7 @@ export const NumberInput: FC<NumberInputProps> = ({
       readOnly={readOnly}
       onKeyDown={handleKeyDown}
       onBlur={handleBlur}
+      units={units}
     />
   );
 };

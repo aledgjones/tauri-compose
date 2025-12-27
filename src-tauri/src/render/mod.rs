@@ -72,7 +72,7 @@ pub fn render(
     let vertical_spacing = get_vertical_spacing(flow, &instruments, engrave);
     let vertical_spans = get_vertical_spans(&instruments, engrave);
 
-    let frame_padding = engrave.frame_padding.to_spaces(&engrave.space);
+    let page_padding = engrave.page_padding.to_spaces(&engrave.space);
     let max_name_width = get_max_instrument_name_width(&instruments, engrave, &text_measurer);
     let max_bracket_width = get_max_brackets_width(&vertical_spacing, &vertical_spans, engrave);
 
@@ -125,9 +125,9 @@ pub fn render(
     );
 
     let stave_left =
-        frame_padding.left + max_name_width + engrave.instrument_name_spacing + max_bracket_width;
-    let height = frame_padding.top + vertical_spacing.height + frame_padding.bottom;
-    let width = stave_left + horizontal_spacing.width + frame_padding.right;
+        page_padding.left + max_name_width + engrave.instrument_name_spacing + max_bracket_width;
+    let height = page_padding.top + vertical_spacing.height + page_padding.bottom;
+    let width = stave_left + horizontal_spacing.width + page_padding.right;
 
     let mut renderer = renderer_state.lock().unwrap();
     renderer.clear_instructions();
@@ -136,8 +136,8 @@ pub fn render(
 
     draw_names(
         &Point {
-            x: frame_padding.left + max_name_width,
-            y: frame_padding.top,
+            x: page_padding.left + max_name_width,
+            y: page_padding.top,
         },
         &instruments,
         &vertical_spacing,
@@ -148,7 +148,7 @@ pub fn render(
     draw_braces(
         &Point {
             x: stave_left,
-            y: frame_padding.top,
+            y: page_padding.top,
         },
         &vertical_spans,
         &vertical_spacing,
@@ -158,7 +158,7 @@ pub fn render(
     draw_brackets(
         &Point {
             x: stave_left,
-            y: frame_padding.top,
+            y: page_padding.top,
         },
         &vertical_spans,
         &vertical_spacing,
@@ -169,7 +169,7 @@ pub fn render(
     draw_sub_brackets(
         &Point {
             x: stave_left,
-            y: frame_padding.top,
+            y: page_padding.top,
         },
         &vertical_spans,
         &vertical_spacing,
@@ -179,7 +179,7 @@ pub fn render(
     draw_systemic_barline(
         &Point {
             x: stave_left,
-            y: frame_padding.top,
+            y: page_padding.top,
         },
         &vertical_spacing,
         engrave,
@@ -189,7 +189,7 @@ pub fn render(
     draw_staves(
         &Point {
             x: stave_left,
-            y: frame_padding.top,
+            y: page_padding.top,
         },
         horizontal_spacing.width,
         flow,
@@ -204,7 +204,7 @@ pub fn render(
             draw_barline(
                 &Point {
                     x: stave_left + span.x,
-                    y: frame_padding.top,
+                    y: page_padding.top,
                 },
                 &BarlineDrawType::StartRepeat,
                 &vertical_spacing,
@@ -218,7 +218,7 @@ pub fn render(
             draw_barline(
                 &Point {
                     x: stave_left + span.x,
-                    y: frame_padding.top,
+                    y: page_padding.top,
                 },
                 &BarlineDrawType::EndRepeat,
                 &vertical_spacing,
@@ -232,7 +232,7 @@ pub fn render(
             draw_barline(
                 &Point {
                     x: stave_left + span.x,
-                    y: frame_padding.top,
+                    y: page_padding.top,
                 },
                 &draw_type,
                 &vertical_spacing,
@@ -245,7 +245,7 @@ pub fn render(
     draw_barline(
         &Point {
             x: stave_left + horizontal_spacing.width - BarlineDrawType::Final.metrics().width,
-            y: frame_padding.top,
+            y: page_padding.top,
         },
         &BarlineDrawType::Final,
         &vertical_spacing,
@@ -258,7 +258,7 @@ pub fn render(
             let stave = &flow.staves.by_id[stave_id];
             let stave_master = &state.score.tracks.by_id[&stave.master_id];
             let stave_spacing = &vertical_spacing.staves[stave_id];
-            let stave_top = frame_padding.top + stave_spacing.y;
+            let stave_top = page_padding.top + stave_spacing.y;
 
             let mut clef = Clef::default();
 

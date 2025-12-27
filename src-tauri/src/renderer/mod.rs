@@ -415,7 +415,9 @@ impl Renderer {
     }
 
     pub fn data(&mut self) -> Vec<u8> {
-        let mut renderer = CanvasRenderer::new(self.width as i32, self.height as i32);
+        let pixel_width = self.converter.spaces_to_px(self.width).max(1.0) as i32;
+        let pixel_height = self.converter.spaces_to_px(self.height).max(1.0) as i32;
+        let mut renderer = CanvasRenderer::new(pixel_width, pixel_height);
         renderer.clear();
 
         // Render only instructions that intersect with the tile

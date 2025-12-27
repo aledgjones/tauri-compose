@@ -172,6 +172,72 @@ export const actions = {
           value,
         });
       },
+      setBaseNoteSpace: (layout_type: LayoutType, value: number) => {
+        return invoke<void>("score_engraves_base_note_space_set", {
+          layout_type,
+          value,
+        });
+      },
+      setMinimumNoteSpace: (layout_type: LayoutType, value: number) => {
+        return invoke<void>("score_engraves_minimum_note_space_set", {
+          layout_type,
+          value,
+        });
+      },
+      setMinimumTieSpace: (layout_type: LayoutType, value: number) => {
+        return invoke<void>("score_engraves_minimum_tie_space_set", {
+          layout_type,
+          value,
+        });
+      },
+      setNoteSpaceRatio: (layout_type: LayoutType, value: number) => {
+        return invoke<void>("score_engraves_note_space_ratio_set", {
+          layout_type,
+          value,
+        });
+      },
+      setSpace: (layout_type: LayoutType, value: number) => {
+        return invoke<void>("score_engraves_space_set", {
+          layout_type,
+          value,
+        });
+      },
+      setFramePaddingTop: (layout_type: LayoutType, value: number) => {
+        return invoke<void>("score_engraves_frame_padding_top_set", {
+          layout_type,
+          value,
+        });
+      },
+      setFramePaddingBottom: (layout_type: LayoutType, value: number) => {
+        return invoke<void>("score_engraves_frame_padding_bottom_set", {
+          layout_type,
+          value,
+        });
+      },
+      setPagePaddingTop: (layout_type: LayoutType, value: number) => {
+        return invoke<void>("score_engraves_page_padding_top_set", {
+          layout_type,
+          value,
+        });
+      },
+      setPagePaddingRight: (layout_type: LayoutType, value: number) => {
+        return invoke<void>("score_engraves_page_padding_right_set", {
+          layout_type,
+          value,
+        });
+      },
+      setPagePaddingBottom: (layout_type: LayoutType, value: number) => {
+        return invoke<void>("score_engraves_page_padding_bottom_set", {
+          layout_type,
+          value,
+        });
+      },
+      setPagePaddingLeft: (layout_type: LayoutType, value: number) => {
+        return invoke<void>("score_engraves_page_padding_left_set", {
+          layout_type,
+          value,
+        });
+      },
     },
     flow: {
       create: () => {

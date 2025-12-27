@@ -33,6 +33,7 @@ pub struct Engraves {
 pub struct Engrave {
     pub space: Mm,
 
+    pub page_padding: PaddingMm,
     pub frame_padding: PaddingMm,
     pub instrument_spacing: Space,
     pub stave_spacing: Space,
@@ -63,7 +64,8 @@ impl Engraves {
             Engrave {
                 space: 1.5,
 
-                frame_padding: PaddingMm::new(35.0, 25.0, 35.0, 25.0),
+                page_padding: PaddingMm::new(35.0, 25.0, 35.0, 25.0),
+                frame_padding: PaddingMm::new(25.0, 0.0, 25.0, 0.0),
                 instrument_spacing: 8.0,
                 stave_spacing: 6.0,
                 system_start_padding: 0.75,
@@ -95,7 +97,8 @@ impl Engraves {
             Engrave {
                 space: 2.0,
 
-                frame_padding: PaddingMm::new(35.0, 25.0, 35.0, 25.0),
+                page_padding: PaddingMm::new(35.0, 25.0, 35.0, 25.0),
+                frame_padding: PaddingMm::new(25.0, 0.0, 25.0, 0.0),
                 instrument_spacing: 8.0,
                 stave_spacing: 6.0,
                 system_start_padding: 0.75,
@@ -206,86 +209,222 @@ pub fn score_engraves_bracket_single_staves_set(
     state.emit(&app);
 }
 
-//     pub fn get_bracket_single_staves(&self, key: &str) -> bool {
-//         let config = &self.file.score.engrave.by_key[key];
-//         config.bracket_single_staves
-//     }
+#[tauri::command(rename_all = "snake_case")]
+pub fn score_engraves_base_note_space_set(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    layout_type: LayoutType,
+    value: f32,
+) {
+    let mut state = state.lock().unwrap();
 
-//     pub fn set_bracket_single_staves(&mut self, key: &str, value: bool) {
-//         let config = self.file.score.engrave.by_key.get_mut(key).unwrap();
-//         config.bracket_single_staves = value;
+    let config = state
+        .score
+        .engraves
+        .by_layout_type
+        .get_mut(&layout_type)
+        .unwrap();
+    config.base_note_space = value;
 
-//         self.emit();
-//     }
+    state.emit(&app);
+}
 
-//     pub fn get_sub_bracket(&self, key: &str) -> bool {
-//         let config = &self.file.score.engrave.by_key[key];
-//         config.sub_bracket
-//     }
+#[tauri::command(rename_all = "snake_case")]
+pub fn score_engraves_minimum_note_space_set(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    layout_type: LayoutType,
+    value: f32,
+) {
+    let mut state = state.lock().unwrap();
 
-//     pub fn set_sub_bracket(&mut self, key: &str, value: bool) {
-//         let config = self.file.score.engrave.by_key.get_mut(key).unwrap();
-//         config.sub_bracket = value;
+    let config = state
+        .score
+        .engraves
+        .by_layout_type
+        .get_mut(&layout_type)
+        .unwrap();
+    config.minimum_note_space = value;
 
-//         self.emit();
-//     }
+    state.emit(&app);
+}
 
-//     pub fn get_base_note_space(&self, key: &str) -> f32 {
-//         let config = &self.file.score.engrave.by_key[key];
-//         config.base_note_space
-//     }
+#[tauri::command(rename_all = "snake_case")]
+pub fn score_engraves_minimum_tie_space_set(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    layout_type: LayoutType,
+    value: f32,
+) {
+    let mut state = state.lock().unwrap();
 
-//     pub fn set_base_note_space(&mut self, key: &str, value: f32) {
-//         let config = self.file.score.engrave.by_key.get_mut(key).unwrap();
-//         config.base_note_space = value;
+    let config = state
+        .score
+        .engraves
+        .by_layout_type
+        .get_mut(&layout_type)
+        .unwrap();
+    config.minimum_tie_space = value;
 
-//         self.emit();
-//     }
+    state.emit(&app);
+}
 
-//     pub fn get_minimum_note_space(&self, key: &str) -> f32 {
-//         let config = &self.file.score.engrave.by_key[key];
-//         config.minimum_note_space
-//     }
+#[tauri::command(rename_all = "snake_case")]
+pub fn score_engraves_note_space_ratio_set(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    layout_type: LayoutType,
+    value: f32,
+) {
+    let mut state = state.lock().unwrap();
 
-//     pub fn set_minimum_note_space(&mut self, key: &str, value: f32) {
-//         let config = self.file.score.engrave.by_key.get_mut(key).unwrap();
-//         config.minimum_note_space = value;
+    let config = state
+        .score
+        .engraves
+        .by_layout_type
+        .get_mut(&layout_type)
+        .unwrap();
+    config.note_space_ratio = value;
 
-//         self.emit();
-//     }
+    state.emit(&app);
+}
 
-//     pub fn get_minimum_tie_space(&self, key: &str) -> f32 {
-//         let config = &self.file.score.engrave.by_key[key];
-//         config.minimum_tie_space
-//     }
+#[tauri::command(rename_all = "snake_case")]
+pub fn score_engraves_space_set(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    layout_type: LayoutType,
+    value: f32,
+) {
+    let mut state = state.lock().unwrap();
 
-//     pub fn set_minimum_tie_space(&mut self, key: &str, value: f32) {
-//         let config = self.file.score.engrave.by_key.get_mut(key).unwrap();
-//         config.minimum_tie_space = value;
+    let config = state
+        .score
+        .engraves
+        .by_layout_type
+        .get_mut(&layout_type)
+        .unwrap();
+    config.space = value;
 
-//         self.emit();
-//     }
+    state.emit(&app);
+}
 
-//     pub fn get_note_space_ratio(&self, key: &str) -> f32 {
-//         let config = &self.file.score.engrave.by_key[key];
-//         config.note_space_ratio
-//     }
+#[tauri::command(rename_all = "snake_case")]
+pub fn score_engraves_frame_padding_top_set(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    layout_type: LayoutType,
+    value: f32,
+) {
+    let mut state = state.lock().unwrap();
 
-//     pub fn set_note_space_ratio(&mut self, key: &str, value: f32) {
-//         let config = self.file.score.engrave.by_key.get_mut(key).unwrap();
-//         config.note_space_ratio = value;
+    let config = state
+        .score
+        .engraves
+        .by_layout_type
+        .get_mut(&layout_type)
+        .unwrap();
+    config.frame_padding.top = value;
 
-//         self.emit();
-//     }
+    state.emit(&app);
+}
 
-//     pub fn get_space(&self, key: &str) -> f32 {
-//         let config = &self.file.score.engrave.by_key[key];
-//         config.space
-//     }
+#[tauri::command(rename_all = "snake_case")]
+pub fn score_engraves_frame_padding_bottom_set(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    layout_type: LayoutType,
+    value: f32,
+) {
+    let mut state = state.lock().unwrap();
 
-//     pub fn set_space(&mut self, key: &str, value: f32) {
-//         let config = self.file.score.engrave.by_key.get_mut(key).unwrap();
-//         config.space = value;
+    let config = state
+        .score
+        .engraves
+        .by_layout_type
+        .get_mut(&layout_type)
+        .unwrap();
+    config.frame_padding.bottom = value;
 
-//         self.emit();
-//     }
+    state.emit(&app);
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn score_engraves_page_padding_top_set(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    layout_type: LayoutType,
+    value: f32,
+) {
+    let mut state = state.lock().unwrap();
+
+    let config = state
+        .score
+        .engraves
+        .by_layout_type
+        .get_mut(&layout_type)
+        .unwrap();
+    config.page_padding.top = value;
+
+    state.emit(&app);
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn score_engraves_page_padding_right_set(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    layout_type: LayoutType,
+    value: f32,
+) {
+    let mut state = state.lock().unwrap();
+
+    let config = state
+        .score
+        .engraves
+        .by_layout_type
+        .get_mut(&layout_type)
+        .unwrap();
+    config.page_padding.right = value;
+
+    state.emit(&app);
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn score_engraves_page_padding_bottom_set(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    layout_type: LayoutType,
+    value: f32,
+) {
+    let mut state = state.lock().unwrap();
+
+    let config = state
+        .score
+        .engraves
+        .by_layout_type
+        .get_mut(&layout_type)
+        .unwrap();
+    config.page_padding.bottom = value;
+
+    state.emit(&app);
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn score_engraves_page_padding_left_set(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    layout_type: LayoutType,
+    value: f32,
+) {
+    let mut state = state.lock().unwrap();
+
+    let config = state
+        .score
+        .engraves
+        .by_layout_type
+        .get_mut(&layout_type)
+        .unwrap();
+    config.page_padding.left = value;
+
+    state.emit(&app);
+}

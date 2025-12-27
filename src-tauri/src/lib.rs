@@ -12,8 +12,13 @@ use score::config::{
     score_config_auto_count_styles_section_set, score_config_auto_count_styles_solo_set,
 };
 use score::engraves::{
-    score_engraves_bracket_single_staves_set, score_engraves_bracket_style_set,
-    score_engraves_bracketing_approach_set,
+    score_engraves_base_note_space_set, score_engraves_bracket_single_staves_set,
+    score_engraves_bracket_style_set, score_engraves_bracketing_approach_set,
+    score_engraves_frame_padding_bottom_set, score_engraves_frame_padding_top_set,
+    score_engraves_minimum_note_space_set, score_engraves_minimum_tie_space_set,
+    score_engraves_note_space_ratio_set, score_engraves_page_padding_bottom_set,
+    score_engraves_page_padding_left_set, score_engraves_page_padding_right_set,
+    score_engraves_page_padding_top_set, score_engraves_space_set,
     score_engraves_systemic_barline_single_instrument_system_set,
 };
 use score::entries::barline::{score_entries_barline_clear, score_entries_barline_create};
@@ -226,7 +231,7 @@ pub fn run() {
             });
 
             app.manage(AppStateInner::new());
-            app.manage(Renderer::new());
+            app.manage(Mutex::new(Renderer::new()));
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -241,6 +246,17 @@ pub fn run() {
             score_engraves_bracket_single_staves_set,
             score_engraves_bracket_style_set,
             score_engraves_systemic_barline_single_instrument_system_set,
+            score_engraves_base_note_space_set,
+            score_engraves_minimum_note_space_set,
+            score_engraves_minimum_tie_space_set,
+            score_engraves_note_space_ratio_set,
+            score_engraves_space_set,
+            score_engraves_frame_padding_top_set,
+            score_engraves_frame_padding_bottom_set,
+            score_engraves_page_padding_top_set,
+            score_engraves_page_padding_right_set,
+            score_engraves_page_padding_bottom_set,
+            score_engraves_page_padding_left_set,
             score_entries_barline_create,
             score_entries_barline_clear,
             score_entries_clef_create,

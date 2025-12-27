@@ -8,24 +8,43 @@ import { LayoutType } from "../../services/types";
 
 import { BracketsAndBraces } from "./screens/brackets-and-braces";
 import { Barlines } from "./screens/barlines";
+import { NoteSpacing } from "./screens/note-spacing";
+import { PageSettings } from "./screens/page-settings";
 
 enum MenuOption {
   Barlines = 0,
+  BarlinesSystemicBarlines,
   BracketsAndBraces,
+  BracketsAndBracesBrackets,
+  BracketsAndBracesBracketGroups,
   NoteSpacing,
   PageSettings,
   PageSettingStaveSize,
   PageSettingPageMargins,
+  PageSettingMusicFrameMargins,
 }
 
 const options: MenuItem<MenuOption>[] = [
   {
     label: "Barlines",
     value: MenuOption.Barlines,
+    sections: [
+      {
+        label: "Systemic Barlines",
+        value: MenuOption.BarlinesSystemicBarlines,
+      },
+    ],
   },
   {
     label: "Brackets and Braces",
     value: MenuOption.BracketsAndBraces,
+    sections: [
+      { label: "Brackets", value: MenuOption.BracketsAndBracesBrackets },
+      {
+        label: "Bracketed Groups",
+        value: MenuOption.BracketsAndBracesBracketGroups,
+      },
+    ],
   },
   {
     label: "Note Spacing",
@@ -35,8 +54,12 @@ const options: MenuItem<MenuOption>[] = [
     label: "Page Settings",
     value: MenuOption.PageSettings,
     sections: [
-      { label: "Stave Size", value: MenuOption.PageSettingStaveSize },
+      { label: "Space Size", value: MenuOption.PageSettingStaveSize },
       { label: "Page Margins", value: MenuOption.PageSettingPageMargins },
+      {
+        label: "Music Frame Margins",
+        value: MenuOption.PageSettingMusicFrameMargins,
+      },
     ],
   },
 ];
@@ -44,6 +67,8 @@ const options: MenuItem<MenuOption>[] = [
 const screens = new Map([
   [MenuOption.Barlines, Barlines],
   [MenuOption.BracketsAndBraces, BracketsAndBraces],
+  [MenuOption.NoteSpacing, NoteSpacing],
+  [MenuOption.PageSettings, PageSettings],
 ]);
 
 export const Main = () => {
@@ -72,7 +97,7 @@ export const Main = () => {
       <div className="bg-neutral-900 overflow-auto ml-2 mb-2">
         <Menu selection={selection} items={options} onSelect={setSelection} />
       </div>
-      <div className=" bg-neutral-900 overflow-auto mr-2 mb-2">
+      <div className="overflow-auto mr-2 mb-2">
         <Content layoutType={LayoutType.FullScore} />
       </div>
     </div>

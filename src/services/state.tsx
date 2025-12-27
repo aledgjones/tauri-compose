@@ -68,7 +68,8 @@ export const initialAppState: AppState = {
         [LayoutType.FullScore]: {
           space: 1.5,
 
-          frame_padding: { top: 35, right: 25, bottom: 35, left: 25 },
+          page_padding: { top: 35, right: 20, bottom: 35, left: 20 },
+          frame_padding: { top: 25, right: 0, bottom: 25, left: 0 },
           instrument_spacing: 8,
           stave_spacing: 6,
           system_start_padding: 0.75,
@@ -96,7 +97,8 @@ export const initialAppState: AppState = {
         [LayoutType.Part]: {
           space: 2.0,
 
-          frame_padding: { top: 35, right: 25, bottom: 35, left: 25 },
+          page_padding: { top: 35, right: 20, bottom: 35, left: 20 },
+          frame_padding: { top: 25, right: 0, bottom: 25, left: 0 },
           instrument_spacing: 8,
           stave_spacing: 6,
           system_start_padding: 0.75,

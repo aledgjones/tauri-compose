@@ -15,6 +15,7 @@ export interface TextInputProps extends BaseInputProps {
   onKeyDown?: (event: KeyboardEvent<HTMLInputElement>) => void;
   onBlur?: () => void;
   onEnter?: () => void;
+  units?: string;
 }
 
 export interface NumberInputProps extends BaseInputProps {
@@ -25,6 +26,7 @@ export interface NumberInputProps extends BaseInputProps {
   decimalPlaces: number;
   min?: number;
   max?: number;
+  units?: string;
 }
 
 type InputProps = TextInputProps | NumberInputProps;
