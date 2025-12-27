@@ -28,7 +28,7 @@ export const NoteSpacing: FC<Props> = ({ layoutType }) => {
           min={0}
           step={0.1}
           decimalPlaces={1}
-          className="w-36"
+          className="w-48"
         />
 
         <Input
@@ -44,7 +44,7 @@ export const NoteSpacing: FC<Props> = ({ layoutType }) => {
           min={0}
           step={0.01}
           decimalPlaces={2}
-          className="w-36"
+          className="w-48"
         />
 
         <Input
@@ -60,7 +60,7 @@ export const NoteSpacing: FC<Props> = ({ layoutType }) => {
           min={0}
           step={0.01}
           decimalPlaces={2}
-          className="w-36"
+          className="w-48"
         />
 
         <Input
@@ -75,7 +75,7 @@ export const NoteSpacing: FC<Props> = ({ layoutType }) => {
           min={1}
           step={0.01}
           decimalPlaces={2}
-          className="w-36"
+          className="w-48"
         />
       </div>
     </div>

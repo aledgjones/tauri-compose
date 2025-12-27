@@ -27,7 +27,7 @@ export const PageSettings: FC<Props> = ({ layoutType }) => {
             step={0.1}
             decimalPlaces={1}
             units="mm"
-            className="w-36"
+            className="w-48"
           />
         </div>
       </div>
@@ -50,7 +50,7 @@ export const PageSettings: FC<Props> = ({ layoutType }) => {
             step={1}
             decimalPlaces={0}
             units="mm"
-            className="w-36"
+            className="w-48"
           />
 
           <Input
@@ -66,7 +66,7 @@ export const PageSettings: FC<Props> = ({ layoutType }) => {
             step={1}
             decimalPlaces={0}
             units="mm"
-            className="w-36"
+            className="w-48"
           />
 
           <Input
@@ -83,7 +83,7 @@ export const PageSettings: FC<Props> = ({ layoutType }) => {
             step={1}
             decimalPlaces={0}
             units="mm"
-            className="w-36"
+            className="w-48"
           />
 
           <Input
@@ -99,7 +99,7 @@ export const PageSettings: FC<Props> = ({ layoutType }) => {
             step={1}
             decimalPlaces={0}
             units="mm"
-            className="w-36"
+            className="w-48"
           />
         </div>
       </div>
@@ -122,7 +122,7 @@ export const PageSettings: FC<Props> = ({ layoutType }) => {
             step={1}
             decimalPlaces={0}
             units="mm"
-            className="w-36"
+            className="w-48"
           />
 
           <Input
@@ -139,7 +139,7 @@ export const PageSettings: FC<Props> = ({ layoutType }) => {
             step={1}
             decimalPlaces={0}
             units="mm"
-            className="w-36"
+            className="w-48"
           />
         </div>
       </div>

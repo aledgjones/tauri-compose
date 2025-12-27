@@ -31,28 +31,33 @@ export const Menu = <T extends Key>({
         const isSelected = item.value === selection;
 
         return (
-          <div className="pb-1" key={item.value}>
+          <div key={item.value}>
             <button
               onClick={() => onSelect(item.value)}
-              className={classNames(" w-full text-left text-sm p-2", {
-                "bg-neutral-800 hover:bg-neutral-700 text-white": !isSelected,
-                "bg-sky-500 text-black": isSelected,
-              })}
+              className={classNames(
+                "border-l-4 w-full text-left text-sm p-2 text-white",
+                {
+                  "bg-neutral-800 hover:bg-neutral-700 border-transparent":
+                    !isSelected,
+                  "bg-neutral-700 border-sky-500": isSelected,
+                },
+              )}
             >
               {item.label}
             </button>
-            <div>
-              {isSelected &&
-                item.sections?.map((section) => (
+            {isSelected && item.sections && (
+              <div className="py-1">
+                {item.sections.map((section) => (
                   <button
                     key={section.value}
                     onClick={() => {}}
-                    className="w-full text-white text-sm text-left pl-2 pr-2 py-2 bg-sky-900"
+                    className="border-l-4 border-transparent w-full text-white text-sm text-left pl-2 pr-2 py-2"
                   >
                     {section.label}
                   </button>
                 ))}
-            </div>
+              </div>
+            )}
           </div>
         );
       })}
