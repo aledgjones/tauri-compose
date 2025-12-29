@@ -1,3 +1,55 @@
+## Release Notes for v0.16.0
+
+### 🏗️ Features
+- feat: upgrade deps
+- feat: settings
+- feat: init refactor
+- feat: zoom init
+- feat: panels
+- feat: mixer colouring
+- feat: compress files
+- feat: file actions
+- feat: initial tie setup
+- feat: add harpsichord
+- feat: fractionals
+- feat: further perf optimisations
+- feat: split sampler state
+- feat: mixer
+- feat: setup bottom panel tabs
+- feat: playback
+- feat: sampler
+- feat: sampler code
+- feat: cure rendering
+- feat: tails
+- feat: parrallel
+- feat: perf tracking and font cache
+- feat: minor cleanup
+### 🐞 Fixes
+- fix: grids
+- fix: menu style tweaks
+- fix: layout sequencer
+- fix: linting
+- fix: style tweaks
+- fix: channel tweaks
+- fix: lint warns
+- fix: deps
+- fix: unused var
+- fix: instrument ordering
+- fix: whole note rendering
+- fix: formatter run
+- fix: deserialse
+- fix: ts warnings
+- fix: play sample at correct time!
+- fix: json formatting
+- fix: formatting
+- fix: ledger lines
+- fix: clippy bippy
+- fix: bump deps and fix issues
+### 🪚 Maintainence
+- chore: bump versions
+- chore: bump deps
+
+
 ## Release Notes for v0.15.0
 
 ### 🏗️ Features
