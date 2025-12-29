@@ -24,6 +24,7 @@ import {
   useEffect,
   useState,
 } from "react";
+import { pxPerMm } from "../utils/mm";
 
 export const initialAppState: AppState = {
   ui: {
@@ -49,6 +50,7 @@ export const initialAppState: AppState = {
     },
     renderer: {
       zoom: 100,
+      pxPerMm: 3.78,
     },
   },
   score: {
@@ -186,7 +188,7 @@ export const AppStateProvider: FC<PropsWithChildren> = ({ children }) => {
         actions.reset().catch(console.error);
       });
 
-      await actions.initialize();
+      await actions.initialize(pxPerMm);
     })();
 
     return () => {

@@ -292,6 +292,7 @@ impl CanvasRenderer {
 
 pub struct Renderer {
     converter: Converter,
+    pub px_per_mm: f32,
     instructions: Vec<DrawInstruction>,
     width: f32,
     height: f32,
@@ -301,6 +302,7 @@ impl Renderer {
     pub fn new() -> Renderer {
         Renderer {
             converter: Converter::new(1.0, 1.0),
+            px_per_mm: 3.78,
             instructions: Vec::new(),
             width: 0.0,
             height: 0.0,

@@ -129,9 +129,16 @@ type RenderState = Mutex<Renderer>;
 
 const APP_NAME: &str = "Solo Compose";
 
-#[tauri::command]
-fn initialize(app: tauri::AppHandle, state: State<'_, AppState>) {
+#[tauri::command(rename_all = "snake_case")]
+fn initialize(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    renderer_state: State<'_, RenderState>,
+    px_per_mm: f32,
+) {
     let state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
+    renderer.px_per_mm = px_per_mm;
     state.emit(&app);
     state.emit_sampler(&app);
 }

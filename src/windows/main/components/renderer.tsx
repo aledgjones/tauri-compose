@@ -4,19 +4,6 @@ import { useAppState } from "../../../services/state";
 import { FC, useEffect, useRef, useState } from "react";
 import { DragScroll } from "../../../components/drag-scroll";
 
-const getMM = () => {
-  if (!document.body) return 3.78; // fallback for 96 DPI
-  const div = document.createElement("div");
-  div.style.position = "fixed";
-  div.style.width = "1mm";
-  document.body.appendChild(div);
-  const width = div.clientWidth;
-  document.body.removeChild(div);
-  return width || 3.78; // fallback if clientWidth is 0
-};
-
-export const pxPerMm = getMM();
-
 type Props = { className?: string };
 
 export const Renderer: FC<Props> = ({ className }) => {
@@ -40,11 +27,7 @@ export const Renderer: FC<Props> = ({ className }) => {
         return;
       }
 
-      const result = await actions.render(
-        state.ui.layout_id,
-        firstFlow,
-        pxPerMm,
-      );
+      const result = await actions.render(state.ui.layout_id, firstFlow);
 
       imageUrls.current.forEach((url) => {
         imageUrls.current.delete(url);

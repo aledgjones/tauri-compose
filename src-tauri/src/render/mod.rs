@@ -53,12 +53,12 @@ pub fn render(
     renderer_state: State<'_, RenderState>,
     layout_id: UniqueId,
     flow_id: UniqueId,
-    px_per_mm: f32,
 ) -> Response {
     let start = Instant::now();
     let parsing_start = Instant::now();
 
     let state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
 
     let flow = &state.score.flows.by_id[&flow_id];
     let flow_master = &state.score.tracks.by_id[&flow.master_id];
@@ -66,7 +66,7 @@ pub fn render(
     let instruments = state.get_instruments(layout, flow);
     let engrave = &state.score.engraves.by_layout_type[&layout.layout_type];
 
-    let converter = Converter::new(px_per_mm, engrave.space);
+    let converter = Converter::new(renderer.px_per_mm, engrave.space);
     let text_measurer = TextMeasurer::new(&converter);
 
     let vertical_spacing = get_vertical_spacing(flow, &instruments, engrave);
@@ -129,7 +129,6 @@ pub fn render(
     let height = page_padding.top + vertical_spacing.height + page_padding.bottom;
     let width = stave_left + horizontal_spacing.width + page_padding.right;
 
-    let mut renderer = renderer_state.lock().unwrap();
     renderer.clear_instructions();
     renderer.set_converter(converter);
     renderer.set_dimensions(width, height);

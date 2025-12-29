@@ -359,6 +359,7 @@ export type AppState = {
     };
     renderer: {
       zoom: number;
+      pxPerMm: number;
     };
   };
   score: {

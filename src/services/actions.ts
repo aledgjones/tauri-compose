@@ -24,17 +24,16 @@ import {
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 
 export const actions = {
-  initialize: () => {
-    return invoke("initialize");
+  initialize: (pxPerMm: number) => {
+    return invoke("initialize", { px_per_mm: pxPerMm });
   },
   reset: () => {
     return invoke("reset");
   },
-  render: (layout_id: UniqueId, flow_id: UniqueId, px_per_mm: number) => {
+  render: (layout_id: UniqueId, flow_id: UniqueId) => {
     return invoke<ArrayBuffer>("render", {
       layout_id,
       flow_id,
-      px_per_mm,
     });
   },
   pickAnInstrument: () => {
