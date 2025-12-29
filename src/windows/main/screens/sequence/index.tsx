@@ -3,6 +3,7 @@ import { useAppState } from "../../../../services/state";
 import { actions } from "../../../../services/actions";
 import { mdiChevronDown, mdiChevronUp } from "@mdi/js";
 import MdiIcon from "@mdi/react";
+import { NotFound } from "../../../../components/not-found";
 
 export const Sequence = () => {
   const state = useAppState();
@@ -17,10 +18,7 @@ export const Sequence = () => {
       >
         {/* Track Overview Placeholder - will show track overviews eventually */}
         <div className="bg-neutral-900 flex items-center justify-center text-neutral-400">
-          <div className="text-center">
-            <div className="text-lg font-medium mb-2">Track Overview</div>
-            <div className="text-sm">Coming Soon</div>
-          </div>
+          <NotFound />
         </div>
         {!minimized && <BottomPanel />}
       </div>

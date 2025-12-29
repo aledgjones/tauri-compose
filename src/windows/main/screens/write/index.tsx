@@ -15,7 +15,7 @@ export const Write = () => {
   return (
     <>
       <div
-        className="w-screen overflow-hidden p-2 grid grid-cols-[120px_1fr_120px] gap-2"
+        className="w-screen overflow-hidden p-2 grid grid-cols-[36px_1fr_36px] gap-2"
         style={{ gridTemplateRows }}
       >
         <div
