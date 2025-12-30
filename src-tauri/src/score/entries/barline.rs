@@ -4,6 +4,7 @@ use crate::score::components::measurements::BoundingBox;
 use crate::score::tracks::Track;
 use crate::utils::UniqueId;
 use crate::AppState;
+use crate::RenderState;
 use serde::Deserialize;
 use serde::Serialize;
 use serde_repr::Deserialize_repr;
@@ -98,6 +99,7 @@ impl Track {
 pub fn score_entries_barline_create(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
+    renderer_state: State<'_, RenderState>,
     flow_id: UniqueId,
     tick: Tick,
     barline_draw_type: BarlineDrawType,
@@ -107,6 +109,8 @@ pub fn score_entries_barline_create(
     }
 
     let mut state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
+
     let barline_id = state.generate_id();
 
     let flow = &state.score.flows.by_id[&flow_id];
@@ -122,7 +126,7 @@ pub fn score_entries_barline_create(
     let new = Barline::new(barline_id, tick, barline_draw_type);
     master.insert_entry(Entry::Barline(new));
 
-    state.emit(&app);
+    state.emit(&app, Some(&mut renderer));
 
     Some(barline_id)
 }
@@ -131,10 +135,12 @@ pub fn score_entries_barline_create(
 pub fn score_entries_barline_clear(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
+    renderer_state: State<'_, RenderState>,
     flow_id: UniqueId,
     tick: Tick,
 ) {
     let mut state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
 
     let flow = &state.score.flows.by_id[&flow_id];
     let master_id = flow.master_id;
@@ -144,5 +150,5 @@ pub fn score_entries_barline_clear(
         master.remove_entry(old.id);
     };
 
-    state.emit(&app);
+    state.emit(&app, Some(&mut renderer));
 }

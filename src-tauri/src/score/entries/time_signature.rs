@@ -4,6 +4,7 @@ use crate::score::components::measurements::BoundingBox;
 use crate::score::tracks::Track;
 use crate::utils::UniqueId;
 use crate::AppState;
+use crate::RenderState;
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use std::cmp::max;
@@ -255,6 +256,7 @@ impl Track {
 pub fn score_entries_time_signature_create(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
+    renderer_state: State<'_, RenderState>,
     flow_id: UniqueId,
     tick: Tick,
     beats: u8,
@@ -262,6 +264,8 @@ pub fn score_entries_time_signature_create(
     draw_type: TimeSignatureDrawType,
 ) -> Option<UniqueId> {
     let mut state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
+
     let time_signature_id = state.generate_id();
 
     let (flow_master_id, flow_length, flow_subdivisions) = {
@@ -315,7 +319,7 @@ pub fn score_entries_time_signature_create(
         }
     }
 
-    state.emit(&app);
+    state.emit(&app, Some(&mut renderer));
 
     Some(time_signature_id)
 }
@@ -324,6 +328,7 @@ pub fn score_entries_time_signature_create(
 pub fn score_entries_time_signature_clear(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
+    renderer_state: State<'_, RenderState>,
     flow_id: UniqueId,
     tick: Tick,
 ) {
@@ -332,6 +337,7 @@ pub fn score_entries_time_signature_clear(
     }
 
     let mut state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
 
     let flow = &state.score.flows.by_id[&flow_id];
     let master_id = flow.master_id;
@@ -341,5 +347,5 @@ pub fn score_entries_time_signature_clear(
         master.remove_entry(old.id);
     };
 
-    state.emit(&app);
+    state.emit(&app, Some(&mut renderer));
 }

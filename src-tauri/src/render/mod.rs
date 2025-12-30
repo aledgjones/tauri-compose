@@ -1,13 +1,19 @@
 mod draw;
 mod parse;
 
+use std::sync::Mutex;
+use std::time::Instant;
+use tauri::Emitter;
+use tauri::{ipc::Response, State};
+
 use crate::renderer::converter::Converter;
 use crate::renderer::text_measurer::TextMeasurer;
+use crate::renderer::Renderer;
 use crate::score::components::measurements::Point;
 use crate::score::entries::barline::BarlineDrawType;
 use crate::score::entries::clef::Clef;
 use crate::utils::UniqueId;
-use crate::{AppState, RenderState};
+use crate::AppStateInner;
 use draw::draw_accidentals::draw_accidental;
 use draw::draw_barline::draw_barline;
 use draw::draw_beam::draw_beam;
@@ -43,22 +49,22 @@ use parse::get_tone_offsets::get_tone_offsets;
 use parse::get_vertical_spacing::get_vertical_spacing;
 use parse::get_vertical_spans::get_vertical_spans;
 use parse::get_written_durations::get_written_durations;
-use std::time::Instant;
-use tauri::{ipc::Response, Emitter, State};
 
 #[tauri::command(rename_all = "snake_case")]
-pub fn render(
-    app: tauri::AppHandle,
-    state: State<'_, AppState>,
-    renderer_state: State<'_, RenderState>,
+pub fn get_render_data(renderer: State<'_, Mutex<Renderer>>) -> Response {
+    let mut renderer = renderer.lock().unwrap();
+    let data = renderer.data();
+    Response::new(data)
+}
+
+pub fn generate_render_instructions(
+    app: &tauri::AppHandle,
+    state: &AppStateInner,
+    renderer: &mut Renderer,
     layout_id: UniqueId,
     flow_id: UniqueId,
-) -> Response {
-    let start = Instant::now();
-    let parsing_start = Instant::now();
-
-    let state = state.lock().unwrap();
-    let mut renderer = renderer_state.lock().unwrap();
+) {
+    let total_start = Instant::now();
 
     let flow = &state.score.flows.by_id[&flow_id];
     let flow_master = &state.score.tracks.by_id[&flow.master_id];
@@ -69,18 +75,29 @@ pub fn render(
     let converter = Converter::new(renderer.px_per_mm, engrave.space);
     let text_measurer = TextMeasurer::new(&converter);
 
+    // Phase 1: Vertical spacing and spans
+    let vertical_start = Instant::now();
     let vertical_spacing = get_vertical_spacing(flow, &instruments, engrave);
     let vertical_spans = get_vertical_spans(&instruments, engrave);
+    let vertical_duration = vertical_start.elapsed();
 
+    // Phase 2: Basic layout calculations
+    let layout_start = Instant::now();
     let page_padding = engrave.page_padding.to_spaces(&engrave.space);
     let max_name_width = get_max_instrument_name_width(&instruments, engrave, &text_measurer);
     let max_bracket_width = get_max_brackets_width(&vertical_spacing, &vertical_spans, engrave);
+    let layout_duration = layout_start.elapsed();
 
+    // Phase 3: Score structure parsing
+    let structure_start = Instant::now();
     let measures = get_measures(flow, &state.score.tracks);
     let barlines = get_barlines(flow, &state.score.tracks, &measures);
     let key_signatures = get_key_signatures(flow, &state.score.tracks);
     let tone_offsets = get_tone_offsets(flow, &instruments, &state.score.tracks);
+    let structure_duration = structure_start.elapsed();
 
+    // Phase 4: Notation analysis
+    let notation_start = Instant::now();
     let notation_by_track = get_written_durations(
         flow,
         &instruments,
@@ -88,7 +105,10 @@ pub fn render(
         &measures,
         &tone_offsets,
     );
+    let notation_duration = notation_start.elapsed();
 
+    // Phase 5: Musical elements analysis
+    let elements_start = Instant::now();
     let beams_by_track = get_beams(flow, &notation_by_track, &measures);
     let stem_directions_by_track = get_stem_directions(&notation_by_track, &beams_by_track);
     let shunts_by_track =
@@ -102,7 +122,10 @@ pub fn render(
         &tone_offsets,
         &shunts_by_track,
     );
+    let elements_duration = elements_start.elapsed();
 
+    // Phase 6: Horizontal spacing
+    let spacing_start = Instant::now();
     let horizontal_spacing = get_horizontal_spacing(
         flow,
         &instruments,
@@ -114,7 +137,10 @@ pub fn render(
         &accidentals_by_track,
         engrave,
     );
+    let spacing_duration = spacing_start.elapsed();
 
+    // Phase 7: Stem lengths
+    let stems_start = Instant::now();
     let stem_lengths_by_track = get_stem_lengths(
         &notation_by_track,
         &stem_directions_by_track,
@@ -123,7 +149,10 @@ pub fn render(
         &horizontal_spacing,
         flow.subdivisions,
     );
+    let stems_duration = stems_start.elapsed();
 
+    // Phase 8: Setup and basic drawing
+    let setup_start = Instant::now();
     let stave_left =
         page_padding.left + max_name_width + engrave.instrument_name_spacing + max_bracket_width;
     let height = page_padding.top + vertical_spacing.height + page_padding.bottom;
@@ -141,7 +170,7 @@ pub fn render(
         &instruments,
         &vertical_spacing,
         engrave,
-        &mut renderer,
+        renderer,
     );
 
     draw_braces(
@@ -151,7 +180,7 @@ pub fn render(
         },
         &vertical_spans,
         &vertical_spacing,
-        &mut renderer,
+        renderer,
     );
 
     draw_brackets(
@@ -162,7 +191,7 @@ pub fn render(
         &vertical_spans,
         &vertical_spacing,
         engrave,
-        &mut renderer,
+        renderer,
     );
 
     draw_sub_brackets(
@@ -172,7 +201,7 @@ pub fn render(
         },
         &vertical_spans,
         &vertical_spacing,
-        &mut renderer,
+        renderer,
     );
 
     draw_systemic_barline(
@@ -182,7 +211,7 @@ pub fn render(
         },
         &vertical_spacing,
         engrave,
-        &mut renderer,
+        renderer,
     );
 
     draw_staves(
@@ -194,9 +223,12 @@ pub fn render(
         flow,
         &instruments,
         &vertical_spacing,
-        &mut renderer,
+        renderer,
     );
+    let setup_duration = setup_start.elapsed();
 
+    // Phase 9: Barlines
+    let barlines_start = Instant::now();
     for (tick, def) in barlines {
         if def.start_repeat {
             let span = horizontal_spacing.get(tick, Slot::StartRepeat);
@@ -208,7 +240,7 @@ pub fn render(
                 &BarlineDrawType::StartRepeat,
                 &vertical_spacing,
                 &vertical_spans,
-                &mut renderer,
+                renderer,
             );
         }
 
@@ -222,7 +254,7 @@ pub fn render(
                 &BarlineDrawType::EndRepeat,
                 &vertical_spacing,
                 &vertical_spans,
-                &mut renderer,
+                renderer,
             );
         }
 
@@ -236,7 +268,7 @@ pub fn render(
                 &draw_type,
                 &vertical_spacing,
                 &vertical_spans,
-                &mut renderer,
+                renderer,
             );
         }
     }
@@ -249,9 +281,12 @@ pub fn render(
         &BarlineDrawType::Final,
         &vertical_spacing,
         &vertical_spans,
-        &mut renderer,
+        renderer,
     );
+    let barlines_duration = barlines_start.elapsed();
 
+    // Phase 10: Stave contents (clefs, key signatures, time signatures, notes)
+    let stave_start = Instant::now();
     for instrument in &instruments {
         for stave_id in &instrument.stave_ids {
             let stave = &flow.staves.by_id[stave_id];
@@ -278,7 +313,7 @@ pub fn render(
                         },
                         &clef,
                         tick == 0,
-                        &mut renderer,
+                        renderer,
                     );
                 }
 
@@ -293,7 +328,7 @@ pub fn render(
                         &clef,
                         &def.key_signature,
                         def.negate,
-                        &mut renderer,
+                        renderer,
                     );
                 };
 
@@ -306,7 +341,7 @@ pub fn render(
                             y: stave_top,
                         },
                         def,
-                        &mut renderer,
+                        renderer,
                     )
                 }
             }
@@ -331,7 +366,7 @@ pub fn render(
                     &horizontal_spacing,
                     shunts,
                     &tone_offsets,
-                    &mut renderer,
+                    renderer,
                 );
 
                 // BEAMS
@@ -344,7 +379,7 @@ pub fn render(
                         beam,
                         stem_lengths,
                         stem_directions,
-                        &mut renderer,
+                        renderer,
                     );
                 }
 
@@ -370,7 +405,7 @@ pub fn render(
                             flow.subdivisions,
                             is_full_bar,
                             &horizontal_spacing,
-                            &mut renderer,
+                            renderer,
                         );
 
                         continue;
@@ -390,7 +425,7 @@ pub fn render(
                                 y: stave_top,
                             },
                             def,
-                            &mut renderer,
+                            renderer,
                         );
                     }
 
@@ -406,7 +441,7 @@ pub fn render(
                                 stem_dir,
                                 stem_len,
                                 flow,
-                                &mut renderer,
+                                renderer,
                             );
                         }
                     }
@@ -421,7 +456,7 @@ pub fn render(
                             tick_dots,
                             glyph_width,
                             has_post_shunt,
-                            &mut renderer,
+                            renderer,
                         );
                     }
 
@@ -439,7 +474,7 @@ pub fn render(
                             glyph,
                             glyph_width,
                             shunts,
-                            &mut renderer,
+                            renderer,
                         );
 
                         if let Some(accidental) = accidentals.by_id.get(&(*tick, tone.id)) {
@@ -450,7 +485,7 @@ pub fn render(
                                 },
                                 accidental,
                                 tone,
-                                &mut renderer,
+                                renderer,
                             );
                         }
                     }
@@ -465,28 +500,53 @@ pub fn render(
                             notation,
                             glyph_width,
                             shunts,
-                            &mut renderer,
+                            renderer,
                         );
                     }
                 }
             }
         }
     }
+    let stave_duration = stave_start.elapsed();
 
-    let parsing_duration = parsing_start.elapsed();
-    let drawing_start = Instant::now();
+    let total_duration = total_start.elapsed();
 
-    let data = renderer.data();
-
-    let drawing_duration = drawing_start.elapsed();
-    let duration = start.elapsed();
-
-    let timings = serde_json::json!({
-        "total_ms": duration.as_millis(),
-        "parsing_ms": parsing_duration.as_millis(),
-        "drawing_ms": drawing_duration.as_millis()
-    });
-    app.emit("render-timings", timings).unwrap();
-
-    Response::new(data)
+    // Emit timing events for each phase
+    app.emit(
+        "render-timing-vertical",
+        vertical_duration.as_millis() as u64,
+    )
+    .unwrap();
+    app.emit("render-timing-layout", layout_duration.as_millis() as u64)
+        .unwrap();
+    app.emit(
+        "render-timing-structure",
+        structure_duration.as_millis() as u64,
+    )
+    .unwrap();
+    app.emit(
+        "render-timing-notation",
+        notation_duration.as_millis() as u64,
+    )
+    .unwrap();
+    app.emit(
+        "render-timing-elements",
+        elements_duration.as_millis() as u64,
+    )
+    .unwrap();
+    app.emit("render-timing-spacing", spacing_duration.as_millis() as u64)
+        .unwrap();
+    app.emit("render-timing-stems", stems_duration.as_millis() as u64)
+        .unwrap();
+    app.emit("render-timing-setup", setup_duration.as_millis() as u64)
+        .unwrap();
+    app.emit(
+        "render-timing-barlines",
+        barlines_duration.as_millis() as u64,
+    )
+    .unwrap();
+    app.emit("render-timing-stave", stave_duration.as_millis() as u64)
+        .unwrap();
+    app.emit("render-timing-total", total_duration.as_millis() as u64)
+        .unwrap();
 }

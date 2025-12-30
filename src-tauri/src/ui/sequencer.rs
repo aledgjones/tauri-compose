@@ -48,7 +48,7 @@ pub fn ui_sequencer_instrument_set(
     let mut state = state.lock().unwrap();
     state.ui.sequencer.instrument = Some(id);
 
-    state.emit(&app);
+    state.emit(&app, None);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -56,14 +56,14 @@ pub fn ui_sequencer_track_set(app: tauri::AppHandle, state: State<'_, AppState>,
     let mut state = state.lock().unwrap();
     state.ui.sequencer.track = Some(id);
 
-    state.emit(&app);
+    state.emit(&app, None);
 }
 
 #[tauri::command(rename_all = "snake_case")]
 pub fn ui_sequencer_tool_set(app: tauri::AppHandle, state: State<'_, AppState>, tool: Tool) {
     let mut state = state.lock().unwrap();
     state.ui.sequencer.tool = tool;
-    state.emit(&app);
+    state.emit(&app, None);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -74,7 +74,7 @@ pub fn ui_sequencer_snap_set(
 ) {
     let mut state = state.lock().unwrap();
     state.ui.sequencer.snap = snap;
-    state.emit(&app);
+    state.emit(&app, None);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -82,5 +82,5 @@ pub fn ui_sequencer_coords_set(app: tauri::AppHandle, state: State<'_, AppState>
     let mut state = state.lock().unwrap();
     state.ui.sequencer.x = x;
     state.ui.sequencer.y = y;
-    state.emit(&app);
+    state.emit(&app, None);
 }

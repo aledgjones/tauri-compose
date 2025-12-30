@@ -4,6 +4,7 @@ use crate::score::flows::Flow;
 use crate::score::tracks::{Track, Tracks};
 use crate::utils::UniqueId;
 use crate::AppState;
+use crate::RenderState;
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use tauri::State;
@@ -104,6 +105,7 @@ impl Flow {
 pub fn score_entries_clef_create(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
+    renderer_state: State<'_, RenderState>,
     flow_id: UniqueId,
     stave_id: UniqueId,
     tick: Tick,
@@ -112,6 +114,8 @@ pub fn score_entries_clef_create(
     clef_draw_type: ClefDrawType,
 ) -> UniqueId {
     let mut state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
+
     let clef_id = state.generate_id();
 
     let flow = &state.score.flows.by_id[&flow_id];
@@ -134,7 +138,7 @@ pub fn score_entries_clef_create(
     );
     master.insert_entry(Entry::Clef(new));
 
-    state.emit(&app);
+    state.emit(&app, Some(&mut renderer));
 
     clef_id
 }
@@ -143,6 +147,7 @@ pub fn score_entries_clef_create(
 pub fn score_entries_clef_clear(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
+    renderer_state: State<'_, RenderState>,
     flow_id: UniqueId,
     stave_id: UniqueId,
     tick: Tick,
@@ -152,6 +157,7 @@ pub fn score_entries_clef_clear(
     }
 
     let mut state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
 
     let flow = &state.score.flows.by_id[&flow_id];
     let stave = &flow.staves.by_id[&stave_id];
@@ -162,5 +168,5 @@ pub fn score_entries_clef_clear(
         master.remove_entry(old.id);
     };
 
-    state.emit(&app);
+    state.emit(&app, Some(&mut renderer));
 }

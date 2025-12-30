@@ -5,6 +5,7 @@ use crate::score::components::pitch::{Accidental, Pitch};
 use crate::score::{components::duration::Tick, tracks::Track};
 use crate::utils::UniqueId;
 use crate::AppState;
+use crate::RenderState;
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
@@ -219,12 +220,15 @@ impl Track {
 pub fn score_entries_key_signature_create(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
+    renderer_state: State<'_, RenderState>,
     flow_id: UniqueId,
     tick: Tick,
     mode: KeySignatureMode,
     offset: i8,
 ) -> UniqueId {
     let mut state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
+
     let key_signature_id = state.generate_id();
 
     let flow = &state.score.flows.by_id[&flow_id];
@@ -240,7 +244,7 @@ pub fn score_entries_key_signature_create(
     let new = KeySignature::new(key_signature_id, tick, mode, offset);
     master.insert_entry(Entry::KeySignature(new));
 
-    state.emit(&app);
+    state.emit(&app, Some(&mut renderer));
 
     key_signature_id
 }
@@ -249,10 +253,12 @@ pub fn score_entries_key_signature_create(
 pub fn score_entries_key_signature_clear(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
+    renderer_state: State<'_, RenderState>,
     flow_id: UniqueId,
     tick: Tick,
 ) {
     let mut state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
 
     let flow = &state.score.flows.by_id[&flow_id];
     let master_id = flow.master_id;
@@ -262,5 +268,5 @@ pub fn score_entries_key_signature_clear(
         master.remove_entry(old.id);
     };
 
-    state.emit(&app);
+    state.emit(&app, Some(&mut renderer));
 }

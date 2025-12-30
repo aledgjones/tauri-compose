@@ -1,7 +1,10 @@
+use serde::{Deserialize, Serialize};
+
 pub type Px = f32;
 pub type Mm = f32;
 pub type Space = f32;
 
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Converter {
     pub px_per_mm: f32,
     pub mm_per_space: f32,

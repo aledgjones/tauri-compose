@@ -1,5 +1,5 @@
 use super::layouts::LayoutType;
-use crate::{utils::UniqueId, AppState};
+use crate::{utils::UniqueId, AppState, RenderState};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
@@ -48,9 +48,11 @@ impl Players {
 pub fn score_players_create(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
+    renderer_state: State<'_, RenderState>,
     player_type: PlayerType,
 ) -> UniqueId {
     let mut state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
 
     let player_id = state.generate_id();
     let player = Player::new(player_id, player_type);
@@ -69,7 +71,7 @@ pub fn score_players_create(
         }
     }
 
-    state.emit(&app);
+    state.emit(&app, Some(&mut renderer));
 
     player_id
 }
@@ -78,26 +80,30 @@ pub fn score_players_create(
 pub fn score_players_move(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
+    renderer_state: State<'_, RenderState>,
     from_index: usize,
     to_index: usize,
 ) {
     let mut state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
 
     let moved = state.score.players.order.remove(from_index);
     state.score.players.order.insert(to_index, moved);
 
     state.score.update_counts();
-    state.emit(&app);
+    state.emit(&app, Some(&mut renderer));
 }
 
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_players_assign_instrument(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
+    renderer_state: State<'_, RenderState>,
     player_id: UniqueId,
     instrument_id: UniqueId,
 ) {
     let mut state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
 
     let player = state.score.players.by_id.get_mut(&player_id).unwrap();
     player.instrument_ids.push(instrument_id);
@@ -110,17 +116,19 @@ pub fn score_players_assign_instrument(
     }
 
     state.score.update_counts();
-    state.emit(&app);
+    state.emit(&app, Some(&mut renderer));
 }
 
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_players_unassign_instrument(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
+    renderer_state: State<'_, RenderState>,
     player_id: UniqueId,
     instrument_id: UniqueId,
 ) {
     let mut state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
 
     let player = state.score.players.by_id.get_mut(&player_id).unwrap();
     player.instrument_ids.retain(|id| *id != instrument_id);
@@ -133,16 +141,18 @@ pub fn score_players_unassign_instrument(
     }
 
     state.score.update_counts();
-    state.emit(&app);
+    state.emit(&app, Some(&mut renderer));
 }
 
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_players_remove(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
+    renderer_state: State<'_, RenderState>,
     player_id: UniqueId,
 ) {
     let mut state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
 
     // remove player & instruments from flows
     for flow_id in state.score.flows.order.clone() {
@@ -176,6 +186,6 @@ pub fn score_players_remove(
     }
 
     state.score.update_counts();
-    state.emit(&app);
+    state.emit(&app, Some(&mut renderer));
     state.emit_sampler(&app);
 }

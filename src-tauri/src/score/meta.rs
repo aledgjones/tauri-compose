@@ -1,4 +1,4 @@
-use crate::{utils::now, AppState};
+use crate::{utils::now, AppState, RenderState};
 use serde::{Deserialize, Serialize};
 use tauri::State;
 
@@ -50,150 +50,226 @@ impl Meta {
 }
 
 #[tauri::command(rename_all = "snake_case")]
-pub fn score_meta_title_set(app: tauri::AppHandle, state: State<'_, AppState>, title: String) {
+pub fn score_meta_title_set(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    renderer_state: State<'_, RenderState>,
+    title: String,
+) {
     let mut state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
+
     state.score.meta.title = title;
-    state.emit(&app);
+
+    state.emit(&app, Some(&mut renderer));
 }
 
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_meta_subtitle_set(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
+    renderer_state: State<'_, RenderState>,
     subtitle: String,
 ) {
     let mut state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
+
     state.score.meta.subtitle = subtitle;
-    state.emit(&app);
+
+    state.emit(&app, Some(&mut renderer));
 }
 
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_meta_dedication_set(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
+    renderer_state: State<'_, RenderState>,
     dedication: String,
 ) {
     let mut state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
+
     state.score.meta.dedication = dedication;
-    state.emit(&app);
+
+    state.emit(&app, Some(&mut renderer));
 }
 
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_meta_composer_set(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
+    renderer_state: State<'_, RenderState>,
     composer: String,
 ) {
     let mut state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
+
     state.score.meta.composer = composer;
-    state.emit(&app);
+
+    state.emit(&app, Some(&mut renderer));
 }
 
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_meta_arranger_set(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
+    renderer_state: State<'_, RenderState>,
     arranger: String,
 ) {
     let mut state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
+
     state.score.meta.arranger = arranger;
-    state.emit(&app);
+
+    state.emit(&app, Some(&mut renderer));
 }
 
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_meta_lyricist_set(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
+    renderer_state: State<'_, RenderState>,
     lyricist: String,
 ) {
     let mut state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
+
     state.score.meta.lyricist = lyricist;
-    state.emit(&app);
+
+    state.emit(&app, Some(&mut renderer));
 }
 
 #[tauri::command(rename_all = "snake_case")]
-pub fn score_meta_artist_set(app: tauri::AppHandle, state: State<'_, AppState>, artist: String) {
+pub fn score_meta_artist_set(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    renderer_state: State<'_, RenderState>,
+    artist: String,
+) {
     let mut state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
+
     state.score.meta.artist = artist;
-    state.emit(&app);
+
+    state.emit(&app, Some(&mut renderer));
 }
 
 #[tauri::command(rename_all = "snake_case")]
-pub fn score_meta_copyist_set(app: tauri::AppHandle, state: State<'_, AppState>, copyist: String) {
+pub fn score_meta_copyist_set(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    renderer_state: State<'_, RenderState>,
+    copyist: String,
+) {
     let mut state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
+
     state.score.meta.copyist = copyist;
-    state.emit(&app);
+
+    state.emit(&app, Some(&mut renderer));
 }
 
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_meta_publisher_set(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
+    renderer_state: State<'_, RenderState>,
     publisher: String,
 ) {
     let mut state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
+
     state.score.meta.publisher = publisher;
-    state.emit(&app);
+
+    state.emit(&app, Some(&mut renderer));
 }
 
 #[tauri::command(rename_all = "snake_case")]
-pub fn score_meta_editor_set(app: tauri::AppHandle, state: State<'_, AppState>, editor: String) {
+pub fn score_meta_editor_set(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    renderer_state: State<'_, RenderState>,
+    editor: String,
+) {
     let mut state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
+
     state.score.meta.editor = editor;
-    state.emit(&app);
+
+    state.emit(&app, Some(&mut renderer));
 }
 
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_meta_copyright_set(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
+    renderer_state: State<'_, RenderState>,
     copyright: String,
 ) {
     let mut state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
+
     state.score.meta.copyright = copyright;
-    state.emit(&app);
+
+    state.emit(&app, Some(&mut renderer));
 }
 
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_meta_work_number_set(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
+    renderer_state: State<'_, RenderState>,
     work_number: String,
 ) {
     let mut state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
+
     state.score.meta.work_number = work_number;
-    state.emit(&app);
+
+    state.emit(&app, Some(&mut renderer));
 }
 
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_meta_composition_year_set(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
+    renderer_state: State<'_, RenderState>,
     composition_year: String,
 ) {
     let mut state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
+
     state.score.meta.composition_year = composition_year;
-    state.emit(&app);
+
+    state.emit(&app, Some(&mut renderer));
 }
 
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_meta_composer_dates_set(
     app: tauri::AppHandle,
+    renderer_state: State<'_, RenderState>,
     state: State<'_, AppState>,
     composer_dates: String,
 ) {
     let mut state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
+
     state.score.meta.composer_dates = composer_dates;
-    state.emit(&app);
+
+    state.emit(&app, Some(&mut renderer));
 }
 
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_meta_other_information_set(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
+    renderer_state: State<'_, RenderState>,
     other_information: String,
 ) {
     let mut state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
+
     state.score.meta.other_information = other_information;
-    state.emit(&app);
+
+    state.emit(&app, Some(&mut renderer));
 }

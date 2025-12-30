@@ -3,7 +3,7 @@ pub mod defs;
 use super::{config::AutoCountStyle, Score};
 use crate::sampler::SamplerInstrument;
 use crate::utils::UniqueId;
-use crate::{score::players::PlayerType, AppState};
+use crate::{score::players::PlayerType, AppState, RenderState};
 use defs::{get_instrument_definition, InstrumentType};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
@@ -107,6 +107,7 @@ impl Score {
 pub fn score_instruments_create(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
+    renderer_state: State<'_, RenderState>,
     definition_id: String,
 ) -> UniqueId {
     let mut state = state.lock().unwrap();
@@ -146,7 +147,8 @@ pub fn score_instruments_create(
         },
     );
 
-    state.emit(&app);
+    let mut renderer = renderer_state.lock().unwrap();
+    state.emit(&app, Some(&mut renderer));
     state.emit_sampler(&app);
 
     instrument_id
@@ -156,6 +158,7 @@ pub fn score_instruments_create(
 pub fn score_instruments_move(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
+    renderer_state: State<'_, RenderState>,
     from_index: usize,
     to_index: usize,
     from_player_id: UniqueId,
@@ -197,13 +200,15 @@ pub fn score_instruments_move(
     }
 
     state.score.update_counts();
-    state.emit(&app);
+    let mut renderer = renderer_state.lock().unwrap();
+    state.emit(&app, Some(&mut renderer));
 }
 
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_instruments_remove(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
+    renderer_state: State<'_, RenderState>,
     instrument_id: UniqueId,
 ) {
     let mut state = state.lock().unwrap();
@@ -211,7 +216,8 @@ pub fn score_instruments_remove(
     state.score.instruments.by_id.remove(&instrument_id);
     state.sampler.remove(&instrument_id);
 
-    state.emit(&app);
+    let mut renderer = renderer_state.lock().unwrap();
+    state.emit(&app, Some(&mut renderer));
     state.emit_sampler(&app);
 }
 

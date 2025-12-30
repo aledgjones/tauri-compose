@@ -1,4 +1,5 @@
 use crate::AppState;
+use crate::RenderState;
 use flate2::{read::GzDecoder, write::GzEncoder, Compression};
 use serde_json;
 use std::fs;
@@ -44,6 +45,7 @@ pub fn save_project_to_file(
 pub fn load_project_from_file(
     app: AppHandle,
     state: State<'_, AppState>,
+    renderer_state: State<'_, RenderState>,
     file_path: String,
 ) -> Result<(), String> {
     // Read the file
@@ -61,6 +63,7 @@ pub fn load_project_from_file(
         .map_err(|e| format!("Failed to parse project data: {}", e))?;
 
     let mut state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
 
     // Load UI state if present
     if let Some(ui_data) = project_data.get("ui") {
@@ -91,7 +94,7 @@ pub fn load_project_from_file(
     }
 
     // Emit the updated state
-    state.emit(&app);
+    state.emit(&app, Some(&mut renderer));
     state.emit_sampler(&app);
 
     Ok(())

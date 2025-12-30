@@ -1,4 +1,4 @@
-use crate::{utils::UniqueId, AppState, AppStateInner};
+use crate::{utils::UniqueId, AppState, AppStateInner, RenderState};
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
@@ -80,9 +80,11 @@ impl AppStateInner {
 pub fn score_layouts_create(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
+    renderer_state: State<'_, RenderState>,
     layout_type: LayoutType,
 ) -> UniqueId {
     let mut state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
 
     let layout_id = state.generate_id();
     let layout = Layout::new(layout_id, layout_type);
@@ -100,7 +102,7 @@ pub fn score_layouts_create(
         }
     }
 
-    state.emit(&app);
+    state.emit(&app, Some(&mut renderer));
 
     layout_id
 }
@@ -109,95 +111,109 @@ pub fn score_layouts_create(
 pub fn score_layouts_rename(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
+    renderer_state: State<'_, RenderState>,
     layout_id: UniqueId,
     title: String,
 ) {
     let mut state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
 
     let layout = state.score.layouts.by_id.get_mut(&layout_id).unwrap();
     layout.title = title;
 
-    state.emit(&app);
+    state.emit(&app, Some(&mut renderer));
 }
 
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_layouts_assign_player(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
+    renderer_state: State<'_, RenderState>,
     layout_id: UniqueId,
     player_id: UniqueId,
 ) {
     let mut state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
 
     state.assign_player_to_layout(layout_id, player_id);
 
-    state.emit(&app);
+    state.emit(&app, Some(&mut renderer));
 }
 
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_layouts_unassign_player(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
+    renderer_state: State<'_, RenderState>,
     layout_id: UniqueId,
     player_id: UniqueId,
 ) {
     let mut state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
 
     state.unassign_player_from_layout(layout_id, player_id);
 
-    state.emit(&app);
+    state.emit(&app, Some(&mut renderer));
 }
 
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_layouts_assign_flow(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
+    renderer_state: State<'_, RenderState>,
     layout_id: UniqueId,
     player_id: UniqueId,
 ) {
     let mut state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
 
     state.assign_flow_to_layout(layout_id, player_id);
 
-    state.emit(&app);
+    state.emit(&app, Some(&mut renderer));
 }
 
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_layouts_unassign_flow(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
+    renderer_state: State<'_, RenderState>,
     layout_id: UniqueId,
     player_id: UniqueId,
 ) {
     let mut state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
 
     state.unassign_flow_from_layout(layout_id, player_id);
 
-    state.emit(&app);
+    state.emit(&app, Some(&mut renderer));
 }
 
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_layouts_move(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
+    renderer_state: State<'_, RenderState>,
     from_index: usize,
     to_index: usize,
 ) {
     let mut state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
 
     let moved = state.score.layouts.order.remove(from_index);
     state.score.layouts.order.insert(to_index, moved);
 
-    state.emit(&app);
+    state.emit(&app, Some(&mut renderer));
 }
 
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_layouts_remove(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
+    renderer_state: State<'_, RenderState>,
     layout_id: UniqueId,
 ) {
     let mut state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
 
     state.score.layouts.order.retain(|id| *id != layout_id);
     state.score.layouts.by_id.remove(&layout_id);
@@ -205,5 +221,5 @@ pub fn score_layouts_remove(
     state.ui.setup.expanded.remove(&layout_id);
     state.ui.setup.selection = None;
 
-    state.emit(&app);
+    state.emit(&app, Some(&mut renderer));
 }

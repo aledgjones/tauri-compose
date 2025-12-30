@@ -36,6 +36,9 @@ export const actions = {
       flow_id,
     });
   },
+  getRenderData: () => {
+    return invoke<ArrayBuffer>("get_render_data");
+  },
   pickAnInstrument: () => {
     return new Promise<string | null>(async (resolve) => {
       const webview = new WebviewWindow("instrument-picker", {

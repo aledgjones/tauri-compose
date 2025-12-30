@@ -5,7 +5,8 @@ mod score;
 mod ui;
 mod utils;
 
-use render::render;
+use render::generate_render_instructions;
+use render::get_render_data;
 use renderer::Renderer;
 use sampler::Sampler;
 use score::config::{
@@ -104,7 +105,19 @@ impl AppStateInner {
         })
     }
 
-    fn emit(&self, app: &tauri::AppHandle) {
+    fn emit(&self, app: &tauri::AppHandle, renderer: Option<&mut Renderer>) {
+        if let Some(renderer) = renderer {
+            if let Some(first_flow_id) = self.score.flows.order.first() {
+                generate_render_instructions(
+                    app,
+                    self,
+                    renderer,
+                    self.ui.layout_id,
+                    *first_flow_id,
+                );
+            };
+        }
+
         let general_state = AppStateGeneral {
             ui: self.ui.clone(),
             score: self.score.clone(),
@@ -139,18 +152,24 @@ fn initialize(
     let state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
     renderer.px_per_mm = px_per_mm;
-    state.emit(&app);
+    state.emit(&app, Some(&mut renderer));
     state.emit_sampler(&app);
 }
 
 #[tauri::command(rename_all = "snake_case")]
-fn reset(app: tauri::AppHandle, state: State<'_, AppState>) {
+fn reset(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    renderer_state: State<'_, RenderState>,
+) {
     let mut state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
+
     state.ui = Ui::new();
     state.score = Score::new();
     state.sampler = Sampler::default();
     state.next_id = 1;
-    state.emit(&app);
+    state.emit(&app, Some(&mut renderer));
     state.emit_sampler(&app);
 }
 
@@ -244,7 +263,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             initialize,
             reset,
-            render,
+            get_render_data,
             save_project_to_file,
             load_project_from_file,
             score_config_auto_count_styles_solo_set,

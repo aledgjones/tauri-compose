@@ -4,6 +4,7 @@ pub mod sequencer;
 pub mod setup;
 pub mod write;
 
+use crate::RenderState;
 use crate::{utils::UniqueId, AppState};
 use renderer::Renderer;
 use sequence::Sequence;
@@ -54,12 +55,19 @@ impl Ui {
 pub fn ui_tab_set(app: tauri::AppHandle, state: State<'_, AppState>, tab: Tab) {
     let mut state = state.lock().unwrap();
     state.ui.tab = tab;
-    state.emit(&app);
+    state.emit(&app, None);
 }
 
 #[tauri::command(rename_all = "snake_case")]
-pub fn ui_layout_id_set(app: tauri::AppHandle, state: State<'_, AppState>, layout_id: UniqueId) {
+pub fn ui_layout_id_set(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    renderer_state: State<'_, RenderState>,
+    layout_id: UniqueId,
+) {
     let mut state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
+
     state.ui.layout_id = layout_id;
-    state.emit(&app);
+    state.emit(&app, Some(&mut renderer));
 }

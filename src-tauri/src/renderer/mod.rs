@@ -290,6 +290,7 @@ impl CanvasRenderer {
     }
 }
 
+#[derive(Clone)]
 pub struct Renderer {
     converter: Converter,
     pub px_per_mm: f32,
@@ -428,5 +429,11 @@ impl Renderer {
         }
 
         renderer.encode()
+    }
+}
+
+impl Default for Renderer {
+    fn default() -> Self {
+        Self::new()
     }
 }

@@ -7,6 +7,7 @@ use crate::score::components::velocity::Velocity;
 use crate::score::tracks::Track;
 use crate::utils::UniqueId;
 use crate::AppState;
+use crate::RenderState;
 use serde::{Deserialize, Serialize};
 use tauri::State;
 
@@ -67,6 +68,7 @@ impl Track {
 pub fn score_entries_tone_create(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
+    renderer_state: State<'_, RenderState>,
     track_id: UniqueId,
     tick: Tick,
     duration: Ticks,
@@ -76,6 +78,7 @@ pub fn score_entries_tone_create(
     articulation: Articulation,
 ) -> UniqueId {
     let mut state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
 
     let tone_id = state.generate_id();
 
@@ -101,7 +104,7 @@ pub fn score_entries_tone_create(
         articulation,
     )));
 
-    state.emit(&app);
+    state.emit(&app, Some(&mut renderer));
 
     tone_id
 }
@@ -110,11 +113,13 @@ pub fn score_entries_tone_create(
 pub fn score_entries_tone_duration_set(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
+    renderer_state: State<'_, RenderState>,
     track_id: UniqueId,
     tone_id: UniqueId,
     duration: Ticks,
 ) {
     let mut state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
 
     let track = state.score.tracks.by_id.get_mut(&track_id).unwrap();
     let entry = track.entries.by_id.get_mut(&tone_id).unwrap();
@@ -122,20 +127,22 @@ pub fn score_entries_tone_duration_set(
         tone.duration = duration;
     }
 
-    state.emit(&app);
+    state.emit(&app, Some(&mut renderer));
 }
 
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_entries_tone_duration_remove(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
+    renderer_state: State<'_, RenderState>,
     track_id: UniqueId,
     tone_id: UniqueId,
 ) {
     let mut state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
 
     let track = state.score.tracks.by_id.get_mut(&track_id).unwrap();
     track.remove_entry(tone_id);
 
-    state.emit(&app);
+    state.emit(&app, Some(&mut renderer));
 }

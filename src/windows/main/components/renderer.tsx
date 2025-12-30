@@ -27,7 +27,9 @@ export const Renderer: FC<Props> = ({ className }) => {
         return;
       }
 
-      const result = await actions.render(state.ui.layout_id, firstFlow);
+      const t1 = performance.now();
+      const result = await actions.getRenderData();
+      console.log(`Render took ${performance.now() - t1} ms`);
 
       imageUrls.current.forEach((url) => {
         imageUrls.current.delete(url);

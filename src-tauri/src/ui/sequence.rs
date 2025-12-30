@@ -41,7 +41,7 @@ pub fn ui_sequence_bottom_panel_minimized_toggle(
     let mut state = state.lock().unwrap();
     state.ui.sequence.bottom_panel_minimized = !state.ui.sequence.bottom_panel_minimized;
 
-    state.emit(&app);
+    state.emit(&app, None);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -53,5 +53,5 @@ pub fn ui_sequence_bottom_panel_tab_set(
     let mut state = state.lock().unwrap();
     state.ui.sequence.bottom_panel_tab = tab;
 
-    state.emit(&app);
+    state.emit(&app, None);
 }

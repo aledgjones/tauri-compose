@@ -50,7 +50,7 @@ pub fn ui_setup_selection_set(
     let mut state = state.lock().unwrap();
     state.ui.setup.selection = Some(Selection { id, selection_type });
 
-    state.emit(&app);
+    state.emit(&app, None);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -58,7 +58,7 @@ pub fn ui_setup_selection_clear(app: tauri::AppHandle, state: State<'_, AppState
     let mut state = state.lock().unwrap();
     state.ui.setup.selection = None;
 
-    state.emit(&app);
+    state.emit(&app, None);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -66,7 +66,7 @@ pub fn ui_setup_expanded_insert(app: tauri::AppHandle, state: State<'_, AppState
     let mut state = state.lock().unwrap();
     state.ui.setup.expanded.insert(id);
 
-    state.emit(&app);
+    state.emit(&app, None);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -74,5 +74,5 @@ pub fn ui_setup_expanded_remove(app: tauri::AppHandle, state: State<'_, AppState
     let mut state = state.lock().unwrap();
     state.ui.setup.expanded.remove(&id);
 
-    state.emit(&app);
+    state.emit(&app, None);
 }

@@ -16,6 +16,7 @@ import {
 } from "../../services/popovers";
 import { Flow, UniqueId } from "../../services/types";
 import { chromeDark, ObjectInspector } from "react-inspector";
+import classNames from "classnames";
 
 const POPOVERS: SelectOption<PopoverType>[] = [
   { value: "barline", label: "Barline" },
@@ -39,18 +40,53 @@ export const Main = () => {
   const [popover, setPopover] = useState("");
   const [instrumentId, setInstrumentId] = useState<UniqueId>(-1);
   const [staveId, setStaveId] = useState<UniqueId>(-1);
-  const [renderTimings, setRenderTimings] = useState<{
-    total_ms: number;
-    parsing_ms: number;
-    drawing_ms: number;
-  } | null>(null);
+  const [renderTimings, setRenderTimings] = useState<Array<{
+    ms: number;
+    description: string;
+  }> | null>(null);
 
   useEffect(() => {
-    const unlisten = listen("render-timings", (event) => {
-      setRenderTimings(event.payload as any);
-    });
+    const timingDescriptions: Record<string, string> = {
+      "render-timing-vertical": "Vertical spacing and spans",
+      "render-timing-layout": "Layout calculations (padding, names, brackets)",
+      "render-timing-structure":
+        "Score structure parsing (measures, barlines, key signatures)",
+      "render-timing-notation": "Written durations analysis",
+      "render-timing-elements":
+        "Musical elements (beams, stems, accidentals, dots)",
+      "render-timing-spacing": "Horizontal spacing calculations",
+      "render-timing-stems": "Stem length determinations",
+      "render-timing-setup":
+        "Basic drawing setup (names, braces, brackets, staves)",
+      "render-timing-barlines": "Barline rendering",
+      "render-timing-stave": "Stave contents (clefs, signatures, notes)",
+      "render-timing-total": "Complete render cycle",
+    };
+
+    const timingEvents = Object.keys(timingDescriptions);
+    const currentTimings: Record<string, number> = {};
+
+    const unlisteners = timingEvents.map((eventName) =>
+      listen(eventName, (event) => {
+        const duration = event.payload as number;
+        currentTimings[eventName] = duration;
+
+        // Create array of timing objects
+        const timingsArray = timingEvents
+          .filter((event) => currentTimings[event] !== undefined)
+          .map((event) => ({
+            ms: currentTimings[event],
+            description: timingDescriptions[event],
+          }));
+
+        setRenderTimings(timingsArray);
+      }),
+    );
+
     return () => {
-      unlisten.then((fn) => fn());
+      unlisteners.forEach((unlisten) => {
+        unlisten.then((fn) => fn());
+      });
     };
   }, []);
 
@@ -147,13 +183,31 @@ export const Main = () => {
     <div className="h-dvh bg-neutral-950 grid grid-rows-[28px_auto_1fr_2fr] gap-2 overflow-hidden">
       <AppBar title="Debugger" filename={state.score.meta.title} />
 
-      <div className="bg-neutral-900 p-2 mx-2 rounded">
-        <label className="text-xs text-neutral-400">Render Timings</label>
-        <pre className="text-white text-xs mb-2">
-          total: {renderTimings?.total_ms || 0} ms | parsing:{" "}
-          {renderTimings?.parsing_ms || 0} ms | drawing:{" "}
-          {renderTimings?.drawing_ms || 0} ms
-        </pre>
+      <div className="bg-neutral-900 p-2 mx-2">
+        <label className="text-xs text-neutral-400 mb-2 block">
+          Render Timings
+        </label>
+        <div className="">
+          {renderTimings?.map((timing, index) => (
+            <div className="flex items-center" key={index}>
+              <span className="text-xs text-neutral-400">
+                {timing.description}
+              </span>
+              <span className="flex-1 h-0.5 bg-neutral-800 mx-2" />
+              <span
+                className={classNames("text-xs font-mono", {
+                  "text-red-500": timing.ms > 50,
+                  "text-yellow-500": timing.ms > 20 && timing.ms <= 50,
+                  "text-green-500": timing.ms <= 20,
+                })}
+              >
+                {timing.ms}ms
+              </span>
+            </div>
+          )) || (
+            <div className="text-xs text-neutral-500">No timing data yet</div>
+          )}
+        </div>
       </div>
 
       <div className="bg-neutral-900 p-2 overflow-auto mx-2">

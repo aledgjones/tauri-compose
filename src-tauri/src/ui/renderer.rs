@@ -17,5 +17,5 @@ impl Renderer {
 pub fn ui_renderer_zoom_set(app: tauri::AppHandle, state: State<'_, AppState>, zoom: i32) {
     let mut state = state.lock().unwrap();
     state.ui.renderer.zoom = zoom;
-    state.emit(&app);
+    state.emit(&app, None);
 }
