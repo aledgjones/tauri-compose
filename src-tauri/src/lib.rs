@@ -143,6 +143,7 @@ impl AppStateInner {
             score: self.score.clone(),
             next_id: self.next_id,
         };
+
         if let Err(e) = app.emit("soloc://state/general", general_state) {
             eprintln!("Failed to emit general state: {:?}", e);
         }
