@@ -83,6 +83,7 @@ impl Notation {
     }
 
     // TODO: make this more accurate for whole notes
+    #[allow(clippy::if_same_then_else)]
     pub fn glyph_metrics(&self) -> BoundingBox {
         if self.is_rest() {
             BoundingBox {
@@ -138,10 +139,6 @@ impl Notation {
     pub fn is_dotted(&self, subdivisions: Ticks) -> bool {
         !Notation::is_writable(self.duration, subdivisions)
             && self.base_duration(subdivisions).is_some()
-    }
-
-    pub fn is_tied(&self) -> bool {
-        !self.ties.is_empty()
     }
 
     pub fn has_pre_shunt(&self, shunts: &Shunts) -> bool {
@@ -283,13 +280,6 @@ impl NotationTrack {
     pub fn is_tick_rest(&self, tick: Tick) -> bool {
         match self.track.get(&tick) {
             Some(entry) => entry.is_rest(),
-            None => false,
-        }
-    }
-
-    pub fn is_tick_tied(&self, tick: Tick) -> bool {
-        match self.track.get(&tick) {
-            Some(entry) => entry.is_tied(),
             None => false,
         }
     }

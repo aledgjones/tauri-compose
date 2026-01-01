@@ -140,18 +140,6 @@ impl TimeSignature {
         self.beat_type.to_ticks(subdivisions) * (self.beats as Ticks)
     }
 
-    /// Returns how far away the tick is from the nearest barline
-    pub fn distance_from_barline(&self, tick: Tick, subdivisions: Ticks) -> Ticks {
-        match self.kind() {
-            TimeSignatureType::Open => tick - self.tick,
-            _ => (tick - self.tick) % self.ticks_per_bar(subdivisions),
-        }
-    }
-
-    pub fn is_on_first_beat(&self, tick: Tick, subdivisions: Ticks) -> bool {
-        self.distance_from_barline(tick, subdivisions) == 0
-    }
-
     // Returns true if the tick is on a beat
     pub fn is_on_beat(&self, tick: Tick, subdivisions: Ticks) -> bool {
         self.is_on_beat_type(tick, &self.beat_type, subdivisions)

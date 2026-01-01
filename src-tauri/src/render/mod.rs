@@ -1,14 +1,11 @@
 mod draw;
 mod parse;
 
-use std::sync::Mutex;
 use std::time::Instant;
 use tauri::Emitter;
-use tauri::State;
 
 use crate::renderer::converter::Converter;
 use crate::renderer::text_measurer::TextMeasurer;
-use crate::renderer::DrawInstruction;
 use crate::renderer::Renderer;
 use crate::score::components::measurements::Point;
 use crate::score::entries::barline::BarlineDrawType;

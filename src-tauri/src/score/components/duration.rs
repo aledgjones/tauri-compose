@@ -83,19 +83,6 @@ impl NoteDuration {
         }
     }
 
-    pub fn to_glyph(&self) -> &str {
-        match self {
-            NoteDuration::Whole => "\u{1D15D}",
-            NoteDuration::Half => "\u{1D15E}",
-            NoteDuration::Quarter => "\u{1D15F}",
-            NoteDuration::Eighth => "\u{1D160}",
-            NoteDuration::Sixteenth => "\u{1D161}",
-            NoteDuration::ThirtySecond => "\u{1D162}",
-            NoteDuration::SixtyFourth => "\u{1D162}",
-            NoteDuration::HudredTwentyEighth => "\u{1D162}",
-        }
-    }
-
     pub fn to_flag_glyph(&self, stem_direction: &Direction) -> &str {
         match stem_direction {
             Direction::Up => match self {

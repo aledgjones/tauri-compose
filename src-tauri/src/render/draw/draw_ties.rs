@@ -164,6 +164,7 @@ fn stop_x(
     before_note
 }
 
+#[allow(clippy::too_many_arguments)]
 fn tie_points_x(
     x: f32,
     start: &Notation,
@@ -213,6 +214,7 @@ fn tie_points_x(
     [start_x, middle_x, stop_x]
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn draw_tie(
     origin: &Point,
     tone_id: &UniqueId,

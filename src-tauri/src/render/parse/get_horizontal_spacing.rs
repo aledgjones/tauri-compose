@@ -32,22 +32,6 @@ impl Slot {
     pub fn count() -> usize {
         Slot::NoteSpacing as usize + 1
     }
-
-    pub fn from_usize(value: usize) -> Self {
-        match value {
-            0 => Slot::PaddingStart,
-            1 => Slot::EndRepeat,
-            2 => Slot::Clef,
-            3 => Slot::Barline,
-            4 => Slot::KeySignature,
-            5 => Slot::TimeSignature,
-            6 => Slot::StartRepeat,
-            7 => Slot::Accidentals,
-            8 => Slot::PreNote,
-            9 => Slot::NoteSpacing,
-            _ => Slot::PaddingStart,
-        }
-    }
 }
 
 #[derive(Clone)]
