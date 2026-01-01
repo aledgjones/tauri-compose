@@ -104,7 +104,7 @@ pub fn score_entries_tone_create(
         articulation,
     )));
 
-    state.emit(&app, Some(&mut renderer));
+    state.emit(&app, &mut renderer, true);
 
     tone_id
 }
@@ -127,7 +127,7 @@ pub fn score_entries_tone_duration_set(
         tone.duration = duration;
     }
 
-    state.emit(&app, Some(&mut renderer));
+    state.emit(&app, &mut renderer, true);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -144,5 +144,5 @@ pub fn score_entries_tone_duration_remove(
     let track = state.score.tracks.by_id.get_mut(&track_id).unwrap();
     track.remove_entry(tone_id);
 
-    state.emit(&app, Some(&mut renderer));
+    state.emit(&app, &mut renderer, true);
 }

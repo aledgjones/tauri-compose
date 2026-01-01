@@ -148,7 +148,7 @@ pub fn score_instruments_create(
     );
 
     let mut renderer = renderer_state.lock().unwrap();
-    state.emit(&app, Some(&mut renderer));
+    state.emit(&app, &mut renderer, true);
     state.emit_sampler(&app);
 
     instrument_id
@@ -201,7 +201,7 @@ pub fn score_instruments_move(
 
     state.score.update_counts();
     let mut renderer = renderer_state.lock().unwrap();
-    state.emit(&app, Some(&mut renderer));
+    state.emit(&app, &mut renderer, true);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -217,7 +217,7 @@ pub fn score_instruments_remove(
     state.sampler.remove(&instrument_id);
 
     let mut renderer = renderer_state.lock().unwrap();
-    state.emit(&app, Some(&mut renderer));
+    state.emit(&app, &mut renderer, true);
     state.emit_sampler(&app);
 }
 

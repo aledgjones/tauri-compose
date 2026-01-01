@@ -149,7 +149,7 @@ pub fn score_engraves_systemic_barline_single_instrument_system_set(
         .unwrap();
     config.systemic_barline_single_instrument_system = value;
 
-    state.emit(&app, Some(&mut renderer));
+    state.emit(&app, &mut renderer, true);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -171,7 +171,7 @@ pub fn score_engraves_bracketing_approach_set(
         .unwrap();
     config.bracketing_approach = value;
 
-    state.emit(&app, Some(&mut renderer));
+    state.emit(&app, &mut renderer, true);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -193,7 +193,7 @@ pub fn score_engraves_bracket_style_set(
         .unwrap();
     config.bracket_style = value;
 
-    state.emit(&app, Some(&mut renderer));
+    state.emit(&app, &mut renderer, true);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -215,7 +215,7 @@ pub fn score_engraves_bracket_single_staves_set(
         .unwrap();
     config.bracket_single_staves = value;
 
-    state.emit(&app, Some(&mut renderer));
+    state.emit(&app, &mut renderer, true);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -237,7 +237,7 @@ pub fn score_engraves_base_note_space_set(
         .unwrap();
     config.base_note_space = value;
 
-    state.emit(&app, Some(&mut renderer));
+    state.emit(&app, &mut renderer, true);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -259,7 +259,7 @@ pub fn score_engraves_minimum_note_space_set(
         .unwrap();
     config.minimum_note_space = value;
 
-    state.emit(&app, Some(&mut renderer));
+    state.emit(&app, &mut renderer, true);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -281,7 +281,7 @@ pub fn score_engraves_minimum_tie_space_set(
         .unwrap();
     config.minimum_tie_space = value;
 
-    state.emit(&app, Some(&mut renderer));
+    state.emit(&app, &mut renderer, true);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -303,7 +303,7 @@ pub fn score_engraves_note_space_ratio_set(
         .unwrap();
     config.note_space_ratio = value;
 
-    state.emit(&app, Some(&mut renderer));
+    state.emit(&app, &mut renderer, true);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -325,7 +325,7 @@ pub fn score_engraves_space_set(
         .unwrap();
     config.space = value;
 
-    state.emit(&app, Some(&mut renderer));
+    state.emit(&app, &mut renderer, true);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -347,7 +347,7 @@ pub fn score_engraves_frame_padding_top_set(
         .unwrap();
     config.frame_padding.top = value;
 
-    state.emit(&app, Some(&mut renderer));
+    state.emit(&app, &mut renderer, true);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -369,7 +369,7 @@ pub fn score_engraves_frame_padding_bottom_set(
         .unwrap();
     config.frame_padding.bottom = value;
 
-    state.emit(&app, Some(&mut renderer));
+    state.emit(&app, &mut renderer, true);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -391,7 +391,7 @@ pub fn score_engraves_page_padding_top_set(
         .unwrap();
     config.page_padding.top = value;
 
-    state.emit(&app, Some(&mut renderer));
+    state.emit(&app, &mut renderer, true);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -413,7 +413,7 @@ pub fn score_engraves_page_padding_right_set(
         .unwrap();
     config.page_padding.right = value;
 
-    state.emit(&app, Some(&mut renderer));
+    state.emit(&app, &mut renderer, true);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -435,7 +435,7 @@ pub fn score_engraves_page_padding_bottom_set(
         .unwrap();
     config.page_padding.bottom = value;
 
-    state.emit(&app, Some(&mut renderer));
+    state.emit(&app, &mut renderer, true);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -457,5 +457,5 @@ pub fn score_engraves_page_padding_left_set(
         .unwrap();
     config.page_padding.left = value;
 
-    state.emit(&app, Some(&mut renderer));
+    state.emit(&app, &mut renderer, true);
 }

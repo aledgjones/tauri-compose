@@ -5,23 +5,17 @@ pub mod text_measurer;
 use crate::score::components::measurements::{CurvePoint, Point};
 use crate::score::components::text::{Align, Font, FontFamily, Justify};
 use converter::{Converter, Space};
-use fonts::FONTS;
-use skia_safe::utils::text_utils::Align as SkiaAlign;
-use skia_safe::{
-    surfaces, Canvas, Color, EncodedImageFormat, Font as SkiaFont, Paint, PaintStyle, PathBuilder,
-    PathEffect, Point as SkiaPoint, Surface,
-};
 
 #[derive(Clone)]
 pub enum DrawInstruction {
     Line {
         width: f32,
-        color: Color,
+        color: skia_safe::Color,
         points: Vec<(f32, f32)>,
     },
     DashedLine {
         width: f32,
-        color: Color,
+        color: skia_safe::Color,
         points: Vec<(f32, f32)>,
         interval: f32,
     },
@@ -35,266 +29,31 @@ pub enum DrawInstruction {
     },
     Circle {
         radius: f32,
-        color: Color,
+        color: skia_safe::Color,
         origin: (f32, f32),
     },
     Curve {
-        color: Color,
+        color: skia_safe::Color,
         points: [(f32, f32, f32); 3], // (x, y, thickness)
     },
     Shape {
-        color: Color,
+        color: skia_safe::Color,
         points: Vec<(f32, f32)>,
     },
-}
-
-impl DrawInstruction {
-    fn render(&self, renderer: &mut CanvasRenderer) {
-        match self {
-            DrawInstruction::Line {
-                width,
-                color,
-                points,
-            } => {
-                renderer.render_line(*width, *color, points);
-            }
-            DrawInstruction::DashedLine {
-                width,
-                color,
-                points,
-                interval,
-            } => {
-                renderer.render_dashed_line(*interval, *width, *color, points);
-            }
-            DrawInstruction::Text {
-                text,
-                font_size,
-                font_family,
-                justify,
-                align,
-                point,
-            } => {
-                renderer.render_text(text, *font_size, *font_family, *justify, *align, *point);
-            }
-            DrawInstruction::Circle {
-                radius,
-                color,
-                origin,
-            } => {
-                renderer.render_circle(*radius, *color, *origin);
-            }
-            DrawInstruction::Curve { color, points } => {
-                renderer.render_curve(*color, *points);
-            }
-            DrawInstruction::Shape { color, points } => {
-                renderer.render_shape(*color, points);
-            }
-        }
-    }
-}
-
-pub struct CanvasRenderer {
-    surface: Surface,
-}
-
-impl CanvasRenderer {
-    pub fn new(width: i32, height: i32) -> Self {
-        let surface = surfaces::raster_n32_premul((width, height)).expect("surface");
-        Self { surface }
-    }
-
-    pub fn canvas(&mut self) -> &Canvas {
-        self.surface.canvas()
-    }
-
-    pub fn clear(&mut self) {
-        self.canvas().clear(Color::WHITE);
-    }
-
-    pub fn encode(&mut self) -> Vec<u8> {
-        let image = self.surface.image_snapshot();
-        let mut context = self.surface.direct_context();
-        match image.encode(context.as_mut(), EncodedImageFormat::WEBP, None) {
-            Some(data) => data.as_bytes().to_vec(),
-            None => vec![],
-        }
-    }
-
-    pub fn render_line(&mut self, width: f32, color: Color, points: &[(f32, f32)]) {
-        let mut paint = Paint::default();
-        paint.set_anti_alias(true);
-        paint.set_stroke(true);
-        paint.set_stroke_width(width);
-        paint.set_color(color);
-
-        let mut path_builder = PathBuilder::new();
-        let first = points[0];
-        path_builder.move_to((first.0, first.1));
-
-        for point in &points[1..] {
-            path_builder.line_to((point.0, point.1));
-        }
-        let path = path_builder.detach();
-
-        self.canvas().draw_path(&path, &paint);
-    }
-
-    pub fn render_dashed_line(
-        &mut self,
-        interval: f32,
+    Rectangle {
+        x: f32,
+        y: f32,
         width: f32,
-        color: Color,
-        points: &[(f32, f32)],
-    ) {
-        let mut paint = Paint::default();
-        paint.set_anti_alias(true);
-        paint.set_stroke(true);
-        paint.set_stroke_width(width);
-        paint.set_color(color);
-
-        paint.set_path_effect(PathEffect::dash(&[interval, interval], 0.0));
-
-        let mut path_builder = PathBuilder::new();
-        let first = points[0];
-        path_builder.move_to((first.0, first.1));
-
-        for point in &points[1..] {
-            path_builder.line_to((point.0, point.1));
-        }
-        let path = path_builder.detach();
-
-        self.canvas().draw_path(&path, &paint);
-    }
-
-    pub fn render_text(
-        &mut self,
-        text: &str,
-        font_size: f32,
-        font_family: FontFamily,
-        justify: Justify,
-        align: Align,
-        point: (f32, f32),
-    ) {
-        let typeface = match font_family {
-            FontFamily::Bravura => &FONTS.bravura,
-            FontFamily::LibreBaskerville => &FONTS.libre_baskerville,
-        };
-
-        let skia_font = SkiaFont::new(typeface.clone(), font_size);
-
-        let mut paint = Paint::default();
-        paint.set_anti_alias(true);
-        paint.set_color(Color::BLACK);
-
-        let (_, metrics) = skia_font.metrics();
-
-        let justify_skia = match justify {
-            Justify::Start => SkiaAlign::Left,
-            Justify::Middle => SkiaAlign::Center,
-            Justify::End => SkiaAlign::Right,
-        };
-
-        let offset_y = match align {
-            Align::Top => metrics.x_height,
-            Align::Middle => (metrics.x_height) / 2.0,
-            Align::Bottom => 0.0,
-        };
-
-        self.canvas().draw_text_align(
-            text,
-            SkiaPoint {
-                x: point.0,
-                y: point.1 + offset_y,
-            },
-            &skia_font,
-            &paint,
-            justify_skia,
-        );
-    }
-
-    pub fn render_circle(&mut self, radius: f32, color: Color, origin: (f32, f32)) {
-        let mut paint = Paint::default();
-        paint.set_anti_alias(true);
-        paint.set_color(color);
-
-        self.canvas().draw_circle(
-            SkiaPoint {
-                x: origin.0,
-                y: origin.1,
-            },
-            radius,
-            &paint,
-        );
-    }
-
-    pub fn render_curve(&mut self, color: Color, points: [(f32, f32, f32); 3]) {
-        let mut paint = Paint::default();
-        paint.set_anti_alias(true);
-        paint.set_color(color);
-        paint.set_style(PaintStyle::Fill);
-
-        // Create control points for the thick curve outline
-        let control_points = [
-            // Top curve
-            (points[0].0, points[0].1 + points[0].2 / 2.0),
-            (
-                points[1].0,
-                2.0 * (points[1].1 + points[1].2 / 2.0)
-                    - 0.5 * (points[0].1 + points[0].2 / 2.0)
-                    - 0.5 * (points[2].1 + points[2].2 / 2.0),
-            ),
-            (points[2].0, points[2].1 + points[2].2 / 2.0),
-            // Bottom curve
-            (points[2].0, points[2].1 - points[2].2 / 2.0),
-            (
-                points[1].0,
-                2.0 * (points[1].1 - points[1].2 / 2.0)
-                    - 0.5 * (points[0].1 - points[0].2 / 2.0)
-                    - 0.5 * (points[2].1 - points[2].2 / 2.0),
-            ),
-            (points[0].0, points[0].1 - points[0].2 / 2.0),
-        ];
-
-        let mut path_builder = PathBuilder::new();
-        path_builder.move_to(control_points[0]);
-
-        // Draw top curve
-        path_builder.quad_to(control_points[1], control_points[2]);
-        // Draw to bottom curve start
-        path_builder.line_to(control_points[3]);
-        // Draw bottom curve
-        path_builder.quad_to(control_points[4], control_points[5]);
-        // Close the path
-        path_builder.close();
-
-        let path = path_builder.detach();
-        self.canvas().draw_path(&path, &paint);
-    }
-
-    pub fn render_shape(&mut self, color: Color, points: &[(f32, f32)]) {
-        let mut paint = Paint::default();
-        paint.set_anti_alias(true);
-        paint.set_color(color);
-        paint.set_style(PaintStyle::Fill);
-
-        let mut path_builder = PathBuilder::new();
-        let first = points[0];
-        path_builder.move_to((first.0, first.1));
-
-        for point in &points[1..] {
-            path_builder.line_to((point.0, point.1));
-        }
-        let path = path_builder.detach();
-
-        self.canvas().draw_path(&path, &paint);
-    }
+        height: f32,
+        color: skia_safe::Color,
+    },
 }
 
 #[derive(Clone)]
 pub struct Renderer {
     converter: Converter,
     pub px_per_mm: f32,
-    instructions: Vec<DrawInstruction>,
+    pub instructions: Vec<DrawInstruction>,
     width: f32,
     height: f32,
 }
@@ -323,7 +82,7 @@ impl Renderer {
         self.instructions.clear();
     }
 
-    pub fn line(&mut self, width: Space, color: Color, points: Vec<Point>) {
+    pub fn line(&mut self, width: Space, color: skia_safe::Color, points: Vec<Point>) {
         let width_px = self.converter.spaces_to_px(width);
         let points_px = points
             .into_iter()
@@ -340,7 +99,7 @@ impl Renderer {
         });
     }
 
-    pub fn dashed_line(&mut self, width: Space, color: Color, points: Vec<Point>) {
+    pub fn dashed_line(&mut self, width: Space, color: skia_safe::Color, points: Vec<Point>) {
         let width_px = self.converter.spaces_to_px(width);
         let interval_px = self.converter.spaces_to_px(4.0 / 7.0);
         let points_px = points
@@ -374,7 +133,7 @@ impl Renderer {
         });
     }
 
-    pub fn circle(&mut self, radius: Space, color: Color, origin: &Point) {
+    pub fn circle(&mut self, radius: Space, color: skia_safe::Color, origin: &Point) {
         let radius_px = self.converter.spaces_to_px(radius);
         let skia_point = origin.to_skia(&self.converter);
         let origin_px = (skia_point.x, skia_point.y);
@@ -386,7 +145,7 @@ impl Renderer {
         });
     }
 
-    pub fn curve(&mut self, color: Color, points: [CurvePoint; 3]) {
+    pub fn curve(&mut self, color: skia_safe::Color, points: [CurvePoint; 3]) {
         let points_px = points.map(|p| {
             let skia_point = Point { x: p.x, y: p.y }.to_skia(&self.converter);
             (
@@ -402,7 +161,7 @@ impl Renderer {
         });
     }
 
-    pub fn shape(&mut self, color: Color, points: Vec<Point>) {
+    pub fn shape(&mut self, color: skia_safe::Color, points: Vec<Point>) {
         let points_px = points
             .into_iter()
             .map(|p| {
@@ -417,18 +176,26 @@ impl Renderer {
         });
     }
 
-    pub fn data(&mut self) -> Vec<u8> {
-        let pixel_width = self.converter.spaces_to_px(self.width).max(1.0) as i32;
-        let pixel_height = self.converter.spaces_to_px(self.height).max(1.0) as i32;
-        let mut renderer = CanvasRenderer::new(pixel_width, pixel_height);
-        renderer.clear();
+    pub fn rectangle(
+        &mut self,
+        x: Space,
+        y: Space,
+        width: Space,
+        height: Space,
+        color: skia_safe::Color,
+    ) {
+        let x_px = self.converter.spaces_to_px(x);
+        let y_px = self.converter.spaces_to_px(y);
+        let width_px = self.converter.spaces_to_px(width);
+        let height_px = self.converter.spaces_to_px(height);
 
-        // Render only instructions that intersect with the tile
-        for instruction in &self.instructions {
-            instruction.render(&mut renderer);
-        }
-
-        renderer.encode()
+        self.instructions.push(DrawInstruction::Rectangle {
+            x: x_px,
+            y: y_px,
+            width: width_px,
+            height: height_px,
+            color,
+        });
     }
 }
 

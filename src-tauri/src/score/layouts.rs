@@ -102,7 +102,7 @@ pub fn score_layouts_create(
         }
     }
 
-    state.emit(&app, Some(&mut renderer));
+    state.emit(&app, &mut renderer, true);
 
     layout_id
 }
@@ -121,7 +121,7 @@ pub fn score_layouts_rename(
     let layout = state.score.layouts.by_id.get_mut(&layout_id).unwrap();
     layout.title = title;
 
-    state.emit(&app, Some(&mut renderer));
+    state.emit(&app, &mut renderer, true);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -137,7 +137,7 @@ pub fn score_layouts_assign_player(
 
     state.assign_player_to_layout(layout_id, player_id);
 
-    state.emit(&app, Some(&mut renderer));
+    state.emit(&app, &mut renderer, true);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -153,7 +153,7 @@ pub fn score_layouts_unassign_player(
 
     state.unassign_player_from_layout(layout_id, player_id);
 
-    state.emit(&app, Some(&mut renderer));
+    state.emit(&app, &mut renderer, true);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -169,7 +169,7 @@ pub fn score_layouts_assign_flow(
 
     state.assign_flow_to_layout(layout_id, player_id);
 
-    state.emit(&app, Some(&mut renderer));
+    state.emit(&app, &mut renderer, true);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -185,7 +185,7 @@ pub fn score_layouts_unassign_flow(
 
     state.unassign_flow_from_layout(layout_id, player_id);
 
-    state.emit(&app, Some(&mut renderer));
+    state.emit(&app, &mut renderer, true);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -202,7 +202,7 @@ pub fn score_layouts_move(
     let moved = state.score.layouts.order.remove(from_index);
     state.score.layouts.order.insert(to_index, moved);
 
-    state.emit(&app, Some(&mut renderer));
+    state.emit(&app, &mut renderer, true);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -221,5 +221,5 @@ pub fn score_layouts_remove(
     state.ui.setup.expanded.remove(&layout_id);
     state.ui.setup.selection = None;
 
-    state.emit(&app, Some(&mut renderer));
+    state.emit(&app, &mut renderer, true);
 }

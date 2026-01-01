@@ -1,3 +1,4 @@
+mod native_renderer;
 mod render;
 mod renderer;
 mod sampler;
@@ -6,7 +7,6 @@ mod ui;
 mod utils;
 
 use render::generate_render_instructions;
-use render::get_render_data;
 use renderer::Renderer;
 use sampler::Sampler;
 use score::config::{
@@ -66,7 +66,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
 use tauri::menu::{AboutMetadata, Menu, MenuItem, PredefinedMenuItem, Submenu};
 use tauri::{Emitter, Manager, State};
-use ui::renderer::ui_renderer_zoom_set;
+use ui::renderer::{ui_renderer_bounds_set, ui_renderer_pan_set, ui_renderer_zoom_set};
 use ui::sequence::{ui_sequence_bottom_panel_minimized_toggle, ui_sequence_bottom_panel_tab_set};
 use ui::sequencer::{
     ui_sequencer_coords_set, ui_sequencer_instrument_set, ui_sequencer_snap_set,
@@ -105,8 +105,8 @@ impl AppStateInner {
         })
     }
 
-    fn emit(&self, app: &tauri::AppHandle, renderer: Option<&mut Renderer>) {
-        if let Some(renderer) = renderer {
+    fn emit(&self, app: &tauri::AppHandle, renderer: &mut Renderer, recalculate: bool) {
+        if recalculate {
             if let Some(first_flow_id) = self.score.flows.order.first() {
                 generate_render_instructions(
                     app,
@@ -118,16 +118,39 @@ impl AppStateInner {
             };
         }
 
+        if let Some(window) = app.get_webview_window("main") {
+            let _ = crate::native_renderer::NativeRenderer::new(&window).and_then(
+                |mut native_renderer| {
+                    native_renderer.render(
+                        renderer,
+                        app,
+                        self.ui.renderer.pan_x,
+                        self.ui.renderer.pan_y,
+                        (
+                            self.ui.renderer.bounds.x,
+                            self.ui.renderer.bounds.y,
+                            self.ui.renderer.bounds.width,
+                            self.ui.renderer.bounds.height,
+                        ),
+                    )
+                },
+            );
+        }
+
         let general_state = AppStateGeneral {
             ui: self.ui.clone(),
             score: self.score.clone(),
             next_id: self.next_id,
         };
-        app.emit("soloc://state/general", general_state).unwrap();
+        if let Err(e) = app.emit("soloc://state/general", general_state) {
+            eprintln!("Failed to emit general state: {:?}", e);
+        }
     }
 
     fn emit_sampler(&self, app: &tauri::AppHandle) {
-        app.emit("soloc://state/sampler", &self.sampler).unwrap();
+        if let Err(e) = app.emit("soloc://state/sampler", &self.sampler) {
+            eprintln!("Failed to emit sampler state: {:?}", e);
+        }
     }
 
     pub fn generate_id(&mut self) -> UniqueId {
@@ -152,7 +175,7 @@ fn initialize(
     let state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
     renderer.px_per_mm = px_per_mm;
-    state.emit(&app, Some(&mut renderer));
+    state.emit(&app, &mut renderer, true);
     state.emit_sampler(&app);
 }
 
@@ -169,7 +192,7 @@ fn reset(
     state.score = Score::new();
     state.sampler = Sampler::default();
     state.next_id = 1;
-    state.emit(&app, Some(&mut renderer));
+    state.emit(&app, &mut renderer, true);
     state.emit_sampler(&app);
 }
 
@@ -263,7 +286,6 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             initialize,
             reset,
-            get_render_data,
             save_project_to_file,
             load_project_from_file,
             score_config_auto_count_styles_solo_set,
@@ -337,6 +359,8 @@ pub fn run() {
             score_players_move,
             score_players_remove,
             ui_layout_id_set,
+            ui_renderer_bounds_set,
+            ui_renderer_pan_set,
             ui_renderer_zoom_set,
             ui_sequencer_coords_set,
             ui_sequencer_instrument_set,

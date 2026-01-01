@@ -43,43 +43,205 @@ export const Main = () => {
   const [renderTimings, setRenderTimings] = useState<Array<{
     ms: number;
     description: string;
+    group?: string;
+    isHeader?: boolean;
+    isTotal?: boolean;
   }> | null>(null);
+  const [timingsCollapsed, setTimingsCollapsed] = useState(true);
 
   useEffect(() => {
-    const timingDescriptions: Record<string, string> = {
-      "render-timing-vertical": "Vertical spacing and spans",
-      "render-timing-layout": "Layout calculations (padding, names, brackets)",
-      "render-timing-structure":
-        "Score structure parsing (measures, barlines, key signatures)",
-      "render-timing-notation": "Written durations analysis",
-      "render-timing-elements":
-        "Musical elements (beams, stems, accidentals, dots)",
-      "render-timing-spacing": "Horizontal spacing calculations",
-      "render-timing-stems": "Stem length determinations",
-      "render-timing-setup":
-        "Basic drawing setup (names, braces, brackets, staves)",
-      "render-timing-barlines": "Barline rendering",
-      "render-timing-stave": "Stave contents (clefs, signatures, notes)",
-      "render-timing-total": "Complete render cycle",
-    };
+    const timingDefinitions = [
+      // Layout Phase - Score Analysis
+      {
+        key: "render-timing-vertical",
+        description: "Vertical spacing & staves",
+        group: "layout",
+      },
+      {
+        key: "render-timing-layout",
+        description: "Layout calculations",
+        group: "layout",
+      },
+      {
+        key: "render-timing-structure",
+        description: "Score structure parsing",
+        group: "layout",
+      },
+      {
+        key: "render-timing-notation",
+        description: "Written durations analysis",
+        group: "layout",
+      },
+      {
+        key: "render-timing-elements",
+        description: "Musical elements analysis",
+        group: "layout",
+      },
+      {
+        key: "render-timing-spacing",
+        description: "Horizontal spacing",
+        group: "layout",
+      },
+      {
+        key: "render-timing-stems",
+        description: "Stem length calculations",
+        group: "layout",
+      },
 
-    const timingEvents = Object.keys(timingDescriptions);
+      // Render Phase - Drawing Preparation
+      {
+        key: "render-timing-setup",
+        description: "Basic drawing setup",
+        group: "render",
+      },
+      {
+        key: "render-timing-barlines",
+        description: "Barline rendering",
+        group: "render",
+      },
+      {
+        key: "render-timing-stave",
+        description: "Stave contents rendering",
+        group: "render",
+      },
+
+      // Native GPU Phase - Hardware Acceleration
+      {
+        key: "native-render-timing-setup",
+        description: "GPU surface & canvas setup",
+        group: "gpu",
+      },
+      {
+        key: "native-render-timing-draw",
+        description: "GPU drawing execution",
+        group: "gpu",
+      },
+      {
+        key: "native-render-timing-flush",
+        description: "GPU flush & Metal commands",
+        group: "gpu",
+      },
+
+      // Totals
+      // Note: Individual phase totals and complete pipeline total are calculated in the frontend
+      // The Rust-side totals ("render-timing-total", "native-render-timing-total") are redundant
+    ];
+
+    const timingEvents = timingDefinitions.map((t) => t.key);
     const currentTimings: Record<string, number> = {};
+
+    const updateTimingsDisplay = () => {
+      // Create grouped timing objects with headers
+      const timingsArray: Array<{
+        ms: number;
+        description: string;
+        group?: string;
+        isHeader?: boolean;
+        isTotal?: boolean;
+      }> = [];
+
+      let lastGroup = "";
+      let layoutTotal = 0;
+      let renderTotal = 0;
+      let gpuTotal = 0;
+
+      timingDefinitions.forEach((def) => {
+        const duration = currentTimings[def.key];
+        if (duration === undefined) return;
+
+        // Add group header if this is a new group
+        if (def.group !== lastGroup) {
+          let headerText = "";
+          if (def.group === "layout") headerText = "🎼 Layout Phase (CPU)";
+          else if (def.group === "render")
+            headerText = "✏️  Render Phase (CPU)";
+          else if (def.group === "gpu")
+            headerText = "🚀 GPU Phase (Metal/Skia)";
+
+          if (headerText) {
+            timingsArray.push({
+              ms: 0,
+              description: headerText,
+              group: def.group,
+              isHeader: true,
+            });
+          }
+          lastGroup = def.group;
+        }
+
+        // Track totals for each phase
+        if (def.group === "layout") layoutTotal += duration;
+        else if (def.group === "render") renderTotal += duration;
+        else if (def.group === "gpu") gpuTotal += duration;
+
+        timingsArray.push({
+          ms: duration,
+          description: def.description,
+          group: def.group,
+          isTotal: false,
+        });
+      });
+
+      // Add phase totals section
+      if (layoutTotal > 0 || renderTotal > 0 || gpuTotal > 0) {
+        timingsArray.push({
+          ms: 0,
+          description: "📊 Phase Totals",
+          group: "total",
+          isHeader: true,
+        });
+
+        if (layoutTotal > 0) {
+          timingsArray.push({
+            ms: layoutTotal,
+            description: "Layout Phase Total",
+            group: "total",
+            isTotal: true,
+          });
+        }
+        if (renderTotal > 0) {
+          timingsArray.push({
+            ms: renderTotal,
+            description: "Render Phase Total",
+            group: "total",
+            isTotal: true,
+          });
+        }
+        if (gpuTotal > 0) {
+          timingsArray.push({
+            ms: gpuTotal,
+            description: "GPU Phase Total",
+            group: "total",
+            isTotal: true,
+          });
+        }
+      }
+
+      // Add complete pipeline total
+      const completeTotal = layoutTotal + renderTotal + gpuTotal;
+      if (completeTotal > 0) {
+        timingsArray.push({
+          ms: 0,
+          description: "🎯 Complete Pipeline",
+          group: "complete",
+          isHeader: true,
+        });
+        timingsArray.push({
+          ms: completeTotal,
+          description: "End-to-End Total",
+          group: "complete",
+          isTotal: true,
+        });
+      }
+
+      setRenderTimings(timingsArray);
+    };
 
     const unlisteners = timingEvents.map((eventName) =>
       listen(eventName, (event) => {
         const duration = event.payload as number;
         currentTimings[eventName] = duration;
-
-        // Create array of timing objects
-        const timingsArray = timingEvents
-          .filter((event) => currentTimings[event] !== undefined)
-          .map((event) => ({
-            ms: currentTimings[event],
-            description: timingDescriptions[event],
-          }));
-
-        setRenderTimings(timingsArray);
+        updateTimingsDisplay();
       }),
     );
 
@@ -184,28 +346,45 @@ export const Main = () => {
       <AppBar title="Debugger" filename={state.score.meta.title} />
 
       <div className="bg-neutral-900 p-2 mx-2">
-        <label className="text-xs text-neutral-400 mb-2 block">
-          Render Timings
-        </label>
-        <div className="">
-          {renderTimings?.map((timing, index) => (
-            <div className="flex items-center" key={index}>
-              <span className="text-xs text-neutral-400">
-                {timing.description}
-              </span>
-              <span className="flex-1 h-0.5 bg-neutral-800 mx-2" />
-              <span
-                className={classNames("text-xs font-mono", {
-                  "text-red-500": timing.ms > 50,
-                  "text-yellow-500": timing.ms > 20 && timing.ms <= 50,
-                  "text-green-500": timing.ms <= 20,
-                })}
-              >
-                {timing.ms}ms
-              </span>
+        <div
+          className="space-y-1"
+          onClick={() => setTimingsCollapsed(!timingsCollapsed)}
+        >
+          {renderTimings
+            ?.filter(
+              (timing) =>
+                timingsCollapsed
+                  ? timing.group === "complete" // Only show complete pipeline total when collapsed
+                  : true, // Show all timings when expanded
+            )
+            .map((timing, index) =>
+              timing.isHeader ? (
+                <div key={index} className="pt-2 first:pt-0">
+                  <div className="text-xs font-semibold text-neutral-300 border-b border-neutral-700 pb-1">
+                    {timing.description}
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center pl-2" key={index}>
+                  <span className="text-xs text-neutral-400 flex-1">
+                    {timing.description}
+                  </span>
+                  <span
+                    className={classNames("text-xs font-mono text-right", {
+                      "text-red-400 font-bold": timing.ms > 50,
+                      "text-yellow-400 font-bold":
+                        timing.ms > 20 && timing.ms <= 50,
+                      "text-green-400 font-bold": timing.ms <= 20,
+                    })}
+                  >
+                    {timing.ms}ms
+                  </span>
+                </div>
+              ),
+            ) || (
+            <div className="text-xs text-neutral-500 pl-2">
+              No timing data yet
             </div>
-          )) || (
-            <div className="text-xs text-neutral-500">No timing data yet</div>
           )}
         </div>
       </div>

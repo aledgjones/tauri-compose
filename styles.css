@@ -4,6 +4,12 @@
   --font-bravura: Bravura;
 }
 
+html,
+body {
+  background-color: transparent !important;
+  background: transparent !important;
+}
+
 * {
   user-select: none;
   -webkit-user-select: none;

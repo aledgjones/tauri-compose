@@ -7,7 +7,6 @@ use crate::score::components::duration::Tick;
 use crate::score::components::measurements::Point;
 use skia_safe::Color;
 
-#[allow(clippy::too_many_arguments)]
 pub fn draw_lines<T: Iterator<Item = i8>>(
     origin: &Point,
     range: T,
@@ -58,7 +57,6 @@ pub fn draw_lines<T: Iterator<Item = i8>>(
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 pub fn draw_ledger_line(
     origin: &Point,
     tick: &Tick,

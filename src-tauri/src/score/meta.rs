@@ -61,7 +61,7 @@ pub fn score_meta_title_set(
 
     state.score.meta.title = title;
 
-    state.emit(&app, Some(&mut renderer));
+    state.emit(&app, &mut renderer, true);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -76,7 +76,7 @@ pub fn score_meta_subtitle_set(
 
     state.score.meta.subtitle = subtitle;
 
-    state.emit(&app, Some(&mut renderer));
+    state.emit(&app, &mut renderer, true);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -91,7 +91,7 @@ pub fn score_meta_dedication_set(
 
     state.score.meta.dedication = dedication;
 
-    state.emit(&app, Some(&mut renderer));
+    state.emit(&app, &mut renderer, true);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -106,7 +106,7 @@ pub fn score_meta_composer_set(
 
     state.score.meta.composer = composer;
 
-    state.emit(&app, Some(&mut renderer));
+    state.emit(&app, &mut renderer, true);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -121,7 +121,7 @@ pub fn score_meta_arranger_set(
 
     state.score.meta.arranger = arranger;
 
-    state.emit(&app, Some(&mut renderer));
+    state.emit(&app, &mut renderer, true);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -136,7 +136,7 @@ pub fn score_meta_lyricist_set(
 
     state.score.meta.lyricist = lyricist;
 
-    state.emit(&app, Some(&mut renderer));
+    state.emit(&app, &mut renderer, true);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -151,7 +151,7 @@ pub fn score_meta_artist_set(
 
     state.score.meta.artist = artist;
 
-    state.emit(&app, Some(&mut renderer));
+    state.emit(&app, &mut renderer, true);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -166,7 +166,7 @@ pub fn score_meta_copyist_set(
 
     state.score.meta.copyist = copyist;
 
-    state.emit(&app, Some(&mut renderer));
+    state.emit(&app, &mut renderer, true);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -181,7 +181,7 @@ pub fn score_meta_publisher_set(
 
     state.score.meta.publisher = publisher;
 
-    state.emit(&app, Some(&mut renderer));
+    state.emit(&app, &mut renderer, true);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -196,7 +196,7 @@ pub fn score_meta_editor_set(
 
     state.score.meta.editor = editor;
 
-    state.emit(&app, Some(&mut renderer));
+    state.emit(&app, &mut renderer, true);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -211,7 +211,7 @@ pub fn score_meta_copyright_set(
 
     state.score.meta.copyright = copyright;
 
-    state.emit(&app, Some(&mut renderer));
+    state.emit(&app, &mut renderer, true);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -226,7 +226,7 @@ pub fn score_meta_work_number_set(
 
     state.score.meta.work_number = work_number;
 
-    state.emit(&app, Some(&mut renderer));
+    state.emit(&app, &mut renderer, true);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -241,7 +241,7 @@ pub fn score_meta_composition_year_set(
 
     state.score.meta.composition_year = composition_year;
 
-    state.emit(&app, Some(&mut renderer));
+    state.emit(&app, &mut renderer, true);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -256,7 +256,7 @@ pub fn score_meta_composer_dates_set(
 
     state.score.meta.composer_dates = composer_dates;
 
-    state.emit(&app, Some(&mut renderer));
+    state.emit(&app, &mut renderer, true);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -271,5 +271,5 @@ pub fn score_meta_other_information_set(
 
     state.score.meta.other_information = other_information;
 
-    state.emit(&app, Some(&mut renderer));
+    state.emit(&app, &mut renderer, true);
 }

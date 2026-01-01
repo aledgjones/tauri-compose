@@ -252,6 +252,7 @@ impl Track {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_entries_time_signature_create(
     app: tauri::AppHandle,
@@ -319,7 +320,7 @@ pub fn score_entries_time_signature_create(
         }
     }
 
-    state.emit(&app, Some(&mut renderer));
+    state.emit(&app, &mut renderer, true);
 
     Some(time_signature_id)
 }
@@ -347,5 +348,5 @@ pub fn score_entries_time_signature_clear(
         master.remove_entry(old.id);
     };
 
-    state.emit(&app, Some(&mut renderer));
+    state.emit(&app, &mut renderer, true);
 }

@@ -51,6 +51,9 @@ export const initialAppState: AppState = {
     renderer: {
       zoom: 100,
       pxPerMm: 3.78,
+      pan_x: 0,
+      pan_y: 0,
+      bounds: { x: 0, y: 0, width: 0, height: 0 },
     },
   },
   score: {

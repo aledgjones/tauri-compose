@@ -126,7 +126,7 @@ pub fn score_entries_barline_create(
     let new = Barline::new(barline_id, tick, barline_draw_type);
     master.insert_entry(Entry::Barline(new));
 
-    state.emit(&app, Some(&mut renderer));
+    state.emit(&app, &mut renderer, true);
 
     Some(barline_id)
 }
@@ -150,5 +150,5 @@ pub fn score_entries_barline_clear(
         master.remove_entry(old.id);
     };
 
-    state.emit(&app, Some(&mut renderer));
+    state.emit(&app, &mut renderer, true);
 }

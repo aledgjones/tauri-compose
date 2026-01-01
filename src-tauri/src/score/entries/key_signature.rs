@@ -244,7 +244,7 @@ pub fn score_entries_key_signature_create(
     let new = KeySignature::new(key_signature_id, tick, mode, offset);
     master.insert_entry(Entry::KeySignature(new));
 
-    state.emit(&app, Some(&mut renderer));
+    state.emit(&app, &mut renderer, true);
 
     key_signature_id
 }
@@ -268,5 +268,5 @@ pub fn score_entries_key_signature_clear(
         master.remove_entry(old.id);
     };
 
-    state.emit(&app, Some(&mut renderer));
+    state.emit(&app, &mut renderer, true);
 }

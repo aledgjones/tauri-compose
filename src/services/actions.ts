@@ -30,15 +30,6 @@ export const actions = {
   reset: () => {
     return invoke("reset");
   },
-  render: (layout_id: UniqueId, flow_id: UniqueId) => {
-    return invoke<ArrayBuffer>("render", {
-      layout_id,
-      flow_id,
-    });
-  },
-  getRenderData: () => {
-    return invoke<ArrayBuffer>("get_render_data");
-  },
   pickAnInstrument: () => {
     return new Promise<string | null>(async (resolve) => {
       const webview = new WebviewWindow("instrument-picker", {
@@ -139,6 +130,17 @@ export const actions = {
     renderer: {
       setZoom: (zoom: number) => {
         return invoke("ui_renderer_zoom_set", { zoom });
+      },
+      setPan: (x: number, y: number) => {
+        return invoke("ui_renderer_pan_set", { x, y });
+      },
+      setBounds: (bounds: {
+        x: number;
+        y: number;
+        width: number;
+        height: number;
+      }) => {
+        return invoke("ui_renderer_bounds_set", { bounds });
       },
     },
   },
@@ -242,7 +244,7 @@ export const actions = {
       },
     },
     flow: {
-      create: () => {
+      create: async () => {
         return invoke<number>("score_flows_create");
       },
       rename: (flow_id: UniqueId, title: string) => {

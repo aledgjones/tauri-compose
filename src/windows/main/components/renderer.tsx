@@ -1,76 +1,113 @@
 import classNames from "classnames";
+import { FC, useCallback, useRef, useEffect } from "react";
 import { actions } from "../../../services/actions";
 import { useAppState } from "../../../services/state";
-import { FC, useEffect, useRef, useState } from "react";
-import { DragScroll } from "../../../components/drag-scroll";
 
 type Props = { className?: string };
 
 export const Renderer: FC<Props> = ({ className }) => {
+  const divRef = useRef<HTMLDivElement>(null);
   const state = useAppState();
-  const [src, setSrc] = useState<string | null>(null);
-  const imageUrls = useRef<Set<string>>(new Set());
-  const animationFrameId = useRef<number | null>(null);
 
+  // Track the renderer bounds and send to native renderer
   useEffect(() => {
-    // Cancel any pending animation frame
-    if (animationFrameId.current) {
-      cancelAnimationFrame(animationFrameId.current);
-    }
+    if (!divRef.current) return;
 
-    // Schedule render for next animation frame
-    animationFrameId.current = requestAnimationFrame(async () => {
-      const firstFlow = state.score.flows.order[0];
+    const updateBounds = () => {
+      const rect = divRef.current!.getBoundingClientRect();
+      const pixelRatio = window.devicePixelRatio || 1.0;
 
-      if (firstFlow === undefined) {
-        setSrc(null);
-        return;
-      }
+      // Convert CSS coordinates to physical pixels
+      const bounds = {
+        x: rect.left * pixelRatio,
+        y: rect.top * pixelRatio,
+        width: rect.width * pixelRatio,
+        height: rect.height * pixelRatio,
+      };
 
-      const t1 = performance.now();
-      const result = await actions.getRenderData();
-      console.log(`Render took ${performance.now() - t1} ms`);
+      actions.ui.renderer.setBounds(bounds);
+    };
 
-      imageUrls.current.forEach((url) => {
-        imageUrls.current.delete(url);
-        URL.revokeObjectURL(url);
-      });
+    // Initial bounds update
+    updateBounds();
 
-      const blob = new Blob([result], { type: "image/webp" });
-      const imageUrl = URL.createObjectURL(blob);
-      imageUrls.current.add(imageUrl);
-      setSrc(imageUrl);
+    // Watch for resize changes
+    const resizeObserver = new ResizeObserver(updateBounds);
+    resizeObserver.observe(divRef.current);
 
-      animationFrameId.current = null;
+    // Also watch for layout changes that might affect positioning
+    const mutationObserver = new MutationObserver(updateBounds);
+    mutationObserver.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["style", "class"],
     });
 
     return () => {
-      if (animationFrameId.current) {
-        cancelAnimationFrame(animationFrameId.current);
-        animationFrameId.current = null;
-      }
+      resizeObserver.disconnect();
+      mutationObserver.disconnect();
     };
-  }, [state]);
+  }, []);
+
+  const handlePointerDown = useCallback(
+    (e: any) => {
+      if (!divRef.current) {
+        return;
+      }
+
+      let isDragging = true;
+
+      const startX = e.clientX;
+      const startY = e.clientY;
+      const initialPanX = state.ui.renderer.pan_x;
+      const initialPanY = state.ui.renderer.pan_y;
+
+      const handlePointerMove = (e: any) => {
+        if (!isDragging || !divRef.current) {
+          return;
+        }
+
+        e.preventDefault();
+
+        const deltaX = e.clientX - startX;
+        const deltaY = e.clientY - startY;
+
+        // Account for device pixel ratio - mouse coordinates are in CSS pixels
+        // but canvas rendering happens in physical pixels
+        const pixelRatio = window.devicePixelRatio || 1.0;
+        const adjustedDeltaX = deltaX * pixelRatio;
+        const adjustedDeltaY = deltaY * pixelRatio;
+
+        // Account for zoom level - at higher zoom, mouse movement should pan less
+        const zoomFactor = state.ui.renderer.zoom / 100.0;
+        const newPanX = initialPanX + adjustedDeltaX / zoomFactor;
+        const newPanY = initialPanY + adjustedDeltaY / zoomFactor;
+
+        // Update the backend pan state
+        actions.ui.renderer.setPan(newPanX, newPanY);
+      };
+
+      const handlePointerUp = () => {
+        document.removeEventListener("pointermove", handlePointerMove);
+        document.removeEventListener("pointerup", handlePointerUp);
+        isDragging = false;
+      };
+
+      document.addEventListener("pointermove", handlePointerMove);
+      document.addEventListener("pointerup", handlePointerUp);
+    },
+    [state.ui.renderer.pan_x, state.ui.renderer.pan_y, state.ui.renderer.zoom],
+  );
 
   return (
-    <DragScroll
-      className={classNames(
-        "bg-fixed bg-center bg-cover from-sky-700 to-sky-900 bg-linear-to-b",
-        className,
-      )}
+    <div
+      ref={divRef}
+      className={classNames("bg-transparent touch-none", className)}
+      data-testid="renderer"
+      onPointerDown={handlePointerDown}
     >
-      <div className="flex min-h-full">
-        <div className="p-20 inline-block">
-          {src && (
-            <img
-              alt="Your score"
-              draggable="false"
-              style={{ zoom: `${(state.ui.renderer.zoom / 100) * 50}%` }}
-              src={src}
-            />
-          )}
-        </div>
-      </div>
-    </DragScroll>
+      <div className="flex min-h-full" />
+    </div>
   );
 };
