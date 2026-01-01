@@ -207,15 +207,20 @@ impl NativeRenderer {
 
                     // Translate to viewport position
                     canvas.translate((bounds.0, bounds.1));
-                    
+
                     // Apply pan offset in unscaled coordinate system
                     canvas.translate((pan_x, pan_y));
-                    
+
                     // Apply zoom scaling
                     canvas.scale((zoom, zoom));
 
                     // Clip to renderer bounds in scaled coordinate system
-                    let clip_rect = skia_safe::Rect::from_xywh(-pan_x / zoom, -pan_y / zoom, bounds.2 / zoom, bounds.3 / zoom);
+                    let clip_rect = skia_safe::Rect::from_xywh(
+                        -pan_x / zoom,
+                        -pan_y / zoom,
+                        bounds.2 / zoom,
+                        bounds.3 / zoom,
+                    );
                     canvas.clip_rect(clip_rect, skia_safe::ClipOp::Intersect, true);
 
                     let setup_duration = setup_start.elapsed();
