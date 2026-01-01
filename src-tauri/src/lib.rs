@@ -126,6 +126,7 @@ impl AppStateInner {
                         app,
                         self.ui.renderer.pan_x,
                         self.ui.renderer.pan_y,
+                        self.ui.renderer.zoom as f32 / 100.0,
                         (
                             self.ui.renderer.bounds.x,
                             self.ui.renderer.bounds.y,

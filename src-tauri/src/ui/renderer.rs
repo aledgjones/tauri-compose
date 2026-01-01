@@ -75,5 +75,5 @@ pub fn ui_renderer_bounds_set(
     let mut renderer = renderer_state.lock().unwrap();
 
     state.ui.renderer.bounds = bounds;
-    state.emit(&app, &mut renderer, false); // Viewport change, don't recalculate
+    state.emit(&app, &mut renderer, false);
 }

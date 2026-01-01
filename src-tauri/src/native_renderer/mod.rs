@@ -140,6 +140,7 @@ impl NativeRenderer {
         app: &tauri::AppHandle,
         pan_x: f32,
         pan_y: f32,
+        zoom: f32,
         bounds: (f32, f32, f32, f32), // (x, y, width, height)
     ) -> Result<(), Box<dyn std::error::Error>> {
         let total_start = Instant::now();
@@ -204,11 +205,17 @@ impl NativeRenderer {
                     // --- Draw instructions ---
                     canvas.save();
 
-                    // Translate to viewport position plus pan offset so score coordinates are relative to viewport
-                    canvas.translate((bounds.0 + pan_x, bounds.1 + pan_y));
+                    // Translate to viewport position
+                    canvas.translate((bounds.0, bounds.1));
+                    
+                    // Apply pan offset in unscaled coordinate system
+                    canvas.translate((pan_x, pan_y));
+                    
+                    // Apply zoom scaling
+                    canvas.scale((zoom, zoom));
 
-                    // Clip to renderer bounds in translated coordinate system
-                    let clip_rect = skia_safe::Rect::from_xywh(-pan_x, -pan_y, bounds.2, bounds.3);
+                    // Clip to renderer bounds in scaled coordinate system
+                    let clip_rect = skia_safe::Rect::from_xywh(-pan_x / zoom, -pan_y / zoom, bounds.2 / zoom, bounds.3 / zoom);
                     canvas.clip_rect(clip_rect, skia_safe::ClipOp::Intersect, true);
 
                     let setup_duration = setup_start.elapsed();

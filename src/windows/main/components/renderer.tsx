@@ -79,10 +79,8 @@ export const Renderer: FC<Props> = ({ className }) => {
         const adjustedDeltaX = deltaX * pixelRatio;
         const adjustedDeltaY = deltaY * pixelRatio;
 
-        // Account for zoom level - at higher zoom, mouse movement should pan less
-        const zoomFactor = state.ui.renderer.zoom / 100.0;
-        const newPanX = initialPanX + adjustedDeltaX / zoomFactor;
-        const newPanY = initialPanY + adjustedDeltaY / zoomFactor;
+        const newPanX = initialPanX + adjustedDeltaX;
+        const newPanY = initialPanY + adjustedDeltaY;
 
         // Update the backend pan state
         actions.ui.renderer.setPan(newPanX, newPanY);
@@ -97,7 +95,7 @@ export const Renderer: FC<Props> = ({ className }) => {
       document.addEventListener("pointermove", handlePointerMove);
       document.addEventListener("pointerup", handlePointerUp);
     },
-    [state.ui.renderer.pan_x, state.ui.renderer.pan_y, state.ui.renderer.zoom],
+    [state.ui.renderer.pan_x, state.ui.renderer.pan_y],
   );
 
   return (
