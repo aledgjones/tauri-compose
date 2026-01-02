@@ -65,8 +65,8 @@ impl Engraves {
             Engrave {
                 space: 1.5,
 
-                page_padding: PaddingMm::new(35.0, 25.0, 35.0, 25.0),
-                frame_padding: PaddingMm::new(25.0, 0.0, 25.0, 0.0),
+                page_padding: PaddingMm::new(30.0, 20.0, 30.0, 20.0),
+                frame_padding: PaddingMm::new(20.0, 0.0, 20.0, 0.0),
                 instrument_spacing: 8.0,
                 stave_spacing: 6.0,
                 system_start_padding: 0.75,
@@ -98,8 +98,8 @@ impl Engraves {
             Engrave {
                 space: 2.0,
 
-                page_padding: PaddingMm::new(35.0, 25.0, 35.0, 25.0),
-                frame_padding: PaddingMm::new(25.0, 0.0, 25.0, 0.0),
+                page_padding: PaddingMm::new(30.0, 20.0, 30.0, 20.0),
+                frame_padding: PaddingMm::new(20.0, 0.0, 20.0, 0.0),
                 instrument_spacing: 8.0,
                 stave_spacing: 6.0,
                 system_start_padding: 0.75,

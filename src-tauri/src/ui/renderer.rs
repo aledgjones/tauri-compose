@@ -21,8 +21,8 @@ impl Renderer {
     pub fn new() -> Self {
         Renderer {
             zoom: 100,
-            pan_x: 50.0,
-            pan_y: 50.0,
+            pan_x: 200.0,
+            pan_y: 200.0,
         }
     }
 }
