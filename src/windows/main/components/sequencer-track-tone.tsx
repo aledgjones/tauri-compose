@@ -1,6 +1,10 @@
-import { FC, MouseEvent, useCallback } from "react";
-import { Tone, Tool, UniqueId } from "../../../services/types";
+import { FC, useCallback } from "react";
+import { Tone, Tool, UniqueId, SelectionType } from "../../../services/types";
 import { actions } from "../../../services/actions";
+import { Icon } from "../../../ui/icon";
+import { mdiChevronLeft, mdiChevronRight } from "@mdi/js";
+import { useAppState } from "../../../services/state";
+import { lightenColor } from "../../../services/utils";
 
 const getPitchName = (pitchInt: number): string => {
   const noteNames = [
@@ -22,12 +26,20 @@ const getPitchName = (pitchInt: number): string => {
   return `${noteNames[noteIndex]}${octave}`;
 };
 
-const showPitchName = (width: number, name: string) => {
+const getShowPitchName = (width: number, name: string) => {
   if (name.length > 2) {
-    return width > 32;
-  } else {
-    return width > 26;
+    return width > 40;
   }
+
+  return width > 30;
+};
+
+const getShowHandles = (width: number, isSelected: boolean) => {
+  if (!isSelected) {
+    return false;
+  }
+
+  return width > 50;
 };
 
 type Props = {
@@ -47,27 +59,39 @@ export const SequencerTrackTone: FC<Props> = ({
   trackId,
   color,
 }) => {
+  const appState = useAppState();
+  const selection = appState.ui.sequencer.selection;
+  const isSelected =
+    selection?.selection_type === SelectionType.Tone &&
+    selection.id === tone.id;
   const width = tone.duration * tickWidth;
   const name = getPitchName(tone.pitch.int);
-  const showName = showPitchName(width, name);
+  const showPitchName = getShowPitchName(width, name);
+  const showHandles = getShowHandles(width, isSelected);
+  const backgroundColor = isSelected ? lightenColor(color, 0.2) : color;
 
-  const handleClick = useCallback(
-    async (e: MouseEvent<HTMLDivElement>) => {
-      switch (tool) {
-        case Tool.Erase: {
-          await actions.score.tone.remove(trackId, tone.id);
-          break;
+  const handleClick = useCallback(async () => {
+    switch (tool) {
+      case Tool.Select: {
+        if (isSelected) {
+          await actions.ui.sequencer.clearSelection();
+        } else {
+          await actions.ui.sequencer.select(SelectionType.Tone, tone.id);
         }
+        break;
       }
-    },
-    [tone, tool, trackId],
-  );
+      case Tool.Erase: {
+        await actions.score.tone.remove(trackId, tone.id);
+        break;
+      }
+    }
+  }, [tone, tool, trackId, isSelected]);
 
   return (
     <div
-      className="absolute select-none"
+      className="absolute select-none flex items-center cursor-pointer"
       style={{
-        backgroundColor: color,
+        backgroundColor,
         bottom: slotHeight * (tone.pitch.int - 12),
         height: slotHeight - 1,
         left: tickWidth * tone.tick + 1,
@@ -75,10 +99,16 @@ export const SequencerTrackTone: FC<Props> = ({
       }}
       onClick={handleClick}
     >
-      {showName && (
-        <div className="absolute inset-y-0 left-0 flex items-center pl-1 text-xs font-medium text-white pointer-events-none">
+      {showHandles && (
+        <Icon className="-mx-1" path={mdiChevronLeft} color="#fff" />
+      )}
+      {showPitchName && (
+        <div className="text-center flex-1 pl-0.5 text-xs font-medium text-white pointer-events-none">
           {name}
         </div>
+      )}
+      {showHandles && (
+        <Icon className="-mx-1" path={mdiChevronRight} color="#fff" />
       )}
     </div>
   );

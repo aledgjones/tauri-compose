@@ -70,8 +70,9 @@ use tauri::{Emitter, Manager, State};
 use ui::renderer::{ui_renderer_bounds_set, ui_renderer_pan_set, ui_renderer_zoom_set};
 use ui::sequence::{ui_sequence_bottom_panel_minimized_toggle, ui_sequence_bottom_panel_tab_set};
 use ui::sequencer::{
-    ui_sequencer_coords_set, ui_sequencer_instrument_set, ui_sequencer_snap_set,
-    ui_sequencer_tool_set, ui_sequencer_track_set,
+    ui_sequencer_coords_set, ui_sequencer_instrument_set, ui_sequencer_selection_clear,
+    ui_sequencer_selection_set, ui_sequencer_snap_set, ui_sequencer_tool_set,
+    ui_sequencer_track_set,
 };
 use ui::setup::{
     ui_setup_expanded_insert, ui_setup_expanded_remove, ui_setup_selection_clear,
@@ -374,6 +375,8 @@ pub fn run() {
             ui_renderer_zoom_set,
             ui_sequencer_coords_set,
             ui_sequencer_instrument_set,
+            ui_sequencer_selection_clear,
+            ui_sequencer_selection_set,
             ui_sequencer_snap_set,
             ui_sequencer_tool_set,
             ui_sequencer_track_set,

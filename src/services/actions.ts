@@ -126,6 +126,12 @@ export const actions = {
       setCoords: (x: number, y: number) => {
         return invoke("ui_sequencer_coords_set", { x, y });
       },
+      select: (selection_type: SelectionType, id: number) => {
+        return invoke("ui_sequencer_selection_set", { selection_type, id });
+      },
+      clearSelection: () => {
+        return invoke("ui_sequencer_selection_clear");
+      },
     },
     renderer: {
       setZoom: (zoom: number) => {

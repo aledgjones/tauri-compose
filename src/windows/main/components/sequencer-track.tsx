@@ -6,6 +6,7 @@ import {
   Articulation,
   Flow,
   NoteDuration,
+  SelectionType,
   Tool,
   Track,
   UniqueId,
@@ -115,6 +116,9 @@ export const SequencerTrack: FC<SequencerTrackProps> = ({
         255,
         Articulation.None,
       );
+
+      // Select the newly created tone
+      await actions.ui.sequencer.select(SelectionType.Tone, tone_id);
 
       // Audition the tone
       if (instrumentId) {

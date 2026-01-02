@@ -68,6 +68,7 @@ export enum SelectionType {
   Player,
   Flow,
   Layout,
+  Tone,
 }
 
 export enum PlayerType {
@@ -356,6 +357,7 @@ export type AppState = {
       flow: UniqueId | null;
       instrument: UniqueId | null;
       track: UniqueId | null;
+      selection: { id: UniqueId; selection_type: SelectionType } | null;
     };
     renderer: {
       zoom: number;

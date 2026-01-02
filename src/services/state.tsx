@@ -47,6 +47,7 @@ export const initialAppState: AppState = {
       flow: null,
       instrument: null,
       track: null,
+      selection: null,
     },
     renderer: {
       zoom: 100,

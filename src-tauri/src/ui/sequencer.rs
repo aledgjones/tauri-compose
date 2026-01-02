@@ -8,6 +8,21 @@ use tauri::State;
 
 #[derive(Serialize_repr, Deserialize_repr, Clone)]
 #[repr(u8)]
+pub enum SelectionType {
+    Player,
+    Flow,
+    Layout,
+    Tone,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct Selection {
+    pub id: UniqueId,
+    pub selection_type: SelectionType,
+}
+
+#[derive(Serialize_repr, Deserialize_repr, Clone)]
+#[repr(u8)]
 pub enum Tool {
     Select,
     Write,
@@ -24,6 +39,7 @@ pub struct Sequencer {
     pub flow: Option<UniqueId>,
     pub instrument: Option<UniqueId>,
     pub track: Option<UniqueId>,
+    pub selection: Option<Selection>,
 }
 
 impl Sequencer {
@@ -36,6 +52,7 @@ impl Sequencer {
             flow: None,
             instrument: None,
             track: None,
+            selection: None,
         }
     }
 }
@@ -113,6 +130,36 @@ pub fn ui_sequencer_coords_set(
 
     state.ui.sequencer.x = x;
     state.ui.sequencer.y = y;
+
+    state.emit(&app, &mut renderer, false);
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn ui_sequencer_selection_set(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    renderer_state: State<'_, RenderState>,
+    selection_type: SelectionType,
+    id: UniqueId,
+) {
+    let mut state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
+
+    state.ui.sequencer.selection = Some(Selection { id, selection_type });
+
+    state.emit(&app, &mut renderer, false);
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn ui_sequencer_selection_clear(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    renderer_state: State<'_, RenderState>,
+) {
+    let mut state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
+
+    state.ui.sequencer.selection = None;
 
     state.emit(&app, &mut renderer, false);
 }
