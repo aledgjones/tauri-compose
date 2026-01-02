@@ -226,7 +226,9 @@ fn assign_beam(beams: &mut Beams, ticks: BeamTicks, subdivisions: Ticks) -> Beam
                         // Point left if at the end of the beam group or at an eighth boundary split (but not at start)
                         let direction = if run_start_tick == stop_tick
                             || (should_split_at_eighths
-                                && eighth_boundaries.contains(&run_start_tick)
+                                && eighth_boundaries
+                                    .iter()
+                                    .any(|&boundary| boundary > run_start_tick)
                                 && run_start_tick != start_tick)
                         {
                             FractionalDirection::Left
