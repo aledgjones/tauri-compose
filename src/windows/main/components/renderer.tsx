@@ -35,18 +35,8 @@ export const Renderer: FC<Props> = ({ className }) => {
     const resizeObserver = new ResizeObserver(updateBounds);
     resizeObserver.observe(divRef.current);
 
-    // Also watch for layout changes that might affect positioning
-    const mutationObserver = new MutationObserver(updateBounds);
-    mutationObserver.observe(document.body, {
-      childList: true,
-      subtree: true,
-      attributes: true,
-      attributeFilter: ["style", "class"],
-    });
-
     return () => {
       resizeObserver.disconnect();
-      mutationObserver.disconnect();
     };
   }, []);
 
