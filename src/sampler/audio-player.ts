@@ -41,11 +41,11 @@ export class AudioPlayer {
   }
 
   public RMS(instrument: string) {
-    return this.instruments[instrument].RMS();
+    return this.instruments[instrument]?.RMS() || 0;
   }
 
   public peak(instrument: string) {
-    return this.instruments[instrument].peak();
+    return this.instruments[instrument]?.peak() || 0;
   }
 
   public hasInstrument(key: string): boolean {
@@ -72,6 +72,12 @@ export class AudioPlayer {
     when: Seconds,
     duration: Seconds,
   ) {
+    if (!this.instruments[instrument]) {
+      console.warn(
+        `Attempted to play note for unknown instrument: ${instrument}`,
+      );
+      return;
+    }
     this.instruments[instrument].play(expression, pitch, when, duration);
   }
 
@@ -91,6 +97,10 @@ export class AudioPlayer {
    * This will take into account any solo instruments.
    */
   public mute(instrument: string) {
+    if (!this.instruments[instrument]) {
+      console.warn(`Attempted to mute unknown instrument: ${instrument}`);
+      return;
+    }
     this.instruments[instrument].mute = true;
     this.setSamplerMuteStates();
   }
@@ -101,6 +111,10 @@ export class AudioPlayer {
    * This will take into account any solo instruments.
    */
   public unmute(instrument: string) {
+    if (!this.instruments[instrument]) {
+      console.warn(`Attempted to unmute unknown instrument: ${instrument}`);
+      return;
+    }
     this.instruments[instrument].mute = false;
     this.setSamplerMuteStates();
   }
@@ -111,6 +125,10 @@ export class AudioPlayer {
    * This will take into account any muted instruments.
    */
   public solo(instrument: string) {
+    if (!this.instruments[instrument]) {
+      console.warn(`Attempted to solo unknown instrument: ${instrument}`);
+      return;
+    }
     this.instruments[instrument].solo = true;
     this.setSamplerMuteStates();
   }
@@ -121,6 +139,10 @@ export class AudioPlayer {
    * This will take into account any muted instruments.
    */
   public unsolo(instrument: string) {
+    if (!this.instruments[instrument]) {
+      console.warn(`Attempted to unsolo unknown instrument: ${instrument}`);
+      return;
+    }
     this.instruments[instrument].solo = false;
     this.setSamplerMuteStates();
   }
@@ -129,6 +151,12 @@ export class AudioPlayer {
    * Set the volume of an instrument (0.0 - 1.0);
    */
   public volume(instrument: string, value: number) {
+    if (!this.instruments[instrument]) {
+      console.warn(
+        `Attempted to set volume for unknown instrument: ${instrument}`,
+      );
+      return;
+    }
     this.instruments[instrument].volume(value);
   }
 
@@ -136,7 +164,9 @@ export class AudioPlayer {
    * Disconnect all the playback nodes so they can be garbage collected
    */
   public disconnect(key: string) {
-    this.instruments[key].disconnectAll();
-    delete this.instruments[key];
+    if (this.instruments[key]) {
+      this.instruments[key].disconnectAll();
+      delete this.instruments[key];
+    }
   }
 }

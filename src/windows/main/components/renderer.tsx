@@ -14,7 +14,9 @@ export const Renderer: FC<Props> = ({ className }) => {
     if (!divRef.current) return;
 
     const updateBounds = () => {
-      const rect = divRef.current!.getBoundingClientRect();
+      if (!divRef.current) return;
+
+      const rect = divRef.current.getBoundingClientRect();
       const pixelRatio = window.devicePixelRatio || 1.0;
 
       // Convert CSS coordinates to physical pixels
@@ -28,14 +30,17 @@ export const Renderer: FC<Props> = ({ className }) => {
       actions.ui.renderer.setBounds(bounds);
     };
 
-    // Initial bounds update
-    updateBounds();
+    // Use setTimeout to ensure the div is fully mounted
+    const timer = setTimeout(() => {
+      updateBounds();
+    }, 0);
 
     // Watch for resize changes
     const resizeObserver = new ResizeObserver(updateBounds);
     resizeObserver.observe(divRef.current);
 
     return () => {
+      clearTimeout(timer);
       resizeObserver.disconnect();
     };
   }, []);
