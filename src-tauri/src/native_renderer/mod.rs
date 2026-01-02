@@ -458,3 +458,8 @@ impl NativeRenderer {
         })
     }
 }
+
+// Unsafe impl to allow NativeRenderer to be Send + Sync
+// This is safe because NativeRenderer is only used on the main thread
+unsafe impl Send for NativeRenderer {}
+unsafe impl Sync for NativeRenderer {}
