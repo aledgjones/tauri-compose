@@ -188,6 +188,7 @@ fn initialize(
 ) {
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
+
     renderer.px_per_mm = px_per_mm;
     state.emit(&app, &mut renderer, true);
     state.emit_sampler(&app);
@@ -206,7 +207,7 @@ fn reset(
     state.score = Score::new();
     state.sampler = Sampler::default();
     state.next_id = 1;
-    *NATIVE_RENDERER.lock().unwrap() = None;
+
     state.emit(&app, &mut renderer, true);
     state.emit_sampler(&app);
 }
