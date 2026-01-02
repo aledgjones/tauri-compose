@@ -22,6 +22,7 @@ pub struct NativeRenderer {
     device: objc2::rc::Retained<objc2::runtime::ProtocolObject<dyn objc2_metal::MTLDevice>>,
     queue: objc2::rc::Retained<objc2::runtime::ProtocolObject<dyn objc2_metal::MTLCommandQueue>>,
     display_link: Option<objc2::rc::Retained<objc2_quartz_core::CADisplayLink>>,
+    bounds: (f32, f32, f32, f32), // (x, y, width, height) in physical pixels
 }
 
 impl NativeRenderer {
@@ -79,6 +80,7 @@ impl NativeRenderer {
                         device: device.clone(),
                         queue: queue.clone(),
                         display_link: None,
+                        bounds: (0.0, 0.0, 0.0, 0.0),
                     });
                 }
             }
@@ -129,6 +131,7 @@ impl NativeRenderer {
             device,
             queue,
             display_link: None,
+            bounds: (0.0, 0.0, 0.0, 0.0),
         })
     }
 
@@ -177,6 +180,9 @@ impl NativeRenderer {
         self.metal_layer
             .setDrawableSize(NSSize::new(width as f64, height as f64));
 
+        // Store the bounds for later retrieval
+        self.bounds = (x, y, width, height);
+
         Ok(())
     }
 
@@ -187,7 +193,6 @@ impl NativeRenderer {
         pan_x: f32,
         pan_y: f32,
         zoom: f32,
-        bounds: (f32, f32, f32, f32), // (x, y, width, height)
     ) -> Result<(), Box<dyn std::error::Error>> {
         let total_start = Instant::now();
 
@@ -243,7 +248,7 @@ impl NativeRenderer {
                     background_paint.set_shader(gradient_shader);
                     background_paint.set_style(PaintStyle::Fill);
                     canvas.draw_rect(
-                        skia_safe::Rect::from_xywh(0.0, 0.0, bounds.2, bounds.3),
+                        skia_safe::Rect::from_xywh(0.0, 0.0, self.bounds.2, self.bounds.3),
                         &background_paint,
                     );
 
@@ -260,8 +265,8 @@ impl NativeRenderer {
                     let clip_rect = skia_safe::Rect::from_xywh(
                         -pan_x / zoom,
                         -pan_y / zoom,
-                        bounds.2 / zoom,
-                        bounds.3 / zoom,
+                        self.bounds.2 / zoom,
+                        self.bounds.3 / zoom,
                     );
                     canvas.clip_rect(clip_rect, skia_safe::ClipOp::Intersect, true);
 

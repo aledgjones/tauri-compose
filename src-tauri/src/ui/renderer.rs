@@ -7,7 +7,6 @@ pub struct Renderer {
     pub zoom: i32,
     pub pan_x: f32,
     pub pan_y: f32,
-    pub bounds: RendererBounds,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -24,12 +23,6 @@ impl Renderer {
             zoom: 100,
             pan_x: 50.0,
             pan_y: 50.0,
-            bounds: RendererBounds {
-                x: 0.0,
-                y: 0.0,
-                width: 0.0,
-                height: 0.0,
-            },
         }
     }
 }
@@ -73,8 +66,6 @@ pub fn ui_renderer_bounds_set(
 ) {
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
-
-    state.ui.renderer.bounds = bounds.clone();
 
     // Directly update native renderer bounds if it exists
     if let Some(window) = app.get_webview_window("main") {

@@ -132,20 +132,12 @@ impl AppStateInner {
                 }
             }
             if let Some(native_renderer) = native_renderer_guard.as_mut() {
-                let bounds = (
-                    self.ui.renderer.bounds.x,
-                    self.ui.renderer.bounds.y,
-                    self.ui.renderer.bounds.width,
-                    self.ui.renderer.bounds.height,
-                );
-
                 let _ = native_renderer.render(
                     renderer,
                     app,
                     self.ui.renderer.pan_x,
                     self.ui.renderer.pan_y,
                     self.ui.renderer.zoom as f32 / 100.0,
-                    bounds,
                 );
             }
         }
@@ -207,6 +199,8 @@ fn reset(
     state.score = Score::new();
     state.sampler = Sampler::default();
     state.next_id = 1;
+
+    renderer.clear_instructions();
 
     state.emit(&app, &mut renderer, true);
     state.emit_sampler(&app);
