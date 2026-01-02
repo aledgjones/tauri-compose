@@ -104,8 +104,6 @@ export const Renderer: FC<Props> = ({ className }) => {
       className={classNames("bg-transparent touch-none", className)}
       data-testid="renderer"
       onPointerDown={handlePointerDown}
-    >
-      <div className="flex min-h-full" />
-    </div>
+    />
   );
 };
