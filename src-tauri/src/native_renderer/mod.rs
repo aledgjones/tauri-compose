@@ -49,6 +49,7 @@ impl NativeRenderer {
         let ns_window =
             unsafe { Retained::retain(ns_window) }.ok_or("Failed to retain NSWindow")?;
         let content_view = ns_window.contentView().ok_or("Failed to get contentView")?;
+        let scale = window.scale_factor().unwrap_or(1.0);
 
         // --- Create Skia Metal backend context first ---
         let backend_context = unsafe {
@@ -82,11 +83,8 @@ impl NativeRenderer {
                 }
             }
         }
-
-        // --- Create and configure CAMetalLayer ---
         let metal_layer = CAMetalLayer::new();
         let _size = window.inner_size()?;
-        let scale = window.scale_factor().unwrap_or(1.0);
 
         // Cover full content view for now
         let _frame = content_view.frame();
@@ -134,6 +132,54 @@ impl NativeRenderer {
         })
     }
 
+    pub fn update_bounds(
+        &mut self,
+        x: f32,
+        y: f32,
+        width: f32,
+        height: f32,
+        scale: f64,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        use objc2_foundation::{NSPoint, NSRect, NSSize};
+
+        // Bounds come in as physical pixels from JS, but NSView frames need points
+        // Convert physical pixels to points using current scale factor
+        let points_x = x as f64 / scale;
+        let points_y = y as f64 / scale;
+        let points_width = width as f64 / scale;
+        let points_height = height as f64 / scale;
+
+        // Get content view height for coordinate conversion
+        // JS coordinates: (0,0) is top-left, Y increases downward
+        // AppKit coordinates: (0,0) is bottom-left, Y increases upward
+        let content_view =
+            unsafe { self.skia_view.superview() }.ok_or("Failed to get superview")?;
+        let content_frame = (*content_view).frame();
+        let content_height = content_frame.size.height;
+
+        // Convert web coordinates to AppKit coordinates
+        let appkit_x = points_x;
+        let appkit_y = content_height - points_y - points_height;
+
+        // Update the view frame to match the bounds
+        let frame = NSRect::new(
+            NSPoint::new(appkit_x, appkit_y),
+            NSSize::new(points_width, points_height),
+        );
+
+        self.skia_view.setFrame(frame);
+        self.metal_layer.setFrame(frame);
+
+        // Set contents scale to ensure drawable size is correct
+        self.metal_layer.setContentsScale(scale);
+
+        // Explicitly set drawable size to physical pixel dimensions
+        self.metal_layer
+            .setDrawableSize(NSSize::new(width as f64, height as f64));
+
+        Ok(())
+    }
+
     pub fn render(
         &mut self,
         renderer: &Renderer,
@@ -175,7 +221,7 @@ impl NativeRenderer {
                     // Clear the entire canvas with neutral-950 background
                     canvas.clear(Color::from_rgb(10, 10, 10));
 
-                    // Draw gradient background from sky-700 to sky-900
+                    // Draw gradient background over the entire view (already clipped to bounds)
                     let sky_700 = Color::from_rgb(3, 105, 161);
                     let sky_900 = Color::from_rgb(12, 74, 110);
 
@@ -193,20 +239,16 @@ impl NativeRenderer {
                         None,
                     );
 
-                    // Draw gradient background only in the renderer viewport
                     let mut background_paint = Paint::default();
                     background_paint.set_shader(gradient_shader);
                     background_paint.set_style(PaintStyle::Fill);
                     canvas.draw_rect(
-                        skia_safe::Rect::from_xywh(bounds.0, bounds.1, bounds.2, bounds.3),
+                        skia_safe::Rect::from_xywh(0.0, 0.0, bounds.2, bounds.3),
                         &background_paint,
                     );
 
                     // --- Draw instructions ---
                     canvas.save();
-
-                    // Translate to viewport position
-                    canvas.translate((bounds.0, bounds.1));
 
                     // Apply pan offset in unscaled coordinate system
                     canvas.translate((pan_x, pan_y));

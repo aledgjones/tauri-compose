@@ -1,6 +1,6 @@
 use crate::{AppState, RenderState};
 use serde::{Deserialize, Serialize};
-use tauri::State;
+use tauri::{Manager, State};
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Renderer {
@@ -74,6 +74,23 @@ pub fn ui_renderer_bounds_set(
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
 
-    state.ui.renderer.bounds = bounds;
+    state.ui.renderer.bounds = bounds.clone();
+
+    // Directly update native renderer bounds if it exists
+    if let Some(window) = app.get_webview_window("main") {
+        let scale = window.scale_factor().unwrap_or(1.0);
+        if let Ok(mut guard) = crate::NATIVE_RENDERER.lock() {
+            if let Some(ref mut native_renderer) = *guard {
+                let _ = native_renderer.update_bounds(
+                    bounds.x,
+                    bounds.y,
+                    bounds.width,
+                    bounds.height,
+                    scale,
+                );
+            }
+        }
+    }
+
     state.emit(&app, &mut renderer, false);
 }
