@@ -71,7 +71,7 @@ pub fn score_players_create(
         }
     }
 
-    state.emit(&app, Some(&mut renderer));
+    state.emit(&app, &mut renderer, true);
 
     player_id
 }
@@ -91,7 +91,7 @@ pub fn score_players_move(
     state.score.players.order.insert(to_index, moved);
 
     state.score.update_counts();
-    state.emit(&app, Some(&mut renderer));
+    state.emit(&app, &mut renderer, true);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -116,7 +116,7 @@ pub fn score_players_assign_instrument(
     }
 
     state.score.update_counts();
-    state.emit(&app, Some(&mut renderer));
+    state.emit(&app, &mut renderer, true);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -141,7 +141,7 @@ pub fn score_players_unassign_instrument(
     }
 
     state.score.update_counts();
-    state.emit(&app, Some(&mut renderer));
+    state.emit(&app, &mut renderer, true);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -186,6 +186,6 @@ pub fn score_players_remove(
     }
 
     state.score.update_counts();
-    state.emit(&app, Some(&mut renderer));
+    state.emit(&app, &mut renderer, true);
     state.emit_sampler(&app);
 }

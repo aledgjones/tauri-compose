@@ -94,7 +94,7 @@ pub fn load_project_from_file(
     }
 
     // Emit the updated state
-    state.emit(&app, Some(&mut renderer));
+    state.emit(&app, &mut renderer, true);
     state.emit_sampler(&app);
 
     Ok(())

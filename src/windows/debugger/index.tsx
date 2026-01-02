@@ -40,46 +40,34 @@ export const Main = () => {
   const [popover, setPopover] = useState("");
   const [instrumentId, setInstrumentId] = useState<UniqueId>(-1);
   const [staveId, setStaveId] = useState<UniqueId>(-1);
-  const [renderTimings, setRenderTimings] = useState<Array<{
-    ms: number;
-    description: string;
-  }> | null>(null);
+  const [renderTimings, setRenderTimings] = useState<Record<string, number>>(
+    {},
+  );
+  const [layoutCollapsed, setLayoutCollapsed] = useState(true);
+  const [renderCollapsed, setRenderCollapsed] = useState(true);
+  const [gpuCollapsed, setGpuCollapsed] = useState(true);
 
   useEffect(() => {
-    const timingDescriptions: Record<string, string> = {
-      "render-timing-vertical": "Vertical spacing and spans",
-      "render-timing-layout": "Layout calculations (padding, names, brackets)",
-      "render-timing-structure":
-        "Score structure parsing (measures, barlines, key signatures)",
-      "render-timing-notation": "Written durations analysis",
-      "render-timing-elements":
-        "Musical elements (beams, stems, accidentals, dots)",
-      "render-timing-spacing": "Horizontal spacing calculations",
-      "render-timing-stems": "Stem length determinations",
-      "render-timing-setup":
-        "Basic drawing setup (names, braces, brackets, staves)",
-      "render-timing-barlines": "Barline rendering",
-      "render-timing-stave": "Stave contents (clefs, signatures, notes)",
-      "render-timing-total": "Complete render cycle",
-    };
+    const timingKeys = [
+      "render-timing-vertical",
+      "render-timing-layout",
+      "render-timing-structure",
+      "render-timing-notation",
+      "render-timing-elements",
+      "render-timing-spacing",
+      "render-timing-stems",
+      "render-timing-setup",
+      "render-timing-barlines",
+      "render-timing-stave",
+      "native-render-timing-setup",
+      "native-render-timing-draw",
+      "native-render-timing-flush",
+    ];
 
-    const timingEvents = Object.keys(timingDescriptions);
-    const currentTimings: Record<string, number> = {};
-
-    const unlisteners = timingEvents.map((eventName) =>
+    const unlisteners = timingKeys.map((eventName) =>
       listen(eventName, (event) => {
         const duration = event.payload as number;
-        currentTimings[eventName] = duration;
-
-        // Create array of timing objects
-        const timingsArray = timingEvents
-          .filter((event) => currentTimings[event] !== undefined)
-          .map((event) => ({
-            ms: currentTimings[event],
-            description: timingDescriptions[event],
-          }));
-
-        setRenderTimings(timingsArray);
+        setRenderTimings((prev) => ({ ...prev, [eventName]: duration }));
       }),
     );
 
@@ -184,29 +172,428 @@ export const Main = () => {
       <AppBar title="Debugger" filename={state.score.meta.title} />
 
       <div className="bg-neutral-900 p-2 mx-2">
-        <label className="text-xs text-neutral-400 mb-2 block">
-          Render Timings
-        </label>
-        <div className="">
-          {renderTimings?.map((timing, index) => (
-            <div className="flex items-center" key={index}>
-              <span className="text-xs text-neutral-400">
-                {timing.description}
-              </span>
-              <span className="flex-1 h-0.5 bg-neutral-800 mx-2" />
+        <div className="space-y-3">
+          <div className="border border-neutral-700 rounded-md overflow-hidden">
+            <div
+              className="text-sm font-bold text-neutral-200 bg-neutral-700 px-2 py-1 flex justify-between cursor-pointer hover:bg-neutral-600 transition-colors border-b border-neutral-600"
+              onClick={() => setLayoutCollapsed(!layoutCollapsed)}
+            >
+              <span>🎼 Layout Phase (CPU)</span>
               <span
-                className={classNames("text-xs font-mono", {
-                  "text-red-500": timing.ms > 50,
-                  "text-yellow-500": timing.ms > 20 && timing.ms <= 50,
-                  "text-green-500": timing.ms <= 20,
+                className={classNames("font-mono text-sm", {
+                  "text-red-400 font-bold":
+                    (renderTimings["render-timing-vertical"] || 0) +
+                      (renderTimings["render-timing-layout"] || 0) +
+                      (renderTimings["render-timing-structure"] || 0) +
+                      (renderTimings["render-timing-notation"] || 0) +
+                      (renderTimings["render-timing-elements"] || 0) +
+                      (renderTimings["render-timing-spacing"] || 0) +
+                      (renderTimings["render-timing-stems"] || 0) >
+                    50,
+                  "text-yellow-400 font-bold":
+                    (renderTimings["render-timing-vertical"] || 0) +
+                      (renderTimings["render-timing-layout"] || 0) +
+                      (renderTimings["render-timing-structure"] || 0) +
+                      (renderTimings["render-timing-notation"] || 0) +
+                      (renderTimings["render-timing-elements"] || 0) +
+                      (renderTimings["render-timing-spacing"] || 0) +
+                      (renderTimings["render-timing-stems"] || 0) >
+                      20 &&
+                    (renderTimings["render-timing-vertical"] || 0) +
+                      (renderTimings["render-timing-layout"] || 0) +
+                      (renderTimings["render-timing-structure"] || 0) +
+                      (renderTimings["render-timing-notation"] || 0) +
+                      (renderTimings["render-timing-elements"] || 0) +
+                      (renderTimings["render-timing-spacing"] || 0) +
+                      (renderTimings["render-timing-stems"] || 0) <=
+                      50,
+                  "text-green-400 font-bold":
+                    (renderTimings["render-timing-vertical"] || 0) +
+                      (renderTimings["render-timing-layout"] || 0) +
+                      (renderTimings["render-timing-structure"] || 0) +
+                      (renderTimings["render-timing-notation"] || 0) +
+                      (renderTimings["render-timing-elements"] || 0) +
+                      (renderTimings["render-timing-spacing"] || 0) +
+                      (renderTimings["render-timing-stems"] || 0) <=
+                    20,
                 })}
               >
-                {timing.ms}ms
+                {(renderTimings["render-timing-vertical"] || 0) +
+                  (renderTimings["render-timing-layout"] || 0) +
+                  (renderTimings["render-timing-structure"] || 0) +
+                  (renderTimings["render-timing-notation"] || 0) +
+                  (renderTimings["render-timing-elements"] || 0) +
+                  (renderTimings["render-timing-spacing"] || 0) +
+                  (renderTimings["render-timing-stems"] || 0)}
+                ms
               </span>
             </div>
-          )) || (
-            <div className="text-xs text-neutral-500">No timing data yet</div>
-          )}
+            {!layoutCollapsed && (
+              <div className="px-2 py-1.5 bg-neutral-800">
+                <div className="flex items-center">
+                  <span className="text-xs text-neutral-400 flex-1">
+                    Vertical spacing & staves
+                  </span>
+                  <span
+                    className={classNames("text-xs font-mono text-right", {
+                      "text-red-400 font-bold":
+                        (renderTimings["render-timing-vertical"] || 0) > 50,
+                      "text-yellow-400 font-bold":
+                        (renderTimings["render-timing-vertical"] || 0) > 20 &&
+                        (renderTimings["render-timing-vertical"] || 0) <= 50,
+                      "text-green-400 font-bold":
+                        (renderTimings["render-timing-vertical"] || 0) <= 20,
+                    })}
+                  >
+                    {renderTimings["render-timing-vertical"] || 0}ms
+                  </span>
+                </div>
+                <div className="flex items-center bg-neutral-800">
+                  <span className="text-xs text-neutral-400 flex-1">
+                    Layout calculations
+                  </span>
+                  <span
+                    className={classNames("text-xs font-mono text-right", {
+                      "text-red-400 font-bold":
+                        (renderTimings["render-timing-layout"] || 0) > 50,
+                      "text-yellow-400 font-bold":
+                        (renderTimings["render-timing-layout"] || 0) > 20 &&
+                        (renderTimings["render-timing-layout"] || 0) <= 50,
+                      "text-green-400 font-bold":
+                        (renderTimings["render-timing-layout"] || 0) <= 20,
+                    })}
+                  >
+                    {renderTimings["render-timing-layout"] || 0}ms
+                  </span>
+                </div>
+                <div className="flex items-center bg-neutral-800">
+                  <span className="text-xs text-neutral-400 flex-1">
+                    Score structure parsing
+                  </span>
+                  <span
+                    className={classNames("text-xs font-mono text-right", {
+                      "text-red-400 font-bold":
+                        (renderTimings["render-timing-structure"] || 0) > 50,
+                      "text-yellow-400 font-bold":
+                        (renderTimings["render-timing-structure"] || 0) > 20 &&
+                        (renderTimings["render-timing-structure"] || 0) <= 50,
+                      "text-green-400 font-bold":
+                        (renderTimings["render-timing-structure"] || 0) <= 20,
+                    })}
+                  >
+                    {renderTimings["render-timing-structure"] || 0}ms
+                  </span>
+                </div>
+                <div className="flex items-center bg-neutral-800">
+                  <span className="text-xs text-neutral-400 flex-1">
+                    Written durations analysis
+                  </span>
+                  <span
+                    className={classNames("text-xs font-mono text-right", {
+                      "text-red-400 font-bold":
+                        (renderTimings["render-timing-notation"] || 0) > 50,
+                      "text-yellow-400 font-bold":
+                        (renderTimings["render-timing-notation"] || 0) > 20 &&
+                        (renderTimings["render-timing-notation"] || 0) <= 50,
+                      "text-green-400 font-bold":
+                        (renderTimings["render-timing-notation"] || 0) <= 20,
+                    })}
+                  >
+                    {renderTimings["render-timing-notation"] || 0}ms
+                  </span>
+                </div>
+                <div className="flex items-center bg-neutral-800">
+                  <span className="text-xs text-neutral-400 flex-1">
+                    Musical elements analysis
+                  </span>
+                  <span
+                    className={classNames("text-xs font-mono text-right", {
+                      "text-red-400 font-bold":
+                        (renderTimings["render-timing-elements"] || 0) > 50,
+                      "text-yellow-400 font-bold":
+                        (renderTimings["render-timing-elements"] || 0) > 20 &&
+                        (renderTimings["render-timing-elements"] || 0) <= 50,
+                      "text-green-400 font-bold":
+                        (renderTimings["render-timing-elements"] || 0) <= 20,
+                    })}
+                  >
+                    {renderTimings["render-timing-elements"] || 0}ms
+                  </span>
+                </div>
+                <div className="flex items-center bg-neutral-800">
+                  <span className="text-xs text-neutral-400 flex-1">
+                    Horizontal spacing
+                  </span>
+                  <span
+                    className={classNames("text-xs font-mono text-right", {
+                      "text-red-400 font-bold":
+                        (renderTimings["render-timing-spacing"] || 0) > 50,
+                      "text-yellow-400 font-bold":
+                        (renderTimings["render-timing-spacing"] || 0) > 20 &&
+                        (renderTimings["render-timing-spacing"] || 0) <= 50,
+                      "text-green-400 font-bold":
+                        (renderTimings["render-timing-spacing"] || 0) <= 20,
+                    })}
+                  >
+                    {renderTimings["render-timing-spacing"] || 0}ms
+                  </span>
+                </div>
+                <div className="flex items-center bg-neutral-800">
+                  <span className="text-xs text-neutral-400 flex-1">
+                    Stem length calculations
+                  </span>
+                  <span
+                    className={classNames("text-xs font-mono text-right", {
+                      "text-red-400 font-bold":
+                        (renderTimings["render-timing-stems"] || 0) > 50,
+                      "text-yellow-400 font-bold":
+                        (renderTimings["render-timing-stems"] || 0) > 20 &&
+                        (renderTimings["render-timing-stems"] || 0) <= 50,
+                      "text-green-400 font-bold":
+                        (renderTimings["render-timing-stems"] || 0) <= 20,
+                    })}
+                  >
+                    {renderTimings["render-timing-stems"] || 0}ms
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="border border-neutral-700 rounded-md overflow-hidden">
+            <div
+              className="text-sm font-bold text-neutral-200 bg-neutral-700 px-2 py-1 flex justify-between cursor-pointer hover:bg-neutral-600 transition-colors border-b border-neutral-600"
+              onClick={() => setRenderCollapsed(!renderCollapsed)}
+            >
+              <span>✏️ Render Phase (CPU)</span>
+              <span
+                className={classNames("font-mono text-sm", {
+                  "text-red-400 font-bold":
+                    (renderTimings["render-timing-setup"] || 0) +
+                      (renderTimings["render-timing-barlines"] || 0) +
+                      (renderTimings["render-timing-stave"] || 0) >
+                    50,
+                  "text-yellow-400 font-bold":
+                    (renderTimings["render-timing-setup"] || 0) +
+                      (renderTimings["render-timing-barlines"] || 0) +
+                      (renderTimings["render-timing-stave"] || 0) >
+                      20 &&
+                    (renderTimings["render-timing-setup"] || 0) +
+                      (renderTimings["render-timing-barlines"] || 0) +
+                      (renderTimings["render-timing-stave"] || 0) <=
+                      50,
+                  "text-green-400 font-bold":
+                    (renderTimings["render-timing-setup"] || 0) +
+                      (renderTimings["render-timing-barlines"] || 0) +
+                      (renderTimings["render-timing-stave"] || 0) <=
+                    20,
+                })}
+              >
+                {(renderTimings["render-timing-setup"] || 0) +
+                  (renderTimings["render-timing-barlines"] || 0) +
+                  (renderTimings["render-timing-stave"] || 0)}
+                ms
+              </span>
+            </div>
+            {!renderCollapsed && (
+              <div className="px-2 py-1.5 bg-neutral-800">
+                <div className="flex items-center">
+                  <span className="text-xs text-neutral-400 flex-1">
+                    Basic drawing setup
+                  </span>
+                  <span
+                    className={classNames("text-xs font-mono text-right", {
+                      "text-red-400 font-bold":
+                        (renderTimings["render-timing-setup"] || 0) > 50,
+                      "text-yellow-400 font-bold":
+                        (renderTimings["render-timing-setup"] || 0) > 20 &&
+                        (renderTimings["render-timing-setup"] || 0) <= 50,
+                      "text-green-400 font-bold":
+                        (renderTimings["render-timing-setup"] || 0) <= 20,
+                    })}
+                  >
+                    {renderTimings["render-timing-setup"] || 0}ms
+                  </span>
+                </div>
+                <div className="flex items-center bg-neutral-800">
+                  <span className="text-xs text-neutral-400 flex-1">
+                    Barline rendering
+                  </span>
+                  <span
+                    className={classNames("text-xs font-mono text-right", {
+                      "text-red-400 font-bold":
+                        (renderTimings["render-timing-barlines"] || 0) > 50,
+                      "text-yellow-400 font-bold":
+                        (renderTimings["render-timing-barlines"] || 0) > 20 &&
+                        (renderTimings["render-timing-barlines"] || 0) <= 50,
+                      "text-green-400 font-bold":
+                        (renderTimings["render-timing-barlines"] || 0) <= 20,
+                    })}
+                  >
+                    {renderTimings["render-timing-barlines"] || 0}ms
+                  </span>
+                </div>
+                <div className="flex items-center bg-neutral-800">
+                  <span className="text-xs text-neutral-400 flex-1">
+                    Stave contents rendering
+                  </span>
+                  <span
+                    className={classNames("text-xs font-mono text-right", {
+                      "text-red-400 font-bold":
+                        (renderTimings["render-timing-stave"] || 0) > 50,
+                      "text-yellow-400 font-bold":
+                        (renderTimings["render-timing-stave"] || 0) > 20 &&
+                        (renderTimings["render-timing-stave"] || 0) <= 50,
+                      "text-green-400 font-bold":
+                        (renderTimings["render-timing-stave"] || 0) <= 20,
+                    })}
+                  >
+                    {renderTimings["render-timing-stave"] || 0}ms
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="border border-neutral-700 rounded-md overflow-hidden">
+            <div
+              className="text-sm font-bold text-neutral-200 bg-neutral-700 px-2 py-1 flex justify-between cursor-pointer hover:bg-neutral-600 transition-colors border-b border-neutral-600"
+              onClick={() => setGpuCollapsed(!gpuCollapsed)}
+            >
+              <span>🚀 GPU Phase (Metal/Skia)</span>
+              <span
+                className={classNames("font-mono text-sm", {
+                  "text-red-400 font-bold":
+                    (renderTimings["native-render-timing-setup"] || 0) +
+                      (renderTimings["native-render-timing-draw"] || 0) +
+                      (renderTimings["native-render-timing-flush"] || 0) >
+                    50,
+                  "text-yellow-400 font-bold":
+                    (renderTimings["native-render-timing-setup"] || 0) +
+                      (renderTimings["native-render-timing-draw"] || 0) +
+                      (renderTimings["native-render-timing-flush"] || 0) >
+                      20 &&
+                    (renderTimings["native-render-timing-setup"] || 0) +
+                      (renderTimings["native-render-timing-draw"] || 0) +
+                      (renderTimings["native-render-timing-flush"] || 0) <=
+                      50,
+                  "text-green-400 font-bold":
+                    (renderTimings["native-render-timing-setup"] || 0) +
+                      (renderTimings["native-render-timing-draw"] || 0) +
+                      (renderTimings["native-render-timing-flush"] || 0) <=
+                    20,
+                })}
+              >
+                {(renderTimings["native-render-timing-setup"] || 0) +
+                  (renderTimings["native-render-timing-draw"] || 0) +
+                  (renderTimings["native-render-timing-flush"] || 0)}
+                ms
+              </span>
+            </div>
+            {!gpuCollapsed && (
+              <div className="px-2 py-1.5 bg-neutral-800">
+                <div className="flex items-center">
+                  <span className="text-xs text-neutral-400 flex-1">
+                    GPU surface & canvas setup
+                  </span>
+                  <span
+                    className={classNames("text-xs font-mono text-right", {
+                      "text-red-400 font-bold":
+                        (renderTimings["native-render-timing-setup"] || 0) > 50,
+                      "text-yellow-400 font-bold":
+                        (renderTimings["native-render-timing-setup"] || 0) >
+                          20 &&
+                        (renderTimings["native-render-timing-setup"] || 0) <=
+                          50,
+                      "text-green-400 font-bold":
+                        (renderTimings["native-render-timing-setup"] || 0) <=
+                        20,
+                    })}
+                  >
+                    {renderTimings["native-render-timing-setup"] || 0}ms
+                  </span>
+                </div>
+                <div className="flex items-center bg-neutral-800">
+                  <span className="text-xs text-neutral-400 flex-1">
+                    GPU drawing execution
+                  </span>
+                  <span
+                    className={classNames("text-xs font-mono text-right", {
+                      "text-red-400 font-bold":
+                        (renderTimings["native-render-timing-draw"] || 0) > 50,
+                      "text-yellow-400 font-bold":
+                        (renderTimings["native-render-timing-draw"] || 0) >
+                          20 &&
+                        (renderTimings["native-render-timing-draw"] || 0) <= 50,
+                      "text-green-400 font-bold":
+                        (renderTimings["native-render-timing-draw"] || 0) <= 20,
+                    })}
+                  >
+                    {renderTimings["native-render-timing-draw"] || 0}ms
+                  </span>
+                </div>
+                <div className="flex items-center bg-neutral-800">
+                  <span className="text-xs text-neutral-400 flex-1">
+                    GPU flush & Metal commands
+                  </span>
+                  <span
+                    className={classNames("text-xs font-mono text-right", {
+                      "text-red-400 font-bold":
+                        (renderTimings["native-render-timing-flush"] || 0) > 50,
+                      "text-yellow-400 font-bold":
+                        (renderTimings["native-render-timing-flush"] || 0) >
+                          20 &&
+                        (renderTimings["native-render-timing-flush"] || 0) <=
+                          50,
+                      "text-green-400 font-bold":
+                        (renderTimings["native-render-timing-flush"] || 0) <=
+                        20,
+                    })}
+                  >
+                    {renderTimings["native-render-timing-flush"] || 0}ms
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="border border-neutral-600 rounded-md overflow-hidden bg-neutral-800">
+            <div className="px-2 py-1 border-b border-neutral-600">
+              <div className="flex items-center">
+                <span className="text-sm font-bold text-neutral-200 flex-1">
+                  📊 Total Render Time
+                </span>
+                <span
+                  className={classNames(
+                    "text-sm font-mono font-bold text-right",
+                    {
+                      "text-red-400":
+                        Object.values(renderTimings).reduce(
+                          (a, b) => a + b,
+                          0,
+                        ) > 50,
+                      "text-yellow-400":
+                        Object.values(renderTimings).reduce(
+                          (a, b) => a + b,
+                          0,
+                        ) > 20 &&
+                        Object.values(renderTimings).reduce(
+                          (a, b) => a + b,
+                          0,
+                        ) <= 50,
+                      "text-green-400":
+                        Object.values(renderTimings).reduce(
+                          (a, b) => a + b,
+                          0,
+                        ) <= 20,
+                    },
+                  )}
+                >
+                  {Object.values(renderTimings).reduce((a, b) => a + b, 0)}ms
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 

@@ -1,6 +1,7 @@
 use crate::score::components::duration::NoteDuration;
 use crate::utils::UniqueId;
 use crate::AppState;
+use crate::RenderState;
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use tauri::State;
@@ -43,44 +44,75 @@ impl Sequencer {
 pub fn ui_sequencer_instrument_set(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
+    renderer_state: State<'_, RenderState>,
     id: UniqueId,
 ) {
     let mut state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
+
     state.ui.sequencer.instrument = Some(id);
 
-    state.emit(&app, None);
+    state.emit(&app, &mut renderer, false);
 }
 
 #[tauri::command(rename_all = "snake_case")]
-pub fn ui_sequencer_track_set(app: tauri::AppHandle, state: State<'_, AppState>, id: UniqueId) {
+pub fn ui_sequencer_track_set(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    renderer_state: State<'_, RenderState>,
+    id: UniqueId,
+) {
     let mut state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
+
     state.ui.sequencer.track = Some(id);
 
-    state.emit(&app, None);
+    state.emit(&app, &mut renderer, false);
 }
 
 #[tauri::command(rename_all = "snake_case")]
-pub fn ui_sequencer_tool_set(app: tauri::AppHandle, state: State<'_, AppState>, tool: Tool) {
+pub fn ui_sequencer_tool_set(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    renderer_state: State<'_, RenderState>,
+    tool: Tool,
+) {
     let mut state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
+
     state.ui.sequencer.tool = tool;
-    state.emit(&app, None);
+
+    state.emit(&app, &mut renderer, false);
 }
 
 #[tauri::command(rename_all = "snake_case")]
 pub fn ui_sequencer_snap_set(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
+    renderer_state: State<'_, RenderState>,
     snap: NoteDuration,
 ) {
     let mut state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
+
     state.ui.sequencer.snap = snap;
-    state.emit(&app, None);
+
+    state.emit(&app, &mut renderer, false);
 }
 
 #[tauri::command(rename_all = "snake_case")]
-pub fn ui_sequencer_coords_set(app: tauri::AppHandle, state: State<'_, AppState>, x: u16, y: u16) {
+pub fn ui_sequencer_coords_set(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    renderer_state: State<'_, RenderState>,
+    x: u16,
+    y: u16,
+) {
     let mut state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
+
     state.ui.sequencer.x = x;
     state.ui.sequencer.y = y;
-    state.emit(&app, None);
+
+    state.emit(&app, &mut renderer, false);
 }

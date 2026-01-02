@@ -18,8 +18,8 @@ export const Button: FC<ButtonProps> = ({
     <button
       onClick={onClick}
       className={classNames(
-        "h-[36px] flex items-center text-left text-white text-sm px-3 bg-neutral-900 hover:bg-neutral-800",
-        className
+        "h-9 flex items-center text-left text-white text-sm px-3 bg-neutral-900 hover:bg-neutral-800",
+        className,
       )}
     >
       <div className={classNames({ "opacity-25": isDisabled })}>{children}</div>

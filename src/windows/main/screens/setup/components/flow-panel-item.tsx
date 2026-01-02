@@ -42,7 +42,7 @@ export const FlowPanelItem: FC<Props> = ({ flow, index }) => {
   const isSelected = state.ui.setup.selection?.id === flow.id;
   const isAssigned = getIsAssigned(state, flow.id);
   const isAssignable = assignableSet.has(
-    state.ui.setup.selection?.selection_type
+    state.ui.setup.selection?.selection_type,
   );
 
   const fg = isSelected ? "text-black" : "text-white";
@@ -80,14 +80,14 @@ export const FlowPanelItem: FC<Props> = ({ flow, index }) => {
           break;
       }
     },
-    [flow.id, savedValue]
+    [flow.id, savedValue],
   );
 
   const onInput = useCallback(
     async (e: any) => {
       await actions.score.flow.rename(flow.id, e.target.value);
     },
-    [flow.id]
+    [flow.id],
   );
 
   const onBlur = useCallback(() => {
@@ -104,12 +104,12 @@ export const FlowPanelItem: FC<Props> = ({ flow, index }) => {
         if (checked) {
           await actions.score.flow.assignPlayer(
             flow.id,
-            state.ui.setup.selection.id
+            state.ui.setup.selection.id,
           );
         } else {
           await actions.score.flow.unassignPlayer(
             flow.id,
-            state.ui.setup.selection.id
+            state.ui.setup.selection.id,
           );
         }
       }
@@ -118,17 +118,17 @@ export const FlowPanelItem: FC<Props> = ({ flow, index }) => {
         if (checked) {
           await actions.score.layout.assignFlow(
             state.ui.setup.selection.id,
-            flow.id
+            flow.id,
           );
         } else {
           await actions.score.layout.unassignFlow(
             state.ui.setup.selection.id,
-            flow.id
+            flow.id,
           );
         }
       }
     },
-    [state.ui.setup.selection, flow.id]
+    [state.ui.setup.selection, flow.id],
   );
 
   const onSelect = useCallback(() => {
@@ -145,9 +145,9 @@ export const FlowPanelItem: FC<Props> = ({ flow, index }) => {
     <div
       data-flow-id={flow.id}
       className={classNames(
-        "flex flex-col flex-1 border-2 border-transparent min-w-[260px]",
+        "flex flex-col flex-1 border-2 border-transparent min-w-65",
         fg,
-        bg
+        bg,
       )}
       onPointerDown={onSelect}
     >
@@ -157,7 +157,7 @@ export const FlowPanelItem: FC<Props> = ({ flow, index }) => {
           "px-2": !isAssignable,
         })}
       >
-        <div className="flex items-center h-[48px]">
+        <div className="flex items-center h-12">
           <Icon
             className={classNames("mr-3", fg)}
             path={mdiHeatWave}
@@ -171,7 +171,7 @@ export const FlowPanelItem: FC<Props> = ({ flow, index }) => {
             value={title}
             className={classNames(
               `truncate flex-1 bg-transparent outline-hidden`,
-              fg
+              fg,
             )}
             onKeyDown={onKeyDown}
             onInput={onInput}
@@ -195,7 +195,7 @@ export const FlowPanelItem: FC<Props> = ({ flow, index }) => {
           )}
 
           {isAssignable && (
-            <div className="mr-[-2px]">
+            <div className="-mr-0.5">
               <Checkbox
                 value={isAssigned}
                 onPointerDown={onBlockPointerDown}
@@ -206,7 +206,7 @@ export const FlowPanelItem: FC<Props> = ({ flow, index }) => {
         </div>
       </div>
       <div className="flex items-end justify-end flex-1 px-2">
-        <div className="flex items-center justify-center h-[48px] w-[36px]">
+        <div className="flex items-center justify-center h-12 w-9">
           {index + 1}
         </div>
       </div>

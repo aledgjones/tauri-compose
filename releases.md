@@ -1,3 +1,23 @@
+## Release Notes for v0.17.0
+
+### 🏗️ Features
+- feat: oom
+- feat: native renderer
+- feat: renderer structure
+- feat: restructure px per mm
+### 🐞 Fixes
+- fix: prettier warnings
+- fix: warnings tailwind
+- fix: proper clipping
+- fix: singleton renderer
+- fix: bounds
+- fix: cleanup
+- fix: cleanup renderer view
+- fix: minor formatting
+- fix: formatting
+- fix: cleanup
+
+
 ## Release Notes for v0.16.0
 
 ### 🏗️ Features

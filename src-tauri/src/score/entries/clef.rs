@@ -101,6 +101,7 @@ impl Flow {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_entries_clef_create(
     app: tauri::AppHandle,
@@ -138,7 +139,7 @@ pub fn score_entries_clef_create(
     );
     master.insert_entry(Entry::Clef(new));
 
-    state.emit(&app, Some(&mut renderer));
+    state.emit(&app, &mut renderer, true);
 
     clef_id
 }
@@ -168,5 +169,5 @@ pub fn score_entries_clef_clear(
         master.remove_entry(old.id);
     };
 
-    state.emit(&app, Some(&mut renderer));
+    state.emit(&app, &mut renderer, true);
 }

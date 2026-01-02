@@ -40,7 +40,7 @@ const getIsAssigned = (state: AppState, layoutId: number) => {
 
   if (selection?.selection_type === SelectionType.Player) {
     return state.score.layouts.by_id[layoutId].player_ids.includes(
-      selection.id
+      selection.id,
     );
   }
 
@@ -106,14 +106,14 @@ export const LayoutPanelItem: FC<Props> = ({ layout }) => {
           break;
       }
     },
-    [layout.id, savedValue]
+    [layout.id, savedValue],
   );
 
   const onInput = useCallback(
     async (e: any) => {
       await actions.score.layout.rename(layout.id, e.target.value);
     },
-    [layout.id]
+    [layout.id],
   );
 
   const onBlur = useCallback(() => {
@@ -144,7 +144,7 @@ export const LayoutPanelItem: FC<Props> = ({ layout }) => {
         }
       }
     },
-    [layout.id, state.ui.setup.selection]
+    [layout.id, state.ui.setup.selection],
   );
 
   const onBlockPointerDown = useCallback((e: PointerEvent<HTMLDivElement>) => {
@@ -173,7 +173,7 @@ export const LayoutPanelItem: FC<Props> = ({ layout }) => {
       className={classNames("border-2 border-transparent", fg, bg)}
       onPointerDown={onSelect}
     >
-      <div className="flex items-center h-[48px] text-sm pr-1 pl-3">
+      <div className="flex items-center h-12 text-sm pr-1 pl-3">
         <Icon className={classNames("mr-3", fg)} path={icon} size={1} />
 
         <input
@@ -183,7 +183,7 @@ export const LayoutPanelItem: FC<Props> = ({ layout }) => {
           value={layoutName}
           className={classNames(
             `truncate flex-1 bg-transparent outline-hidden`,
-            fg
+            fg,
           )}
           onKeyDown={onKeyDown}
           onInput={onInput}
@@ -207,7 +207,7 @@ export const LayoutPanelItem: FC<Props> = ({ layout }) => {
         )}
 
         {isAssignable && (
-          <div className="mr-[-2px]">
+          <div className="-mr-0.5">
             <Checkbox
               value={isAssigned}
               onPointerDown={onBlockPointerDown}

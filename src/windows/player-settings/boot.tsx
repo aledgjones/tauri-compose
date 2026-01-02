@@ -5,5 +5,5 @@ import { Main } from ".";
 createRoot(document.getElementById("root")!).render(
   <AppStateProvider>
     <Main />
-  </AppStateProvider>
+  </AppStateProvider>,
 );

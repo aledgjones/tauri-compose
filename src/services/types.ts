@@ -360,6 +360,9 @@ export type AppState = {
     renderer: {
       zoom: number;
       pxPerMm: number;
+      pan_x: number;
+      pan_y: number;
+      bounds: { x: number; y: number; width: number; height: number };
     };
   };
   score: {

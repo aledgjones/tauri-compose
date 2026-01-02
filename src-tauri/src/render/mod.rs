@@ -1,10 +1,8 @@
 mod draw;
 mod parse;
 
-use std::sync::Mutex;
 use std::time::Instant;
 use tauri::Emitter;
-use tauri::{ipc::Response, State};
 
 use crate::renderer::converter::Converter;
 use crate::renderer::text_measurer::TextMeasurer;
@@ -49,13 +47,6 @@ use parse::get_tone_offsets::get_tone_offsets;
 use parse::get_vertical_spacing::get_vertical_spacing;
 use parse::get_vertical_spans::get_vertical_spans;
 use parse::get_written_durations::get_written_durations;
-
-#[tauri::command(rename_all = "snake_case")]
-pub fn get_render_data(renderer: State<'_, Mutex<Renderer>>) -> Response {
-    let mut renderer = renderer.lock().unwrap();
-    let data = renderer.data();
-    Response::new(data)
-}
 
 pub fn generate_render_instructions(
     app: &tauri::AppHandle,
@@ -161,6 +152,9 @@ pub fn generate_render_instructions(
     renderer.clear_instructions();
     renderer.set_converter(converter);
     renderer.set_dimensions(width, height);
+
+    // Draw white background for the score page
+    renderer.rectangle(0.0, 0.0, width, height, skia_safe::Color::WHITE);
 
     draw_names(
         &Point {
@@ -512,41 +506,30 @@ pub fn generate_render_instructions(
     let total_duration = total_start.elapsed();
 
     // Emit timing events for each phase
-    app.emit(
+    let _ = app.emit(
         "render-timing-vertical",
         vertical_duration.as_millis() as u64,
-    )
-    .unwrap();
-    app.emit("render-timing-layout", layout_duration.as_millis() as u64)
-        .unwrap();
-    app.emit(
+    );
+    let _ = app.emit("render-timing-layout", layout_duration.as_millis() as u64);
+    let _ = app.emit(
         "render-timing-structure",
         structure_duration.as_millis() as u64,
-    )
-    .unwrap();
-    app.emit(
+    );
+    let _ = app.emit(
         "render-timing-notation",
         notation_duration.as_millis() as u64,
-    )
-    .unwrap();
-    app.emit(
+    );
+    let _ = app.emit(
         "render-timing-elements",
         elements_duration.as_millis() as u64,
-    )
-    .unwrap();
-    app.emit("render-timing-spacing", spacing_duration.as_millis() as u64)
-        .unwrap();
-    app.emit("render-timing-stems", stems_duration.as_millis() as u64)
-        .unwrap();
-    app.emit("render-timing-setup", setup_duration.as_millis() as u64)
-        .unwrap();
-    app.emit(
+    );
+    let _ = app.emit("render-timing-spacing", spacing_duration.as_millis() as u64);
+    let _ = app.emit("render-timing-stems", stems_duration.as_millis() as u64);
+    let _ = app.emit("render-timing-setup", setup_duration.as_millis() as u64);
+    let _ = app.emit(
         "render-timing-barlines",
         barlines_duration.as_millis() as u64,
-    )
-    .unwrap();
-    app.emit("render-timing-stave", stave_duration.as_millis() as u64)
-        .unwrap();
-    app.emit("render-timing-total", total_duration.as_millis() as u64)
-        .unwrap();
+    );
+    let _ = app.emit("render-timing-stave", stave_duration.as_millis() as u64);
+    let _ = app.emit("render-timing-total", total_duration.as_millis() as u64);
 }
