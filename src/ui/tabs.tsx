@@ -64,7 +64,7 @@ export const Tabs = <T extends Key>({
                     {
                       "text-black": isSelected,
                       "text-white hover:bg-neutral-800": !isSelected,
-                    }
+                    },
                   )}
                 >
                   {option.label}

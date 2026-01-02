@@ -19,7 +19,7 @@ export const Panel: FC<Props> = ({ title, className, icons, children }) => {
     <div
       className={classNames(
         "bg-neutral-900 overflow-hidden h-full flex flex-col",
-        className
+        className,
       )}
     >
       <div className="py-2 pl-4 pr-2 flex items-center">
