@@ -46,7 +46,7 @@ export const ZoomWidget = () => {
   };
 
   return (
-    <div className="flex items-center py-2">
+    <div className="flex items-center">
       <Select
         value={currentZoom}
         options={zoomOptions}
@@ -56,13 +56,13 @@ export const ZoomWidget = () => {
         direction="up"
       />
       <button
-        className="ml-2 px-2 h-7 bg-neutral-900 hover:bg-neutral-800 text-white"
+        className="ml-0.5 px-2 h-7 bg-neutral-900 hover:bg-neutral-800 text-white"
         onClick={handleZoomIncrement}
       >
         <MdiIcon size={0.75} path={mdiPlus} />
       </button>
       <button
-        className="px-2 h-7 bg-neutral-900 hover:bg-neutral-800 text-white rounded-br-lg"
+        className="px-2 h-7 bg-neutral-900 hover:bg-neutral-800 text-white rounded-br-xl"
         onClick={handleZoomDecrement}
       >
         <MdiIcon size={0.75} path={mdiMinus} />

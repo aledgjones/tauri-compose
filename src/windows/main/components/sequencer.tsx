@@ -55,18 +55,20 @@ export const SequencerToolbar: FC<SequencerToolbarProps> = ({
         onClick={() => actions.ui.sequencer.setTool(Tool.Slice)}
       />
       <IconButton
-        className="mr-2"
+        className="mr-0.5"
         path={mdiEraser}
         variant="filled"
         isSelected={tool === Tool.Erase}
         onClick={() => actions.ui.sequencer.setTool(Tool.Erase)}
       />
       <SnapPicker value={snapValue} onChange={actions.ui.sequencer.setSnap} />
+      <div className="bg-neutral-900 ml-0.5 flex-1" />
     </div>
     <div className="flex flex-1 justify-center">
+      <div className="bg-neutral-900 mr-0.5 flex-1" />
       {instrumentId && instruments.length > 0 && (
         <Select
-          className="mr-1"
+          className="mr-0.5"
           variant="filled"
           value={instrumentId}
           options={instruments}
@@ -81,6 +83,7 @@ export const SequencerToolbar: FC<SequencerToolbarProps> = ({
           onChange={actions.ui.sequencer.setTrack}
         />
       )}
+      <div className="bg-neutral-900 ml-0.5 flex-1" />
     </div>
   </>
 );

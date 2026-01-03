@@ -115,11 +115,11 @@ export const Select = <T extends Key>({
       {isOpen && (
         <ul
           className={classNames(
-            "whitespace-nowrap py-1 min-w-48 w-full absolute z-10 text-white text-sm shadow-lg mt-1 overflow-auto",
+            "whitespace-nowrap py-1 min-w-full absolute z-50 text-white text-sm shadow-lg overflow-auto",
             {
-              "bottom-full mb-2": direction === "up",
-              "top-full mt-2": direction === "down",
-              "max-h-69.5": direction === "down",
+              "bottom-full mb-0.5": direction === "up",
+              "top-full mt-0.5": direction === "down",
+              "max-h-60.5": direction === "up",
               "bg-neutral-800": isStandard,
               "bg-neutral-700": !isStandard,
             },

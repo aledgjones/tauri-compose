@@ -14,7 +14,7 @@ export const Sequence = () => {
   return (
     <>
       <div
-        className="w-screen p-2 grid grid-cols-1 gap-2 overflow-hidden"
+        className="w-screen px-0.75 grid grid-cols-1 gap-0.5 overflow-hidden"
         style={{ gridTemplateRows }}
       >
         {/* Track Overview Placeholder - will show track overviews eventually */}
@@ -24,7 +24,7 @@ export const Sequence = () => {
         {!minimized && <BottomPanel />}
       </div>
 
-      <div className="flex justify-center items-center h-7 ml-2 mr-2 mb-2 rounded-b-lg overflow-hidden gap-2">
+      <div className="flex justify-center items-center h-7 ml-0.75 mr-0.75 mb-0.75 rounded-b-lg overflow-hidden gap-0.5">
         <SelectedToneInfoDisplay />
         <button
           onClick={() => actions.ui.sequence.bottomPanel.toggle()}

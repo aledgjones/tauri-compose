@@ -43,7 +43,7 @@ export const MixerToolbar: FC<MixerToolbarProps> = ({ instruments }) => {
 
   return (
     <>
-      <div className="flex flex-1 gap-2">
+      <div className="flex flex-1 gap-0.5">
         <IconButton
           path={mdiSizeS}
           isSelected={hasSolo}
@@ -74,6 +74,7 @@ export const MixerToolbar: FC<MixerToolbarProps> = ({ instruments }) => {
             });
           }}
         />
+        <div className="bg-neutral-900 flex-1" />
       </div>
     </>
   );
@@ -109,7 +110,7 @@ export const Mixer: FC<Props> = ({ instruments }) => {
   }, [instruments, samplerState]);
 
   return (
-    <div className="flex w-full h-full overflow-auto gap-2">
+    <div className="flex w-full h-full overflow-auto gap-0.5">
       {instruments.map((instrument, index) => {
         const state = samplerState[instrument.id] || {
           volume: 80,
@@ -149,6 +150,7 @@ export const Mixer: FC<Props> = ({ instruments }) => {
           />
         );
       })}
+      <div className="bg-neutral-900 flex-1" />
     </div>
   );
 };

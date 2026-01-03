@@ -34,7 +34,7 @@ export const BottomPanel: FC = () => {
 
   return (
     <div className="flex flex-col min-h-0 overflow-hidden">
-      <div className="flex pb-2 h-13 items-center z-50">
+      <div className="flex pb-0.5 h-10 items-center z-50">
         {tab === BottomPanelTab.Sequencer && (
           <SequencerToolbar
             tool={tool}
@@ -49,6 +49,7 @@ export const BottomPanel: FC = () => {
           <MixerToolbar instruments={instruments} />
         )}
         <div className="flex flex-1 justify-end">
+          <div className="bg-neutral-900 mr-0.5 flex-1" />
           {WRITE_TABS.map((tabConfig) => (
             <IconButton
               key={tabConfig.tab}
