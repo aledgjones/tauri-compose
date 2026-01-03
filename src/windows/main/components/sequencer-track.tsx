@@ -14,7 +14,6 @@ import {
 import { actions } from "../../../services/actions";
 import { SequencerTrackTone } from "./sequencer-track-tone";
 import { Expression, sampler } from "../../../sampler";
-import { useAppState } from "../../../services/state";
 import { getSequencerClickTarget } from "../../../services/sequencer-utils";
 
 export const getSnappedXPosition = (
@@ -82,7 +81,6 @@ export const SequencerTrack: FC<SequencerTrackProps> = ({
   color,
 }) => {
   const sequencerRef = useRef<HTMLDivElement>(null);
-  const appState = useAppState();
 
   const onPointerDown = useCallback(
     async (e: PointerEvent<HTMLDivElement>) => {
@@ -173,6 +171,45 @@ export const SequencerTrack: FC<SequencerTrackProps> = ({
 
           await actions.ui.sequencer.select(SelectionType.Tone, clickTarget.id);
 
+          // Set up drag listeners for pitch adjustment
+          const box = sequencerRef.current?.getBoundingClientRect();
+          if (!box) {
+            break;
+          }
+
+          e.stopPropagation();
+
+          const handlePointerMove = async (e: any) => {
+            const y = e.clientY - box.top;
+            const newPitch = getPitchFromYPosition(y, slots.slotHeight);
+
+            // Update the tone's pitch if it changed
+            await actions.score.tone.setPitch(
+              track.id,
+              clickTarget.id,
+              newPitch,
+            );
+
+            // Audition the new pitch
+            if (instrumentId) {
+              sampler.play(
+                instrumentId.toString(),
+                Expression.Natural,
+                newPitch,
+                sampler.ctx.currentTime,
+                0.5,
+              );
+            }
+          };
+
+          const handlePointerUp = () => {
+            document.removeEventListener("pointermove", handlePointerMove);
+            document.removeEventListener("pointerup", handlePointerUp);
+          };
+
+          document.addEventListener("pointermove", handlePointerMove);
+          document.addEventListener("pointerup", handlePointerUp);
+
           break;
         }
 
@@ -198,7 +235,6 @@ export const SequencerTrack: FC<SequencerTrackProps> = ({
       tool,
       track.id,
       instrumentId,
-      appState.ui.sequencer.selection,
     ],
   );
 

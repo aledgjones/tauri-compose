@@ -579,6 +579,19 @@ export const actions = {
           duration,
         });
       },
+      setPitch: (
+        track_id: UniqueId,
+        tone_id: UniqueId,
+        pitch_int: number,
+        accidental?: Accidental | null,
+      ) => {
+        return invoke("score_entries_tone_pitch_set", {
+          track_id,
+          tone_id,
+          pitch_int,
+          accidental,
+        });
+      },
       remove: (track_id: UniqueId, tone_id: UniqueId) => {
         return invoke("score_entries_tone_duration_remove", {
           track_id,

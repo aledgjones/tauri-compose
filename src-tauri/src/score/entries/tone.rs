@@ -131,6 +131,50 @@ pub fn score_entries_tone_duration_set(
 }
 
 #[tauri::command(rename_all = "snake_case")]
+#[allow(clippy::too_many_arguments)]
+pub fn score_entries_tone_pitch_set(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    renderer_state: State<'_, RenderState>,
+    track_id: UniqueId,
+    tone_id: UniqueId,
+    pitch_int: u8,
+    accidental: Option<Accidental>,
+) {
+    let mut state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
+
+    let track = state.score.tracks.by_id.get_mut(&track_id).unwrap();
+
+    // Get the tick first to avoid borrowing conflicts
+    let tick = if let Some(Entry::Tone(tone)) = track.entries.by_id.get(&tone_id) {
+        tone.tick
+    } else {
+        return; // Tone not found
+    };
+
+    // Create the pitch based on whether an accidental was provided
+    let pitch = match accidental {
+        Some(accidental) => Pitch::new(pitch_int, accidental),
+        None => {
+            let key_signature = match track.get_key_signature_before_tick_inclusive(tick) {
+                Some(key_sig) => key_sig.clone(),
+                None => KeySignature::default(),
+            };
+            Pitch::from_int(pitch_int, &key_signature)
+        }
+    };
+
+    // Now update the tone with the new pitch
+    let entry = track.entries.by_id.get_mut(&tone_id).unwrap();
+    if let Entry::Tone(tone) = entry {
+        tone.pitch = pitch;
+    }
+
+    state.emit(&app, &mut renderer, true);
+}
+
+#[tauri::command(rename_all = "snake_case")]
 pub fn score_entries_tone_duration_remove(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
