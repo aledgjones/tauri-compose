@@ -15,9 +15,10 @@ type Props = {
 
 export const Tools: FC<Props> = ({ className }) => {
   return (
-    <div className={classNames("flex", className)}>
+    <div className={classNames("flex h-full gap-0.5", className)}>
+      <div className="h-full bg-neutral-900 flex-1" />
       <IconButton
-        className="mr-2 text-white"
+        className="text-white"
         onClick={() => {
           const webview = new WebviewWindow("project-settings", {
             url: "/project-settings.html",
@@ -36,7 +37,7 @@ export const Tools: FC<Props> = ({ className }) => {
         path={mdiFolderCogOutline}
       />
       <IconButton
-        className="mr-2 text-white"
+        className="text-white"
         onClick={async () => {
           const webview = new WebviewWindow("debugger", {
             url: "/debugger.html",
@@ -54,7 +55,7 @@ export const Tools: FC<Props> = ({ className }) => {
       />
       <IconButton
         isDisabled
-        className="mr-1 text-white"
+        className="text-white"
         onClick={() => {}}
         variant="interactive"
         path={mdiUndo}

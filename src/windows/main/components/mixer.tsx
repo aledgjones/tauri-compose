@@ -47,7 +47,7 @@ export const MixerToolbar: FC<MixerToolbarProps> = ({ instruments }) => {
         <IconButton
           path={mdiSizeS}
           isSelected={hasSolo}
-          variant="filled"
+          variant="interactive"
           onClick={() => {
             instruments.forEach((instrument) => {
               actions.score.instrument.setSolo(instrument.id, !hasSolo);
@@ -62,7 +62,7 @@ export const MixerToolbar: FC<MixerToolbarProps> = ({ instruments }) => {
         <IconButton
           path={mdiSizeM}
           isSelected={hasMute}
-          variant="filled"
+          variant="interactive"
           onClick={() => {
             instruments.forEach((instrument) => {
               actions.score.instrument.setMute(instrument.id, !hasMute);

@@ -48,13 +48,13 @@ export const BottomPanel: FC = () => {
         {tab === BottomPanelTab.Mixer && (
           <MixerToolbar instruments={instruments} />
         )}
-        <div className="flex flex-1 justify-end">
-          <div className="bg-neutral-900 mr-0.5 flex-1" />
+        <div className="flex flex-1 justify-end gap-0.5">
+          <div className="bg-neutral-900 flex-1" />
           {WRITE_TABS.map((tabConfig) => (
             <IconButton
               key={tabConfig.tab}
               path={tabConfig.icon}
-              variant="filled"
+              variant="interactive"
               isSelected={tab === tabConfig.tab}
               onClick={() => actions.ui.write.bottomPanel.setTab(tabConfig.tab)}
             />

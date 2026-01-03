@@ -44,7 +44,7 @@ export const Transport: FC<Props> = ({ className }) => {
   };
 
   return (
-    <div className={classNames("flex gap-1", className)}>
+    <div className={classNames("flex gap-0.5", className)}>
       <IconButton
         className="text-white"
         variant="interactive"

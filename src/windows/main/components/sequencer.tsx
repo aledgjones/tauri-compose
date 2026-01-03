@@ -35,41 +35,39 @@ export const SequencerToolbar: FC<SequencerToolbarProps> = ({
   snapValue,
 }) => (
   <>
-    <div className="flex flex-1">
+    <div className="flex flex-1 gap-0.5">
       <IconButton
         path={mdiCursorDefault}
-        variant="filled"
+        variant="interactive"
         isSelected={tool === Tool.Select}
         onClick={() => actions.ui.sequencer.setTool(Tool.Select)}
       />
       <IconButton
         path={mdiPen}
-        variant="filled"
+        variant="interactive"
         isSelected={tool === Tool.Write}
         onClick={() => actions.ui.sequencer.setTool(Tool.Write)}
       />
       <IconButton
         path={mdiBoxCutter}
-        variant="filled"
+        variant="interactive"
         isSelected={tool === Tool.Slice}
         onClick={() => actions.ui.sequencer.setTool(Tool.Slice)}
       />
       <IconButton
-        className="mr-0.5"
         path={mdiEraser}
-        variant="filled"
+        variant="interactive"
         isSelected={tool === Tool.Erase}
         onClick={() => actions.ui.sequencer.setTool(Tool.Erase)}
       />
       <SnapPicker value={snapValue} onChange={actions.ui.sequencer.setSnap} />
-      <div className="bg-neutral-900 ml-0.5 flex-1" />
+      <div className="bg-neutral-900 flex-1" />
     </div>
-    <div className="flex flex-1 justify-center">
-      <div className="bg-neutral-900 mr-0.5 flex-1" />
+    <div className="flex flex-1 justify-center gap-0.5">
+      <div className="bg-neutral-900 flex-1" />
       {instrumentId && instruments.length > 0 && (
         <Select
-          className="mr-0.5"
-          variant="filled"
+          variant="standard"
           value={instrumentId}
           options={instruments}
           onChange={actions.ui.sequencer.setInstrument}
@@ -77,13 +75,13 @@ export const SequencerToolbar: FC<SequencerToolbarProps> = ({
       )}
       {trackId && tracks.length > 0 && (
         <Select
-          variant="filled"
+          variant="standard"
           value={trackId}
           options={tracks}
           onChange={actions.ui.sequencer.setTrack}
         />
       )}
-      <div className="bg-neutral-900 ml-0.5 flex-1" />
+      <div className="bg-neutral-900 flex-1" />
     </div>
   </>
 );

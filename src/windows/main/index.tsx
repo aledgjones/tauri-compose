@@ -48,9 +48,9 @@ export const Main = () => {
 
   return (
     <PlaybackProvider appState={state}>
-      <div className="h-dvh w-dvw grid grid-rows-[30px_52px_1fr] bg-transparent gap-0.5">
+      <div className="h-dvh w-dvw grid grid-rows-[30px_36px_1fr] bg-transparent gap-0.5">
         <AppBar title="Solo Compose" filename={state.score.meta.title} />
-        <div className="p-2 mx-0.75 flex items-center bg-neutral-900">
+        <div className="mx-0.75 flex items-center">
           <Tabs
             className="flex flex-1 justify-start"
             value={state.ui.tab}
@@ -58,19 +58,21 @@ export const Main = () => {
             onChange={actions.ui.setTab}
           />
 
-          <div className="flex mx-2">
+          <div className="ml-0.5 h-full bg-neutral-900 flex-1" />
+
+          <div className="flex px-0.5">
             <Select
               variant="standard"
-              className="mr-2 inline-block"
+              className="mr-0.5 inline-block"
               value={state.ui.layout_id}
               onChange={actions.ui.setActiveLayoutId}
               options={layouts}
             />
 
-            <Transport className="mr-2" />
+            <Transport className="mr-0.5" />
 
             <IconButton
-              className="mr-1 text-white"
+              className="mr-0.5 text-white"
               variant="interactive"
               onClick={() => {}}
               path={mdiTuneVertical}
@@ -85,7 +87,9 @@ export const Main = () => {
             />
           </div>
 
-          <Tools className="flex-1 justify-end" />
+          <div className="h-full bg-neutral-900 flex-1" />
+
+          <Tools className="flex-1" />
         </div>
 
         <Content />
