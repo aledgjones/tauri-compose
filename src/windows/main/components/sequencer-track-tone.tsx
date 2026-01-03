@@ -1,7 +1,7 @@
 import { FC } from "react";
 import { SelectionType, Tone } from "../../../services/types";
 import { Icon } from "../../../ui/icon";
-import { mdiChevronLeft, mdiChevronRight } from "@mdi/js";
+import { mdiMenuLeft, mdiMenuRight } from "@mdi/js";
 import { useAppState } from "../../../services/state";
 import { lightenColor } from "../../../services/utils";
 import { getPitchName } from "../../../services/pitch-utils";
@@ -61,7 +61,7 @@ export const SequencerTrackTone: FC<Props> = ({
       data-tone-id={tone.id}
     >
       {showHandles && (
-        <Icon className="-mx-1.5" path={mdiChevronLeft} color="black" />
+        <Icon className="-mx-1.5" path={mdiMenuLeft} color="black" />
       )}
       {showPitchName && (
         <div
@@ -74,7 +74,7 @@ export const SequencerTrackTone: FC<Props> = ({
         </div>
       )}
       {showHandles && (
-        <Icon className="-mx-1.5" path={mdiChevronRight} color="black" />
+        <Icon className="-mx-1.5" path={mdiMenuRight} color="black" />
       )}
     </div>
   );
