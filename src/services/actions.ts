@@ -599,6 +599,15 @@ export const actions = {
         });
       },
     },
+    entry: {
+      shift: (track_id: UniqueId, entry_id: UniqueId, new_tick: Tick) => {
+        return invoke("score_entries_shift", {
+          track_id,
+          entry_id,
+          new_tick,
+        });
+      },
+    },
   },
   save: {
     project: async () => {

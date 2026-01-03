@@ -8,6 +8,7 @@ import {
   NoteDuration,
   SelectionType,
   Tool,
+  Tone,
   Track,
   UniqueId,
 } from "../../../services/types";
@@ -87,7 +88,6 @@ export const SequencerTrack: FC<SequencerTrackProps> = ({
       switch (tool) {
         case Tool.Write: {
           const box = sequencerRef.current?.getBoundingClientRect();
-
           if (!box) {
             return;
           }
@@ -171,7 +171,6 @@ export const SequencerTrack: FC<SequencerTrackProps> = ({
 
           await actions.ui.sequencer.select(SelectionType.Tone, clickTarget.id);
 
-          // Set up drag listeners for pitch adjustment
           const box = sequencerRef.current?.getBoundingClientRect();
           if (!box) {
             break;
@@ -179,26 +178,76 @@ export const SequencerTrack: FC<SequencerTrackProps> = ({
 
           e.stopPropagation();
 
+          // Calculate snap settings
+          const ticksPerSnap = (flow.subdivisions * 4) / snapDuration;
+
+          // Get the original tone data
+          const originalEntry = track.entries.by_id[clickTarget.id];
+          if (originalEntry.type !== "Tone") {
+            break;
+          }
+
+          const originalTone = originalEntry as Tone;
+          let lastPitch = originalTone.pitch.int;
+          let lastTick = originalTone.tick;
+
+          // Calculate initial position for relative movement
+          const initialX = e.clientX - box.left;
+          const initialTickRaw = initialX / ticks.tickWidth;
+          const originalToneTick = originalTone.tick;
+
           const handlePointerMove = async (e: any) => {
+            const x = e.clientX - box.left;
             const y = e.clientY - box.top;
+
+            // Calculate new pitch (vertical movement)
             const newPitch = getPitchFromYPosition(y, slots.slotHeight);
 
-            // Update the tone's pitch if it changed
-            await actions.score.tone.setPitch(
-              track.id,
-              clickTarget.id,
-              newPitch,
+            // Calculate new tick (horizontal movement) - relative delta movement
+            const currentTickRaw = x / ticks.tickWidth;
+            const delta = currentTickRaw - initialTickRaw;
+            const newToneTickRaw = originalToneTick + delta;
+
+            const newTick = getSnappedXPosition(
+              newToneTickRaw * ticks.tickWidth,
+              ticks.tickWidth,
+              ticksPerSnap,
+              "nearest",
             );
 
-            // Audition the new pitch
-            if (instrumentId) {
-              sampler.play(
-                instrumentId.toString(),
-                Expression.Natural,
+            // Ensure bounds after snapping
+            const maxTick = flow.length - originalTone.duration;
+            const clampedNewTick = Math.max(0, Math.min(maxTick, newTick));
+
+            // Update pitch if it changed
+            if (newPitch !== lastPitch) {
+              await actions.score.tone.setPitch(
+                track.id,
+                clickTarget.id,
                 newPitch,
-                sampler.ctx.currentTime,
-                0.5,
               );
+              lastPitch = newPitch;
+
+              // Audition the new pitch
+              if (instrumentId) {
+                sampler.play(
+                  instrumentId.toString(),
+                  Expression.Natural,
+                  newPitch,
+                  sampler.ctx.currentTime,
+                  0.5,
+                );
+              }
+            }
+
+            // Update tick if it changed
+            if (clampedNewTick !== lastTick) {
+              await actions.score.entry.shift(
+                track.id,
+                clickTarget.id,
+                clampedNewTick,
+              );
+              lastTick = clampedNewTick;
             }
           };
 
@@ -229,11 +278,13 @@ export const SequencerTrack: FC<SequencerTrackProps> = ({
     },
     [
       flow.subdivisions,
+      flow.length,
       slots.slotHeight,
       snapDuration,
       ticks.tickWidth,
       tool,
       track.id,
+      track.entries.by_id,
       instrumentId,
     ],
   );

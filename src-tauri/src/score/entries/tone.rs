@@ -190,3 +190,21 @@ pub fn score_entries_tone_duration_remove(
 
     state.emit(&app, &mut renderer, true);
 }
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn score_entries_shift(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    renderer_state: State<'_, RenderState>,
+    track_id: UniqueId,
+    entry_id: UniqueId,
+    new_tick: Tick,
+) {
+    let mut state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
+
+    let track = state.score.tracks.by_id.get_mut(&track_id).unwrap();
+    track.shift_entry(entry_id, new_tick);
+
+    state.emit(&app, &mut renderer, true);
+}
