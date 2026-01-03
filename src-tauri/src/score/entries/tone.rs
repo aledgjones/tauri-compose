@@ -192,6 +192,39 @@ pub fn score_entries_tone_duration_remove(
 }
 
 #[tauri::command(rename_all = "snake_case")]
+pub fn score_entries_tone_set_position_and_duration(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    renderer_state: State<'_, RenderState>,
+    track_id: UniqueId,
+    tone_id: UniqueId,
+    tick: Tick,
+    duration: Ticks,
+) {
+    let mut state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
+
+    let track = state.score.tracks.by_id.get_mut(&track_id).unwrap();
+    let entry = track.entries.by_id.get_mut(&tone_id).unwrap();
+    if let Entry::Tone(tone) = entry {
+        // Remove from old tick index
+        if let Some(ids) = track.entries.by_tick.get_mut(&tone.tick) {
+            ids.retain(|id| *id != tone_id);
+        }
+
+        // Update tone properties
+        tone.tick = tick;
+        tone.duration = duration;
+
+        // Add to new tick index
+        let tick_vec = track.entries.by_tick.entry(tick).or_default();
+        tick_vec.push(tone_id);
+    }
+
+    state.emit(&app, &mut renderer, true);
+}
+
+#[tauri::command(rename_all = "snake_case")]
 pub fn score_entries_shift(
     app: tauri::AppHandle,
     state: State<'_, AppState>,

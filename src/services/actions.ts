@@ -579,6 +579,19 @@ export const actions = {
           duration,
         });
       },
+      setPositionAndDuration: (
+        track_id: UniqueId,
+        tone_id: UniqueId,
+        tick: Tick,
+        duration: Ticks,
+      ) => {
+        return invoke("score_entries_tone_set_position_and_duration", {
+          track_id,
+          tone_id,
+          tick,
+          duration,
+        });
+      },
       setPitch: (
         track_id: UniqueId,
         tone_id: UniqueId,
