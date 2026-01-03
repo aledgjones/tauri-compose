@@ -1,37 +1,19 @@
-import { FC, useCallback } from "react";
-import { Tone, Tool, UniqueId, SelectionType } from "../../../services/types";
-import { actions } from "../../../services/actions";
+import { FC } from "react";
+import { SelectionType, Tone } from "../../../services/types";
 import { Icon } from "../../../ui/icon";
 import { mdiChevronLeft, mdiChevronRight } from "@mdi/js";
 import { useAppState } from "../../../services/state";
 import { lightenColor } from "../../../services/utils";
+import { getPitchName } from "../../../services/pitch-utils";
+import { TokenizedText } from "../../../ui/text";
+import classNames from "classnames";
 
-const getPitchName = (pitchInt: number): string => {
-  const noteNames = [
-    "C",
-    "C#",
-    "D",
-    "D#",
-    "E",
-    "F",
-    "F#",
-    "G",
-    "G#",
-    "A",
-    "A#",
-    "B",
-  ];
-  const octave = Math.floor(pitchInt / 12) - 1;
-  const noteIndex = pitchInt % 12;
-  return `${noteNames[noteIndex]}${octave}`;
-};
-
-const getShowPitchName = (width: number, name: string) => {
+const getShowPitchName = (width: number, name: string, isSelected: boolean) => {
   if (name.length > 2) {
-    return width > 40;
+    return isSelected ? width > 40 : width > 30;
   }
 
-  return width > 30;
+  return isSelected ? width > 30 : width > 30;
 };
 
 const getShowHandles = (width: number, isSelected: boolean) => {
@@ -39,14 +21,12 @@ const getShowHandles = (width: number, isSelected: boolean) => {
     return false;
   }
 
-  return width > 50;
+  return width > 20;
 };
 
 type Props = {
   slotHeight: number;
   tickWidth: number;
-  tool: Tool;
-  trackId: UniqueId;
   tone: Tone;
   color: string;
 };
@@ -55,8 +35,6 @@ export const SequencerTrackTone: FC<Props> = ({
   slotHeight,
   tickWidth,
   tone,
-  tool,
-  trackId,
   color,
 }) => {
   const appState = useAppState();
@@ -65,31 +43,14 @@ export const SequencerTrackTone: FC<Props> = ({
     selection?.selection_type === SelectionType.Tone &&
     selection.id === tone.id;
   const width = tone.duration * tickWidth;
-  const name = getPitchName(tone.pitch.int);
-  const showPitchName = getShowPitchName(width, name);
+  const name = getPitchName(tone.pitch);
+  const showPitchName = getShowPitchName(width, name, isSelected);
   const showHandles = getShowHandles(width, isSelected);
-  const backgroundColor = isSelected ? lightenColor(color, 0.2) : color;
-
-  const handleClick = useCallback(async () => {
-    switch (tool) {
-      case Tool.Select: {
-        if (isSelected) {
-          await actions.ui.sequencer.clearSelection();
-        } else {
-          await actions.ui.sequencer.select(SelectionType.Tone, tone.id);
-        }
-        break;
-      }
-      case Tool.Erase: {
-        await actions.score.tone.remove(trackId, tone.id);
-        break;
-      }
-    }
-  }, [tone, tool, trackId, isSelected]);
+  const backgroundColor = isSelected ? lightenColor(color, 0.5) : color;
 
   return (
     <div
-      className="absolute select-none flex items-center cursor-pointer"
+      className="absolute select-none flex justify-between items-center cursor-pointer"
       style={{
         backgroundColor,
         bottom: slotHeight * (tone.pitch.int - 12),
@@ -97,18 +58,23 @@ export const SequencerTrackTone: FC<Props> = ({
         left: tickWidth * tone.tick + 1,
         width: width - 1,
       }}
-      onClick={handleClick}
+      data-tone-id={tone.id}
     >
       {showHandles && (
-        <Icon className="-mx-1" path={mdiChevronLeft} color="#fff" />
+        <Icon className="-mx-1.5" path={mdiChevronLeft} color="black" />
       )}
       {showPitchName && (
-        <div className="text-center flex-1 pl-0.5 text-xs font-medium text-white pointer-events-none">
-          {name}
+        <div
+          className={classNames(
+            "flex-1 text-[11px] font-medium pointer-events-none text-black",
+            { "px-1": !showHandles },
+          )}
+        >
+          <TokenizedText>{name}</TokenizedText>
         </div>
       )}
       {showHandles && (
-        <Icon className="-mx-1" path={mdiChevronRight} color="#fff" />
+        <Icon className="-mx-1.5" path={mdiChevronRight} color="black" />
       )}
     </div>
   );

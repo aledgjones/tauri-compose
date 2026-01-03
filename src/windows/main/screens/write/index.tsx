@@ -6,6 +6,7 @@ import { actions } from "../../../../services/actions";
 import MdiIcon from "@mdi/react";
 import { mdiChevronDown, mdiChevronUp } from "@mdi/js";
 import classNames from "classnames";
+import { SelectedToneInfoDisplay } from "../../components/selected-tone-info-display";
 
 export const Write = () => {
   const state = useAppState();
@@ -29,9 +30,7 @@ export const Write = () => {
       </div>
 
       <div className="flex justify-center items-center h-7 ml-2 mr-2 mb-2 rounded-b-lg gap-2">
-        <p className="text-white text-xs bg-neutral-900 h-full flex items-center px-2 rounded-bl-lg">
-          No selection
-        </p>
+        <SelectedToneInfoDisplay />
 
         <button
           onClick={() => actions.ui.write.bottomPanel.toggle()}

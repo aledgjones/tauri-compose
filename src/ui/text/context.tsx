@@ -57,6 +57,8 @@ export const TokenizationProvider: FC<PropsWithChildren> = ({ children }) => {
       ["${sharp}", { render: () => "\u{E262}", sym: true }],
       ["${natural}", { render: () => "\u{E261}", sym: true }],
       ["${flat}", { render: () => "\u{E260}", sym: true }],
+      ["${double-sharp}", { render: () => "\u{E263}", sym: true }],
+      ["${double-flat}", { render: () => "\u{E264}", sym: true }],
     ];
 
     return new Map([...userDefinedSymbols, ...staticSymbols]);

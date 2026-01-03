@@ -14,6 +14,8 @@ import {
 import { actions } from "../../../services/actions";
 import { SequencerTrackTone } from "./sequencer-track-tone";
 import { Expression, sampler } from "../../../sampler";
+import { useAppState } from "../../../services/state";
+import { getSequencerClickTarget } from "../../../services/sequencer-utils";
 
 export const getSnappedXPosition = (
   x: number,
@@ -80,75 +82,113 @@ export const SequencerTrack: FC<SequencerTrackProps> = ({
   color,
 }) => {
   const sequencerRef = useRef<HTMLDivElement>(null);
+  const appState = useAppState();
 
   const onPointerDown = useCallback(
     async (e: PointerEvent<HTMLDivElement>) => {
-      if (tool !== Tool.Write) {
-        return;
-      }
+      switch (tool) {
+        case Tool.Write: {
+          const box = sequencerRef.current?.getBoundingClientRect();
 
-      const box = sequencerRef.current?.getBoundingClientRect();
-      if (!box) {
-        return;
-      }
+          if (!box) {
+            return;
+          }
 
-      e.stopPropagation();
+          e.stopPropagation();
 
-      const ticksPerSnap = (flow.subdivisions * 4) / snapDuration;
-      const x = e.clientX - box.left;
-      const y = e.clientY - box.top;
-      let duration = ticksPerSnap;
+          const ticksPerSnap = (flow.subdivisions * 4) / snapDuration;
+          const x = e.clientX - box.left;
+          const y = e.clientY - box.top;
+          let duration = ticksPerSnap;
 
-      const pitch = getPitchFromYPosition(y, slots.slotHeight);
-      const start = getSnappedXPosition(
-        x,
-        ticks.tickWidth,
-        ticksPerSnap,
-        "down",
-      );
+          const pitch = getPitchFromYPosition(y, slots.slotHeight);
+          const start = getSnappedXPosition(
+            x,
+            ticks.tickWidth,
+            ticksPerSnap,
+            "down",
+          );
 
-      const tone_id = await actions.score.tone.create(
-        track.id,
-        start,
-        ticksPerSnap,
-        pitch,
-        null,
-        255,
-        Articulation.None,
-      );
+          const tone_id = await actions.score.tone.create(
+            track.id,
+            start,
+            ticksPerSnap,
+            pitch,
+            null,
+            255,
+            Articulation.None,
+          );
 
-      // Select the newly created tone
-      await actions.ui.sequencer.select(SelectionType.Tone, tone_id);
+          // Select the newly created tone
+          await actions.ui.sequencer.select(SelectionType.Tone, tone_id);
 
-      // Audition the tone
-      if (instrumentId) {
-        sampler.play(
-          instrumentId.toString(),
-          Expression.Natural,
-          pitch,
-          sampler.ctx.currentTime,
-          0.5,
-        );
-      }
+          // Audition the tone
+          if (instrumentId) {
+            sampler.play(
+              instrumentId.toString(),
+              Expression.Natural,
+              pitch,
+              sampler.ctx.currentTime,
+              0.5,
+            );
+          }
 
-      const handlePointerMove = async (e: any) => {
-        const x = e.clientX - box.left;
-        const end = getSnappedXPosition(x, ticks.tickWidth, ticksPerSnap, "up");
-        const newDuration = end - start;
+          const handlePointerMove = async (e: any) => {
+            const x = e.clientX - box.left;
+            const end = getSnappedXPosition(
+              x,
+              ticks.tickWidth,
+              ticksPerSnap,
+              "up",
+            );
+            const newDuration = end - start;
 
-        if (end > start && duration !== newDuration) {
-          duration = newDuration;
-          await actions.score.tone.setDuration(track.id, tone_id, end - start);
+            if (end > start && duration !== newDuration) {
+              duration = newDuration;
+              await actions.score.tone.setDuration(
+                track.id,
+                tone_id,
+                end - start,
+              );
+            }
+          };
+
+          const handlePointerUp = () => {
+            document.removeEventListener("pointermove", handlePointerMove);
+            document.removeEventListener("pointerup", handlePointerUp);
+          };
+
+          document.addEventListener("pointermove", handlePointerMove);
+          document.addEventListener("pointerup", handlePointerUp);
+          break;
         }
-      };
 
-      const handlePointerUp = () => {
-        document.removeEventListener("pointermove", handlePointerMove);
-        document.removeEventListener("pointerup", handlePointerUp);
-      };
+        case Tool.Select: {
+          const clickTarget = getSequencerClickTarget(e.target as HTMLElement);
 
-      document.addEventListener("pointermove", handlePointerMove);
-      document.addEventListener("pointerup", handlePointerUp);
+          if (clickTarget === null) {
+            await actions.ui.sequencer.clearSelection();
+            break;
+          }
+
+          await actions.ui.sequencer.select(SelectionType.Tone, clickTarget.id);
+
+          break;
+        }
+
+        case Tool.Erase: {
+          const clickTarget = getSequencerClickTarget(e.target as HTMLElement);
+
+          if (clickTarget === null) {
+            break;
+          }
+
+          await actions.score.tone.remove(track.id, clickTarget.id);
+          await actions.ui.sequencer.clearSelection();
+
+          break;
+        }
+      }
     },
     [
       flow.subdivisions,
@@ -158,6 +198,7 @@ export const SequencerTrack: FC<SequencerTrackProps> = ({
       tool,
       track.id,
       instrumentId,
+      appState.ui.sequencer.selection,
     ],
   );
 
@@ -217,8 +258,6 @@ export const SequencerTrack: FC<SequencerTrackProps> = ({
             slotHeight={slots.slotHeight}
             tickWidth={ticks.tickWidth}
             tone={tone}
-            tool={tool}
-            trackId={track.id}
             color={color}
           />
         );
