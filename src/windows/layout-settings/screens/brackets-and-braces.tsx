@@ -27,7 +27,7 @@ export const BracketsAndBraces: FC<Props> = ({ layoutType }) => {
   const state = useAppState();
 
   return (
-    <div className="gap-2 flex flex-col">
+    <>
       <div className="bg-neutral-900">
         <h3 className="p-2 text-sm font-medium text-white bg-neutral-800">
           Brackets
@@ -87,6 +87,6 @@ export const BracketsAndBraces: FC<Props> = ({ layoutType }) => {
           />
         </div>
       </div>
-    </div>
+    </>
   );
 };

@@ -35,16 +35,16 @@ export const Main = () => {
   }, []);
 
   return (
-    <div className="h-dvh bg-neutral-950 grid grid-rows-[28px_1fr] grid-cols-[240px_1fr] gap-2 overflow-hidden">
+    <div className="h-dvh bg-neutral-950 grid grid-rows-[28px_1fr] grid-cols-[240px_1fr] gap-0.5 p-0.75 overflow-hidden">
       <AppBar
         className="col-span-2"
         title="Player Settings"
         filename={state.score.meta.title}
       />
-      <div className=" bg-neutral-900 overflow-auto ml-2 mb-2">
+      <div className="bg-neutral-900 overflow-auto rounded-bl-xl">
         <Menu selection={selection} items={options} onSelect={setSelection} />
       </div>
-      <div className=" bg-neutral-900 overflow-auto mr-2 mb-2">
+      <div className="overflow-auto flex flex-col gap-0.5 rounded-br-xl">
         <Content />
       </div>
     </div>

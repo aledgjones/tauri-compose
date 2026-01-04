@@ -48,9 +48,9 @@ export const Main = () => {
 
   return (
     <PlaybackProvider appState={state}>
-      <div className="h-dvh w-dvw grid grid-rows-[30px_36px_1fr] bg-transparent gap-0.5">
+      <div className="h-dvh w-dvw grid grid-rows-[30px_36px_1fr] bg-transparent gap-0.5 p-0.75">
         <AppBar title="Solo Compose" filename={state.score.meta.title} />
-        <div className="mx-0.75 flex items-center">
+        <div className="flex items-center">
           <Tabs
             className="flex flex-1 justify-start"
             value={state.ui.tab}

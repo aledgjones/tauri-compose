@@ -88,16 +88,16 @@ export const Main = () => {
   }, []);
 
   return (
-    <div className="h-dvh bg-neutral-950 grid grid-rows-[28px_1fr] grid-cols-[240px_1fr] overflow-hidden gap-2">
+    <div className="h-dvh bg-neutral-950 grid grid-rows-[28px_1fr] grid-cols-[240px_1fr] overflow-hidden gap-0.5 p-0.75">
       <AppBar
         className="col-span-2"
         title="Layout Settings"
         filename={state.score.meta.title}
       />
-      <div className="bg-neutral-900 overflow-auto ml-2 mb-2">
+      <div className="bg-neutral-900 overflow-auto rounded-bl-xl">
         <Menu selection={selection} items={options} onSelect={setSelection} />
       </div>
-      <div className="overflow-auto mr-2 mb-2">
+      <div className="overflow-auto flex flex-col gap-0.5 rounded-br-xl">
         <Content layoutType={LayoutType.FullScore} />
       </div>
     </div>

@@ -32,10 +32,10 @@ const InstrumentItemButton = ({
   return (
     <button
       className={classNames(
-        "flex items-center  p-2 pl-3 w-full text-left text-sm h-10",
+        "flex items-center p-2 pl-3 w-full text-left text-sm h-10",
         {
           "bg-sky-400 text-black": isSelected,
-          "text-white": !isSelected,
+          "text-white hover:bg-neutral-800": !isSelected,
         },
       )}
       onClick={onClick}
@@ -148,7 +148,7 @@ export const Main = () => {
   };
 
   return (
-    <div className="h-dvh bg-neutral-950 grid grid-rows-[28px_1fr_36px] grid-cols-[1fr_1fr_1fr] gap-2 pt-0 p-2 overflow-hidden">
+    <div className="h-dvh bg-neutral-950 grid grid-rows-[28px_1fr_36px] grid-cols-[1fr_1fr_1fr] gap-0.5 p-0.75 overflow-hidden">
       <AppBar
         className="col-span-3"
         title="Instrument Picker"
@@ -164,15 +164,17 @@ export const Main = () => {
           columns={columns}
         />
       ))}
-      <div className="flex col-span-3 justify-end">
+      <div className="flex col-span-3 justify-end gap-0.5">
+        <div className="bg-neutral-900 flex-1 rounded-bl-xl" />
         <Button
+          className="rounded-br-xl"
           onClick={() => {
             emit("soloc://select-instrument", {
               instrument_id: selection?.id,
             });
           }}
         >
-          Select
+          Select Instrument
         </Button>
       </div>
     </div>
