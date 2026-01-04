@@ -18,7 +18,7 @@ export const TextInput: FC<TextInputProps> = ({
   return (
     <div className={className}>
       <label
-        className={classNames("text-xs", {
+        className={classNames("block mb-0.5 text-xs", {
           "text-sky-500": isFocused,
           "text-neutral-400": !isFocused,
         })}

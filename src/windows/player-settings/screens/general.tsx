@@ -16,13 +16,14 @@ export const Meta = () => {
       <h3 className="p-2 text-sm font-medium text-white bg-neutral-800">
         Systemic Barlines
       </h3>
-      <div className="p-4">
+      <div className="p-4 gap-2 flex flex-col">
         <Select
           variant="filled"
           label="Numbering style for single players"
           value={state.score.config.auto_count_styles.solo}
           options={autoCountOptions}
           onChange={actions.score.config.autoCountStyles.setSolo}
+          className="w-1/2"
         />
         <Select
           variant="filled"
@@ -30,6 +31,7 @@ export const Meta = () => {
           value={state.score.config.auto_count_styles.section}
           options={autoCountOptions}
           onChange={actions.score.config.autoCountStyles.setSection}
+          className="w-1/2"
         />
       </div>
     </div>

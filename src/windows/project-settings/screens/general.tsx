@@ -11,7 +11,7 @@ export const Meta = () => {
       <h3 className="p-2 text-sm font-medium text-white bg-neutral-800">
         Project Information
       </h3>
-      <div className="p-4">
+      <div className="p-4 gap-2 flex flex-col">
         <Input
           type="text"
           value={state.score.meta.title}

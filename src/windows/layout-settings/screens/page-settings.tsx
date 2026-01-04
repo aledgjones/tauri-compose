@@ -15,7 +15,7 @@ export const PageSettings: FC<Props> = ({ layoutType }) => {
         <h3 className="p-2 text-sm font-medium text-white bg-neutral-800">
           Space Size
         </h3>
-        <div className="p-4">
+        <div className="p-4 gap-2 flex flex-col">
           <Input
             type="number"
             label="Space size"
@@ -27,7 +27,7 @@ export const PageSettings: FC<Props> = ({ layoutType }) => {
             step={0.1}
             decimalPlaces={1}
             units="mm"
-            className="w-48"
+            className="w-1/2"
           />
         </div>
       </div>
@@ -36,7 +36,7 @@ export const PageSettings: FC<Props> = ({ layoutType }) => {
         <h3 className="p-2 text-sm font-medium text-white bg-neutral-800">
           Page Margins
         </h3>
-        <div className="p-4">
+        <div className="p-4 gap-2 flex flex-col">
           <Input
             label="Top"
             type="number"
@@ -50,7 +50,7 @@ export const PageSettings: FC<Props> = ({ layoutType }) => {
             step={1}
             decimalPlaces={0}
             units="mm"
-            className="w-48"
+            className="w-1/2"
           />
 
           <Input
@@ -66,7 +66,7 @@ export const PageSettings: FC<Props> = ({ layoutType }) => {
             step={1}
             decimalPlaces={0}
             units="mm"
-            className="w-48"
+            className="w-1/2"
           />
 
           <Input
@@ -83,7 +83,7 @@ export const PageSettings: FC<Props> = ({ layoutType }) => {
             step={1}
             decimalPlaces={0}
             units="mm"
-            className="w-48"
+            className="w-1/2"
           />
 
           <Input
@@ -99,7 +99,7 @@ export const PageSettings: FC<Props> = ({ layoutType }) => {
             step={1}
             decimalPlaces={0}
             units="mm"
-            className="w-48"
+            className="w-1/2"
           />
         </div>
       </div>
@@ -108,7 +108,7 @@ export const PageSettings: FC<Props> = ({ layoutType }) => {
         <h3 className="p-2 text-sm font-medium text-white bg-neutral-800">
           Music Frame Margins
         </h3>
-        <div className="p-4">
+        <div className="p-4 gap-2 flex flex-col">
           <Input
             label="Top"
             type="number"
@@ -122,7 +122,7 @@ export const PageSettings: FC<Props> = ({ layoutType }) => {
             step={1}
             decimalPlaces={0}
             units="mm"
-            className="w-48"
+            className="w-1/2"
           />
 
           <Input
@@ -139,7 +139,7 @@ export const PageSettings: FC<Props> = ({ layoutType }) => {
             step={1}
             decimalPlaces={0}
             units="mm"
-            className="w-48"
+            className="w-1/2"
           />
         </div>
       </div>

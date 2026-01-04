@@ -41,7 +41,7 @@ export const Main = () => {
         title="Project Settings"
         filename={state.score.meta.title}
       />
-      <div className=" bg-neutral-900 overflow-auto rounded-bl-xl">
+      <div className="overflow-auto rounded-bl-xl">
         <Menu selection={selection} items={options} onSelect={setSelection} />
       </div>
       <div className="overflow-auto flex flex-col gap-0.5 rounded-br-xl">

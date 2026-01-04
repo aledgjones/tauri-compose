@@ -32,7 +32,7 @@ export const BracketsAndBraces: FC<Props> = ({ layoutType }) => {
         <h3 className="p-2 text-sm font-medium text-white bg-neutral-800">
           Brackets
         </h3>
-        <div className="p-4">
+        <div className="p-4 gap-2 flex flex-col">
           <Select
             variant="filled"
             label="Bracketing Approach"
@@ -47,7 +47,7 @@ export const BracketsAndBraces: FC<Props> = ({ layoutType }) => {
                 bracketStyle,
               )
             }
-            className="w-48"
+            className="w-1/2"
           />
 
           <Select
@@ -60,7 +60,7 @@ export const BracketsAndBraces: FC<Props> = ({ layoutType }) => {
             onChange={(bracketStyle) =>
               actions.score.engrave.setBracketStyle(layoutType, bracketStyle)
             }
-            className="w-48"
+            className="w-1/2"
           />
         </div>
       </div>
@@ -68,7 +68,7 @@ export const BracketsAndBraces: FC<Props> = ({ layoutType }) => {
         <h3 className="p-2 text-sm font-medium text-white bg-neutral-800">
           Bracketed Groups
         </h3>
-        <div className="p-4">
+        <div className="p-4 gap-2 flex flex-col">
           <Switch
             label="Show brackets for single staves"
             description={

@@ -15,7 +15,7 @@ export const NoteSpacing: FC<Props> = ({ layoutType }) => {
         <h3 className="p-2 text-sm font-medium text-white bg-neutral-800">
           Note Spacing
         </h3>
-        <div className="p-4">
+        <div className="p-4 gap-2 flex flex-col">
           <Input
             type="number"
             label="Base Note Space"
@@ -29,7 +29,7 @@ export const NoteSpacing: FC<Props> = ({ layoutType }) => {
             min={0}
             step={0.1}
             decimalPlaces={1}
-            className="w-48"
+            className="w-1/2"
           />
 
           <Input
@@ -45,7 +45,7 @@ export const NoteSpacing: FC<Props> = ({ layoutType }) => {
             min={0}
             step={0.01}
             decimalPlaces={2}
-            className="w-48"
+            className="w-1/2"
           />
 
           <Input
@@ -61,7 +61,7 @@ export const NoteSpacing: FC<Props> = ({ layoutType }) => {
             min={0}
             step={0.01}
             decimalPlaces={2}
-            className="w-48"
+            className="w-1/2"
           />
 
           <Input
@@ -76,7 +76,7 @@ export const NoteSpacing: FC<Props> = ({ layoutType }) => {
             min={1}
             step={0.01}
             decimalPlaces={2}
-            className="w-48"
+            className="w-1/2"
           />
         </div>
       </div>

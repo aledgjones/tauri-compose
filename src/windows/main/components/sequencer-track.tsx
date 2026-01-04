@@ -478,17 +478,7 @@ export const SequencerTrack: FC<SequencerTrackProps> = ({
           break;
       }
     },
-    [
-      flow.subdivisions,
-      flow.length,
-      slots.slotHeight,
-      snapDuration,
-      ticks.tickWidth,
-      tool,
-      track.id,
-      track.entries.by_id,
-      instrumentId,
-    ],
+    [flow, slots, snapDuration, tool, track, instrumentId, ticks],
   );
 
   const tones = useMemo(() => {

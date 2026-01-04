@@ -19,7 +19,7 @@ export const Barlines: FC<Props> = ({ layoutType }) => {
         <h3 className="p-2 text-sm font-medium text-white bg-neutral-800">
           Systemic Barlines
         </h3>
-        <div className="p-4">
+        <div className="p-4 gap-2 flex flex-col">
           <Switch
             label="Show systemic barlines for single staves"
             description={

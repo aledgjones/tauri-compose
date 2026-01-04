@@ -51,16 +51,19 @@ export const Main = () => {
       <div className="h-dvh w-dvw grid grid-rows-[30px_36px_1fr] bg-transparent gap-0.5 p-0.75">
         <AppBar title="Solo Compose" filename={state.score.meta.title} />
         <div className="flex items-center">
-          <Tabs
-            className="flex flex-1 justify-start"
-            value={state.ui.tab}
-            options={tabs}
-            onChange={actions.ui.setTab}
-          />
+          <div className="flex flex-1">
+            <Tabs
+              className="flex justify-start w-96.75"
+              value={state.ui.tab}
+              options={tabs}
+              onChange={actions.ui.setTab}
+            />
+            <div className="bg-neutral-900 flex-1 ml-0.5" />
+          </div>
 
-          <div className="ml-0.5 h-full bg-neutral-900 flex-1" />
+          <div className="flex flex-1 justify-center">
+            <div className="bg-neutral-900 flex-1 mr-0.5" />
 
-          <div className="flex px-0.5">
             <Select
               variant="standard"
               className="mr-0.5 inline-block"
@@ -85,11 +88,14 @@ export const Main = () => {
               path={mdiMovieRoll}
               isDisabled
             />
+
+            <div className="bg-neutral-900 flex-1 ml-0.5" />
           </div>
 
-          <div className="h-full bg-neutral-900 flex-1" />
-
-          <Tools className="flex-1" />
+          <div className="flex flex-1">
+            <div className="bg-neutral-900 flex-1" />
+            <Tools />
+          </div>
         </div>
 
         <Content />
