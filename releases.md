@@ -1,3 +1,24 @@
+## Release Notes for v0.18.0
+
+### 🏗️ Features
+- feat: style tweaks
+- feat: more ui-refinements
+- feat: style tweaks
+- feat: refine layout
+- feat: tone adjustments
+- feat: dragging across ticks
+- feat: drag pitches
+- feat: tone selection
+- feat: tone selection
+- feat: tone names
+### 🐞 Fixes
+- fix: chevron icons
+- fix: fractional at eigth boundry
+- fix: quick tweaks to padding
+- fix: new score resetting
+- fix: access errors
+
+
 ## Release Notes for v0.17.0
 
 ### 🏗️ Features
