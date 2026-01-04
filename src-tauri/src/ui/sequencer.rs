@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use tauri::State;
 
-#[derive(Serialize_repr, Deserialize_repr, Clone)]
+#[derive(Serialize_repr, Deserialize_repr, Clone, PartialEq)]
 #[repr(u8)]
 pub enum SelectionType {
     Player,
@@ -147,7 +147,7 @@ pub fn ui_sequencer_selection_set(
 
     state.ui.sequencer.selection = Some(Selection { id, selection_type });
 
-    state.emit(&app, &mut renderer, false);
+    state.emit(&app, &mut renderer, true);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -161,5 +161,5 @@ pub fn ui_sequencer_selection_clear(
 
     state.ui.sequencer.selection = None;
 
-    state.emit(&app, &mut renderer, false);
+    state.emit(&app, &mut renderer, true);
 }

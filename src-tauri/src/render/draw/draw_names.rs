@@ -5,6 +5,7 @@ use crate::score::components::measurements::Point;
 use crate::score::components::text::Font;
 use crate::score::engraves::Engrave;
 use crate::score::instruments::Instrument;
+use skia_safe::Color;
 
 pub fn draw_names(
     origin: &Point,
@@ -29,6 +30,7 @@ pub fn draw_names(
                 x: origin.x,
                 y: top,
             },
+            Color::BLACK,
         );
     }
 }

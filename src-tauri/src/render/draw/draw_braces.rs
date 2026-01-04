@@ -4,6 +4,7 @@ use crate::render::parse::get_vertical_spans::VerticalSpans;
 use crate::renderer::Renderer;
 use crate::score::components::measurements::Point;
 use crate::score::components::text::{Align, Font, FontFamily, Justify};
+use skia_safe::Color;
 
 pub fn draw_braces(
     origin: &Point,
@@ -28,6 +29,7 @@ pub fn draw_braces(
                 x: origin.x - 0.25,                        // 1/4 space back from stave start
                 y: origin.y + bottom.y + STAVE_LINE_WIDTH, // right the the edges of the stave
             },
+            Color::BLACK,
         );
     }
 }

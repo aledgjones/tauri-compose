@@ -35,6 +35,7 @@ pub fn draw_rest(
                 x: left,
                 y: origin.y - 1.0,
             },
+            Color::BLACK,
         );
     } else {
         let left = origin.x + start.x;
@@ -54,6 +55,7 @@ pub fn draw_rest(
                 align: Align::Bottom,
             },
             &Point { x: left, y: top },
+            Color::BLACK,
         );
 
         if entry.is_dotted(subdivisions) {

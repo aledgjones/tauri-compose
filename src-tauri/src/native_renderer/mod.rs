@@ -388,9 +388,10 @@ impl NativeRenderer {
                                 justify,
                                 align,
                                 point,
+                                color,
                             } => {
                                 let mut paint = Paint::default();
-                                paint.set_color(Color::BLACK);
+                                paint.set_color(*color);
                                 paint.set_anti_alias(true);
 
                                 // Get the correct typeface

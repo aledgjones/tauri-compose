@@ -2,6 +2,7 @@ use crate::renderer::Renderer;
 use crate::score::components::measurements::Point;
 use crate::score::components::text::{Align, Font, FontFamily, Justify};
 use crate::score::entries::time_signature::{TimeSignature, TimeSignatureDrawType};
+use skia_safe::Color;
 
 pub fn draw_time_signature(
     origin: &Point,
@@ -24,6 +25,7 @@ pub fn draw_time_signature(
                 y: origin.y,
                 x: origin.x + offset,
             },
+            Color::BLACK,
         ),
         TimeSignatureDrawType::SplitCommonTime => renderer.text(
             "\u{E08B}",
@@ -37,6 +39,7 @@ pub fn draw_time_signature(
                 y: origin.y,
                 x: origin.x + offset,
             },
+            Color::BLACK,
         ),
         TimeSignatureDrawType::Open => renderer.text(
             "\u{E09C}",
@@ -50,6 +53,7 @@ pub fn draw_time_signature(
                 y: origin.y,
                 x: origin.x + offset,
             },
+            Color::BLACK,
         ),
         TimeSignatureDrawType::Regular => {
             renderer.text(
@@ -64,6 +68,7 @@ pub fn draw_time_signature(
                     y: origin.y - 1.0,
                     x: origin.x + offset,
                 },
+                Color::BLACK,
             );
             renderer.text(
                 &time_signature.beat_type_to_glyph(),
@@ -77,6 +82,7 @@ pub fn draw_time_signature(
                     y: origin.y + 1.0,
                     x: origin.x + offset,
                 },
+                Color::BLACK,
             );
         }
     };

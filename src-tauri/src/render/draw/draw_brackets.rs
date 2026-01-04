@@ -118,6 +118,7 @@ pub fn draw_brackets(
                         x: origin.x - 1.0,
                         y: top - 1.0,
                     },
+                    Color::BLACK,
                 );
                 renderer.text(
                     "\u{E004}",
@@ -131,6 +132,7 @@ pub fn draw_brackets(
                         x: origin.x - 1.0,
                         y: bottom,
                     },
+                    Color::BLACK,
                 );
             }
         }

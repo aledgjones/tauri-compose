@@ -5,6 +5,7 @@ use crate::score::components::pitch::Accidental;
 use crate::score::components::text::{Align, Font, FontFamily, Justify};
 use crate::score::entries::clef::Clef;
 use crate::score::entries::key_signature::KeySignature;
+use skia_safe::Color;
 
 pub fn draw_key_signature(
     origin: &Point,
@@ -33,6 +34,7 @@ pub fn draw_key_signature(
                     x: origin.x + (i as Space),
                     y: origin.y + 0.5 * pattern[i as usize] as Space,
                 },
+                Color::BLACK,
             );
         }
     }

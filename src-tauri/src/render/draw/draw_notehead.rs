@@ -4,7 +4,10 @@ use crate::score::components::duration::Tick;
 use crate::score::components::measurements::Point;
 use crate::score::components::text::{Align, Font, FontFamily, Justify};
 use crate::score::entries::tone::Tone;
+use crate::utils::UniqueId;
+use skia_safe::Color;
 
+#[allow(clippy::too_many_arguments)]
 pub fn draw_notehead(
     origin: &Point,
     tick: Tick,
@@ -12,12 +15,19 @@ pub fn draw_notehead(
     glyph: &str,
     glyph_width: f32,
     shunts: &Shunts,
+    selection: Option<UniqueId>,
     renderer: &mut Renderer,
 ) {
     let left = match &shunts.by_id[&(tick, tone.id)] {
         Shunt::Pre => origin.x - glyph_width,
         Shunt::None => origin.x,
         Shunt::Post => origin.x + glyph_width,
+    };
+
+    let color = if selection == Some(tone.id) {
+        Color::from_rgb(14, 165, 233)
+    } else {
+        Color::BLACK
     };
 
     renderer.text(
@@ -32,5 +42,6 @@ pub fn draw_notehead(
             x: left,
             y: origin.y,
         },
+        color,
     );
 }

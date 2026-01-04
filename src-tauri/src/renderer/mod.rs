@@ -5,6 +5,7 @@ pub mod text_measurer;
 use crate::score::components::measurements::{CurvePoint, Point};
 use crate::score::components::text::{Align, Font, FontFamily, Justify};
 use converter::{Converter, Space};
+use skia_safe::Color;
 
 #[derive(Clone)]
 pub enum DrawInstruction {
@@ -26,18 +27,19 @@ pub enum DrawInstruction {
         justify: Justify,
         align: Align,
         point: (f32, f32),
+        color: Color,
     },
     Circle {
         radius: f32,
-        color: skia_safe::Color,
+        color: Color,
         origin: (f32, f32),
     },
     Curve {
-        color: skia_safe::Color,
+        color: Color,
         points: [(f32, f32, f32); 3], // (x, y, thickness)
     },
     Shape {
-        color: skia_safe::Color,
+        color: Color,
         points: Vec<(f32, f32)>,
     },
     Rectangle {
@@ -118,7 +120,7 @@ impl Renderer {
         });
     }
 
-    pub fn text(&mut self, text: &str, font: &Font, point: &Point) {
+    pub fn text(&mut self, text: &str, font: &Font, point: &Point, color: Color) {
         let font_px = self.converter.spaces_to_px(font.size);
         let skia_point = point.to_skia(&self.converter);
         let point_px = (skia_point.x, skia_point.y);
@@ -130,6 +132,7 @@ impl Renderer {
             justify: font.justify,
             align: font.align,
             point: point_px,
+            color,
         });
     }
 

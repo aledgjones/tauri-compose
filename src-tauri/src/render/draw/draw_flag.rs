@@ -3,6 +3,7 @@ use crate::renderer::Renderer;
 use crate::score::components::measurements::Point;
 use crate::score::components::text::{Align, Font, FontFamily, Justify};
 use crate::score::flows::Flow;
+use skia_safe::Color;
 
 pub fn draw_flag(
     position: &Point,
@@ -25,5 +26,6 @@ pub fn draw_flag(
             align: Align::Middle,
         },
         &Point { x: left, y: top },
+        Color::BLACK,
     );
 }
