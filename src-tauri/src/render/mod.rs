@@ -463,6 +463,21 @@ pub fn generate_render_instructions(
                         );
                     }
 
+                    // LEDGER LINES
+                    if !notation.tones.is_empty() {
+                        draw_ledger_line(
+                            &Point {
+                                x: stave_left + x,
+                                y: stave_top,
+                            },
+                            tick,
+                            notation,
+                            glyph_width,
+                            shunts,
+                            renderer,
+                        );
+                    }
+
                     // TONES
                     for tone in &notation.tones {
                         let vertical_offset = tone_offsets[&tone.id];
@@ -493,20 +508,6 @@ pub fn generate_render_instructions(
                                 renderer,
                             );
                         }
-                    }
-
-                    if !notation.tones.is_empty() {
-                        draw_ledger_line(
-                            &Point {
-                                x: stave_left + x,
-                                y: stave_top,
-                            },
-                            tick,
-                            notation,
-                            glyph_width,
-                            shunts,
-                            renderer,
-                        );
                     }
                 }
             }
