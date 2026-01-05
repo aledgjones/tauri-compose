@@ -2,12 +2,14 @@ import { FC, useMemo } from "react";
 import { Instrument, Flow } from "../../../../../services/types";
 import { TickConfig } from "../../../hooks/use-ticks";
 import { useAppState } from "../../../../../services/state";
+import classNames from "classnames";
 
 interface MiniaturePianoRollProps {
   instrument: Instrument;
   flow: Flow;
   ticks: TickConfig;
   color: string;
+  isInSelectedFlow: boolean;
 }
 
 export const MiniaturePianoRoll: FC<MiniaturePianoRollProps> = ({
@@ -15,6 +17,7 @@ export const MiniaturePianoRoll: FC<MiniaturePianoRollProps> = ({
   flow,
   ticks,
   color,
+  isInSelectedFlow,
 }) => {
   const state = useAppState();
 
@@ -74,7 +77,9 @@ export const MiniaturePianoRoll: FC<MiniaturePianoRollProps> = ({
 
   return (
     <div
-      className="relative bg-neutral-900"
+      className={classNames("relative bg-neutral-900", {
+        "opacity-50": !isInSelectedFlow,
+      })}
       style={{
         height: rowHeight,
         width: ticks.length * ticks.tickWidth,

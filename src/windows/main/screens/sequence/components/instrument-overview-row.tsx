@@ -6,15 +6,18 @@ import { mdiSizeM, mdiSizeS } from "@mdi/js";
 import { actions } from "../../../../../services/actions";
 import { sampler } from "../../../../../sampler";
 import { TokenizedText } from "../../../../../ui/text";
+import classNames from "classnames";
 
 interface InstrumentOverviewRowProps {
   instrument: Instrument;
   color: string;
+  isInSelectedFlow: boolean;
 }
 
 export const InstrumentOverviewRow: FC<InstrumentOverviewRowProps> = ({
   instrument,
   color,
+  isInSelectedFlow,
 }) => {
   const samplerState = useSamplerState();
 
@@ -48,8 +51,10 @@ export const InstrumentOverviewRow: FC<InstrumentOverviewRowProps> = ({
 
   return (
     <div
-      className="flex p-2 gap-2 border-l-4 bg-neutral-900 h-16"
-      style={{ borderLeftColor: color }}
+      className={classNames("flex p-2 gap-2 border-l-4 bg-neutral-900 h-16", {
+        "opacity-50": !isInSelectedFlow,
+      })}
+      style={{ borderLeftColor: isInSelectedFlow ? color : "#666" }}
     >
       {/* Instrument name */}
       <div className="flex-1 min-w-0">
@@ -66,6 +71,7 @@ export const InstrumentOverviewRow: FC<InstrumentOverviewRowProps> = ({
           size={0.8}
           isSelected={isSoloed}
           onClick={handleToggleSolo}
+          isDisabled={!isInSelectedFlow}
         />
         <IconButton
           path={mdiSizeM}
@@ -73,6 +79,7 @@ export const InstrumentOverviewRow: FC<InstrumentOverviewRowProps> = ({
           size={0.8}
           isSelected={isMuted}
           onClick={handleToggleMute}
+          isDisabled={!isInSelectedFlow}
         />
       </div>
     </div>

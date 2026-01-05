@@ -13,19 +13,32 @@ import { PlaybackLine } from "../../../components/playback-line";
 export const InstrumentOverview: FC = () => {
   const state = useAppState();
 
-  // Get the current flow
-  const flowId = state.score.flows.order[0];
+  // Get the selected flow from UI state, or fall back to the first flow
+  const selectedFlowId = state.ui.sequencer.flow;
+  const flowId = selectedFlowId || state.score.flows.order[0];
   const flow = flowId ? state.score.flows.by_id[flowId] : null;
 
-  // Get all instruments in the score
+  // Get all instruments in the score with their player information
   const instruments = useMemo(() => {
     return state.score.players.order.flatMap((playerId: UniqueId) => {
       const player = state.score.players.by_id[playerId];
       return player.instrument_ids.map((instrumentId: UniqueId) => {
-        return state.score.instruments.by_id[instrumentId];
+        const instrument = state.score.instruments.by_id[instrumentId];
+        return {
+          ...instrument,
+          playerId, // Add player ID for flow checking
+        };
       });
     });
   }, [state.score.players, state.score.instruments]);
+
+  // Check if an instrument is in the selected flow
+  const isInstrumentInSelectedFlow = useMemo(() => {
+    return (instrument: any) => {
+      if (!flow) return true; // Fallback in case no flow exists at all
+      return flow.player_ids.includes(instrument.playerId);
+    };
+  }, [flow]);
 
   // Generate colors for instruments
   const instrumentColors = useMemo(() => {
@@ -40,8 +53,8 @@ export const InstrumentOverview: FC = () => {
 
   if (!flow) {
     return (
-      <div className="flex items-center justify-center w-full h-full bg-neutral-900 text-neutral-400">
-        No flow available
+      <div className="flex items-center justify-center w-full h-full bg-neutral-900 text-neutral-700">
+        You don't have any flows yet...
       </div>
     );
   }
@@ -63,6 +76,7 @@ export const InstrumentOverview: FC = () => {
               key={instrument.id}
               instrument={instrument}
               color={instrumentColors[index]}
+              isInSelectedFlow={isInstrumentInSelectedFlow(instrument)}
             />
           ))}
         </div>
@@ -71,7 +85,7 @@ export const InstrumentOverview: FC = () => {
       {/* Right column - Miniature piano rolls (scrollable both directions) */}
       <div
         style={{ paddingLeft: KEYBOARD_WIDTH * 1.5 }}
-        className="ignore-y absolute top-0 z-10 min-w-full"
+        className="absolute top-0 z-10 min-w-full"
       >
         {/* Tick bar - sticky at top */}
         <TickBar
@@ -88,6 +102,7 @@ export const InstrumentOverview: FC = () => {
               flow={flow}
               ticks={ticks}
               color={instrumentColors[index]}
+              isInSelectedFlow={isInstrumentInSelectedFlow(instrument)}
             />
           ))}
           <PlaybackLine
