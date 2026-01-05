@@ -283,6 +283,7 @@ impl NativeRenderer {
                                 if points.len() >= 2 {
                                     let mut paint = Paint::default();
                                     paint.set_color(*color);
+                                    paint.set_anti_alias(true);
                                     paint.set_stroke_width(*width);
                                     paint.set_style(PaintStyle::Stroke);
                                     for i in 0..points.len() - 1 {
@@ -313,6 +314,7 @@ impl NativeRenderer {
                                 if points.len() >= 3 {
                                     let mut paint = Paint::default();
                                     paint.set_color(*color);
+                                    paint.set_anti_alias(true);
                                     paint.set_style(PaintStyle::Fill);
                                     let skia_points: Vec<SkiaPoint> =
                                         points.iter().map(|p| SkiaPoint::new(p.0, p.1)).collect();
@@ -331,6 +333,7 @@ impl NativeRenderer {
                             } => {
                                 let mut paint = Paint::default();
                                 paint.set_color(*color);
+                                paint.set_anti_alias(true);
                                 paint.set_style(PaintStyle::Fill);
                                 canvas.draw_rect(
                                     skia_safe::Rect::from_xywh(*x, *y, *width, *height),
@@ -341,6 +344,7 @@ impl NativeRenderer {
                                 if points.len() == 3 {
                                     let mut paint = Paint::default();
                                     paint.set_color(*color);
+                                    paint.set_anti_alias(true);
                                     paint.set_style(PaintStyle::Fill);
 
                                     // Create control points for the thick curve outline
@@ -445,6 +449,7 @@ impl NativeRenderer {
                                 if points.len() >= 2 {
                                     let mut paint = Paint::default();
                                     paint.set_color(*color);
+                                    paint.set_anti_alias(true);
                                     paint.set_stroke_width(*width);
                                     paint.set_style(PaintStyle::Stroke);
                                     let intervals = [*interval, *interval];
