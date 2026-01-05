@@ -34,7 +34,7 @@ use score::entries::time_signature::{
 use score::entries::tone::{
     score_entries_shift, score_entries_tone_create, score_entries_tone_duration_remove,
     score_entries_tone_duration_set, score_entries_tone_pitch_set,
-    score_entries_tone_set_position_and_duration,
+    score_entries_tone_set_position_and_duration, score_entries_tone_slice,
 };
 use score::files::{load_project_from_file, save_project_to_file};
 use score::flows::{
@@ -330,6 +330,7 @@ pub fn run() {
             score_entries_tone_duration_set,
             score_entries_tone_pitch_set,
             score_entries_tone_set_position_and_duration,
+            score_entries_tone_slice,
             score_entries_shift,
             score_entries_tone_duration_remove,
             score_flows_create,

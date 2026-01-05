@@ -131,6 +131,57 @@ pub fn score_entries_tone_duration_set(
 }
 
 #[tauri::command(rename_all = "snake_case")]
+pub fn score_entries_tone_slice(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    renderer_state: State<'_, RenderState>,
+    track_id: UniqueId,
+    tone_id: UniqueId,
+    slice_tick: Tick,
+) -> Option<UniqueId> {
+    let mut state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
+
+    let new_tone_id = state.generate_id();
+
+    let track = state.score.tracks.by_id.get_mut(&track_id).unwrap();
+    let entry = track.entries.by_id.get_mut(&tone_id).unwrap();
+    let original_tone = match entry {
+        Entry::Tone(tone) => tone.clone(),
+        _ => return None,
+    };
+
+    let tone_start = original_tone.tick;
+    let tone_end = original_tone.tick + original_tone.duration;
+
+    if slice_tick <= tone_start || slice_tick >= tone_end {
+        return None;
+    }
+
+    // Shorten the original tone
+    if let Entry::Tone(tone) = entry {
+        tone.duration = slice_tick - tone_start;
+    }
+
+    // Create new tone for the remainder
+    let new_duration = tone_end - slice_tick;
+    let new_tone = Tone::new(
+        new_tone_id,
+        slice_tick,
+        new_duration,
+        original_tone.pitch,
+        original_tone.velocity,
+        original_tone.articulation,
+    );
+
+    track.insert_entry(Entry::Tone(new_tone));
+
+    state.emit(&app, &mut renderer, true);
+
+    Some(new_tone_id)
+}
+
+#[tauri::command(rename_all = "snake_case")]
 #[allow(clippy::too_many_arguments)]
 pub fn score_entries_tone_pitch_set(
     app: tauri::AppHandle,

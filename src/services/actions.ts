@@ -611,6 +611,13 @@ export const actions = {
           tone_id,
         });
       },
+      slice: (track_id: UniqueId, tone_id: UniqueId, slice_tick: Tick) => {
+        return invoke<UniqueId | null>("score_entries_tone_slice", {
+          track_id,
+          tone_id,
+          slice_tick,
+        });
+      },
     },
     entry: {
       shift: (track_id: UniqueId, entry_id: UniqueId, new_tick: Tick) => {

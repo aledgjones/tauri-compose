@@ -150,6 +150,50 @@ const handleWriteTool = async (
   document.addEventListener("pointerup", handlePointerUp);
 };
 
+const handleSliceTool = async (
+  e: PointerEvent<HTMLDivElement>,
+  sequencerRef: React.RefObject<HTMLDivElement | null>,
+  flow: Flow,
+  track: Track,
+  ticks: TickConfig,
+  snapDuration: NoteDuration,
+) => {
+  const clickTarget = getSequencerClickTarget(e.target as HTMLElement);
+
+  if (clickTarget === null) {
+    return;
+  }
+
+  const box = sequencerRef.current?.getBoundingClientRect();
+  if (!box) {
+    return;
+  }
+
+  e.stopPropagation();
+
+  const ticksPerSnap = (flow.subdivisions * 4) / snapDuration;
+  const x = e.clientX - box.left;
+
+  const sliceTick = getSnappedXPosition(
+    x,
+    ticks.tickWidth,
+    ticksPerSnap,
+    "nearest",
+  );
+
+  const newToneId = await actions.score.tone.slice(
+    track.id,
+    clickTarget.id,
+    sliceTick,
+  );
+
+  if (!newToneId) {
+    return;
+  }
+
+  await actions.ui.sequencer.clearSelection();
+};
+
 const handleEraseTool = async (
   e: PointerEvent<HTMLDivElement>,
   track: Track,
@@ -475,6 +519,17 @@ export const SequencerTrack: FC<SequencerTrackProps> = ({
 
         case Tool.Erase:
           await handleEraseTool(e, track);
+          break;
+
+        case Tool.Slice:
+          await handleSliceTool(
+            e,
+            sequencerRef,
+            flow,
+            track,
+            ticks,
+            snapDuration,
+          );
           break;
       }
     },
