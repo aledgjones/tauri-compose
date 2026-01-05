@@ -2,12 +2,24 @@ import { defineConfig } from "vite";
 import { resolve } from "path";
 import react from "@vitejs/plugin-react";
 import eslint from "vite-plugin-eslint";
+import { viteStaticCopy } from "vite-plugin-static-copy";
 
 const host = process.env.TAURI_DEV_HOST;
 
 // https://vitejs.dev/config/
 export default defineConfig(async () => ({
-  plugins: [react(), eslint()],
+  plugins: [
+    react(),
+    eslint(),
+    viteStaticCopy({
+      targets: [
+        {
+          src: "src/assets/patches/**/*",
+          dest: "assets/patches",
+        },
+      ],
+    }),
+  ],
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //
