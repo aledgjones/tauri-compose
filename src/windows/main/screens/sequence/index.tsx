@@ -14,7 +14,7 @@ export const Sequence = () => {
   return (
     <>
       <div
-        className="grid grid-cols-1 gap-0.5 overflow-hidden"
+        className="grid grid-cols-1 gap-0.5 py-0.5 overflow-hidden"
         style={{ gridTemplateRows }}
       >
         {/* Track Overview - shows all instruments with miniature piano rolls */}

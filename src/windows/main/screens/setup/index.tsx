@@ -7,7 +7,7 @@ import { ZoomWidget } from "../../components/zoom-widget";
 export const Setup = () => {
   return (
     <>
-      <div className="overflow-hidden grid grid-rows-[1fr_170px] grid-cols-[360px_1fr_360px] gap-0.5">
+      <div className="overflow-hidden grid grid-rows-[1fr_170px] grid-cols-[360px_1fr_360px] gap-0.5 py-0.5">
         <PlayerPlanel />
         <Renderer />
         <LayoutPlanel />
