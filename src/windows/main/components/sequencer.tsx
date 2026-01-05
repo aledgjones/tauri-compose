@@ -151,14 +151,14 @@ export const Sequencer: FC<Props> = ({
         className="ignore-x sticky left-0 z-20"
         style={{ width: KEYBOARD_WIDTH }}
       >
-        <div className="sticky top-0 z-30 h-7 bg-neutral-800 w-full" />
+        <div className="sticky top-0 z-30 h-7 bg-neutral-900 w-full" />
         <Keyboard slots={slots} />
       </div>
       <div
         style={{ paddingLeft: KEYBOARD_WIDTH }}
         className="ignore-y absolute top-0 z-10 min-w-full"
       >
-        <TickBar ticks={ticks} className="sticky top-0 z-30 bg-neutral-800" />
+        <TickBar ticks={ticks} className="sticky top-0 z-30 bg-neutral-900" />
         <div className="relative">
           <SequencerTrack
             flow={flow}

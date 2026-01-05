@@ -3,8 +3,8 @@ import { useAppState } from "../../../../services/state";
 import { actions } from "../../../../services/actions";
 import { mdiChevronDown, mdiChevronUp } from "@mdi/js";
 import MdiIcon from "@mdi/react";
-import { NotFound } from "../../../../components/not-found";
 import { SelectedToneInfoDisplay } from "../../components/selected-tone-info-display";
+import { InstrumentOverview } from "./components/instrument-overview";
 
 export const Sequence = () => {
   const state = useAppState();
@@ -17,10 +17,8 @@ export const Sequence = () => {
         className="grid grid-cols-1 gap-0.5 overflow-hidden"
         style={{ gridTemplateRows }}
       >
-        {/* Track Overview Placeholder - will show track overviews eventually */}
-        <div className="bg-neutral-900 flex items-center justify-center text-neutral-400">
-          <NotFound />
-        </div>
+        {/* Track Overview - shows all instruments with miniature piano rolls */}
+        <InstrumentOverview />
         {!minimized && <BottomPanel />}
       </div>
 

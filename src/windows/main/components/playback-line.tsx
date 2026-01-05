@@ -8,11 +8,7 @@ type PlaybackLineProps = {
 };
 
 export const PlaybackLine: FC<PlaybackLineProps> = ({ ticks, height }) => {
-  const { currentTick, isPlaying } = usePlayback();
-
-  if (!isPlaying) {
-    return null;
-  }
+  const { currentTick } = usePlayback();
 
   // Calculate the x position based on the current tick
   const x = currentTick * ticks.tickWidth;
