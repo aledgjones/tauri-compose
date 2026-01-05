@@ -63,11 +63,11 @@ lazy_static! {
                 }],
                 solo_patches: FxHashMap::from_iter([(
                     Expression::Natural,
-                    "bass-trombone/natural.json",
+                    "/bass-trombone/natural/meta.json",
                 )]),
                 section_patches: FxHashMap::from_iter([(
                     Expression::Natural,
-                    "bass-trombone/natural.json",
+                    "/bass-trombone/natural/meta.json",
                 )]),
             },
             InstrumentDefinition {
@@ -87,14 +87,14 @@ lazy_static! {
                     ),
                 }],
                 solo_patches: FxHashMap::from_iter([
-                    (Expression::Natural, "horn/natural.json"),
-                    (Expression::Staccato, "horn/staccato.json"),
-                    (Expression::Mute, "horn/mute.json"),
+                    (Expression::Natural, "/horn/natural/meta.json"),
+                    (Expression::Staccato, "/horn/staccato/meta.json"),
+                    (Expression::Mute, "/horn/mute/meta.json"),
                 ]),
                 section_patches: FxHashMap::from_iter([
-                    (Expression::Natural, "horn/natural.json"),
-                    (Expression::Staccato, "horn/staccato.json"),
-                    (Expression::Mute, "horn/mute.json"),
+                    (Expression::Natural, "/horn/natural/meta.json"),
+                    (Expression::Staccato, "/horn/staccato/meta.json"),
+                    (Expression::Mute, "/horn/mute/meta.json"),
                 ]),
             },
             InstrumentDefinition {
@@ -114,12 +114,12 @@ lazy_static! {
                     ),
                 }],
                 solo_patches: FxHashMap::from_iter([
-                    (Expression::Natural, "trombone/natural.json"),
-                    (Expression::Staccato, "trombone/staccato.json"),
+                    (Expression::Natural, "/trombone/natural/meta.json"),
+                    (Expression::Staccato, "/trombone/staccato/meta.json"),
                 ]),
                 section_patches: FxHashMap::from_iter([
-                    (Expression::Natural, "trombone/natural.json"),
-                    (Expression::Staccato, "trombone/staccato.json"),
+                    (Expression::Natural, "/trombone/natural/meta.json"),
+                    (Expression::Staccato, "/trombone/staccato/meta.json"),
                 ]),
             },
             InstrumentDefinition {
@@ -139,14 +139,14 @@ lazy_static! {
                     ),
                 }],
                 solo_patches: FxHashMap::from_iter([
-                    (Expression::Natural, "trumpet/natural.json"),
-                    (Expression::Staccato, "trumpet/staccato.json"),
-                    (Expression::Mute, "trumpet/mute.json"),
+                    (Expression::Natural, "/trumpet/natural/meta.json"),
+                    (Expression::Staccato, "/trumpet/staccato/meta.json"),
+                    (Expression::Mute, "/trumpet/mute/meta.json"),
                 ]),
                 section_patches: FxHashMap::from_iter([
-                    (Expression::Natural, "trumpet/natural.json"),
-                    (Expression::Staccato, "trumpet/staccato.json"),
-                    (Expression::Mute, "trumpet/mute.json"),
+                    (Expression::Natural, "/trumpet/natural/meta.json"),
+                    (Expression::Staccato, "/trumpet/staccato/meta.json"),
+                    (Expression::Mute, "/trumpet/mute/meta.json"),
                 ]),
             },
             InstrumentDefinition {
@@ -166,14 +166,14 @@ lazy_static! {
                     ),
                 }],
                 solo_patches: FxHashMap::from_iter([
-                    (Expression::Natural, "trumpet/natural.json"),
-                    (Expression::Staccato, "trumpet/staccato.json"),
-                    (Expression::Mute, "trumpet/mute.json"),
+                    (Expression::Natural, "/trumpet/natural/meta.json"),
+                    (Expression::Staccato, "/trumpet/staccato/meta.json"),
+                    (Expression::Mute, "/trumpet/mute/meta.json"),
                 ]),
                 section_patches: FxHashMap::from_iter([
-                    (Expression::Natural, "trumpet/natural.json"),
-                    (Expression::Staccato, "trumpet/staccato.json"),
-                    (Expression::Mute, "trumpet/mute.json"),
+                    (Expression::Natural, "/trumpet/natural/meta.json"),
+                    (Expression::Staccato, "/trumpet/staccato/meta.json"),
+                    (Expression::Mute, "/trumpet/mute/meta.json"),
                 ]),
             },
             InstrumentDefinition {
@@ -193,12 +193,12 @@ lazy_static! {
                     ),
                 }],
                 solo_patches: FxHashMap::from_iter([
-                    (Expression::Natural, "tuba/natural.json"),
-                    (Expression::Staccato, "tuba/staccato.json"),
+                    (Expression::Natural, "/tuba/natural/meta.json"),
+                    (Expression::Staccato, "/tuba/staccato/meta.json"),
                 ]),
                 section_patches: FxHashMap::from_iter([
-                    (Expression::Natural, "tuba/natural.json"),
-                    (Expression::Staccato, "tuba/staccato.json"),
+                    (Expression::Natural, "/tuba/natural/meta.json"),
+                    (Expression::Staccato, "/tuba/staccato/meta.json"),
                 ]),
             },
             InstrumentDefinition {
@@ -219,11 +219,11 @@ lazy_static! {
                 }],
                 solo_patches: FxHashMap::from_iter([(
                     Expression::Natural,
-                    "acoustic-guitar/natural.json",
+                    "/acoustic-guitar/natural/meta.json",
                 )]),
                 section_patches: FxHashMap::from_iter([(
                     Expression::Natural,
-                    "acoustic-guitar/natural.json",
+                    "/acoustic-guitar/natural/meta.json",
                 )]),
             },
             InstrumentDefinition {
@@ -244,11 +244,11 @@ lazy_static! {
                 }],
                 solo_patches: FxHashMap::from_iter([(
                     Expression::Natural,
-                    "bass-guitar/natural.json",
+                    "/bass-guitar/natural/meta.json",
                 )]),
                 section_patches: FxHashMap::from_iter([(
                     Expression::Natural,
-                    "bass-guitar/natural.json",
+                    "/bass-guitar/natural/meta.json",
                 )]),
             },
             InstrumentDefinition {
@@ -269,11 +269,11 @@ lazy_static! {
                 }],
                 solo_patches: FxHashMap::from_iter([(
                     Expression::Natural,
-                    "distortion-guitar/natural.json",
+                    "/distortion-guitar/natural/meta.json",
                 )]),
                 section_patches: FxHashMap::from_iter([(
                     Expression::Natural,
-                    "distortion-guitar/natural.json",
+                    "/distortion-guitar/natural/meta.json",
                 )]),
             },
             InstrumentDefinition {
@@ -294,11 +294,11 @@ lazy_static! {
                 }],
                 solo_patches: FxHashMap::from_iter([(
                     Expression::Natural,
-                    "kit-crash/natural.json",
+                    "/kit-crash/natural/meta.json",
                 )]),
                 section_patches: FxHashMap::from_iter([(
                     Expression::Natural,
-                    "kit-crash/natural.json",
+                    "/kit-crash/natural/meta.json",
                 )]),
             },
             InstrumentDefinition {
@@ -319,11 +319,11 @@ lazy_static! {
                 }],
                 solo_patches: FxHashMap::from_iter([(
                     Expression::Natural,
-                    "kit-hihat/natural.json",
+                    "/kit-hihat/natural/meta.json",
                 )]),
                 section_patches: FxHashMap::from_iter([(
                     Expression::Natural,
-                    "kit-hihat/natural.json",
+                    "/kit-hihat/natural/meta.json",
                 )]),
             },
             InstrumentDefinition {
@@ -344,11 +344,11 @@ lazy_static! {
                 }],
                 solo_patches: FxHashMap::from_iter([(
                     Expression::Natural,
-                    "kit-kicks/natural.json",
+                    "/kit-kicks/natural/meta.json",
                 )]),
                 section_patches: FxHashMap::from_iter([(
                     Expression::Natural,
-                    "kit-kicks/natural.json",
+                    "/kit-kicks/natural/meta.json",
                 )]),
             },
             InstrumentDefinition {
@@ -367,10 +367,10 @@ lazy_static! {
                         ClefDrawType::Percussion,
                     ),
                 }],
-                solo_patches: FxHashMap::from_iter([(Expression::Natural, "snare/natural.json")]),
+                solo_patches: FxHashMap::from_iter([(Expression::Natural, "/snare/natural/meta.json")]),
                 section_patches: FxHashMap::from_iter([(
                     Expression::Natural,
-                    "snare/natural.json",
+                    "/snare/natural/meta.json",
                 )]),
             },
             InstrumentDefinition {
@@ -391,11 +391,11 @@ lazy_static! {
                 }],
                 solo_patches: FxHashMap::from_iter([(
                     Expression::Natural,
-                    "glockenspiel/natural.json",
+                    "/glockenspiel/natural/meta.json",
                 )]),
                 section_patches: FxHashMap::from_iter([(
                     Expression::Natural,
-                    "glockenspiel/natural.json",
+                    "/glockenspiel/natural/meta.json",
                 )]),
             },
             InstrumentDefinition {
@@ -426,8 +426,8 @@ lazy_static! {
                         ),
                     },
                 ],
-                solo_patches: FxHashMap::from_iter([(Expression::Natural, "harp/natural.json")]),
-                section_patches: FxHashMap::from_iter([(Expression::Natural, "harp/natural.json")]),
+                solo_patches: FxHashMap::from_iter([(Expression::Natural, "/harp/natural/meta.json")]),
+                section_patches: FxHashMap::from_iter([(Expression::Natural, "/harp/natural/meta.json")]),
             },
             InstrumentDefinition {
                 id: "pitched-percussion.marimba",
@@ -457,10 +457,10 @@ lazy_static! {
                         ),
                     },
                 ],
-                solo_patches: FxHashMap::from_iter([(Expression::Natural, "marimba/natural.json")]),
+                solo_patches: FxHashMap::from_iter([(Expression::Natural, "/marimba/natural/meta.json")]),
                 section_patches: FxHashMap::from_iter([(
                     Expression::Natural,
-                    "marimba/natural.json",
+                    "/marimba/natural/meta.json",
                 )]),
             },
             InstrumentDefinition {
@@ -480,12 +480,12 @@ lazy_static! {
                     ),
                 }],
                 solo_patches: FxHashMap::from_iter([
-                    (Expression::Natural, "timpani/natural.json"),
-                    (Expression::Tremolo, "timpani/roll.json"),
+                    (Expression::Natural, "/timpani/natural/meta.json"),
+                    (Expression::Tremolo, "/timpani/roll/meta.json"),
                 ]),
                 section_patches: FxHashMap::from_iter([
-                    (Expression::Natural, "timpani/natural.json"),
-                    (Expression::Tremolo, "timpani/roll.json"),
+                    (Expression::Natural, "/timpani/natural/meta.json"),
+                    (Expression::Tremolo, "/timpani/roll/meta.json"),
                 ]),
             },
             InstrumentDefinition {
@@ -506,11 +506,11 @@ lazy_static! {
                 }],
                 solo_patches: FxHashMap::from_iter([(
                     Expression::Natural,
-                    "vibraphone/natural.json",
+                    "/vibraphone/natural/meta.json",
                 )]),
                 section_patches: FxHashMap::from_iter([(
                     Expression::Natural,
-                    "vibraphone/natural.json",
+                    "/vibraphone/natural/meta.json",
                 )]),
             },
             InstrumentDefinition {
@@ -531,11 +531,11 @@ lazy_static! {
                 }],
                 solo_patches: FxHashMap::from_iter([(
                     Expression::Natural,
-                    "xylophone/natural.json",
+                    "/xylophone/natural/meta.json",
                 )]),
                 section_patches: FxHashMap::from_iter([(
                     Expression::Natural,
-                    "xylophone/natural.json",
+                    "/xylophone/natural/meta.json",
                 )]),
             },
             InstrumentDefinition {
@@ -566,10 +566,10 @@ lazy_static! {
                         ),
                     },
                 ],
-                solo_patches: FxHashMap::from_iter([(Expression::Natural, "celesta/natural.json")]),
+                solo_patches: FxHashMap::from_iter([(Expression::Natural, "/celesta/natural/meta.json")]),
                 section_patches: FxHashMap::from_iter([(
                     Expression::Natural,
-                    "celesta/natural.json",
+                    "/celesta/natural/meta.json",
                 )]),
             },
             InstrumentDefinition {
@@ -602,11 +602,11 @@ lazy_static! {
                 ],
                 solo_patches: FxHashMap::from_iter([(
                     Expression::Natural,
-                    "harpsichord/natural.json",
+                    "/harpsichord/natural/meta.json",
                 )]),
                 section_patches: FxHashMap::from_iter([(
                     Expression::Natural,
-                    "harpsichord/natural.json",
+                    "/harpsichord/natural/meta.json",
                 )]),
             },
             InstrumentDefinition {
@@ -637,10 +637,10 @@ lazy_static! {
                         ),
                     },
                 ],
-                solo_patches: FxHashMap::from_iter([(Expression::Natural, "piano/natural.json")]),
+                solo_patches: FxHashMap::from_iter([(Expression::Natural, "/piano/natural/meta.json")]),
                 section_patches: FxHashMap::from_iter([(
                     Expression::Natural,
-                    "piano/natural.json",
+                    "/piano/natural/meta.json",
                 )]),
             },
             InstrumentDefinition {
@@ -660,14 +660,14 @@ lazy_static! {
                     ),
                 }],
                 solo_patches: FxHashMap::from_iter([
-                    (Expression::Natural, "contrabass/natural.json"),
-                    (Expression::Pizzicato, "contrabass/pizzicato.json"),
-                    (Expression::Staccato, "contrabass/spiccato.json"),
+                    (Expression::Natural, "/contrabass/natural/meta.json"),
+                    (Expression::Pizzicato, "/contrabass/pizzicato/meta.json"),
+                    (Expression::Staccato, "/contrabass/spiccato/meta.json"),
                 ]),
                 section_patches: FxHashMap::from_iter([
-                    (Expression::Natural, "contrabass-section/natural.json"),
-                    (Expression::Pizzicato, "contrabass-section/pizzicato.json"),
-                    (Expression::Staccato, "contrabass-section/spiccato.json"),
+                    (Expression::Natural, "/contrabass-section/natural/meta.json"),
+                    (Expression::Pizzicato, "/contrabass-section/pizzicato/meta.json"),
+                    (Expression::Staccato, "/contrabass-section/spiccato/meta.json"),
                 ]),
             },
             InstrumentDefinition {
@@ -687,14 +687,14 @@ lazy_static! {
                     ),
                 }],
                 solo_patches: FxHashMap::from_iter([
-                    (Expression::Natural, "viola/natural.json"),
-                    (Expression::Pizzicato, "viola/pizzicato.json"),
-                    (Expression::Staccato, "viola/staccato.json"),
+                    (Expression::Natural, "/viola/natural/meta.json"),
+                    (Expression::Pizzicato, "/viola/pizzicato/meta.json"),
+                    (Expression::Staccato, "/viola/staccato/meta.json"),
                 ]),
                 section_patches: FxHashMap::from_iter([
-                    (Expression::Natural, "viola-section/natural.json"),
-                    (Expression::Pizzicato, "viola-section/pizzicato.json"),
-                    (Expression::Staccato, "viola-section/staccato.json"),
+                    (Expression::Natural, "/viola-section/natural/meta.json"),
+                    (Expression::Pizzicato, "/viola-section/pizzicato/meta.json"),
+                    (Expression::Staccato, "/viola-section/staccato/meta.json"),
                 ]),
             },
             InstrumentDefinition {
@@ -714,16 +714,16 @@ lazy_static! {
                     ),
                 }],
                 solo_patches: FxHashMap::from_iter([
-                    (Expression::Natural, "violin/natural.json"),
-                    (Expression::Pizzicato, "violin/pizzicato.json"),
-                    (Expression::Staccato, "violin/spiccato.json"),
-                    (Expression::Tremolo, "violin/tremolo.json"),
+                    (Expression::Natural, "/violin/natural/meta.json"),
+                    (Expression::Pizzicato, "/violin/pizzicato/meta.json"),
+                    (Expression::Staccato, "/violin/spiccato/meta.json"),
+                    (Expression::Tremolo, "/violin/tremolo/meta.json"),
                 ]),
                 section_patches: FxHashMap::from_iter([
-                    (Expression::Natural, "violin-section/natural.json"),
-                    (Expression::Pizzicato, "violin-section/pizzicato.json"),
-                    (Expression::Staccato, "violin-section/spiccato.json"),
-                    (Expression::Tremolo, "violin-section/tremolo.json"),
+                    (Expression::Natural, "/violin-section/natural/meta.json"),
+                    (Expression::Pizzicato, "/violin-section/pizzicato/meta.json"),
+                    (Expression::Staccato, "/violin-section/spiccato/meta.json"),
+                    (Expression::Tremolo, "/violin-section/tremolo/meta.json"),
                 ]),
             },
             InstrumentDefinition {
@@ -743,14 +743,14 @@ lazy_static! {
                     ),
                 }],
                 solo_patches: FxHashMap::from_iter([
-                    (Expression::Natural, "violoncello/natural.json"),
-                    (Expression::Pizzicato, "violoncello/pizzicato.json"),
-                    (Expression::Staccato, "violoncello/staccato.json"),
+                    (Expression::Natural, "/violoncello/natural/meta.json"),
+                    (Expression::Pizzicato, "/violoncello/pizzicato/meta.json"),
+                    (Expression::Staccato, "/violoncello/staccato/meta.json"),
                 ]),
                 section_patches: FxHashMap::from_iter([
-                    (Expression::Natural, "violoncello-section/natural.json"),
-                    (Expression::Pizzicato, "violoncello-section/pizzicato.json"),
-                    (Expression::Staccato, "violoncello-section/staccato.json"),
+                    (Expression::Natural, "/violoncello-section/natural/meta.json"),
+                    (Expression::Pizzicato, "/violoncello-section/pizzicato/meta.json"),
+                    (Expression::Staccato, "/violoncello-section/staccato/meta.json"),
                 ]),
             },
             InstrumentDefinition {
@@ -771,11 +771,11 @@ lazy_static! {
                 }],
                 solo_patches: FxHashMap::from_iter([(
                     Expression::Natural,
-                    "alto-flute/natural.json",
+                    "/alto-flute/natural/meta.json",
                 )]),
                 section_patches: FxHashMap::from_iter([(
                     Expression::Natural,
-                    "alto-flute/natural.json",
+                    "/alto-flute/natural/meta.json",
                 )]),
             },
             InstrumentDefinition {
@@ -795,12 +795,12 @@ lazy_static! {
                     ),
                 }],
                 solo_patches: FxHashMap::from_iter([
-                    (Expression::Natural, "alto-saxophone/natural.json"),
-                    (Expression::Staccato, "alto-saxophone/staccato.json"),
+                    (Expression::Natural, "/alto-saxophone/natural/meta.json"),
+                    (Expression::Staccato, "/alto-saxophone/staccato/meta.json"),
                 ]),
                 section_patches: FxHashMap::from_iter([
-                    (Expression::Natural, "alto-saxophone/natural.json"),
-                    (Expression::Staccato, "alto-saxophone/staccato.json"),
+                    (Expression::Natural, "/alto-saxophone/natural/meta.json"),
+                    (Expression::Staccato, "/alto-saxophone/staccato/meta.json"),
                 ]),
             },
             InstrumentDefinition {
@@ -820,12 +820,12 @@ lazy_static! {
                     ),
                 }],
                 solo_patches: FxHashMap::from_iter([
-                    (Expression::Natural, "bassoon/natural.json"),
-                    (Expression::Staccato, "bassoon/staccato.json"),
+                    (Expression::Natural, "/bassoon/natural/meta.json"),
+                    (Expression::Staccato, "/bassoon/staccato/meta.json"),
                 ]),
                 section_patches: FxHashMap::from_iter([
-                    (Expression::Natural, "bassoon/natural.json"),
-                    (Expression::Staccato, "bassoon/staccato.json"),
+                    (Expression::Natural, "/bassoon/natural/meta.json"),
+                    (Expression::Staccato, "/bassoon/staccato/meta.json"),
                 ]),
             },
             InstrumentDefinition {
@@ -845,12 +845,12 @@ lazy_static! {
                     ),
                 }],
                 solo_patches: FxHashMap::from_iter([
-                    (Expression::Natural, "bass-clarinet/natural.json"),
-                    (Expression::Staccato, "bass-clarinet/staccato.json"),
+                    (Expression::Natural, "/bass-clarinet/natural/meta.json"),
+                    (Expression::Staccato, "/bass-clarinet/staccato/meta.json"),
                 ]),
                 section_patches: FxHashMap::from_iter([
-                    (Expression::Natural, "bass-clarinet/natural.json"),
-                    (Expression::Staccato, "bass-clarinet/staccato.json"),
+                    (Expression::Natural, "/bass-clarinet/natural/meta.json"),
+                    (Expression::Staccato, "/bass-clarinet/staccato/meta.json"),
                 ]),
             },
             InstrumentDefinition {
@@ -870,12 +870,12 @@ lazy_static! {
                     ),
                 }],
                 solo_patches: FxHashMap::from_iter([
-                    (Expression::Natural, "clarinet/natural.json"),
-                    (Expression::Staccato, "clarinet/staccato.json"),
+                    (Expression::Natural, "/clarinet/natural/meta.json"),
+                    (Expression::Staccato, "/clarinet/staccato/meta.json"),
                 ]),
                 section_patches: FxHashMap::from_iter([
-                    (Expression::Natural, "clarinet/natural.json"),
-                    (Expression::Staccato, "clarinet/staccato.json"),
+                    (Expression::Natural, "/clarinet/natural/meta.json"),
+                    (Expression::Staccato, "/clarinet/staccato/meta.json"),
                 ]),
             },
             InstrumentDefinition {
@@ -895,12 +895,12 @@ lazy_static! {
                     ),
                 }],
                 solo_patches: FxHashMap::from_iter([
-                    (Expression::Natural, "clarinet/natural.json"),
-                    (Expression::Staccato, "clarinet/staccato.json"),
+                    (Expression::Natural, "/clarinet/natural/meta.json"),
+                    (Expression::Staccato, "/clarinet/staccato/meta.json"),
                 ]),
                 section_patches: FxHashMap::from_iter([
-                    (Expression::Natural, "clarinet/natural.json"),
-                    (Expression::Staccato, "clarinet/staccato.json"),
+                    (Expression::Natural, "/clarinet/natural/meta.json"),
+                    (Expression::Staccato, "/clarinet/staccato/meta.json"),
                 ]),
             },
             InstrumentDefinition {
@@ -921,11 +921,11 @@ lazy_static! {
                 }],
                 solo_patches: FxHashMap::from_iter([(
                     Expression::Natural,
-                    "contrabassoon/natural.json",
+                    "/contrabassoon/natural/meta.json",
                 )]),
                 section_patches: FxHashMap::from_iter([(
                     Expression::Natural,
-                    "contrabassoon/natural.json",
+                    "/contrabassoon/natural/meta.json",
                 )]),
             },
             InstrumentDefinition {
@@ -945,12 +945,12 @@ lazy_static! {
                     ),
                 }],
                 solo_patches: FxHashMap::from_iter([
-                    (Expression::Natural, "cor-anglais/natural.json"),
-                    (Expression::Staccato, "cor-anglais/staccato.json"),
+                    (Expression::Natural, "/cor-anglais/natural/meta.json"),
+                    (Expression::Staccato, "/cor-anglais/staccato/meta.json"),
                 ]),
                 section_patches: FxHashMap::from_iter([
-                    (Expression::Natural, "cor-anglais/natural.json"),
-                    (Expression::Staccato, "cor-anglais/staccato.json"),
+                    (Expression::Natural, "/cor-anglais/natural/meta.json"),
+                    (Expression::Staccato, "/cor-anglais/staccato/meta.json"),
                 ]),
             },
             InstrumentDefinition {
@@ -970,12 +970,12 @@ lazy_static! {
                     ),
                 }],
                 solo_patches: FxHashMap::from_iter([
-                    (Expression::Natural, "flute/natural.json"),
-                    (Expression::Staccato, "flute/staccato.json"),
+                    (Expression::Natural, "/flute/natural/meta.json"),
+                    (Expression::Staccato, "/flute/staccato/meta.json"),
                 ]),
                 section_patches: FxHashMap::from_iter([
-                    (Expression::Natural, "flute/natural.json"),
-                    (Expression::Staccato, "flute/staccato.json"),
+                    (Expression::Natural, "/flute/natural/meta.json"),
+                    (Expression::Staccato, "/flute/staccato/meta.json"),
                 ]),
             },
             InstrumentDefinition {
@@ -995,12 +995,12 @@ lazy_static! {
                     ),
                 }],
                 solo_patches: FxHashMap::from_iter([
-                    (Expression::Natural, "oboe/natural.json"),
-                    (Expression::Staccato, "oboe/staccato.json"),
+                    (Expression::Natural, "/oboe/natural/meta.json"),
+                    (Expression::Staccato, "/oboe/staccato/meta.json"),
                 ]),
                 section_patches: FxHashMap::from_iter([
-                    (Expression::Natural, "oboe/natural.json"),
-                    (Expression::Staccato, "oboe/staccato.json"),
+                    (Expression::Natural, "/oboe/natural/meta.json"),
+                    (Expression::Staccato, "/oboe/staccato/meta.json"),
                 ]),
             },
             InstrumentDefinition {
@@ -1020,12 +1020,12 @@ lazy_static! {
                     ),
                 }],
                 solo_patches: FxHashMap::from_iter([
-                    (Expression::Natural, "piccolo/natural.json"),
-                    (Expression::Staccato, "piccolo/staccato.json"),
+                    (Expression::Natural, "/piccolo/natural/meta.json"),
+                    (Expression::Staccato, "/piccolo/staccato/meta.json"),
                 ]),
                 section_patches: FxHashMap::from_iter([
-                    (Expression::Natural, "piccolo/natural.json"),
-                    (Expression::Staccato, "piccolo/staccato.json"),
+                    (Expression::Natural, "/piccolo/natural/meta.json"),
+                    (Expression::Staccato, "/piccolo/staccato/meta.json"),
                 ]),
             },
         ]
