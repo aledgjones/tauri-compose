@@ -63,6 +63,38 @@ export const MiniaturePianoRoll: FC<MiniaturePianoRollProps> = ({
     return allTones;
   }, [tracks]);
 
+  // Merge overlapping time ranges where there are notes
+  const activeRanges = useMemo(() => {
+    if (tones.length === 0) return [];
+
+    // Create ranges from tones
+    const ranges = tones.map((tone) => ({
+      start: tone.tick,
+      end: tone.tick + tone.duration,
+    }));
+
+    // Sort by start time
+    ranges.sort((a, b) => a.start - b.start);
+
+    // Merge overlapping ranges
+    const merged: Array<{ start: number; end: number }> = [];
+    let current = ranges[0];
+
+    for (let i = 1; i < ranges.length; i++) {
+      if (ranges[i].start <= current.end) {
+        // Overlapping or adjacent, merge
+        current.end = Math.max(current.end, ranges[i].end);
+      } else {
+        // No overlap, add current and start new
+        merged.push(current);
+        current = ranges[i];
+      }
+    }
+    merged.push(current);
+
+    return merged;
+  }, [tones]);
+
   // Use full piano range for consistent vertical positioning
   const fullPianoRange = useMemo(
     () => ({
@@ -85,6 +117,27 @@ export const MiniaturePianoRoll: FC<MiniaturePianoRollProps> = ({
         width: ticks.length * ticks.tickWidth,
       }}
     >
+      {/* Background highlights for merged time ranges */}
+      {activeRanges.map((range, index) => {
+        const x = range.start * ticks.tickWidth;
+        const width = (range.end - range.start) * ticks.tickWidth;
+
+        return (
+          <div
+            key={`bg-${index}`}
+            className="absolute opacity-20"
+            style={{
+              left: x,
+              top: 0,
+              width: Math.max(1, width),
+              height: rowHeight,
+              backgroundColor: color,
+            }}
+          />
+        );
+      })}
+
+      {/* Individual note boxes */}
       {tones.map((tone) => {
         const x = tone.tick * ticks.tickWidth;
         const width = tone.duration * ticks.tickWidth;
@@ -97,30 +150,17 @@ export const MiniaturePianoRoll: FC<MiniaturePianoRollProps> = ({
         const y = (1 - pitchRatio) * (rowHeight - 3); // 3px for note height
 
         return (
-          <div key={tone.id}>
-            {/* Full height background box at low opacity */}
-            <div
-              className="absolute opacity-20"
-              style={{
-                left: x,
-                top: 0,
-                width: Math.max(1, width),
-                height: rowHeight,
-                backgroundColor: color,
-              }}
-            />
-            {/* Individual note box */}
-            <div
-              className="absolute opacity-80"
-              style={{
-                left: x,
-                top: y,
-                width: Math.max(1, width),
-                height: 3,
-                backgroundColor: color,
-              }}
-            />
-          </div>
+          <div
+            key={tone.id}
+            className="absolute opacity-80"
+            style={{
+              left: x,
+              top: y,
+              width: Math.max(1, width),
+              height: 3,
+              backgroundColor: color,
+            }}
+          />
         );
       })}
     </div>
