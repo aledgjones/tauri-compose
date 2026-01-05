@@ -1,1 +1,15 @@
-[[34,0,0.6,"/assets/patches/bassoon/staccato/34.aac"],[45,0,0.6,"/assets/patches/bassoon/staccato/45.aac"],[57,0,0.6,"/assets/patches/bassoon/staccato/57.aac"],[48,0,0.6,"/assets/patches/bassoon/staccato/48.aac"],[60,0,0.6,"/assets/patches/bassoon/staccato/60.aac"],[72,0,0.6,"/assets/patches/bassoon/staccato/72.aac"],[38,0,0.6,"/assets/patches/bassoon/staccato/38.aac"],[51,0,0.6,"/assets/patches/bassoon/staccato/51.aac"],[52,0,0.6,"/assets/patches/bassoon/staccato/52.aac"],[64,0,0.6,"/assets/patches/bassoon/staccato/64.aac"],[41,0,0.6,"/assets/patches/bassoon/staccato/41.aac"],[43,0,0.6,"/assets/patches/bassoon/staccato/43.aac"],[55,0,0.6,"/assets/patches/bassoon/staccato/55.aac"]]
+[
+  [34, 0, 0.6, "/assets/patches/bassoon/staccato/34.aac"],
+  [45, 0, 0.6, "/assets/patches/bassoon/staccato/45.aac"],
+  [57, 0, 0.6, "/assets/patches/bassoon/staccato/57.aac"],
+  [48, 0, 0.6, "/assets/patches/bassoon/staccato/48.aac"],
+  [60, 0, 0.6, "/assets/patches/bassoon/staccato/60.aac"],
+  [72, 0, 0.6, "/assets/patches/bassoon/staccato/72.aac"],
+  [38, 0, 0.6, "/assets/patches/bassoon/staccato/38.aac"],
+  [51, 0, 0.6, "/assets/patches/bassoon/staccato/51.aac"],
+  [52, 0, 0.6, "/assets/patches/bassoon/staccato/52.aac"],
+  [64, 0, 0.6, "/assets/patches/bassoon/staccato/64.aac"],
+  [41, 0, 0.6, "/assets/patches/bassoon/staccato/41.aac"],
+  [43, 0, 0.6, "/assets/patches/bassoon/staccato/43.aac"],
+  [55, 0, 0.6, "/assets/patches/bassoon/staccato/55.aac"]
+]

@@ -16,7 +16,7 @@ export type TickConfig = { tickWidth: number; entries: Ticks; length: number };
 export const useTicks = (
   flow: Flow | null,
   master: Track | null,
-  zoom: number = 1
+  zoom: number = 1,
 ) => {
   return useMemo<TickConfig>(() => {
     if (!flow || !master) {
@@ -38,7 +38,7 @@ export const useTicks = (
     for (let tick = 0; tick < length; tick++) {
       if (master.entries.by_tick[tick]) {
         const timeSigId = master.entries.by_tick[tick].find(
-          (id) => master.entries.by_id[id]?.type === "TimeSignature"
+          (id) => master.entries.by_id[id]?.type === "TimeSignature",
         );
         if (timeSigId) {
           currentTimeSig = master.entries.by_id[timeSigId] as TimeSignature;

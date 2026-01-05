@@ -1,10 +1,10 @@
 .ghost-layout {
-    border-width: 2px;
-    border-color: rgb(14 165 233 / var(--tw-bg-opacity, 1));
-    background-color: transparent;
-    border-style: dashed;
+  border-width: 2px;
+  border-color: rgb(14 165 233 / var(--tw-bg-opacity, 1));
+  background-color: transparent;
+  border-style: dashed;
 }
 
 .ghost-layout>* {
-    visibility: hidden;
+  visibility: hidden;
 }

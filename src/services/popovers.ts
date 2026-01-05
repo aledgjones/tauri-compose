@@ -20,7 +20,7 @@ export type PopoverType =
 export const parseBarlinePopover = (
   input: string,
   flow_id: UniqueId,
-  tick: Tick
+  tick: Tick,
 ) => {
   switch (input) {
     case "clear": {
@@ -72,7 +72,7 @@ export const parseBarlinePopover = (
       actions.score.barline.create(
         flow_id,
         tick,
-        BarlineDrawType.EndStartRepeat
+        BarlineDrawType.EndStartRepeat,
       );
       break;
     }
@@ -87,7 +87,7 @@ export const parseClefPopover = (
   input: string,
   flow_id: UniqueId,
   tick: Tick,
-  stave_id?: UniqueId
+  stave_id?: UniqueId,
 ) => {
   if (!stave_id) {
     return;
@@ -117,7 +117,7 @@ export const parseClefPopover = (
         stave_id,
         53,
         -2,
-        ClefDrawType.F
+        ClefDrawType.F,
       );
       break;
     }
@@ -138,7 +138,7 @@ export const parseClefPopover = (
         stave_id,
         60,
         -2,
-        ClefDrawType.C
+        ClefDrawType.C,
       );
       break;
     }
@@ -152,7 +152,7 @@ export const parseClefPopover = (
 export const parseKeySignaturePopover = (
   input: string,
   flow_id: UniqueId,
-  tick: Tick
+  tick: Tick,
 ) => {
   switch (input) {
     case "clear": {
@@ -167,7 +167,7 @@ export const parseKeySignaturePopover = (
         flow_id,
         tick,
         KeySignatureMode.Major,
-        7
+        7,
       );
       break;
     }
@@ -179,7 +179,7 @@ export const parseKeySignaturePopover = (
         flow_id,
         tick,
         KeySignatureMode.Major,
-        6
+        6,
       );
       break;
     }
@@ -191,7 +191,7 @@ export const parseKeySignaturePopover = (
         flow_id,
         tick,
         KeySignatureMode.Major,
-        5
+        5,
       );
       break;
     }
@@ -203,7 +203,7 @@ export const parseKeySignaturePopover = (
         flow_id,
         tick,
         KeySignatureMode.Major,
-        4
+        4,
       );
       break;
     }
@@ -215,7 +215,7 @@ export const parseKeySignaturePopover = (
         flow_id,
         tick,
         KeySignatureMode.Major,
-        3
+        3,
       );
       break;
     }
@@ -227,7 +227,7 @@ export const parseKeySignaturePopover = (
         flow_id,
         tick,
         KeySignatureMode.Major,
-        2
+        2,
       );
       break;
     }
@@ -239,7 +239,7 @@ export const parseKeySignaturePopover = (
         flow_id,
         tick,
         KeySignatureMode.Major,
-        1
+        1,
       );
       break;
     }
@@ -255,7 +255,7 @@ export const parseKeySignaturePopover = (
         flow_id,
         tick,
         KeySignatureMode.Major,
-        0
+        0,
       );
       break;
     }
@@ -267,7 +267,7 @@ export const parseKeySignaturePopover = (
         flow_id,
         tick,
         KeySignatureMode.Major,
-        -1
+        -1,
       );
       break;
     }
@@ -279,7 +279,7 @@ export const parseKeySignaturePopover = (
         flow_id,
         tick,
         KeySignatureMode.Major,
-        -2
+        -2,
       );
       break;
     }
@@ -291,7 +291,7 @@ export const parseKeySignaturePopover = (
         flow_id,
         tick,
         KeySignatureMode.Major,
-        -3
+        -3,
       );
       break;
     }
@@ -303,7 +303,7 @@ export const parseKeySignaturePopover = (
         flow_id,
         tick,
         KeySignatureMode.Major,
-        -4
+        -4,
       );
       break;
     }
@@ -315,7 +315,7 @@ export const parseKeySignaturePopover = (
         flow_id,
         tick,
         KeySignatureMode.Major,
-        -5
+        -5,
       );
       break;
     }
@@ -327,7 +327,7 @@ export const parseKeySignaturePopover = (
         flow_id,
         tick,
         KeySignatureMode.Major,
-        -6
+        -6,
       );
       break;
     }
@@ -339,7 +339,7 @@ export const parseKeySignaturePopover = (
         flow_id,
         tick,
         KeySignatureMode.Major,
-        -7
+        -7,
       );
       break;
     }
@@ -349,7 +349,7 @@ export const parseKeySignaturePopover = (
         flow_id,
         tick,
         KeySignatureMode.Minor,
-        7
+        7,
       );
       break;
     }
@@ -359,7 +359,7 @@ export const parseKeySignaturePopover = (
         flow_id,
         tick,
         KeySignatureMode.Minor,
-        6
+        6,
       );
       break;
     }
@@ -369,7 +369,7 @@ export const parseKeySignaturePopover = (
         flow_id,
         tick,
         KeySignatureMode.Minor,
-        5
+        5,
       );
       break;
     }
@@ -379,7 +379,7 @@ export const parseKeySignaturePopover = (
         flow_id,
         tick,
         KeySignatureMode.Minor,
-        4
+        4,
       );
       break;
     }
@@ -389,7 +389,7 @@ export const parseKeySignaturePopover = (
         flow_id,
         tick,
         KeySignatureMode.Minor,
-        3
+        3,
       );
       break;
     }
@@ -399,7 +399,7 @@ export const parseKeySignaturePopover = (
         flow_id,
         tick,
         KeySignatureMode.Minor,
-        2
+        2,
       );
       break;
     }
@@ -409,7 +409,7 @@ export const parseKeySignaturePopover = (
         flow_id,
         tick,
         KeySignatureMode.Minor,
-        1
+        1,
       );
       break;
     }
@@ -419,7 +419,7 @@ export const parseKeySignaturePopover = (
         flow_id,
         tick,
         KeySignatureMode.Minor,
-        0
+        0,
       );
       break;
     }
@@ -429,7 +429,7 @@ export const parseKeySignaturePopover = (
         flow_id,
         tick,
         KeySignatureMode.Minor,
-        -1
+        -1,
       );
       break;
     }
@@ -439,7 +439,7 @@ export const parseKeySignaturePopover = (
         flow_id,
         tick,
         KeySignatureMode.Minor,
-        -2
+        -2,
       );
       break;
     }
@@ -449,7 +449,7 @@ export const parseKeySignaturePopover = (
         flow_id,
         tick,
         KeySignatureMode.Minor,
-        -3
+        -3,
       );
       break;
     }
@@ -459,7 +459,7 @@ export const parseKeySignaturePopover = (
         flow_id,
         tick,
         KeySignatureMode.Minor,
-        -4
+        -4,
       );
       break;
     }
@@ -469,7 +469,7 @@ export const parseKeySignaturePopover = (
         flow_id,
         tick,
         KeySignatureMode.Minor,
-        -5
+        -5,
       );
       break;
     }
@@ -479,7 +479,7 @@ export const parseKeySignaturePopover = (
         flow_id,
         tick,
         KeySignatureMode.Minor,
-        -6
+        -6,
       );
       break;
     }
@@ -489,7 +489,7 @@ export const parseKeySignaturePopover = (
         flow_id,
         tick,
         KeySignatureMode.Minor,
-        -7
+        -7,
       );
       break;
     }
@@ -503,7 +503,7 @@ export const parseKeySignaturePopover = (
 export const parseTimeSignaturePopover = (
   input: string,
   flow_id: UniqueId,
-  tick: Tick
+  tick: Tick,
 ) => {
   const parsed = parseTimeSignature(input);
 
@@ -515,7 +515,7 @@ export const parseTimeSignaturePopover = (
           tick,
           parsed.beats,
           NoteDuration.Whole,
-          TimeSignatureDrawType.Regular
+          TimeSignatureDrawType.Regular,
         );
         return;
       }
@@ -525,7 +525,7 @@ export const parseTimeSignaturePopover = (
           tick,
           parsed.beats,
           NoteDuration.Half,
-          TimeSignatureDrawType.Regular
+          TimeSignatureDrawType.Regular,
         );
         return;
       }
@@ -535,7 +535,7 @@ export const parseTimeSignaturePopover = (
           tick,
           parsed.beats,
           NoteDuration.Quarter,
-          TimeSignatureDrawType.Regular
+          TimeSignatureDrawType.Regular,
         );
         return;
       }
@@ -545,7 +545,7 @@ export const parseTimeSignaturePopover = (
           tick,
           parsed.beats,
           NoteDuration.Eighth,
-          TimeSignatureDrawType.Regular
+          TimeSignatureDrawType.Regular,
         );
         return;
       }
@@ -555,7 +555,7 @@ export const parseTimeSignaturePopover = (
           tick,
           parsed.beats,
           NoteDuration.Sixteenth,
-          TimeSignatureDrawType.Regular
+          TimeSignatureDrawType.Regular,
         );
         return;
       }
@@ -565,7 +565,7 @@ export const parseTimeSignaturePopover = (
           tick,
           parsed.beats,
           NoteDuration.ThirtySecond,
-          TimeSignatureDrawType.Regular
+          TimeSignatureDrawType.Regular,
         );
         return;
       }
@@ -575,7 +575,7 @@ export const parseTimeSignaturePopover = (
           tick,
           parsed.beats,
           NoteDuration.SixtyFourth,
-          TimeSignatureDrawType.Regular
+          TimeSignatureDrawType.Regular,
         );
         return;
       }
@@ -585,7 +585,7 @@ export const parseTimeSignaturePopover = (
           tick,
           parsed.beats,
           NoteDuration.HudredTwentyEighth,
-          TimeSignatureDrawType.Regular
+          TimeSignatureDrawType.Regular,
         );
         return;
       }
@@ -607,7 +607,7 @@ export const parseTimeSignaturePopover = (
         tick,
         4,
         NoteDuration.Quarter,
-        TimeSignatureDrawType.CommonTime
+        TimeSignatureDrawType.CommonTime,
       );
       break;
     }
@@ -618,7 +618,7 @@ export const parseTimeSignaturePopover = (
         tick,
         2,
         NoteDuration.Half,
-        TimeSignatureDrawType.SplitCommonTime
+        TimeSignatureDrawType.SplitCommonTime,
       );
       break;
     }
