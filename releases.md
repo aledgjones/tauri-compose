@@ -1,3 +1,22 @@
+## Release Notes for v0.19.0
+
+### 🏗️ Features
+- feat: cleanup piano roll ui
+- feat: simplify patches
+- feat: audio assets
+- feat: unified app bar
+- feat: disabled instruemnts
+- feat: basic sequencer screen
+- feat: slice tones
+- feat: tone selection
+### 🐞 Fixes
+- fix: only render hen render region is mounted
+- fix: linting
+- fix: shade areas in seuencer overview
+- fix: render order
+- fix: anti aliasing
+
+
 ## Release Notes for v0.18.0
 
 ### 🏗️ Features
