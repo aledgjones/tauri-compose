@@ -152,14 +152,15 @@ pub fn get_horizontal_spacing(
             let mut updates = Vec::new();
 
             for (tick, entry) in &notation.track {
-                if entry.has_pre_shunt(shunts) {
+                let has_pre_shunt = entry.has_pre_shunt(shunts);
+
+                if has_pre_shunt {
                     updates.push((
                         *tick,
                         Slot::PreNote,
                         entry.glyph_metrics(flow.subdivisions).width,
                         false,
                     ));
-                    // false means always set
                 }
 
                 let mut spacing = entry
@@ -168,16 +169,25 @@ pub fn get_horizontal_spacing(
 
                 // ACCIDENTALS
 
-                // first beat acccidental sapcing
+                // if the tick is at the start of a barline or the start of
+                // the piece we add explicit space for accidentals
                 if *tick == 0 || barlines.contains_key(tick) {
                     // start of bars has no previous spacing to extend so we use the accidentals slot
                     if let Some(slots) = accidentals.slots_by_tick.get(tick) {
-                        let width = (*slots as f32) * 1.1;
+                        let mut effective_slots = *slots;
+
+                        // If the current note has a pre-shunt, slot 1 is occupied by the pre-shunt
+                        // so we don't need to allocate space for it again.
+                        if has_pre_shunt && effective_slots > 0 {
+                            effective_slots -= 1;
+                        }
+
+                        let width = (effective_slots as f32) * 1.1;
                         updates.push((*tick, Slot::Accidentals, width, true)); // true means set only if larger
                     };
                 }
 
-                // extend spacing to accomodate accidentals + pre shunts (if needed)
+                // extend spacing to accomodate accidentals + pre shunts that are part of the next note (if needed)
                 if let Some((next_tick, next_entry)) = notation.get_next_notation(*tick) {
                     if !barlines.contains_key(&next_tick) {
                         // natural minimum for note value

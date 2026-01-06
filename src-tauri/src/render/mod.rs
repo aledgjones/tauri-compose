@@ -514,6 +514,17 @@ pub fn generate_render_instructions(
             }
         }
     }
+
+    // Debug: draw slot visualization
+    draw_debug_slots(
+        &horizontal_spacing,
+        stave_left,
+        page_padding.top,
+        vertical_spacing.height,
+        flow.length,
+        renderer,
+    );
+
     let stave_duration = stave_start.elapsed();
 
     let total_duration = total_start.elapsed();
@@ -545,4 +556,59 @@ pub fn generate_render_instructions(
     );
     let _ = app.emit("render-timing-stave", stave_duration.as_millis() as u64);
     let _ = app.emit("render-timing-total", total_duration.as_millis() as u64);
+}
+
+fn draw_debug_slots(
+    horizontal_spacing: &parse::get_horizontal_spacing::HorizontalSpacing,
+    stave_left: crate::renderer::converter::Space,
+    stave_top: crate::renderer::converter::Space,
+    stave_height: crate::renderer::converter::Space,
+    flow_length: crate::score::components::duration::Ticks,
+    renderer: &mut Renderer,
+) {
+    use parse::get_horizontal_spacing::Slot;
+    use skia_safe::Color;
+
+    let slot_colors = [
+        Color::from_argb(64, 255, 0, 0),     // PaddingStart - Red with alpha
+        Color::from_argb(64, 255, 165, 0),   // EndRepeat - Orange
+        Color::from_argb(64, 255, 255, 0),   // Clef - Yellow
+        Color::from_argb(64, 0, 255, 0),     // Barline - Green
+        Color::from_argb(64, 0, 255, 255),   // KeySignature - Cyan
+        Color::from_argb(64, 0, 0, 255),     // TimeSignature - Blue
+        Color::from_argb(64, 128, 0, 128),   // StartRepeat - Purple
+        Color::from_argb(64, 255, 0, 255),   // Accidentals - Magenta
+        Color::from_argb(64, 128, 128, 128), // PreNote - Gray
+        Color::from_argb(64, 0, 0, 0),       // NoteSpacing - Black
+    ];
+
+    let slots = [
+        Slot::PaddingStart,
+        Slot::EndRepeat,
+        Slot::Clef,
+        Slot::Barline,
+        Slot::KeySignature,
+        Slot::TimeSignature,
+        Slot::StartRepeat,
+        Slot::Accidentals,
+        Slot::PreNote,
+        Slot::NoteSpacing,
+    ];
+
+    // Draw slot bars as vertical translucent overlays
+    for tick in 0..=flow_length {
+        for (i, &slot) in slots.iter().enumerate() {
+            let span = horizontal_spacing.get(tick, slot);
+            if span.width > 0.0 && slot != Slot::NoteSpacing {
+                let color = slot_colors[i];
+                renderer.rectangle(
+                    stave_left + span.x,
+                    stave_top,
+                    span.width,
+                    stave_height,
+                    color,
+                );
+            }
+        }
+    }
 }

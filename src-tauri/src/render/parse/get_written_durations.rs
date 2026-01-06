@@ -82,7 +82,6 @@ impl Notation {
         }
     }
 
-    // TODO: make this more accurate for whole notes
     pub fn glyph_metrics(&self, subdivisions: Ticks) -> BoundingBox {
         let is_whole_note = self.base_to_note_duration(subdivisions) == Some(NoteDuration::Whole);
 
