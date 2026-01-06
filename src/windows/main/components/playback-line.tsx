@@ -15,7 +15,7 @@ export const PlaybackLine: FC<PlaybackLineProps> = ({ ticks, height }) => {
 
   return (
     <div
-      className="absolute top-0 left-0 pointer-events-none w-0.5 z-50 bg-sky-500"
+      className="absolute top-0 left-0 pointer-events-none w-0.5 z-20 bg-sky-500"
       style={{
         transform: `translateX(${x}px)`,
         height: height,
