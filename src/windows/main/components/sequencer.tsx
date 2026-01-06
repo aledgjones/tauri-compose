@@ -64,7 +64,7 @@ export const SequencerToolbar: FC<SequencerToolbarProps> = ({
       <div className="bg-neutral-900 flex-1" />
     </div>
     <div className="flex flex-1 justify-center gap-0.5">
-      <div className="bg-neutral-900 flex-1" />
+      <div className="bg-neutral-900 flex-1 h-9" />
       {instrumentId && instruments.length > 0 && (
         <Select
           variant="standard"
@@ -81,7 +81,9 @@ export const SequencerToolbar: FC<SequencerToolbarProps> = ({
           onChange={actions.ui.sequencer.setTrack}
         />
       )}
-      <div className="bg-neutral-900 flex-1" />
+      {Boolean(instrumentId || trackId) && (
+        <div className="bg-neutral-900 flex-1 h-9" />
+      )}
     </div>
   </>
 );

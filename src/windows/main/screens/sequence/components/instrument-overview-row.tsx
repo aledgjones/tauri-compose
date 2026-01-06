@@ -11,13 +11,13 @@ import classNames from "classnames";
 interface InstrumentOverviewRowProps {
   instrument: Instrument;
   color: string;
-  isInSelectedFlow: boolean;
+  isDisabled: boolean;
 }
 
 export const InstrumentOverviewRow: FC<InstrumentOverviewRowProps> = ({
   instrument,
   color,
-  isInSelectedFlow,
+  isDisabled,
 }) => {
   const samplerState = useSamplerState();
 
@@ -52,9 +52,9 @@ export const InstrumentOverviewRow: FC<InstrumentOverviewRowProps> = ({
   return (
     <div
       className={classNames("flex p-2 gap-2 border-l-4 bg-neutral-900 h-16", {
-        "opacity-50": !isInSelectedFlow,
+        "opacity-50": isDisabled,
       })}
-      style={{ borderLeftColor: isInSelectedFlow ? color : "#666" }}
+      style={{ borderLeftColor: isDisabled ? "#444" : color }}
     >
       {/* Instrument name */}
       <div className="flex-1 min-w-0">
@@ -64,24 +64,24 @@ export const InstrumentOverviewRow: FC<InstrumentOverviewRowProps> = ({
         </div>
       </div>
 
-      <div className="flex items-end gap-2">
-        <IconButton
-          path={mdiSizeS}
-          variant="filled"
-          size={0.8}
-          isSelected={isSoloed}
-          onClick={handleToggleSolo}
-          isDisabled={!isInSelectedFlow}
-        />
-        <IconButton
-          path={mdiSizeM}
-          variant="filled"
-          size={0.8}
-          isSelected={isMuted}
-          onClick={handleToggleMute}
-          isDisabled={!isInSelectedFlow}
-        />
-      </div>
+      {!isDisabled && (
+        <div className="flex items-end gap-2">
+          <IconButton
+            path={mdiSizeS}
+            variant="filled"
+            size={0.8}
+            isSelected={isSoloed}
+            onClick={handleToggleSolo}
+          />
+          <IconButton
+            path={mdiSizeM}
+            variant="filled"
+            size={0.8}
+            isSelected={isMuted}
+            onClick={handleToggleMute}
+          />
+        </div>
+      )}
     </div>
   );
 };

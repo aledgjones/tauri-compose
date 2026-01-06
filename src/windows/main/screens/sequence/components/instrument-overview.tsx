@@ -76,7 +76,7 @@ export const InstrumentOverview: FC = () => {
               key={instrument.id}
               instrument={instrument}
               color={instrumentColors[index]}
-              isInSelectedFlow={isInstrumentInSelectedFlow(instrument)}
+              isDisabled={!isInstrumentInSelectedFlow(instrument)}
             />
           ))}
         </div>
@@ -102,7 +102,7 @@ export const InstrumentOverview: FC = () => {
               flow={flow}
               ticks={ticks}
               color={instrumentColors[index]}
-              isInSelectedFlow={isInstrumentInSelectedFlow(instrument)}
+              isDisabled={!isInstrumentInSelectedFlow(instrument)}
             />
           ))}
           <PlaybackLine

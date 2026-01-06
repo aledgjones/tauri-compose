@@ -4,12 +4,16 @@ import { TickConfig } from "../../../hooks/use-ticks";
 import { useAppState } from "../../../../../services/state";
 import classNames from "classnames";
 
+const range = { min: 21, max: 108 };
+const rowHeight = 64;
+const pianoRangeSize = range.max - range.min;
+
 interface MiniaturePianoRollProps {
   instrument: Instrument;
   flow: Flow;
   ticks: TickConfig;
   color: string;
-  isInSelectedFlow: boolean;
+  isDisabled: boolean;
 }
 
 export const MiniaturePianoRoll: FC<MiniaturePianoRollProps> = ({
@@ -17,7 +21,7 @@ export const MiniaturePianoRoll: FC<MiniaturePianoRollProps> = ({
   flow,
   ticks,
   color,
-  isInSelectedFlow,
+  isDisabled,
 }) => {
   const state = useAppState();
 
@@ -95,28 +99,33 @@ export const MiniaturePianoRoll: FC<MiniaturePianoRollProps> = ({
     return merged;
   }, [tones]);
 
-  // Use full piano range for consistent vertical positioning
-  const fullPianoRange = useMemo(
-    () => ({
-      min: 21, // A0
-      max: 108, // C8
-    }),
-    [],
-  );
-
-  const rowHeight = 64; // Match the instrument row height
-  const pianoRangeSize = fullPianoRange.max - fullPianoRange.min;
-
   return (
     <div
       className={classNames("relative bg-neutral-900", {
-        "opacity-50": !isInSelectedFlow,
+        "opacity-50": isDisabled,
       })}
       style={{
         height: rowHeight,
         width: ticks.length * ticks.tickWidth,
       }}
     >
+      {ticks.entries.map((entry, tick) => {
+        if (entry.type !== "bar") {
+          return null;
+        }
+
+        return (
+          <div
+            key={tick}
+            className="absolute top-0 left-0 h-full bg-neutral-800"
+            style={{
+              width: 1,
+              translate: `${entry.x}px`,
+            }}
+          />
+        );
+      })}
+
       {/* Background highlights for merged time ranges */}
       {activeRanges.map((range, index) => {
         const x = range.start * ticks.tickWidth;
@@ -143,11 +152,8 @@ export const MiniaturePianoRoll: FC<MiniaturePianoRollProps> = ({
         const width = tone.duration * ticks.tickWidth;
 
         // Position pitch relative to full piano range
-        const pitchRatio =
-          pianoRangeSize > 0
-            ? (tone.pitch - fullPianoRange.min) / pianoRangeSize
-            : 0.5;
-        const y = (1 - pitchRatio) * (rowHeight - 3); // 3px for note height
+        const pitchRatio = (tone.pitch - range.min) / pianoRangeSize;
+        const y = (1 - pitchRatio) * (rowHeight - 3);
 
         return (
           <div
