@@ -197,6 +197,11 @@ impl NativeRenderer {
         let total_start = Instant::now();
 
         autoreleasepool(|_| -> Result<(), Box<dyn std::error::Error>> {
+            // Skip rendering if bounds are zero (used for screens that don't show rendered score)
+            if self.bounds.2 == 0.0 || self.bounds.3 == 0.0 {
+                return Ok(());
+            }
+
             let setup_start = Instant::now();
 
             if let Some(drawable) = self.metal_layer.nextDrawable() {

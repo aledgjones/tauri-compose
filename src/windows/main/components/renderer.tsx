@@ -42,6 +42,7 @@ export const Renderer: FC<Props> = ({ className }) => {
     return () => {
       clearTimeout(timer);
       resizeObserver.disconnect();
+      actions.ui.renderer.setBounds({ x: 0, y: 0, width: 0, height: 0 });
     };
   }, []);
 
