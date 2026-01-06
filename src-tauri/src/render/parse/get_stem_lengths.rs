@@ -153,7 +153,7 @@ fn get_natural_stem_length(
                 tail = 0.0
             }
 
-            let x = x + entry.glyph_metrics().width;
+            let x = x + entry.glyph_metrics(subdivisions).width;
 
             (x - (STAVE_LINE_WIDTH / 2.0), head, tail)
         }

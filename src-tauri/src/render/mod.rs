@@ -369,6 +369,7 @@ pub fn generate_render_instructions(
                     &horizontal_spacing,
                     shunts,
                     &tone_offsets,
+                    flow.subdivisions,
                     renderer,
                 );
 
@@ -388,7 +389,7 @@ pub fn generate_render_instructions(
 
                 for (tick, notation) in &notation.track {
                     let glyph = notation.glyph(flow.subdivisions);
-                    let glyph_width = notation.glyph_metrics().width;
+                    let glyph_width = notation.glyph_metrics(flow.subdivisions).width;
                     let has_post_shunt = notation.has_post_shunt(shunts);
 
                     // RESTS

@@ -83,11 +83,17 @@ impl Notation {
     }
 
     // TODO: make this more accurate for whole notes
-    #[allow(clippy::if_same_then_else)]
-    pub fn glyph_metrics(&self) -> BoundingBox {
+    pub fn glyph_metrics(&self, subdivisions: Ticks) -> BoundingBox {
+        let is_whole_note = self.base_to_note_duration(subdivisions) == Some(NoteDuration::Whole);
+
         if self.is_rest() {
             BoundingBox {
                 width: 1.175,
+                height: 4.0,
+            }
+        } else if is_whole_note {
+            BoundingBox {
+                width: 1.7,
                 height: 4.0,
             }
         } else {
@@ -214,7 +220,7 @@ impl Notation {
         engrave: &Engrave,
         beams: &Beams,
     ) -> Space {
-        let mut min_space = self.glyph_metrics().width;
+        let mut min_space = self.glyph_metrics(subdivisions).width;
 
         if self.is_dotted(subdivisions)
             || self.is_flagged(beams, subdivisions)

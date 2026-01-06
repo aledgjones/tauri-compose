@@ -17,26 +17,50 @@ pub fn draw_lines<T: Iterator<Item = i8>>(
 ) {
     let notehead = glyph_width;
 
-    let mut start_x = origin.x;
-    let mut stop_x = origin.x;
+    let mut start_x = origin.x - 0.4;
+    let mut stop_x = origin.x + 0.4;
 
     for offset in range {
         // get the furthest start position
         if let Some(shunt) = shunts.by_offset.get(&(*tick, offset)) {
             match shunt {
                 Shunt::Pre => {
-                    if origin.x - notehead < start_x {
-                        start_x = origin.x - notehead;
+                    let point = origin.x - notehead - 0.4;
+
+                    if point < start_x {
+                        start_x = point;
                     }
                 }
                 Shunt::None => {
-                    if origin.x + notehead > stop_x {
-                        stop_x = origin.x + notehead;
+                    let point = origin.x + notehead + 0.4;
+
+                    if point > stop_x {
+                        stop_x = point;
+                    }
+
+                    // if the previous offset is pre shunt, extend the line 0.5 note heads
+                    if let Some(Shunt::Pre) = shunts.by_offset.get(&(*tick, offset + 1)) {
+                        let point = origin.x - (notehead * 0.5);
+
+                        if point < start_x {
+                            start_x = point;
+                        }
+                    }
+
+                    // if the next offset is post shunt, extend the line 0.5 note heads
+                    if let Some(Shunt::Post) = shunts.by_offset.get(&(*tick, offset - 1)) {
+                        let point = origin.x + (notehead * 1.5);
+
+                        if point > stop_x {
+                            stop_x = point;
+                        }
                     }
                 }
                 Shunt::Post => {
-                    if origin.x + (notehead * 2.0) > stop_x {
-                        stop_x = origin.x + (notehead * 2.0);
+                    let point = origin.x + (notehead * 2.0) + 0.4;
+
+                    if point > stop_x {
+                        stop_x = point;
                     }
                 }
             }
@@ -45,8 +69,8 @@ pub fn draw_lines<T: Iterator<Item = i8>>(
         if offset % 2 == 0 {
             let y = origin.y + (offset as f32 / 2.0);
 
-            let start = start_x - 0.4;
-            let stop = stop_x + 0.4;
+            let start = start_x;
+            let stop = stop_x;
 
             renderer.line(
                 STAVE_LINE_WIDTH * 1.5,

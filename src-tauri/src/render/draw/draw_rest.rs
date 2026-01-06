@@ -63,7 +63,7 @@ pub fn draw_rest(
                 0.2,
                 Color::BLACK,
                 &Point {
-                    x: left + entry.glyph_metrics().width + 0.5,
+                    x: left + entry.glyph_metrics(subdivisions).width + 0.5,
                     y: top - 0.5,
                 },
             );

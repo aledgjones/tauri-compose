@@ -153,7 +153,12 @@ pub fn get_horizontal_spacing(
 
             for (tick, entry) in &notation.track {
                 if entry.has_pre_shunt(shunts) {
-                    updates.push((*tick, Slot::PreNote, entry.glyph_metrics().width, false));
+                    updates.push((
+                        *tick,
+                        Slot::PreNote,
+                        entry.glyph_metrics(flow.subdivisions).width,
+                        false,
+                    ));
                     // false means always set
                 }
 
@@ -179,12 +184,12 @@ pub fn get_horizontal_spacing(
                         let min = entry.min_spacing(shunts, flow.subdivisions, engrave, beams);
 
                         let post_shunt = match entry.has_post_shunt(shunts) {
-                            true => next_entry.glyph_metrics().width,
+                            true => next_entry.glyph_metrics(flow.subdivisions).width,
                             false => 0.0,
                         };
 
                         let pre_shunt = match next_entry.has_pre_shunt(shunts) {
-                            true => next_entry.glyph_metrics().width,
+                            true => next_entry.glyph_metrics(flow.subdivisions).width,
                             false => 0.0,
                         };
 
@@ -192,7 +197,7 @@ pub fn get_horizontal_spacing(
                             Some(slots) => {
                                 // slots + 1.5 notehead padding
                                 ((*slots as f32 * 1.1) - pre_shunt + post_shunt)
-                                    + (entry.glyph_metrics().width * 1.5)
+                                    + (entry.glyph_metrics(flow.subdivisions).width * 1.5)
                             }
                             None => 0.0,
                         };
