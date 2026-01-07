@@ -55,6 +55,7 @@ export const initialAppState: AppState = {
       pan_x: 0,
       pan_y: 0,
       bounds: { x: 0, y: 0, width: 0, height: 0 },
+      debug_rendering: false,
     },
   },
   score: {

@@ -365,6 +365,7 @@ export type AppState = {
       pan_x: number;
       pan_y: number;
       bounds: { x: number; y: number; width: number; height: number };
+      debug_rendering: boolean;
     };
   };
   score: {

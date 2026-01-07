@@ -520,14 +520,16 @@ pub fn generate_render_instructions(
     }
 
     // Debug: draw slot visualization
-    draw_debug_slots(
-        &horizontal_spacing,
-        stave_left,
-        page_padding.top,
-        vertical_spacing.height,
-        flow.length,
-        renderer,
-    );
+    if state.ui.renderer.debug_rendering {
+        draw_debug_slots(
+            &horizontal_spacing,
+            stave_left,
+            page_padding.top,
+            vertical_spacing.height,
+            flow.length,
+            renderer,
+        );
+    }
 
     let stave_duration = stave_start.elapsed();
 

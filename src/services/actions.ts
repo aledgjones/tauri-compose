@@ -148,6 +148,9 @@ export const actions = {
       }) => {
         return invoke("ui_renderer_bounds_set", { bounds });
       },
+      toggleDebugRendering: () => {
+        return invoke("ui_renderer_debug_rendering_toggle");
+      },
     },
   },
   score: {
