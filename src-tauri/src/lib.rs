@@ -69,7 +69,10 @@ use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
 use tauri::menu::{AboutMetadata, Menu, MenuItem, PredefinedMenuItem, Submenu};
 use tauri::{Emitter, Manager, State};
-use ui::renderer::{ui_renderer_bounds_set, ui_renderer_debug_rendering_toggle, ui_renderer_pan_set, ui_renderer_zoom_set};
+use ui::renderer::{
+    ui_renderer_bounds_set, ui_renderer_debug_rendering_toggle, ui_renderer_pan_set,
+    ui_renderer_zoom_set,
+};
 use ui::sequence::{ui_sequence_bottom_panel_minimized_toggle, ui_sequence_bottom_panel_tab_set};
 use ui::sequencer::{
     ui_sequencer_coords_set, ui_sequencer_instrument_set, ui_sequencer_selection_clear,
