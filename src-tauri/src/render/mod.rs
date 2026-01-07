@@ -498,6 +498,8 @@ pub fn generate_render_instructions(
                         );
 
                         if let Some(accidental) = accidentals.by_id.get(&(*tick, tone.id)) {
+                            let has_pre_shunt = notation.has_pre_shunt(shunts);
+
                             draw_accidental(
                                 &Point {
                                     x: stave_left + x,
@@ -505,6 +507,8 @@ pub fn generate_render_instructions(
                                 },
                                 accidental,
                                 tone,
+                                glyph_width,
+                                has_pre_shunt,
                                 selection,
                                 renderer,
                             );

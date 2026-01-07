@@ -6,15 +6,32 @@ use crate::score::entries::tone::Tone;
 use crate::utils::UniqueId;
 use skia_safe::Color;
 
+fn get_accidental_slot_offset(slot: u8, glyph_width: f32, has_pre_shunt: bool) -> f32 {
+    let mut offset = 0.0;
+
+    for i in 1..slot {
+        if i == 1 && has_pre_shunt {
+            offset += glyph_width
+        } else {
+            offset += 1.1
+        }
+    }
+
+    offset + 0.1
+}
+
 pub fn draw_accidental(
     origin: &Point,
     accidental: &AccidentalNotation,
     tone: &Tone,
+    glyph_width: f32,
+    has_pre_shunt: bool,
     selection: Option<UniqueId>,
     renderer: &mut Renderer,
 ) {
     let glyph = tone.pitch.accidental.to_glyph();
-    let left = origin.x - ((accidental.slot as f32 - 1.0) * 1.1) - 0.25;
+    let slot_offset = get_accidental_slot_offset(accidental.slot, glyph_width, has_pre_shunt);
+    let left = origin.x - slot_offset;
 
     let color = if selection == Some(tone.id) {
         Color::from_rgb(14, 165, 233)

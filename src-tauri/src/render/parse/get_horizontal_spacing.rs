@@ -143,47 +143,37 @@ pub fn get_horizontal_spacing(
         }
     }
 
-    let spacing_updates: Vec<(Tick, Slot, Space, bool)> = notations_by_track
+    let spacing_updates: Vec<(Tick, Slot, Space)> = notations_by_track
         .par_iter()
         .flat_map(|(track_key, notation)| {
             let shunts = &shunts_by_track[track_key];
             let accidentals = &accidentals_by_track[track_key];
             let beams = &beams_by_track[track_key];
-            let mut updates = Vec::new();
+            let mut updates: Vec<(Tick, Slot, Space)> = Vec::new();
 
             for (tick, entry) in &notation.track {
-                let has_pre_shunt = entry.has_pre_shunt(shunts);
-
-                if has_pre_shunt {
-                    updates.push((
-                        *tick,
-                        Slot::PreNote,
-                        entry.glyph_metrics(flow.subdivisions).width,
-                        false,
-                    ));
-                }
-
                 let mut spacing = entry
                     .metrics(shunts, flow.subdivisions, engrave, beams)
                     .width;
 
-                // ACCIDENTALS
-
                 // if the tick is at the start of a barline or the start of
-                // the piece we add explicit space for accidentals
+                // the piece we add explicit space for accidentals and pre-shunts
                 if *tick == 0 || barlines.contains_key(tick) {
+                    let glyph_width = entry.glyph_metrics(flow.subdivisions).width;
+                    let has_pre_shunt = entry.has_pre_shunt(shunts);
+
+                    if has_pre_shunt {
+                        updates.push((*tick, Slot::PreNote, glyph_width));
+                    }
+
                     // start of bars has no previous spacing to extend so we use the accidentals slot
                     if let Some(slots) = accidentals.slots_by_tick.get(tick) {
-                        let mut effective_slots = *slots;
-
-                        // If the current note has a pre-shunt, slot 1 is occupied by the pre-shunt
-                        // so we don't need to allocate space for it again.
-                        if has_pre_shunt && effective_slots > 0 {
-                            effective_slots -= 1;
-                        }
-
-                        let width = (effective_slots as f32) * 1.1;
-                        updates.push((*tick, Slot::Accidentals, width, true)); // true means set only if larger
+                        let width = if has_pre_shunt {
+                            (*slots as f32 - 1.0) * 1.1
+                        } else {
+                            *slots as f32 * 1.1
+                        };
+                        updates.push((*tick, Slot::Accidentals, width));
                     };
                 }
 
@@ -192,32 +182,34 @@ pub fn get_horizontal_spacing(
                     if !barlines.contains_key(&next_tick) {
                         // natural minimum for note value
                         let min = entry.min_spacing(shunts, flow.subdivisions, engrave, beams);
-
-                        let post_shunt = match entry.has_post_shunt(shunts) {
-                            true => next_entry.glyph_metrics(flow.subdivisions).width,
-                            false => 0.0,
-                        };
-
-                        let pre_shunt = match next_entry.has_pre_shunt(shunts) {
-                            true => next_entry.glyph_metrics(flow.subdivisions).width,
-                            false => 0.0,
-                        };
+                        let next_glyph_width = next_entry.glyph_metrics(flow.subdivisions).width;
+                        let next_has_pre_shunt = next_entry.has_pre_shunt(shunts);
 
                         let accidentals_width = match accidentals.slots_by_tick.get(&next_tick) {
-                            Some(slots) => {
-                                // slots + 1.5 notehead padding
-                                ((*slots as f32 * 1.1) - pre_shunt + post_shunt)
-                                    + (entry.glyph_metrics(flow.subdivisions).width * 1.5)
+                            Some(slots) if *slots > 0 => {
+                                if next_has_pre_shunt {
+                                    (*slots as f32 - 1.0) * 1.1
+                                } else {
+                                    *slots as f32 * 1.1
+                                }
                             }
-                            None => 0.0,
+                            _ => 0.0,
                         };
+
+                        let pre_shunt = if next_has_pre_shunt {
+                            next_glyph_width
+                        } else {
+                            0.0
+                        };
+
+                        let space_for_all_pre = accidentals_width + pre_shunt + min;
 
                         if min > spacing {
                             spacing = min;
                         }
 
-                        if accidentals_width > spacing {
-                            spacing = accidentals_width;
+                        if space_for_all_pre > spacing {
+                            spacing = space_for_all_pre;
                         }
                     }
                 };
@@ -225,8 +217,7 @@ pub fn get_horizontal_spacing(
                 let note_spacing_per_tick = spacing / entry.duration as f32;
                 let end = tick + entry.duration;
                 for i in *tick..end {
-                    updates.push((i, Slot::NoteSpacing, note_spacing_per_tick, true));
-                    // true means set only if larger
+                    updates.push((i, Slot::NoteSpacing, note_spacing_per_tick));
                 }
             }
 
@@ -235,13 +226,9 @@ pub fn get_horizontal_spacing(
         .collect();
 
     // Apply all updates sequentially
-    for (tick, slot, width, check_larger) in spacing_updates {
-        if check_larger {
-            let current = spacings.get(tick, slot);
-            if width > current.width {
-                spacings.set_width(tick, slot, width);
-            }
-        } else {
+    for (tick, slot, width) in spacing_updates {
+        let current = spacings.get(tick, slot);
+        if width > current.width {
             spacings.set_width(tick, slot, width);
         }
     }
