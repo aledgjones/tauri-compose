@@ -221,11 +221,16 @@ impl Notation {
     ) -> Space {
         let mut min_space = self.glyph_metrics(subdivisions).width;
 
-        if self.is_dotted(subdivisions)
-            || self.is_flagged(beams, subdivisions)
-            || self.has_post_shunt(shunts)
-        {
-            min_space += 1.0
+        if self.is_dotted(subdivisions) {
+            min_space += 1.0;
+        }
+
+        if self.is_flagged(beams, subdivisions) {
+            min_space += 0.5;
+        }
+
+        if self.has_post_shunt(shunts) {
+            min_space += self.glyph_metrics(subdivisions).width;
         }
 
         // only apply min tie space if internal ties (chords)
