@@ -1,4 +1,4 @@
-import { FC, useState } from "react";
+import { FC, useState, useEffect } from "react";
 import { TextInputProps } from ".";
 import classNames from "classnames";
 
@@ -14,6 +14,11 @@ export const TextInput: FC<TextInputProps> = ({
   units,
 }) => {
   const [isFocused, setIsFocused] = useState(false);
+  const [internalValue, setInternalValue] = useState(value);
+
+  useEffect(() => {
+    setInternalValue(value);
+  }, [value]);
 
   return (
     <div className={className}>
@@ -29,8 +34,11 @@ export const TextInput: FC<TextInputProps> = ({
         <input
           readOnly={readOnly}
           type="text"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
+          value={internalValue}
+          onChange={(e) => {
+            setInternalValue(e.target.value);
+            onChange(e.target.value);
+          }}
           onFocus={() => setIsFocused(true)}
           onBlur={() => {
             setIsFocused(false);
