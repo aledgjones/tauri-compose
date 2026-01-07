@@ -36,7 +36,7 @@ export const SnapPicker: FC<SnapPickerProps> = ({ label, value, onChange }) => {
   return (
     <Select
       label={label}
-      variant="standard"
+      variant="filled"
       value={value}
       options={SNAP_OPTIONS}
       onChange={onChange}

@@ -62,7 +62,7 @@ export const Select = <T extends Key>({
     <div className={classNames("relative", className)} ref={selectRef}>
       {label && (
         <label
-          className={classNames("block text-xs", {
+          className={classNames("block mb-0.5 text-xs", {
             "text-sky-500": isOpen,
             "text-neutral-400": !isOpen,
           })}
