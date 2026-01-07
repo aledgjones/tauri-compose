@@ -169,9 +169,9 @@ pub fn get_horizontal_spacing(
                     // start of bars has no previous spacing to extend so we use the accidentals slot
                     if let Some(slots) = accidentals.slots_by_tick.get(tick) {
                         let width = if has_pre_shunt {
-                            (*slots as f32 - 1.0) * 1.1
+                            ((*slots as f32 - 1.0) * 1.1) + 0.25
                         } else {
-                            *slots as f32 * 1.1
+                            (*slots as f32 * 1.1) + 0.25
                         };
                         updates.push((*tick, Slot::Accidentals, width));
                     };
@@ -188,9 +188,9 @@ pub fn get_horizontal_spacing(
                         let accidentals_width = match accidentals.slots_by_tick.get(&next_tick) {
                             Some(slots) if *slots > 0 => {
                                 if next_has_pre_shunt {
-                                    (*slots as f32 - 1.0) * 1.1
+                                    ((*slots as f32 - 1.0) * 1.1) + 0.25
                                 } else {
-                                    *slots as f32 * 1.1
+                                    (*slots as f32 * 1.1) + 0.25
                                 }
                             }
                             _ => 0.0,

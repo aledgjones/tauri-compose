@@ -17,7 +17,7 @@ fn get_accidental_slot_offset(slot: u8, glyph_width: f32, has_pre_shunt: bool) -
         }
     }
 
-    offset + 0.1
+    offset + 0.25
 }
 
 pub fn draw_accidental(
