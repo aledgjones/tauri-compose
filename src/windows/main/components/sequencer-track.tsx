@@ -87,6 +87,7 @@ const handleWriteTool = async (
   }
 
   e.stopPropagation();
+  e.preventDefault();
 
   const ticksPerSnap = (flow.subdivisions * 4) / snapDuration;
   const x = e.clientX - box.left;
@@ -94,15 +95,23 @@ const handleWriteTool = async (
   let duration = ticksPerSnap;
 
   const pitch = getPitchFromYPosition(y, slots.slotHeight);
-  const start = getSnappedXPosition(x, ticks.tickWidth, ticksPerSnap, "down");
+  const startTick = getSnappedXPosition(
+    x,
+    ticks.tickWidth,
+    ticksPerSnap,
+    "down",
+  );
 
   // Ensure the tone doesn't start beyond flow bounds
-  const clampedStart = Math.max(0, Math.min(flow.length - ticksPerSnap, start));
+  const clampedStart = Math.max(
+    0,
+    Math.min(flow.length - ticksPerSnap, startTick),
+  );
 
   const tone_id = await actions.score.tone.create(
     track.id,
     clampedStart,
-    ticksPerSnap,
+    duration,
     pitch,
     null,
     255,
@@ -125,17 +134,21 @@ const handleWriteTool = async (
 
   const handlePointerMove = async (e: any) => {
     const x = e.clientX - box.left;
-    const end = getSnappedXPosition(x, ticks.tickWidth, ticksPerSnap, "up");
+    const endTick = getSnappedXPosition(
+      x,
+      ticks.tickWidth,
+      ticksPerSnap,
+      "nearest",
+    );
+
+    const newDuration = Math.max(ticksPerSnap, endTick - startTick);
 
     // Ensure the tone doesn't extend beyond flow bounds
     const maxEndTick = flow.length;
-    const clampedEnd = Math.min(
-      maxEndTick,
-      Math.max(clampedStart + ticksPerSnap, end),
-    );
-    const clampedDuration = clampedEnd - clampedStart;
+    const clampedEndTick = Math.min(maxEndTick, startTick + newDuration);
+    const clampedDuration = clampedEndTick - startTick;
 
-    if (end > clampedStart && duration !== clampedDuration) {
+    if (clampedDuration !== duration && clampedDuration >= ticksPerSnap) {
       duration = clampedDuration;
       await actions.score.tone.setDuration(track.id, tone_id, clampedDuration);
     }
@@ -170,6 +183,7 @@ const handleSliceTool = async (
   }
 
   e.stopPropagation();
+  e.preventDefault();
 
   const ticksPerSnap = (flow.subdivisions * 4) / snapDuration;
   const x = e.clientX - box.left;
@@ -237,12 +251,12 @@ const handleDurationAdjustment = async (
     const clampedDuration = clampedEndTick - startTick;
 
     if (clampedDuration !== lastDuration && clampedDuration >= ticksPerSnap) {
+      lastDuration = clampedDuration;
       await actions.score.tone.setDuration(
         track.id,
         clickTarget.id,
         clampedDuration,
       );
-      lastDuration = clampedDuration;
     }
   };
 
@@ -415,6 +429,7 @@ const handleSelectTool = async (
   }
 
   e.stopPropagation();
+  e.preventDefault();
 
   // Calculate snap settings
   const ticksPerSnap = (flow.subdivisions * 4) / snapDuration;
