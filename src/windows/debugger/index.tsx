@@ -596,6 +596,7 @@ export const Main = () => {
       <div className="bg-neutral-900 p-2 mx-2 z-50 mb-2 flex flex-col">
         <div className="flex gap-2 mb-0.5">
           <SnapPicker
+            variant="filled"
             label="Snap"
             value={state.ui.sequencer.snap}
             onChange={actions.ui.sequencer.setSnap}

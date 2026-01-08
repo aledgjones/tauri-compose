@@ -422,7 +422,7 @@ impl NotationTrack {
     /// [m.q] patterns don't split middle
     pub fn is_mdotq_pattern(
         &self,
-        ticks_per_time_signature_beat: Ticks,
+        ticks_per_original_beat: Ticks,
         beat_one: Tick,
         beat_four: Tick,
         stop: Tick,
@@ -442,7 +442,7 @@ impl NotationTrack {
         }
 
         // Rests must be split if they extend over the time signature's beat.
-        let is_longer_than_beat = beat_four - beat_one > ticks_per_time_signature_beat;
+        let is_longer_than_beat = beat_four - beat_one > ticks_per_original_beat;
         if is_longer_than_beat && self.is_tick_rest(beat_one) {
             return false;
         }
@@ -559,6 +559,32 @@ impl NotationTrack {
             return;
         }
 
+        let ticks_per_original_beat = original_time_signature.ticks_per_beat(flow.subdivisions);
+
+        let mut needs_splitting = (stop - start) > ticks_per_original_beat;
+        if !needs_splitting {
+            for tick in start..stop {
+                if let Some(notation) = self.track.get(&tick) {
+                    match notation.base_to_ticks(flow.subdivisions) {
+                        Some(base) => {
+                            if !Notation::is_writable(base, flow.subdivisions) {
+                                needs_splitting = true;
+                                break;
+                            };
+                        }
+                        None => {
+                            needs_splitting = true;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        if !needs_splitting {
+            return;
+        }
+
         match time_signature.beats {
             2 => todo!(),
             3 => todo!(),
@@ -573,12 +599,7 @@ impl NotationTrack {
                 let patterns = [
                     self.is_qhq_pattern(beat_one, beat_two, beat_four, stop),
                     self.is_qmdot_pattern(beat_one, beat_two, stop),
-                    self.is_mdotq_pattern(
-                        original_time_signature.ticks_per_beat(flow.subdivisions),
-                        beat_one,
-                        beat_four,
-                        stop,
-                    ),
+                    self.is_mdotq_pattern(ticks_per_original_beat, beat_one, beat_four, stop),
                     self.is_eqqqe_pattern(
                         beat_one,
                         beat_one + half_beat,

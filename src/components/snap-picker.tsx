@@ -27,16 +27,22 @@ const SNAP_OPTIONS = [
 ];
 
 type SnapPickerProps = {
+  variant: "standard" | "filled";
   label?: string;
   value: NoteDuration;
   onChange: (value: NoteDuration) => void;
 };
 
-export const SnapPicker: FC<SnapPickerProps> = ({ label, value, onChange }) => {
+export const SnapPicker: FC<SnapPickerProps> = ({
+  variant,
+  label,
+  value,
+  onChange,
+}) => {
   return (
     <Select
       label={label}
-      variant="filled"
+      variant={variant}
       value={value}
       options={SNAP_OPTIONS}
       onChange={onChange}

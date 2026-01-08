@@ -60,7 +60,11 @@ export const SequencerToolbar: FC<SequencerToolbarProps> = ({
         isSelected={tool === Tool.Erase}
         onClick={() => actions.ui.sequencer.setTool(Tool.Erase)}
       />
-      <SnapPicker value={snapValue} onChange={actions.ui.sequencer.setSnap} />
+      <SnapPicker
+        variant="standard"
+        value={snapValue}
+        onChange={actions.ui.sequencer.setSnap}
+      />
       <div className="bg-neutral-900 flex-1" />
     </div>
     <div className="flex flex-1 justify-center gap-0.5">

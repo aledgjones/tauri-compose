@@ -71,7 +71,7 @@ fn is_pattern(
                 }
             },
             None => return false,
-        };
+        }
     }
 
     true
@@ -85,7 +85,7 @@ fn grouping_is_beamable(
     subdivisions: Ticks,
 ) -> bool {
     // beat specific patterns
-    if let 4 = beats {
+    if beats == 4 {
         // -eee
         let pattern = vec![
             EighthType::Rest,
@@ -112,8 +112,9 @@ fn grouping_is_beamable(
     let sixteenth = NoteDuration::Sixteenth.to_ticks(subdivisions);
     for tick in start..stop {
         if let Some(entry) = notation.track.get(&tick) {
-            // TODO: make this more sophisticated, -eee | eee- can be beamed -ee- cannot, for example
-            // for now just bail out if there are rests
+            // For 4/4 time, specific eighth-note patterns (-eee, eee-) are allowed to beam (handled above).
+            // For other time signatures or general cases, bail out if there are rests or notes shorter than eighths.
+            // TODO: Extend pattern matching to other time signatures for more sophisticated beaming rules.
             if entry.is_rest() || entry.duration <= sixteenth {
                 return false;
             }
@@ -121,6 +122,35 @@ fn grouping_is_beamable(
     }
 
     true
+}
+
+/// Determines if beams should break at on-beat ticks based on the current grouping
+fn should_break_at_beats(
+    time_signature: &TimeSignature,
+    notation: &NotationTrack,
+    current_tick: Tick,
+    boundaries: &[Tick],
+    subdivisions: Ticks,
+) -> bool {
+    match time_signature.beat_type {
+        // For quarter note beats, break if the grouping is not beamable
+        NoteDuration::Quarter => {
+            let current_index = boundaries.iter().position(|&t| t == current_tick).unwrap();
+            let next_boundary = boundaries[current_index + 1];
+            !grouping_is_beamable(
+                time_signature.beats,
+                notation,
+                current_tick,
+                next_boundary,
+                subdivisions,
+            )
+        }
+        // For other beat types, break if the beat is larger than a quarter
+        _ => {
+            let quarter_ticks = NoteDuration::Quarter.to_ticks(subdivisions);
+            time_signature.ticks_per_beat(subdivisions) > quarter_ticks
+        }
+    }
 }
 
 fn assign_beam(beams: &mut Beams, ticks: BeamTicks, subdivisions: Ticks) -> BeamTicks {
@@ -269,49 +299,49 @@ pub fn get_beams_in_track(
 ) -> Beams {
     let mut output: Beams = Vec::new();
 
-    let mut ticks: BeamTicks = FxHashMap::default();
+    let mut ticks: BeamTicks = FxHashMap::default(); // Collects ticks that can be beamed together
     let mut time_signature = &TimeSignature::default();
-    let mut boundries = time_signature.groupings_to_ticks(0, subdivisions);
-    let mut break_at_beats = false;
+    let mut boundaries = time_signature.groupings_to_ticks(0, subdivisions); // Beat boundaries
+    let mut break_at_beats = false; // Whether to break beams at on-beat ticks
 
     for tick in 0..notation.length {
+        // Update time signature and boundaries at barlines
         if let Some(entry) = barlines.get(&tick) {
             time_signature = entry;
-            boundries = time_signature.groupings_to_ticks(tick, subdivisions);
+            boundaries = time_signature.groupings_to_ticks(tick, subdivisions);
         }
 
-        if boundries.contains(&tick) {
+        // At beat boundaries, finalize current beam group and determine if we should break at on-beats
+        // within this boundary
+        if boundaries.contains(&tick) {
             ticks = assign_beam(&mut output, ticks, subdivisions);
 
-            break_at_beats = match time_signature.beat_type {
-                // quarters break if rhythm has durations < sixteenth
-                NoteDuration::Quarter => {
-                    let i = boundries.iter().position(|entry| entry == &tick).unwrap();
-                    let stop = boundries[i + 1];
-                    !grouping_is_beamable(time_signature.beats, notation, tick, stop, subdivisions)
-                }
-                // larger beats break, smaller don't
-                _ => {
-                    let quarter = NoteDuration::Quarter.to_ticks(subdivisions);
-                    time_signature.ticks_per_beat(subdivisions) > quarter
-                }
-            }
+            break_at_beats =
+                should_break_at_beats(time_signature, notation, tick, &boundaries, subdivisions);
         }
 
-        if break_at_beats && time_signature.is_on_beat(tick, subdivisions) {
+        // Additional break at on-beat ticks if conditions are met
+        if break_at_beats
+            && time_signature.is_on_beat(tick, subdivisions)
+            && notation.track.contains_key(&tick)
+        {
             ticks = assign_beam(&mut output, ticks, subdivisions);
         }
 
+        // Process the notation at this tick
         if let Some(entry) = notation.track.get(&tick) {
-            let count = entry.get_beam_count(subdivisions);
-            if count > 0 {
-                ticks.insert(tick, count);
+            let beam_count = entry.get_beam_count(subdivisions);
+            if beam_count > 0 {
+                // Add beamable note to current group
+                ticks.insert(tick, beam_count);
             } else {
+                // Rest: finalize current beam group
                 ticks = assign_beam(&mut output, ticks, subdivisions);
             }
         }
     }
 
+    // Finalize any remaining beam group
     assign_beam(&mut output, ticks, subdivisions);
 
     output
