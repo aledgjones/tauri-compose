@@ -84,7 +84,7 @@ impl Engraves {
                 bracket_style: BracketStyle::Wing,
                 bracket_single_staves: false,
 
-                base_note_space: 3.0,
+                base_note_space: 3.2,
                 minimum_note_space: 0.6,
                 minimum_tie_space: 1.6,
                 note_space_ratio: 1.41,
@@ -117,7 +117,7 @@ impl Engraves {
                 bracket_style: BracketStyle::Wing,
                 bracket_single_staves: false,
 
-                base_note_space: 3.0,
+                base_note_space: 3.2,
                 minimum_note_space: 0.6,
                 minimum_tie_space: 1.6,
                 note_space_ratio: 1.41,

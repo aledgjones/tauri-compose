@@ -136,10 +136,11 @@ fn stop_x(
     offset: i8,
 ) -> f32 {
     let x = horizontal_spacing.get(stop.tick, Slot::NoteSpacing).x;
+    let glyph_width = stop.glyph_metrics(subdivisions).width;
 
-    let before_pre = x - stop.glyph_metrics(subdivisions).width - 0.2;
+    let before_pre = x - glyph_width - 0.2;
     let before_note = x - 0.2;
-    let before_post = x - 0.2;
+    let before_post = x + glyph_width - 0.2;
 
     let shunt = shunts.by_offset.get(&(stop.tick, offset)).unwrap();
     let next_shunt = shunts
