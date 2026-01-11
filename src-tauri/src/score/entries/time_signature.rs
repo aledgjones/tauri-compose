@@ -204,7 +204,7 @@ impl TimeSignature {
         let beat_type = self.beat_type_to_glyph();
 
         BoundingBox {
-            width: (max(beats.chars().count(), beat_type.chars().count()) as Space * 1.7) + 1.0,
+            width: (max(beats.chars().count(), beat_type.chars().count()) as Space * 1.7) + 2.0,
             height: 4.0,
         }
     }
