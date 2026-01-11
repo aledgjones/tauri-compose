@@ -139,13 +139,17 @@ impl AppStateInner {
                 }
             }
             if let Some(native_renderer) = native_renderer_guard.as_mut() {
-                let _ = native_renderer.render(
+                if let Ok((constrained_x, constrained_y)) = native_renderer.render(
                     renderer,
                     app,
                     self.ui.renderer.pan_x,
                     self.ui.renderer.pan_y,
                     self.ui.renderer.zoom as f32 / 100.0,
-                );
+                ) {
+                    // Update stored pan values to constrained values
+                    self.ui.renderer.pan_x = constrained_x;
+                    self.ui.renderer.pan_y = constrained_y;
+                }
             }
         }
 

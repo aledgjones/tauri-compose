@@ -181,6 +181,56 @@ impl NativeRenderer {
         Ok(())
     }
 
+    fn constrain_pan(
+        &self,
+        pan_x: f32,
+        pan_y: f32,
+        page_width_spaces: f32,
+        page_height_spaces: f32,
+        zoom: f32,
+        converter: &crate::renderer::converter::Converter,
+    ) -> (f32, f32) {
+        let padding = 100.0; // CSS pixels
+
+        // Convert page dimensions from spaces to CSS pixels using converter
+        // Note: converter.spaces_to_px() includes a 2.0 multiplier for rendering,
+        // so we divide by 2.0 to get actual CSS pixel dimensions
+        let page_width_px = converter.spaces_to_px(page_width_spaces) / 2.0;
+        let page_height_px = converter.spaces_to_px(page_height_spaces) / 2.0;
+
+        // Get bounds in CSS pixels
+        let bounds_width = self.bounds.2;
+        let bounds_height = self.bounds.3;
+
+        // Calculate scaled page dimensions
+        let scaled_page_width = page_width_px * zoom;
+        let scaled_page_height = page_height_px * zoom;
+
+        // Constrain horizontal pan
+        let constrained_pan_x = if scaled_page_width + (padding * 2.0) <= bounds_width {
+            // Page with padding fits horizontally - center it
+            (bounds_width - scaled_page_width) / 2.0
+        } else {
+            // Page larger than bounds - allow panning with padding
+            let max_pan = padding;
+            let min_pan = -(scaled_page_width - bounds_width + padding);
+            pan_x.clamp(min_pan, max_pan)
+        };
+
+        // Constrain vertical pan
+        let constrained_pan_y = if scaled_page_height + (padding * 2.0) <= bounds_height {
+            // Page with padding fits vertically - center it
+            (bounds_height - scaled_page_height) / 2.0
+        } else {
+            // Page larger than bounds - allow panning with padding
+            let max_pan = padding;
+            let min_pan = -(scaled_page_height - bounds_height + padding);
+            pan_y.clamp(min_pan, max_pan)
+        };
+
+        (constrained_pan_x, constrained_pan_y)
+    }
+
     pub fn render(
         &mut self,
         renderer: &Renderer,
@@ -188,13 +238,13 @@ impl NativeRenderer {
         pan_x: f32,
         pan_y: f32,
         zoom: f32,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    ) -> Result<(f32, f32), Box<dyn std::error::Error>> {
         let total_start = Instant::now();
 
-        autoreleasepool(|_| -> Result<(), Box<dyn std::error::Error>> {
+        autoreleasepool(|_| -> Result<(f32, f32), Box<dyn std::error::Error>> {
             // Skip rendering if bounds are zero (used for screens that don't show rendered score)
             if self.bounds.2 == 0.0 || self.bounds.3 == 0.0 {
-                return Ok(());
+                return Ok((pan_x, pan_y));
             }
 
             let setup_start = Instant::now();
@@ -222,6 +272,16 @@ impl NativeRenderer {
                     Some(&SurfaceProps::default()),
                 ) {
                     let canvas = surface.canvas();
+
+                    // Apply pan constraints based on page size
+                    let (constrained_pan_x, constrained_pan_y) = self.constrain_pan(
+                        pan_x,
+                        pan_y,
+                        renderer.width,
+                        renderer.height,
+                        zoom,
+                        &renderer.converter,
+                    );
 
                     // Clear the entire canvas with neutral-950 background
                     canvas.clear(Color::from_rgb(10, 10, 10));
@@ -263,16 +323,17 @@ impl NativeRenderer {
                     // Canvas is in physical pixels, pan is in CSS pixels
                     let scale_f32 = self.scale as f32;
 
-                    // Apply pan (scale from CSS to physical pixels)
-                    canvas.translate((pan_x * scale_f32, pan_y * scale_f32));
+                    // Apply constrained pan (scale from CSS to physical pixels)
+                    canvas
+                        .translate((constrained_pan_x * scale_f32, constrained_pan_y * scale_f32));
 
                     // Apply zoom scaling
                     canvas.scale((zoom, zoom));
 
                     // Clip to renderer bounds (scale bounds from CSS to physical pixels)
                     let clip_rect = skia_safe::Rect::from_xywh(
-                        -pan_x * scale_f32 / zoom,
-                        -pan_y * scale_f32 / zoom,
+                        -constrained_pan_x * scale_f32 / zoom,
+                        -constrained_pan_y * scale_f32 / zoom,
                         self.bounds.2 * scale_f32 / zoom,
                         self.bounds.3 * scale_f32 / zoom,
                     );
@@ -477,6 +538,104 @@ impl NativeRenderer {
                     }
                     canvas.restore();
 
+                    // Draw scrollbars to indicate position in score
+                    let page_width_px = renderer.converter.spaces_to_px(renderer.width) / 2.0;
+                    let page_height_px = renderer.converter.spaces_to_px(renderer.height) / 2.0;
+                    let scaled_page_width = page_width_px * zoom;
+                    let scaled_page_height = page_height_px * zoom;
+
+                    let scrollbar_width = 7.0 * scale_f32;
+                    let scrollbar_padding = 4.0 * scale_f32;
+                    let scrollbar_color = Color::from_argb(200, 60, 60, 60); // Semi-transparent dark gray
+
+                    let padding = 100.0; // CSS pixels
+                    let show_horizontal = scaled_page_width + (padding * 2.0) > self.bounds.2;
+                    let show_vertical = scaled_page_height + (padding * 2.0) > self.bounds.3;
+
+                    // Draw horizontal scrollbar if content is wider than viewport
+                    if show_horizontal {
+                        let visible_ratio = self.bounds.2 / (scaled_page_width + padding * 2.0);
+                        let available_width = if show_vertical {
+                            // Leave space for vertical scrollbar
+                            self.bounds.2 * scale_f32 - scrollbar_width - scrollbar_padding
+                        } else {
+                            self.bounds.2 * scale_f32
+                        };
+                        let scrollbar_length =
+                            (available_width - 2.0 * scrollbar_padding) * visible_ratio;
+
+                        // Calculate position: map pan position to scrollbar position
+                        let max_pan = 100.0; // padding
+                        let min_pan = -(scaled_page_width - self.bounds.2 + 100.0);
+                        let pan_range = max_pan - min_pan;
+                        let pan_normalized = (constrained_pan_x - max_pan) / pan_range; // 0 at start, 1 at end
+                        let scrollbar_range =
+                            available_width - 2.0 * scrollbar_padding - scrollbar_length;
+                        let scrollbar_x = scrollbar_padding + scrollbar_range * -pan_normalized;
+
+                        let scrollbar_y =
+                            texture_height as f32 - scrollbar_width - scrollbar_padding;
+
+                        let mut scrollbar_paint = Paint::default();
+                        scrollbar_paint.set_color(scrollbar_color);
+                        scrollbar_paint.set_anti_alias(true);
+                        scrollbar_paint.set_style(PaintStyle::Fill);
+
+                        canvas.draw_round_rect(
+                            skia_safe::Rect::from_xywh(
+                                scrollbar_x,
+                                scrollbar_y,
+                                scrollbar_length,
+                                scrollbar_width,
+                            ),
+                            scrollbar_width / 2.0,
+                            scrollbar_width / 2.0,
+                            &scrollbar_paint,
+                        );
+                    }
+
+                    // Draw vertical scrollbar if content is taller than viewport
+                    if show_vertical {
+                        let visible_ratio = self.bounds.3 / (scaled_page_height + padding * 2.0);
+                        let available_height = if show_horizontal {
+                            // Leave space for horizontal scrollbar
+                            self.bounds.3 * scale_f32 - scrollbar_width - scrollbar_padding
+                        } else {
+                            self.bounds.3 * scale_f32
+                        };
+                        let scrollbar_length =
+                            (available_height - 2.0 * scrollbar_padding) * visible_ratio;
+
+                        // Calculate position: map pan position to scrollbar position
+                        let max_pan = 100.0; // padding
+                        let min_pan = -(scaled_page_height - self.bounds.3 + 100.0);
+                        let pan_range = max_pan - min_pan;
+                        let pan_normalized = (constrained_pan_y - max_pan) / pan_range; // 0 at start, 1 at end
+                        let scrollbar_range =
+                            available_height - 2.0 * scrollbar_padding - scrollbar_length;
+                        let scrollbar_y = scrollbar_padding + scrollbar_range * -pan_normalized;
+
+                        let scrollbar_x =
+                            texture_width as f32 - scrollbar_width - scrollbar_padding;
+
+                        let mut scrollbar_paint = Paint::default();
+                        scrollbar_paint.set_color(scrollbar_color);
+                        scrollbar_paint.set_anti_alias(true);
+                        scrollbar_paint.set_style(PaintStyle::Fill);
+
+                        canvas.draw_round_rect(
+                            skia_safe::Rect::from_xywh(
+                                scrollbar_x,
+                                scrollbar_y,
+                                scrollbar_width,
+                                scrollbar_length,
+                            ),
+                            scrollbar_width / 2.0,
+                            scrollbar_width / 2.0,
+                            &scrollbar_paint,
+                        );
+                    }
+
                     let draw_duration = draw_start.elapsed();
                     let flush_start = Instant::now();
 
@@ -513,9 +672,11 @@ impl NativeRenderer {
                         "native-render-timing-total",
                         total_duration.as_millis() as u64,
                     );
+
+                    return Ok((constrained_pan_x, constrained_pan_y));
                 }
             }
-            Ok(())
+            Ok((pan_x, pan_y))
         })
     }
 }

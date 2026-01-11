@@ -53,11 +53,11 @@ pub enum DrawInstruction {
 
 #[derive(Clone)]
 pub struct Renderer {
-    converter: Converter,
+    pub converter: Converter,
     pub px_per_mm: f32,
     pub instructions: Vec<DrawInstruction>,
-    width: f32,
-    height: f32,
+    pub width: f32,
+    pub height: f32,
 }
 
 impl Renderer {
