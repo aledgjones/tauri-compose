@@ -1,3 +1,4 @@
+mod migrations;
 mod native_renderer;
 mod render;
 mod renderer;

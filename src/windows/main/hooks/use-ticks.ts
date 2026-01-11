@@ -23,7 +23,7 @@ export const useTicks = (
       return { tickWidth: 0, entries: [], length: 0 };
     }
 
-    const { subdivisions, length } = flow;
+    const subdivisions = 32;
     const quarterWidth = 80 * zoom;
     const tickWidth = quarterWidth / subdivisions;
 
@@ -35,7 +35,7 @@ export const useTicks = (
     let barTicks = 0;
     let barNumber = 1;
 
-    for (let tick = 0; tick < length; tick++) {
+    for (let tick = 0; tick < flow.length; tick++) {
       if (master.entries.by_tick[tick]) {
         const timeSigId = master.entries.by_tick[tick].find(
           (id) => master.entries.by_id[id]?.type === "TimeSignature",
@@ -65,6 +65,6 @@ export const useTicks = (
       }
     }
 
-    return { entries, tickWidth, length };
+    return { entries, tickWidth, length: flow.length };
   }, [flow, master, zoom]);
 };

@@ -89,7 +89,8 @@ const handleWriteTool = async (
   e.stopPropagation();
   e.preventDefault();
 
-  const ticksPerSnap = (flow.subdivisions * 4) / snapDuration;
+  const subdivisions = 32;
+  const ticksPerSnap = (subdivisions * 4) / snapDuration;
   const x = e.clientX - box.left;
   const y = e.clientY - box.top;
   let duration = ticksPerSnap;
@@ -166,7 +167,6 @@ const handleWriteTool = async (
 const handleSliceTool = async (
   e: PointerEvent<HTMLDivElement>,
   sequencerRef: React.RefObject<HTMLDivElement | null>,
-  flow: Flow,
   track: Track,
   ticks: TickConfig,
   snapDuration: NoteDuration,
@@ -185,7 +185,8 @@ const handleSliceTool = async (
   e.stopPropagation();
   e.preventDefault();
 
-  const ticksPerSnap = (flow.subdivisions * 4) / snapDuration;
+  const subdivisions = 32;
+  const ticksPerSnap = (subdivisions * 4) / snapDuration;
   const x = e.clientX - box.left;
 
   const sliceTick = getSnappedXPosition(
@@ -432,7 +433,8 @@ const handleSelectTool = async (
   e.preventDefault();
 
   // Calculate snap settings
-  const ticksPerSnap = (flow.subdivisions * 4) / snapDuration;
+  const subdivisions = 32;
+  const ticksPerSnap = (subdivisions * 4) / snapDuration;
 
   // Get the original tone data
   const originalEntry = track.entries.by_id[clickTarget.id];
@@ -537,14 +539,7 @@ export const SequencerTrack: FC<SequencerTrackProps> = ({
           break;
 
         case Tool.Slice:
-          await handleSliceTool(
-            e,
-            sequencerRef,
-            flow,
-            track,
-            ticks,
-            snapDuration,
-          );
+          await handleSliceTool(e, sequencerRef, track, ticks, snapDuration);
           break;
       }
     },

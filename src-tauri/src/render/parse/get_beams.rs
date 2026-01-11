@@ -1,6 +1,6 @@
 use super::get_measures::Measures;
 use super::get_written_durations::{Notation, NotationByTrack, NotationTrack};
-use crate::score::components::duration::{NoteDuration, Tick, Ticks};
+use crate::score::components::duration::{NoteDuration, Tick};
 use crate::score::entries::time_signature::TimeSignature;
 use crate::score::flows::Flow;
 use crate::utils::UniqueId;
@@ -52,9 +52,8 @@ fn is_pattern(
     pattern: &[EighthType],
     notation: &NotationTrack,
     start: Tick,
-    subdivisions: Ticks,
 ) -> bool {
-    let eighth = NoteDuration::Eighth.to_ticks(subdivisions);
+    let eighth = NoteDuration::Eighth.to_ticks();
 
     for (i, eighth_type) in pattern.iter().enumerate() {
         match notation.track.get(&(start + (i as Tick * eighth))) {
@@ -82,7 +81,6 @@ fn grouping_is_beamable(
     notation: &NotationTrack,
     start: Tick,
     stop: Tick,
-    subdivisions: Ticks,
 ) -> bool {
     // beat specific patterns
     if beats == 4 {
@@ -93,7 +91,7 @@ fn grouping_is_beamable(
             EighthType::Note,
             EighthType::Note,
         ];
-        if is_pattern(&pattern, notation, start, subdivisions) {
+        if is_pattern(&pattern, notation, start) {
             return true;
         }
 
@@ -104,12 +102,12 @@ fn grouping_is_beamable(
             EighthType::Note,
             EighthType::Rest,
         ];
-        if is_pattern(&pattern, notation, start, subdivisions) {
+        if is_pattern(&pattern, notation, start) {
             return true;
         }
     }
 
-    let sixteenth = NoteDuration::Sixteenth.to_ticks(subdivisions);
+    let sixteenth = NoteDuration::Sixteenth.to_ticks();
     for tick in start..stop {
         if let Some(entry) = notation.track.get(&tick) {
             // For 4/4 time, specific eighth-note patterns (-eee, eee-) are allowed to beam (handled above).
@@ -130,7 +128,6 @@ fn should_break_at_beats(
     notation: &NotationTrack,
     current_tick: Tick,
     boundaries: &[Tick],
-    subdivisions: Ticks,
 ) -> bool {
     match time_signature.beat_type {
         // For quarter note beats, break if the grouping is not beamable
@@ -142,18 +139,17 @@ fn should_break_at_beats(
                 notation,
                 current_tick,
                 next_boundary,
-                subdivisions,
             )
         }
         // For other beat types, break if the beat is larger than a quarter
         _ => {
-            let quarter_ticks = NoteDuration::Quarter.to_ticks(subdivisions);
-            time_signature.ticks_per_beat(subdivisions) > quarter_ticks
+            let quarter_ticks = NoteDuration::Quarter.to_ticks();
+            time_signature.ticks_per_beat() > quarter_ticks
         }
     }
 }
 
-fn assign_beam(beams: &mut Beams, ticks: BeamTicks, subdivisions: Ticks) -> BeamTicks {
+fn assign_beam(beams: &mut Beams, ticks: BeamTicks) -> BeamTicks {
     if ticks.len() > 1 {
         let mut min: Option<Tick> = None;
         let mut max: Option<Tick> = None;
@@ -190,7 +186,7 @@ fn assign_beam(beams: &mut Beams, ticks: BeamTicks, subdivisions: Ticks) -> Beam
 
         // Calculate eighth note boundaries for splitting inner beams
         // Align boundaries to absolute eighth note positions from tick 0
-        let eighth_note_interval = subdivisions / 2;
+        let eighth_note_interval = 16; // Half of quarter note (32 ticks)
         let mut eighth_boundaries = Vec::new();
         // Find all eighth note boundaries within the beam range
         let mut tick_boundary = eighth_note_interval;
@@ -295,63 +291,62 @@ fn assign_beam(beams: &mut Beams, ticks: BeamTicks, subdivisions: Ticks) -> Beam
 pub fn get_beams_in_track(
     notation: &NotationTrack,
     barlines: &Measures,
-    subdivisions: Ticks,
 ) -> Beams {
     let mut output: Beams = Vec::new();
 
     let mut ticks: BeamTicks = FxHashMap::default(); // Collects ticks that can be beamed together
     let mut time_signature = &TimeSignature::default();
-    let mut boundaries = time_signature.groupings_to_ticks(0, subdivisions); // Beat boundaries
+    let mut boundaries = time_signature.groupings_to_ticks(0); // Beat boundaries
     let mut break_at_beats = false; // Whether to break beams at on-beat ticks
 
     for tick in 0..notation.length {
         // Update time signature and boundaries at barlines
         if let Some(entry) = barlines.get(&tick) {
             time_signature = entry;
-            boundaries = time_signature.groupings_to_ticks(tick, subdivisions);
+            boundaries = time_signature.groupings_to_ticks(tick);
         }
 
         // At beat boundaries, finalize current beam group and determine if we should break at on-beats
         // within this boundary
         if boundaries.contains(&tick) {
-            ticks = assign_beam(&mut output, ticks, subdivisions);
+            ticks = assign_beam(&mut output, ticks);
 
             break_at_beats =
-                should_break_at_beats(time_signature, notation, tick, &boundaries, subdivisions);
+                should_break_at_beats(time_signature, notation, tick, &boundaries);
         }
 
         // Additional break at on-beat ticks if conditions are met
         if break_at_beats
-            && time_signature.is_on_beat(tick, subdivisions)
+            && time_signature.is_on_beat(tick)
             && notation.track.contains_key(&tick)
         {
-            ticks = assign_beam(&mut output, ticks, subdivisions);
+            ticks = assign_beam(&mut output, ticks);
         }
 
         // Process the notation at this tick
         if let Some(entry) = notation.track.get(&tick) {
-            let beam_count = entry.get_beam_count(subdivisions);
+            let beam_count = entry.get_beam_count();
             if beam_count > 0 {
                 // Add beamable note to current group
                 ticks.insert(tick, beam_count);
             } else {
                 // Rest: finalize current beam group
-                ticks = assign_beam(&mut output, ticks, subdivisions);
+                ticks = assign_beam(&mut output, ticks);
             }
         }
     }
 
     // Finalize any remaining beam group
-    assign_beam(&mut output, ticks, subdivisions);
+    assign_beam(&mut output, ticks);
 
     output
 }
 
-pub fn get_beams(flow: &Flow, tracks: &NotationByTrack, bars: &Measures) -> BeamsByTrack {
+pub fn get_beams(_flow: &Flow, tracks: &NotationByTrack, bars: &Measures) -> BeamsByTrack {
     let results: Vec<(UniqueId, _)> = tracks
         .par_iter()
         .map(|(track_id, track)| {
-            let beams = get_beams_in_track(track, bars, flow.subdivisions);
+            let beams = get_beams_in_track(track, bars);
             (*track_id, beams)
         })
         .collect();
@@ -365,13 +360,13 @@ pub fn get_beams(flow: &Flow, tracks: &NotationByTrack, bars: &Measures) -> Beam
 }
 
 impl Notation {
-    pub fn get_beam_count(&self, subdivisions: Ticks) -> u8 {
+    pub fn get_beam_count(&self) -> u8 {
         if self.is_rest() {
             0
         } else {
-            match self.base_to_ticks(subdivisions) {
+            match self.base_to_ticks() {
                 Some(base) => {
-                    let eighth_ticks = NoteDuration::Eighth.to_ticks(subdivisions);
+                    let eighth_ticks = NoteDuration::Eighth.to_ticks();
                     let ratio = eighth_ticks as f32 / base as f32;
 
                     if ratio >= 1.0 {
