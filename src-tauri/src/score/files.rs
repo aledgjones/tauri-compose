@@ -1,10 +1,43 @@
+use crate::migrations::MIGRATIONS;
 use crate::AppState;
 use crate::RenderState;
 use flate2::{read::GzDecoder, write::GzEncoder, Compression};
+use semver::Version;
 use serde_json;
+use serde_json::Value;
 use std::fs;
 use std::io::{Read, Write};
 use tauri::{AppHandle, State};
+
+fn migrate_project_data(mut data: Value) -> Result<Value, String> {
+    let file_version = data
+        .get("score")
+        .and_then(|s| s.get("meta"))
+        .and_then(|m| m.get("app_version"))
+        .and_then(|v| v.as_str())
+        .unwrap_or("1.0.0");
+
+    let file_version =
+        Version::parse(file_version).map_err(|e| format!("Failed to parse version: {}", e))?;
+
+    for (patch, migrate_fn) in MIGRATIONS.iter() {
+        let patch_version = Version::parse(patch)
+            .map_err(|e| format!("Failed to parse migration version: {}", e))?;
+
+        if file_version < patch_version {
+            data = migrate_fn(data)?;
+        }
+    }
+
+    // update the meta app_version to current version
+    if let Some(score) = data.get_mut("score") {
+        if let Some(meta) = score.get_mut("meta") {
+            meta["app_version"] = Value::String(env!("CARGO_PKG_VERSION").to_string());
+        }
+    }
+
+    Ok(data)
+}
 
 #[tauri::command(rename_all = "snake_case")]
 pub fn save_project_to_file(
@@ -61,6 +94,9 @@ pub fn load_project_from_file(
     // Parse the JSON
     let project_data: serde_json::Value = serde_json::from_str(&json_string)
         .map_err(|e| format!("Failed to parse project data: {}", e))?;
+
+    // Apply migrations
+    let project_data = migrate_project_data(project_data)?;
 
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();

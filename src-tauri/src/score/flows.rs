@@ -43,7 +43,7 @@ impl Flow {
             id,
             title: String::from(""),
             player_ids: FxHashSet::default(),
-            length: 256 * 4 * 16, // 16 * 4/4
+            length: 32 * 4 * 16, // 16 * 4/4
             master_id,
             staves: Staves::new(),
         }
