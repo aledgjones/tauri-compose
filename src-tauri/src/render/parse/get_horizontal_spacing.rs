@@ -152,14 +152,12 @@ pub fn get_horizontal_spacing(
             let mut updates: Vec<(Tick, Slot, Space)> = Vec::new();
 
             for (tick, entry) in &notation.track {
-                let mut spacing = entry
-                    .metrics(shunts, flow.subdivisions, engrave, beams)
-                    .width;
+                let mut spacing = entry.metrics(shunts, engrave, beams).width;
 
                 // if the tick is at the start of a barline or the start of
                 // the piece we add explicit space for accidentals and pre-shunts
                 if *tick == 0 || barlines.contains_key(tick) {
-                    let glyph_width = entry.glyph_metrics(flow.subdivisions).width;
+                    let glyph_width = entry.glyph_metrics().width;
                     let has_pre_shunt = entry.has_pre_shunt(shunts);
 
                     if has_pre_shunt {
@@ -181,8 +179,8 @@ pub fn get_horizontal_spacing(
                 if let Some((next_tick, next_entry)) = notation.get_next_notation(*tick) {
                     if !barlines.contains_key(&next_tick) {
                         // natural minimum for note value
-                        let min = entry.min_spacing(shunts, flow.subdivisions, engrave, beams);
-                        let next_glyph_width = next_entry.glyph_metrics(flow.subdivisions).width;
+                        let min = entry.min_spacing(shunts, engrave, beams);
+                        let next_glyph_width = next_entry.glyph_metrics().width;
                         let next_has_pre_shunt = next_entry.has_pre_shunt(shunts);
 
                         let accidentals_width = match accidentals.slots_by_tick.get(&next_tick) {

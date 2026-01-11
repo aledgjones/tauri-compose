@@ -33,7 +33,6 @@ pub struct Flow {
     pub title: String,
     pub player_ids: FxHashSet<UniqueId>, // purely for inclusion lookup -- order comes from score.players.order
     pub length: Ticks,                   // number of subdivision ticks in the flow
-    pub subdivisions: Ticks,
     pub master_id: UniqueId,
     pub staves: Staves,
 }
@@ -45,7 +44,6 @@ impl Flow {
             title: String::from(""),
             player_ids: FxHashSet::default(),
             length: 256 * 4 * 16, // 16 * 4/4
-            subdivisions: 256,
             master_id,
             staves: Staves::new(),
         }

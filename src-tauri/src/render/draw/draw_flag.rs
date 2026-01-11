@@ -10,10 +10,10 @@ pub fn draw_flag(
     notation: &crate::render::parse::get_written_durations::Notation,
     stem_direction: &crate::score::components::duration::Direction,
     stem_length: &crate::render::parse::get_stem_lengths::StemDef,
-    flow: &Flow,
+    _flow: &Flow,
     renderer: &mut Renderer,
 ) {
-    let glyph = notation.flag_glyph(stem_direction, flow.subdivisions);
+    let glyph = notation.flag_glyph(stem_direction);
     let left = position.x + stem_length.tail.x - (STAVE_LINE_WIDTH / 2.0);
     let top = position.y + stem_length.tail.y;
 

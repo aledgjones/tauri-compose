@@ -34,71 +34,30 @@ pub enum NoteDuration {
 
 impl NoteDuration {
     /// convert ticks to NoteDuration. this may fail so wrap in option
-    pub fn from_ticks(ticks: Ticks, subdivisions: Ticks) -> Option<NoteDuration> {
-        if ticks == subdivisions * 4 {
-            return Some(NoteDuration::Whole);
+    pub fn from_ticks(ticks: Ticks) -> Option<NoteDuration> {
+        match ticks {
+            128 => Some(NoteDuration::Whole),
+            64 => Some(NoteDuration::Half),
+            32 => Some(NoteDuration::Quarter),
+            16 => Some(NoteDuration::Eighth),
+            8 => Some(NoteDuration::Sixteenth),
+            4 => Some(NoteDuration::ThirtySecond),
+            2 => Some(NoteDuration::SixtyFourth),
+            1 => Some(NoteDuration::HudredTwentyEighth),
+            _ => None,
         }
-
-        if ticks == subdivisions * 2 {
-            return Some(NoteDuration::Half);
-        }
-
-        if ticks == subdivisions {
-            return Some(NoteDuration::Quarter);
-        }
-
-        if ticks == subdivisions / 2 {
-            return Some(NoteDuration::Eighth);
-        }
-
-        if ticks == subdivisions / 4 {
-            return Some(NoteDuration::Sixteenth);
-        }
-
-        if ticks == subdivisions / 8 {
-            return Some(NoteDuration::ThirtySecond);
-        }
-
-        if ticks == subdivisions / 16 {
-            return Some(NoteDuration::SixtyFourth);
-        }
-
-        if ticks == subdivisions / 32 {
-            return Some(NoteDuration::HudredTwentyEighth);
-        }
-
-        None
     }
 
-    pub fn to_ticks(&self, subdivisions: Ticks) -> Ticks {
+    pub fn to_ticks(&self) -> Ticks {
         match self {
-            NoteDuration::Whole => subdivisions * 4,
-            NoteDuration::Half => subdivisions * 2,
-            NoteDuration::Quarter => subdivisions,
-            NoteDuration::Eighth => subdivisions / 2,
-            NoteDuration::Sixteenth => subdivisions / 4,
-            NoteDuration::ThirtySecond => subdivisions / 8,
-            NoteDuration::SixtyFourth => subdivisions / 16,
-            NoteDuration::HudredTwentyEighth => subdivisions / 32,
-        }
-    }
-
-    pub fn to_flag_glyph(&self, stem_direction: &Direction) -> &str {
-        match stem_direction {
-            Direction::Up => match self {
-                NoteDuration::Eighth => "\u{E240}",
-                NoteDuration::Sixteenth => "\u{E242}",
-                NoteDuration::ThirtySecond => "\u{E244}",
-                NoteDuration::SixtyFourth => "\u{E246}",
-                _ => "",
-            },
-            Direction::Down => match self {
-                NoteDuration::Eighth => "\u{E241}",
-                NoteDuration::Sixteenth => "\u{E243}",
-                NoteDuration::ThirtySecond => "\u{E245}",
-                NoteDuration::SixtyFourth => "\u{E247}",
-                _ => "",
-            },
+            NoteDuration::Whole => 128,
+            NoteDuration::Half => 64,
+            NoteDuration::Quarter => 32,
+            NoteDuration::Eighth => 16,
+            NoteDuration::Sixteenth => 8,
+            NoteDuration::ThirtySecond => 4,
+            NoteDuration::SixtyFourth => 2,
+            NoteDuration::HudredTwentyEighth => 1,
         }
     }
 
@@ -111,7 +70,7 @@ impl NoteDuration {
             NoteDuration::Sixteenth => NoteDuration::ThirtySecond,
             NoteDuration::ThirtySecond => NoteDuration::SixtyFourth,
             NoteDuration::SixtyFourth => NoteDuration::HudredTwentyEighth,
-            NoteDuration::HudredTwentyEighth => NoteDuration::HudredTwentyEighth,
+            NoteDuration::HudredTwentyEighth => panic!("Cannot halve HudredTwentyEighth duration"),
         }
     }
 

@@ -14,7 +14,7 @@ import {
   parseTimeSignaturePopover,
   PopoverType,
 } from "../../services/popovers";
-import { Flow, UniqueId } from "../../services/types";
+import { UniqueId } from "../../services/types";
 import { chromeDark, ObjectInspector } from "react-inspector";
 import classNames from "classnames";
 import { Switch } from "../../ui/switch";
@@ -32,8 +32,7 @@ export const Main = () => {
   const samplerState = useSamplerState();
 
   const flowId = state.score.flows.order[0] || null;
-  const flow: Flow | null = (flowId && state.score.flows.by_id[flowId]) || null;
-  const subdivisions = flow?.subdivisions || 256;
+  const subdivisions = 32;
   const ticksPerSnap = (subdivisions * 4) / state.ui.sequencer.snap;
 
   const [tick, setTick] = useState(0);

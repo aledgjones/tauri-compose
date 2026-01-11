@@ -1,7 +1,7 @@
 use crate::render::parse::get_horizontal_spacing::{HorizontalSpacing, Slot};
 use crate::render::parse::get_written_durations::Notation;
 use crate::renderer::Renderer;
-use crate::score::components::duration::{NoteDuration, Tick, Ticks};
+use crate::score::components::duration::{NoteDuration, Tick};
 use crate::score::components::measurements::Point;
 use crate::score::components::text::{Align, Font, FontFamily, Justify};
 use skia_safe::Color;
@@ -12,7 +12,6 @@ pub fn draw_rest(
     tick: Tick,
     glyph: &str,
     entry: &Notation,
-    subdivisions: Ticks,
     is_full_bar: bool,
     horizontal_spacing: &HorizontalSpacing,
     renderer: &mut Renderer,
@@ -39,7 +38,7 @@ pub fn draw_rest(
         );
     } else {
         let left = origin.x + start.x;
-        let base = entry.base_to_note_duration(subdivisions);
+        let base = entry.base_to_note_duration();
 
         let top = match base {
             Some(NoteDuration::Whole) => origin.y - 1.0,
@@ -58,12 +57,12 @@ pub fn draw_rest(
             Color::BLACK,
         );
 
-        if entry.is_dotted(subdivisions) {
+        if entry.is_dotted() {
             renderer.circle(
                 0.2,
                 Color::BLACK,
                 &Point {
-                    x: left + entry.glyph_metrics(subdivisions).width + 0.5,
+                    x: left + entry.glyph_metrics().width + 0.5,
                     y: top - 0.5,
                 },
             );

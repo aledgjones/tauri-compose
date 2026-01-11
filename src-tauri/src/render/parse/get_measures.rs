@@ -21,7 +21,7 @@ pub fn get_measures(flow: &Flow, tracks: &Tracks) -> Measures {
         output.insert(current_tick, current_time_signature.clone());
 
         // Jump to the next barline
-        current_tick += current_time_signature.ticks_per_bar(flow.subdivisions);
+        current_tick += current_time_signature.ticks_per_bar();
     }
 
     output

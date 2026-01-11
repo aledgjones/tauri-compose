@@ -3,7 +3,7 @@ use crate::render::parse::get_shunts::{Shunt, Shunts};
 use crate::render::parse::get_tone_offsets::ToneVerticalOffsets;
 use crate::render::parse::get_written_durations::Notation;
 use crate::renderer::Renderer;
-use crate::score::components::duration::{Direction, Ticks};
+use crate::score::components::duration::Direction;
 use crate::score::components::measurements::CurvePoint;
 use crate::score::components::measurements::Point;
 use crate::utils::UniqueId;
@@ -92,14 +92,13 @@ fn start_x(
     shunts: &Shunts,
     tie_direction: &Direction,
     stem_direction: &Direction,
-    subdivisions: Ticks,
     offset: i8,
 ) -> f32 {
     let x = horizontal_spacing.get(start.tick, Slot::NoteSpacing).x;
 
     let after_pre = x + 0.2;
-    let after_note = x + start.glyph_metrics(subdivisions).width + 0.2;
-    let after_post = x + (start.glyph_metrics(subdivisions).width * 2.0) + 0.2;
+    let after_note = x + start.glyph_metrics().width + 0.2;
+    let after_post = x + (start.glyph_metrics().width * 2.0) + 0.2;
 
     let shunt = shunts.by_offset.get(&(start.tick, offset)).unwrap();
     let next_shunt = shunts
@@ -132,11 +131,10 @@ fn stop_x(
     shunts: &Shunts,
     tie_direction: &Direction,
     stem_direction: &Direction,
-    subdivisions: Ticks,
     offset: i8,
 ) -> f32 {
     let x = horizontal_spacing.get(stop.tick, Slot::NoteSpacing).x;
-    let glyph_width = stop.glyph_metrics(subdivisions).width;
+    let glyph_width = stop.glyph_metrics().width;
 
     let before_pre = x - glyph_width - 0.2;
     let before_note = x - 0.2;
@@ -176,7 +174,6 @@ fn tie_points_x(
     shunts: &Shunts,
     tie_direction: &Direction,
     stem_direction: &Direction,
-    subdivisions: Ticks,
     offset: i8,
 ) -> [f32; 3] {
     let (start_x, stop_x) = match start.is_chord() {
@@ -187,7 +184,6 @@ fn tie_points_x(
                 shunts,
                 tie_direction,
                 stem_direction,
-                subdivisions,
                 offset,
             ),
             x + stop_x(
@@ -196,19 +192,18 @@ fn tie_points_x(
                 shunts,
                 tie_direction,
                 stem_direction,
-                subdivisions,
                 offset,
             ),
         ),
         false => {
             let start_x = x
                 + horizontal_spacing.get(start.tick, Slot::NoteSpacing).x
-                + (start.glyph_metrics(subdivisions).width / 2.0)
+                + (start.glyph_metrics().width / 2.0)
                 + 0.1;
 
             let stop_x = x
                 + horizontal_spacing.get(stop.tick, Slot::NoteSpacing).x
-                + (start.glyph_metrics(subdivisions).width / 2.0)
+                + (start.glyph_metrics().width / 2.0)
                 - 0.1;
 
             (start_x, stop_x)
@@ -231,7 +226,6 @@ pub fn draw_tie(
     horizontal_spacing: &HorizontalSpacing,
     shunts: &Shunts,
     tone_offsets: &ToneVerticalOffsets,
-    subdivisions: Ticks,
     renderer: &mut Renderer,
 ) {
     let offset = *tone_offsets.get(tone_id).unwrap();
@@ -244,7 +238,6 @@ pub fn draw_tie(
         shunts,
         tie_direction,
         stem_direction,
-        subdivisions,
         offset,
     );
     let [start_y, middle_y, stop_y] =
@@ -280,7 +273,6 @@ pub fn draw_ties(
     horizontal_spacing: &HorizontalSpacing,
     shunts: &Shunts,
     tone_offsets: &ToneVerticalOffsets,
-    subdivisions: Ticks,
     renderer: &mut Renderer,
 ) {
     for (tick, entry) in &notation.track {
@@ -299,7 +291,6 @@ pub fn draw_ties(
                     horizontal_spacing,
                     shunts,
                     tone_offsets,
-                    subdivisions,
                     renderer,
                 )
             }

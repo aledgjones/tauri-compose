@@ -50,40 +50,48 @@ impl Notation {
         }
     }
 
-    pub fn glyph(&self, subdivisions: Ticks) -> &str {
+    pub fn glyph(&self) -> &str {
         if self.is_rest() {
-            match self.base_to_note_duration(subdivisions) {
-                Some(base) => match base {
-                    NoteDuration::Whole => "\u{E4E3}",
-                    NoteDuration::Half => "\u{E4E4}",
-                    NoteDuration::Quarter => "\u{E4E5}",
-                    NoteDuration::Eighth => "\u{E4E6}",
-                    NoteDuration::Sixteenth => "\u{E4E7}",
-                    NoteDuration::ThirtySecond => "\u{E4E8}",
-                    NoteDuration::SixtyFourth => todo!(),
-                    NoteDuration::HudredTwentyEighth => todo!(),
-                },
-                None => "\u{E4E5}",
-            }
+            self.rest_glyph()
         } else {
-            match self.base_to_note_duration(subdivisions) {
-                Some(base) => match base {
-                    NoteDuration::Whole => "\u{E0A2}",
-                    NoteDuration::Half => "\u{E0A3}",
-                    NoteDuration::Quarter => "\u{E0A4}",
-                    NoteDuration::Eighth => "\u{E0A4}",
-                    NoteDuration::Sixteenth => "\u{E0A4}",
-                    NoteDuration::ThirtySecond => "\u{E0A4}",
-                    NoteDuration::SixtyFourth => "\u{E0A4}",
-                    NoteDuration::HudredTwentyEighth => "\u{E0A4}",
-                },
-                None => "\u{E0A4}",
-            }
+            self.note_glyph()
         }
     }
 
-    pub fn glyph_metrics(&self, subdivisions: Ticks) -> BoundingBox {
-        let is_whole_note = self.base_to_note_duration(subdivisions) == Some(NoteDuration::Whole);
+    pub fn note_glyph(&self) -> &str {
+        match self.base_to_note_duration() {
+            Some(base) => match base {
+                NoteDuration::Whole => "\u{E0A2}",
+                NoteDuration::Half => "\u{E0A3}",
+                NoteDuration::Quarter => "\u{E0A4}",
+                NoteDuration::Eighth => "\u{E0A4}",
+                NoteDuration::Sixteenth => "\u{E0A4}",
+                NoteDuration::ThirtySecond => "\u{E0A4}",
+                NoteDuration::SixtyFourth => "\u{E0A4}",
+                NoteDuration::HudredTwentyEighth => "\u{E0A4}",
+            },
+            None => "\u{E0A4}", // Default quarter note
+        }
+    }
+
+    pub fn rest_glyph(&self) -> &str {
+        match self.base_to_note_duration() {
+            Some(base) => match base {
+                NoteDuration::Whole => "\u{E4E3}",
+                NoteDuration::Half => "\u{E4E4}",
+                NoteDuration::Quarter => "\u{E4E5}",
+                NoteDuration::Eighth => "\u{E4E6}",
+                NoteDuration::Sixteenth => "\u{E4E7}",
+                NoteDuration::ThirtySecond => "\u{E4E8}",
+                NoteDuration::SixtyFourth => todo!(),
+                NoteDuration::HudredTwentyEighth => todo!(),
+            },
+            None => "\u{E4E5}", // Default quarter rest
+        }
+    }
+
+    pub fn glyph_metrics(&self) -> BoundingBox {
+        let is_whole_note = self.base_to_note_duration() == Some(NoteDuration::Whole);
 
         if self.is_rest() {
             BoundingBox {
@@ -103,18 +111,18 @@ impl Notation {
         }
     }
 
-    pub fn base_duration(&self, subdivisions: Ticks) -> Option<Ticks> {
+    pub fn base_duration(&self) -> Option<Ticks> {
         let base = (self.duration as f32 / 3.0) * 2.0;
-        if base.fract() == 0.0 && Notation::is_writable(base as Ticks, subdivisions) {
+        if base.fract() == 0.0 && Notation::is_writable(base as Ticks) {
             Some(base as Ticks)
         } else {
             None
         }
     }
 
-    pub fn is_writable(duration: Ticks, subdivisions: Ticks) -> bool {
+    pub fn is_writable(duration: Ticks) -> bool {
         for option in NOTE_DURATIONS {
-            if duration == option.to_ticks(subdivisions) {
+            if duration == option.to_ticks() {
                 return true;
             }
         }
@@ -122,17 +130,17 @@ impl Notation {
     }
 
     // gets base duration from a possibly dotted duration
-    pub fn base_to_ticks(&self, subdivisions: Ticks) -> Option<Ticks> {
-        if Notation::is_writable(self.duration, subdivisions) {
+    pub fn base_to_ticks(&self) -> Option<Ticks> {
+        if Notation::is_writable(self.duration) {
             Some(self.duration)
         } else {
-            self.base_duration(subdivisions)
+            self.base_duration()
         }
     }
 
-    pub fn base_to_note_duration(&self, subdivisions: Ticks) -> Option<NoteDuration> {
-        match self.base_to_ticks(subdivisions) {
-            Some(base) => NoteDuration::from_ticks(base, subdivisions),
+    pub fn base_to_note_duration(&self) -> Option<NoteDuration> {
+        match self.base_to_ticks() {
+            Some(base) => NoteDuration::from_ticks(base),
             None => None,
         }
     }
@@ -141,9 +149,8 @@ impl Notation {
         self.tones.is_empty()
     }
 
-    pub fn is_dotted(&self, subdivisions: Ticks) -> bool {
-        !Notation::is_writable(self.duration, subdivisions)
-            && self.base_duration(subdivisions).is_some()
+    pub fn is_dotted(&self) -> bool {
+        !Notation::is_writable(self.duration) && self.base_duration().is_some()
     }
 
     pub fn has_pre_shunt(&self, shunts: &Shunts) -> bool {
@@ -180,16 +187,31 @@ impl Notation {
         }
     }
 
-    pub fn is_flagged(&self, beams: &Beams, subdivisions: Ticks) -> bool {
-        !self.is_rest()
-            && !self.has_beam(beams)
-            && self.duration < NoteDuration::Quarter.to_ticks(subdivisions)
+    pub fn is_flagged(&self, beams: &Beams) -> bool {
+        !self.is_rest() && !self.has_beam(beams) && self.duration < NoteDuration::Quarter.to_ticks()
     }
 
-    pub fn flag_glyph(&self, stem_direction: &Direction, subdivisions: Ticks) -> String {
-        let base = self.base_to_note_duration(subdivisions);
+    pub fn flag_glyph(&self, stem_direction: &Direction) -> String {
+        let base = self.base_to_note_duration();
         match base {
-            Some(duration) => duration.to_flag_glyph(stem_direction).to_string(),
+            Some(duration) => match stem_direction {
+                Direction::Up => match duration {
+                    NoteDuration::Eighth => "\u{E240}".to_string(),
+                    NoteDuration::Sixteenth => "\u{E242}".to_string(),
+                    NoteDuration::ThirtySecond => "\u{E244}".to_string(),
+                    NoteDuration::SixtyFourth => "\u{E246}".to_string(),
+                    NoteDuration::HudredTwentyEighth => "\u{E248}".to_string(),
+                    _ => String::new(),
+                },
+                Direction::Down => match duration {
+                    NoteDuration::Eighth => "\u{E241}".to_string(),
+                    NoteDuration::Sixteenth => "\u{E243}".to_string(),
+                    NoteDuration::ThirtySecond => "\u{E245}".to_string(),
+                    NoteDuration::SixtyFourth => "\u{E247}".to_string(),
+                    NoteDuration::HudredTwentyEighth => "\u{E249}".to_string(),
+                    _ => String::new(),
+                },
+            },
             None => String::new(),
         }
     }
@@ -212,22 +234,16 @@ impl Notation {
         false
     }
 
-    pub fn min_spacing(
-        &self,
-        shunts: &Shunts,
-        subdivisions: Ticks,
-        engrave: &Engrave,
-        beams: &Beams,
-    ) -> Space {
-        let mut min_space = self.glyph_metrics(subdivisions).width;
+    pub fn min_spacing(&self, shunts: &Shunts, engrave: &Engrave, beams: &Beams) -> Space {
+        let mut min_space = self.glyph_metrics().width;
 
-        if self.is_dotted(subdivisions) {
+        if self.is_dotted() {
             min_space += 1.0;
         }
 
         if self.has_post_shunt(shunts) {
-            min_space += self.glyph_metrics(subdivisions).width;
-        } else if self.is_flagged(beams, subdivisions) {
+            min_space += self.glyph_metrics().width;
+        } else if self.is_flagged(beams) {
             min_space += 0.5;
         }
 
@@ -241,18 +257,12 @@ impl Notation {
         min_space
     }
 
-    pub fn metrics(
-        &self,
-        shunts: &Shunts,
-        subdivisions: Ticks,
-        engrave: &Engrave,
-        beams: &Beams,
-    ) -> BoundingBox {
-        let min = self.min_spacing(shunts, subdivisions, engrave, beams);
-        let spacing = match self.base_to_note_duration(subdivisions) {
+    pub fn metrics(&self, shunts: &Shunts, engrave: &Engrave, beams: &Beams) -> BoundingBox {
+        let min = self.min_spacing(shunts, engrave, beams);
+        let spacing = match self.base_to_note_duration() {
             Some(base) => {
                 let space = engrave.base_note_space
-                    * base.spacing_ratio(engrave.note_space_ratio, self.is_dotted(subdivisions));
+                    * base.spacing_ratio(engrave.note_space_ratio, self.is_dotted());
                 if space > min {
                     space
                 } else {
@@ -548,7 +558,6 @@ impl NotationTrack {
 
     pub fn split_simple_unit(
         &mut self,
-        flow: &Flow,
         start: Tick,
         stop: Tick,
         original_time_signature: &TimeSignature,
@@ -559,15 +568,15 @@ impl NotationTrack {
             return;
         }
 
-        let ticks_per_original_beat = original_time_signature.ticks_per_beat(flow.subdivisions);
+        let ticks_per_original_beat = original_time_signature.ticks_per_beat();
 
         let mut needs_splitting = (stop - start) > ticks_per_original_beat;
         if !needs_splitting {
             for tick in start..stop {
                 if let Some(notation) = self.track.get(&tick) {
-                    match notation.base_to_ticks(flow.subdivisions) {
+                    match notation.base_to_ticks() {
                         Some(base) => {
-                            if !Notation::is_writable(base, flow.subdivisions) {
+                            if !Notation::is_writable(base) {
                                 needs_splitting = true;
                                 break;
                             };
@@ -590,11 +599,11 @@ impl NotationTrack {
             3 => todo!(),
             4 => {
                 let beat_one = start;
-                let beat_two = time_signature.get_tick_at_beat(start, 2, flow.subdivisions);
-                let beat_three = time_signature.get_tick_at_beat(start, 3, flow.subdivisions);
-                let beat_four = time_signature.get_tick_at_beat(start, 4, flow.subdivisions);
+                let beat_two = time_signature.get_tick_at_beat(start, 2);
+                let beat_three = time_signature.get_tick_at_beat(start, 3);
+                let beat_four = time_signature.get_tick_at_beat(start, 4);
 
-                let half_beat = time_signature.beat_type.half().to_ticks(flow.subdivisions);
+                let half_beat = time_signature.beat_type.half().to_ticks();
 
                 let patterns = [
                     self.is_qhq_pattern(beat_one, beat_two, beat_four, stop),
@@ -629,14 +638,12 @@ impl NotationTrack {
                 );
 
                 self.split_simple_unit(
-                    flow,
                     start,
                     beat_three,
                     original_time_signature,
                     &next_unit_time_signature,
                 );
                 self.split_simple_unit(
-                    flow,
                     beat_three,
                     stop,
                     original_time_signature,
@@ -677,9 +684,8 @@ pub fn get_written_durations(
                             for (tick, time_signature) in measures {
                                 match time_signature.kind() {
                                     TimeSignatureType::Simple => notation.split_simple_unit(
-                                        flow,
                                         *tick,
-                                        tick + time_signature.ticks_per_bar(flow.subdivisions),
+                                        tick + time_signature.ticks_per_bar(),
                                         time_signature,
                                         time_signature,
                                     ),

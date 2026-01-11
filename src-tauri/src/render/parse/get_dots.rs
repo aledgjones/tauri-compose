@@ -1,6 +1,6 @@
 use super::get_tone_offsets::ToneVerticalOffsets;
 use super::get_written_durations::{Notation, NotationByTrack, NotationTrack};
-use crate::score::components::duration::{Tick, Ticks};
+use crate::score::components::duration::Tick;
 use crate::score::flows::Flow;
 use crate::utils::UniqueId;
 use rayon::prelude::*;
@@ -112,12 +112,11 @@ fn get_dots_at_tick(entry: &Notation, tone_offsets: &ToneVerticalOffsets) -> Dot
 fn get_dots_in_track(
     notation: &NotationTrack,
     tone_offsets: &ToneVerticalOffsets,
-    subdivisions: Ticks,
 ) -> Dots {
     let mut output: Dots = FxHashMap::default();
 
     for (tick, entry) in &notation.track {
-        if !entry.is_rest() && entry.is_dotted(subdivisions) {
+        if !entry.is_rest() && entry.is_dotted() {
             let dots: DotOffsets = get_dots_at_tick(entry, tone_offsets);
             output.insert(*tick, dots);
         }
@@ -127,14 +126,14 @@ fn get_dots_in_track(
 }
 
 pub fn get_dots(
-    flow: &Flow,
+    _flow: &Flow,
     notation_by_track: &NotationByTrack,
     tone_offsets: &ToneVerticalOffsets,
 ) -> DotsByTrack {
     let results: Vec<(UniqueId, _)> = notation_by_track
         .par_iter()
         .map(|(track_id, notation)| {
-            let dots: Dots = get_dots_in_track(notation, tone_offsets, flow.subdivisions);
+            let dots: Dots = get_dots_in_track(notation, tone_offsets);
             (*track_id, dots)
         })
         .collect();

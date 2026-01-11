@@ -4,7 +4,7 @@ use super::get_stem_directions::{StemDirections, StemDirectionsByTrack};
 use super::get_written_durations::{Notation, NotationByTrack, NotationTrack};
 use crate::render::draw::draw_staves::STAVE_LINE_WIDTH;
 use crate::renderer::converter::Space;
-use crate::score::components::duration::{Direction, NoteDuration, Tick, Ticks};
+use crate::score::components::duration::{Direction, NoteDuration, Tick};
 use crate::score::components::measurements::Point;
 use crate::score::engraves::Engrave;
 use crate::utils::UniqueId;
@@ -129,13 +129,12 @@ fn get_natural_stem_length(
     x: Space,
     entry: &Notation,
     stem_direction: &Direction,
-    subdivisions: Ticks,
 ) -> StemDef {
     let info = entry.info.clone().unwrap();
 
     // Base stem length
     let base_stem_length = 3.25;
-    let beam_count = entry.get_beam_count(subdivisions);
+    let beam_count = entry.get_beam_count();
 
     let beam_extension = if beam_count > 2 {
         (beam_count as f32 - 2.0) * 0.75
@@ -153,7 +152,7 @@ fn get_natural_stem_length(
                 tail = 0.0
             }
 
-            let x = x + entry.glyph_metrics(subdivisions).width;
+            let x = x + entry.glyph_metrics().width;
 
             (x - (STAVE_LINE_WIDTH / 2.0), head, tail)
         }
@@ -180,7 +179,6 @@ pub fn get_stem_lengths_in_track(
     beams: &Beams,
     engrave: &Engrave,
     horizontal_spacing: &HorizontalSpacing,
-    subdivisions: Ticks,
 ) -> StemLengths {
     let mut output: StemLengths = FxHashMap::default();
 
@@ -188,13 +186,13 @@ pub fn get_stem_lengths_in_track(
     for (tick, entry) in &notation.track {
         if !entry.is_rest() {
             // Only notes half or shorter get stems
-            if let Some(duration) = entry.base_to_note_duration(subdivisions) {
+            if let Some(duration) = entry.base_to_note_duration() {
                 if duration != NoteDuration::Whole {
                     let x = horizontal_spacing.get(*tick, Slot::NoteSpacing).x;
                     let stem_direction = &stem_directions[tick];
                     output.insert(
                         *tick,
-                        get_natural_stem_length(x, entry, stem_direction, subdivisions),
+                        get_natural_stem_length(x, entry, stem_direction),
                     );
                 }
             }
@@ -246,7 +244,6 @@ pub fn get_stem_lengths(
     beams_by_track: &BeamsByTrack,
     engrave: &Engrave,
     horizontal_spacing: &HorizontalSpacing,
-    subdivisions: Ticks,
 ) -> StemLengthsByTrack {
     let results: Vec<(UniqueId, _)> = tracks
         .par_iter()
@@ -259,7 +256,6 @@ pub fn get_stem_lengths(
                 beams,
                 engrave,
                 horizontal_spacing,
-                subdivisions,
             );
             (*track_id, stem_lengths)
         })

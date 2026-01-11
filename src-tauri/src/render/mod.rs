@@ -147,7 +147,6 @@ pub fn generate_render_instructions(
         &beams_by_track,
         engrave,
         &horizontal_spacing,
-        flow.subdivisions,
     );
     let stems_duration = stems_start.elapsed();
 
@@ -369,7 +368,6 @@ pub fn generate_render_instructions(
                     &horizontal_spacing,
                     shunts,
                     &tone_offsets,
-                    flow.subdivisions,
                     renderer,
                 );
 
@@ -388,8 +386,8 @@ pub fn generate_render_instructions(
                 }
 
                 for (tick, notation) in &notation.track {
-                    let glyph = notation.glyph(flow.subdivisions);
-                    let glyph_width = notation.glyph_metrics(flow.subdivisions).width;
+                    let glyph = notation.glyph();
+                    let glyph_width = notation.glyph_metrics().width;
                     let has_post_shunt = notation.has_post_shunt(shunts);
 
                     // RESTS
@@ -406,7 +404,6 @@ pub fn generate_render_instructions(
                             *tick,
                             glyph,
                             notation,
-                            flow.subdivisions,
                             is_full_bar,
                             &horizontal_spacing,
                             renderer,
@@ -434,7 +431,7 @@ pub fn generate_render_instructions(
                     }
 
                     // FLAGS
-                    if notation.is_flagged(beams, flow.subdivisions) {
+                    if notation.is_flagged(beams) {
                         if let (Some(stem_dir), Some(stem_len)) = (stem_direction, stem_length) {
                             draw_flag(
                                 &Point {

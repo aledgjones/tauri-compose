@@ -74,7 +74,6 @@ export function PlaybackProvider({
     const schedulingKey = JSON.stringify({
       flowId,
       flow: {
-        subdivisions: flow.subdivisions,
         length: flow.length,
         player_ids: flow.player_ids,
         staves: flow.staves,
@@ -91,7 +90,7 @@ export function PlaybackProvider({
     lastSchedulingStateRef.current = schedulingKey;
 
     transport.clear();
-    transport.subdivisions = flow.subdivisions;
+    transport.subdivisions = 32;
     transport.length = flow.length + 1;
     transport.seek(0);
 

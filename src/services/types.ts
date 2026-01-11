@@ -236,7 +236,6 @@ export type Flow = {
   title: string;
   player_ids: UniqueId[];
   length: number;
-  subdivisions: number;
   master_id: UniqueId;
   staves: Staves;
 };
