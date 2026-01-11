@@ -183,12 +183,10 @@ fn initialize(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
     renderer_state: State<'_, RenderState>,
-    px_per_mm: f32,
 ) {
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
 
-    renderer.px_per_mm = px_per_mm;
     state.emit(&app, &mut renderer, true);
     state.emit_sampler(&app);
 }

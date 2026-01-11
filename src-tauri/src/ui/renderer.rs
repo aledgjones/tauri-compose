@@ -22,8 +22,8 @@ impl Renderer {
     pub fn new() -> Self {
         Renderer {
             zoom: 100,
-            pan_x: 200.0,
-            pan_y: 200.0,
+            pan_x: 100.0,
+            pan_y: 100.0,
             debug_rendering: false,
         }
     }
@@ -40,6 +40,7 @@ pub fn ui_renderer_zoom_set(
     let mut renderer = renderer_state.lock().unwrap();
 
     state.ui.renderer.zoom = zoom;
+
     state.emit(&app, &mut renderer, false);
 }
 
@@ -56,6 +57,7 @@ pub fn ui_renderer_pan_set(
 
     state.ui.renderer.pan_x = x;
     state.ui.renderer.pan_y = y;
+
     state.emit(&app, &mut renderer, false);
 }
 
@@ -64,10 +66,13 @@ pub fn ui_renderer_bounds_set(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
     renderer_state: State<'_, RenderState>,
+    px_per_mm: f32,
     bounds: RendererBounds,
 ) {
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
+
+    renderer.px_per_mm = px_per_mm;
 
     // Directly update native renderer bounds if it exists
     if let Some(window) = app.get_webview_window("main") {
@@ -98,5 +103,6 @@ pub fn ui_renderer_debug_rendering_toggle(
     let mut renderer = renderer_state.lock().unwrap();
 
     state.ui.renderer.debug_rendering = !state.ui.renderer.debug_rendering;
+
     state.emit(&app, &mut renderer, true);
 }

@@ -24,8 +24,8 @@ import {
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 
 export const actions = {
-  initialize: (pxPerMm: number) => {
-    return invoke("initialize", { px_per_mm: pxPerMm });
+  initialize: () => {
+    return invoke("initialize");
   },
   reset: () => {
     return invoke("reset");
@@ -140,13 +140,16 @@ export const actions = {
       setPan: (x: number, y: number) => {
         return invoke("ui_renderer_pan_set", { x, y });
       },
-      setBounds: (bounds: {
-        x: number;
-        y: number;
-        width: number;
-        height: number;
-      }) => {
-        return invoke("ui_renderer_bounds_set", { bounds });
+      setBounds: (
+        px_per_mm: number,
+        bounds: {
+          x: number;
+          y: number;
+          width: number;
+          height: number;
+        },
+      ) => {
+        return invoke("ui_renderer_bounds_set", { bounds, px_per_mm });
       },
       toggleDebugRendering: () => {
         return invoke("ui_renderer_debug_rendering_toggle");

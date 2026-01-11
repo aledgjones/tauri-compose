@@ -24,7 +24,6 @@ import {
   useEffect,
   useState,
 } from "react";
-import { pxPerMm } from "../utils/mm";
 
 export const initialAppState: AppState = {
   ui: {
@@ -159,7 +158,12 @@ export const AppContext = createContext<AppState | null>(null);
 
 export const SamplerContext = createContext<Sampler | null>(null);
 
-export const AppStateProvider: FC<PropsWithChildren> = ({ children }) => {
+type Props = PropsWithChildren<{ isMainWindow?: boolean }>;
+
+export const AppStateProvider: FC<Props> = ({
+  children,
+  isMainWindow = false,
+}) => {
   const [appState, setAppState] = useState<AppState>(initialAppState);
   const [samplerState, setSamplerState] = useState<Sampler>({});
 
@@ -181,19 +185,21 @@ export const AppStateProvider: FC<PropsWithChildren> = ({ children }) => {
         setSamplerState(e.payload);
       });
 
-      unlistenMenuSaveAs = await listen("soloc://menu/save-as", () => {
-        actions.save.project().catch(console.error);
-      });
+      if (isMainWindow) {
+        unlistenMenuSaveAs = await listen("soloc://menu/save-as", () => {
+          actions.save.project().catch(console.error);
+        });
 
-      unlistenMenuOpen = await listen("soloc://menu/open", () => {
-        actions.load.project().catch(console.error);
-      });
+        unlistenMenuOpen = await listen("soloc://menu/open", () => {
+          actions.load.project().catch(console.error);
+        });
 
-      unlistenMenuNew = await listen("soloc://menu/new", () => {
-        actions.reset().catch(console.error);
-      });
+        unlistenMenuNew = await listen("soloc://menu/new", () => {
+          actions.reset().catch(console.error);
+        });
+      }
 
-      await actions.initialize(pxPerMm);
+      await actions.initialize();
     })();
 
     return () => {
@@ -203,7 +209,7 @@ export const AppStateProvider: FC<PropsWithChildren> = ({ children }) => {
       unlistenMenuOpen?.();
       unlistenMenuNew?.();
     };
-  }, []);
+  }, [isMainWindow]);
 
   return (
     <AppContext.Provider value={appState}>

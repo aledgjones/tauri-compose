@@ -59,6 +59,24 @@ pub fn migrate(data: serde_json::Value) -> Result<serde_json::Value, String> {
                 }
             }
         }
+
+        // reset the renderes pan and zoom
+        if let Some(ui) = score.get_mut("ui") {
+            if let Some(renderer) = ui.get_mut("renderer") {
+                if let Some(zoom_value) = renderer.get_mut("zoom") {
+                    *zoom_value =
+                        serde_json::Value::Number(serde_json::Number::from_f64(100.0).unwrap());
+                }
+                if let Some(pan_x_value) = renderer.get_mut("pan_x") {
+                    *pan_x_value =
+                        serde_json::Value::Number(serde_json::Number::from_f64(100.0).unwrap());
+                }
+                if let Some(pan_y_value) = renderer.get_mut("pan_y") {
+                    *pan_y_value =
+                        serde_json::Value::Number(serde_json::Number::from_f64(100.0).unwrap());
+                }
+            }
+        }
     }
 
     Ok(data)

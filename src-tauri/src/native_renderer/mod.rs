@@ -22,7 +22,8 @@ pub struct NativeRenderer {
     device: objc2::rc::Retained<objc2::runtime::ProtocolObject<dyn objc2_metal::MTLDevice>>,
     queue: objc2::rc::Retained<objc2::runtime::ProtocolObject<dyn objc2_metal::MTLCommandQueue>>,
     display_link: Option<objc2::rc::Retained<objc2_quartz_core::CADisplayLink>>,
-    bounds: (f32, f32, f32, f32), // (x, y, width, height) in physical pixels
+    bounds: (f32, f32, f32, f32), // (x, y, width, height) in CSS pixels
+    scale: f64,                   // Device pixel ratio (e.g., 2.0 on retina)
 }
 
 impl NativeRenderer {
@@ -81,6 +82,7 @@ impl NativeRenderer {
                         queue: queue.clone(),
                         display_link: None,
                         bounds: (0.0, 0.0, 0.0, 0.0),
+                        scale,
                     });
                 }
             }
@@ -132,6 +134,7 @@ impl NativeRenderer {
             queue,
             display_link: None,
             bounds: (0.0, 0.0, 0.0, 0.0),
+            scale,
         })
     }
 
@@ -145,14 +148,7 @@ impl NativeRenderer {
     ) -> Result<(), Box<dyn std::error::Error>> {
         use objc2_foundation::{NSPoint, NSRect, NSSize};
 
-        // Bounds come in as physical pixels from JS, but NSView frames need points
-        // Convert physical pixels to points using current scale factor
-        let points_x = x as f64 / scale;
-        let points_y = y as f64 / scale;
-        let points_width = width as f64 / scale;
-        let points_height = height as f64 / scale;
-
-        // Get content view height for coordinate conversion
+        // Bounds come in as CSS pixels (points) - use directly
         // JS coordinates: (0,0) is top-left, Y increases downward
         // AppKit coordinates: (0,0) is bottom-left, Y increases upward
         let content_view =
@@ -161,27 +157,26 @@ impl NativeRenderer {
         let content_height = content_frame.size.height;
 
         // Convert web coordinates to AppKit coordinates
-        let appkit_x = points_x;
-        let appkit_y = content_height - points_y - points_height;
+        let appkit_x = x as f64;
+        let appkit_y = content_height - y as f64 - height as f64;
 
-        // Update the view frame to match the bounds
+        // Update the view frame (in CSS pixels/points)
         let frame = NSRect::new(
             NSPoint::new(appkit_x, appkit_y),
-            NSSize::new(points_width, points_height),
+            NSSize::new(width as f64, height as f64),
         );
 
         self.skia_view.setFrame(frame);
         self.metal_layer.setFrame(frame);
-
-        // Set contents scale to ensure drawable size is correct
         self.metal_layer.setContentsScale(scale);
 
-        // Explicitly set drawable size to physical pixel dimensions
+        // Drawable size = CSS pixels × scale (physical pixels for retina)
         self.metal_layer
-            .setDrawableSize(NSSize::new(width as f64, height as f64));
+            .setDrawableSize(NSSize::new(width as f64 * scale, height as f64 * scale));
 
-        // Store the bounds for later retrieval
+        // Store the bounds (CSS pixels) and scale
         self.bounds = (x, y, width, height);
+        self.scale = scale;
 
         Ok(())
     }
@@ -231,7 +226,7 @@ impl NativeRenderer {
                     // Clear the entire canvas with neutral-950 background
                     canvas.clear(Color::from_rgb(10, 10, 10));
 
-                    // Draw gradient background over the entire view (already clipped to bounds)
+                    // Draw gradient background over the entire view
                     let sky_700 = Color::from_rgb(3, 105, 161);
                     let sky_900 = Color::from_rgb(12, 74, 110);
 
@@ -253,25 +248,33 @@ impl NativeRenderer {
                     background_paint.set_shader(gradient_shader);
                     background_paint.set_style(PaintStyle::Fill);
                     canvas.draw_rect(
-                        skia_safe::Rect::from_xywh(0.0, 0.0, self.bounds.2, self.bounds.3),
+                        skia_safe::Rect::from_xywh(
+                            0.0,
+                            0.0,
+                            texture_width as f32,
+                            texture_height as f32,
+                        ),
                         &background_paint,
                     );
 
                     // --- Draw instructions ---
                     canvas.save();
 
-                    // Apply pan offset in unscaled coordinate system
-                    canvas.translate((pan_x, pan_y));
+                    // Canvas is in physical pixels, pan is in CSS pixels
+                    let scale_f32 = self.scale as f32;
+
+                    // Apply pan (scale from CSS to physical pixels)
+                    canvas.translate((pan_x * scale_f32, pan_y * scale_f32));
 
                     // Apply zoom scaling
                     canvas.scale((zoom, zoom));
 
-                    // Clip to renderer bounds in scaled coordinate system
+                    // Clip to renderer bounds (scale bounds from CSS to physical pixels)
                     let clip_rect = skia_safe::Rect::from_xywh(
-                        -pan_x / zoom,
-                        -pan_y / zoom,
-                        self.bounds.2 / zoom,
-                        self.bounds.3 / zoom,
+                        -pan_x * scale_f32 / zoom,
+                        -pan_y * scale_f32 / zoom,
+                        self.bounds.2 * scale_f32 / zoom,
+                        self.bounds.3 * scale_f32 / zoom,
                     );
                     canvas.clip_rect(clip_rect, skia_safe::ClipOp::Intersect, true);
 

@@ -4,7 +4,7 @@ import { Main } from ".";
 import { TokenizationProvider } from "../../ui/text/context";
 
 createRoot(document.getElementById("root")!).render(
-  <AppStateProvider>
+  <AppStateProvider isMainWindow={true}>
     <TokenizationProvider>
       <Main />
     </TokenizationProvider>
