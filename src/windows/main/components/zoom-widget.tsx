@@ -1,60 +1,91 @@
 import MdiIcon from "@mdi/react";
-import { mdiPlus, mdiMinus, mdiMagnify } from "@mdi/js";
-import { Select } from "../../../ui/select";
+import { mdiPlus, mdiMinus, mdiMagnify, mdiChevronDown } from "@mdi/js";
 import { useAppState } from "../../../services/state";
 import { actions } from "../../../services/actions";
+import { useState, useRef, useEffect } from "react";
+import classNames from "classnames";
 
-const zoomOptions = [
-  { value: "25", label: "25%", icon: mdiMagnify, iconSize: 0.75 },
-  { value: "50", label: "50%", icon: mdiMagnify, iconSize: 0.75 },
-  { value: "75", label: "75%", icon: mdiMagnify, iconSize: 0.75 },
-  { value: "100", label: "100%", icon: mdiMagnify, iconSize: 0.75 },
-  { value: "125", label: "125%", icon: mdiMagnify, iconSize: 0.75 },
-  { value: "150", label: "150%", icon: mdiMagnify, iconSize: 0.75 },
-  { value: "200", label: "200%", icon: mdiMagnify, iconSize: 0.75 },
-  { value: "300", label: "300%", icon: mdiMagnify, iconSize: 0.75 },
-  { value: "400", label: "400%", icon: mdiMagnify, iconSize: 0.75 },
-  { value: "800", label: "800%", icon: mdiMagnify, iconSize: 0.75 },
-];
+const zoomPresets = [25, 50, 75, 100, 125, 150, 200, 300, 400, 800];
 
 export const ZoomWidget = () => {
   const state = useAppState();
-  const currentZoom = state.ui.renderer.zoom.toString();
+  const [isOpen, setIsOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
-  const handleZoomChange = (zoom: string) => {
-    actions.ui.renderer.setZoom(parseInt(zoom));
+  const currentZoom = state.ui.renderer.zoom;
+
+  const handleZoomChange = (zoom: number) => {
+    actions.ui.renderer.setZoom(zoom);
+    setIsOpen(false);
   };
 
   const handleZoomIncrement = () => {
-    const currentIndex = zoomOptions.findIndex(
-      (option) => option.value === currentZoom,
-    );
-    if (currentIndex < zoomOptions.length - 1) {
-      const nextZoom = zoomOptions[currentIndex + 1].value;
-      actions.ui.renderer.setZoom(parseInt(nextZoom));
+    const nextPreset = zoomPresets.find((preset) => preset > currentZoom);
+    if (nextPreset) {
+      actions.ui.renderer.setZoom(nextPreset);
     }
   };
 
   const handleZoomDecrement = () => {
-    const currentIndex = zoomOptions.findIndex(
-      (option) => option.value === currentZoom,
-    );
-    if (currentIndex > 0) {
-      const prevZoom = zoomOptions[currentIndex - 1].value;
-      actions.ui.renderer.setZoom(parseInt(prevZoom));
+    const prevPreset = [...zoomPresets]
+      .reverse()
+      .find((preset) => preset < currentZoom);
+    if (prevPreset) {
+      actions.ui.renderer.setZoom(prevPreset);
     }
   };
 
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () =>
+        document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [isOpen]);
+
   return (
-    <div className="flex items-center">
-      <Select
-        value={currentZoom}
-        options={zoomOptions}
-        onChange={handleZoomChange}
-        variant="standard"
-        className="[&>button]:h-7 [&>button]:px-1 [&>button]:text-xs [&>button]:border-0 [&>button]:bg-neutral-900 [&>button]:hover:bg-neutral-800 [&>ul]:mt-1"
-        direction="up"
-      />
+    <div className="flex items-center relative" ref={menuRef}>
+      <div className="relative">
+        <button
+          className={classNames(
+            "flex items-center gap-1 h-7 px-2 text-xs border-0 hover:bg-neutral-800 text-white",
+            { "bg-neutral-800": isOpen, "bg-neutral-900": !isOpen },
+          )}
+          onClick={() => setIsOpen(!isOpen)}
+        >
+          <MdiIcon size={0.75} path={mdiMagnify} />
+          <span className="pr-2 pl-1">{currentZoom}%</span>
+          <MdiIcon
+            size={0.6}
+            path={mdiChevronDown}
+            className={classNames(
+              "text-neutral-300 transform transition-transform",
+              { "rotate-180": isOpen },
+            )}
+          />
+        </button>
+
+        {isOpen && (
+          <ul className="whitespace-nowrap py-1 w-full absolute z-50 text-white text-sm shadow-lg bottom-full mb-0.5 bg-neutral-800">
+            {zoomPresets.map((preset) => (
+              <li
+                key={preset}
+                onClick={() => handleZoomChange(preset)}
+                className="px-3 py-2 hover:bg-neutral-700 cursor-pointer"
+              >
+                {preset}%
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
       <button
         className="ml-0.5 px-2 h-7 bg-neutral-900 hover:bg-neutral-800 text-white"
         onClick={handleZoomIncrement}

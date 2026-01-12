@@ -181,6 +181,10 @@ impl NativeRenderer {
         Ok(())
     }
 
+    pub fn get_bounds(&self) -> (f32, f32, f32, f32) {
+        self.bounds
+    }
+
     pub fn constrain_pan(
         &self,
         pan_x: f32,

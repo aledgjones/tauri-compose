@@ -35,13 +35,56 @@ pub fn ui_renderer_zoom_set(
     state: State<'_, AppState>,
     renderer_state: State<'_, RenderState>,
     zoom: i32,
-) {
+) -> (i32, f32, f32) {
     let mut state = state.lock().unwrap();
+    let renderer = renderer_state.lock().unwrap();
+
+    // Clamp zoom between 25% and 800%
+    let clamped_zoom = zoom.clamp(25, 800);
+
+    let old_zoom = state.ui.renderer.zoom as f32 / 100.0;
+    let new_zoom = clamped_zoom as f32 / 100.0;
+
+    // Calculate zoom around center of bounds
+    let (new_pan_x, new_pan_y) = if let Ok(native_renderer_lock) = NATIVE_RENDERER.lock() {
+        if let Some(native) = native_renderer_lock.as_ref() {
+            let bounds = native.get_bounds();
+            let center_x = bounds.2 / 2.0; // width / 2
+            let center_y = bounds.3 / 2.0; // height / 2
+
+            // Calculate world position at center before zoom
+            let world_x = (center_x - state.ui.renderer.pan_x) / old_zoom;
+            let world_y = (center_y - state.ui.renderer.pan_y) / old_zoom;
+
+            // Calculate new pan to keep same world position at center
+            let new_pan_x = center_x - world_x * new_zoom;
+            let new_pan_y = center_y - world_y * new_zoom;
+
+            // Constrain the new pan values
+            native.constrain_pan(
+                new_pan_x,
+                new_pan_y,
+                renderer.width,
+                renderer.height,
+                new_zoom,
+                &renderer.converter,
+            )
+        } else {
+            (state.ui.renderer.pan_x, state.ui.renderer.pan_y)
+        }
+    } else {
+        (state.ui.renderer.pan_x, state.ui.renderer.pan_y)
+    };
+
+    state.ui.renderer.zoom = clamped_zoom;
+    state.ui.renderer.pan_x = new_pan_x;
+    state.ui.renderer.pan_y = new_pan_y;
+
+    drop(renderer);
     let mut renderer = renderer_state.lock().unwrap();
-
-    state.ui.renderer.zoom = zoom;
-
     state.emit(&app, &mut renderer, false);
+
+    (clamped_zoom, new_pan_x, new_pan_y)
 }
 
 #[tauri::command(rename_all = "snake_case")]

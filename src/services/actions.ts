@@ -135,7 +135,7 @@ export const actions = {
     },
     renderer: {
       setZoom: (zoom: number) => {
-        return invoke("ui_renderer_zoom_set", { zoom });
+        return invoke<[number, number, number]>("ui_renderer_zoom_set", { zoom });
       },
       setPan: (x: number, y: number) => {
         return invoke<[number, number]>("ui_renderer_pan_set", { x, y });

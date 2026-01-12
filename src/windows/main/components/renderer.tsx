@@ -10,14 +10,20 @@ export const Renderer: FC<Props> = ({ className }) => {
   const divRef = useRef<HTMLDivElement>(null);
   const state = useAppState();
 
-  // Use refs to track current pan position without triggering re-renders
+  // Use refs to track current pan/zoom without triggering re-renders
   const panXRef = useRef(state.ui.renderer.pan_x);
   const panYRef = useRef(state.ui.renderer.pan_y);
+  const zoomRef = useRef(state.ui.renderer.zoom);
 
   useEffect(() => {
     panXRef.current = state.ui.renderer.pan_x;
     panYRef.current = state.ui.renderer.pan_y;
-  }, [state.ui.renderer.pan_x, state.ui.renderer.pan_y]);
+    zoomRef.current = state.ui.renderer.zoom;
+  }, [
+    state.ui.renderer.pan_x,
+    state.ui.renderer.pan_y,
+    state.ui.renderer.zoom,
+  ]);
 
   // BOUNDS LISTENER
   useEffect(() => {
@@ -113,7 +119,15 @@ export const Renderer: FC<Props> = ({ className }) => {
 
     const onWheel = async (e: WheelEvent) => {
       if (e.metaKey || e.ctrlKey) {
-        // TODO: Implement zooming
+        const zoomDelta = Math.round(-e.deltaY * 0.5);
+        const newZoom = zoomRef.current + zoomDelta;
+
+        const [clampedZoom, newPanX, newPanY] =
+          await actions.ui.renderer.setZoom(newZoom);
+
+        zoomRef.current = clampedZoom;
+        panXRef.current = newPanX;
+        panYRef.current = newPanY;
       } else {
         const newPanX = panXRef.current - e.deltaX;
         const newPanY = panYRef.current - e.deltaY;

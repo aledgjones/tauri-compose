@@ -104,9 +104,7 @@ export const Select = <T extends Key>({
             size={0.75}
             className={classNames(
               "text-neutral-300 transform transition-transform",
-              {
-                "rotate-180": isOpen,
-              },
+              { "rotate-180": isOpen },
             )}
           />
         </div>
