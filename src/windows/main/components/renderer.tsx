@@ -119,7 +119,7 @@ export const Renderer: FC<Props> = ({ className }) => {
 
     const onWheel = async (e: WheelEvent) => {
       if (e.metaKey || e.ctrlKey) {
-        const zoomDelta = Math.round(-e.deltaY * 0.5);
+        const zoomDelta = Math.round(-e.deltaY);
         const newZoom = zoomRef.current + zoomDelta;
 
         const [clampedZoom, newPanX, newPanY] =
