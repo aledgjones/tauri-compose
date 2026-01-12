@@ -93,6 +93,36 @@ export const Renderer: FC<Props> = ({ className }) => {
     [state.ui.renderer.pan_x, state.ui.renderer.pan_y],
   );
 
+  // Handle mouse wheel for panning and zooming
+  useEffect(() => {
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+
+      // Handle zoom (with modifier key)
+      if (e.metaKey || e.ctrlKey) {
+        // TODO: Implement zooming from center point
+        // const zoomDelta = -e.deltaY;
+        // const nextZoom = Math.max(
+        //   Math.floor(state.ui.renderer.zoom + zoomDelta),
+        //   50,
+        // );
+        // console.log(zoomDelta, nextZoom);
+        // actions.ui.renderer.setZoom(nextZoom);
+      } else {
+        actions.ui.renderer.setPan(
+          state.ui.renderer.pan_x - e.deltaX,
+          state.ui.renderer.pan_y - e.deltaY,
+        );
+      }
+    };
+
+    divRef.current?.addEventListener("wheel", handleWheel, { passive: false });
+
+    return () => {
+      divRef.current?.removeEventListener("wheel", handleWheel);
+    };
+  }, [state.ui.renderer.pan_x, state.ui.renderer.pan_y]);
+
   return (
     <div
       ref={divRef}
