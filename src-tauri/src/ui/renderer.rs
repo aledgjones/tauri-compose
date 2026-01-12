@@ -1,4 +1,4 @@
-use crate::{AppState, RenderState};
+use crate::{AppState, RenderState, NATIVE_RENDERER};
 use serde::{Deserialize, Serialize};
 use tauri::{Manager, State};
 
@@ -51,14 +51,35 @@ pub fn ui_renderer_pan_set(
     renderer_state: State<'_, RenderState>,
     x: f32,
     y: f32,
-) {
+) -> (f32, f32) {
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
 
-    state.ui.renderer.pan_x = x;
-    state.ui.renderer.pan_y = y;
+    // Get the clamped values from the native renderer
+    let (clamped_x, clamped_y) = if let Ok(native_renderer_lock) = NATIVE_RENDERER.lock() {
+        if let Some(native) = native_renderer_lock.as_ref() {
+            native.constrain_pan(
+                x,
+                y,
+                renderer.width,
+                renderer.height,
+                state.ui.renderer.zoom as f32 / 100.0,
+                &renderer.converter,
+            )
+        } else {
+            (x, y)
+        }
+    } else {
+        (x, y)
+    };
 
-    state.emit(&app, &mut renderer, false);
+    state.ui.renderer.pan_x = clamped_x;
+    state.ui.renderer.pan_y = clamped_y;
+
+    state.render(&app, &mut renderer, false);
+
+    // Return clamped values
+    (clamped_x, clamped_y)
 }
 
 #[tauri::command(rename_all = "snake_case")]

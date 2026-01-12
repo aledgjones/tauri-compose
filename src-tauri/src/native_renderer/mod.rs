@@ -181,7 +181,7 @@ impl NativeRenderer {
         Ok(())
     }
 
-    fn constrain_pan(
+    pub fn constrain_pan(
         &self,
         pan_x: f32,
         pan_y: f32,

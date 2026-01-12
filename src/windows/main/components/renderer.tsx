@@ -1,5 +1,5 @@
 import classNames from "classnames";
-import { FC, useCallback, useRef, useEffect } from "react";
+import { FC, useRef, useEffect } from "react";
 import { actions } from "../../../services/actions";
 import { useAppState } from "../../../services/state";
 import { pxPerMm } from "../../../utils/mm";
@@ -10,14 +10,23 @@ export const Renderer: FC<Props> = ({ className }) => {
   const divRef = useRef<HTMLDivElement>(null);
   const state = useAppState();
 
-  // Track the renderer bounds and send to native renderer
+  // Use refs to track current pan position without triggering re-renders
+  const panXRef = useRef(state.ui.renderer.pan_x);
+  const panYRef = useRef(state.ui.renderer.pan_y);
+
+  useEffect(() => {
+    panXRef.current = state.ui.renderer.pan_x;
+    panYRef.current = state.ui.renderer.pan_y;
+  }, [state.ui.renderer.pan_x, state.ui.renderer.pan_y]);
+
+  // BOUNDS LISTENER
   useEffect(() => {
     if (!divRef.current) return;
 
-    const updateBounds = () => {
-      if (!divRef.current) return;
+    const $element = divRef.current;
 
-      const rect = divRef.current.getBoundingClientRect();
+    const updateBounds = () => {
+      const rect = $element.getBoundingClientRect();
 
       const bounds = {
         x: rect.left,
@@ -36,7 +45,7 @@ export const Renderer: FC<Props> = ({ className }) => {
 
     // Watch for resize changes
     const resizeObserver = new ResizeObserver(updateBounds);
-    resizeObserver.observe(divRef.current);
+    resizeObserver.observe($element);
 
     return () => {
       clearTimeout(timer);
@@ -50,35 +59,46 @@ export const Renderer: FC<Props> = ({ className }) => {
     };
   }, []);
 
-  const handlePointerDown = useCallback(
-    (e: any) => {
-      if (!divRef.current) {
-        return;
-      }
+  // PANNING & ZOOMING LISTENERS
+  useEffect(() => {
+    if (!divRef.current) return;
 
+    const $element = divRef.current;
+
+    const onPointerDown = (e: PointerEvent) => {
       let isDragging = true;
 
-      const startX = e.clientX;
-      const startY = e.clientY;
-      const initialPanX = state.ui.renderer.pan_x;
-      const initialPanY = state.ui.renderer.pan_y;
+      let panStartX = panXRef.current;
+      let panStartY = panYRef.current;
+      let startX = e.clientX;
+      let startY = e.clientY;
 
-      const handlePointerMove = (e: any) => {
-        if (!isDragging || !divRef.current) {
-          return;
-        }
-
-        e.preventDefault();
+      const handlePointerMove = async (e: PointerEvent) => {
+        if (!isDragging || !$element) return;
 
         const deltaX = e.clientX - startX;
         const deltaY = e.clientY - startY;
 
-        // Work in CSS pixels - matches mouse coordinates naturally
-        const newPanX = initialPanX + deltaX;
-        const newPanY = initialPanY + deltaY;
+        const newPanX = panStartX + deltaX;
+        const newPanY = panStartY + deltaY;
 
-        // Update the backend pan state
-        actions.ui.renderer.setPan(newPanX, newPanY);
+        // Call with silent=true - get clamped values back
+        const [clampedX, clampedY] = await actions.ui.renderer.setPan(
+          newPanX,
+          newPanY,
+        );
+
+        // Update refs with clamped values
+        panXRef.current = clampedX;
+        panYRef.current = clampedY;
+
+        // If clamping occurred, adjust the start position so next delta is correct
+        if (clampedX !== newPanX || clampedY !== newPanY) {
+          panStartX = clampedX;
+          panStartY = clampedY;
+          startX = e.clientX;
+          startY = e.clientY;
+        }
       };
 
       const handlePointerUp = () => {
@@ -89,46 +109,41 @@ export const Renderer: FC<Props> = ({ className }) => {
 
       document.addEventListener("pointermove", handlePointerMove);
       document.addEventListener("pointerup", handlePointerUp);
-    },
-    [state.ui.renderer.pan_x, state.ui.renderer.pan_y],
-  );
+    };
 
-  // Handle mouse wheel for panning and zooming
-  useEffect(() => {
-    const handleWheel = (e: WheelEvent) => {
-      e.preventDefault();
-
-      // Handle zoom (with modifier key)
+    const onWheel = async (e: WheelEvent) => {
       if (e.metaKey || e.ctrlKey) {
-        // TODO: Implement zooming from center point
-        // const zoomDelta = -e.deltaY;
-        // const nextZoom = Math.max(
-        //   Math.floor(state.ui.renderer.zoom + zoomDelta),
-        //   50,
-        // );
-        // console.log(zoomDelta, nextZoom);
-        // actions.ui.renderer.setZoom(nextZoom);
+        // TODO: Implement zooming
       } else {
-        actions.ui.renderer.setPan(
-          state.ui.renderer.pan_x - e.deltaX,
-          state.ui.renderer.pan_y - e.deltaY,
+        const newPanX = panXRef.current - e.deltaX;
+        const newPanY = panYRef.current - e.deltaY;
+
+        // Call with silent=true - get clamped values back
+        const [clampedX, clampedY] = await actions.ui.renderer.setPan(
+          newPanX,
+          newPanY,
         );
+
+        // Update refs with clamped values
+        panXRef.current = clampedX;
+        panYRef.current = clampedY;
       }
     };
 
-    divRef.current?.addEventListener("wheel", handleWheel, { passive: false });
+    $element.addEventListener("pointerdown", onPointerDown, { passive: true });
+    $element.addEventListener("wheel", onWheel, { passive: true });
 
     return () => {
-      divRef.current?.removeEventListener("wheel", handleWheel);
+      $element.removeEventListener("pointerdown", onPointerDown);
+      $element.removeEventListener("wheel", onWheel);
     };
-  }, [state.ui.renderer.pan_x, state.ui.renderer.pan_y]);
+  }, []);
 
   return (
     <div
       ref={divRef}
       className={classNames("bg-transparent touch-none", className)}
       data-testid="renderer"
-      onPointerDown={handlePointerDown}
     />
   );
 };

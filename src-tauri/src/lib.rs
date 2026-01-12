@@ -118,7 +118,7 @@ impl AppStateInner {
         })
     }
 
-    fn emit(&mut self, app: &tauri::AppHandle, renderer: &mut Renderer, recalculate: bool) {
+    fn render(&mut self, app: &tauri::AppHandle, renderer: &mut Renderer, recalculate: bool) {
         if recalculate {
             if let Some(first_flow_id) = self.score.flows.order.first() {
                 generate_render_instructions(
@@ -152,6 +152,10 @@ impl AppStateInner {
                 }
             }
         }
+    }
+
+    fn emit(&mut self, app: &tauri::AppHandle, renderer: &mut Renderer, recalculate: bool) {
+        self.render(app, renderer, recalculate);
 
         let general_state = AppStateGeneral {
             ui: self.ui.clone(),

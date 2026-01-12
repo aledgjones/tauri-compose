@@ -138,7 +138,7 @@ export const actions = {
         return invoke("ui_renderer_zoom_set", { zoom });
       },
       setPan: (x: number, y: number) => {
-        return invoke("ui_renderer_pan_set", { x, y });
+        return invoke<[number, number]>("ui_renderer_pan_set", { x, y });
       },
       setBounds: (
         px_per_mm: number,
