@@ -88,13 +88,11 @@ export const Renderer: FC<Props> = ({ className }) => {
         const newPanX = panStartX + deltaX;
         const newPanY = panStartY + deltaY;
 
-        // Call with silent=true - get clamped values back
         const [clampedX, clampedY] = await actions.ui.renderer.setPan(
           newPanX,
           newPanY,
         );
 
-        // Update refs with clamped values
         panXRef.current = clampedX;
         panYRef.current = clampedY;
 
@@ -132,13 +130,11 @@ export const Renderer: FC<Props> = ({ className }) => {
         const newPanX = panXRef.current - e.deltaX;
         const newPanY = panYRef.current - e.deltaY;
 
-        // Call with silent=true - get clamped values back
         const [clampedX, clampedY] = await actions.ui.renderer.setPan(
           newPanX,
           newPanY,
         );
 
-        // Update refs with clamped values
         panXRef.current = clampedX;
         panYRef.current = clampedY;
       }
