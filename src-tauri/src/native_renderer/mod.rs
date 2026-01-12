@@ -194,9 +194,10 @@ impl NativeRenderer {
 
         // Convert page dimensions from spaces to CSS pixels using converter
         // Note: converter.spaces_to_px() includes a 2.0 multiplier for rendering,
-        // so we divide by 2.0 to get actual CSS pixel dimensions
-        let page_width_px = converter.spaces_to_px(page_width_spaces) / 2.0;
-        let page_height_px = converter.spaces_to_px(page_height_spaces) / 2.0;
+        // so we divide by the actual scale to get actual CSS pixel dimensions
+        let scale = self.scale as f32;
+        let page_width_px = converter.spaces_to_px(page_width_spaces) / scale;
+        let page_height_px = converter.spaces_to_px(page_height_spaces) / scale;
 
         // Get bounds in CSS pixels
         let bounds_width = self.bounds.2;
@@ -539,8 +540,8 @@ impl NativeRenderer {
                     canvas.restore();
 
                     // Draw scrollbars to indicate position in score
-                    let page_width_px = renderer.converter.spaces_to_px(renderer.width) / 2.0;
-                    let page_height_px = renderer.converter.spaces_to_px(renderer.height) / 2.0;
+                    let page_width_px = renderer.converter.spaces_to_px(renderer.width) / scale_f32;
+                    let page_height_px = renderer.converter.spaces_to_px(renderer.height) / scale_f32;
                     let scaled_page_width = page_width_px * zoom;
                     let scaled_page_height = page_height_px * zoom;
 
