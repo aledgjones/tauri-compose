@@ -278,7 +278,7 @@ pub fn run() {
             // File Menu
             let new = MenuItem::with_id(app, "new", "New", true, None::<&str>)?;
             let open = MenuItem::with_id(app, "open", "Open...", true, None::<&str>)?;
-            let open_recents = Submenu::with_id(app, "open_recents", "Open Recents", true)?;
+            let open_recent = Submenu::with_id(app, "open_recent", "Open Recent", true)?;
             let save = MenuItem::with_id(app, "save", "Save", false, None::<&str>)?;
             let save_as = MenuItem::with_id(app, "save_as", "Save As...", true, None::<&str>)?;
 
@@ -287,7 +287,7 @@ pub fn run() {
                 "file_menu",
                 "File",
                 true,
-                &[&new, &open, &open_recents, &separator, &save, &save_as],
+                &[&new, &open, &open_recent, &separator, &save, &save_as],
             )?;
 
             // Create main menu with app menu first, then File menu
