@@ -520,7 +520,10 @@ impl NotationTrack {
             match entry {
                 Entry::Tone(tone) => {
                     split_points.insert(tone.tick);
-                    split_points.insert(tone.tick + tone.duration);
+                    let end_tick = tone.tick + tone.duration;
+                    if end_tick < self.length {
+                        split_points.insert(end_tick);
+                    }
                 }
                 Entry::Barline(barline) => {
                     split_points.insert(barline.tick);
