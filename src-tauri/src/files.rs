@@ -314,16 +314,16 @@ pub fn update_recent_files_menu(app: &AppHandle) -> Result<(), String> {
         .ok_or("File menu not found")?;
 
     // Get the Open Recents submenu
-    let open_recents_item = file_menu
-        .get("open_recents")
+    let recent_items = file_menu
+        .get("open_recent")
         .ok_or("Open Recents menu not found")?;
 
-    let open_recents = open_recents_item.as_submenu_unchecked();
+    let recents = recent_items.as_submenu_unchecked();
 
     // Remove all existing items
-    let items = open_recents.items().map_err(|e| e.to_string())?;
+    let items = recents.items().map_err(|e| e.to_string())?;
     for item in items {
-        let _ = open_recents.remove(&item);
+        recents.remove(&item).ok();
     }
 
     // Get recent files from store
@@ -347,7 +347,7 @@ pub fn update_recent_files_menu(app: &AppHandle) -> Result<(), String> {
             None::<&str>,
         )
         .map_err(|e| e.to_string())?;
-        open_recents.append(&no_items).map_err(|e| e.to_string())?;
+        recents.append(&no_items).map_err(|e| e.to_string())?;
     } else {
         for (i, file_path) in recent_files.iter().enumerate() {
             // Extract just the filename for display
@@ -362,13 +362,13 @@ pub fn update_recent_files_menu(app: &AppHandle) -> Result<(), String> {
             let item = MenuItem::with_id(app, &menu_id, file_name, true, None::<&str>)
                 .map_err(|e| e.to_string())?;
 
-            open_recents.append(&item).map_err(|e| e.to_string())?;
+            recents.append(&item).map_err(|e| e.to_string())?;
         }
 
         // Add separator and "Clear Recent Files" option
         use tauri::menu::PredefinedMenuItem;
         let separator = PredefinedMenuItem::separator(app).map_err(|e| e.to_string())?;
-        open_recents.append(&separator).map_err(|e| e.to_string())?;
+        recents.append(&separator).map_err(|e| e.to_string())?;
 
         let clear_item = MenuItem::with_id(
             app,
@@ -379,9 +379,7 @@ pub fn update_recent_files_menu(app: &AppHandle) -> Result<(), String> {
         )
         .map_err(|e| e.to_string())?;
 
-        open_recents
-            .append(&clear_item)
-            .map_err(|e| e.to_string())?;
+        recents.append(&clear_item).map_err(|e| e.to_string())?;
     }
 
     Ok(())
