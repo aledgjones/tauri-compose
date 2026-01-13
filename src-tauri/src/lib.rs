@@ -1,3 +1,4 @@
+mod files;
 mod migrations;
 mod native_renderer;
 mod render;
@@ -6,7 +7,11 @@ mod sampler;
 mod score;
 mod ui;
 mod utils;
-
+use files::{
+    add_recent_file, clear_recent_files, get_current_file_path, get_recent_files,
+    load_project_from_file, refresh_menus, save_project_to_file, set_current_file_path,
+    update_recent_files_menu,
+};
 use lazy_static::lazy_static;
 use render::generate_render_instructions;
 use renderer::Renderer;
@@ -37,7 +42,6 @@ use score::entries::tone::{
     score_entries_tone_duration_set, score_entries_tone_pitch_set,
     score_entries_tone_set_position_and_duration, score_entries_tone_slice,
 };
-use score::files::{load_project_from_file, save_project_to_file};
 use score::flows::{
     score_flows_assign_player, score_flows_create, score_flows_move, score_flows_remove,
     score_flows_rename, score_flows_unassign_player,
@@ -97,7 +101,7 @@ lazy_static! {
 struct AppStateGeneral {
     ui: Ui,
     score: Score,
-    next_id: UniqueId,
+    current_file_path: Option<String>,
 }
 
 #[derive(Clone)]
@@ -106,6 +110,7 @@ struct AppStateInner {
     score: Score,
     sampler: Sampler,
     next_id: UniqueId,
+    current_file_path: Option<String>,
 }
 
 impl AppStateInner {
@@ -115,6 +120,7 @@ impl AppStateInner {
             score: Score::new(),
             sampler: Sampler::default(),
             next_id: 1,
+            current_file_path: None,
         })
     }
 
@@ -160,7 +166,7 @@ impl AppStateInner {
         let general_state = AppStateGeneral {
             ui: self.ui.clone(),
             score: self.score.clone(),
-            next_id: self.next_id,
+            current_file_path: self.current_file_path.clone(),
         };
 
         if let Err(e) = app.emit("soloc://state/general", general_state) {
@@ -272,10 +278,17 @@ pub fn run() {
             // File Menu
             let new = MenuItem::with_id(app, "new", "New", true, None::<&str>)?;
             let open = MenuItem::with_id(app, "open", "Open...", true, None::<&str>)?;
+            let open_recents = Submenu::with_id(app, "open_recents", "Open Recents", true)?;
+            let save = MenuItem::with_id(app, "save", "Save", false, None::<&str>)?;
             let save_as = MenuItem::with_id(app, "save_as", "Save As...", true, None::<&str>)?;
 
-            let file_menu =
-                Submenu::with_items(app, "File", true, &[&new, &open, &separator, &save_as])?;
+            let file_menu = Submenu::with_id_and_items(
+                app,
+                "file_menu",
+                "File",
+                true,
+                &[&new, &open, &open_recents, &separator, &save, &save_as],
+            )?;
 
             // Create main menu with app menu first, then File menu
             let menu = Menu::with_items(app, &[&app_menu, &file_menu])?;
@@ -285,18 +298,41 @@ pub fn run() {
 
             // Handle menu events
             app.on_menu_event(move |app, event| {
-                match event.id().as_ref() {
+                let event_id = event.id().as_ref();
+                match event_id {
                     "new" => {
                         // Trigger new project action
                         let _ = app.emit("soloc://menu/new", ());
                     }
-                    "save_as" => {
+                    "save" => {
                         // Trigger save project action
+                        let _ = app.emit("soloc://menu/save", ());
+                    }
+                    "save_as" => {
+                        // Trigger save as project action
                         let _ = app.emit("soloc://menu/save-as", ());
                     }
                     "open" => {
                         // Trigger open project action
                         let _ = app.emit("soloc://menu/open", ());
+                    }
+                    "clear_recent_files" => {
+                        // Clear recent files
+                        let _ = clear_recent_files(app.clone());
+                    }
+                    id if id.starts_with("recent_") => {
+                        // Get the index from the menu item ID
+                        if let Some(index_str) = id.strip_prefix("recent_") {
+                            if let Ok(index) = index_str.parse::<usize>() {
+                                // Get the recent files and emit the path at the index
+                                if let Ok(recent_files) = get_recent_files(app.clone()) {
+                                    if let Some(file_path) = recent_files.get(index) {
+                                        let _ =
+                                            app.emit("soloc://menu/open-recent", file_path.clone());
+                                    }
+                                }
+                            }
+                        }
                     }
                     _ => {}
                 }
@@ -304,6 +340,10 @@ pub fn run() {
 
             app.manage(AppStateInner::new());
             app.manage(Mutex::new(Renderer::new()));
+
+            // Initialize the recent files menu
+            let _ = update_recent_files_menu(app.app_handle());
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -311,6 +351,12 @@ pub fn run() {
             reset,
             save_project_to_file,
             load_project_from_file,
+            get_current_file_path,
+            set_current_file_path,
+            add_recent_file,
+            get_recent_files,
+            clear_recent_files,
+            refresh_menus,
             score_config_auto_count_styles_solo_set,
             score_config_auto_count_styles_section_set,
             score_engraves_bracketing_approach_set,
@@ -410,6 +456,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_store::Builder::new().build())
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

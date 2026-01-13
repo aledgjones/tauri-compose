@@ -1,5 +1,4 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { useAppState } from "../../services/state";
 import { useEffect, useMemo, useState } from "react";
 import { AppBar } from "../../components/app-bar";
 import { emit } from "@tauri-apps/api/event";
@@ -112,7 +111,6 @@ const calculateColumns = (
 };
 
 export const Main = () => {
-  const state = useAppState();
   const [instruments, setInstruments] = useState<InstrumentDefinition[]>([]);
   const [selection, setSelection] = useState<InstrumentDefinition>({
     id: "brass.bass-trombone",
@@ -149,11 +147,7 @@ export const Main = () => {
 
   return (
     <div className="h-dvh bg-neutral-950 grid grid-rows-[28px_1fr_36px] grid-cols-[1fr_1fr_1fr] gap-0.5 p-0.75 overflow-hidden">
-      <AppBar
-        className="col-span-3"
-        title="Instrument Picker"
-        filename={state.score.meta.title}
-      />
+      <AppBar className="col-span-3" title="Instrument Picker" />
       {columns.map((column, i) => (
         <InstrumentColumn
           key={column[0] ?? `empty-${i}`}

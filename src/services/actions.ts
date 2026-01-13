@@ -135,7 +135,9 @@ export const actions = {
     },
     renderer: {
       setZoom: (zoom: number) => {
-        return invoke<[number, number, number]>("ui_renderer_zoom_set", { zoom });
+        return invoke<[number, number, number]>("ui_renderer_zoom_set", {
+          zoom,
+        });
       },
       setPan: (x: number, y: number) => {
         return invoke<[number, number]>("ui_renderer_pan_set", { x, y });
@@ -635,8 +637,30 @@ export const actions = {
       },
     },
   },
-  save: {
-    project: async () => {
+  file: {
+    save: async () => {
+      const currentFilePath = await invoke<string | null>(
+        "get_current_file_path",
+      );
+
+      if (!currentFilePath) {
+        // No current file, fall back to save as
+        return actions.file.saveAs();
+      }
+
+      console.log("Saving project to:", currentFilePath);
+
+      await invoke("save_project_to_file", {
+        file_path: currentFilePath,
+      });
+
+      // Add to recent files
+      await invoke("add_recent_file", {
+        file_path: currentFilePath,
+      });
+    },
+    // Save As (always prompt for location)
+    saveAs: async () => {
       // Show save dialog
       const filePath = await save({
         title: "Save Project",
@@ -655,13 +679,16 @@ export const actions = {
 
       console.log("Saving project to:", filePath);
 
-      return invoke("save_project_to_file", {
+      await invoke("save_project_to_file", {
+        file_path: filePath,
+      });
+
+      // Add to recent files
+      await invoke("add_recent_file", {
         file_path: filePath,
       });
     },
-  },
-  load: {
-    project: async () => {
+    load: async () => {
       // Show open dialog
       const filePath = await open({
         title: "Open Project",
@@ -679,9 +706,31 @@ export const actions = {
 
       console.log("Loading project from:", filePath);
 
-      return invoke("load_project_from_file", {
+      await invoke("load_project_from_file", {
         file_path: filePath,
       });
+
+      // Add to recent files
+      await invoke("add_recent_file", {
+        file_path: filePath,
+      });
+    },
+    // Load a project from a specific file path (used by recents menu)
+    loadFromPath: async (filePath: string) => {
+      console.log("Loading project from:", filePath);
+
+      await invoke("load_project_from_file", {
+        file_path: filePath,
+      });
+
+      console.log("Adding to recent files:", filePath);
+
+      // Add to recent files (moves it to the top)
+      await invoke("add_recent_file", {
+        file_path: filePath,
+      });
+
+      console.log("Recent file added successfully");
     },
   },
 };

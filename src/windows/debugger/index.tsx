@@ -169,7 +169,7 @@ export const Main = () => {
 
   return (
     <div className="h-dvh bg-neutral-950 grid grid-rows-[28px_auto_auto_1fr_2fr] gap-2 overflow-hidden">
-      <AppBar title="Debugger" filename={state.score.meta.title} />
+      <AppBar title="Debugger" />
 
       <div className="bg-neutral-900 p-2 mx-2">
         <div
@@ -580,7 +580,6 @@ export const Main = () => {
             ui: state.ui,
             score: state.score,
             sampler: samplerState,
-            next_id: state.next_id,
           }}
           theme={
             {

@@ -1,4 +1,5 @@
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
+import { invoke } from "@tauri-apps/api/core";
 import {
   Align,
   AppState,
@@ -26,6 +27,7 @@ import {
 } from "react";
 
 export const initialAppState: AppState = {
+  current_file_path: null,
   ui: {
     tab: Tab.Setup,
     layout_id: 0,
@@ -151,7 +153,6 @@ export const initialAppState: AppState = {
       created: Date.now(),
     },
   },
-  next_id: 0,
 };
 
 export const AppContext = createContext<AppState | null>(null);
@@ -172,9 +173,12 @@ export const AppStateProvider: FC<Props> = ({
   useEffect(() => {
     let unlistenApp: UnlistenFn | null = null;
     let unlistenSampler: UnlistenFn | null = null;
+    let unlistenMenuSave: UnlistenFn | null = null;
     let unlistenMenuSaveAs: UnlistenFn | null = null;
     let unlistenMenuOpen: UnlistenFn | null = null;
+    let unlistenMenuOpenRecent: UnlistenFn | null = null;
     let unlistenMenuNew: UnlistenFn | null = null;
+    let unlistenRecentsChanged: UnlistenFn | null = null;
 
     (async () => {
       unlistenApp = await listen<AppState>("soloc://state/general", (e) => {
@@ -186,28 +190,54 @@ export const AppStateProvider: FC<Props> = ({
       });
 
       if (isMainWindow) {
+        unlistenMenuSave = await listen("soloc://menu/save", () => {
+          actions.file.save().catch(console.error);
+        });
+
         unlistenMenuSaveAs = await listen("soloc://menu/save-as", () => {
-          actions.save.project().catch(console.error);
+          actions.file.saveAs().catch(console.error);
         });
 
         unlistenMenuOpen = await listen("soloc://menu/open", () => {
-          actions.load.project().catch(console.error);
+          actions.file.load().catch(console.error);
         });
+
+        unlistenMenuOpenRecent = await listen<string>(
+          "soloc://menu/open-recent",
+          (e) => {
+            actions.file.loadFromPath(e.payload).catch(console.error);
+          },
+        );
 
         unlistenMenuNew = await listen("soloc://menu/new", () => {
           actions.reset().catch(console.error);
         });
+
+        // Listen for recents changes and refresh menus
+        unlistenRecentsChanged = await listen("soloc://recents-changed", () => {
+          invoke("refresh_menus").catch(console.error);
+        });
       }
 
       await actions.initialize();
+
+      // Initial menu refresh after initialization - delay to ensure menu is ready
+      if (isMainWindow) {
+        setTimeout(() => {
+          invoke("refresh_menus").catch(console.error);
+        }, 100);
+      }
     })();
 
     return () => {
       unlistenApp?.();
       unlistenSampler?.();
+      unlistenMenuSave?.();
       unlistenMenuSaveAs?.();
       unlistenMenuOpen?.();
+      unlistenMenuOpenRecent?.();
       unlistenMenuNew?.();
+      unlistenRecentsChanged?.();
     };
   }, [isMainWindow]);
 

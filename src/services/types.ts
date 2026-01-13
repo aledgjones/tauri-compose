@@ -377,5 +377,5 @@ export type AppState = {
     layouts: Layouts;
     engraves: Engraves;
   };
-  next_id: UniqueId;
+  current_file_path: string | null;
 };

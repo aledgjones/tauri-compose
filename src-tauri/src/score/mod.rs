@@ -2,7 +2,6 @@ pub mod components;
 pub mod config;
 pub mod engraves;
 pub mod entries;
-pub mod files;
 pub mod flows;
 pub mod instruments;
 pub mod layouts;

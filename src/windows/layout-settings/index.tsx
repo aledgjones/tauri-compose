@@ -1,5 +1,4 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { useAppState } from "../../services/state";
 import { FC, useEffect, useState } from "react";
 import { AppBar } from "../../components/app-bar";
 import { Menu, MenuItem } from "../../ui/menu";
@@ -72,7 +71,6 @@ const screens = new Map([
 ]);
 
 export const Main = () => {
-  const state = useAppState();
   const [selection, setSelection] = useState(MenuOption.Barlines);
 
   const Content: FC<{ layoutType: LayoutType }> =
@@ -89,11 +87,7 @@ export const Main = () => {
 
   return (
     <div className="h-dvh bg-neutral-950 grid grid-rows-[28px_1fr] grid-cols-[240px_1fr] overflow-hidden gap-0.5 p-0.75">
-      <AppBar
-        className="col-span-2"
-        title="Layout Settings"
-        filename={state.score.meta.title}
-      />
+      <AppBar className="col-span-2" title="Layout Settings" />
       <div className="overflow-auto rounded-bl-xl">
         <Menu selection={selection} items={options} onSelect={setSelection} />
       </div>
