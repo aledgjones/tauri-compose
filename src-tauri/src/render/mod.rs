@@ -601,8 +601,11 @@ fn draw_debug_slots(
     // Draw slot bars as vertical translucent overlays
     for tick in 0..=flow_length {
         for (i, &slot) in slots.iter().enumerate() {
+            if slot == Slot::NoteSpacing {
+                continue;
+            }
             let span = horizontal_spacing.get(tick, slot);
-            if span.width > 0.0 && slot != Slot::NoteSpacing {
+            if span.width > 0.0 {
                 let color = slot_colors[i];
                 renderer.rectangle(
                     stave_left + span.x,

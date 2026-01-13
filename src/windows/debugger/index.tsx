@@ -542,28 +542,6 @@ export const Main = () => {
             </div>
           </div>
         )}
-
-        <div className="px-2 py-1 bg-neutral-800">
-          <div className="flex items-center">
-            <span className="text-sm font-bold text-neutral-200 flex-1">
-              📊 Total Render Time
-            </span>
-            <span
-              className={classNames("text-sm font-mono font-bold text-right", {
-                "text-red-400":
-                  Object.values(renderTimings).reduce((a, b) => a + b, 0) > 50,
-                "text-yellow-400":
-                  Object.values(renderTimings).reduce((a, b) => a + b, 0) >
-                    20 &&
-                  Object.values(renderTimings).reduce((a, b) => a + b, 0) <= 50,
-                "text-green-400":
-                  Object.values(renderTimings).reduce((a, b) => a + b, 0) <= 20,
-              })}
-            >
-              {Object.values(renderTimings).reduce((a, b) => a + b, 0)}ms
-            </span>
-          </div>
-        </div>
       </div>
 
       <div className="bg-neutral-900 p-2 mx-2 flex items-center">
