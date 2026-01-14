@@ -3,7 +3,7 @@ import { FC, useRef, useEffect } from "react";
 import { actions } from "../../../services/actions";
 import { useAppState } from "../../../services/state";
 import { pxPerMm } from "../../../utils/mm";
-import { useToneKeyboardShortcuts } from "../hooks/use-tone-keyboard-shortcuts";
+import { useKeyboardShortcuts } from "../hooks/use-tone-keyboard-shortcuts";
 
 type Props = { className?: string };
 
@@ -12,7 +12,7 @@ export const Renderer: FC<Props> = ({ className }) => {
   const state = useAppState();
 
   // Tone keyboard shortcuts
-  useToneKeyboardShortcuts();
+  useKeyboardShortcuts();
 
   // Use refs to track current pan/zoom without triggering re-renders
   const panXRef = useRef(state.ui.renderer.pan_x);

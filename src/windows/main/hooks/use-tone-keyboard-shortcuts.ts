@@ -2,7 +2,7 @@ import { useEffect, useMemo } from "react";
 import { useAppState } from "../../../services/state";
 import { SelectionType } from "../../../services/types";
 
-export const useToneKeyboardShortcuts = () => {
+export const useKeyboardShortcuts = () => {
   const state = useAppState();
 
   const selection = useMemo(() => {
