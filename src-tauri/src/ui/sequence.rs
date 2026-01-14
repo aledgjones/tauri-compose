@@ -43,7 +43,8 @@ pub fn ui_sequence_bottom_panel_minimized_toggle(
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
 
-    state.ui.sequence.bottom_panel_minimized = !state.ui.sequence.bottom_panel_minimized;
+    state.ui.screens.sequence.bottom_panel_minimized =
+        !state.ui.screens.sequence.bottom_panel_minimized;
 
     state.emit(&app, &mut renderer, false);
 }
@@ -58,7 +59,7 @@ pub fn ui_sequence_bottom_panel_tab_set(
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
 
-    state.ui.sequence.bottom_panel_tab = tab;
+    state.ui.screens.sequence.bottom_panel_tab = tab;
 
     state.emit(&app, &mut renderer, false);
 }

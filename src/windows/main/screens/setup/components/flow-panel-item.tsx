@@ -14,7 +14,7 @@ const assignableSet = new Set<SelectionType | undefined>([
 ]);
 
 const getIsAssigned = (state: AppState, flowId: number) => {
-  const selection = state.ui.setup.selection;
+  const selection = state.ui.screens.setup.selection;
 
   if (selection?.selection_type === SelectionType.Player) {
     return state.score.flows.by_id[flowId].player_ids.includes(selection.id);
@@ -39,10 +39,10 @@ export const FlowPanelItem: FC<Props> = ({ flow, index }) => {
   const [savedValue, setSavedValue] = useState(flow.title);
   const [editing, setEditing] = useState(false);
 
-  const isSelected = state.ui.setup.selection?.id === flow.id;
+  const isSelected = state.ui.screens.setup.selection?.id === flow.id;
   const isAssigned = getIsAssigned(state, flow.id);
   const isAssignable = assignableSet.has(
-    state.ui.setup.selection?.selection_type,
+    state.ui.screens.setup.selection?.selection_type,
   );
 
   const fg = isSelected ? "text-black" : "text-white";
@@ -96,44 +96,44 @@ export const FlowPanelItem: FC<Props> = ({ flow, index }) => {
 
   const onToggleAssigned = useCallback(
     async (checked: boolean) => {
-      if (!state.ui.setup.selection) {
+      if (!state.ui.screens.setup.selection) {
         return;
       }
 
-      if (state.ui.setup.selection.selection_type === SelectionType.Player) {
+      if (state.ui.screens.setup.selection.selection_type === SelectionType.Player) {
         if (checked) {
           await actions.score.flow.assignPlayer(
             flow.id,
-            state.ui.setup.selection.id,
+            state.ui.screens.setup.selection.id,
           );
         } else {
           await actions.score.flow.unassignPlayer(
             flow.id,
-            state.ui.setup.selection.id,
+            state.ui.screens.setup.selection.id,
           );
         }
       }
 
-      if (state.ui.setup.selection.selection_type === SelectionType.Layout) {
+      if (state.ui.screens.setup.selection.selection_type === SelectionType.Layout) {
         if (checked) {
           await actions.score.layout.assignFlow(
-            state.ui.setup.selection.id,
+            state.ui.screens.setup.selection.id,
             flow.id,
           );
         } else {
           await actions.score.layout.unassignFlow(
-            state.ui.setup.selection.id,
+            state.ui.screens.setup.selection.id,
             flow.id,
           );
         }
       }
     },
-    [state.ui.setup.selection, flow.id],
+    [state.ui.screens.setup.selection, flow.id],
   );
 
   const onSelect = useCallback(() => {
     if (!isSelected) {
-      actions.ui.setup.select(SelectionType.Flow, flow.id);
+      actions.ui.screens.setup.select(SelectionType.Flow, flow.id);
     }
   }, [flow.id, isSelected]);
 

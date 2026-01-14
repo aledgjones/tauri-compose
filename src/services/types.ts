@@ -336,17 +336,13 @@ export type AppState = {
   ui: {
     tab: Tab;
     layout_id: UniqueId;
-    setup: {
-      selection: { id: UniqueId; selection_type: SelectionType } | null;
-      expanded: UniqueId[];
-    };
-    write: {
-      bottom_panel_minimized: boolean;
-      bottom_panel_tab: BottomPanelTab;
-    };
-    sequence: {
-      bottom_panel_minimized: boolean;
-      bottom_panel_tab: BottomPanelTab;
+    renderer: {
+      zoom: number;
+      pxPerMm: number;
+      pan_x: number;
+      pan_y: number;
+      bounds: { x: number; y: number; width: number; height: number };
+      debug_rendering: boolean;
     };
     sequencer: {
       x: number;
@@ -358,13 +354,19 @@ export type AppState = {
       track: UniqueId | null;
       selection: { id: UniqueId; selection_type: SelectionType } | null;
     };
-    renderer: {
-      zoom: number;
-      pxPerMm: number;
-      pan_x: number;
-      pan_y: number;
-      bounds: { x: number; y: number; width: number; height: number };
-      debug_rendering: boolean;
+    screens: {
+      setup: {
+        selection: { id: UniqueId; selection_type: SelectionType } | null;
+        expanded: UniqueId[];
+      };
+      write: {
+        bottom_panel_minimized: boolean;
+        bottom_panel_tab: BottomPanelTab;
+      };
+      sequence: {
+        bottom_panel_minimized: boolean;
+        bottom_panel_tab: BottomPanelTab;
+      };
     };
   };
   score: {

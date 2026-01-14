@@ -10,7 +10,7 @@ import { SelectedToneInfoDisplay } from "../../components/selected-tone-info-dis
 
 export const Write = () => {
   const state = useAppState();
-  const minimized = state.ui.write.bottom_panel_minimized;
+  const minimized = state.ui.screens.write.bottom_panel_minimized;
   const gridTemplateRows = minimized ? "1fr" : "3fr 2fr";
 
   return (
@@ -33,7 +33,7 @@ export const Write = () => {
         <SelectedToneInfoDisplay />
 
         <button
-          onClick={() => actions.ui.write.bottomPanel.toggle()}
+          onClick={() => actions.ui.screens.write.bottomPanel.toggle()}
           className="h-full flex-1 flex items-center justify-center w-full text-white  hover:bg-neutral-800 bg-neutral-900"
         >
           <MdiIcon size={1} path={minimized ? mdiChevronUp : mdiChevronDown} />

@@ -27,14 +27,29 @@ pub enum Tab {
 }
 
 #[derive(Serialize, Deserialize, Clone)]
-pub struct Ui {
-    tab: Tab,
-    pub layout_id: UniqueId,
+pub struct Screens {
     pub setup: Setup,
     pub write: Write,
     pub sequence: Sequence,
-    pub sequencer: Sequencer,
+}
+
+impl Screens {
+    pub fn new() -> Self {
+        Self {
+            setup: Setup::new(),
+            write: Write::new(),
+            sequence: Sequence::new(),
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct Ui {
+    tab: Tab,
+    pub layout_id: UniqueId,
     pub renderer: Renderer,
+    pub sequencer: Sequencer,
+    pub screens: Screens,
 }
 
 impl Ui {
@@ -42,11 +57,9 @@ impl Ui {
         Self {
             tab: Tab::Setup,
             layout_id: 0,
-            setup: Setup::new(),
-            write: Write::new(),
-            sequence: Sequence::new(),
-            sequencer: Sequencer::new(),
             renderer: Renderer::new(),
+            sequencer: Sequencer::new(),
+            screens: Screens::new(),
         }
     }
 }

@@ -11,7 +11,7 @@ import "./flow-panel.css";
 
 const onAddFlowPress = async () => {
   const flowId = await actions.score.flow.create();
-  await actions.ui.setup.select(SelectionType.Flow, flowId);
+  await actions.ui.screens.setup.select(SelectionType.Flow, flowId);
 };
 
 export const FlowPanel = () => {

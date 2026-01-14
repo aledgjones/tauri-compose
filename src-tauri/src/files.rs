@@ -49,7 +49,7 @@ pub fn save_project_to_file(
 ) -> Result<(), String> {
     let mut state = state.lock().unwrap();
 
-    state.ui.setup.selection = None;
+    state.ui.screens.setup.selection = None;
     state.ui.sequencer.selection = None;
 
     // Create the project data structure from the current app state

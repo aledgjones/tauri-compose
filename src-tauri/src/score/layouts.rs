@@ -218,8 +218,8 @@ pub fn score_layouts_remove(
     state.score.layouts.order.retain(|id| *id != layout_id);
     state.score.layouts.by_id.remove(&layout_id);
 
-    state.ui.setup.expanded.remove(&layout_id);
-    state.ui.setup.selection = None;
+    state.ui.screens.setup.expanded.remove(&layout_id);
+    state.ui.screens.setup.selection = None;
 
     state.emit(&app, &mut renderer, true);
 }

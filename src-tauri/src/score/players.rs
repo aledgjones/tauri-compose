@@ -171,8 +171,8 @@ pub fn score_players_remove(
     state.score.players.by_id.remove(&player_id);
 
     // cleanup ui state
-    state.ui.setup.expanded.remove(&player_id);
-    state.ui.setup.selection = None;
+    state.ui.screens.setup.expanded.remove(&player_id);
+    state.ui.screens.setup.selection = None;
 
     // remove player from layouts and remove any empty parts
     for layout_id in state.score.layouts.order.clone() {

@@ -32,11 +32,11 @@ const assignableSet = new Set<SelectionType | undefined>([
 ]);
 
 const getIsAssignable = (state: AppState) => {
-  return assignableSet.has(state.ui.setup.selection?.selection_type);
+  return assignableSet.has(state.ui.screens.setup.selection?.selection_type);
 };
 
 const getIsAssigned = (state: AppState, layoutId: number) => {
-  const selection = state.ui.setup.selection;
+  const selection = state.ui.screens.setup.selection;
 
   if (selection?.selection_type === SelectionType.Player) {
     return state.score.layouts.by_id[layoutId].player_ids.includes(
@@ -59,7 +59,7 @@ export const LayoutPanelItem: FC<Props> = ({ layout }) => {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const state = useAppState();
-  const isSelected = state.ui.setup.selection?.id === layout.id;
+  const isSelected = state.ui.screens.setup.selection?.id === layout.id;
   const isAssigned = getIsAssigned(state, layout.id);
   const isAssignable = getIsAssignable(state);
   const [savedValue, setSavedValue] = useState(layout.title);
@@ -122,7 +122,7 @@ export const LayoutPanelItem: FC<Props> = ({ layout }) => {
 
   const onAssignmentChange = useCallback(
     async (checked: boolean) => {
-      const selection = state.ui.setup.selection;
+      const selection = state.ui.screens.setup.selection;
 
       if (!selection) {
         return;
@@ -144,7 +144,7 @@ export const LayoutPanelItem: FC<Props> = ({ layout }) => {
         }
       }
     },
-    [layout.id, state.ui.setup.selection],
+    [layout.id, state.ui.screens.setup.selection],
   );
 
   const onBlockPointerDown = useCallback((e: PointerEvent<HTMLDivElement>) => {
@@ -153,7 +153,7 @@ export const LayoutPanelItem: FC<Props> = ({ layout }) => {
 
   const onSelect = useCallback(() => {
     if (!isSelected) {
-      actions.ui.setup.select(SelectionType.Layout, layout.id);
+      actions.ui.screens.setup.select(SelectionType.Layout, layout.id);
     }
   }, [isSelected, layout.id]);
 

@@ -35,11 +35,11 @@ const assignableSet = new Set<SelectionType | undefined>([
 ]);
 
 const getIsAssignable = (state: AppState) => {
-  return assignableSet.has(state.ui.setup.selection?.selection_type);
+  return assignableSet.has(state.ui.screens.setup.selection?.selection_type);
 };
 
 const getIsAssigned = (state: AppState, playerId: number) => {
-  const selection = state.ui.setup.selection;
+  const selection = state.ui.screens.setup.selection;
 
   if (selection?.selection_type === SelectionType.Flow) {
     return state.score.flows.by_id[selection.id].player_ids.includes(playerId);
@@ -61,8 +61,8 @@ type Props = {
 export const PlayerPanelItem: FC<Props> = ({ player }) => {
   const state = useAppState();
 
-  const isExpanded = state.ui.setup.expanded.includes(player.id);
-  const isSelected = state.ui.setup.selection?.id === player.id;
+  const isExpanded = state.ui.screens.setup.expanded.includes(player.id);
+  const isSelected = state.ui.screens.setup.selection?.id === player.id;
   const isAssigned = getIsAssigned(state, player.id);
   const isAssignable = getIsAssignable(state);
   const isInstrumentAssignable =
@@ -106,7 +106,7 @@ export const PlayerPanelItem: FC<Props> = ({ player }) => {
 
   const onAssignmentChange = useCallback(
     async (checked: boolean) => {
-      const selection = state.ui.setup.selection;
+      const selection = state.ui.screens.setup.selection;
 
       if (!selection) {
         return;
@@ -128,7 +128,7 @@ export const PlayerPanelItem: FC<Props> = ({ player }) => {
         }
       }
     },
-    [player.id, state.ui.setup.selection],
+    [player.id, state.ui.screens.setup.selection],
   );
 
   useEffect(() => {
@@ -160,7 +160,7 @@ export const PlayerPanelItem: FC<Props> = ({ player }) => {
             parseInt(e.from.dataset.playerId),
             parseInt(e.to.dataset.playerId),
           );
-          await actions.ui.setup.select(SelectionType.Player, player.id);
+          await actions.ui.screens.setup.select(SelectionType.Player, player.id);
         }
       },
     });
@@ -184,9 +184,9 @@ export const PlayerPanelItem: FC<Props> = ({ player }) => {
 
   const onToggleExpand = useCallback(async () => {
     if (isExpanded) {
-      await actions.ui.setup.collapse(player.id);
+      await actions.ui.screens.setup.collapse(player.id);
     } else {
-      await actions.ui.setup.expand(player.id);
+      await actions.ui.screens.setup.expand(player.id);
     }
   }, [isExpanded, player.id]);
 
@@ -196,7 +196,7 @@ export const PlayerPanelItem: FC<Props> = ({ player }) => {
 
   const onSelect = useCallback(() => {
     if (!isSelected) {
-      actions.ui.setup.select(SelectionType.Player, player.id);
+      actions.ui.screens.setup.select(SelectionType.Player, player.id);
     }
   }, [isSelected, player.id]);
 

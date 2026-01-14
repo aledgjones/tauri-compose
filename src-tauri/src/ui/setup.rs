@@ -51,7 +51,7 @@ pub fn ui_setup_selection_set(
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
 
-    state.ui.setup.selection = Some(Selection { id, selection_type });
+    state.ui.screens.setup.selection = Some(Selection { id, selection_type });
 
     state.emit(&app, &mut renderer, false);
 }
@@ -65,7 +65,7 @@ pub fn ui_setup_selection_clear(
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
 
-    state.ui.setup.selection = None;
+    state.ui.screens.setup.selection = None;
 
     state.emit(&app, &mut renderer, false);
 }
@@ -80,7 +80,7 @@ pub fn ui_setup_expanded_insert(
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
 
-    state.ui.setup.expanded.insert(id);
+    state.ui.screens.setup.expanded.insert(id);
 
     state.emit(&app, &mut renderer, false);
 }
@@ -95,7 +95,7 @@ pub fn ui_setup_expanded_remove(
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
 
-    state.ui.setup.expanded.remove(&id);
+    state.ui.screens.setup.expanded.remove(&id);
 
     state.emit(&app, &mut renderer, false);
 }

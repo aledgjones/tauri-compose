@@ -76,38 +76,28 @@ export const actions = {
     setActiveLayoutId: (layout_id: number) => {
       return invoke("ui_layout_id_set", { layout_id });
     },
-    setup: {
-      select: (selection_type: SelectionType, id: number) => {
-        return invoke("ui_setup_selection_set", { selection_type, id });
+    renderer: {
+      setZoom: (zoom: number) => {
+        return invoke<[number, number, number]>("ui_renderer_zoom_set", {
+          zoom,
+        });
       },
-      clearSelection: () => {
-        return invoke("ui_setup_selection_clear");
+      setPan: (x: number, y: number) => {
+        return invoke<[number, number]>("ui_renderer_pan_set", { x, y });
       },
-      expand: (id: number) => {
-        return invoke("ui_setup_expanded_insert", { id });
-      },
-      collapse: (id: number) => {
-        return invoke("ui_setup_expanded_remove", { id });
-      },
-    },
-    write: {
-      bottomPanel: {
-        toggle: () => {
-          return invoke("ui_write_bottom_panel_minimized_toggle");
+      setBounds: (
+        px_per_mm: number,
+        bounds: {
+          x: number;
+          y: number;
+          width: number;
+          height: number;
         },
-        setTab: (tab: BottomPanelTab) => {
-          return invoke("ui_write_bottom_panel_tab_set", { tab });
-        },
+      ) => {
+        return invoke("ui_renderer_bounds_set", { bounds, px_per_mm });
       },
-    },
-    sequence: {
-      bottomPanel: {
-        toggle: () => {
-          return invoke("ui_sequence_bottom_panel_minimized_toggle");
-        },
-        setTab: (tab: BottomPanelTab) => {
-          return invoke("ui_sequence_bottom_panel_tab_set", { tab });
-        },
+      toggleDebugRendering: () => {
+        return invoke("ui_renderer_debug_rendering_toggle");
       },
     },
     sequencer: {
@@ -133,28 +123,40 @@ export const actions = {
         return invoke("ui_sequencer_selection_clear");
       },
     },
-    renderer: {
-      setZoom: (zoom: number) => {
-        return invoke<[number, number, number]>("ui_renderer_zoom_set", {
-          zoom,
-        });
-      },
-      setPan: (x: number, y: number) => {
-        return invoke<[number, number]>("ui_renderer_pan_set", { x, y });
-      },
-      setBounds: (
-        px_per_mm: number,
-        bounds: {
-          x: number;
-          y: number;
-          width: number;
-          height: number;
+    screens: {
+      setup: {
+        select: (selection_type: SelectionType, id: number) => {
+          return invoke("ui_setup_selection_set", { selection_type, id });
         },
-      ) => {
-        return invoke("ui_renderer_bounds_set", { bounds, px_per_mm });
+        clearSelection: () => {
+          return invoke("ui_setup_selection_clear");
+        },
+        expand: (id: number) => {
+          return invoke("ui_setup_expanded_insert", { id });
+        },
+        collapse: (id: number) => {
+          return invoke("ui_setup_expanded_remove", { id });
+        },
       },
-      toggleDebugRendering: () => {
-        return invoke("ui_renderer_debug_rendering_toggle");
+      write: {
+        bottomPanel: {
+          toggle: () => {
+            return invoke("ui_write_bottom_panel_minimized_toggle");
+          },
+          setTab: (tab: BottomPanelTab) => {
+            return invoke("ui_write_bottom_panel_tab_set", { tab });
+          },
+        },
+      },
+      sequence: {
+        bottomPanel: {
+          toggle: () => {
+            return invoke("ui_sequence_bottom_panel_minimized_toggle");
+          },
+          setTab: (tab: BottomPanelTab) => {
+            return invoke("ui_sequence_bottom_panel_tab_set", { tab });
+          },
+        },
       },
     },
   },

@@ -31,14 +31,13 @@ export const initialAppState: AppState = {
   ui: {
     tab: Tab.Setup,
     layout_id: 0,
-    setup: { selection: null, expanded: [] },
-    write: {
-      bottom_panel_minimized: false,
-      bottom_panel_tab: BottomPanelTab.Sequencer,
-    },
-    sequence: {
-      bottom_panel_minimized: false,
-      bottom_panel_tab: BottomPanelTab.Sequencer,
+    renderer: {
+      zoom: 1,
+      pxPerMm: 96 / 25.4,
+      pan_x: 0,
+      pan_y: 0,
+      bounds: { x: 0, y: 0, width: 0, height: 0 },
+      debug_rendering: false,
     },
     sequencer: {
       x: 0,
@@ -50,13 +49,16 @@ export const initialAppState: AppState = {
       track: null,
       selection: null,
     },
-    renderer: {
-      zoom: 100,
-      pxPerMm: 3.78,
-      pan_x: 0,
-      pan_y: 0,
-      bounds: { x: 0, y: 0, width: 0, height: 0 },
-      debug_rendering: false,
+    screens: {
+      setup: { selection: null, expanded: [] },
+      write: {
+        bottom_panel_minimized: false,
+        bottom_panel_tab: BottomPanelTab.Sequencer,
+      },
+      sequence: {
+        bottom_panel_minimized: false,
+        bottom_panel_tab: BottomPanelTab.Sequencer,
+      },
     },
   },
   score: {

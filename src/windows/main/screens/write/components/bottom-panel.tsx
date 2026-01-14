@@ -30,7 +30,7 @@ export const BottomPanel: FC = () => {
     tool,
     snapValue,
   } = useBottomPanelState();
-  const tab = state.ui.write.bottom_panel_tab;
+  const tab = state.ui.screens.write.bottom_panel_tab;
 
   return (
     <div className="flex flex-col min-h-0 overflow-hidden">
@@ -56,7 +56,7 @@ export const BottomPanel: FC = () => {
               path={tabConfig.icon}
               variant="interactive"
               isSelected={tab === tabConfig.tab}
-              onClick={() => actions.ui.write.bottomPanel.setTab(tabConfig.tab)}
+              onClick={() => actions.ui.screens.write.bottomPanel.setTab(tabConfig.tab)}
             />
           ))}
         </div>

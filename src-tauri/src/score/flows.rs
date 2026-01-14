@@ -256,7 +256,7 @@ pub fn score_flows_remove(
     state.score.flows.order.retain(|id| *id != flow_id);
     state.score.tracks.by_id.remove(&flow.master_id);
 
-    state.ui.setup.selection = None;
+    state.ui.screens.setup.selection = None;
 
     for layout_id in state.score.layouts.order.clone() {
         state.unassign_flow_from_layout(layout_id, flow_id);
