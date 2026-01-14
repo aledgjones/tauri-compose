@@ -11,18 +11,12 @@ export const useToneKeyboardShortcuts = () => {
       return;
     }
 
-    const trackId = state.ui.sequencer.track;
-    if (!trackId) {
-      return;
-    }
-
-    const track = state.score.tracks.by_id[trackId];
+    const track = state.score.tracks.by_id[selection.track_id];
     if (!track) {
       return;
     }
 
-    const toneId = selection.id;
-    const tone = track.entries.by_id[toneId];
+    const tone = track.entries.by_id[selection.id];
     if (!tone || tone.type !== "Tone") {
       return;
     }

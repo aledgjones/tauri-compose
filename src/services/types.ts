@@ -352,7 +352,11 @@ export type AppState = {
       flow: UniqueId | null;
       instrument: UniqueId | null;
       track: UniqueId | null;
-      selection: { id: UniqueId; selection_type: SelectionType } | null;
+      selection: {
+        id: UniqueId;
+        selection_type: SelectionType;
+        track_id: UniqueId;
+      } | null;
     };
     screens: {
       setup: {

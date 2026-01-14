@@ -19,6 +19,7 @@ pub enum SelectionType {
 pub struct Selection {
     pub id: UniqueId,
     pub selection_type: SelectionType,
+    pub track_id: UniqueId,
 }
 
 #[derive(Serialize_repr, Deserialize_repr, Clone)]
@@ -141,11 +142,16 @@ pub fn ui_sequencer_selection_set(
     renderer_state: State<'_, RenderState>,
     selection_type: SelectionType,
     id: UniqueId,
+    track_id: UniqueId,
 ) {
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
 
-    state.ui.sequencer.selection = Some(Selection { id, selection_type });
+    state.ui.sequencer.selection = Some(Selection {
+        id,
+        selection_type,
+        track_id,
+    });
 
     state.emit(&app, &mut renderer, true);
 }
