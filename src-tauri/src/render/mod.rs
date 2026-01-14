@@ -22,7 +22,7 @@ use draw::draw_clef::draw_clef;
 use draw::draw_dot::draw_dots;
 use draw::draw_flag::draw_flag;
 use draw::draw_key_signature::draw_key_signature;
-use draw::draw_ledger_lines::draw_ledger_line;
+use draw::draw_ledger_lines::draw_ledger_lines;
 use draw::draw_names::draw_names;
 use draw::draw_notehead::draw_notehead;
 use draw::draw_rest::draw_rest;
@@ -463,7 +463,7 @@ pub fn generate_render_instructions(
 
                     // LEDGER LINES
                     if !notation.tones.is_empty() {
-                        draw_ledger_line(
+                        draw_ledger_lines(
                             &Point {
                                 x: stave_left + x,
                                 y: stave_top,
@@ -472,6 +472,8 @@ pub fn generate_render_instructions(
                             notation,
                             glyph_width,
                             shunts,
+                            accidentals,
+                            &tone_offsets,
                             renderer,
                         );
                     }
