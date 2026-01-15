@@ -20,6 +20,7 @@ pub struct Selection {
     pub id: UniqueId,
     pub selection_type: SelectionType,
     pub track_id: UniqueId,
+    pub flow_id: UniqueId,
 }
 
 #[derive(Serialize_repr, Deserialize_repr, Clone)]
@@ -143,6 +144,7 @@ pub fn ui_sequencer_selection_set(
     selection_type: SelectionType,
     id: UniqueId,
     track_id: UniqueId,
+    flow_id: UniqueId,
 ) {
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
@@ -151,6 +153,7 @@ pub fn ui_sequencer_selection_set(
         id,
         selection_type,
         track_id,
+        flow_id,
     });
 
     state.emit(&app, &mut renderer, true);

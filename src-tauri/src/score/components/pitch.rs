@@ -669,4 +669,50 @@ impl Pitch {
         let octave_offset = (b.octave() as i8 - a.octave() as i8) * 7;
         octave_offset + b.steps() as i8 - a.steps() as i8
     }
+
+    pub fn shift_by_steps(&self, steps: i8, key_signature: &KeySignature) -> Pitch {
+        let mut moved = 0;
+        let mut current = self.base();
+
+        while moved < steps.abs() {
+            let normalised = current % 12;
+
+            if steps > 0 {
+                let one_step = match normalised {
+                    4 => 1,
+                    11 => 1,
+                    _ => 2,
+                };
+
+                current += one_step;
+            } else {
+                let one_step = match normalised {
+                    0 => 1,
+                    5 => 1,
+                    _ => 2,
+                };
+
+                current -= one_step;
+            }
+
+            moved += 1;
+        }
+
+        // check if the base pitch is altered by the key signature to ensure
+        // we shift the tone smoothly up the scale.
+        for entry in key_signature.accidentals() {
+            if current % 12 == entry.base() % 12 {
+                // current is the base pitch so set the accidental and offset the base pitch.
+                let new_pitch_int = current as i8 + entry.accidental as i8;
+                return Pitch::new(new_pitch_int as u8, entry.accidental);
+            }
+        }
+
+        Pitch::new(current, Accidental::Natural)
+    }
+
+    pub fn shift_by_octaves(&self, octaves: i8) -> Pitch {
+        let new_int = (self.int as i8) + (octaves * 12);
+        Pitch::new(new_int as u8, self.accidental)
+    }
 }

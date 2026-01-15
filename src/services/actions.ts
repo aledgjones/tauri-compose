@@ -116,11 +116,17 @@ export const actions = {
       setCoords: (x: number, y: number) => {
         return invoke("ui_sequencer_coords_set", { x, y });
       },
-      select: (selection_type: SelectionType, id: number, track_id: number) => {
+      select: (
+        selection_type: SelectionType,
+        id: number,
+        track_id: number,
+        flow_id: number,
+      ) => {
         return invoke("ui_sequencer_selection_set", {
           selection_type,
           id,
           track_id,
+          flow_id,
         });
       },
       clearSelection: () => {
@@ -630,6 +636,41 @@ export const actions = {
           track_id,
           tone_id,
           slice_tick,
+        });
+      },
+      shiftPitchByStep: (
+        flow_id: UniqueId,
+        track_id: UniqueId,
+        tone_id: UniqueId,
+        steps: number,
+      ) => {
+        return invoke<void>("score_entries_tone_pitch_shift_by_steps", {
+          flow_id,
+          track_id,
+          tone_id,
+          steps,
+        });
+      },
+      shiftPitchByOctave: (
+        track_id: UniqueId,
+        tone_id: UniqueId,
+        octaves: number,
+      ) => {
+        return invoke<void>("score_entries_tone_pitch_shift_by_octaves", {
+          track_id,
+          tone_id,
+          octaves,
+        });
+      },
+      setAccidental: (
+        track_id: UniqueId,
+        tone_id: UniqueId,
+        accidental: Accidental,
+      ) => {
+        return invoke<void>("score_entries_tone_accidental_set", {
+          track_id,
+          tone_id,
+          accidental,
         });
       },
     },

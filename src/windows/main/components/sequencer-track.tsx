@@ -120,7 +120,12 @@ const handleWriteTool = async (
   );
 
   // Select the newly created tone
-  await actions.ui.sequencer.select(SelectionType.Tone, tone_id, track.id);
+  await actions.ui.sequencer.select(
+    SelectionType.Tone,
+    tone_id,
+    track.id,
+    flow.id,
+  );
 
   // Audition the tone
   if (instrumentId) {
@@ -426,6 +431,7 @@ const handleSelectTool = async (
     SelectionType.Tone,
     clickTarget.id,
     track.id,
+    flow.id,
   );
 
   const box = sequencerRef.current?.getBoundingClientRect();

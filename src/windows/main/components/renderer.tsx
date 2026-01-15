@@ -3,7 +3,7 @@ import { FC, useRef, useEffect } from "react";
 import { actions } from "../../../services/actions";
 import { useAppState } from "../../../services/state";
 import { pxPerMm } from "../../../utils/mm";
-import { useKeyboardShortcuts } from "../hooks/use-tone-keyboard-shortcuts";
+import { useKeyboardShortcuts } from "../hooks/use-keyboard-shortcuts";
 
 type Props = { className?: string };
 

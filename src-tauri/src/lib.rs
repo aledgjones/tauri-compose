@@ -38,9 +38,11 @@ use score::entries::time_signature::{
     score_entries_time_signature_clear, score_entries_time_signature_create,
 };
 use score::entries::tone::{
-    score_entries_shift, score_entries_tone_create, score_entries_tone_duration_remove,
-    score_entries_tone_duration_set, score_entries_tone_pitch_set,
-    score_entries_tone_set_position_and_duration, score_entries_tone_slice,
+    score_entries_shift, score_entries_tone_accidental_set, score_entries_tone_create,
+    score_entries_tone_duration_remove, score_entries_tone_duration_set,
+    score_entries_tone_pitch_set, score_entries_tone_pitch_shift_by_octaves,
+    score_entries_tone_pitch_shift_by_steps, score_entries_tone_set_position_and_duration,
+    score_entries_tone_slice,
 };
 use score::flows::{
     score_flows_assign_player, score_flows_create, score_flows_move, score_flows_remove,
@@ -386,6 +388,9 @@ pub fn run() {
             score_entries_tone_duration_set,
             score_entries_tone_pitch_set,
             score_entries_tone_set_position_and_duration,
+            score_entries_tone_pitch_shift_by_octaves,
+            score_entries_tone_pitch_shift_by_steps,
+            score_entries_tone_accidental_set,
             score_entries_tone_slice,
             score_entries_shift,
             score_entries_tone_duration_remove,
