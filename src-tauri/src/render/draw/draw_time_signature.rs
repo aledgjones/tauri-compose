@@ -9,7 +9,8 @@ pub fn draw_time_signature(
     time_signature: &TimeSignature,
     renderer: &mut Renderer,
 ) {
-    let offset = (time_signature.metrics().width) * 0.5;
+    let metrics = time_signature.metrics();
+    let offset = metrics.width * 0.5;
 
     match time_signature.draw_type {
         TimeSignatureDrawType::Hidden => (),

@@ -112,15 +112,7 @@ pub fn get_horizontal_spacing(
                 );
             }
             Entry::TimeSignature(time_signature) => {
-                let mut metrics = time_signature.metrics();
-
-                // Reduce padding if between end and start repeat barlines
-                if let Some(def) = barlines.get(&time_signature.tick) {
-                    if def.end_repeat && def.start_repeat {
-                        metrics.right_padding = 1.0;
-                    }
-                }
-
+                let metrics = time_signature.metrics();
                 spacings.set_width(
                     time_signature.tick,
                     Slot::TimeSignature,
@@ -177,7 +169,8 @@ pub fn get_horizontal_spacing(
                 // if the tick is at the start of a barline or the start of
                 // the piece we add explicit space for accidentals and pre-shunts
                 if *tick == 0 || barlines.contains_key(tick) {
-                    let glyph_width = entry.glyph_metrics().width;
+                    let metrics = entry.glyph_metrics();
+                    let glyph_width = metrics.total_width();
                     let has_pre_shunt = entry.has_pre_shunt(shunts);
 
                     if has_pre_shunt {
@@ -200,7 +193,8 @@ pub fn get_horizontal_spacing(
                     if !barlines.contains_key(&next_tick) {
                         // natural minimum for note value
                         let min = entry.min_spacing(shunts, engrave, beams);
-                        let next_glyph_width = next_entry.glyph_metrics().width;
+                        let next_metrics = next_entry.glyph_metrics();
+                        let next_glyph_width = next_metrics.total_width();
                         let next_has_pre_shunt = next_entry.has_pre_shunt(shunts);
 
                         let accidentals_width = match accidentals.slots_by_tick.get(&next_tick) {

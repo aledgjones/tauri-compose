@@ -95,10 +95,12 @@ fn start_x(
     offset: i8,
 ) -> f32 {
     let x = horizontal_spacing.get(start.tick, Slot::NoteSpacing).x;
+    let metrics = start.glyph_metrics();
+    let glyph_width = metrics.total_width();
 
     let after_pre = x + 0.2;
-    let after_note = x + start.glyph_metrics().width + 0.2;
-    let after_post = x + (start.glyph_metrics().width * 2.0) + 0.2;
+    let after_note = x + glyph_width + 0.2;
+    let after_post = x + (glyph_width * 2.0) + 0.2;
 
     let shunt = shunts.by_offset.get(&(start.tick, offset)).unwrap();
     let next_shunt = shunts
@@ -134,7 +136,8 @@ fn stop_x(
     offset: i8,
 ) -> f32 {
     let x = horizontal_spacing.get(stop.tick, Slot::NoteSpacing).x;
-    let glyph_width = stop.glyph_metrics().width;
+    let metrics = stop.glyph_metrics();
+    let glyph_width = metrics.total_width();
 
     let before_pre = x - glyph_width - 0.2;
     let before_note = x - 0.2;
@@ -196,15 +199,17 @@ fn tie_points_x(
             ),
         ),
         false => {
+            let metrics = start.glyph_metrics();
+            let glyph_width = metrics.total_width();
+
             let start_x = x
                 + horizontal_spacing.get(start.tick, Slot::NoteSpacing).x
-                + (start.glyph_metrics().width / 2.0)
+                + (glyph_width / 2.0)
                 + 0.1;
 
-            let stop_x = x
-                + horizontal_spacing.get(stop.tick, Slot::NoteSpacing).x
-                + (start.glyph_metrics().width / 2.0)
-                - 0.1;
+            let stop_x =
+                x + horizontal_spacing.get(stop.tick, Slot::NoteSpacing).x + (glyph_width / 2.0)
+                    - 0.1;
 
             (start_x, stop_x)
         }

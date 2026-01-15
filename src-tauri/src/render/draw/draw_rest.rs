@@ -58,11 +58,14 @@ pub fn draw_rest(
         );
 
         if entry.is_dotted() {
+            let metrics = entry.glyph_metrics();
+            let glyph_width = metrics.total_width();
+
             renderer.circle(
                 0.2,
                 Color::BLACK,
                 &Point {
-                    x: left + entry.glyph_metrics().width + 0.5,
+                    x: left + glyph_width + 0.5,
                     y: top - 0.5,
                 },
             );

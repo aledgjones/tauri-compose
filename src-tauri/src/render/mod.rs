@@ -390,7 +390,8 @@ pub fn generate_render_instructions(
 
                 for (tick, notation) in &notation.track {
                     let glyph = notation.glyph();
-                    let glyph_width = notation.glyph_metrics().width;
+                    let metrics = notation.glyph_metrics();
+                    let glyph_width = metrics.total_width();
                     let has_post_shunt = notation.has_post_shunt(shunts);
 
                     // RESTS

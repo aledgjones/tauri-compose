@@ -125,11 +125,7 @@ fn get_furthest_tail(beam: &Beam, stem_lengths: &StemLengths, stem_direction: &D
     furthest
 }
 
-fn get_natural_stem_length(
-    x: Space,
-    entry: &Notation,
-    stem_direction: &Direction,
-) -> StemDef {
+fn get_natural_stem_length(x: Space, entry: &Notation, stem_direction: &Direction) -> StemDef {
     let info = entry.info.clone().unwrap();
 
     // Base stem length
@@ -152,7 +148,9 @@ fn get_natural_stem_length(
                 tail = 0.0
             }
 
-            let x = x + entry.glyph_metrics().width;
+            let metrics = entry.glyph_metrics();
+            let glyph_width = metrics.total_width();
+            let x = x + glyph_width;
 
             (x - (STAVE_LINE_WIDTH / 2.0), head, tail)
         }
@@ -190,10 +188,7 @@ pub fn get_stem_lengths_in_track(
                 if duration != NoteDuration::Whole {
                     let x = horizontal_spacing.get(*tick, Slot::NoteSpacing).x;
                     let stem_direction = &stem_directions[tick];
-                    output.insert(
-                        *tick,
-                        get_natural_stem_length(x, entry, stem_direction),
-                    );
+                    output.insert(*tick, get_natural_stem_length(x, entry, stem_direction));
                 }
             }
         }

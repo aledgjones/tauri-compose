@@ -238,14 +238,17 @@ impl Notation {
     }
 
     pub fn min_spacing(&self, shunts: &Shunts, engrave: &Engrave, beams: &Beams) -> Space {
-        let mut min_space = self.glyph_metrics().width;
+        let metrics = self.glyph_metrics();
+        let glyph_width = metrics.total_width();
+
+        let mut min_space = glyph_width;
 
         if self.is_dotted() {
             min_space += 1.0;
         }
 
         if self.has_post_shunt(shunts) {
-            min_space += self.glyph_metrics().width;
+            min_space += glyph_width;
         } else if self.is_flagged(beams) {
             min_space += 0.5;
         }
