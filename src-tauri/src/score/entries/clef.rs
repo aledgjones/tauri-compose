@@ -46,10 +46,12 @@ impl Clef {
             ClefDrawType::Hidden => BoundingBox {
                 width: 0.0,
                 height: 4.0,
+                right_padding: 0.0,
             },
             _ => BoundingBox {
-                width: if is_full_size { 3.8 } else { 2.75 },
+                width: if is_full_size { 2.8 } else { 1.75 },
                 height: if is_full_size { 4.0 } else { 2.5 },
+                right_padding: 1.0,
             },
         }
     }

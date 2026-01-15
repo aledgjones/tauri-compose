@@ -97,16 +97,19 @@ impl Notation {
             BoundingBox {
                 width: 1.175,
                 height: 4.0,
+                right_padding: 0.0,
             }
         } else if is_whole_note {
             BoundingBox {
                 width: 1.7,
                 height: 4.0,
+                right_padding: 0.0,
             }
         } else {
             BoundingBox {
                 width: 1.175,
                 height: 4.0,
+                right_padding: 0.0,
             }
         }
     }
@@ -275,6 +278,7 @@ impl Notation {
         BoundingBox {
             width: spacing,
             height: 1.0,
+            right_padding: 0.0,
         }
     }
 }

@@ -6,6 +6,14 @@ use skia_safe::Point as SkiaPoint;
 pub struct BoundingBox {
     pub width: Space,
     pub height: Space,
+    pub right_padding: Space,
+}
+
+impl BoundingBox {
+    /// Total horizontal space this element occupies (visual width + padding)
+    pub fn total_width(&self) -> Space {
+        self.width + self.right_padding
+    }
 }
 
 #[derive(Clone, Serialize, Deserialize)]

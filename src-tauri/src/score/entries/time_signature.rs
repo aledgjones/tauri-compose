@@ -146,11 +146,7 @@ impl TimeSignature {
     }
 
     /// Return true if a tick is on an arbitrary beat type
-    pub fn is_on_beat_type(
-        &self,
-        tick: Tick,
-        beat_type: &NoteDuration,
-    ) -> bool {
+    pub fn is_on_beat_type(&self, tick: Tick, beat_type: &NoteDuration) -> bool {
         let ticks_per_beat = beat_type.to_ticks();
         ((tick - self.tick) % ticks_per_beat) == 0
     }
@@ -203,8 +199,9 @@ impl TimeSignature {
         let beat_type = self.beat_type_to_glyph();
 
         BoundingBox {
-            width: (max(beats.chars().count(), beat_type.chars().count()) as Space * 1.7) + 2.0,
+            width: max(beats.chars().count(), beat_type.chars().count()) as Space * 1.7,
             height: 4.0,
+            right_padding: 1.0,
         }
     }
 }

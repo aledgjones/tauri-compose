@@ -23,6 +23,7 @@ pub enum Slot {
     KeySignature,
     TimeSignature,
     StartRepeat,
+    BarPadding,
     Accidentals, // only used if there is no previous space to cut into.
     PreNote,     // only used if there is no previous space to cut into.
     NoteSpacing,
@@ -98,35 +99,54 @@ pub fn get_horizontal_spacing(
                         None => BoundingBox {
                             width: 0.0,
                             height: 0.0,
+                            right_padding: 0.0,
                         },
                     }
                 } else {
                     key_signature.metrics()
                 };
-                spacings.set_width(key_signature.tick, Slot::KeySignature, metrics.width);
+                spacings.set_width(
+                    key_signature.tick,
+                    Slot::KeySignature,
+                    metrics.total_width(),
+                );
             }
             Entry::TimeSignature(time_signature) => {
-                let metrics = time_signature.metrics();
-                spacings.set_width(time_signature.tick, Slot::TimeSignature, metrics.width);
+                let mut metrics = time_signature.metrics();
+
+                // Reduce padding if between end and start repeat barlines
+                if let Some(def) = barlines.get(&time_signature.tick) {
+                    if def.end_repeat && def.start_repeat {
+                        metrics.right_padding = 1.0;
+                    }
+                }
+
+                spacings.set_width(
+                    time_signature.tick,
+                    Slot::TimeSignature,
+                    metrics.total_width(),
+                );
             }
             _ => (),
         }
     }
 
     for (tick, def) in barlines {
+        spacings.set_width(*tick, Slot::BarPadding, 0.5);
+
         if def.end_repeat {
             let metrics = BarlineDrawType::EndRepeat.metrics();
-            spacings.set_width(*tick, Slot::EndRepeat, metrics.width);
+            spacings.set_width(*tick, Slot::EndRepeat, metrics.total_width());
         }
 
         if let Some(draw_type) = &def.draw_type {
-            let metrics = draw_type.metrics();
-            spacings.set_width(*tick, Slot::Barline, metrics.width);
+            let mut metrics = draw_type.metrics();
+            spacings.set_width(*tick, Slot::Barline, metrics.total_width());
         }
 
         if def.start_repeat {
             let metrics = BarlineDrawType::StartRepeat.metrics();
-            spacings.set_width(*tick, Slot::StartRepeat, metrics.width);
+            spacings.set_width(*tick, Slot::StartRepeat, metrics.total_width());
         }
     }
 
@@ -137,7 +157,7 @@ pub fn get_horizontal_spacing(
             for entry in stave_master.entries.by_id.values() {
                 if let Entry::Clef(clef) = entry {
                     let metrics = clef.metrics(clef.tick == 0);
-                    spacings.set_width(clef.tick, Slot::Clef, metrics.width);
+                    spacings.set_width(clef.tick, Slot::Clef, metrics.total_width());
                 }
             }
         }
@@ -237,7 +257,8 @@ pub fn get_horizontal_spacing(
         x += span.width;
     }
 
-    spacings.width = x + BarlineDrawType::Final.metrics().width;
+    let metrics = BarlineDrawType::Final.metrics();
+    spacings.width = x + metrics.total_width();
 
     spacings
 }

@@ -13,15 +13,23 @@ pub struct BarlineDrawDef {
     pub end_repeat: bool,
     /// seperate start repeat
     pub start_repeat: bool,
+    /// whether the split repeat has a time sig or key sig between the barlines
+    pub split_by_signature: bool,
     /// other draw type if needed (including a combined endstart repeat)
     pub draw_type: Option<BarlineDrawType>,
 }
 
 impl BarlineDrawDef {
-    pub fn new(end_repeat: bool, start_repeat: bool, draw_type: Option<BarlineDrawType>) -> Self {
+    pub fn new(
+        end_repeat: bool,
+        start_repeat: bool,
+        split_by_signature: bool,
+        draw_type: Option<BarlineDrawType>,
+    ) -> Self {
         Self {
             end_repeat,
             start_repeat,
+            split_by_signature,
             draw_type,
         }
     }
@@ -57,6 +65,8 @@ pub fn get_barlines(flow: &Flow, tracks: &Tracks, measures: &Measures) -> Barlin
                         {
                             def.start_repeat = true;
                             def.end_repeat = true;
+                            def.split_by_signature =
+                                key_signature.is_some() || time_signature.is_some();
                         } else {
                             def.draw_type = Some(BarlineDrawType::EndStartRepeat);
                         }
@@ -79,7 +89,12 @@ pub fn get_barlines(flow: &Flow, tracks: &Tracks, measures: &Measures) -> Barlin
                     _ => {
                         output.insert(
                             tick,
-                            BarlineDrawDef::new(false, false, Some(barline.barline_draw_type)),
+                            BarlineDrawDef::new(
+                                false,
+                                false,
+                                false,
+                                Some(barline.barline_draw_type),
+                            ),
                         );
                     }
                 }

@@ -25,6 +25,7 @@ impl<'a> TextMeasurer<'a> {
         BoundingBox {
             width: self.converter.px_to_spaces(rect.width()),
             height: self.converter.px_to_spaces(rect.height()),
+            right_padding: 0.0,
         }
     }
 }

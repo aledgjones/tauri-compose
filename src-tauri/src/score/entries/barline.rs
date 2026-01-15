@@ -28,36 +28,44 @@ impl BarlineDrawType {
     pub fn metrics(&self) -> BoundingBox {
         match self {
             BarlineDrawType::Single => BoundingBox {
-                width: 1.5,
+                width: 0.0,
                 height: 4.0,
+                right_padding: 1.0,
             },
             BarlineDrawType::Double => BoundingBox {
-                width: 1.5,
+                width: 0.5,
                 height: 4.0,
+                right_padding: 1.0,
             },
             BarlineDrawType::Triple => BoundingBox {
-                width: 2.0,
-                height: 4.0,
-            },
-            BarlineDrawType::Dashed => BoundingBox {
                 width: 1.0,
                 height: 4.0,
+                right_padding: 1.0,
+            },
+            BarlineDrawType::Dashed => BoundingBox {
+                width: 0.0,
+                height: 4.0,
+                right_padding: 1.0,
             },
             BarlineDrawType::Final => BoundingBox {
                 width: 1.0,
                 height: 4.0,
+                right_padding: 0.0,
             },
             BarlineDrawType::StartRepeat => BoundingBox {
-                width: 3.0,
+                width: 2.0,
                 height: 4.0,
+                right_padding: 1.0,
             },
             BarlineDrawType::EndRepeat => BoundingBox {
-                width: 3.0,
+                width: 2.0,
                 height: 4.0,
+                right_padding: 1.0,
             },
             BarlineDrawType::EndStartRepeat => BoundingBox {
-                width: 4.5,
+                width: 3.5,
                 height: 4.0,
+                right_padding: 1.0,
             },
         }
     }

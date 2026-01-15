@@ -122,8 +122,9 @@ impl KeySignature {
         let right_padding = if width > 0.0 { 1.0 } else { 0.0 };
 
         BoundingBox {
-            width: width + right_padding,
+            width,
             height: 4.0,
+            right_padding,
         }
     }
 

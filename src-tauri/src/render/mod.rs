@@ -276,9 +276,11 @@ pub fn generate_render_instructions(
         }
     }
 
+    let metrics = BarlineDrawType::Final.metrics();
+
     draw_barline(
         &Point {
-            x: stave_left + horizontal_spacing.width - BarlineDrawType::Final.metrics().width,
+            x: stave_left + horizontal_spacing.width - metrics.total_width(),
             y: page_padding.top,
         },
         &BarlineDrawType::Final,
@@ -585,6 +587,7 @@ fn draw_debug_slots(
         Color::from_argb(64, 0, 255, 255),   // KeySignature - Cyan
         Color::from_argb(64, 0, 0, 255),     // TimeSignature - Blue
         Color::from_argb(64, 128, 0, 128),   // StartRepeat - Purple
+        Color::from_argb(64, 255, 0, 0),     // BarPadding - Red with alpha
         Color::from_argb(64, 255, 0, 255),   // Accidentals - Magenta
         Color::from_argb(64, 128, 128, 128), // PreNote - Gray
         Color::from_argb(64, 0, 0, 0),       // NoteSpacing - Black
@@ -598,6 +601,7 @@ fn draw_debug_slots(
         Slot::KeySignature,
         Slot::TimeSignature,
         Slot::StartRepeat,
+        Slot::BarPadding,
         Slot::Accidentals,
         Slot::PreNote,
         Slot::NoteSpacing,
