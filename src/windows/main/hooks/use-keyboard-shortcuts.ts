@@ -122,6 +122,24 @@ export const useKeyboardShortcuts = () => {
             Accidental.Natural,
           ),
       },
+      {
+        key: "Backspace",
+        modifiers: { command: false, control: false, option: false },
+        action: () =>
+          actions.score.tone.remove(
+            selectionInfo.trackId,
+            selectionInfo.toneId,
+          ),
+      },
+      {
+        key: "Delete",
+        modifiers: { command: false, control: false, option: false },
+        action: () =>
+          actions.score.tone.remove(
+            selectionInfo.trackId,
+            selectionInfo.toneId,
+          ),
+      },
     ];
 
     const handleKeyDown = async (e: KeyboardEvent) => {

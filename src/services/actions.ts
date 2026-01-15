@@ -626,7 +626,7 @@ export const actions = {
         });
       },
       remove: (track_id: UniqueId, tone_id: UniqueId) => {
-        return invoke("score_entries_tone_duration_remove", {
+        return invoke<void>("score_entries_tone_duration_remove", {
           track_id,
           tone_id,
         });
