@@ -254,7 +254,7 @@ pub fn draw_tie(
             CurvePoint {
                 x: middle_x,
                 y: middle_y,
-                thickness: 0.2,
+                thickness: 0.25,
             },
             CurvePoint {
                 x: stop_x,

@@ -14,6 +14,7 @@ use files::{
 };
 use lazy_static::lazy_static;
 use render::generate_render_instructions;
+use renderer::hit_test::renderer_hit_test;
 use renderer::Renderer;
 use sampler::Sampler;
 use score::config::{
@@ -441,6 +442,7 @@ pub fn run() {
             ui_renderer_debug_rendering_toggle,
             ui_renderer_pan_set,
             ui_renderer_zoom_set,
+            renderer_hit_test,
             ui_sequencer_coords_set,
             ui_sequencer_instrument_set,
             ui_sequencer_selection_clear,

@@ -1,9 +1,11 @@
 pub mod converter;
 pub mod fonts;
+pub mod hit_test;
 pub mod text_measurer;
 
 use crate::score::components::measurements::{CurvePoint, Point};
 use crate::score::components::text::{Align, Font, FontFamily, Justify};
+use crate::utils::UniqueId;
 use converter::{Converter, Space};
 use skia_safe::Color;
 
@@ -51,6 +53,17 @@ pub enum DrawInstruction {
     },
 }
 
+#[derive(Clone, Debug)]
+pub struct HitTarget {
+    pub tone_id: UniqueId,
+    pub track_id: UniqueId,
+    pub flow_id: UniqueId,
+    pub x: f32,
+    pub y: f32,
+    pub width: f32,
+    pub height: f32,
+}
+
 #[derive(Clone)]
 pub struct Renderer {
     pub converter: Converter,
@@ -58,6 +71,7 @@ pub struct Renderer {
     pub instructions: Vec<DrawInstruction>,
     pub width: f32,
     pub height: f32,
+    pub hit_targets: Vec<HitTarget>,
 }
 
 impl Renderer {
@@ -68,6 +82,7 @@ impl Renderer {
             instructions: Vec::new(),
             width: 0.0,
             height: 0.0,
+            hit_targets: Vec::new(),
         }
     }
 
@@ -82,6 +97,14 @@ impl Renderer {
 
     pub fn clear_instructions(&mut self) {
         self.instructions.clear();
+    }
+
+    pub fn clear_hit_targets(&mut self) {
+        self.hit_targets.clear();
+    }
+
+    pub fn add_hit_target(&mut self, target: HitTarget) {
+        self.hit_targets.push(target);
     }
 
     pub fn line(&mut self, width: Space, color: skia_safe::Color, points: Vec<Point>) {

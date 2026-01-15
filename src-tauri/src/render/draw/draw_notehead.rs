@@ -1,4 +1,5 @@
 use crate::render::parse::get_shunts::{Shunt, Shunts};
+use crate::renderer::HitTarget;
 use crate::renderer::Renderer;
 use crate::score::components::duration::Tick;
 use crate::score::components::measurements::Point;
@@ -16,6 +17,8 @@ pub fn draw_notehead(
     glyph_width: f32,
     shunts: &Shunts,
     selection: Option<UniqueId>,
+    track_id: UniqueId,
+    flow_id: UniqueId,
     renderer: &mut Renderer,
 ) {
     let left = match &shunts.by_id[&(tick, tone.id)] {
@@ -44,4 +47,14 @@ pub fn draw_notehead(
         },
         color,
     );
+
+    renderer.add_hit_target(HitTarget {
+        tone_id: tone.id,
+        track_id,
+        flow_id,
+        x: left,
+        y: origin.y - 0.5,
+        width: glyph_width,
+        height: 1.0,
+    });
 }

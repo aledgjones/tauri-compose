@@ -158,6 +158,7 @@ pub fn generate_render_instructions(
     let width = stave_left + horizontal_spacing.width + page_padding.right;
 
     renderer.clear_instructions();
+    renderer.clear_hit_targets();
     renderer.set_converter(converter);
     renderer.set_dimensions(width, height);
 
@@ -493,6 +494,8 @@ pub fn generate_render_instructions(
                             glyph_width,
                             shunts,
                             selection,
+                            *track_id,
+                            flow_id,
                             renderer,
                         );
 

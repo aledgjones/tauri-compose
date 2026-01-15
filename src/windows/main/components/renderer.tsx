@@ -4,6 +4,8 @@ import { actions } from "../../../services/actions";
 import { useAppState } from "../../../services/state";
 import { pxPerMm } from "../../../utils/mm";
 import { useKeyboardShortcuts } from "../hooks/use-keyboard-shortcuts";
+import { hitTest } from "../../../services/hit-test";
+import { SelectionType } from "../../../services/types";
 
 type Props = { className?: string };
 
@@ -75,8 +77,38 @@ export const Renderer: FC<Props> = ({ className }) => {
 
     const $element = divRef.current;
 
-    const onPointerDown = (e: PointerEvent) => {
+    const onPointerDown = async (e: PointerEvent) => {
+      if (!$element) return;
+
+      // Convert document coordinates to element-relative coordinates
+      const rect = $element.getBoundingClientRect();
+      const relativeX = e.clientX - rect.left;
+      const relativeY = e.clientY - rect.top;
+
+      // Check for hit target first
+      const hitResult = await hitTest(
+        relativeX,
+        relativeY,
+        panXRef.current,
+        panYRef.current,
+        zoomRef.current,
+      );
+
+      if (hitResult) {
+        // Hit a notehead - select it instead of panning
+        e.preventDefault();
+        await actions.ui.sequencer.select(
+          SelectionType.Tone,
+          hitResult.tone_id,
+          hitResult.track_id,
+          hitResult.flow_id,
+        );
+        return;
+      }
+
+      // No hit - proceed with panning
       let isDragging = true;
+      let hasMoved = false;
 
       let panStartX = panXRef.current;
       let panStartY = panYRef.current;
@@ -88,6 +120,10 @@ export const Renderer: FC<Props> = ({ className }) => {
 
         const deltaX = e.clientX - startX;
         const deltaY = e.clientY - startY;
+
+        if (!hasMoved && (Math.abs(deltaX) > 3 || Math.abs(deltaY) > 3)) {
+          hasMoved = true;
+        }
 
         const newPanX = panStartX + deltaX;
         const newPanY = panStartY + deltaY;
@@ -110,6 +146,10 @@ export const Renderer: FC<Props> = ({ className }) => {
       };
 
       const handlePointerUp = () => {
+        if (!hasMoved) {
+          actions.ui.sequencer.clearSelection();
+        }
+
         document.removeEventListener("pointermove", handlePointerMove);
         document.removeEventListener("pointerup", handlePointerUp);
         isDragging = false;
