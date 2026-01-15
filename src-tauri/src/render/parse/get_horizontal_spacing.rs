@@ -140,7 +140,7 @@ pub fn get_horizontal_spacing(
         }
 
         if let Some(draw_type) = &def.draw_type {
-            let mut metrics = draw_type.metrics();
+            let metrics = draw_type.metrics();
             spacings.set_width(*tick, Slot::Barline, metrics.total_width());
         }
 
