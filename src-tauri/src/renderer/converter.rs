@@ -19,10 +19,10 @@ impl Converter {
     }
 
     pub fn spaces_to_px(&self, spaces: Space) -> Px {
-        spaces * self.mm_per_space * self.px_per_mm * 2.0
+        spaces * self.mm_per_space * self.px_per_mm
     }
 
     pub fn px_to_spaces(&self, px: Px) -> Space {
-        px / self.px_per_mm / self.mm_per_space / 2.0
+        px / self.px_per_mm / self.mm_per_space
     }
 }

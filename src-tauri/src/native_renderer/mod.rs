@@ -170,7 +170,6 @@ impl NativeRenderer {
         self.metal_layer.setFrame(frame);
         self.metal_layer.setContentsScale(scale);
 
-        // Drawable size = CSS pixels × scale (physical pixels for retina)
         self.metal_layer
             .setDrawableSize(NSSize::new(width as f64 * scale, height as f64 * scale));
 
@@ -196,12 +195,9 @@ impl NativeRenderer {
     ) -> (f32, f32) {
         let padding = 100.0; // CSS pixels
 
-        // Convert page dimensions from spaces to CSS pixels using converter
-        // Note: converter.spaces_to_px() includes a 2.0 multiplier for rendering,
-        // so we divide by the actual scale to get actual CSS pixel dimensions
-        let scale = self.scale as f32;
-        let page_width_px = converter.spaces_to_px(page_width_spaces) / scale;
-        let page_height_px = converter.spaces_to_px(page_height_spaces) / scale;
+        // Convert page dimensions from spaces to CSS pixels
+        let page_width_px = converter.spaces_to_px(page_width_spaces);
+        let page_height_px = converter.spaces_to_px(page_height_spaces);
 
         // Get bounds in CSS pixels
         let bounds_width = self.bounds.2;
@@ -325,22 +321,17 @@ impl NativeRenderer {
                     // --- Draw instructions ---
                     canvas.save();
 
-                    // Canvas is in physical pixels, pan is in CSS pixels
                     let scale_f32 = self.scale as f32;
-
-                    // Apply constrained pan (scale from CSS to physical pixels)
-                    canvas
-                        .translate((constrained_pan_x * scale_f32, constrained_pan_y * scale_f32));
-
-                    // Apply zoom scaling
+                    canvas.scale((scale_f32, scale_f32));
+                    canvas.translate((constrained_pan_x, constrained_pan_y));
                     canvas.scale((zoom, zoom));
 
-                    // Clip to renderer bounds (scale bounds from CSS to physical pixels)
+                    // Clip to renderer bounds in CSS pixels
                     let clip_rect = skia_safe::Rect::from_xywh(
-                        -constrained_pan_x * scale_f32 / zoom,
-                        -constrained_pan_y * scale_f32 / zoom,
-                        self.bounds.2 * scale_f32 / zoom,
-                        self.bounds.3 * scale_f32 / zoom,
+                        -constrained_pan_x / zoom,
+                        -constrained_pan_y / zoom,
+                        self.bounds.2 / zoom,
+                        self.bounds.3 / zoom,
                     );
                     canvas.clip_rect(clip_rect, skia_safe::ClipOp::Intersect, true);
 
@@ -544,14 +535,13 @@ impl NativeRenderer {
                     canvas.restore();
 
                     // Draw scrollbars to indicate position in score
-                    let page_width_px = renderer.converter.spaces_to_px(renderer.width) / scale_f32;
-                    let page_height_px =
-                        renderer.converter.spaces_to_px(renderer.height) / scale_f32;
+                    let page_width_px = renderer.converter.spaces_to_px(renderer.width);
+                    let page_height_px = renderer.converter.spaces_to_px(renderer.height);
                     let scaled_page_width = page_width_px * zoom;
                     let scaled_page_height = page_height_px * zoom;
 
-                    let scrollbar_width = 7.0 * scale_f32;
-                    let scrollbar_padding = 4.0 * scale_f32;
+                    let scrollbar_width = 7.0;
+                    let scrollbar_padding = 4.0;
                     let scrollbar_color = Color::from_argb(200, 60, 60, 60); // Semi-transparent dark gray
 
                     let padding = 100.0; // CSS pixels
@@ -563,9 +553,9 @@ impl NativeRenderer {
                         let visible_ratio = self.bounds.2 / (scaled_page_width + padding * 2.0);
                         let available_width = if show_vertical {
                             // Leave space for vertical scrollbar
-                            self.bounds.2 * scale_f32 - scrollbar_width - scrollbar_padding
+                            self.bounds.2 - scrollbar_width - scrollbar_padding
                         } else {
-                            self.bounds.2 * scale_f32
+                            self.bounds.2
                         };
                         let scrollbar_length =
                             (available_width - 2.0 * scrollbar_padding) * visible_ratio;
@@ -605,9 +595,9 @@ impl NativeRenderer {
                         let visible_ratio = self.bounds.3 / (scaled_page_height + padding * 2.0);
                         let available_height = if show_horizontal {
                             // Leave space for horizontal scrollbar
-                            self.bounds.3 * scale_f32 - scrollbar_width - scrollbar_padding
+                            self.bounds.3 - scrollbar_width - scrollbar_padding
                         } else {
-                            self.bounds.3 * scale_f32
+                            self.bounds.3
                         };
                         let scrollbar_length =
                             (available_height - 2.0 * scrollbar_padding) * visible_ratio;
