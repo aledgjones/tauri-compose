@@ -1,7 +1,6 @@
 import { useMemo } from "react";
 import { useAppState } from "../../../services/state";
-import { SelectOption } from "../../../ui/select";
-import { UniqueId, SelectionType } from "../../../services/types";
+import { SelectionType } from "../../../services/types";
 import { getPitchName } from "../../../services/pitch-utils";
 
 const ALPHABET = ["A", "B"];
@@ -10,106 +9,13 @@ const TRACK_LABEL = ["Up-stem", "Down-stem"];
 export const useSelectedToneInfo = () => {
   const state = useAppState();
 
-  const instruments = useMemo(() => {
-    return state.score.players.order.flatMap((playerId: UniqueId) => {
-      const player = state.score.players.by_id[playerId];
-      return player.instrument_ids.map((instrumentId: UniqueId) => {
-        return state.score.instruments.by_id[instrumentId];
-      });
-    });
-  }, [state]);
-
-  const flowId = useMemo(() => {
-    return state.score.flows.order[0] || null;
-  }, [state]);
-
-  const instrumentId = useMemo(() => {
-    if (instruments.length === 0) {
-      return null;
-    }
-
-    const id = state.ui.sequencer.instrument;
-
-    // check the selection still exists
-    if (id && instruments.some((instrument: any) => instrument.id === id)) {
-      return id;
-    }
-
-    // fallback to the first instrument
-    return instruments[0].id;
-  }, [instruments, state.ui.sequencer.instrument]);
-
-  const tracks = useMemo(() => {
-    if (!flowId || !instrumentId) {
-      return [];
-    }
-
-    const flow = state.score.flows.by_id[flowId];
-    const instrument = state.score.instruments.by_id[instrumentId];
-
-    if (!flow || !instrument) {
-      return [];
-    }
-
-    const stave_ids = instrument.stave_ids;
-
-    return stave_ids.flatMap((staveId: UniqueId, i: number) => {
-      const stave = flow.staves.by_id[staveId];
-
-      if (!stave) {
-        return [];
-      }
-
-      return stave.track_ids.map((trackId: UniqueId, ii: number) => {
-        const staffLabel =
-          stave_ids.length > 1 ? `Staff (${ALPHABET[i]}), ` : ``;
-        const trackLabel = `${TRACK_LABEL[ii % 2]} voice ${
-          Math.floor(ii / 2) + 1
-        }`;
-
-        return {
-          value: trackId,
-          label: [staffLabel, trackLabel].join(""),
-        };
-      });
-    });
-  }, [
-    flowId,
-    instrumentId,
-    state.score.flows.by_id,
-    state.score.instruments.by_id,
-  ]);
-
-  const trackId = useMemo(() => {
-    if (tracks.length === 0) {
-      return null;
-    }
-
-    const id = state.ui.sequencer.track;
-
-    // check the selection still exists
-    if (
-      id &&
-      tracks.some((option: SelectOption<UniqueId>) => option.value === id)
-    ) {
-      return id;
-    }
-
-    // fallback to the first instrument
-    return tracks[0].value;
-  }, [state.ui.sequencer.track, tracks]);
-
   const selectedToneInfo = useMemo(() => {
     const selection = state.ui.sequencer.selection;
     if (!selection || selection.selection_type !== SelectionType.Tone) {
       return null;
     }
 
-    if (!trackId || !instrumentId || !flowId) {
-      return null;
-    }
-
-    const track = state.score.tracks.by_id[trackId];
+    const track = state.score.tracks.by_id[selection.track_id];
     if (!track) {
       return null;
     }
@@ -135,17 +41,58 @@ export const useSelectedToneInfo = () => {
     // Get note name
     const noteName = getPitchName(tone.pitch);
 
-    // Get instrument name
-    const instrument = state.score.instruments.by_id[instrumentId];
+    // Find which instrument owns this track by checking staves in the flow
+    const flow = state.score.flows.by_id[selection.flow_id];
+    let instrument = null;
+
+    if (flow) {
+      // Search through all instruments to find which one has this track
+      for (const playerId of state.score.players.order) {
+        const player = state.score.players.by_id[playerId];
+        for (const instrumentId of player.instrument_ids) {
+          const inst = state.score.instruments.by_id[instrumentId];
+          if (!inst) continue;
+
+          // Check if any of this instrument's staves contain the track
+          for (const staveId of inst.stave_ids) {
+            const stave = flow.staves.by_id[staveId];
+            if (stave && stave.track_ids.includes(selection.track_id)) {
+              instrument = inst;
+              break;
+            }
+          }
+          if (instrument) break;
+        }
+        if (instrument) break;
+      }
+    }
+
     const instrumentName = instrument
       ? instrument.long_name + (instrument.count ? ` ${instrument.count}` : "")
       : "Unknown";
 
-    // Get track label (staff and voice)
-    const trackOption = tracks.find(
-      (option: SelectOption<UniqueId>) => option.value === trackId,
-    );
-    const trackLabel = trackOption ? trackOption.label : "Unknown";
+    // Build track label from the selected flow and track
+    let trackLabel = "Unknown";
+
+    if (flow && instrument) {
+      const stave_ids = instrument.stave_ids;
+
+      for (let i = 0; i < stave_ids.length; i++) {
+        const stave = flow.staves.by_id[stave_ids[i]];
+        if (!stave) continue;
+
+        const trackIndex = stave.track_ids.indexOf(selection.track_id);
+        if (trackIndex !== -1) {
+          const staffLabel =
+            stave_ids.length > 1 ? `Staff (${ALPHABET[i]}), ` : ``;
+          const voiceLabel = `${TRACK_LABEL[trackIndex % 2]} voice ${
+            Math.floor(trackIndex / 2) + 1
+          }`;
+          trackLabel = staffLabel + voiceLabel;
+          break;
+        }
+      }
+    }
 
     return {
       noteName,
@@ -154,12 +101,11 @@ export const useSelectedToneInfo = () => {
     };
   }, [
     state.ui.sequencer.selection,
-    trackId,
-    instrumentId,
-    flowId,
     state.score.tracks.by_id,
     state.score.instruments.by_id,
-    tracks,
+    state.score.flows.by_id,
+    state.score.players.order,
+    state.score.players.by_id,
   ]);
 
   return selectedToneInfo;
