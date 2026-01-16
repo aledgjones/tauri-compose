@@ -121,12 +121,14 @@ export const actions = {
         id: number,
         track_id: number,
         flow_id: number,
+        instrument_id: number,
       ) => {
         return invoke("ui_sequencer_selection_set", {
           selection_type,
           id,
           track_id,
           flow_id,
+          instrument_id,
         });
       },
       clearSelection: () => {

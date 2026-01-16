@@ -21,6 +21,7 @@ pub struct Selection {
     pub selection_type: SelectionType,
     pub track_id: UniqueId,
     pub flow_id: UniqueId,
+    pub instrument_id: UniqueId,
 }
 
 #[derive(Serialize_repr, Deserialize_repr, Clone)]
@@ -136,6 +137,7 @@ pub fn ui_sequencer_coords_set(
     state.emit(&app, &mut renderer, false);
 }
 
+#[allow(clippy::too_many_arguments)]
 #[tauri::command(rename_all = "snake_case")]
 pub fn ui_sequencer_selection_set(
     app: tauri::AppHandle,
@@ -145,6 +147,7 @@ pub fn ui_sequencer_selection_set(
     id: UniqueId,
     track_id: UniqueId,
     flow_id: UniqueId,
+    instrument_id: UniqueId,
 ) {
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
@@ -154,6 +157,7 @@ pub fn ui_sequencer_selection_set(
         selection_type,
         track_id,
         flow_id,
+        instrument_id,
     });
 
     state.emit(&app, &mut renderer, true);

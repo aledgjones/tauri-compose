@@ -41,37 +41,14 @@ export const useSelectedToneInfo = () => {
     // Get note name
     const noteName = getPitchName(tone.pitch);
 
-    // Find which instrument owns this track by checking staves in the flow
-    const flow = state.score.flows.by_id[selection.flow_id];
-    let instrument = null;
-
-    if (flow) {
-      // Search through all instruments to find which one has this track
-      for (const playerId of state.score.players.order) {
-        const player = state.score.players.by_id[playerId];
-        for (const instrumentId of player.instrument_ids) {
-          const inst = state.score.instruments.by_id[instrumentId];
-          if (!inst) continue;
-
-          // Check if any of this instrument's staves contain the track
-          for (const staveId of inst.stave_ids) {
-            const stave = flow.staves.by_id[staveId];
-            if (stave && stave.track_ids.includes(selection.track_id)) {
-              instrument = inst;
-              break;
-            }
-          }
-          if (instrument) break;
-        }
-        if (instrument) break;
-      }
-    }
-
+    // Get instrument from stored instrument_id
+    const instrument = state.score.instruments.by_id[selection.instrument_id];
     const instrumentName = instrument
       ? instrument.long_name + (instrument.count ? ` ${instrument.count}` : "")
       : "Unknown";
 
     // Build track label from the selected flow and track
+    const flow = state.score.flows.by_id[selection.flow_id];
     let trackLabel = "Unknown";
 
     if (flow && instrument) {
@@ -104,8 +81,6 @@ export const useSelectedToneInfo = () => {
     state.score.tracks.by_id,
     state.score.instruments.by_id,
     state.score.flows.by_id,
-    state.score.players.order,
-    state.score.players.by_id,
   ]);
 
   return selectedToneInfo;

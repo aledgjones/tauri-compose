@@ -8,6 +8,7 @@ pub struct HitTestResult {
     pub tone_id: UniqueId,
     pub track_id: UniqueId,
     pub flow_id: UniqueId,
+    pub instrument_id: UniqueId,
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -39,6 +40,7 @@ pub fn renderer_hit_test(
                 tone_id: target.tone_id,
                 track_id: target.track_id,
                 flow_id: target.flow_id,
+                instrument_id: target.instrument_id,
             });
         }
     }

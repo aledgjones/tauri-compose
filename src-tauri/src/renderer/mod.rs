@@ -58,6 +58,7 @@ pub struct HitTarget {
     pub tone_id: UniqueId,
     pub track_id: UniqueId,
     pub flow_id: UniqueId,
+    pub instrument_id: UniqueId,
     pub x: f32,
     pub y: f32,
     pub width: f32,

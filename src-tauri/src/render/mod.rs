@@ -499,6 +499,7 @@ pub fn generate_render_instructions(
                             selection,
                             *track_id,
                             flow_id,
+                            instrument.id,
                             renderer,
                         );
 

@@ -357,6 +357,7 @@ export type AppState = {
         selection_type: SelectionType;
         track_id: UniqueId;
         flow_id: UniqueId;
+        instrument_id: UniqueId;
       } | null;
     };
     screens: {

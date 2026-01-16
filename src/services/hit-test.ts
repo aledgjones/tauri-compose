@@ -5,6 +5,7 @@ export interface HitTestResult {
   tone_id: UniqueId;
   track_id: UniqueId;
   flow_id: UniqueId;
+  instrument_id: UniqueId;
 }
 
 export async function hitTest(

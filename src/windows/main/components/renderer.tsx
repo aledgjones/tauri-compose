@@ -6,6 +6,8 @@ import { pxPerMm } from "../../../utils/mm";
 import { useKeyboardShortcuts } from "../hooks/use-keyboard-shortcuts";
 import { hitTest } from "../../../services/hit-test";
 import { SelectionType } from "../../../services/types";
+import { sampler } from "../../../sampler";
+import { Expression } from "../../../sampler/types";
 
 type Props = { className?: string };
 
@@ -97,12 +99,32 @@ export const Renderer: FC<Props> = ({ className }) => {
       if (hitResult) {
         // Hit a notehead - select it instead of panning
         e.preventDefault();
+
         await actions.ui.sequencer.select(
           SelectionType.Tone,
           hitResult.tone_id,
           hitResult.track_id,
           hitResult.flow_id,
+          hitResult.instrument_id,
         );
+
+        // Audition the selected tone only if it wasn't already selected
+        if (state.ui.sequencer.selection?.id !== hitResult.tone_id) {
+          const track = state.score.tracks.by_id[hitResult.track_id];
+          if (track) {
+            const tone = track.entries.by_id[hitResult.tone_id];
+            if (tone && tone.type === "Tone") {
+              sampler.play(
+                hitResult.instrument_id.toString(),
+                Expression.Natural,
+                tone.pitch.int,
+                sampler.ctx.currentTime,
+                0.5,
+              );
+            }
+          }
+        }
+
         return;
       }
 
@@ -191,7 +213,7 @@ export const Renderer: FC<Props> = ({ className }) => {
       $element.removeEventListener("pointerdown", onPointerDown);
       $element.removeEventListener("wheel", onWheel);
     };
-  }, []);
+  }, [state.ui.sequencer.selection?.id]);
 
   return (
     <div
