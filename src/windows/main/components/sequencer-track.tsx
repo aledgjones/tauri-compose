@@ -1,4 +1,4 @@
-import { FC, PointerEvent, useCallback, useMemo, useRef } from "react";
+import { FC, useCallback, useMemo, useRef } from "react";
 import { TickConfig } from "../hooks/use-ticks";
 import { KeyType, Slots } from "../hooks/use-slots";
 import classNames from "classnames";
@@ -15,7 +15,10 @@ import {
 import { actions } from "../../../services/actions";
 import { SequencerTrackTone } from "./sequencer-track-tone";
 import { Expression, sampler } from "../../../sampler";
-import { getSequencerClickTarget } from "../../../services/sequencer-utils";
+import {
+  getSequencerClickTarget,
+  ClickTarget,
+} from "../../../services/sequencer-utils";
 import { useAppState } from "../../../services/state";
 
 export const getSnappedXPosition = (
@@ -73,7 +76,7 @@ type SequencerTrackProps = {
 };
 
 const handleWriteTool = async (
-  e: PointerEvent<HTMLDivElement>,
+  e: React.PointerEvent<HTMLDivElement>,
   sequencerRef: React.RefObject<HTMLDivElement | null>,
   flow: Flow,
   track: Track,
@@ -141,7 +144,7 @@ const handleWriteTool = async (
     );
   }
 
-  const handlePointerMove = async (e: any) => {
+  const handlePointerMove = async (e: PointerEvent) => {
     const x = e.clientX - box.left;
     const endTick = getSnappedXPosition(
       x,
@@ -173,7 +176,7 @@ const handleWriteTool = async (
 };
 
 const handleSliceTool = async (
-  e: PointerEvent<HTMLDivElement>,
+  e: React.PointerEvent<HTMLDivElement>,
   sequencerRef: React.RefObject<HTMLDivElement | null>,
   track: Track,
   ticks: TickConfig,
@@ -218,7 +221,7 @@ const handleSliceTool = async (
 };
 
 const handleEraseTool = async (
-  e: PointerEvent<HTMLDivElement>,
+  e: React.PointerEvent<HTMLDivElement>,
   track: Track,
 ) => {
   const clickTarget = getSequencerClickTarget(e.target as HTMLElement);
@@ -234,7 +237,7 @@ const handleEraseTool = async (
 const handleDurationAdjustment = async (
   box: DOMRect,
   track: Track,
-  clickTarget: any,
+  clickTarget: ClickTarget,
   originalTone: Tone,
   ticks: TickConfig,
   ticksPerSnap: number,
@@ -242,7 +245,7 @@ const handleDurationAdjustment = async (
 ) => {
   let lastDuration = originalTone.duration;
 
-  const handlePointerMove = async (e: any) => {
+  const handlePointerMove = async (e: PointerEvent) => {
     const x = e.clientX - box.left;
     const endTick = getSnappedXPosition(
       x,
@@ -281,7 +284,7 @@ const handleDurationAdjustment = async (
 const handleLeftSideAdjustment = async (
   box: DOMRect,
   track: Track,
-  clickTarget: any,
+  clickTarget: ClickTarget,
   originalTone: Tone,
   ticks: TickConfig,
   ticksPerSnap: number,
@@ -291,7 +294,7 @@ const handleLeftSideAdjustment = async (
   let lastTick = originalTone.tick;
   let lastDuration = originalTone.duration;
 
-  const handlePointerMove = async (e: any) => {
+  const handlePointerMove = async (e: PointerEvent) => {
     const x = e.clientX - box.left;
     const newStartTick = getSnappedXPosition(
       x,
@@ -338,10 +341,10 @@ const handleLeftSideAdjustment = async (
 };
 
 const handlePositionDragging = async (
-  e: PointerEvent<HTMLDivElement>,
+  e: React.PointerEvent<HTMLDivElement>,
   box: DOMRect,
   track: Track,
-  clickTarget: any,
+  clickTarget: ClickTarget,
   originalTone: Tone,
   ticks: TickConfig,
   ticksPerSnap: number,
@@ -358,7 +361,7 @@ const handlePositionDragging = async (
   const initialTickRaw = initialX / ticks.tickWidth;
   const originalToneTick = originalTone.tick;
 
-  const handlePointerMove = async (e: any) => {
+  const handlePointerMove = async (e: PointerEvent) => {
     const x = e.clientX - box.left;
     const y = e.clientY - box.top;
 
@@ -414,7 +417,7 @@ const handlePositionDragging = async (
 };
 
 const handleSelectTool = async (
-  e: PointerEvent<HTMLDivElement>,
+  e: React.PointerEvent<HTMLDivElement>,
   sequencerRef: React.RefObject<HTMLDivElement | null>,
   flow: Flow,
   track: Track,
@@ -540,7 +543,7 @@ export const SequencerTrack: FC<SequencerTrackProps> = ({
   const state = useAppState();
 
   const onPointerDown = useCallback(
-    async (e: PointerEvent<HTMLDivElement>) => {
+    async (e: React.PointerEvent<HTMLDivElement>) => {
       switch (tool) {
         case Tool.Write:
           await handleWriteTool(
