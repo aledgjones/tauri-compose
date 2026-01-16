@@ -31,6 +31,7 @@ export const SelectByImage = <T extends Key>({
           return (
             <button className="w-37.5" onClick={() => onChange(option.value)}>
               <img
+                alt=""
                 src={option.image}
                 className={classNames("w-full mb-2 border-4", {
                   "border-white": !isSelected,

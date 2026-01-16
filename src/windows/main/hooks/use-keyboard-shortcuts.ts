@@ -49,6 +49,10 @@ export const useKeyboardShortcuts = () => {
     }
 
     const auditionTone = (pitch: number) => {
+      if (!state.preferences.audition) {
+        return;
+      }
+
       sampler.play(
         selectionInfo.instrumentId.toString(),
         Expression.Natural,
@@ -182,5 +186,5 @@ export const useKeyboardShortcuts = () => {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [selectionInfo]);
+  }, [selectionInfo, state.preferences.audition]);
 };

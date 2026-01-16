@@ -1,5 +1,6 @@
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
+import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import {
   Align,
   AppState,
@@ -60,6 +61,9 @@ export const initialAppState: AppState = {
         bottom_panel_tab: BottomPanelTab.Sequencer,
       },
     },
+  },
+  preferences: {
+    audition: true,
   },
   score: {
     layouts: { order: [], by_id: {} },
@@ -158,7 +162,6 @@ export const initialAppState: AppState = {
 };
 
 export const AppContext = createContext<AppState | null>(null);
-
 export const SamplerContext = createContext<Sampler | null>(null);
 
 type Props = PropsWithChildren<{ isMainWindow?: boolean }>;
@@ -180,6 +183,7 @@ export const AppStateProvider: FC<Props> = ({
     let unlistenMenuOpen: UnlistenFn | null = null;
     let unlistenMenuOpenRecent: UnlistenFn | null = null;
     let unlistenMenuNew: UnlistenFn | null = null;
+    let unlistenMenuPreferences: UnlistenFn | null = null;
     let unlistenRecentsChanged: UnlistenFn | null = null;
 
     (async () => {
@@ -215,6 +219,24 @@ export const AppStateProvider: FC<Props> = ({
           actions.reset().catch(console.error);
         });
 
+        unlistenMenuPreferences = await listen(
+          "soloc://menu/preferences",
+          () => {
+            const webview = new WebviewWindow("preferences", {
+              url: "/preferences.html",
+              title: "Preferences",
+              visible: false,
+              titleBarStyle: "overlay",
+              acceptFirstMouse: true,
+              height: 500,
+              width: 750,
+              theme: "dark",
+            });
+
+            webview.setFocus();
+          },
+        );
+
         // Listen for recents changes and refresh menus
         unlistenRecentsChanged = await listen("soloc://recents-changed", () => {
           invoke("refresh_menus").catch(console.error);
@@ -239,6 +261,7 @@ export const AppStateProvider: FC<Props> = ({
       unlistenMenuOpen?.();
       unlistenMenuOpenRecent?.();
       unlistenMenuNew?.();
+      unlistenMenuPreferences?.();
       unlistenRecentsChanged?.();
     };
   }, [isMainWindow]);

@@ -81,6 +81,7 @@ const handleWriteTool = async (
   slots: Slots,
   snapDuration: NoteDuration,
   instrumentId: UniqueId,
+  audition: boolean,
 ) => {
   const box = sequencerRef.current?.getBoundingClientRect();
   if (!box) {
@@ -130,13 +131,15 @@ const handleWriteTool = async (
   );
 
   // Audition the tone
-  sampler.play(
-    instrumentId.toString(),
-    Expression.Natural,
-    pitch,
-    sampler.ctx.currentTime,
-    0.5,
-  );
+  if (audition) {
+    sampler.play(
+      instrumentId.toString(),
+      Expression.Natural,
+      pitch,
+      sampler.ctx.currentTime,
+      0.5,
+    );
+  }
 
   const handlePointerMove = async (e: any) => {
     const x = e.clientX - box.left;
@@ -345,6 +348,7 @@ const handlePositionDragging = async (
   flow: Flow,
   slots: Slots,
   instrumentId: UniqueId,
+  audition: boolean,
 ) => {
   let lastPitch = originalTone.pitch.int;
   let lastTick = originalTone.tick;
@@ -382,14 +386,15 @@ const handlePositionDragging = async (
       await actions.score.tone.setPitch(track.id, clickTarget.id, newPitch);
       lastPitch = newPitch;
 
-      // Audition the new pitch
-      sampler.play(
-        instrumentId.toString(),
-        Expression.Natural,
-        newPitch,
-        sampler.ctx.currentTime,
-        0.5,
-      );
+      if (audition) {
+        sampler.play(
+          instrumentId.toString(),
+          Expression.Natural,
+          newPitch,
+          sampler.ctx.currentTime,
+          0.5,
+        );
+      }
     }
 
     // Update tick if it changed
@@ -418,6 +423,7 @@ const handleSelectTool = async (
   snapDuration: NoteDuration,
   instrumentId: UniqueId,
   currentSelectionId: UniqueId | null,
+  audition: boolean,
 ) => {
   const clickTarget = getSequencerClickTarget(e.target as HTMLElement);
 
@@ -435,16 +441,18 @@ const handleSelectTool = async (
   );
 
   // Audition the selected tone only if it wasn't already selected
-  if (currentSelectionId !== clickTarget.id) {
-    const tone = track.entries.by_id[clickTarget.id];
-    if (tone && tone.type === "Tone") {
-      sampler.play(
-        instrumentId.toString(),
-        Expression.Natural,
-        tone.pitch.int,
-        sampler.ctx.currentTime,
-        0.5,
-      );
+  if (audition) {
+    if (currentSelectionId !== clickTarget.id) {
+      const tone = track.entries.by_id[clickTarget.id];
+      if (tone && tone.type === "Tone") {
+        sampler.play(
+          instrumentId.toString(),
+          Expression.Natural,
+          tone.pitch.int,
+          sampler.ctx.currentTime,
+          0.5,
+        );
+      }
     }
   }
 
@@ -513,6 +521,7 @@ const handleSelectTool = async (
       flow,
       slots,
       instrumentId,
+      audition,
     );
   }
 };
@@ -543,6 +552,7 @@ export const SequencerTrack: FC<SequencerTrackProps> = ({
             slots,
             snapDuration,
             instrumentId,
+            state.preferences.audition,
           );
           break;
 
@@ -557,6 +567,7 @@ export const SequencerTrack: FC<SequencerTrackProps> = ({
             snapDuration,
             instrumentId,
             state.ui.sequencer.selection?.id ?? null,
+            state.preferences.audition,
           );
           break;
 
@@ -578,6 +589,7 @@ export const SequencerTrack: FC<SequencerTrackProps> = ({
       instrumentId,
       ticks,
       state.ui.sequencer.selection?.id,
+      state.preferences.audition,
     ],
   );
 

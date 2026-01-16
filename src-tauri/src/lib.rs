@@ -1,18 +1,21 @@
 mod files;
 mod migrations;
 mod native_renderer;
+mod preferences;
 mod render;
 mod renderer;
 mod sampler;
 mod score;
 mod ui;
 mod utils;
+
 use files::{
     add_recent_file, clear_recent_files, get_current_file_path, get_recent_files,
     load_project_from_file, refresh_menus, save_project_to_file, set_current_file_path,
     update_recent_files_menu,
 };
 use lazy_static::lazy_static;
+use preferences::{preferences_audition_set, Preferences};
 use render::generate_render_instructions;
 use renderer::hit_test::renderer_hit_test;
 use renderer::Renderer;
@@ -104,6 +107,7 @@ lazy_static! {
 struct AppStateGeneral {
     ui: Ui,
     score: Score,
+    preferences: Preferences,
     current_file_path: Option<String>,
 }
 
@@ -112,6 +116,7 @@ struct AppStateInner {
     ui: Ui,
     score: Score,
     sampler: Sampler,
+    preferences: Preferences,
     next_id: UniqueId,
     current_file_path: Option<String>,
 }
@@ -122,6 +127,7 @@ impl AppStateInner {
             ui: Ui::new(),
             score: Score::new(),
             sampler: Sampler::default(),
+            preferences: Preferences { audition: true }, // Default values, will be loaded from store
             next_id: 1,
             current_file_path: None,
         })
@@ -170,9 +176,10 @@ impl AppStateInner {
             ui: self.ui.clone(),
             score: self.score.clone(),
             current_file_path: self.current_file_path.clone(),
+            preferences: self.preferences.clone(),
         };
 
-        if let Err(e) = app.emit("soloc://state/general", general_state) {
+        if let Err(e) = app.emit("soloc://state/general", &general_state) {
             eprintln!("Failed to emit general state: {:?}", e);
         }
     }
@@ -241,6 +248,16 @@ pub fn run() {
 
     builder
         .setup(|app| {
+            app.manage(AppStateInner::new());
+            app.manage(Mutex::new(Renderer::new()));
+
+            // PREFERECES INITIALIZATION
+            let app_handle = app.app_handle();
+            let preferences = tauri::async_runtime::block_on(Preferences::new(app_handle.clone()));
+            let state = app.state::<AppState>();
+            let mut state = state.lock().unwrap();
+            state.preferences = preferences;
+
             let separator = PredefinedMenuItem::separator(app)?;
 
             // App menu
@@ -260,6 +277,13 @@ pub fn run() {
             let hide_others = PredefinedMenuItem::hide_others(app, None)?;
             let show_all = PredefinedMenuItem::show_all(app, None)?;
             let quit = PredefinedMenuItem::quit(app, Some(&format!("Quit {}", APP_NAME)))?;
+            let preferences = MenuItem::with_id(
+                app,
+                "preferences",
+                "Preferences...",
+                true,
+                Some("CmdOrCtrl+,"),
+            )?;
 
             let app_menu = Submenu::with_items(
                 app,
@@ -267,6 +291,8 @@ pub fn run() {
                 true,
                 &[
                     &about,
+                    &separator,
+                    &preferences,
                     &separator,
                     &services,
                     &separator,
@@ -319,6 +345,10 @@ pub fn run() {
                         // Trigger open project action
                         let _ = app.emit("soloc://menu/open", ());
                     }
+                    "preferences" => {
+                        // Trigger preferences window
+                        let _ = app.emit("soloc://menu/preferences", ());
+                    }
                     "clear_recent_files" => {
                         // Clear recent files
                         let _ = clear_recent_files(app.clone());
@@ -341,9 +371,6 @@ pub fn run() {
                 }
             });
 
-            app.manage(AppStateInner::new());
-            app.manage(Mutex::new(Renderer::new()));
-
             // Initialize the recent files menu
             let _ = update_recent_files_menu(app.app_handle());
 
@@ -360,6 +387,7 @@ pub fn run() {
             get_recent_files,
             clear_recent_files,
             refresh_menus,
+            preferences_audition_set,
             score_config_auto_count_styles_solo_set,
             score_config_auto_count_styles_section_set,
             score_engraves_bracketing_approach_set,

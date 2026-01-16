@@ -76,6 +76,13 @@ export const actions = {
     setActiveLayoutId: (layout_id: number) => {
       return invoke("ui_layout_id_set", { layout_id });
     },
+    preferences: {
+      setAudition: (audition: boolean) => {
+        return invoke("preferences_audition_set", {
+          audition,
+        });
+      },
+    },
     renderer: {
       setZoom: (zoom: number) => {
         return invoke<[number, number, number]>("ui_renderer_zoom_set", {

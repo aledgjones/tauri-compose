@@ -385,5 +385,8 @@ export type AppState = {
     layouts: Layouts;
     engraves: Engraves;
   };
+  preferences: {
+    audition: boolean;
+  };
   current_file_path: string | null;
 };
