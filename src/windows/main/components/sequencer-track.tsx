@@ -11,7 +11,6 @@ import {
   Tone,
   Track,
   UniqueId,
-  AppState,
 } from "../../../services/types";
 import { actions } from "../../../services/actions";
 import { SequencerTrackTone } from "./sequencer-track-tone";

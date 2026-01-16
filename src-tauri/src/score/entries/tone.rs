@@ -302,14 +302,11 @@ pub fn score_entries_tone_pitch_shift_by_steps(
     track_id: UniqueId,
     tone_id: UniqueId,
     steps: i8,
-) {
+) -> Option<u8> {
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
 
-    let flow = match state.score.flows.by_id.get(&flow_id) {
-        Some(flow) => flow,
-        None => return,
-    };
+    let flow = state.score.flows.by_id.get(&flow_id)?;
 
     let master_track = state.score.tracks.by_id.get(&flow.master_id).unwrap();
     let track = state.score.tracks.by_id.get(&track_id).unwrap();
@@ -317,7 +314,7 @@ pub fn score_entries_tone_pitch_shift_by_steps(
     let tone = track.entries.by_id.get(&tone_id);
     let tone = match tone {
         Some(Entry::Tone(tone)) => tone,
-        _ => return,
+        _ => return None,
     };
 
     let key_signature = match master_track.get_key_signature_before_tick_inclusive(tone.tick) {
@@ -327,11 +324,16 @@ pub fn score_entries_tone_pitch_shift_by_steps(
 
     let track = state.score.tracks.by_id.get_mut(&track_id).unwrap();
     let entry = track.entries.by_id.get_mut(&tone_id).unwrap();
-    if let Entry::Tone(tone) = entry {
+    let new_pitch = if let Entry::Tone(tone) = entry {
         tone.pitch = tone.pitch.shift_by_steps(steps, &key_signature);
-    }
+        Some(tone.pitch.int)
+    } else {
+        None
+    };
 
     state.emit(&app, &mut renderer, true);
+
+    new_pitch
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -342,17 +344,21 @@ pub fn score_entries_tone_pitch_shift_by_octaves(
     track_id: UniqueId,
     tone_id: UniqueId,
     octaves: i8,
-) {
+) -> Option<u8> {
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
 
     let track = state.score.tracks.by_id.get_mut(&track_id).unwrap();
     let entry = track.entries.by_id.get_mut(&tone_id).unwrap();
-    if let Entry::Tone(tone) = entry {
+    let new_pitch = if let Entry::Tone(tone) = entry {
         tone.pitch = tone.pitch.shift_by_octaves(octaves);
-    }
+        Some(tone.pitch.int)
+    } else {
+        None
+    };
 
     state.emit(&app, &mut renderer, true);
+    new_pitch
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -363,17 +369,22 @@ pub fn score_entries_tone_accidental_set(
     track_id: UniqueId,
     tone_id: UniqueId,
     accidental: Accidental,
-) {
+) -> Option<u8> {
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
 
     let track = state.score.tracks.by_id.get_mut(&track_id).unwrap();
     let entry = track.entries.by_id.get_mut(&tone_id).unwrap();
-    if let Entry::Tone(tone) = entry {
+    let new_pitch = if let Entry::Tone(tone) = entry {
         let base_pitch = tone.pitch.base();
         let new_pitch_int = (base_pitch as i8 + accidental as i8) as u8;
         tone.pitch = Pitch::new(new_pitch_int, accidental);
-    }
+        Some(tone.pitch.int)
+    } else {
+        None
+    };
 
     state.emit(&app, &mut renderer, true);
+
+    new_pitch
 }

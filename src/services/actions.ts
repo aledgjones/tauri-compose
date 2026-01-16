@@ -646,30 +646,36 @@ export const actions = {
         tone_id: UniqueId,
         steps: number,
       ) => {
-        return invoke<void>("score_entries_tone_pitch_shift_by_steps", {
-          flow_id,
-          track_id,
-          tone_id,
-          steps,
-        });
+        return invoke<number | null>(
+          "score_entries_tone_pitch_shift_by_steps",
+          {
+            flow_id,
+            track_id,
+            tone_id,
+            steps,
+          },
+        );
       },
       shiftPitchByOctave: (
         track_id: UniqueId,
         tone_id: UniqueId,
         octaves: number,
       ) => {
-        return invoke<void>("score_entries_tone_pitch_shift_by_octaves", {
-          track_id,
-          tone_id,
-          octaves,
-        });
+        return invoke<number | null>(
+          "score_entries_tone_pitch_shift_by_octaves",
+          {
+            track_id,
+            tone_id,
+            octaves,
+          },
+        );
       },
       setAccidental: (
         track_id: UniqueId,
         tone_id: UniqueId,
         accidental: Accidental,
       ) => {
-        return invoke<void>("score_entries_tone_accidental_set", {
+        return invoke<number | null>("score_entries_tone_accidental_set", {
           track_id,
           tone_id,
           accidental,

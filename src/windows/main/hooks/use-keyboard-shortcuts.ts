@@ -2,6 +2,8 @@ import { useEffect, useMemo } from "react";
 import { useAppState } from "../../../services/state";
 import { Accidental, SelectionType } from "../../../services/types";
 import { actions } from "../../../services/actions";
+import { sampler } from "../../../sampler";
+import { Expression } from "../../../sampler/types";
 
 type Modifiers = { command: boolean; control: boolean; option: boolean };
 
@@ -35,6 +37,7 @@ export const useKeyboardShortcuts = () => {
     return {
       tone,
       toneId: selection.id,
+      instrumentId: selection.instrument_id,
       trackId: selection.track_id,
       flowId: selection.flow_id,
     };
@@ -45,10 +48,21 @@ export const useKeyboardShortcuts = () => {
       return;
     }
 
+    const auditionTone = (pitch: number) => {
+      sampler.play(
+        selectionInfo.instrumentId.toString(),
+        Expression.Natural,
+        pitch,
+        sampler.ctx.currentTime,
+        0.5,
+      );
+    };
+
     const shortcuts: Array<{
       key: string;
       modifiers: Modifiers;
-      action: () => Promise<void>;
+      action: () => Promise<number | null | void>;
+      shouldAudition?: boolean;
     }> = [
       {
         key: "ArrowUp",
@@ -60,6 +74,7 @@ export const useKeyboardShortcuts = () => {
             selectionInfo.toneId,
             1,
           ),
+        shouldAudition: true,
       },
       {
         key: "ArrowUp",
@@ -70,6 +85,7 @@ export const useKeyboardShortcuts = () => {
             selectionInfo.toneId,
             1,
           ),
+        shouldAudition: true,
       },
       {
         key: "ArrowDown",
@@ -81,6 +97,7 @@ export const useKeyboardShortcuts = () => {
             selectionInfo.toneId,
             -1,
           ),
+        shouldAudition: true,
       },
       {
         key: "ArrowDown",
@@ -91,6 +108,7 @@ export const useKeyboardShortcuts = () => {
             selectionInfo.toneId,
             -1,
           ),
+        shouldAudition: true,
       },
       {
         key: "=",
@@ -101,6 +119,7 @@ export const useKeyboardShortcuts = () => {
             selectionInfo.toneId,
             Accidental.Sharp,
           ),
+        shouldAudition: true,
       },
       {
         key: "-",
@@ -111,6 +130,7 @@ export const useKeyboardShortcuts = () => {
             selectionInfo.toneId,
             Accidental.Flat,
           ),
+        shouldAudition: true,
       },
       {
         key: "0",
@@ -121,6 +141,7 @@ export const useKeyboardShortcuts = () => {
             selectionInfo.toneId,
             Accidental.Natural,
           ),
+        shouldAudition: true,
       },
       {
         key: "Backspace",
@@ -146,7 +167,12 @@ export const useKeyboardShortcuts = () => {
       for (const shortcut of shortcuts) {
         if (e.key === shortcut.key && matchesModifiers(e, shortcut.modifiers)) {
           e.preventDefault();
-          await shortcut.action();
+          const result = await shortcut.action();
+
+          if (shortcut.shouldAudition && typeof result === "number") {
+            auditionTone(result);
+          }
+
           return; // Stop after first match
         }
       }
