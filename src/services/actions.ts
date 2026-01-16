@@ -31,36 +31,38 @@ export const actions = {
     return invoke("reset");
   },
   pickAnInstrument: () => {
-    return new Promise<string | null>(async (resolve) => {
-      const webview = new WebviewWindow("instrument-picker", {
-        url: "/instrument-picker.html",
-        title: "Instrument Picker",
-        visible: false,
-        titleBarStyle: "overlay",
-        acceptFirstMouse: true,
-        height: 500,
-        width: 900,
-        theme: "dark",
-      });
+    return new Promise<string | null>((resolve) => {
+      (async () => {
+        const webview = new WebviewWindow("instrument-picker", {
+          url: "/instrument-picker.html",
+          title: "Instrument Picker",
+          visible: false,
+          titleBarStyle: "overlay",
+          acceptFirstMouse: true,
+          height: 500,
+          width: 900,
+          theme: "dark",
+        });
 
-      let selection: string | null = null;
+        let selection: string | null = null;
 
-      const blurUnlisten = await webview.once("tauri://blur", async () => {
-        webview.close();
-      });
+        const blurUnlisten = await webview.once("tauri://blur", async () => {
+          webview.close();
+        });
 
-      const selectInstrumentUnlisten = await webview.once<{
-        instrument_id: string;
-      }>("soloc://select-instrument", async (e) => {
-        selection = e.payload?.instrument_id;
-        webview.close();
-      });
+        const selectInstrumentUnlisten = await webview.once<{
+          instrument_id: string;
+        }>("soloc://select-instrument", async (e) => {
+          selection = e.payload?.instrument_id;
+          webview.close();
+        });
 
-      await webview.once("tauri://destroyed", async () => {
-        blurUnlisten();
-        selectInstrumentUnlisten();
-        resolve(selection);
-      });
+        await webview.once("tauri://destroyed", async () => {
+          blurUnlisten();
+          selectInstrumentUnlisten();
+          resolve(selection);
+        });
+      })();
     });
   },
   getInstrumentPatches: (id: string, player_type: PlayerType) => {

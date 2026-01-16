@@ -33,14 +33,15 @@ export const Textarea: FC<TextareaProps> = ({
       <textarea
         value={value}
         contentEditable={!readOnly}
-        onInput={(e: any) => {
-          e.target.style.height = "1px";
-          e.target.style.height = e.target.scrollHeight + 4 + "px";
-          onChange?.(e.target.value);
+        onInput={(e: React.FormEvent<HTMLTextAreaElement>) => {
+          const target = e.target as HTMLTextAreaElement;
+          target.style.height = "1px";
+          target.style.height = target.scrollHeight + 4 + "px";
+          onChange?.(target.value);
         }}
         onFocus={() => setIsFocused(true)}
         onBlur={() => setIsFocused(false)}
-        className=" block w-full h-[36px] bg-neutral-800 px-2 py-[6px] text-sm focus:outline-hidden border-2 border-neutral-800 focus:border-sky-500 text-white resize-none"
+        className=" block w-full h-9 bg-neutral-800 px-2 py-1.5 text-sm focus:outline-hidden border-2 border-neutral-800 focus:border-sky-500 text-white resize-none"
         style={{ minHeight: `${lines * 20 + 16}px` }}
       />
     </div>

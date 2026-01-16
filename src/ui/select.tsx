@@ -125,15 +125,21 @@ export const Select = <T extends Key>({
         >
           {options.map((option) => {
             return (
-              <li
-                key={option.value}
-                onClick={() => handleOptionClick(option.value)}
-                className={classNames("px-3 py-2", {
-                  "hover:bg-neutral-700": isStandard,
-                  "hover:bg-neutral-600": !isStandard,
-                })}
-              >
-                <TokenizedText>{option.label}</TokenizedText>
+              <li key={option.value}>
+                <button
+                  onClick={() => handleOptionClick(option.value)}
+                  role="option"
+                  aria-selected={option.value === value}
+                  className={classNames(
+                    "w-full text-left px-3 py-2 cursor-pointer",
+                    {
+                      "hover:bg-neutral-700": isStandard,
+                      "hover:bg-neutral-600": !isStandard,
+                    },
+                  )}
+                >
+                  <TokenizedText>{option.label}</TokenizedText>
+                </button>
               </li>
             );
           })}

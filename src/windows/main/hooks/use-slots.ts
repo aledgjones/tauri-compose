@@ -38,14 +38,15 @@ export const useSlotPattern = (octaves: number, zoomY = 1): Slots => {
     const slotHeight = SLOT_HEIGHT * zoomY;
     const height = slotHeight * pattern.length;
 
-    let top = 0;
-
     return {
       pattern: pattern.map((slot, i) => {
         if (slot.type === KeyType.White) {
-          const out = { ...slot, top };
-          top = top + slot.height;
-          return out;
+          // Calculate top position based on accumulated white key heights
+          const whiteKeysBefore = pattern
+            .slice(0, i)
+            .filter((s) => s.type === KeyType.White);
+          const top = whiteKeysBefore.reduce((acc, s) => acc + s.height, 0);
+          return { ...slot, top };
         } else {
           return { ...slot, top: slot.height * i };
         }

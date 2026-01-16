@@ -1,11 +1,11 @@
 import { useEffect } from "react";
 import { sampler } from "../sampler";
-import { Expression } from "../sampler/types";
+import { Expression, Patch } from "../sampler/types";
 import { actions } from "./actions";
 import { AppState, Sampler } from "./types";
 import { useAsync } from "./utils";
 
-type SamplerModule = () => Promise<{ default: any }>;
+type SamplerModule = () => Promise<{ default: Patch[] }>;
 
 /**
  * Hook that manages sampler initialization and instrument loading (self-contained)

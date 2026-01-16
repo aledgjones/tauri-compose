@@ -1,4 +1,11 @@
-import { FC, KeyboardEvent, useCallback, useEffect, useState } from "react";
+import {
+  FC,
+  KeyboardEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { NumberInputProps } from ".";
 import { TextInput } from "./text-input";
 import Big from "big.js";
@@ -32,9 +39,19 @@ export const NumberInput: FC<NumberInputProps> = ({
     [decimalPlaces],
   );
 
-  const [display, setDisplay] = useState<string>(toPrecision(value));
+  // Derive the display value from the value prop
+  const derivedDisplay = useMemo(
+    () => toPrecision(value),
+    [value, toPrecision],
+  );
 
-  useEffect(() => setDisplay(toPrecision(value)), [value, toPrecision]);
+  // Local state for user input (only when actively editing)
+  const [display, setDisplay] = useState<string>(derivedDisplay);
+
+  // Sync display with derived value when value prop changes
+  useEffect(() => {
+    setDisplay(derivedDisplay);
+  }, [derivedDisplay]);
 
   // apply valid number, or revert
   const handleBlur = useCallback(() => {
@@ -43,10 +60,10 @@ export const NumberInput: FC<NumberInputProps> = ({
       const parsed = toValue(val)!;
       setDisplay(val);
       onChange(parsed);
-    } catch (e) {
-      setDisplay(toPrecision(value));
+    } catch {
+      setDisplay(derivedDisplay);
     }
-  }, [toPrecision, display, toValue, onChange, value]);
+  }, [toPrecision, display, toValue, onChange, derivedDisplay]);
 
   const onIncrease = useCallback(() => {
     if (value === undefined) {

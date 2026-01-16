@@ -7,7 +7,7 @@ type Props = {
   value: boolean;
   onChange: (value: boolean) => void;
   className?: string;
-  onPointerDown?: (event: PointerEvent<HTMLDivElement>) => void;
+  onPointerDown?: (event: PointerEvent<HTMLButtonElement>) => void;
 };
 
 export const Checkbox: FC<Props> = ({
@@ -17,10 +17,10 @@ export const Checkbox: FC<Props> = ({
   onPointerDown,
 }) => {
   return (
-    <div
+    <button
       onClick={() => onChange(!value)}
       onPointerDown={onPointerDown}
-      className={`relative h-[36px] w-[36px] flex items-center justify-center ${className}`}
+      className={`relative h-9 w-9 flex items-center justify-center ${className}`}
     >
       <div
         className={classNames("border-2 h-5 w-5", {
@@ -37,6 +37,6 @@ export const Checkbox: FC<Props> = ({
           />
         )}
       </div>
-    </div>
+    </button>
   );
 };

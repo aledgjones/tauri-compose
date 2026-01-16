@@ -2,7 +2,7 @@ import { actions } from "../../../services/actions";
 import { useAppState } from "../../../services/state";
 import { Switch } from "../../../ui/switch";
 
-export const General = () => {
+export const NoteInputAndEditing = () => {
   const state = useAppState();
 
   return (

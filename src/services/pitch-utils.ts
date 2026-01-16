@@ -1,5 +1,3 @@
-/* eslint-disable no-template-curly-in-string */
-
 import { Pitch, Accidental } from "./types";
 
 export const naturalizePitch = (pitch: Pitch) => {

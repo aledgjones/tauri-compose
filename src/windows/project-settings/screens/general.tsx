@@ -3,7 +3,7 @@ import { useAppState } from "../../../services/state";
 import { Input } from "../../../ui/input";
 import { Textarea } from "../../../ui/textarea";
 
-export const Meta = () => {
+export const General = () => {
   const state = useAppState();
 
   return (

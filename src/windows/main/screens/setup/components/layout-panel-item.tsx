@@ -16,6 +16,8 @@ import { IconButton } from "../../../../../ui/icon-button";
 import { actions } from "../../../../../services/actions";
 import {
   FC,
+  FormEvent,
+  KeyboardEvent,
   PointerEvent,
   useCallback,
   useMemo,
@@ -89,7 +91,7 @@ export const LayoutPanelItem: FC<Props> = ({ layout }) => {
   }, [layout.id]);
 
   const onKeyDown = useCallback(
-    async (e: any) => {
+    async (e: KeyboardEvent<HTMLInputElement>) => {
       switch (e.key) {
         case "Enter":
           // confirm
@@ -110,8 +112,8 @@ export const LayoutPanelItem: FC<Props> = ({ layout }) => {
   );
 
   const onInput = useCallback(
-    async (e: any) => {
-      await actions.score.layout.rename(layout.id, e.target.value);
+    async (e: FormEvent<HTMLInputElement>) => {
+      await actions.score.layout.rename(layout.id, e.currentTarget.value);
     },
     [layout.id],
   );
@@ -147,9 +149,12 @@ export const LayoutPanelItem: FC<Props> = ({ layout }) => {
     [layout.id, state.ui.screens.setup.selection],
   );
 
-  const onBlockPointerDown = useCallback((e: PointerEvent<HTMLDivElement>) => {
-    e.stopPropagation();
-  }, []);
+  const onBlockPointerDown = useCallback(
+    (e: PointerEvent<HTMLButtonElement>) => {
+      e.stopPropagation();
+    },
+    [],
+  );
 
   const onSelect = useCallback(() => {
     if (!isSelected) {

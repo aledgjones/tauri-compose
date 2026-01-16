@@ -7,7 +7,7 @@ type Props = {
   description?: string;
   onChange: (value: boolean) => void;
   className?: string;
-  onPointerDown?: (event: PointerEvent<HTMLDivElement>) => void;
+  onPointerDown?: (event: PointerEvent<HTMLButtonElement>) => void;
 };
 
 export const Switch: FC<Props> = ({
@@ -26,10 +26,17 @@ export const Switch: FC<Props> = ({
           <p className="text-xs text-neutral-500 mb-2">{description}</p>
         )}
       </div>
-      <div
+      <button
         onClick={() => onChange(!value)}
         onPointerDown={onPointerDown}
-        className={classNames("relative h-8 w-12 flex items-center", className)}
+        type="button"
+        role="switch"
+        aria-checked={value}
+        aria-label={label}
+        className={classNames(
+          "relative h-8 w-12 flex items-center cursor-pointer border-none bg-transparent p-0",
+          className,
+        )}
       >
         <div
           className={classNames(
@@ -51,7 +58,7 @@ export const Switch: FC<Props> = ({
             style={{ transform: `translateX(${value ? "20px" : "2px"})` }}
           ></div>
         </div>
-      </div>
+      </button>
     </div>
   );
 };

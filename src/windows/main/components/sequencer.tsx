@@ -2,7 +2,7 @@ import { FC, useMemo } from "react";
 import { KEYBOARD_WIDTH } from "../config";
 import { DragScroll } from "../../../components/drag-scroll";
 import { Keyboard } from "./keyboard";
-import { Tool, UniqueId } from "../../../services/types";
+import { Tool, UniqueId, NoteDuration } from "../../../services/types";
 import { useSlotPattern } from "../hooks/use-slots";
 import { useTicks } from "../hooks/use-ticks";
 import { useAppState } from "../../../services/state";
@@ -23,7 +23,7 @@ interface SequencerToolbarProps {
   instruments: SelectOption<UniqueId>[];
   trackId: UniqueId | null;
   tracks: SelectOption<UniqueId>[];
-  snapValue: any;
+  snapValue: NoteDuration;
 }
 
 export const SequencerToolbar: FC<SequencerToolbarProps> = ({

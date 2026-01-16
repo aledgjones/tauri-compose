@@ -24,16 +24,8 @@ const tabs: TabsOption<Tab>[] = [
   { label: "Print", value: Tab.Print },
 ];
 
-const screens = new Map([
-  [Tab.Setup, Setup],
-  [Tab.Write, Write],
-  [Tab.Sequence, Sequence],
-]);
-
 export const Main = () => {
   const state = useAppState();
-
-  const Content = screens.get(state.ui.tab) || NotFound;
 
   const layouts = useMemo(() => {
     return state.score.layouts.order.map((layoutId) => {
@@ -98,7 +90,10 @@ export const Main = () => {
           </div>
         </div>
 
-        <Content />
+        {state.ui.tab === Tab.Setup && <Setup />}
+        {state.ui.tab === Tab.Write && <Write />}
+        {state.ui.tab === Tab.Sequence && <Sequence />}
+        {[Tab.Engrave, Tab.Print].includes(state.ui.tab) && <NotFound />}
       </div>
     </PlaybackProvider>
   );

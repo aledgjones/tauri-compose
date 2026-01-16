@@ -6,9 +6,11 @@ import { TickBar } from "../../../components/tick-bar";
 import { useTicks } from "../../../hooks/use-ticks";
 import { KEYBOARD_WIDTH } from "../../../config";
 import { MiniaturePianoRoll } from "./miniature-piano-roll";
-import { UniqueId } from "../../../../../services/types";
+import { UniqueId, Instrument } from "../../../../../services/types";
 import { DragScroll } from "../../../../../components/drag-scroll";
 import { PlaybackLine } from "../../../components/playback-line";
+
+type InstrumentWithPlayer = Instrument & { playerId: UniqueId };
 
 export const InstrumentOverview: FC = () => {
   const state = useAppState();
@@ -34,7 +36,7 @@ export const InstrumentOverview: FC = () => {
 
   // Check if an instrument is in the selected flow
   const isInstrumentInSelectedFlow = useMemo(() => {
-    return (instrument: any) => {
+    return (instrument: InstrumentWithPlayer) => {
       if (!flow) return true; // Fallback in case no flow exists at all
       return flow.player_ids.includes(instrument.playerId);
     };
@@ -71,14 +73,16 @@ export const InstrumentOverview: FC = () => {
 
         {/* Scrollable instrument list */}
         <div className="flex-1 overflow-y-auto flex flex-col gap-0.5">
-          {instruments.map((instrument: any, index: number) => (
-            <InstrumentOverviewRow
-              key={instrument.id}
-              instrument={instrument}
-              color={instrumentColors[index]}
-              isDisabled={!isInstrumentInSelectedFlow(instrument)}
-            />
-          ))}
+          {instruments.map(
+            (instrument: InstrumentWithPlayer, index: number) => (
+              <InstrumentOverviewRow
+                key={instrument.id}
+                instrument={instrument}
+                color={instrumentColors[index]}
+                isDisabled={!isInstrumentInSelectedFlow(instrument)}
+              />
+            ),
+          )}
         </div>
       </div>
 
@@ -95,16 +99,18 @@ export const InstrumentOverview: FC = () => {
 
         {/* Scrollable piano roll overviews */}
         <div className="flex flex-col overflow-y-auto gap-0.5 relative">
-          {instruments.map((instrument: any, index: number) => (
-            <MiniaturePianoRoll
-              key={instrument.id}
-              instrument={instrument}
-              flow={flow}
-              ticks={ticks}
-              color={instrumentColors[index]}
-              isDisabled={!isInstrumentInSelectedFlow(instrument)}
-            />
-          ))}
+          {instruments.map(
+            (instrument: InstrumentWithPlayer, index: number) => (
+              <MiniaturePianoRoll
+                key={instrument.id}
+                instrument={instrument}
+                flow={flow}
+                ticks={ticks}
+                color={instrumentColors[index]}
+                isDisabled={!isInstrumentInSelectedFlow(instrument)}
+              />
+            ),
+          )}
           <PlaybackLine
             ticks={ticks}
             height={instruments.length * 64 + (instruments.length - 1) * 2}

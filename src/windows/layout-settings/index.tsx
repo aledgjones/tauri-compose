@@ -1,8 +1,7 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { FC, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { AppBar } from "../../components/app-bar";
 import { Menu, MenuItem } from "../../ui/menu";
-import { NotFound } from "../../components/not-found";
 import { LayoutType } from "../../services/types";
 
 import { BracketsAndBraces } from "./screens/brackets-and-braces";
@@ -63,18 +62,8 @@ const options: MenuItem<MenuOption>[] = [
   },
 ];
 
-const screens = new Map([
-  [MenuOption.Barlines, Barlines],
-  [MenuOption.BracketsAndBraces, BracketsAndBraces],
-  [MenuOption.NoteSpacing, NoteSpacing],
-  [MenuOption.PageSettings, PageSettings],
-]);
-
 export const Main = () => {
   const [selection, setSelection] = useState(MenuOption.Barlines);
-
-  const Content: FC<{ layoutType: LayoutType }> =
-    screens.get(selection) || NotFound;
 
   useEffect(() => {
     const show = async () => {
@@ -92,7 +81,18 @@ export const Main = () => {
         <Menu selection={selection} items={options} onSelect={setSelection} />
       </div>
       <div className="overflow-auto flex flex-col gap-0.5 rounded-br-xl">
-        <Content layoutType={LayoutType.FullScore} />
+        {selection === MenuOption.Barlines && (
+          <Barlines layoutType={LayoutType.FullScore} />
+        )}
+        {selection === MenuOption.BracketsAndBraces && (
+          <BracketsAndBraces layoutType={LayoutType.FullScore} />
+        )}
+        {selection === MenuOption.NoteSpacing && (
+          <NoteSpacing layoutType={LayoutType.FullScore} />
+        )}
+        {selection === MenuOption.PageSettings && (
+          <PageSettings layoutType={LayoutType.FullScore} />
+        )}
       </div>
     </div>
   );

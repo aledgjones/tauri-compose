@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useAppState } from "../../../services/state";
 import { SelectOption } from "../../../ui/select";
-import { UniqueId } from "../../../services/types";
+import { UniqueId, Instrument } from "../../../services/types";
 
 const ALPHABET = ["A", "B"];
 const TRACK_LABEL = ["Up-stem", "Down-stem"];
@@ -19,7 +19,7 @@ export const useBottomPanelState = () => {
   }, [state]);
 
   const instrumentOptions: SelectOption<UniqueId>[] = useMemo(() => {
-    return instruments.map((instrument: any) => ({
+    return instruments.map((instrument: Instrument) => ({
       value: instrument.id,
       label:
         instrument.long_name + (instrument.count ? ` ${instrument.count}` : ""),
@@ -38,7 +38,10 @@ export const useBottomPanelState = () => {
     const id = state.ui.sequencer.instrument;
 
     // check the selection still exists
-    if (id && instruments.some((instrument: any) => instrument.id === id)) {
+    if (
+      id &&
+      instruments.some((instrument: Instrument) => instrument.id === id)
+    ) {
       return id;
     }
 

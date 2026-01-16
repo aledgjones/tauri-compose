@@ -172,9 +172,11 @@ export const Main = () => {
       <AppBar title="Debugger" />
 
       <div className="bg-neutral-900 p-2 mx-2">
-        <div
-          className="text-sm font-bold text-neutral-200 bg-neutral-800 px-2 py-1 flex justify-between cursor-pointer hover:bg-neutral-700"
+        <button
+          className="text-sm font-bold text-neutral-200 bg-neutral-800 px-2 py-1 flex justify-between cursor-pointer hover:bg-neutral-700 w-full text-left border-none"
           onClick={() => setLayoutCollapsed(!layoutCollapsed)}
+          type="button"
+          aria-expanded={!layoutCollapsed}
         >
           <span>🎼 Layout Phase (CPU)</span>
           <span
@@ -225,7 +227,7 @@ export const Main = () => {
               (renderTimings["render-timing-stems"] || 0)}
             ms
           </span>
-        </div>
+        </button>
         {!layoutCollapsed && (
           <div className="px-2 py-1.5 bg-neutral-800">
             <div className="flex items-center">
@@ -357,9 +359,11 @@ export const Main = () => {
           </div>
         )}
 
-        <div
-          className="text-sm font-bold text-neutral-200 bg-neutral-800 px-2 py-1 flex justify-between cursor-pointer hover:bg-neutral-700"
+        <button
+          className="text-sm font-bold text-neutral-200 bg-neutral-800 px-2 py-1 flex justify-between cursor-pointer hover:bg-neutral-700 w-full text-left border-none"
           onClick={() => setRenderCollapsed(!renderCollapsed)}
+          type="button"
+          aria-expanded={!renderCollapsed}
         >
           <span>✏️ Render Phase (CPU)</span>
           <span
@@ -390,7 +394,7 @@ export const Main = () => {
               (renderTimings["render-timing-stave"] || 0)}
             ms
           </span>
-        </div>
+        </button>
         {!renderCollapsed && (
           <div className="px-2 py-1.5 bg-neutral-800">
             <div className="flex items-center">
@@ -450,9 +454,11 @@ export const Main = () => {
           </div>
         )}
 
-        <div
-          className="text-sm font-bold text-neutral-200 bg-neutral-800 px-2 py-1 flex justify-between cursor-pointer hover:bg-neutral-700"
+        <button
+          className="text-sm font-bold text-neutral-200 bg-neutral-800 px-2 py-1 flex justify-between cursor-pointer hover:bg-neutral-700 w-full text-left border-none"
           onClick={() => setGpuCollapsed(!gpuCollapsed)}
+          type="button"
+          aria-expanded={!gpuCollapsed}
         >
           <span>🚀 GPU Phase (Metal/Skia)</span>
           <span
@@ -483,7 +489,7 @@ export const Main = () => {
               (renderTimings["native-render-timing-flush"] || 0)}
             ms
           </span>
-        </div>
+        </button>
         {!gpuCollapsed && (
           <div className="px-2 py-1.5 bg-neutral-800">
             <div className="flex items-center">

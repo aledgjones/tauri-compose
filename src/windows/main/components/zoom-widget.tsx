@@ -74,12 +74,15 @@ export const ZoomWidget = () => {
         {isOpen && (
           <ul className="whitespace-nowrap py-1 w-full absolute z-50 text-white text-sm shadow-lg bottom-full mb-0.5 bg-neutral-800">
             {zoomPresets.map((preset) => (
-              <li
-                key={preset}
-                onClick={() => handleZoomChange(preset)}
-                className="px-3 py-2 hover:bg-neutral-700 cursor-pointer"
-              >
-                {preset}%
+              <li key={preset}>
+                <button
+                  onClick={() => handleZoomChange(preset)}
+                  role="option"
+                  aria-selected={preset === currentZoom}
+                  className="w-full text-left px-3 py-2 hover:bg-neutral-700 cursor-pointer border-none bg-transparent"
+                >
+                  {preset}%
+                </button>
               </li>
             ))}
           </ul>

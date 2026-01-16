@@ -1,4 +1,4 @@
-type Listener = (...args: any[]) => void;
+type Listener = (...args: unknown[]) => void;
 interface Listeners {
   [event: string]: Set<Listener>;
 }
@@ -20,7 +20,7 @@ export class EventEmitter<T extends string> {
     this._getEventListByName(event).add(fn);
   }
 
-  public emit(event: T, ...args: any[]) {
+  public emit(event: T, ...args: unknown[]) {
     this._getEventListByName(event).forEach((fn) => {
       fn.apply(this, args);
     });

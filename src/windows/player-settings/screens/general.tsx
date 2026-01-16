@@ -8,7 +8,7 @@ const autoCountOptions: SelectOption<AutoCountStyle>[] = [
   { label: "Roman (I, II, III...)", value: AutoCountStyle.Roman },
 ];
 
-export const Meta = () => {
+export const General = () => {
   const state = useAppState();
 
   return (

@@ -6,7 +6,15 @@ import { IconButton } from "../../../../../ui/icon-button";
 import { actions } from "../../../../../services/actions";
 import { Checkbox } from "../../../../../ui/checkbox";
 import { useAppState } from "../../../../../services/state";
-import { FC, PointerEvent, useCallback, useRef, useState } from "react";
+import {
+  FC,
+  FormEvent,
+  KeyboardEvent,
+  PointerEvent,
+  useCallback,
+  useRef,
+  useState,
+} from "react";
 
 const assignableSet = new Set<SelectionType | undefined>([
   SelectionType.Player,
@@ -63,7 +71,7 @@ export const FlowPanelItem: FC<Props> = ({ flow, index }) => {
   }, [flow.id]);
 
   const onKeyDown = useCallback(
-    async (e: any) => {
+    async (e: KeyboardEvent<HTMLInputElement>) => {
       switch (e.key) {
         case "Enter":
           // confirm
@@ -84,8 +92,8 @@ export const FlowPanelItem: FC<Props> = ({ flow, index }) => {
   );
 
   const onInput = useCallback(
-    async (e: any) => {
-      await actions.score.flow.rename(flow.id, e.target.value);
+    async (e: FormEvent<HTMLInputElement>) => {
+      await actions.score.flow.rename(flow.id, e.currentTarget.value);
     },
     [flow.id],
   );
@@ -100,7 +108,9 @@ export const FlowPanelItem: FC<Props> = ({ flow, index }) => {
         return;
       }
 
-      if (state.ui.screens.setup.selection.selection_type === SelectionType.Player) {
+      if (
+        state.ui.screens.setup.selection.selection_type === SelectionType.Player
+      ) {
         if (checked) {
           await actions.score.flow.assignPlayer(
             flow.id,
@@ -114,7 +124,9 @@ export const FlowPanelItem: FC<Props> = ({ flow, index }) => {
         }
       }
 
-      if (state.ui.screens.setup.selection.selection_type === SelectionType.Layout) {
+      if (
+        state.ui.screens.setup.selection.selection_type === SelectionType.Layout
+      ) {
         if (checked) {
           await actions.score.layout.assignFlow(
             state.ui.screens.setup.selection.id,
@@ -137,9 +149,12 @@ export const FlowPanelItem: FC<Props> = ({ flow, index }) => {
     }
   }, [flow.id, isSelected]);
 
-  const onBlockPointerDown = useCallback((e: PointerEvent<HTMLDivElement>) => {
-    e.stopPropagation();
-  }, []);
+  const onBlockPointerDown = useCallback(
+    (e: PointerEvent<HTMLButtonElement>) => {
+      e.stopPropagation();
+    },
+    [],
+  );
 
   return (
     <div

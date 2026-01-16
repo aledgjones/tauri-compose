@@ -42,7 +42,7 @@ export const MiniaturePianoRoll: FC<MiniaturePianoRollProps> = ({
   // Collect all tones from all tracks
   const tones = useMemo(() => {
     const allTones: Array<{
-      id: string;
+      id: number;
       tick: number;
       duration: number;
       pitch: number;
@@ -53,12 +53,11 @@ export const MiniaturePianoRoll: FC<MiniaturePianoRollProps> = ({
 
       Object.values(track.entries.by_id).forEach((entry) => {
         if (entry.type === "Tone") {
-          const tone = entry as any; // Type assertion for Tone
           allTones.push({
-            id: tone.id,
-            tick: tone.tick,
-            duration: tone.duration,
-            pitch: tone.pitch.int,
+            id: entry.id,
+            tick: entry.tick,
+            duration: entry.duration,
+            pitch: entry.pitch.int,
           });
         }
       });

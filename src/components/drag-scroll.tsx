@@ -1,5 +1,11 @@
 import classNames from "classnames";
-import { FC, PropsWithChildren, useCallback, useRef } from "react";
+import {
+  FC,
+  PointerEvent as ReactPointerEvent,
+  PropsWithChildren,
+  useCallback,
+  useRef,
+} from "react";
 
 const allow = (target: HTMLElement, ignore?: string) => {
   if (ignore) {
@@ -21,48 +27,51 @@ type Props = PropsWithChildren<{ className?: string }>;
 export const DragScroll: FC<Props> = ({ children, className }) => {
   const divRef = useRef<HTMLDivElement>(null);
 
-  const handlePointerDown = useCallback((e: any) => {
-    if (!divRef.current) {
-      return;
-    }
-
-    let isDragging = true;
-
-    const startX = e.clientX;
-    const startY = e.clientY;
-    const scrollLeft = divRef.current.scrollLeft;
-    const scrollTop = divRef.current.scrollTop;
-    const allowX = Boolean(allow(e.target as HTMLElement, "ignore-x"));
-    const allowY = Boolean(allow(e.target as HTMLElement, "ignore-y"));
-
-    const handlePointerMove = (e: any) => {
-      if (!isDragging || !divRef.current) {
+  const handlePointerDown = useCallback(
+    (e: ReactPointerEvent<HTMLDivElement>) => {
+      if (!divRef.current) {
         return;
       }
 
-      e.preventDefault();
+      let isDragging = true;
 
-      const x = e.clientX - startX;
-      const y = e.clientY - startY;
+      const startX = e.clientX;
+      const startY = e.clientY;
+      const scrollLeft = divRef.current.scrollLeft;
+      const scrollTop = divRef.current.scrollTop;
+      const allowX = Boolean(allow(e.target as HTMLElement, "ignore-x"));
+      const allowY = Boolean(allow(e.target as HTMLElement, "ignore-y"));
 
-      if (allowX) {
-        divRef.current.scrollLeft = scrollLeft - x;
-      }
+      const handlePointerMove = (e: PointerEvent) => {
+        if (!isDragging || !divRef.current) {
+          return;
+        }
 
-      if (allowY) {
-        divRef.current.scrollTop = scrollTop - y;
-      }
-    };
+        e.preventDefault();
 
-    const handlePointerUp = () => {
-      document.removeEventListener("pointermove", handlePointerMove);
-      document.removeEventListener("pointerup", handlePointerUp);
-      isDragging = false;
-    };
+        const x = e.clientX - startX;
+        const y = e.clientY - startY;
 
-    document.addEventListener("pointermove", handlePointerMove);
-    document.addEventListener("pointerup", handlePointerUp);
-  }, []);
+        if (allowX) {
+          divRef.current.scrollLeft = scrollLeft - x;
+        }
+
+        if (allowY) {
+          divRef.current.scrollTop = scrollTop - y;
+        }
+      };
+
+      const handlePointerUp = () => {
+        document.removeEventListener("pointermove", handlePointerMove);
+        document.removeEventListener("pointerup", handlePointerUp);
+        isDragging = false;
+      };
+
+      document.addEventListener("pointermove", handlePointerMove);
+      document.addEventListener("pointerup", handlePointerUp);
+    },
+    [],
+  );
 
   return (
     <div

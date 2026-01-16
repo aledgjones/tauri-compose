@@ -1,7 +1,7 @@
 import { defineConfig } from "vite";
 import { resolve } from "path";
 import react from "@vitejs/plugin-react";
-import eslint from "vite-plugin-eslint";
+import eslintPlugin from "@nabla/vite-plugin-eslint";
 import { viteStaticCopy } from "vite-plugin-static-copy";
 
 const host = process.env.TAURI_DEV_HOST;
@@ -10,7 +10,7 @@ const host = process.env.TAURI_DEV_HOST;
 export default defineConfig(async () => ({
   plugins: [
     react(),
-    eslint(),
+    eslintPlugin(),
     viteStaticCopy({
       targets: [
         {
