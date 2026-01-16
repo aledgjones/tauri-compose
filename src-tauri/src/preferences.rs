@@ -1,8 +1,7 @@
+use crate::{AppState, RenderState};
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager, State};
 use tauri_plugin_store::StoreBuilder;
-
-use crate::AppState;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Preferences {
@@ -17,9 +16,7 @@ impl Preferences {
             .unwrap()
             .join("preferences.store");
 
-        let store = StoreBuilder::new(&app, store_path)
-            .build()
-            .unwrap();
+        let store = StoreBuilder::new(&app, store_path).build().unwrap();
 
         let audition = store
             .get("audition")
@@ -35,11 +32,11 @@ impl Preferences {
 pub async fn preferences_audition_set(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
+    renderer_state: State<'_, RenderState>,
     audition: bool,
 ) -> Result<(), String> {
-    use tauri::Manager;
-    use tauri_plugin_store::StoreBuilder;
     let mut state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
     state.preferences.audition = audition;
 
     // Persist to store
@@ -53,6 +50,9 @@ pub async fn preferences_audition_set(
         .map_err(|e| e.to_string())?;
     store.set("audition", audition);
     store.save().map_err(|e| e.to_string())?;
+
+    // Emit state change
+    state.emit(&app, &mut renderer, false);
 
     Ok(())
 }
