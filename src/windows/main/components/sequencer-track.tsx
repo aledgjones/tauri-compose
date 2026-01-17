@@ -21,7 +21,7 @@ import {
 } from "../../../services/sequencer-utils";
 import { useAppState } from "../../../services/state";
 
-export const getSnappedXPosition = (
+const getSnappedXPosition = (
   x: number,
   tickWidth: number,
   ticksPerSnap: number,
@@ -47,7 +47,7 @@ export const getSnappedXPosition = (
   }
 };
 
-export const getPitchFromYPosition = (y: number, slotHeight: number) => {
+const getPitchFromYPosition = (y: number, slotHeight: number) => {
   const slot = Math.floor(y / slotHeight);
   const lowestNote = 12;
   const highestNote = lowestNote + 10 * 12 - 1;
