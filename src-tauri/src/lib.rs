@@ -305,11 +305,17 @@ pub fn run() {
             )?;
 
             // File Menu
-            let new = MenuItem::with_id(app, "new", "New", true, None::<&str>)?;
-            let open = MenuItem::with_id(app, "open", "Open...", true, None::<&str>)?;
+            let new = MenuItem::with_id(app, "new", "New", true, Some("CmdOrCtrl+N"))?;
+            let open = MenuItem::with_id(app, "open", "Open...", true, Some("CmdOrCtrl+O"))?;
             let open_recent = Submenu::with_id(app, "open_recent", "Open Recent", true)?;
-            let save = MenuItem::with_id(app, "save", "Save", false, None::<&str>)?;
-            let save_as = MenuItem::with_id(app, "save_as", "Save As...", true, None::<&str>)?;
+            let save = MenuItem::with_id(app, "save", "Save", false, Some("CmdOrCtrl+S"))?;
+            let save_as = MenuItem::with_id(
+                app,
+                "save_as",
+                "Save As...",
+                true,
+                Some("CmdOrCtrl+Shift+S"),
+            )?;
 
             let file_menu = Submenu::with_id_and_items(
                 app,
