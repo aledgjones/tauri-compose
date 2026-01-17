@@ -537,6 +537,9 @@ impl NativeRenderer {
                     canvas.restore();
 
                     // Draw scrollbars to indicate position in score
+                    canvas.save();
+                    canvas.scale((self.scale as f32, self.scale as f32));
+
                     let page_width_px = renderer.converter.spaces_to_px(renderer.width);
                     let page_height_px = renderer.converter.spaces_to_px(renderer.height);
                     let scaled_page_width = page_width_px * zoom;
@@ -566,13 +569,11 @@ impl NativeRenderer {
                         let max_pan = 100.0; // padding
                         let min_pan = -(scaled_page_width - self.bounds.2 + 100.0);
                         let pan_range = max_pan - min_pan;
-                        let pan_normalized = (constrained_pan_x - max_pan) / pan_range; // 0 at start, 1 at end
+                        let pan_normalized = (max_pan - constrained_pan_x) / pan_range; // 0 at left, 1 at right
                         let scrollbar_range =
                             available_width - 2.0 * scrollbar_padding - scrollbar_length;
-                        let scrollbar_x = scrollbar_padding + scrollbar_range * -pan_normalized;
-
-                        let scrollbar_y =
-                            texture_height as f32 - scrollbar_width - scrollbar_padding;
+                        let scrollbar_x = scrollbar_padding + scrollbar_range * pan_normalized;
+                        let scrollbar_y = self.bounds.3 - scrollbar_width - scrollbar_padding;
 
                         let mut scrollbar_paint = Paint::default();
                         scrollbar_paint.set_color(scrollbar_color);
@@ -608,13 +609,11 @@ impl NativeRenderer {
                         let max_pan = 100.0; // padding
                         let min_pan = -(scaled_page_height - self.bounds.3 + 100.0);
                         let pan_range = max_pan - min_pan;
-                        let pan_normalized = (constrained_pan_y - max_pan) / pan_range; // 0 at start, 1 at end
+                        let pan_normalized = (max_pan - constrained_pan_y) / pan_range; // 0 at top, 1 at bottom
                         let scrollbar_range =
                             available_height - 2.0 * scrollbar_padding - scrollbar_length;
-                        let scrollbar_y = scrollbar_padding + scrollbar_range * -pan_normalized;
-
-                        let scrollbar_x =
-                            texture_width as f32 - scrollbar_width - scrollbar_padding;
+                        let scrollbar_y = scrollbar_padding + scrollbar_range * pan_normalized;
+                        let scrollbar_x = self.bounds.2 - scrollbar_width - scrollbar_padding;
 
                         let mut scrollbar_paint = Paint::default();
                         scrollbar_paint.set_color(scrollbar_color);
@@ -633,6 +632,8 @@ impl NativeRenderer {
                             &scrollbar_paint,
                         );
                     }
+
+                    canvas.restore();
 
                     let draw_duration = draw_start.elapsed();
                     let flush_start = Instant::now();
