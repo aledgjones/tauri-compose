@@ -13,7 +13,7 @@ import {
   Tab,
   Tool,
 } from "../types";
-import { createContext } from "react";
+import { createContext, useContext } from "react";
 
 export const initialAppState: AppState = {
   current_file_path: null,
@@ -151,3 +151,23 @@ export const initialAppState: AppState = {
 
 export const AppContext = createContext<AppState | null>(null);
 export const SamplerContext = createContext<Sampler | null>(null);
+
+export const useAppState = () => {
+  const context = useContext(AppContext);
+
+  if (!context) {
+    throw new Error("useAppState must be used within an AppStateProvider");
+  }
+
+  return context;
+};
+
+export const useSamplerState = () => {
+  const context = useContext(SamplerContext);
+
+  if (!context) {
+    throw new Error("useSamplerState must be used within an AppStateProvider");
+  }
+
+  return context;
+};

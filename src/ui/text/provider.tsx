@@ -1,6 +1,6 @@
 import { FC, PropsWithChildren, useMemo } from "react";
 import { useAppState } from "../../services/state";
-import { TokenizationContext } from "./content";
+import { TokenizationContext } from "./context";
 
 type Dictionary = [string, { render: () => string; sym: boolean }][];
 

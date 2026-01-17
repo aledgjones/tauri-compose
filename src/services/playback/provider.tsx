@@ -1,26 +1,7 @@
-import {
-  createContext,
-  useContext,
-  ReactNode,
-  useCallback,
-  useEffect,
-  useState,
-  useRef,
-} from "react";
-import { transport, sampler } from "../sampler";
-import { Expression } from "../sampler/types";
-import { AppState, Tick, Tone } from "./types";
-
-interface PlaybackContextType {
-  isPlaying: boolean;
-  currentTick: number;
-  play: () => void;
-  pause: () => void;
-  stop: () => void;
-  seek: (tick: number) => void;
-}
-
-const PlaybackContext = createContext<PlaybackContextType | null>(null);
+import { ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import { AppState, Tick, Tone } from "../types";
+import { Expression, sampler, transport } from "../../sampler";
+import { PlaybackContext } from "./context";
 
 interface PlaybackProviderProps {
   appState: AppState;
@@ -183,12 +164,4 @@ export function PlaybackProvider({
       {children}
     </PlaybackContext.Provider>
   );
-}
-
-export function usePlayback() {
-  const context = useContext(PlaybackContext);
-  if (!context) {
-    throw new Error("usePlayback must be used within a PlaybackProvider");
-  }
-  return context;
 }

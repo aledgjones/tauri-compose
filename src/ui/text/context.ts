@@ -1,5 +1,8 @@
-import { useContext } from "react";
-import { TokenizationContext } from "./content";
+import { createContext, useContext } from "react";
+
+export type TokenMap = Map<string, { render: () => string; sym: boolean }>;
+
+export const TokenizationContext = createContext<TokenMap>(new Map());
 
 export const useTokenization = () => {
   const context = useContext(TokenizationContext);

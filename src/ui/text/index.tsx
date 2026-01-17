@@ -1,5 +1,5 @@
 import { FC, Fragment, PropsWithChildren, useMemo } from "react";
-import { useTokenization } from "./hooks";
+import { useTokenization } from "./context";
 
 export { TokenizationProvider } from "./provider";
 
