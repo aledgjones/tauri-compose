@@ -1,16 +1,8 @@
-import {
-  createContext,
-  FC,
-  PropsWithChildren,
-  useContext,
-  useMemo,
-} from "react";
+import { FC, PropsWithChildren, useMemo } from "react";
 import { useAppState } from "../../services/state";
+import { TokenizationContext } from "./content";
 
 type Dictionary = [string, { render: () => string; sym: boolean }][];
-type TokenMap = Map<string, { render: () => string; sym: boolean }>;
-
-const TokenizationContext = createContext<TokenMap>(new Map());
 
 export const TokenizationProvider: FC<PropsWithChildren> = ({ children }) => {
   const state = useAppState();
@@ -18,7 +10,6 @@ export const TokenizationProvider: FC<PropsWithChildren> = ({ children }) => {
   const symbols = useMemo(() => {
     const meta = state.score.meta;
 
-    /* prettier-ignore-start */
     const userDefinedSymbols: Dictionary = [
       ["${project-title}", { render: () => meta.title, sym: false }],
       ["${project-subtitle}", { render: () => meta.subtitle, sym: false }],
@@ -48,7 +39,6 @@ export const TokenizationProvider: FC<PropsWithChildren> = ({ children }) => {
         { render: () => meta.other_information, sym: false },
       ],
     ];
-    /* prettier-ignore-end */
 
     const staticSymbols: Dictionary = [
       ["${copy}", { render: () => "\u{00A9}", sym: false }],
@@ -67,14 +57,4 @@ export const TokenizationProvider: FC<PropsWithChildren> = ({ children }) => {
       {children}
     </TokenizationContext.Provider>
   );
-};
-
-export const useTokenization = () => {
-  const context = useContext(TokenizationContext);
-  if (context === undefined) {
-    throw new Error(
-      "useTokenization must be used within a TokenizationProvider",
-    );
-  }
-  return context;
 };

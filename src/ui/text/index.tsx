@@ -1,5 +1,7 @@
-import { useTokenization } from "./context";
 import { FC, Fragment, PropsWithChildren, useMemo } from "react";
+import { useTokenization } from "./hooks";
+
+export { TokenizationProvider } from "./provider";
 
 export const TokenizedText: FC<PropsWithChildren> = ({ children }) => {
   const symbols = useTokenization();
