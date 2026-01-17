@@ -160,7 +160,10 @@ export const PlayerPanelItem: FC<Props> = ({ player }) => {
             parseInt(e.from.dataset.playerId),
             parseInt(e.to.dataset.playerId),
           );
-          await actions.ui.screens.setup.select(SelectionType.Player, player.id);
+          await actions.ui.screens.setup.select(
+            SelectionType.Player,
+            player.id,
+          );
         }
       },
     });
@@ -190,9 +193,12 @@ export const PlayerPanelItem: FC<Props> = ({ player }) => {
     }
   }, [isExpanded, player.id]);
 
-  const onBlockPointerDown = useCallback((e: PointerEvent<HTMLDivElement>) => {
-    e.stopPropagation();
-  }, []);
+  const onBlockPointerDown = useCallback(
+    (e: PointerEvent<HTMLButtonElement>) => {
+      e.stopPropagation();
+    },
+    [],
+  );
 
   const onSelect = useCallback(() => {
     if (!isSelected) {
@@ -243,7 +249,7 @@ export const PlayerPanelItem: FC<Props> = ({ player }) => {
         )}
 
         {!isAssignable && (
-          <div onPointerDown={onBlockPointerDown}>
+          <button onPointerDown={onBlockPointerDown}>
             <IconButton
               variant="standard"
               path={mdiChevronDown}
@@ -252,7 +258,7 @@ export const PlayerPanelItem: FC<Props> = ({ player }) => {
               })}
               onClick={onToggleExpand}
             />
-          </div>
+          </button>
         )}
       </div>
       <div
