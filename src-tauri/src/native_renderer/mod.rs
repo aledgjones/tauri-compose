@@ -5,9 +5,9 @@ use objc2::ClassType;
 use objc2_foundation::NSObjectProtocol;
 use objc2_metal::{MTLCommandBuffer, MTLCommandQueue, MTLTexture};
 use objc2_quartz_core::CAMetalDrawable;
-use skia_safe::gpu;
 use skia_safe::gpu::mtl;
 use skia_safe::utils::text_utils::Align as SkiaAlign;
+use skia_safe::{gpu, Canvas};
 use skia_safe::{Color, Paint, PaintStyle, Path, Point as SkiaPoint, Shader, SurfaceProps};
 use std::time::Instant;
 use tauri::Emitter;
@@ -230,6 +230,111 @@ impl NativeRenderer {
         };
 
         (constrained_pan_x, constrained_pan_y)
+    }
+
+    fn draw_scrollbars(
+        &self,
+        canvas: &Canvas,
+        renderer: &Renderer,
+        constrained_pan_x: f32,
+        constrained_pan_y: f32,
+        zoom: f32,
+    ) {
+        canvas.save();
+        canvas.scale((self.scale as f32, self.scale as f32));
+
+        let page_width_px = renderer.converter.spaces_to_px(renderer.width);
+        let page_height_px = renderer.converter.spaces_to_px(renderer.height);
+        let scaled_page_width = page_width_px * zoom;
+        let scaled_page_height = page_height_px * zoom;
+
+        let scrollbar_width = 7.0;
+        let scrollbar_padding = 4.0;
+        let scrollbar_color = Color::from_argb(200, 60, 60, 60); // Semi-transparent dark gray
+
+        let padding = 100.0; // CSS pixels
+        let show_horizontal = scaled_page_width + (padding * 2.0) > self.bounds.2;
+        let show_vertical = scaled_page_height + (padding * 2.0) > self.bounds.3;
+
+        // Draw horizontal scrollbar if content is wider than viewport
+        if show_horizontal {
+            let visible_ratio = self.bounds.2 / (scaled_page_width + padding * 2.0);
+            let available_width = if show_vertical {
+                // Leave space for vertical scrollbar
+                self.bounds.2 - scrollbar_width - scrollbar_padding
+            } else {
+                self.bounds.2
+            };
+            let scrollbar_length = (available_width - 2.0 * scrollbar_padding) * visible_ratio;
+
+            // Calculate position: map pan position to scrollbar position
+            let max_pan = 100.0; // padding
+            let min_pan = -(scaled_page_width - self.bounds.2 + 100.0);
+            let pan_range = max_pan - min_pan;
+            let pan_normalized = (max_pan - constrained_pan_x) / pan_range; // 0 at left, 1 at right
+            let scrollbar_range = available_width - 2.0 * scrollbar_padding - scrollbar_length;
+            let scrollbar_x = scrollbar_padding + scrollbar_range * pan_normalized;
+
+            let scrollbar_y = self.bounds.3 - scrollbar_width - scrollbar_padding;
+
+            let mut scrollbar_paint = Paint::default();
+            scrollbar_paint.set_color(scrollbar_color);
+            scrollbar_paint.set_anti_alias(true);
+            scrollbar_paint.set_style(PaintStyle::Fill);
+
+            canvas.draw_round_rect(
+                skia_safe::Rect::from_xywh(
+                    scrollbar_x,
+                    scrollbar_y,
+                    scrollbar_length,
+                    scrollbar_width,
+                ),
+                scrollbar_width / 2.0,
+                scrollbar_width / 2.0,
+                &scrollbar_paint,
+            );
+        }
+
+        // Draw vertical scrollbar if content is taller than viewport
+        if show_vertical {
+            let visible_ratio = self.bounds.3 / (scaled_page_height + padding * 2.0);
+            let available_height = if show_horizontal {
+                // Leave space for horizontal scrollbar
+                self.bounds.3 - scrollbar_width - scrollbar_padding
+            } else {
+                self.bounds.3
+            };
+            let scrollbar_length = (available_height - 2.0 * scrollbar_padding) * visible_ratio;
+
+            // Calculate position: map pan position to scrollbar position
+            let max_pan = 100.0; // padding
+            let min_pan = -(scaled_page_height - self.bounds.3 + 100.0);
+            let pan_range = max_pan - min_pan;
+            let pan_normalized = (max_pan - constrained_pan_y) / pan_range; // 0 at top, 1 at bottom
+            let scrollbar_range = available_height - 2.0 * scrollbar_padding - scrollbar_length;
+            let scrollbar_y = scrollbar_padding + scrollbar_range * pan_normalized;
+
+            let scrollbar_x = self.bounds.2 - scrollbar_width - scrollbar_padding;
+
+            let mut scrollbar_paint = Paint::default();
+            scrollbar_paint.set_color(scrollbar_color);
+            scrollbar_paint.set_anti_alias(true);
+            scrollbar_paint.set_style(PaintStyle::Fill);
+
+            canvas.draw_round_rect(
+                skia_safe::Rect::from_xywh(
+                    scrollbar_x,
+                    scrollbar_y,
+                    scrollbar_width,
+                    scrollbar_length,
+                ),
+                scrollbar_width / 2.0,
+                scrollbar_width / 2.0,
+                &scrollbar_paint,
+            );
+        }
+
+        canvas.restore();
     }
 
     pub fn render(
@@ -537,103 +642,13 @@ impl NativeRenderer {
                     canvas.restore();
 
                     // Draw scrollbars to indicate position in score
-                    canvas.save();
-                    canvas.scale((self.scale as f32, self.scale as f32));
-
-                    let page_width_px = renderer.converter.spaces_to_px(renderer.width);
-                    let page_height_px = renderer.converter.spaces_to_px(renderer.height);
-                    let scaled_page_width = page_width_px * zoom;
-                    let scaled_page_height = page_height_px * zoom;
-
-                    let scrollbar_width = 7.0;
-                    let scrollbar_padding = 4.0;
-                    let scrollbar_color = Color::from_argb(200, 60, 60, 60); // Semi-transparent dark gray
-
-                    let padding = 100.0; // CSS pixels
-                    let show_horizontal = scaled_page_width + (padding * 2.0) > self.bounds.2;
-                    let show_vertical = scaled_page_height + (padding * 2.0) > self.bounds.3;
-
-                    // Draw horizontal scrollbar if content is wider than viewport
-                    if show_horizontal {
-                        let visible_ratio = self.bounds.2 / (scaled_page_width + padding * 2.0);
-                        let available_width = if show_vertical {
-                            // Leave space for vertical scrollbar
-                            self.bounds.2 - scrollbar_width - scrollbar_padding
-                        } else {
-                            self.bounds.2
-                        };
-                        let scrollbar_length =
-                            (available_width - 2.0 * scrollbar_padding) * visible_ratio;
-
-                        // Calculate position: map pan position to scrollbar position
-                        let max_pan = 100.0; // padding
-                        let min_pan = -(scaled_page_width - self.bounds.2 + 100.0);
-                        let pan_range = max_pan - min_pan;
-                        let pan_normalized = (max_pan - constrained_pan_x) / pan_range; // 0 at left, 1 at right
-                        let scrollbar_range =
-                            available_width - 2.0 * scrollbar_padding - scrollbar_length;
-                        let scrollbar_x = scrollbar_padding + scrollbar_range * pan_normalized;
-                        let scrollbar_y = self.bounds.3 - scrollbar_width - scrollbar_padding;
-
-                        let mut scrollbar_paint = Paint::default();
-                        scrollbar_paint.set_color(scrollbar_color);
-                        scrollbar_paint.set_anti_alias(true);
-                        scrollbar_paint.set_style(PaintStyle::Fill);
-
-                        canvas.draw_round_rect(
-                            skia_safe::Rect::from_xywh(
-                                scrollbar_x,
-                                scrollbar_y,
-                                scrollbar_length,
-                                scrollbar_width,
-                            ),
-                            scrollbar_width / 2.0,
-                            scrollbar_width / 2.0,
-                            &scrollbar_paint,
-                        );
-                    }
-
-                    // Draw vertical scrollbar if content is taller than viewport
-                    if show_vertical {
-                        let visible_ratio = self.bounds.3 / (scaled_page_height + padding * 2.0);
-                        let available_height = if show_horizontal {
-                            // Leave space for horizontal scrollbar
-                            self.bounds.3 - scrollbar_width - scrollbar_padding
-                        } else {
-                            self.bounds.3
-                        };
-                        let scrollbar_length =
-                            (available_height - 2.0 * scrollbar_padding) * visible_ratio;
-
-                        // Calculate position: map pan position to scrollbar position
-                        let max_pan = 100.0; // padding
-                        let min_pan = -(scaled_page_height - self.bounds.3 + 100.0);
-                        let pan_range = max_pan - min_pan;
-                        let pan_normalized = (max_pan - constrained_pan_y) / pan_range; // 0 at top, 1 at bottom
-                        let scrollbar_range =
-                            available_height - 2.0 * scrollbar_padding - scrollbar_length;
-                        let scrollbar_y = scrollbar_padding + scrollbar_range * pan_normalized;
-                        let scrollbar_x = self.bounds.2 - scrollbar_width - scrollbar_padding;
-
-                        let mut scrollbar_paint = Paint::default();
-                        scrollbar_paint.set_color(scrollbar_color);
-                        scrollbar_paint.set_anti_alias(true);
-                        scrollbar_paint.set_style(PaintStyle::Fill);
-
-                        canvas.draw_round_rect(
-                            skia_safe::Rect::from_xywh(
-                                scrollbar_x,
-                                scrollbar_y,
-                                scrollbar_width,
-                                scrollbar_length,
-                            ),
-                            scrollbar_width / 2.0,
-                            scrollbar_width / 2.0,
-                            &scrollbar_paint,
-                        );
-                    }
-
-                    canvas.restore();
+                    self.draw_scrollbars(
+                        canvas,
+                        renderer,
+                        constrained_pan_x,
+                        constrained_pan_y,
+                        zoom,
+                    );
 
                     let draw_duration = draw_start.elapsed();
                     let flush_start = Instant::now();
