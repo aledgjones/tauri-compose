@@ -88,6 +88,7 @@ pub fn get_horizontal_spacing(
     let flow_master = &tracks.by_id[&flow.master_id];
 
     spacings.set_width(0, Slot::PaddingStart, 0.75);
+    spacings.set_width(0, Slot::BarPadding, 0.5);
 
     for entry in flow_master.entries.by_id.values() {
         match entry {
