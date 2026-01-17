@@ -14,7 +14,7 @@ import { useMemo } from "react";
 import { getLayoutName } from "../../services/utils";
 import { Write } from "./screens/write";
 import { Sequence } from "./screens/sequence";
-import { PlaybackProvider } from "../../services/playback-context";
+import { PlaybackProvider } from "../../services/playback";
 
 const tabs: TabsOption<Tab>[] = [
   { label: "Setup", value: Tab.Setup },

@@ -1,5 +1,5 @@
 import { FC } from "react";
-import { usePlayback } from "../../../services/playback-context";
+import { usePlayback } from "../../../services/playback";
 import { TickConfig } from "../hooks/use-ticks";
 
 type PlaybackLineProps = {

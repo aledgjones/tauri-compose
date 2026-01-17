@@ -8,7 +8,7 @@ import {
 import { IconButton } from "../../../ui/icon-button";
 import classNames from "classnames";
 import { FC } from "react";
-import { usePlayback } from "../../../services/playback-context";
+import { usePlayback } from "../../../services/playback";
 
 type Props = {
   className?: string;
