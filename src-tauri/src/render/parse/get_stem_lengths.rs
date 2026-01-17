@@ -125,14 +125,20 @@ fn get_furthest_tail(beam: &Beam, stem_lengths: &StemLengths, stem_direction: &D
     furthest
 }
 
-fn get_natural_stem_length(x: Space, entry: &Notation, stem_direction: &Direction) -> StemDef {
+fn get_natural_stem_length(
+    x: Space,
+    entry: &Notation,
+    stem_direction: &Direction,
+    beams: &Beams,
+) -> StemDef {
     let info = entry.info.clone().unwrap();
 
     // Base stem length
     let base_stem_length = 3.25;
     let beam_count = entry.get_beam_count();
+    let is_flagged = entry.is_flagged(beams);
 
-    let beam_extension = if beam_count > 2 {
+    let beam_extension = if beam_count > 2 && !is_flagged {
         (beam_count as f32 - 2.0) * 0.75
     } else {
         0.0
@@ -188,7 +194,10 @@ pub fn get_stem_lengths_in_track(
                 if duration != NoteDuration::Whole {
                     let x = horizontal_spacing.get(*tick, Slot::NoteSpacing).x;
                     let stem_direction = &stem_directions[tick];
-                    output.insert(*tick, get_natural_stem_length(x, entry, stem_direction));
+                    output.insert(
+                        *tick,
+                        get_natural_stem_length(x, entry, stem_direction, beams),
+                    );
                 }
             }
         }

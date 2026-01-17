@@ -615,10 +615,9 @@ impl NotationTrack {
 
                 let half_beat = time_signature.beat_type.half().to_ticks();
 
-                let patterns = [
+                let mut patterns = vec![
                     self.is_qhq_pattern(beat_one, beat_two, beat_four, stop),
                     self.is_qmdot_pattern(beat_one, beat_two, stop),
-                    self.is_mdotq_pattern(ticks_per_original_beat, beat_one, beat_four, stop),
                     self.is_eqqqe_pattern(
                         beat_one,
                         beat_one + half_beat,
@@ -628,6 +627,15 @@ impl NotationTrack {
                         stop,
                     ),
                 ];
+
+                if time_signature.beat_type == NoteDuration::Quarter {
+                    patterns.push(self.is_mdotq_pattern(
+                        ticks_per_original_beat,
+                        beat_one,
+                        beat_four,
+                        stop,
+                    ));
+                }
 
                 if patterns.iter().any(|&pattern_matched| pattern_matched) {
                     // these patterns span the entire unit so we can early return as there is no

@@ -1,12 +1,10 @@
 mod draw;
 mod parse;
 
-use std::time::Instant;
-use tauri::Emitter;
-
 use crate::renderer::converter::Converter;
 use crate::renderer::text_measurer::TextMeasurer;
 use crate::renderer::Renderer;
+use crate::score::components::duration::Direction;
 use crate::score::components::measurements::Point;
 use crate::score::entries::barline::BarlineDrawType;
 use crate::score::entries::clef::Clef;
@@ -48,6 +46,8 @@ use parse::get_tone_offsets::get_tone_offsets;
 use parse::get_vertical_spacing::get_vertical_spacing;
 use parse::get_vertical_spans::get_vertical_spans;
 use parse::get_written_durations::get_written_durations;
+use std::time::Instant;
+use tauri::Emitter;
 
 pub fn generate_render_instructions(
     app: &tauri::AppHandle,
@@ -435,8 +435,11 @@ pub fn generate_render_instructions(
                     }
 
                     // FLAGS
+                    let mut has_up_stem_flag = false;
                     if notation.is_flagged(beams) {
                         if let (Some(stem_dir), Some(stem_len)) = (stem_direction, stem_length) {
+                            has_up_stem_flag = *stem_dir == Direction::Up;
+
                             draw_flag(
                                 &Point {
                                     x: stave_left,
@@ -445,7 +448,6 @@ pub fn generate_render_instructions(
                                 notation,
                                 stem_dir,
                                 stem_len,
-                                flow,
                                 renderer,
                             );
                         }
@@ -461,6 +463,7 @@ pub fn generate_render_instructions(
                             tick_dots,
                             glyph_width,
                             has_post_shunt,
+                            has_up_stem_flag,
                             renderer,
                         );
                     }

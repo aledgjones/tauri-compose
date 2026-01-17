@@ -1,16 +1,17 @@
 use super::draw_staves::STAVE_LINE_WIDTH;
+use crate::render::parse::get_stem_lengths::StemDef;
+use crate::render::parse::get_written_durations::Notation;
 use crate::renderer::Renderer;
+use crate::score::components::duration::Direction;
 use crate::score::components::measurements::Point;
 use crate::score::components::text::{Align, Font, FontFamily, Justify};
-use crate::score::flows::Flow;
 use skia_safe::Color;
 
 pub fn draw_flag(
     position: &Point,
-    notation: &crate::render::parse::get_written_durations::Notation,
-    stem_direction: &crate::score::components::duration::Direction,
-    stem_length: &crate::render::parse::get_stem_lengths::StemDef,
-    _flow: &Flow,
+    notation: &Notation,
+    stem_direction: &Direction,
+    stem_length: &StemDef,
     renderer: &mut Renderer,
 ) {
     let glyph = notation.flag_glyph(stem_direction);
@@ -23,7 +24,7 @@ pub fn draw_flag(
             family: FontFamily::Bravura,
             size: 4.0,
             justify: Justify::Start,
-            align: Align::Middle,
+            align: Align::Bottom,
         },
         &Point { x: left, y: top },
         Color::BLACK,
