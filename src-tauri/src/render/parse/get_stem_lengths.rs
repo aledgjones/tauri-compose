@@ -137,11 +137,25 @@ fn get_natural_stem_length(
     let base_stem_length = 3.25;
     let beam_count = entry.get_beam_count();
     let is_flagged = entry.is_flagged(beams);
+    let is_leading_note_on_line = match stem_direction {
+        Direction::Up => info.lowest % 2 == 0,
+        Direction::Down => info.highest % 2 == 0,
+    };
 
-    let beam_extension = if beam_count > 2 && !is_flagged {
-        (beam_count as f32 - 2.0) * 0.75
-    } else {
-        0.0
+    let mut beam_extension: f32 = 0.0;
+
+    if beam_count > 0 && !is_flagged {
+        if is_leading_note_on_line {
+            beam_extension = if beam_count == 2 {
+                -0.25
+            } else if beam_count == 3 {
+                0.5
+            } else {
+                0.0
+            }
+        } else {
+            beam_extension = if beam_count > 2 { 1.0 } else { 0.0 }
+        }
     };
 
     let total_stem_length = base_stem_length + beam_extension;
