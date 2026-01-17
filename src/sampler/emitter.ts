@@ -1,4 +1,6 @@
-type Listener = (...args: unknown[]) => void;
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
+type Listener = (...args: any[]) => void;
 interface Listeners {
   [event: string]: Set<Listener>;
 }
@@ -20,7 +22,7 @@ export class EventEmitter<T extends string> {
     this._getEventListByName(event).add(fn);
   }
 
-  public emit(event: T, ...args: unknown[]) {
+  public emit(event: T, ...args: any[]) {
     this._getEventListByName(event).forEach((fn) => {
       fn.apply(this, args);
     });
