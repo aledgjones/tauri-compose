@@ -128,23 +128,40 @@ compose/
 │   ├── windows/                  # Application windows
 │   │   ├── main/                 # Main composition window
 │   │   │   ├── screens/          # Setup, Write, Sequence, etc.
-│   │   │   └── components/       # Transport, Tools, etc.
+│   │   │   ├── components/       # Transport, Tools, etc.
+│   │   │   ├── hooks/            # Main window specific hooks
+│   │   │   └── utils/            # Main window utilities
 │   │   ├── debugger/             # Debug console window
 │   │   ├── instrument-picker/    # Instrument selection
 │   │   ├── layout-settings/      # Layout configuration
 │   │   ├── player-settings/      # Playback settings
+│   │   ├── preferences/          # Application preferences
 │   │   └── project-settings/     # Project preferences
 │   ├── sampler/                  # Audio playback engine
 │   │   ├── audio-player.ts       # Sample player
 │   │   ├── scheduler.ts          # Timing and scheduling
 │   │   └── instrument-player.ts  # Per-instrument playback
-│   ├── services/                 # Business logic
-│   │   ├── state.tsx             # Global state management
-│   │   ├── actions.ts            # State mutations
-│   │   ├── playback-context.tsx  # Audio context provider
-│   │   └── sequencer-utils.ts    # Sequencing utilities
+│   ├── services/                 # Business logic and state management
+│   │   ├── state/                # Global application state
+│   │   │   ├── context.tsx       # React contexts and state hooks
+│   │   │   ├── provider.tsx      # State provider component
+│   │   │   └── index.ts          # State module exports
+│   │   ├── playback/             # Audio playback state management
+│   │   │   ├── context.tsx       # Playback contexts and hooks
+│   │   │   ├── provider.tsx      # Playback provider component
+│   │   │   └── index.ts          # Playback module exports
+│   │   ├── actions.ts            # State mutation actions
+│   │   ├── sequencer-utils.ts    # Music sequencing utilities
+│   │   └── types.ts              # Shared TypeScript definitions
 │   ├── components/               # Shared React components
-│   ├── ui/                       # UI primitives (buttons, inputs, etc.)
+│   ├── ui/                       # UI components and utilities
+│   │   ├── hooks/                # Shared UI hooks
+│   │   │   └── use-drag-handler/ # Drag interaction utilities
+│   │   ├── text/                 # Text processing and tokenization
+│   │   │   ├── context.ts        # Text tokenization context
+│   │   │   ├── index.tsx         # Text display components
+│   │   │   └── provider.tsx      # Text provider component
+│   │   └── [other UI modules]/   # Buttons, inputs, icons, etc.
 │   ├── utils/                    # Utility functions
 │   └── assets/                   # Static assets
 │       └── patches/              # Instrument sample libraries
@@ -152,7 +169,12 @@ compose/
 │   ├── src/
 │   │   ├── lib.rs                # Library entry point
 │   │   ├── main.rs               # Application entry point
+│   │   ├── files.rs              # File system operations
+│   │   ├── preferences.rs        # Application preferences
+│   │   ├── utils.rs              # Utility functions
+│   │   ├── migrations/           # soloc file migrations
 │   │   ├── native_renderer/      # Skia rendering engine
+│   │   ├── render/               # Score rendering logic
 │   │   ├── sampler/              # Audio sampling (Rust side)
 │   │   ├── score/                # Score data structures
 │   │   └── ui/                   # UI bridge to frontend
