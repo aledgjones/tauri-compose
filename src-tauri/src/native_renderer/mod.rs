@@ -288,11 +288,13 @@ impl NativeRenderer {
                     canvas.clear(Color::from_rgb(10, 10, 10));
 
                     // Draw gradient background over the entire view
-                    let sky_200 = Color::from_rgb(186, 230, 253);
-                    let sky_700 = Color::from_rgb(3, 105, 161);
+                    let color_1 = Color::from_rgb(2, 94, 149); // #025e95
+                    let color_2 = Color::from_rgb(3, 161, 222); // #03a1de
+                    let color_3 = Color::from_rgb(107, 199, 236); // #6bc7ec
+                    let color_4 = Color::from_rgb(180, 218, 221); // #b4dadd
 
-                    let colors = [sky_700, sky_200];
-                    let positions = [0.0f32, 1.0f32];
+                    let colors = [color_1, color_2, color_3, color_4];
+                    let positions = [0.0f32, 0.33f32, 0.66f32, 1.0f32];
                     let gradient_shader = Shader::linear_gradient(
                         (
                             SkiaPoint::new(0.0, 0.0),
