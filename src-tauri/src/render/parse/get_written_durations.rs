@@ -584,6 +584,12 @@ impl NotationTrack {
         if !needs_splitting {
             for tick in start..stop {
                 if let Some(notation) = self.track.get(&tick) {
+                    // dotted rests can only appear at the begining of a unit
+                    if notation.is_rest() && notation.is_dotted() && notation.tick != start {
+                        needs_splitting = true;
+                        break;
+                    }
+
                     match notation.base_to_ticks() {
                         Some(base) => {
                             if !Notation::is_writable(base) {
