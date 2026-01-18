@@ -1,10 +1,11 @@
 mod draw;
 mod parse;
 
-use crate::renderer::converter::Converter;
+use crate::render::parse::get_horizontal_spacing::HorizontalSpacing;
+use crate::renderer::converter::{Converter, Space};
 use crate::renderer::text_measurer::TextMeasurer;
 use crate::renderer::Renderer;
-use crate::score::components::duration::Direction;
+use crate::score::components::duration::{Direction, Ticks};
 use crate::score::components::measurements::Point;
 use crate::score::entries::barline::BarlineDrawType;
 use crate::score::entries::clef::Clef;
@@ -46,6 +47,7 @@ use parse::get_tone_offsets::get_tone_offsets;
 use parse::get_vertical_spacing::get_vertical_spacing;
 use parse::get_vertical_spans::get_vertical_spans;
 use parse::get_written_durations::get_written_durations;
+use skia_safe::Color;
 use std::time::Instant;
 use tauri::Emitter;
 
@@ -574,16 +576,13 @@ pub fn generate_render_instructions(
 }
 
 fn draw_debug_slots(
-    horizontal_spacing: &parse::get_horizontal_spacing::HorizontalSpacing,
-    stave_left: crate::renderer::converter::Space,
-    stave_top: crate::renderer::converter::Space,
-    stave_height: crate::renderer::converter::Space,
-    flow_length: crate::score::components::duration::Ticks,
+    horizontal_spacing: &HorizontalSpacing,
+    stave_left: Space,
+    stave_top: Space,
+    stave_height: Space,
+    flow_length: Ticks,
     renderer: &mut Renderer,
 ) {
-    use parse::get_horizontal_spacing::Slot;
-    use skia_safe::Color;
-
     let slot_colors = [
         Color::from_argb(64, 255, 0, 0),     // PaddingStart - Red with alpha
         Color::from_argb(64, 255, 165, 0),   // EndRepeat - Orange

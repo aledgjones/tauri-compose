@@ -6,6 +6,7 @@ use semver::Version;
 use serde_json::Value;
 use std::fs;
 use std::io::{Read, Write};
+use tauri::menu::{MenuItem, PredefinedMenuItem};
 use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_store::StoreExt;
 
@@ -297,8 +298,6 @@ pub fn clear_recent_files(app: AppHandle) -> Result<(), String> {
 
 /// Update the Recent Files menu
 pub fn update_recent_files_menu(app: &AppHandle) -> Result<(), String> {
-    use tauri::menu::MenuItem;
-
     let menu = app.menu().ok_or("Menu not found")?;
     let items = menu.items().map_err(|e| e.to_string())?;
 
@@ -366,7 +365,6 @@ pub fn update_recent_files_menu(app: &AppHandle) -> Result<(), String> {
         }
 
         // Add separator and "Clear Recent Files" option
-        use tauri::menu::PredefinedMenuItem;
         let separator = PredefinedMenuItem::separator(app).map_err(|e| e.to_string())?;
         recents.append(&separator).map_err(|e| e.to_string())?;
 
