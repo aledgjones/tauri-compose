@@ -255,85 +255,6 @@ impl NativeRenderer {
         (constrained_pan_x, constrained_pan_y)
     }
 
-    fn draw_scrollbars(
-        &self,
-        canvas: &Canvas,
-        renderer: &Renderer,
-        constrained_pan_x: f32,
-        constrained_pan_y: f32,
-        zoom: f32,
-    ) {
-        canvas.save();
-        canvas.scale((self.scale as f32, self.scale as f32));
-
-        let page_width_px = renderer.converter.spaces_to_px(renderer.width);
-        let page_height_px = renderer.converter.spaces_to_px(renderer.height);
-        let scaled_page_width = page_width_px * zoom;
-        let scaled_page_height = page_height_px * zoom;
-
-        let show_horizontal = scaled_page_width + (PADDING * 2.0) > self.bounds.2;
-        let show_vertical = scaled_page_height + (PADDING * 2.0) > self.bounds.3;
-
-        // Draw horizontal scrollbar if content is wider than viewport
-        if show_horizontal {
-            let visible_ratio = self.bounds.2 / (scaled_page_width + PADDING * 2.0);
-            let available_width = if show_vertical {
-                self.bounds.2 - SCROLLBAR_WIDTH - SCROLLBAR_PADDING
-            } else {
-                self.bounds.2
-            };
-            let scrollbar_length = (available_width - 2.0 * SCROLLBAR_PADDING) * visible_ratio;
-
-            // Calculate position: map pan position to scrollbar position
-            let max_pan = PADDING;
-            let min_pan = -(scaled_page_width - self.bounds.2 + PADDING);
-            let pan_range = max_pan - min_pan;
-            let pan_normalized = (max_pan - constrained_pan_x) / pan_range; // 0 at left, 1 at right
-            let scrollbar_range = available_width - 2.0 * SCROLLBAR_PADDING - scrollbar_length;
-            let scrollbar_x = SCROLLBAR_PADDING + scrollbar_range * pan_normalized;
-            let scrollbar_y = self.bounds.3 - SCROLLBAR_WIDTH - SCROLLBAR_PADDING;
-
-            draw_scrollbar(
-                canvas,
-                scrollbar_x,
-                scrollbar_y,
-                scrollbar_length,
-                SCROLLBAR_WIDTH,
-            );
-        }
-
-        // Draw vertical scrollbar if content is taller than viewport
-        if show_vertical {
-            let visible_ratio = self.bounds.3 / (scaled_page_height + PADDING * 2.0);
-            let available_height = if show_horizontal {
-                // Leave space for horizontal scrollbar
-                self.bounds.3 - SCROLLBAR_WIDTH - SCROLLBAR_PADDING
-            } else {
-                self.bounds.3
-            };
-            let scrollbar_length = (available_height - 2.0 * SCROLLBAR_PADDING) * visible_ratio;
-
-            // Calculate position: map pan position to scrollbar position
-            let max_pan = PADDING;
-            let min_pan = -(scaled_page_height - self.bounds.3 + PADDING);
-            let pan_range = max_pan - min_pan;
-            let pan_normalized = (max_pan - constrained_pan_y) / pan_range; // 0 at top, 1 at bottom
-            let scrollbar_range = available_height - 2.0 * SCROLLBAR_PADDING - scrollbar_length;
-            let scrollbar_y = SCROLLBAR_PADDING + scrollbar_range * pan_normalized;
-            let scrollbar_x = self.bounds.2 - SCROLLBAR_WIDTH - SCROLLBAR_PADDING;
-
-            draw_scrollbar(
-                canvas,
-                scrollbar_x,
-                scrollbar_y,
-                SCROLLBAR_WIDTH,
-                scrollbar_length,
-            );
-        }
-
-        canvas.restore();
-    }
-
     pub fn render(
         &mut self,
         renderer: &Renderer,
@@ -637,6 +558,85 @@ impl NativeRenderer {
                 }
             }
         }
+        canvas.restore();
+    }
+
+    fn draw_scrollbars(
+        &self,
+        canvas: &Canvas,
+        renderer: &Renderer,
+        constrained_pan_x: f32,
+        constrained_pan_y: f32,
+        zoom: f32,
+    ) {
+        canvas.save();
+        canvas.scale((self.scale as f32, self.scale as f32));
+
+        let page_width_px = renderer.converter.spaces_to_px(renderer.width);
+        let page_height_px = renderer.converter.spaces_to_px(renderer.height);
+        let scaled_page_width = page_width_px * zoom;
+        let scaled_page_height = page_height_px * zoom;
+
+        let show_horizontal = scaled_page_width + (PADDING * 2.0) > self.bounds.2;
+        let show_vertical = scaled_page_height + (PADDING * 2.0) > self.bounds.3;
+
+        // Draw horizontal scrollbar if content is wider than viewport
+        if show_horizontal {
+            let visible_ratio = self.bounds.2 / (scaled_page_width + PADDING * 2.0);
+            let available_width = if show_vertical {
+                self.bounds.2 - SCROLLBAR_WIDTH - SCROLLBAR_PADDING
+            } else {
+                self.bounds.2
+            };
+            let scrollbar_length = (available_width - 2.0 * SCROLLBAR_PADDING) * visible_ratio;
+
+            // Calculate position: map pan position to scrollbar position
+            let max_pan = PADDING;
+            let min_pan = -(scaled_page_width - self.bounds.2 + PADDING);
+            let pan_range = max_pan - min_pan;
+            let pan_normalized = (max_pan - constrained_pan_x) / pan_range; // 0 at left, 1 at right
+            let scrollbar_range = available_width - 2.0 * SCROLLBAR_PADDING - scrollbar_length;
+            let scrollbar_x = SCROLLBAR_PADDING + scrollbar_range * pan_normalized;
+            let scrollbar_y = self.bounds.3 - SCROLLBAR_WIDTH - SCROLLBAR_PADDING;
+
+            draw_scrollbar(
+                canvas,
+                scrollbar_x,
+                scrollbar_y,
+                scrollbar_length,
+                SCROLLBAR_WIDTH,
+            );
+        }
+
+        // Draw vertical scrollbar if content is taller than viewport
+        if show_vertical {
+            let visible_ratio = self.bounds.3 / (scaled_page_height + PADDING * 2.0);
+            let available_height = if show_horizontal {
+                // Leave space for horizontal scrollbar
+                self.bounds.3 - SCROLLBAR_WIDTH - SCROLLBAR_PADDING
+            } else {
+                self.bounds.3
+            };
+            let scrollbar_length = (available_height - 2.0 * SCROLLBAR_PADDING) * visible_ratio;
+
+            // Calculate position: map pan position to scrollbar position
+            let max_pan = PADDING;
+            let min_pan = -(scaled_page_height - self.bounds.3 + PADDING);
+            let pan_range = max_pan - min_pan;
+            let pan_normalized = (max_pan - constrained_pan_y) / pan_range; // 0 at top, 1 at bottom
+            let scrollbar_range = available_height - 2.0 * SCROLLBAR_PADDING - scrollbar_length;
+            let scrollbar_y = SCROLLBAR_PADDING + scrollbar_range * pan_normalized;
+            let scrollbar_x = self.bounds.2 - SCROLLBAR_WIDTH - SCROLLBAR_PADDING;
+
+            draw_scrollbar(
+                canvas,
+                scrollbar_x,
+                scrollbar_y,
+                SCROLLBAR_WIDTH,
+                scrollbar_length,
+            );
+        }
+
         canvas.restore();
     }
 
