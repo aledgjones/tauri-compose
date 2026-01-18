@@ -549,30 +549,30 @@ pub fn generate_render_instructions(
     // Emit timing events for each phase
     let _ = app.emit(
         "render-timing-vertical",
-        vertical_duration.as_millis() as u64,
+        vertical_duration.as_micros() as u64,
     );
-    let _ = app.emit("render-timing-layout", layout_duration.as_millis() as u64);
+    let _ = app.emit("render-timing-layout", layout_duration.as_micros() as u64);
     let _ = app.emit(
         "render-timing-structure",
-        structure_duration.as_millis() as u64,
+        structure_duration.as_micros() as u64,
     );
     let _ = app.emit(
         "render-timing-notation",
-        notation_duration.as_millis() as u64,
+        notation_duration.as_micros() as u64,
     );
     let _ = app.emit(
         "render-timing-elements",
-        elements_duration.as_millis() as u64,
+        elements_duration.as_micros() as u64,
     );
-    let _ = app.emit("render-timing-spacing", spacing_duration.as_millis() as u64);
-    let _ = app.emit("render-timing-stems", stems_duration.as_millis() as u64);
-    let _ = app.emit("render-timing-setup", setup_duration.as_millis() as u64);
+    let _ = app.emit("render-timing-spacing", spacing_duration.as_micros() as u64);
+    let _ = app.emit("render-timing-stems", stems_duration.as_micros() as u64);
+    let _ = app.emit("render-timing-setup", setup_duration.as_micros() as u64);
     let _ = app.emit(
         "render-timing-barlines",
-        barlines_duration.as_millis() as u64,
+        barlines_duration.as_micros() as u64,
     );
-    let _ = app.emit("render-timing-stave", stave_duration.as_millis() as u64);
-    let _ = app.emit("render-timing-total", total_duration.as_millis() as u64);
+    let _ = app.emit("render-timing-stave", stave_duration.as_micros() as u64);
+    let _ = app.emit("render-timing-total", total_duration.as_micros() as u64);
 }
 
 fn draw_debug_slots(

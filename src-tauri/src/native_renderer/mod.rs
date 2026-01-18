@@ -384,19 +384,19 @@ impl NativeRenderer {
                 // Emit timing events for native rendering
                 let _ = app.emit(
                     "native-render-timing-setup",
-                    setup_duration.as_millis() as u64,
+                    setup_duration.as_micros() as u64,
                 );
                 let _ = app.emit(
                     "native-render-timing-draw",
-                    draw_duration.as_millis() as u64,
+                    draw_duration.as_micros() as u64,
                 );
                 let _ = app.emit(
                     "native-render-timing-flush",
-                    flush_duration.as_millis() as u64,
+                    flush_duration.as_micros() as u64,
                 );
                 let _ = app.emit(
                     "native-render-timing-total",
-                    total_duration.as_millis() as u64,
+                    total_duration.as_micros() as u64,
                 );
                 Ok((constrained_pan_x, constrained_pan_y))
             } else {

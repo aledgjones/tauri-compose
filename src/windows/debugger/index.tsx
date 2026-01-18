@@ -182,50 +182,56 @@ export const Main = () => {
           <span
             className={classNames("font-mono text-sm", {
               "text-red-400 font-bold":
-                (renderTimings["render-timing-vertical"] || 0) +
+                ((renderTimings["render-timing-vertical"] || 0) +
                   (renderTimings["render-timing-layout"] || 0) +
                   (renderTimings["render-timing-structure"] || 0) +
                   (renderTimings["render-timing-notation"] || 0) +
                   (renderTimings["render-timing-elements"] || 0) +
                   (renderTimings["render-timing-spacing"] || 0) +
-                  (renderTimings["render-timing-stems"] || 0) >
+                  (renderTimings["render-timing-stems"] || 0)) /
+                  1000 >
                 50,
               "text-yellow-400 font-bold":
-                (renderTimings["render-timing-vertical"] || 0) +
+                ((renderTimings["render-timing-vertical"] || 0) +
                   (renderTimings["render-timing-layout"] || 0) +
                   (renderTimings["render-timing-structure"] || 0) +
                   (renderTimings["render-timing-notation"] || 0) +
                   (renderTimings["render-timing-elements"] || 0) +
                   (renderTimings["render-timing-spacing"] || 0) +
-                  (renderTimings["render-timing-stems"] || 0) >
+                  (renderTimings["render-timing-stems"] || 0)) /
+                  1000 >
                   20 &&
-                (renderTimings["render-timing-vertical"] || 0) +
+                ((renderTimings["render-timing-vertical"] || 0) +
                   (renderTimings["render-timing-layout"] || 0) +
                   (renderTimings["render-timing-structure"] || 0) +
                   (renderTimings["render-timing-notation"] || 0) +
                   (renderTimings["render-timing-elements"] || 0) +
                   (renderTimings["render-timing-spacing"] || 0) +
-                  (renderTimings["render-timing-stems"] || 0) <=
+                  (renderTimings["render-timing-stems"] || 0)) /
+                  1000 <=
                   50,
               "text-green-400 font-bold":
-                (renderTimings["render-timing-vertical"] || 0) +
+                ((renderTimings["render-timing-vertical"] || 0) +
                   (renderTimings["render-timing-layout"] || 0) +
                   (renderTimings["render-timing-structure"] || 0) +
                   (renderTimings["render-timing-notation"] || 0) +
                   (renderTimings["render-timing-elements"] || 0) +
                   (renderTimings["render-timing-spacing"] || 0) +
-                  (renderTimings["render-timing-stems"] || 0) <=
+                  (renderTimings["render-timing-stems"] || 0)) /
+                  1000 <=
                 20,
             })}
           >
-            {(renderTimings["render-timing-vertical"] || 0) +
+            {(
+              (renderTimings["render-timing-vertical"] || 0) +
               (renderTimings["render-timing-layout"] || 0) +
               (renderTimings["render-timing-structure"] || 0) +
               (renderTimings["render-timing-notation"] || 0) +
               (renderTimings["render-timing-elements"] || 0) +
               (renderTimings["render-timing-spacing"] || 0) +
-              (renderTimings["render-timing-stems"] || 0)}
-            ms
+              (renderTimings["render-timing-stems"] || 0)
+            ).toLocaleString()}
+            μs
           </span>
         </button>
         {!layoutCollapsed && (
@@ -237,15 +243,19 @@ export const Main = () => {
               <span
                 className={classNames("text-xs font-mono text-right", {
                   "text-red-400 font-bold":
-                    (renderTimings["render-timing-vertical"] || 0) > 50,
+                    (renderTimings["render-timing-vertical"] || 0) / 1000 > 50,
                   "text-yellow-400 font-bold":
-                    (renderTimings["render-timing-vertical"] || 0) > 20 &&
-                    (renderTimings["render-timing-vertical"] || 0) <= 50,
+                    (renderTimings["render-timing-vertical"] || 0) / 1000 >
+                      20 &&
+                    (renderTimings["render-timing-vertical"] || 0) / 1000 <= 50,
                   "text-green-400 font-bold":
-                    (renderTimings["render-timing-vertical"] || 0) <= 20,
+                    (renderTimings["render-timing-vertical"] || 0) / 1000 <= 20,
                 })}
               >
-                {renderTimings["render-timing-vertical"] || 0}ms
+                {(
+                  renderTimings["render-timing-vertical"] || 0
+                ).toLocaleString()}
+                μs
               </span>
             </div>
             <div className="flex items-center bg-neutral-800">
@@ -255,15 +265,16 @@ export const Main = () => {
               <span
                 className={classNames("text-xs font-mono text-right", {
                   "text-red-400 font-bold":
-                    (renderTimings["render-timing-layout"] || 0) > 50,
+                    (renderTimings["render-timing-layout"] || 0) / 1000 > 50,
                   "text-yellow-400 font-bold":
-                    (renderTimings["render-timing-layout"] || 0) > 20 &&
-                    (renderTimings["render-timing-layout"] || 0) <= 50,
+                    (renderTimings["render-timing-layout"] || 0) / 1000 > 20 &&
+                    (renderTimings["render-timing-layout"] || 0) / 1000 <= 50,
                   "text-green-400 font-bold":
-                    (renderTimings["render-timing-layout"] || 0) <= 20,
+                    (renderTimings["render-timing-layout"] || 0) / 1000 <= 20,
                 })}
               >
-                {renderTimings["render-timing-layout"] || 0}ms
+                {(renderTimings["render-timing-layout"] || 0).toLocaleString()}
+                μs
               </span>
             </div>
             <div className="flex items-center bg-neutral-800">
@@ -273,15 +284,21 @@ export const Main = () => {
               <span
                 className={classNames("text-xs font-mono text-right", {
                   "text-red-400 font-bold":
-                    (renderTimings["render-timing-structure"] || 0) > 50,
+                    (renderTimings["render-timing-structure"] || 0) / 1000 > 50,
                   "text-yellow-400 font-bold":
-                    (renderTimings["render-timing-structure"] || 0) > 20 &&
-                    (renderTimings["render-timing-structure"] || 0) <= 50,
+                    (renderTimings["render-timing-structure"] || 0) / 1000 >
+                      20 &&
+                    (renderTimings["render-timing-structure"] || 0) / 1000 <=
+                      50,
                   "text-green-400 font-bold":
-                    (renderTimings["render-timing-structure"] || 0) <= 20,
+                    (renderTimings["render-timing-structure"] || 0) / 1000 <=
+                    20,
                 })}
               >
-                {renderTimings["render-timing-structure"] || 0}ms
+                {(
+                  renderTimings["render-timing-structure"] || 0
+                ).toLocaleString()}
+                μs
               </span>
             </div>
             <div className="flex items-center bg-neutral-800">
@@ -291,15 +308,19 @@ export const Main = () => {
               <span
                 className={classNames("text-xs font-mono text-right", {
                   "text-red-400 font-bold":
-                    (renderTimings["render-timing-notation"] || 0) > 50,
+                    (renderTimings["render-timing-notation"] || 0) / 1000 > 50,
                   "text-yellow-400 font-bold":
-                    (renderTimings["render-timing-notation"] || 0) > 20 &&
-                    (renderTimings["render-timing-notation"] || 0) <= 50,
+                    (renderTimings["render-timing-notation"] || 0) / 1000 >
+                      20 &&
+                    (renderTimings["render-timing-notation"] || 0) / 1000 <= 50,
                   "text-green-400 font-bold":
-                    (renderTimings["render-timing-notation"] || 0) <= 20,
+                    (renderTimings["render-timing-notation"] || 0) / 1000 <= 20,
                 })}
               >
-                {renderTimings["render-timing-notation"] || 0}ms
+                {(
+                  renderTimings["render-timing-notation"] || 0
+                ).toLocaleString()}
+                μs
               </span>
             </div>
             <div className="flex items-center bg-neutral-800">
@@ -309,15 +330,19 @@ export const Main = () => {
               <span
                 className={classNames("text-xs font-mono text-right", {
                   "text-red-400 font-bold":
-                    (renderTimings["render-timing-elements"] || 0) > 50,
+                    (renderTimings["render-timing-elements"] || 0) / 1000 > 50,
                   "text-yellow-400 font-bold":
-                    (renderTimings["render-timing-elements"] || 0) > 20 &&
-                    (renderTimings["render-timing-elements"] || 0) <= 50,
+                    (renderTimings["render-timing-elements"] || 0) / 1000 >
+                      20 &&
+                    (renderTimings["render-timing-elements"] || 0) / 1000 <= 50,
                   "text-green-400 font-bold":
-                    (renderTimings["render-timing-elements"] || 0) <= 20,
+                    (renderTimings["render-timing-elements"] || 0) / 1000 <= 20,
                 })}
               >
-                {renderTimings["render-timing-elements"] || 0}ms
+                {(
+                  renderTimings["render-timing-elements"] || 0
+                ).toLocaleString()}
+                μs
               </span>
             </div>
             <div className="flex items-center bg-neutral-800">
@@ -327,15 +352,16 @@ export const Main = () => {
               <span
                 className={classNames("text-xs font-mono text-right", {
                   "text-red-400 font-bold":
-                    (renderTimings["render-timing-spacing"] || 0) > 50,
+                    (renderTimings["render-timing-spacing"] || 0) / 1000 > 50,
                   "text-yellow-400 font-bold":
-                    (renderTimings["render-timing-spacing"] || 0) > 20 &&
-                    (renderTimings["render-timing-spacing"] || 0) <= 50,
+                    (renderTimings["render-timing-spacing"] || 0) / 1000 > 20 &&
+                    (renderTimings["render-timing-spacing"] || 0) / 1000 <= 50,
                   "text-green-400 font-bold":
-                    (renderTimings["render-timing-spacing"] || 0) <= 20,
+                    (renderTimings["render-timing-spacing"] || 0) / 1000 <= 20,
                 })}
               >
-                {renderTimings["render-timing-spacing"] || 0}ms
+                {(renderTimings["render-timing-spacing"] || 0).toLocaleString()}
+                μs
               </span>
             </div>
             <div className="flex items-center bg-neutral-800">
@@ -345,15 +371,15 @@ export const Main = () => {
               <span
                 className={classNames("text-xs font-mono text-right", {
                   "text-red-400 font-bold":
-                    (renderTimings["render-timing-stems"] || 0) > 50,
+                    (renderTimings["render-timing-stems"] || 0) / 1000 > 50,
                   "text-yellow-400 font-bold":
-                    (renderTimings["render-timing-stems"] || 0) > 20 &&
-                    (renderTimings["render-timing-stems"] || 0) <= 50,
+                    (renderTimings["render-timing-stems"] || 0) / 1000 > 20 &&
+                    (renderTimings["render-timing-stems"] || 0) / 1000 <= 50,
                   "text-green-400 font-bold":
-                    (renderTimings["render-timing-stems"] || 0) <= 20,
+                    (renderTimings["render-timing-stems"] || 0) / 1000 <= 20,
                 })}
               >
-                {renderTimings["render-timing-stems"] || 0}ms
+                {(renderTimings["render-timing-stems"] || 0).toLocaleString()}μs
               </span>
             </div>
           </div>
@@ -369,30 +395,36 @@ export const Main = () => {
           <span
             className={classNames("font-mono text-sm", {
               "text-red-400 font-bold":
-                (renderTimings["render-timing-setup"] || 0) +
+                ((renderTimings["render-timing-setup"] || 0) +
                   (renderTimings["render-timing-barlines"] || 0) +
-                  (renderTimings["render-timing-stave"] || 0) >
+                  (renderTimings["render-timing-stave"] || 0)) /
+                  1000 >
                 50,
               "text-yellow-400 font-bold":
-                (renderTimings["render-timing-setup"] || 0) +
+                ((renderTimings["render-timing-setup"] || 0) +
                   (renderTimings["render-timing-barlines"] || 0) +
-                  (renderTimings["render-timing-stave"] || 0) >
+                  (renderTimings["render-timing-stave"] || 0)) /
+                  1000 >
                   20 &&
-                (renderTimings["render-timing-setup"] || 0) +
+                ((renderTimings["render-timing-setup"] || 0) +
                   (renderTimings["render-timing-barlines"] || 0) +
-                  (renderTimings["render-timing-stave"] || 0) <=
+                  (renderTimings["render-timing-stave"] || 0)) /
+                  1000 <=
                   50,
               "text-green-400 font-bold":
-                (renderTimings["render-timing-setup"] || 0) +
+                ((renderTimings["render-timing-setup"] || 0) +
                   (renderTimings["render-timing-barlines"] || 0) +
-                  (renderTimings["render-timing-stave"] || 0) <=
+                  (renderTimings["render-timing-stave"] || 0)) /
+                  1000 <=
                 20,
             })}
           >
-            {(renderTimings["render-timing-setup"] || 0) +
+            {(
+              (renderTimings["render-timing-setup"] || 0) +
               (renderTimings["render-timing-barlines"] || 0) +
-              (renderTimings["render-timing-stave"] || 0)}
-            ms
+              (renderTimings["render-timing-stave"] || 0)
+            ).toLocaleString()}
+            μs
           </span>
         </button>
         {!renderCollapsed && (
@@ -404,15 +436,15 @@ export const Main = () => {
               <span
                 className={classNames("text-xs font-mono text-right", {
                   "text-red-400 font-bold":
-                    (renderTimings["render-timing-setup"] || 0) > 50,
+                    (renderTimings["render-timing-setup"] || 0) / 1000 > 50,
                   "text-yellow-400 font-bold":
-                    (renderTimings["render-timing-setup"] || 0) > 20 &&
-                    (renderTimings["render-timing-setup"] || 0) <= 50,
+                    (renderTimings["render-timing-setup"] || 0) / 1000 > 20 &&
+                    (renderTimings["render-timing-setup"] || 0) / 1000 <= 50,
                   "text-green-400 font-bold":
-                    (renderTimings["render-timing-setup"] || 0) <= 20,
+                    (renderTimings["render-timing-setup"] || 0) / 1000 <= 20,
                 })}
               >
-                {renderTimings["render-timing-setup"] || 0}ms
+                {(renderTimings["render-timing-setup"] || 0).toLocaleString()}μs
               </span>
             </div>
             <div className="flex items-center bg-neutral-800">
@@ -422,15 +454,19 @@ export const Main = () => {
               <span
                 className={classNames("text-xs font-mono text-right", {
                   "text-red-400 font-bold":
-                    (renderTimings["render-timing-barlines"] || 0) > 50,
+                    (renderTimings["render-timing-barlines"] || 0) / 1000 > 50,
                   "text-yellow-400 font-bold":
-                    (renderTimings["render-timing-barlines"] || 0) > 20 &&
-                    (renderTimings["render-timing-barlines"] || 0) <= 50,
+                    (renderTimings["render-timing-barlines"] || 0) / 1000 >
+                      20 &&
+                    (renderTimings["render-timing-barlines"] || 0) / 1000 <= 50,
                   "text-green-400 font-bold":
-                    (renderTimings["render-timing-barlines"] || 0) <= 20,
+                    (renderTimings["render-timing-barlines"] || 0) / 1000 <= 20,
                 })}
               >
-                {renderTimings["render-timing-barlines"] || 0}ms
+                {(
+                  renderTimings["render-timing-barlines"] || 0
+                ).toLocaleString()}
+                μs
               </span>
             </div>
             <div className="flex items-center bg-neutral-800">
@@ -440,15 +476,15 @@ export const Main = () => {
               <span
                 className={classNames("text-xs font-mono text-right", {
                   "text-red-400 font-bold":
-                    (renderTimings["render-timing-stave"] || 0) > 50,
+                    (renderTimings["render-timing-stave"] || 0) / 1000 > 50,
                   "text-yellow-400 font-bold":
-                    (renderTimings["render-timing-stave"] || 0) > 20 &&
-                    (renderTimings["render-timing-stave"] || 0) <= 50,
+                    (renderTimings["render-timing-stave"] || 0) / 1000 > 20 &&
+                    (renderTimings["render-timing-stave"] || 0) / 1000 <= 50,
                   "text-green-400 font-bold":
-                    (renderTimings["render-timing-stave"] || 0) <= 20,
+                    (renderTimings["render-timing-stave"] || 0) / 1000 <= 20,
                 })}
               >
-                {renderTimings["render-timing-stave"] || 0}ms
+                {(renderTimings["render-timing-stave"] || 0).toLocaleString()}μs
               </span>
             </div>
           </div>
@@ -464,30 +500,36 @@ export const Main = () => {
           <span
             className={classNames("font-mono text-sm", {
               "text-red-400 font-bold":
-                (renderTimings["native-render-timing-setup"] || 0) +
+                ((renderTimings["native-render-timing-setup"] || 0) +
                   (renderTimings["native-render-timing-draw"] || 0) +
-                  (renderTimings["native-render-timing-flush"] || 0) >
+                  (renderTimings["native-render-timing-flush"] || 0)) /
+                  1000 >
                 50,
               "text-yellow-400 font-bold":
-                (renderTimings["native-render-timing-setup"] || 0) +
+                ((renderTimings["native-render-timing-setup"] || 0) +
                   (renderTimings["native-render-timing-draw"] || 0) +
-                  (renderTimings["native-render-timing-flush"] || 0) >
+                  (renderTimings["native-render-timing-flush"] || 0)) /
+                  1000 >
                   20 &&
-                (renderTimings["native-render-timing-setup"] || 0) +
+                ((renderTimings["native-render-timing-setup"] || 0) +
                   (renderTimings["native-render-timing-draw"] || 0) +
-                  (renderTimings["native-render-timing-flush"] || 0) <=
+                  (renderTimings["native-render-timing-flush"] || 0)) /
+                  1000 <=
                   50,
               "text-green-400 font-bold":
-                (renderTimings["native-render-timing-setup"] || 0) +
+                ((renderTimings["native-render-timing-setup"] || 0) +
                   (renderTimings["native-render-timing-draw"] || 0) +
-                  (renderTimings["native-render-timing-flush"] || 0) <=
+                  (renderTimings["native-render-timing-flush"] || 0)) /
+                  1000 <=
                 20,
             })}
           >
-            {(renderTimings["native-render-timing-setup"] || 0) +
+            {(
+              (renderTimings["native-render-timing-setup"] || 0) +
               (renderTimings["native-render-timing-draw"] || 0) +
-              (renderTimings["native-render-timing-flush"] || 0)}
-            ms
+              (renderTimings["native-render-timing-flush"] || 0)
+            ).toLocaleString()}
+            μs
           </span>
         </button>
         {!gpuCollapsed && (
@@ -499,15 +541,22 @@ export const Main = () => {
               <span
                 className={classNames("text-xs font-mono text-right", {
                   "text-red-400 font-bold":
-                    (renderTimings["native-render-timing-setup"] || 0) > 50,
+                    (renderTimings["native-render-timing-setup"] || 0) / 1000 >
+                    50,
                   "text-yellow-400 font-bold":
-                    (renderTimings["native-render-timing-setup"] || 0) > 20 &&
-                    (renderTimings["native-render-timing-setup"] || 0) <= 50,
+                    (renderTimings["native-render-timing-setup"] || 0) / 1000 >
+                      20 &&
+                    (renderTimings["native-render-timing-setup"] || 0) / 1000 <=
+                      50,
                   "text-green-400 font-bold":
-                    (renderTimings["native-render-timing-setup"] || 0) <= 20,
+                    (renderTimings["native-render-timing-setup"] || 0) / 1000 <=
+                    20,
                 })}
               >
-                {renderTimings["native-render-timing-setup"] || 0}ms
+                {(
+                  renderTimings["native-render-timing-setup"] || 0
+                ).toLocaleString()}
+                μs
               </span>
             </div>
             <div className="flex items-center bg-neutral-800">
@@ -517,15 +566,22 @@ export const Main = () => {
               <span
                 className={classNames("text-xs font-mono text-right", {
                   "text-red-400 font-bold":
-                    (renderTimings["native-render-timing-draw"] || 0) > 50,
+                    (renderTimings["native-render-timing-draw"] || 0) / 1000 >
+                    50,
                   "text-yellow-400 font-bold":
-                    (renderTimings["native-render-timing-draw"] || 0) > 20 &&
-                    (renderTimings["native-render-timing-draw"] || 0) <= 50,
+                    (renderTimings["native-render-timing-draw"] || 0) / 1000 >
+                      20 &&
+                    (renderTimings["native-render-timing-draw"] || 0) / 1000 <=
+                      50,
                   "text-green-400 font-bold":
-                    (renderTimings["native-render-timing-draw"] || 0) <= 20,
+                    (renderTimings["native-render-timing-draw"] || 0) / 1000 <=
+                    20,
                 })}
               >
-                {renderTimings["native-render-timing-draw"] || 0}ms
+                {(
+                  renderTimings["native-render-timing-draw"] || 0
+                ).toLocaleString()}
+                μs
               </span>
             </div>
             <div className="flex items-center bg-neutral-800">
@@ -535,15 +591,22 @@ export const Main = () => {
               <span
                 className={classNames("text-xs font-mono text-right", {
                   "text-red-400 font-bold":
-                    (renderTimings["native-render-timing-flush"] || 0) > 50,
+                    (renderTimings["native-render-timing-flush"] || 0) / 1000 >
+                    50,
                   "text-yellow-400 font-bold":
-                    (renderTimings["native-render-timing-flush"] || 0) > 20 &&
-                    (renderTimings["native-render-timing-flush"] || 0) <= 50,
+                    (renderTimings["native-render-timing-flush"] || 0) / 1000 >
+                      20 &&
+                    (renderTimings["native-render-timing-flush"] || 0) / 1000 <=
+                      50,
                   "text-green-400 font-bold":
-                    (renderTimings["native-render-timing-flush"] || 0) <= 20,
+                    (renderTimings["native-render-timing-flush"] || 0) / 1000 <=
+                    20,
                 })}
               >
-                {renderTimings["native-render-timing-flush"] || 0}ms
+                {(
+                  renderTimings["native-render-timing-flush"] || 0
+                ).toLocaleString()}
+                μs
               </span>
             </div>
           </div>
