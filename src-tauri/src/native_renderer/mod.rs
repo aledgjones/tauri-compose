@@ -47,6 +47,29 @@ type CAMetalLayerRetained = Retained<objc2_quartz_core::CAMetalLayer>;
 type NSViewRetained = Retained<objc2_app_kit::NSView>;
 type CADisplayLinkRetained = Retained<objc2_quartz_core::CADisplayLink>;
 
+fn constrain_dimension(pan: f32, scaled_size: f32, bounds_size: f32) -> f32 {
+    if scaled_size + (PADDING * 2.0) <= bounds_size {
+        (bounds_size - scaled_size) / 2.0
+    } else {
+        let max_pan = PADDING;
+        let min_pan = -(scaled_size - bounds_size + PADDING);
+        pan.clamp(min_pan, max_pan)
+    }
+}
+
+fn draw_scrollbar(canvas: &Canvas, x: f32, y: f32, width: f32, height: f32) {
+    let mut paint = Paint::default();
+    paint.set_color(SCROLLBAR_COLOR);
+    paint.set_anti_alias(true);
+    paint.set_style(PaintStyle::Fill);
+    canvas.draw_round_rect(
+        Rect::from_xywh(x, y, width, height),
+        SCROLLBAR_WIDTH / 2.0,
+        SCROLLBAR_WIDTH / 2.0,
+        &paint,
+    );
+}
+
 #[allow(dead_code)]
 pub struct NativeRenderer {
     context: DirectContext,
@@ -225,27 +248,9 @@ impl NativeRenderer {
         let scaled_page_width = page_width_px * zoom;
         let scaled_page_height = page_height_px * zoom;
 
-        // Constrain horizontal pan
-        let constrained_pan_x = if scaled_page_width + (PADDING * 2.0) <= bounds_width {
-            // Page with padding fits horizontally - center it
-            (bounds_width - scaled_page_width) / 2.0
-        } else {
-            // Page larger than bounds - allow panning with padding
-            let max_pan = PADDING;
-            let min_pan = -(scaled_page_width - bounds_width + PADDING);
-            pan_x.clamp(min_pan, max_pan)
-        };
-
-        // Constrain vertical pan
-        let constrained_pan_y = if scaled_page_height + (PADDING * 2.0) <= bounds_height {
-            // Page with padding fits vertically - center it
-            (bounds_height - scaled_page_height) / 2.0
-        } else {
-            // Page larger than bounds - allow panning with padding
-            let max_pan = PADDING;
-            let min_pan = -(scaled_page_height - bounds_height + PADDING);
-            pan_y.clamp(min_pan, max_pan)
-        };
+        // Constrain horizontal and vertical pan
+        let constrained_pan_x = constrain_dimension(pan_x, scaled_page_width, bounds_width);
+        let constrained_pan_y = constrain_dimension(pan_y, scaled_page_height, bounds_height);
 
         (constrained_pan_x, constrained_pan_y)
     }
@@ -288,16 +293,12 @@ impl NativeRenderer {
             let scrollbar_x = SCROLLBAR_PADDING + scrollbar_range * pan_normalized;
             let scrollbar_y = self.bounds.3 - SCROLLBAR_WIDTH - SCROLLBAR_PADDING;
 
-            let mut scrollbar_paint = Paint::default();
-            scrollbar_paint.set_color(SCROLLBAR_COLOR);
-            scrollbar_paint.set_anti_alias(true);
-            scrollbar_paint.set_style(PaintStyle::Fill);
-
-            canvas.draw_round_rect(
-                Rect::from_xywh(scrollbar_x, scrollbar_y, scrollbar_length, SCROLLBAR_WIDTH),
-                SCROLLBAR_WIDTH / 2.0,
-                SCROLLBAR_WIDTH / 2.0,
-                &scrollbar_paint,
+            draw_scrollbar(
+                canvas,
+                scrollbar_x,
+                scrollbar_y,
+                scrollbar_length,
+                SCROLLBAR_WIDTH,
             );
         }
 
@@ -321,16 +322,12 @@ impl NativeRenderer {
             let scrollbar_y = SCROLLBAR_PADDING + scrollbar_range * pan_normalized;
             let scrollbar_x = self.bounds.2 - SCROLLBAR_WIDTH - SCROLLBAR_PADDING;
 
-            let mut scrollbar_paint = Paint::default();
-            scrollbar_paint.set_color(SCROLLBAR_COLOR);
-            scrollbar_paint.set_anti_alias(true);
-            scrollbar_paint.set_style(PaintStyle::Fill);
-
-            canvas.draw_round_rect(
-                Rect::from_xywh(scrollbar_x, scrollbar_y, SCROLLBAR_WIDTH, scrollbar_length),
-                SCROLLBAR_WIDTH / 2.0,
-                SCROLLBAR_WIDTH / 2.0,
-                &scrollbar_paint,
+            draw_scrollbar(
+                canvas,
+                scrollbar_x,
+                scrollbar_y,
+                SCROLLBAR_WIDTH,
+                scrollbar_length,
             );
         }
 
