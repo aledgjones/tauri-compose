@@ -16,8 +16,7 @@ export const InstrumentOverview: FC = () => {
   const state = useAppState();
 
   // Get the selected flow from UI state, or fall back to the first flow
-  const selectedFlowId = state.ui.sequencer.flow;
-  const flowId = selectedFlowId || state.score.flows.order[0];
+  const flowId = state.ui.flow_id ?? state.score.flows.order[0] ?? null;
   const flow = flowId ? state.score.flows.by_id[flowId] : null;
 
   // Get all instruments in the score with their player information

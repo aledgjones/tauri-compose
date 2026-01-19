@@ -221,5 +221,9 @@ pub fn score_layouts_remove(
     state.ui.screens.setup.expanded.remove(&layout_id);
     state.ui.screens.setup.selection = None;
 
+    if state.ui.layout_id == Some(layout_id) {
+        state.ui.layout_id = None;
+    }
+
     state.emit(&app, &mut renderer, true);
 }

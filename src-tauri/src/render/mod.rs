@@ -159,10 +159,11 @@ pub fn generate_render_instructions(
     let height = page_padding.top + vertical_spacing.height + page_padding.bottom;
     let width = stave_left + horizontal_spacing.width + page_padding.right;
 
-    renderer.clear_instructions();
-    renderer.clear_hit_targets();
-    renderer.set_converter(converter);
-    renderer.set_dimensions(width, height);
+    renderer.instructions.clear();
+    renderer.hit_targets.clear();
+    renderer.converter = converter;
+    renderer.width = width;
+    renderer.height = height;
 
     // Draw white background for the score page
     renderer.rectangle(0.0, 0.0, width, height, skia_safe::Color::WHITE);

@@ -9,6 +9,7 @@ mod score;
 mod ui;
 mod utils;
 
+use crate::native_renderer::NativeRenderer;
 use files::{
     add_recent_file, clear_recent_files, get_current_file_path, get_recent_files,
     load_project_from_file, refresh_menus, save_project_to_file, set_current_file_path,
@@ -95,7 +96,7 @@ use ui::setup::{
     ui_setup_selection_set,
 };
 use ui::write::{ui_write_bottom_panel_minimized_toggle, ui_write_bottom_panel_tab_set};
-use ui::{ui_layout_id_set, ui_tab_set, Ui};
+use ui::{ui_flow_id_set, ui_layout_id_set, ui_tab_set, Ui};
 use utils::UniqueId;
 
 lazy_static! {
@@ -135,21 +136,26 @@ impl AppStateInner {
 
     fn render(&mut self, app: &tauri::AppHandle, renderer: &mut Renderer, recalculate: bool) {
         if recalculate {
-            if let Some(first_flow_id) = self.score.flows.order.first() {
-                generate_render_instructions(
-                    app,
-                    self,
-                    renderer,
-                    self.ui.layout_id,
-                    *first_flow_id,
-                );
-            };
+            let layout_id = self
+                .ui
+                .layout_id
+                .or_else(|| self.score.layouts.order.first().copied());
+            let flow_id = self
+                .ui
+                .flow_id
+                .or_else(|| self.score.flows.order.first().copied());
+
+            if let (Some(layout_id), Some(flow_id)) = (layout_id, flow_id) {
+                generate_render_instructions(app, self, renderer, layout_id, flow_id);
+            } else {
+                renderer.clear();
+            }
         }
 
         if let Some(window) = app.get_webview_window("main") {
             let mut native_renderer_guard = NATIVE_RENDERER.lock().unwrap();
             if native_renderer_guard.is_none() {
-                if let Ok(renderer) = crate::native_renderer::NativeRenderer::new(&window) {
+                if let Ok(renderer) = NativeRenderer::new(&window) {
                     *native_renderer_guard = Some(renderer);
                 }
             }
@@ -229,7 +235,7 @@ fn reset(
     state.sampler = Sampler::default();
     state.next_id = 1;
 
-    renderer.clear_instructions();
+    renderer.clear();
 
     state.emit(&app, &mut renderer, true);
     state.emit_sampler(&app);
@@ -472,6 +478,7 @@ pub fn run() {
             score_players_move,
             score_players_remove,
             ui_layout_id_set,
+            ui_flow_id_set,
             ui_renderer_bounds_set,
             ui_renderer_debug_rendering_toggle,
             ui_renderer_pan_set,

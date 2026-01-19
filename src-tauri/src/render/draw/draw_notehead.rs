@@ -49,7 +49,7 @@ pub fn draw_notehead(
         color,
     );
 
-    renderer.add_hit_target(HitTarget {
+    renderer.hit_targets.push(HitTarget {
         tone_id: tone.id,
         track_id,
         flow_id,

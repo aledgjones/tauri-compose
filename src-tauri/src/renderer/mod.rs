@@ -87,25 +87,11 @@ impl Renderer {
         }
     }
 
-    pub fn set_converter(&mut self, converter: Converter) {
-        self.converter = converter;
-    }
-
-    pub fn set_dimensions(&mut self, width: f32, height: f32) {
-        self.width = width;
-        self.height = height;
-    }
-
-    pub fn clear_instructions(&mut self) {
+    pub fn clear(&mut self) {
         self.instructions.clear();
-    }
-
-    pub fn clear_hit_targets(&mut self) {
         self.hit_targets.clear();
-    }
-
-    pub fn add_hit_target(&mut self, target: HitTarget) {
-        self.hit_targets.push(target);
+        self.width = 0.0;
+        self.height = 0.0;
     }
 
     pub fn line(&mut self, width: Space, color: skia_safe::Color, points: Vec<Point>) {

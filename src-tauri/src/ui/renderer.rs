@@ -37,7 +37,7 @@ pub fn ui_renderer_zoom_set(
     zoom: i32,
 ) -> (i32, f32, f32) {
     let mut state = state.lock().unwrap();
-    let renderer = renderer_state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
 
     // Clamp zoom between 25% and 800%
     let clamped_zoom = zoom.clamp(25, 800);
@@ -80,8 +80,6 @@ pub fn ui_renderer_zoom_set(
     state.ui.renderer.pan_x = new_pan_x;
     state.ui.renderer.pan_y = new_pan_y;
 
-    drop(renderer);
-    let mut renderer = renderer_state.lock().unwrap();
     state.emit(&app, &mut renderer, false);
 
     (clamped_zoom, new_pan_x, new_pan_y)

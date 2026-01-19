@@ -19,7 +19,8 @@ export const initialAppState: AppState = {
   current_file_path: null,
   ui: {
     tab: Tab.Setup,
-    layout_id: 0,
+    layout_id: null,
+    flow_id: null,
     renderer: {
       zoom: 1,
       pxPerMm: 96 / 25.4,
@@ -33,7 +34,6 @@ export const initialAppState: AppState = {
       y: 1008,
       tool: Tool.Select,
       snap: NoteDuration.Eighth,
-      flow: null,
       instrument: null,
       track: null,
       selection: null,

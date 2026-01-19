@@ -46,7 +46,8 @@ impl Screens {
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Ui {
     tab: Tab,
-    pub layout_id: UniqueId,
+    pub layout_id: Option<UniqueId>,
+    pub flow_id: Option<UniqueId>,
     pub renderer: Renderer,
     pub sequencer: Sequencer,
     pub screens: Screens,
@@ -56,7 +57,8 @@ impl Ui {
     pub fn new() -> Self {
         Self {
             tab: Tab::Setup,
-            layout_id: 0,
+            layout_id: None,
+            flow_id: None,
             renderer: Renderer::new(),
             sequencer: Sequencer::new(),
             screens: Screens::new(),
@@ -88,6 +90,22 @@ pub fn ui_layout_id_set(
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
 
-    state.ui.layout_id = layout_id;
+    state.ui.layout_id = Some(layout_id);
+
+    state.emit(&app, &mut renderer, true);
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn ui_flow_id_set(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    renderer_state: State<'_, RenderState>,
+    flow_id: UniqueId,
+) {
+    let mut state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
+
+    state.ui.flow_id = Some(flow_id);
+
     state.emit(&app, &mut renderer, true);
 }

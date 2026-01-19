@@ -335,7 +335,8 @@ export enum BottomPanelTab {
 export type AppState = {
   ui: {
     tab: Tab;
-    layout_id: UniqueId;
+    layout_id: UniqueId | null;
+    flow_id: UniqueId | null;
     renderer: {
       zoom: number;
       pxPerMm: number;
@@ -349,7 +350,6 @@ export type AppState = {
       y: number;
       tool: Tool;
       snap: NoteDuration;
-      flow: UniqueId | null;
       instrument: UniqueId | null;
       track: UniqueId | null;
       selection: {

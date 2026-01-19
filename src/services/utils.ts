@@ -89,7 +89,18 @@ export const getLayoutName = (state: AppState, layoutId: UniqueId) => {
   }
 
   const last = instrumentNames.pop();
+
   return `${instrumentNames.join(", ")} & ${last}`;
+};
+
+export const getFlowName = (
+  state: AppState,
+  index: number,
+  flowId: UniqueId,
+) => {
+  const flow = state.score.flows.by_id[flowId];
+
+  return `${index + 1}. ${flow.title || "Untitled Flow"}`;
 };
 
 export const parseTimeSignature = (input: string) => {

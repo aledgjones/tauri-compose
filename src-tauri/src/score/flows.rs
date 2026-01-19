@@ -258,6 +258,10 @@ pub fn score_flows_remove(
 
     state.ui.screens.setup.selection = None;
 
+    if state.ui.flow_id == Some(flow_id) {
+        state.ui.flow_id = None;
+    }
+
     for layout_id in state.score.layouts.order.clone() {
         state.unassign_flow_from_layout(layout_id, flow_id);
     }

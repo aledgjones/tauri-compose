@@ -12,13 +12,15 @@ export type SelectOption<T> = {
 };
 
 type SelectProps<T> = {
-  value: T;
+  value: T | null;
   options: SelectOption<T>[];
   onChange: (value: T) => void;
   direction?: "up" | "down";
   className?: string;
   variant: "standard" | "filled";
   label?: string;
+  placeholder?: string;
+  disabled?: boolean;
 };
 
 export const Select = <T extends Key>({
@@ -29,6 +31,8 @@ export const Select = <T extends Key>({
   className,
   variant,
   label,
+  placeholder,
+  disabled,
 }: SelectProps<T>) => {
   const [isOpen, setIsOpen] = useState(false);
   const selectRef = useRef<HTMLDivElement>(null);
@@ -71,6 +75,7 @@ export const Select = <T extends Key>({
         </label>
       )}
       <button
+        disabled={disabled}
         onClick={() => setIsOpen((prev) => !prev)}
         className={classNames(
           "h-9 flex items-center w-full text-left text-white text-sm px-3 border-2",
@@ -94,8 +99,15 @@ export const Select = <T extends Key>({
           </div>
         )}
 
-        <span className="flex-1">
-          <TokenizedText>{selection?.label || "Select"}</TokenizedText>
+        <span
+          className={classNames("flex-1 whitespace-nowrap", {
+            "text-white": !disabled,
+            "text-neutral-500 italic": disabled,
+          })}
+        >
+          <TokenizedText>
+            {selection?.label || placeholder || "Select"}
+          </TokenizedText>
         </span>
 
         <div className="flex items-center pointer-events-none pl-3">

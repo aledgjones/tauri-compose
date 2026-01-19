@@ -78,6 +78,9 @@ export const actions = {
     setActiveLayoutId: (layout_id: number) => {
       return invoke("ui_layout_id_set", { layout_id });
     },
+    setActiveFlowId: (flow_id: number) => {
+      return invoke("ui_flow_id_set", { flow_id });
+    },
     preferences: {
       setAudition: (audition: boolean) => {
         return invoke("preferences_audition_set", {
@@ -781,15 +784,10 @@ export const actions = {
     },
     // Load a project from a specific file path (used by recents menu)
     loadFromPath: async (filePath: string) => {
-      console.log("Loading project from:", filePath);
-
       await invoke("load_project_from_file", {
         file_path: filePath,
       });
 
-      console.log("Adding to recent files:", filePath);
-
-      // Add to recent files (moves it to the top)
       await invoke("add_recent_file", {
         file_path: filePath,
       });

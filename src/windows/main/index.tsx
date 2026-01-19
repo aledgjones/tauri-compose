@@ -11,7 +11,7 @@ import { Select } from "../../ui/select";
 import { Tab } from "../../services/types";
 import { actions } from "../../services/actions";
 import { useMemo } from "react";
-import { getLayoutName } from "../../services/utils";
+import { getLayoutName, getFlowName } from "../../services/utils";
 import { Write } from "./screens/write";
 import { Sequence } from "./screens/sequence";
 import { PlaybackProvider } from "../../services/playback";
@@ -38,6 +38,17 @@ export const Main = () => {
     });
   }, [state]);
 
+  const flows = useMemo(() => {
+    return state.score.flows.order.map((flowId, index) => {
+      const name = getFlowName(state, index, flowId);
+
+      return {
+        value: flowId,
+        label: name,
+      };
+    });
+  }, [state]);
+
   return (
     <PlaybackProvider appState={state}>
       <div className="h-dvh w-dvw grid grid-rows-[30px_48px_1fr] bg-transparent p-0.75">
@@ -59,9 +70,21 @@ export const Main = () => {
             <Select
               variant="standard"
               className="mr-0.5 inline-block"
-              value={state.ui.layout_id}
+              value={state.ui.layout_id ?? state.score.layouts.order[0] ?? null}
               onChange={actions.ui.setActiveLayoutId}
               options={layouts}
+              placeholder="No layouts yet..."
+              disabled={layouts.length === 0}
+            />
+
+            <Select
+              variant="standard"
+              className="mr-0.5 inline-block"
+              value={state.ui.flow_id ?? state.score.flows.order[0] ?? null}
+              onChange={actions.ui.setActiveFlowId}
+              options={flows}
+              placeholder="No flows yet..."
+              disabled={flows.length === 0}
             />
 
             <Transport className="mr-0.5" />

@@ -45,7 +45,7 @@ export function PlaybackProvider({
 
   // Initialize transport when flow changes
   useEffect(() => {
-    const flowId = appState.ui.sequencer.flow || appState.score.flows.order[0];
+    const flowId = appState.ui.flow_id ?? appState.score.flows.order[0] ?? null;
     if (!flowId) return;
 
     const flow = appState.score.flows.by_id[flowId];
@@ -121,7 +121,7 @@ export function PlaybackProvider({
     appState.score.instruments,
     appState.score.players,
     appState.score.tracks,
-    appState.ui.sequencer.flow,
+    appState.ui.flow_id,
   ]);
 
   useEffect(() => {
