@@ -168,7 +168,7 @@ export const Main = () => {
   }, [flowId, popover, popoverType, staveId, tick]);
 
   return (
-    <div className="h-dvh bg-neutral-950 grid grid-rows-[28px_auto_auto_1fr_2fr] gap-2 overflow-hidden">
+    <div className="h-dvh bg-neutral-950 grid grid-rows-[28px_auto_auto_1fr_auto] gap-2 overflow-hidden">
       <AppBar title="Debugger" />
 
       <div className="bg-neutral-900 p-2 mx-2">
@@ -639,7 +639,7 @@ export const Main = () => {
       </div>
 
       <div className="bg-neutral-900 p-2 mx-2 z-50 mb-2 flex flex-col">
-        <div className="flex gap-2 mb-0.5">
+        <div className="flex gap-2">
           <SnapPicker
             variant="filled"
             label="Snap"
@@ -675,10 +675,10 @@ export const Main = () => {
           />
         </div>
 
-        <div className="flex gap-2 mb-2">
+        <div className="flex gap-2 my-2">
           <Select
+            direction="up"
             variant="filled"
-            label="Popover Type"
             options={POPOVERS}
             value={popoverType}
             onChange={setPopoverType}
@@ -686,7 +686,6 @@ export const Main = () => {
           <Input
             type="text"
             className="flex-1"
-            label="Popover"
             value={popover}
             onChange={setPopover}
             onEnter={handleEnter}

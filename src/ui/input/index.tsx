@@ -4,8 +4,9 @@ import { TextInput } from "./text-input";
 
 interface BaseInputProps {
   className?: string;
-  label: string;
+  label?: string;
   readOnly?: boolean;
+  placeholder?: string;
 }
 
 export interface TextInputProps extends BaseInputProps {

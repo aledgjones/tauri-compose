@@ -7,6 +7,7 @@ export const TextInput: FC<TextInputProps> = ({
   onChange,
   className,
   label,
+  placeholder,
   readOnly,
   onKeyDown,
   onBlur,
@@ -22,16 +23,19 @@ export const TextInput: FC<TextInputProps> = ({
 
   return (
     <div className={className}>
-      <label
-        className={classNames("block mb-0.5 text-xs", {
-          "text-sky-500": isFocused,
-          "text-neutral-400": !isFocused,
-        })}
-      >
-        {label}
-      </label>
+      {label && (
+        <label
+          className={classNames("block mb-0.5 text-xs", {
+            "text-sky-500": isFocused,
+            "text-neutral-400": !isFocused,
+          })}
+        >
+          {label}
+        </label>
+      )}
       <div className="relative">
         <input
+          placeholder={placeholder}
           readOnly={readOnly}
           type="text"
           value={internalValue}
