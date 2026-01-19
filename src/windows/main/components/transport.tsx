@@ -36,10 +36,12 @@ export const Transport: FC<Props> = ({ className }) => {
   // Format tick as measure.beat.subdivision
   const formatTick = (tick: number) => {
     // This is a simplified formatting - you might want to make it more sophisticated
-    const ticksPerBeat = 256; // Assuming 4/4 time with 256 ticks per quarter note
+    const ticksPerBeat = 32; // Assuming 4/4 time with 32 ticks per quarter note
     const measure = Math.floor(tick / (ticksPerBeat * 4)) + 1;
     const beat = Math.floor((tick % (ticksPerBeat * 4)) / ticksPerBeat) + 1;
-    const subdivision = tick % ticksPerBeat;
+    const subdivision = Math.floor(
+      ((tick % ticksPerBeat) / ticksPerBeat) * 1000,
+    );
     return `${measure}.${beat}.${subdivision.toString().padStart(3, "0")}`;
   };
 
