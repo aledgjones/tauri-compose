@@ -55,7 +55,7 @@ fn is_pattern(pattern: &[EighthType], notation: &NotationTrack, start: Tick) -> 
         match notation.track.get(&(start + (i as Tick * eighth))) {
             Some(entry) => match eighth_type {
                 EighthType::Rest => {
-                    if !(entry.is_rest() && entry.duration == eighth) {
+                    if !entry.is_rest() || entry.duration != eighth {
                         return false;
                     }
                 }
@@ -72,45 +72,88 @@ fn is_pattern(pattern: &[EighthType], notation: &NotationTrack, start: Tick) -> 
     true
 }
 
-fn grouping_is_beamable(beats: u8, notation: &NotationTrack, start: Tick, stop: Tick) -> bool {
-    // beat specific patterns
-    if beats == 4 || beats == 2 {
-        // -eee
-        let pattern = vec![
-            EighthType::Rest,
-            EighthType::Note,
-            EighthType::Note,
-            EighthType::Note,
-        ];
-        if is_pattern(&pattern, notation, start) {
-            return true;
-        }
-
-        // eee-
-        let pattern = vec![
-            EighthType::Note,
-            EighthType::Note,
-            EighthType::Note,
-            EighthType::Rest,
-        ];
-        if is_pattern(&pattern, notation, start) {
-            return true;
-        }
-    }
-
-    let sixteenth = NoteDuration::Sixteenth.to_ticks();
-    for tick in start..stop {
-        if let Some(entry) = notation.track.get(&tick) {
-            // For 4/4 time, specific eighth-note patterns (-eee, eee-) are allowed to beam (handled above).
-            // For other time signatures or general cases, bail out if there are rests or notes shorter than eighths.
-            // TODO: Extend pattern matching to other time signatures for more sophisticated beaming rules.
-            if entry.is_rest() || entry.duration <= sixteenth {
-                return false;
+fn grouping_is_beamable(beats: u8, notation: &NotationTrack, start: Tick) -> bool {
+    match beats {
+        2 | 4 => {
+            // -eee
+            let pattern = vec![
+                EighthType::Rest,
+                EighthType::Note,
+                EighthType::Note,
+                EighthType::Note,
+            ];
+            if is_pattern(&pattern, notation, start) {
+                return true;
             }
-        }
-    }
 
-    true
+            // eee-
+            let pattern = vec![
+                EighthType::Note,
+                EighthType::Note,
+                EighthType::Note,
+                EighthType::Rest,
+            ];
+            if is_pattern(&pattern, notation, start) {
+                return true;
+            }
+
+            // eeee
+            let pattern = vec![
+                EighthType::Note,
+                EighthType::Note,
+                EighthType::Note,
+                EighthType::Note,
+            ];
+            if is_pattern(&pattern, notation, start) {
+                return true;
+            }
+
+            false
+        }
+        3 => {
+            // -eeeee
+            let pattern = vec![
+                EighthType::Rest,
+                EighthType::Note,
+                EighthType::Note,
+                EighthType::Note,
+                EighthType::Note,
+                EighthType::Note,
+            ];
+            if is_pattern(&pattern, notation, start) {
+                return true;
+            }
+
+            // eeeee-
+            let pattern = vec![
+                EighthType::Note,
+                EighthType::Note,
+                EighthType::Note,
+                EighthType::Note,
+                EighthType::Note,
+                EighthType::Rest,
+            ];
+            if is_pattern(&pattern, notation, start) {
+                return true;
+            }
+
+            // eeeeee
+            let pattern = vec![
+                EighthType::Note,
+                EighthType::Note,
+                EighthType::Note,
+                EighthType::Note,
+                EighthType::Note,
+                EighthType::Note,
+            ];
+            if is_pattern(&pattern, notation, start) {
+                return true;
+            }
+
+            false
+        }
+        _ => false,
+    }
 }
 
 /// Determines if beams should break at on-beat ticks based on the current grouping
@@ -118,14 +161,11 @@ fn should_break_at_beats(
     time_signature: &TimeSignature,
     notation: &NotationTrack,
     current_tick: Tick,
-    boundaries: &[Tick],
 ) -> bool {
     match time_signature.beat_type {
         // For quarter note beats, break if the grouping is not beamable
         NoteDuration::Quarter => {
-            let current_index = boundaries.iter().position(|&t| t == current_tick).unwrap();
-            let next_boundary = boundaries[current_index + 1];
-            !grouping_is_beamable(time_signature.beats, notation, current_tick, next_boundary)
+            !grouping_is_beamable(time_signature.beats, notation, current_tick)
         }
         // For other beat types, break if the beat is larger than a quarter
         _ => {
@@ -294,7 +334,7 @@ pub fn get_beams_in_track(notation: &NotationTrack, barlines: &Measures) -> Beam
         if boundaries.contains(&tick) {
             ticks = assign_beam(&mut output, ticks);
 
-            break_at_beats = should_break_at_beats(time_signature, notation, tick, &boundaries);
+            break_at_beats = should_break_at_beats(time_signature, notation, tick);
         }
 
         // Additional break at on-beat ticks if conditions are met
