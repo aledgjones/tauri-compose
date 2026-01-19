@@ -48,11 +48,7 @@ enum EighthType {
 }
 
 /// eighths can be beamed in certain patterns
-fn is_pattern(
-    pattern: &[EighthType],
-    notation: &NotationTrack,
-    start: Tick,
-) -> bool {
+fn is_pattern(pattern: &[EighthType], notation: &NotationTrack, start: Tick) -> bool {
     let eighth = NoteDuration::Eighth.to_ticks();
 
     for (i, eighth_type) in pattern.iter().enumerate() {
@@ -76,14 +72,9 @@ fn is_pattern(
     true
 }
 
-fn grouping_is_beamable(
-    beats: u8,
-    notation: &NotationTrack,
-    start: Tick,
-    stop: Tick,
-) -> bool {
+fn grouping_is_beamable(beats: u8, notation: &NotationTrack, start: Tick, stop: Tick) -> bool {
     // beat specific patterns
-    if beats == 4 {
+    if beats == 4 || beats == 2 {
         // -eee
         let pattern = vec![
             EighthType::Rest,
@@ -134,12 +125,7 @@ fn should_break_at_beats(
         NoteDuration::Quarter => {
             let current_index = boundaries.iter().position(|&t| t == current_tick).unwrap();
             let next_boundary = boundaries[current_index + 1];
-            !grouping_is_beamable(
-                time_signature.beats,
-                notation,
-                current_tick,
-                next_boundary,
-            )
+            !grouping_is_beamable(time_signature.beats, notation, current_tick, next_boundary)
         }
         // For other beat types, break if the beat is larger than a quarter
         _ => {
@@ -288,10 +274,7 @@ fn assign_beam(beams: &mut Beams, ticks: BeamTicks) -> BeamTicks {
     FxHashMap::default()
 }
 
-pub fn get_beams_in_track(
-    notation: &NotationTrack,
-    barlines: &Measures,
-) -> Beams {
+pub fn get_beams_in_track(notation: &NotationTrack, barlines: &Measures) -> Beams {
     let mut output: Beams = Vec::new();
 
     let mut ticks: BeamTicks = FxHashMap::default(); // Collects ticks that can be beamed together
@@ -311,15 +294,11 @@ pub fn get_beams_in_track(
         if boundaries.contains(&tick) {
             ticks = assign_beam(&mut output, ticks);
 
-            break_at_beats =
-                should_break_at_beats(time_signature, notation, tick, &boundaries);
+            break_at_beats = should_break_at_beats(time_signature, notation, tick, &boundaries);
         }
 
         // Additional break at on-beat ticks if conditions are met
-        if break_at_beats
-            && time_signature.is_on_beat(tick)
-            && notation.track.contains_key(&tick)
-        {
+        if break_at_beats && time_signature.is_on_beat(tick) && notation.track.contains_key(&tick) {
             ticks = assign_beam(&mut output, ticks);
         }
 
