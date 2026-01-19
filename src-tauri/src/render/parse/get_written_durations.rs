@@ -617,7 +617,21 @@ impl NotationTrack {
         }
 
         match time_signature.beats {
-            2 => todo!(),
+            2 => {
+                self.split_simple_unit(
+                    start,
+                    stop,
+                    original_time_signature,
+                    &TimeSignature::new(
+                        0,
+                        original_time_signature.tick,
+                        4,
+                        original_time_signature.beat_type.half(),
+                        TimeSignatureDrawType::Regular,
+                        None,
+                    ),
+                );
+            }
             3 => todo!(),
             4 => {
                 let beat_one = start;
