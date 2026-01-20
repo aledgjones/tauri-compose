@@ -129,11 +129,12 @@ impl Notation {
                 return true;
             }
         }
+
         false
     }
 
     // gets base duration from a possibly dotted duration
-    pub fn base_to_ticks(&self) -> Option<Ticks> {
+    pub fn get_writable_ticks(&self) -> Option<Ticks> {
         if Notation::is_writable(self.duration) {
             Some(self.duration)
         } else {
@@ -142,7 +143,7 @@ impl Notation {
     }
 
     pub fn base_to_note_duration(&self) -> Option<NoteDuration> {
-        match self.base_to_ticks() {
+        match self.get_writable_ticks() {
             Some(base) => NoteDuration::from_ticks(base),
             None => None,
         }
@@ -439,7 +440,6 @@ impl NotationTrack {
     /// [m.q] patterns don't split middle
     pub fn is_mdotq_pattern(
         &self,
-        time_signature: &TimeSignature,
         ticks_per_original_beat: Ticks,
         beat_one: Tick,
         beat_four: Tick,
@@ -459,11 +459,6 @@ impl NotationTrack {
             }
         }
 
-        // the last beat must not be a rest unless we are in 4/4
-        if time_signature.beat_type != NoteDuration::Quarter && self.is_tick_rest(beat_four) {
-            return false;
-        }
-
         // Rests must be split if they extend over the time signature's beat.
         let is_longer_than_beat = beat_four - beat_one > ticks_per_original_beat;
         if is_longer_than_beat && self.is_tick_rest(beat_one) {
@@ -473,48 +468,44 @@ impl NotationTrack {
         true
     }
 
-    // [eqqqe] patterns dont't split middle
-    pub fn is_eqqqe_pattern(
-        &self,
-        beat_one: Tick,
-        beat_one_half: Tick,
-        beat_two_half: Tick,
-        beat_three_half: Tick,
-        beat_four_half: Tick,
-        stop: Tick,
-    ) -> bool {
-        // make sure that there are only events at the correct points in the bar for this pattern
-        for tick in beat_one..stop {
-            let is_event_expected = tick == beat_one
-                || tick == beat_one_half
-                || tick == beat_two_half
-                || tick == beat_three_half
-                || tick == beat_four_half;
-            let is_empty = self.is_tick_empty(tick);
+    // [e.g eqqqe] offbeats don't split if the pattern spans the whole unit
+    pub fn is_offbeat_pattern(&self, start: Tick, stop: Tick, whole_beat: Ticks) -> bool {
+        let half_beat = whole_beat / 2;
 
-            if is_empty && is_event_expected {
-                return false;
-            }
-
-            if !is_empty && !is_event_expected {
-                return false;
-            }
-        }
-
-        // inner rhythems must be continuously off-beat
-        let patterns = [
-            self.is_tick_rest(beat_one_half),
-            self.is_tick_rest(beat_two_half),
-            self.is_tick_rest(beat_three_half),
-        ];
-
-        if patterns.iter().any(|&is_rest| is_rest) {
+        // first and last positions cannot both be rests
+        if self.is_tick_rest(start) && self.is_tick_rest(stop - half_beat) {
             return false;
         }
 
-        // first or last half beat can be rest
-        if self.is_tick_rest(beat_one) && self.is_tick_rest(beat_four_half) {
-            return false;
+        // check that there are only events at the expected positions
+        for tick in start..stop {
+            // we ignore the first tick, it doesn't give us any useful information
+            if tick == start {
+                continue;
+            };
+
+            // there must be notation on the last half beat (note or rest)
+            if tick == stop - half_beat {
+                if self.is_tick_empty(tick) {
+                    return false;
+                } else {
+                    continue;
+                }
+            }
+
+            // if we are on an offbeat whole note there must be a note
+            if (tick - start) % half_beat == 0 && (tick - start) % whole_beat != 0 {
+                if self.is_tick_empty(tick) || self.is_tick_rest(tick) {
+                    return false;
+                } else {
+                    continue;
+                }
+            };
+
+            // other ticks must be empty
+            if !self.is_tick_empty(tick) {
+                return false;
+            }
         }
 
         true
@@ -596,17 +587,10 @@ impl NotationTrack {
                         break;
                     }
 
-                    match notation.base_to_ticks() {
-                        Some(base) => {
-                            if !Notation::is_writable(base) {
-                                needs_splitting = true;
-                                break;
-                            };
-                        }
-                        None => {
-                            needs_splitting = true;
-                            break;
-                        }
+                    // everything else needs to be writable
+                    if !Notation::is_writable(notation.duration) {
+                        needs_splitting = true;
+                        break;
                     }
                 }
             }
@@ -632,33 +616,113 @@ impl NotationTrack {
                     ),
                 );
             }
-            3 => todo!(),
+            3 => {
+                let beat_one = start;
+                let beat_two = time_signature.get_tick_at_beat(start, 2);
+                let beat_three = time_signature.get_tick_at_beat(start, 3);
+
+                let eigth = NoteDuration::Eighth.to_ticks();
+                let dotted_quarter = NoteDuration::Quarter.to_ticks() + eigth;
+
+                let patterns =
+                    [self.is_offbeat_pattern(start, stop, time_signature.beat_type.to_ticks())];
+
+                if patterns.iter().any(|&pattern_matched| pattern_matched) {
+                    // these patterns span the entire unit so we can early return as there is no
+                    // higher fidelity that is needed.
+                    return;
+                }
+
+                // if the first beat is a dotted 1/4 and it's followed by a rest, we split at beat 2
+                if let Some(entry) = self.track.get(&beat_one) {
+                    if entry.duration == dotted_quarter {
+                        if let Some(next_entry) = self.track.get(&(beat_one + dotted_quarter)) {
+                            if next_entry.is_rest() {
+                                self.split(beat_two);
+                            }
+                        }
+                    }
+                }
+
+                // split all rests at beat boundaries
+                for tick in start..stop {
+                    if let Some(entry) = self.track.get(&tick) {
+                        if entry.is_rest() {
+                            let end = entry.tick + entry.duration;
+                            if tick < beat_two && end > beat_two {
+                                self.split(beat_two);
+                            }
+
+                            if tick < beat_three && end > beat_three {
+                                self.split(beat_three);
+                            }
+                        }
+                    };
+                }
+
+                // split all non-writable durations at beat boundaries
+                for tick in start..stop {
+                    if let Some(entry) = self.track.get(&tick) {
+                        let duration = entry.get_writable_ticks().unwrap_or(entry.duration);
+
+                        if !Notation::is_writable(duration) {
+                            let end = entry.tick + duration;
+
+                            // split at the last beat if non-writable
+                            if tick < beat_three && end > beat_three {
+                                self.split(beat_three);
+
+                                let remaining = beat_three - tick;
+
+                                // If the remaining is still not writable and if it goes across beat 2, we split it
+                                // otherwise it's managed by the next recursion
+                                if !Notation::is_writable(remaining)
+                                    && tick < beat_two
+                                    && end > beat_two
+                                {
+                                    self.split(beat_two);
+                                }
+
+                                continue;
+                            }
+
+                            // it does not cross beat 3 but crosses beat 2
+                            if tick < beat_two && end > beat_two {
+                                self.split(beat_two);
+                            }
+                        }
+                    };
+                }
+
+                // if we haven't made any splits we split at the third beat
+                if self.is_tick_empty(beat_two) && self.is_tick_empty(beat_three) {
+                    self.split(beat_three);
+                }
+
+                let next = TimeSignature::new(
+                    0,
+                    time_signature.tick,
+                    4,
+                    time_signature.beat_type.half().half(),
+                    TimeSignatureDrawType::Regular,
+                    None,
+                );
+
+                self.split_simple_unit(beat_one, beat_two, original_time_signature, &next);
+                self.split_simple_unit(beat_two, beat_three, original_time_signature, &next);
+                self.split_simple_unit(beat_three, stop, original_time_signature, &next);
+            }
             4 => {
                 let beat_one = start;
                 let beat_two = time_signature.get_tick_at_beat(start, 2);
                 let beat_three = time_signature.get_tick_at_beat(start, 3);
                 let beat_four = time_signature.get_tick_at_beat(start, 4);
 
-                let half_beat = time_signature.beat_type.half().to_ticks();
-
                 let patterns = [
                     self.is_qhq_pattern(beat_one, beat_two, beat_four, stop),
                     self.is_qmdot_pattern(beat_one, beat_two, stop),
-                    self.is_mdotq_pattern(
-                        time_signature,
-                        ticks_per_original_beat,
-                        beat_one,
-                        beat_four,
-                        stop,
-                    ),
-                    self.is_eqqqe_pattern(
-                        beat_one,
-                        beat_one + half_beat,
-                        beat_two + half_beat,
-                        beat_three + half_beat,
-                        beat_four + half_beat,
-                        stop,
-                    ),
+                    self.is_mdotq_pattern(ticks_per_original_beat, beat_one, beat_four, stop),
+                    self.is_offbeat_pattern(start, stop, time_signature.beat_type.to_ticks()),
                 ];
 
                 if patterns.iter().any(|&pattern_matched| pattern_matched) {

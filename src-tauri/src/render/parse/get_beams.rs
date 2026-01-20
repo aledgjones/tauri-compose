@@ -383,7 +383,7 @@ impl Notation {
         if self.is_rest() {
             0
         } else {
-            match self.base_to_ticks() {
+            match self.get_writable_ticks() {
                 Some(base) => {
                     let eighth_ticks = NoteDuration::Eighth.to_ticks();
                     let ratio = eighth_ticks as f32 / base as f32;
