@@ -581,13 +581,13 @@ impl NotationTrack {
         if !needs_splitting {
             for tick in start..stop {
                 if let Some(notation) = self.track.get(&tick) {
-                    // dotted rests can only appear at the begining of a unit
+                    // Dotted rests can only appear at the beginning of a unit
                     if notation.is_rest() && notation.is_dotted() && notation.tick != start {
                         needs_splitting = true;
                         break;
                     }
 
-                    // everything else needs to be writable
+                    // Everything else needs to be writable
                     if !Notation::is_writable(notation.duration) {
                         needs_splitting = true;
                         break;
@@ -628,39 +628,46 @@ impl NotationTrack {
                     [self.is_offbeat_pattern(start, stop, time_signature.beat_type.to_ticks())];
 
                 if patterns.iter().any(|&pattern_matched| pattern_matched) {
-                    // these patterns span the entire unit so we can early return as there is no
+                    // These patterns span the entire unit so we can early return as there is no
                     // higher fidelity that is needed.
                     return;
                 }
 
-                // if the first beat is a dotted 1/4 and it's followed by a rest, we split at beat 2
+                // Patterns that start with a dotted quarter on beat 1
                 if let Some(entry) = self.track.get(&beat_one) {
-                    if entry.duration == dotted_quarter {
+                    if !entry.is_rest() && entry.duration == dotted_quarter {
                         if let Some(next_entry) = self.track.get(&(beat_one + dotted_quarter)) {
+                            // if the first beat is a dotted 1/4 and it's followed by a rest, we split at beat 2
                             if next_entry.is_rest() {
                                 self.split(beat_two);
+                            }
+                            // split 2 dotted quarters at beat 3 so it doesn't look like 6/8
+                            else if next_entry.duration == dotted_quarter {
+                                self.split(beat_three);
                             }
                         }
                     }
                 }
 
-                // split all rests at beat boundaries
-                for tick in start..stop {
-                    if let Some(entry) = self.track.get(&tick) {
-                        if entry.is_rest() {
-                            let end = entry.tick + entry.duration;
-                            if tick < beat_two && end > beat_two {
-                                self.split(beat_two);
-                            }
+                // Split at the next beat if any note starts off the eighth-note grid. Esures valid note lengths are not
+                // erroniously drawn across beat boundries. No need to check the last beat since it ends at the stop point.
+                let ranges = [
+                    (beat_one, beat_two, beat_two),
+                    (beat_two, beat_three, beat_three),
+                ];
 
-                            if tick < beat_three && end > beat_three {
-                                self.split(beat_three);
+                for (start, end, split_at) in ranges {
+                    for tick in start..end {
+                        if let Some(entry) = self.track.get(&tick) {
+                            if (entry.tick - start) % eigth != 0 {
+                                self.split(split_at);
+                                break;
                             }
                         }
-                    };
+                    }
                 }
 
-                // split all non-writable durations at beat boundaries
+                // Split all non-writable durations at beat boundaries
                 for tick in start..stop {
                     if let Some(entry) = self.track.get(&tick) {
                         let duration = entry.get_writable_ticks().unwrap_or(entry.duration);
@@ -668,7 +675,7 @@ impl NotationTrack {
                         if !Notation::is_writable(duration) {
                             let end = entry.tick + duration;
 
-                            // split at the last beat if non-writable
+                            // Split at the last beat if non-writable
                             if tick < beat_three && end > beat_three {
                                 self.split(beat_three);
 
@@ -686,7 +693,7 @@ impl NotationTrack {
                                 continue;
                             }
 
-                            // it does not cross beat 3 but crosses beat 2
+                            // It does not cross beat 3 but crosses beat 2
                             if tick < beat_two && end > beat_two {
                                 self.split(beat_two);
                             }
@@ -696,7 +703,29 @@ impl NotationTrack {
 
                 // if we haven't made any splits we split at the third beat
                 if self.is_tick_empty(beat_two) && self.is_tick_empty(beat_three) {
-                    self.split(beat_three);
+                    // the exception is if there is a dotted quarter at the end of the bar
+                    if let Some(entry) = self.track.get(&(beat_one + dotted_quarter)) {
+                        if entry.is_rest() || entry.duration != dotted_quarter {
+                            self.split(beat_three);
+                        }
+                    }
+                }
+
+                // Split all rests at beat boundaries. Do this right at the end as rests don't count
+                // towards the "if we haven't made any splits we split at the third beat" rule
+                for tick in start..stop {
+                    if let Some(entry) = self.track.get(&tick) {
+                        if entry.is_rest() {
+                            let end = entry.tick + entry.duration;
+                            if tick < beat_two && end > beat_two {
+                                self.split(beat_two);
+                            }
+
+                            if tick < beat_three && end > beat_three {
+                                self.split(beat_three);
+                            }
+                        }
+                    };
                 }
 
                 let next = TimeSignature::new(
@@ -726,11 +755,11 @@ impl NotationTrack {
                 ];
 
                 if patterns.iter().any(|&pattern_matched| pattern_matched) {
-                    // these patterns span the entire unit so we can early return as there is no
+                    // These patterns span the entire unit so we can early return as there is no
                     // higher fidelity that is needed.
                     return;
                 } else {
-                    // other rhythms split at the middle and we must split the unit further
+                    // Other rhythms split at the middle and we must split the unit further
                     self.split(beat_three);
                 }
 
@@ -801,7 +830,7 @@ pub fn get_written_durations(
                                 }
                             }
 
-                            // assign tone offset info here so we don't have to pass mutable
+                            // Assign tone offset info here so we don't have to pass mutable
                             // notation tracks around
                             get_tone_offset_info(&mut notation, tone_offsets);
 
