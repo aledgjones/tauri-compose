@@ -459,9 +459,9 @@ impl NotationTrack {
             }
         }
 
-        // Rests must be split if they extend over the time signature's beat.
-        let is_longer_than_beat = beat_four - beat_one > ticks_per_original_beat;
-        if is_longer_than_beat && self.is_tick_rest(beat_one) {
+        // if the unit is longer than a beat and the last beat is a rest, it is not the pattern
+        let is_longer_than_beat = stop - beat_one > ticks_per_original_beat;
+        if is_longer_than_beat && self.is_tick_rest(beat_four) {
             return false;
         }
 
