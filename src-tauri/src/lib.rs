@@ -234,6 +234,7 @@ fn reset(
     state.score = Score::new();
     state.sampler = Sampler::default();
     state.next_id = 1;
+    state.current_file_path = None;
 
     renderer.clear();
 

@@ -1,4 +1,5 @@
 use crate::migrations::MIGRATIONS;
+use crate::ui::sequencer::Tool;
 use crate::AppState;
 use crate::RenderState;
 use flate2::{read::GzDecoder, write::GzEncoder, Compression};
@@ -49,9 +50,6 @@ pub fn save_project_to_file(
     file_path: String,
 ) -> Result<(), String> {
     let mut state = state.lock().unwrap();
-
-    state.ui.screens.setup.selection = None;
-    state.ui.sequencer.selection = None;
 
     // Create the project data structure from the current app state
     let project_data = serde_json::json!({
@@ -119,6 +117,11 @@ pub fn load_project_from_file(
             state.ui = ui;
         }
     }
+
+    // Reset ephemral state
+    state.ui.sequencer.tool = Tool::Select;
+    state.ui.screens.setup.selection = None;
+    state.ui.sequencer.selection = None;
 
     // Load score state
     if let Some(score_data) = project_data.get("score") {
