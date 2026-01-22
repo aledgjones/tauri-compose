@@ -5,6 +5,8 @@ import {
   PropsWithChildren,
   useCallback,
   useRef,
+  useEffect,
+  UIEvent,
 } from "react";
 
 const allow = (target: HTMLElement, ignore?: string) => {
@@ -22,10 +24,39 @@ const allow = (target: HTMLElement, ignore?: string) => {
   }
 };
 
-type Props = PropsWithChildren<{ className?: string }>;
+type Props = PropsWithChildren<{
+  className?: string;
+  onScroll?: (x: number, y: number) => void;
+  x?: number;
+  y?: number;
+}>;
 
-export const DragScroll: FC<Props> = ({ children, className }) => {
+export const DragScroll: FC<Props> = ({
+  children,
+  className,
+  onScroll,
+  x = 0,
+  y = 0,
+}) => {
   const divRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (divRef.current) {
+      divRef.current.scrollLeft = x;
+      divRef.current.scrollTop = y;
+    }
+    // only set on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleScroll = useCallback(
+    (e: UIEvent<HTMLDivElement>) => {
+      if (onScroll) {
+        onScroll(e.currentTarget.scrollLeft, e.currentTarget.scrollTop);
+      }
+    },
+    [onScroll],
+  );
 
   const handlePointerDown = useCallback(
     (e: ReactPointerEvent<HTMLDivElement>) => {
@@ -79,6 +110,7 @@ export const DragScroll: FC<Props> = ({ children, className }) => {
       style={{ overflow: "overlay" }}
       className={classNames("touch-none", className)}
       onPointerDown={handlePointerDown}
+      onScroll={handleScroll}
     >
       {children}
     </div>

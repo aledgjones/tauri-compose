@@ -152,7 +152,12 @@ export const Sequencer: FC<Props> = ({
   }
 
   return (
-    <DragScroll className="w-full h-full bg-neutral-900 relative">
+    <DragScroll
+      onScroll={actions.ui.sequencer.setCoords}
+      x={state.ui.sequencer.x ?? 0}
+      y={state.ui.sequencer.y ?? 0}
+      className="w-full h-full bg-neutral-900 relative"
+    >
       <div
         className="ignore-x sticky left-0 z-20"
         style={{ width: KEYBOARD_WIDTH }}
