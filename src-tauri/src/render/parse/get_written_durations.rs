@@ -772,7 +772,7 @@ impl NotationTrack {
                     return;
                 }
 
-                // Allow spanning the middle beat for notes with dotted rhythms at the beginning of the bar,
+                // Allow spanning the middle point for notes with dotted rhythms at the beginning of the unit,
                 // the exception being a dotted note with a base of the tiem signature that is followed by a rest.
                 if let Some(notation) = self.track.get(&beat_one) {
                     if !notation.is_rest()
@@ -791,6 +791,30 @@ impl NotationTrack {
                         self.split_simple_unit(
                             beat_four,
                             stop,
+                            original_time_signature,
+                            &next_unit_time_signature,
+                        );
+                        return;
+                    }
+                }
+
+                // Allow spanning the middle point for notes with dotted rhythms at the end of the unit less than a beat length
+                if let Some(notation) = self.track.get(&beat_two) {
+                    if !notation.is_rest()
+                        && notation.duration == stop - beat_two
+                        && notation.duration < ticks_per_original_beat
+                    {
+                        let next_unit_time_signature = TimeSignature::new(
+                            0,
+                            time_signature.tick,
+                            4,
+                            time_signature.beat_type.half(),
+                            TimeSignatureDrawType::Regular,
+                            None,
+                        );
+                        self.split_simple_unit(
+                            beat_one,
+                            beat_two,
                             original_time_signature,
                             &next_unit_time_signature,
                         );
