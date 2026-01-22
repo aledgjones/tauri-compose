@@ -134,7 +134,17 @@ pub fn get_horizontal_spacing(
 
         if let Some(draw_type) = &def.draw_type {
             let metrics = draw_type.metrics();
-            spacings.set_width(*tick, Slot::Barline, metrics.total_width());
+
+            let has_time_signature = flow_master.get_time_signature_at_tick(tick).is_some();
+            let has_key_signature = flow_master.get_key_signature_at_tick(tick).is_some();
+
+            if has_key_signature {
+                spacings.set_width(*tick, Slot::Barline, metrics.width + 0.5);
+            } else if has_time_signature {
+                spacings.set_width(*tick, Slot::Barline, metrics.width + 0.25);
+            } else {
+                spacings.set_width(*tick, Slot::Barline, metrics.total_width());
+            }
         }
 
         if def.start_repeat {
