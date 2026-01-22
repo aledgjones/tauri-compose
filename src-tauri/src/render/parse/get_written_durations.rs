@@ -442,6 +442,7 @@ impl NotationTrack {
         &self,
         ticks_per_original_beat: Ticks,
         beat_one: Tick,
+        beat_three: Tick,
         beat_four: Tick,
         stop: Tick,
     ) -> bool {
@@ -459,11 +460,16 @@ impl NotationTrack {
             }
         }
 
-        // if the unit is longer than a beat and the last beat is a rest, it is not the pattern
-        let is_longer_than_beat = stop - beat_one > ticks_per_original_beat;
-        if is_longer_than_beat && self.is_tick_rest(beat_four) {
+        // If the pattern starts with a dotted note of the original time signature's beat length, it's only
+        // the pattern if it is followed by a note.
+        if beat_three - beat_one == ticks_per_original_beat && self.is_tick_rest(beat_four) {
             return false;
         }
+
+        // If the unit is longer than a beat, and the first beat is a rest, it's not the pattern
+        if self.is_tick_rest(beat_one) && stop - beat_one > ticks_per_original_beat {
+            return false;
+        };
 
         true
     }
@@ -750,7 +756,13 @@ impl NotationTrack {
                 let patterns = [
                     self.is_qhq_pattern(beat_one, beat_two, beat_four, stop),
                     self.is_qmdot_pattern(beat_one, beat_two, stop),
-                    self.is_mdotq_pattern(ticks_per_original_beat, beat_one, beat_four, stop),
+                    self.is_mdotq_pattern(
+                        ticks_per_original_beat,
+                        beat_one,
+                        beat_three,
+                        beat_four,
+                        stop,
+                    ),
                     self.is_offbeat_pattern(start, stop, time_signature.beat_type.to_ticks()),
                 ];
 
@@ -758,10 +770,35 @@ impl NotationTrack {
                     // These patterns span the entire unit so we can early return as there is no
                     // higher fidelity that is needed.
                     return;
-                } else {
-                    // Other rhythms split at the middle and we must split the unit further
-                    self.split(beat_three);
                 }
+
+                // Allow spanning the middle beat for notes with dotted rhythms at the beginning of the bar,
+                // the exception being a dotted note with a base of the tiem signature that is followed by a rest.
+                if let Some(notation) = self.track.get(&beat_one) {
+                    if !notation.is_rest()
+                        && notation.duration == beat_four - beat_one
+                        && (notation.duration != (ticks_per_original_beat / 2) * 3
+                            || !self.is_tick_rest(beat_four))
+                    {
+                        let next_unit_time_signature = TimeSignature::new(
+                            0,
+                            time_signature.tick,
+                            4,
+                            time_signature.beat_type.half(),
+                            TimeSignatureDrawType::Regular,
+                            None,
+                        );
+                        self.split_simple_unit(
+                            beat_four,
+                            stop,
+                            original_time_signature,
+                            &next_unit_time_signature,
+                        );
+                        return;
+                    }
+                }
+
+                self.split(beat_three);
 
                 let next_unit_time_signature = TimeSignature::new(
                     0,
