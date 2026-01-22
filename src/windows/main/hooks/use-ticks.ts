@@ -45,7 +45,6 @@ export const useTicks = (
           barStartTick = tick;
           beatTicks = (subdivisions * 4) / currentTimeSig.beat_type;
           barTicks = currentTimeSig.beats * beatTicks;
-          barNumber = 1;
         }
       }
 
