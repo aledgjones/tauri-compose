@@ -10,12 +10,12 @@ import {
 } from "./types";
 import { parseTimeSignature } from "./utils";
 
-export type PopoverType =
-  | "barline"
-  | "clef"
-  | "dynamic"
-  | "measure"
-  | "key-signature";
+export enum PopoverType {
+  Barline = 0,
+  Clef,
+  KeySignature,
+  TimeSignature,
+}
 
 export const parseBarlinePopover = (
   input: string,
@@ -87,12 +87,8 @@ export const parseClefPopover = (
   input: string,
   flow_id: UniqueId,
   tick: Tick,
-  stave_id?: UniqueId,
+  stave_id: UniqueId,
 ) => {
-  if (!stave_id) {
-    return;
-  }
-
   switch (input) {
     case "clear": {
       actions.score.clef.clear(flow_id, tick, stave_id);

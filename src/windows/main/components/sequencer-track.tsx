@@ -124,10 +124,25 @@ const handleWriteTool = async (
     Articulation.None,
   );
 
+  // Find the stave that contains this track
+  let stave_id: UniqueId | null = null;
+  for (const stave of Object.values(flow.staves.by_id)) {
+    if (stave.track_ids.includes(track.id)) {
+      stave_id = stave.id;
+      break;
+    }
+  }
+
+  if (!stave_id) {
+    console.error("Could not find stave for track", track.id);
+    return;
+  }
+
   // Select the newly created tone
   await actions.ui.sequencer.selectTone(
     tone_id,
     track.id,
+    stave_id,
     flow.id,
     instrumentId,
   );
@@ -434,9 +449,24 @@ const handleSelectTool = async (
     return;
   }
 
+  // Find the stave that contains this track
+  let stave_id: UniqueId | null = null;
+  for (const stave of Object.values(flow.staves.by_id)) {
+    if (stave.track_ids.includes(track.id)) {
+      stave_id = stave.id;
+      break;
+    }
+  }
+
+  if (!stave_id) {
+    console.error("Could not find stave for track", track.id);
+    return;
+  }
+
   await actions.ui.sequencer.selectTone(
     clickTarget.id,
     track.id,
+    stave_id,
     flow.id,
     instrumentId,
   );

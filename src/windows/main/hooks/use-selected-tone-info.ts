@@ -51,21 +51,20 @@ export const useSelectedToneInfo = () => {
     let trackLabel = "Unknown";
 
     if (flow && instrument) {
-      const stave_ids = instrument.stave_ids;
-
-      for (let i = 0; i < stave_ids.length; i++) {
-        const stave = flow.staves.by_id[stave_ids[i]];
-        if (!stave) continue;
-
+      const stave = flow.staves.by_id[selection.stave_id];
+      if (stave) {
+        const staveIndex = instrument.stave_ids.indexOf(selection.stave_id);
         const trackIndex = stave.track_ids.indexOf(selection.track_id);
+
         if (trackIndex !== -1) {
           const staffLabel =
-            stave_ids.length > 1 ? `Staff (${ALPHABET[i]}), ` : ``;
+            instrument.stave_ids.length > 1
+              ? `Staff (${ALPHABET[staveIndex]}), `
+              : ``;
           const voiceLabel = `${TRACK_LABEL[trackIndex % 2]} voice ${
             Math.floor(trackIndex / 2) + 1
           }`;
           trackLabel = staffLabel + voiceLabel;
-          break;
         }
       }
     }

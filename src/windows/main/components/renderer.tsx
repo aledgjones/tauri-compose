@@ -97,12 +97,12 @@ export const Renderer: FC<Props> = ({ className }) => {
       );
 
       if (hitResult && hitResult.type === "Tone") {
-        // Hit a notehead - select it instead of panning
         e.preventDefault();
 
         await actions.ui.sequencer.selectTone(
           hitResult.tone_id,
           hitResult.track_id,
+          hitResult.stave_id,
           hitResult.flow_id,
           hitResult.instrument_id,
         );
@@ -136,12 +136,12 @@ export const Renderer: FC<Props> = ({ className }) => {
       }
 
       if (hitResult && hitResult.type === "Rest") {
-        // Hit a rest - select it instead of panning
         e.preventDefault();
 
         await actions.ui.sequencer.selectRest(
           hitResult.tick,
           hitResult.track_id,
+          hitResult.stave_id,
           hitResult.flow_id,
           hitResult.instrument_id,
         );
@@ -203,6 +203,10 @@ export const Renderer: FC<Props> = ({ className }) => {
     };
 
     const onWheel = async (e: WheelEvent) => {
+      if (popover) {
+        setPopover(null);
+      }
+
       if (e.metaKey || e.ctrlKey) {
         const zoomDelta = Math.round(-e.deltaY);
         const newZoom = zoomRef.current + zoomDelta;

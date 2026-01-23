@@ -165,6 +165,11 @@ export const useKeyboardShortcuts = () => {
             selectionInfo.toneId,
           ),
       },
+      {
+        key: "Escape",
+        modifiers: { command: false, control: false, option: false },
+        action: () => actions.ui.sequencer.clearSelection(),
+      },
     ];
 
     const handleKeyDown = async (e: KeyboardEvent) => {

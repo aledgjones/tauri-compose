@@ -3,9 +3,91 @@
 import { ChangeEvent, FC, useEffect, useRef, useState } from "react";
 import { actions } from "../services/actions";
 import { useAppState } from "../services/state";
-import { parseKeySignaturePopover } from "../services/popovers";
+import {
+  parseBarlinePopover,
+  parseClefPopover,
+  parseKeySignaturePopover,
+  parseTimeSignaturePopover,
+  PopoverType,
+} from "../services/popovers";
+import { Icon } from "./icon";
+import {
+  mdiAlphaBBoxOutline,
+  mdiAlphaCBoxOutline,
+  mdiAlphaKBoxOutline,
+  mdiAlphaMBoxOutline,
+} from "@mdi/js";
+import { AppState } from "../services/types";
 
-export type PopoverState = { x: number; y: number; type: "K" } | null;
+export type PopoverState = { x: number; y: number; type: PopoverType } | null;
+
+const getTickFromSelection = (state: AppState) => {
+  const selection = state.ui.sequencer.selection;
+  if (!selection) {
+    return null;
+  }
+
+  if (selection.type === "Tone") {
+    const tone =
+      state.score.tracks.by_id[selection.track_id].entries.by_id[
+        selection.tone_id
+      ];
+    return tone.tick;
+  } else {
+    return selection.tick;
+  }
+};
+
+const getFlowIdFromSelection = (state: AppState) => {
+  const selection = state.ui.sequencer.selection;
+
+  if (!selection) {
+    return null;
+  }
+
+  return selection.flow_id;
+};
+
+const getStaveIdFromSelection = (state: AppState) => {
+  const selection = state.ui.sequencer.selection;
+
+  if (!selection) {
+    return null;
+  }
+
+  return selection.stave_id;
+};
+
+const getMeta = (type: PopoverType) => {
+  switch (type) {
+    case PopoverType.Barline: {
+      return {
+        label: "Barline",
+        icon: mdiAlphaBBoxOutline,
+      };
+    }
+    case PopoverType.Clef: {
+      return {
+        label: "Clef",
+        icon: mdiAlphaCBoxOutline,
+      };
+    }
+    case PopoverType.KeySignature: {
+      return {
+        label: "Key Signature",
+        icon: mdiAlphaKBoxOutline,
+      };
+    }
+    case PopoverType.TimeSignature: {
+      return {
+        label: "Time Signature",
+        icon: mdiAlphaMBoxOutline,
+      };
+    }
+    default:
+      return { label: "", icon: mdiAlphaKBoxOutline };
+  }
+};
 
 type Props = {
   popover: PopoverState;
@@ -23,13 +105,43 @@ export const Popover: FC<Props> = ({ popover, setPopover }) => {
         return;
       }
 
+      if (e.shiftKey && e.key === "B") {
+        e.preventDefault();
+
+        const coords = await actions.ui.renderer.getSelectionCoordinates();
+        if (coords) {
+          const [x, y] = coords;
+          setPopover({ x, y, type: PopoverType.Barline });
+        }
+      }
+
+      if (e.shiftKey && e.key === "C") {
+        e.preventDefault();
+
+        const coords = await actions.ui.renderer.getSelectionCoordinates();
+        if (coords) {
+          const [x, y] = coords;
+          setPopover({ x, y, type: PopoverType.Clef });
+        }
+      }
+
       if (e.shiftKey && e.key === "K") {
         e.preventDefault();
 
         const coords = await actions.ui.renderer.getSelectionCoordinates();
         if (coords) {
           const [x, y] = coords;
-          setPopover({ x, y, type: "K" });
+          setPopover({ x, y, type: PopoverType.KeySignature });
+        }
+      }
+
+      if (e.shiftKey && e.key === "M") {
+        e.preventDefault();
+
+        const coords = await actions.ui.renderer.getSelectionCoordinates();
+        if (coords) {
+          const [x, y] = coords;
+          setPopover({ x, y, type: PopoverType.TimeSignature });
         }
       }
     };
@@ -61,36 +173,55 @@ export const Popover: FC<Props> = ({ popover, setPopover }) => {
   const handleKeyDown = async (e: React.KeyboardEvent) => {
     e.stopPropagation();
 
-    if (e.key === "Enter") {
-      if (value.trim()) {
-        const selection = state.ui.sequencer.selection;
-        if (selection) {
-          let tick: number;
-          if (selection.type === "Tone") {
-            const tone =
-              state.score.tracks.by_id[selection.track_id].entries.by_id[
-                selection.tone_id
-              ];
-            tick = tone.tick;
-          } else {
-            tick = selection.tick;
-          }
+    switch (e.key) {
+      case "Enter": {
+        const term = value.trim();
+        const tick = getTickFromSelection(state);
+        const flow_id = getFlowIdFromSelection(state);
 
-          try {
-            if (popover.type === "K") {
-              parseKeySignaturePopover(value.trim(), selection.flow_id, tick);
-            }
-
-            setPopover(null);
-            setValue("");
-          } catch (error) {
-            console.error("Invalid key signature:", error);
-          }
+        if (!term || flow_id === null || tick === null) {
+          return;
         }
+
+        try {
+          switch (popover.type) {
+            case PopoverType.Barline: {
+              parseBarlinePopover(term, flow_id, tick);
+              break;
+            }
+            case PopoverType.Clef: {
+              const stave_id = getStaveIdFromSelection(state);
+
+              if (!stave_id) {
+                return;
+              }
+
+              parseClefPopover(term, flow_id, tick, stave_id);
+              break;
+            }
+            case PopoverType.KeySignature: {
+              parseKeySignaturePopover(term, flow_id, tick);
+              break;
+            }
+            case PopoverType.TimeSignature: {
+              parseTimeSignaturePopover(term, flow_id, tick);
+              break;
+            }
+          }
+
+          setPopover(null);
+          setValue("");
+        } catch (error) {
+          console.error("Invalid input:", error);
+        }
+
+        break;
       }
-    } else if (e.key === "Escape") {
-      setPopover(null);
-      setValue("");
+      case "Escape": {
+        setPopover(null);
+        setValue("");
+        break;
+      }
     }
   };
 
@@ -104,13 +235,15 @@ export const Popover: FC<Props> = ({ popover, setPopover }) => {
     setValue("");
   };
 
+  const meta = getMeta(popover.type);
+
   return (
     <div
       ref={popoverRef}
       className="absolute z-50"
       style={{ left: popover.x, top: popover.y }}
     >
-      <div className="shadow-md absolute bottom-0 text-[9px] bg-sky-500 rounded">
+      <div className="shadow-lg absolute bottom-0 text-[9px] bg-sky-500 rounded">
         <input
           autoFocus
           autoCorrect="off"
@@ -119,9 +252,12 @@ export const Popover: FC<Props> = ({ popover, setPopover }) => {
           onChange={handleChange}
           onKeyDown={handleKeyDown}
           onBlur={handleBlur}
-          className="px-2 py-1 text-sm bg-white rounded focus:outline-none border-sky-500 border-2 border-b-0 w-35"
+          className="px-2 py-1 text-sm bg-white rounded-xs focus:outline-none m-0.5 mb-0 border-b-0 w-40"
         />
-        <div className="px-1 py-px text-white text-center">Key Signature</div>
+        <div className="flex items-center px-1 py-px text-white">
+          <Icon className="-ml-0.5 mr-0.5" size={0.5} path={meta.icon} />
+          <span>{meta.label}</span>
+        </div>
       </div>
     </div>
   );

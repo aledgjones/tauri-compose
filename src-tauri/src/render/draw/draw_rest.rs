@@ -18,6 +18,7 @@ pub fn draw_rest(
     horizontal_spacing: &HorizontalSpacing,
     selection: Option<&Selection>,
     track_id: UniqueId,
+    stave_id: UniqueId,
     flow_id: UniqueId,
     instrument_id: UniqueId,
     stave_top: f32,
@@ -53,6 +54,7 @@ pub fn draw_rest(
             entry: Selection::Rest {
                 flow_id,
                 instrument_id,
+                stave_id,
                 track_id,
                 tick,
             },
@@ -118,6 +120,7 @@ pub fn draw_rest(
             entry: Selection::Rest {
                 flow_id,
                 instrument_id,
+                stave_id,
                 track_id,
                 tick,
             },

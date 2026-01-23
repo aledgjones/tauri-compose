@@ -19,6 +19,7 @@ pub fn draw_notehead(
     shunts: &Shunts,
     selection: Option<&Selection>,
     track_id: UniqueId,
+    stave_id: UniqueId,
     flow_id: UniqueId,
     instrument_id: UniqueId,
     stave_top: f32,
@@ -56,6 +57,7 @@ pub fn draw_notehead(
         entry: Selection::Tone {
             tone_id: tone.id,
             track_id,
+            stave_id,
             flow_id,
             instrument_id,
         },

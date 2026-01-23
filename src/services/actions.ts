@@ -134,12 +134,14 @@ export const actions = {
       selectTone: (
         tone_id: number,
         track_id: number,
+        stave_id: number,
         flow_id: number,
         instrument_id: number,
       ) => {
         return invoke("ui_sequencer_selection_set_tone", {
           tone_id,
           track_id,
+          stave_id,
           flow_id,
           instrument_id,
         });
@@ -147,18 +149,20 @@ export const actions = {
       selectRest: (
         tick: number,
         track_id: number,
+        stave_id: number,
         flow_id: number,
         instrument_id: number,
       ) => {
         return invoke("ui_sequencer_selection_set_rest", {
           tick,
           track_id,
+          stave_id,
           flow_id,
           instrument_id,
         });
       },
       clearSelection: () => {
-        return invoke("ui_sequencer_selection_clear");
+        return invoke<void>("ui_sequencer_selection_clear");
       },
     },
     screens: {

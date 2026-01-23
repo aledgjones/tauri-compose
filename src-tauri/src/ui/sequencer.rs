@@ -18,12 +18,14 @@ pub enum Selection {
     Tone {
         flow_id: UniqueId,
         instrument_id: UniqueId,
+        stave_id: UniqueId,
         track_id: UniqueId,
         tone_id: UniqueId,
     },
     Rest {
         flow_id: UniqueId,
         instrument_id: UniqueId,
+        stave_id: UniqueId,
         track_id: UniqueId,
         tick: u64,
     },
@@ -142,6 +144,7 @@ pub fn ui_sequencer_coords_set(
     state.emit(&app, &mut renderer, false);
 }
 
+#[allow(clippy::too_many_arguments)]
 #[tauri::command(rename_all = "snake_case")]
 pub fn ui_sequencer_selection_set_tone(
     app: tauri::AppHandle,
@@ -149,6 +152,7 @@ pub fn ui_sequencer_selection_set_tone(
     renderer_state: State<'_, RenderState>,
     flow_id: UniqueId,
     instrument_id: UniqueId,
+    stave_id: UniqueId,
     track_id: UniqueId,
     tone_id: UniqueId,
 ) {
@@ -158,6 +162,7 @@ pub fn ui_sequencer_selection_set_tone(
     state.ui.sequencer.selection = Some(Selection::Tone {
         flow_id,
         instrument_id,
+        stave_id,
         track_id,
         tone_id,
     });
@@ -165,6 +170,7 @@ pub fn ui_sequencer_selection_set_tone(
     state.emit(&app, &mut renderer, true);
 }
 
+#[allow(clippy::too_many_arguments)]
 #[tauri::command(rename_all = "snake_case")]
 pub fn ui_sequencer_selection_set_rest(
     app: tauri::AppHandle,
@@ -172,6 +178,7 @@ pub fn ui_sequencer_selection_set_rest(
     renderer_state: State<'_, RenderState>,
     flow_id: UniqueId,
     instrument_id: UniqueId,
+    stave_id: UniqueId,
     track_id: UniqueId,
     tick: u64,
 ) {
@@ -181,6 +188,7 @@ pub fn ui_sequencer_selection_set_rest(
     state.ui.sequencer.selection = Some(Selection::Rest {
         flow_id,
         instrument_id,
+        stave_id,
         track_id,
         tick,
     });

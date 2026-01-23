@@ -336,6 +336,7 @@ type ToneSelection = {
   type: "Tone";
   flow_id: UniqueId;
   instrument_id: UniqueId;
+  stave_id: UniqueId;
   track_id: UniqueId;
   tone_id: UniqueId;
 };
@@ -344,6 +345,7 @@ type RestSelection = {
   type: "Rest";
   flow_id: UniqueId;
   instrument_id: UniqueId;
+  stave_id: UniqueId;
   track_id: UniqueId;
   tick: number;
 };
