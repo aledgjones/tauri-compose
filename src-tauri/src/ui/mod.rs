@@ -107,3 +107,34 @@ pub fn ui_flow_id_set(
 
     state.emit(&app, &mut renderer, true);
 }
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn ui_get_selection_coordinates(
+    state: State<'_, AppState>,
+    renderer_state: State<'_, RenderState>,
+) -> Result<Option<(f32, f32)>, String> {
+    let state = state.lock().unwrap();
+    let renderer = renderer_state.lock().unwrap();
+
+    if let Some(selection) = &state.ui.sequencer.selection {
+        // Find the hit target that matches this selection
+        for target in &renderer.hit_targets {
+            if target.entry == *selection {
+                let zoom_scale = state.ui.renderer.zoom as f32 / 100.0;
+
+                let px_target_x = renderer.converter.spaces_to_px(target.x);
+                let x = px_target_x * zoom_scale + state.ui.renderer.pan_x;
+
+                let px_stave_top = renderer.converter.spaces_to_px(target.popover_y);
+                let screen_stave_top = px_stave_top * zoom_scale + state.ui.renderer.pan_y;
+                let y = screen_stave_top;
+
+                return Ok(Some((x, y)));
+            }
+        }
+
+        Ok(None)
+    } else {
+        Ok(None)
+    }
+}

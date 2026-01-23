@@ -6,6 +6,7 @@ import { pxPerMm } from "../../../utils/mm";
 import { useKeyboardShortcuts } from "../hooks/use-keyboard-shortcuts";
 import { hitTest } from "../../../services/hit-test";
 import { Expression, sampler } from "../../../sampler";
+import { Popover } from "../../../ui/popover";
 
 type Props = { className?: string };
 
@@ -241,8 +242,10 @@ export const Renderer: FC<Props> = ({ className }) => {
   return (
     <div
       ref={divRef}
-      className={classNames("bg-transparent touch-none", className)}
+      className={classNames("relative bg-transparent touch-none", className)}
       data-testid="renderer"
-    />
+    >
+      <Popover />
+    </div>
   );
 };

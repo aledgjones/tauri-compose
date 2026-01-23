@@ -21,6 +21,7 @@ pub fn draw_notehead(
     track_id: UniqueId,
     flow_id: UniqueId,
     instrument_id: UniqueId,
+    stave_top: f32,
     renderer: &mut Renderer,
 ) {
     let left = match &shunts.by_id[&(tick, tone.id)] {
@@ -62,5 +63,6 @@ pub fn draw_notehead(
         y: origin.y - 0.5,
         width: glyph_width,
         height: 1.0,
+        popover_y: stave_top - 5.0,
     });
 }

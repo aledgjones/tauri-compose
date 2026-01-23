@@ -12,7 +12,7 @@ pub enum SequencerSelectionType {
     Tone = 0,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, PartialEq)]
 #[serde(tag = "type")]
 pub enum Selection {
     Tone {

@@ -111,6 +111,9 @@ export const actions = {
       toggleDebugRendering: () => {
         return invoke("ui_renderer_debug_rendering_toggle");
       },
+      getSelectionCoordinates: () => {
+        return invoke<[number, number] | null>("ui_get_selection_coordinates");
+      },
     },
     sequencer: {
       setInstrument: (id: UniqueId) => {

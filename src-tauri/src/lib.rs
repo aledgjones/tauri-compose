@@ -98,7 +98,7 @@ use ui::sequencer::{
     ui_sequencer_selection_set_rest, ui_sequencer_selection_set_tone, ui_sequencer_snap_set,
     ui_sequencer_tool_set, ui_sequencer_track_set,
 };
-use ui::{ui_flow_id_set, ui_layout_id_set, ui_tab_set, Ui};
+use ui::{ui_flow_id_set, ui_get_selection_coordinates, ui_layout_id_set, ui_tab_set, Ui};
 use utils::UniqueId;
 
 lazy_static! {
@@ -500,6 +500,7 @@ pub fn run() {
             ui_setup_selection_clear,
             ui_setup_selection_set,
             ui_tab_set,
+            ui_get_selection_coordinates,
             ui_write_bottom_panel_minimized_toggle,
             ui_write_bottom_panel_tab_set,
             ui_sequence_bottom_panel_minimized_toggle,

@@ -408,6 +408,7 @@ pub fn generate_render_instructions(
                             *track_id,
                             flow_id,
                             instrument.id,
+                            stave_top,
                             renderer,
                         );
 
@@ -501,6 +502,7 @@ pub fn generate_render_instructions(
                             *track_id,
                             flow_id,
                             instrument.id,
+                            stave_top,
                             renderer,
                         );
 

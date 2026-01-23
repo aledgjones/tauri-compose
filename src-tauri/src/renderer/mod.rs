@@ -60,6 +60,7 @@ pub struct HitTarget {
     pub y: f32,
     pub width: f32,
     pub height: f32,
+    pub popover_y: f32,
 }
 
 #[derive(Clone)]

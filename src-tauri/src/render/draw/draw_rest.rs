@@ -20,6 +20,7 @@ pub fn draw_rest(
     track_id: UniqueId,
     flow_id: UniqueId,
     instrument_id: UniqueId,
+    stave_top: f32,
     renderer: &mut Renderer,
 ) {
     let color = if matches!(selection, Some(Selection::Rest { tick: selected_tick, track_id: selected_track_id, .. }) if *selected_tick == tick && *selected_track_id == track_id)
@@ -59,6 +60,7 @@ pub fn draw_rest(
             y: top - 0.25,
             width: 1.1,
             height: 1.0,
+            popover_y: stave_top - 5.0,
         });
     } else {
         let left = origin.x + start.x;
@@ -122,6 +124,7 @@ pub fn draw_rest(
             y: top - hit_top_offset,
             width: hit_width,
             height: hit_height,
+            popover_y: stave_top - 5.0,
         });
 
         if entry.is_dotted() {
