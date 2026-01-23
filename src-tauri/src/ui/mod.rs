@@ -1,20 +1,18 @@
 pub mod renderer;
-pub mod sequence;
+pub mod screens;
 pub mod sequencer;
-pub mod setup;
-pub mod write;
 
+use crate::ui::screens::sequence::Sequence;
+use crate::ui::screens::setup::Setup;
+use crate::ui::screens::write::Write;
 use crate::RenderState;
 use crate::{utils::UniqueId, AppState};
 use renderer::Renderer;
-use sequence::Sequence;
 use sequencer::Sequencer;
 use serde::Deserialize;
 use serde::Serialize;
 use serde_repr::{Deserialize_repr, Serialize_repr};
-use setup::Setup;
 use tauri::State;
-use write::Write;
 
 #[derive(Serialize_repr, Deserialize_repr, Clone)]
 #[repr(u8)]

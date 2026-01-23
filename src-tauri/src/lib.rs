@@ -85,17 +85,19 @@ use ui::renderer::{
     ui_renderer_bounds_set, ui_renderer_debug_rendering_toggle, ui_renderer_pan_set,
     ui_renderer_zoom_set,
 };
-use ui::sequence::{ui_sequence_bottom_panel_minimized_toggle, ui_sequence_bottom_panel_tab_set};
+use ui::screens::sequence::{
+    ui_sequence_bottom_panel_minimized_toggle, ui_sequence_bottom_panel_tab_set,
+};
+use ui::screens::setup::{
+    ui_setup_expanded_insert, ui_setup_expanded_remove, ui_setup_selection_clear,
+    ui_setup_selection_set,
+};
+use ui::screens::write::{ui_write_bottom_panel_minimized_toggle, ui_write_bottom_panel_tab_set};
 use ui::sequencer::{
     ui_sequencer_coords_set, ui_sequencer_instrument_set, ui_sequencer_selection_clear,
     ui_sequencer_selection_set, ui_sequencer_snap_set, ui_sequencer_tool_set,
     ui_sequencer_track_set,
 };
-use ui::setup::{
-    ui_setup_expanded_insert, ui_setup_expanded_remove, ui_setup_selection_clear,
-    ui_setup_selection_set,
-};
-use ui::write::{ui_write_bottom_panel_minimized_toggle, ui_write_bottom_panel_tab_set};
 use ui::{ui_flow_id_set, ui_layout_id_set, ui_tab_set, Ui};
 use utils::UniqueId;
 
