@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from "react";
 import { useAppState } from "../../../services/state";
-import { Accidental, SelectionType } from "../../../services/types";
+import { Accidental, SequencerSelectionType } from "../../../services/types";
 import { actions } from "../../../services/actions";
 import { sampler } from "../../../sampler";
 import { Expression } from "../../../sampler/types";
@@ -20,7 +20,10 @@ export const useKeyboardShortcuts = () => {
 
   const selectionInfo = useMemo(() => {
     const selection = state.ui.sequencer.selection;
-    if (!selection || selection.selection_type !== SelectionType.Tone) {
+    if (
+      !selection ||
+      selection.selection_type !== SequencerSelectionType.Tone
+    ) {
       return null;
     }
 

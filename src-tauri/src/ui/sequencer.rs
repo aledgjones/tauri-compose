@@ -8,17 +8,14 @@ use tauri::State;
 
 #[derive(Serialize_repr, Deserialize_repr, Clone, PartialEq)]
 #[repr(u8)]
-pub enum SelectionType {
-    Player,
-    Flow,
-    Layout,
-    Tone,
+pub enum SequencerSelectionType {
+    Tone = 0,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Selection {
     pub id: UniqueId,
-    pub selection_type: SelectionType,
+    pub selection_type: SequencerSelectionType,
     pub track_id: UniqueId,
     pub flow_id: UniqueId,
     pub instrument_id: UniqueId,
@@ -143,7 +140,7 @@ pub fn ui_sequencer_selection_set(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
     renderer_state: State<'_, RenderState>,
-    selection_type: SelectionType,
+    selection_type: SequencerSelectionType,
     id: UniqueId,
     track_id: UniqueId,
     flow_id: UniqueId,

@@ -1,5 +1,5 @@
 import { FC } from "react";
-import { SelectionType, Tone } from "../../../services/types";
+import { SequencerSelectionType, Tone } from "../../../services/types";
 import { Icon } from "../../../ui/icon";
 import { mdiMenuLeft, mdiMenuRight } from "@mdi/js";
 import { useAppState } from "../../../services/state";
@@ -40,7 +40,7 @@ export const SequencerTrackTone: FC<Props> = ({
   const appState = useAppState();
   const selection = appState.ui.sequencer.selection;
   const isSelected =
-    selection?.selection_type === SelectionType.Tone &&
+    selection?.selection_type === SequencerSelectionType.Tone &&
     selection.id === tone.id;
   const width = tone.duration * tickWidth;
   const name = getPitchName(tone.pitch);

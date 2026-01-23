@@ -9,7 +9,7 @@ use crate::score::components::duration::{Direction, Ticks};
 use crate::score::components::measurements::Point;
 use crate::score::entries::barline::BarlineDrawType;
 use crate::score::entries::clef::Clef;
-use crate::ui::sequencer::SelectionType;
+use crate::ui::sequencer::SequencerSelectionType;
 use crate::utils::UniqueId;
 use crate::AppStateInner;
 use draw::draw_accidentals::draw_accidental;
@@ -61,7 +61,7 @@ pub fn generate_render_instructions(
     let total_start = Instant::now();
 
     let selection = state.ui.sequencer.selection.as_ref().and_then(|selection| {
-        if selection.selection_type == SelectionType::Tone {
+        if selection.selection_type == SequencerSelectionType::Tone {
             Some(selection.id)
         } else {
             None

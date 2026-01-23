@@ -4,7 +4,7 @@ import { Panel } from "./panel";
 import {
   LayoutType,
   PlayerType,
-  SelectionType,
+  SetupSelectionType,
 } from "../../../../../services/types";
 import { PlayerPanelItem } from "./player-panel-item";
 import { useAppState } from "../../../../../services/state";
@@ -31,7 +31,7 @@ const onPlayerSettingsPress = () => {
 
 const onAddPlayerPress = async () => {
   const playerId = await actions.score.player.create(PlayerType.Solo);
-  await actions.ui.screens.setup.select(SelectionType.Player, playerId);
+  await actions.ui.screens.setup.select(SetupSelectionType.Player, playerId);
   const layoutId = await actions.score.layout.create(LayoutType.Part);
   await actions.score.layout.assignPlayer(layoutId, playerId);
   const definition_id = await actions.pickAnInstrument();

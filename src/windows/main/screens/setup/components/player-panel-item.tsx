@@ -9,7 +9,7 @@ import {
   AppState,
   Player,
   PlayerType,
-  SelectionType,
+  SetupSelectionType,
 } from "../../../../../services/types";
 import { Icon } from "../../../../../ui/icon";
 import classNames from "classnames";
@@ -29,9 +29,9 @@ import { useAppState } from "../../../../../services/state";
 import { Checkbox } from "../../../../../ui/checkbox";
 import { TokenizedText } from "../../../../../ui/text";
 
-const assignableSet = new Set<SelectionType | undefined>([
-  SelectionType.Flow,
-  SelectionType.Layout,
+const assignableSet = new Set<SetupSelectionType | undefined>([
+  SetupSelectionType.Flow,
+  SetupSelectionType.Layout,
 ]);
 
 const getIsAssignable = (state: AppState) => {
@@ -41,11 +41,11 @@ const getIsAssignable = (state: AppState) => {
 const getIsAssigned = (state: AppState, playerId: number) => {
   const selection = state.ui.screens.setup.selection;
 
-  if (selection?.selection_type === SelectionType.Flow) {
+  if (selection?.selection_type === SetupSelectionType.Flow) {
     return state.score.flows.by_id[selection.id].player_ids.includes(playerId);
   }
 
-  if (selection?.selection_type === SelectionType.Layout) {
+  if (selection?.selection_type === SetupSelectionType.Layout) {
     return state.score.layouts.by_id[selection.id].player_ids.includes(
       playerId,
     );
@@ -112,7 +112,7 @@ export const PlayerPanelItem: FC<Props> = ({ player }) => {
         return;
       }
 
-      if (selection.selection_type === SelectionType.Flow) {
+      if (selection.selection_type === SetupSelectionType.Flow) {
         if (checked) {
           await actions.score.flow.assignPlayer(selection.id, player.id);
         } else {
@@ -120,7 +120,7 @@ export const PlayerPanelItem: FC<Props> = ({ player }) => {
         }
       }
 
-      if (selection.selection_type === SelectionType.Layout) {
+      if (selection.selection_type === SetupSelectionType.Layout) {
         if (checked) {
           await actions.score.layout.assignPlayer(selection.id, player.id);
         } else {
@@ -161,7 +161,7 @@ export const PlayerPanelItem: FC<Props> = ({ player }) => {
             parseInt(e.to.dataset.playerId),
           );
           await actions.ui.screens.setup.select(
-            SelectionType.Player,
+            SetupSelectionType.Player,
             player.id,
           );
         }
@@ -202,7 +202,7 @@ export const PlayerPanelItem: FC<Props> = ({ player }) => {
 
   const onSelect = useCallback(() => {
     if (!isSelected) {
-      actions.ui.screens.setup.select(SelectionType.Player, player.id);
+      actions.ui.screens.setup.select(SetupSelectionType.Player, player.id);
     }
   }, [isSelected, player.id]);
 

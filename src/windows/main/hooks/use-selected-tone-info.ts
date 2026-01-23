@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useAppState } from "../../../services/state";
-import { SelectionType } from "../../../services/types";
+import { SequencerSelectionType } from "../../../services/types";
 import { getPitchName } from "../../../services/pitch-utils";
 
 const ALPHABET = ["A", "B"];
@@ -11,7 +11,10 @@ export const useSelectedToneInfo = () => {
 
   const selectedToneInfo = useMemo(() => {
     const selection = state.ui.sequencer.selection;
-    if (!selection || selection.selection_type !== SelectionType.Tone) {
+    if (
+      !selection ||
+      selection.selection_type !== SequencerSelectionType.Tone
+    ) {
       return null;
     }
 

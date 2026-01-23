@@ -5,7 +5,7 @@ import { useAppState } from "../../../services/state";
 import { pxPerMm } from "../../../utils/mm";
 import { useKeyboardShortcuts } from "../hooks/use-keyboard-shortcuts";
 import { hitTest } from "../../../services/hit-test";
-import { SelectionType } from "../../../services/types";
+import { SequencerSelectionType } from "../../../services/types";
 import { Expression, sampler } from "../../../sampler";
 
 type Props = { className?: string };
@@ -100,7 +100,7 @@ export const Renderer: FC<Props> = ({ className }) => {
         e.preventDefault();
 
         await actions.ui.sequencer.select(
-          SelectionType.Tone,
+          SequencerSelectionType.Tone,
           hitResult.tone_id,
           hitResult.track_id,
           hitResult.flow_id,

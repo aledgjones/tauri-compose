@@ -8,7 +8,7 @@ import {
   AppState,
   Layout,
   LayoutType,
-  SelectionType,
+  SetupSelectionType,
 } from "../../../../../services/types";
 import { Icon } from "../../../../../ui/icon";
 import classNames from "classnames";
@@ -28,9 +28,9 @@ import { useAppState } from "../../../../../services/state";
 import { Checkbox } from "../../../../../ui/checkbox";
 import { getLayoutName } from "../../../../../services/utils";
 
-const assignableSet = new Set<SelectionType | undefined>([
-  SelectionType.Flow,
-  SelectionType.Player,
+const assignableSet = new Set<SetupSelectionType | undefined>([
+  SetupSelectionType.Flow,
+  SetupSelectionType.Player,
 ]);
 
 const getIsAssignable = (state: AppState) => {
@@ -40,13 +40,13 @@ const getIsAssignable = (state: AppState) => {
 const getIsAssigned = (state: AppState, layoutId: number) => {
   const selection = state.ui.screens.setup.selection;
 
-  if (selection?.selection_type === SelectionType.Player) {
+  if (selection?.selection_type === SetupSelectionType.Player) {
     return state.score.layouts.by_id[layoutId].player_ids.includes(
       selection.id,
     );
   }
 
-  if (selection?.selection_type === SelectionType.Flow) {
+  if (selection?.selection_type === SetupSelectionType.Flow) {
     return state.score.layouts.by_id[layoutId].flow_ids.includes(selection.id);
   }
 
@@ -130,7 +130,7 @@ export const LayoutPanelItem: FC<Props> = ({ layout }) => {
         return;
       }
 
-      if (selection.selection_type === SelectionType.Flow) {
+      if (selection.selection_type === SetupSelectionType.Flow) {
         if (checked) {
           await actions.score.layout.assignFlow(layout.id, selection.id);
         } else {
@@ -138,7 +138,7 @@ export const LayoutPanelItem: FC<Props> = ({ layout }) => {
         }
       }
 
-      if (selection.selection_type === SelectionType.Player) {
+      if (selection.selection_type === SetupSelectionType.Player) {
         if (checked) {
           await actions.score.layout.assignPlayer(layout.id, selection.id);
         } else {
@@ -158,7 +158,7 @@ export const LayoutPanelItem: FC<Props> = ({ layout }) => {
 
   const onSelect = useCallback(() => {
     if (!isSelected) {
-      actions.ui.screens.setup.select(SelectionType.Layout, layout.id);
+      actions.ui.screens.setup.select(SetupSelectionType.Layout, layout.id);
     }
   }, [isSelected, layout.id]);
 

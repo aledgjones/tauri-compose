@@ -5,13 +5,13 @@ import { actions } from "../../../../../services/actions";
 import { useEffect, useRef } from "react";
 import Sortable from "sortablejs";
 import { FlowPanelItem } from "./flow-panel-item";
-import { SelectionType } from "../../../../../services/types";
+import { SetupSelectionType } from "../../../../../services/types";
 
 import "./flow-panel.css";
 
 const onAddFlowPress = async () => {
   const flowId = await actions.score.flow.create();
-  await actions.ui.screens.setup.select(SelectionType.Flow, flowId);
+  await actions.ui.screens.setup.select(SetupSelectionType.Flow, flowId);
 };
 
 export const FlowPanel = () => {

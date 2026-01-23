@@ -64,10 +64,14 @@ export enum Tab {
   Print,
 }
 
-export enum SelectionType {
+export enum SetupSelectionType {
   Player,
   Flow,
   Layout,
+  Tone,
+}
+
+export enum SequencerSelectionType {
   Tone,
 }
 
@@ -354,7 +358,7 @@ export type AppState = {
       track: UniqueId | null;
       selection: {
         id: UniqueId;
-        selection_type: SelectionType;
+        selection_type: SequencerSelectionType;
         track_id: UniqueId;
         flow_id: UniqueId;
         instrument_id: UniqueId;
@@ -362,7 +366,7 @@ export type AppState = {
     };
     screens: {
       setup: {
-        selection: { id: UniqueId; selection_type: SelectionType } | null;
+        selection: { id: UniqueId; selection_type: SetupSelectionType } | null;
         expanded: UniqueId[];
       };
       write: {

@@ -6,7 +6,7 @@ import {
   Articulation,
   Flow,
   NoteDuration,
-  SelectionType,
+  SequencerSelectionType,
   Tool,
   Tone,
   Track,
@@ -126,7 +126,7 @@ const handleWriteTool = async (
 
   // Select the newly created tone
   await actions.ui.sequencer.select(
-    SelectionType.Tone,
+    SequencerSelectionType.Tone,
     tone_id,
     track.id,
     flow.id,
@@ -436,7 +436,7 @@ const handleSelectTool = async (
   }
 
   await actions.ui.sequencer.select(
-    SelectionType.Tone,
+    SequencerSelectionType.Tone,
     clickTarget.id,
     track.id,
     flow.id,

@@ -13,7 +13,8 @@ import {
   LayoutType,
   NoteDuration,
   PlayerType,
-  SelectionType,
+  SequencerSelectionType,
+  SetupSelectionType,
   Tab,
   Tick,
   Ticks,
@@ -129,7 +130,7 @@ export const actions = {
         return invoke("ui_sequencer_coords_set", { x, y });
       },
       select: (
-        selection_type: SelectionType,
+        selection_type: SequencerSelectionType,
         id: number,
         track_id: number,
         flow_id: number,
@@ -149,7 +150,7 @@ export const actions = {
     },
     screens: {
       setup: {
-        select: (selection_type: SelectionType, id: number) => {
+        select: (selection_type: SetupSelectionType, id: number) => {
           return invoke("ui_setup_selection_set", { selection_type, id });
         },
         clearSelection: () => {

@@ -1,5 +1,9 @@
 import { mdiDelete, mdiHeatWave, mdiPencil } from "@mdi/js";
-import { AppState, Flow, SelectionType } from "../../../../../services/types";
+import {
+  AppState,
+  Flow,
+  SetupSelectionType,
+} from "../../../../../services/types";
 import { Icon } from "../../../../../ui/icon";
 import classNames from "classnames";
 import { IconButton } from "../../../../../ui/icon-button";
@@ -16,19 +20,19 @@ import {
   useState,
 } from "react";
 
-const assignableSet = new Set<SelectionType | undefined>([
-  SelectionType.Player,
-  SelectionType.Layout,
+const assignableSet = new Set<SetupSelectionType | undefined>([
+  SetupSelectionType.Player,
+  SetupSelectionType.Layout,
 ]);
 
 const getIsAssigned = (state: AppState, flowId: number) => {
   const selection = state.ui.screens.setup.selection;
 
-  if (selection?.selection_type === SelectionType.Player) {
+  if (selection?.selection_type === SetupSelectionType.Player) {
     return state.score.flows.by_id[flowId].player_ids.includes(selection.id);
   }
 
-  if (selection?.selection_type === SelectionType.Layout) {
+  if (selection?.selection_type === SetupSelectionType.Layout) {
     return state.score.layouts.by_id[selection.id].flow_ids.includes(flowId);
   }
 
@@ -109,7 +113,8 @@ export const FlowPanelItem: FC<Props> = ({ flow, index }) => {
       }
 
       if (
-        state.ui.screens.setup.selection.selection_type === SelectionType.Player
+        state.ui.screens.setup.selection.selection_type ===
+        SetupSelectionType.Player
       ) {
         if (checked) {
           await actions.score.flow.assignPlayer(
@@ -125,7 +130,8 @@ export const FlowPanelItem: FC<Props> = ({ flow, index }) => {
       }
 
       if (
-        state.ui.screens.setup.selection.selection_type === SelectionType.Layout
+        state.ui.screens.setup.selection.selection_type ===
+        SetupSelectionType.Layout
       ) {
         if (checked) {
           await actions.score.layout.assignFlow(
@@ -145,7 +151,7 @@ export const FlowPanelItem: FC<Props> = ({ flow, index }) => {
 
   const onSelect = useCallback(() => {
     if (!isSelected) {
-      actions.ui.screens.setup.select(SelectionType.Flow, flow.id);
+      actions.ui.screens.setup.select(SetupSelectionType.Flow, flow.id);
     }
   }, [flow.id, isSelected]);
 

@@ -7,7 +7,7 @@ use crate::{utils::UniqueId, AppState, RenderState};
 
 #[derive(Serialize_repr, Deserialize_repr, Clone)]
 #[repr(u8)]
-pub enum SelectionType {
+pub enum SetupSelectionType {
     Player = 0,
     Flow,
     Layout,
@@ -16,7 +16,7 @@ pub enum SelectionType {
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Selection {
     id: UniqueId,
-    selection_type: SelectionType,
+    selection_type: SetupSelectionType,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -45,7 +45,7 @@ pub fn ui_setup_selection_set(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
     renderer_state: State<'_, RenderState>,
-    selection_type: SelectionType,
+    selection_type: SetupSelectionType,
     id: UniqueId,
 ) {
     let mut state = state.lock().unwrap();
