@@ -1,7 +1,7 @@
-import { UniqueId, SequencerSelectionType } from "./types";
+import { UniqueId } from "./types";
 
 export interface ClickTarget {
-  type: SequencerSelectionType | null;
+  type: "Tone" | null;
   id: UniqueId;
 }
 
@@ -20,7 +20,7 @@ export const getSequencerClickTarget = (
 
     if (toneIdString) {
       return {
-        type: SequencerSelectionType.Tone,
+        type: "Tone",
         id: parseInt(toneIdString, 10) as UniqueId,
       };
     }

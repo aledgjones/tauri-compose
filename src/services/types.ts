@@ -71,10 +71,6 @@ export enum SetupSelectionType {
   Tone,
 }
 
-export enum SequencerSelectionType {
-  Tone,
-}
-
 export enum PlayerType {
   Solo,
   Section,
@@ -336,6 +332,24 @@ export enum BottomPanelTab {
   Mixer,
 }
 
+type ToneSelection = {
+  type: "Tone";
+  flow_id: UniqueId;
+  instrument_id: UniqueId;
+  track_id: UniqueId;
+  tone_id: UniqueId;
+};
+
+type RestSelection = {
+  type: "Rest";
+  flow_id: UniqueId;
+  instrument_id: UniqueId;
+  track_id: UniqueId;
+  tick: number;
+};
+
+export type Selection = ToneSelection | RestSelection;
+
 export type AppState = {
   ui: {
     tab: Tab;
@@ -356,13 +370,7 @@ export type AppState = {
       snap: NoteDuration;
       instrument: UniqueId | null;
       track: UniqueId | null;
-      selection: {
-        id: UniqueId;
-        selection_type: SequencerSelectionType;
-        track_id: UniqueId;
-        flow_id: UniqueId;
-        instrument_id: UniqueId;
-      } | null;
+      selection: Selection | null;
     };
     screens: {
       setup: {

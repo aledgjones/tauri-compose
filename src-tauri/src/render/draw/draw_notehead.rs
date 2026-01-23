@@ -5,6 +5,7 @@ use crate::score::components::duration::Tick;
 use crate::score::components::measurements::Point;
 use crate::score::components::text::{Align, Font, FontFamily, Justify};
 use crate::score::entries::tone::Tone;
+use crate::ui::sequencer::Selection;
 use crate::utils::UniqueId;
 use skia_safe::Color;
 
@@ -16,7 +17,7 @@ pub fn draw_notehead(
     glyph: &str,
     glyph_width: f32,
     shunts: &Shunts,
-    selection: Option<UniqueId>,
+    selection: Option<&Selection>,
     track_id: UniqueId,
     flow_id: UniqueId,
     instrument_id: UniqueId,
@@ -28,7 +29,8 @@ pub fn draw_notehead(
         Shunt::Post => origin.x + glyph_width,
     };
 
-    let color = if selection == Some(tone.id) {
+    let color = if matches!(selection, Some(Selection::Tone { tone_id, track_id: selected_track_id, .. }) if *tone_id == tone.id && *selected_track_id == track_id)
+    {
         Color::from_rgb(14, 165, 233)
     } else {
         Color::BLACK
@@ -50,10 +52,12 @@ pub fn draw_notehead(
     );
 
     renderer.hit_targets.push(HitTarget {
-        tone_id: tone.id,
-        track_id,
-        flow_id,
-        instrument_id,
+        entry: Selection::Tone {
+            tone_id: tone.id,
+            track_id,
+            flow_id,
+            instrument_id,
+        },
         x: left,
         y: origin.y - 0.5,
         width: glyph_width,

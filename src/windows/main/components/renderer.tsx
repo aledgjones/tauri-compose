@@ -5,7 +5,6 @@ import { useAppState } from "../../../services/state";
 import { pxPerMm } from "../../../utils/mm";
 import { useKeyboardShortcuts } from "../hooks/use-keyboard-shortcuts";
 import { hitTest } from "../../../services/hit-test";
-import { SequencerSelectionType } from "../../../services/types";
 import { Expression, sampler } from "../../../sampler";
 
 type Props = { className?: string };
@@ -95,12 +94,11 @@ export const Renderer: FC<Props> = ({ className }) => {
         zoomRef.current,
       );
 
-      if (hitResult) {
+      if (hitResult && hitResult.type === "Tone") {
         // Hit a notehead - select it instead of panning
         e.preventDefault();
 
-        await actions.ui.sequencer.select(
-          SequencerSelectionType.Tone,
+        await actions.ui.sequencer.selectTone(
           hitResult.tone_id,
           hitResult.track_id,
           hitResult.flow_id,
@@ -109,15 +107,21 @@ export const Renderer: FC<Props> = ({ className }) => {
 
         // Audition the selected tone only if it wasn't already selected
         if (state.preferences.audition) {
-          if (state.ui.sequencer.selection?.id !== hitResult.tone_id) {
+          const selection = state.ui.sequencer.selection;
+
+          if (
+            selection === null ||
+            selection.type !== "Tone" ||
+            selection.tone_id !== hitResult.tone_id
+          ) {
             const track = state.score.tracks.by_id[hitResult.track_id];
             if (track) {
-              const tone = track.entries.by_id[hitResult.tone_id];
-              if (tone && tone.type === "Tone") {
+              const entry = track.entries.by_id[hitResult.tone_id];
+              if (entry && entry.type === "Tone") {
                 sampler.play(
                   hitResult.instrument_id.toString(),
                   Expression.Natural,
-                  tone.pitch.int,
+                  entry.pitch.int,
                   sampler.ctx.currentTime,
                   0.5,
                 );
@@ -125,6 +129,20 @@ export const Renderer: FC<Props> = ({ className }) => {
             }
           }
         }
+
+        return;
+      }
+
+      if (hitResult && hitResult.type === "Rest") {
+        // Hit a rest - select it instead of panning
+        e.preventDefault();
+
+        await actions.ui.sequencer.selectRest(
+          hitResult.tick,
+          hitResult.track_id,
+          hitResult.flow_id,
+          hitResult.instrument_id,
+        );
 
         return;
       }
@@ -215,9 +233,9 @@ export const Renderer: FC<Props> = ({ className }) => {
       $element.removeEventListener("wheel", onWheel);
     };
   }, [
-    state.ui.sequencer.selection?.id,
     state.preferences.audition,
     state.score.tracks.by_id,
+    state.ui.sequencer.selection,
   ]);
 
   return (

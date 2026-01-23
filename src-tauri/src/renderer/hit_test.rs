@@ -1,15 +1,6 @@
-use crate::utils::UniqueId;
+use crate::ui::sequencer::Selection;
 use crate::RenderState;
-use serde::{Deserialize, Serialize};
 use tauri::State;
-
-#[derive(Serialize, Deserialize, Clone)]
-pub struct HitTestResult {
-    pub tone_id: UniqueId,
-    pub track_id: UniqueId,
-    pub flow_id: UniqueId,
-    pub instrument_id: UniqueId,
-}
 
 #[tauri::command(rename_all = "snake_case")]
 pub fn renderer_hit_test(
@@ -19,7 +10,7 @@ pub fn renderer_hit_test(
     pan_x: f32,
     pan_y: f32,
     zoom: f32,
-) -> Option<HitTestResult> {
+) -> Option<Selection> {
     let renderer = renderer_state.lock().unwrap();
 
     let zoom_scale = zoom / 100.0;
@@ -36,12 +27,7 @@ pub fn renderer_hit_test(
             && render_y_spaces >= target.y
             && render_y_spaces <= target.y + target.height
         {
-            return Some(HitTestResult {
-                tone_id: target.tone_id,
-                track_id: target.track_id,
-                flow_id: target.flow_id,
-                instrument_id: target.instrument_id,
-            });
+            return Some(target.entry.clone());
         }
     }
 

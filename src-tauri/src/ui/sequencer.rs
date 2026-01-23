@@ -13,12 +13,20 @@ pub enum SequencerSelectionType {
 }
 
 #[derive(Clone, Serialize, Deserialize)]
-pub struct Selection {
-    pub id: UniqueId,
-    pub selection_type: SequencerSelectionType,
-    pub track_id: UniqueId,
-    pub flow_id: UniqueId,
-    pub instrument_id: UniqueId,
+#[serde(tag = "type")]
+pub enum Selection {
+    Tone {
+        flow_id: UniqueId,
+        instrument_id: UniqueId,
+        track_id: UniqueId,
+        tone_id: UniqueId,
+    },
+    Rest {
+        flow_id: UniqueId,
+        instrument_id: UniqueId,
+        track_id: UniqueId,
+        tick: u64,
+    },
 }
 
 #[derive(Serialize_repr, Deserialize_repr, Clone)]
@@ -134,27 +142,47 @@ pub fn ui_sequencer_coords_set(
     state.emit(&app, &mut renderer, false);
 }
 
-#[allow(clippy::too_many_arguments)]
 #[tauri::command(rename_all = "snake_case")]
-pub fn ui_sequencer_selection_set(
+pub fn ui_sequencer_selection_set_tone(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
     renderer_state: State<'_, RenderState>,
-    selection_type: SequencerSelectionType,
-    id: UniqueId,
-    track_id: UniqueId,
     flow_id: UniqueId,
     instrument_id: UniqueId,
+    track_id: UniqueId,
+    tone_id: UniqueId,
 ) {
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
 
-    state.ui.sequencer.selection = Some(Selection {
-        id,
-        selection_type,
-        track_id,
+    state.ui.sequencer.selection = Some(Selection::Tone {
         flow_id,
         instrument_id,
+        track_id,
+        tone_id,
+    });
+
+    state.emit(&app, &mut renderer, true);
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn ui_sequencer_selection_set_rest(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    renderer_state: State<'_, RenderState>,
+    flow_id: UniqueId,
+    instrument_id: UniqueId,
+    track_id: UniqueId,
+    tick: u64,
+) {
+    let mut state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
+
+    state.ui.sequencer.selection = Some(Selection::Rest {
+        flow_id,
+        instrument_id,
+        track_id,
+        tick,
     });
 
     state.emit(&app, &mut renderer, true);

@@ -5,7 +5,7 @@ pub mod text_measurer;
 
 use crate::score::components::measurements::{CurvePoint, Point};
 use crate::score::components::text::{Align, Font, FontFamily, Justify};
-use crate::utils::UniqueId;
+use crate::ui::sequencer::Selection;
 use converter::{Converter, Space};
 use skia_safe::Color;
 
@@ -53,12 +53,9 @@ pub enum DrawInstruction {
     },
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct HitTarget {
-    pub tone_id: UniqueId,
-    pub track_id: UniqueId,
-    pub flow_id: UniqueId,
-    pub instrument_id: UniqueId,
+    pub entry: Selection,
     pub x: f32,
     pub y: f32,
     pub width: f32,

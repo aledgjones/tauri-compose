@@ -34,7 +34,7 @@ impl VerticalSpans {
 
 fn get_span_type(
     instrument: &Instrument,
-    previous_instrument: &Option<&Instrument>,
+    previous_instrument: Option<&Instrument>,
     engrave: &Engrave,
 ) -> BracketSpan {
     match engrave.bracketing_approach {
@@ -81,7 +81,7 @@ pub fn get_vertical_spans(instruments: &Vec<&Instrument>, engrave: &Engrave) -> 
     let mut previous_instrument: Option<&Instrument> = None;
 
     for instrument in instruments {
-        let span_type = get_span_type(instrument, &previous_instrument, engrave);
+        let span_type = get_span_type(instrument, previous_instrument, engrave);
 
         // BRACKETS
         match span_type {

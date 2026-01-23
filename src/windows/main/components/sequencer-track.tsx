@@ -6,11 +6,11 @@ import {
   Articulation,
   Flow,
   NoteDuration,
-  SequencerSelectionType,
   Tool,
   Tone,
   Track,
   UniqueId,
+  Selection,
 } from "../../../services/types";
 import { actions } from "../../../services/actions";
 import { SequencerTrackTone } from "./sequencer-track-tone";
@@ -125,8 +125,7 @@ const handleWriteTool = async (
   );
 
   // Select the newly created tone
-  await actions.ui.sequencer.select(
-    SequencerSelectionType.Tone,
+  await actions.ui.sequencer.selectTone(
     tone_id,
     track.id,
     flow.id,
@@ -425,7 +424,7 @@ const handleSelectTool = async (
   slots: Slots,
   snapDuration: NoteDuration,
   instrumentId: UniqueId,
-  currentSelectionId: UniqueId | null,
+  currentSelection: Selection | null,
   audition: boolean,
 ) => {
   const clickTarget = getSequencerClickTarget(e.target as HTMLElement);
@@ -435,8 +434,7 @@ const handleSelectTool = async (
     return;
   }
 
-  await actions.ui.sequencer.select(
-    SequencerSelectionType.Tone,
+  await actions.ui.sequencer.selectTone(
     clickTarget.id,
     track.id,
     flow.id,
@@ -445,13 +443,17 @@ const handleSelectTool = async (
 
   // Audition the selected tone only if it wasn't already selected
   if (audition) {
-    if (currentSelectionId !== clickTarget.id) {
-      const tone = track.entries.by_id[clickTarget.id];
-      if (tone && tone.type === "Tone") {
+    if (
+      currentSelection === null ||
+      currentSelection.type !== "Tone" ||
+      currentSelection.tone_id !== clickTarget.id
+    ) {
+      const entry = track.entries.by_id[clickTarget.id];
+      if (entry && entry.type === "Tone") {
         sampler.play(
           instrumentId.toString(),
           Expression.Natural,
-          tone.pitch.int,
+          entry.pitch.int,
           sampler.ctx.currentTime,
           0.5,
         );
@@ -569,7 +571,7 @@ export const SequencerTrack: FC<SequencerTrackProps> = ({
             slots,
             snapDuration,
             instrumentId,
-            state.ui.sequencer.selection?.id ?? null,
+            state.ui.sequencer.selection ?? null,
             state.preferences.audition,
           );
           break;
@@ -591,7 +593,7 @@ export const SequencerTrack: FC<SequencerTrackProps> = ({
       track,
       instrumentId,
       ticks,
-      state.ui.sequencer.selection?.id,
+      state.ui.sequencer.selection,
       state.preferences.audition,
     ],
   );

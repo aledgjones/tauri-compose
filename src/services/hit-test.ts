@@ -1,12 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { UniqueId } from "./types";
-
-export interface HitTestResult {
-  tone_id: UniqueId;
-  track_id: UniqueId;
-  flow_id: UniqueId;
-  instrument_id: UniqueId;
-}
+import { Selection } from "./types";
 
 export async function hitTest(
   x: number,
@@ -14,8 +7,8 @@ export async function hitTest(
   panX: number,
   panY: number,
   zoom: number,
-): Promise<HitTestResult | null> {
-  return await invoke<HitTestResult | null>("renderer_hit_test", {
+) {
+  return await invoke<Selection | null>("renderer_hit_test", {
     x,
     y,
     pan_x: panX,

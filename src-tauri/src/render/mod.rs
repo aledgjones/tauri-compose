@@ -9,7 +9,6 @@ use crate::score::components::duration::{Direction, Ticks};
 use crate::score::components::measurements::Point;
 use crate::score::entries::barline::BarlineDrawType;
 use crate::score::entries::clef::Clef;
-use crate::ui::sequencer::SequencerSelectionType;
 use crate::utils::UniqueId;
 use crate::AppStateInner;
 use draw::draw_accidentals::draw_accidental;
@@ -59,14 +58,6 @@ pub fn generate_render_instructions(
     flow_id: UniqueId,
 ) {
     let total_start = Instant::now();
-
-    let selection = state.ui.sequencer.selection.as_ref().and_then(|selection| {
-        if selection.selection_type == SequencerSelectionType::Tone {
-            Some(selection.id)
-        } else {
-            None
-        }
-    });
 
     let flow = &state.score.flows.by_id[&flow_id];
     let flow_master = &state.score.tracks.by_id[&flow.master_id];
@@ -413,6 +404,10 @@ pub fn generate_render_instructions(
                             notation,
                             is_full_bar,
                             &horizontal_spacing,
+                            state.ui.sequencer.selection.as_ref(),
+                            *track_id,
+                            flow_id,
+                            instrument.id,
                             renderer,
                         );
 
@@ -502,7 +497,7 @@ pub fn generate_render_instructions(
                             glyph,
                             glyph_width,
                             shunts,
-                            selection,
+                            state.ui.sequencer.selection.as_ref(),
                             *track_id,
                             flow_id,
                             instrument.id,
@@ -521,7 +516,7 @@ pub fn generate_render_instructions(
                                 tone,
                                 glyph_width,
                                 has_pre_shunt,
-                                selection,
+                                state.ui.sequencer.selection.as_ref(),
                                 renderer,
                             );
                         }
@@ -533,7 +528,7 @@ pub fn generate_render_instructions(
 
     // Debug: draw slot visualization
     if state.ui.renderer.debug_rendering {
-        draw_debug_slots(
+        draw_debug_layer(
             &horizontal_spacing,
             stave_left,
             page_padding.top,
@@ -576,7 +571,7 @@ pub fn generate_render_instructions(
     let _ = app.emit("render-timing-total", total_duration.as_micros() as u64);
 }
 
-fn draw_debug_slots(
+fn draw_debug_layer(
     horizontal_spacing: &HorizontalSpacing,
     stave_left: Space,
     stave_top: Space,
@@ -630,5 +625,17 @@ fn draw_debug_slots(
                 );
             }
         }
+    }
+
+    // Debug: Draw red boxes around hit targets
+    let hit_targets = renderer.hit_targets.clone();
+    for target in hit_targets {
+        renderer.rectangle(
+            target.x,
+            target.y,
+            target.width,
+            target.height,
+            Color::from_argb(100, 255, 0, 0),
+        );
     }
 }

@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from "react";
 import { useAppState } from "../../../services/state";
-import { Accidental, SequencerSelectionType } from "../../../services/types";
+import { Accidental } from "../../../services/types";
 import { actions } from "../../../services/actions";
 import { sampler } from "../../../sampler";
 import { Expression } from "../../../sampler/types";
@@ -20,10 +20,7 @@ export const useKeyboardShortcuts = () => {
 
   const selectionInfo = useMemo(() => {
     const selection = state.ui.sequencer.selection;
-    if (
-      !selection ||
-      selection.selection_type !== SequencerSelectionType.Tone
-    ) {
+    if (selection === null || selection.type !== "Tone") {
       return null;
     }
 
@@ -32,14 +29,14 @@ export const useKeyboardShortcuts = () => {
       return null;
     }
 
-    const tone = track.entries.by_id[selection.id];
-    if (!tone || tone.type !== "Tone") {
+    const entry = track.entries.by_id[selection.tone_id];
+    if (!entry || entry.type !== "Tone") {
       return null;
     }
 
     return {
-      tone,
-      toneId: selection.id,
+      tone: entry,
+      toneId: selection.tone_id,
       instrumentId: selection.instrument_id,
       trackId: selection.track_id,
       flowId: selection.flow_id,
