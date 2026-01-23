@@ -1,18 +1,19 @@
 import classNames from "classnames";
-import { FC, useRef, useEffect } from "react";
+import { FC, useRef, useEffect, useState } from "react";
 import { actions } from "../../../services/actions";
 import { useAppState } from "../../../services/state";
 import { pxPerMm } from "../../../utils/mm";
 import { useKeyboardShortcuts } from "../hooks/use-keyboard-shortcuts";
 import { hitTest } from "../../../services/hit-test";
 import { Expression, sampler } from "../../../sampler";
-import { Popover } from "../../../ui/popover";
+import { Popover, PopoverState } from "../../../ui/popover";
 
 type Props = { className?: string };
 
 export const Renderer: FC<Props> = ({ className }) => {
   const divRef = useRef<HTMLDivElement>(null);
   const state = useAppState();
+  const [popover, setPopover] = useState<PopoverState>(null);
 
   // Tone keyboard shortcuts
   useKeyboardShortcuts();
@@ -188,7 +189,7 @@ export const Renderer: FC<Props> = ({ className }) => {
       };
 
       const handlePointerUp = () => {
-        if (!hasMoved) {
+        if (!hasMoved && popover === null) {
           actions.ui.sequencer.clearSelection();
         }
 
@@ -234,6 +235,7 @@ export const Renderer: FC<Props> = ({ className }) => {
       $element.removeEventListener("wheel", onWheel);
     };
   }, [
+    popover,
     state.preferences.audition,
     state.score.tracks.by_id,
     state.ui.sequencer.selection,
@@ -241,11 +243,11 @@ export const Renderer: FC<Props> = ({ className }) => {
 
   return (
     <div
-      ref={divRef}
-      className={classNames("relative bg-transparent touch-none", className)}
+      className={classNames("relative bg-transparent", className)}
       data-testid="renderer"
     >
-      <Popover />
+      <div ref={divRef} className="absolute top-0 left-0 h-full w-full" />
+      <Popover popover={popover} setPopover={setPopover} />
     </div>
   );
 };

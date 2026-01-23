@@ -63,6 +63,7 @@ pub fn draw_notehead(
         y: origin.y - 0.5,
         width: glyph_width,
         height: 1.0,
-        popover_y: stave_top - 5.0,
+        popover_x: left,
+        popover_y: f32::min(stave_top - 3.0, origin.y - 1.5),
     });
 }

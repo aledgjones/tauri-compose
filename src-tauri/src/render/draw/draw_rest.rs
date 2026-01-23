@@ -60,7 +60,8 @@ pub fn draw_rest(
             y: top - 0.25,
             width: 1.1,
             height: 1.0,
-            popover_y: stave_top - 5.0,
+            popover_x: origin.x + start.x,
+            popover_y: stave_top - 3.0,
         });
     } else {
         let left = origin.x + start.x;
@@ -124,7 +125,8 @@ pub fn draw_rest(
             y: top - hit_top_offset,
             width: hit_width,
             height: hit_height,
-            popover_y: stave_top - 5.0,
+            popover_x: left,
+            popover_y: stave_top - 3.0,
         });
 
         if entry.is_dotted() {

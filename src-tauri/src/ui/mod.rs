@@ -122,12 +122,11 @@ pub fn ui_get_selection_coordinates(
             if target.entry == *selection {
                 let zoom_scale = state.ui.renderer.zoom as f32 / 100.0;
 
-                let px_target_x = renderer.converter.spaces_to_px(target.x);
-                let x = px_target_x * zoom_scale + state.ui.renderer.pan_x;
+                let popover_x = renderer.converter.spaces_to_px(target.popover_x);
+                let x = popover_x * zoom_scale + state.ui.renderer.pan_x;
 
-                let px_stave_top = renderer.converter.spaces_to_px(target.popover_y);
-                let screen_stave_top = px_stave_top * zoom_scale + state.ui.renderer.pan_y;
-                let y = screen_stave_top;
+                let popover_y = renderer.converter.spaces_to_px(target.popover_y);
+                let y = popover_y * zoom_scale + state.ui.renderer.pan_y;
 
                 return Ok(Some((x, y)));
             }
