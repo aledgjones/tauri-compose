@@ -10,35 +10,16 @@ export const useSelectedToneInfo = () => {
 
   const selectedToneInfo = useMemo(() => {
     const selection = state.ui.sequencer.selection;
-    if (selection === null || selection.type !== "Tone") {
+
+    if (selection === null) {
       return null;
     }
 
     const track = state.score.tracks.by_id[selection.track_id];
+
     if (!track) {
       return null;
     }
-
-    // Find the tone in the track
-    let tone = null;
-    for (const tick of Object.keys(track.entries.by_tick)) {
-      const entryIds = track.entries.by_tick[parseInt(tick)];
-      for (const entryId of entryIds) {
-        const entry = track.entries.by_id[entryId];
-        if (entry.type === "Tone" && entry.id === selection.tone_id) {
-          tone = entry;
-          break;
-        }
-      }
-      if (tone) break;
-    }
-
-    if (!tone) {
-      return null;
-    }
-
-    // Get note name
-    const noteName = getPitchName(tone.pitch);
 
     // Get instrument from stored instrument_id
     const instrument = state.score.instruments.by_id[selection.instrument_id];
@@ -69,11 +50,41 @@ export const useSelectedToneInfo = () => {
       }
     }
 
-    return {
-      noteName,
-      instrumentName,
-      trackLabel,
-    };
+    if (selection.type === "Rest") {
+      return {
+        noteName: "Rest",
+        instrumentName,
+        trackLabel,
+      };
+    }
+
+    if (selection.type === "Tone") {
+      let tone = null;
+      for (const tick of Object.keys(track.entries.by_tick)) {
+        const entryIds = track.entries.by_tick[parseInt(tick)];
+        for (const entryId of entryIds) {
+          const entry = track.entries.by_id[entryId];
+          if (entry.type === "Tone" && entry.id === selection.tone_id) {
+            tone = entry;
+            break;
+          }
+        }
+        if (tone) break;
+      }
+
+      if (!tone) {
+        return null;
+      }
+
+      // Get note name
+      const noteName = getPitchName(tone.pitch);
+
+      return {
+        noteName,
+        instrumentName,
+        trackLabel,
+      };
+    }
   }, [
     state.ui.sequencer.selection,
     state.score.tracks.by_id,
