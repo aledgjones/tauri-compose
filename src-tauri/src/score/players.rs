@@ -1,5 +1,5 @@
 use super::layouts::LayoutType;
-use crate::{utils::UniqueId, AppState, RenderState};
+use crate::{utils::UniqueId, AppContextState, RendererContextState};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
@@ -47,8 +47,8 @@ impl Players {
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_players_create(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
-    renderer_state: State<'_, RenderState>,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
     player_type: PlayerType,
 ) -> UniqueId {
     let mut state = state.lock().unwrap();
@@ -79,8 +79,8 @@ pub fn score_players_create(
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_players_move(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
-    renderer_state: State<'_, RenderState>,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
     from_index: usize,
     to_index: usize,
 ) {
@@ -97,8 +97,8 @@ pub fn score_players_move(
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_players_assign_instrument(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
-    renderer_state: State<'_, RenderState>,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
     player_id: UniqueId,
     instrument_id: UniqueId,
 ) {
@@ -122,8 +122,8 @@ pub fn score_players_assign_instrument(
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_players_unassign_instrument(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
-    renderer_state: State<'_, RenderState>,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
     player_id: UniqueId,
     instrument_id: UniqueId,
 ) {
@@ -147,8 +147,8 @@ pub fn score_players_unassign_instrument(
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_players_remove(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
-    renderer_state: State<'_, RenderState>,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
     player_id: UniqueId,
 ) {
     let mut state = state.lock().unwrap();

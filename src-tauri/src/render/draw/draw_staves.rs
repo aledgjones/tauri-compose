@@ -1,6 +1,6 @@
 use crate::render::parse::get_vertical_spacing::VerticalSpacing;
 use crate::renderer::converter::Space;
-use crate::renderer::Renderer;
+use crate::renderer::RendererContext;
 use crate::score::components::measurements::Point;
 use crate::score::flows::Flow;
 use crate::score::instruments::Instrument;
@@ -14,7 +14,7 @@ pub fn draw_staves(
     flow: &Flow,
     instruments: &Vec<&Instrument>,
     vertical_spacing: &VerticalSpacing,
-    renderer: &mut Renderer,
+    renderer: &mut RendererContext,
 ) {
     for instrument in instruments {
         for stave_id in &instrument.stave_ids {

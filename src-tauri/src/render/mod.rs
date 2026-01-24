@@ -4,13 +4,13 @@ mod parse;
 use crate::render::parse::get_horizontal_spacing::HorizontalSpacing;
 use crate::renderer::converter::{Converter, Space};
 use crate::renderer::text_measurer::TextMeasurer;
-use crate::renderer::Renderer;
+use crate::renderer::RendererContext;
 use crate::score::components::duration::{Direction, Ticks};
 use crate::score::components::measurements::Point;
 use crate::score::entries::barline::BarlineDrawType;
 use crate::score::entries::clef::Clef;
 use crate::utils::UniqueId;
-use crate::AppStateInner;
+use crate::AppContext;
 use draw::draw_accidentals::draw_accidental;
 use draw::draw_barline::draw_barline;
 use draw::draw_beam::draw_beam;
@@ -52,8 +52,8 @@ use tauri::Emitter;
 
 pub fn generate_render_instructions(
     app: &tauri::AppHandle,
-    state: &AppStateInner,
-    renderer: &mut Renderer,
+    state: &AppContext,
+    renderer: &mut RendererContext,
     layout_id: UniqueId,
     flow_id: UniqueId,
 ) {
@@ -581,7 +581,7 @@ fn draw_debug_layer(
     stave_top: Space,
     stave_height: Space,
     flow_length: Ticks,
-    renderer: &mut Renderer,
+    renderer: &mut RendererContext,
 ) {
     let slot_colors = [
         Color::from_argb(64, 255, 0, 0),     // PaddingStart - Red with alpha

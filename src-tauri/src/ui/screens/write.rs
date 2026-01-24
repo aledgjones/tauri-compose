@@ -2,8 +2,8 @@ use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use tauri::State;
 
-use crate::AppState;
-use crate::RenderState;
+use crate::AppContextState;
+use crate::RendererContextState;
 
 #[derive(Serialize_repr, Deserialize_repr, Clone)]
 #[repr(u8)]
@@ -37,8 +37,8 @@ impl Default for Write {
 #[tauri::command(rename_all = "snake_case")]
 pub fn ui_write_bottom_panel_minimized_toggle(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
-    renderer_state: State<'_, RenderState>,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
 ) {
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
@@ -51,8 +51,8 @@ pub fn ui_write_bottom_panel_minimized_toggle(
 #[tauri::command(rename_all = "snake_case")]
 pub fn ui_write_bottom_panel_tab_set(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
-    renderer_state: State<'_, RenderState>,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
     tab: BottomPanelTab,
 ) {
     let mut state = state.lock().unwrap();

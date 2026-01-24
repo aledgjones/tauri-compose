@@ -1,10 +1,10 @@
 use crate::ui::sequencer::Selection;
-use crate::RenderState;
+use crate::RendererContextState;
 use tauri::State;
 
 #[tauri::command(rename_all = "snake_case")]
 pub fn renderer_hit_test(
-    renderer_state: State<'_, RenderState>,
+    renderer_state: State<'_, RendererContextState>,
     x: f32,
     y: f32,
     pan_x: f32,

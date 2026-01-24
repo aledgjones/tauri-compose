@@ -1,10 +1,10 @@
-use crate::renderer::Renderer;
+use crate::renderer::RendererContext;
 use crate::score::components::measurements::Point;
 use crate::score::components::text::{Align, Font, FontFamily, Justify};
 use crate::score::entries::clef::Clef;
 use skia_safe::Color;
 
-pub fn draw_clef(origin: &Point, clef: &Clef, is_full_size: bool, renderer: &mut Renderer) {
+pub fn draw_clef(origin: &Point, clef: &Clef, is_full_size: bool, renderer: &mut RendererContext) {
     if let Some(glyph) = clef.glyph() {
         renderer.text(
             &glyph,

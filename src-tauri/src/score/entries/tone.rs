@@ -6,8 +6,8 @@ use crate::score::components::pitch::{Accidental, Pitch};
 use crate::score::components::velocity::Velocity;
 use crate::score::tracks::Track;
 use crate::utils::UniqueId;
-use crate::AppState;
-use crate::RenderState;
+use crate::AppContextState;
+use crate::RendererContextState;
 use serde::{Deserialize, Serialize};
 use tauri::State;
 
@@ -67,8 +67,8 @@ impl Track {
 #[allow(clippy::too_many_arguments)]
 pub fn score_entries_tone_create(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
-    renderer_state: State<'_, RenderState>,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
     track_id: UniqueId,
     tick: Tick,
     duration: Ticks,
@@ -112,8 +112,8 @@ pub fn score_entries_tone_create(
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_entries_tone_duration_set(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
-    renderer_state: State<'_, RenderState>,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
     track_id: UniqueId,
     tone_id: UniqueId,
     duration: Ticks,
@@ -133,8 +133,8 @@ pub fn score_entries_tone_duration_set(
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_entries_tone_slice(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
-    renderer_state: State<'_, RenderState>,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
     track_id: UniqueId,
     tone_id: UniqueId,
     slice_tick: Tick,
@@ -185,8 +185,8 @@ pub fn score_entries_tone_slice(
 #[allow(clippy::too_many_arguments)]
 pub fn score_entries_tone_pitch_set(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
-    renderer_state: State<'_, RenderState>,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
     track_id: UniqueId,
     tone_id: UniqueId,
     pitch_int: u8,
@@ -228,8 +228,8 @@ pub fn score_entries_tone_pitch_set(
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_entries_tone_duration_remove(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
-    renderer_state: State<'_, RenderState>,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
     track_id: UniqueId,
     tone_id: UniqueId,
 ) {
@@ -245,8 +245,8 @@ pub fn score_entries_tone_duration_remove(
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_entries_tone_set_position_and_duration(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
-    renderer_state: State<'_, RenderState>,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
     track_id: UniqueId,
     tone_id: UniqueId,
     tick: Tick,
@@ -278,8 +278,8 @@ pub fn score_entries_tone_set_position_and_duration(
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_entries_shift(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
-    renderer_state: State<'_, RenderState>,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
     track_id: UniqueId,
     entry_id: UniqueId,
     new_tick: Tick,
@@ -296,8 +296,8 @@ pub fn score_entries_shift(
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_entries_tone_pitch_shift_by_steps(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
-    renderer_state: State<'_, RenderState>,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
     flow_id: UniqueId,
     track_id: UniqueId,
     tone_id: UniqueId,
@@ -339,8 +339,8 @@ pub fn score_entries_tone_pitch_shift_by_steps(
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_entries_tone_pitch_shift_by_octaves(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
-    renderer_state: State<'_, RenderState>,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
     track_id: UniqueId,
     tone_id: UniqueId,
     octaves: i8,
@@ -364,8 +364,8 @@ pub fn score_entries_tone_pitch_shift_by_octaves(
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_entries_tone_accidental_set(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
-    renderer_state: State<'_, RenderState>,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
     track_id: UniqueId,
     tone_id: UniqueId,
     accidental: Accidental,

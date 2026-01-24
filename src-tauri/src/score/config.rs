@@ -1,5 +1,5 @@
-use crate::AppState;
-use crate::RenderState;
+use crate::AppContextState;
+use crate::RendererContextState;
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use tauri::State;
@@ -42,8 +42,8 @@ impl Config {
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_config_auto_count_styles_solo_set(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
-    renderer_state: State<'_, RenderState>,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
     auto_count_style: AutoCountStyle,
 ) {
     let mut state = state.lock().unwrap();
@@ -57,8 +57,8 @@ pub fn score_config_auto_count_styles_solo_set(
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_config_auto_count_styles_section_set(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
-    renderer_state: State<'_, RenderState>,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
     auto_count_style: AutoCountStyle,
 ) {
     let mut state = state.lock().unwrap();

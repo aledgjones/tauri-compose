@@ -3,8 +3,8 @@ use crate::score::components::duration::{NoteDuration, Tick, Ticks};
 use crate::score::components::measurements::BoundingBox;
 use crate::score::tracks::Track;
 use crate::utils::UniqueId;
-use crate::AppState;
-use crate::RenderState;
+use crate::AppContextState;
+use crate::RendererContextState;
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use std::cmp::max;
@@ -240,8 +240,8 @@ impl Track {
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_entries_time_signature_create(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
-    renderer_state: State<'_, RenderState>,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
     flow_id: UniqueId,
     tick: Tick,
     beats: u8,
@@ -312,8 +312,8 @@ pub fn score_entries_time_signature_create(
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_entries_time_signature_clear(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
-    renderer_state: State<'_, RenderState>,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
     flow_id: UniqueId,
     tick: Tick,
 ) {

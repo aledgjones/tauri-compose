@@ -5,8 +5,8 @@ pub mod sequencer;
 use crate::ui::screens::sequence::Sequence;
 use crate::ui::screens::setup::Setup;
 use crate::ui::screens::write::Write;
-use crate::RenderState;
-use crate::{utils::UniqueId, AppState};
+use crate::RendererContextState;
+use crate::{utils::UniqueId, AppContextState};
 use renderer::Renderer;
 use sequencer::Sequencer;
 use serde::Deserialize;
@@ -67,8 +67,8 @@ impl Ui {
 #[tauri::command(rename_all = "snake_case")]
 pub fn ui_tab_set(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
-    renderer_state: State<'_, RenderState>,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
     tab: Tab,
 ) {
     let mut state = state.lock().unwrap();
@@ -81,8 +81,8 @@ pub fn ui_tab_set(
 #[tauri::command(rename_all = "snake_case")]
 pub fn ui_layout_id_set(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
-    renderer_state: State<'_, RenderState>,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
     layout_id: UniqueId,
 ) {
     let mut state = state.lock().unwrap();
@@ -96,8 +96,8 @@ pub fn ui_layout_id_set(
 #[tauri::command(rename_all = "snake_case")]
 pub fn ui_flow_id_set(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
-    renderer_state: State<'_, RenderState>,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
     flow_id: UniqueId,
 ) {
     let mut state = state.lock().unwrap();
@@ -110,8 +110,8 @@ pub fn ui_flow_id_set(
 
 #[tauri::command(rename_all = "snake_case")]
 pub fn ui_get_selection_coordinates(
-    state: State<'_, AppState>,
-    renderer_state: State<'_, RenderState>,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
 ) -> Result<Option<(f32, f32)>, String> {
     let state = state.lock().unwrap();
     let renderer = renderer_state.lock().unwrap();

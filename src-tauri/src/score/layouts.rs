@@ -1,4 +1,4 @@
-use crate::{utils::UniqueId, AppState, AppStateInner, RenderState};
+use crate::{utils::UniqueId, AppContext, AppContextState, RendererContextState};
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
@@ -54,7 +54,7 @@ impl Layout {
     }
 }
 
-impl AppStateInner {
+impl AppContext {
     pub fn assign_player_to_layout(&mut self, layout_id: UniqueId, player_id: UniqueId) {
         let layout = self.score.layouts.by_id.get_mut(&layout_id).unwrap();
         layout.player_ids.insert(player_id);
@@ -79,8 +79,8 @@ impl AppStateInner {
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_layouts_create(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
-    renderer_state: State<'_, RenderState>,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
     layout_type: LayoutType,
 ) -> UniqueId {
     let mut state = state.lock().unwrap();
@@ -110,8 +110,8 @@ pub fn score_layouts_create(
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_layouts_rename(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
-    renderer_state: State<'_, RenderState>,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
     layout_id: UniqueId,
     title: String,
 ) {
@@ -127,8 +127,8 @@ pub fn score_layouts_rename(
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_layouts_assign_player(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
-    renderer_state: State<'_, RenderState>,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
     layout_id: UniqueId,
     player_id: UniqueId,
 ) {
@@ -143,8 +143,8 @@ pub fn score_layouts_assign_player(
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_layouts_unassign_player(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
-    renderer_state: State<'_, RenderState>,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
     layout_id: UniqueId,
     player_id: UniqueId,
 ) {
@@ -159,8 +159,8 @@ pub fn score_layouts_unassign_player(
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_layouts_assign_flow(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
-    renderer_state: State<'_, RenderState>,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
     layout_id: UniqueId,
     player_id: UniqueId,
 ) {
@@ -175,8 +175,8 @@ pub fn score_layouts_assign_flow(
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_layouts_unassign_flow(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
-    renderer_state: State<'_, RenderState>,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
     layout_id: UniqueId,
     player_id: UniqueId,
 ) {
@@ -191,8 +191,8 @@ pub fn score_layouts_unassign_flow(
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_layouts_move(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
-    renderer_state: State<'_, RenderState>,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
     from_index: usize,
     to_index: usize,
 ) {
@@ -208,8 +208,8 @@ pub fn score_layouts_move(
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_layouts_remove(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
-    renderer_state: State<'_, RenderState>,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
     layout_id: UniqueId,
 ) {
     let mut state = state.lock().unwrap();

@@ -1,4 +1,4 @@
-use crate::{utils::now, AppState, RenderState};
+use crate::{utils::now, AppContextState, RendererContextState};
 use serde::{Deserialize, Serialize};
 use tauri::State;
 
@@ -52,8 +52,8 @@ impl Meta {
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_meta_title_set(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
-    renderer_state: State<'_, RenderState>,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
     title: String,
 ) {
     let mut state = state.lock().unwrap();
@@ -67,8 +67,8 @@ pub fn score_meta_title_set(
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_meta_subtitle_set(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
-    renderer_state: State<'_, RenderState>,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
     subtitle: String,
 ) {
     let mut state = state.lock().unwrap();
@@ -82,8 +82,8 @@ pub fn score_meta_subtitle_set(
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_meta_dedication_set(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
-    renderer_state: State<'_, RenderState>,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
     dedication: String,
 ) {
     let mut state = state.lock().unwrap();
@@ -97,8 +97,8 @@ pub fn score_meta_dedication_set(
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_meta_composer_set(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
-    renderer_state: State<'_, RenderState>,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
     composer: String,
 ) {
     let mut state = state.lock().unwrap();
@@ -112,8 +112,8 @@ pub fn score_meta_composer_set(
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_meta_arranger_set(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
-    renderer_state: State<'_, RenderState>,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
     arranger: String,
 ) {
     let mut state = state.lock().unwrap();
@@ -127,8 +127,8 @@ pub fn score_meta_arranger_set(
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_meta_lyricist_set(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
-    renderer_state: State<'_, RenderState>,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
     lyricist: String,
 ) {
     let mut state = state.lock().unwrap();
@@ -142,8 +142,8 @@ pub fn score_meta_lyricist_set(
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_meta_artist_set(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
-    renderer_state: State<'_, RenderState>,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
     artist: String,
 ) {
     let mut state = state.lock().unwrap();
@@ -157,8 +157,8 @@ pub fn score_meta_artist_set(
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_meta_copyist_set(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
-    renderer_state: State<'_, RenderState>,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
     copyist: String,
 ) {
     let mut state = state.lock().unwrap();
@@ -172,8 +172,8 @@ pub fn score_meta_copyist_set(
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_meta_publisher_set(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
-    renderer_state: State<'_, RenderState>,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
     publisher: String,
 ) {
     let mut state = state.lock().unwrap();
@@ -187,8 +187,8 @@ pub fn score_meta_publisher_set(
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_meta_editor_set(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
-    renderer_state: State<'_, RenderState>,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
     editor: String,
 ) {
     let mut state = state.lock().unwrap();
@@ -202,8 +202,8 @@ pub fn score_meta_editor_set(
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_meta_copyright_set(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
-    renderer_state: State<'_, RenderState>,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
     copyright: String,
 ) {
     let mut state = state.lock().unwrap();
@@ -217,8 +217,8 @@ pub fn score_meta_copyright_set(
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_meta_work_number_set(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
-    renderer_state: State<'_, RenderState>,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
     work_number: String,
 ) {
     let mut state = state.lock().unwrap();
@@ -232,8 +232,8 @@ pub fn score_meta_work_number_set(
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_meta_composition_year_set(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
-    renderer_state: State<'_, RenderState>,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
     composition_year: String,
 ) {
     let mut state = state.lock().unwrap();
@@ -247,8 +247,8 @@ pub fn score_meta_composition_year_set(
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_meta_composer_dates_set(
     app: tauri::AppHandle,
-    renderer_state: State<'_, RenderState>,
-    state: State<'_, AppState>,
+    renderer_state: State<'_, RendererContextState>,
+    state: State<'_, AppContextState>,
     composer_dates: String,
 ) {
     let mut state = state.lock().unwrap();
@@ -262,8 +262,8 @@ pub fn score_meta_composer_dates_set(
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_meta_other_information_set(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
-    renderer_state: State<'_, RenderState>,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
     other_information: String,
 ) {
     let mut state = state.lock().unwrap();

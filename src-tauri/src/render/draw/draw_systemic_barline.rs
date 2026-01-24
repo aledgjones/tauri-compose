@@ -1,6 +1,6 @@
 use super::draw_staves::STAVE_LINE_WIDTH;
 use crate::render::parse::get_vertical_spacing::VerticalSpacing;
-use crate::renderer::Renderer;
+use crate::renderer::RendererContext;
 use crate::score::components::measurements::Point;
 use crate::score::engraves::Engrave;
 use skia_safe::Color;
@@ -9,7 +9,7 @@ pub fn draw_systemic_barline(
     origin: &Point,
     vertical_spacing: &VerticalSpacing,
     engrave: &Engrave,
-    renderer: &mut Renderer,
+    renderer: &mut RendererContext,
 ) {
     let is_multi_stave = vertical_spacing.staves.len() > 1;
 

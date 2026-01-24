@@ -1,10 +1,10 @@
 use super::draw_staves::STAVE_LINE_WIDTH;
 use crate::render::parse::get_stem_lengths::StemDef;
-use crate::renderer::Renderer;
+use crate::renderer::RendererContext;
 use crate::score::components::measurements::Point;
 use skia_safe::Color;
 
-pub fn draw_stem(origin: &Point, def: &StemDef, renderer: &mut Renderer) {
+pub fn draw_stem(origin: &Point, def: &StemDef, renderer: &mut RendererContext) {
     renderer.line(
         STAVE_LINE_WIDTH,
         Color::BLACK,

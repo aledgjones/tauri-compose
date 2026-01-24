@@ -1,6 +1,6 @@
 use crate::render::parse::get_horizontal_spacing::{HorizontalSpacing, Slot};
 use crate::render::parse::get_written_durations::Notation;
-use crate::renderer::{HitTarget, Renderer};
+use crate::renderer::{HitTarget, RendererContext};
 use crate::score::components::duration::{NoteDuration, Tick};
 use crate::score::components::measurements::Point;
 use crate::score::components::text::{Align, Font, FontFamily, Justify};
@@ -22,7 +22,7 @@ pub fn draw_rest(
     flow_id: UniqueId,
     instrument_id: UniqueId,
     stave_top: f32,
-    renderer: &mut Renderer,
+    renderer: &mut RendererContext,
 ) {
     let color = if matches!(selection, Some(Selection::Rest { tick: selected_tick, track_id: selected_track_id, .. }) if *selected_tick == tick && *selected_track_id == track_id)
     {

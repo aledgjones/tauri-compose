@@ -1,7 +1,7 @@
 use super::draw_staves::STAVE_LINE_WIDTH;
 use crate::render::parse::get_stem_lengths::StemDef;
 use crate::render::parse::get_written_durations::Notation;
-use crate::renderer::Renderer;
+use crate::renderer::RendererContext;
 use crate::score::components::duration::Direction;
 use crate::score::components::measurements::Point;
 use crate::score::components::text::{Align, Font, FontFamily, Justify};
@@ -12,7 +12,7 @@ pub fn draw_flag(
     notation: &Notation,
     stem_direction: &Direction,
     stem_length: &StemDef,
-    renderer: &mut Renderer,
+    renderer: &mut RendererContext,
 ) {
     let glyph = notation.flag_glyph(stem_direction);
     let left = position.x + stem_length.tail.x - (STAVE_LINE_WIDTH / 2.0);

@@ -1,4 +1,4 @@
-use crate::renderer::Renderer;
+use crate::renderer::RendererContext;
 use crate::score::components::measurements::Point;
 use crate::score::components::text::{Align, Font, FontFamily, Justify};
 use crate::score::entries::time_signature::{TimeSignature, TimeSignatureDrawType};
@@ -7,7 +7,7 @@ use skia_safe::Color;
 pub fn draw_time_signature(
     origin: &Point,
     time_signature: &TimeSignature,
-    renderer: &mut Renderer,
+    renderer: &mut RendererContext,
 ) {
     let metrics = time_signature.metrics();
     let offset = metrics.width * 0.5;

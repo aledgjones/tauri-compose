@@ -1,6 +1,6 @@
 #![allow(non_snake_case)]
 
-use crate::renderer::{converter::Converter, fonts::FONTS, DrawInstruction, Renderer};
+use crate::renderer::{converter::Converter, fonts::FONTS, DrawInstruction, RendererContext};
 use crate::score::components::text::{Align, FontFamily, Justify};
 use objc2::rc::{autoreleasepool, Retained};
 use objc2::runtime::ProtocolObject;
@@ -257,8 +257,8 @@ impl NativeRenderer {
 
     pub fn render(
         &mut self,
-        renderer: &Renderer,
         app: &tauri::AppHandle,
+        renderer: &RendererContext,
         pan_x: f32,
         pan_y: f32,
         zoom: f32,
@@ -384,7 +384,7 @@ impl NativeRenderer {
     fn render_instructions(
         &self,
         canvas: &Canvas,
-        renderer: &Renderer,
+        renderer: &RendererContext,
         pan_x: f32,
         pan_y: f32,
         zoom: f32,
@@ -564,7 +564,7 @@ impl NativeRenderer {
     fn draw_scrollbars(
         &self,
         canvas: &Canvas,
-        renderer: &Renderer,
+        renderer: &RendererContext,
         constrained_pan_x: f32,
         constrained_pan_y: f32,
         zoom: f32,

@@ -1,7 +1,7 @@
 use super::draw_staves::STAVE_LINE_WIDTH;
 use crate::render::parse::get_vertical_spacing::VerticalSpacing;
 use crate::render::parse::get_vertical_spans::VerticalSpans;
-use crate::renderer::Renderer;
+use crate::renderer::RendererContext;
 use crate::score::components::measurements::Point;
 use skia_safe::Color;
 
@@ -9,7 +9,7 @@ pub fn draw_sub_brackets(
     origin: &Point,
     vertical_spans: &VerticalSpans,
     vertical_spacing: &VerticalSpacing,
-    renderer: &mut Renderer,
+    renderer: &mut RendererContext,
 ) {
     for bracket in &vertical_spans.sub_brackets {
         let top = &vertical_spacing.instruments[&bracket.start];

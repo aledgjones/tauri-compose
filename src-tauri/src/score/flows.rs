@@ -7,7 +7,7 @@ use super::entries::{
 use super::instruments::defs::get_instrument_definition;
 use super::staves::{Stave, Staves};
 use super::tracks::Track;
-use crate::{utils::UniqueId, AppState, AppStateInner, RenderState};
+use crate::{utils::UniqueId, AppContext, AppContextState, RendererContextState};
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use tauri::State;
@@ -50,7 +50,7 @@ impl Flow {
     }
 }
 
-impl AppStateInner {
+impl AppContext {
     pub fn assign_player_to_flow(&mut self, flow_id: UniqueId, player_id: UniqueId) {
         let flow = self.score.flows.by_id.get_mut(&flow_id).unwrap();
 
@@ -130,8 +130,8 @@ impl AppStateInner {
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_flows_create(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
-    renderer_state: State<'_, RenderState>,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
 ) -> UniqueId {
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
@@ -174,8 +174,8 @@ pub fn score_flows_create(
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_flows_rename(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
-    renderer_state: State<'_, RenderState>,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
     flow_id: UniqueId,
     title: String,
 ) {
@@ -191,8 +191,8 @@ pub fn score_flows_rename(
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_flows_move(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
-    renderer_state: State<'_, RenderState>,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
     from_index: usize,
     to_index: usize,
 ) {
@@ -208,8 +208,8 @@ pub fn score_flows_move(
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_flows_assign_player(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
-    renderer_state: State<'_, RenderState>,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
     flow_id: UniqueId,
     player_id: UniqueId,
 ) {
@@ -224,8 +224,8 @@ pub fn score_flows_assign_player(
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_flows_unassign_player(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
-    renderer_state: State<'_, RenderState>,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
     flow_id: UniqueId,
     player_id: UniqueId,
 ) {
@@ -240,8 +240,8 @@ pub fn score_flows_unassign_player(
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_flows_remove(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
-    renderer_state: State<'_, RenderState>,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
     flow_id: UniqueId,
 ) {
     let mut state = state.lock().unwrap();

@@ -1,4 +1,4 @@
-use crate::{AppState, RenderState};
+use crate::{AppContextState, RendererContextState};
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager, State};
 use tauri_plugin_store::StoreBuilder;
@@ -31,8 +31,8 @@ impl Preferences {
 #[tauri::command(rename_all = "snake_case")]
 pub async fn preferences_audition_set(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
-    renderer_state: State<'_, RenderState>,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
     audition: bool,
 ) -> Result<(), String> {
     let mut state = state.lock().unwrap();

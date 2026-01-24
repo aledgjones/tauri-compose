@@ -1,4 +1,4 @@
-use crate::{AppState, RenderState, NATIVE_RENDERER};
+use crate::{AppContextState, RendererContextState, NATIVE_RENDERER};
 use serde::{Deserialize, Serialize};
 use tauri::{Manager, State};
 
@@ -32,8 +32,8 @@ impl Renderer {
 #[tauri::command(rename_all = "snake_case")]
 pub fn ui_renderer_zoom_set(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
-    renderer_state: State<'_, RenderState>,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
     zoom: i32,
 ) -> (i32, f32, f32) {
     let mut state = state.lock().unwrap();
@@ -88,8 +88,8 @@ pub fn ui_renderer_zoom_set(
 #[tauri::command(rename_all = "snake_case")]
 pub fn ui_renderer_pan_set(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
-    renderer_state: State<'_, RenderState>,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
     x: f32,
     y: f32,
 ) -> (f32, f32) {
@@ -126,8 +126,8 @@ pub fn ui_renderer_pan_set(
 #[tauri::command(rename_all = "snake_case")]
 pub fn ui_renderer_bounds_set(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
-    renderer_state: State<'_, RenderState>,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
     px_per_mm: f32,
     bounds: RendererBounds,
 ) {
@@ -158,8 +158,8 @@ pub fn ui_renderer_bounds_set(
 #[tauri::command(rename_all = "snake_case")]
 pub fn ui_renderer_debug_rendering_toggle(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
-    renderer_state: State<'_, RenderState>,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
 ) {
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();

@@ -1,7 +1,7 @@
 use super::draw_staves::STAVE_LINE_WIDTH;
 use crate::render::parse::get_vertical_spacing::VerticalSpacing;
 use crate::render::parse::get_vertical_spans::VerticalSpans;
-use crate::renderer::Renderer;
+use crate::renderer::RendererContext;
 use crate::score::components::measurements::Point;
 use crate::score::components::text::{Align, Font, FontFamily, Justify};
 use skia_safe::Color;
@@ -10,7 +10,7 @@ pub fn draw_braces(
     origin: &Point,
     vertical_spans: &VerticalSpans,
     vertical_spacing: &VerticalSpacing,
-    renderer: &mut Renderer,
+    renderer: &mut RendererContext,
 ) {
     for brace in &vertical_spans.braces {
         let top = &vertical_spacing.staves[&brace.start];

@@ -1,7 +1,7 @@
 use crate::migrations::MIGRATIONS;
 use crate::ui::sequencer::Tool;
-use crate::AppState;
-use crate::RenderState;
+use crate::AppContextState;
+use crate::RendererContextState;
 use flate2::{read::GzDecoder, write::GzEncoder, Compression};
 use semver::Version;
 use serde_json::Value;
@@ -46,7 +46,7 @@ fn migrate_project_data(mut data: Value) -> Result<Value, String> {
 #[tauri::command(rename_all = "snake_case")]
 pub fn save_project_to_file(
     app: AppHandle,
-    state: State<'_, AppState>,
+    state: State<'_, AppContextState>,
     file_path: String,
 ) -> Result<(), String> {
     let mut state = state.lock().unwrap();
@@ -87,8 +87,8 @@ pub fn save_project_to_file(
 #[tauri::command(rename_all = "snake_case")]
 pub fn load_project_from_file(
     app: AppHandle,
-    state: State<'_, AppState>,
-    renderer_state: State<'_, RenderState>,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
     file_path: String,
 ) -> Result<(), String> {
     // Read the file
@@ -159,7 +159,7 @@ pub fn load_project_from_file(
 
 /// Get the current file path (if any)
 #[tauri::command(rename_all = "snake_case")]
-pub fn get_current_file_path(state: State<'_, AppState>) -> Option<String> {
+pub fn get_current_file_path(state: State<'_, AppContextState>) -> Option<String> {
     let state = state.lock().unwrap();
     state.current_file_path.clone()
 }
@@ -168,7 +168,7 @@ pub fn get_current_file_path(state: State<'_, AppState>) -> Option<String> {
 #[tauri::command(rename_all = "snake_case")]
 pub fn set_current_file_path(
     app: AppHandle,
-    state: State<'_, AppState>,
+    state: State<'_, AppContextState>,
     file_path: Option<String>,
 ) -> Result<(), String> {
     let mut state = state.lock().unwrap();
@@ -229,7 +229,7 @@ pub fn add_recent_file(app: AppHandle, file_path: String) -> Result<(), String> 
 
 /// Refresh the menu UI (called by frontend after window is ready)
 #[tauri::command(rename_all = "snake_case")]
-pub fn refresh_menus(app: AppHandle, state: State<'_, AppState>) -> Result<(), String> {
+pub fn refresh_menus(app: AppHandle, state: State<'_, AppContextState>) -> Result<(), String> {
     // Try to update recent files menu (don't fail if menu isn't ready)
     let _ = update_recent_files_menu(&app);
 

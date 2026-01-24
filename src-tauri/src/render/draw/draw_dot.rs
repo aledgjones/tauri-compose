@@ -1,5 +1,5 @@
 use crate::render::parse::get_dots::DotOffsets;
-use crate::renderer::Renderer;
+use crate::renderer::RendererContext;
 use crate::score::components::measurements::Point;
 use skia_safe::Color;
 
@@ -9,7 +9,7 @@ pub fn draw_dots(
     glyph_width: f32,
     has_post_shunt: bool,
     has_up_stem_flag: bool,
-    renderer: &mut Renderer,
+    renderer: &mut RendererContext,
 ) {
     let x = if has_post_shunt {
         origin.x + (glyph_width * 2.0) + 0.5

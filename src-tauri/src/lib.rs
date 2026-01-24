@@ -1,3 +1,4 @@
+mod audio;
 mod files;
 mod migrations;
 mod native_renderer;
@@ -9,6 +10,7 @@ mod score;
 mod ui;
 mod utils;
 
+use crate::audio::AudioContext;
 use crate::native_renderer::NativeRenderer;
 use files::{
     add_recent_file, clear_recent_files, get_current_file_path, get_recent_files,
@@ -19,7 +21,7 @@ use lazy_static::lazy_static;
 use preferences::{preferences_audition_set, Preferences};
 use render::generate_render_instructions;
 use renderer::hit_test::renderer_hit_test;
-use renderer::Renderer;
+use renderer::RendererContext;
 use sampler::Sampler;
 use score::config::{
     score_config_auto_count_styles_section_set, score_config_auto_count_styles_solo_set,
@@ -115,7 +117,7 @@ struct AppStateGeneral {
 }
 
 #[derive(Clone)]
-struct AppStateInner {
+struct AppContext {
     ui: Ui,
     score: Score,
     sampler: Sampler,
@@ -124,19 +126,24 @@ struct AppStateInner {
     current_file_path: Option<String>,
 }
 
-impl AppStateInner {
-    fn new() -> AppState {
+impl AppContext {
+    fn new() -> AppContextState {
         Mutex::new(Self {
             ui: Ui::new(),
             score: Score::new(),
             sampler: Sampler::default(),
-            preferences: Preferences { audition: true }, // Default values, will be loaded from store
+            preferences: Preferences { audition: true },
             next_id: 1,
             current_file_path: None,
         })
     }
 
-    fn render(&mut self, app: &tauri::AppHandle, renderer: &mut Renderer, recalculate: bool) {
+    fn render(
+        &mut self,
+        app: &tauri::AppHandle,
+        renderer: &mut RendererContext,
+        recalculate: bool,
+    ) {
         if recalculate {
             let layout_id = self
                 .ui
@@ -163,8 +170,8 @@ impl AppStateInner {
             }
             if let Some(native_renderer) = native_renderer_guard.as_mut() {
                 if let Ok((constrained_x, constrained_y)) = native_renderer.render(
-                    renderer,
                     app,
+                    renderer,
                     self.ui.renderer.pan_x,
                     self.ui.renderer.pan_y,
                     self.ui.renderer.zoom as f32 / 100.0,
@@ -177,7 +184,7 @@ impl AppStateInner {
         }
     }
 
-    fn emit(&mut self, app: &tauri::AppHandle, renderer: &mut Renderer, recalculate: bool) {
+    fn emit(&mut self, app: &tauri::AppHandle, renderer: &mut RendererContext, recalculate: bool) {
         self.render(app, renderer, recalculate);
 
         let general_state = AppStateGeneral {
@@ -205,16 +212,17 @@ impl AppStateInner {
     }
 }
 
-type AppState = Mutex<AppStateInner>;
-type RenderState = Mutex<Renderer>;
+type AppContextState = Mutex<AppContext>;
+type AudioContextState = Mutex<AudioContext>;
+type RendererContextState = Mutex<RendererContext>;
 
 const APP_NAME: &str = "Solo Compose";
 
 #[tauri::command(rename_all = "snake_case")]
 fn initialize(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
-    renderer_state: State<'_, RenderState>,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
 ) {
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
@@ -226,8 +234,8 @@ fn initialize(
 #[tauri::command(rename_all = "snake_case")]
 fn reset(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
-    renderer_state: State<'_, RenderState>,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
 ) {
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
@@ -257,19 +265,21 @@ pub fn run() {
 
     builder
         .setup(|app| {
-            app.manage(AppStateInner::new());
-            app.manage(Mutex::new(Renderer::new()));
+            app.manage(AppContext::new());
+            app.manage(RendererContext::new());
+            app.manage(AudioContext::new());
 
             // PREFERECES INITIALIZATION
             let app_handle = app.app_handle();
             let preferences = tauri::async_runtime::block_on(Preferences::new(app_handle.clone()));
-            let state = app.state::<AppState>();
+            let state = app.state::<AppContextState>();
             let mut state = state.lock().unwrap();
             state.preferences = preferences;
 
+            // MENU INITIALIZATION
             let separator = PredefinedMenuItem::separator(app)?;
 
-            // App menu
+            // App Menu
             let about = PredefinedMenuItem::about(
                 app,
                 Some(&format!("About {}", APP_NAME)),

@@ -1,6 +1,6 @@
 use crate::render::parse::get_vertical_spacing::VerticalSpacing;
 use crate::renderer::converter::Space;
-use crate::renderer::Renderer;
+use crate::renderer::RendererContext;
 use crate::score::components::measurements::Point;
 use crate::score::components::text::Font;
 use crate::score::engraves::Engrave;
@@ -12,7 +12,7 @@ pub fn draw_names(
     instruments: &Vec<&Instrument>,
     vertical_spacing: &VerticalSpacing,
     engrave: &Engrave,
-    renderer: &mut Renderer,
+    renderer: &mut RendererContext,
 ) {
     for instrument in instruments {
         let spacing = &vertical_spacing.instruments[&instrument.id];

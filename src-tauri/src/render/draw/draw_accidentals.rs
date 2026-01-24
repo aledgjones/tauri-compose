@@ -1,5 +1,5 @@
 use crate::render::parse::get_accidentals::AccidentalNotation;
-use crate::renderer::Renderer;
+use crate::renderer::RendererContext;
 use crate::score::components::measurements::Point;
 use crate::score::components::text::{Align, Font, FontFamily, Justify};
 use crate::score::entries::tone::Tone;
@@ -27,7 +27,7 @@ pub fn draw_accidental(
     glyph_width: f32,
     has_pre_shunt: bool,
     selection: Option<&Selection>,
-    renderer: &mut Renderer,
+    renderer: &mut RendererContext,
 ) {
     let glyph = tone.pitch.accidental.to_glyph();
     let slot_offset = get_accidental_slot_offset(accidental.slot, glyph_width, has_pre_shunt);

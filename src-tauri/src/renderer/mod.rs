@@ -3,9 +3,12 @@ pub mod fonts;
 pub mod hit_test;
 pub mod text_measurer;
 
+use std::sync::Mutex;
+
 use crate::score::components::measurements::{CurvePoint, Point};
 use crate::score::components::text::{Align, Font, FontFamily, Justify};
 use crate::ui::sequencer::Selection;
+use crate::RendererContextState;
 use converter::{Converter, Space};
 use skia_safe::Color;
 
@@ -65,7 +68,7 @@ pub struct HitTarget {
 }
 
 #[derive(Clone)]
-pub struct Renderer {
+pub struct RendererContext {
     pub converter: Converter,
     pub px_per_mm: f32,
     pub instructions: Vec<DrawInstruction>,
@@ -74,16 +77,16 @@ pub struct Renderer {
     pub hit_targets: Vec<HitTarget>,
 }
 
-impl Renderer {
-    pub fn new() -> Renderer {
-        Renderer {
+impl RendererContext {
+    pub fn new() -> RendererContextState {
+        Mutex::new(RendererContext {
             converter: Converter::new(1.0, 1.0),
             px_per_mm: 3.78,
             instructions: Vec::new(),
             width: 0.0,
             height: 0.0,
             hit_targets: Vec::new(),
-        }
+        })
     }
 
     pub fn clear(&mut self) {
@@ -208,11 +211,5 @@ impl Renderer {
             height: height_px,
             color,
         });
-    }
-}
-
-impl Default for Renderer {
-    fn default() -> Self {
-        Self::new()
     }
 }

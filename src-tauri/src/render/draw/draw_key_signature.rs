@@ -1,5 +1,5 @@
 use crate::renderer::converter::Space;
-use crate::renderer::Renderer;
+use crate::renderer::RendererContext;
 use crate::score::components::measurements::Point;
 use crate::score::components::pitch::Accidental;
 use crate::score::components::text::{Align, Font, FontFamily, Justify};
@@ -12,7 +12,7 @@ pub fn draw_key_signature(
     clef: &Clef,
     key_signature: &KeySignature,
     negate: bool,
-    renderer: &mut Renderer,
+    renderer: &mut RendererContext,
 ) {
     let glyph = if negate {
         Accidental::Natural.to_glyph()

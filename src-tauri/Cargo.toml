@@ -39,6 +39,7 @@ objc2-foundation = "0.3.2"
 objc2-quartz-core = "0.3.2"
 objc2-metal = "0.3.2"
 semver = "1.0.27"
+cpal = "0.17.1"
 
 [profile.release]
 # less code to include into binary

@@ -1,9 +1,9 @@
 use crate::score::flows::Flow;
 use crate::score::instruments::Instrument;
 use crate::score::layouts::Layout;
-use crate::AppStateInner;
+use crate::AppContext;
 
-impl AppStateInner {
+impl AppContext {
     pub fn get_instruments(&self, layout: &Layout, flow: &Flow) -> Vec<&Instrument> {
         let mut instruments: Vec<&Instrument> = Vec::new();
 

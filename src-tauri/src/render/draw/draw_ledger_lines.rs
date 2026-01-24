@@ -4,7 +4,7 @@ use crate::render::parse::get_shunts::{Shunt, Shunts};
 use crate::render::parse::get_tone_offsets::ToneVerticalOffsets;
 use crate::render::parse::get_written_durations::Notation;
 use crate::renderer::converter::Space;
-use crate::renderer::Renderer;
+use crate::renderer::RendererContext;
 use crate::score::components::duration::Tick;
 use crate::score::components::measurements::Point;
 use crate::score::components::pitch::Accidental;
@@ -45,7 +45,7 @@ fn draw_lines<T: Iterator<Item = i8>>(
     glyph_width: Space,
     shunts: &Shunts,
     offset_tweaks: &FxHashMap<i8, Vec<ToneAffectingLedger>>,
-    renderer: &mut Renderer,
+    renderer: &mut RendererContext,
 ) {
     let notehead = glyph_width;
 
@@ -137,7 +137,7 @@ pub fn draw_ledger_lines(
     shunts: &Shunts,
     accidentals: &Accidentals,
     tone_offsets: &ToneVerticalOffsets,
-    renderer: &mut Renderer,
+    renderer: &mut RendererContext,
 ) {
     let info = entry.info.as_ref().unwrap();
     let highest = info.highest;

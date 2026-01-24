@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use tauri::State;
 
-use crate::{utils::UniqueId, AppState, RenderState};
+use crate::{utils::UniqueId, AppContextState, RendererContextState};
 
 #[derive(Serialize_repr, Deserialize_repr, Clone)]
 #[repr(u8)]
@@ -43,8 +43,8 @@ impl Default for Setup {
 #[tauri::command(rename_all = "snake_case")]
 pub fn ui_setup_selection_set(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
-    renderer_state: State<'_, RenderState>,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
     selection_type: SetupSelectionType,
     id: UniqueId,
 ) {
@@ -59,8 +59,8 @@ pub fn ui_setup_selection_set(
 #[tauri::command(rename_all = "snake_case")]
 pub fn ui_setup_selection_clear(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
-    renderer_state: State<'_, RenderState>,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
 ) {
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
@@ -73,8 +73,8 @@ pub fn ui_setup_selection_clear(
 #[tauri::command(rename_all = "snake_case")]
 pub fn ui_setup_expanded_insert(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
-    renderer_state: State<'_, RenderState>,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
     id: UniqueId,
 ) {
     let mut state = state.lock().unwrap();
@@ -88,8 +88,8 @@ pub fn ui_setup_expanded_insert(
 #[tauri::command(rename_all = "snake_case")]
 pub fn ui_setup_expanded_remove(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
-    renderer_state: State<'_, RenderState>,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
     id: UniqueId,
 ) {
     let mut state = state.lock().unwrap();

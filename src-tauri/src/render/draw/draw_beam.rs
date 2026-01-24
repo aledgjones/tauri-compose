@@ -2,7 +2,7 @@ use crate::render::draw::draw_staves::STAVE_LINE_WIDTH;
 use crate::render::parse::get_beams::{Beam, FractionalDirection};
 use crate::render::parse::get_stem_directions::StemDirections;
 use crate::render::parse::get_stem_lengths::{StemDef, StemLengths};
-use crate::renderer::Renderer;
+use crate::renderer::RendererContext;
 use crate::score::components::duration::Direction;
 use crate::score::components::measurements::Point;
 use skia_safe::Color;
@@ -17,7 +17,7 @@ fn draw_beam_shape(
     end_x: f32,
     end_y: f32,
     draw_to_stem_length_tweak: f32,
-    renderer: &mut Renderer,
+    renderer: &mut RendererContext,
 ) {
     renderer.shape(
         Color::BLACK,
@@ -48,7 +48,7 @@ fn draw_outer_beam(
     stop: &StemDef,
     beam_angle: f32,
     draw_to_stem_length_tweak: f32,
-    renderer: &mut Renderer,
+    renderer: &mut RendererContext,
 ) {
     // Draw outer beam with calculated angle
     let start_x = start.tail.x - STEM_TWEAK;
@@ -74,7 +74,7 @@ fn draw_inner_beams(
     stem_directions: &StemDirections,
     beam_angle: f32,
     draw_to_stem_length_tweak: f32,
-    renderer: &mut Renderer,
+    renderer: &mut RendererContext,
 ) {
     // Draw inner beams using pre-calculated segments
     for (beam_index, segments) in &beam.beam_segments {
@@ -118,7 +118,7 @@ fn draw_fractional_beam(
     stem_direction: &Direction,
     direction: FractionalDirection,
     draw_to_stem_length_tweak: f32,
-    renderer: &mut Renderer,
+    renderer: &mut RendererContext,
 ) {
     let vertical_offset = beam_index as f32 * 0.75; // 0.5 beam + 0.25 gap
     let modifier = stem_direction.to_modifier() as f32;
@@ -154,7 +154,7 @@ pub fn draw_beam(
     beam: &Beam,
     stem_lengths: &StemLengths,
     stem_directions: &StemDirections,
-    renderer: &mut Renderer,
+    renderer: &mut RendererContext,
 ) {
     let start = &stem_lengths[&beam.start];
     let stop = &stem_lengths[&beam.stop];

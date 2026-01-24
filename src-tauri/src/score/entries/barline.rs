@@ -3,8 +3,8 @@ use crate::score::components::duration::Tick;
 use crate::score::components::measurements::BoundingBox;
 use crate::score::tracks::Track;
 use crate::utils::UniqueId;
-use crate::AppState;
-use crate::RenderState;
+use crate::AppContextState;
+use crate::RendererContextState;
 use serde::Deserialize;
 use serde::Serialize;
 use serde_repr::Deserialize_repr;
@@ -106,8 +106,8 @@ impl Track {
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_entries_barline_create(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
-    renderer_state: State<'_, RenderState>,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
     flow_id: UniqueId,
     tick: Tick,
     barline_draw_type: BarlineDrawType,
@@ -142,8 +142,8 @@ pub fn score_entries_barline_create(
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_entries_barline_clear(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
-    renderer_state: State<'_, RenderState>,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
     flow_id: UniqueId,
     tick: Tick,
 ) {

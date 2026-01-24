@@ -1,7 +1,7 @@
 use super::draw_staves::STAVE_LINE_WIDTH;
 use crate::render::parse::get_vertical_spacing::VerticalSpacing;
 use crate::render::parse::get_vertical_spans::VerticalSpans;
-use crate::renderer::Renderer;
+use crate::renderer::RendererContext;
 use crate::score::components::measurements::Point;
 use crate::score::entries::barline::BarlineDrawType;
 use skia_safe::Color;
@@ -11,7 +11,7 @@ pub fn draw_barline(
     draw_type: &BarlineDrawType,
     vertical_spacing: &VerticalSpacing,
     vertical_spans: &VerticalSpans,
-    renderer: &mut Renderer,
+    renderer: &mut RendererContext,
 ) {
     let tweak_for_stave_line_width = STAVE_LINE_WIDTH / 2.0;
 

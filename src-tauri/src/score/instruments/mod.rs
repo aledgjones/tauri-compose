@@ -3,7 +3,7 @@ pub mod defs;
 use super::{config::AutoCountStyle, Score};
 use crate::sampler::SamplerInstrument;
 use crate::utils::UniqueId;
-use crate::{score::players::PlayerType, AppState, RenderState};
+use crate::{score::players::PlayerType, AppContextState, RendererContextState};
 use defs::{get_instrument_definition, InstrumentType};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
@@ -106,8 +106,8 @@ impl Score {
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_instruments_create(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
-    renderer_state: State<'_, RenderState>,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
     definition_id: String,
 ) -> UniqueId {
     let mut state = state.lock().unwrap();
@@ -157,8 +157,8 @@ pub fn score_instruments_create(
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_instruments_move(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
-    renderer_state: State<'_, RenderState>,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
     from_index: usize,
     to_index: usize,
     from_player_id: UniqueId,
@@ -207,8 +207,8 @@ pub fn score_instruments_move(
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_instruments_remove(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
-    renderer_state: State<'_, RenderState>,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
     instrument_id: UniqueId,
 ) {
     let mut state = state.lock().unwrap();
@@ -224,7 +224,7 @@ pub fn score_instruments_remove(
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_instruments_set_volume(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
+    state: State<'_, AppContextState>,
     instrument_id: UniqueId,
     volume: u8,
 ) {
@@ -240,7 +240,7 @@ pub fn score_instruments_set_volume(
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_instruments_set_mute(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
+    state: State<'_, AppContextState>,
     instrument_id: UniqueId,
     mute: bool,
 ) {
@@ -256,7 +256,7 @@ pub fn score_instruments_set_mute(
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_instruments_set_solo(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
+    state: State<'_, AppContextState>,
     instrument_id: UniqueId,
     solo: bool,
 ) {

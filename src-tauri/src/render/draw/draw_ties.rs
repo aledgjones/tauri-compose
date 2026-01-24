@@ -2,7 +2,7 @@ use crate::render::parse::get_horizontal_spacing::{HorizontalSpacing, Slot};
 use crate::render::parse::get_shunts::{Shunt, Shunts};
 use crate::render::parse::get_tone_offsets::ToneVerticalOffsets;
 use crate::render::parse::get_written_durations::Notation;
-use crate::renderer::Renderer;
+use crate::renderer::RendererContext;
 use crate::score::components::duration::Direction;
 use crate::score::components::measurements::CurvePoint;
 use crate::score::components::measurements::Point;
@@ -231,7 +231,7 @@ pub fn draw_tie(
     horizontal_spacing: &HorizontalSpacing,
     shunts: &Shunts,
     tone_offsets: &ToneVerticalOffsets,
-    renderer: &mut Renderer,
+    renderer: &mut RendererContext,
 ) {
     let offset = *tone_offsets.get(tone_id).unwrap();
 
@@ -278,7 +278,7 @@ pub fn draw_ties(
     horizontal_spacing: &HorizontalSpacing,
     shunts: &Shunts,
     tone_offsets: &ToneVerticalOffsets,
-    renderer: &mut Renderer,
+    renderer: &mut RendererContext,
 ) {
     for (tick, entry) in &notation.track {
         if entry.has_tie() {

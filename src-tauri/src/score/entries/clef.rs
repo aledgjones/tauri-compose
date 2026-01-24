@@ -3,8 +3,8 @@ use crate::score::components::{duration::Tick, measurements::BoundingBox};
 use crate::score::flows::Flow;
 use crate::score::tracks::{Track, Tracks};
 use crate::utils::UniqueId;
-use crate::AppState;
-use crate::RenderState;
+use crate::AppContextState;
+use crate::RendererContextState;
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use tauri::State;
@@ -107,8 +107,8 @@ impl Flow {
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_entries_clef_create(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
-    renderer_state: State<'_, RenderState>,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
     flow_id: UniqueId,
     stave_id: UniqueId,
     tick: Tick,
@@ -149,8 +149,8 @@ pub fn score_entries_clef_create(
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_entries_clef_clear(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
-    renderer_state: State<'_, RenderState>,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
     flow_id: UniqueId,
     stave_id: UniqueId,
     tick: Tick,
