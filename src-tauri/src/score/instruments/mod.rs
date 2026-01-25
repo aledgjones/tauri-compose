@@ -1,7 +1,6 @@
 pub mod defs;
 
 use super::{config::AutoCountStyle, Score};
-use crate::sampler::SamplerInstrument;
 use crate::utils::UniqueId;
 use crate::{score::players::PlayerType, AppContextState, RendererContextState};
 use defs::{get_instrument_definition, InstrumentType};
@@ -137,19 +136,8 @@ pub fn score_instruments_create(
         .by_id
         .insert(instrument_id, instrument);
 
-    // Add default sampler state
-    state.sampler.insert(
-        instrument_id,
-        SamplerInstrument {
-            volume: 80,
-            solo: false,
-            mute: false,
-        },
-    );
-
     let mut renderer = renderer_state.lock().unwrap();
     state.emit(&app, &mut renderer, true);
-    state.emit_sampler(&app);
 
     instrument_id
 }
@@ -200,6 +188,7 @@ pub fn score_instruments_move(
     }
 
     state.score.update_counts();
+
     let mut renderer = renderer_state.lock().unwrap();
     state.emit(&app, &mut renderer, true);
 }
@@ -214,57 +203,7 @@ pub fn score_instruments_remove(
     let mut state = state.lock().unwrap();
 
     state.score.instruments.by_id.remove(&instrument_id);
-    state.sampler.remove(&instrument_id);
 
     let mut renderer = renderer_state.lock().unwrap();
     state.emit(&app, &mut renderer, true);
-    state.emit_sampler(&app);
-}
-
-#[tauri::command(rename_all = "snake_case")]
-pub fn score_instruments_set_volume(
-    app: tauri::AppHandle,
-    state: State<'_, AppContextState>,
-    instrument_id: UniqueId,
-    volume: u8,
-) {
-    let mut state = state.lock().unwrap();
-
-    if let Some(sampler_instrument) = state.sampler.get_mut(&instrument_id) {
-        sampler_instrument.volume = volume;
-    }
-
-    state.emit_sampler(&app);
-}
-
-#[tauri::command(rename_all = "snake_case")]
-pub fn score_instruments_set_mute(
-    app: tauri::AppHandle,
-    state: State<'_, AppContextState>,
-    instrument_id: UniqueId,
-    mute: bool,
-) {
-    let mut state = state.lock().unwrap();
-
-    if let Some(sampler_instrument) = state.sampler.get_mut(&instrument_id) {
-        sampler_instrument.mute = mute;
-    }
-
-    state.emit_sampler(&app);
-}
-
-#[tauri::command(rename_all = "snake_case")]
-pub fn score_instruments_set_solo(
-    app: tauri::AppHandle,
-    state: State<'_, AppContextState>,
-    instrument_id: UniqueId,
-    solo: bool,
-) {
-    let mut state = state.lock().unwrap();
-
-    if let Some(sampler_instrument) = state.sampler.get_mut(&instrument_id) {
-        sampler_instrument.solo = solo;
-    }
-
-    state.emit_sampler(&app);
 }

@@ -531,7 +531,7 @@ pub fn generate_render_instructions(
     }
 
     // Debug: draw slot visualization
-    if state.ui.renderer.debug_rendering {
+    if state.ui.renderer.debug {
         draw_debug_layer(
             &horizontal_spacing,
             stave_left,

@@ -71,6 +71,11 @@ export const actions = {
       player_type,
     });
   },
+  audio: {
+    setDevice: (device_name: string) => {
+      return invoke("audio_device_set", { device_name });
+    },
+  },
   ui: {
     setTab: (tab: Tab) => {
       return invoke("ui_tab_set", { tab });
@@ -108,8 +113,8 @@ export const actions = {
       ) => {
         return invoke("ui_renderer_bounds_set", { bounds, px_per_mm });
       },
-      toggleDebugRendering: () => {
-        return invoke("ui_renderer_debug_rendering_toggle");
+      toggleDebug: () => {
+        return invoke("ui_renderer_debug_toggle");
       },
       getSelectionCoordinates: () => {
         return invoke<[number, number] | null>("ui_get_selection_coordinates");
@@ -427,24 +432,6 @@ export const actions = {
       remove: (instrument_id: number) => {
         return invoke<number>("score_instruments_remove", {
           instrument_id,
-        });
-      },
-      setVolume: (instrument_id: number, volume: number) => {
-        return invoke("score_instruments_set_volume", {
-          instrument_id,
-          volume,
-        });
-      },
-      setMute: (instrument_id: number, mute: boolean) => {
-        return invoke("score_instruments_set_mute", {
-          instrument_id,
-          mute,
-        });
-      },
-      setSolo: (instrument_id: number, solo: boolean) => {
-        return invoke("score_instruments_set_solo", {
-          instrument_id,
-          solo,
         });
       },
     },

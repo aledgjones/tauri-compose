@@ -14,7 +14,6 @@ import { useMemo } from "react";
 import { getLayoutName, getFlowName } from "../../services/utils";
 import { Write } from "./screens/write";
 import { Sequence } from "./screens/sequence";
-import { PlaybackProvider } from "../../services/playback";
 
 const tabs: TabsOption<Tab>[] = [
   { label: "Setup", value: Tab.Setup },
@@ -50,74 +49,72 @@ export const Main = () => {
   }, [state]);
 
   return (
-    <PlaybackProvider appState={state}>
-      <div className="h-dvh w-dvw grid grid-rows-[30px_48px_1fr] bg-transparent p-0.75">
-        <AppBar title="Solo Compose" />
-        <div className="flex items-center p-2 bg-neutral-900">
-          <div className="flex flex-1">
-            <Tabs
-              className="flex justify-start w-96.75"
-              value={state.ui.tab}
-              options={tabs}
-              onChange={actions.ui.setTab}
-            />
-            <div className="bg-neutral-900 flex-1 ml-0.5" />
-          </div>
-
-          <div className="flex flex-1 justify-center">
-            <div className="bg-neutral-900 flex-1 mr-0.5" />
-
-            <Select
-              variant="standard"
-              className="mr-0.5 inline-block"
-              value={state.ui.layout_id ?? state.score.layouts.order[0] ?? null}
-              onChange={actions.ui.setActiveLayoutId}
-              options={layouts}
-              placeholder="No layouts yet..."
-              disabled={layouts.length === 0}
-            />
-
-            <Select
-              variant="standard"
-              className="mr-0.5 inline-block"
-              value={state.ui.flow_id ?? state.score.flows.order[0] ?? null}
-              onChange={actions.ui.setActiveFlowId}
-              options={flows}
-              placeholder="No flows yet..."
-              disabled={flows.length === 0}
-            />
-
-            <Transport className="mr-0.5" />
-
-            <IconButton
-              className="mr-0.5 text-white"
-              variant="interactive"
-              onClick={() => {}}
-              path={mdiTuneVertical}
-              isDisabled
-            />
-            <IconButton
-              className="text-white"
-              variant="interactive"
-              onClick={() => {}}
-              path={mdiMovieRoll}
-              isDisabled
-            />
-
-            <div className="bg-neutral-900 flex-1 ml-0.5" />
-          </div>
-
-          <div className="flex flex-1">
-            <div className="bg-neutral-900 flex-1" />
-            <Tools />
-          </div>
+    <div className="h-dvh w-dvw grid grid-rows-[30px_48px_1fr] bg-transparent p-0.75">
+      <AppBar title="Solo Compose" />
+      <div className="flex items-center p-2 bg-neutral-900">
+        <div className="flex flex-1">
+          <Tabs
+            className="flex justify-start w-96.75"
+            value={state.ui.tab}
+            options={tabs}
+            onChange={actions.ui.setTab}
+          />
+          <div className="bg-neutral-900 flex-1 ml-0.5" />
         </div>
 
-        {state.ui.tab === Tab.Setup && <Setup />}
-        {state.ui.tab === Tab.Write && <Write />}
-        {state.ui.tab === Tab.Sequence && <Sequence />}
-        {[Tab.Engrave, Tab.Print].includes(state.ui.tab) && <NotFound />}
+        <div className="flex flex-1 justify-center">
+          <div className="bg-neutral-900 flex-1 mr-0.5" />
+
+          <Select
+            variant="standard"
+            className="mr-0.5 inline-block"
+            value={state.ui.layout_id ?? state.score.layouts.order[0] ?? null}
+            onChange={actions.ui.setActiveLayoutId}
+            options={layouts}
+            placeholder="No layouts yet..."
+            disabled={layouts.length === 0}
+          />
+
+          <Select
+            variant="standard"
+            className="mr-0.5 inline-block"
+            value={state.ui.flow_id ?? state.score.flows.order[0] ?? null}
+            onChange={actions.ui.setActiveFlowId}
+            options={flows}
+            placeholder="No flows yet..."
+            disabled={flows.length === 0}
+          />
+
+          <Transport className="mr-0.5" />
+
+          <IconButton
+            className="mr-0.5 text-white"
+            variant="interactive"
+            onClick={() => {}}
+            path={mdiTuneVertical}
+            isDisabled
+          />
+          <IconButton
+            className="text-white"
+            variant="interactive"
+            onClick={() => {}}
+            path={mdiMovieRoll}
+            isDisabled
+          />
+
+          <div className="bg-neutral-900 flex-1 ml-0.5" />
+        </div>
+
+        <div className="flex flex-1">
+          <div className="bg-neutral-900 flex-1" />
+          <Tools />
+        </div>
       </div>
-    </PlaybackProvider>
+
+      {state.ui.tab === Tab.Setup && <Setup />}
+      {state.ui.tab === Tab.Write && <Write />}
+      {state.ui.tab === Tab.Sequence && <Sequence />}
+      {[Tab.Engrave, Tab.Print].includes(state.ui.tab) && <NotFound />}
+    </div>
   );
 };

@@ -7,7 +7,7 @@ pub struct Renderer {
     pub zoom: i32,
     pub pan_x: f32,
     pub pan_y: f32,
-    pub debug_rendering: bool,
+    pub debug: bool,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -24,7 +24,7 @@ impl Renderer {
             zoom: 100,
             pan_x: 100.0,
             pan_y: 100.0,
-            debug_rendering: false,
+            debug: false,
         }
     }
 }
@@ -156,7 +156,7 @@ pub fn ui_renderer_bounds_set(
 }
 
 #[tauri::command(rename_all = "snake_case")]
-pub fn ui_renderer_debug_rendering_toggle(
+pub fn ui_renderer_debug_toggle(
     app: tauri::AppHandle,
     state: State<'_, AppContextState>,
     renderer_state: State<'_, RendererContextState>,
@@ -164,7 +164,7 @@ pub fn ui_renderer_debug_rendering_toggle(
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
 
-    state.ui.renderer.debug_rendering = !state.ui.renderer.debug_rendering;
+    state.ui.renderer.debug = !state.ui.renderer.debug;
 
     state.emit(&app, &mut renderer, true);
 }

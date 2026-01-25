@@ -135,14 +135,6 @@ export type Instrument = {
   count: string | null;
 };
 
-export type SamplerInstrument = {
-  volume: number;
-  solo: boolean;
-  mute: boolean;
-};
-
-export type Sampler = Record<UniqueId, SamplerInstrument>;
-
 export type Instruments = {
   by_id: Record<UniqueId, Instrument>;
 };
@@ -363,7 +355,7 @@ export type AppState = {
       pan_x: number;
       pan_y: number;
       bounds: { x: number; y: number; width: number; height: number };
-      debug_rendering: boolean;
+      debug: boolean;
     };
     sequencer: {
       x: number;
@@ -403,4 +395,14 @@ export type AppState = {
     audition: boolean;
   };
   current_file_path: string | null;
+};
+
+export type Device = {
+  name: string;
+  is_default: boolean;
+};
+
+export type AudioState = {
+  devices: Device[];
+  selected_device: string;
 };

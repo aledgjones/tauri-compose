@@ -23,7 +23,6 @@
     "core:window:allow-set-title",
     "opener:default",
     "dialog:default",
-    "fs:default",
-    "store:default"
+    "fs:default"
   ]
 }

@@ -1,6 +1,7 @@
 import {
   Align,
   AppState,
+  AudioState,
   AutoCountStyle,
   BottomPanelTab,
   BracketingApproach,
@@ -9,7 +10,6 @@ import {
   Justify,
   LayoutType,
   NoteDuration,
-  Sampler,
   Tab,
   Tool,
 } from "../types";
@@ -27,7 +27,7 @@ export const initialAppState: AppState = {
       pan_x: 0,
       pan_y: 0,
       bounds: { x: 0, y: 0, width: 0, height: 0 },
-      debug_rendering: false,
+      debug: false,
     },
     sequencer: {
       x: 0,
@@ -150,7 +150,13 @@ export const initialAppState: AppState = {
 };
 
 export const AppContext = createContext<AppState | null>(null);
-export const SamplerContext = createContext<Sampler | null>(null);
+
+export const initialAudioState: AudioState = {
+  devices: [],
+  selected_device: "",
+};
+
+export const AudioContext = createContext<AudioState | null>(null);
 
 export const useAppState = () => {
   const context = useContext(AppContext);
@@ -162,11 +168,11 @@ export const useAppState = () => {
   return context;
 };
 
-export const useSamplerState = () => {
-  const context = useContext(SamplerContext);
+export const useAudioState = () => {
+  const context = useContext(AudioContext);
 
   if (!context) {
-    throw new Error("useSamplerState must be used within an AppStateProvider");
+    throw new Error("useAudioState must be used within an AppStateProvider");
   }
 
   return context;

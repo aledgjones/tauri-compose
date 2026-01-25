@@ -27,6 +27,16 @@ export const useBottomPanelState = () => {
   }, [instruments]);
 
   const flowId = useMemo(() => {
+    if (state.score.flows.order.length === 0) {
+      return null;
+    }
+
+    const id = state.ui.flow_id || state.score.flows.order[0] || null;
+
+    if (id && state.score.flows.by_id[id]) {
+      return id;
+    }
+
     return state.score.flows.order[0] || null;
   }, [state]);
 

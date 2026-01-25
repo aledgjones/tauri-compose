@@ -1,35 +1,56 @@
 use crate::{AppContextState, RendererContextState};
 use serde::{Deserialize, Serialize};
+use sled::Db;
 use tauri::{AppHandle, Manager, State};
-use tauri_plugin_store::StoreBuilder;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Preferences {
     pub audition: bool,
+    #[serde(skip)]
+    db: Option<Db>,
 }
 
 impl Preferences {
-    pub async fn new(app: AppHandle) -> Self {
-        let store_path = app
-            .path()
-            .app_config_dir()
-            .unwrap()
-            .join("preferences.store");
+    pub fn new(app: &AppHandle) -> Self {
+        let db_path = app.path().app_config_dir().unwrap().join("preferences");
+        let db = sled::open(&db_path).ok();
 
-        let store = StoreBuilder::new(&app, store_path).build().unwrap();
+        let mut prefs = Self { audition: true, db };
 
-        let audition = store
-            .get("audition")
-            .and_then(|v| v.as_bool())
-            .unwrap_or(true);
+        if let Ok(Some(audition)) = prefs.load("audition") {
+            prefs.audition = audition;
+        }
 
-        Self { audition }
+        prefs
+    }
+
+    pub fn load<T: for<'de> Deserialize<'de>>(&self, key: &str) -> Result<Option<T>, String> {
+        if let Some(ref db) = self.db {
+            if let Ok(Some(value)) = db.get(key.as_bytes()) {
+                let deserialized = serde_json::from_slice(&value).map_err(|e| e.to_string())?;
+                Ok(Some(deserialized))
+            } else {
+                Ok(None)
+            }
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub fn persist<T: Serialize>(&self, key: &str, value: &T) -> Result<(), String> {
+        if let Some(ref db) = self.db {
+            let value_bytes = serde_json::to_vec(value).map_err(|e| e.to_string())?;
+            db.insert(key.as_bytes(), value_bytes)
+                .map_err(|e| e.to_string())?;
+            db.flush().map_err(|e| e.to_string())?;
+        }
+        Ok(())
     }
 }
 
 // App-wide preferences update and emit
 #[tauri::command(rename_all = "snake_case")]
-pub async fn preferences_audition_set(
+pub fn preferences_audition_set(
     app: tauri::AppHandle,
     state: State<'_, AppContextState>,
     renderer_state: State<'_, RendererContextState>,
@@ -37,21 +58,10 @@ pub async fn preferences_audition_set(
 ) -> Result<(), String> {
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
+
     state.preferences.audition = audition;
+    state.preferences.persist("audition", &audition)?;
 
-    // Persist to store
-    let store_path = app
-        .path()
-        .app_config_dir()
-        .unwrap()
-        .join("preferences.store");
-    let store = StoreBuilder::new(&app, store_path)
-        .build()
-        .map_err(|e| e.to_string())?;
-    store.set("audition", audition);
-    store.save().map_err(|e| e.to_string())?;
-
-    // Emit state change
     state.emit(&app, &mut renderer, false);
 
     Ok(())

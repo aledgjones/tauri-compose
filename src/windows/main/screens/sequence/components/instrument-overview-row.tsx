@@ -1,12 +1,15 @@
 import { FC, useMemo } from "react";
 import { Instrument } from "../../../../../services/types";
-import { useSamplerState } from "../../../../../services/state";
 import { IconButton } from "../../../../../ui/icon-button";
 import { mdiSizeM, mdiSizeS } from "@mdi/js";
-import { actions } from "../../../../../services/actions";
-import { sampler } from "../../../../../sampler";
 import { TokenizedText } from "../../../../../ui/text";
 import classNames from "classnames";
+
+// TODO hook this up properly
+const samplerState: Record<
+  string,
+  { volume: number; solo: boolean; mute: boolean }
+> = {};
 
 interface InstrumentOverviewRowProps {
   instrument: Instrument;
@@ -19,35 +22,13 @@ export const InstrumentOverviewRow: FC<InstrumentOverviewRowProps> = ({
   color,
   isDisabled,
 }) => {
-  const samplerState = useSamplerState();
-
   const { isMuted, isSoloed } = useMemo(() => {
     const state = samplerState[instrument.id];
     return {
       isMuted: state?.mute || false,
       isSoloed: state?.solo || false,
     };
-  }, [samplerState, instrument.id]);
-
-  const handleToggleMute = () => {
-    const newMuted = !isMuted;
-    actions.score.instrument.setMute(instrument.id, newMuted);
-    if (newMuted) {
-      sampler.mute(instrument.id.toString());
-    } else {
-      sampler.unmute(instrument.id.toString());
-    }
-  };
-
-  const handleToggleSolo = () => {
-    const newSoloed = !isSoloed;
-    actions.score.instrument.setSolo(instrument.id, newSoloed);
-    if (newSoloed) {
-      sampler.solo(instrument.id.toString());
-    } else {
-      sampler.unsolo(instrument.id.toString());
-    }
-  };
+  }, [instrument.id]);
 
   return (
     <div
@@ -71,14 +52,14 @@ export const InstrumentOverviewRow: FC<InstrumentOverviewRowProps> = ({
             variant="filled"
             size={0.8}
             isSelected={isSoloed}
-            onClick={handleToggleSolo}
+            onClick={() => {}}
           />
           <IconButton
             path={mdiSizeM}
             variant="filled"
             size={0.8}
             isSelected={isMuted}
-            onClick={handleToggleMute}
+            onClick={() => {}}
           />
         </div>
       )}

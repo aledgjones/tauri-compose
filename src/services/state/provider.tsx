@@ -1,11 +1,15 @@
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
-import { AppState, Sampler } from "../types";
+import { AppState, AudioState } from "../types";
 import { actions } from "../actions";
-import { useSampler } from "../use-sampler";
 import { FC, PropsWithChildren, useEffect, useState } from "react";
-import { AppContext, initialAppState, SamplerContext } from "./context";
+import {
+  AppContext,
+  initialAppState,
+  initialAudioState,
+  AudioContext,
+} from "./context";
 
 type Props = PropsWithChildren<{ isMainWindow?: boolean }>;
 
@@ -14,13 +18,11 @@ export const AppStateProvider: FC<Props> = ({
   isMainWindow = false,
 }) => {
   const [appState, setAppState] = useState<AppState>(initialAppState);
-  const [samplerState, setSamplerState] = useState<Sampler>({});
-
-  useSampler(appState, samplerState);
+  const [audioState, setAudioState] = useState<AudioState>(initialAudioState);
 
   useEffect(() => {
     let unlistenApp: UnlistenFn | null = null;
-    let unlistenSampler: UnlistenFn | null = null;
+    let unlistenAudio: UnlistenFn | null = null;
     let unlistenMenuSave: UnlistenFn | null = null;
     let unlistenMenuSaveAs: UnlistenFn | null = null;
     let unlistenMenuOpen: UnlistenFn | null = null;
@@ -34,8 +36,8 @@ export const AppStateProvider: FC<Props> = ({
         setAppState(e.payload);
       });
 
-      unlistenSampler = await listen<Sampler>("soloc://state/sampler", (e) => {
-        setSamplerState(e.payload);
+      unlistenAudio = await listen<AudioState>("soloc://state/audio", (e) => {
+        setAudioState(e.payload);
       });
 
       if (isMainWindow) {
@@ -98,7 +100,7 @@ export const AppStateProvider: FC<Props> = ({
 
     return () => {
       unlistenApp?.();
-      unlistenSampler?.();
+      unlistenAudio?.();
       unlistenMenuSave?.();
       unlistenMenuSaveAs?.();
       unlistenMenuOpen?.();
@@ -111,9 +113,9 @@ export const AppStateProvider: FC<Props> = ({
 
   return (
     <AppContext.Provider value={appState}>
-      <SamplerContext.Provider value={samplerState}>
+      <AudioContext.Provider value={audioState}>
         {children}
-      </SamplerContext.Provider>
+      </AudioContext.Provider>
     </AppContext.Provider>
   );
 };

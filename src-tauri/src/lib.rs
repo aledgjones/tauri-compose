@@ -1,17 +1,16 @@
-mod audio;
 mod files;
 mod migrations;
 mod native_renderer;
+mod playback;
 mod preferences;
 mod render;
 mod renderer;
-mod sampler;
 mod score;
 mod ui;
 mod utils;
 
-use crate::audio::AudioContext;
 use crate::native_renderer::NativeRenderer;
+use crate::playback::audio::{audio_device_set, AudioContext};
 use files::{
     add_recent_file, clear_recent_files, get_current_file_path, get_recent_files,
     load_project_from_file, refresh_menus, save_project_to_file, set_current_file_path,
@@ -22,7 +21,6 @@ use preferences::{preferences_audition_set, Preferences};
 use render::generate_render_instructions;
 use renderer::hit_test::renderer_hit_test;
 use renderer::RendererContext;
-use sampler::Sampler;
 use score::config::{
     score_config_auto_count_styles_section_set, score_config_auto_count_styles_solo_set,
 };
@@ -60,7 +58,6 @@ use score::instruments::defs::{
 };
 use score::instruments::{
     score_instruments_create, score_instruments_move, score_instruments_remove,
-    score_instruments_set_mute, score_instruments_set_solo, score_instruments_set_volume,
 };
 use score::layouts::{
     score_layouts_assign_flow, score_layouts_assign_player, score_layouts_create,
@@ -82,10 +79,9 @@ use score::Score;
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
 use tauri::menu::{AboutMetadata, Menu, MenuItem, PredefinedMenuItem, Submenu};
-use tauri::{Emitter, Manager, State};
+use tauri::{AppHandle, Emitter, Manager, State};
 use ui::renderer::{
-    ui_renderer_bounds_set, ui_renderer_debug_rendering_toggle, ui_renderer_pan_set,
-    ui_renderer_zoom_set,
+    ui_renderer_bounds_set, ui_renderer_debug_toggle, ui_renderer_pan_set, ui_renderer_zoom_set,
 };
 use ui::screens::sequence::{
     ui_sequence_bottom_panel_minimized_toggle, ui_sequence_bottom_panel_tab_set,
@@ -120,19 +116,17 @@ struct AppStateGeneral {
 struct AppContext {
     ui: Ui,
     score: Score,
-    sampler: Sampler,
     preferences: Preferences,
     next_id: UniqueId,
     current_file_path: Option<String>,
 }
 
 impl AppContext {
-    fn new() -> AppContextState {
+    fn new(app_handle: &AppHandle) -> AppContextState {
         Mutex::new(Self {
             ui: Ui::new(),
             score: Score::new(),
-            sampler: Sampler::default(),
-            preferences: Preferences { audition: true },
+            preferences: Preferences::new(app_handle),
             next_id: 1,
             current_file_path: None,
         })
@@ -199,12 +193,6 @@ impl AppContext {
         }
     }
 
-    fn emit_sampler(&self, app: &tauri::AppHandle) {
-        if let Err(e) = app.emit("soloc://state/sampler", &self.sampler) {
-            eprintln!("Failed to emit sampler state: {:?}", e);
-        }
-    }
-
     pub fn generate_id(&mut self) -> UniqueId {
         let id = self.next_id;
         self.next_id += 1;
@@ -220,20 +208,22 @@ const APP_NAME: &str = "Solo Compose";
 
 #[tauri::command(rename_all = "snake_case")]
 fn initialize(
-    app: tauri::AppHandle,
+    app: AppHandle,
     state: State<'_, AppContextState>,
     renderer_state: State<'_, RendererContextState>,
+    audio_state: State<'_, AudioContextState>,
 ) {
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
+    let audio = audio_state.lock().unwrap();
 
     state.emit(&app, &mut renderer, true);
-    state.emit_sampler(&app);
+    audio.emit(&app);
 }
 
 #[tauri::command(rename_all = "snake_case")]
 fn reset(
-    app: tauri::AppHandle,
+    app: AppHandle,
     state: State<'_, AppContextState>,
     renderer_state: State<'_, RendererContextState>,
 ) {
@@ -242,14 +232,12 @@ fn reset(
 
     state.ui = Ui::new();
     state.score = Score::new();
-    state.sampler = Sampler::default();
     state.next_id = 1;
     state.current_file_path = None;
 
     renderer.clear();
 
     state.emit(&app, &mut renderer, true);
-    state.emit_sampler(&app);
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -265,16 +253,11 @@ pub fn run() {
 
     builder
         .setup(|app| {
-            app.manage(AppContext::new());
+            let app_handle = app.app_handle();
+
+            app.manage(AppContext::new(app_handle));
             app.manage(RendererContext::new());
             app.manage(AudioContext::new());
-
-            // PREFERECES INITIALIZATION
-            let app_handle = app.app_handle();
-            let preferences = tauri::async_runtime::block_on(Preferences::new(app_handle.clone()));
-            let state = app.state::<AppContextState>();
-            let mut state = state.lock().unwrap();
-            state.preferences = preferences;
 
             // MENU INITIALIZATION
             let separator = PredefinedMenuItem::separator(app)?;
@@ -412,6 +395,7 @@ pub fn run() {
             get_recent_files,
             clear_recent_files,
             refresh_menus,
+            audio_device_set,
             preferences_audition_set,
             score_config_auto_count_styles_solo_set,
             score_config_auto_count_styles_section_set,
@@ -459,9 +443,6 @@ pub fn run() {
             score_instruments_get_patches,
             score_instruments_move,
             score_instruments_remove,
-            score_instruments_set_mute,
-            score_instruments_set_solo,
-            score_instruments_set_volume,
             score_layouts_create,
             score_layouts_rename,
             score_layouts_assign_flow,
@@ -490,13 +471,13 @@ pub fn run() {
             score_players_create,
             score_players_move,
             score_players_remove,
+            renderer_hit_test,
             ui_layout_id_set,
             ui_flow_id_set,
             ui_renderer_bounds_set,
-            ui_renderer_debug_rendering_toggle,
+            ui_renderer_debug_toggle,
             ui_renderer_pan_set,
             ui_renderer_zoom_set,
-            renderer_hit_test,
             ui_sequencer_coords_set,
             ui_sequencer_instrument_set,
             ui_sequencer_selection_clear,
@@ -519,7 +500,6 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
-        .plugin(tauri_plugin_store::Builder::new().build())
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

@@ -1,20 +1,21 @@
-import { FC, useMemo, useEffect } from "react";
+import { FC, useMemo } from "react";
 import { generateRainbowColors } from "../../../services/utils";
 import { MixerChannel } from "./mixer-channel";
-import { actions } from "../../../services/actions";
-import { sampler } from "../../../sampler";
 import { Instrument } from "../../../services/types";
 import { IconButton } from "../../../ui/icon-button";
 import { mdiSizeM, mdiSizeS } from "@mdi/js";
-import { useSamplerState } from "../../../services/state";
+
+// TODO hook this up properly
+const samplerState: Record<
+  string,
+  { volume: number; solo: boolean; mute: boolean }
+> = {};
 
 interface MixerToolbarProps {
   instruments: Instrument[];
 }
 
 export const MixerToolbar: FC<MixerToolbarProps> = ({ instruments }) => {
-  const samplerState = useSamplerState();
-
   const { hasSolo, hasMute } = useMemo(() => {
     let hasSolo = false;
     let hasMute = false;
@@ -39,7 +40,7 @@ export const MixerToolbar: FC<MixerToolbarProps> = ({ instruments }) => {
     }
 
     return { hasSolo, hasMute };
-  }, [samplerState, instruments]);
+  }, [instruments]);
 
   return (
     <>
@@ -48,31 +49,13 @@ export const MixerToolbar: FC<MixerToolbarProps> = ({ instruments }) => {
           path={mdiSizeS}
           isSelected={hasSolo}
           variant="interactive"
-          onClick={() => {
-            instruments.forEach((instrument) => {
-              actions.score.instrument.setSolo(instrument.id, !hasSolo);
-              if (hasSolo) {
-                sampler.unsolo(instrument.id.toString());
-              } else {
-                sampler.solo(instrument.id.toString());
-              }
-            });
-          }}
+          onClick={() => {}}
         />
         <IconButton
           path={mdiSizeM}
           isSelected={hasMute}
           variant="interactive"
-          onClick={() => {
-            instruments.forEach((instrument) => {
-              actions.score.instrument.setMute(instrument.id, !hasMute);
-              if (hasMute) {
-                sampler.unmute(instrument.id.toString());
-              } else {
-                sampler.mute(instrument.id.toString());
-              }
-            });
-          }}
+          onClick={() => {}}
         />
         <div className="bg-neutral-900 flex-1" />
       </div>
@@ -83,31 +66,9 @@ export const MixerToolbar: FC<MixerToolbarProps> = ({ instruments }) => {
 type Props = { instruments: Instrument[] };
 
 export const Mixer: FC<Props> = ({ instruments }) => {
-  const samplerState = useSamplerState();
   const instrumentColors = useMemo(() => {
     return generateRainbowColors(instruments.length);
   }, [instruments.length]);
-
-  // Initialize sampler volumes, mute, and solo states from state
-  useEffect(() => {
-    instruments.forEach((instrument) => {
-      const instrumentId = instrument.id.toString();
-      const state = samplerState[instrument.id];
-      if (state) {
-        sampler.volume(instrumentId, state.volume / 127.0);
-        if (state.mute) {
-          sampler.mute(instrumentId);
-        } else {
-          sampler.unmute(instrumentId);
-        }
-        if (state.solo) {
-          sampler.solo(instrumentId);
-        } else {
-          sampler.unsolo(instrumentId);
-        }
-      }
-    });
-  }, [instruments, samplerState]);
 
   return (
     <div className="flex w-full h-full overflow-auto gap-0.5">
@@ -125,28 +86,9 @@ export const Mixer: FC<Props> = ({ instruments }) => {
             volume={Math.round((state.volume / 127) * 100)}
             isMuted={state.mute}
             isSoloed={state.solo}
-            onVolumeChange={(volume: number) => {
-              actions.score.instrument.setVolume(instrument.id, volume);
-              sampler.volume(instrument.id.toString(), volume / 127.0);
-            }}
-            onToggleMute={() => {
-              const newMute = !state.mute;
-              actions.score.instrument.setMute(instrument.id, newMute);
-              if (newMute) {
-                sampler.mute(instrument.id.toString());
-              } else {
-                sampler.unmute(instrument.id.toString());
-              }
-            }}
-            onToggleSolo={() => {
-              const newSolo = !state.solo;
-              actions.score.instrument.setSolo(instrument.id, newSolo);
-              if (newSolo) {
-                sampler.solo(instrument.id.toString());
-              } else {
-                sampler.unsolo(instrument.id.toString());
-              }
-            }}
+            onVolumeChange={() => {}}
+            onToggleMute={() => {}}
+            onToggleSolo={() => {}}
           />
         );
       })}

@@ -5,7 +5,6 @@ import { useAppState } from "../../../services/state";
 import { pxPerMm } from "../../../utils/mm";
 import { useKeyboardShortcuts } from "../hooks/use-keyboard-shortcuts";
 import { hitTest } from "../../../services/hit-test";
-import { Expression, sampler } from "../../../sampler";
 import { Popover, PopoverState } from "../../../ui/popover";
 
 type Props = { className?: string };
@@ -106,31 +105,6 @@ export const Renderer: FC<Props> = ({ className }) => {
           hitResult.flow_id,
           hitResult.instrument_id,
         );
-
-        // Audition the selected tone only if it wasn't already selected
-        if (state.preferences.audition) {
-          const selection = state.ui.sequencer.selection;
-
-          if (
-            selection === null ||
-            selection.type !== "Tone" ||
-            selection.tone_id !== hitResult.tone_id
-          ) {
-            const track = state.score.tracks.by_id[hitResult.track_id];
-            if (track) {
-              const entry = track.entries.by_id[hitResult.tone_id];
-              if (entry && entry.type === "Tone") {
-                sampler.play(
-                  hitResult.instrument_id.toString(),
-                  Expression.Natural,
-                  entry.pitch.int,
-                  sampler.ctx.currentTime,
-                  0.5,
-                );
-              }
-            }
-          }
-        }
 
         return;
       }

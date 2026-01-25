@@ -1,5 +1,4 @@
 import { FC } from "react";
-import { usePlayback } from "../../../services/playback";
 import { TickConfig } from "../hooks/use-ticks";
 
 type PlaybackLineProps = {
@@ -8,7 +7,8 @@ type PlaybackLineProps = {
 };
 
 export const PlaybackLine: FC<PlaybackLineProps> = ({ ticks, height }) => {
-  const { currentTick } = usePlayback();
+  // TODO: Get current tick from transport
+  const currentTick = 0;
 
   // Calculate the x position based on the current tick
   const x = currentTick * ticks.tickWidth;

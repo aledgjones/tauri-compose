@@ -163,7 +163,6 @@ pub fn score_players_remove(
     let player = state.score.players.by_id.get(&player_id).unwrap();
     for instrument_id in player.instrument_ids.clone() {
         state.score.instruments.by_id.remove(&instrument_id);
-        state.sampler.remove(&instrument_id);
     }
 
     // cleanup player
@@ -187,5 +186,4 @@ pub fn score_players_remove(
 
     state.score.update_counts();
     state.emit(&app, &mut renderer, true);
-    state.emit_sampler(&app);
 }

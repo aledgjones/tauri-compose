@@ -5,13 +5,22 @@ use crate::RendererContextState;
 use flate2::{read::GzDecoder, write::GzEncoder, Compression};
 use semver::Version;
 use serde_json::Value;
+use sled::Db;
 use std::fs;
 use std::io::{Read, Write};
 use tauri::menu::{MenuItem, PredefinedMenuItem};
 use tauri::{AppHandle, Emitter, Manager, State};
-use tauri_plugin_store::StoreExt;
 
 const MAX_RECENT_FILES: usize = 10;
+
+fn get_recent_db(app: &AppHandle) -> Result<Db, String> {
+    let db_path = app
+        .path()
+        .app_config_dir()
+        .map_err(|e| e.to_string())?
+        .join("recent_files");
+    sled::open(&db_path).map_err(|e| e.to_string())
+}
 
 fn migrate_project_data(mut data: Value) -> Result<Value, String> {
     let file_version = data
@@ -55,7 +64,6 @@ pub fn save_project_to_file(
     let project_data = serde_json::json!({
         "ui": &state.ui,
         "score": &state.score,
-        "sampler": &state.sampler,
         "next_id": &state.next_id
     });
 
@@ -130,13 +138,6 @@ pub fn load_project_from_file(
         }
     }
 
-    // Load sampler state if present
-    if let Some(sampler_data) = project_data.get("sampler") {
-        if let Ok(sampler) = serde_json::from_value(sampler_data.clone()) {
-            state.sampler = sampler;
-        }
-    }
-
     // Load next_id if present
     if let Some(next_id_data) = project_data.get("next_id") {
         if let Ok(next_id) = serde_json::from_value(next_id_data.clone()) {
@@ -149,7 +150,6 @@ pub fn load_project_from_file(
 
     // Emit the updated state
     state.emit(&app, &mut renderer, true);
-    state.emit_sampler(&app);
 
     // Emit event to trigger menu refresh
     app.emit("soloc://recents-changed", ()).ok();
@@ -195,14 +195,13 @@ pub fn set_current_file_path(
 /// Add a file to recent files list
 #[tauri::command(rename_all = "snake_case")]
 pub fn add_recent_file(app: AppHandle, file_path: String) -> Result<(), String> {
-    let store = app
-        .store("store.json")
-        .map_err(|e| format!("Failed to access store: {}", e))?;
+    let db = get_recent_db(&app)?;
 
     // Get existing recent files
-    let mut recent_files: Vec<String> = store
-        .get("recent_files")
-        .and_then(|v| serde_json::from_value(v.clone()).ok())
+    let mut recent_files: Vec<String> = db
+        .get(b"recent_files")
+        .map_err(|e| e.to_string())?
+        .and_then(|v| serde_json::from_slice(&v).ok())
         .unwrap_or_default();
 
     // Remove the file if it already exists (we'll add it to the front)
@@ -214,12 +213,11 @@ pub fn add_recent_file(app: AppHandle, file_path: String) -> Result<(), String> 
     // Keep only the last MAX_RECENT_FILES
     recent_files.truncate(MAX_RECENT_FILES);
 
-    // Save to store
-    store.set("recent_files", serde_json::json!(recent_files));
-
-    store
-        .save()
-        .map_err(|e| format!("Failed to save store: {}", e))?;
+    // Save to DB
+    let data = serde_json::to_vec(&recent_files).map_err(|e| e.to_string())?;
+    db.insert(b"recent_files", data)
+        .map_err(|e| e.to_string())?;
+    db.flush().map_err(|e| e.to_string())?;
 
     // Emit event so frontend knows to update menu
     app.emit("soloc://recents-changed", ()).ok();
@@ -268,13 +266,12 @@ pub fn refresh_menus(app: AppHandle, state: State<'_, AppContextState>) -> Resul
 /// Get the list of recent files
 #[tauri::command(rename_all = "snake_case")]
 pub fn get_recent_files(app: AppHandle) -> Result<Vec<String>, String> {
-    let store = app
-        .store("store.json")
-        .map_err(|e| format!("Failed to access store: {}", e))?;
+    let db = get_recent_db(&app)?;
 
-    let recent_files: Vec<String> = store
-        .get("recent_files")
-        .and_then(|v| serde_json::from_value(v.clone()).ok())
+    let recent_files: Vec<String> = db
+        .get(b"recent_files")
+        .map_err(|e| e.to_string())?
+        .and_then(|v| serde_json::from_slice(&v).ok())
         .unwrap_or_default();
 
     Ok(recent_files)
@@ -283,15 +280,13 @@ pub fn get_recent_files(app: AppHandle) -> Result<Vec<String>, String> {
 /// Clear all recent files
 #[tauri::command(rename_all = "snake_case")]
 pub fn clear_recent_files(app: AppHandle) -> Result<(), String> {
-    let store = app
-        .store("store.json")
-        .map_err(|e| format!("Failed to access store: {}", e))?;
+    let db = get_recent_db(&app)?;
 
-    store.set("recent_files", serde_json::json!([]));
-
-    store
-        .save()
-        .map_err(|e| format!("Failed to save store: {}", e))?;
+    let empty: Vec<String> = vec![];
+    let data = serde_json::to_vec(&empty).map_err(|e| e.to_string())?;
+    db.insert(b"recent_files", data)
+        .map_err(|e| e.to_string())?;
+    db.flush().map_err(|e| e.to_string())?;
 
     // Emit event so frontend knows to update menu
     app.emit("soloc://recents-changed", ()).ok();
@@ -328,14 +323,12 @@ pub fn update_recent_files_menu(app: &AppHandle) -> Result<(), String> {
         recents.remove(&item).ok();
     }
 
-    // Get recent files from store
-    let store = app
-        .store("store.json")
-        .map_err(|e| format!("Failed to access store: {}", e))?;
-
-    let recent_files: Vec<String> = store
-        .get("recent_files")
-        .and_then(|v| serde_json::from_value(v.clone()).ok())
+    // Get recent files from DB
+    let db = get_recent_db(app)?;
+    let recent_files: Vec<String> = db
+        .get(b"recent_files")
+        .map_err(|e| e.to_string())?
+        .and_then(|v| serde_json::from_slice(&v).ok())
         .unwrap_or_default();
 
     // Add new items

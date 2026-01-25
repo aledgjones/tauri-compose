@@ -10,16 +10,13 @@ import {
   Tone,
   Track,
   UniqueId,
-  Selection,
 } from "../../../services/types";
 import { actions } from "../../../services/actions";
 import { SequencerTrackTone } from "./sequencer-track-tone";
-import { Expression, sampler } from "../../../sampler";
 import {
   getSequencerClickTarget,
   ClickTarget,
 } from "../../../services/sequencer-utils";
-import { useAppState } from "../../../services/state";
 
 const getSnappedXPosition = (
   x: number,
@@ -84,7 +81,6 @@ const handleWriteTool = async (
   slots: Slots,
   snapDuration: NoteDuration,
   instrumentId: UniqueId,
-  audition: boolean,
 ) => {
   const box = sequencerRef.current?.getBoundingClientRect();
   if (!box) {
@@ -146,17 +142,6 @@ const handleWriteTool = async (
     flow.id,
     instrumentId,
   );
-
-  // Audition the tone
-  if (audition) {
-    sampler.play(
-      instrumentId.toString(),
-      Expression.Natural,
-      pitch,
-      sampler.ctx.currentTime,
-      0.5,
-    );
-  }
 
   const handlePointerMove = async (e: PointerEvent) => {
     const x = e.clientX - box.left;
@@ -364,8 +349,6 @@ const handlePositionDragging = async (
   ticksPerSnap: number,
   flow: Flow,
   slots: Slots,
-  instrumentId: UniqueId,
-  audition: boolean,
 ) => {
   let lastPitch = originalTone.pitch.int;
   let lastTick = originalTone.tick;
@@ -402,16 +385,6 @@ const handlePositionDragging = async (
     if (newPitch !== lastPitch) {
       await actions.score.tone.setPitch(track.id, clickTarget.id, newPitch);
       lastPitch = newPitch;
-
-      if (audition) {
-        sampler.play(
-          instrumentId.toString(),
-          Expression.Natural,
-          newPitch,
-          sampler.ctx.currentTime,
-          0.5,
-        );
-      }
     }
 
     // Update tick if it changed
@@ -439,8 +412,6 @@ const handleSelectTool = async (
   slots: Slots,
   snapDuration: NoteDuration,
   instrumentId: UniqueId,
-  currentSelection: Selection | null,
-  audition: boolean,
 ) => {
   const clickTarget = getSequencerClickTarget(e.target as HTMLElement);
 
@@ -470,26 +441,6 @@ const handleSelectTool = async (
     flow.id,
     instrumentId,
   );
-
-  // Audition the selected tone only if it wasn't already selected
-  if (audition) {
-    if (
-      currentSelection === null ||
-      currentSelection.type !== "Tone" ||
-      currentSelection.tone_id !== clickTarget.id
-    ) {
-      const entry = track.entries.by_id[clickTarget.id];
-      if (entry && entry.type === "Tone") {
-        sampler.play(
-          instrumentId.toString(),
-          Expression.Natural,
-          entry.pitch.int,
-          sampler.ctx.currentTime,
-          0.5,
-        );
-      }
-    }
-  }
 
   const box = sequencerRef.current?.getBoundingClientRect();
   if (!box) {
@@ -555,8 +506,6 @@ const handleSelectTool = async (
       ticksPerSnap,
       flow,
       slots,
-      instrumentId,
-      audition,
     );
   }
 };
@@ -572,7 +521,6 @@ export const SequencerTrack: FC<SequencerTrackProps> = ({
   color,
 }) => {
   const sequencerRef = useRef<HTMLDivElement>(null);
-  const state = useAppState();
 
   const onPointerDown = useCallback(
     async (e: React.PointerEvent<HTMLDivElement>) => {
@@ -587,7 +535,6 @@ export const SequencerTrack: FC<SequencerTrackProps> = ({
             slots,
             snapDuration,
             instrumentId,
-            state.preferences.audition,
           );
           break;
 
@@ -601,8 +548,6 @@ export const SequencerTrack: FC<SequencerTrackProps> = ({
             slots,
             snapDuration,
             instrumentId,
-            state.ui.sequencer.selection ?? null,
-            state.preferences.audition,
           );
           break;
 
@@ -615,17 +560,7 @@ export const SequencerTrack: FC<SequencerTrackProps> = ({
           break;
       }
     },
-    [
-      flow,
-      slots,
-      snapDuration,
-      tool,
-      track,
-      instrumentId,
-      ticks,
-      state.ui.sequencer.selection,
-      state.preferences.audition,
-    ],
+    [flow, slots, snapDuration, tool, track, instrumentId, ticks],
   );
 
   const tones = useMemo(() => {

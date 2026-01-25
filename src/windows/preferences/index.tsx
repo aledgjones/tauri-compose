@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { AppBar } from "../../components/app-bar";
 import { Menu, MenuItem } from "../../ui/menu";
 import { NoteInputAndEditing } from "./screens/note-input-and-editing";
-import { DeviceSetup } from "./screens/device-setup";
+import { Playback } from "./screens/playback";
 
 enum MenuOption {
   Playback = 0,
@@ -54,7 +54,7 @@ export const Main = () => {
         <Menu selection={selection} items={options} onSelect={setSelection} />
       </div>
       <div className="overflow-auto flex flex-col gap-0.5 rounded-br-xl">
-        {selection === MenuOption.Playback && <DeviceSetup />}
+        {selection === MenuOption.Playback && <Playback />}
         {selection === MenuOption.NoteInputAndEditing && (
           <NoteInputAndEditing />
         )}

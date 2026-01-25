@@ -1,8 +1,7 @@
-import { FC, useEffect, useState, useRef, useMemo } from "react";
+import { FC, useMemo } from "react";
 import { mdiSizeM, mdiSizeS } from "@mdi/js";
 import { IconButton } from "../../../ui/icon-button";
 import { Fader } from "./fader";
-import { sampler, transport } from "../../../sampler";
 import { Instrument } from "../../../services/types";
 import { desaturateColor } from "../../../services/utils";
 import { TokenizedText } from "../../../ui/text";
@@ -30,51 +29,11 @@ export const MixerChannel: FC<MixerProps> = ({
   onToggleMute,
   onToggleSolo,
 }) => {
-  const [amplitude, setAmplitude] = useState(0);
-  const [playing, setPlaying] = useState(false);
-  const animationRef = useRef<number | null>(null);
-
   // Desaturate the color for background and fader border
   const desaturatedColor = useMemo(() => {
     return color ? desaturateColor(color, 0.25, 0.4) : undefined;
   }, [color]);
 
-  useEffect(() => {
-    const handleStart = () => setPlaying(true);
-    const handleStop = () => setPlaying(false);
-
-    transport.on("start", handleStart);
-    transport.on("stop", handleStop);
-    transport.on("pause", handleStop);
-
-    return () => {
-      transport.removeListener("start", handleStart);
-      transport.removeListener("stop", handleStop);
-      transport.removeListener("pause", handleStop);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!playing) {
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
-      }
-      return;
-    }
-
-    const updateAmplitude = () => {
-      setAmplitude(sampler.RMS(instrument.id.toString()));
-      animationRef.current = requestAnimationFrame(updateAmplitude);
-    };
-
-    updateAmplitude();
-
-    return () => {
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
-      }
-    };
-  }, [playing, instrument.id]);
   return (
     <div
       className="flex flex-col w-24 h-full"
@@ -85,7 +44,7 @@ export const MixerChannel: FC<MixerProps> = ({
         <Fader
           volume={volume}
           disabled={disabled}
-          amplitude={amplitude}
+          amplitude={0}
           color={color}
           borderColor={desaturatedColor}
           onChange={(val) => onVolumeChange(Math.round((val / 100) * 127))}

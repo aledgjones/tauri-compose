@@ -2,8 +2,6 @@ import { useEffect, useMemo } from "react";
 import { useAppState } from "../../../services/state";
 import { Accidental } from "../../../services/types";
 import { actions } from "../../../services/actions";
-import { sampler } from "../../../sampler";
-import { Expression } from "../../../sampler/types";
 
 type Modifiers = { command: boolean; control: boolean; option: boolean };
 
@@ -53,13 +51,8 @@ export const useKeyboardShortcuts = () => {
         return;
       }
 
-      sampler.play(
-        selectionInfo.instrumentId.toString(),
-        Expression.Natural,
-        pitch,
-        sampler.ctx.currentTime,
-        0.5,
-      );
+      // TODO: Implement tone auditioning
+      console.log(`Auditioning tone with pitch: ${pitch}`);
     };
 
     const shortcuts: Array<{

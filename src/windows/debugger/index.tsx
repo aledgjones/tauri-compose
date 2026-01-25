@@ -1,28 +1,17 @@
-import { useAppState, useSamplerState } from "../../services/state";
+import { useAppState, useAudioState } from "../../services/state";
 import { useEffect, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { listen } from "@tauri-apps/api/event";
 import { AppBar } from "../../components/app-bar";
-import { Select, SelectOption } from "../../ui/select";
 import { actions } from "../../services/actions";
-import { PopoverType } from "../../services/popovers";
 import { chromeDark, ObjectInspector } from "react-inspector";
 import classNames from "classnames";
 import { Switch } from "../../ui/switch";
 
-const POPOVERS: SelectOption<PopoverType>[] = [
-  { value: PopoverType.Barline, label: "Barline" },
-  { value: PopoverType.Clef, label: "Clef" },
-  { value: PopoverType.KeySignature, label: "Key Signature" },
-  { value: PopoverType.TimeSignature, label: "Time Signature" },
-];
-
 export const Main = () => {
   const state = useAppState();
-  const samplerState = useSamplerState();
-  const [popoverType, setPopoverType] = useState<PopoverType>(
-    PopoverType.Barline,
-  );
+  const audio = useAudioState();
+
   const [renderTimings, setRenderTimings] = useState<Record<string, number>>(
     {},
   );
@@ -71,12 +60,12 @@ export const Main = () => {
   }, []);
 
   return (
-    <div className="h-dvh bg-neutral-950 grid grid-rows-[28px_auto_auto_1fr_auto] gap-2 overflow-hidden">
+    <div className="h-dvh bg-neutral-950 grid grid-rows-[28px_auto_auto_1fr_1fr] gap-2 overflow-hidden">
       <AppBar title="Debugger" />
 
-      <div className="bg-neutral-900 p-2 mx-2">
+      <div className="mx-2">
         <button
-          className="text-sm font-bold text-neutral-200 bg-neutral-800 px-2 py-1 flex justify-between cursor-pointer hover:bg-neutral-700 w-full text-left border-none"
+          className="text-sm font-bold text-neutral-200 bg-neutral-900 p-2 flex justify-between cursor-pointer hover:bg-neutral-800 w-full text-left border-none"
           onClick={() => setLayoutCollapsed(!layoutCollapsed)}
           type="button"
           aria-expanded={!layoutCollapsed}
@@ -138,7 +127,7 @@ export const Main = () => {
           </span>
         </button>
         {!layoutCollapsed && (
-          <div className="px-2 py-1.5 bg-neutral-800">
+          <div className="px-2 py-1.5">
             <div className="flex items-center">
               <span className="text-xs text-neutral-400 flex-1">
                 Vertical spacing & staves
@@ -161,7 +150,7 @@ export const Main = () => {
                 μs
               </span>
             </div>
-            <div className="flex items-center bg-neutral-800">
+            <div className="flex items-center">
               <span className="text-xs text-neutral-400 flex-1">
                 Layout calculations
               </span>
@@ -180,7 +169,7 @@ export const Main = () => {
                 μs
               </span>
             </div>
-            <div className="flex items-center bg-neutral-800">
+            <div className="flex items-center">
               <span className="text-xs text-neutral-400 flex-1">
                 Score structure parsing
               </span>
@@ -204,7 +193,7 @@ export const Main = () => {
                 μs
               </span>
             </div>
-            <div className="flex items-center bg-neutral-800">
+            <div className="flex items-center">
               <span className="text-xs text-neutral-400 flex-1">
                 Written durations analysis
               </span>
@@ -226,7 +215,7 @@ export const Main = () => {
                 μs
               </span>
             </div>
-            <div className="flex items-center bg-neutral-800">
+            <div className="flex items-center">
               <span className="text-xs text-neutral-400 flex-1">
                 Musical elements analysis
               </span>
@@ -248,7 +237,7 @@ export const Main = () => {
                 μs
               </span>
             </div>
-            <div className="flex items-center bg-neutral-800">
+            <div className="flex items-center">
               <span className="text-xs text-neutral-400 flex-1">
                 Horizontal spacing
               </span>
@@ -267,7 +256,7 @@ export const Main = () => {
                 μs
               </span>
             </div>
-            <div className="flex items-center bg-neutral-800">
+            <div className="flex items-center">
               <span className="text-xs text-neutral-400 flex-1">
                 Stem length calculations
               </span>
@@ -289,7 +278,7 @@ export const Main = () => {
         )}
 
         <button
-          className="text-sm font-bold text-neutral-200 bg-neutral-800 px-2 py-1 flex justify-between cursor-pointer hover:bg-neutral-700 w-full text-left border-none"
+          className="text-sm font-bold text-neutral-200 bg-neutral-900 p-2 flex justify-between cursor-pointer hover:bg-neutral-800 w-full text-left border-none"
           onClick={() => setRenderCollapsed(!renderCollapsed)}
           type="button"
           aria-expanded={!renderCollapsed}
@@ -331,7 +320,7 @@ export const Main = () => {
           </span>
         </button>
         {!renderCollapsed && (
-          <div className="px-2 py-1.5 bg-neutral-800">
+          <div className="px-2 py-1.5">
             <div className="flex items-center">
               <span className="text-xs text-neutral-400 flex-1">
                 Basic drawing setup
@@ -350,7 +339,7 @@ export const Main = () => {
                 {(renderTimings["render-timing-setup"] || 0).toLocaleString()}μs
               </span>
             </div>
-            <div className="flex items-center bg-neutral-800">
+            <div className="flex items-center">
               <span className="text-xs text-neutral-400 flex-1">
                 Barline rendering
               </span>
@@ -372,7 +361,7 @@ export const Main = () => {
                 μs
               </span>
             </div>
-            <div className="flex items-center bg-neutral-800">
+            <div className="flex items-center">
               <span className="text-xs text-neutral-400 flex-1">
                 Stave contents rendering
               </span>
@@ -394,7 +383,7 @@ export const Main = () => {
         )}
 
         <button
-          className="text-sm font-bold text-neutral-200 bg-neutral-800 px-2 py-1 flex justify-between cursor-pointer hover:bg-neutral-700 w-full text-left border-none"
+          className="text-sm font-bold text-neutral-200 bg-neutral-900 p-2 flex justify-between cursor-pointer hover:bg-neutral-800 w-full text-left border-none"
           onClick={() => setGpuCollapsed(!gpuCollapsed)}
           type="button"
           aria-expanded={!gpuCollapsed}
@@ -436,7 +425,7 @@ export const Main = () => {
           </span>
         </button>
         {!gpuCollapsed && (
-          <div className="px-2 py-1.5 bg-neutral-800">
+          <div className="px-2 py-1.5">
             <div className="flex items-center">
               <span className="text-xs text-neutral-400 flex-1">
                 GPU surface & canvas setup
@@ -462,7 +451,7 @@ export const Main = () => {
                 μs
               </span>
             </div>
-            <div className="flex items-center bg-neutral-800">
+            <div className="flex items-center">
               <span className="text-xs text-neutral-400 flex-1">
                 GPU drawing execution
               </span>
@@ -487,7 +476,7 @@ export const Main = () => {
                 μs
               </span>
             </div>
-            <div className="flex items-center bg-neutral-800">
+            <div className="flex items-center">
               <span className="text-xs text-neutral-400 flex-1">
                 GPU flush & Metal commands
               </span>
@@ -519,8 +508,8 @@ export const Main = () => {
       <div className="bg-neutral-900 p-2 mx-2 flex items-center">
         <Switch
           label="Render Spacing Debugging"
-          value={state.ui.renderer.debug_rendering}
-          onChange={() => actions.ui.renderer.toggleDebugRendering()}
+          value={state.ui.renderer.debug}
+          onChange={() => actions.ui.renderer.toggleDebug()}
         />
       </div>
 
@@ -529,7 +518,8 @@ export const Main = () => {
           data={{
             ui: state.ui,
             score: state.score,
-            sampler: samplerState,
+            preferences: state.preferences,
+            current_file_path: state.current_file_path,
           }}
           theme={
             {
@@ -541,123 +531,17 @@ export const Main = () => {
         />
       </div>
 
-      <div className="bg-neutral-900 p-2 mx-2 z-50 mb-2 flex flex-col gap-2">
-        <Select
-          className="flex-1"
-          direction="up"
-          variant="filled"
-          options={POPOVERS}
-          value={popoverType}
-          onChange={setPopoverType}
+      <div className="bg-neutral-900 p-2 overflow-auto mx-2">
+        <ObjectInspector
+          data={audio}
+          theme={
+            {
+              ...chromeDark,
+              BASE_BACKGROUND_COLOR: "transparent",
+            } as unknown as string
+          }
+          expandPaths={["$"]}
         />
-
-        {popoverType === PopoverType.Barline && (
-          <div className="text-white text-xs p-2 bg-neutral-800 flex-1">
-            <div className="flex">
-              <pre className="pr-8 font-bold w-50">Clear At Tick</pre>
-              <pre className="">"clear"</pre>
-            </div>
-            <div className="flex">
-              <pre className="pr-8 font-bold w-50">Normal (Single)</pre>
-              <pre className="">"|", "single", "normal"</pre>
-            </div>
-            <div className="flex">
-              <pre className="pr-8 font-bold w-50">Double</pre>
-              <pre className="">"||", "double"</pre>
-            </div>
-            <div className="flex">
-              <pre className="pr-8 font-bold w-50">Triple</pre>
-              <pre className="">"|||", "triple"</pre>
-            </div>
-            <div className="flex">
-              <pre className="pr-8 font-bold w-50">Dashed</pre>
-              <pre className="">":", "dash", "dashed"</pre>
-            </div>
-            <div className="flex">
-              <pre className="pr-8 font-bold w-50">Final</pre>
-              <pre className="">"|]", "final"</pre>
-            </div>
-            <div className="flex">
-              <pre className="pr-8 font-bold w-50">Start Repeat</pre>
-              <pre className="">"|:", "start"</pre>
-            </div>
-            <div className="flex">
-              <pre className="pr-8 font-bold w-50">End Repeat</pre>
-              <pre className="">":|", "end"</pre>
-            </div>
-            <div className="flex">
-              <pre className="pr-8 font-bold w-50">End/Start Repeat</pre>
-              <pre className="">":|:", ":||:", "end-start", "endstart"</pre>
-            </div>
-          </div>
-        )}
-
-        {popoverType === PopoverType.Clef && (
-          <div className="text-white text-xs p-2 bg-neutral-800 flex-1">
-            <div className="flex">
-              <pre className="pr-8 font-bold w-50">Clear At Tick</pre>
-              <pre className="">"clear"</pre>
-            </div>
-            <div className="flex">
-              <pre className="pr-8 font-bold w-50">Treble</pre>
-              <pre className="">"treble", "G", "g"</pre>
-            </div>
-            <div className="flex">
-              <pre className="pr-8 font-bold w-50">Alto</pre>
-              <pre className="">"alto", "CA", "ca"</pre>
-            </div>
-            <div className="flex">
-              <pre className="pr-8 font-bold w-50">Tenor</pre>
-              <pre className="">"tenor", "CT", "ct"</pre>
-            </div>
-            <div className="flex">
-              <pre className="pr-8 font-bold w-50">Bass</pre>
-              <pre className="">"bass", "F", "f"</pre>
-            </div>
-          </div>
-        )}
-
-        {popoverType === PopoverType.KeySignature && (
-          <div className="text-white text-xs p-2 bg-neutral-800 flex-1">
-            <div className="flex">
-              <pre className="pr-8 font-bold w-50">Clear At Tick</pre>
-              <pre className="">"clear"</pre>
-            </div>
-            <div className="flex">
-              <pre className="pr-8 font-bold w-50">Open/Atonal</pre>
-              <pre className="">"open", "atonal"</pre>
-            </div>
-            <div className="flex">
-              <pre className="pr-8 font-bold w-50">Major Keys (uppercase)</pre>
-              <pre className="">"C", "G", "G#", "Ab" etc.</pre>
-            </div>
-            <div className="flex">
-              <pre className="pr-8 font-bold w-50">Minor Keys (lowercase)</pre>
-              <pre className="">"c", "g", "g#", "ab" etc.</pre>
-            </div>
-          </div>
-        )}
-
-        {popoverType === PopoverType.TimeSignature && (
-          <div className="text-white text-xs p-2 bg-neutral-800 flex-1">
-            <div className="flex">
-              <pre className="pr-8 font-bold w-50">Clear At Tick</pre>
-              <pre className="">"clear"</pre>
-            </div>
-            <div className="flex">
-              <pre className="pr-8 font-bold w-50">Simple time signatures</pre>
-              <pre className="">"2/4", "6/8", "3/4", "5/4"</pre>
-            </div>
-            <div className="flex">
-              <pre className="pr-8 font-bold w-50">Common Time</pre>
-              <pre className="">"c"</pre>
-            </div>
-            <div className="flex">
-              <pre className="pr-8 font-bold w-50">Cut Common Time</pre>
-              <pre className="">"cutc"</pre>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
