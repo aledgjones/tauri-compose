@@ -521,6 +521,7 @@ export const Main = () => {
             preferences: state.preferences,
             current_file_path: state.current_file_path,
           }}
+          name="state"
           theme={
             {
               ...chromeDark,
@@ -534,6 +535,7 @@ export const Main = () => {
       <div className="bg-neutral-900 p-2 overflow-auto mx-2">
         <ObjectInspector
           data={audio}
+          name="audio"
           theme={
             {
               ...chromeDark,
