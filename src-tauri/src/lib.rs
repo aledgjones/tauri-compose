@@ -151,7 +151,7 @@ impl AppContext {
         if renderer.backend.is_none() {
             if let Some(window) = app.get_webview_window("main") {
                 if let Ok(backend) = MetalRenderer::new(&window) {
-                    renderer.set_backend(Box::new(backend));
+                    renderer.set_backend(backend);
                 }
             }
         }

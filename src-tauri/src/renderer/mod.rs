@@ -6,6 +6,7 @@ pub mod hit_test;
 pub mod text_measurer;
 
 use crate::renderer::backend::RenderBackend;
+use crate::renderer::backends::metal::MetalRenderer;
 use crate::score::components::measurements::{CurvePoint, Point};
 use crate::score::components::text::{Align, Font, FontFamily, Justify};
 use crate::ui::sequencer::Selection;
@@ -80,7 +81,7 @@ pub struct HitTarget {
 }
 
 pub struct RendererContext {
-    pub backend: Option<Box<dyn RenderBackend>>,
+    pub backend: Option<MetalRenderer>,
     pub converter: Converter,
     pub px_per_mm: f32,
     pub instructions: Vec<DrawInstruction>,
@@ -165,7 +166,7 @@ impl RendererContext {
         }
     }
 
-    pub fn set_backend(&mut self, backend: Box<dyn RenderBackend>) {
+    pub fn set_backend(&mut self, backend: MetalRenderer) {
         self.backend = Some(backend);
     }
 
