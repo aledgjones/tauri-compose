@@ -1,16 +1,18 @@
+pub mod backend;
+pub mod backends;
 pub mod converter;
 pub mod fonts;
 pub mod hit_test;
 pub mod text_measurer;
 
-use std::sync::Mutex;
-
+use crate::renderer::backend::RenderBackend;
 use crate::score::components::measurements::{CurvePoint, Point};
 use crate::score::components::text::{Align, Font, FontFamily, Justify};
 use crate::ui::sequencer::Selection;
 use crate::RendererContextState;
 use converter::{Converter, Space};
 use skia_safe::Color;
+use std::sync::Mutex;
 
 #[derive(Clone)]
 pub enum DrawInstruction {
@@ -67,8 +69,8 @@ pub struct HitTarget {
     pub popover_y: f32,
 }
 
-#[derive(Clone)]
 pub struct RendererContext {
+    pub backend: Option<Box<dyn RenderBackend>>,
     pub converter: Converter,
     pub px_per_mm: f32,
     pub instructions: Vec<DrawInstruction>,
@@ -80,6 +82,7 @@ pub struct RendererContext {
 impl RendererContext {
     pub fn new() -> RendererContextState {
         Mutex::new(RendererContext {
+            backend: None,
             converter: Converter::new(1.0, 1.0),
             px_per_mm: 3.78,
             instructions: Vec::new(),
@@ -94,6 +97,33 @@ impl RendererContext {
         self.hit_targets.clear();
         self.width = 0.0;
         self.height = 0.0;
+    }
+
+    pub fn render(
+        &mut self,
+        app: &tauri::AppHandle,
+        pan_x: f32,
+        pan_y: f32,
+        zoom: f32,
+    ) -> Result<(f32, f32), Box<dyn std::error::Error>> {
+        if let Some(backend) = &mut self.backend {
+            backend.render(
+                app,
+                self.width,
+                self.height,
+                &self.instructions,
+                &self.converter,
+                pan_x,
+                pan_y,
+                zoom,
+            )
+        } else {
+            Ok((pan_x, pan_y))
+        }
+    }
+
+    pub fn set_backend(&mut self, backend: Box<dyn RenderBackend>) {
+        self.backend = Some(backend);
     }
 
     pub fn line(&mut self, width: Space, color: skia_safe::Color, points: Vec<Point>) {

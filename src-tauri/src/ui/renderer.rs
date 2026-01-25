@@ -1,4 +1,4 @@
-use crate::{AppContextState, RendererContextState, NATIVE_RENDERER};
+use crate::{AppContextState, RendererContextState};
 use serde::{Deserialize, Serialize};
 use tauri::{Manager, State};
 
@@ -46,32 +46,28 @@ pub fn ui_renderer_zoom_set(
     let new_zoom = clamped_zoom as f32 / 100.0;
 
     // Calculate zoom around center of bounds
-    let (new_pan_x, new_pan_y) = if let Ok(native_renderer_lock) = NATIVE_RENDERER.lock() {
-        if let Some(native) = native_renderer_lock.as_ref() {
-            let bounds = native.get_bounds();
-            let center_x = bounds.2 / 2.0; // width / 2
-            let center_y = bounds.3 / 2.0; // height / 2
+    let (new_pan_x, new_pan_y) = if let Some(native) = renderer.backend.as_ref() {
+        let bounds = native.get_bounds();
+        let center_x = bounds.2 / 2.0; // width / 2
+        let center_y = bounds.3 / 2.0; // height / 2
 
-            // Calculate world position at center before zoom
-            let world_x = (center_x - state.ui.renderer.pan_x) / old_zoom;
-            let world_y = (center_y - state.ui.renderer.pan_y) / old_zoom;
+        // Calculate world position at center before zoom
+        let world_x = (center_x - state.ui.renderer.pan_x) / old_zoom;
+        let world_y = (center_y - state.ui.renderer.pan_y) / old_zoom;
 
-            // Calculate new pan to keep same world position at center
-            let new_pan_x = center_x - world_x * new_zoom;
-            let new_pan_y = center_y - world_y * new_zoom;
+        // Calculate new pan to keep same world position at center
+        let new_pan_x = center_x - world_x * new_zoom;
+        let new_pan_y = center_y - world_y * new_zoom;
 
-            // Constrain the new pan values
-            native.constrain_pan(
-                new_pan_x,
-                new_pan_y,
-                renderer.width,
-                renderer.height,
-                new_zoom,
-                &renderer.converter,
-            )
-        } else {
-            (state.ui.renderer.pan_x, state.ui.renderer.pan_y)
-        }
+        // Constrain the new pan values
+        native.constrain_pan(
+            new_pan_x,
+            new_pan_y,
+            renderer.width,
+            renderer.height,
+            new_zoom,
+            &renderer.converter,
+        )
     } else {
         (state.ui.renderer.pan_x, state.ui.renderer.pan_y)
     };
@@ -97,19 +93,15 @@ pub fn ui_renderer_pan_set(
     let mut renderer = renderer_state.lock().unwrap();
 
     // Get the clamped values from the native renderer
-    let (clamped_x, clamped_y) = if let Ok(native_renderer_lock) = NATIVE_RENDERER.lock() {
-        if let Some(native) = native_renderer_lock.as_ref() {
-            native.constrain_pan(
-                x,
-                y,
-                renderer.width,
-                renderer.height,
-                state.ui.renderer.zoom as f32 / 100.0,
-                &renderer.converter,
-            )
-        } else {
-            (x, y)
-        }
+    let (clamped_x, clamped_y) = if let Some(native) = renderer.backend.as_ref() {
+        native.constrain_pan(
+            x,
+            y,
+            renderer.width,
+            renderer.height,
+            state.ui.renderer.zoom as f32 / 100.0,
+            &renderer.converter,
+        )
     } else {
         (x, y)
     };
@@ -139,16 +131,8 @@ pub fn ui_renderer_bounds_set(
     // Directly update native renderer bounds if it exists
     if let Some(window) = app.get_webview_window("main") {
         let scale = window.scale_factor().unwrap_or(1.0);
-        if let Ok(mut guard) = crate::NATIVE_RENDERER.lock() {
-            if let Some(ref mut native_renderer) = *guard {
-                let _ = native_renderer.update_bounds(
-                    bounds.x,
-                    bounds.y,
-                    bounds.width,
-                    bounds.height,
-                    scale,
-                );
-            }
+        if let Some(backend) = renderer.backend.as_mut() {
+            let _ = backend.update_bounds(bounds.x, bounds.y, bounds.width, bounds.height, scale);
         }
     }
 

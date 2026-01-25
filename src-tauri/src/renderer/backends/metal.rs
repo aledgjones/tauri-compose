@@ -1,6 +1,7 @@
 #![allow(non_snake_case)]
 
-use crate::renderer::{converter::Converter, fonts::FONTS, DrawInstruction, RendererContext};
+use crate::renderer::backend::RenderBackend;
+use crate::renderer::{converter::Converter, fonts::FONTS, DrawInstruction};
 use crate::score::components::text::{Align, FontFamily, Justify};
 use objc2::rc::{autoreleasepool, Retained};
 use objc2::runtime::ProtocolObject;
@@ -71,7 +72,7 @@ fn draw_scrollbar(canvas: &Canvas, x: f32, y: f32, width: f32, height: f32) {
 }
 
 #[allow(dead_code)]
-pub struct NativeRenderer {
+pub struct MetalRenderer {
     context: DirectContext,
     metal_layer: CAMetalLayerRetained,
     skia_view: NSViewRetained,
@@ -82,7 +83,7 @@ pub struct NativeRenderer {
     scale: f64,                   // Device pixel ratio (e.g., 2.0 on retina)
 }
 
-impl NativeRenderer {
+impl MetalRenderer {
     pub fn new(window: &WebviewWindow) -> Result<Self, Box<dyn Error>> {
         let mtm = MainThreadMarker::new().ok_or("Not on main thread")?;
 
@@ -183,149 +184,6 @@ impl NativeRenderer {
         })
     }
 
-    pub fn update_bounds(
-        &mut self,
-        x: f32,
-        y: f32,
-        width: f32,
-        height: f32,
-        scale: f64,
-    ) -> Result<(), Box<dyn Error>> {
-        // Bounds come in as CSS pixels (points) - use directly
-        // JS coordinates: (0,0) is top-left, Y increases downward
-        // AppKit coordinates: (0,0) is bottom-left, Y increases upward
-        let content_view =
-            unsafe { self.skia_view.superview() }.ok_or("Failed to get superview")?;
-        let content_frame = (*content_view).frame();
-        let content_height = content_frame.size.height;
-
-        // Convert web coordinates to AppKit coordinates
-        let appkit_x = x as f64;
-        let appkit_y = content_height - y as f64 - height as f64;
-
-        // Update the view frame (in CSS pixels/points)
-        let frame = NSRect::new(
-            NSPoint::new(appkit_x, appkit_y),
-            NSSize::new(width as f64, height as f64),
-        );
-
-        self.skia_view.setFrame(frame);
-        self.metal_layer.setFrame(frame);
-        self.metal_layer.setContentsScale(scale);
-
-        self.metal_layer
-            .setDrawableSize(NSSize::new(width as f64 * scale, height as f64 * scale));
-
-        // Store the bounds (CSS pixels) and scale
-        self.bounds = (x, y, width, height);
-        self.scale = scale;
-
-        Ok(())
-    }
-
-    pub fn get_bounds(&self) -> (f32, f32, f32, f32) {
-        self.bounds
-    }
-
-    pub fn constrain_pan(
-        &self,
-        pan_x: f32,
-        pan_y: f32,
-        page_width_spaces: f32,
-        page_height_spaces: f32,
-        zoom: f32,
-        converter: &Converter,
-    ) -> (f32, f32) {
-        // Convert page dimensions from spaces to CSS pixels
-        let page_width_px = converter.spaces_to_px(page_width_spaces);
-        let page_height_px = converter.spaces_to_px(page_height_spaces);
-
-        // Get bounds in CSS pixels
-        let bounds_width = self.bounds.2;
-        let bounds_height = self.bounds.3;
-
-        // Calculate scaled page dimensions
-        let scaled_page_width = page_width_px * zoom;
-        let scaled_page_height = page_height_px * zoom;
-
-        // Constrain horizontal and vertical pan
-        let constrained_pan_x = constrain_dimension(pan_x, scaled_page_width, bounds_width);
-        let constrained_pan_y = constrain_dimension(pan_y, scaled_page_height, bounds_height);
-
-        (constrained_pan_x, constrained_pan_y)
-    }
-
-    pub fn render(
-        &mut self,
-        app: &tauri::AppHandle,
-        renderer: &RendererContext,
-        pan_x: f32,
-        pan_y: f32,
-        zoom: f32,
-    ) -> Result<(f32, f32), Box<dyn Error>> {
-        let total_start = Instant::now();
-
-        autoreleasepool(|_| -> Result<(f32, f32), Box<dyn Error>> {
-            // Skip rendering if bounds are zero (used for screens that don't show rendered score)
-            if self.bounds.2 == 0.0 || self.bounds.3 == 0.0 {
-                return Ok((pan_x, pan_y));
-            }
-
-            let (constrained_pan_x, constrained_pan_y) = self.constrain_pan(
-                pan_x,
-                pan_y,
-                renderer.width,
-                renderer.height,
-                zoom,
-                &renderer.converter,
-            );
-
-            let setup_start = Instant::now();
-
-            if let Some((mut surface, texture_width, texture_height, drawable)) =
-                self.setup_surface()
-            {
-                let setup_duration = setup_start.elapsed();
-                let draw_start = Instant::now();
-                let canvas = surface.canvas();
-                self.draw_background(canvas, texture_width, texture_height);
-                self.render_instructions(
-                    canvas,
-                    renderer,
-                    constrained_pan_x,
-                    constrained_pan_y,
-                    zoom,
-                );
-                self.draw_scrollbars(canvas, renderer, constrained_pan_x, constrained_pan_y, zoom);
-                let draw_duration = draw_start.elapsed();
-                let flush_start = Instant::now();
-                self.flush_and_present(drawable)?;
-                let flush_duration = flush_start.elapsed();
-                let total_duration = total_start.elapsed();
-                // Emit timing events for native rendering
-                let _ = app.emit(
-                    "native-render-timing-setup",
-                    setup_duration.as_micros() as u64,
-                );
-                let _ = app.emit(
-                    "native-render-timing-draw",
-                    draw_duration.as_micros() as u64,
-                );
-                let _ = app.emit(
-                    "native-render-timing-flush",
-                    flush_duration.as_micros() as u64,
-                );
-                let _ = app.emit(
-                    "native-render-timing-total",
-                    total_duration.as_micros() as u64,
-                );
-                Ok((constrained_pan_x, constrained_pan_y))
-            } else {
-                Ok((pan_x, pan_y))
-            }
-        })
-    }
-
     fn setup_surface(&mut self) -> Option<(Surface, i32, i32, MetalDrawable)> {
         if let Some(drawable) = self.metal_layer.nextDrawable() {
             let texture = drawable.texture();
@@ -384,7 +242,7 @@ impl NativeRenderer {
     fn render_instructions(
         &self,
         canvas: &Canvas,
-        renderer: &RendererContext,
+        instructions: &[DrawInstruction],
         pan_x: f32,
         pan_y: f32,
         zoom: f32,
@@ -401,7 +259,7 @@ impl NativeRenderer {
             self.bounds.3 / zoom,
         );
         canvas.clip_rect(clip_rect, ClipOp::Intersect, true);
-        for instruction in &renderer.instructions {
+        for instruction in instructions {
             match instruction {
                 DrawInstruction::Line {
                     width,
@@ -561,10 +419,13 @@ impl NativeRenderer {
         canvas.restore();
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn draw_scrollbars(
         &self,
         canvas: &Canvas,
-        renderer: &RendererContext,
+        width: f32,
+        height: f32,
+        converter: &Converter,
         constrained_pan_x: f32,
         constrained_pan_y: f32,
         zoom: f32,
@@ -572,8 +433,8 @@ impl NativeRenderer {
         canvas.save();
         canvas.scale((self.scale as f32, self.scale as f32));
 
-        let page_width_px = renderer.converter.spaces_to_px(renderer.width);
-        let page_height_px = renderer.converter.spaces_to_px(renderer.height);
+        let page_width_px = converter.spaces_to_px(width);
+        let page_height_px = converter.spaces_to_px(height);
         let scaled_page_width = page_width_px * zoom;
         let scaled_page_height = page_height_px * zoom;
 
@@ -652,7 +513,176 @@ impl NativeRenderer {
     }
 }
 
+impl RenderBackend for MetalRenderer {
+    fn render(
+        &mut self,
+        app: &tauri::AppHandle,
+        width: f32,
+        height: f32,
+        instructions: &[DrawInstruction],
+        converter: &Converter,
+        pan_x: f32,
+        pan_y: f32,
+        zoom: f32,
+    ) -> Result<(f32, f32), Box<dyn Error>> {
+        let total_start = Instant::now();
+
+        autoreleasepool(|_| -> Result<(f32, f32), Box<dyn Error>> {
+            // Skip rendering if bounds are zero (used for screens that don't show rendered score)
+            if self.bounds.2 == 0.0 || self.bounds.3 == 0.0 {
+                return Ok((pan_x, pan_y));
+            }
+
+            let (constrained_pan_x, constrained_pan_y) = {
+                // Inline constrain_pan logic
+                // Convert page dimensions from spaces to CSS pixels
+                let page_width_px = converter.spaces_to_px(width);
+                let page_height_px = converter.spaces_to_px(height);
+
+                // Get bounds in CSS pixels
+                let bounds_width = self.bounds.2;
+                let bounds_height = self.bounds.3;
+
+                // Calculate scaled page dimensions
+                let scaled_page_width = page_width_px * zoom;
+                let scaled_page_height = page_height_px * zoom;
+
+                // Constrain horizontal and vertical pan
+                let constrained_pan_x = constrain_dimension(pan_x, scaled_page_width, bounds_width);
+                let constrained_pan_y =
+                    constrain_dimension(pan_y, scaled_page_height, bounds_height);
+
+                (constrained_pan_x, constrained_pan_y)
+            };
+
+            let setup_start = Instant::now();
+
+            if let Some((mut surface, texture_width, texture_height, drawable)) =
+                self.setup_surface()
+            {
+                let setup_duration = setup_start.elapsed();
+                let draw_start = Instant::now();
+                let canvas = surface.canvas();
+                self.draw_background(canvas, texture_width, texture_height);
+                self.render_instructions(
+                    canvas,
+                    instructions,
+                    constrained_pan_x,
+                    constrained_pan_y,
+                    zoom,
+                );
+                self.draw_scrollbars(
+                    canvas,
+                    width,
+                    height,
+                    converter,
+                    constrained_pan_x,
+                    constrained_pan_y,
+                    zoom,
+                );
+                let draw_duration = draw_start.elapsed();
+                let flush_start = Instant::now();
+                self.flush_and_present(drawable)?;
+                let flush_duration = flush_start.elapsed();
+                let total_duration = total_start.elapsed();
+                // Emit timing events for native rendering
+                let _ = app.emit(
+                    "native-render-timing-setup",
+                    setup_duration.as_micros() as u64,
+                );
+                let _ = app.emit(
+                    "native-render-timing-draw",
+                    draw_duration.as_micros() as u64,
+                );
+                let _ = app.emit(
+                    "native-render-timing-flush",
+                    flush_duration.as_micros() as u64,
+                );
+                let _ = app.emit(
+                    "native-render-timing-total",
+                    total_duration.as_micros() as u64,
+                );
+                Ok((constrained_pan_x, constrained_pan_y))
+            } else {
+                Ok((pan_x, pan_y))
+            }
+        })
+    }
+
+    fn get_bounds(&self) -> (f32, f32, f32, f32) {
+        self.bounds
+    }
+
+    fn constrain_pan(
+        &self,
+        pan_x: f32,
+        pan_y: f32,
+        page_width_spaces: f32,
+        page_height_spaces: f32,
+        zoom: f32,
+        converter: &Converter,
+    ) -> (f32, f32) {
+        // Convert page dimensions from spaces to CSS pixels
+        let page_width_px = converter.spaces_to_px(page_width_spaces);
+        let page_height_px = converter.spaces_to_px(page_height_spaces);
+
+        // Get bounds in CSS pixels
+        let bounds_width = self.bounds.2;
+        let bounds_height = self.bounds.3;
+
+        // Calculate scaled page dimensions
+        let scaled_page_width = page_width_px * zoom;
+        let scaled_page_height = page_height_px * zoom;
+
+        // Constrain horizontal and vertical pan
+        let constrained_pan_x = constrain_dimension(pan_x, scaled_page_width, bounds_width);
+        let constrained_pan_y = constrain_dimension(pan_y, scaled_page_height, bounds_height);
+
+        (constrained_pan_x, constrained_pan_y)
+    }
+
+    fn update_bounds(
+        &mut self,
+        x: f32,
+        y: f32,
+        width: f32,
+        height: f32,
+        scale: f64,
+    ) -> Result<(), Box<dyn Error>> {
+        // Bounds come in as CSS pixels (points) - use directly
+        // JS coordinates: (0,0) is top-left, Y increases downward
+        // AppKit coordinates: (0,0) is bottom-left, Y increases upward
+        let content_view =
+            unsafe { self.skia_view.superview() }.ok_or("Failed to get superview")?;
+        let content_frame = (*content_view).frame();
+        let content_height = content_frame.size.height;
+
+        // Convert web coordinates to AppKit coordinates
+        let appkit_x = x as f64;
+        let appkit_y = content_height - y as f64 - height as f64;
+
+        // Update the view frame (in CSS pixels/points)
+        let frame = NSRect::new(
+            NSPoint::new(appkit_x, appkit_y),
+            NSSize::new(width as f64, height as f64),
+        );
+
+        self.skia_view.setFrame(frame);
+        self.metal_layer.setFrame(frame);
+        self.metal_layer.setContentsScale(scale);
+
+        self.metal_layer
+            .setDrawableSize(NSSize::new(width as f64 * scale, height as f64 * scale));
+
+        // Store the bounds (CSS pixels) and scale
+        self.bounds = (x, y, width, height);
+        self.scale = scale;
+
+        Ok(())
+    }
+}
+
 // Unsafe impl to allow NativeRenderer to be Send + Sync
 // This is safe because NativeRenderer is only used on the main thread
-unsafe impl Send for NativeRenderer {}
-unsafe impl Sync for NativeRenderer {}
+unsafe impl Send for MetalRenderer {}
+unsafe impl Sync for MetalRenderer {}

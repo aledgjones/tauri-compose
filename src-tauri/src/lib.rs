@@ -1,7 +1,6 @@
 mod files;
 mod instructions;
 mod migrations;
-mod native_renderer;
 mod playback;
 mod preferences;
 mod renderer;
@@ -9,15 +8,14 @@ mod score;
 mod ui;
 mod utils;
 
-use crate::native_renderer::NativeRenderer;
 use crate::playback::audio::{audio_device_set, AudioContext};
+use crate::renderer::backends::metal::MetalRenderer;
 use files::{
     add_recent_file, clear_recent_files, get_current_file_path, get_recent_files,
     load_project_from_file, refresh_menus, save_project_to_file, set_current_file_path,
     update_recent_files_menu,
 };
 use instructions::generate_render_instructions;
-use lazy_static::lazy_static;
 use preferences::{preferences_audition_set, Preferences};
 use renderer::hit_test::renderer_hit_test;
 use renderer::RendererContext;
@@ -77,7 +75,7 @@ use score::players::{
 };
 use score::Score;
 use serde::{Deserialize, Serialize};
-use std::sync::{Arc, Mutex};
+use std::sync::Mutex;
 use tauri::menu::{AboutMetadata, Menu, MenuItem, PredefinedMenuItem, Submenu};
 use tauri::{AppHandle, Emitter, Manager, State};
 use ui::renderer::{
@@ -98,11 +96,6 @@ use ui::sequencer::{
 };
 use ui::{ui_flow_id_set, ui_get_selection_coordinates, ui_layout_id_set, ui_tab_set, Ui};
 use utils::UniqueId;
-
-lazy_static! {
-    static ref NATIVE_RENDERER: Arc<Mutex<Option<crate::native_renderer::NativeRenderer>>> =
-        Arc::new(Mutex::new(None));
-}
 
 #[derive(Serialize, Deserialize, Clone)]
 struct AppStateGeneral {
@@ -155,26 +148,23 @@ impl AppContext {
             }
         }
 
-        if let Some(window) = app.get_webview_window("main") {
-            let mut native_renderer_guard = NATIVE_RENDERER.lock().unwrap();
-            if native_renderer_guard.is_none() {
-                if let Ok(renderer) = NativeRenderer::new(&window) {
-                    *native_renderer_guard = Some(renderer);
+        if renderer.backend.is_none() {
+            if let Some(window) = app.get_webview_window("main") {
+                if let Ok(backend) = MetalRenderer::new(&window) {
+                    renderer.set_backend(Box::new(backend));
                 }
             }
-            if let Some(native_renderer) = native_renderer_guard.as_mut() {
-                if let Ok((constrained_x, constrained_y)) = native_renderer.render(
-                    app,
-                    renderer,
-                    self.ui.renderer.pan_x,
-                    self.ui.renderer.pan_y,
-                    self.ui.renderer.zoom as f32 / 100.0,
-                ) {
-                    // Update stored pan values to constrained values
-                    self.ui.renderer.pan_x = constrained_x;
-                    self.ui.renderer.pan_y = constrained_y;
-                }
-            }
+        }
+
+        if let Ok((constrained_x, constrained_y)) = renderer.render(
+            app,
+            self.ui.renderer.pan_x,
+            self.ui.renderer.pan_y,
+            self.ui.renderer.zoom as f32 / 100.0,
+        ) {
+            // Update stored pan values to constrained values
+            self.ui.renderer.pan_x = constrained_x;
+            self.ui.renderer.pan_y = constrained_y;
         }
     }
 
