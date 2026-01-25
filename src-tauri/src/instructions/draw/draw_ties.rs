@@ -1,7 +1,7 @@
-use crate::render::parse::get_horizontal_spacing::{HorizontalSpacing, Slot};
-use crate::render::parse::get_shunts::{Shunt, Shunts};
-use crate::render::parse::get_tone_offsets::ToneVerticalOffsets;
-use crate::render::parse::get_written_durations::Notation;
+use crate::instructions::parse::get_horizontal_spacing::{HorizontalSpacing, Slot};
+use crate::instructions::parse::get_shunts::{Shunt, Shunts};
+use crate::instructions::parse::get_tone_offsets::ToneVerticalOffsets;
+use crate::instructions::parse::get_written_durations::Notation;
 use crate::renderer::RendererContext;
 use crate::score::components::duration::Direction;
 use crate::score::components::measurements::CurvePoint;
@@ -273,8 +273,8 @@ pub fn draw_tie(
 #[allow(clippy::too_many_arguments)]
 pub fn draw_ties(
     origin: &Point,
-    notation: &crate::render::parse::get_written_durations::NotationTrack,
-    stem_directions: &crate::render::parse::get_stem_directions::StemDirections,
+    notation: &crate::instructions::parse::get_written_durations::NotationTrack,
+    stem_directions: &crate::instructions::parse::get_stem_directions::StemDirections,
     horizontal_spacing: &HorizontalSpacing,
     shunts: &Shunts,
     tone_offsets: &ToneVerticalOffsets,

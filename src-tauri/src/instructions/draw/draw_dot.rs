@@ -1,4 +1,4 @@
-use crate::render::parse::get_dots::DotOffsets;
+use crate::instructions::parse::get_dots::DotOffsets;
 use crate::renderer::RendererContext;
 use crate::score::components::measurements::Point;
 use skia_safe::Color;

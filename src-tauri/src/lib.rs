@@ -1,9 +1,9 @@
 mod files;
+mod instructions;
 mod migrations;
 mod native_renderer;
 mod playback;
 mod preferences;
-mod render;
 mod renderer;
 mod score;
 mod ui;
@@ -16,9 +16,9 @@ use files::{
     load_project_from_file, refresh_menus, save_project_to_file, set_current_file_path,
     update_recent_files_menu,
 };
+use instructions::generate_render_instructions;
 use lazy_static::lazy_static;
 use preferences::{preferences_audition_set, Preferences};
-use render::generate_render_instructions;
 use renderer::hit_test::renderer_hit_test;
 use renderer::RendererContext;
 use score::config::{

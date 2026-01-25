@@ -1,5 +1,5 @@
 use super::draw_staves::STAVE_LINE_WIDTH;
-use crate::render::parse::get_stem_lengths::StemDef;
+use crate::instructions::parse::get_stem_lengths::StemDef;
 use crate::renderer::RendererContext;
 use crate::score::components::measurements::Point;
 use skia_safe::Color;

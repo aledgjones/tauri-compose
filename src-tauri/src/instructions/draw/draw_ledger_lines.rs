@@ -1,8 +1,8 @@
-use crate::render::draw::draw_staves::STAVE_LINE_WIDTH;
-use crate::render::parse::get_accidentals::Accidentals;
-use crate::render::parse::get_shunts::{Shunt, Shunts};
-use crate::render::parse::get_tone_offsets::ToneVerticalOffsets;
-use crate::render::parse::get_written_durations::Notation;
+use crate::instructions::draw::draw_staves::STAVE_LINE_WIDTH;
+use crate::instructions::parse::get_accidentals::Accidentals;
+use crate::instructions::parse::get_shunts::{Shunt, Shunts};
+use crate::instructions::parse::get_tone_offsets::ToneVerticalOffsets;
+use crate::instructions::parse::get_written_durations::Notation;
 use crate::renderer::converter::Space;
 use crate::renderer::RendererContext;
 use crate::score::components::duration::Tick;

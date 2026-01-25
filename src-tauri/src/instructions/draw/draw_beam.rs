@@ -1,7 +1,7 @@
-use crate::render::draw::draw_staves::STAVE_LINE_WIDTH;
-use crate::render::parse::get_beams::{Beam, FractionalDirection};
-use crate::render::parse::get_stem_directions::StemDirections;
-use crate::render::parse::get_stem_lengths::{StemDef, StemLengths};
+use crate::instructions::draw::draw_staves::STAVE_LINE_WIDTH;
+use crate::instructions::parse::get_beams::{Beam, FractionalDirection};
+use crate::instructions::parse::get_stem_directions::StemDirections;
+use crate::instructions::parse::get_stem_lengths::{StemDef, StemLengths};
 use crate::renderer::RendererContext;
 use crate::score::components::duration::Direction;
 use crate::score::components::measurements::Point;

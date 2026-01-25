@@ -1,4 +1,4 @@
-use crate::render::parse::get_shunts::{Shunt, Shunts};
+use crate::instructions::parse::get_shunts::{Shunt, Shunts};
 use crate::renderer::HitTarget;
 use crate::renderer::RendererContext;
 use crate::score::components::duration::Tick;

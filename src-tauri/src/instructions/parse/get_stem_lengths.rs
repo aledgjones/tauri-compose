@@ -2,7 +2,7 @@ use super::get_beams::{Beam, Beams, BeamsByTrack};
 use super::get_horizontal_spacing::{HorizontalSpacing, Slot};
 use super::get_stem_directions::{StemDirections, StemDirectionsByTrack};
 use super::get_written_durations::{Notation, NotationByTrack, NotationTrack};
-use crate::render::draw::draw_staves::STAVE_LINE_WIDTH;
+use crate::instructions::draw::draw_staves::STAVE_LINE_WIDTH;
 use crate::renderer::converter::Space;
 use crate::score::components::duration::{Direction, NoteDuration, Tick};
 use crate::score::components::measurements::Point;

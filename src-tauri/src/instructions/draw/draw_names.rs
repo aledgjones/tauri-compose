@@ -1,4 +1,4 @@
-use crate::render::parse::get_vertical_spacing::VerticalSpacing;
+use crate::instructions::parse::get_vertical_spacing::VerticalSpacing;
 use crate::renderer::converter::Space;
 use crate::renderer::RendererContext;
 use crate::score::components::measurements::Point;

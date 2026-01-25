@@ -1,4 +1,4 @@
-use crate::render::parse::get_accidentals::AccidentalNotation;
+use crate::instructions::parse::get_accidentals::AccidentalNotation;
 use crate::renderer::RendererContext;
 use crate::score::components::measurements::Point;
 use crate::score::components::text::{Align, Font, FontFamily, Justify};

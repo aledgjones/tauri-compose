@@ -1,7 +1,7 @@
 mod draw;
 mod parse;
 
-use crate::render::parse::get_horizontal_spacing::HorizontalSpacing;
+use crate::instructions::parse::get_horizontal_spacing::HorizontalSpacing;
 use crate::renderer::converter::{Converter, Space};
 use crate::renderer::text_measurer::TextMeasurer;
 use crate::renderer::RendererContext;

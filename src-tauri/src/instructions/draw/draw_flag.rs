@@ -1,6 +1,6 @@
 use super::draw_staves::STAVE_LINE_WIDTH;
-use crate::render::parse::get_stem_lengths::StemDef;
-use crate::render::parse::get_written_durations::Notation;
+use crate::instructions::parse::get_stem_lengths::StemDef;
+use crate::instructions::parse::get_written_durations::Notation;
 use crate::renderer::RendererContext;
 use crate::score::components::duration::Direction;
 use crate::score::components::measurements::Point;

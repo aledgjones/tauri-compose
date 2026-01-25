@@ -1,5 +1,5 @@
-use crate::render::parse::get_horizontal_spacing::{HorizontalSpacing, Slot};
-use crate::render::parse::get_written_durations::Notation;
+use crate::instructions::parse::get_horizontal_spacing::{HorizontalSpacing, Slot};
+use crate::instructions::parse::get_written_durations::Notation;
 use crate::renderer::{HitTarget, RendererContext};
 use crate::score::components::duration::{NoteDuration, Tick};
 use crate::score::components::measurements::Point;
