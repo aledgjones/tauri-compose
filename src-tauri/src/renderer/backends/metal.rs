@@ -48,16 +48,6 @@ type CAMetalLayerRetained = Retained<objc2_quartz_core::CAMetalLayer>;
 type NSViewRetained = Retained<objc2_app_kit::NSView>;
 type CADisplayLinkRetained = Retained<objc2_quartz_core::CADisplayLink>;
 
-fn constrain_dimension(pan: f32, scaled_size: f32, bounds_size: f32) -> f32 {
-    if scaled_size + (PADDING * 2.0) <= bounds_size {
-        (bounds_size - scaled_size) / 2.0
-    } else {
-        let max_pan = PADDING;
-        let min_pan = -(scaled_size - bounds_size + PADDING);
-        pan.clamp(min_pan, max_pan)
-    }
-}
-
 fn draw_scrollbar(canvas: &Canvas, x: f32, y: f32, width: f32, height: f32) {
     let mut paint = Paint::default();
     paint.set_color(SCROLLBAR_COLOR);
@@ -79,8 +69,6 @@ pub struct MetalRenderer {
     device: MetalDevice,
     queue: MetalCommandQueue,
     display_link: Option<CADisplayLinkRetained>,
-    bounds: (f32, f32, f32, f32), // (x, y, width, height) in CSS pixels
-    scale: f64,                   // Device pixel ratio (e.g., 2.0 on retina)
 }
 
 impl MetalRenderer {
@@ -128,8 +116,6 @@ impl MetalRenderer {
                         device: device.clone(),
                         queue: queue.clone(),
                         display_link: None,
-                        bounds: (0.0, 0.0, 0.0, 0.0),
-                        scale,
                     });
                 }
             }
@@ -179,8 +165,6 @@ impl MetalRenderer {
             device,
             queue,
             display_link: None,
-            bounds: (0.0, 0.0, 0.0, 0.0),
-            scale,
         })
     }
 
@@ -239,6 +223,7 @@ impl MetalRenderer {
         );
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn render_instructions(
         &self,
         canvas: &Canvas,
@@ -246,17 +231,19 @@ impl MetalRenderer {
         pan_x: f32,
         pan_y: f32,
         zoom: f32,
+        bounds: &(f32, f32, f32, f32),
+        pixel_density: f64,
     ) {
         canvas.save();
-        let scale_f32 = self.scale as f32;
+        let scale_f32 = pixel_density as f32;
         canvas.scale((scale_f32, scale_f32));
         canvas.translate((pan_x, pan_y));
         canvas.scale((zoom, zoom));
         let clip_rect = Rect::from_xywh(
             -pan_x / zoom,
             -pan_y / zoom,
-            self.bounds.2 / zoom,
-            self.bounds.3 / zoom,
+            bounds.2 / zoom,
+            bounds.3 / zoom,
         );
         canvas.clip_rect(clip_rect, ClipOp::Intersect, true);
         for instruction in instructions {
@@ -429,36 +416,38 @@ impl MetalRenderer {
         constrained_pan_x: f32,
         constrained_pan_y: f32,
         zoom: f32,
+        bounds: &(f32, f32, f32, f32),
+        pixel_density: f64,
     ) {
         canvas.save();
-        canvas.scale((self.scale as f32, self.scale as f32));
+        canvas.scale((pixel_density as f32, pixel_density as f32));
 
         let page_width_px = converter.spaces_to_px(width);
         let page_height_px = converter.spaces_to_px(height);
         let scaled_page_width = page_width_px * zoom;
         let scaled_page_height = page_height_px * zoom;
 
-        let show_horizontal = scaled_page_width + (PADDING * 2.0) > self.bounds.2;
-        let show_vertical = scaled_page_height + (PADDING * 2.0) > self.bounds.3;
+        let show_horizontal = scaled_page_width + (PADDING * 2.0) > bounds.2;
+        let show_vertical = scaled_page_height + (PADDING * 2.0) > bounds.3;
 
         // Draw horizontal scrollbar if content is wider than viewport
         if show_horizontal {
-            let visible_ratio = self.bounds.2 / (scaled_page_width + PADDING * 2.0);
+            let visible_ratio = bounds.2 / (scaled_page_width + PADDING * 2.0);
             let available_width = if show_vertical {
-                self.bounds.2 - SCROLLBAR_WIDTH - SCROLLBAR_PADDING
+                bounds.2 - SCROLLBAR_WIDTH - SCROLLBAR_PADDING
             } else {
-                self.bounds.2
+                bounds.2
             };
             let scrollbar_length = (available_width - 2.0 * SCROLLBAR_PADDING) * visible_ratio;
 
             // Calculate position: map pan position to scrollbar position
             let max_pan = PADDING;
-            let min_pan = -(scaled_page_width - self.bounds.2 + PADDING);
+            let min_pan = -(scaled_page_width - bounds.2 + PADDING);
             let pan_range = max_pan - min_pan;
             let pan_normalized = (max_pan - constrained_pan_x) / pan_range; // 0 at left, 1 at right
             let scrollbar_range = available_width - 2.0 * SCROLLBAR_PADDING - scrollbar_length;
             let scrollbar_x = SCROLLBAR_PADDING + scrollbar_range * pan_normalized;
-            let scrollbar_y = self.bounds.3 - SCROLLBAR_WIDTH - SCROLLBAR_PADDING;
+            let scrollbar_y = bounds.3 - SCROLLBAR_WIDTH - SCROLLBAR_PADDING;
 
             draw_scrollbar(
                 canvas,
@@ -471,23 +460,23 @@ impl MetalRenderer {
 
         // Draw vertical scrollbar if content is taller than viewport
         if show_vertical {
-            let visible_ratio = self.bounds.3 / (scaled_page_height + PADDING * 2.0);
+            let visible_ratio = bounds.3 / (scaled_page_height + PADDING * 2.0);
             let available_height = if show_horizontal {
                 // Leave space for horizontal scrollbar
-                self.bounds.3 - SCROLLBAR_WIDTH - SCROLLBAR_PADDING
+                bounds.3 - SCROLLBAR_WIDTH - SCROLLBAR_PADDING
             } else {
-                self.bounds.3
+                bounds.3
             };
             let scrollbar_length = (available_height - 2.0 * SCROLLBAR_PADDING) * visible_ratio;
 
             // Calculate position: map pan position to scrollbar position
             let max_pan = PADDING;
-            let min_pan = -(scaled_page_height - self.bounds.3 + PADDING);
+            let min_pan = -(scaled_page_height - bounds.3 + PADDING);
             let pan_range = max_pan - min_pan;
             let pan_normalized = (max_pan - constrained_pan_y) / pan_range; // 0 at top, 1 at bottom
             let scrollbar_range = available_height - 2.0 * SCROLLBAR_PADDING - scrollbar_length;
             let scrollbar_y = SCROLLBAR_PADDING + scrollbar_range * pan_normalized;
-            let scrollbar_x = self.bounds.2 - SCROLLBAR_WIDTH - SCROLLBAR_PADDING;
+            let scrollbar_x = bounds.2 - SCROLLBAR_WIDTH - SCROLLBAR_PADDING;
 
             draw_scrollbar(
                 canvas,
@@ -521,39 +510,19 @@ impl RenderBackend for MetalRenderer {
         height: f32,
         instructions: &[DrawInstruction],
         converter: &Converter,
+        bounds: &(f32, f32, f32, f32),
+        pixel_density: f64,
         pan_x: f32,
         pan_y: f32,
         zoom: f32,
-    ) -> Result<(f32, f32), Box<dyn Error>> {
+    ) -> Result<(), Box<dyn Error>> {
         let total_start = Instant::now();
 
-        autoreleasepool(|_| -> Result<(f32, f32), Box<dyn Error>> {
+        autoreleasepool(|_| -> Result<(), Box<dyn Error>> {
             // Skip rendering if bounds are zero (used for screens that don't show rendered score)
-            if self.bounds.2 == 0.0 || self.bounds.3 == 0.0 {
-                return Ok((pan_x, pan_y));
+            if bounds.2 == 0.0 || bounds.3 == 0.0 {
+                return Ok(());
             }
-
-            let (constrained_pan_x, constrained_pan_y) = {
-                // Inline constrain_pan logic
-                // Convert page dimensions from spaces to CSS pixels
-                let page_width_px = converter.spaces_to_px(width);
-                let page_height_px = converter.spaces_to_px(height);
-
-                // Get bounds in CSS pixels
-                let bounds_width = self.bounds.2;
-                let bounds_height = self.bounds.3;
-
-                // Calculate scaled page dimensions
-                let scaled_page_width = page_width_px * zoom;
-                let scaled_page_height = page_height_px * zoom;
-
-                // Constrain horizontal and vertical pan
-                let constrained_pan_x = constrain_dimension(pan_x, scaled_page_width, bounds_width);
-                let constrained_pan_y =
-                    constrain_dimension(pan_y, scaled_page_height, bounds_height);
-
-                (constrained_pan_x, constrained_pan_y)
-            };
 
             let setup_start = Instant::now();
 
@@ -567,18 +536,22 @@ impl RenderBackend for MetalRenderer {
                 self.render_instructions(
                     canvas,
                     instructions,
-                    constrained_pan_x,
-                    constrained_pan_y,
+                    pan_x,
+                    pan_y,
                     zoom,
+                    bounds,
+                    pixel_density,
                 );
                 self.draw_scrollbars(
                     canvas,
                     width,
                     height,
                     converter,
-                    constrained_pan_x,
-                    constrained_pan_y,
+                    pan_x,
+                    pan_y,
                     zoom,
+                    bounds,
+                    pixel_density,
                 );
                 let draw_duration = draw_start.elapsed();
                 let flush_start = Instant::now();
@@ -602,43 +575,11 @@ impl RenderBackend for MetalRenderer {
                     "native-render-timing-total",
                     total_duration.as_micros() as u64,
                 );
-                Ok((constrained_pan_x, constrained_pan_y))
+                Ok(())
             } else {
-                Ok((pan_x, pan_y))
+                Ok(())
             }
         })
-    }
-
-    fn get_bounds(&self) -> (f32, f32, f32, f32) {
-        self.bounds
-    }
-
-    fn constrain_pan(
-        &self,
-        pan_x: f32,
-        pan_y: f32,
-        page_width_spaces: f32,
-        page_height_spaces: f32,
-        zoom: f32,
-        converter: &Converter,
-    ) -> (f32, f32) {
-        // Convert page dimensions from spaces to CSS pixels
-        let page_width_px = converter.spaces_to_px(page_width_spaces);
-        let page_height_px = converter.spaces_to_px(page_height_spaces);
-
-        // Get bounds in CSS pixels
-        let bounds_width = self.bounds.2;
-        let bounds_height = self.bounds.3;
-
-        // Calculate scaled page dimensions
-        let scaled_page_width = page_width_px * zoom;
-        let scaled_page_height = page_height_px * zoom;
-
-        // Constrain horizontal and vertical pan
-        let constrained_pan_x = constrain_dimension(pan_x, scaled_page_width, bounds_width);
-        let constrained_pan_y = constrain_dimension(pan_y, scaled_page_height, bounds_height);
-
-        (constrained_pan_x, constrained_pan_y)
     }
 
     fn update_bounds(
@@ -673,10 +614,6 @@ impl RenderBackend for MetalRenderer {
 
         self.metal_layer
             .setDrawableSize(NSSize::new(width as f64 * scale, height as f64 * scale));
-
-        // Store the bounds (CSS pixels) and scale
-        self.bounds = (x, y, width, height);
-        self.scale = scale;
 
         Ok(())
     }

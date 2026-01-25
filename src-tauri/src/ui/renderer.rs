@@ -46,10 +46,9 @@ pub fn ui_renderer_zoom_set(
     let new_zoom = clamped_zoom as f32 / 100.0;
 
     // Calculate zoom around center of bounds
-    let (new_pan_x, new_pan_y) = if let Some(native) = renderer.backend.as_ref() {
-        let bounds = native.get_bounds();
-        let center_x = bounds.2 / 2.0; // width / 2
-        let center_y = bounds.3 / 2.0; // height / 2
+    let (new_pan_x, new_pan_y) = {
+        let center_x = renderer.bounds.2 / 2.0; // width / 2
+        let center_y = renderer.bounds.3 / 2.0; // height / 2
 
         // Calculate world position at center before zoom
         let world_x = (center_x - state.ui.renderer.pan_x) / old_zoom;
@@ -60,16 +59,13 @@ pub fn ui_renderer_zoom_set(
         let new_pan_y = center_y - world_y * new_zoom;
 
         // Constrain the new pan values
-        native.constrain_pan(
+        renderer.constrain_pan(
             new_pan_x,
             new_pan_y,
             renderer.width,
             renderer.height,
             new_zoom,
-            &renderer.converter,
         )
-    } else {
-        (state.ui.renderer.pan_x, state.ui.renderer.pan_y)
     };
 
     state.ui.renderer.zoom = clamped_zoom;
@@ -93,18 +89,13 @@ pub fn ui_renderer_pan_set(
     let mut renderer = renderer_state.lock().unwrap();
 
     // Get the clamped values from the native renderer
-    let (clamped_x, clamped_y) = if let Some(native) = renderer.backend.as_ref() {
-        native.constrain_pan(
-            x,
-            y,
-            renderer.width,
-            renderer.height,
-            state.ui.renderer.zoom as f32 / 100.0,
-            &renderer.converter,
-        )
-    } else {
-        (x, y)
-    };
+    let (clamped_x, clamped_y) = renderer.constrain_pan(
+        x,
+        y,
+        renderer.width,
+        renderer.height,
+        state.ui.renderer.zoom as f32 / 100.0,
+    );
 
     state.ui.renderer.pan_x = clamped_x;
     state.ui.renderer.pan_y = clamped_y;
@@ -128,12 +119,9 @@ pub fn ui_renderer_bounds_set(
 
     renderer.px_per_mm = px_per_mm;
 
-    // Directly update native renderer bounds if it exists
     if let Some(window) = app.get_webview_window("main") {
         let scale = window.scale_factor().unwrap_or(1.0);
-        if let Some(backend) = renderer.backend.as_mut() {
-            let _ = backend.update_bounds(bounds.x, bounds.y, bounds.width, bounds.height, scale);
-        }
+        let _ = renderer.update_bounds(bounds.x, bounds.y, bounds.width, bounds.height, scale);
     }
 
     state.emit(&app, &mut renderer, false);

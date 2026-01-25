@@ -14,6 +14,16 @@ use converter::{Converter, Space};
 use skia_safe::Color;
 use std::sync::Mutex;
 
+fn constrain_dimension(pan: f32, scaled_size: f32, bounds_size: f32) -> f32 {
+    if scaled_size + (100.0 * 2.0) <= bounds_size {
+        (bounds_size - scaled_size) / 2.0
+    } else {
+        let max_pan = 100.0;
+        let min_pan = -(scaled_size - bounds_size + 100.0);
+        pan.clamp(min_pan, max_pan)
+    }
+}
+
 #[derive(Clone)]
 pub enum DrawInstruction {
     Line {
@@ -77,6 +87,8 @@ pub struct RendererContext {
     pub width: f32,
     pub height: f32,
     pub hit_targets: Vec<HitTarget>,
+    pub bounds: (f32, f32, f32, f32),
+    pub pixel_density: f64,
 }
 
 impl RendererContext {
@@ -89,14 +101,41 @@ impl RendererContext {
             width: 0.0,
             height: 0.0,
             hit_targets: Vec::new(),
+            bounds: (0.0, 0.0, 0.0, 0.0),
+            pixel_density: 1.0,
         })
     }
 
     pub fn clear(&mut self) {
         self.instructions.clear();
         self.hit_targets.clear();
-        self.width = 0.0;
-        self.height = 0.0;
+    }
+
+    pub fn constrain_pan(
+        &self,
+        pan_x: f32,
+        pan_y: f32,
+        page_width_spaces: f32,
+        page_height_spaces: f32,
+        zoom: f32,
+    ) -> (f32, f32) {
+        // Convert page dimensions from spaces to CSS pixels
+        let page_width_px = self.converter.spaces_to_px(page_width_spaces);
+        let page_height_px = self.converter.spaces_to_px(page_height_spaces);
+
+        // Get bounds in CSS pixels
+        let bounds_width = self.bounds.2;
+        let bounds_height = self.bounds.3;
+
+        // Calculate scaled page dimensions
+        let scaled_page_width = page_width_px * zoom;
+        let scaled_page_height = page_height_px * zoom;
+
+        // Constrain horizontal and vertical pan
+        let constrained_pan_x = constrain_dimension(pan_x, scaled_page_width, bounds_width);
+        let constrained_pan_y = constrain_dimension(pan_y, scaled_page_height, bounds_height);
+
+        (constrained_pan_x, constrained_pan_y)
     }
 
     pub fn render(
@@ -106,6 +145,7 @@ impl RendererContext {
         pan_y: f32,
         zoom: f32,
     ) -> Result<(f32, f32), Box<dyn std::error::Error>> {
+        let constrained_pan = self.constrain_pan(pan_x, pan_y, self.width, self.height, zoom);
         if let Some(backend) = &mut self.backend {
             backend.render(
                 app,
@@ -113,10 +153,13 @@ impl RendererContext {
                 self.height,
                 &self.instructions,
                 &self.converter,
-                pan_x,
-                pan_y,
+                &self.bounds,
+                self.pixel_density,
+                constrained_pan.0,
+                constrained_pan.1,
                 zoom,
-            )
+            )?;
+            Ok(constrained_pan)
         } else {
             Ok((pan_x, pan_y))
         }
@@ -241,5 +284,23 @@ impl RendererContext {
             height: height_px,
             color,
         });
+    }
+
+    pub fn update_bounds(
+        &mut self,
+        x: f32,
+        y: f32,
+        width: f32,
+        height: f32,
+        scale: f64,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        self.bounds = (x, y, width, height);
+        self.pixel_density = scale;
+
+        if let Some(backend) = &mut self.backend {
+            let _ = backend.update_bounds(x, y, width, height, scale);
+        }
+
+        Ok(())
     }
 }

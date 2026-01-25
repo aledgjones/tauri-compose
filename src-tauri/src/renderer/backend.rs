@@ -12,22 +12,12 @@ pub trait RenderBackend: Send + Sync {
         height: f32,
         instructions: &[DrawInstruction],
         converter: &Converter,
+        bounds: &(f32, f32, f32, f32),
+        pixel_density: f64,
         pan_x: f32,
         pan_y: f32,
         zoom: f32,
-    ) -> Result<(f32, f32), Box<dyn Error>>;
-
-    fn get_bounds(&self) -> (f32, f32, f32, f32);
-
-    fn constrain_pan(
-        &self,
-        pan_x: f32,
-        pan_y: f32,
-        page_width_spaces: f32,
-        page_height_spaces: f32,
-        zoom: f32,
-        converter: &Converter,
-    ) -> (f32, f32);
+    ) -> Result<(), Box<dyn Error>>;
 
     fn update_bounds(
         &mut self,
