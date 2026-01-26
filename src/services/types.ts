@@ -401,9 +401,12 @@ export type DeviceInfo = {
   id: string;
   name: string;
   is_default: boolean;
+  sample_rates: number[];
+  default_sample_rate: number;
 };
 
 export type AudioState = {
   devices: DeviceInfo[];
-  device: DeviceInfo | null;
+  active_device_id: string;
+  current_sample_rate: number;
 };

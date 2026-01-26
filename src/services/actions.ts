@@ -75,6 +75,11 @@ export const actions = {
     setDevice: (device_id: string) => {
       return invoke("audio_device_set", { device_id });
     },
+    setDeviceSampleRate: (sample_rate: number) => {
+      return invoke("audio_device_sample_rate_set", {
+        sample_rate,
+      });
+    },
   },
   ui: {
     setTab: (tab: Tab) => {
