@@ -72,8 +72,8 @@ export const actions = {
     });
   },
   audio: {
-    setDevice: (device_name: string) => {
-      return invoke("audio_device_set", { device_name });
+    setDevice: (device_id: string) => {
+      return invoke("audio_device_set", { device_id });
     },
   },
   ui: {

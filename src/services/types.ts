@@ -397,12 +397,13 @@ export type AppState = {
   current_file_path: string | null;
 };
 
-export type Device = {
+export type DeviceInfo = {
+  id: string;
   name: string;
   is_default: boolean;
 };
 
 export type AudioState = {
-  devices: Device[];
-  selected_device: string;
+  devices: DeviceInfo[];
+  device: DeviceInfo | null;
 };

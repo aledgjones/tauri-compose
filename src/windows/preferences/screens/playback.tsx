@@ -9,7 +9,7 @@ export const Playback = () => {
   const options = useMemo(() => {
     return audio.devices.map((device) => ({
       label: device.name,
-      value: device.name,
+      value: device.id,
     }));
   }, [audio.devices]);
 
@@ -22,10 +22,10 @@ export const Playback = () => {
         <Select
           variant="filled"
           label="Output Device"
-          value={audio.selected_device}
-          onChange={async (device_name) => {
+          value={audio.device ? audio.device.id : ""}
+          onChange={async (id) => {
             try {
-              await actions.audio.setDevice(device_name);
+              await actions.audio.setDevice(id);
             } catch (error) {
               alert(error);
             }

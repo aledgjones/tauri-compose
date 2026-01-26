@@ -153,7 +153,7 @@ export const AppContext = createContext<AppState | null>(null);
 
 export const initialAudioState: AudioState = {
   devices: [],
-  selected_device: "",
+  device: null,
 };
 
 export const AudioContext = createContext<AudioState | null>(null);
