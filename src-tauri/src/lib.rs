@@ -9,6 +9,7 @@ mod ui;
 mod utils;
 
 use crate::playback::audio::{audio_device_sample_rate_set, audio_device_set, AudioContext};
+use crate::playback::vst::{vst_plugin_load, VstContext};
 use crate::renderer::backends::metal::MetalRenderer;
 use files::{
     add_recent_file, clear_recent_files, get_current_file_path, get_recent_files,
@@ -192,6 +193,7 @@ impl AppContext {
 
 type AppContextState = Mutex<AppContext>;
 type AudioContextState = Mutex<AudioContext>;
+type VstContextState = Mutex<VstContext>;
 type RendererContextState = Mutex<RendererContext>;
 
 const APP_NAME: &str = "Solo Compose";
@@ -202,13 +204,16 @@ fn initialize(
     state: State<'_, AppContextState>,
     renderer_state: State<'_, RendererContextState>,
     audio_state: State<'_, AudioContextState>,
+    vst_state: State<'_, VstContextState>,
 ) {
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
     let audio = audio_state.lock().unwrap();
+    let vst = vst_state.lock().unwrap();
 
     state.emit(&app, &mut renderer, true);
     audio.emit(&app);
+    vst.emit(&app);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -248,6 +253,7 @@ pub fn run() {
             app.manage(AppContext::new(app_handle));
             app.manage(RendererContext::new());
             app.manage(AudioContext::new());
+            app.manage(VstContext::new());
 
             // MENU INITIALIZATION
             let separator = PredefinedMenuItem::separator(app)?;
@@ -387,6 +393,7 @@ pub fn run() {
             refresh_menus,
             audio_device_set,
             audio_device_sample_rate_set,
+            vst_plugin_load,
             preferences_audition_set,
             score_config_auto_count_styles_solo_set,
             score_config_auto_count_styles_section_set,

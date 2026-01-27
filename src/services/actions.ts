@@ -81,6 +81,11 @@ export const actions = {
       });
     },
   },
+  vst: {
+    loadPlugin: (plugin_id: string) => {
+      return invoke("vst_plugin_load", { plugin_id });
+    },
+  },
   ui: {
     setTab: (tab: Tab) => {
       return invoke("ui_tab_set", { tab });

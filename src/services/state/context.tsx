@@ -12,6 +12,7 @@ import {
   NoteDuration,
   Tab,
   Tool,
+  VstState,
 } from "../types";
 import { createContext, useContext } from "react";
 
@@ -159,6 +160,13 @@ export const initialAudioState: AudioState = {
 
 export const AudioContext = createContext<AudioState | null>(null);
 
+export const initialVstState: VstState = {
+  plugins: {},
+  instances: {},
+};
+
+export const VstContext = createContext<VstState | null>(null);
+
 export const useAppState = () => {
   const context = useContext(AppContext);
 
@@ -173,7 +181,17 @@ export const useAudioState = () => {
   const context = useContext(AudioContext);
 
   if (!context) {
-    throw new Error("useAudioState must be used within an AppStateProvider");
+    throw new Error("useAudioState must be used within an AudioStateProvider");
+  }
+
+  return context;
+};
+
+export const useVstState = () => {
+  const context = useContext(VstContext);
+
+  if (!context) {
+    throw new Error("useVstState must be used within an AppStateProvider");
   }
 
   return context;

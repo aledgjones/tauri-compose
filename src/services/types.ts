@@ -410,3 +410,13 @@ export type AudioState = {
   active_device_id: string;
   current_sample_rate: number;
 };
+
+export type VstPlugin = {
+  id: string;
+  name: string;
+};
+
+export type VstState = {
+  plugins: Record<string, VstPlugin>;
+  instances: Record<number, VstPlugin>;
+};
