@@ -2,7 +2,9 @@
 
 ### 🐞 Fixes
 
-- fix: correct release notes formatting to use single blank lines## Release Notes for v1.19.3
+- fix: correct release notes formatting to use single blank lines
+
+## Release Notes for v1.19.3
 
 ### 🏗️ Features
 

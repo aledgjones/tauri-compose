@@ -251,12 +251,12 @@ fn update_releases_md(
             let rest = &content[header_end + 2..];
             // Trim leading whitespace from rest to avoid extra blank lines
             let rest = rest.trim_start();
-            content = format!("{}{}\n{}", header, new_section.trim_end(), rest);
+            content = format!("{}{}\n{}", header, new_section, rest);
         } else {
-            content = format!("{}{}", new_section.trim_end(), content);
+            content = format!("{}{}", new_section, content);
         }
     } else {
-        content = format!("{}{}", new_section.trim_end(), content);
+        content = format!("{}{}", new_section, content);
     }
 
     fs::write(releases_path, content)?;
