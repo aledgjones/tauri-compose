@@ -1,6 +1,6 @@
 [package]
 name = "solo-compose"
-version = "1.19.0"
+version = "1.19.1"
 description = "Music composition simplified."
 authors = ["Aled Jones <aledjones.viola@gmail.com>"]
 edition = "2021"
@@ -13,6 +13,14 @@ edition = "2021"
 # This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
 name = "compose_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
+
+[[bin]]
+name = "scvi-compress"
+path = "src/bin/scvi_compress.rs"
+
+[[bin]]
+name = "release"
+path = "src/bin/release.rs"
 
 [build-dependencies]
 tauri-build = { version = "2.5.3", features = [] }
@@ -43,6 +51,8 @@ sled = "0.34.7"
 cpal = "0.17.1"
 rodio = "0.21.1"
 zip = "7.2.0"
+walkdir = "2.5.0"
+regex = "1.11.1"
 
 
 [profile.release]

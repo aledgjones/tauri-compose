@@ -1,23 +1,4 @@
 {
-  "name": "compose",
-  "private": true,
-  "version": "1.19.0",
-  "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
-    "preview": "vite preview",
-    "tauri": "tauri",
-    "start:dev": "tauri dev",
-    "start:release": "tauri build",
-    "release": "scripts/release",
-    "zip-instruments": "node instruments/zip.js",
-    "check-types": "tsc --noEmit",
-    "lint": "eslint 'src/**/*.{ts,tsx}'",
-    "lint:fix": "eslint 'src/**/*.{ts,tsx}' --fix",
-    "format": "prettier --check .",
-    "format:fix": "prettier --write ."
-  },
   "dependencies": {
     "@mdi/js": "7.4.47",
     "@mdi/react": "1.6.1",
@@ -57,9 +38,32 @@
     "typescript": "5.9.3",
     "vite": "7.3.1"
   },
+  "name": "compose",
   "overrides": {
     "react-inspector": {
       "react": "^19.0.0"
     }
-  }
+  },
+  "private": true,
+  "scripts": {
+    "build": "tsc && vite build",
+    "build:release": "cd src-tauri && cargo build --release --bin release && cp target/release/release ../scripts/release",
+    "build:scvi-compress": "cd src-tauri && cargo build --release --bin scvi-compress && cp target/release/scvi-compress ../scripts/scvi-compress",
+    "check-types": "tsc --noEmit",
+    "dev": "vite",
+    "format": "prettier --check .",
+    "format:fix": "prettier --write .",
+    "lint": "eslint 'src/**/*.{ts,tsx}'",
+    "lint:fix": "eslint 'src/**/*.{ts,tsx}' --fix",
+    "preview": "vite preview",
+    "release:major": "./scripts/release major",
+    "release:minor": "./scripts/release minor",
+    "release:patch": "./scripts/release patch",
+    "scvi-compress": "./scripts/scvi-compress",
+    "start:dev": "tauri dev",
+    "start:release": "tauri build",
+    "tauri": "tauri"
+  },
+  "type": "module",
+  "version": "1.19.1"
 }

@@ -1,3 +1,131 @@
+## Release Notes for v1.19.1
+
+### 🏗️ Features
+
+- feat: init sampler
+- feat: setup vst loading
+- feat: device and sample rate selection
+- feat: use device id identification
+- feat: seperate concerns better
+- feat: backend
+- feat: strip old playback system
+- feat: unify state patterns
+- feat: rest selection indicator
+- feat: popups
+- feat: popover positioning and interactions
+- feat: show popover
+- feat: selection
+- feat: reorganise screens
+- feat: init scroll drag with x,y
+- feat: dotted notes at the start of a unit
+- feat: 3/4 first pass
+- feat: basic 3/4 rendering
+- feat: dynamic layouts/flows
+- feat: 2/4 signatures
+- feat: correct dotted minim splitting
+- feat: better timing debgginng
+- feat: simplify code
+- feat: simplify scrollbars
+- feat: standard shortcuts
+- feat: simplify context
+- feat: split text files
+- feat: split state files
+- feat: preferences
+- feat: audition tones
+- feat: better selection and audition
+- feat: nicer background
+- feat: seperate padding for better organisation
+- feat: delete tone keybord shortcut
+- feat: hit targets
+- feat: keyboard shortcuts
+- feat: add track id in selection for easy entry manipulation
+- feat: restructure screens
+- feat: ledger line tweaks for accidentals
+- feat: file handling
+- feat: better readme
+- feat: zoom
+- feat: padding and scrolling
+- feat: scrolling
+- feat: scroll bars
+- feat: simpler scaling system
+- feat: migrations
+- feat: fixed subdivisions
+- feat: ties tweaks
+- feat: sub beat splitting
+- feat: debug rendering
+- feat: ledger fixes and note metrics
+
+### 🐞 Fixes
+
+- fix: remove static asset loading
+- fix: types
+- fix: minor cleanup
+- fix: naming
+- fix: seperate selection types
+- fix: cumulative barline
+- fix: allow spanning mid point for dotted notes at end of beat
+- fix: tighter barlin spacing with time/key sigs
+- fix: properly clear state on resets and loads
+- fix: dotted quarter spans
+- fix: beaming
+- fix: formatting
+- fix: debug layout
+- fix: transport
+- fix: DRY
+- fix: scroll bar rendering simplifications
+- fix: rest splitting
+- fix: beam lengths
+- fix: reduce duplication in beam drawing
+- fix: stem accuracy
+- fix: bar padding on first bar too
+- fix: match dorico colors
+- fix: types
+- fix: lint errors
+- fix: imports
+- fix: ts warnings
+- fix: eslint
+- fix: emit preference state
+- fix: simplify tone info
+- fix: render on different displays
+- fix: metrics
+- fix: mut
+- fix: better naming
+- fix: recents
+- fix: menu recent name change
+- fix: trailing rests
+- fix: remove stupid comments
+- fix: correct delta
+- fix: formatting
+- fix: correct scale factor on external monitor
+- fix: time sig spacing
+- fix: extra spacing tweaks
+- fix: text input caret jumping
+- fix: unify handlers and prevent overscroll
+- fix: min space tweaks
+- fix: debugger styling
+- fix: formatting
+- fix: include breathing space in accidentals width calc
+- fix: exact accidental spacing
+- fix: accidentals with pre-shunts
+- fix: playhead z index correction
+
+### 🔧 Chores
+
+- chore: remove samples
+- chore: bump versions
+- chore: better renderer organisation
+- chore: bump deps
+- chore: update docs
+- chore: simpler debugging.
+- chore: bump deps
+- chore: bump versions
+
+### 📝 Other
+
+- Merge pull request #2 from aledgjones/feat/fixed-subdevisions
+
+
+
 ## Release Notes for v0.19.0
 
 ### 🏗️ Features
