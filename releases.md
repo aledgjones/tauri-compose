@@ -1,3 +1,11 @@
+## Release Notes for v1.19.3
+
+### 🏗️ Features
+
+- feat: add git workspace cleanliness check to release script
+
+
+
 ## Release Notes for v1.19.2
 
 ### 🐞 Fixes

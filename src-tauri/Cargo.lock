@@ -4425,7 +4425,7 @@ dependencies = [
 
 [[package]]
 name = "solo-compose"
-version = "1.19.2"
+version = "1.19.3"
 dependencies = [
  "cpal 0.17.1",
  "flate2",
