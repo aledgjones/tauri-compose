@@ -162,7 +162,7 @@ fn categorize_commits(commits: Vec<String>) -> std::collections::HashMap<String,
     categorized.insert("other".to_string(), Vec::new());
 
     for commit in commits {
-        let message = commit.splitn(2, ' ').nth(1).unwrap_or(&commit);
+        let message = commit.split_once(' ').map(|x| x.1).unwrap_or(&commit);
         if message.starts_with("feat:") {
             categorized
                 .get_mut("feat")
@@ -206,7 +206,7 @@ fn update_releases_md(
             for feat in feats {
                 new_section.push_str(&format!("- {}\n", feat));
             }
-            new_section.push_str("\n");
+            new_section.push('\n');
         }
     }
 
@@ -217,7 +217,7 @@ fn update_releases_md(
             for fix in fixes {
                 new_section.push_str(&format!("- {}\n", fix));
             }
-            new_section.push_str("\n");
+            new_section.push('\n');
         }
     }
 
@@ -228,7 +228,7 @@ fn update_releases_md(
             for chore in chores {
                 new_section.push_str(&format!("- {}\n", chore));
             }
-            new_section.push_str("\n");
+            new_section.push('\n');
         }
     }
 
@@ -239,7 +239,7 @@ fn update_releases_md(
             for other in others {
                 new_section.push_str(&format!("- {}\n", other));
             }
-            new_section.push_str("\n");
+            new_section.push('\n');
         }
     }
 

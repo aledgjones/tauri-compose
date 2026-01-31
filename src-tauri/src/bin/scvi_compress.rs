@@ -1,11 +1,11 @@
 use serde_json::{json, Value};
 use std::env;
 use std::fs;
+use std::io::{Read, Write};
 use std::path::Path;
 use std::process::Command;
 use walkdir::WalkDir;
-use std::io::{Read, Write};
-use zip::write::{FileOptions, ExtendedFileOptions, ZipWriter};
+use zip::write::{ExtendedFileOptions, FileOptions, ZipWriter};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = env::args().collect();
@@ -231,6 +231,14 @@ fn process_meta_json(
         });
     }
 
+    // Update file paths to match the new format
+    let new_ext = match format {
+        "wavpack" => ".wv",
+        "mp3" => ".mp3",
+        _ => ".wav",
+    };
+    update_paths(&mut json_value, ".wav", new_ext);
+
     // Minify the JSON (remove whitespace)
     let minified = serde_json::to_string(&json_value)?;
     let minified_len = minified.len();
@@ -251,6 +259,27 @@ fn process_meta_json(
     );
 
     Ok(())
+}
+
+fn update_paths(value: &mut Value, old_ext: &str, new_ext: &str) {
+    match value {
+        Value::String(s) => {
+            if s.ends_with(old_ext) {
+                *s = s.replace(old_ext, new_ext);
+            }
+        }
+        Value::Array(arr) => {
+            for v in arr {
+                update_paths(v, old_ext, new_ext);
+            }
+        }
+        Value::Object(obj) => {
+            for v in obj.values_mut() {
+                update_paths(v, old_ext, new_ext);
+            }
+        }
+        _ => {}
+    }
 }
 
 fn compress_wavpack(
