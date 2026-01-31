@@ -52,7 +52,7 @@ export const PerformanceTimings = () => {
         <span>🎼 Layout Phase (CPU)</span>
         <span
           className={classNames("font-mono text-sm", {
-            "text-red-400 font-bold":
+            "text-red-400":
               ((renderTimings["render-timing-vertical"] || 0) +
                 (renderTimings["render-timing-layout"] || 0) +
                 (renderTimings["render-timing-structure"] || 0) +
@@ -62,7 +62,7 @@ export const PerformanceTimings = () => {
                 (renderTimings["render-timing-stems"] || 0)) /
                 1000 >
               50,
-            "text-yellow-400 font-bold":
+            "text-yellow-400":
               ((renderTimings["render-timing-vertical"] || 0) +
                 (renderTimings["render-timing-layout"] || 0) +
                 (renderTimings["render-timing-structure"] || 0) +
@@ -81,7 +81,7 @@ export const PerformanceTimings = () => {
                 (renderTimings["render-timing-stems"] || 0)) /
                 1000 <=
                 50,
-            "text-green-400 font-bold":
+            "text-green-400":
               ((renderTimings["render-timing-vertical"] || 0) +
                 (renderTimings["render-timing-layout"] || 0) +
                 (renderTimings["render-timing-structure"] || 0) +
@@ -113,12 +113,12 @@ export const PerformanceTimings = () => {
             </span>
             <span
               className={classNames("text-xs font-mono text-right", {
-                "text-red-400 font-bold":
+                "text-red-400":
                   (renderTimings["render-timing-vertical"] || 0) / 1000 > 50,
-                "text-yellow-400 font-bold":
+                "text-yellow-400":
                   (renderTimings["render-timing-vertical"] || 0) / 1000 > 20 &&
                   (renderTimings["render-timing-vertical"] || 0) / 1000 <= 50,
-                "text-green-400 font-bold":
+                "text-green-400":
                   (renderTimings["render-timing-vertical"] || 0) / 1000 <= 20,
               })}
             >
@@ -132,12 +132,12 @@ export const PerformanceTimings = () => {
             </span>
             <span
               className={classNames("text-xs font-mono text-right", {
-                "text-red-400 font-bold":
+                "text-red-400":
                   (renderTimings["render-timing-layout"] || 0) / 1000 > 50,
-                "text-yellow-400 font-bold":
+                "text-yellow-400":
                   (renderTimings["render-timing-layout"] || 0) / 1000 > 20 &&
                   (renderTimings["render-timing-layout"] || 0) / 1000 <= 50,
-                "text-green-400 font-bold":
+                "text-green-400":
                   (renderTimings["render-timing-layout"] || 0) / 1000 <= 20,
               })}
             >
@@ -151,12 +151,12 @@ export const PerformanceTimings = () => {
             </span>
             <span
               className={classNames("text-xs font-mono text-right", {
-                "text-red-400 font-bold":
+                "text-red-400":
                   (renderTimings["render-timing-structure"] || 0) / 1000 > 50,
-                "text-yellow-400 font-bold":
+                "text-yellow-400":
                   (renderTimings["render-timing-structure"] || 0) / 1000 > 20 &&
                   (renderTimings["render-timing-structure"] || 0) / 1000 <= 50,
-                "text-green-400 font-bold":
+                "text-green-400":
                   (renderTimings["render-timing-structure"] || 0) / 1000 <= 20,
               })}
             >
@@ -170,12 +170,12 @@ export const PerformanceTimings = () => {
             </span>
             <span
               className={classNames("text-xs font-mono text-right", {
-                "text-red-400 font-bold":
+                "text-red-400":
                   (renderTimings["render-timing-notation"] || 0) / 1000 > 50,
-                "text-yellow-400 font-bold":
+                "text-yellow-400":
                   (renderTimings["render-timing-notation"] || 0) / 1000 > 20 &&
                   (renderTimings["render-timing-notation"] || 0) / 1000 <= 50,
-                "text-green-400 font-bold":
+                "text-green-400":
                   (renderTimings["render-timing-notation"] || 0) / 1000 <= 20,
               })}
             >
@@ -189,12 +189,12 @@ export const PerformanceTimings = () => {
             </span>
             <span
               className={classNames("text-xs font-mono text-right", {
-                "text-red-400 font-bold":
+                "text-red-400":
                   (renderTimings["render-timing-elements"] || 0) / 1000 > 50,
-                "text-yellow-400 font-bold":
+                "text-yellow-400":
                   (renderTimings["render-timing-elements"] || 0) / 1000 > 20 &&
                   (renderTimings["render-timing-elements"] || 0) / 1000 <= 50,
-                "text-green-400 font-bold":
+                "text-green-400":
                   (renderTimings["render-timing-elements"] || 0) / 1000 <= 20,
               })}
             >
@@ -208,12 +208,12 @@ export const PerformanceTimings = () => {
             </span>
             <span
               className={classNames("text-xs font-mono text-right", {
-                "text-red-400 font-bold":
+                "text-red-400":
                   (renderTimings["render-timing-spacing"] || 0) / 1000 > 50,
-                "text-yellow-400 font-bold":
+                "text-yellow-400":
                   (renderTimings["render-timing-spacing"] || 0) / 1000 > 20 &&
                   (renderTimings["render-timing-spacing"] || 0) / 1000 <= 50,
-                "text-green-400 font-bold":
+                "text-green-400":
                   (renderTimings["render-timing-spacing"] || 0) / 1000 <= 20,
               })}
             >
@@ -227,12 +227,12 @@ export const PerformanceTimings = () => {
             </span>
             <span
               className={classNames("text-xs font-mono text-right", {
-                "text-red-400 font-bold":
+                "text-red-400":
                   (renderTimings["render-timing-stems"] || 0) / 1000 > 50,
-                "text-yellow-400 font-bold":
+                "text-yellow-400":
                   (renderTimings["render-timing-stems"] || 0) / 1000 > 20 &&
                   (renderTimings["render-timing-stems"] || 0) / 1000 <= 50,
-                "text-green-400 font-bold":
+                "text-green-400":
                   (renderTimings["render-timing-stems"] || 0) / 1000 <= 20,
               })}
             >
@@ -251,13 +251,13 @@ export const PerformanceTimings = () => {
         <span>✏️ Render Phase (CPU)</span>
         <span
           className={classNames("font-mono text-sm", {
-            "text-red-400 font-bold":
+            "text-red-400":
               ((renderTimings["render-timing-setup"] || 0) +
                 (renderTimings["render-timing-barlines"] || 0) +
                 (renderTimings["render-timing-stave"] || 0)) /
                 1000 >
               50,
-            "text-yellow-400 font-bold":
+            "text-yellow-400":
               ((renderTimings["render-timing-setup"] || 0) +
                 (renderTimings["render-timing-barlines"] || 0) +
                 (renderTimings["render-timing-stave"] || 0)) /
@@ -268,7 +268,7 @@ export const PerformanceTimings = () => {
                 (renderTimings["render-timing-stave"] || 0)) /
                 1000 <=
                 50,
-            "text-green-400 font-bold":
+            "text-green-400":
               ((renderTimings["render-timing-setup"] || 0) +
                 (renderTimings["render-timing-barlines"] || 0) +
                 (renderTimings["render-timing-stave"] || 0)) /
@@ -292,12 +292,12 @@ export const PerformanceTimings = () => {
             </span>
             <span
               className={classNames("text-xs font-mono text-right", {
-                "text-red-400 font-bold":
+                "text-red-400":
                   (renderTimings["render-timing-setup"] || 0) / 1000 > 50,
-                "text-yellow-400 font-bold":
+                "text-yellow-400":
                   (renderTimings["render-timing-setup"] || 0) / 1000 > 20 &&
                   (renderTimings["render-timing-setup"] || 0) / 1000 <= 50,
-                "text-green-400 font-bold":
+                "text-green-400":
                   (renderTimings["render-timing-setup"] || 0) / 1000 <= 20,
               })}
             >
@@ -310,12 +310,12 @@ export const PerformanceTimings = () => {
             </span>
             <span
               className={classNames("text-xs font-mono text-right", {
-                "text-red-400 font-bold":
+                "text-red-400":
                   (renderTimings["render-timing-barlines"] || 0) / 1000 > 50,
-                "text-yellow-400 font-bold":
+                "text-yellow-400":
                   (renderTimings["render-timing-barlines"] || 0) / 1000 > 20 &&
                   (renderTimings["render-timing-barlines"] || 0) / 1000 <= 50,
-                "text-green-400 font-bold":
+                "text-green-400":
                   (renderTimings["render-timing-barlines"] || 0) / 1000 <= 20,
               })}
             >
@@ -329,12 +329,12 @@ export const PerformanceTimings = () => {
             </span>
             <span
               className={classNames("text-xs font-mono text-right", {
-                "text-red-400 font-bold":
+                "text-red-400":
                   (renderTimings["render-timing-stave"] || 0) / 1000 > 50,
-                "text-yellow-400 font-bold":
+                "text-yellow-400":
                   (renderTimings["render-timing-stave"] || 0) / 1000 > 20 &&
                   (renderTimings["render-timing-stave"] || 0) / 1000 <= 50,
-                "text-green-400 font-bold":
+                "text-green-400":
                   (renderTimings["render-timing-stave"] || 0) / 1000 <= 20,
               })}
             >
@@ -353,13 +353,13 @@ export const PerformanceTimings = () => {
         <span>🚀 GPU Phase (Metal/Skia)</span>
         <span
           className={classNames("font-mono text-sm", {
-            "text-red-400 font-bold":
+            "text-red-400":
               ((renderTimings["native-render-timing-setup"] || 0) +
                 (renderTimings["native-render-timing-draw"] || 0) +
                 (renderTimings["native-render-timing-flush"] || 0)) /
                 1000 >
               50,
-            "text-yellow-400 font-bold":
+            "text-yellow-400":
               ((renderTimings["native-render-timing-setup"] || 0) +
                 (renderTimings["native-render-timing-draw"] || 0) +
                 (renderTimings["native-render-timing-flush"] || 0)) /
@@ -370,7 +370,7 @@ export const PerformanceTimings = () => {
                 (renderTimings["native-render-timing-flush"] || 0)) /
                 1000 <=
                 50,
-            "text-green-400 font-bold":
+            "text-green-400":
               ((renderTimings["native-render-timing-setup"] || 0) +
                 (renderTimings["native-render-timing-draw"] || 0) +
                 (renderTimings["native-render-timing-flush"] || 0)) /
@@ -394,15 +394,15 @@ export const PerformanceTimings = () => {
             </span>
             <span
               className={classNames("text-xs font-mono text-right", {
-                "text-red-400 font-bold":
+                "text-red-400":
                   (renderTimings["native-render-timing-setup"] || 0) / 1000 >
                   50,
-                "text-yellow-400 font-bold":
+                "text-yellow-400":
                   (renderTimings["native-render-timing-setup"] || 0) / 1000 >
                     20 &&
                   (renderTimings["native-render-timing-setup"] || 0) / 1000 <=
                     50,
-                "text-green-400 font-bold":
+                "text-green-400":
                   (renderTimings["native-render-timing-setup"] || 0) / 1000 <=
                   20,
               })}
@@ -419,14 +419,14 @@ export const PerformanceTimings = () => {
             </span>
             <span
               className={classNames("text-xs font-mono text-right", {
-                "text-red-400 font-bold":
+                "text-red-400":
                   (renderTimings["native-render-timing-draw"] || 0) / 1000 > 50,
-                "text-yellow-400 font-bold":
+                "text-yellow-400":
                   (renderTimings["native-render-timing-draw"] || 0) / 1000 >
                     20 &&
                   (renderTimings["native-render-timing-draw"] || 0) / 1000 <=
                     50,
-                "text-green-400 font-bold":
+                "text-green-400":
                   (renderTimings["native-render-timing-draw"] || 0) / 1000 <=
                   20,
               })}
@@ -443,15 +443,15 @@ export const PerformanceTimings = () => {
             </span>
             <span
               className={classNames("text-xs font-mono text-right", {
-                "text-red-400 font-bold":
+                "text-red-400":
                   (renderTimings["native-render-timing-flush"] || 0) / 1000 >
                   50,
-                "text-yellow-400 font-bold":
+                "text-yellow-400":
                   (renderTimings["native-render-timing-flush"] || 0) / 1000 >
                     20 &&
                   (renderTimings["native-render-timing-flush"] || 0) / 1000 <=
                     50,
-                "text-green-400 font-bold":
+                "text-green-400":
                   (renderTimings["native-render-timing-flush"] || 0) / 1000 <=
                   20,
               })}
