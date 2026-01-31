@@ -1,3 +1,9 @@
+## Release Notes for v1.19.5
+
+### 🐞 Fixes
+
+- fix: ensure proper spacing in release notes formatting
+
 ## Release Notes for v1.19.4
 
 ### 🐞 Fixes
