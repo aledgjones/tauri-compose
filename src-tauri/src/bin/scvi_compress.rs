@@ -1,3 +1,4 @@
+use serde_json::{json, Value};
 use std::env;
 use std::fs;
 use std::path::Path;
@@ -14,23 +15,37 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         std::process::exit(1);
     }
 
-    if args.len() > 1 {
-        // Process specific instrument
-        let instrument_name = &args[1];
-        create_scvi_archive(instrument_name)?;
+    // Parse arguments - only instrument name now
+    let instrument_name = if args.len() > 1 {
+        Some(args[1].to_string())
     } else {
-        // Process all instruments
-        process_all_instruments()?;
+        None
+    };
+
+    match instrument_name {
+        Some(name) => {
+            // Process specific instrument - create both versions
+            create_scvi_archive(&name, &name, "wavpack")?;
+            create_scvi_archive(&name, &format!("{} (Lite)", name), "mp3")?;
+        }
+        None => {
+            // Process all instruments - create both versions for each
+            process_all_instruments()?;
+        }
     }
 
     Ok(())
 }
 
-fn create_scvi_archive(instrument_name: &str) -> Result<(), Box<dyn std::error::Error>> {
-    let src_path = format!("instruments/src/{}", instrument_name);
-    let temp_path = format!("instruments/temp/{}", instrument_name);
+fn create_scvi_archive(
+    src_instrument_name: &str,
+    output_instrument_name: &str,
+    format: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let src_path = format!("instruments/src/{}", src_instrument_name);
+    let temp_path = format!("instruments/temp/{}", output_instrument_name);
     let output_dir = "/Library/Audio/Plug-Ins/SCVI";
-    let output_path = format!("{}/{}.scvi", output_dir, instrument_name);
+    let output_path = format!("{}/{}.scvi", output_dir, output_instrument_name);
 
     // Ensure we're running from the correct directory (project root)
     let current_dir = env::current_dir()?;
@@ -39,7 +54,10 @@ fn create_scvi_archive(instrument_name: &str) -> Result<(), Box<dyn std::error::
         std::process::exit(1);
     }
 
-    println!("🔧 Processing instrument: {}", instrument_name);
+    println!(
+        "🔧 Processing instrument: {} (format: {})",
+        output_instrument_name, format
+    );
     println!("📁 Source: {}", src_path);
     println!("📦 Output: {}", output_path);
 
@@ -92,51 +110,17 @@ fn create_scvi_archive(instrument_name: &str) -> Result<(), Box<dyn std::error::
             total_original_size += original_size;
 
             if path.extension().and_then(|s| s.to_str()) == Some("wav") {
-                // Convert WAV to WavPack with maximum compression
-                let wv_path = temp_file.with_extension("wv");
-                if let Some(parent) = wv_path.parent() {
-                    fs::create_dir_all(parent)?;
-                }
-
-                println!("🎵 Converting {} to WavPack...", path.display());
-
-                let wv_result = Command::new("wavpack")
-                    .args([
-                        "-hh", // High compression mode
-                        "-y",  // Yes to overwrite
-                        &path.to_string_lossy(),
-                        "-o",
-                        &wv_path.to_string_lossy(),
-                    ])
-                    .status();
-
-                match wv_result {
-                    Ok(status) if status.success() => {
-                        // Check if WavPack is actually smaller
-                        let wv_size = fs::metadata(&wv_path)?.len();
-                        if wv_size < original_size {
-                            println!(
-                                "✅ Compressed: {} bytes → {} bytes ({:.1}% reduction)",
-                                original_size,
-                                wv_size,
-                                (1.0 - wv_size as f64 / original_size as f64) * 100.0
-                            );
-                        } else {
-                            // WavPack is not smaller, keep original
-                            fs::copy(path, &temp_file)?;
-                            fs::remove_file(&wv_path)?;
-                            println!(
-                                "⚠️  Kept original: WavPack was larger ({} bytes)",
-                                original_size
-                            );
-                        }
-                    }
+                match format {
+                    "wavpack" => compress_wavpack(path, &temp_file, original_size)?,
+                    "mp3" => compress_mp3(path, &temp_file, original_size)?,
                     _ => {
-                        // WavPack conversion failed, copy original
+                        eprintln!("Unknown format: {}", format);
                         fs::copy(path, &temp_file)?;
-                        println!("❌ WavPack failed, kept original: {} bytes", original_size);
                     }
                 }
+            } else if path.file_name().and_then(|s| s.to_str()) == Some("meta.json") {
+                // Special handling for meta.json: add format field and minify
+                process_meta_json(path, &temp_file, format)?;
             } else {
                 // Copy other files as-is
                 fs::copy(path, &temp_file)?;
@@ -179,6 +163,8 @@ fn create_scvi_archive(instrument_name: &str) -> Result<(), Box<dyn std::error::
             &output_path,
             "*", // Archive all files/folders in current directory (temp_path)
         ])
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
         .status();
 
     if !archive_result?.success() {
@@ -189,7 +175,7 @@ fn create_scvi_archive(instrument_name: &str) -> Result<(), Box<dyn std::error::
     let final_size = fs::metadata(&output_path)?.len();
 
     println!("\n🎉 Success!");
-    println!("📦 Created: {}.scvi", instrument_name);
+    println!("📦 Created: {}.scvi", output_instrument_name);
     println!(
         "📊 Final size: {} bytes ({:.2} MB)",
         final_size,
@@ -201,6 +187,171 @@ fn create_scvi_archive(instrument_name: &str) -> Result<(), Box<dyn std::error::
         total_original_size as f64 / 1_000_000.0,
         final_size as f64 / 1_000_000.0
     );
+
+    Ok(())
+}
+
+fn process_meta_json(
+    src_path: &Path,
+    dest_path: &Path,
+    format: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    // Read the original meta.json
+    let content = fs::read_to_string(src_path)?;
+    let mut json_value: Value = serde_json::from_str(&content)?;
+
+    // Add or update the format field
+    if let Some(meta) = json_value.get_mut("meta") {
+        if let Some(meta_obj) = meta.as_object_mut() {
+            meta_obj.insert("format".to_string(), json!(format));
+
+            // For lite version, append (Lite) to the instrument name
+            if format == "mp3" {
+                if let Some(name) = meta_obj.get_mut("name") {
+                    if let Some(name_str) = name.as_str() {
+                        *name = json!(format!("{} (Lite)", name_str));
+                    }
+                }
+            }
+        }
+    } else {
+        // If no meta object exists, create one
+        json_value["meta"] = json!({
+            "format": format
+        });
+    }
+
+    // Minify the JSON (remove whitespace)
+    let minified = serde_json::to_string(&json_value)?;
+    let minified_len = minified.len();
+
+    // Write the minified version
+    fs::write(dest_path, minified)?;
+
+    println!(
+        "📄 Processed meta.json: added format='{}'{}minified from {} to {} bytes",
+        format,
+        if format == "mp3" {
+            ", updated name with '(Lite)'"
+        } else {
+            ""
+        },
+        content.len(),
+        minified_len
+    );
+
+    Ok(())
+}
+
+fn compress_wavpack(
+    path: &Path,
+    temp_file: &Path,
+    original_size: u64,
+) -> Result<(), Box<dyn std::error::Error>> {
+    // Convert WAV to WavPack with maximum compression
+    let wv_path = temp_file.with_extension("wv");
+    if let Some(parent) = wv_path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+
+    let wv_result = Command::new("wavpack")
+        .args([
+            "-hh", // High compression mode
+            "-y",  // Yes to overwrite
+            &path.to_string_lossy(),
+            "-o",
+            &wv_path.to_string_lossy(),
+        ])
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status();
+
+    match wv_result {
+        Ok(status) if status.success() => {
+            // Check if WavPack is actually smaller
+            let wv_size = fs::metadata(&wv_path)?.len();
+            if wv_size < original_size {
+                println!(
+                    "🎵 {} → WavPack: {} → {} bytes ({:.1}% reduction)",
+                    path.display(),
+                    original_size,
+                    wv_size,
+                    (1.0 - wv_size as f64 / original_size as f64) * 100.0
+                );
+            } else {
+                // WavPack is not smaller, keep original
+                fs::copy(path, temp_file)?;
+                fs::remove_file(&wv_path)?;
+                println!(
+                    "⚠️  Kept original: WavPack was larger ({} bytes)",
+                    original_size
+                );
+            }
+        }
+        _ => {
+            // WavPack conversion failed, copy original
+            fs::copy(path, temp_file)?;
+            println!("❌ WavPack failed, kept original: {} bytes", original_size);
+        }
+    }
+
+    Ok(())
+}
+
+fn compress_mp3(
+    path: &Path,
+    temp_file: &Path,
+    original_size: u64,
+) -> Result<(), Box<dyn std::error::Error>> {
+    // Convert WAV to MP3 with high quality
+    let mp3_path = temp_file.with_extension("mp3");
+    if let Some(parent) = mp3_path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+
+    let mp3_result = Command::new("ffmpeg")
+        .args([
+            "-i",
+            &path.to_string_lossy(),
+            "-codec:a",
+            "libmp3lame",
+            "-q:a",
+            "0",  // Highest quality VBR (~245kbps)
+            "-y", // Overwrite output
+            &mp3_path.to_string_lossy(),
+        ])
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status();
+
+    match mp3_result {
+        Ok(status) if status.success() => {
+            // Check if MP3 is actually smaller
+            let mp3_size = fs::metadata(&mp3_path)?.len();
+            if mp3_size < original_size {
+                println!(
+                    "🎵 {} → MP3: {} → {} bytes ({:.1}% reduction)",
+                    path.display(),
+                    original_size,
+                    mp3_size,
+                    (1.0 - mp3_size as f64 / original_size as f64) * 100.0
+                );
+            } else {
+                // MP3 is not smaller, keep original
+                fs::copy(path, temp_file)?;
+                fs::remove_file(&mp3_path)?;
+                println!(
+                    "⚠️  Kept original: MP3 was larger ({} bytes)",
+                    original_size
+                );
+            }
+        }
+        _ => {
+            // MP3 conversion failed, copy original
+            fs::copy(path, temp_file)?;
+            println!("❌ MP3 failed, kept original: {} bytes", original_size);
+        }
+    }
 
     Ok(())
 }
@@ -231,11 +382,15 @@ fn process_all_instruments() -> Result<(), Box<dyn std::error::Error>> {
         instruments.join(", ")
     );
 
-    // Process each instrument
+    // Process each instrument - create both versions
     for instrument in instruments {
         println!("\n🎵 Processing instrument: {}", instrument);
-        if let Err(e) = create_scvi_archive(&instrument) {
+        if let Err(e) = create_scvi_archive(&instrument, &instrument, "wavpack") {
             eprintln!("❌ Failed to process {}: {}", instrument, e);
+            // Continue with other instruments
+        }
+        if let Err(e) = create_scvi_archive(&instrument, &format!("{} (Lite)", instrument), "mp3") {
+            eprintln!("❌ Failed to process {} (Lite): {}", instrument, e);
             // Continue with other instruments
         }
     }
