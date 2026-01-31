@@ -28,8 +28,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 fn create_scvi_archive(instrument_name: &str) -> Result<(), Box<dyn std::error::Error>> {
     let src_path = format!("instruments/src/{}", instrument_name);
-    let temp_path = format!("instruments/dist/temp/{}", instrument_name);
-    let output_path = format!("instruments/dist/{}.scvi", instrument_name);
+    let temp_path = format!("instruments/temp/{}", instrument_name);
+    let output_dir = "/Library/Audio/Plug-Ins/SCVI";
+    let output_path = format!("{}/{}.scvi", output_dir, instrument_name);
 
     // Ensure we're running from the correct directory (project root)
     let current_dir = env::current_dir()?;
@@ -41,6 +42,10 @@ fn create_scvi_archive(instrument_name: &str) -> Result<(), Box<dyn std::error::
     println!("🔧 Processing instrument: {}", instrument_name);
     println!("📁 Source: {}", src_path);
     println!("📦 Output: {}", output_path);
+
+    // Create output directory (may require admin permissions)
+    fs::create_dir_all(output_dir)
+        .map_err(|e| format!("Failed to create output directory {}: {}", output_dir, e))?;
 
     // Create temp directory
     fs::create_dir_all(&temp_path)
@@ -226,9 +231,6 @@ fn process_all_instruments() -> Result<(), Box<dyn std::error::Error>> {
         instruments.join(", ")
     );
 
-    // Create output directory
-    fs::create_dir_all("instruments/dist")?;
-
     // Process each instrument
     for instrument in instruments {
         println!("\n🎵 Processing instrument: {}", instrument);
@@ -239,7 +241,7 @@ fn process_all_instruments() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // Clean up temp directory if it's empty
-    let temp_dir = Path::new("instruments/dist/temp");
+    let temp_dir = Path::new("instruments/temp");
     if temp_dir.exists() {
         if let Ok(entries) = fs::read_dir(temp_dir) {
             if entries.count() == 0 {
