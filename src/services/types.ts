@@ -412,5 +412,11 @@ export type AudioState = {
 };
 
 export type SamplerState = {
-  plugins: string[];
+  plugins: PluginInfo[];
+};
+
+export type PluginInfo = {
+  name: string;
+  path: string;
+  format: string;
 };
