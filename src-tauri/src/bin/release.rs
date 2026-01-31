@@ -86,6 +86,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     fs::write(tauri_conf_path, updated_tauri_conf)?;
     println!("✅ Updated tauri.conf.json");
 
+    // Update Cargo.lock by running cargo check
+    println!("🔄 Updating Cargo.lock...");
+    Command::new("cargo")
+        .args(["check"])
+        .current_dir("src-tauri")
+        .status()?;
+    println!("✅ Updated Cargo.lock");
+
     // Get commits since last tag
     let last_tag = get_last_tag()?;
     println!("🏷️  Last tag: {}", last_tag);
