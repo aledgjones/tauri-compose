@@ -210,11 +210,16 @@ fn process_meta_json(
         if let Some(meta_obj) = meta.as_object_mut() {
             meta_obj.insert("format".to_string(), json!(format));
 
-            // For lite version, append (Lite) to the instrument name
+            // For lite version, append (Lite) to the instrument name and .lite to the ID
             if format == "mp3" {
                 if let Some(name) = meta_obj.get_mut("name") {
                     if let Some(name_str) = name.as_str() {
                         *name = json!(format!("{} (Lite)", name_str));
+                    }
+                }
+                if let Some(id) = meta_obj.get_mut("id") {
+                    if let Some(id_str) = id.as_str() {
+                        *id = json!(format!("{}.lite", id_str));
                     }
                 }
             }
@@ -237,7 +242,7 @@ fn process_meta_json(
         "📄 Processed meta.json: added format='{}'{}minified from {} to {} bytes",
         format,
         if format == "mp3" {
-            ", updated name with '(Lite)'"
+            ", updated name with '(Lite)' and ID with '.lite'"
         } else {
             ""
         },
