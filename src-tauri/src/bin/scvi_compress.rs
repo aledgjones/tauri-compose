@@ -4,6 +4,8 @@ use std::fs;
 use std::path::Path;
 use std::process::Command;
 use walkdir::WalkDir;
+use std::io::{Read, Write};
+use zip::write::{FileOptions, ExtendedFileOptions, ZipWriter};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = env::args().collect();
@@ -139,8 +141,8 @@ fn create_scvi_archive(
         total_original_size as f64 / 1_000_000.0
     );
 
-    // Create 7z archive with maximum compression
-    println!("\n🗜️  Creating 7z archive with maximum compression...");
+    // Create ZIP archive with maximum compression
+    println!("\n🗜️  Creating ZIP archive with maximum compression...");
 
     // Remove existing archive if it exists
     if Path::new(&output_path).exists() {
@@ -148,28 +150,31 @@ fn create_scvi_archive(
             .map_err(|e| format!("Failed to remove existing archive: {}", e))?;
     }
 
-    // Change to temp directory and archive contents at root level
-    let archive_result = Command::new("7zz")
-        .current_dir(&temp_path)
-        .args([
-            "a",         // Add to archive
-            "-t7z",      // 7z format
-            "-mx=9",     // Maximum compression
-            "-m0=LZMA2", // LZMA2 algorithm
-            "-ms=8m",    // 8MB dictionary size for better compression
-            "-mmt=on",   // Multi-threading
-            "-mfb=273",  // Fast bytes for LZMA
-            "-md=256m",  // Match finder cycles
-            &output_path,
-            "*", // Archive all files/folders in current directory (temp_path)
-        ])
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .status();
+    // Create the ZIP archive
+    let zip_file = fs::File::create(&output_path)?;
+    let mut zip = ZipWriter::new(zip_file);
 
-    if !archive_result?.success() {
-        return Err("7z archive creation failed".into());
+    // Add all files from temp directory to ZIP
+    for entry in WalkDir::new(&temp_path) {
+        let entry = entry?;
+        let path = entry.path();
+        let relative_path = path.strip_prefix(&temp_path)?;
+
+        if path.is_file() {
+            let mut file = fs::File::open(path)?;
+            let mut buffer = Vec::new();
+            file.read_to_end(&mut buffer)?;
+
+            let options: FileOptions<ExtendedFileOptions> = FileOptions::default()
+                .compression_method(zip::CompressionMethod::Deflated)
+                .compression_level(Some(9));
+
+            zip.start_file(relative_path.to_string_lossy(), options)?;
+            zip.write_all(&buffer)?;
+        }
     }
+
+    zip.finish()?;
 
     // Get final file size
     let final_size = fs::metadata(&output_path)?.len();
