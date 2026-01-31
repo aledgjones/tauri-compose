@@ -1,6 +1,8 @@
 ## Release Notes for v1.19.2
 
+### 🐞 Fixes
 
+- fix: release script cargo.lock wait
 
 ## Release Notes for v1.19.1
 
@@ -127,8 +129,6 @@
 ### 📝 Other
 
 - Merge pull request #2 from aledgjones/feat/fixed-subdevisions
-
-
 
 ## Release Notes for v0.19.0
 

@@ -25,6 +25,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         std::process::exit(1);
     }
 
+    // Ensure git workspace is clean
+    check_git_workspace_clean()?;
+
     println!("🚀 Starting release process for {} bump", bump_type);
 
     // Get current version from package.json
@@ -272,5 +275,30 @@ fn create_git_tag(version: &str) -> Result<(), Box<dyn std::error::Error>> {
     // Create tag
     Command::new("git").args(["tag", &tag_name]).status()?;
 
+    Ok(())
+}
+
+fn check_git_workspace_clean() -> Result<(), Box<dyn std::error::Error>> {
+    let output = Command::new("git")
+        .args(["status", "--porcelain"])
+        .output()?;
+
+    if !output.status.success() {
+        return Err("Failed to check git status".into());
+    }
+
+    let stdout = String::from_utf8(output.stdout)?;
+    if !stdout.trim().is_empty() {
+        eprintln!("❌ Error: Git workspace is not clean!");
+        eprintln!("   Uncommitted changes found:");
+        for line in stdout.lines() {
+            eprintln!("   {}", line);
+        }
+        eprintln!();
+        eprintln!("   Please commit or stash your changes before running the release script.");
+        std::process::exit(1);
+    }
+
+    println!("✅ Git workspace is clean");
     Ok(())
 }
