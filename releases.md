@@ -1,3 +1,10 @@
+## Release Notes for v1.19.7
+
+### 🏗️ Features
+
+- feat: generate wavpack and mp3 lite version s of the scvi instruments.
+- feat: wavack compression
+
 ## Release Notes for v1.19.6
 
 ### 🐞 Fixes
