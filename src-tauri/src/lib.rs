@@ -9,7 +9,7 @@ mod ui;
 mod utils;
 
 use crate::playback::audio::{audio_device_sample_rate_set, audio_device_set, AudioContext};
-use crate::playback::vst::{vst_plugin_load, VstContext};
+use crate::playback::sampler::SamplerContext;
 use crate::renderer::backends::metal::MetalRenderer;
 use files::{
     add_recent_file, clear_recent_files, get_current_file_path, get_recent_files,
@@ -52,9 +52,7 @@ use score::flows::{
     score_flows_assign_player, score_flows_create, score_flows_move, score_flows_remove,
     score_flows_rename, score_flows_unassign_player,
 };
-use score::instruments::defs::{
-    score_instruments_get_all_definitions, score_instruments_get_patches,
-};
+use score::instruments::defs::score_instruments_get_all_definitions;
 use score::instruments::{
     score_instruments_create, score_instruments_move, score_instruments_remove,
 };
@@ -193,8 +191,8 @@ impl AppContext {
 
 type AppContextState = Mutex<AppContext>;
 type AudioContextState = Mutex<AudioContext>;
-type VstContextState = Mutex<VstContext>;
 type RendererContextState = Mutex<RendererContext>;
+type SamplerContextState = Mutex<SamplerContext>;
 
 const APP_NAME: &str = "Solo Compose";
 
@@ -204,16 +202,16 @@ fn initialize(
     state: State<'_, AppContextState>,
     renderer_state: State<'_, RendererContextState>,
     audio_state: State<'_, AudioContextState>,
-    vst_state: State<'_, VstContextState>,
+    sampler_state: State<'_, SamplerContextState>,
 ) {
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
     let audio = audio_state.lock().unwrap();
-    let vst = vst_state.lock().unwrap();
+    let sampler = sampler_state.lock().unwrap();
 
     state.emit(&app, &mut renderer, true);
     audio.emit(&app);
-    vst.emit(&app);
+    sampler.emit(&app);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -253,7 +251,7 @@ pub fn run() {
             app.manage(AppContext::new(app_handle));
             app.manage(RendererContext::new());
             app.manage(AudioContext::new());
-            app.manage(VstContext::new());
+            app.manage(SamplerContext::new());
 
             // MENU INITIALIZATION
             let separator = PredefinedMenuItem::separator(app)?;
@@ -393,7 +391,6 @@ pub fn run() {
             refresh_menus,
             audio_device_set,
             audio_device_sample_rate_set,
-            vst_plugin_load,
             preferences_audition_set,
             score_config_auto_count_styles_solo_set,
             score_config_auto_count_styles_section_set,
@@ -438,7 +435,6 @@ pub fn run() {
             score_flows_remove,
             score_instruments_create,
             score_instruments_get_all_definitions,
-            score_instruments_get_patches,
             score_instruments_move,
             score_instruments_remove,
             score_layouts_create,

@@ -56,7 +56,9 @@ export const BottomPanel: FC = () => {
               path={tabConfig.icon}
               variant="interactive"
               isSelected={tab === tabConfig.tab}
-              onClick={() => actions.ui.screens.write.bottomPanel.setTab(tabConfig.tab)}
+              onClick={() => {
+                actions.ui.screens.write.bottomPanel.setTab(tabConfig.tab);
+              }}
             />
           ))}
         </div>

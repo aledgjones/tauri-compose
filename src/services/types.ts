@@ -411,12 +411,6 @@ export type AudioState = {
   current_sample_rate: number;
 };
 
-export type VstPlugin = {
-  id: string;
-  name: string;
-};
-
-export type VstState = {
-  plugins: Record<string, VstPlugin>;
-  instances: Record<number, VstPlugin>;
+export type SamplerState = {
+  plugins: string[];
 };

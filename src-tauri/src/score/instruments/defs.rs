@@ -1,10 +1,8 @@
 use crate::score::{
     components::pitch::{Accidental, Pitch},
     entries::clef::{Clef, ClefDrawType},
-    players::PlayerType,
 };
 use lazy_static::lazy_static;
-use rustc_hash::FxHashMap;
 use serde::Serialize;
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
@@ -38,8 +36,6 @@ pub struct InstrumentDefinition {
     pub long_name: &'static str,
     pub short_name: &'static str,
     pub staves: Vec<StaveDefinition>,
-    pub solo_patches: FxHashMap<Expression, &'static str>,
-    pub section_patches: FxHashMap<Expression, &'static str>,
 }
 
 lazy_static! {
@@ -61,14 +57,6 @@ lazy_static! {
                         ClefDrawType::F,
                     ),
                 }],
-                solo_patches: FxHashMap::from_iter([(
-                    Expression::Natural,
-                    "/bass-trombone/natural/meta.json",
-                )]),
-                section_patches: FxHashMap::from_iter([(
-                    Expression::Natural,
-                    "/bass-trombone/natural/meta.json",
-                )]),
             },
             InstrumentDefinition {
                 id: "brass.horn.f",
@@ -86,16 +74,6 @@ lazy_static! {
                         ClefDrawType::G,
                     ),
                 }],
-                solo_patches: FxHashMap::from_iter([
-                    (Expression::Natural, "/horn/natural/meta.json"),
-                    (Expression::Staccato, "/horn/staccato/meta.json"),
-                    (Expression::Mute, "/horn/mute/meta.json"),
-                ]),
-                section_patches: FxHashMap::from_iter([
-                    (Expression::Natural, "/horn/natural/meta.json"),
-                    (Expression::Staccato, "/horn/staccato/meta.json"),
-                    (Expression::Mute, "/horn/mute/meta.json"),
-                ]),
             },
             InstrumentDefinition {
                 id: "brass.trombone",
@@ -113,14 +91,6 @@ lazy_static! {
                         ClefDrawType::F,
                     ),
                 }],
-                solo_patches: FxHashMap::from_iter([
-                    (Expression::Natural, "/trombone/natural/meta.json"),
-                    (Expression::Staccato, "/trombone/staccato/meta.json"),
-                ]),
-                section_patches: FxHashMap::from_iter([
-                    (Expression::Natural, "/trombone/natural/meta.json"),
-                    (Expression::Staccato, "/trombone/staccato/meta.json"),
-                ]),
             },
             InstrumentDefinition {
                 id: "brass.trumpet.b-flat",
@@ -138,16 +108,6 @@ lazy_static! {
                         ClefDrawType::G,
                     ),
                 }],
-                solo_patches: FxHashMap::from_iter([
-                    (Expression::Natural, "/trumpet/natural/meta.json"),
-                    (Expression::Staccato, "/trumpet/staccato/meta.json"),
-                    (Expression::Mute, "/trumpet/mute/meta.json"),
-                ]),
-                section_patches: FxHashMap::from_iter([
-                    (Expression::Natural, "/trumpet/natural/meta.json"),
-                    (Expression::Staccato, "/trumpet/staccato/meta.json"),
-                    (Expression::Mute, "/trumpet/mute/meta.json"),
-                ]),
             },
             InstrumentDefinition {
                 id: "brass.trumpet.c",
@@ -165,16 +125,6 @@ lazy_static! {
                         ClefDrawType::G,
                     ),
                 }],
-                solo_patches: FxHashMap::from_iter([
-                    (Expression::Natural, "/trumpet/natural/meta.json"),
-                    (Expression::Staccato, "/trumpet/staccato/meta.json"),
-                    (Expression::Mute, "/trumpet/mute/meta.json"),
-                ]),
-                section_patches: FxHashMap::from_iter([
-                    (Expression::Natural, "/trumpet/natural/meta.json"),
-                    (Expression::Staccato, "/trumpet/staccato/meta.json"),
-                    (Expression::Mute, "/trumpet/mute/meta.json"),
-                ]),
             },
             InstrumentDefinition {
                 id: "brass.tuba",
@@ -192,14 +142,6 @@ lazy_static! {
                         ClefDrawType::F,
                     ),
                 }],
-                solo_patches: FxHashMap::from_iter([
-                    (Expression::Natural, "/tuba/natural/meta.json"),
-                    (Expression::Staccato, "/tuba/staccato/meta.json"),
-                ]),
-                section_patches: FxHashMap::from_iter([
-                    (Expression::Natural, "/tuba/natural/meta.json"),
-                    (Expression::Staccato, "/tuba/staccato/meta.json"),
-                ]),
             },
             InstrumentDefinition {
                 id: "guitar.acoustic",
@@ -217,14 +159,6 @@ lazy_static! {
                         ClefDrawType::F,
                     ),
                 }],
-                solo_patches: FxHashMap::from_iter([(
-                    Expression::Natural,
-                    "/acoustic-guitar/natural/meta.json",
-                )]),
-                section_patches: FxHashMap::from_iter([(
-                    Expression::Natural,
-                    "/acoustic-guitar/natural/meta.json",
-                )]),
             },
             InstrumentDefinition {
                 id: "guitar.bass",
@@ -242,14 +176,6 @@ lazy_static! {
                         ClefDrawType::F,
                     ),
                 }],
-                solo_patches: FxHashMap::from_iter([(
-                    Expression::Natural,
-                    "/bass-guitar/natural/meta.json",
-                )]),
-                section_patches: FxHashMap::from_iter([(
-                    Expression::Natural,
-                    "/bass-guitar/natural/meta.json",
-                )]),
             },
             InstrumentDefinition {
                 id: "guitar.distortion",
@@ -267,14 +193,6 @@ lazy_static! {
                         ClefDrawType::F,
                     ),
                 }],
-                solo_patches: FxHashMap::from_iter([(
-                    Expression::Natural,
-                    "/distortion-guitar/natural/meta.json",
-                )]),
-                section_patches: FxHashMap::from_iter([(
-                    Expression::Natural,
-                    "/distortion-guitar/natural/meta.json",
-                )]),
             },
             InstrumentDefinition {
                 id: "unpitched-percussion.crash-cymbal",
@@ -292,14 +210,6 @@ lazy_static! {
                         ClefDrawType::Percussion,
                     ),
                 }],
-                solo_patches: FxHashMap::from_iter([(
-                    Expression::Natural,
-                    "/kit-crash/natural/meta.json",
-                )]),
-                section_patches: FxHashMap::from_iter([(
-                    Expression::Natural,
-                    "/kit-crash/natural/meta.json",
-                )]),
             },
             InstrumentDefinition {
                 id: "unpitched-percussion.hi-hat",
@@ -317,14 +227,6 @@ lazy_static! {
                         ClefDrawType::Percussion,
                     ),
                 }],
-                solo_patches: FxHashMap::from_iter([(
-                    Expression::Natural,
-                    "/kit-hihat/natural/meta.json",
-                )]),
-                section_patches: FxHashMap::from_iter([(
-                    Expression::Natural,
-                    "/kit-hihat/natural/meta.json",
-                )]),
             },
             InstrumentDefinition {
                 id: "unpitched-percussion.kick",
@@ -342,14 +244,6 @@ lazy_static! {
                         ClefDrawType::Percussion,
                     ),
                 }],
-                solo_patches: FxHashMap::from_iter([(
-                    Expression::Natural,
-                    "/kit-kicks/natural/meta.json",
-                )]),
-                section_patches: FxHashMap::from_iter([(
-                    Expression::Natural,
-                    "/kit-kicks/natural/meta.json",
-                )]),
             },
             InstrumentDefinition {
                 id: "unpitched-percussion.snare",
@@ -367,11 +261,6 @@ lazy_static! {
                         ClefDrawType::Percussion,
                     ),
                 }],
-                solo_patches: FxHashMap::from_iter([(Expression::Natural, "/snare/natural/meta.json")]),
-                section_patches: FxHashMap::from_iter([(
-                    Expression::Natural,
-                    "/snare/natural/meta.json",
-                )]),
             },
             InstrumentDefinition {
                 id: "pitched-percussion.glockenspiel",
@@ -389,14 +278,6 @@ lazy_static! {
                         ClefDrawType::G,
                     ),
                 }],
-                solo_patches: FxHashMap::from_iter([(
-                    Expression::Natural,
-                    "/glockenspiel/natural/meta.json",
-                )]),
-                section_patches: FxHashMap::from_iter([(
-                    Expression::Natural,
-                    "/glockenspiel/natural/meta.json",
-                )]),
             },
             InstrumentDefinition {
                 id: "pitched-percussion.harp",
@@ -426,8 +307,6 @@ lazy_static! {
                         ),
                     },
                 ],
-                solo_patches: FxHashMap::from_iter([(Expression::Natural, "/harp/natural/meta.json")]),
-                section_patches: FxHashMap::from_iter([(Expression::Natural, "/harp/natural/meta.json")]),
             },
             InstrumentDefinition {
                 id: "pitched-percussion.marimba",
@@ -457,11 +336,6 @@ lazy_static! {
                         ),
                     },
                 ],
-                solo_patches: FxHashMap::from_iter([(Expression::Natural, "/marimba/natural/meta.json")]),
-                section_patches: FxHashMap::from_iter([(
-                    Expression::Natural,
-                    "/marimba/natural/meta.json",
-                )]),
             },
             InstrumentDefinition {
                 id: "pitched-percussion.timpani",
@@ -479,14 +353,6 @@ lazy_static! {
                         ClefDrawType::F,
                     ),
                 }],
-                solo_patches: FxHashMap::from_iter([
-                    (Expression::Natural, "/timpani/natural/meta.json"),
-                    (Expression::Tremolo, "/timpani/roll/meta.json"),
-                ]),
-                section_patches: FxHashMap::from_iter([
-                    (Expression::Natural, "/timpani/natural/meta.json"),
-                    (Expression::Tremolo, "/timpani/roll/meta.json"),
-                ]),
             },
             InstrumentDefinition {
                 id: "pitched-percussion.vibraphone",
@@ -504,14 +370,6 @@ lazy_static! {
                         ClefDrawType::G,
                     ),
                 }],
-                solo_patches: FxHashMap::from_iter([(
-                    Expression::Natural,
-                    "/vibraphone/natural/meta.json",
-                )]),
-                section_patches: FxHashMap::from_iter([(
-                    Expression::Natural,
-                    "/vibraphone/natural/meta.json",
-                )]),
             },
             InstrumentDefinition {
                 id: "pitched-percussion.xylophone",
@@ -529,14 +387,6 @@ lazy_static! {
                         ClefDrawType::G,
                     ),
                 }],
-                solo_patches: FxHashMap::from_iter([(
-                    Expression::Natural,
-                    "/xylophone/natural/meta.json",
-                )]),
-                section_patches: FxHashMap::from_iter([(
-                    Expression::Natural,
-                    "/xylophone/natural/meta.json",
-                )]),
             },
             InstrumentDefinition {
                 id: "keyboard.celesta",
@@ -566,11 +416,6 @@ lazy_static! {
                         ),
                     },
                 ],
-                solo_patches: FxHashMap::from_iter([(Expression::Natural, "/celesta/natural/meta.json")]),
-                section_patches: FxHashMap::from_iter([(
-                    Expression::Natural,
-                    "/celesta/natural/meta.json",
-                )]),
             },
             InstrumentDefinition {
                 id: "keyboard.harpsichord",
@@ -600,14 +445,6 @@ lazy_static! {
                         ),
                     },
                 ],
-                solo_patches: FxHashMap::from_iter([(
-                    Expression::Natural,
-                    "/harpsichord/natural/meta.json",
-                )]),
-                section_patches: FxHashMap::from_iter([(
-                    Expression::Natural,
-                    "/harpsichord/natural/meta.json",
-                )]),
             },
             InstrumentDefinition {
                 id: "keyboard.piano",
@@ -637,11 +474,6 @@ lazy_static! {
                         ),
                     },
                 ],
-                solo_patches: FxHashMap::from_iter([(Expression::Natural, "/piano/natural/meta.json")]),
-                section_patches: FxHashMap::from_iter([(
-                    Expression::Natural,
-                    "/piano/natural/meta.json",
-                )]),
             },
             InstrumentDefinition {
                 id: "strings.contrabass",
@@ -659,16 +491,6 @@ lazy_static! {
                         ClefDrawType::F,
                     ),
                 }],
-                solo_patches: FxHashMap::from_iter([
-                    (Expression::Natural, "/contrabass/natural/meta.json"),
-                    (Expression::Pizzicato, "/contrabass/pizzicato/meta.json"),
-                    (Expression::Staccato, "/contrabass/spiccato/meta.json"),
-                ]),
-                section_patches: FxHashMap::from_iter([
-                    (Expression::Natural, "/contrabass-section/natural/meta.json"),
-                    (Expression::Pizzicato, "/contrabass-section/pizzicato/meta.json"),
-                    (Expression::Staccato, "/contrabass-section/spiccato/meta.json"),
-                ]),
             },
             InstrumentDefinition {
                 id: "strings.viola",
@@ -686,16 +508,6 @@ lazy_static! {
                         ClefDrawType::C,
                     ),
                 }],
-                solo_patches: FxHashMap::from_iter([
-                    (Expression::Natural, "/viola/natural/meta.json"),
-                    (Expression::Pizzicato, "/viola/pizzicato/meta.json"),
-                    (Expression::Staccato, "/viola/staccato/meta.json"),
-                ]),
-                section_patches: FxHashMap::from_iter([
-                    (Expression::Natural, "/viola-section/natural/meta.json"),
-                    (Expression::Pizzicato, "/viola-section/pizzicato/meta.json"),
-                    (Expression::Staccato, "/viola-section/staccato/meta.json"),
-                ]),
             },
             InstrumentDefinition {
                 id: "strings.violin",
@@ -713,18 +525,6 @@ lazy_static! {
                         ClefDrawType::G,
                     ),
                 }],
-                solo_patches: FxHashMap::from_iter([
-                    (Expression::Natural, "/violin/natural/meta.json"),
-                    (Expression::Pizzicato, "/violin/pizzicato/meta.json"),
-                    (Expression::Staccato, "/violin/spiccato/meta.json"),
-                    (Expression::Tremolo, "/violin/tremolo/meta.json"),
-                ]),
-                section_patches: FxHashMap::from_iter([
-                    (Expression::Natural, "/violin-section/natural/meta.json"),
-                    (Expression::Pizzicato, "/violin-section/pizzicato/meta.json"),
-                    (Expression::Staccato, "/violin-section/spiccato/meta.json"),
-                    (Expression::Tremolo, "/violin-section/tremolo/meta.json"),
-                ]),
             },
             InstrumentDefinition {
                 id: "strings.violoncello",
@@ -742,16 +542,6 @@ lazy_static! {
                         ClefDrawType::F,
                     ),
                 }],
-                solo_patches: FxHashMap::from_iter([
-                    (Expression::Natural, "/violoncello/natural/meta.json"),
-                    (Expression::Pizzicato, "/violoncello/pizzicato/meta.json"),
-                    (Expression::Staccato, "/violoncello/staccato/meta.json"),
-                ]),
-                section_patches: FxHashMap::from_iter([
-                    (Expression::Natural, "/violoncello-section/natural/meta.json"),
-                    (Expression::Pizzicato, "/violoncello-section/pizzicato/meta.json"),
-                    (Expression::Staccato, "/violoncello-section/staccato/meta.json"),
-                ]),
             },
             InstrumentDefinition {
                 id: "woodwinds.alto-flute",
@@ -769,14 +559,6 @@ lazy_static! {
                         ClefDrawType::G,
                     ),
                 }],
-                solo_patches: FxHashMap::from_iter([(
-                    Expression::Natural,
-                    "/alto-flute/natural/meta.json",
-                )]),
-                section_patches: FxHashMap::from_iter([(
-                    Expression::Natural,
-                    "/alto-flute/natural/meta.json",
-                )]),
             },
             InstrumentDefinition {
                 id: "woodwinds.alto-sxophone",
@@ -794,14 +576,6 @@ lazy_static! {
                         ClefDrawType::G,
                     ),
                 }],
-                solo_patches: FxHashMap::from_iter([
-                    (Expression::Natural, "/alto-saxophone/natural/meta.json"),
-                    (Expression::Staccato, "/alto-saxophone/staccato/meta.json"),
-                ]),
-                section_patches: FxHashMap::from_iter([
-                    (Expression::Natural, "/alto-saxophone/natural/meta.json"),
-                    (Expression::Staccato, "/alto-saxophone/staccato/meta.json"),
-                ]),
             },
             InstrumentDefinition {
                 id: "woodwinds.bassoon",
@@ -819,14 +593,6 @@ lazy_static! {
                         ClefDrawType::F,
                     ),
                 }],
-                solo_patches: FxHashMap::from_iter([
-                    (Expression::Natural, "/bassoon/natural/meta.json"),
-                    (Expression::Staccato, "/bassoon/staccato/meta.json"),
-                ]),
-                section_patches: FxHashMap::from_iter([
-                    (Expression::Natural, "/bassoon/natural/meta.json"),
-                    (Expression::Staccato, "/bassoon/staccato/meta.json"),
-                ]),
             },
             InstrumentDefinition {
                 id: "woodwinds.bass-clarinet",
@@ -844,14 +610,6 @@ lazy_static! {
                         ClefDrawType::G,
                     ),
                 }],
-                solo_patches: FxHashMap::from_iter([
-                    (Expression::Natural, "/bass-clarinet/natural/meta.json"),
-                    (Expression::Staccato, "/bass-clarinet/staccato/meta.json"),
-                ]),
-                section_patches: FxHashMap::from_iter([
-                    (Expression::Natural, "/bass-clarinet/natural/meta.json"),
-                    (Expression::Staccato, "/bass-clarinet/staccato/meta.json"),
-                ]),
             },
             InstrumentDefinition {
                 id: "woodwinds.clarinet.a",
@@ -869,14 +627,6 @@ lazy_static! {
                         ClefDrawType::G,
                     ),
                 }],
-                solo_patches: FxHashMap::from_iter([
-                    (Expression::Natural, "/clarinet/natural/meta.json"),
-                    (Expression::Staccato, "/clarinet/staccato/meta.json"),
-                ]),
-                section_patches: FxHashMap::from_iter([
-                    (Expression::Natural, "/clarinet/natural/meta.json"),
-                    (Expression::Staccato, "/clarinet/staccato/meta.json"),
-                ]),
             },
             InstrumentDefinition {
                 id: "woodwinds.clarinet.b-flat",
@@ -894,14 +644,6 @@ lazy_static! {
                         ClefDrawType::G,
                     ),
                 }],
-                solo_patches: FxHashMap::from_iter([
-                    (Expression::Natural, "/clarinet/natural/meta.json"),
-                    (Expression::Staccato, "/clarinet/staccato/meta.json"),
-                ]),
-                section_patches: FxHashMap::from_iter([
-                    (Expression::Natural, "/clarinet/natural/meta.json"),
-                    (Expression::Staccato, "/clarinet/staccato/meta.json"),
-                ]),
             },
             InstrumentDefinition {
                 id: "woodwinds.contrabassoon",
@@ -919,14 +661,6 @@ lazy_static! {
                         ClefDrawType::F,
                     ),
                 }],
-                solo_patches: FxHashMap::from_iter([(
-                    Expression::Natural,
-                    "/contrabassoon/natural/meta.json",
-                )]),
-                section_patches: FxHashMap::from_iter([(
-                    Expression::Natural,
-                    "/contrabassoon/natural/meta.json",
-                )]),
             },
             InstrumentDefinition {
                 id: "woodwinds.english-horn",
@@ -944,14 +678,6 @@ lazy_static! {
                         ClefDrawType::G,
                     ),
                 }],
-                solo_patches: FxHashMap::from_iter([
-                    (Expression::Natural, "/cor-anglais/natural/meta.json"),
-                    (Expression::Staccato, "/cor-anglais/staccato/meta.json"),
-                ]),
-                section_patches: FxHashMap::from_iter([
-                    (Expression::Natural, "/cor-anglais/natural/meta.json"),
-                    (Expression::Staccato, "/cor-anglais/staccato/meta.json"),
-                ]),
             },
             InstrumentDefinition {
                 id: "woodwinds.flute",
@@ -969,14 +695,6 @@ lazy_static! {
                         ClefDrawType::G,
                     ),
                 }],
-                solo_patches: FxHashMap::from_iter([
-                    (Expression::Natural, "/flute/natural/meta.json"),
-                    (Expression::Staccato, "/flute/staccato/meta.json"),
-                ]),
-                section_patches: FxHashMap::from_iter([
-                    (Expression::Natural, "/flute/natural/meta.json"),
-                    (Expression::Staccato, "/flute/staccato/meta.json"),
-                ]),
             },
             InstrumentDefinition {
                 id: "woodwinds.oboe",
@@ -994,14 +712,6 @@ lazy_static! {
                         ClefDrawType::G,
                     ),
                 }],
-                solo_patches: FxHashMap::from_iter([
-                    (Expression::Natural, "/oboe/natural/meta.json"),
-                    (Expression::Staccato, "/oboe/staccato/meta.json"),
-                ]),
-                section_patches: FxHashMap::from_iter([
-                    (Expression::Natural, "/oboe/natural/meta.json"),
-                    (Expression::Staccato, "/oboe/staccato/meta.json"),
-                ]),
             },
             InstrumentDefinition {
                 id: "woodwinds.piccolo",
@@ -1019,14 +729,6 @@ lazy_static! {
                         ClefDrawType::G,
                     ),
                 }],
-                solo_patches: FxHashMap::from_iter([
-                    (Expression::Natural, "/piccolo/natural/meta.json"),
-                    (Expression::Staccato, "/piccolo/staccato/meta.json"),
-                ]),
-                section_patches: FxHashMap::from_iter([
-                    (Expression::Natural, "/piccolo/natural/meta.json"),
-                    (Expression::Staccato, "/piccolo/staccato/meta.json"),
-                ]),
             },
         ]
     };
@@ -1047,22 +749,6 @@ pub fn score_instruments_get_all_definitions() -> Vec<InstrumentIdPath> {
             path: instrument.path.clone(),
         })
         .collect()
-}
-
-#[tauri::command(rename_all = "snake_case")]
-pub fn score_instruments_get_patches(id: String, player_type: PlayerType) -> FxHashMap<u8, String> {
-    if let Some(def) = get_instrument_definition(&id) {
-        let patches = match player_type {
-            PlayerType::Solo => &def.solo_patches,
-            PlayerType::Section => &def.section_patches,
-        };
-        patches
-            .iter()
-            .map(|(expr, path)| (*expr as u8, (*path).to_string()))
-            .collect()
-    } else {
-        FxHashMap::default()
-    }
 }
 
 pub fn get_instrument_definition(id: &String) -> Option<&InstrumentDefinition> {

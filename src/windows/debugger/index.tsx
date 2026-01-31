@@ -1,19 +1,20 @@
-import { useAppState, useAudioState, useVstState } from "../../services/state";
-import { useEffect, useState } from "react";
+import {
+  useAppState,
+  useAudioState,
+  useSamplerState,
+} from "../../services/state";
+import { useEffect } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { AppBar } from "../../components/app-bar";
 import { actions } from "../../services/actions";
 import { chromeDark, ObjectInspector } from "react-inspector";
 import { Switch } from "../../ui/switch";
-import { Button } from "../../ui/button";
-import { Select } from "../../ui/select";
 import { PerformanceTimings } from "./components/performance-timings";
 
 export const Main = () => {
   const state = useAppState();
   const audio = useAudioState();
-  const vst = useVstState();
-  const [selectedPlugin, setSelectedPlugin] = useState<string>("");
+  const sampler = useSamplerState();
 
   useEffect(() => {
     const show = async () => {
@@ -24,18 +25,8 @@ export const Main = () => {
     show();
   }, []);
 
-  const handleLoadPlugin = async () => {
-    if (!selectedPlugin) return;
-
-    try {
-      await actions.vst.loadPlugin(selectedPlugin);
-    } catch (error) {
-      console.error("Failed to load plugin:", error);
-    }
-  };
-
   return (
-    <div className="h-dvh bg-neutral-950 grid grid-rows-[28px_auto_auto_auto_1fr_1fr_1fr_auto] gap-2 overflow-hidden">
+    <div className="h-dvh bg-neutral-950 grid grid-rows-[28px_auto_auto_1fr_1fr_1fr] gap-2 overflow-hidden pb-2">
       <AppBar title="Debugger" />
 
       <PerformanceTimings />
@@ -46,24 +37,6 @@ export const Main = () => {
           value={state.ui.renderer.debug}
           onChange={() => actions.ui.renderer.toggleDebug()}
         />
-      </div>
-
-      <div className="bg-neutral-900 p-2 mx-2">
-        <div className="flex items-center gap-2">
-          <Select
-            variant="filled"
-            value={selectedPlugin}
-            onChange={setSelectedPlugin}
-            options={Object.entries(vst.plugins || {}).map(([id, plugin]) => ({
-              value: id,
-              label: plugin.name,
-            }))}
-            placeholder="Select a VST plugin..."
-          />
-          <Button onClick={handleLoadPlugin} isDisabled={!selectedPlugin}>
-            Load Plugin
-          </Button>
-        </div>
       </div>
 
       <div className="bg-neutral-900 p-2 overflow-auto mx-2">
@@ -101,8 +74,8 @@ export const Main = () => {
 
       <div className="bg-neutral-900 p-2 overflow-auto mx-2">
         <ObjectInspector
-          data={vst}
-          name="vst"
+          data={sampler}
+          name="sampler"
           theme={
             {
               ...chromeDark,

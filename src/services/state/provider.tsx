@@ -1,7 +1,7 @@
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
-import { AppState, AudioState, VstState } from "../types";
+import { AppState, AudioState, SamplerState } from "../types";
 import { actions } from "../actions";
 import { FC, PropsWithChildren, useEffect, useState } from "react";
 import {
@@ -9,8 +9,8 @@ import {
   initialAppState,
   initialAudioState,
   AudioContext,
-  initialVstState,
-  VstContext,
+  initialSamplerState,
+  SamplerContext,
 } from "./context";
 
 type Props = PropsWithChildren<{ isMainWindow?: boolean }>;
@@ -21,12 +21,13 @@ export const AppStateProvider: FC<Props> = ({
 }) => {
   const [appState, setAppState] = useState<AppState>(initialAppState);
   const [audioState, setAudioState] = useState<AudioState>(initialAudioState);
-  const [vstState, setVstState] = useState<VstState>(initialVstState);
+  const [samplerState, setSamplerState] =
+    useState<SamplerState>(initialSamplerState);
 
   useEffect(() => {
     let unlistenApp: UnlistenFn | null = null;
     let unlistenAudio: UnlistenFn | null = null;
-    let unlistenVst: UnlistenFn | null = null;
+    let unlistenSampler: UnlistenFn | null = null;
     let unlistenMenuSave: UnlistenFn | null = null;
     let unlistenMenuSaveAs: UnlistenFn | null = null;
     let unlistenMenuOpen: UnlistenFn | null = null;
@@ -44,9 +45,12 @@ export const AppStateProvider: FC<Props> = ({
         setAudioState(e.payload);
       });
 
-      unlistenVst = await listen<VstState>("soloc://state/vst", (e) => {
-        setVstState(e.payload);
-      });
+      unlistenSampler = await listen<SamplerState>(
+        "soloc://state/sampler",
+        (e) => {
+          setSamplerState(e.payload);
+        },
+      );
 
       if (isMainWindow) {
         unlistenMenuSave = await listen("soloc://menu/save", () => {
@@ -109,7 +113,7 @@ export const AppStateProvider: FC<Props> = ({
     return () => {
       unlistenApp?.();
       unlistenAudio?.();
-      unlistenVst?.();
+      unlistenSampler?.();
       unlistenMenuSave?.();
       unlistenMenuSaveAs?.();
       unlistenMenuOpen?.();
@@ -123,7 +127,9 @@ export const AppStateProvider: FC<Props> = ({
   return (
     <AppContext.Provider value={appState}>
       <AudioContext.Provider value={audioState}>
-        <VstContext.Provider value={vstState}>{children}</VstContext.Provider>
+        <SamplerContext.Provider value={samplerState}>
+          {children}
+        </SamplerContext.Provider>
       </AudioContext.Provider>
     </AppContext.Provider>
   );

@@ -10,9 +10,9 @@ import {
   Justify,
   LayoutType,
   NoteDuration,
+  SamplerState,
   Tab,
   Tool,
-  VstState,
 } from "../types";
 import { createContext, useContext } from "react";
 
@@ -160,12 +160,11 @@ export const initialAudioState: AudioState = {
 
 export const AudioContext = createContext<AudioState | null>(null);
 
-export const initialVstState: VstState = {
-  plugins: {},
-  instances: {},
+export const initialSamplerState: SamplerState = {
+  plugins: [],
 };
 
-export const VstContext = createContext<VstState | null>(null);
+export const SamplerContext = createContext<SamplerState | null>(null);
 
 export const useAppState = () => {
   const context = useContext(AppContext);
@@ -187,11 +186,11 @@ export const useAudioState = () => {
   return context;
 };
 
-export const useVstState = () => {
-  const context = useContext(VstContext);
+export const useSamplerState = () => {
+  const context = useContext(SamplerContext);
 
   if (!context) {
-    throw new Error("useVstState must be used within an AppStateProvider");
+    throw new Error("useSamplerState must be used within an AppStateProvider");
   }
 
   return context;

@@ -65,12 +65,6 @@ export const actions = {
       })();
     });
   },
-  getInstrumentPatches: (id: string, player_type: PlayerType) => {
-    return invoke<Record<number, string>>("score_instruments_get_patches", {
-      id,
-      player_type,
-    });
-  },
   audio: {
     setDevice: (device_id: string) => {
       return invoke("audio_device_set", { device_id });

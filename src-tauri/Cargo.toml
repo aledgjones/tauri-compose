@@ -41,7 +41,8 @@ objc2-metal = "0.3.2"
 semver = "1.0.27"
 sled = "0.34.7"
 cpal = "0.17.1"
-rack = { version = "0.4.8", features = ["vst3"] }
+rodio = "0.21.1"
+zip = "7.2.0"
 
 
 [profile.release]

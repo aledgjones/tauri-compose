@@ -1,9 +1,8 @@
-import { FC, useMemo } from "react";
+import { FC } from "react";
 import { mdiSizeM, mdiSizeS } from "@mdi/js";
 import { IconButton } from "../../../ui/icon-button";
 import { Fader } from "./fader";
 import { Instrument } from "../../../services/types";
-import { desaturateColor } from "../../../services/utils";
 import { TokenizedText } from "../../../ui/text";
 
 type MixerProps = {
@@ -29,16 +28,8 @@ export const MixerChannel: FC<MixerProps> = ({
   onToggleMute,
   onToggleSolo,
 }) => {
-  // Desaturate the color for background and fader border
-  const desaturatedColor = useMemo(() => {
-    return color ? desaturateColor(color, 0.25, 0.4) : undefined;
-  }, [color]);
-
   return (
-    <div
-      className="flex flex-col w-24 h-full"
-      style={{ backgroundColor: desaturatedColor }}
-    >
+    <div className="flex flex-col w-24 h-full bg-neutral-900">
       {/* Fader */}
       <div className="flex flex-1 w-full items-center justify-center p-8 pb-5">
         <Fader
@@ -46,7 +37,6 @@ export const MixerChannel: FC<MixerProps> = ({
           disabled={disabled}
           amplitude={0}
           color={color}
-          borderColor={desaturatedColor}
           onChange={(val) => onVolumeChange(Math.round((val / 100) * 127))}
         />
       </div>

@@ -1,2 +1,2 @@
 pub mod audio;
-pub mod vst;
+pub mod sampler;
