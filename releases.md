@@ -1,3 +1,11 @@
+## Release Notes for v1.19.6
+
+### 🐞 Fixes
+
+- fix: script organisation
+- fix: instrument folder structure
+- fix: cleanup temp folders
+
 ## Release Notes for v1.19.5
 
 ### 🐞 Fixes

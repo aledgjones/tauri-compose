@@ -47,23 +47,23 @@
   "private": true,
   "scripts": {
     "build": "tsc && vite build",
-    "release:build": "cd src-tauri && cargo build --release --bin release && cp target/release/release ../scripts/release",
-    "generate-scvi:build": "cd src-tauri && cargo build --release --bin scvi-compress && cp target/release/scvi-compress ../scripts/scvi-compress",
     "check-types": "tsc --noEmit",
     "dev": "vite",
     "format": "prettier --check .",
     "format:fix": "prettier --write .",
+    "generate-scvi": "./scripts/scvi-compress",
+    "generate-scvi:build": "cd src-tauri && cargo build --release --bin scvi-compress && cp target/release/scvi-compress ../scripts/scvi-compress",
     "lint": "eslint 'src/**/*.{ts,tsx}'",
     "lint:fix": "eslint 'src/**/*.{ts,tsx}' --fix",
     "preview": "vite preview",
+    "release:build": "cd src-tauri && cargo build --release --bin release && cp target/release/release ../scripts/release",
     "release:major": "./scripts/release major",
     "release:minor": "./scripts/release minor",
     "release:patch": "./scripts/release patch",
-    "generate-scvi": "./scripts/scvi-compress",
     "start:dev": "tauri dev",
     "start:release": "tauri build",
     "tauri": "tauri"
   },
   "type": "module",
-  "version": "1.19.5"
+  "version": "1.19.6"
 }
