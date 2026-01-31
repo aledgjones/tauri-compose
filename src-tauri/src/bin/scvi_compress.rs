@@ -166,7 +166,9 @@ fn create_scvi_archive(instrument_name: &str) -> Result<(), Box<dyn std::error::
             .map_err(|e| format!("Failed to remove existing archive: {}", e))?;
     }
 
+    // Change to temp directory and archive contents at root level
     let archive_result = Command::new("7zz")
+        .current_dir(&temp_path)
         .args([
             "a",         // Add to archive
             "-t7z",      // 7z format
@@ -177,7 +179,7 @@ fn create_scvi_archive(instrument_name: &str) -> Result<(), Box<dyn std::error::
             "-mfb=273",  // Fast bytes for LZMA
             "-md=256m",  // Match finder cycles
             &output_path,
-            &format!("{}/{}", temp_path, "*"),
+            "*", // Archive all files/folders in current directory (temp_path)
         ])
         .status();
 
