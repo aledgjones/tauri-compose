@@ -92,51 +92,49 @@ fn create_scvi_archive(instrument_name: &str) -> Result<(), Box<dyn std::error::
             total_original_size += original_size;
 
             if path.extension().and_then(|s| s.to_str()) == Some("wav") {
-                // Convert WAV to FLAC with maximum compression
-                let flac_path = temp_file.with_extension("flac");
-                if let Some(parent) = flac_path.parent() {
+                // Convert WAV to WavPack with maximum compression
+                let wv_path = temp_file.with_extension("wv");
+                if let Some(parent) = wv_path.parent() {
                     fs::create_dir_all(parent)?;
                 }
 
-                println!("🎵 Converting {} to FLAC...", path.display());
+                println!("🎵 Converting {} to WavPack...", path.display());
 
-                let flac_result = Command::new("flac")
+                let wv_result = Command::new("wavpack")
                     .args([
-                        "-f",                    // Force overwrite existing files
-                        "--best",                // Maximum compression
-                        "--silent",              // No output
-                        "--compression-level-8", // Even more compression
+                        "-hh", // High compression mode
+                        "-y",  // Yes to overwrite
                         &path.to_string_lossy(),
                         "-o",
-                        &flac_path.to_string_lossy(),
+                        &wv_path.to_string_lossy(),
                     ])
                     .status();
 
-                match flac_result {
+                match wv_result {
                     Ok(status) if status.success() => {
-                        // Check if FLAC is actually smaller
-                        let flac_size = fs::metadata(&flac_path)?.len();
-                        if flac_size < original_size {
+                        // Check if WavPack is actually smaller
+                        let wv_size = fs::metadata(&wv_path)?.len();
+                        if wv_size < original_size {
                             println!(
                                 "✅ Compressed: {} bytes → {} bytes ({:.1}% reduction)",
                                 original_size,
-                                flac_size,
-                                (1.0 - flac_size as f64 / original_size as f64) * 100.0
+                                wv_size,
+                                (1.0 - wv_size as f64 / original_size as f64) * 100.0
                             );
                         } else {
-                            // FLAC is not smaller, keep original
+                            // WavPack is not smaller, keep original
                             fs::copy(path, &temp_file)?;
-                            fs::remove_file(&flac_path)?;
+                            fs::remove_file(&wv_path)?;
                             println!(
-                                "⚠️  Kept original: FLAC was larger ({} bytes)",
+                                "⚠️  Kept original: WavPack was larger ({} bytes)",
                                 original_size
                             );
                         }
                     }
                     _ => {
-                        // FLAC conversion failed, copy original
+                        // WavPack conversion failed, copy original
                         fs::copy(path, &temp_file)?;
-                        println!("❌ FLAC failed, kept original: {} bytes", original_size);
+                        println!("❌ WavPack failed, kept original: {} bytes", original_size);
                     }
                 }
             } else {
