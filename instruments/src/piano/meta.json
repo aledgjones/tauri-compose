@@ -1,0 +1,624 @@
+{
+  "meta": {
+    "id": "sso.piano",
+    "name": "SSO Grand Piano",
+    "author": "Aled Jones",
+    "version": "1.0.0"
+  },
+  "articulations": [
+    {
+      "name": "sustain",
+      "zones": [
+        {
+          "pitch": 21,
+          "velocityLayers": [
+            { "range": [1, 26], "samples": ["natural/A0v1.wav"] },
+            { "range": [27, 34], "samples": ["natural/A0v2.wav"] },
+            { "range": [35, 36], "samples": ["natural/A0v3.wav"] },
+            { "range": [37, 43], "samples": ["natural/A0v4.wav"] },
+            { "range": [44, 46], "samples": ["natural/A0v5.wav"] },
+            { "range": [47, 50], "samples": ["natural/A0v6.wav"] },
+            { "range": [51, 56], "samples": ["natural/A0v7.wav"] },
+            { "range": [57, 64], "samples": ["natural/A0v8.wav"] },
+            { "range": [65, 72], "samples": ["natural/A0v9.wav"] },
+            { "range": [73, 80], "samples": ["natural/A0v10.wav"] },
+            { "range": [81, 88], "samples": ["natural/A0v11.wav"] },
+            { "range": [89, 96], "samples": ["natural/A0v12.wav"] },
+            { "range": [97, 104], "samples": ["natural/A0v13.wav"] },
+            { "range": [105, 112], "samples": ["natural/A0v14.wav"] },
+            { "range": [113, 120], "samples": ["natural/A0v15.wav"] },
+            { "range": [121, 127], "samples": ["natural/A0v16.wav"] }
+          ]
+        },
+        {
+          "pitch": 24,
+          "velocityLayers": [
+            { "range": [1, 26], "samples": ["natural/C1v1.wav"] },
+            { "range": [27, 34], "samples": ["natural/C1v2.wav"] },
+            { "range": [35, 36], "samples": ["natural/C1v3.wav"] },
+            { "range": [37, 43], "samples": ["natural/C1v4.wav"] },
+            { "range": [44, 46], "samples": ["natural/C1v5.wav"] },
+            { "range": [47, 50], "samples": ["natural/C1v6.wav"] },
+            { "range": [51, 56], "samples": ["natural/C1v7.wav"] },
+            { "range": [57, 64], "samples": ["natural/C1v8.wav"] },
+            { "range": [65, 72], "samples": ["natural/C1v9.wav"] },
+            { "range": [73, 80], "samples": ["natural/C1v10.wav"] },
+            { "range": [81, 88], "samples": ["natural/C1v11.wav"] },
+            { "range": [89, 96], "samples": ["natural/C1v12.wav"] },
+            { "range": [97, 104], "samples": ["natural/C1v13.wav"] },
+            { "range": [105, 112], "samples": ["natural/C1v14.wav"] },
+            { "range": [113, 120], "samples": ["natural/C1v15.wav"] },
+            { "range": [121, 127], "samples": ["natural/C1v16.wav"] }
+          ]
+        },
+        {
+          "pitch": 27,
+          "velocityLayers": [
+            { "range": [1, 26], "samples": ["natural/D#1v1.wav"] },
+            { "range": [27, 34], "samples": ["natural/D#1v2.wav"] },
+            { "range": [35, 36], "samples": ["natural/D#1v3.wav"] },
+            { "range": [37, 43], "samples": ["natural/D#1v4.wav"] },
+            { "range": [44, 46], "samples": ["natural/D#1v5.wav"] },
+            { "range": [47, 50], "samples": ["natural/D#1v6.wav"] },
+            { "range": [51, 56], "samples": ["natural/D#1v7.wav"] },
+            { "range": [57, 64], "samples": ["natural/D#1v8.wav"] },
+            { "range": [65, 72], "samples": ["natural/D#1v9.wav"] },
+            { "range": [73, 80], "samples": ["natural/D#1v10.wav"] },
+            { "range": [81, 88], "samples": ["natural/D#1v11.wav"] },
+            { "range": [89, 96], "samples": ["natural/D#1v12.wav"] },
+            { "range": [97, 104], "samples": ["natural/D#1v13.wav"] },
+            { "range": [105, 112], "samples": ["natural/D#1v14.wav"] },
+            { "range": [113, 120], "samples": ["natural/D#1v15.wav"] },
+            { "range": [121, 127], "samples": ["natural/D#1v16.wav"] }
+          ]
+        },
+        {
+          "pitch": 30,
+          "velocityLayers": [
+            { "range": [1, 26], "samples": ["natural/F#1v1.wav"] },
+            { "range": [27, 34], "samples": ["natural/F#1v2.wav"] },
+            { "range": [35, 36], "samples": ["natural/F#1v3.wav"] },
+            { "range": [37, 43], "samples": ["natural/F#1v4.wav"] },
+            { "range": [44, 46], "samples": ["natural/F#1v5.wav"] },
+            { "range": [47, 50], "samples": ["natural/F#1v6.wav"] },
+            { "range": [51, 56], "samples": ["natural/F#1v7.wav"] },
+            { "range": [57, 64], "samples": ["natural/F#1v8.wav"] },
+            { "range": [65, 72], "samples": ["natural/F#1v9.wav"] },
+            { "range": [73, 80], "samples": ["natural/F#1v10.wav"] },
+            { "range": [81, 88], "samples": ["natural/F#1v11.wav"] },
+            { "range": [89, 96], "samples": ["natural/F#1v12.wav"] },
+            { "range": [97, 104], "samples": ["natural/F#1v13.wav"] },
+            { "range": [105, 112], "samples": ["natural/F#1v14.wav"] },
+            { "range": [113, 120], "samples": ["natural/F#1v15.wav"] },
+            { "range": [121, 127], "samples": ["natural/F#1v16.wav"] }
+          ]
+        },
+        {
+          "pitch": 33,
+          "velocityLayers": [
+            { "range": [1, 26], "samples": ["natural/A1v1.wav"] },
+            { "range": [27, 34], "samples": ["natural/A1v2.wav"] },
+            { "range": [35, 36], "samples": ["natural/A1v3.wav"] },
+            { "range": [37, 43], "samples": ["natural/A1v4.wav"] },
+            { "range": [44, 46], "samples": ["natural/A1v5.wav"] },
+            { "range": [47, 50], "samples": ["natural/A1v6.wav"] },
+            { "range": [51, 56], "samples": ["natural/A1v7.wav"] },
+            { "range": [57, 64], "samples": ["natural/A1v8.wav"] },
+            { "range": [65, 72], "samples": ["natural/A1v9.wav"] },
+            { "range": [73, 80], "samples": ["natural/A1v10.wav"] },
+            { "range": [81, 88], "samples": ["natural/A1v11.wav"] },
+            { "range": [89, 96], "samples": ["natural/A1v12.wav"] },
+            { "range": [97, 104], "samples": ["natural/A1v13.wav"] },
+            { "range": [105, 112], "samples": ["natural/A1v14.wav"] },
+            { "range": [113, 120], "samples": ["natural/A1v15.wav"] },
+            { "range": [121, 127], "samples": ["natural/A1v16.wav"] }
+          ]
+        },
+        {
+          "pitch": 36,
+          "velocityLayers": [
+            { "range": [1, 26], "samples": ["natural/C2v1.wav"] },
+            { "range": [27, 34], "samples": ["natural/C2v2.wav"] },
+            { "range": [35, 36], "samples": ["natural/C2v3.wav"] },
+            { "range": [37, 43], "samples": ["natural/C2v4.wav"] },
+            { "range": [44, 46], "samples": ["natural/C2v5.wav"] },
+            { "range": [47, 50], "samples": ["natural/C2v6.wav"] },
+            { "range": [51, 56], "samples": ["natural/C2v7.wav"] },
+            { "range": [57, 64], "samples": ["natural/C2v8.wav"] },
+            { "range": [65, 72], "samples": ["natural/C2v9.wav"] },
+            { "range": [73, 80], "samples": ["natural/C2v10.wav"] },
+            { "range": [81, 88], "samples": ["natural/C2v11.wav"] },
+            { "range": [89, 96], "samples": ["natural/C2v12.wav"] },
+            { "range": [97, 104], "samples": ["natural/C2v13.wav"] },
+            { "range": [105, 112], "samples": ["natural/C2v14.wav"] },
+            { "range": [113, 120], "samples": ["natural/C2v15.wav"] },
+            { "range": [121, 127], "samples": ["natural/C2v16.wav"] }
+          ]
+        },
+        {
+          "pitch": 39,
+          "velocityLayers": [
+            { "range": [1, 26], "samples": ["natural/D#2v1.wav"] },
+            { "range": [27, 34], "samples": ["natural/D#2v2.wav"] },
+            { "range": [35, 36], "samples": ["natural/D#2v3.wav"] },
+            { "range": [37, 43], "samples": ["natural/D#2v4.wav"] },
+            { "range": [44, 46], "samples": ["natural/D#2v5.wav"] },
+            { "range": [47, 50], "samples": ["natural/D#2v6.wav"] },
+            { "range": [51, 56], "samples": ["natural/D#2v7.wav"] },
+            { "range": [57, 64], "samples": ["natural/D#2v8.wav"] },
+            { "range": [65, 72], "samples": ["natural/D#2v9.wav"] },
+            { "range": [73, 80], "samples": ["natural/D#2v10.wav"] },
+            { "range": [81, 88], "samples": ["natural/D#2v11.wav"] },
+            { "range": [89, 96], "samples": ["natural/D#2v12.wav"] },
+            { "range": [97, 104], "samples": ["natural/D#2v13.wav"] },
+            { "range": [105, 112], "samples": ["natural/D#2v14.wav"] },
+            { "range": [113, 120], "samples": ["natural/D#2v15.wav"] },
+            { "range": [121, 127], "samples": ["natural/D#2v16.wav"] }
+          ]
+        },
+        {
+          "pitch": 42,
+          "velocityLayers": [
+            { "range": [1, 26], "samples": ["natural/F#2v1.wav"] },
+            { "range": [27, 34], "samples": ["natural/F#2v2.wav"] },
+            { "range": [35, 36], "samples": ["natural/F#2v3.wav"] },
+            { "range": [37, 43], "samples": ["natural/F#2v4.wav"] },
+            { "range": [44, 46], "samples": ["natural/F#2v5.wav"] },
+            { "range": [47, 50], "samples": ["natural/F#2v6.wav"] },
+            { "range": [51, 56], "samples": ["natural/F#2v7.wav"] },
+            { "range": [57, 64], "samples": ["natural/F#2v8.wav"] },
+            { "range": [65, 72], "samples": ["natural/F#2v9.wav"] },
+            { "range": [73, 80], "samples": ["natural/F#2v10.wav"] },
+            { "range": [81, 88], "samples": ["natural/F#2v11.wav"] },
+            { "range": [89, 96], "samples": ["natural/F#2v12.wav"] },
+            { "range": [97, 104], "samples": ["natural/F#2v13.wav"] },
+            { "range": [105, 112], "samples": ["natural/F#2v14.wav"] },
+            { "range": [113, 120], "samples": ["natural/F#2v15.wav"] },
+            { "range": [121, 127], "samples": ["natural/F#2v16.wav"] }
+          ]
+        },
+        {
+          "pitch": 45,
+          "velocityLayers": [
+            { "range": [1, 26], "samples": ["natural/A2v1.wav"] },
+            { "range": [27, 34], "samples": ["natural/A2v2.wav"] },
+            { "range": [35, 36], "samples": ["natural/A2v3.wav"] },
+            { "range": [37, 43], "samples": ["natural/A2v4.wav"] },
+            { "range": [44, 46], "samples": ["natural/A2v5.wav"] },
+            { "range": [47, 50], "samples": ["natural/A2v6.wav"] },
+            { "range": [51, 56], "samples": ["natural/A2v7.wav"] },
+            { "range": [57, 64], "samples": ["natural/A2v8.wav"] },
+            { "range": [65, 72], "samples": ["natural/A2v9.wav"] },
+            { "range": [73, 80], "samples": ["natural/A2v10.wav"] },
+            { "range": [81, 88], "samples": ["natural/A2v11.wav"] },
+            { "range": [89, 96], "samples": ["natural/A2v12.wav"] },
+            { "range": [97, 104], "samples": ["natural/A2v13.wav"] },
+            { "range": [105, 112], "samples": ["natural/A2v14.wav"] },
+            { "range": [113, 120], "samples": ["natural/A2v15.wav"] },
+            { "range": [121, 127], "samples": ["natural/A2v16.wav"] }
+          ]
+        },
+        {
+          "pitch": 48,
+          "velocityLayers": [
+            { "range": [1, 26], "samples": ["natural/C3v1.wav"] },
+            { "range": [27, 34], "samples": ["natural/C3v2.wav"] },
+            { "range": [35, 36], "samples": ["natural/C3v3.wav"] },
+            { "range": [37, 43], "samples": ["natural/C3v4.wav"] },
+            { "range": [44, 46], "samples": ["natural/C3v5.wav"] },
+            { "range": [47, 50], "samples": ["natural/C3v6.wav"] },
+            { "range": [51, 56], "samples": ["natural/C3v7.wav"] },
+            { "range": [57, 64], "samples": ["natural/C3v8.wav"] },
+            { "range": [65, 72], "samples": ["natural/C3v9.wav"] },
+            { "range": [73, 80], "samples": ["natural/C3v10.wav"] },
+            { "range": [81, 88], "samples": ["natural/C3v11.wav"] },
+            { "range": [89, 96], "samples": ["natural/C3v12.wav"] },
+            { "range": [97, 104], "samples": ["natural/C3v13.wav"] },
+            { "range": [105, 112], "samples": ["natural/C3v14.wav"] },
+            { "range": [113, 120], "samples": ["natural/C3v15.wav"] },
+            { "range": [121, 127], "samples": ["natural/C3v16.wav"] }
+          ]
+        },
+        {
+          "pitch": 51,
+          "velocityLayers": [
+            { "range": [1, 26], "samples": ["natural/D#3v1.wav"] },
+            { "range": [27, 34], "samples": ["natural/D#3v2.wav"] },
+            { "range": [35, 36], "samples": ["natural/D#3v3.wav"] },
+            { "range": [37, 43], "samples": ["natural/D#3v4.wav"] },
+            { "range": [44, 46], "samples": ["natural/D#3v5.wav"] },
+            { "range": [47, 50], "samples": ["natural/D#3v6.wav"] },
+            { "range": [51, 56], "samples": ["natural/D#3v7.wav"] },
+            { "range": [57, 64], "samples": ["natural/D#3v8.wav"] },
+            { "range": [65, 72], "samples": ["natural/D#3v9.wav"] },
+            { "range": [73, 80], "samples": ["natural/D#3v10.wav"] },
+            { "range": [81, 88], "samples": ["natural/D#3v11.wav"] },
+            { "range": [89, 96], "samples": ["natural/D#3v12.wav"] },
+            { "range": [97, 104], "samples": ["natural/D#3v13.wav"] },
+            { "range": [105, 112], "samples": ["natural/D#3v14.wav"] },
+            { "range": [113, 120], "samples": ["natural/D#3v15.wav"] },
+            { "range": [121, 127], "samples": ["natural/D#3v16.wav"] }
+          ]
+        },
+        {
+          "pitch": 54,
+          "velocityLayers": [
+            { "range": [1, 26], "samples": ["natural/F#3v1.wav"] },
+            { "range": [27, 34], "samples": ["natural/F#3v2.wav"] },
+            { "range": [35, 36], "samples": ["natural/F#3v3.wav"] },
+            { "range": [37, 43], "samples": ["natural/F#3v4.wav"] },
+            { "range": [44, 46], "samples": ["natural/F#3v5.wav"] },
+            { "range": [47, 50], "samples": ["natural/F#3v6.wav"] },
+            { "range": [51, 56], "samples": ["natural/F#3v7.wav"] },
+            { "range": [57, 64], "samples": ["natural/F#3v8.wav"] },
+            { "range": [65, 72], "samples": ["natural/F#3v9.wav"] },
+            { "range": [73, 80], "samples": ["natural/F#3v10.wav"] },
+            { "range": [81, 88], "samples": ["natural/F#3v11.wav"] },
+            { "range": [89, 96], "samples": ["natural/F#3v12.wav"] },
+            { "range": [97, 104], "samples": ["natural/F#3v13.wav"] },
+            { "range": [105, 112], "samples": ["natural/F#3v14.wav"] },
+            { "range": [113, 120], "samples": ["natural/F#3v15.wav"] },
+            { "range": [121, 127], "samples": ["natural/F#3v16.wav"] }
+          ]
+        },
+        {
+          "pitch": 57,
+          "velocityLayers": [
+            { "range": [1, 26], "samples": ["natural/A3v1.wav"] },
+            { "range": [27, 34], "samples": ["natural/A3v2.wav"] },
+            { "range": [35, 36], "samples": ["natural/A3v3.wav"] },
+            { "range": [37, 43], "samples": ["natural/A3v4.wav"] },
+            { "range": [44, 46], "samples": ["natural/A3v5.wav"] },
+            { "range": [47, 50], "samples": ["natural/A3v6.wav"] },
+            { "range": [51, 56], "samples": ["natural/A3v7.wav"] },
+            { "range": [57, 64], "samples": ["natural/A3v8.wav"] },
+            { "range": [65, 72], "samples": ["natural/A3v9.wav"] },
+            { "range": [73, 80], "samples": ["natural/A3v10.wav"] },
+            { "range": [81, 88], "samples": ["natural/A3v11.wav"] },
+            { "range": [89, 96], "samples": ["natural/A3v12.wav"] },
+            { "range": [97, 104], "samples": ["natural/A3v13.wav"] },
+            { "range": [105, 112], "samples": ["natural/A3v14.wav"] },
+            { "range": [113, 120], "samples": ["natural/A3v15.wav"] },
+            { "range": [121, 127], "samples": ["natural/A3v16.wav"] }
+          ]
+        },
+        {
+          "pitch": 63,
+          "velocityLayers": [
+            { "range": [1, 26], "samples": ["natural/D#4v1.wav"] },
+            { "range": [27, 34], "samples": ["natural/D#4v2.wav"] },
+            { "range": [35, 36], "samples": ["natural/D#4v3.wav"] },
+            { "range": [37, 43], "samples": ["natural/D#4v4.wav"] },
+            { "range": [44, 46], "samples": ["natural/D#4v5.wav"] },
+            { "range": [47, 50], "samples": ["natural/D#4v6.wav"] },
+            { "range": [51, 56], "samples": ["natural/D#4v7.wav"] },
+            { "range": [57, 64], "samples": ["natural/D#4v8.wav"] },
+            { "range": [65, 72], "samples": ["natural/D#4v9.wav"] },
+            { "range": [73, 80], "samples": ["natural/D#4v10.wav"] },
+            { "range": [81, 88], "samples": ["natural/D#4v11.wav"] },
+            { "range": [89, 96], "samples": ["natural/D#4v12.wav"] },
+            { "range": [97, 104], "samples": ["natural/D#4v13.wav"] },
+            { "range": [105, 112], "samples": ["natural/D#4v14.wav"] },
+            { "range": [113, 120], "samples": ["natural/D#4v15.wav"] },
+            { "range": [121, 127], "samples": ["natural/D#4v16.wav"] }
+          ]
+        },
+        {
+          "pitch": 66,
+          "velocityLayers": [
+            { "range": [1, 26], "samples": ["natural/F#4v1.wav"] },
+            { "range": [27, 34], "samples": ["natural/F#4v2.wav"] },
+            { "range": [35, 36], "samples": ["natural/F#4v3.wav"] },
+            { "range": [37, 43], "samples": ["natural/F#4v4.wav"] },
+            { "range": [44, 46], "samples": ["natural/F#4v5.wav"] },
+            { "range": [47, 50], "samples": ["natural/F#4v6.wav"] },
+            { "range": [51, 56], "samples": ["natural/F#4v7.wav"] },
+            { "range": [57, 64], "samples": ["natural/F#4v8.wav"] },
+            { "range": [65, 72], "samples": ["natural/F#4v9.wav"] },
+            { "range": [73, 80], "samples": ["natural/F#4v10.wav"] },
+            { "range": [81, 88], "samples": ["natural/F#4v11.wav"] },
+            { "range": [89, 96], "samples": ["natural/F#4v12.wav"] },
+            { "range": [97, 104], "samples": ["natural/F#4v13.wav"] },
+            { "range": [105, 112], "samples": ["natural/F#4v14.wav"] },
+            { "range": [113, 120], "samples": ["natural/F#4v15.wav"] },
+            { "range": [121, 127], "samples": ["natural/F#4v16.wav"] }
+          ]
+        },
+        {
+          "pitch": 69,
+          "velocityLayers": [
+            { "range": [1, 26], "samples": ["natural/A4v1.wav"] },
+            { "range": [27, 34], "samples": ["natural/A4v2.wav"] },
+            { "range": [35, 36], "samples": ["natural/A4v3.wav"] },
+            { "range": [37, 43], "samples": ["natural/A4v4.wav"] },
+            { "range": [44, 46], "samples": ["natural/A4v5.wav"] },
+            { "range": [47, 50], "samples": ["natural/A4v6.wav"] },
+            { "range": [51, 56], "samples": ["natural/A4v7.wav"] },
+            { "range": [57, 64], "samples": ["natural/A4v8.wav"] },
+            { "range": [65, 72], "samples": ["natural/A4v9.wav"] },
+            { "range": [73, 80], "samples": ["natural/A4v10.wav"] },
+            { "range": [81, 88], "samples": ["natural/A4v11.wav"] },
+            { "range": [89, 96], "samples": ["natural/A4v12.wav"] },
+            { "range": [97, 104], "samples": ["natural/A4v13.wav"] },
+            { "range": [105, 112], "samples": ["natural/A4v14.wav"] },
+            { "range": [113, 120], "samples": ["natural/A4v15.wav"] },
+            { "range": [121, 127], "samples": ["natural/A4v16.wav"] }
+          ]
+        },
+        {
+          "pitch": 72,
+          "velocityLayers": [
+            { "range": [1, 26], "samples": ["natural/C5v1.wav"] },
+            { "range": [27, 34], "samples": ["natural/C5v2.wav"] },
+            { "range": [35, 36], "samples": ["natural/C5v3.wav"] },
+            { "range": [37, 43], "samples": ["natural/C5v4.wav"] },
+            { "range": [44, 46], "samples": ["natural/C5v5.wav"] },
+            { "range": [47, 50], "samples": ["natural/C5v6.wav"] },
+            { "range": [51, 56], "samples": ["natural/C5v7.wav"] },
+            { "range": [57, 64], "samples": ["natural/C5v8.wav"] },
+            { "range": [65, 72], "samples": ["natural/C5v9.wav"] },
+            { "range": [73, 80], "samples": ["natural/C5v10.wav"] },
+            { "range": [81, 88], "samples": ["natural/C5v11.wav"] },
+            { "range": [89, 96], "samples": ["natural/C5v12.wav"] },
+            { "range": [97, 104], "samples": ["natural/C5v13.wav"] },
+            { "range": [105, 112], "samples": ["natural/C5v14.wav"] },
+            { "range": [113, 120], "samples": ["natural/C5v15.wav"] },
+            { "range": [121, 127], "samples": ["natural/C5v16.wav"] }
+          ]
+        },
+        {
+          "pitch": 75,
+          "velocityLayers": [
+            { "range": [1, 26], "samples": ["natural/D#5v1.wav"] },
+            { "range": [27, 34], "samples": ["natural/D#5v2.wav"] },
+            { "range": [35, 36], "samples": ["natural/D#5v3.wav"] },
+            { "range": [37, 43], "samples": ["natural/D#5v4.wav"] },
+            { "range": [44, 46], "samples": ["natural/D#5v5.wav"] },
+            { "range": [47, 50], "samples": ["natural/D#5v6.wav"] },
+            { "range": [51, 56], "samples": ["natural/D#5v7.wav"] },
+            { "range": [57, 64], "samples": ["natural/D#5v8.wav"] },
+            { "range": [65, 72], "samples": ["natural/D#5v9.wav"] },
+            { "range": [73, 80], "samples": ["natural/D#5v10.wav"] },
+            { "range": [81, 88], "samples": ["natural/D#5v11.wav"] },
+            { "range": [89, 96], "samples": ["natural/D#5v12.wav"] },
+            { "range": [97, 104], "samples": ["natural/D#5v13.wav"] },
+            { "range": [105, 112], "samples": ["natural/D#5v14.wav"] },
+            { "range": [113, 120], "samples": ["natural/D#5v15.wav"] },
+            { "range": [121, 127], "samples": ["natural/D#5v16.wav"] }
+          ]
+        },
+        {
+          "pitch": 78,
+          "velocityLayers": [
+            { "range": [1, 26], "samples": ["natural/F#5v1.wav"] },
+            { "range": [27, 34], "samples": ["natural/F#5v2.wav"] },
+            { "range": [35, 36], "samples": ["natural/F#5v3.wav"] },
+            { "range": [37, 43], "samples": ["natural/F#5v4.wav"] },
+            { "range": [44, 46], "samples": ["natural/F#5v5.wav"] },
+            { "range": [47, 50], "samples": ["natural/F#5v6.wav"] },
+            { "range": [51, 56], "samples": ["natural/F#5v7.wav"] },
+            { "range": [57, 64], "samples": ["natural/F#5v8.wav"] },
+            { "range": [65, 72], "samples": ["natural/F#5v9.wav"] },
+            { "range": [73, 80], "samples": ["natural/F#5v10.wav"] },
+            { "range": [81, 88], "samples": ["natural/F#5v11.wav"] },
+            { "range": [89, 96], "samples": ["natural/F#5v12.wav"] },
+            { "range": [97, 104], "samples": ["natural/F#5v13.wav"] },
+            { "range": [105, 112], "samples": ["natural/F#5v14.wav"] },
+            { "range": [113, 120], "samples": ["natural/F#5v15.wav"] },
+            { "range": [121, 127], "samples": ["natural/F#5v16.wav"] }
+          ]
+        },
+        {
+          "pitch": 81,
+          "velocityLayers": [
+            { "range": [1, 26], "samples": ["natural/A5v1.wav"] },
+            { "range": [27, 34], "samples": ["natural/A5v2.wav"] },
+            { "range": [35, 36], "samples": ["natural/A5v3.wav"] },
+            { "range": [37, 43], "samples": ["natural/A5v4.wav"] },
+            { "range": [44, 46], "samples": ["natural/A5v5.wav"] },
+            { "range": [47, 50], "samples": ["natural/A5v6.wav"] },
+            { "range": [51, 56], "samples": ["natural/A5v7.wav"] },
+            { "range": [57, 64], "samples": ["natural/A5v8.wav"] },
+            { "range": [65, 72], "samples": ["natural/A5v9.wav"] },
+            { "range": [73, 80], "samples": ["natural/A5v10.wav"] },
+            { "range": [81, 88], "samples": ["natural/A5v11.wav"] },
+            { "range": [89, 96], "samples": ["natural/A5v12.wav"] },
+            { "range": [97, 104], "samples": ["natural/A5v13.wav"] },
+            { "range": [105, 112], "samples": ["natural/A5v14.wav"] },
+            { "range": [113, 120], "samples": ["natural/A5v15.wav"] },
+            { "range": [121, 127], "samples": ["natural/A5v16.wav"] }
+          ]
+        },
+        {
+          "pitch": 84,
+          "velocityLayers": [
+            { "range": [1, 26], "samples": ["natural/C6v1.wav"] },
+            { "range": [27, 34], "samples": ["natural/C6v2.wav"] },
+            { "range": [35, 36], "samples": ["natural/C6v3.wav"] },
+            { "range": [37, 43], "samples": ["natural/C6v4.wav"] },
+            { "range": [44, 46], "samples": ["natural/C6v5.wav"] },
+            { "range": [47, 50], "samples": ["natural/C6v6.wav"] },
+            { "range": [51, 56], "samples": ["natural/C6v7.wav"] },
+            { "range": [57, 64], "samples": ["natural/C6v8.wav"] },
+            { "range": [65, 72], "samples": ["natural/C6v9.wav"] },
+            { "range": [73, 80], "samples": ["natural/C6v10.wav"] },
+            { "range": [81, 88], "samples": ["natural/C6v11.wav"] },
+            { "range": [89, 96], "samples": ["natural/C6v12.wav"] },
+            { "range": [97, 104], "samples": ["natural/C6v13.wav"] },
+            { "range": [105, 112], "samples": ["natural/C6v14.wav"] },
+            { "range": [113, 120], "samples": ["natural/C6v15.wav"] },
+            { "range": [121, 127], "samples": ["natural/C6v16.wav"] }
+          ]
+        },
+        {
+          "pitch": 87,
+          "velocityLayers": [
+            { "range": [1, 26], "samples": ["natural/D#6v1.wav"] },
+            { "range": [27, 34], "samples": ["natural/D#6v2.wav"] },
+            { "range": [35, 36], "samples": ["natural/D#6v3.wav"] },
+            { "range": [37, 43], "samples": ["natural/D#6v4.wav"] },
+            { "range": [44, 46], "samples": ["natural/D#6v5.wav"] },
+            { "range": [47, 50], "samples": ["natural/D#6v6.wav"] },
+            { "range": [51, 56], "samples": ["natural/D#6v7.wav"] },
+            { "range": [57, 64], "samples": ["natural/D#6v8.wav"] },
+            { "range": [65, 72], "samples": ["natural/D#6v9.wav"] },
+            { "range": [73, 80], "samples": ["natural/D#6v10.wav"] },
+            { "range": [81, 88], "samples": ["natural/D#6v11.wav"] },
+            { "range": [89, 96], "samples": ["natural/D#6v12.wav"] },
+            { "range": [97, 104], "samples": ["natural/D#6v13.wav"] },
+            { "range": [105, 112], "samples": ["natural/D#6v14.wav"] },
+            { "range": [113, 120], "samples": ["natural/D#6v15.wav"] },
+            { "range": [121, 127], "samples": ["natural/D#6v16.wav"] }
+          ]
+        },
+        {
+          "pitch": 90,
+          "velocityLayers": [
+            { "range": [1, 26], "samples": ["natural/F#6v1.wav"] },
+            { "range": [27, 34], "samples": ["natural/F#6v2.wav"] },
+            { "range": [35, 36], "samples": ["natural/F#6v3.wav"] },
+            { "range": [37, 43], "samples": ["natural/F#6v4.wav"] },
+            { "range": [44, 46], "samples": ["natural/F#6v5.wav"] },
+            { "range": [47, 50], "samples": ["natural/F#6v6.wav"] },
+            { "range": [51, 56], "samples": ["natural/F#6v7.wav"] },
+            { "range": [57, 64], "samples": ["natural/F#6v8.wav"] },
+            { "range": [65, 72], "samples": ["natural/F#6v9.wav"] },
+            { "range": [73, 80], "samples": ["natural/F#6v10.wav"] },
+            { "range": [81, 88], "samples": ["natural/F#6v11.wav"] },
+            { "range": [89, 96], "samples": ["natural/F#6v12.wav"] },
+            { "range": [97, 104], "samples": ["natural/F#6v13.wav"] },
+            { "range": [105, 112], "samples": ["natural/F#6v14.wav"] },
+            { "range": [113, 120], "samples": ["natural/F#6v15.wav"] },
+            { "range": [121, 127], "samples": ["natural/F#6v16.wav"] }
+          ]
+        },
+        {
+          "pitch": 93,
+          "velocityLayers": [
+            { "range": [1, 26], "samples": ["natural/A6v1.wav"] },
+            { "range": [27, 34], "samples": ["natural/A6v2.wav"] },
+            { "range": [35, 36], "samples": ["natural/A6v3.wav"] },
+            { "range": [37, 43], "samples": ["natural/A6v4.wav"] },
+            { "range": [44, 46], "samples": ["natural/A6v5.wav"] },
+            { "range": [47, 50], "samples": ["natural/A6v6.wav"] },
+            { "range": [51, 56], "samples": ["natural/A6v7.wav"] },
+            { "range": [57, 64], "samples": ["natural/A6v8.wav"] },
+            { "range": [65, 72], "samples": ["natural/A6v9.wav"] },
+            { "range": [73, 80], "samples": ["natural/A6v10.wav"] },
+            { "range": [81, 88], "samples": ["natural/A6v11.wav"] },
+            { "range": [89, 96], "samples": ["natural/A6v12.wav"] },
+            { "range": [97, 104], "samples": ["natural/A6v13.wav"] },
+            { "range": [105, 112], "samples": ["natural/A6v14.wav"] },
+            { "range": [113, 120], "samples": ["natural/A6v15.wav"] },
+            { "range": [121, 127], "samples": ["natural/A6v16.wav"] }
+          ]
+        },
+        {
+          "pitch": 96,
+          "velocityLayers": [
+            { "range": [1, 26], "samples": ["natural/C7v1.wav"] },
+            { "range": [27, 34], "samples": ["natural/C7v2.wav"] },
+            { "range": [35, 36], "samples": ["natural/C7v3.wav"] },
+            { "range": [37, 43], "samples": ["natural/C7v4.wav"] },
+            { "range": [44, 46], "samples": ["natural/C7v5.wav"] },
+            { "range": [47, 50], "samples": ["natural/C7v6.wav"] },
+            { "range": [51, 56], "samples": ["natural/C7v7.wav"] },
+            { "range": [57, 64], "samples": ["natural/C7v8.wav"] },
+            { "range": [65, 72], "samples": ["natural/C7v9.wav"] },
+            { "range": [73, 80], "samples": ["natural/C7v10.wav"] },
+            { "range": [81, 88], "samples": ["natural/C7v11.wav"] },
+            { "range": [89, 96], "samples": ["natural/C7v12.wav"] },
+            { "range": [97, 104], "samples": ["natural/C7v13.wav"] },
+            { "range": [105, 112], "samples": ["natural/C7v14.wav"] },
+            { "range": [113, 120], "samples": ["natural/C7v15.wav"] },
+            { "range": [121, 127], "samples": ["natural/C7v16.wav"] }
+          ]
+        },
+        {
+          "pitch": 99,
+          "velocityLayers": [
+            { "range": [1, 26], "samples": ["natural/D#7v1.wav"] },
+            { "range": [27, 34], "samples": ["natural/D#7v2.wav"] },
+            { "range": [35, 36], "samples": ["natural/D#7v3.wav"] },
+            { "range": [37, 43], "samples": ["natural/D#7v4.wav"] },
+            { "range": [44, 46], "samples": ["natural/D#7v5.wav"] },
+            { "range": [47, 50], "samples": ["natural/D#7v6.wav"] },
+            { "range": [51, 56], "samples": ["natural/D#7v7.wav"] },
+            { "range": [57, 64], "samples": ["natural/D#7v8.wav"] },
+            { "range": [65, 72], "samples": ["natural/D#7v9.wav"] },
+            { "range": [73, 80], "samples": ["natural/D#7v10.wav"] },
+            { "range": [81, 88], "samples": ["natural/D#7v11.wav"] },
+            { "range": [89, 96], "samples": ["natural/D#7v12.wav"] },
+            { "range": [97, 104], "samples": ["natural/D#7v13.wav"] },
+            { "range": [105, 112], "samples": ["natural/D#7v14.wav"] },
+            { "range": [113, 120], "samples": ["natural/D#7v15.wav"] },
+            { "range": [121, 127], "samples": ["natural/D#7v16.wav"] }
+          ]
+        },
+        {
+          "pitch": 102,
+          "velocityLayers": [
+            { "range": [1, 26], "samples": ["natural/F#7v1.wav"] },
+            { "range": [27, 34], "samples": ["natural/F#7v2.wav"] },
+            { "range": [35, 36], "samples": ["natural/F#7v3.wav"] },
+            { "range": [37, 43], "samples": ["natural/F#7v4.wav"] },
+            { "range": [44, 46], "samples": ["natural/F#7v5.wav"] },
+            { "range": [47, 50], "samples": ["natural/F#7v6.wav"] },
+            { "range": [51, 56], "samples": ["natural/F#7v7.wav"] },
+            { "range": [57, 64], "samples": ["natural/F#7v8.wav"] },
+            { "range": [65, 72], "samples": ["natural/F#7v9.wav"] },
+            { "range": [73, 80], "samples": ["natural/F#7v10.wav"] },
+            { "range": [81, 88], "samples": ["natural/F#7v11.wav"] },
+            { "range": [89, 96], "samples": ["natural/F#7v12.wav"] },
+            { "range": [97, 104], "samples": ["natural/F#7v13.wav"] },
+            { "range": [105, 112], "samples": ["natural/F#7v14.wav"] },
+            { "range": [113, 120], "samples": ["natural/F#7v15.wav"] },
+            { "range": [121, 127], "samples": ["natural/F#7v16.wav"] }
+          ]
+        },
+        {
+          "pitch": 105,
+          "velocityLayers": [
+            { "range": [1, 26], "samples": ["natural/A7v1.wav"] },
+            { "range": [27, 34], "samples": ["natural/A7v2.wav"] },
+            { "range": [35, 36], "samples": ["natural/A7v3.wav"] },
+            { "range": [37, 43], "samples": ["natural/A7v4.wav"] },
+            { "range": [44, 46], "samples": ["natural/A7v5.wav"] },
+            { "range": [47, 50], "samples": ["natural/A7v6.wav"] },
+            { "range": [51, 56], "samples": ["natural/A7v7.wav"] },
+            { "range": [57, 64], "samples": ["natural/A7v8.wav"] },
+            { "range": [65, 72], "samples": ["natural/A7v9.wav"] },
+            { "range": [73, 80], "samples": ["natural/A7v10.wav"] },
+            { "range": [81, 88], "samples": ["natural/A7v11.wav"] },
+            { "range": [89, 96], "samples": ["natural/A7v12.wav"] },
+            { "range": [97, 104], "samples": ["natural/A7v13.wav"] },
+            { "range": [105, 112], "samples": ["natural/A7v14.wav"] },
+            { "range": [113, 120], "samples": ["natural/A7v15.wav"] },
+            { "range": [121, 127], "samples": ["natural/A7v16.wav"] }
+          ]
+        },
+        {
+          "pitch": 108,
+          "velocityLayers": [
+            { "range": [1, 26], "samples": ["natural/C8v1.wav"] },
+            { "range": [27, 34], "samples": ["natural/C8v2.wav"] },
+            { "range": [35, 36], "samples": ["natural/C8v3.wav"] },
+            { "range": [37, 43], "samples": ["natural/C8v4.wav"] },
+            { "range": [44, 46], "samples": ["natural/C8v5.wav"] },
+            { "range": [47, 50], "samples": ["natural/C8v6.wav"] },
+            { "range": [51, 56], "samples": ["natural/C8v7.wav"] },
+            { "range": [57, 64], "samples": ["natural/C8v8.wav"] },
+            { "range": [65, 72], "samples": ["natural/C8v9.wav"] },
+            { "range": [73, 80], "samples": ["natural/C8v10.wav"] },
+            { "range": [81, 88], "samples": ["natural/C8v11.wav"] },
+            { "range": [89, 96], "samples": ["natural/C8v12.wav"] },
+            { "range": [97, 104], "samples": ["natural/C8v13.wav"] },
+            { "range": [105, 112], "samples": ["natural/C8v14.wav"] },
+            { "range": [113, 120], "samples": ["natural/C8v15.wav"] },
+            { "range": [121, 127], "samples": ["natural/C8v16.wav"] }
+          ]
+        }
+      ]
+    }
+  ]
+}
