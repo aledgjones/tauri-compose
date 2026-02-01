@@ -27,7 +27,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     match instrument_name {
         Some(name) => {
             // Process specific instrument - create both versions
-            create_scvi_archive(&name, &name, "wavpack")?;
+            create_scvi_archive(&name, &name, "flac")?;
             create_scvi_archive(&name, &format!("{} (Lite)", name), "mp3")?;
         }
         None => {
@@ -113,16 +113,16 @@ fn create_scvi_archive(
 
             if path.extension().and_then(|s| s.to_str()) == Some("wav") {
                 match format {
-                    "wavpack" => compress_wavpack(path, &temp_file, original_size)?,
+                    "flac" => compress_flac(path, &temp_file, original_size)?,
                     "mp3" => compress_mp3(path, &temp_file, original_size)?,
                     _ => {
                         eprintln!("Unknown format: {}", format);
                         fs::copy(path, &temp_file)?;
                     }
                 }
-            } else if path.file_name().and_then(|s| s.to_str()) == Some("meta.json") {
-                // Special handling for meta.json: add format field and minify
-                process_meta_json(path, &temp_file, format)?;
+            } else if path.file_name().and_then(|s| s.to_str()) == Some("manifest.json") {
+                // Special handling for manifest.json: add format field and minify
+                process_manifest_json(path, &temp_file, format)?;
             } else {
                 // Copy other files as-is
                 fs::copy(path, &temp_file)?;
@@ -196,12 +196,12 @@ fn create_scvi_archive(
     Ok(())
 }
 
-fn process_meta_json(
+fn process_manifest_json(
     src_path: &Path,
     dest_path: &Path,
     format: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    // Read the original meta.json
+    // Read the original manifest.json
     let content = fs::read_to_string(src_path)?;
     let mut json_value: Value = serde_json::from_str(&content)?;
 
@@ -233,7 +233,7 @@ fn process_meta_json(
 
     // Update file paths to match the new format
     let new_ext = match format {
-        "wavpack" => ".wv",
+        "flac" => ".flac", // Use actual FLAC encoding for full instruments
         "mp3" => ".mp3",
         _ => ".wav",
     };
@@ -247,7 +247,7 @@ fn process_meta_json(
     fs::write(dest_path, minified)?;
 
     println!(
-        "📄 Processed meta.json: added format='{}'{}minified from {} to {} bytes",
+        "📄 Processed manifest.json: added format='{}'{}minified from {} to {} bytes",
         format,
         if format == "mp3" {
             ", updated name with '(Lite)' and ID with '.lite'"
@@ -282,115 +282,90 @@ fn update_paths(value: &mut Value, old_ext: &str, new_ext: &str) {
     }
 }
 
-fn compress_wavpack(
-    path: &Path,
-    temp_file: &Path,
-    original_size: u64,
-) -> Result<(), Box<dyn std::error::Error>> {
-    // Convert WAV to WavPack with maximum compression
-    let wv_path = temp_file.with_extension("wv");
-    if let Some(parent) = wv_path.parent() {
-        fs::create_dir_all(parent)?;
-    }
-
-    let wv_result = Command::new("wavpack")
-        .args([
-            "-hh", // High compression mode
-            "-y",  // Yes to overwrite
-            &path.to_string_lossy(),
-            "-o",
-            &wv_path.to_string_lossy(),
-        ])
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .status();
-
-    match wv_result {
-        Ok(status) if status.success() => {
-            // Check if WavPack is actually smaller
-            let wv_size = fs::metadata(&wv_path)?.len();
-            if wv_size < original_size {
-                println!(
-                    "🎵 {} → WavPack: {} → {} bytes ({:.1}% reduction)",
-                    path.display(),
-                    original_size,
-                    wv_size,
-                    (1.0 - wv_size as f64 / original_size as f64) * 100.0
-                );
-            } else {
-                // WavPack is not smaller, keep original
-                fs::copy(path, temp_file)?;
-                fs::remove_file(&wv_path)?;
-                println!(
-                    "⚠️  Kept original: WavPack was larger ({} bytes)",
-                    original_size
-                );
-            }
-        }
-        _ => {
-            // WavPack conversion failed, copy original
-            fs::copy(path, temp_file)?;
-            println!("❌ WavPack failed, kept original: {} bytes", original_size);
-        }
-    }
-
-    Ok(())
-}
-
 fn compress_mp3(
     path: &Path,
     temp_file: &Path,
     original_size: u64,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    // Convert WAV to MP3 with high quality
+    use std::process::Command;
+
     let mp3_path = temp_file.with_extension("mp3");
     if let Some(parent) = mp3_path.parent() {
         fs::create_dir_all(parent)?;
     }
 
-    let mp3_result = Command::new("ffmpeg")
+    // Use ffmpeg to encode to MP3
+    let output = Command::new("ffmpeg")
         .args([
+            "-y", // Overwrite output files
             "-i",
-            &path.to_string_lossy(),
-            "-codec:a",
-            "libmp3lame",
-            "-q:a",
-            "0",  // Highest quality VBR (~245kbps)
-            "-y", // Overwrite output
+            &path.to_string_lossy(), // Input file
+            "-c:a",
+            "libmp3lame", // Audio codec: MP3
+            "-b:a",
+            "128k", // Bitrate: 128kbps (good quality)
             &mp3_path.to_string_lossy(),
         ])
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .status();
+        .output()
+        .map_err(|e| format!("Failed to run ffmpeg: {}", e))?;
 
-    match mp3_result {
-        Ok(status) if status.success() => {
-            // Check if MP3 is actually smaller
-            let mp3_size = fs::metadata(&mp3_path)?.len();
-            if mp3_size < original_size {
-                println!(
-                    "🎵 {} → MP3: {} → {} bytes ({:.1}% reduction)",
-                    path.display(),
-                    original_size,
-                    mp3_size,
-                    (1.0 - mp3_size as f64 / original_size as f64) * 100.0
-                );
-            } else {
-                // MP3 is not smaller, keep original
-                fs::copy(path, temp_file)?;
-                fs::remove_file(&mp3_path)?;
-                println!(
-                    "⚠️  Kept original: MP3 was larger ({} bytes)",
-                    original_size
-                );
-            }
-        }
-        _ => {
-            // MP3 conversion failed, copy original
-            fs::copy(path, temp_file)?;
-            println!("❌ MP3 failed, kept original: {} bytes", original_size);
-        }
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("ffmpeg failed: {}", stderr).into());
     }
+
+    let mp3_size = fs::metadata(&mp3_path)?.len();
+
+    println!(
+        "🎵 {} → MP3: {} → {} bytes ({:.1}% reduction)",
+        path.display(),
+        original_size,
+        mp3_size,
+        (1.0 - mp3_size as f64 / original_size as f64) * 100.0
+    );
+
+    Ok(())
+}
+
+fn compress_flac(
+    path: &Path,
+    temp_file: &Path,
+    original_size: u64,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let flac_path = temp_file.with_extension("flac");
+    if let Some(parent) = flac_path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+
+    // Use ffmpeg to encode to FLAC
+    let output = Command::new("ffmpeg")
+        .args([
+            "-y", // Overwrite output files
+            "-i",
+            &path.to_string_lossy(), // Input file
+            "-c:a",
+            "flac", // Audio codec: FLAC
+            "-compression_level",
+            "8", // Maximum compression
+            &flac_path.to_string_lossy(),
+        ])
+        .output()
+        .map_err(|e| format!("Failed to run ffmpeg: {}", e))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("ffmpeg failed: {}", stderr).into());
+    }
+
+    let flac_size = fs::metadata(&flac_path)?.len();
+
+    println!(
+        "🎵 {} → FLAC: {} → {} bytes ({:.1}% reduction)",
+        path.display(),
+        original_size,
+        flac_size,
+        (1.0 - flac_size as f64 / original_size as f64) * 100.0
+    );
 
     Ok(())
 }
@@ -424,7 +399,7 @@ fn process_all_instruments() -> Result<(), Box<dyn std::error::Error>> {
     // Process each instrument - create both versions
     for instrument in instruments {
         println!("\n🎵 Processing instrument: {}", instrument);
-        if let Err(e) = create_scvi_archive(&instrument, &instrument, "wavpack") {
+        if let Err(e) = create_scvi_archive(&instrument, &instrument, "flac") {
             eprintln!("❌ Failed to process {}: {}", instrument, e);
             // Continue with other instruments
         }
