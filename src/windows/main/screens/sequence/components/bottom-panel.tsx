@@ -1,4 +1,4 @@
-import { FC } from "react";
+import { FC, useState } from "react";
 import { useAppState } from "../../../../../services/state";
 import { BottomPanelTab } from "../../../../../services/types";
 import { actions } from "../../../../../services/actions";
@@ -31,6 +31,7 @@ export const BottomPanel: FC = () => {
     snapValue,
   } = useBottomPanelState();
   const tab = state.ui.screens.sequence.bottom_panel_tab;
+  const [searchTerm, setSearchTerm] = useState("");
 
   return (
     <div className="flex flex-col min-h-0 overflow-hidden">
@@ -48,7 +49,12 @@ export const BottomPanel: FC = () => {
         {tab === BottomPanelTab.Mixer && (
           <MixerToolbar instruments={instruments} />
         )}
-        {tab === BottomPanelTab.Instruments && <InstrumentsToolbar />}
+        {tab === BottomPanelTab.Instruments && (
+          <InstrumentsToolbar
+            searchTerm={searchTerm}
+            onSearchTermChange={setSearchTerm}
+          />
+        )}
         <div className="flex flex-1 justify-end gap-0.5">
           <div className="bg-neutral-900 flex-1" />
           {SEQUENCE_TABS.map((tabConfig) => (
@@ -74,7 +80,9 @@ export const BottomPanel: FC = () => {
         />
       )}
       {tab === BottomPanelTab.Mixer && <Mixer instruments={instruments} />}
-      {tab === BottomPanelTab.Instruments && <Instruments />}
+      {tab === BottomPanelTab.Instruments && (
+        <Instruments searchTerm={searchTerm} />
+      )}
     </div>
   );
 };

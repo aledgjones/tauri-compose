@@ -1,10 +1,11 @@
 import { FC, useState } from "react";
 import { IconButton } from "../../../ui/icon-button";
-import { mdiRefresh, mdiPower } from "@mdi/js";
+import { mdiRefresh, mdiPower, mdiMagnify } from "@mdi/js";
 import { useSamplerState } from "../../../services/state";
 import { TokenizedText } from "../../../ui/text";
 import { actions } from "../../../services/actions";
 import { convertFileSrc } from "@tauri-apps/api/core";
+import { Input } from "../../../ui/input";
 
 type Plugin = {
   id: string;
@@ -37,7 +38,7 @@ const InstrumentTile: FC<{ plugin: Plugin }> = ({ plugin }) => {
     >
       <div className="absolute top-0 left-0 right-0 p-2 pl-4 flex items-center gap-1">
         <div className="mt-1 bg-neutral-950/50 text-neutral-300 text-xs px-2 py-1 text-center min-w-0 truncate">
-          v{plugin.version} • {plugin.format}
+          v{plugin.version}
         </div>
 
         <div className="flex-1" />
@@ -54,7 +55,7 @@ const InstrumentTile: FC<{ plugin: Plugin }> = ({ plugin }) => {
       </div>
 
       <div className="text-center absolute bottom-0 left-0 right-0 p-4 bg-linear-0 from-black/50 to-black/0">
-        <div className="text-white text-md truncate font-semibold">
+        <div className="text-white text-sm truncate font-semibold">
           <TokenizedText>{plugin.name}</TokenizedText>
         </div>
 
@@ -66,7 +67,15 @@ const InstrumentTile: FC<{ plugin: Plugin }> = ({ plugin }) => {
   );
 };
 
-export const InstrumentsToolbar: FC = () => {
+type InstrumentsToolbarProps = {
+  searchTerm: string;
+  onSearchTermChange: (term: string) => void;
+};
+
+export const InstrumentsToolbar: FC<InstrumentsToolbarProps> = ({
+  searchTerm,
+  onSearchTermChange,
+}) => {
   const [isRescanning, setIsRescanning] = useState(false);
 
   const handleRescan = async () => {
@@ -87,20 +96,61 @@ export const InstrumentsToolbar: FC = () => {
         isDisabled={isRescanning}
         title={isRescanning ? "Rescanning..." : "Refresh plugin list"}
       />
+      <Input
+        type="text"
+        variant="dark"
+        leadingIcon={mdiMagnify}
+        value={searchTerm}
+        onChange={onSearchTermChange}
+        placeholder="Search instruments..."
+        className="w-80"
+      />
+
       <div className="bg-neutral-900 flex-1" />
     </div>
   );
 };
 
-export const Instruments: FC = () => {
+type InstrumentsProps = {
+  searchTerm: string;
+};
+
+export const Instruments: FC<InstrumentsProps> = ({ searchTerm }) => {
   const sampler = useSamplerState();
+
+  const filteredPlugins = sampler.plugins.filter((plugin) => {
+    const matchesSearch = plugin.name
+      .toLowerCase()
+      .includes(searchTerm.toLowerCase());
+    return matchesSearch;
+  });
+
+  if (sampler.plugins.length === 0) {
+    return (
+      <div className="w-full h-full flex items-center justify-center bg-neutral-900">
+        <div className="text-center text-neutral-400">
+          <div className="text-md mb-2">No instruments found</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (filteredPlugins.length === 0 && searchTerm.length > 0) {
+    return (
+      <div className="w-full h-full flex items-center justify-center bg-neutral-900">
+        <div className="text-center text-neutral-700">
+          <div className="text-md mb-2">No instruments match your filters</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full h-full overflow-x-auto overflow-y-hidden">
-      <div className="flex h-full gap-0.5 px-0.5">
-        {sampler.plugins.map((plugin) => (
-          <InstrumentTile key={plugin.id} plugin={plugin} />
-        ))}
+      <div className="flex h-full gap-0.5">
+        {filteredPlugins.map((plugin) => {
+          return <InstrumentTile key={plugin.id} plugin={plugin} />;
+        })}
 
         <div className="bg-neutral-900 flex-1 h-full" />
       </div>

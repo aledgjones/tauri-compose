@@ -7,6 +7,8 @@ interface BaseInputProps {
   label?: string;
   readOnly?: boolean;
   placeholder?: string;
+  leadingIcon?: string;
+  variant?: "default" | "dark";
 }
 
 export interface TextInputProps extends BaseInputProps {

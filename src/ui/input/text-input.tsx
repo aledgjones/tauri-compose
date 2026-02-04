@@ -1,6 +1,7 @@
 import { FC, useState, useEffect } from "react";
 import { TextInputProps } from ".";
 import classNames from "classnames";
+import { Icon } from "../../ui/icon";
 
 export const TextInput: FC<TextInputProps> = ({
   value,
@@ -13,6 +14,8 @@ export const TextInput: FC<TextInputProps> = ({
   onBlur,
   onEnter,
   units,
+  leadingIcon,
+  variant = "default",
 }) => {
   const [isFocused, setIsFocused] = useState(false);
   const [internalValue, setInternalValue] = useState(value);
@@ -49,8 +52,15 @@ export const TextInput: FC<TextInputProps> = ({
             onBlur?.();
           }}
           className={classNames(
-            "block w-full bg-neutral-800 px-2 py-1.5 text-sm focus:outline-hidden border-2 border-transparent focus:border-sky-500 text-white hover:bg-neutral-700 focus:bg-neutral-700",
+            "block w-full px-2 py-1.5 text-sm focus:outline-hidden border-2 border-transparent focus:border-sky-500 text-white",
+            {
+              "bg-neutral-800 hover:bg-neutral-700 focus:bg-neutral-700":
+                variant === "default",
+              "bg-neutral-900 hover:bg-neutral-800 focus:bg-neutral-800":
+                variant === "dark",
+            },
             { "pr-2": units },
+            { "pl-9": leadingIcon },
           )}
           onKeyDown={(event) => {
             if (event.key === "Enter") {
@@ -60,6 +70,12 @@ export const TextInput: FC<TextInputProps> = ({
             onKeyDown?.(event);
           }}
         />
+        {leadingIcon && (
+          <Icon
+            path={leadingIcon}
+            className="absolute left-2 top-1/2 transform -translate-y-1/2 text-white pointer-events-none"
+          />
+        )}
         {units && (
           <span className="absolute right-2 top-1/2 transform -translate-y-1/2 text-sm text-neutral-500 pointer-events-none">
             {units}

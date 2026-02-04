@@ -19,6 +19,8 @@ export const NumberInput: FC<NumberInputProps> = ({
   step,
   decimalPlaces,
   units,
+  leadingIcon,
+  variant,
 }) => {
   const toValue = useCallback((value: string | undefined) => {
     if (value === undefined || value === "") {
@@ -114,6 +116,8 @@ export const NumberInput: FC<NumberInputProps> = ({
       onKeyDown={handleKeyDown}
       onBlur={handleBlur}
       units={units}
+      leadingIcon={leadingIcon}
+      variant={variant}
     />
   );
 };
