@@ -75,9 +75,9 @@ export const actions = {
       });
     },
   },
-  vst: {
-    loadPlugin: (plugin_id: string) => {
-      return invoke("vst_plugin_load", { plugin_id });
+  sampler: {
+    rescanPlugins: async () => {
+      return invoke("sampler_rescan_plugins");
     },
   },
   ui: {

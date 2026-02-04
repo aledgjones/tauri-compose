@@ -2,15 +2,20 @@ import { FC } from "react";
 import { useAppState } from "../../../../../services/state";
 import { BottomPanelTab } from "../../../../../services/types";
 import { actions } from "../../../../../services/actions";
-import { mdiPiano, mdiTuneVertical } from "@mdi/js";
+import { mdiCableData, mdiPiano, mdiTuneVertical } from "@mdi/js";
 import { IconButton } from "../../../../../ui/icon-button";
 import { Sequencer, SequencerToolbar } from "../../../components/sequencer";
 import { Mixer, MixerToolbar } from "../../../components/mixer";
+import {
+  Instruments,
+  InstrumentsToolbar,
+} from "../../../components/instruments";
 import { useBottomPanelState } from "../../../hooks/use-bottom-panel-state";
 
 const SEQUENCE_TABS = [
   { tab: BottomPanelTab.Sequencer, icon: mdiPiano },
   { tab: BottomPanelTab.Mixer, icon: mdiTuneVertical },
+  { tab: BottomPanelTab.Instruments, icon: mdiCableData },
 ];
 
 export const BottomPanel: FC = () => {
@@ -43,17 +48,18 @@ export const BottomPanel: FC = () => {
         {tab === BottomPanelTab.Mixer && (
           <MixerToolbar instruments={instruments} />
         )}
-        <div className="flex flex-1 justify-end">
-          <div className="bg-neutral-900 mr-0.5 flex-1" />
+        {tab === BottomPanelTab.Instruments && <InstrumentsToolbar />}
+        <div className="flex flex-1 justify-end gap-0.5">
+          <div className="bg-neutral-900 flex-1" />
           {SEQUENCE_TABS.map((tabConfig) => (
             <IconButton
               key={tabConfig.tab}
               path={tabConfig.icon}
-              variant="filled"
+              variant="interactive"
               isSelected={tab === tabConfig.tab}
-              onClick={() =>
-                actions.ui.screens.sequence.bottomPanel.setTab(tabConfig.tab)
-              }
+              onClick={() => {
+                actions.ui.screens.sequence.bottomPanel.setTab(tabConfig.tab);
+              }}
             />
           ))}
         </div>
@@ -68,6 +74,7 @@ export const BottomPanel: FC = () => {
         />
       )}
       {tab === BottomPanelTab.Mixer && <Mixer instruments={instruments} />}
+      {tab === BottomPanelTab.Instruments && <Instruments />}
     </div>
   );
 };

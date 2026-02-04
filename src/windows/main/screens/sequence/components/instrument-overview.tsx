@@ -64,7 +64,7 @@ export const InstrumentOverview: FC = () => {
     <DragScroll className="w-full h-full bg-neutral-950 relative">
       {/* Left column - Instrument labels (sticky, scrollable vertically) */}
       <div
-        className="ignore-x sticky left-0 z-20 flex flex-col bg-neutral-950"
+        className="ignore-x sticky left-0 z-20 flex flex-col bg-neutral-950 min-h-full"
         style={{ width: KEYBOARD_WIDTH * 1.5 }}
       >
         {/* Header space for tick bar */}

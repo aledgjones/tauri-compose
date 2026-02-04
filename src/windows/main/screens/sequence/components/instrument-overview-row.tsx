@@ -1,9 +1,11 @@
-import { FC, useMemo } from "react";
+import { FC, useMemo, useState } from "react";
 import { Instrument } from "../../../../../services/types";
 import { IconButton } from "../../../../../ui/icon-button";
-import { mdiSizeM, mdiSizeS } from "@mdi/js";
+import { mdiCableData, mdiSizeM, mdiSizeS } from "@mdi/js";
 import { TokenizedText } from "../../../../../ui/text";
 import classNames from "classnames";
+import { Select } from "../../../../../ui/select";
+import { useSamplerState } from "../../../../../services/state";
 
 // TODO hook this up properly
 const samplerState: Record<
@@ -22,6 +24,11 @@ export const InstrumentOverviewRow: FC<InstrumentOverviewRowProps> = ({
   color,
   isDisabled,
 }) => {
+  const sampler = useSamplerState();
+  const [assignedPluginId, setAssignedPluginId] = useState<string>("");
+
+  const { plugins } = sampler;
+
   const { isMuted, isSoloed } = useMemo(() => {
     const state = samplerState[instrument.id];
     return {
@@ -30,39 +37,57 @@ export const InstrumentOverviewRow: FC<InstrumentOverviewRowProps> = ({
     };
   }, [instrument.id]);
 
+  const options = useMemo(() => {
+    return Object.values(plugins).map((plugin) => ({
+      label: plugin.name,
+      value: plugin.id,
+    }));
+  }, [plugins]);
+
   return (
     <div
-      className={classNames("flex p-2 gap-2 border-l-4 bg-neutral-900 h-16", {
-        "opacity-50": isDisabled,
-      })}
+      className={classNames(
+        "flex flex-col p-2 gap-2 border-l-4 bg-neutral-900",
+        { "opacity-50": isDisabled },
+      )}
       style={{ borderLeftColor: isDisabled ? "#444" : color }}
     >
       {/* Instrument name */}
-      <div className="flex-1 min-w-0">
+      <div className="flex items-center justify-between flex-1 min-w-0">
         <div className="text-sm text-white truncate">
           <TokenizedText>{instrument.long_name}</TokenizedText>
-          <p className="text-[11px] opacity-50">{instrument.definition_id}</p>
+          {instrument.count && <span> {instrument.count}</span>}
         </div>
+
+        {!isDisabled && (
+          <div className="flex items-end gap-2">
+            <IconButton
+              path={mdiSizeS}
+              variant="filled"
+              size={0.9}
+              isSelected={isSoloed}
+              onClick={() => {}}
+            />
+            <IconButton
+              path={mdiSizeM}
+              variant="filled"
+              size={0.9}
+              isSelected={isMuted}
+              onClick={() => {}}
+            />
+          </div>
+        )}
       </div>
 
-      {!isDisabled && (
-        <div className="flex items-end gap-2">
-          <IconButton
-            path={mdiSizeS}
-            variant="filled"
-            size={0.8}
-            isSelected={isSoloed}
-            onClick={() => {}}
-          />
-          <IconButton
-            path={mdiSizeM}
-            variant="filled"
-            size={0.8}
-            isSelected={isMuted}
-            onClick={() => {}}
-          />
-        </div>
-      )}
+      <Select
+        className="flex-1"
+        value={assignedPluginId}
+        options={options}
+        onChange={setAssignedPluginId}
+        icon={mdiCableData}
+        variant="filled"
+        placeholder="Unassigned"
+      />
     </div>
   );
 };

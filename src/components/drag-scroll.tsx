@@ -107,8 +107,7 @@ export const DragScroll: FC<Props> = ({
   return (
     <div
       ref={divRef}
-      style={{ overflow: "overlay" }}
-      className={classNames("touch-none", className)}
+      className={classNames("touch-none overflow-auto", className)}
       onPointerDown={handlePointerDown}
       onScroll={handleScroll}
     >

@@ -92,7 +92,7 @@ export const Fader: FC<FaderProps> = ({
             top: `${i * 10}%`,
             left: "50%",
             transform: `translate(-50%, ${i * -10}%)`,
-            width: i % 5 === 0 ? "calc(100% + 34px)" : "calc(100% + 24px)",
+            width: i % 5 === 0 ? "calc(100% + 24px)" : "calc(100% + 18px)",
           }}
         />
       ))}
@@ -100,7 +100,7 @@ export const Fader: FC<FaderProps> = ({
       {/* Track */}
       <div
         ref={trackRef}
-        className="relative h-full w-1.5 transform -translate-x-1/2 overflow-hidden z-0 bg-neutral-950 outline-neutral-900 outline-4"
+        className="relative h-full w-1.5 transform -translate-x-1/2 overflow-hidden z-0 bg-neutral-950"
       >
         {/* Amplitude meter */}
         <div

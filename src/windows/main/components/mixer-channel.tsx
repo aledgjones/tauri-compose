@@ -30,33 +30,40 @@ export const MixerChannel: FC<MixerProps> = ({
 }) => {
   return (
     <div className="flex flex-col w-24 h-full bg-neutral-900">
-      {/* Fader */}
-      <div className="flex flex-1 w-full items-center justify-center p-8 pb-5">
-        <Fader
-          volume={volume}
-          disabled={disabled}
-          amplitude={0}
-          color={color}
-          onChange={(val) => onVolumeChange(Math.round((val / 100) * 127))}
-        />
+      <div className="p-2 pb-0">
+        <div className="p-2 text-sky-500 text-xs text-center bg-neutral-950">
+          C
+        </div>
       </div>
+      <div className="flex flex-1">
+        {/* Solo and Mute buttons */}
+        <div className="flex flex-col gap-2 pl-2 py-2">
+          <IconButton
+            path={mdiSizeS}
+            variant="filled-dark"
+            size={0.9}
+            isSelected={isSoloed}
+            onClick={onToggleSolo}
+          />
+          <IconButton
+            path={mdiSizeM}
+            variant="filled-dark"
+            size={0.9}
+            isSelected={isMuted}
+            onClick={onToggleMute}
+          />
+        </div>
 
-      {/* Solo and Mute buttons */}
-      <div className="flex items-center gap-2 p-2">
-        <IconButton
-          path={mdiSizeS}
-          variant="filled"
-          size={0.9}
-          isSelected={isSoloed}
-          onClick={onToggleSolo}
-        />
-        <IconButton
-          path={mdiSizeM}
-          variant="filled"
-          size={0.9}
-          isSelected={isMuted}
-          onClick={onToggleMute}
-        />
+        {/* Fader */}
+        <div className="flex flex-1 items-center justify-center px-2 py-4">
+          <Fader
+            volume={volume}
+            disabled={disabled}
+            amplitude={0}
+            color={color}
+            onChange={(val) => onVolumeChange(Math.round((val / 100) * 127))}
+          />
+        </div>
       </div>
 
       {/* Instrument name and color bar */}

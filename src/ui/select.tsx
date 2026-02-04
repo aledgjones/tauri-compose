@@ -7,8 +7,6 @@ import { TokenizedText } from "./text";
 export type SelectOption<T> = {
   value: T;
   label: string;
-  icon?: string;
-  iconSize?: number;
 };
 
 type SelectProps<T> = {
@@ -21,6 +19,8 @@ type SelectProps<T> = {
   label?: string;
   placeholder?: string;
   disabled?: boolean;
+  icon?: string;
+  iconSize?: number;
 };
 
 export const Select = <T extends Key>({
@@ -33,6 +33,8 @@ export const Select = <T extends Key>({
   label,
   placeholder,
   disabled,
+  icon,
+  iconSize = 1,
 }: SelectProps<T>) => {
   const [isOpen, setIsOpen] = useState(false);
   const selectRef = useRef<HTMLDivElement>(null);
@@ -89,16 +91,11 @@ export const Select = <T extends Key>({
           },
         )}
       >
-        {selection?.icon && (
+        {icon && (
           <div className="flex items-center pr-2 pointer-events-none">
-            <Icon
-              path={selection.icon}
-              size={selection.iconSize || 1}
-              className="text-neutral-300 transform transition-transform"
-            />
+            <Icon path={icon} size={iconSize} className="text-neutral-300" />
           </div>
         )}
-
         <span
           className={classNames("flex-1 whitespace-nowrap", {
             "text-white": !disabled,

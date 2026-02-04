@@ -5,7 +5,7 @@ import { useAppState } from "../../../../../services/state";
 import classNames from "classnames";
 
 const range = { min: 21, max: 108 };
-const rowHeight = 64;
+const rowHeight = 96;
 const pianoRangeSize = range.max - range.min;
 
 interface MiniaturePianoRollProps {

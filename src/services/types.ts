@@ -322,6 +322,7 @@ export enum BottomPanelTab {
   Properties,
   Sequencer,
   Mixer,
+  Instruments,
 }
 
 type ToneSelection = {
@@ -411,12 +412,15 @@ export type AudioState = {
   current_sample_rate: number;
 };
 
-export type SamplerState = {
-  plugins: PluginInfo[];
-};
-
 export type PluginInfo = {
+  id: string;
   name: string;
   path: string;
+  author: string;
+  version: string;
   format: string;
+};
+
+export type SamplerState = {
+  plugins: PluginInfo[];
 };

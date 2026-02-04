@@ -7,22 +7,18 @@ const SNAP_OPTIONS = [
   {
     label: "Quarter",
     value: NoteDuration.Quarter,
-    icon: mdiFormatHorizontalAlignCenter,
   },
   {
     label: "Eighth",
     value: NoteDuration.Eighth,
-    icon: mdiFormatHorizontalAlignCenter,
   },
   {
     label: "Sixteenth",
     value: NoteDuration.Sixteenth,
-    icon: mdiFormatHorizontalAlignCenter,
   },
   {
     label: "Thirty-Second",
     value: NoteDuration.ThirtySecond,
-    icon: mdiFormatHorizontalAlignCenter,
   },
 ];
 
@@ -41,6 +37,7 @@ export const SnapPicker: FC<SnapPickerProps> = ({
 }) => {
   return (
     <Select
+      icon={mdiFormatHorizontalAlignCenter}
       label={label}
       variant={variant}
       value={value}

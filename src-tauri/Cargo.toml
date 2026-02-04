@@ -28,10 +28,10 @@ name = "solo-compose"
 path = "src/main.rs"
 
 [build-dependencies]
-tauri-build = { version = "2.5.3", features = [] }
+tauri-build = { version = "2.5.4", features = [] }
 
 [dependencies]
-tauri = { version = "2.9.5", features = ["macos-private-api"] }
+tauri = { version = "2.10.1", features = ["protocol-asset", "macos-private-api"] }
 tauri-plugin-opener = "2.5.3"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"
@@ -45,9 +45,10 @@ tauri-plugin-devtools = "2.0.1"
 tauri-plugin-dialog = "2.6.0"
 tauri-plugin-fs = "2.4.5"
 tauri-plugin-store = "2.4.2"
-flate2 = "1.1.8"
+flate2 = "1.1.9"
 objc2 = "0.6.3"
 objc2-app-kit = "0.3.2"
+base64 = "0.22.1"
 objc2-foundation = "0.3.2"
 objc2-quartz-core = "0.3.2"
 objc2-metal = "0.3.2"
@@ -55,9 +56,12 @@ semver = "1.0.27"
 sled = "0.34.7"
 cpal = "0.17.1"
 symphonia = { version = "0.5.4", features = ["mp3", "flac"] }
-zip = "7.2.0"
+rubato = "1.0.1"
+audioadapter-buffers = "2.0.0"
+dirs = "6.0.0"
+zip = "7.3.0"
 walkdir = "2.5.0"
-regex = "1.11.1"
+regex = "1.12.3"
 rtrb = "0.3.2"
 rand = "0.9.2"
 

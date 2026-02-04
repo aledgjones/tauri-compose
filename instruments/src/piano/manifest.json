@@ -1,9 +1,9 @@
 {
   "meta": {
-    "id": "sso.piano",
+    "id": "sso.keyboard.piano",
     "name": "SSO Grand Piano",
-    "author": "Aled Jones",
-    "version": "1.0.0"
+    "author": "Solo Compose",
+    "version": "1.2.1"
   },
   "articulations": [
     {

@@ -116,6 +116,10 @@ impl AudioContext {
         }
     }
 
+    pub fn get_sample_rate(&self) -> u32 {
+        self.active_device.sample_rate
+    }
+
     pub fn emit(&self, app: &tauri::AppHandle) {
         let audio_state = AudioState {
             devices: self.devices.clone(),

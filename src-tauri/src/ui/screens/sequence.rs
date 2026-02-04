@@ -11,6 +11,7 @@ pub enum BottomPanelTab {
     Properties,
     Sequencer,
     Mixer,
+    Instruments,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
