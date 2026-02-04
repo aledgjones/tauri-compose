@@ -220,8 +220,8 @@ impl SamplerContext {
         // Create cache directory
         let cache_dir = dirs::data_dir()
             .ok_or("Could not find data directory")?
-            .join("SoloCompose")
-            .join("cover-cache");
+            .join("Solo Compose")
+            .join("covers");
 
         fs::create_dir_all(&cache_dir)?;
 

@@ -118,12 +118,13 @@ type InstrumentsProps = {
 export const Instruments: FC<InstrumentsProps> = ({ searchTerm }) => {
   const sampler = useSamplerState();
 
-  const filteredPlugins = sampler.plugins.filter((plugin) => {
-    const matchesSearch = plugin.name
-      .toLowerCase()
-      .includes(searchTerm.toLowerCase());
-    return matchesSearch;
-  });
+  const filteredPlugins = sampler.plugins
+    .filter((plugin) => {
+      return plugin.name.toLowerCase().includes(searchTerm.toLowerCase());
+    })
+    .sort((a, b) => {
+      return a.id.localeCompare(b.id);
+    });
 
   if (sampler.plugins.length === 0) {
     return (
