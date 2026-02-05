@@ -1,6 +1,6 @@
 import { FC, useState } from "react";
 import { IconButton } from "../../../ui/icon-button";
-import { mdiRefresh, mdiPower, mdiMagnify } from "@mdi/js";
+import { mdiRefresh, mdiMagnify, mdiCog } from "@mdi/js";
 import { useSamplerState } from "../../../services/state";
 import { TokenizedText } from "../../../ui/text";
 import { actions } from "../../../services/actions";
@@ -44,13 +44,14 @@ const InstrumentTile: FC<{ plugin: Plugin }> = ({ plugin }) => {
         <div className="flex-1" />
 
         <IconButton
-          path={mdiPower}
-          variant="filled-dark"
-          isSelected={isLoaded}
+          path={mdiCog}
+          variant="filled"
+          className="bg-transparent"
+          isDisabled={!isLoaded}
+          size={0.9}
           onClick={() => {
             // TODO: implement load/disable logic
           }}
-          title={isLoaded ? "Disable plugin" : "Load plugin"}
         />
       </div>
 
