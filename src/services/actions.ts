@@ -207,6 +207,13 @@ export const actions = {
           setTab: (tab: BottomPanelTab) => {
             return invoke("ui_sequence_bottom_panel_tab_set", { tab });
           },
+          instruments: {
+            setShowActiveOnly: (show_active_only: boolean) => {
+              return invoke("ui_sequence_show_active_only_set", {
+                show_active_only,
+              });
+            },
+          },
         },
       },
     },

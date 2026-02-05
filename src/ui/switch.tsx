@@ -8,6 +8,7 @@ type Props = {
   onChange: (value: boolean) => void;
   className?: string;
   onPointerDown?: (event: PointerEvent<HTMLButtonElement>) => void;
+  small?: boolean;
 };
 
 export const Switch: FC<Props> = ({
@@ -17,15 +18,18 @@ export const Switch: FC<Props> = ({
   onPointerDown,
   label,
   description,
+  small = false,
 }) => {
   return (
     <div className="flex items-center">
-      <div className="flex-1 mr-4">
-        {label && <label className="text-white text-sm">{label}</label>}
-        {description && (
-          <p className="text-xs text-neutral-500 mb-2">{description}</p>
-        )}
-      </div>
+      {(label || description) && (
+        <div className="flex-1 mr-4">
+          {label && <label className="text-white text-sm">{label}</label>}
+          {description && (
+            <p className="text-xs text-neutral-500 mb-2">{description}</p>
+          )}
+        </div>
+      )}
       <button
         onClick={() => onChange(!value)}
         onPointerDown={onPointerDown}
@@ -34,16 +38,19 @@ export const Switch: FC<Props> = ({
         aria-checked={value}
         aria-label={label}
         className={classNames(
-          "relative h-8 w-12 flex items-center cursor-pointer border-none bg-transparent p-0",
+          "relative flex items-center cursor-pointer border-none bg-transparent",
+          small ? "h-6 w-9" : "h-8 w-12",
           className,
         )}
       >
         <div
           className={classNames(
-            "h-7 w-full rounded-full transition-colors flex items-center px-0.5 absolute top-1/2 -translate-y-1/2",
+            "w-full rounded-full transition-colors flex items-center px-0.5 absolute top-1/2 -translate-y-1/2",
             {
               "bg-sky-500": value,
               "bg-neutral-700": !value,
+              "h-5": small,
+              "h-7": !small,
             },
           )}
         >
@@ -51,12 +58,18 @@ export const Switch: FC<Props> = ({
             className={classNames(
               "rounded-full shadow-md transition-all duration-200",
               {
-                "bg-white h-6 w-6": value,
-                "bg-neutral-400 h-4.5 w-4.5": !value,
+                "bg-white": value,
+                "bg-neutral-400": !value,
+                "h-4 w-4": small && value,
+                "h-3 w-3": small && !value,
+                "h-6 w-6": !small && value,
+                "h-4.5 w-4.5": !small && !value,
               },
             )}
-            style={{ transform: `translateX(${value ? "20px" : "2px"})` }}
-          ></div>
+            style={{
+              transform: `translateX(${value ? (small ? "16px" : "20px") : small ? "2px" : "2px"})`,
+            }}
+          />
         </div>
       </button>
     </div>

@@ -82,6 +82,7 @@ use ui::renderer::{
 };
 use ui::screens::sequence::{
     ui_sequence_bottom_panel_minimized_toggle, ui_sequence_bottom_panel_tab_set,
+    ui_sequence_show_active_only_set,
 };
 use ui::screens::setup::{
     ui_setup_expanded_insert, ui_setup_expanded_remove, ui_setup_selection_clear,
@@ -491,7 +492,8 @@ pub fn run() {
             ui_write_bottom_panel_minimized_toggle,
             ui_write_bottom_panel_tab_set,
             ui_sequence_bottom_panel_minimized_toggle,
-            ui_sequence_bottom_panel_tab_set
+            ui_sequence_bottom_panel_tab_set,
+            ui_sequence_show_active_only_set
         ])
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())

@@ -379,6 +379,7 @@ export type AppState = {
       sequence: {
         bottom_panel_minimized: boolean;
         bottom_panel_tab: BottomPanelTab;
+        show_active_only: boolean;
       };
     };
   };

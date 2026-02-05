@@ -18,6 +18,7 @@ pub enum BottomPanelTab {
 pub struct Sequence {
     pub bottom_panel_minimized: bool,
     pub bottom_panel_tab: BottomPanelTab,
+    pub show_active_only: bool,
 }
 
 impl Sequence {
@@ -25,6 +26,7 @@ impl Sequence {
         Sequence {
             bottom_panel_minimized: false,
             bottom_panel_tab: BottomPanelTab::Sequencer,
+            show_active_only: true,
         }
     }
 }
@@ -61,6 +63,21 @@ pub fn ui_sequence_bottom_panel_tab_set(
     let mut renderer = renderer_state.lock().unwrap();
 
     state.ui.screens.sequence.bottom_panel_tab = tab;
+
+    state.emit(&app, &mut renderer, false);
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn ui_sequence_show_active_only_set(
+    app: tauri::AppHandle,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
+    show_active_only: bool,
+) {
+    let mut state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
+
+    state.ui.screens.sequence.show_active_only = show_active_only;
 
     state.emit(&app, &mut renderer, false);
 }

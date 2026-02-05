@@ -31,6 +31,7 @@ export const BottomPanel: FC = () => {
     snapValue,
   } = useBottomPanelState();
   const tab = state.ui.screens.sequence.bottom_panel_tab;
+  const showActiveOnly = state.ui.screens.sequence.show_active_only;
   const [searchTerm, setSearchTerm] = useState("");
 
   return (
@@ -53,6 +54,12 @@ export const BottomPanel: FC = () => {
           <InstrumentsToolbar
             searchTerm={searchTerm}
             onSearchTermChange={setSearchTerm}
+            showActiveOnly={showActiveOnly}
+            onShowActiveOnlyChange={(value) =>
+              actions.ui.screens.sequence.bottomPanel.instruments.setShowActiveOnly(
+                value,
+              )
+            }
           />
         )}
         <div className="flex flex-1 justify-end gap-0.5">
@@ -81,7 +88,7 @@ export const BottomPanel: FC = () => {
       )}
       {tab === BottomPanelTab.Mixer && <Mixer instruments={instruments} />}
       {tab === BottomPanelTab.Instruments && (
-        <Instruments searchTerm={searchTerm} />
+        <Instruments searchTerm={searchTerm} showActiveOnly={showActiveOnly} />
       )}
     </div>
   );

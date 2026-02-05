@@ -6,6 +6,7 @@ import { TokenizedText } from "../../../ui/text";
 import { actions } from "../../../services/actions";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { Input } from "../../../ui/input";
+import { Switch } from "../../../ui/switch";
 
 type Plugin = {
   id: string;
@@ -71,11 +72,15 @@ const InstrumentTile: FC<{ plugin: Plugin }> = ({ plugin }) => {
 type InstrumentsToolbarProps = {
   searchTerm: string;
   onSearchTermChange: (term: string) => void;
+  showActiveOnly: boolean;
+  onShowActiveOnlyChange: (value: boolean) => void;
 };
 
 export const InstrumentsToolbar: FC<InstrumentsToolbarProps> = ({
   searchTerm,
   onSearchTermChange,
+  showActiveOnly,
+  onShowActiveOnlyChange,
 }) => {
   const [isRescanning, setIsRescanning] = useState(false);
 
@@ -97,6 +102,16 @@ export const InstrumentsToolbar: FC<InstrumentsToolbarProps> = ({
         isDisabled={isRescanning}
         title={isRescanning ? "Rescanning..." : "Refresh plugin list"}
       />
+
+      <div className="flex bg-neutral-900 items-center text-white text-xs px-2 gap-2">
+        <span>Active only</span>
+        <Switch
+          small
+          value={showActiveOnly}
+          onChange={onShowActiveOnlyChange}
+        />
+      </div>
+
       <Input
         type="text"
         variant="dark"
@@ -114,13 +129,23 @@ export const InstrumentsToolbar: FC<InstrumentsToolbarProps> = ({
 
 type InstrumentsProps = {
   searchTerm: string;
+  showActiveOnly: boolean;
 };
 
-export const Instruments: FC<InstrumentsProps> = ({ searchTerm }) => {
+export const Instruments: FC<InstrumentsProps> = ({
+  searchTerm,
+  showActiveOnly,
+}) => {
   const sampler = useSamplerState();
 
   const filteredPlugins = sampler.plugins
     .filter((plugin) => {
+      const isActive = false; // TODO: implement active plugin state
+
+      if (showActiveOnly && !isActive) {
+        return false;
+      }
+
       return plugin.name.toLowerCase().includes(searchTerm.toLowerCase());
     })
     .sort((a, b) => {
@@ -137,7 +162,7 @@ export const Instruments: FC<InstrumentsProps> = ({ searchTerm }) => {
     );
   }
 
-  if (filteredPlugins.length === 0 && searchTerm.length > 0) {
+  if (filteredPlugins.length === 0) {
     return (
       <div className="w-full h-full flex items-center justify-center bg-neutral-900">
         <div className="text-center text-neutral-700">

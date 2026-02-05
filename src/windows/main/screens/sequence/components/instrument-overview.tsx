@@ -112,7 +112,7 @@ export const InstrumentOverview: FC = () => {
           )}
           <PlaybackLine
             ticks={ticks}
-            height={instruments.length * 64 + (instruments.length - 1) * 2}
+            height={instruments.length * 96 + (instruments.length - 1) * 2}
           />
         </div>
       </div>
