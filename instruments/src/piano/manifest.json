@@ -7,7 +7,9 @@
   },
   "articulations": [
     {
-      "name": "sustain",
+      "id": "natural",
+      "name": "Natural",
+      "range": [21, 108],
       "zones": [
         {
           "pitch": 21,

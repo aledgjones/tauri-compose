@@ -9,7 +9,8 @@
     "project-settings",
     "preferences",
     "player-settings",
-    "instrument-picker"
+    "instrument-picker",
+    "plugin-settings-*"
   ],
   "permissions": [
     "core:default",

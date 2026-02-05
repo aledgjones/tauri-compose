@@ -10,7 +10,8 @@ mod utils;
 
 use crate::playback::audio::{audio_device_sample_rate_set, audio_device_set, AudioContext};
 use crate::playback::sampler::{
-    sampler_load_plugin, sampler_rescan_plugins, sampler_sync_with_instruments, SamplerContext,
+    sampler_load_plugin, sampler_play_note, sampler_rescan_plugins, sampler_sync_with_instruments,
+    SamplerContext,
 };
 use crate::renderer::backends::metal::MetalRenderer;
 use files::{
@@ -399,6 +400,7 @@ pub fn run() {
             sampler_load_plugin,
             sampler_rescan_plugins,
             sampler_sync_with_instruments,
+            sampler_play_note,
             preferences_audition_set,
             score_config_auto_count_styles_solo_set,
             score_config_auto_count_styles_section_set,

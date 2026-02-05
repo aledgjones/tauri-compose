@@ -418,6 +418,12 @@ export type AudioState = {
   current_sample_rate: number;
 };
 
+export type ArticulationInfo = {
+  id: string;
+  name: string;
+  range: [number, number];
+};
+
 export type PluginInfo = {
   id: string;
   name: string;
@@ -426,6 +432,7 @@ export type PluginInfo = {
   version: string;
   format: string;
   cover_image?: string;
+  articulations: ArticulationInfo[];
 };
 
 export type SamplerState = {

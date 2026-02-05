@@ -8,6 +8,7 @@ import { convertFileSrc } from "@tauri-apps/api/core";
 import { Input } from "../../../ui/input";
 import { Switch } from "../../../ui/switch";
 import { PluginInfo } from "../../../services/types";
+import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 
 interface PluginTileProps {
   plugin: PluginInfo;
@@ -19,6 +20,29 @@ const PluginTile: FC<PluginTileProps> = ({ plugin, isLoaded }) => {
   const backgroundImage = plugin.cover_image
     ? `url(${convertFileSrc(plugin.cover_image)})`
     : undefined;
+
+  const handleOpenSettings = async () => {
+    const sanitizedId = plugin.id.replace(/\./g, "-");
+    const windowLabel = `plugin-settings-${sanitizedId}`;
+
+    const existingWindow = await WebviewWindow.getByLabel(windowLabel);
+    if (existingWindow) {
+      await existingWindow.setFocus();
+      return;
+    }
+
+    new WebviewWindow(windowLabel, {
+      url: `/plugin-settings.html?id=${encodeURIComponent(plugin.id)}`,
+      title: "",
+      width: 700,
+      height: 600,
+      resizable: false,
+      titleBarStyle: "overlay",
+      theme: "dark",
+      center: true,
+      focus: true,
+    });
+  };
 
   return (
     <div
@@ -38,9 +62,7 @@ const PluginTile: FC<PluginTileProps> = ({ plugin, isLoaded }) => {
           className="bg-transparent"
           isDisabled={!isLoaded}
           size={0.9}
-          onClick={() => {
-            // TODO: implement load/disable logic
-          }}
+          onClick={handleOpenSettings}
         />
       </div>
 

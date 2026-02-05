@@ -82,6 +82,19 @@ export const actions = {
     syncWithInstruments: (assigned_plugin_ids: string[]) => {
       return invoke("sampler_sync_with_instruments", { assigned_plugin_ids });
     },
+    playNote: (
+      plugin_id: string,
+      articulation_id: string,
+      note: number,
+      velocity: number = 100,
+    ) => {
+      return invoke("sampler_play_note", {
+        plugin_id,
+        articulation_id,
+        note,
+        velocity,
+      });
+    },
   },
   ui: {
     setTab: (tab: Tab) => {

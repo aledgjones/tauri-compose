@@ -49,7 +49,9 @@ struct ZoneJson {
 
 #[derive(Deserialize)]
 struct ArticulationJson {
+    id: String,
     name: String,
+    range: [u8; 2],
     zones: Vec<ZoneJson>,
 }
 
@@ -57,6 +59,13 @@ struct ArticulationJson {
 struct MetaJson {
     meta: MetaDataJson,
     articulations: Vec<ArticulationJson>,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct ArticulationMeta {
+    id: String,
+    name: String,
+    range: [u8; 2],
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -68,6 +77,7 @@ pub struct PluginMeta {
     version: String,
     format: String,
     cover_image: Option<String>,
+    articulations: Vec<ArticulationMeta>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -103,6 +113,7 @@ pub struct CacheZone {
 
 #[derive(Clone)]
 pub struct CacheArticulation {
+    pub id: String,
     pub name: String,
     pub zones: Vec<CacheZone>,
 }
@@ -186,6 +197,16 @@ impl SamplerContext {
                         None
                     };
 
+                    // Build articulations metadata
+                    let mut articulations = Vec::new();
+                    for articulation in &meta_json.articulations {
+                        articulations.push(ArticulationMeta {
+                            id: articulation.id.clone(),
+                            name: articulation.name.clone(),
+                            range: articulation.range,
+                        });
+                    }
+
                     return Ok(PluginMeta {
                         id: meta_json.meta.id,
                         name: meta_json.meta.name,
@@ -194,6 +215,7 @@ impl SamplerContext {
                         version: meta_json.meta.version,
                         format: meta_json.meta.format,
                         cover_image: cover_image_path,
+                        articulations,
                     });
                 }
                 Err(e) => {
@@ -303,9 +325,10 @@ impl SamplerContext {
             }
 
             articulations.insert(
-                articulation.name.clone(),
+                articulation.id.clone(),
                 CacheArticulation {
-                    name: articulation.name,
+                    id: articulation.id.clone(),
+                    name: articulation.name.clone(),
                     zones,
                 },
             );
@@ -321,13 +344,14 @@ impl SamplerContext {
 
         Ok(Cache {
             meta: PluginMeta {
-                id: meta_json.meta.id,
-                name: meta_json.meta.name,
+                id: meta_json.meta.id.clone(),
+                name: meta_json.meta.name.clone(),
                 path: plugin_info.path.clone(),
-                author: meta_json.meta.author,
-                version: meta_json.meta.version,
-                format: meta_json.meta.format,
+                author: meta_json.meta.author.clone(),
+                version: meta_json.meta.version.clone(),
+                format: meta_json.meta.format.clone(),
                 cover_image: plugin_info.cover_image.clone(),
+                articulations: plugin_info.articulations.clone(),
             },
             articulations,
         })
@@ -655,6 +679,58 @@ pub fn sampler_sync_with_instruments(
 
     ctx.sync_with_instruments(&assigned_plugin_ids, audio_ctx.get_sample_rate())?;
     ctx.emit(&app);
+
+    Ok(())
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn sampler_play_note(
+    state: State<'_, SamplerContextState>,
+    plugin_id: String,
+    articulation_id: String,
+    note: u8,
+    velocity: u8,
+) -> Result<(), String> {
+    let ctx = state.lock().unwrap();
+
+    // Check if plugin is loaded
+    let cache = ctx
+        .cache
+        .get(&plugin_id)
+        .ok_or_else(|| format!("Plugin not loaded: {}", plugin_id))?;
+
+    // Check if articulation exists
+    let articulation = cache
+        .articulations
+        .get(&articulation_id)
+        .ok_or_else(|| format!("Articulation not found: {}", articulation_id))?;
+
+    // Find the zone for this note
+    let zone = articulation
+        .zones
+        .iter()
+        .find(|z| z.pitch == note)
+        .ok_or_else(|| format!("No zone for note: {}", note))?;
+
+    // Find the velocity layer for this velocity
+    let velocity_layer = zone
+        .velocity_layers
+        .iter()
+        .find(|vl| velocity >= vl.range[0] && velocity <= vl.range[1])
+        .ok_or_else(|| format!("No velocity layer for velocity: {}", velocity))?;
+
+    // TODO: Actually trigger audio playback
+    // For now, just validate that we can find the sample
+    if velocity_layer.samples.is_empty() {
+        return Err("No samples in velocity layer".to_string());
+    }
+
+    println!(
+        "Would play note {} at velocity {} using {} samples",
+        note,
+        velocity,
+        velocity_layer.samples.len()
+    );
 
     Ok(())
 }
