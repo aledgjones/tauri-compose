@@ -206,7 +206,7 @@ export const Main: FC = () => {
         </div>
       </div>
 
-      <div className="px-6 pb-0.5 bg-neutral-800">
+      <div className="px-4 pb-0.5 bg-neutral-800">
         <MiniKeyboard
           range={selection?.range || [0, 0]}
           onNoteClick={handleNoteClick}
