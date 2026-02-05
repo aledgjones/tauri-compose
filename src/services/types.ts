@@ -133,6 +133,11 @@ export type Instrument = {
   short_name: string;
   stave_ids: UniqueId[];
   count: string | null;
+  assigned_plugin_id: string | null;
+  volume: number;
+  pan: number;
+  mute: boolean;
+  solo: boolean;
 };
 
 export type Instruments = {
@@ -420,8 +425,10 @@ export type PluginInfo = {
   author: string;
   version: string;
   format: string;
+  cover_image?: string;
 };
 
 export type SamplerState = {
   plugins: PluginInfo[];
+  loaded_plugin_ids: string[];
 };

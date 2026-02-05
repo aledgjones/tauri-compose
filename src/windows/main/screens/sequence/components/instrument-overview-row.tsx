@@ -1,4 +1,4 @@
-import { FC, useMemo, useState } from "react";
+import { FC, useMemo } from "react";
 import { Instrument } from "../../../../../services/types";
 import { IconButton } from "../../../../../ui/icon-button";
 import { mdiCableData, mdiSizeM, mdiSizeS } from "@mdi/js";
@@ -6,12 +6,7 @@ import { TokenizedText } from "../../../../../ui/text";
 import classNames from "classnames";
 import { Select } from "../../../../../ui/select";
 import { useSamplerState } from "../../../../../services/state";
-
-// TODO hook this up properly
-const samplerState: Record<
-  string,
-  { volume: number; solo: boolean; mute: boolean }
-> = {};
+import { actions } from "../../../../../services/actions";
 
 interface InstrumentOverviewRowProps {
   instrument: Instrument;
@@ -25,17 +20,7 @@ export const InstrumentOverviewRow: FC<InstrumentOverviewRowProps> = ({
   isDisabled,
 }) => {
   const sampler = useSamplerState();
-  const [assignedPluginId, setAssignedPluginId] = useState<string>("");
-
   const { plugins } = sampler;
-
-  const { isMuted, isSoloed } = useMemo(() => {
-    const state = samplerState[instrument.id];
-    return {
-      isMuted: state?.mute || false,
-      isSoloed: state?.solo || false,
-    };
-  }, [instrument.id]);
 
   const options = useMemo(() => {
     return Object.values(plugins).map((plugin) => ({
@@ -43,6 +28,13 @@ export const InstrumentOverviewRow: FC<InstrumentOverviewRowProps> = ({
       value: plugin.id,
     }));
   }, [plugins]);
+
+  const handlePluginChange = async (pluginId: string) => {
+    await actions.score.instrument.assignPlugin(
+      instrument.id,
+      pluginId || null,
+    );
+  };
 
   return (
     <div
@@ -65,15 +57,25 @@ export const InstrumentOverviewRow: FC<InstrumentOverviewRowProps> = ({
               path={mdiSizeS}
               variant="filled"
               size={0.9}
-              isSelected={isSoloed}
-              onClick={() => {}}
+              isSelected={instrument.solo}
+              onClick={() =>
+                actions.score.instrument.setSolo(
+                  instrument.id,
+                  !instrument.solo,
+                )
+              }
             />
             <IconButton
               path={mdiSizeM}
               variant="filled"
               size={0.9}
-              isSelected={isMuted}
-              onClick={() => {}}
+              isSelected={instrument.mute}
+              onClick={() =>
+                actions.score.instrument.setMute(
+                  instrument.id,
+                  !instrument.mute,
+                )
+              }
             />
           </div>
         )}
@@ -81,9 +83,9 @@ export const InstrumentOverviewRow: FC<InstrumentOverviewRowProps> = ({
 
       <Select
         className="flex-1"
-        value={assignedPluginId}
+        value={instrument.assigned_plugin_id || ""}
         options={options}
-        onChange={setAssignedPluginId}
+        onChange={handlePluginChange}
         icon={mdiCableData}
         variant="filled"
         placeholder="Unassigned"

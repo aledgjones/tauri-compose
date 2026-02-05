@@ -1,5 +1,6 @@
 use super::layouts::LayoutType;
-use crate::{utils::UniqueId, AppContextState, RendererContextState};
+use crate::utils::UniqueId;
+use crate::{AppContextState, AudioContextState, RendererContextState, SamplerContextState};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
@@ -124,6 +125,8 @@ pub fn score_players_unassign_instrument(
     app: tauri::AppHandle,
     state: State<'_, AppContextState>,
     renderer_state: State<'_, RendererContextState>,
+    sampler_state: State<'_, SamplerContextState>,
+    audio_state: State<'_, AudioContextState>,
     player_id: UniqueId,
     instrument_id: UniqueId,
 ) {
@@ -141,6 +144,26 @@ pub fn score_players_unassign_instrument(
     }
 
     state.score.update_counts();
+
+    // Sync sampler to unload plugins that are no longer needed
+    let assigned_plugin_ids: Vec<String> = state
+        .score
+        .instruments
+        .by_id
+        .values()
+        .filter_map(|i| i.assigned_plugin_id.clone())
+        .collect();
+
+    let mut sampler = sampler_state.lock().unwrap();
+    let audio = audio_state.lock().unwrap();
+    let sample_rate = audio.get_sample_rate();
+    drop(audio);
+
+    if let Err(e) = sampler.sync_with_instruments(&assigned_plugin_ids, sample_rate) {
+        eprintln!("Failed to sync sampler: {}", e);
+    }
+    sampler.emit(&app);
+
     state.emit(&app, &mut renderer, true);
 }
 
@@ -149,6 +172,8 @@ pub fn score_players_remove(
     app: tauri::AppHandle,
     state: State<'_, AppContextState>,
     renderer_state: State<'_, RendererContextState>,
+    sampler_state: State<'_, SamplerContextState>,
+    audio_state: State<'_, AudioContextState>,
     player_id: UniqueId,
 ) {
     let mut state = state.lock().unwrap();
@@ -185,5 +210,25 @@ pub fn score_players_remove(
     }
 
     state.score.update_counts();
+
+    // Sync sampler to unload plugins that are no longer needed
+    let assigned_plugin_ids: Vec<String> = state
+        .score
+        .instruments
+        .by_id
+        .values()
+        .filter_map(|i| i.assigned_plugin_id.clone())
+        .collect();
+
+    let mut sampler = sampler_state.lock().unwrap();
+    let audio = audio_state.lock().unwrap();
+    let sample_rate = audio.get_sample_rate();
+    drop(audio);
+
+    if let Err(e) = sampler.sync_with_instruments(&assigned_plugin_ids, sample_rate) {
+        eprintln!("Failed to sync sampler: {}", e);
+    }
+    sampler.emit(&app);
+
     state.emit(&app, &mut renderer, true);
 }

@@ -1,4 +1,4 @@
-import { FC, useState } from "react";
+import { FC, useMemo, useState } from "react";
 import { IconButton } from "../../../ui/icon-button";
 import { mdiRefresh, mdiMagnify, mdiCog } from "@mdi/js";
 import { useSamplerState } from "../../../services/state";
@@ -7,19 +7,14 @@ import { actions } from "../../../services/actions";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { Input } from "../../../ui/input";
 import { Switch } from "../../../ui/switch";
+import { PluginInfo } from "../../../services/types";
 
-type Plugin = {
-  id: string;
-  name: string;
-  author: string;
-  version: string;
-  format: string;
-  cover_image?: string;
-};
+interface PluginTileProps {
+  plugin: PluginInfo;
+  isLoaded: boolean;
+}
 
-const InstrumentTile: FC<{ plugin: Plugin }> = ({ plugin }) => {
-  const isLoaded = false; // TODO: implement plugin loading state
-
+const PluginTile: FC<PluginTileProps> = ({ plugin, isLoaded }) => {
   // Convert file path to asset URL if cover image exists
   const backgroundImage = plugin.cover_image
     ? `url(${convertFileSrc(plugin.cover_image)})`
@@ -27,15 +22,8 @@ const InstrumentTile: FC<{ plugin: Plugin }> = ({ plugin }) => {
 
   return (
     <div
-      key={plugin.id}
-      className="flex flex-col bg-neutral-900 h-full relative"
-      style={{
-        aspectRatio: "24 / 40",
-        backgroundImage,
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        backgroundRepeat: "no-repeat",
-      }}
+      className="flex flex-col bg-neutral-900 h-full relative bg-no-repeat bg-cover bg-center"
+      style={{ aspectRatio: "24 / 40", backgroundImage }}
     >
       <div className="absolute top-0 left-0 right-0 p-2 pl-4 flex items-center gap-1">
         <div className="mt-1 bg-neutral-950/50 text-neutral-300 text-xs px-2 py-1 text-center min-w-0 truncate">
@@ -69,14 +57,14 @@ const InstrumentTile: FC<{ plugin: Plugin }> = ({ plugin }) => {
   );
 };
 
-type InstrumentsToolbarProps = {
+type PluginsToolbarProps = {
   searchTerm: string;
   onSearchTermChange: (term: string) => void;
   showActiveOnly: boolean;
   onShowActiveOnlyChange: (value: boolean) => void;
 };
 
-export const InstrumentsToolbar: FC<InstrumentsToolbarProps> = ({
+export const PluginsToolbar: FC<PluginsToolbarProps> = ({
   searchTerm,
   onSearchTermChange,
   showActiveOnly,
@@ -118,7 +106,7 @@ export const InstrumentsToolbar: FC<InstrumentsToolbarProps> = ({
         leadingIcon={mdiMagnify}
         value={searchTerm}
         onChange={onSearchTermChange}
-        placeholder="Search instruments..."
+        placeholder="Search plugins..."
         className="w-80"
       />
 
@@ -127,30 +115,29 @@ export const InstrumentsToolbar: FC<InstrumentsToolbarProps> = ({
   );
 };
 
-type InstrumentsProps = {
+type PluginProps = {
   searchTerm: string;
   showActiveOnly: boolean;
 };
 
-export const Instruments: FC<InstrumentsProps> = ({
-  searchTerm,
-  showActiveOnly,
-}) => {
+export const Plugins: FC<PluginProps> = ({ searchTerm, showActiveOnly }) => {
   const sampler = useSamplerState();
 
-  const filteredPlugins = sampler.plugins
-    .filter((plugin) => {
-      const isActive = false; // TODO: implement active plugin state
+  const filteredPlugins = useMemo(() => {
+    return sampler.plugins
+      .filter((plugin) => {
+        const isLoaded = sampler.loaded_plugin_ids.includes(plugin.id);
 
-      if (showActiveOnly && !isActive) {
-        return false;
-      }
+        if (showActiveOnly && !isLoaded) {
+          return false;
+        }
 
-      return plugin.name.toLowerCase().includes(searchTerm.toLowerCase());
-    })
-    .sort((a, b) => {
-      return a.id.localeCompare(b.id);
-    });
+        return plugin.name.toLowerCase().includes(searchTerm.toLowerCase());
+      })
+      .sort((a, b) => {
+        return a.id.localeCompare(b.id);
+      });
+  }, [sampler.loaded_plugin_ids, sampler.plugins, searchTerm, showActiveOnly]);
 
   if (sampler.plugins.length === 0) {
     return (
@@ -176,7 +163,11 @@ export const Instruments: FC<InstrumentsProps> = ({
     <div className="w-full h-full overflow-x-auto overflow-y-hidden">
       <div className="flex h-full gap-0.5">
         {filteredPlugins.map((plugin) => {
-          return <InstrumentTile key={plugin.id} plugin={plugin} />;
+          const isLoaded = sampler.loaded_plugin_ids.includes(plugin.id);
+
+          return (
+            <PluginTile key={plugin.id} plugin={plugin} isLoaded={isLoaded} />
+          );
         })}
 
         <div className="bg-neutral-900 flex-1 h-full" />

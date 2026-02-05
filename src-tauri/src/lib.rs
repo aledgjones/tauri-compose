@@ -9,7 +9,9 @@ mod ui;
 mod utils;
 
 use crate::playback::audio::{audio_device_sample_rate_set, audio_device_set, AudioContext};
-use crate::playback::sampler::{sampler_load_plugin, sampler_rescan_plugins, SamplerContext};
+use crate::playback::sampler::{
+    sampler_load_plugin, sampler_rescan_plugins, sampler_sync_with_instruments, SamplerContext,
+};
 use crate::renderer::backends::metal::MetalRenderer;
 use files::{
     add_recent_file, clear_recent_files, get_current_file_path, get_recent_files,
@@ -54,7 +56,9 @@ use score::flows::{
 };
 use score::instruments::defs::score_instruments_get_all_definitions;
 use score::instruments::{
-    score_instruments_create, score_instruments_move, score_instruments_remove,
+    score_instruments_assign_plugin, score_instruments_create, score_instruments_move,
+    score_instruments_remove, score_instruments_set_mute, score_instruments_set_pan,
+    score_instruments_set_solo, score_instruments_set_volume,
 };
 use score::layouts::{
     score_layouts_assign_flow, score_layouts_assign_player, score_layouts_create,
@@ -394,6 +398,7 @@ pub fn run() {
             audio_device_sample_rate_set,
             sampler_load_plugin,
             sampler_rescan_plugins,
+            sampler_sync_with_instruments,
             preferences_audition_set,
             score_config_auto_count_styles_solo_set,
             score_config_auto_count_styles_section_set,
@@ -440,6 +445,11 @@ pub fn run() {
             score_instruments_get_all_definitions,
             score_instruments_move,
             score_instruments_remove,
+            score_instruments_assign_plugin,
+            score_instruments_set_volume,
+            score_instruments_set_pan,
+            score_instruments_set_mute,
+            score_instruments_set_solo,
             score_layouts_create,
             score_layouts_rename,
             score_layouts_assign_flow,

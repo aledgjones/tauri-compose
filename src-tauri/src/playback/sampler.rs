@@ -73,6 +73,7 @@ pub struct PluginMeta {
 #[derive(Serialize, Deserialize, Clone)]
 pub struct SamplerState {
     pub plugins: Vec<PluginMeta>,
+    pub loaded_plugin_ids: Vec<String>,
 }
 
 #[derive(Clone)]
@@ -505,11 +506,43 @@ impl SamplerContext {
     pub fn emit(&self, app: &AppHandle) {
         let state = SamplerState {
             plugins: self.plugins.clone(),
+            loaded_plugin_ids: self.cache.keys().cloned().collect(),
         };
 
         if let Err(e) = app.emit("soloc://state/sampler", &state) {
             eprintln!("Failed to emit sampler state: {:?}", e);
         }
+    }
+
+    /// Sync sampler with score instruments: load assigned plugins and unload unused ones
+    pub fn sync_with_instruments(
+        &mut self,
+        assigned_plugin_ids: &[String],
+        target_sample_rate: u32,
+    ) -> Result<(), String> {
+        // Collect unique assigned plugin IDs
+        let required_plugins: std::collections::HashSet<&String> =
+            assigned_plugin_ids.iter().collect();
+
+        // Load plugins that are assigned but not yet loaded
+        for plugin_id in &required_plugins {
+            if !self.cache.contains_key(*plugin_id) {
+                match self.load_instrument(plugin_id, target_sample_rate) {
+                    Ok(cache) => {
+                        self.cache.insert((*plugin_id).clone(), cache);
+                    }
+                    Err(e) => {
+                        eprintln!("Failed to load plugin {}: {}", plugin_id, e);
+                    }
+                }
+            }
+        }
+
+        // Unload plugins that are no longer assigned to any instrument
+        self.cache
+            .retain(|plugin_id, _| required_plugins.contains(plugin_id));
+
+        Ok(())
     }
 
     fn resample_sinc(samples: &[f32], from_rate: u32, to_rate: u32, channels: usize) -> Vec<f32> {
@@ -605,6 +638,22 @@ pub fn sampler_rescan_plugins(
     ctx.plugins = SamplerContext::scan_plugins();
 
     // Emit updated state to frontend
+    ctx.emit(&app);
+
+    Ok(())
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn sampler_sync_with_instruments(
+    app: AppHandle,
+    state: State<'_, SamplerContextState>,
+    audio_state: State<'_, AudioContextState>,
+    assigned_plugin_ids: Vec<String>,
+) -> Result<(), String> {
+    let mut ctx = state.lock().unwrap();
+    let audio_ctx = audio_state.lock().unwrap();
+
+    ctx.sync_with_instruments(&assigned_plugin_ids, audio_ctx.get_sample_rate())?;
     ctx.emit(&app);
 
     Ok(())

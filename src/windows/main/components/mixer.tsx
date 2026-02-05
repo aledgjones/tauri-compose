@@ -4,12 +4,7 @@ import { MixerChannel } from "./mixer-channel";
 import { Instrument } from "../../../services/types";
 import { IconButton } from "../../../ui/icon-button";
 import { mdiSizeM, mdiSizeS } from "@mdi/js";
-
-// TODO hook this up properly
-const samplerState: Record<
-  string,
-  { volume: number; solo: boolean; mute: boolean }
-> = {};
+import { actions } from "../../../services/actions";
 
 interface MixerToolbarProps {
   instruments: Instrument[];
@@ -21,16 +16,11 @@ export const MixerToolbar: FC<MixerToolbarProps> = ({ instruments }) => {
     let hasMute = false;
 
     for (const instrument of instruments) {
-      const state = samplerState[instrument.id];
-      if (!state) {
-        continue;
-      }
-
-      if (state.solo) {
+      if (instrument.solo) {
         hasSolo = true;
       }
 
-      if (state.mute) {
+      if (instrument.mute) {
         hasMute = true;
       }
 
@@ -42,6 +32,20 @@ export const MixerToolbar: FC<MixerToolbarProps> = ({ instruments }) => {
     return { hasSolo, hasMute };
   }, [instruments]);
 
+  const handleToggleAllSolo = () => {
+    const targetState = !hasSolo;
+    instruments.forEach((instrument) => {
+      actions.score.instrument.setSolo(instrument.id, targetState);
+    });
+  };
+
+  const handleToggleAllMute = () => {
+    const targetState = !hasMute;
+    instruments.forEach((instrument) => {
+      actions.score.instrument.setMute(instrument.id, targetState);
+    });
+  };
+
   return (
     <>
       <div className="flex flex-1 gap-0.5">
@@ -49,13 +53,13 @@ export const MixerToolbar: FC<MixerToolbarProps> = ({ instruments }) => {
           path={mdiSizeS}
           isSelected={hasSolo}
           variant="interactive"
-          onClick={() => {}}
+          onClick={handleToggleAllSolo}
         />
         <IconButton
           path={mdiSizeM}
           isSelected={hasMute}
           variant="interactive"
-          onClick={() => {}}
+          onClick={handleToggleAllMute}
         />
         <div className="bg-neutral-900 flex-1" />
       </div>
@@ -73,22 +77,23 @@ export const Mixer: FC<Props> = ({ instruments }) => {
   return (
     <div className="flex w-full h-full overflow-auto gap-0.5">
       {instruments.map((instrument, index) => {
-        const state = samplerState[instrument.id] || {
-          volume: 80,
-          mute: false,
-          solo: false,
-        };
         return (
           <MixerChannel
             key={instrument.id}
             instrument={instrument}
             color={instrumentColors[index]}
-            volume={Math.round((state.volume / 127) * 100)}
-            isMuted={state.mute}
-            isSoloed={state.solo}
-            onVolumeChange={() => {}}
-            onToggleMute={() => {}}
-            onToggleSolo={() => {}}
+            volume={Math.round((instrument.volume / 127) * 100)}
+            isMuted={instrument.mute}
+            isSoloed={instrument.solo}
+            onVolumeChange={(midiValue) => {
+              actions.score.instrument.setVolume(instrument.id, midiValue);
+            }}
+            onToggleMute={() => {
+              actions.score.instrument.setMute(instrument.id, !instrument.mute);
+            }}
+            onToggleSolo={() => {
+              actions.score.instrument.setSolo(instrument.id, !instrument.solo);
+            }}
           />
         );
       })}

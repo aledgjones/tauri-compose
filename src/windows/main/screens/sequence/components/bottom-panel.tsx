@@ -6,10 +6,7 @@ import { mdiCableData, mdiPiano, mdiTuneVertical } from "@mdi/js";
 import { IconButton } from "../../../../../ui/icon-button";
 import { Sequencer, SequencerToolbar } from "../../../components/sequencer";
 import { Mixer, MixerToolbar } from "../../../components/mixer";
-import {
-  Instruments,
-  InstrumentsToolbar,
-} from "../../../components/instruments";
+import { Plugins, PluginsToolbar } from "../../../components/plugins";
 import { useBottomPanelState } from "../../../hooks/use-bottom-panel-state";
 
 const SEQUENCE_TABS = [
@@ -51,7 +48,7 @@ export const BottomPanel: FC = () => {
           <MixerToolbar instruments={instruments} />
         )}
         {tab === BottomPanelTab.Instruments && (
-          <InstrumentsToolbar
+          <PluginsToolbar
             searchTerm={searchTerm}
             onSearchTermChange={setSearchTerm}
             showActiveOnly={showActiveOnly}
@@ -88,7 +85,7 @@ export const BottomPanel: FC = () => {
       )}
       {tab === BottomPanelTab.Mixer && <Mixer instruments={instruments} />}
       {tab === BottomPanelTab.Instruments && (
-        <Instruments searchTerm={searchTerm} showActiveOnly={showActiveOnly} />
+        <Plugins searchTerm={searchTerm} showActiveOnly={showActiveOnly} />
       )}
     </div>
   );

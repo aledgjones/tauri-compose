@@ -1,8 +1,9 @@
 pub mod defs;
 
 use super::{config::AutoCountStyle, Score};
+use crate::score::players::PlayerType;
 use crate::utils::UniqueId;
-use crate::{score::players::PlayerType, AppContextState, RendererContextState};
+use crate::{AppContextState, AudioContextState, RendererContextState, SamplerContextState};
 use defs::{get_instrument_definition, InstrumentType};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
@@ -17,6 +18,11 @@ pub struct Instrument {
     pub short_name: String,
     pub stave_ids: Vec<UniqueId>,
     pub count: Option<String>,
+    pub assigned_plugin_id: Option<String>,
+    pub volume: u8,
+    pub pan: u8,
+    pub mute: bool,
+    pub solo: bool,
 }
 
 impl Instrument {
@@ -128,6 +134,11 @@ pub fn score_instruments_create(
         short_name: String::from(def.short_name),
         stave_ids,
         count: None,
+        assigned_plugin_id: None,
+        volume: 100,
+        pan: 64,
+        mute: false,
+        solo: false,
     };
 
     state
@@ -198,12 +209,144 @@ pub fn score_instruments_remove(
     app: tauri::AppHandle,
     state: State<'_, AppContextState>,
     renderer_state: State<'_, RendererContextState>,
+    sampler_state: State<'_, SamplerContextState>,
+    audio_state: State<'_, AudioContextState>,
     instrument_id: UniqueId,
 ) {
     let mut state = state.lock().unwrap();
 
     state.score.instruments.by_id.remove(&instrument_id);
 
+    // Sync sampler to unload plugins that are no longer needed
+    let assigned_plugin_ids: Vec<String> = state
+        .score
+        .instruments
+        .by_id
+        .values()
+        .filter_map(|i| i.assigned_plugin_id.clone())
+        .collect();
+
+    let mut sampler = sampler_state.lock().unwrap();
+    let audio = audio_state.lock().unwrap();
+    let sample_rate = audio.get_sample_rate();
+    drop(audio);
+
+    if let Err(e) = sampler.sync_with_instruments(&assigned_plugin_ids, sample_rate) {
+        eprintln!("Failed to sync sampler: {}", e);
+    }
+    sampler.emit(&app);
+
     let mut renderer = renderer_state.lock().unwrap();
     state.emit(&app, &mut renderer, true);
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn score_instruments_assign_plugin(
+    app: tauri::AppHandle,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
+    sampler_state: State<'_, SamplerContextState>,
+    audio_state: State<'_, AudioContextState>,
+    instrument_id: UniqueId,
+    plugin_id: Option<String>,
+) {
+    let mut state = state.lock().unwrap();
+
+    if let Some(instrument) = state.score.instruments.by_id.get_mut(&instrument_id) {
+        instrument.assigned_plugin_id = plugin_id;
+    }
+
+    // Collect all assigned plugin IDs and sync the sampler
+    let assigned_plugin_ids: Vec<String> = state
+        .score
+        .instruments
+        .by_id
+        .values()
+        .filter_map(|i| i.assigned_plugin_id.clone())
+        .collect();
+
+    let mut sampler = sampler_state.lock().unwrap();
+    let audio = audio_state.lock().unwrap();
+    let sample_rate = audio.get_sample_rate();
+    drop(audio); // Release audio lock before potentially slow operation
+
+    if let Err(e) = sampler.sync_with_instruments(&assigned_plugin_ids, sample_rate) {
+        eprintln!("Failed to sync sampler: {}", e);
+    }
+    sampler.emit(&app);
+
+    let mut renderer = renderer_state.lock().unwrap();
+    state.emit(&app, &mut renderer, false);
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn score_instruments_set_volume(
+    app: tauri::AppHandle,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
+    instrument_id: UniqueId,
+    volume: u8,
+) {
+    let mut state = state.lock().unwrap();
+
+    if let Some(instrument) = state.score.instruments.by_id.get_mut(&instrument_id) {
+        instrument.volume = volume.min(127);
+    }
+
+    let mut renderer = renderer_state.lock().unwrap();
+    state.emit(&app, &mut renderer, false);
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn score_instruments_set_pan(
+    app: tauri::AppHandle,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
+    instrument_id: UniqueId,
+    pan: u8,
+) {
+    let mut state = state.lock().unwrap();
+
+    if let Some(instrument) = state.score.instruments.by_id.get_mut(&instrument_id) {
+        instrument.pan = pan.min(127);
+    }
+
+    let mut renderer = renderer_state.lock().unwrap();
+    state.emit(&app, &mut renderer, false);
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn score_instruments_set_mute(
+    app: tauri::AppHandle,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
+    instrument_id: UniqueId,
+    mute: bool,
+) {
+    let mut state = state.lock().unwrap();
+
+    if let Some(instrument) = state.score.instruments.by_id.get_mut(&instrument_id) {
+        instrument.mute = mute;
+    }
+
+    let mut renderer = renderer_state.lock().unwrap();
+    state.emit(&app, &mut renderer, false);
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn score_instruments_set_solo(
+    app: tauri::AppHandle,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
+    instrument_id: UniqueId,
+    solo: bool,
+) {
+    let mut state = state.lock().unwrap();
+
+    if let Some(instrument) = state.score.instruments.by_id.get_mut(&instrument_id) {
+        instrument.solo = solo;
+    }
+
+    let mut renderer = renderer_state.lock().unwrap();
+    state.emit(&app, &mut renderer, false);
 }

@@ -48,6 +48,7 @@ export const initialAppState: AppState = {
       sequence: {
         bottom_panel_minimized: false,
         bottom_panel_tab: BottomPanelTab.Sequencer,
+        show_active_only: true,
       },
     },
   },
@@ -162,6 +163,7 @@ export const AudioContext = createContext<AudioState | null>(null);
 
 export const initialSamplerState: SamplerState = {
   plugins: [],
+  loaded_plugin_ids: [],
 };
 
 export const SamplerContext = createContext<SamplerState | null>(null);

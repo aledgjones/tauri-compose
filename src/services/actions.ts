@@ -79,6 +79,9 @@ export const actions = {
     rescanPlugins: async () => {
       return invoke("sampler_rescan_plugins");
     },
+    syncWithInstruments: (assigned_plugin_ids: string[]) => {
+      return invoke("sampler_sync_with_instruments", { assigned_plugin_ids });
+    },
   },
   ui: {
     setTab: (tab: Tab) => {
@@ -443,6 +446,36 @@ export const actions = {
       remove: (instrument_id: number) => {
         return invoke<number>("score_instruments_remove", {
           instrument_id,
+        });
+      },
+      assignPlugin: (instrument_id: number, plugin_id: string | null) => {
+        return invoke<void>("score_instruments_assign_plugin", {
+          instrument_id,
+          plugin_id,
+        });
+      },
+      setVolume: (instrument_id: number, volume: number) => {
+        return invoke<void>("score_instruments_set_volume", {
+          instrument_id,
+          volume,
+        });
+      },
+      setPan: (instrument_id: number, pan: number) => {
+        return invoke<void>("score_instruments_set_pan", {
+          instrument_id,
+          pan,
+        });
+      },
+      setMute: (instrument_id: number, mute: boolean) => {
+        return invoke<void>("score_instruments_set_mute", {
+          instrument_id,
+          mute,
+        });
+      },
+      setSolo: (instrument_id: number, solo: boolean) => {
+        return invoke<void>("score_instruments_set_solo", {
+          instrument_id,
+          solo,
         });
       },
     },
