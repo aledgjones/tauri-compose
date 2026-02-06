@@ -27,6 +27,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     match instrument_name {
         Some(name) => {
             // Process specific instrument - create both versions
+            let src_path = format!("instruments/src/{}", name);
+            println!("🔍 Running integrity check for {}...", name);
+            integrity_check(&src_path)?;
+            println!("✅ Integrity check passed\n");
+
             create_scvi_archive(&name, &name, "flac")?;
             create_scvi_archive(&name, &format!("{} (Lite)", name), "mp3")?;
         }
@@ -192,6 +197,70 @@ fn create_scvi_archive(
         total_original_size as f64 / 1_000_000.0,
         final_size as f64 / 1_000_000.0
     );
+
+    Ok(())
+}
+
+fn integrity_check(src_path: &str) -> Result<(), Box<dyn std::error::Error>> {
+    let manifest_path = Path::new(src_path).join("manifest.json");
+
+    if !manifest_path.exists() {
+        return Err(format!("manifest.json not found in {}", src_path).into());
+    }
+
+    // Read and parse manifest.json
+    let content = fs::read_to_string(&manifest_path)?;
+    let json_value: Value = serde_json::from_str(&content)?;
+
+    let mut missing_files = Vec::new();
+    let mut total_files = 0;
+
+    // Extract all sample paths from articulations
+    if let Some(articulations) = json_value.get("articulations").and_then(|v| v.as_array()) {
+        for articulation in articulations {
+            let articulation_name = articulation
+                .get("name")
+                .or_else(|| articulation.get("id"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown");
+
+            if let Some(zones) = articulation.get("zones").and_then(|v| v.as_array()) {
+                for zone in zones {
+                    if let Some(velocity_layers) =
+                        zone.get("velocityLayers").and_then(|v| v.as_array())
+                    {
+                        for layer in velocity_layers {
+                            if let Some(samples) = layer.get("samples").and_then(|v| v.as_array()) {
+                                for sample in samples {
+                                    if let Some(path) = sample.get("path").and_then(|v| v.as_str())
+                                    {
+                                        total_files += 1;
+                                        let full_path = Path::new(src_path).join(path);
+
+                                        if !full_path.exists() {
+                                            missing_files.push(format!(
+                                                "  {} -> {}",
+                                                articulation_name, path
+                                            ));
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if !missing_files.is_empty() {
+        let error_msg = format!(
+            "Integrity check failed: {} sample file(s) missing:\n{}",
+            missing_files.len(),
+            missing_files.join("\n")
+        );
+        return Err(error_msg.into());
+    }
 
     Ok(())
 }
@@ -396,9 +465,52 @@ fn process_all_instruments() -> Result<(), Box<dyn std::error::Error>> {
         instruments.join(", ")
     );
 
+    // Pre-loop: Check integrity of all instruments before processing
+    println!("\n🔍 Running integrity checks on all instruments...\n");
+    let mut valid_instruments = Vec::new();
+    let mut failed_instruments = Vec::new();
+
+    for instrument in &instruments {
+        let src_path = format!("instruments/src/{}", instrument);
+
+        match integrity_check(&src_path) {
+            Ok(_) => {
+                valid_instruments.push(instrument.clone());
+            }
+            Err(e) => {
+                let err_str = e.to_string();
+                let lines: Vec<&str> = err_str.lines().collect();
+                if let Some(first_line) = lines.first() {
+                    println!("   ❌ {} - {}", instrument, first_line);
+                    for line in &lines[1..] {
+                        println!("       {}", line);
+                    }
+                }
+                failed_instruments.push(instrument.clone());
+            }
+        }
+    }
+
+    println!("\n📊 Integrity check summary:");
+    println!("   ✅ Passed: {} instruments", valid_instruments.len());
+
+    if !failed_instruments.is_empty() {
+        println!(
+            "   ❌ Failed: {} instruments ({})",
+            failed_instruments.len(),
+            failed_instruments.join(", ")
+        );
+        return Ok(());
+    }
+
+    println!(
+        "\n🚀 Beginning processing of {} instruments...\n",
+        valid_instruments.len()
+    );
+
     // Process each instrument - create both versions
-    for instrument in instruments {
-        println!("\n🎵 Processing instrument: {}", instrument);
+    for instrument in valid_instruments {
+        println!("🎵 Processing instrument: {}", instrument);
         if let Err(e) = create_scvi_archive(&instrument, &instrument, "flac") {
             eprintln!("❌ Failed to process {}: {}", instrument, e);
             // Continue with other instruments
