@@ -1,6 +1,7 @@
+use crate::playback::mixer::{self, MixerHandle};
 use crate::AudioContextState;
-use cpal::traits::{DeviceTrait, HostTrait};
-use cpal::{Device, Host};
+use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
+use cpal::{Device, Host, Stream};
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
@@ -32,6 +33,9 @@ pub struct AudioContext {
     host: Host,
     devices: Vec<DeviceInfo>,
     active_device: ActiveDevice,
+    mixer_handle: MixerHandle,
+    // Keep the stream alive — dropping it stops audio
+    _stream: Stream,
 }
 
 const SUPPORTED_SAMPLE_RATES: [u32; 4] = [44100, 48000, 88200, 96000];
@@ -85,11 +89,49 @@ impl AudioContext {
 
         let active_device = AudioContext::default_device();
 
+        // Create the persistent mixer + stream
+        let (mixer_handle, stream) =
+            Self::build_stream(&active_device.device, active_device.sample_rate);
+
         Mutex::new(AudioContext {
             host,
             devices,
             active_device,
+            mixer_handle,
+            _stream: stream,
         })
+    }
+
+    /// Build (or rebuild) the persistent output stream with a mixer.
+    fn build_stream(device: &Device, sample_rate: u32) -> (MixerHandle, Stream) {
+        let (handle, reader) = mixer::create_mixer();
+
+        // Use stereo output — most hardware is stereo
+        let channels: u16 = 2;
+
+        let stream_config = cpal::StreamConfig {
+            channels,
+            sample_rate,
+            buffer_size: cpal::BufferSize::Default,
+        };
+
+        let ch = channels as usize;
+        let stream = device
+            .build_output_stream(
+                &stream_config,
+                move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
+                    reader.fill_buffer(data, ch);
+                },
+                |err| eprintln!("Audio stream error: {}", err),
+                None,
+            )
+            .expect("Failed to build persistent output stream");
+
+        stream
+            .play()
+            .expect("Failed to start persistent output stream");
+
+        (handle, stream)
     }
 
     fn default_device() -> ActiveDevice {
@@ -118,6 +160,10 @@ impl AudioContext {
 
     pub fn get_sample_rate(&self) -> u32 {
         self.active_device.sample_rate
+    }
+
+    pub fn get_mixer_handle(&self) -> MixerHandle {
+        self.mixer_handle.clone()
     }
 
     pub fn emit(&self, app: &tauri::AppHandle) {
@@ -160,11 +206,16 @@ pub fn audio_device_set(
             .map_err(|e| e.to_string())?
             .sample_rate();
 
+        // Rebuild the stream on the new device
+        let (mixer_handle, stream) = AudioContext::build_stream(&device, sample_rate);
+
         ctx.active_device = ActiveDevice {
             device,
             id,
             sample_rate,
         };
+        ctx.mixer_handle = mixer_handle;
+        ctx._stream = stream;
 
         ctx.emit(&app);
 
@@ -183,6 +234,11 @@ pub fn audio_device_sample_rate_set(
     let mut ctx = state.lock().unwrap();
 
     ctx.active_device.sample_rate = sample_rate;
+
+    // Rebuild the stream at the new sample rate
+    let (mixer_handle, stream) = AudioContext::build_stream(&ctx.active_device.device, sample_rate);
+    ctx.mixer_handle = mixer_handle;
+    ctx._stream = stream;
 
     ctx.emit(&app);
 }
