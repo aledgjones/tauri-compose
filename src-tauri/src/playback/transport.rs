@@ -173,8 +173,12 @@ fn render_note(
     let channels = sample.channels as usize;
     let source = &sample.data;
 
-    // Cap to duration_seconds upfront so we only process what's needed
-    let max_frames = (duration_seconds * sample_rate as f64).ceil() as usize;
+    // The note should sustain at full volume for its entire written duration,
+    // then fade out over a release tail that extends BEYOND the written duration.
+    // This prevents the release envelope from eating into the audible note length.
+    let duration_frames = (duration_seconds * sample_rate as f64).ceil() as usize;
+    let release_frames = (sample_rate as f64 * 0.15).ceil() as usize; // 150ms release tail
+    let max_frames = duration_frames + release_frames;
 
     let mut audio_data = if pitch_offset != 0 {
         // Pitch shift via linear interpolation — read directly from source, no clone needed
@@ -208,7 +212,7 @@ fn render_note(
         source[..capped_samples].to_vec()
     };
 
-    // Determine truncation for envelope shape
+    // Determine if the sample was truncated (natural length exceeds what we rendered)
     let natural_frames = if pitch_offset != 0 {
         let pitch_ratio = 2.0_f32.powf(pitch_offset as f32 / 12.0);
         (source.len() / channels) as f64 / pitch_ratio as f64
@@ -218,18 +222,30 @@ fn render_note(
     let total_frames = audio_data.len() / channels.max(1);
     let truncated = natural_frames as usize > total_frames;
 
-    // Release envelope
-    let release_frames = if truncated {
-        ((sample_rate as f32 * 0.15) as usize).min(total_frames / 2)
+    // Release envelope — applied as a tail AFTER the written duration.
+    // If the sample ended naturally before the written duration, just apply a tiny anti-click fade.
+    if truncated {
+        // The note was truncated to fit the duration + release tail.
+        // Start the fade at the written duration boundary (or at the start of the audio if very short).
+        let fade_start = duration_frames.min(total_frames);
+        let actual_fade_len = total_frames.saturating_sub(fade_start);
+        if actual_fade_len > 0 {
+            for frame in fade_start..total_frames {
+                let gain = 1.0 - (frame - fade_start) as f32 / actual_fade_len as f32;
+                for ch in 0..channels {
+                    audio_data[frame * channels + ch] *= gain;
+                }
+            }
+        }
     } else {
-        ((sample_rate as f32 * 0.005) as usize).min(total_frames)
-    };
-    let release_start = total_frames - release_frames;
-
-    for frame in release_start..total_frames {
-        let gain = 1.0 - (frame - release_start) as f32 / release_frames as f32;
-        for ch in 0..channels {
-            audio_data[frame * channels + ch] *= gain;
+        // Sample ended naturally — just a tiny 5ms anti-click fade at the end
+        let anti_click = ((sample_rate as f32 * 0.005) as usize).min(total_frames);
+        let fade_start = total_frames - anti_click;
+        for frame in fade_start..total_frames {
+            let gain = 1.0 - (frame - fade_start) as f32 / anti_click as f32;
+            for ch in 0..channels {
+                audio_data[frame * channels + ch] *= gain;
+            }
         }
     }
 

@@ -805,8 +805,10 @@ pub fn sampler_audition(
     let channels = sample.channels as usize;
     let source = &sample.data;
 
-    // Cap at 1 second
-    let max_frames = target_sample_rate as usize;
+    // Cap audition at 1 second of sustain, plus a 150ms release tail
+    let duration_frames = target_sample_rate as usize;
+    let release_tail = (target_sample_rate as f64 * 0.15).ceil() as usize;
+    let max_frames = duration_frames + release_tail;
 
     let mut audio_data = if pitch_offset != 0 {
         let pitch_ratio = 2.0_f32.powf(pitch_offset as f32 / 12.0);
@@ -842,17 +844,27 @@ pub fn sampler_audition(
     let natural_frames = source.len() / channels.max(1);
     let truncated = natural_frames > total_frames;
 
-    let release_frames = if truncated {
-        ((target_sample_rate as f32 * 0.15) as usize).min(total_frames / 2)
+    if truncated {
+        // Fade out starting at the 1-second sustain boundary
+        let fade_start = duration_frames.min(total_frames);
+        let actual_fade_len = total_frames.saturating_sub(fade_start);
+        if actual_fade_len > 0 {
+            for frame in fade_start..total_frames {
+                let gain = 1.0 - (frame - fade_start) as f32 / actual_fade_len as f32;
+                for ch in 0..channels {
+                    audio_data[frame * channels + ch] *= gain;
+                }
+            }
+        }
     } else {
-        ((target_sample_rate as f32 * 0.005) as usize).min(total_frames)
-    };
-    let release_start = total_frames - release_frames;
-
-    for frame in release_start..total_frames {
-        let gain = 1.0 - (frame - release_start) as f32 / release_frames as f32;
-        for ch in 0..channels {
-            audio_data[frame * channels + ch] *= gain;
+        // Sample ended naturally — tiny 5ms anti-click fade
+        let anti_click = ((target_sample_rate as f32 * 0.005) as usize).min(total_frames);
+        let fade_start = total_frames - anti_click;
+        for frame in fade_start..total_frames {
+            let gain = 1.0 - (frame - fade_start) as f32 / anti_click as f32;
+            for ch in 0..channels {
+                audio_data[frame * channels + ch] *= gain;
+            }
         }
     }
 
