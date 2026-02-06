@@ -10,8 +10,12 @@ mod utils;
 
 use crate::playback::audio::{audio_device_sample_rate_set, audio_device_set, AudioContext};
 use crate::playback::sampler::{
-    sampler_load_plugin, sampler_play_note, sampler_rescan_plugins, sampler_sync_with_instruments,
+    sampler_audition, sampler_load_plugin, sampler_rescan_plugins, sampler_sync_with_instruments,
     SamplerContext,
+};
+use crate::playback::transport::{
+    transport_get_state, transport_pause, transport_play, transport_seek, transport_set_tempo,
+    transport_stop, TransportContext,
 };
 use crate::renderer::backends::metal::MetalRenderer;
 use files::{
@@ -225,6 +229,8 @@ fn reset(
     app: AppHandle,
     state: State<'_, AppContextState>,
     renderer_state: State<'_, RendererContextState>,
+    sampler_state: State<'_, SamplerContextState>,
+    audio_state: State<'_, AudioContextState>,
 ) {
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
@@ -237,6 +243,21 @@ fn reset(
     renderer.clear();
 
     state.emit(&app, &mut renderer, true);
+
+    // Drop state locks before sampler sync
+    drop(state);
+    drop(renderer);
+
+    // Sync sampler — new score has no instruments, so this unloads everything
+    let mut sampler = sampler_state.lock().unwrap();
+    let audio = audio_state.lock().unwrap();
+    let sample_rate = audio.get_sample_rate();
+    drop(audio);
+
+    if let Err(e) = sampler.sync_with_instruments(&[], sample_rate) {
+        eprintln!("Failed to sync sampler after reset: {}", e);
+    }
+    sampler.emit(&app);
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -258,6 +279,10 @@ pub fn run() {
             app.manage(RendererContext::new());
             app.manage(AudioContext::new());
             app.manage(SamplerContext::new());
+
+            let (transport_ctx, transport_shared) = TransportContext::new();
+            app.manage(transport_ctx);
+            app.manage(transport_shared);
 
             // MENU INITIALIZATION
             let separator = PredefinedMenuItem::separator(app)?;
@@ -400,7 +425,13 @@ pub fn run() {
             sampler_load_plugin,
             sampler_rescan_plugins,
             sampler_sync_with_instruments,
-            sampler_play_note,
+            sampler_audition,
+            transport_play,
+            transport_pause,
+            transport_stop,
+            transport_seek,
+            transport_set_tempo,
+            transport_get_state,
             preferences_audition_set,
             score_config_auto_count_styles_solo_set,
             score_config_auto_count_styles_section_set,

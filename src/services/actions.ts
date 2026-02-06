@@ -19,6 +19,7 @@ import {
   Ticks,
   TimeSignatureDrawType,
   Tool,
+  TransportState,
   UniqueId,
 } from "./types";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
@@ -82,17 +83,17 @@ export const actions = {
     syncWithInstruments: (assigned_plugin_ids: string[]) => {
       return invoke("sampler_sync_with_instruments", { assigned_plugin_ids });
     },
-    playNote: (
+    audition: (
       plugin_id: string,
-      articulation_id: string,
       note: number,
       velocity: number = 100,
+      articulation_id?: string,
     ) => {
-      return invoke("sampler_play_note", {
+      return invoke("sampler_audition", {
         plugin_id,
-        articulation_id,
         note,
         velocity,
+        articulation_id: articulation_id ?? null,
       });
     },
   },
@@ -856,5 +857,13 @@ export const actions = {
 
       console.log("Recent file added successfully");
     },
+  },
+  transport: {
+    play: () => invoke("transport_play"),
+    pause: () => invoke("transport_pause"),
+    stop: () => invoke("transport_stop"),
+    seek: (tick: number) => invoke("transport_seek", { tick }),
+    setTempo: (bpm: number) => invoke("transport_set_tempo", { bpm }),
+    getState: () => invoke<TransportState>("transport_get_state"),
   },
 };

@@ -70,6 +70,8 @@ type SequencerTrackProps = {
   snapDuration: NoteDuration;
   instrumentId: UniqueId;
   color: string;
+  audition: boolean;
+  pluginId: string | null;
 };
 
 const handleWriteTool = async (
@@ -81,6 +83,8 @@ const handleWriteTool = async (
   slots: Slots,
   snapDuration: NoteDuration,
   instrumentId: UniqueId,
+  audition: boolean,
+  pluginId: string | null,
 ) => {
   const box = sequencerRef.current?.getBoundingClientRect();
   if (!box) {
@@ -116,9 +120,14 @@ const handleWriteTool = async (
     duration,
     pitch,
     null,
-    255,
+    100,
     Articulation.None,
   );
+
+  // Audition the created note
+  if (audition && pluginId) {
+    actions.sampler.audition(pluginId, pitch);
+  }
 
   // Find the stave that contains this track
   let stave_id: UniqueId | null = null;
@@ -349,6 +358,8 @@ const handlePositionDragging = async (
   ticksPerSnap: number,
   flow: Flow,
   slots: Slots,
+  audition: boolean,
+  pluginId: string | null,
 ) => {
   let lastPitch = originalTone.pitch.int;
   let lastTick = originalTone.tick;
@@ -384,6 +395,9 @@ const handlePositionDragging = async (
     // Update pitch if it changed
     if (newPitch !== lastPitch) {
       await actions.score.tone.setPitch(track.id, clickTarget.id, newPitch);
+      if (audition && pluginId) {
+        actions.sampler.audition(pluginId, newPitch);
+      }
       lastPitch = newPitch;
     }
 
@@ -412,6 +426,8 @@ const handleSelectTool = async (
   slots: Slots,
   snapDuration: NoteDuration,
   instrumentId: UniqueId,
+  audition: boolean,
+  pluginId: string | null,
 ) => {
   const clickTarget = getSequencerClickTarget(e.target as HTMLElement);
 
@@ -506,6 +522,8 @@ const handleSelectTool = async (
       ticksPerSnap,
       flow,
       slots,
+      audition,
+      pluginId,
     );
   }
 };
@@ -519,6 +537,8 @@ export const SequencerTrack: FC<SequencerTrackProps> = ({
   snapDuration,
   instrumentId,
   color,
+  audition,
+  pluginId,
 }) => {
   const sequencerRef = useRef<HTMLDivElement>(null);
 
@@ -535,6 +555,8 @@ export const SequencerTrack: FC<SequencerTrackProps> = ({
             slots,
             snapDuration,
             instrumentId,
+            audition,
+            pluginId,
           );
           break;
 
@@ -548,6 +570,8 @@ export const SequencerTrack: FC<SequencerTrackProps> = ({
             slots,
             snapDuration,
             instrumentId,
+            audition,
+            pluginId,
           );
           break;
 
@@ -560,7 +584,17 @@ export const SequencerTrack: FC<SequencerTrackProps> = ({
           break;
       }
     },
-    [flow, slots, snapDuration, tool, track, instrumentId, ticks],
+    [
+      flow,
+      slots,
+      snapDuration,
+      tool,
+      track,
+      instrumentId,
+      ticks,
+      audition,
+      pluginId,
+    ],
   );
 
   const tones = useMemo(() => {

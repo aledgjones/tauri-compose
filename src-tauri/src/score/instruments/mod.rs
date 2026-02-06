@@ -1,6 +1,7 @@
 pub mod defs;
 
 use super::{config::AutoCountStyle, Score};
+use crate::playback::transport::TransportSharedState;
 use crate::score::players::PlayerType;
 use crate::utils::UniqueId;
 use crate::{AppContextState, AudioContextState, RendererContextState, SamplerContextState};
@@ -284,13 +285,22 @@ pub fn score_instruments_set_volume(
     app: tauri::AppHandle,
     state: State<'_, AppContextState>,
     renderer_state: State<'_, RendererContextState>,
+    transport_shared: State<'_, TransportSharedState>,
     instrument_id: UniqueId,
     volume: u8,
 ) {
+    let clamped = volume.min(127);
     let mut state = state.lock().unwrap();
 
     if let Some(instrument) = state.score.instruments.by_id.get_mut(&instrument_id) {
-        instrument.volume = volume.min(127);
+        instrument.volume = clamped;
+    }
+
+    // Update live mix params for in-flight playback
+    if let Ok(mut mix) = transport_shared.mix_params.write() {
+        if let Some(p) = mix.get_mut(&instrument_id) {
+            p.volume = clamped;
+        }
     }
 
     let mut renderer = renderer_state.lock().unwrap();
@@ -302,13 +312,22 @@ pub fn score_instruments_set_pan(
     app: tauri::AppHandle,
     state: State<'_, AppContextState>,
     renderer_state: State<'_, RendererContextState>,
+    transport_shared: State<'_, TransportSharedState>,
     instrument_id: UniqueId,
     pan: u8,
 ) {
+    let clamped = pan.min(127);
     let mut state = state.lock().unwrap();
 
     if let Some(instrument) = state.score.instruments.by_id.get_mut(&instrument_id) {
-        instrument.pan = pan.min(127);
+        instrument.pan = clamped;
+    }
+
+    // Update live mix params for in-flight playback
+    if let Ok(mut mix) = transport_shared.mix_params.write() {
+        if let Some(p) = mix.get_mut(&instrument_id) {
+            p.pan = clamped;
+        }
     }
 
     let mut renderer = renderer_state.lock().unwrap();
@@ -320,6 +339,7 @@ pub fn score_instruments_set_mute(
     app: tauri::AppHandle,
     state: State<'_, AppContextState>,
     renderer_state: State<'_, RendererContextState>,
+    transport_shared: State<'_, TransportSharedState>,
     instrument_id: UniqueId,
     mute: bool,
 ) {
@@ -327,6 +347,13 @@ pub fn score_instruments_set_mute(
 
     if let Some(instrument) = state.score.instruments.by_id.get_mut(&instrument_id) {
         instrument.mute = mute;
+    }
+
+    // Update live mix params for in-flight playback
+    if let Ok(mut mix) = transport_shared.mix_params.write() {
+        if let Some(p) = mix.get_mut(&instrument_id) {
+            p.mute = mute;
+        }
     }
 
     let mut renderer = renderer_state.lock().unwrap();
@@ -338,6 +365,7 @@ pub fn score_instruments_set_solo(
     app: tauri::AppHandle,
     state: State<'_, AppContextState>,
     renderer_state: State<'_, RendererContextState>,
+    transport_shared: State<'_, TransportSharedState>,
     instrument_id: UniqueId,
     solo: bool,
 ) {
@@ -345,6 +373,13 @@ pub fn score_instruments_set_solo(
 
     if let Some(instrument) = state.score.instruments.by_id.get_mut(&instrument_id) {
         instrument.solo = solo;
+    }
+
+    // Update live mix params for in-flight playback
+    if let Ok(mut mix) = transport_shared.mix_params.write() {
+        if let Some(p) = mix.get_mut(&instrument_id) {
+            p.solo = solo;
+        }
     }
 
     let mut renderer = renderer_state.lock().unwrap();

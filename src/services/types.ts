@@ -439,3 +439,9 @@ export type SamplerState = {
   plugins: PluginInfo[];
   loaded_plugin_ids: string[];
 };
+
+export type TransportState = {
+  playing: boolean;
+  current_tick: number;
+  tempo: number;
+};

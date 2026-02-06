@@ -139,6 +139,11 @@ impl SamplerContext {
         })
     }
 
+    /// Clone the entire sampler cache (used by transport to take a playback snapshot)
+    pub fn clone_cache(&self) -> FxHashMap<String, Cache> {
+        self.cache.clone()
+    }
+
     fn scan_plugins() -> Vec<PluginMeta> {
         let path = "/Library/Audio/Plug-Ins/SCVI";
         let mut plugins = Vec::new();
@@ -736,41 +741,51 @@ fn find_nearest_zone(
     Some((nearest_zone, pitch_offset))
 }
 
+/// Play a note preview using the instrument's sampler cache.
+/// If `articulation_id` is provided, uses that articulation; otherwise picks the first available.
 #[tauri::command(rename_all = "snake_case")]
-pub fn sampler_play_note(
+pub fn sampler_audition(
     state: State<'_, SamplerContextState>,
     audio_state: State<'_, AudioContextState>,
     plugin_id: String,
-    articulation_id: String,
     note: u8,
     velocity: u8,
+    articulation_id: Option<String>,
 ) -> Result<(), String> {
     let ctx = state.lock().unwrap();
 
-    // Check if plugin is loaded
     let cache = ctx
         .cache
         .get(&plugin_id)
         .ok_or_else(|| format!("Plugin not loaded: {}", plugin_id))?;
 
-    // Check if articulation exists
-    let articulation = cache
-        .articulations
-        .get(&articulation_id)
-        .ok_or_else(|| format!("Articulation not found: {}", articulation_id))?;
+    // Use the specified articulation, or fall back to the first available
+    let (articulation_id, articulation) = if let Some(ref id) = articulation_id {
+        let art = cache
+            .articulations
+            .get(id)
+            .ok_or_else(|| format!("Articulation not found: {}", id))?;
+        (id.as_str(), art)
+    } else {
+        let (id, art) = cache
+            .articulations
+            .iter()
+            .next()
+            .ok_or_else(|| "No articulations available".to_string())?;
+        (id.as_str(), art)
+    };
 
-    // Find the nearest available zone for this note
+    let velocity = velocity.clamp(1, 127);
+
     let (zone, pitch_offset) = find_nearest_zone(articulation, note)
         .ok_or_else(|| format!("No zones available in articulation: {}", articulation_id))?;
 
-    // Find the velocity layer for this velocity
     let velocity_layer = zone
         .velocity_layers
         .iter()
         .find(|vl| velocity >= vl.range[0] && velocity <= vl.range[1])
         .ok_or_else(|| format!("No velocity layer for velocity: {}", velocity))?;
 
-    // Get the sample (randomly select from round-robins if multiple are available)
     if velocity_layer.samples.is_empty() {
         return Err("No samples in velocity layer".to_string());
     }
@@ -780,84 +795,53 @@ pub fn sampler_play_note(
     } else {
         0
     };
-    let sample_info = &velocity_layer.samples[sample_index];
-    let sample = &sample_info.sample;
+    let sample = &velocity_layer.samples[sample_index].sample;
 
-    // Grab mixer handle then release the lock immediately
     let audio_ctx = audio_state.lock().unwrap();
     let target_sample_rate = audio_ctx.get_sample_rate();
     let mixer_handle = audio_ctx.get_mixer_handle();
     drop(audio_ctx);
 
     let channels = sample.channels as usize;
-    let original_len = sample.data.len();
-    let original_frames = original_len / channels.max(1);
+    let source = &sample.data;
 
-    eprintln!(
-        "[sampler] note={} vel={} articulation={} zone_pitch={} pitch_offset={} sample={} channels={} original_frames={} sample_rate={}",
-        note, velocity, articulation_id, zone.pitch, pitch_offset,
-        sample_info.path, channels, original_frames, target_sample_rate
-    );
+    // Cap at 1 second
+    let max_frames = target_sample_rate as usize;
 
-    // Start with the cached sample data
-    let mut audio_data = sample.data.clone();
-
-    // Log peak amplitude before processing
-    let pre_peak = audio_data.iter().fold(0.0_f32, |m, &s| m.max(s.abs()));
-    eprintln!(
-        "[sampler] pre-process: peak={:.4} len={}",
-        pre_peak,
-        audio_data.len()
-    );
-
-    // Apply pitch shifting via linear interpolation (preserves transients)
-    if pitch_offset != 0 {
+    let mut audio_data = if pitch_offset != 0 {
         let pitch_ratio = 2.0_f32.powf(pitch_offset as f32 / 12.0);
-        let input_frames = audio_data.len() / channels;
+        let input_frames = source.len() / channels;
         let output_frames = (input_frames as f64 / pitch_ratio as f64).floor() as usize;
+        let capped_frames = output_frames.min(max_frames);
 
-        eprintln!(
-            "[sampler] pitch shifting: ratio={:.4} input_frames={} output_frames={}",
-            pitch_ratio, input_frames, output_frames
-        );
-
-        let mut shifted = Vec::with_capacity(output_frames * channels);
-        for frame in 0..output_frames {
+        let mut shifted = Vec::with_capacity(capped_frames * channels);
+        for frame in 0..capped_frames {
             let src_pos = frame as f64 * pitch_ratio as f64;
             let idx = src_pos.floor() as usize;
             let frac = src_pos - idx as f64;
 
             for ch in 0..channels {
                 let i0 = idx * channels + ch;
-                let s0 = audio_data[i0];
+                let s0 = source[i0];
                 let s1 = if idx + 1 < input_frames {
-                    audio_data[(idx + 1) * channels + ch]
+                    source[(idx + 1) * channels + ch]
                 } else {
                     s0
                 };
                 shifted.push(s0 + (s1 - s0) * frac as f32);
             }
         }
-        audio_data = shifted;
+        shifted
+    } else {
+        let natural_frames = source.len() / channels.max(1);
+        let capped_samples = natural_frames.min(max_frames) * channels;
+        source[..capped_samples].to_vec()
+    };
 
-        let post_peak = audio_data.iter().fold(0.0_f32, |m, &s| m.max(s.abs()));
-        eprintln!(
-            "[sampler] post-pitch: peak={:.4} len={} frames={}",
-            post_peak,
-            audio_data.len(),
-            audio_data.len() / channels.max(1)
-        );
-    }
+    let total_frames = audio_data.len() / channels.max(1);
+    let natural_frames = source.len() / channels.max(1);
+    let truncated = natural_frames > total_frames;
 
-    // Cap at 1 second for preview playback
-    let max_frames = target_sample_rate as usize;
-    let natural_frames = audio_data.len() / channels.max(1);
-    let truncated = natural_frames > max_frames;
-    let total_frames = natural_frames.min(max_frames);
-    audio_data.truncate(total_frames * channels);
-
-    // If we truncated a longer sample, fade out over the last 150ms to avoid a click.
-    // If the sample ends naturally, just apply a tiny 5ms anti-click fade.
     let release_frames = if truncated {
         ((target_sample_rate as f32 * 0.15) as usize).min(total_frames / 2)
     } else {
@@ -872,13 +856,6 @@ pub fn sampler_play_note(
         }
     }
 
-    let final_peak = audio_data.iter().fold(0.0_f32, |m, &s| m.max(s.abs()));
-    eprintln!(
-        "[sampler] final: frames={} peak={:.4} release_start={} release_frames={}",
-        total_frames, final_peak, release_start, release_frames
-    );
-
-    // Submit to the mixer — it handles mono→stereo upmixing internally
     mixer_handle.play(audio_data, channels);
 
     Ok(())

@@ -13,6 +13,7 @@ import {
   SamplerState,
   Tab,
   Tool,
+  TransportState,
 } from "../types";
 import { createContext, useContext } from "react";
 
@@ -168,6 +169,14 @@ export const initialSamplerState: SamplerState = {
 
 export const SamplerContext = createContext<SamplerState | null>(null);
 
+export const initialTransportState: TransportState = {
+  playing: false,
+  current_tick: 0,
+  tempo: 120,
+};
+
+export const TransportContext = createContext<TransportState | null>(null);
+
 export const useAppState = () => {
   const context = useContext(AppContext);
 
@@ -193,6 +202,18 @@ export const useSamplerState = () => {
 
   if (!context) {
     throw new Error("useSamplerState must be used within an AppStateProvider");
+  }
+
+  return context;
+};
+
+export const useTransportState = () => {
+  const context = useContext(TransportContext);
+
+  if (!context) {
+    throw new Error(
+      "useTransportState must be used within an AppStateProvider",
+    );
   }
 
   return context;

@@ -3,7 +3,7 @@
     "id": "sso.strings.violin",
     "name": "SSO Violin",
     "author": "Solo Compose",
-    "version": "1.2.0"
+    "version": "1.2.1"
   },
   "articulations": [
     {
@@ -493,10 +493,6 @@
           "velocityLayers": [
             { "range": [1, 127], "samples": [{ "path": "pizzicato/5_Db-PB.wav" }] }
           ]
-        },
-        {
-          "pitch": 74,
-          "velocityLayers": [{ "range": [1, 127], "samples": [{ "path": "pizzicato/5_D-PB.wav" }] }]
         },
         {
           "pitch": 74,

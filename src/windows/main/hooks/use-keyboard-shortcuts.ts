@@ -51,8 +51,13 @@ export const useKeyboardShortcuts = () => {
         return;
       }
 
-      // TODO: Implement tone auditioning
-      console.log(`Auditioning tone with pitch: ${pitch}`);
+      const instrument =
+        state.score.instruments.by_id[selectionInfo.instrumentId];
+      if (!instrument?.assigned_plugin_id) {
+        return;
+      }
+
+      actions.sampler.audition(instrument.assigned_plugin_id, pitch);
     };
 
     const shortcuts: Array<{
@@ -184,5 +189,9 @@ export const useKeyboardShortcuts = () => {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [selectionInfo, state.preferences.audition]);
+  }, [
+    selectionInfo,
+    state.preferences.audition,
+    state.score.instruments.by_id,
+  ]);
 };

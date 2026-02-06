@@ -127,6 +127,10 @@ export const Sequencer: FC<Props> = ({
     return instrumentColors[index];
   }, [instruments, instrumentId, instrumentColors]);
 
+  const instrument = instrumentId
+    ? state.score.instruments.by_id[instrumentId]
+    : null;
+
   if (!flowId || !flow) {
     return (
       <div className="flex items-center justify-center w-full h-full bg-neutral-900 relative text-neutral-700">
@@ -180,6 +184,8 @@ export const Sequencer: FC<Props> = ({
             tool={state.ui.sequencer.tool}
             instrumentId={instrumentId}
             color={color}
+            audition={state.preferences.audition}
+            pluginId={instrument?.assigned_plugin_id ?? null}
           />
           <PlaybackLine ticks={ticks} height={slots.height} />
         </div>

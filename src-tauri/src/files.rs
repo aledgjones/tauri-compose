@@ -1,7 +1,6 @@
 use crate::migrations::MIGRATIONS;
 use crate::ui::sequencer::Tool;
-use crate::AppContextState;
-use crate::RendererContextState;
+use crate::{AppContextState, AudioContextState, RendererContextState, SamplerContextState};
 use flate2::{read::GzDecoder, write::GzEncoder, Compression};
 use semver::Version;
 use serde_json::Value;
@@ -97,6 +96,8 @@ pub fn load_project_from_file(
     app: AppHandle,
     state: State<'_, AppContextState>,
     renderer_state: State<'_, RendererContextState>,
+    sampler_state: State<'_, SamplerContextState>,
+    audio_state: State<'_, AudioContextState>,
     file_path: String,
 ) -> Result<(), String> {
     // Read the file
@@ -148,8 +149,31 @@ pub fn load_project_from_file(
     // Update the current file path
     state.current_file_path = Some(file_path);
 
+    // Sync sampler with instruments from the loaded file
+    let assigned_plugin_ids: Vec<String> = state
+        .score
+        .instruments
+        .by_id
+        .values()
+        .filter_map(|i| i.assigned_plugin_id.clone())
+        .collect();
+
     // Emit the updated state
     state.emit(&app, &mut renderer, true);
+
+    // Drop state locks before potentially slow sampler sync
+    drop(state);
+    drop(renderer);
+
+    let mut sampler = sampler_state.lock().unwrap();
+    let audio = audio_state.lock().unwrap();
+    let sample_rate = audio.get_sample_rate();
+    drop(audio);
+
+    if let Err(e) = sampler.sync_with_instruments(&assigned_plugin_ids, sample_rate) {
+        eprintln!("Failed to sync sampler after load: {}", e);
+    }
+    sampler.emit(&app);
 
     // Emit event to trigger menu refresh
     app.emit("soloc://recents-changed", ()).ok();

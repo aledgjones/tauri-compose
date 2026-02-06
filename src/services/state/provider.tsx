@@ -1,7 +1,7 @@
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
-import { AppState, AudioState, SamplerState } from "../types";
+import { AppState, AudioState, SamplerState, TransportState } from "../types";
 import { actions } from "../actions";
 import { FC, PropsWithChildren, useEffect, useState } from "react";
 import {
@@ -11,6 +11,8 @@ import {
   AudioContext,
   initialSamplerState,
   SamplerContext,
+  initialTransportState,
+  TransportContext,
 } from "./context";
 
 type Props = PropsWithChildren<{ isMainWindow?: boolean }>;
@@ -23,6 +25,95 @@ export const AppStateProvider: FC<Props> = ({
   const [audioState, setAudioState] = useState<AudioState>(initialAudioState);
   const [samplerState, setSamplerState] =
     useState<SamplerState>(initialSamplerState);
+  const [transportState, setTransportState] = useState<TransportState>(
+    initialTransportState,
+  );
+
+  // Transport polling: poll atomics via lightweight command instead of event listener.
+  // This keeps the transport thread completely silent — no app.emit() during playback.
+  const [isPolling, setIsPolling] = useState(false);
+
+  useEffect(() => {
+    if (!isPolling) return;
+
+    let rafId: number;
+    let active = true;
+
+    const poll = () => {
+      actions.transport.getState().then((state) => {
+        setTransportState(state);
+        if (state.playing && active) {
+          rafId = requestAnimationFrame(poll);
+        } else {
+          setIsPolling(false);
+        }
+      });
+    };
+
+    rafId = requestAnimationFrame(poll);
+
+    return () => {
+      active = false;
+      cancelAnimationFrame(rafId);
+    };
+  }, [isPolling]);
+
+  // Wrap transport actions to start/stop polling
+  useEffect(() => {
+    const originalPlay = actions.transport.play;
+    const originalPause = actions.transport.pause;
+    const originalStop = actions.transport.stop;
+    const originalSeek = actions.transport.seek;
+    const originalSetTempo = actions.transport.setTempo;
+
+    actions.transport.play = () => {
+      const result = originalPlay();
+      result.then(() => setIsPolling(true));
+      return result;
+    };
+
+    actions.transport.pause = () => {
+      const result = originalPause();
+      result.then(() => {
+        setIsPolling(false);
+        actions.transport.getState().then(setTransportState);
+      });
+      return result;
+    };
+
+    actions.transport.stop = () => {
+      const result = originalStop();
+      result.then(() => {
+        setIsPolling(false);
+        actions.transport.getState().then(setTransportState);
+      });
+      return result;
+    };
+
+    actions.transport.seek = (tick: number) => {
+      const result = originalSeek(tick);
+      result.then(() => {
+        actions.transport.getState().then(setTransportState);
+      });
+      return result;
+    };
+
+    actions.transport.setTempo = (bpm: number) => {
+      const result = originalSetTempo(bpm);
+      result.then(() => {
+        actions.transport.getState().then(setTransportState);
+      });
+      return result;
+    };
+
+    return () => {
+      actions.transport.play = originalPlay;
+      actions.transport.pause = originalPause;
+      actions.transport.stop = originalStop;
+      actions.transport.seek = originalSeek;
+      actions.transport.setTempo = originalSetTempo;
+    };
+  }, []);
 
   useEffect(() => {
     let unlistenApp: UnlistenFn | null = null;
@@ -128,7 +219,9 @@ export const AppStateProvider: FC<Props> = ({
     <AppContext.Provider value={appState}>
       <AudioContext.Provider value={audioState}>
         <SamplerContext.Provider value={samplerState}>
-          {children}
+          <TransportContext.Provider value={transportState}>
+            {children}
+          </TransportContext.Provider>
         </SamplerContext.Provider>
       </AudioContext.Provider>
     </AppContext.Provider>

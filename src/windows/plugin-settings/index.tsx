@@ -153,7 +153,7 @@ export const Main: FC = () => {
     if (!selection?.id || !pluginId) return;
 
     try {
-      await actions.sampler.playNote(pluginId, selection.id, note, 100);
+      await actions.sampler.audition(pluginId, note, 100, selection.id);
     } catch (error) {
       console.error(`Failed to play note ${note}:`, error);
     }

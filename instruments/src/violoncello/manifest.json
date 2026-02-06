@@ -1,0 +1,461 @@
+{
+  "meta": {
+    "id": "sso.strings.violoncello",
+    "name": "SSO Violoncello",
+    "author": "Solo Compose",
+    "version": "1.0.0"
+  },
+  "articulations": [
+    {
+      "id": "sustain",
+      "name": "Sustain",
+      "range": [36, 84],
+      "zones": [
+        {
+          "pitch": 38,
+          "velocityLayers": [{ "range": [1, 127], "samples": [{ "path": "vibrato/2_D-PB.wav" }] }]
+        },
+        {
+          "pitch": 42,
+          "velocityLayers": [
+            { "range": [1, 127], "samples": [{ "path": "vibrato/2_Gb-PB-loop.wav" }] }
+          ]
+        },
+        {
+          "pitch": 45,
+          "velocityLayers": [
+            { "range": [1, 127], "samples": [{ "path": "vibrato/2_A-PB-loop.wav" }] }
+          ]
+        },
+        {
+          "pitch": 49,
+          "velocityLayers": [
+            { "range": [1, 127], "samples": [{ "path": "vibrato/3_Db-PB-loop.wav" }] }
+          ]
+        },
+        {
+          "pitch": 53,
+          "velocityLayers": [
+            { "range": [1, 127], "samples": [{ "path": "vibrato/3_F-PB-loop.wav" }] }
+          ]
+        },
+        {
+          "pitch": 57,
+          "velocityLayers": [
+            { "range": [1, 127], "samples": [{ "path": "vibrato/3_A-PB-loop.wav" }] }
+          ]
+        },
+        {
+          "pitch": 60,
+          "velocityLayers": [
+            { "range": [1, 127], "samples": [{ "path": "vibrato/4_C-PB-loop.wav" }] }
+          ]
+        },
+        {
+          "pitch": 63,
+          "velocityLayers": [
+            { "range": [1, 127], "samples": [{ "path": "vibrato/4_Eb-PB-loop.wav" }] }
+          ]
+        },
+        {
+          "pitch": 67,
+          "velocityLayers": [{ "range": [1, 127], "samples": [{ "path": "vibrato/4_G-PB.wav" }] }]
+        },
+        {
+          "pitch": 70,
+          "velocityLayers": [{ "range": [1, 127], "samples": [{ "path": "vibrato/4_Bb-PB.wav" }] }]
+        }
+      ]
+    },
+    {
+      "id": "staccato",
+      "name": "Staccato",
+      "range": [36, 84],
+      "zones": [
+        {
+          "pitch": 36,
+          "velocityLayers": [
+            {
+              "range": [1, 127],
+              "samples": [
+                { "path": "staccato/c2-stac-rr1-PB.wav" },
+                { "path": "staccato/c2-stac-rr2-PB.wav" }
+              ]
+            }
+          ]
+        },
+        {
+          "pitch": 38,
+          "velocityLayers": [
+            {
+              "range": [1, 127],
+              "samples": [
+                { "path": "staccato/d2-stac-rr1-PB.wav" },
+                { "path": "staccato/d2-stac-rr2-PB.wav" }
+              ]
+            }
+          ]
+        },
+        {
+          "pitch": 40,
+          "velocityLayers": [
+            {
+              "range": [1, 127],
+              "samples": [
+                { "path": "staccato/e2-stac-rr1-PB.wav" },
+                { "path": "staccato/e2-stac-rr2-PB.wav" }
+              ]
+            }
+          ]
+        },
+        {
+          "pitch": 41,
+          "velocityLayers": [
+            {
+              "range": [1, 127],
+              "samples": [
+                { "path": "staccato/f2-stac-rr1-PB.wav" },
+                { "path": "staccato/f2-stac-rr2-PB.wav" }
+              ]
+            }
+          ]
+        },
+        {
+          "pitch": 43,
+          "velocityLayers": [
+            {
+              "range": [1, 127],
+              "samples": [
+                { "path": "staccato/g2-stac-rr1-PB.wav" },
+                { "path": "staccato/g2-stac-rr2-PB.wav" }
+              ]
+            }
+          ]
+        },
+        {
+          "pitch": 45,
+          "velocityLayers": [
+            {
+              "range": [1, 127],
+              "samples": [
+                { "path": "staccato/a2-stac-rr1-PB.wav" },
+                { "path": "staccato/a2-stac-rr2-PB.wav" }
+              ]
+            }
+          ]
+        },
+        {
+          "pitch": 47,
+          "velocityLayers": [
+            {
+              "range": [1, 127],
+              "samples": [
+                { "path": "staccato/b2-stac-rr1-PB.wav" },
+                { "path": "staccato/b2-stac-rr2-PB.wav" }
+              ]
+            }
+          ]
+        },
+        {
+          "pitch": 48,
+          "velocityLayers": [
+            {
+              "range": [1, 127],
+              "samples": [
+                { "path": "staccato/c3-stac-rr1-PB.wav" },
+                { "path": "staccato/c3-stac-rr2-PB.wav" }
+              ]
+            }
+          ]
+        },
+        {
+          "pitch": 50,
+          "velocityLayers": [
+            {
+              "range": [1, 127],
+              "samples": [
+                { "path": "staccato/d3-stac-rr1-PB.wav" },
+                { "path": "staccato/d3-stac-rr2-PB.wav" }
+              ]
+            }
+          ]
+        },
+        {
+          "pitch": 52,
+          "velocityLayers": [
+            {
+              "range": [1, 127],
+              "samples": [
+                { "path": "staccato/e3-stac-rr1-PB.wav" },
+                { "path": "staccato/e3-stac-rr2-PB.wav" }
+              ]
+            }
+          ]
+        },
+        {
+          "pitch": 53,
+          "velocityLayers": [
+            {
+              "range": [1, 127],
+              "samples": [
+                { "path": "staccato/f3-stac-rr1-PB.wav" },
+                { "path": "staccato/f3-stac-rr2-PB.wav" }
+              ]
+            }
+          ]
+        },
+        {
+          "pitch": 55,
+          "velocityLayers": [
+            {
+              "range": [1, 127],
+              "samples": [
+                { "path": "staccato/g3-stac-rr1-PB.wav" },
+                { "path": "staccato/g3-stac-rr2-PB.wav" }
+              ]
+            }
+          ]
+        },
+        {
+          "pitch": 57,
+          "velocityLayers": [
+            {
+              "range": [1, 127],
+              "samples": [
+                { "path": "staccato/a3-stac-rr1-PB.wav" },
+                { "path": "staccato/a3-stac-rr2-PB.wav" }
+              ]
+            }
+          ]
+        },
+        {
+          "pitch": 59,
+          "velocityLayers": [
+            {
+              "range": [1, 127],
+              "samples": [
+                { "path": "staccato/b3-stac-rr1-PB.wav" },
+                { "path": "staccato/b3-stac-rr2-PB.wav" }
+              ]
+            }
+          ]
+        },
+        {
+          "pitch": 60,
+          "velocityLayers": [
+            {
+              "range": [1, 127],
+              "samples": [
+                { "path": "staccato/c4-stac-rr1-PB.wav" },
+                { "path": "staccato/c4-stac-rr2-PB.wav" }
+              ]
+            }
+          ]
+        },
+        {
+          "pitch": 62,
+          "velocityLayers": [
+            {
+              "range": [1, 127],
+              "samples": [
+                { "path": "staccato/d4-stac-rr1-PB.wav" },
+                { "path": "staccato/d4-stac-rr2-PB.wav" }
+              ]
+            }
+          ]
+        },
+        {
+          "pitch": 64,
+          "velocityLayers": [
+            {
+              "range": [1, 127],
+              "samples": [
+                { "path": "staccato/e4-stac-rr1-PB.wav" },
+                { "path": "staccato/e4-stac-rr2-PB.wav" }
+              ]
+            }
+          ]
+        },
+        {
+          "pitch": 65,
+          "velocityLayers": [
+            {
+              "range": [1, 127],
+              "samples": [
+                { "path": "staccato/f4-stac-rr1-PB.wav" },
+                { "path": "staccato/f4-stac-rr2-PB.wav" }
+              ]
+            }
+          ]
+        },
+        {
+          "pitch": 67,
+          "velocityLayers": [
+            {
+              "range": [1, 127],
+              "samples": [
+                { "path": "staccato/g4-stac-rr1-PB.wav" },
+                { "path": "staccato/g4-stac-rr2-PB.wav" }
+              ]
+            }
+          ]
+        },
+        {
+          "pitch": 69,
+          "velocityLayers": [
+            {
+              "range": [1, 127],
+              "samples": [
+                { "path": "staccato/a4-stac-rr1-PB.wav" },
+                { "path": "staccato/a4-stac-rr2-PB.wav" }
+              ]
+            }
+          ]
+        },
+        {
+          "pitch": 71,
+          "velocityLayers": [
+            {
+              "range": [1, 127],
+              "samples": [
+                { "path": "staccato/b4-stac-rr1-PB.wav" },
+                { "path": "staccato/b4-stac-rr2-PB.wav" }
+              ]
+            }
+          ]
+        },
+        {
+          "pitch": 72,
+          "velocityLayers": [
+            {
+              "range": [1, 127],
+              "samples": [
+                { "path": "staccato/c5-stac-rr1-PB.wav" },
+                { "path": "staccato/c5-stac-rr2-PB.wav" }
+              ]
+            }
+          ]
+        },
+        {
+          "pitch": 74,
+          "velocityLayers": [
+            {
+              "range": [1, 127],
+              "samples": [
+                { "path": "staccato/d5-stac-rr1-PB.wav" },
+                { "path": "staccato/d5-stac-rr2-PB.wav" }
+              ]
+            }
+          ]
+        },
+        {
+          "pitch": 76,
+          "velocityLayers": [
+            {
+              "range": [1, 127],
+              "samples": [
+                { "path": "staccato/e5-stac-rr1-PB.wav" },
+                { "path": "staccato/e5-stac-rr2-PB.wav" }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pizzicato",
+      "name": "Pizzicato",
+      "range": [36, 84],
+      "zones": [
+        {
+          "pitch": 36,
+          "velocityLayers": [{ "range": [1, 127], "samples": [{ "path": "pizzicato/2_C-PB.wav" }] }]
+        },
+        {
+          "pitch": 38,
+          "velocityLayers": [{ "range": [1, 127], "samples": [{ "path": "pizzicato/2_D-PB.wav" }] }]
+        },
+        {
+          "pitch": 40,
+          "velocityLayers": [{ "range": [1, 127], "samples": [{ "path": "pizzicato/2_E-PB.wav" }] }]
+        },
+        {
+          "pitch": 41,
+          "velocityLayers": [{ "range": [1, 127], "samples": [{ "path": "pizzicato/2_F-PB.wav" }] }]
+        },
+        {
+          "pitch": 43,
+          "velocityLayers": [{ "range": [1, 127], "samples": [{ "path": "pizzicato/2_G-PB.wav" }] }]
+        },
+        {
+          "pitch": 45,
+          "velocityLayers": [{ "range": [1, 127], "samples": [{ "path": "pizzicato/2_A-PB.wav" }] }]
+        },
+        {
+          "pitch": 47,
+          "velocityLayers": [{ "range": [1, 127], "samples": [{ "path": "pizzicato/2_B-PB.wav" }] }]
+        },
+        {
+          "pitch": 48,
+          "velocityLayers": [{ "range": [1, 127], "samples": [{ "path": "pizzicato/3_C-PB.wav" }] }]
+        },
+        {
+          "pitch": 50,
+          "velocityLayers": [{ "range": [1, 127], "samples": [{ "path": "pizzicato/3_D-PB.wav" }] }]
+        },
+        {
+          "pitch": 52,
+          "velocityLayers": [{ "range": [1, 127], "samples": [{ "path": "pizzicato/3_E-PB.wav" }] }]
+        },
+        {
+          "pitch": 53,
+          "velocityLayers": [{ "range": [1, 127], "samples": [{ "path": "pizzicato/3_F-PB.wav" }] }]
+        },
+        {
+          "pitch": 55,
+          "velocityLayers": [{ "range": [1, 127], "samples": [{ "path": "pizzicato/3_G-PB.wav" }] }]
+        },
+        {
+          "pitch": 57,
+          "velocityLayers": [{ "range": [1, 127], "samples": [{ "path": "pizzicato/3_A-PB.wav" }] }]
+        },
+        {
+          "pitch": 59,
+          "velocityLayers": [{ "range": [1, 127], "samples": [{ "path": "pizzicato/3_B-PB.wav" }] }]
+        },
+        {
+          "pitch": 60,
+          "velocityLayers": [{ "range": [1, 127], "samples": [{ "path": "pizzicato/4_C-PB.wav" }] }]
+        },
+        {
+          "pitch": 62,
+          "velocityLayers": [{ "range": [1, 127], "samples": [{ "path": "pizzicato/4_D-PB.wav" }] }]
+        },
+        {
+          "pitch": 64,
+          "velocityLayers": [{ "range": [1, 127], "samples": [{ "path": "pizzicato/4_E-PB.wav" }] }]
+        },
+        {
+          "pitch": 65,
+          "velocityLayers": [{ "range": [1, 127], "samples": [{ "path": "pizzicato/4_F-PB.wav" }] }]
+        },
+        {
+          "pitch": 67,
+          "velocityLayers": [{ "range": [1, 127], "samples": [{ "path": "pizzicato/4_G-PB.wav" }] }]
+        },
+        {
+          "pitch": 69,
+          "velocityLayers": [{ "range": [1, 127], "samples": [{ "path": "pizzicato/4_A-PB.wav" }] }]
+        },
+        {
+          "pitch": 71,
+          "velocityLayers": [{ "range": [1, 127], "samples": [{ "path": "pizzicato/4_B-PB.wav" }] }]
+        },
+        {
+          "pitch": 72,
+          "velocityLayers": [{ "range": [1, 127], "samples": [{ "path": "pizzicato/5_C-PB.wav" }] }]
+        }
+      ]
+    }
+  ]
+}
