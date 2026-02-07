@@ -88,12 +88,14 @@ export const actions = {
       note: number,
       velocity: number = 100,
       articulation_id?: string,
+      duration_ms: number = 250,
     ) => {
       return invoke("sampler_audition", {
         plugin_id,
         note,
         velocity,
         articulation_id: articulation_id ?? null,
+        duration_ms,
       });
     },
   },

@@ -1,536 +1,634 @@
-use serde_json::{json, Value};
-use std::env;
-use std::fs;
-use std::io::{Read, Write};
-use std::path::Path;
+/// SCVI Binary Container Compiler
+///
+/// Compiles instrument source directories into .scvi binary container files.
+///
+/// ## Container Layout
+///
+/// ```text
+/// ┌──────────────────────────┐
+/// │  HEADER  (fixed 64B)     │  magic, version, chunk offsets/sizes
+/// ├──────────────────────────┤
+/// │  META    (MessagePack)   │  manifest data with sample IDs
+/// ├──────────────────────────┤
+/// │  SIDX    (fixed-size)    │  per-sample index: id, offset, length, metadata
+/// ├──────────────────────────┤
+/// │  SDAT    (raw FLAC)      │  concatenated FLAC-encoded sample data
+/// ├──────────────────────────┤
+/// │  COVER   (raw bytes)     │  cover image (optional)
+/// └──────────────────────────┘
+/// ```
+use blake3;
+use rmp_serde;
+use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
+use std::fs::{self, File};
+use std::io::Write;
+use std::path::{Path, PathBuf};
 use std::process::Command;
-use walkdir::WalkDir;
-use zip::write::{ExtendedFileOptions, FileOptions, ZipWriter};
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let args: Vec<String> = env::args().collect();
+// ── Constants ──────────────────────────────────────────────────────────
 
-    // Ensure we're running from the project root directory
-    let current_dir = env::current_dir()?;
-    if !current_dir.join("package.json").exists() {
-        eprintln!("Error: This binary must be run from the project root directory (where package.json is located)");
-        std::process::exit(1);
+const MAGIC: &[u8; 4] = b"SCVI";
+const CONTAINER_VERSION: u16 = 1;
+const HEADER_SIZE: u64 = 64;
+
+// ── Source manifest structures (read from instrument JSON) ─────────────
+
+#[derive(Deserialize)]
+struct SourceMeta {
+    id: String,
+    name: String,
+    author: String,
+    version: String,
+}
+
+#[derive(Deserialize)]
+struct SourceSample {
+    path: String,
+}
+
+#[derive(Deserialize)]
+struct SourceVelocityLayer {
+    range: [u8; 2],
+    samples: Vec<SourceSample>,
+}
+
+#[derive(Deserialize)]
+struct SourceZone {
+    pitch: u8,
+    #[serde(rename = "velocityLayers")]
+    velocity_layers: Vec<SourceVelocityLayer>,
+}
+
+#[derive(Deserialize)]
+struct SourceArticulation {
+    id: String,
+    name: String,
+    range: [u8; 2],
+    zones: Vec<SourceZone>,
+}
+
+#[derive(Deserialize)]
+struct SourceManifest {
+    meta: SourceMeta,
+    articulations: Vec<SourceArticulation>,
+}
+
+// ── Container META structures (serialized to MessagePack) ──────────────
+
+#[derive(Serialize, Deserialize)]
+struct ContainerMeta {
+    id: String,
+    name: String,
+    author: String,
+    version: String,
+}
+
+#[derive(Serialize, Deserialize)]
+struct ContainerSampleRef {
+    /// Index into the SIDX table
+    sample_id: u32,
+}
+
+#[derive(Serialize, Deserialize)]
+struct ContainerVelocityLayer {
+    range: [u8; 2],
+    samples: Vec<ContainerSampleRef>,
+}
+
+#[derive(Serialize, Deserialize)]
+struct ContainerZone {
+    pitch: u8,
+    velocity_layers: Vec<ContainerVelocityLayer>,
+}
+
+#[derive(Serialize, Deserialize)]
+struct ContainerArticulation {
+    id: String,
+    name: String,
+    range: [u8; 2],
+    zones: Vec<ContainerZone>,
+}
+
+#[derive(Serialize, Deserialize)]
+struct ContainerManifest {
+    meta: ContainerMeta,
+    articulations: Vec<ContainerArticulation>,
+}
+
+// ── SIDX entry (fixed-size, written raw) ───────────────────────────────
+
+/// 32 bytes per sample in the index
+#[repr(C, packed)]
+#[derive(Clone, Copy)]
+struct SampleIndexEntry {
+    /// Unique sample ID (sequential)
+    sample_id: u32,
+    /// Byte offset within SDAT chunk
+    offset: u64,
+    /// Byte length in SDAT chunk
+    length: u64,
+    /// Original sample rate (e.g. 44100, 48000)
+    sample_rate: u32,
+    /// Number of channels (1 = mono, 2 = stereo)
+    channels: u8,
+    /// Reserved padding bytes
+    _reserved: [u8; 7],
+}
+
+const SIDX_ENTRY_SIZE: usize = std::mem::size_of::<SampleIndexEntry>();
+
+// ── HEADER layout ──────────────────────────────────────────────────────
+
+#[repr(C, packed)]
+#[derive(Clone, Copy)]
+struct ContainerHeader {
+    magic: [u8; 4],         // "SCVI"
+    version: u16,           // container format version
+    _reserved_h: [u8; 2],   // alignment padding
+    meta_offset: u64,       // byte offset of META chunk
+    meta_size: u64,         // byte size of META chunk
+    sidx_offset: u64,       // byte offset of SIDX chunk
+    sidx_size: u64,         // byte size of SIDX chunk (entry_count * SIDX_ENTRY_SIZE)
+    sdat_offset: u64,       // byte offset of SDAT chunk
+    sdat_size: u64,         // byte size of SDAT chunk
+}
+
+const HEADER_STRUCT_SIZE: usize = std::mem::size_of::<ContainerHeader>();
+
+// ── Helpers ────────────────────────────────────────────────────────────
+
+/// Hash file content for deduplication
+fn hash_file(path: &Path) -> Result<String, Box<dyn std::error::Error>> {
+    let data = fs::read(path)?;
+    let hash = blake3::hash(&data);
+    Ok(hash.to_hex().to_string())
+}
+
+/// Write a struct as raw bytes
+unsafe fn struct_as_bytes<T: Sized>(s: &T) -> &[u8] {
+    std::slice::from_raw_parts(s as *const T as *const u8, std::mem::size_of::<T>())
+}
+
+/// Encode WAV to FLAC using ffmpeg, returns path to the FLAC file
+fn encode_to_flac(
+    wav_path: &Path,
+    temp_dir: &Path,
+    filename_stem: &str,
+) -> Result<PathBuf, Box<dyn std::error::Error>> {
+    let flac_path = temp_dir.join(format!("{}.flac", filename_stem));
+
+    let output = Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-i",
+            wav_path.to_str().unwrap(),
+            "-c:a",
+            "flac",
+            "-compression_level",
+            "8",
+            flac_path.to_str().unwrap(),
+        ])
+        .output()?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("ffmpeg FLAC encode failed for {}: {}", wav_path.display(), stderr).into());
     }
 
-    // Parse arguments - only instrument name now
-    let instrument_name = if args.len() > 1 {
-        Some(args[1].to_string())
+    Ok(flac_path)
+}
+
+/// Read sample rate and channel count from a WAV/FLAC file using ffprobe
+fn probe_audio(path: &Path) -> Result<(u32, u8), Box<dyn std::error::Error>> {
+    let output = Command::new("ffprobe")
+        .args([
+            "-v",
+            "quiet",
+            "-show_streams",
+            "-select_streams",
+            "a:0",
+            "-print_format",
+            "json",
+            path.to_str().unwrap(),
+        ])
+        .output()?;
+
+    if !output.status.success() {
+        return Err(format!("ffprobe failed for {}", path.display()).into());
+    }
+
+    let json: serde_json::Value = serde_json::from_slice(&output.stdout)?;
+    let stream = json["streams"]
+        .as_array()
+        .and_then(|s| s.first())
+        .ok_or("No audio stream found")?;
+
+    let sample_rate: u32 = stream["sample_rate"]
+        .as_str()
+        .ok_or("Missing sample_rate")?
+        .parse()?;
+
+    let channels: u8 = stream["channels"]
+        .as_u64()
+        .ok_or("Missing channels")? as u8;
+
+    Ok((sample_rate, channels))
+}
+
+// ── Integrity check ────────────────────────────────────────────────────
+
+fn integrity_check(
+    instrument_dir: &Path,
+    manifest: &SourceManifest,
+) -> Result<(), Vec<String>> {
+    let mut errors = Vec::new();
+
+    for articulation in &manifest.articulations {
+        // Check for duplicate pitches within an articulation
+        let mut seen_pitches = std::collections::HashSet::new();
+        for zone in &articulation.zones {
+            if !seen_pitches.insert(zone.pitch) {
+                errors.push(format!(
+                    "Duplicate pitch {} in articulation '{}'",
+                    zone.pitch, articulation.id
+                ));
+            }
+
+            // Check for overlapping velocity ranges
+            for (i, vl_a) in zone.velocity_layers.iter().enumerate() {
+                for vl_b in zone.velocity_layers.iter().skip(i + 1) {
+                    if vl_a.range[0] <= vl_b.range[1] && vl_b.range[0] <= vl_a.range[1] {
+                        errors.push(format!(
+                            "Overlapping velocity ranges [{}-{}] and [{}-{}] at pitch {} in '{}'",
+                            vl_a.range[0], vl_a.range[1],
+                            vl_b.range[0], vl_b.range[1],
+                            zone.pitch, articulation.id
+                        ));
+                    }
+                }
+            }
+
+            // Check sample files exist
+            for velocity_layer in &zone.velocity_layers {
+                for sample in &velocity_layer.samples {
+                    let sample_path = instrument_dir.join(&sample.path);
+                    if !sample_path.exists() {
+                        errors.push(format!(
+                            "Missing sample: {} (pitch {}, articulation '{}')",
+                            sample.path, zone.pitch, articulation.id
+                        ));
+                    }
+                }
+            }
+        }
+    }
+
+    if errors.is_empty() {
+        Ok(())
     } else {
-        None
-    };
-
-    match instrument_name {
-        Some(name) => {
-            // Process specific instrument - create both versions
-            let src_path = format!("instruments/{}", name);
-            println!("🔍 Running integrity check for {}...", name);
-            integrity_check(&src_path)?;
-            println!("✅ Integrity check passed\n");
-
-            create_scvi_archive(&name, &name, "flac")?;
-            create_scvi_archive(&name, &format!("{} (Lite)", name), "mp3")?;
-        }
-        None => {
-            // Process all instruments - create both versions for each
-            process_all_instruments()?;
-        }
+        Err(errors)
     }
-
-    Ok(())
 }
 
-fn create_scvi_archive(
-    src_instrument_name: &str,
-    output_instrument_name: &str,
-    format: &str,
+// ── Compile a single instrument ────────────────────────────────────────
+
+fn compile_instrument(
+    instrument_dir: &Path,
+    output_dir: &Path,
+    temp_dir: &Path,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let src_path = format!("instruments/{}", src_instrument_name);
-    let temp_path = format!("temp/{}", output_instrument_name);
-    let output_dir = "/Library/Audio/Plug-Ins/SCVI";
-    let output_path = format!("{}/{}.scvi", output_dir, output_instrument_name);
+    // Read and parse source manifest
+    let manifest_path = instrument_dir.join("manifest.json");
+    let manifest_content = fs::read_to_string(&manifest_path)?;
+    let manifest: SourceManifest = serde_json::from_str(&manifest_content)?;
 
-    // Ensure we're running from the correct directory (project root)
-    let current_dir = env::current_dir()?;
-    if !current_dir.join("package.json").exists() {
-        eprintln!("Error: This binary must be run from the project root directory");
-        std::process::exit(1);
-    }
+    println!("  Compiling: {} ({})", manifest.meta.name, manifest.meta.id);
 
-    println!(
-        "🔧 Processing instrument: {} (format: {})",
-        output_instrument_name, format
-    );
-    println!("📁 Source: {}", src_path);
-    println!("📦 Output: {}", output_path);
-
-    // Create output directory (may require admin permissions)
-    fs::create_dir_all(output_dir)
-        .map_err(|e| format!("Failed to create output directory {}: {}", output_dir, e))?;
-
-    // Create temp directory
-    fs::create_dir_all(&temp_path)
-        .map_err(|e| format!("Failed to create temp directory: {}", e))?;
-
-    // Use a scope guard to ensure temp cleanup even on errors
-    struct TempDirGuard {
-        path: String,
-    }
-
-    impl Drop for TempDirGuard {
-        fn drop(&mut self) {
-            if let Err(e) = fs::remove_dir_all(&self.path) {
-                eprintln!(
-                    "Warning: Failed to cleanup temp directory {}: {}",
-                    self.path, e
-                );
-            }
+    // Integrity check
+    if let Err(errors) = integrity_check(instrument_dir, &manifest) {
+        for error in &errors {
+            eprintln!("    ✗ {}", error);
         }
+        return Err(format!(
+            "Integrity check failed with {} error(s)",
+            errors.len()
+        )
+        .into());
     }
+    println!("    ✓ Integrity check passed");
 
-    let _temp_guard = TempDirGuard {
-        path: temp_path.clone(),
-    };
+    // ── Phase 1: Collect all unique samples ────────────────────────────
 
-    let mut total_original_size = 0u64;
-    let mut files_processed = 0;
+    // Maps source path → (blake3 hash)
+    // Maps blake3 hash → (sample_id, flac_path, sample_rate, channels)
+    let mut path_to_hash: BTreeMap<String, String> = BTreeMap::new();
+    let mut hash_to_sample: BTreeMap<String, (u32, PathBuf, u32, u8)> = BTreeMap::new();
+    let mut next_sample_id: u32 = 0;
 
-    // Process all files
-    for entry in WalkDir::new(&src_path) {
-        let entry = entry.map_err(|e| format!("Failed to read directory entry: {}", e))?;
-        let path = entry.path();
-        let relative_path = path
-            .strip_prefix(&src_path)
-            .map_err(|e| format!("Failed to get relative path: {}", e))?;
-        let temp_file = Path::new(&temp_path).join(relative_path);
+    // Collect samples in deterministic order: articulation → zone (by pitch) → velocity layer
+    let mut sorted_articulations: Vec<&SourceArticulation> = manifest.articulations.iter().collect();
+    sorted_articulations.sort_by(|a, b| a.id.cmp(&b.id));
 
-        if path.is_dir() {
-            fs::create_dir_all(&temp_file).map_err(|e| {
-                format!("Failed to create directory {}: {}", temp_file.display(), e)
-            })?;
-        } else {
-            let original_size = fs::metadata(path)?.len();
-            total_original_size += original_size;
+    for articulation in &sorted_articulations {
+        let mut sorted_zones: Vec<&SourceZone> = articulation.zones.iter().collect();
+        sorted_zones.sort_by_key(|z| z.pitch);
 
-            if path.extension().and_then(|s| s.to_str()) == Some("wav") {
-                match format {
-                    "flac" => compress_flac(path, &temp_file, original_size)?,
-                    "mp3" => compress_mp3(path, &temp_file, original_size)?,
-                    _ => {
-                        eprintln!("Unknown format: {}", format);
-                        fs::copy(path, &temp_file)?;
+        for zone in sorted_zones {
+            for velocity_layer in &zone.velocity_layers {
+                for sample in &velocity_layer.samples {
+                    let abs_path = instrument_dir.join(&sample.path);
+
+                    // Hash for deduplication
+                    let hash = hash_file(&abs_path)?;
+
+                    if path_to_hash.contains_key(&sample.path) {
+                        continue;
                     }
-                }
-            } else if path.file_name().and_then(|s| s.to_str()) == Some("manifest.json") {
-                // Special handling for manifest.json: add format field and minify
-                process_manifest_json(path, &temp_file, format)?;
-            } else {
-                // Copy other files as-is
-                fs::copy(path, &temp_file)?;
-                println!("📄 Copied: {} ({} bytes)", path.display(), original_size);
-            }
+                    path_to_hash.insert(sample.path.clone(), hash.clone());
 
-            files_processed += 1;
-        }
-    }
-
-    println!("\n📊 Pre-compression summary:");
-    println!("   Files processed: {}", files_processed);
-    println!(
-        "   Total size: {} bytes ({:.2} MB)",
-        total_original_size,
-        total_original_size as f64 / 1_000_000.0
-    );
-
-    // Create ZIP archive with maximum compression
-    println!("\n🗜️  Creating ZIP archive with maximum compression...");
-
-    // Remove existing archive if it exists
-    if Path::new(&output_path).exists() {
-        fs::remove_file(&output_path)
-            .map_err(|e| format!("Failed to remove existing archive: {}", e))?;
-    }
-
-    // Create the ZIP archive
-    let zip_file = fs::File::create(&output_path)?;
-    let mut zip = ZipWriter::new(zip_file);
-
-    // Add all files from temp directory to ZIP
-    for entry in WalkDir::new(&temp_path) {
-        let entry = entry?;
-        let path = entry.path();
-        let relative_path = path.strip_prefix(&temp_path)?;
-
-        if path.is_file() {
-            let mut file = fs::File::open(path)?;
-            let mut buffer = Vec::new();
-            file.read_to_end(&mut buffer)?;
-
-            let options: FileOptions<ExtendedFileOptions> = FileOptions::default()
-                .compression_method(zip::CompressionMethod::Deflated)
-                .compression_level(Some(9));
-
-            zip.start_file(relative_path.to_string_lossy(), options)?;
-            zip.write_all(&buffer)?;
-        }
-    }
-
-    zip.finish()?;
-
-    // Get final file size
-    let final_size = fs::metadata(&output_path)?.len();
-
-    println!("\n🎉 Success!");
-    println!("📦 Created: {}.scvi", output_instrument_name);
-    println!(
-        "📊 Final size: {} bytes ({:.2} MB)",
-        final_size,
-        final_size as f64 / 1_000_000.0
-    );
-    println!(
-        "🗜️  Compression ratio: {:.2}% (from {:.2} MB to {:.2} MB)",
-        (1.0 - final_size as f64 / total_original_size as f64) * 100.0,
-        total_original_size as f64 / 1_000_000.0,
-        final_size as f64 / 1_000_000.0
-    );
-
-    Ok(())
-}
-
-fn integrity_check(src_path: &str) -> Result<(), Box<dyn std::error::Error>> {
-    let manifest_path = Path::new(src_path).join("manifest.json");
-
-    if !manifest_path.exists() {
-        return Err(format!("manifest.json not found in {}", src_path).into());
-    }
-
-    // Read and parse manifest.json
-    let content = fs::read_to_string(&manifest_path)?;
-    let json_value: Value = serde_json::from_str(&content)?;
-
-    let mut missing_files = Vec::new();
-
-    // Extract all sample paths from articulations
-    if let Some(articulations) = json_value.get("articulations").and_then(|v| v.as_array()) {
-        for articulation in articulations {
-            let articulation_name = articulation
-                .get("name")
-                .or_else(|| articulation.get("id"))
-                .and_then(|v| v.as_str())
-                .unwrap_or("unknown");
-
-            if let Some(zones) = articulation.get("zones").and_then(|v| v.as_array()) {
-                for zone in zones {
-                    if let Some(velocity_layers) =
-                        zone.get("velocityLayers").and_then(|v| v.as_array())
-                    {
-                        for layer in velocity_layers {
-                            if let Some(samples) = layer.get("samples").and_then(|v| v.as_array()) {
-                                for sample in samples {
-                                    if let Some(path) = sample.get("path").and_then(|v| v.as_str())
-                                    {
-                                        let full_path = Path::new(src_path).join(path);
-
-                                        if !full_path.exists() {
-                                            missing_files.push(format!(
-                                                "  {} -> {}",
-                                                articulation_name, path
-                                            ));
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                    if hash_to_sample.contains_key(&hash) {
+                        // Duplicate content — will share the same sample_id
+                        continue;
                     }
+
+                    // Probe audio metadata
+                    let (sample_rate, channels) = probe_audio(&abs_path)?;
+
+                    // Encode to FLAC
+                    let stem = format!("{}_{}", manifest.meta.id, next_sample_id);
+                    let flac_path = encode_to_flac(&abs_path, temp_dir, &stem)?;
+
+                    hash_to_sample.insert(
+                        hash.clone(),
+                        (next_sample_id, flac_path, sample_rate, channels),
+                    );
+                    next_sample_id += 1;
                 }
             }
         }
     }
 
-    if !missing_files.is_empty() {
-        let error_msg = format!(
-            "Integrity check failed: {} sample file(s) missing:\n{}",
-            missing_files.len(),
-            missing_files.join("\n")
+    let total_samples = hash_to_sample.len();
+    let total_refs = path_to_hash.len();
+    if total_refs > total_samples {
+        println!(
+            "    ✓ Deduplicated: {} unique samples from {} references",
+            total_samples, total_refs
         );
-        return Err(error_msg.into());
+    } else {
+        println!("    ✓ {} samples collected", total_samples);
     }
 
-    Ok(())
-}
+    // Build path → sample_id lookup
+    let path_to_id: BTreeMap<String, u32> = path_to_hash
+        .iter()
+        .map(|(path, hash)| {
+            let (id, _, _, _) = &hash_to_sample[hash];
+            (path.clone(), *id)
+        })
+        .collect();
 
-fn process_manifest_json(
-    src_path: &Path,
-    dest_path: &Path,
-    format: &str,
-) -> Result<(), Box<dyn std::error::Error>> {
-    // Read the original manifest.json
-    let content = fs::read_to_string(src_path)?;
-    let mut json_value: Value = serde_json::from_str(&content)?;
+    // ── Phase 2: Build META chunk ──────────────────────────────────────
 
-    // Add or update the format field
-    if let Some(meta) = json_value.get_mut("meta") {
-        if let Some(meta_obj) = meta.as_object_mut() {
-            meta_obj.insert("format".to_string(), json!(format));
+    let container_manifest = ContainerManifest {
+        meta: ContainerMeta {
+            id: manifest.meta.id.clone(),
+            name: manifest.meta.name.clone(),
+            author: manifest.meta.author.clone(),
+            version: manifest.meta.version.clone(),
+        },
+        articulations: sorted_articulations
+            .iter()
+            .map(|art| {
+                let mut sorted_zones: Vec<&SourceZone> = art.zones.iter().collect();
+                sorted_zones.sort_by_key(|z| z.pitch);
 
-            // For lite version, append (Lite) to the instrument name and .lite to the ID
-            if format == "mp3" {
-                if let Some(name) = meta_obj.get_mut("name") {
-                    if let Some(name_str) = name.as_str() {
-                        *name = json!(format!("{} (Lite)", name_str));
-                    }
+                ContainerArticulation {
+                    id: art.id.clone(),
+                    name: art.name.clone(),
+                    range: art.range,
+                    zones: sorted_zones
+                        .iter()
+                        .map(|zone| ContainerZone {
+                            pitch: zone.pitch,
+                            velocity_layers: zone
+                                .velocity_layers
+                                .iter()
+                                .map(|vl| ContainerVelocityLayer {
+                                    range: vl.range,
+                                    samples: vl
+                                        .samples
+                                        .iter()
+                                        .map(|s| ContainerSampleRef {
+                                            sample_id: path_to_id[&s.path],
+                                        })
+                                        .collect(),
+                                })
+                                .collect(),
+                        })
+                        .collect(),
                 }
-                if let Some(id) = meta_obj.get_mut("id") {
-                    if let Some(id_str) = id.as_str() {
-                        *id = json!(format!("{}.lite", id_str));
-                    }
-                }
-            }
-        }
-    } else {
-        // If no meta object exists, create one
-        json_value["meta"] = json!({
-            "format": format
+            })
+            .collect(),
+    };
+
+    let meta_bytes = rmp_serde::to_vec(&container_manifest)?;
+    println!("    ✓ META chunk: {} bytes", meta_bytes.len());
+
+    // ── Phase 3: Build SIDX and SDAT ───────────────────────────────────
+
+    // Sort samples by ID for deterministic output
+    let mut sorted_samples: Vec<(u32, &PathBuf, u32, u8)> = hash_to_sample
+        .values()
+        .map(|(id, path, sr, ch)| (*id, path, *sr, *ch))
+        .collect();
+    sorted_samples.sort_by_key(|(id, _, _, _)| *id);
+
+    // Read all FLAC data and build index entries
+    let mut sdat_buffer: Vec<u8> = Vec::new();
+    let mut sidx_entries: Vec<SampleIndexEntry> = Vec::new();
+
+    for (sample_id, flac_path, sample_rate, channels) in &sorted_samples {
+        let flac_data = fs::read(flac_path)?;
+        let offset = sdat_buffer.len() as u64;
+        let length = flac_data.len() as u64;
+
+        sdat_buffer.extend_from_slice(&flac_data);
+
+        sidx_entries.push(SampleIndexEntry {
+            sample_id: *sample_id,
+            offset,
+            length,
+            sample_rate: *sample_rate,
+            channels: *channels,
+            _reserved: [0u8; 7],
         });
     }
 
-    // Update file paths to match the new format
-    let new_ext = match format {
-        "flac" => ".flac", // Use actual FLAC encoding for full instruments
-        "mp3" => ".mp3",
-        _ => ".wav",
+    println!(
+        "    ✓ SDAT chunk: {} bytes ({} samples)",
+        sdat_buffer.len(),
+        sidx_entries.len()
+    );
+
+    // ── Phase 4: Read optional cover image ─────────────────────────────
+
+    let cover_path = instrument_dir.join("cover.webp");
+    let cover_data = if cover_path.exists() {
+        let data = fs::read(&cover_path)?;
+        println!("    ✓ COVER chunk: {} bytes", data.len());
+        Some(data)
+    } else {
+        println!("    ⚠ No cover.webp found");
+        None
     };
-    update_paths(&mut json_value, ".wav", new_ext);
 
-    // Minify the JSON (remove whitespace)
-    let minified = serde_json::to_string(&json_value)?;
-    let minified_len = minified.len();
+    // ── Phase 5: Assemble container ────────────────────────────────────
 
-    // Write the minified version
-    fs::write(dest_path, minified)?;
+    let output_path = output_dir.join(format!("{}.scvi", manifest.meta.id));
+    let mut out = File::create(&output_path)?;
 
+    // Calculate chunk offsets
+    let meta_offset = HEADER_SIZE;
+    let meta_size = meta_bytes.len() as u64;
+
+    let sidx_offset = meta_offset + meta_size;
+    let sidx_size = (sidx_entries.len() * SIDX_ENTRY_SIZE) as u64;
+
+    let sdat_offset = sidx_offset + sidx_size;
+    let sdat_size = sdat_buffer.len() as u64;
+
+    // Write HEADER (padded to HEADER_SIZE)
+    let header = ContainerHeader {
+        magic: *MAGIC,
+        version: CONTAINER_VERSION,
+        _reserved_h: [0u8; 2],
+        meta_offset,
+        meta_size,
+        sidx_offset,
+        sidx_size,
+        sdat_offset,
+        sdat_size,
+    };
+
+    // Safety: ContainerHeader is repr(C, packed) with no padding ambiguity
+    let header_bytes = unsafe { struct_as_bytes(&header) };
+    assert!(
+        HEADER_STRUCT_SIZE <= HEADER_SIZE as usize,
+        "Header struct exceeds reserved header space"
+    );
+    out.write_all(header_bytes)?;
+
+    // Pad rest of header to HEADER_SIZE
+    let header_padding = HEADER_SIZE as usize - HEADER_STRUCT_SIZE;
+    if header_padding > 0 {
+        out.write_all(&vec![0u8; header_padding])?;
+    }
+
+    // Write META chunk
+    let mut current_offset = HEADER_SIZE;
+    out.write_all(&meta_bytes)?;
+    current_offset += meta_size;
+
+    // Write SIDX chunk
+    for entry in &sidx_entries {
+        let entry_bytes = unsafe { struct_as_bytes(entry) };
+        out.write_all(entry_bytes)?;
+    }
+    current_offset += sidx_size;
+
+    // Write SDAT chunk
+    out.write_all(&sdat_buffer)?;
+    current_offset += sdat_size;
+
+    // Write COVER chunk (appended directly after SDAT)
+    if let Some(cover) = &cover_data {
+        out.write_all(cover)?;
+        current_offset += cover.len() as u64;
+    }
+
+    out.flush()?;
+
+    let total_size = current_offset;
     println!(
-        "📄 Processed manifest.json: added format='{}'{}minified from {} to {} bytes",
-        format,
-        if format == "mp3" {
-            ", updated name with '(Lite)' and ID with '.lite'"
-        } else {
-            ""
-        },
-        content.len(),
-        minified_len
+        "    ✓ Written: {} ({:.2} MB)",
+        output_path.display(),
+        total_size as f64 / (1024.0 * 1024.0)
     );
 
     Ok(())
 }
 
-fn update_paths(value: &mut Value, old_ext: &str, new_ext: &str) {
-    match value {
-        Value::String(s) => {
-            if s.ends_with(old_ext) {
-                *s = s.replace(old_ext, new_ext);
+// ── Main entry point ───────────────────────────────────────────────────
+
+fn main() {
+    let project_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..");
+    let instruments_dir = project_root.join("instruments");
+    let output_dir = PathBuf::from("/Library/Audio/Plug-Ins/SCVI");
+    let temp_dir = project_root.join("temp");
+
+    // Ensure output and temp directories exist
+    fs::create_dir_all(&output_dir).expect("Failed to create output directory");
+    fs::create_dir_all(&temp_dir).expect("Failed to create temp directory");
+
+    println!("SCVI Binary Container Compiler v{}", CONTAINER_VERSION);
+    println!("────────────────────────────────────────");
+    println!("Source:  {}", instruments_dir.display());
+    println!("Output:  {}", output_dir.display());
+    println!();
+
+    // Discover instruments
+    let mut instruments: Vec<PathBuf> = Vec::new();
+    if let Ok(entries) = fs::read_dir(&instruments_dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() && path.join("manifest.json").exists() {
+                instruments.push(path);
             }
         }
-        Value::Array(arr) => {
-            for v in arr {
-                update_paths(v, old_ext, new_ext);
-            }
-        }
-        Value::Object(obj) => {
-            for v in obj.values_mut() {
-                update_paths(v, old_ext, new_ext);
-            }
-        }
-        _ => {}
-    }
-}
-
-fn compress_mp3(
-    path: &Path,
-    temp_file: &Path,
-    original_size: u64,
-) -> Result<(), Box<dyn std::error::Error>> {
-    use std::process::Command;
-
-    let mp3_path = temp_file.with_extension("mp3");
-    if let Some(parent) = mp3_path.parent() {
-        fs::create_dir_all(parent)?;
     }
 
-    // Use ffmpeg to encode to MP3
-    let output = Command::new("ffmpeg")
-        .args([
-            "-y", // Overwrite output files
-            "-i",
-            &path.to_string_lossy(), // Input file
-            "-c:a",
-            "libmp3lame", // Audio codec: MP3
-            "-b:a",
-            "128k", // Bitrate: 128kbps (good quality)
-            &mp3_path.to_string_lossy(),
-        ])
-        .output()
-        .map_err(|e| format!("Failed to run ffmpeg: {}", e))?;
+    instruments.sort();
 
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("ffmpeg failed: {}", stderr).into());
-    }
-
-    let mp3_size = fs::metadata(&mp3_path)?.len();
-
-    println!(
-        "🎵 {} → MP3: {} → {} bytes ({:.1}% reduction)",
-        path.display(),
-        original_size,
-        mp3_size,
-        (1.0 - mp3_size as f64 / original_size as f64) * 100.0
-    );
-
-    Ok(())
-}
-
-fn compress_flac(
-    path: &Path,
-    temp_file: &Path,
-    original_size: u64,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let flac_path = temp_file.with_extension("flac");
-    if let Some(parent) = flac_path.parent() {
-        fs::create_dir_all(parent)?;
-    }
-
-    // Use ffmpeg to encode to FLAC
-    let output = Command::new("ffmpeg")
-        .args([
-            "-y", // Overwrite output files
-            "-i",
-            &path.to_string_lossy(), // Input file
-            "-c:a",
-            "flac", // Audio codec: FLAC
-            "-compression_level",
-            "8", // Maximum compression
-            &flac_path.to_string_lossy(),
-        ])
-        .output()
-        .map_err(|e| format!("Failed to run ffmpeg: {}", e))?;
-
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("ffmpeg failed: {}", stderr).into());
-    }
-
-    let flac_size = fs::metadata(&flac_path)?.len();
-
-    println!(
-        "🎵 {} → FLAC: {} → {} bytes ({:.1}% reduction)",
-        path.display(),
-        original_size,
-        flac_size,
-        (1.0 - flac_size as f64 / original_size as f64) * 100.0
-    );
-
-    Ok(())
-}
-
-fn process_all_instruments() -> Result<(), Box<dyn std::error::Error>> {
-    let instruments_dir = Path::new("instruments");
-
-    if !instruments_dir.exists() {
-        eprintln!("Error: instruments directory not found");
+    if instruments.is_empty() {
+        eprintln!("No instruments found in {}", instruments_dir.display());
         std::process::exit(1);
     }
 
-    // Get all instrument folders
-    let instruments: Vec<String> = fs::read_dir(instruments_dir)?
-        .filter_map(|entry| entry.ok())
-        .filter(|entry| entry.path().is_dir())
-        .filter_map(|entry| entry.file_name().to_str().map(|s| s.to_string()))
-        .collect();
+    println!("Found {} instrument(s)", instruments.len());
+    println!();
 
-    if instruments.is_empty() {
-        println!("No instruments found in instruments/");
-        return Ok(());
-    }
+    let mut success_count = 0;
+    let mut fail_count = 0;
 
-    println!(
-        "🔧 Found {} instruments: {}",
-        instruments.len(),
-        instruments.join(", ")
-    );
-
-    // Pre-loop: Check integrity of all instruments before processing
-    println!("\n🔍 Running integrity checks on all instruments...\n");
-    let mut valid_instruments = Vec::new();
-    let mut failed_instruments = Vec::new();
-
-    for instrument in &instruments {
-        let src_path = format!("instruments/{}", instrument);
-
-        match integrity_check(&src_path) {
-            Ok(_) => {
-                valid_instruments.push(instrument.clone());
-            }
+    for instrument_dir in &instruments {
+        match compile_instrument(instrument_dir, &output_dir, &temp_dir) {
+            Ok(()) => success_count += 1,
             Err(e) => {
-                let err_str = e.to_string();
-                let lines: Vec<&str> = err_str.lines().collect();
-                if let Some(first_line) = lines.first() {
-                    println!("   ❌ {} - {}", instrument, first_line);
-                    for line in &lines[1..] {
-                        println!("       {}", line);
-                    }
-                }
-                failed_instruments.push(instrument.clone());
+                eprintln!(
+                    "  ✗ Failed to compile {}: {}",
+                    instrument_dir.display(),
+                    e
+                );
+                fail_count += 1;
             }
         }
+        println!();
     }
 
-    println!("\n📊 Integrity check summary:");
-    println!("   ✅ Passed: {} instruments", valid_instruments.len());
-
-    if !failed_instruments.is_empty() {
-        println!(
-            "   ❌ Failed: {} instruments ({})",
-            failed_instruments.len(),
-            failed_instruments.join(", ")
-        );
-        return Ok(());
+    // Clean up temp directory
+    if let Err(e) = fs::remove_dir_all(&temp_dir) {
+        eprintln!("Warning: Failed to clean temp directory: {}", e);
     }
 
+    println!("────────────────────────────────────────");
     println!(
-        "\n🚀 Beginning processing of {} instruments...\n",
-        valid_instruments.len()
+        "Done: {} succeeded, {} failed",
+        success_count, fail_count
     );
 
-    // Process each instrument - create both versions
-    for instrument in valid_instruments {
-        println!("🎵 Processing instrument: {}", instrument);
-        if let Err(e) = create_scvi_archive(&instrument, &instrument, "flac") {
-            eprintln!("❌ Failed to process {}: {}", instrument, e);
-            // Continue with other instruments
-        }
-        if let Err(e) = create_scvi_archive(&instrument, &format!("{} (Lite)", instrument), "mp3") {
-            eprintln!("❌ Failed to process {} (Lite): {}", instrument, e);
-            // Continue with other instruments
-        }
+    if fail_count > 0 {
+        std::process::exit(1);
     }
-
-    // Clean up temp directory if it's empty
-    let temp_dir = Path::new("temp");
-    if temp_dir.exists() {
-        if let Ok(entries) = fs::read_dir(temp_dir) {
-            if entries.count() == 0 {
-                if let Err(e) = fs::remove_dir(temp_dir) {
-                    eprintln!("Warning: Failed to remove empty temp directory: {}", e);
-                }
-            }
-        }
-    }
-
-    println!("\n🎉 All instruments processed!");
-    Ok(())
 }

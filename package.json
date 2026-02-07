@@ -53,6 +53,8 @@
     "format:fix": "prettier --write .",
     "generate-scvi": "./scripts/scvi-compress",
     "generate-scvi:build": "cd src-tauri && cargo build --release --bin scvi-compress && cp target/release/scvi-compress ../scripts/scvi-compress",
+    "inspect-scvi": "./scripts/scvi-inspect",
+    "inspect-scvi:build": "cd src-tauri && cargo build --release --bin scvi-inspect && cp target/release/scvi-inspect ../scripts/scvi-inspect",
     "lint": "eslint 'src/**/*.{ts,tsx}'",
     "lint:fix": "eslint 'src/**/*.{ts,tsx}' --fix",
     "preview": "vite preview",

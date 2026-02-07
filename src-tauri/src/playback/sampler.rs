@@ -1,3 +1,4 @@
+use crate::playback::scvi::ScviContainer;
 use crate::AudioContextState;
 use crate::SamplerContextState;
 use audioadapter_buffers::direct::InterleavedSlice;
@@ -6,7 +7,6 @@ use rand::Rng;
 use rubato::{Fft, FixedSync, Indexing, Resampler};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
-use serde_json;
 use std::fs::{self, File};
 use std::io::{Cursor, Read, Write};
 use std::path::Path;
@@ -19,48 +19,6 @@ use symphonia::core::meta::MetadataOptions;
 use symphonia::core::probe::Hint;
 use symphonia::default::get_probe;
 use tauri::{AppHandle, Emitter, State};
-use zip::ZipArchive;
-
-#[derive(Deserialize)]
-struct MetaDataJson {
-    id: String,
-    name: String,
-    format: String,
-    author: String,
-    version: String,
-}
-
-#[derive(Deserialize, Clone)]
-struct SampleJson {
-    path: String,
-}
-
-#[derive(Deserialize)]
-struct VelocityLayerJson {
-    range: [u8; 2],
-    samples: Vec<SampleJson>,
-}
-
-#[derive(Deserialize)]
-struct ZoneJson {
-    pitch: u8,
-    #[serde(rename = "velocityLayers")]
-    velocity_layers: Vec<VelocityLayerJson>,
-}
-
-#[derive(Deserialize)]
-struct ArticulationJson {
-    id: String,
-    name: String,
-    range: [u8; 2],
-    zones: Vec<ZoneJson>,
-}
-
-#[derive(Deserialize)]
-struct MetaJson {
-    meta: MetaDataJson,
-    articulations: Vec<ArticulationJson>,
-}
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct ArticulationMeta {
@@ -76,7 +34,6 @@ pub struct PluginMeta {
     path: String,
     author: String,
     version: String,
-    format: String,
     cover_image: Option<String>,
     articulations: Vec<ArticulationMeta>,
 }
@@ -165,81 +122,39 @@ impl SamplerContext {
     fn read_plugin_meta(
         scvi_path: &std::path::Path,
     ) -> Result<PluginMeta, Box<dyn std::error::Error>> {
-        // Open the ZIP archive
-        let file = std::fs::File::open(scvi_path)?;
-        let mut archive = zip::ZipArchive::new(file)?;
+        let container = ScviContainer::open(scvi_path)?;
 
-        let mut manifest_content = None;
-        let mut cover_image_data = None;
+        // Cache cover image
+        let cover_image_path = if let Ok(Some(image_data)) = container.read_cover() {
+            Some(Self::cache_cover_image(
+                &container.manifest.meta.id,
+                &image_data,
+            )?)
+        } else {
+            None
+        };
 
-        // Extract both manifest.json and cover.webp in one pass
-        for i in 0..archive.len() {
-            let mut file = archive.by_index(i)?;
-            let filename = file.name();
+        // Build articulations metadata
+        let articulations: Vec<ArticulationMeta> = container
+            .manifest
+            .articulations
+            .iter()
+            .map(|art| ArticulationMeta {
+                id: art.id.clone(),
+                name: art.name.clone(),
+                range: art.range,
+            })
+            .collect();
 
-            match filename {
-                "manifest.json" => {
-                    let mut content = String::new();
-                    file.read_to_string(&mut content)?;
-                    manifest_content = Some(content);
-                }
-                "cover.webp" => {
-                    let mut data = Vec::new();
-                    file.read_to_end(&mut data)?;
-                    cover_image_data = Some(data);
-                }
-                _ => {}
-            }
-        }
-
-        // Parse manifest.json
-        if let Some(content) = manifest_content {
-            match serde_json::from_str::<MetaJson>(&content) {
-                Ok(meta_json) => {
-                    // Cache cover image using meta.id as filename
-                    let cover_image_path = if let Some(image_data) = cover_image_data {
-                        Some(Self::cache_cover_image(&meta_json.meta.id, &image_data)?)
-                    } else {
-                        None
-                    };
-
-                    // Build articulations metadata
-                    let mut articulations = Vec::new();
-                    for articulation in &meta_json.articulations {
-                        articulations.push(ArticulationMeta {
-                            id: articulation.id.clone(),
-                            name: articulation.name.clone(),
-                            range: articulation.range,
-                        });
-                    }
-
-                    return Ok(PluginMeta {
-                        id: meta_json.meta.id,
-                        name: meta_json.meta.name,
-                        path: scvi_path.to_string_lossy().to_string(),
-                        author: meta_json.meta.author,
-                        version: meta_json.meta.version,
-                        format: meta_json.meta.format,
-                        cover_image: cover_image_path,
-                        articulations,
-                    });
-                }
-                Err(e) => {
-                    eprintln!(
-                        "Failed to parse manifest.json in {}: {}",
-                        scvi_path.display(),
-                        e
-                    );
-                    return Err(e.into());
-                }
-            }
-        }
-
-        eprintln!(
-            "manifest.json not found in archive: {}",
-            scvi_path.display()
-        );
-        Err("manifest.json not found in archive".into())
+        Ok(PluginMeta {
+            id: container.manifest.meta.id,
+            name: container.manifest.meta.name,
+            path: scvi_path.to_string_lossy().to_string(),
+            author: container.manifest.meta.author,
+            version: container.manifest.meta.version,
+            cover_image: cover_image_path,
+            articulations,
+        })
     }
 
     fn cache_cover_image(
@@ -278,48 +193,36 @@ impl SamplerContext {
             .clone();
 
         let path = Path::new(&plugin_info.path);
-        let file = File::open(path)?;
-        let mut archive = ZipArchive::new(file)?;
-
-        // Find and read manifest.json
-        let mut manifest_content = None;
-        for i in 0..archive.len() {
-            let mut zip_file = archive.by_index(i)?;
-            if zip_file.name() == "manifest.json" {
-                let mut content = String::new();
-                zip_file.read_to_string(&mut content)?;
-                manifest_content = Some(content);
-                break;
-            }
-        }
-
-        let manifest_content = manifest_content.ok_or("manifest.json not found")?;
-        let meta_json: MetaJson = serde_json::from_str(&manifest_content)?;
+        let container = ScviContainer::open(path)?;
 
         let mut articulations = FxHashMap::default();
 
-        for articulation in meta_json.articulations {
+        for art in &container.manifest.articulations {
             let mut zones = Vec::new();
 
-            for zone in articulation.zones {
+            for zone in &art.zones {
                 let mut velocity_layers = Vec::new();
 
-                for velocity_layer_json in zone.velocity_layers {
-                    let samples: Vec<CacheSampleInfo> = velocity_layer_json
-                        .samples
-                        .into_iter()
-                        .map(|sample| CacheSampleInfo {
-                            path: sample.path,
-                            sample: CacheSample {
-                                data: Vec::new(), // Placeholder
-                                sample_rate: target_sample_rate,
-                                channels: 1,
-                            },
-                        })
-                        .collect();
+                for vl in &zone.velocity_layers {
+                    let mut samples = Vec::new();
+
+                    for sample_ref in &vl.samples {
+                        // Read the raw FLAC data from the container
+                        let flac_data = container.read_sample_data(sample_ref.sample_id)?;
+
+                        // Decode FLAC to f32 samples
+                        let mut cursor = Cursor::new(flac_data);
+                        let cached_sample =
+                            self.decode_with_symphonia(&mut cursor, target_sample_rate)?;
+
+                        samples.push(CacheSampleInfo {
+                            path: format!("sample_{}", sample_ref.sample_id),
+                            sample: cached_sample,
+                        });
+                    }
 
                     velocity_layers.push(CacheVelocityLayer {
-                        range: velocity_layer_json.range,
+                        range: vl.range,
                         samples,
                     });
                 }
@@ -331,99 +234,24 @@ impl SamplerContext {
             }
 
             articulations.insert(
-                articulation.id.clone(),
+                art.id.clone(),
                 CacheArticulation {
-                    id: articulation.id.clone(),
-                    name: articulation.name.clone(),
+                    id: art.id.clone(),
+                    name: art.name.clone(),
                     zones,
                 },
             );
         }
 
-        // Load the samples into the expressions
-        self.load_instrument_samples(
-            &mut archive,
-            &mut articulations,
-            &meta_json.meta.format,
-            target_sample_rate,
-        )?;
-
         Ok(Cache {
-            meta: PluginMeta {
-                id: meta_json.meta.id.clone(),
-                name: meta_json.meta.name.clone(),
-                path: plugin_info.path.clone(),
-                author: meta_json.meta.author.clone(),
-                version: meta_json.meta.version.clone(),
-                format: meta_json.meta.format.clone(),
-                cover_image: plugin_info.cover_image.clone(),
-                articulations: plugin_info.articulations.clone(),
-            },
+            meta: plugin_info,
             articulations,
         })
-    }
-
-    fn load_instrument_samples(
-        &self,
-        archive: &mut ZipArchive<File>,
-        articulations: &mut FxHashMap<String, CacheArticulation>,
-        format: &str,
-        target_sample_rate: u32,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        // Create a map of sample paths to their locations in the instrument
-        let mut sample_locations = FxHashMap::default();
-        for (articulation_name, articulation) in articulations.iter_mut() {
-            for (zone_idx, zone) in articulation.zones.iter_mut().enumerate() {
-                for (vel_idx, velocity_layer) in zone.velocity_layers.iter_mut().enumerate() {
-                    for (sample_idx, sample_info) in velocity_layer.samples.iter_mut().enumerate() {
-                        sample_locations.insert(
-                            sample_info.path.clone(),
-                            (articulation_name.clone(), zone_idx, vel_idx, sample_idx),
-                        );
-                    }
-                }
-            }
-        }
-
-        // Load samples
-        for i in 0..archive.len() {
-            let mut zip_file = archive.by_index(i)?;
-            if let Some((expr_name, zone_idx, vel_idx, sample_idx)) =
-                sample_locations.get(zip_file.name())
-            {
-                let cached_sample = self.decode_audio(&mut zip_file, format, target_sample_rate)?;
-
-                if let Some(expression) = articulations.get_mut(expr_name) {
-                    if let Some(zone) = expression.zones.get_mut(*zone_idx) {
-                        if let Some(velocity_layer) = zone.velocity_layers.get_mut(*vel_idx) {
-                            if let Some(sample_info) = velocity_layer.samples.get_mut(*sample_idx) {
-                                sample_info.sample = cached_sample;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        Ok(())
-    }
-
-    fn decode_audio<R: Read>(
-        &self,
-        reader: &mut R,
-        format_hint: &str,
-        target_sample_rate: u32,
-    ) -> Result<CacheSample, Box<dyn std::error::Error>> {
-        match format_hint {
-            "flac" | "mp3" => self.decode_with_symphonia(reader, format_hint, target_sample_rate),
-            _ => Err(format!("Unsupported format: {}", format_hint).into()),
-        }
     }
 
     fn decode_with_symphonia<R: Read>(
         &self,
         reader: &mut R,
-        format_hint: &str,
         target_sample_rate: u32,
     ) -> Result<CacheSample, Box<dyn std::error::Error>> {
         // Read all data into a vector
@@ -436,15 +264,7 @@ impl SamplerContext {
 
         // Create a hint to help the format registry
         let mut hint = Hint::new();
-        match format_hint {
-            "flac" => {
-                hint.with_extension("flac");
-            }
-            "mp3" => {
-                hint.with_extension("mp3");
-            }
-            _ => {}
-        };
+        hint.with_extension("flac");
 
         // Probe the media source
         let probed = get_probe().format(
@@ -751,6 +571,7 @@ pub fn sampler_audition(
     note: u8,
     velocity: u8,
     articulation_id: Option<String>,
+    duration_ms: u32,
 ) -> Result<(), String> {
     let ctx = state.lock().unwrap();
 
@@ -805,8 +626,8 @@ pub fn sampler_audition(
     let channels = sample.channels as usize;
     let source = &sample.data;
 
-    // Cap audition at 1 second of sustain, plus a 150ms release tail
-    let duration_frames = target_sample_rate as usize;
+    // Cap audition at the given duration, plus a 150ms release tail
+    let duration_frames = (target_sample_rate as f64 * duration_ms as f64 / 1000.0).ceil() as usize;
     let release_tail = (target_sample_rate as f64 * 0.15).ceil() as usize;
     let max_frames = duration_frames + release_tail;
 

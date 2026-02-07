@@ -185,10 +185,6 @@ export const Main: FC = () => {
             <div className="text-neutral-400 text-sm">by {plugin.author}</div>
             <div className="w-1 h-1 bg-neutral-600 rounded-full" />
             <div className="text-neutral-400 text-sm">v{plugin.version}</div>
-            <div className="w-1 h-1 bg-neutral-600 rounded-full" />
-            <div className="text-neutral-500 text-sm">
-              {plugin.format.toUpperCase()}
-            </div>
           </div>
         </div>
       </div>

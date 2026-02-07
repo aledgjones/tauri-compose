@@ -430,7 +430,6 @@ export type PluginInfo = {
   path: string;
   author: string;
   version: string;
-  format: string;
   cover_image?: string;
   articulations: ArticulationInfo[];
 };
