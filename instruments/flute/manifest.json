@@ -1,0 +1,168 @@
+{
+  "meta": {
+    "id": "sso.woodwinds.flute",
+    "name": "SSO Flute",
+    "author": "Solo Compose",
+    "version": "1.0.0"
+  },
+  "articulations": [
+    {
+      "id": "sustain",
+      "name": "Sustain",
+      "range": [59, 98],
+      "zones": [
+        {
+          "pitch": 60,
+          "velocityLayers": [
+            { "range": [1, 127], "samples": [{ "path": "vibrato/LDFlute_susvib_C3-PB-loop.wav" }] }
+          ]
+        },
+        {
+          "pitch": 64,
+          "velocityLayers": [
+            { "range": [1, 127], "samples": [{ "path": "vibrato/LDFlute_susvib_E3-PB-loop.wav" }] }
+          ]
+        },
+        {
+          "pitch": 69,
+          "velocityLayers": [
+            {
+              "range": [1, 127],
+              "samples": [{ "path": "vibrato/LDFlute_susvib_A3_v1_1-PB-loop.wav" }]
+            }
+          ]
+        },
+        {
+          "pitch": 72,
+          "velocityLayers": [
+            {
+              "range": [1, 127],
+              "samples": [{ "path": "vibrato/LDFlute_susvib_C4_v1_2-PB-loop.wav" }]
+            }
+          ]
+        },
+        {
+          "pitch": 76,
+          "velocityLayers": [
+            {
+              "range": [1, 127],
+              "samples": [{ "path": "vibrato/LDFlute_susvib_E4_v1_2-PB-loop.wav" }]
+            }
+          ]
+        },
+        {
+          "pitch": 81,
+          "velocityLayers": [
+            {
+              "range": [1, 127],
+              "samples": [{ "path": "vibrato/LDFlute_susvib_A4_v1_1-PB-loop.wav" }]
+            }
+          ]
+        },
+        {
+          "pitch": 84,
+          "velocityLayers": [
+            {
+              "range": [1, 127],
+              "samples": [{ "path": "vibrato/LDFlute_susvib_C5_v1_1-PB-loop.wav" }]
+            }
+          ]
+        },
+        {
+          "pitch": 88,
+          "velocityLayers": [
+            {
+              "range": [1, 127],
+              "samples": [{ "path": "vibrato/LDFlute_susvib_E5_v1_2-PB-loop.wav" }]
+            }
+          ]
+        },
+        {
+          "pitch": 93,
+          "velocityLayers": [
+            {
+              "range": [1, 127],
+              "samples": [{ "path": "vibrato/LDFlute_susvib_A5_v1_1-PB-loop.wav" }]
+            }
+          ]
+        },
+        {
+          "pitch": 96,
+          "velocityLayers": [
+            {
+              "range": [1, 127],
+              "samples": [{ "path": "vibrato/LDFlute_susvib_C6_v1_1-PB-loop.wav" }]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "staccato",
+      "name": "Staccato",
+      "range": [59, 98],
+      "zones": [
+        {
+          "pitch": 60,
+          "velocityLayers": [
+            { "range": [1, 127], "samples": [{ "path": "staccato/LDFlute_stac_C3-PB.wav" }] }
+          ]
+        },
+        {
+          "pitch": 64,
+          "velocityLayers": [
+            { "range": [1, 127], "samples": [{ "path": "staccato/LDFlute_stac_E3-PB.wav" }] }
+          ]
+        },
+        {
+          "pitch": 69,
+          "velocityLayers": [
+            { "range": [1, 127], "samples": [{ "path": "staccato/LDFlute_stac_A3_v2_rr1-PB.wav" }] }
+          ]
+        },
+        {
+          "pitch": 72,
+          "velocityLayers": [
+            { "range": [1, 127], "samples": [{ "path": "staccato/LDFlute_stac_C4_v4_rr1-PB.wav" }] }
+          ]
+        },
+        {
+          "pitch": 76,
+          "velocityLayers": [
+            { "range": [1, 127], "samples": [{ "path": "staccato/LDFlute_stac_E4_v2_rr1-PB.wav" }] }
+          ]
+        },
+        {
+          "pitch": 81,
+          "velocityLayers": [
+            { "range": [1, 127], "samples": [{ "path": "staccato/LDFlute_stac_A4_v3_rr2-PB.wav" }] }
+          ]
+        },
+        {
+          "pitch": 84,
+          "velocityLayers": [
+            { "range": [1, 127], "samples": [{ "path": "staccato/LDFlute_stac_C5_v1_rr1-PB.wav" }] }
+          ]
+        },
+        {
+          "pitch": 88,
+          "velocityLayers": [
+            { "range": [1, 127], "samples": [{ "path": "staccato/LDFlute_stac_E5_v1_rr2-PB.wav" }] }
+          ]
+        },
+        {
+          "pitch": 93,
+          "velocityLayers": [
+            { "range": [1, 127], "samples": [{ "path": "staccato/LDFlute_stac_A5_v1_rr1-PB.wav" }] }
+          ]
+        },
+        {
+          "pitch": 96,
+          "velocityLayers": [
+            { "range": [1, 127], "samples": [{ "path": "staccato/LDFlute_stac_C6_v2_rr2-PB.wav" }] }
+          ]
+        }
+      ]
+    }
+  ]
+}
