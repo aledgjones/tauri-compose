@@ -143,15 +143,15 @@ const SIDX_ENTRY_SIZE: usize = std::mem::size_of::<SampleIndexEntry>();
 #[repr(C, packed)]
 #[derive(Clone, Copy)]
 struct ContainerHeader {
-    magic: [u8; 4],         // "SCVI"
-    version: u16,           // container format version
-    _reserved_h: [u8; 2],   // alignment padding
-    meta_offset: u64,       // byte offset of META chunk
-    meta_size: u64,         // byte size of META chunk
-    sidx_offset: u64,       // byte offset of SIDX chunk
-    sidx_size: u64,         // byte size of SIDX chunk (entry_count * SIDX_ENTRY_SIZE)
-    sdat_offset: u64,       // byte offset of SDAT chunk
-    sdat_size: u64,         // byte size of SDAT chunk
+    magic: [u8; 4],       // "SCVI"
+    version: u16,         // container format version
+    _reserved_h: [u8; 2], // alignment padding
+    meta_offset: u64,     // byte offset of META chunk
+    meta_size: u64,       // byte size of META chunk
+    sidx_offset: u64,     // byte offset of SIDX chunk
+    sidx_size: u64,       // byte size of SIDX chunk (entry_count * SIDX_ENTRY_SIZE)
+    sdat_offset: u64,     // byte offset of SDAT chunk
+    sdat_size: u64,       // byte size of SDAT chunk
 }
 
 const HEADER_STRUCT_SIZE: usize = std::mem::size_of::<ContainerHeader>();
@@ -193,7 +193,12 @@ fn encode_to_flac(
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("ffmpeg FLAC encode failed for {}: {}", wav_path.display(), stderr).into());
+        return Err(format!(
+            "ffmpeg FLAC encode failed for {}: {}",
+            wav_path.display(),
+            stderr
+        )
+        .into());
     }
 
     Ok(flac_path)
@@ -229,19 +234,14 @@ fn probe_audio(path: &Path) -> Result<(u32, u8), Box<dyn std::error::Error>> {
         .ok_or("Missing sample_rate")?
         .parse()?;
 
-    let channels: u8 = stream["channels"]
-        .as_u64()
-        .ok_or("Missing channels")? as u8;
+    let channels: u8 = stream["channels"].as_u64().ok_or("Missing channels")? as u8;
 
     Ok((sample_rate, channels))
 }
 
 // ── Integrity check ────────────────────────────────────────────────────
 
-fn integrity_check(
-    instrument_dir: &Path,
-    manifest: &SourceManifest,
-) -> Result<(), Vec<String>> {
+fn integrity_check(instrument_dir: &Path, manifest: &SourceManifest) -> Result<(), Vec<String>> {
     let mut errors = Vec::new();
 
     for articulation in &manifest.articulations {
@@ -261,9 +261,12 @@ fn integrity_check(
                     if vl_a.range[0] <= vl_b.range[1] && vl_b.range[0] <= vl_a.range[1] {
                         errors.push(format!(
                             "Overlapping velocity ranges [{}-{}] and [{}-{}] at pitch {} in '{}'",
-                            vl_a.range[0], vl_a.range[1],
-                            vl_b.range[0], vl_b.range[1],
-                            zone.pitch, articulation.id
+                            vl_a.range[0],
+                            vl_a.range[1],
+                            vl_b.range[0],
+                            vl_b.range[1],
+                            zone.pitch,
+                            articulation.id
                         ));
                     }
                 }
@@ -310,11 +313,7 @@ fn compile_instrument(
         for error in &errors {
             eprintln!("    ✗ {}", error);
         }
-        return Err(format!(
-            "Integrity check failed with {} error(s)",
-            errors.len()
-        )
-        .into());
+        return Err(format!("Integrity check failed with {} error(s)", errors.len()).into());
     }
     println!("    ✓ Integrity check passed");
 
@@ -326,11 +325,8 @@ fn compile_instrument(
     let mut hash_to_sample: BTreeMap<String, (u32, PathBuf, u32, u8)> = BTreeMap::new();
     let mut next_sample_id: u32 = 0;
 
-    // Collect samples in deterministic order: articulation → zone (by pitch) → velocity layer
-    let mut sorted_articulations: Vec<&SourceArticulation> = manifest.articulations.iter().collect();
-    sorted_articulations.sort_by(|a, b| a.id.cmp(&b.id));
-
-    for articulation in &sorted_articulations {
+    // Collect samples in manifest order, zones sorted by pitch within each articulation
+    for articulation in &manifest.articulations {
         let mut sorted_zones: Vec<&SourceZone> = articulation.zones.iter().collect();
         sorted_zones.sort_by_key(|z| z.pitch);
 
@@ -398,7 +394,8 @@ fn compile_instrument(
             author: manifest.meta.author.clone(),
             version: manifest.meta.version.clone(),
         },
-        articulations: sorted_articulations
+        articulations: manifest
+            .articulations
             .iter()
             .map(|art| {
                 let mut sorted_zones: Vec<&SourceZone> = art.zones.iter().collect();
@@ -606,11 +603,7 @@ fn main() {
         match compile_instrument(instrument_dir, &output_dir, &temp_dir) {
             Ok(()) => success_count += 1,
             Err(e) => {
-                eprintln!(
-                    "  ✗ Failed to compile {}: {}",
-                    instrument_dir.display(),
-                    e
-                );
+                eprintln!("  ✗ Failed to compile {}: {}", instrument_dir.display(), e);
                 fail_count += 1;
             }
         }
@@ -623,10 +616,7 @@ fn main() {
     }
 
     println!("────────────────────────────────────────");
-    println!(
-        "Done: {} succeeded, {} failed",
-        success_count, fail_count
-    );
+    println!("Done: {} succeeded, {} failed", success_count, fail_count);
 
     if fail_count > 0 {
         std::process::exit(1);
