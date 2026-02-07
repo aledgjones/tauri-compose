@@ -27,7 +27,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     match instrument_name {
         Some(name) => {
             // Process specific instrument - create both versions
-            let src_path = format!("instruments/src/{}", name);
+            let src_path = format!("instruments/{}", name);
             println!("🔍 Running integrity check for {}...", name);
             integrity_check(&src_path)?;
             println!("✅ Integrity check passed\n");
@@ -49,8 +49,8 @@ fn create_scvi_archive(
     output_instrument_name: &str,
     format: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let src_path = format!("instruments/src/{}", src_instrument_name);
-    let temp_path = format!("instruments/temp/{}", output_instrument_name);
+    let src_path = format!("instruments/{}", src_instrument_name);
+    let temp_path = format!("temp/{}", output_instrument_name);
     let output_dir = "/Library/Audio/Plug-Ins/SCVI";
     let output_path = format!("{}/{}.scvi", output_dir, output_instrument_name);
 
@@ -213,7 +213,6 @@ fn integrity_check(src_path: &str) -> Result<(), Box<dyn std::error::Error>> {
     let json_value: Value = serde_json::from_str(&content)?;
 
     let mut missing_files = Vec::new();
-    let mut total_files = 0;
 
     // Extract all sample paths from articulations
     if let Some(articulations) = json_value.get("articulations").and_then(|v| v.as_array()) {
@@ -234,7 +233,6 @@ fn integrity_check(src_path: &str) -> Result<(), Box<dyn std::error::Error>> {
                                 for sample in samples {
                                     if let Some(path) = sample.get("path").and_then(|v| v.as_str())
                                     {
-                                        total_files += 1;
                                         let full_path = Path::new(src_path).join(path);
 
                                         if !full_path.exists() {
@@ -440,10 +438,10 @@ fn compress_flac(
 }
 
 fn process_all_instruments() -> Result<(), Box<dyn std::error::Error>> {
-    let instruments_dir = Path::new("instruments/src");
+    let instruments_dir = Path::new("instruments");
 
     if !instruments_dir.exists() {
-        eprintln!("Error: instruments/src directory not found");
+        eprintln!("Error: instruments directory not found");
         std::process::exit(1);
     }
 
@@ -455,7 +453,7 @@ fn process_all_instruments() -> Result<(), Box<dyn std::error::Error>> {
         .collect();
 
     if instruments.is_empty() {
-        println!("No instruments found in instruments/src/");
+        println!("No instruments found in instruments/");
         return Ok(());
     }
 
@@ -471,7 +469,7 @@ fn process_all_instruments() -> Result<(), Box<dyn std::error::Error>> {
     let mut failed_instruments = Vec::new();
 
     for instrument in &instruments {
-        let src_path = format!("instruments/src/{}", instrument);
+        let src_path = format!("instruments/{}", instrument);
 
         match integrity_check(&src_path) {
             Ok(_) => {
@@ -522,7 +520,7 @@ fn process_all_instruments() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // Clean up temp directory if it's empty
-    let temp_dir = Path::new("instruments/temp");
+    let temp_dir = Path::new("temp");
     if temp_dir.exists() {
         if let Ok(entries) = fs::read_dir(temp_dir) {
             if entries.count() == 0 {
