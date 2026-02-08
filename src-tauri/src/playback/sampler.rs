@@ -16,18 +16,26 @@ use tauri::{AppHandle, Emitter, State};
 pub struct ArticulationMeta {
     id: String,
     name: String,
-    range: [u8; 2],
+    range: Vec<[u8; 2]>,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(rename_all = "lowercase")]
+pub enum InstrumentType {
+    Pitched,
+    Percussion,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct PluginMeta {
-    id: String,
-    name: String,
-    path: String,
-    author: String,
-    version: String,
-    cover_image: Option<String>,
-    articulations: Vec<ArticulationMeta>,
+    pub id: String,
+    pub name: String,
+    pub path: String,
+    pub author: String,
+    pub version: String,
+    pub cover_image: Option<String>,
+    pub articulations: Vec<ArticulationMeta>,
+    pub r#type: InstrumentType,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -141,7 +149,7 @@ impl SamplerContext {
             .map(|art| ArticulationMeta {
                 id: art.id.clone(),
                 name: art.name.clone(),
-                range: art.range,
+                range: art.range.clone(),
             })
             .collect();
 
@@ -153,6 +161,10 @@ impl SamplerContext {
             version: container.manifest.meta.version,
             cover_image: cover_image_path,
             articulations,
+            r#type: match container.manifest.meta.r#type {
+                crate::playback::scvi::InstrumentType::Pitched => InstrumentType::Pitched,
+                crate::playback::scvi::InstrumentType::Percussion => InstrumentType::Percussion,
+            },
         })
     }
 
@@ -354,12 +366,23 @@ pub fn sampler_sync_with_instruments(
 
 /// Find the nearest available zone for a given pitch
 /// Returns the zone and the pitch offset in semitones (positive = shift up, negative = shift down)
+/// For percussion instruments, only exact pitch matches are allowed (no pitch shifting)
 fn find_nearest_zone(
     articulation: &CacheArticulation,
     target_pitch: u8,
+    is_percussion: bool,
 ) -> Option<(&CacheZone, i32)> {
     if articulation.zones.is_empty() {
         return None;
+    }
+
+    // For percussion, only exact matches, no shifting
+    if is_percussion {
+        return articulation
+            .zones
+            .iter()
+            .find(|z| z.pitch == target_pitch)
+            .map(|z| (z, 0));
     }
 
     // Try exact match first
@@ -424,7 +447,9 @@ pub fn sampler_audition(
 
     let velocity = velocity.clamp(1, 127);
 
-    let (zone, pitch_offset) = find_nearest_zone(articulation, note)
+    let is_percussion = matches!(cache.meta.r#type, InstrumentType::Percussion);
+
+    let (zone, pitch_offset) = find_nearest_zone(articulation, note, is_percussion)
         .ok_or_else(|| format!("No zones available in articulation: {}", articulation_id))?;
 
     let velocity_layer = zone

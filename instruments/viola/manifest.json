@@ -3,13 +3,14 @@
     "id": "sso.strings.viola",
     "name": "SSO Viola",
     "author": "Solo Compose",
-    "version": "1.1.0"
+    "version": "1.2.0",
+    "type": "pitched"
   },
   "articulations": [
     {
       "id": "sustain",
       "name": "Sustain",
-      "range": [48, 93],
+      "range": [[48, 93]],
       "zones": [
         {
           "pitch": 48,
@@ -114,7 +115,7 @@
     {
       "id": "staccato",
       "name": "Staccato",
-      "range": [48, 93],
+      "range": [[48, 93]],
       "zones": [
         {
           "pitch": 48,
@@ -316,7 +317,7 @@
     {
       "id": "pizzicato",
       "name": "Pizzicato",
-      "range": [48, 93],
+      "range": [[48, 93]],
       "zones": [
         {
           "pitch": 48,

@@ -5,14 +5,16 @@ import { actions } from "../../services/actions";
 import { ArticulationInfo } from "../../services/types";
 import classNames from "classnames";
 
+const isNoteInRanges = (note: number, ranges: Array<[number, number]>) => {
+  return ranges.some(([min, max]) => note >= min && note <= max);
+};
+
 type MiniKeyboardProps = {
-  range: [number, number];
+  range: Array<[number, number]>;
   onNoteClick: (note: number) => void;
 };
 
 const MiniKeyboard: FC<MiniKeyboardProps> = ({ range, onNoteClick }) => {
-  const [minNote, maxNote] = range;
-
   const startNote = 17;
   const endNote = 112;
 
@@ -20,8 +22,6 @@ const MiniKeyboard: FC<MiniKeyboardProps> = ({ range, onNoteClick }) => {
     const pitchClass = note % 12;
     return [1, 3, 6, 8, 10].includes(pitchClass);
   };
-
-  const isInRange = (note: number) => note >= minNote && note <= maxNote;
 
   const whiteKeys: number[] = [];
   const blackKeys: number[] = [];
@@ -41,7 +41,7 @@ const MiniKeyboard: FC<MiniKeyboardProps> = ({ range, onNoteClick }) => {
     <div className="relative h-16 flex">
       {/* White keys */}
       {whiteKeys.map((note) => {
-        const inRange = isInRange(note);
+        const inRange = isNoteInRanges(note, range);
 
         return (
           <button
@@ -63,7 +63,7 @@ const MiniKeyboard: FC<MiniKeyboardProps> = ({ range, onNoteClick }) => {
       {/* Black keys */}
       <div className="absolute inset-0 pointer-events-none">
         {blackKeys.map((note) => {
-          const inRange = isInRange(note);
+          const inRange = isNoteInRanges(note, range);
           const whiteKeyIndex = whiteKeys.findIndex((wk) => wk > note) - 1;
           const leftPercent = ((whiteKeyIndex + 0.7) / whiteKeys.length) * 100;
 
@@ -152,6 +152,10 @@ export const Main: FC = () => {
   const handleNoteClick = async (note: number) => {
     if (!selection?.id || !pluginId) return;
 
+    if (!isNoteInRanges(note, selection.range)) {
+      return;
+    }
+
     try {
       await actions.sampler.audition(pluginId, note, 100, selection.id);
     } catch (error) {
@@ -205,7 +209,7 @@ export const Main: FC = () => {
 
       <div className="px-4 pb-0.5 bg-neutral-800">
         <MiniKeyboard
-          range={selection?.range || [0, 0]}
+          range={selection?.range || []}
           onNoteClick={handleNoteClick}
         />
       </div>

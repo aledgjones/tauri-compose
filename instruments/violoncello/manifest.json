@@ -3,13 +3,14 @@
     "id": "sso.strings.violoncello",
     "name": "SSO Violoncello",
     "author": "Solo Compose",
-    "version": "1.0.0"
+    "version": "1.1.0",
+    "type": "pitched"
   },
   "articulations": [
     {
       "id": "sustain",
       "name": "Sustain",
-      "range": [36, 84],
+      "range": [[36, 84]],
       "zones": [
         {
           "pitch": 38,
@@ -70,7 +71,7 @@
     {
       "id": "staccato",
       "name": "Staccato",
-      "range": [36, 84],
+      "range": [[36, 84]],
       "zones": [
         {
           "pitch": 36,
@@ -365,7 +366,7 @@
     {
       "id": "pizzicato",
       "name": "Pizzicato",
-      "range": [36, 84],
+      "range": [[36, 84]],
       "zones": [
         {
           "pitch": 36,

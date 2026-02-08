@@ -3,13 +3,14 @@
     "id": "sso.woodwinds.flute",
     "name": "SSO Flute",
     "author": "Solo Compose",
-    "version": "1.0.0"
+    "version": "1.1.0",
+    "type": "pitched"
   },
   "articulations": [
     {
       "id": "sustain",
       "name": "Sustain",
-      "range": [59, 98],
+      "range": [[59, 98]],
       "zones": [
         {
           "pitch": 60,
@@ -100,7 +101,7 @@
     {
       "id": "staccato",
       "name": "Staccato",
-      "range": [59, 98],
+      "range": [[59, 98]],
       "zones": [
         {
           "pitch": 60,

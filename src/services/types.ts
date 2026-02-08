@@ -421,7 +421,7 @@ export type AudioState = {
 export type ArticulationInfo = {
   id: string;
   name: string;
-  range: [number, number];
+  range: Array<[number, number]>;
 };
 
 export type PluginInfo = {

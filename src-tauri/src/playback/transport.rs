@@ -139,25 +139,40 @@ fn render_note(
 
     let velocity = velocity.clamp(1, 127);
 
+    let is_percussion = matches!(
+        cache.meta.r#type,
+        crate::playback::sampler::InstrumentType::Percussion
+    );
+
     // Find nearest zone
     let (zone, pitch_offset) = {
         if articulation.zones.is_empty() {
             return;
         }
 
-        let mut nearest = &articulation.zones[0];
-        let mut min_dist = (nearest.pitch as i32 - pitch as i32).abs();
-
-        for zone in &articulation.zones[1..] {
-            let dist = (zone.pitch as i32 - pitch as i32).abs();
-            if dist < min_dist {
-                min_dist = dist;
-                nearest = zone;
+        if is_percussion {
+            // For percussion, only exact matches
+            if let Some(zone) = articulation.zones.iter().find(|z| z.pitch == pitch) {
+                (zone, 0)
+            } else {
+                return;
             }
-        }
+        } else {
+            // For pitched instruments, find nearest
+            let mut nearest = &articulation.zones[0];
+            let mut min_dist = (nearest.pitch as i32 - pitch as i32).abs();
 
-        let offset = pitch as i32 - nearest.pitch as i32;
-        (nearest, offset)
+            for zone in &articulation.zones[1..] {
+                let dist = (zone.pitch as i32 - pitch as i32).abs();
+                if dist < min_dist {
+                    min_dist = dist;
+                    nearest = zone;
+                }
+            }
+
+            let offset = pitch as i32 - nearest.pitch as i32;
+            (nearest, offset)
+        }
     };
 
     // Find velocity layer

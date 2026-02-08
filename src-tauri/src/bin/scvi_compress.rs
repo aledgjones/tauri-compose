@@ -35,11 +35,19 @@ const HEADER_SIZE: u64 = 64;
 // ── Source manifest structures (read from instrument JSON) ─────────────
 
 #[derive(Deserialize)]
+#[serde(rename_all = "lowercase")]
+enum SourceInstrumentType {
+    Pitched,
+    Percussion,
+}
+
+#[derive(Deserialize)]
 struct SourceMeta {
     id: String,
     name: String,
     author: String,
     version: String,
+    r#type: SourceInstrumentType,
 }
 
 #[derive(Deserialize)]
@@ -64,7 +72,7 @@ struct SourceZone {
 struct SourceArticulation {
     id: String,
     name: String,
-    range: [u8; 2],
+    range: Vec<[u8; 2]>,
     zones: Vec<SourceZone>,
 }
 
@@ -77,11 +85,19 @@ struct SourceManifest {
 // ── Container META structures (serialized to MessagePack) ──────────────
 
 #[derive(Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+enum ContainerInstrumentType {
+    Pitched,
+    Percussion,
+}
+
+#[derive(Serialize, Deserialize)]
 struct ContainerMeta {
     id: String,
     name: String,
     author: String,
     version: String,
+    r#type: ContainerInstrumentType,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -106,7 +122,7 @@ struct ContainerZone {
 struct ContainerArticulation {
     id: String,
     name: String,
-    range: [u8; 2],
+    range: Vec<[u8; 2]>,
     zones: Vec<ContainerZone>,
 }
 
@@ -393,6 +409,10 @@ fn compile_instrument(
             name: manifest.meta.name.clone(),
             author: manifest.meta.author.clone(),
             version: manifest.meta.version.clone(),
+            r#type: match manifest.meta.r#type {
+                SourceInstrumentType::Pitched => ContainerInstrumentType::Pitched,
+                SourceInstrumentType::Percussion => ContainerInstrumentType::Percussion,
+            },
         },
         articulations: manifest
             .articulations
@@ -404,7 +424,7 @@ fn compile_instrument(
                 ContainerArticulation {
                     id: art.id.clone(),
                     name: art.name.clone(),
-                    range: art.range,
+                    range: art.range.clone(),
                     zones: sorted_zones
                         .iter()
                         .map(|zone| ContainerZone {

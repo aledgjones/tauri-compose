@@ -131,7 +131,13 @@ fn inspect(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
 
         println!();
         println!("  {} (\"{}\")", art.name, art.id);
-        println!("  Range: MIDI {} – {}", art.range[0], art.range[1]);
+        let range_str = art
+            .range
+            .iter()
+            .map(|&[low, high]| format!("{}-{}", low, high))
+            .collect::<Vec<_>>()
+            .join(", ");
+        println!("  Range: MIDI {}", range_str);
         println!("  Zones: {}  Samples: {}", art.zones.len(), total_samples);
         println!();
         println!("    {:>5}  {:>12}  {:>8}", "Pitch", "Vel Range", "Samples");

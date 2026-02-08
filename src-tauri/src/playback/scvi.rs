@@ -48,12 +48,20 @@ const SIDX_ENTRY_SIZE: usize = std::mem::size_of::<RawSampleIndexEntry>();
 
 use serde::Deserialize;
 
+#[derive(Deserialize, Clone, Debug)]
+#[serde(rename_all = "lowercase")]
+pub enum InstrumentType {
+    Pitched,
+    Percussion,
+}
+
 #[derive(Deserialize)]
 pub struct ContainerMeta {
     pub id: String,
     pub name: String,
     pub author: String,
     pub version: String,
+    pub r#type: InstrumentType,
 }
 
 #[derive(Deserialize)]
@@ -77,7 +85,7 @@ pub struct ContainerZone {
 pub struct ContainerArticulation {
     pub id: String,
     pub name: String,
-    pub range: [u8; 2],
+    pub range: Vec<[u8; 2]>,
     pub zones: Vec<ContainerZone>,
 }
 
