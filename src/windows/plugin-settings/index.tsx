@@ -49,10 +49,11 @@ const MiniKeyboard: FC<MiniKeyboardProps> = ({ range, onNoteClick }) => {
             disabled={!inRange}
             onPointerDown={() => onNoteClick(note)}
             className={classNames(
-              "border border-neutral-950 transition-colors border-y-0 rounded-b-xs",
+              "border transition-colors border-y-0 rounded-b-xs",
               {
-                "bg-white hover:bg-neutral-200": inRange,
-                "bg-neutral-600 cursor-not-allowed": !inRange,
+                "bg-white hover:bg-neutral-200 border-neutral-950": inRange,
+                "bg-neutral-600 cursor-not-allowed border-neutral-800":
+                  !inRange,
               },
             )}
             style={{ width: `${whiteKeyWidth}%` }}
@@ -73,10 +74,12 @@ const MiniKeyboard: FC<MiniKeyboardProps> = ({ range, onNoteClick }) => {
               disabled={!inRange}
               onPointerDown={() => onNoteClick(note)}
               className={classNames(
-                "absolute pointer-events-auto h-[60%] border-2 border-t-0 border-neutral-950 rounded-b-xs",
+                "absolute pointer-events-auto h-[60%] border-2 border-t-0 rounded-b-xs",
                 {
-                  "bg-neutral-900 hover:bg-neutral-700": inRange,
-                  "bg-neutral-900 cursor-not-allowed": !inRange,
+                  "bg-neutral-950 hover:bg-neutral-700 border-neutral-950":
+                    inRange,
+                  "bg-neutral-800 cursor-not-allowed border-neutral-800":
+                    !inRange,
                 },
               )}
               style={{ left: `${leftPercent}%`, width: `${blackKeyWidth}%` }}
