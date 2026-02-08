@@ -1,4 +1,6 @@
+use crate::playback::mixer::MixerHandle;
 use crate::playback::sampler::{Cache, CacheArticulation};
+use crate::playback::streamer::{self, StreamBuffer, StreamRequest};
 use crate::score::components::articulation::Articulation;
 use crate::score::components::duration::Tick;
 use crate::score::Score;
@@ -115,9 +117,10 @@ impl TransportContext {
     }
 }
 
-/// Render a single note to audio data using the sampler cache.
-/// This replicates the core logic of sampler_audition but works directly
-/// with the cache rather than through the Tauri command interface.
+/// Render a single note by spawning a disk-streaming thread and submitting
+/// the voice to the mixer. The streamer decodes from disk, applies pitch
+/// shifting, envelope, and volume/pan, then pushes audio into a shared
+/// buffer that the mixer drains in the audio callback.
 fn render_note(
     cache: &Cache,
     articulation_id: &str,
@@ -125,16 +128,21 @@ fn render_note(
     velocity: u8,
     duration_seconds: f64,
     sample_rate: u32,
-) -> Option<Vec<f32>> {
-    let articulation = cache.articulations.get(articulation_id)?;
+    mixer_handle: &MixerHandle,
+    volume: u8,
+    pan: u8,
+) {
+    let articulation = match cache.articulations.get(articulation_id) {
+        Some(a) => a,
+        None => return,
+    };
 
-    // Clamp velocity to MIDI range [1, 127] — score may store higher values
     let velocity = velocity.clamp(1, 127);
 
     // Find nearest zone
     let (zone, pitch_offset) = {
         if articulation.zones.is_empty() {
-            return None;
+            return;
         }
 
         let mut nearest = &articulation.zones[0];
@@ -153,13 +161,17 @@ fn render_note(
     };
 
     // Find velocity layer
-    let velocity_layer = zone
+    let velocity_layer = match zone
         .velocity_layers
         .iter()
-        .find(|vl| velocity >= vl.range[0] && velocity <= vl.range[1])?;
+        .find(|vl| velocity >= vl.range[0] && velocity <= vl.range[1])
+    {
+        Some(vl) => vl,
+        None => return,
+    };
 
     if velocity_layer.samples.is_empty() {
-        return None;
+        return;
     }
 
     // Random round-robin
@@ -171,85 +183,34 @@ fn render_note(
 
     let sample = &velocity_layer.samples[sample_index].sample;
     let channels = sample.channels as usize;
-    let source = &sample.data;
 
-    // The note should sustain at full volume for its entire written duration,
-    // then fade out over a release tail that extends BEYOND the written duration.
-    // This prevents the release envelope from eating into the audible note length.
+    // Duration and envelope
     let duration_frames = (duration_seconds * sample_rate as f64).ceil() as usize;
-    let release_frames = (sample_rate as f64 * 0.15).ceil() as usize; // 150ms release tail
+    let release_frames = (sample_rate as f64 * 0.15).ceil() as usize;
     let max_frames = duration_frames + release_frames;
 
-    let mut audio_data = if pitch_offset != 0 {
-        // Pitch shift via linear interpolation — read directly from source, no clone needed
-        let pitch_ratio = 2.0_f32.powf(pitch_offset as f32 / 12.0);
-        let input_frames = source.len() / channels;
-        let output_frames = (input_frames as f64 / pitch_ratio as f64).floor() as usize;
-        let capped_frames = output_frames.min(max_frames);
+    let (vol_gain, pan_left, pan_right) = instrument_gain_and_pan(volume, pan);
 
-        let mut shifted = Vec::with_capacity(capped_frames * channels);
-        for frame in 0..capped_frames {
-            let src_pos = frame as f64 * pitch_ratio as f64;
-            let idx = src_pos.floor() as usize;
-            let frac = src_pos - idx as f64;
+    let stream_buffer = Arc::new(StreamBuffer::new());
 
-            for ch in 0..channels {
-                let i0 = idx * channels + ch;
-                let s0 = source[i0];
-                let s1 = if idx + 1 < input_frames {
-                    source[(idx + 1) * channels + ch]
-                } else {
-                    s0
-                };
-                shifted.push(s0 + (s1 - s0) * frac as f32);
-            }
-        }
-        shifted
-    } else {
-        // No pitch shift — clone only what we need
-        let natural_frames = source.len() / channels.max(1);
-        let capped_samples = natural_frames.min(max_frames) * channels;
-        source[..capped_samples].to_vec()
+    let request = StreamRequest {
+        container_path: sample.container_path.clone(),
+        flac_offset: sample.flac_offset,
+        flac_length: sample.flac_length,
+        source_sample_rate: sample.source_sample_rate,
+        target_sample_rate: sample_rate,
+        channels,
+        pitch_offset,
+        max_output_frames: max_frames,
+        fade_start_frame: duration_frames,
+        volume_gain: vol_gain,
+        pan_left,
+        pan_right,
+        stream_buffer: stream_buffer.clone(),
     };
 
-    // Determine if the sample was truncated (natural length exceeds what we rendered)
-    let natural_frames = if pitch_offset != 0 {
-        let pitch_ratio = 2.0_f32.powf(pitch_offset as f32 / 12.0);
-        (source.len() / channels) as f64 / pitch_ratio as f64
-    } else {
-        (source.len() / channels.max(1)) as f64
-    };
-    let total_frames = audio_data.len() / channels.max(1);
-    let truncated = natural_frames as usize > total_frames;
-
-    // Release envelope — applied as a tail AFTER the written duration.
-    // If the sample ended naturally before the written duration, just apply a tiny anti-click fade.
-    if truncated {
-        // The note was truncated to fit the duration + release tail.
-        // Start the fade at the written duration boundary (or at the start of the audio if very short).
-        let fade_start = duration_frames.min(total_frames);
-        let actual_fade_len = total_frames.saturating_sub(fade_start);
-        if actual_fade_len > 0 {
-            for frame in fade_start..total_frames {
-                let gain = 1.0 - (frame - fade_start) as f32 / actual_fade_len as f32;
-                for ch in 0..channels {
-                    audio_data[frame * channels + ch] *= gain;
-                }
-            }
-        }
-    } else {
-        // Sample ended naturally — just a tiny 5ms anti-click fade at the end
-        let anti_click = ((sample_rate as f32 * 0.005) as usize).min(total_frames);
-        let fade_start = total_frames - anti_click;
-        for frame in fade_start..total_frames {
-            let gain = 1.0 - (frame - fade_start) as f32 / anti_click as f32;
-            for ch in 0..channels {
-                audio_data[frame * channels + ch] *= gain;
-            }
-        }
-    }
-
-    Some(audio_data)
+    streamer::start_stream(request);
+    mixer_handle.play(stream_buffer, channels);
 }
 
 /// Collect all notes at a given tick from all instrument tracks in the active flow.
@@ -331,25 +292,6 @@ fn instrument_gain_and_pan(volume: u8, pan: u8) -> (f32, f32, f32) {
     (gain, left_gain, right_gain)
 }
 
-/// Apply volume and pan to audio data (assumes stereo or mono)
-fn apply_volume_and_pan(audio: &mut [f32], channels: usize, volume: u8, pan: u8) {
-    let (gain, left_gain, right_gain) = instrument_gain_and_pan(volume, pan);
-
-    if channels == 1 {
-        // Mono: just apply volume gain
-        for sample in audio.iter_mut() {
-            *sample *= gain;
-        }
-    } else if channels >= 2 {
-        // Stereo: apply volume and pan
-        let frames = audio.len() / channels;
-        for frame in 0..frames {
-            audio[frame * channels] *= gain * left_gain;
-            audio[frame * channels + 1] *= gain * right_gain;
-        }
-    }
-}
-
 /// The transport playback thread. Walks through ticks at tempo rate,
 /// collects notes, renders them, and submits to the mixer.
 /// A snapshot of all data the transport thread needs for playback.
@@ -427,28 +369,17 @@ fn transport_thread(
                 None => continue,
             };
 
-            if let Some(mut audio_data) = render_note(
+            render_note(
                 cache,
                 &art_id,
                 pitch,
                 velocity,
                 duration_seconds,
                 snapshot.sample_rate,
-            ) {
-                let channels = cache
-                    .articulations
-                    .get(&art_id)
-                    .and_then(|a| a.zones.first())
-                    .and_then(|z| z.velocity_layers.first())
-                    .and_then(|vl| vl.samples.first())
-                    .map(|s| s.sample.channels as usize)
-                    .unwrap_or(1);
-
-                // Apply live volume and pan
-                apply_volume_and_pan(&mut audio_data, channels, params.volume, params.pan);
-
-                mixer_handle.play(audio_data, channels);
-            }
+                &mixer_handle,
+                params.volume,
+                params.pan,
+            );
         }
 
         // Advance tick

@@ -1,11 +1,11 @@
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use crate::playback::streamer::StreamBuffer;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
-/// A single playing voice with its pre-rendered audio buffer.
+/// A single playing voice backed by a disk-streaming buffer.
 struct Voice {
-    data: Vec<f32>,
+    stream: Arc<StreamBuffer>,
     channels: usize,
-    position: AtomicUsize,
     finished: AtomicBool,
 }
 
@@ -58,30 +58,26 @@ pub fn create_mixer() -> (MixerHandle, MixerReader) {
 }
 
 impl MixerHandle {
-    /// Submit a new voice with pre-rendered interleaved audio data.
-    /// `channels` must match the output stream channel count.
-    /// Returns false if all voice slots are full (voice is dropped).
-    pub fn play(&self, data: Vec<f32>, channels: usize) -> bool {
+    /// Submit a streaming voice. The disk thread pushes decoded audio
+    /// into the stream buffer; the mixer drains it in the audio callback.
+    pub fn play(&self, stream: Arc<StreamBuffer>, channels: usize) -> bool {
         let voice = Arc::new(Voice {
-            data,
+            stream,
             channels,
-            position: AtomicUsize::new(0),
             finished: AtomicBool::new(false),
         });
 
         // Find a free slot
         for slot in self.voices.slots.iter() {
-            if !slot.active.load(Ordering::Acquire) {
-                // Try to claim this slot
-                if slot
+            if !slot.active.load(Ordering::Acquire)
+                && slot
                     .active
                     .compare_exchange(false, true, Ordering::AcqRel, Ordering::Relaxed)
                     .is_ok()
-                {
-                    let mut guard = slot.voice.lock().unwrap();
-                    *guard = Some(voice);
-                    return true;
-                }
+            {
+                let mut guard = slot.voice.lock().unwrap();
+                *guard = Some(voice);
+                return true;
             }
         }
 
@@ -118,50 +114,39 @@ impl MixerReader {
             };
 
             if voice.finished.load(Ordering::Relaxed) {
-                // Recycle slot
                 let mut guard = slot.voice.lock().unwrap();
                 *guard = None;
                 slot.active.store(false, Ordering::Release);
                 continue;
             }
 
-            let pos = voice.position.load(Ordering::Relaxed);
-            let remaining = voice.data.len().saturating_sub(pos);
-
-            if remaining == 0 {
-                voice.finished.store(true, Ordering::Relaxed);
-                let mut guard = slot.voice.lock().unwrap();
-                *guard = None;
-                slot.active.store(false, Ordering::Release);
-                continue;
-            }
-
-            // Mix this voice into the output buffer
-            // Handle channel mismatch: voice may be mono, output may be stereo
             let voice_channels = voice.channels;
-            let output_frames = output.len() / channels;
-            let voice_frames_available = remaining / voice_channels;
-            let frames_to_mix = output_frames.min(voice_frames_available);
 
-            for frame in 0..frames_to_mix {
-                for out_ch in 0..channels {
-                    let voice_ch = if voice_channels == 1 {
-                        0 // Mono: use the same sample for all output channels
-                    } else {
-                        out_ch.min(voice_channels - 1)
-                    };
-                    let voice_idx = pos + frame * voice_channels + voice_ch;
-                    let out_idx = frame * channels + out_ch;
-                    output[out_idx] += voice.data[voice_idx];
+            // Drain decoded audio from the stream buffer and mix into output.
+            // When voice and output channel counts match we can mix directly.
+            if voice_channels == channels {
+                voice.stream.drain_mix(output);
+            } else {
+                // Channel mismatch — drain into a temporary buffer then remap
+                let needed = output.len() / channels * voice_channels;
+                let mut tmp = vec![0.0_f32; needed];
+                let drained = voice.stream.drain_mix(&mut tmp);
+                let frames = drained / voice_channels;
+
+                for frame in 0..frames {
+                    for out_ch in 0..channels {
+                        let voice_ch = if voice_channels == 1 {
+                            0
+                        } else {
+                            out_ch.min(voice_channels - 1)
+                        };
+                        output[frame * channels + out_ch] += tmp[frame * voice_channels + voice_ch];
+                    }
                 }
             }
 
-            voice
-                .position
-                .store(pos + frames_to_mix * voice_channels, Ordering::Relaxed);
-
-            // If we've consumed all the data, mark as finished
-            if frames_to_mix == voice_frames_available {
+            // If the stream is finished and drained, recycle the slot
+            if voice.stream.is_exhausted() {
                 voice.finished.store(true, Ordering::Relaxed);
                 let mut guard = slot.voice.lock().unwrap();
                 *guard = None;

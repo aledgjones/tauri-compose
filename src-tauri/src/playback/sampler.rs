@@ -1,23 +1,15 @@
 use crate::playback::scvi::ScviContainer;
+use crate::playback::streamer::{self, StreamBuffer, StreamRequest};
 use crate::AudioContextState;
 use crate::SamplerContextState;
-use audioadapter_buffers::direct::InterleavedSlice;
 use dirs;
 use rand::Rng;
-use rubato::{Fft, FixedSync, Indexing, Resampler};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use std::fs::{self, File};
-use std::io::{Cursor, Read, Write};
-use std::path::Path;
-use std::sync::Mutex;
-use symphonia::core::audio::SampleBuffer;
-use symphonia::core::codecs::DecoderOptions;
-use symphonia::core::formats::FormatOptions;
-use symphonia::core::io::MediaSourceStream;
-use symphonia::core::meta::MetadataOptions;
-use symphonia::core::probe::Hint;
-use symphonia::default::get_probe;
+use std::io::Write;
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Emitter, State};
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -46,9 +38,16 @@ pub struct SamplerState {
 
 #[derive(Clone)]
 pub struct CacheSample {
-    pub data: Vec<f32>,   // Audio samples as f32 (-1.0 to 1.0)
-    pub sample_rate: u32, // Original sample rate
-    pub channels: u8,     // 1 = mono, 2 = stereo
+    /// 1 = mono, 2 = stereo
+    pub channels: u8,
+    /// Path to the .scvi container (for disk streaming)
+    pub container_path: PathBuf,
+    /// Source sample rate of the FLAC data
+    pub source_sample_rate: u32,
+    /// Byte offset of the FLAC data within the container
+    pub flac_offset: u64,
+    /// Byte length of the FLAC data within the container
+    pub flac_length: u64,
 }
 
 #[derive(Clone)]
@@ -183,7 +182,7 @@ impl SamplerContext {
     fn load_instrument(
         &self,
         plugin_id: &str,
-        target_sample_rate: u32,
+        _target_sample_rate: u32,
     ) -> Result<Cache, Box<dyn std::error::Error>> {
         let plugin_info = self
             .plugins
@@ -194,6 +193,7 @@ impl SamplerContext {
 
         let path = Path::new(&plugin_info.path);
         let container = ScviContainer::open(path)?;
+        let container_path = path.to_path_buf();
 
         let mut articulations = FxHashMap::default();
 
@@ -207,17 +207,21 @@ impl SamplerContext {
                     let mut samples = Vec::new();
 
                     for sample_ref in &vl.samples {
-                        // Read the raw FLAC data from the container
-                        let flac_data = container.read_sample_data(sample_ref.sample_id)?;
-
-                        // Decode FLAC to f32 samples
-                        let mut cursor = Cursor::new(flac_data);
-                        let cached_sample =
-                            self.decode_with_symphonia(&mut cursor, target_sample_rate)?;
+                        let index = container
+                            .get_sample_index(sample_ref.sample_id)
+                            .ok_or_else(|| {
+                                format!("Sample {} not in index", sample_ref.sample_id)
+                            })?;
 
                         samples.push(CacheSampleInfo {
                             path: format!("sample_{}", sample_ref.sample_id),
-                            sample: cached_sample,
+                            sample: CacheSample {
+                                channels: index.channels,
+                                container_path: container_path.clone(),
+                                source_sample_rate: index.sample_rate,
+                                flac_offset: index.file_offset,
+                                flac_length: index.length,
+                            },
                         });
                     }
 
@@ -246,110 +250,6 @@ impl SamplerContext {
         Ok(Cache {
             meta: plugin_info,
             articulations,
-        })
-    }
-
-    fn decode_with_symphonia<R: Read>(
-        &self,
-        reader: &mut R,
-        target_sample_rate: u32,
-    ) -> Result<CacheSample, Box<dyn std::error::Error>> {
-        // Read all data into a vector
-        let mut data = Vec::new();
-        reader.read_to_end(&mut data)?;
-
-        // Create a media source stream
-        let cursor = Cursor::new(data);
-        let mss = MediaSourceStream::new(Box::new(cursor), Default::default());
-
-        // Create a hint to help the format registry
-        let mut hint = Hint::new();
-        hint.with_extension("flac");
-
-        // Probe the media source
-        let probed = get_probe().format(
-            &hint,
-            mss,
-            &FormatOptions::default(),
-            &MetadataOptions::default(),
-        )?;
-
-        // Get the format reader
-        let mut format = probed.format;
-
-        // Find the first audio track
-        let track = format
-            .tracks()
-            .iter()
-            .find(|t| t.codec_params.codec != symphonia::core::codecs::CODEC_TYPE_NULL)
-            .ok_or("No audio track found")?;
-
-        // Create a decoder
-        let mut decoder = symphonia::default::get_codecs()
-            .make(&track.codec_params, &DecoderOptions::default())?;
-
-        let track_id = track.id;
-
-        let mut sample_buf = None;
-        let mut samples = Vec::new();
-        let mut sample_rate = 44100;
-        let mut channels = 1;
-
-        // Decode all packets
-        loop {
-            let packet = match format.next_packet() {
-                Ok(packet) => packet,
-                Err(symphonia::core::errors::Error::ResetRequired) => {
-                    // The track list has been changed, seek back to the beginning
-                    continue;
-                }
-                Err(symphonia::core::errors::Error::IoError(_)) => {
-                    // End of stream
-                    break;
-                }
-                Err(err) => return Err(err.into()),
-            };
-
-            if packet.track_id() != track_id {
-                continue;
-            }
-
-            match decoder.decode(&packet) {
-                Ok(decoded) => {
-                    // Get the sample buffer specification
-                    if sample_buf.is_none() {
-                        sample_rate = decoded.spec().rate;
-                        channels = decoded.spec().channels.count();
-                        sample_buf = Some(SampleBuffer::<f32>::new(
-                            decoded.capacity() as u64,
-                            *decoded.spec(),
-                        ));
-                    }
-
-                    if let Some(buf) = &mut sample_buf {
-                        buf.copy_interleaved_ref(decoded);
-                        samples.extend_from_slice(buf.samples());
-                    }
-                }
-                Err(symphonia::core::errors::Error::IoError(_)) => {
-                    // End of stream
-                    break;
-                }
-                Err(err) => return Err(err.into()),
-            }
-        }
-
-        // Resample to target rate if necessary
-        let samples = if sample_rate != target_sample_rate {
-            Self::resample_sinc(&samples, sample_rate, target_sample_rate, channels)
-        } else {
-            samples
-        };
-
-        Ok(CacheSample {
-            data: samples,
-            sample_rate: target_sample_rate,
-            channels: channels as u8,
         })
     }
 
@@ -393,81 +293,6 @@ impl SamplerContext {
             .retain(|plugin_id, _| required_plugins.contains(plugin_id));
 
         Ok(())
-    }
-
-    fn resample_sinc(samples: &[f32], from_rate: u32, to_rate: u32, channels: usize) -> Vec<f32> {
-        if from_rate == to_rate {
-            return samples.to_vec();
-        }
-
-        let chunk_size = 1024;
-
-        let mut resampler = Fft::new(
-            from_rate as usize,
-            to_rate as usize,
-            chunk_size,
-            channels,
-            channels,
-            FixedSync::Both,
-        )
-        .expect("Failed to create resampler");
-
-        // Pad the input to a full chunk boundary so the resampler processes all real audio
-        let nbr_input_frames = samples.len() / channels;
-        let input_frames_next = resampler.input_frames_next();
-        let padded_frames =
-            ((nbr_input_frames + input_frames_next - 1) / input_frames_next) * input_frames_next;
-
-        let padded_samples = if padded_frames > nbr_input_frames {
-            let mut buf = samples.to_vec();
-            buf.resize(padded_frames * channels, 0.0);
-            buf
-        } else {
-            samples.to_vec()
-        };
-
-        let input_adapter = InterleavedSlice::new(&padded_samples, channels, padded_frames)
-            .expect("Failed to create input adapter");
-
-        // Calculate expected output frames from the original (unpadded) input
-        let expected_output_frames =
-            (nbr_input_frames as f64 * to_rate as f64 / from_rate as f64).ceil() as usize;
-
-        // Create output buffer with headroom for the padded input
-        let max_output_frames =
-            (padded_frames as f64 * to_rate as f64 / from_rate as f64).ceil() as usize + chunk_size;
-        let mut outdata = vec![0.0f32; channels * max_output_frames];
-        let outdata_capacity = outdata.len() / channels;
-        let mut output_adapter =
-            InterleavedSlice::new_mut(&mut outdata, channels, outdata_capacity)
-                .expect("Failed to create output adapter");
-
-        // Process in chunks
-        let mut indexing = Indexing {
-            input_offset: 0,
-            output_offset: 0,
-            active_channels_mask: None,
-            partial_len: None,
-        };
-
-        let mut input_frames_left = padded_frames;
-        let mut frames_next = resampler.input_frames_next();
-
-        while input_frames_left >= frames_next {
-            let (frames_read, frames_written) = resampler
-                .process_into_buffer(&input_adapter, &mut output_adapter, Some(&indexing))
-                .expect("Resampling failed");
-
-            indexing.input_offset += frames_read;
-            indexing.output_offset += frames_written;
-            input_frames_left -= frames_read;
-            frames_next = resampler.input_frames_next();
-        }
-
-        // Trim to the expected output length (drop any silence from padding)
-        let output_frames = indexing.output_offset.min(expected_output_frames);
-        outdata.truncate(channels * output_frames);
-        outdata
     }
 }
 
@@ -563,6 +388,7 @@ fn find_nearest_zone(
 
 /// Play a note preview using the instrument's sampler cache.
 /// If `articulation_id` is provided, uses that articulation; otherwise picks the first available.
+/// Streams the sample from disk — same path as transport playback.
 #[tauri::command(rename_all = "snake_case")]
 pub fn sampler_audition(
     state: State<'_, SamplerContextState>,
@@ -624,72 +450,32 @@ pub fn sampler_audition(
     drop(audio_ctx);
 
     let channels = sample.channels as usize;
-    let source = &sample.data;
 
-    // Cap audition at the given duration, plus a 150ms release tail
+    // Duration with 150ms release tail
     let duration_frames = (target_sample_rate as f64 * duration_ms as f64 / 1000.0).ceil() as usize;
     let release_tail = (target_sample_rate as f64 * 0.15).ceil() as usize;
     let max_frames = duration_frames + release_tail;
 
-    let mut audio_data = if pitch_offset != 0 {
-        let pitch_ratio = 2.0_f32.powf(pitch_offset as f32 / 12.0);
-        let input_frames = source.len() / channels;
-        let output_frames = (input_frames as f64 / pitch_ratio as f64).floor() as usize;
-        let capped_frames = output_frames.min(max_frames);
+    let stream_buffer = Arc::new(StreamBuffer::new());
 
-        let mut shifted = Vec::with_capacity(capped_frames * channels);
-        for frame in 0..capped_frames {
-            let src_pos = frame as f64 * pitch_ratio as f64;
-            let idx = src_pos.floor() as usize;
-            let frac = src_pos - idx as f64;
-
-            for ch in 0..channels {
-                let i0 = idx * channels + ch;
-                let s0 = source[i0];
-                let s1 = if idx + 1 < input_frames {
-                    source[(idx + 1) * channels + ch]
-                } else {
-                    s0
-                };
-                shifted.push(s0 + (s1 - s0) * frac as f32);
-            }
-        }
-        shifted
-    } else {
-        let natural_frames = source.len() / channels.max(1);
-        let capped_samples = natural_frames.min(max_frames) * channels;
-        source[..capped_samples].to_vec()
+    let request = StreamRequest {
+        container_path: sample.container_path.clone(),
+        flac_offset: sample.flac_offset,
+        flac_length: sample.flac_length,
+        source_sample_rate: sample.source_sample_rate,
+        target_sample_rate,
+        channels,
+        pitch_offset,
+        max_output_frames: max_frames,
+        fade_start_frame: duration_frames,
+        volume_gain: 1.0,
+        pan_left: 1.0,
+        pan_right: 1.0,
+        stream_buffer: stream_buffer.clone(),
     };
 
-    let total_frames = audio_data.len() / channels.max(1);
-    let natural_frames = source.len() / channels.max(1);
-    let truncated = natural_frames > total_frames;
-
-    if truncated {
-        // Fade out starting at the 1-second sustain boundary
-        let fade_start = duration_frames.min(total_frames);
-        let actual_fade_len = total_frames.saturating_sub(fade_start);
-        if actual_fade_len > 0 {
-            for frame in fade_start..total_frames {
-                let gain = 1.0 - (frame - fade_start) as f32 / actual_fade_len as f32;
-                for ch in 0..channels {
-                    audio_data[frame * channels + ch] *= gain;
-                }
-            }
-        }
-    } else {
-        // Sample ended naturally — tiny 5ms anti-click fade
-        let anti_click = ((target_sample_rate as f32 * 0.005) as usize).min(total_frames);
-        let fade_start = total_frames - anti_click;
-        for frame in fade_start..total_frames {
-            let gain = 1.0 - (frame - fade_start) as f32 / anti_click as f32;
-            for ch in 0..channels {
-                audio_data[frame * channels + ch] *= gain;
-            }
-        }
-    }
-
-    mixer_handle.play(audio_data, channels);
+    streamer::start_stream(request);
+    mixer_handle.play(stream_buffer, channels);
 
     Ok(())
 }

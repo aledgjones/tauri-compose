@@ -38,7 +38,7 @@ const MiniKeyboard: FC<MiniKeyboardProps> = ({ range, onNoteClick }) => {
   const blackKeyWidth = whiteKeyWidth * 0.6;
 
   return (
-    <div className="relative h-20 flex">
+    <div className="relative h-16 flex">
       {/* White keys */}
       {whiteKeys.map((note) => {
         const inRange = isInRange(note);
@@ -47,7 +47,7 @@ const MiniKeyboard: FC<MiniKeyboardProps> = ({ range, onNoteClick }) => {
           <button
             key={note}
             disabled={!inRange}
-            onClick={() => onNoteClick(note)}
+            onPointerDown={() => onNoteClick(note)}
             className={classNames(
               "border border-neutral-950 transition-colors border-y-0 rounded-b-xs",
               {
@@ -71,7 +71,7 @@ const MiniKeyboard: FC<MiniKeyboardProps> = ({ range, onNoteClick }) => {
             <button
               key={note}
               disabled={!inRange}
-              onClick={() => onNoteClick(note)}
+              onPointerDown={() => onNoteClick(note)}
               className={classNames(
                 "absolute pointer-events-auto h-[60%] border-2 border-t-0 border-neutral-950 rounded-b-xs",
                 {
@@ -171,12 +171,15 @@ export const Main: FC = () => {
     <div className="flex flex-col h-screen bg-neutral-950">
       <div
         data-tauri-drag-region
-        className="shrink-0 flex-1 bg-neutral-900 bg-no-repeat bg-cover bg-center relative flex flex-col justify-end p-6 pb-12"
+        className="shrink-0 flex-1 bg-neutral-900 bg-no-repeat bg-cover bg-center relative flex flex-col justify-end p-6 pb-6"
         style={{ backgroundImage: `url(${coverImageUrl})` }}
       >
-        <div className="absolute inset-0 bg-linear-to-b from-transparent to-neutral-950 pointer-events-none" />
+        <div className="absolute bottom-0 left-0 right-0 w-full pointer-events-none">
+          <div className="h-60 w-full bg-linear-to-b from-transparent to-neutral-950" />
+          <div className="bg-neutral-950 h-8" />
+        </div>
 
-        <div className="-mt-8 relative z-10">
+        <div className="relative z-10 mb-4">
           <div className="text-neutral-100 text-2xl font-bold">
             {plugin.name}
           </div>
@@ -187,10 +190,8 @@ export const Main: FC = () => {
             <div className="text-neutral-400 text-sm">v{plugin.version}</div>
           </div>
         </div>
-      </div>
 
-      <div className="p-6 -mt-12 z-10">
-        <div className="flex gap-2">
+        <div className="flex gap-2 z-10">
           {plugin.articulations.map((articulation) => (
             <ArticulationItem
               key={articulation.id}
