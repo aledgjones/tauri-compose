@@ -75,6 +75,7 @@ export const actions = {
         sample_rate,
       });
     },
+    refreshDevices: () => invoke("audio_devices_refresh"),
   },
   sampler: {
     rescanPlugins: async () => {

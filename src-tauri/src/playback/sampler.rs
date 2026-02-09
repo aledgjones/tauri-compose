@@ -471,7 +471,7 @@ pub fn sampler_audition(
 
     let audio_ctx = audio_state.lock().unwrap();
     let target_sample_rate = audio_ctx.get_sample_rate();
-    let mixer_handle = audio_ctx.get_mixer_handle();
+    let mixer_handle = audio_ctx.get_mixer_handle().clone();
     drop(audio_ctx);
 
     let channels = sample.channels as usize;

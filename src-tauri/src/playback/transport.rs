@@ -460,7 +460,7 @@ pub fn transport_play(
 
         let audio = audio_state.lock().unwrap();
         let sample_rate = audio.get_sample_rate();
-        let mixer_handle = audio.get_mixer_handle();
+        let mixer_handle = audio.get_mixer_handle().clone();
         drop(audio);
 
         let snapshot = PlaybackSnapshot {

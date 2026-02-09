@@ -44,8 +44,24 @@ impl AudioContext {
     pub fn new() -> AudioContextState {
         let host = cpal::default_host();
 
-        let devices = host
-            .output_devices()
+        let devices = Self::enumerate_output_devices(&host);
+
+        let active_device = AudioContext::default_device();
+
+        // Create the persistent mixer + stream
+        let (mixer_handle, stream) =
+            Self::build_stream(&active_device.device, active_device.sample_rate);
+
+        Mutex::new(AudioContext {
+            host,
+            devices,
+            active_device,
+            mixer_handle,
+            _stream: stream,
+        })
+    }
+    fn enumerate_output_devices(host: &Host) -> Vec<DeviceInfo> {
+        host.output_devices()
             .expect("Failed to get output devices")
             .filter_map(|device| {
                 if let Ok(id) = device.id() {
@@ -85,21 +101,7 @@ impl AudioContext {
 
                 None
             })
-            .collect::<Vec<_>>();
-
-        let active_device = AudioContext::default_device();
-
-        // Create the persistent mixer + stream
-        let (mixer_handle, stream) =
-            Self::build_stream(&active_device.device, active_device.sample_rate);
-
-        Mutex::new(AudioContext {
-            host,
-            devices,
-            active_device,
-            mixer_handle,
-            _stream: stream,
-        })
+            .collect::<Vec<_>>()
     }
 
     /// Build (or rebuild) the persistent output stream with a mixer.
@@ -162,8 +164,17 @@ impl AudioContext {
         self.active_device.sample_rate
     }
 
-    pub fn get_mixer_handle(&self) -> MixerHandle {
-        self.mixer_handle.clone()
+    pub fn get_mixer_handle(&self) -> &MixerHandle {
+        &self.mixer_handle
+    }
+
+    pub fn refresh_devices(&mut self) -> bool {
+        let old_device_id = self.active_device.id.clone();
+
+        self.devices = Self::enumerate_output_devices(&self.host);
+
+        // Check if the current device is still available
+        self.devices.iter().any(|d| d.id == old_device_id)
     }
 
     pub fn emit(&self, app: &tauri::AppHandle) {
@@ -241,4 +252,28 @@ pub fn audio_device_sample_rate_set(
     ctx._stream = stream;
 
     ctx.emit(&app);
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn audio_devices_refresh(
+    app: AppHandle,
+    state: State<'_, AudioContextState>,
+) -> Result<(), String> {
+    let mut ctx = state.lock().unwrap();
+
+    let device_still_available = ctx.refresh_devices();
+
+    // If the current device is no longer available, switch to default
+    if !device_still_available {
+        let default_device = AudioContext::default_device();
+        let (mixer_handle, stream) =
+            AudioContext::build_stream(&default_device.device, default_device.sample_rate);
+
+        ctx.active_device = default_device;
+        ctx.mixer_handle = mixer_handle;
+        ctx._stream = stream;
+    }
+
+    ctx.emit(&app);
+    Ok(())
 }

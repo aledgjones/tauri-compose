@@ -8,7 +8,9 @@ mod score;
 mod ui;
 mod utils;
 
-use crate::playback::audio::{audio_device_sample_rate_set, audio_device_set, AudioContext};
+use crate::playback::audio::{
+    audio_device_sample_rate_set, audio_device_set, audio_devices_refresh, AudioContext,
+};
 use crate::playback::sampler::{
     sampler_audition, sampler_load_plugin, sampler_rescan_plugins, sampler_sync_with_instruments,
     SamplerContext,
@@ -422,6 +424,7 @@ pub fn run() {
             refresh_menus,
             audio_device_set,
             audio_device_sample_rate_set,
+            audio_devices_refresh,
             sampler_load_plugin,
             sampler_rescan_plugins,
             sampler_sync_with_instruments,

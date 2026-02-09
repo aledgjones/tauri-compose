@@ -2,6 +2,8 @@ import { useMemo } from "react";
 import { actions } from "../../../services/actions";
 import { useAudioState } from "../../../services/state";
 import { Select } from "../../../ui/select";
+import { IconButton } from "../../../ui/icon-button";
+import { mdiRefresh } from "@mdi/js";
 
 export const Playback = () => {
   const audio = useAudioState();
@@ -31,24 +33,37 @@ export const Playback = () => {
         Device Setup
       </h3>
       <div className="p-4 gap-2 flex flex-col">
-        <Select
-          variant="filled"
-          label="Output Device"
-          value={audio.active_device_id}
-          onChange={async (id) => {
-            try {
-              if (audio.active_device_id === id) {
-                return;
-              }
+        <div className="flex gap-2 items-end">
+          <Select
+            variant="filled"
+            label="Output Device"
+            value={audio.active_device_id}
+            onChange={async (id) => {
+              try {
+                if (audio.active_device_id === id) {
+                  return;
+                }
 
-              await actions.audio.setDevice(id);
-            } catch (error) {
-              alert(error);
-            }
-          }}
-          options={deviceOptions}
-          className="w-1/2"
-        />
+                await actions.audio.setDevice(id);
+              } catch (error) {
+                alert(error);
+              }
+            }}
+            options={deviceOptions}
+            className="w-1/2"
+          />
+          <IconButton
+            variant="filled"
+            path={mdiRefresh}
+            onClick={async () => {
+              try {
+                await actions.audio.refreshDevices();
+              } catch (error) {
+                alert(error);
+              }
+            }}
+          />
+        </div>
         <Select
           variant="filled"
           label="Sample Rate"
