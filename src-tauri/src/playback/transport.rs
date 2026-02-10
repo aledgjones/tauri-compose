@@ -6,7 +6,7 @@ use crate::score::components::duration::Tick;
 use crate::score::Score;
 use crate::utils::UniqueId;
 use crate::{AppContextState, AudioContextState, SamplerContextState};
-use rand::Rng;
+use rand::RngExt;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -210,8 +210,8 @@ fn render_note(
 
     let request = StreamRequest {
         container_path: sample.container_path.clone(),
-        flac_offset: sample.flac_offset,
-        flac_length: sample.flac_length,
+        ogg_offset: sample.ogg_offset,
+        ogg_length: sample.ogg_length,
         source_sample_rate: sample.source_sample_rate,
         target_sample_rate: sample_rate,
         channels,

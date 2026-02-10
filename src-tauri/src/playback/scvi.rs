@@ -9,7 +9,6 @@ use std::path::Path;
 // ── Constants (must match scvi_compress.rs) ────────────────────────────
 
 const MAGIC: &[u8; 4] = b"SCVI";
-const HEADER_SIZE: u64 = 64;
 
 // ── HEADER ─────────────────────────────────────────────────────────────
 
@@ -102,7 +101,7 @@ pub struct SampleIndex {
     pub sample_id: u32,
     /// Absolute byte offset within the file (sdat_offset + entry.offset)
     pub file_offset: u64,
-    /// Byte length of the FLAC data
+    /// Byte length of the Vorbis data
     pub length: u64,
     pub sample_rate: u32,
     pub channels: u8,
@@ -194,22 +193,6 @@ impl ScviContainer {
             path: path.to_path_buf(),
             cover_region,
         })
-    }
-
-    /// Read the raw FLAC bytes for a given sample ID
-    pub fn read_sample_data(&self, sample_id: u32) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-        let index = self
-            .samples
-            .iter()
-            .find(|s| s.sample_id == sample_id)
-            .ok_or_else(|| format!("Sample ID {} not found in index", sample_id))?;
-
-        let mut file = File::open(&self.path)?;
-        file.seek(SeekFrom::Start(index.file_offset))?;
-        let mut buf = vec![0u8; index.length as usize];
-        file.read_exact(&mut buf)?;
-
-        Ok(buf)
     }
 
     /// Get the sample index entry for a given sample ID

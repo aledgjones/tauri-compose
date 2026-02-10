@@ -12,13 +12,11 @@
 /// ├──────────────────────────┤
 /// │  SIDX    (fixed-size)    │  per-sample index: id, offset, length, metadata
 /// ├──────────────────────────┤
-/// │  SDAT    (raw FLAC)      │  concatenated FLAC-encoded sample data
+/// |  SDAT    (Ogg/Vorbis)    │  concatenated Vorbis-encoded sample data
 /// ├──────────────────────────┤
 /// │  COVER   (raw bytes)     │  cover image (optional)
 /// └──────────────────────────┘
 /// ```
-use blake3;
-use rmp_serde;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::fs::{self, File};
@@ -186,40 +184,41 @@ unsafe fn struct_as_bytes<T: Sized>(s: &T) -> &[u8] {
     std::slice::from_raw_parts(s as *const T as *const u8, std::mem::size_of::<T>())
 }
 
-/// Encode WAV to FLAC using ffmpeg, returns path to the FLAC file
-fn encode_to_flac(
-    wav_path: &Path,
+/// Encode audio file to Vorbis using ffmpeg, returns path to the Ogg/Vorbis file
+fn encode_to_vorbis(
+    audio_path: &Path,
     temp_dir: &Path,
     filename_stem: &str,
 ) -> Result<PathBuf, Box<dyn std::error::Error>> {
-    let flac_path = temp_dir.join(format!("{}.flac", filename_stem));
+    let ogg_path = temp_dir.join(format!("{}.ogg", filename_stem));
 
     let output = Command::new("ffmpeg")
         .args([
             "-y",
             "-i",
-            wav_path.to_str().unwrap(),
+            audio_path.to_str().unwrap(),
             "-c:a",
-            "flac",
-            "-compression_level",
-            "8",
-            flac_path.to_str().unwrap(),
+            "vorbis",
+            "-q:a",
+            "4",
+            "-strict",
+            "-2", // Enable experimental codecs
+            ogg_path.to_str().unwrap(),
         ])
         .output()?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         return Err(format!(
-            "ffmpeg FLAC encode failed for {}: {}",
-            wav_path.display(),
+            "ffmpeg Vorbis encode failed for {}: {}",
+            audio_path.display(),
             stderr
         )
         .into());
     }
 
-    Ok(flac_path)
+    Ok(ogg_path)
 }
-
 /// Read sample rate and channel count from a WAV/FLAC file using ffprobe
 fn probe_audio(path: &Path) -> Result<(u32, u8), Box<dyn std::error::Error>> {
     let output = Command::new("ffprobe")
@@ -336,7 +335,7 @@ fn compile_instrument(
     // ── Phase 1: Collect all unique samples ────────────────────────────
 
     // Maps source path → (blake3 hash)
-    // Maps blake3 hash → (sample_id, flac_path, sample_rate, channels)
+    // Maps blake3 hash → (sample_id, ogg_path, sample_rate, channels)
     let mut path_to_hash: BTreeMap<String, String> = BTreeMap::new();
     let mut hash_to_sample: BTreeMap<String, (u32, PathBuf, u32, u8)> = BTreeMap::new();
     let mut next_sample_id: u32 = 0;
@@ -367,13 +366,13 @@ fn compile_instrument(
                     // Probe audio metadata
                     let (sample_rate, channels) = probe_audio(&abs_path)?;
 
-                    // Encode to FLAC
+                    // Encode to Vorbis
                     let stem = format!("{}_{}", manifest.meta.id, next_sample_id);
-                    let flac_path = encode_to_flac(&abs_path, temp_dir, &stem)?;
+                    let ogg_path = encode_to_vorbis(&abs_path, temp_dir, &stem)?;
 
                     hash_to_sample.insert(
                         hash.clone(),
-                        (next_sample_id, flac_path, sample_rate, channels),
+                        (next_sample_id, ogg_path, sample_rate, channels),
                     );
                     next_sample_id += 1;
                 }
@@ -462,16 +461,16 @@ fn compile_instrument(
         .collect();
     sorted_samples.sort_by_key(|(id, _, _, _)| *id);
 
-    // Read all FLAC data and build index entries
+    // Read all Vorbis data and build index entries
     let mut sdat_buffer: Vec<u8> = Vec::new();
     let mut sidx_entries: Vec<SampleIndexEntry> = Vec::new();
 
-    for (sample_id, flac_path, sample_rate, channels) in &sorted_samples {
-        let flac_data = fs::read(flac_path)?;
+    for (sample_id, ogg_path, sample_rate, channels) in &sorted_samples {
+        let ogg_data = fs::read(ogg_path)?;
         let offset = sdat_buffer.len() as u64;
-        let length = flac_data.len() as u64;
+        let length = ogg_data.len() as u64;
 
-        sdat_buffer.extend_from_slice(&flac_data);
+        sdat_buffer.extend_from_slice(&ogg_data);
 
         sidx_entries.push(SampleIndexEntry {
             sample_id: *sample_id,
