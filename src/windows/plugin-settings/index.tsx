@@ -106,7 +106,7 @@ const ArticulationItem: FC<InstrumentTileProps> = ({
     <button
       onClick={onSelect}
       className={classNames(
-        "border flex items-center justify-center gap-3 p-3 rounded cursor-pointer transition-colors w-23 h-12 text-center",
+        "border flex items-center justify-center gap-3 p-3 rounded cursor-pointer transition-colors min-w-23 h-12 text-center",
         {
           "bg-sky-500/10 border-sky-500": isSelected,
           "bg-neutral-800/20 border-neutral-800/50 hover:bg-neutral-800/50":

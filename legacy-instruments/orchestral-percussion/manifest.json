@@ -1,0 +1,123 @@
+{
+  "meta": {
+    "id": "sso.percussion.orchestral",
+    "name": "SSO Orchestral Percussion",
+    "author": "Solo Compose",
+    "version": "1.0.0",
+    "type": "percussion"
+  },
+  "articulations": [
+    {
+      "id": "percussion-map",
+      "name": "Percussion Map",
+      "range": [
+        [35, 37],
+        [53, 55]
+      ],
+      "zones": [
+        {
+          "pitch": 35,
+          "velocityLayers": [
+            {
+              "range": [1, 64],
+              "samples": [
+                { "path": "samples/BDrumNewhit_v5_rr1_Sum-PB.wav" },
+                { "path": "samples/BDrumNewhit_v5_rr2_Sum-PB.wav" }
+              ]
+            },
+            {
+              "range": [65, 127],
+              "samples": [
+                { "path": "samples/BDrumNewhit_v7_rr1_Sum-PB.wav" },
+                { "path": "samples/BDrumNewhit_v7_rr2_Sum-PB.wav" }
+              ]
+            }
+          ]
+        },
+        {
+          "pitch": 36,
+          "velocityLayers": [
+            {
+              "range": [1, 64],
+              "samples": [
+                { "path": "samples/Snare2-HitSN_v5_rr1_Sum-PB.wav" },
+                { "path": "samples/Snare2-HitSN_v5_rr2_Sum-PB.wav" }
+              ]
+            },
+            {
+              "range": [65, 127],
+              "samples": [
+                { "path": "samples/Snare2-HitSN_v9_rr1_Sum-PB.wav" },
+                { "path": "samples/Snare2-HitSN_v9_rr2_Sum-PB.wav" }
+              ]
+            }
+          ]
+        },
+        {
+          "pitch": 37,
+          "velocityLayers": [
+            {
+              "range": [1, 64],
+              "samples": [{ "path": "samples/Snare2-rollSN_v3_rr1_Sum.wav" }]
+            },
+            {
+              "range": [65, 127],
+              "samples": [{ "path": "samples/Snare2-rollSN_v5_rr1_Sum.wav" }]
+            }
+          ]
+        },
+        {
+          "pitch": 53,
+          "velocityLayers": [
+            {
+              "range": [1, 64],
+              "samples": [
+                { "path": "samples/Tamb1-Hit_v1_rr1_Sum-PB.wav" },
+                { "path": "samples/Tamb1-Hit_v1_rr2_Sum-PB.wav" }
+              ]
+            },
+            {
+              "range": [65, 127],
+              "samples": [
+                { "path": "samples/Tamb1-Hit_v2_rr1_Sum-PB.wav" },
+                { "path": "samples/Tamb1-Hit_v2_rr2_Sum-PB.wav" }
+              ]
+            }
+          ]
+        },
+        {
+          "pitch": 54,
+          "velocityLayers": [
+            {
+              "range": [1, 64],
+              "samples": [{ "path": "samples/Tamb1-Roll_v2_rr1_Sum-PB.wav" }]
+            },
+            {
+              "range": [65, 127],
+              "samples": [{ "path": "samples/Tamb1-Roll_v3_rr1_Sum-PB.wav" }]
+            }
+          ]
+        },
+        {
+          "pitch": 55,
+          "velocityLayers": [
+            {
+              "range": [1, 64],
+              "samples": [
+                { "path": "samples/Triangle3-Hit_v1_rr1_Sum-PB.wav" },
+                { "path": "samples/Triangle3-Hit_v1_rr2_Sum-PB.wav" }
+              ]
+            },
+            {
+              "range": [65, 127],
+              "samples": [
+                { "path": "samples/Triangle3-Hit_v2_rr1_Sum-PB.wav" },
+                { "path": "samples/Triangle3-Hit_v2_rr2_Sum-PB.wav" }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

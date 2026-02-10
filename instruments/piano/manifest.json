@@ -3,390 +3,1177 @@
     "id": "sso.keyboard.piano",
     "name": "SSO Grand Piano",
     "author": "Solo Compose",
-    "version": "1.4.0",
+    "version": "1.4.1",
     "type": "pitched"
   },
   "articulations": [
     {
-      "id": "natural",
-      "name": "Natural",
+      "id": "sustain",
+      "name": "Sustain",
       "range": [[21, 108]],
       "zones": [
         {
           "pitch": 21,
           "velocityLayers": [
-            { "range": [1, 16], "samples": [{ "path": "natural/A0v2.wav" }] },
-            { "range": [17, 32], "samples": [{ "path": "natural/A0v4.wav" }] },
-            { "range": [33, 48], "samples": [{ "path": "natural/A0v6.wav" }] },
-            { "range": [49, 64], "samples": [{ "path": "natural/A0v8.wav" }] },
-            { "range": [65, 80], "samples": [{ "path": "natural/A0v10.wav" }] },
-            { "range": [81, 96], "samples": [{ "path": "natural/A0v12.wav" }] },
-            { "range": [97, 112], "samples": [{ "path": "natural/A0v14.wav" }] },
-            { "range": [113, 127], "samples": [{ "path": "natural/A0v16.wav" }] }
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_A0.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_A0.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_A0.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_A0.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_A0.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_A0.opus" }] },
+            { "range": [109, 127], "samples": [{ "path": "samples/Steinway_Mixed_ff_up_A0.opus" }] }
+          ]
+        },
+        {
+          "pitch": 22,
+          "velocityLayers": [
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_A#0.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_A#0.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_A#0.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_A#0.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_A#0.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_A#0.opus" }] },
+            {
+              "range": [109, 127],
+              "samples": [{ "path": "samples/Steinway_Mixed_ff_up_A#0.opus" }]
+            }
+          ]
+        },
+        {
+          "pitch": 23,
+          "velocityLayers": [
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_B0.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_B0.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_B0.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_B0.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_B0.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_B0.opus" }] },
+            { "range": [109, 127], "samples": [{ "path": "samples/Steinway_Mixed_ff_up_B0.opus" }] }
           ]
         },
         {
           "pitch": 24,
           "velocityLayers": [
-            { "range": [1, 16], "samples": [{ "path": "natural/C1v2.wav" }] },
-            { "range": [17, 32], "samples": [{ "path": "natural/C1v4.wav" }] },
-            { "range": [33, 48], "samples": [{ "path": "natural/C1v6.wav" }] },
-            { "range": [49, 64], "samples": [{ "path": "natural/C1v8.wav" }] },
-            { "range": [65, 80], "samples": [{ "path": "natural/C1v10.wav" }] },
-            { "range": [81, 96], "samples": [{ "path": "natural/C1v12.wav" }] },
-            { "range": [97, 112], "samples": [{ "path": "natural/C1v14.wav" }] },
-            { "range": [113, 127], "samples": [{ "path": "natural/C1v16.wav" }] }
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_C1.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_C1.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_C1.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_C1.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_C1.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_C1.opus" }] },
+            { "range": [109, 127], "samples": [{ "path": "samples/Steinway_Mixed_ff_up_C1.opus" }] }
+          ]
+        },
+        {
+          "pitch": 25,
+          "velocityLayers": [
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_C#1.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_C#1.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_C#1.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_C#1.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_C#1.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_C#1.opus" }] },
+            {
+              "range": [109, 127],
+              "samples": [{ "path": "samples/Steinway_Mixed_ff_up_C#1.opus" }]
+            }
+          ]
+        },
+        {
+          "pitch": 26,
+          "velocityLayers": [
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_D1.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_D1.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_D1.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_D1.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_D1.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_D1.opus" }] },
+            { "range": [109, 127], "samples": [{ "path": "samples/Steinway_Mixed_ff_up_D1.opus" }] }
           ]
         },
         {
           "pitch": 27,
           "velocityLayers": [
-            { "range": [1, 16], "samples": [{ "path": "natural/D#1v2.wav" }] },
-            { "range": [17, 32], "samples": [{ "path": "natural/D#1v4.wav" }] },
-            { "range": [33, 48], "samples": [{ "path": "natural/D#1v6.wav" }] },
-            { "range": [49, 64], "samples": [{ "path": "natural/D#1v8.wav" }] },
-            { "range": [65, 80], "samples": [{ "path": "natural/D#1v10.wav" }] },
-            { "range": [81, 96], "samples": [{ "path": "natural/D#1v12.wav" }] },
-            { "range": [97, 112], "samples": [{ "path": "natural/D#1v14.wav" }] },
-            { "range": [113, 127], "samples": [{ "path": "natural/D#1v16.wav" }] }
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_D#1.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_D#1.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_D#1.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_D#1.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_D#1.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_D#1.opus" }] },
+            {
+              "range": [109, 127],
+              "samples": [{ "path": "samples/Steinway_Mixed_ff_up_D#1.opus" }]
+            }
+          ]
+        },
+        {
+          "pitch": 28,
+          "velocityLayers": [
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_E1.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_E1.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_E1.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_E1.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_E1.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_E1.opus" }] },
+            { "range": [109, 127], "samples": [{ "path": "samples/Steinway_Mixed_ff_up_E1.opus" }] }
+          ]
+        },
+        {
+          "pitch": 29,
+          "velocityLayers": [
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_F1.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_F1.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_F1.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_F1.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_F1.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_F1.opus" }] },
+            { "range": [109, 127], "samples": [{ "path": "samples/Steinway_Mixed_ff_up_F1.opus" }] }
           ]
         },
         {
           "pitch": 30,
           "velocityLayers": [
-            { "range": [1, 16], "samples": [{ "path": "natural/F#1v2.wav" }] },
-            { "range": [17, 32], "samples": [{ "path": "natural/F#1v4.wav" }] },
-            { "range": [33, 48], "samples": [{ "path": "natural/F#1v6.wav" }] },
-            { "range": [49, 64], "samples": [{ "path": "natural/F#1v8.wav" }] },
-            { "range": [65, 80], "samples": [{ "path": "natural/F#1v10.wav" }] },
-            { "range": [81, 96], "samples": [{ "path": "natural/F#1v12.wav" }] },
-            { "range": [97, 112], "samples": [{ "path": "natural/F#1v14.wav" }] },
-            { "range": [113, 127], "samples": [{ "path": "natural/F#1v16.wav" }] }
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_F#1.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_F#1.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_F#1.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_F#1.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_F#1.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_F#1.opus" }] },
+            {
+              "range": [109, 127],
+              "samples": [{ "path": "samples/Steinway_Mixed_ff_up_F#1.opus" }]
+            }
+          ]
+        },
+        {
+          "pitch": 31,
+          "velocityLayers": [
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_G1.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_G1.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_G1.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_G1.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_G1.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_G1.opus" }] },
+            { "range": [109, 127], "samples": [{ "path": "samples/Steinway_Mixed_ff_up_G1.opus" }] }
+          ]
+        },
+        {
+          "pitch": 32,
+          "velocityLayers": [
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_G#1.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_G#1.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_G#1.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_G#1.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_G#1.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_G#1.opus" }] },
+            {
+              "range": [109, 127],
+              "samples": [{ "path": "samples/Steinway_Mixed_ff_up_G#1.opus" }]
+            }
           ]
         },
         {
           "pitch": 33,
           "velocityLayers": [
-            { "range": [1, 16], "samples": [{ "path": "natural/A1v2.wav" }] },
-            { "range": [17, 32], "samples": [{ "path": "natural/A1v4.wav" }] },
-            { "range": [33, 48], "samples": [{ "path": "natural/A1v6.wav" }] },
-            { "range": [49, 64], "samples": [{ "path": "natural/A1v8.wav" }] },
-            { "range": [65, 80], "samples": [{ "path": "natural/A1v10.wav" }] },
-            { "range": [81, 96], "samples": [{ "path": "natural/A1v12.wav" }] },
-            { "range": [97, 112], "samples": [{ "path": "natural/A1v14.wav" }] },
-            { "range": [113, 127], "samples": [{ "path": "natural/A1v16.wav" }] }
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_A1.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_A1.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_A1.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_A1.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_A1.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_A1.opus" }] },
+            { "range": [109, 127], "samples": [{ "path": "samples/Steinway_Mixed_ff_up_A1.opus" }] }
+          ]
+        },
+        {
+          "pitch": 34,
+          "velocityLayers": [
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_A#1.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_A#1.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_A#1.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_A#1.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_A#1.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_A#1.opus" }] },
+            {
+              "range": [109, 127],
+              "samples": [{ "path": "samples/Steinway_Mixed_ff_up_A#1.opus" }]
+            }
+          ]
+        },
+        {
+          "pitch": 35,
+          "velocityLayers": [
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_B1.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_B1.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_B1.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_B1.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_B1.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_B1.opus" }] },
+            { "range": [109, 127], "samples": [{ "path": "samples/Steinway_Mixed_ff_up_B1.opus" }] }
           ]
         },
         {
           "pitch": 36,
           "velocityLayers": [
-            { "range": [1, 16], "samples": [{ "path": "natural/C2v2.wav" }] },
-            { "range": [17, 32], "samples": [{ "path": "natural/C2v4.wav" }] },
-            { "range": [33, 48], "samples": [{ "path": "natural/C2v6.wav" }] },
-            { "range": [49, 64], "samples": [{ "path": "natural/C2v8.wav" }] },
-            { "range": [65, 80], "samples": [{ "path": "natural/C2v10.wav" }] },
-            { "range": [81, 96], "samples": [{ "path": "natural/C2v12.wav" }] },
-            { "range": [97, 112], "samples": [{ "path": "natural/C2v14.wav" }] },
-            { "range": [113, 127], "samples": [{ "path": "natural/C2v16.wav" }] }
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_C2.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_C2.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_C2.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_C2.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_C2.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_C2.opus" }] },
+            { "range": [109, 127], "samples": [{ "path": "samples/Steinway_Mixed_ff_up_C2.opus" }] }
+          ]
+        },
+        {
+          "pitch": 37,
+          "velocityLayers": [
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_C#2.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_C#2.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_C#2.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_C#2.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_C#2.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_C#2.opus" }] },
+            {
+              "range": [109, 127],
+              "samples": [{ "path": "samples/Steinway_Mixed_ff_up_C#2.opus" }]
+            }
+          ]
+        },
+        {
+          "pitch": 38,
+          "velocityLayers": [
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_D2.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_D2.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_D2.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_D2.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_D2.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_D2.opus" }] },
+            { "range": [109, 127], "samples": [{ "path": "samples/Steinway_Mixed_ff_up_D2.opus" }] }
           ]
         },
         {
           "pitch": 39,
           "velocityLayers": [
-            { "range": [1, 16], "samples": [{ "path": "natural/D#2v2.wav" }] },
-            { "range": [17, 32], "samples": [{ "path": "natural/D#2v4.wav" }] },
-            { "range": [33, 48], "samples": [{ "path": "natural/D#2v6.wav" }] },
-            { "range": [49, 64], "samples": [{ "path": "natural/D#2v8.wav" }] },
-            { "range": [65, 80], "samples": [{ "path": "natural/D#2v10.wav" }] },
-            { "range": [81, 96], "samples": [{ "path": "natural/D#2v12.wav" }] },
-            { "range": [97, 112], "samples": [{ "path": "natural/D#2v14.wav" }] },
-            { "range": [113, 127], "samples": [{ "path": "natural/D#2v16.wav" }] }
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_D#2.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_D#2.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_D#2.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_D#2.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_D#2.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_D#2.opus" }] },
+            {
+              "range": [109, 127],
+              "samples": [{ "path": "samples/Steinway_Mixed_ff_up_D#2.opus" }]
+            }
+          ]
+        },
+        {
+          "pitch": 40,
+          "velocityLayers": [
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_E2.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_E2.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_E2.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_E2.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_E2.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_E2.opus" }] },
+            { "range": [109, 127], "samples": [{ "path": "samples/Steinway_Mixed_ff_up_E2.opus" }] }
+          ]
+        },
+        {
+          "pitch": 41,
+          "velocityLayers": [
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_F2.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_F2.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_F2.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_F2.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_F2.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_F2.opus" }] },
+            { "range": [109, 127], "samples": [{ "path": "samples/Steinway_Mixed_ff_up_F2.opus" }] }
           ]
         },
         {
           "pitch": 42,
           "velocityLayers": [
-            { "range": [1, 16], "samples": [{ "path": "natural/F#2v2.wav" }] },
-            { "range": [17, 32], "samples": [{ "path": "natural/F#2v4.wav" }] },
-            { "range": [33, 48], "samples": [{ "path": "natural/F#2v6.wav" }] },
-            { "range": [49, 64], "samples": [{ "path": "natural/F#2v8.wav" }] },
-            { "range": [65, 80], "samples": [{ "path": "natural/F#2v10.wav" }] },
-            { "range": [81, 96], "samples": [{ "path": "natural/F#2v12.wav" }] },
-            { "range": [97, 112], "samples": [{ "path": "natural/F#2v14.wav" }] },
-            { "range": [113, 127], "samples": [{ "path": "natural/F#2v16.wav" }] }
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_F#2.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_F#2.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_F#2.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_F#2.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_F#2.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_F#2.opus" }] },
+            {
+              "range": [109, 127],
+              "samples": [{ "path": "samples/Steinway_Mixed_ff_up_F#2.opus" }]
+            }
+          ]
+        },
+        {
+          "pitch": 43,
+          "velocityLayers": [
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_G2.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_G2.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_G2.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_G2.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_G2.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_G2.opus" }] },
+            { "range": [109, 127], "samples": [{ "path": "samples/Steinway_Mixed_ff_up_G2.opus" }] }
+          ]
+        },
+        {
+          "pitch": 44,
+          "velocityLayers": [
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_G#2.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_G#2.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_G#2.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_G#2.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_G#2.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_G#2.opus" }] },
+            {
+              "range": [109, 127],
+              "samples": [{ "path": "samples/Steinway_Mixed_ff_up_G#2.opus" }]
+            }
           ]
         },
         {
           "pitch": 45,
           "velocityLayers": [
-            { "range": [1, 16], "samples": [{ "path": "natural/A2v2.wav" }] },
-            { "range": [17, 32], "samples": [{ "path": "natural/A2v4.wav" }] },
-            { "range": [33, 48], "samples": [{ "path": "natural/A2v6.wav" }] },
-            { "range": [49, 64], "samples": [{ "path": "natural/A2v8.wav" }] },
-            { "range": [65, 80], "samples": [{ "path": "natural/A2v10.wav" }] },
-            { "range": [81, 96], "samples": [{ "path": "natural/A2v12.wav" }] },
-            { "range": [97, 112], "samples": [{ "path": "natural/A2v14.wav" }] },
-            { "range": [113, 127], "samples": [{ "path": "natural/A2v16.wav" }] }
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_A2.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_A2.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_A2.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_A2.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_A2.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_A2.opus" }] },
+            { "range": [109, 127], "samples": [{ "path": "samples/Steinway_Mixed_ff_up_A2.opus" }] }
+          ]
+        },
+        {
+          "pitch": 46,
+          "velocityLayers": [
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_A#2.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_A#2.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_A#2.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_A#2.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_A#2.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_A#2.opus" }] },
+            {
+              "range": [109, 127],
+              "samples": [{ "path": "samples/Steinway_Mixed_ff_up_A#2.opus" }]
+            }
+          ]
+        },
+        {
+          "pitch": 47,
+          "velocityLayers": [
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_B2.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_B2.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_B2.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_B2.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_B2.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_B2.opus" }] },
+            { "range": [109, 127], "samples": [{ "path": "samples/Steinway_Mixed_ff_up_B2.opus" }] }
           ]
         },
         {
           "pitch": 48,
           "velocityLayers": [
-            { "range": [1, 16], "samples": [{ "path": "natural/C3v2.wav" }] },
-            { "range": [17, 32], "samples": [{ "path": "natural/C3v4.wav" }] },
-            { "range": [33, 48], "samples": [{ "path": "natural/C3v6.wav" }] },
-            { "range": [49, 64], "samples": [{ "path": "natural/C3v8.wav" }] },
-            { "range": [65, 80], "samples": [{ "path": "natural/C3v10.wav" }] },
-            { "range": [81, 96], "samples": [{ "path": "natural/C3v12.wav" }] },
-            { "range": [97, 112], "samples": [{ "path": "natural/C3v14.wav" }] },
-            { "range": [113, 127], "samples": [{ "path": "natural/C3v16.wav" }] }
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_C3.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_C3.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_C3.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_C3.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_C3.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_C3.opus" }] },
+            { "range": [109, 127], "samples": [{ "path": "samples/Steinway_Mixed_ff_up_C3.opus" }] }
+          ]
+        },
+        {
+          "pitch": 49,
+          "velocityLayers": [
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_C#3.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_C#3.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_C#3.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_C#3.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_C#3.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_C#3.opus" }] },
+            {
+              "range": [109, 127],
+              "samples": [{ "path": "samples/Steinway_Mixed_ff_up_C#3.opus" }]
+            }
+          ]
+        },
+        {
+          "pitch": 50,
+          "velocityLayers": [
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_D3.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_D3.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_D3.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_D3.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_D3.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_D3.opus" }] },
+            { "range": [109, 127], "samples": [{ "path": "samples/Steinway_Mixed_ff_up_D3.opus" }] }
           ]
         },
         {
           "pitch": 51,
           "velocityLayers": [
-            { "range": [1, 16], "samples": [{ "path": "natural/D#3v2.wav" }] },
-            { "range": [17, 32], "samples": [{ "path": "natural/D#3v4.wav" }] },
-            { "range": [33, 48], "samples": [{ "path": "natural/D#3v6.wav" }] },
-            { "range": [49, 64], "samples": [{ "path": "natural/D#3v8.wav" }] },
-            { "range": [65, 80], "samples": [{ "path": "natural/D#3v10.wav" }] },
-            { "range": [81, 96], "samples": [{ "path": "natural/D#3v12.wav" }] },
-            { "range": [97, 112], "samples": [{ "path": "natural/D#3v14.wav" }] },
-            { "range": [113, 127], "samples": [{ "path": "natural/D#3v16.wav" }] }
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_D#3.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_D#3.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_D#3.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_D#3.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_D#3.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_D#3.opus" }] },
+            {
+              "range": [109, 127],
+              "samples": [{ "path": "samples/Steinway_Mixed_ff_up_D#3.opus" }]
+            }
+          ]
+        },
+        {
+          "pitch": 52,
+          "velocityLayers": [
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_E3.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_E3.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_E3.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_E3.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_E3.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_E3.opus" }] },
+            { "range": [109, 127], "samples": [{ "path": "samples/Steinway_Mixed_ff_up_E3.opus" }] }
+          ]
+        },
+        {
+          "pitch": 53,
+          "velocityLayers": [
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_F3.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_F3.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_F3.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_F3.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_F3.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_F3.opus" }] },
+            { "range": [109, 127], "samples": [{ "path": "samples/Steinway_Mixed_ff_up_F3.opus" }] }
           ]
         },
         {
           "pitch": 54,
           "velocityLayers": [
-            { "range": [1, 16], "samples": [{ "path": "natural/F#3v2.wav" }] },
-            { "range": [17, 32], "samples": [{ "path": "natural/F#3v4.wav" }] },
-            { "range": [33, 48], "samples": [{ "path": "natural/F#3v6.wav" }] },
-            { "range": [49, 64], "samples": [{ "path": "natural/F#3v8.wav" }] },
-            { "range": [65, 80], "samples": [{ "path": "natural/F#3v10.wav" }] },
-            { "range": [81, 96], "samples": [{ "path": "natural/F#3v12.wav" }] },
-            { "range": [97, 112], "samples": [{ "path": "natural/F#3v14.wav" }] },
-            { "range": [113, 127], "samples": [{ "path": "natural/F#3v16.wav" }] }
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_F#3.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_F#3.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_F#3.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_F#3.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_F#3.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_F#3.opus" }] },
+            {
+              "range": [109, 127],
+              "samples": [{ "path": "samples/Steinway_Mixed_ff_up_F#3.opus" }]
+            }
+          ]
+        },
+        {
+          "pitch": 55,
+          "velocityLayers": [
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_G3.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_G3.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_G3.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_G3.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_G3.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_G3.opus" }] },
+            { "range": [109, 127], "samples": [{ "path": "samples/Steinway_Mixed_ff_up_G3.opus" }] }
+          ]
+        },
+        {
+          "pitch": 56,
+          "velocityLayers": [
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_G#3.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_G#3.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_G#3.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_G#3.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_G#3.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_G#3.opus" }] },
+            {
+              "range": [109, 127],
+              "samples": [{ "path": "samples/Steinway_Mixed_ff_up_G#3.opus" }]
+            }
           ]
         },
         {
           "pitch": 57,
           "velocityLayers": [
-            { "range": [1, 16], "samples": [{ "path": "natural/A3v2.wav" }] },
-            { "range": [17, 32], "samples": [{ "path": "natural/A3v4.wav" }] },
-            { "range": [33, 48], "samples": [{ "path": "natural/A3v6.wav" }] },
-            { "range": [49, 64], "samples": [{ "path": "natural/A3v8.wav" }] },
-            { "range": [65, 80], "samples": [{ "path": "natural/A3v10.wav" }] },
-            { "range": [81, 96], "samples": [{ "path": "natural/A3v12.wav" }] },
-            { "range": [97, 112], "samples": [{ "path": "natural/A3v14.wav" }] },
-            { "range": [113, 127], "samples": [{ "path": "natural/A3v16.wav" }] }
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_A3.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_A3.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_A3.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_A3.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_A3.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_A3.opus" }] },
+            { "range": [109, 127], "samples": [{ "path": "samples/Steinway_Mixed_ff_up_A3.opus" }] }
+          ]
+        },
+        {
+          "pitch": 58,
+          "velocityLayers": [
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_A#3.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_A#3.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_A#3.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_A#3.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_A#3.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_A#3.opus" }] },
+            {
+              "range": [109, 127],
+              "samples": [{ "path": "samples/Steinway_Mixed_ff_up_A#3.opus" }]
+            }
+          ]
+        },
+        {
+          "pitch": 59,
+          "velocityLayers": [
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_B3.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_B3.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_B3.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_B3.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_B3.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_B3.opus" }] },
+            { "range": [109, 127], "samples": [{ "path": "samples/Steinway_Mixed_ff_up_B3.opus" }] }
+          ]
+        },
+        {
+          "pitch": 60,
+          "velocityLayers": [
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_C4.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_C4.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_C4.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_C4.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_C4.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_C4.opus" }] },
+            { "range": [109, 127], "samples": [{ "path": "samples/Steinway_Mixed_ff_up_C4.opus" }] }
+          ]
+        },
+        {
+          "pitch": 61,
+          "velocityLayers": [
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_C#4.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_C#4.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_C#4.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_C#4.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_C#4.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_C#4.opus" }] },
+            {
+              "range": [109, 127],
+              "samples": [{ "path": "samples/Steinway_Mixed_ff_up_C#4.opus" }]
+            }
+          ]
+        },
+        {
+          "pitch": 62,
+          "velocityLayers": [
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_D4.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_D4.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_D4.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_D4.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_D4.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_D4.opus" }] },
+            { "range": [109, 127], "samples": [{ "path": "samples/Steinway_Mixed_ff_up_D4.opus" }] }
           ]
         },
         {
           "pitch": 63,
           "velocityLayers": [
-            { "range": [1, 16], "samples": [{ "path": "natural/D#4v2.wav" }] },
-            { "range": [17, 32], "samples": [{ "path": "natural/D#4v4.wav" }] },
-            { "range": [33, 48], "samples": [{ "path": "natural/D#4v6.wav" }] },
-            { "range": [49, 64], "samples": [{ "path": "natural/D#4v8.wav" }] },
-            { "range": [65, 80], "samples": [{ "path": "natural/D#4v10.wav" }] },
-            { "range": [81, 96], "samples": [{ "path": "natural/D#4v12.wav" }] },
-            { "range": [97, 112], "samples": [{ "path": "natural/D#4v14.wav" }] },
-            { "range": [113, 127], "samples": [{ "path": "natural/D#4v16.wav" }] }
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_D#4.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_D#4.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_D#4.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_D#4.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_D#4.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_D#4.opus" }] },
+            {
+              "range": [109, 127],
+              "samples": [{ "path": "samples/Steinway_Mixed_ff_up_D#4.opus" }]
+            }
+          ]
+        },
+        {
+          "pitch": 64,
+          "velocityLayers": [
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_E4.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_E4.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_E4.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_E4.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_E4.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_E4.opus" }] },
+            { "range": [109, 127], "samples": [{ "path": "samples/Steinway_Mixed_ff_up_E4.opus" }] }
+          ]
+        },
+        {
+          "pitch": 65,
+          "velocityLayers": [
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_F4.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_F4.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_F4.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_F4.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_F4.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_F4.opus" }] },
+            { "range": [109, 127], "samples": [{ "path": "samples/Steinway_Mixed_ff_up_F4.opus" }] }
           ]
         },
         {
           "pitch": 66,
           "velocityLayers": [
-            { "range": [1, 16], "samples": [{ "path": "natural/F#4v2.wav" }] },
-            { "range": [17, 32], "samples": [{ "path": "natural/F#4v4.wav" }] },
-            { "range": [33, 48], "samples": [{ "path": "natural/F#4v6.wav" }] },
-            { "range": [49, 64], "samples": [{ "path": "natural/F#4v8.wav" }] },
-            { "range": [65, 80], "samples": [{ "path": "natural/F#4v10.wav" }] },
-            { "range": [81, 96], "samples": [{ "path": "natural/F#4v12.wav" }] },
-            { "range": [97, 112], "samples": [{ "path": "natural/F#4v14.wav" }] },
-            { "range": [113, 127], "samples": [{ "path": "natural/F#4v16.wav" }] }
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_F#4.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_F#4.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_F#4.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_F#4.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_F#4.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_F#4.opus" }] },
+            {
+              "range": [109, 127],
+              "samples": [{ "path": "samples/Steinway_Mixed_ff_up_F#4.opus" }]
+            }
+          ]
+        },
+        {
+          "pitch": 67,
+          "velocityLayers": [
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_G4.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_G4.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_G4.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_G4.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_G4.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_G4.opus" }] },
+            { "range": [109, 127], "samples": [{ "path": "samples/Steinway_Mixed_ff_up_G4.opus" }] }
+          ]
+        },
+        {
+          "pitch": 68,
+          "velocityLayers": [
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_G#4.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_G#4.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_G#4.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_G#4.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_G#4.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_G#4.opus" }] },
+            {
+              "range": [109, 127],
+              "samples": [{ "path": "samples/Steinway_Mixed_ff_up_G#4.opus" }]
+            }
           ]
         },
         {
           "pitch": 69,
           "velocityLayers": [
-            { "range": [1, 16], "samples": [{ "path": "natural/A4v2.wav" }] },
-            { "range": [17, 32], "samples": [{ "path": "natural/A4v4.wav" }] },
-            { "range": [33, 48], "samples": [{ "path": "natural/A4v6.wav" }] },
-            { "range": [49, 64], "samples": [{ "path": "natural/A4v8.wav" }] },
-            { "range": [65, 80], "samples": [{ "path": "natural/A4v10.wav" }] },
-            { "range": [81, 96], "samples": [{ "path": "natural/A4v12.wav" }] },
-            { "range": [97, 112], "samples": [{ "path": "natural/A4v14.wav" }] },
-            { "range": [113, 127], "samples": [{ "path": "natural/A4v16.wav" }] }
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_A4.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_A4.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_A4.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_A4.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_A4.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_A4.opus" }] },
+            { "range": [109, 127], "samples": [{ "path": "samples/Steinway_Mixed_ff_up_A4.opus" }] }
+          ]
+        },
+        {
+          "pitch": 70,
+          "velocityLayers": [
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_A#4.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_A#4.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_A#4.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_A#4.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_A#4.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_A#4.opus" }] },
+            {
+              "range": [109, 127],
+              "samples": [{ "path": "samples/Steinway_Mixed_ff_up_A#4.opus" }]
+            }
+          ]
+        },
+        {
+          "pitch": 71,
+          "velocityLayers": [
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_B4.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_B4.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_B4.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_B4.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_B4.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_B4.opus" }] },
+            { "range": [109, 127], "samples": [{ "path": "samples/Steinway_Mixed_ff_up_B4.opus" }] }
           ]
         },
         {
           "pitch": 72,
           "velocityLayers": [
-            { "range": [1, 16], "samples": [{ "path": "natural/C5v2.wav" }] },
-            { "range": [17, 32], "samples": [{ "path": "natural/C5v4.wav" }] },
-            { "range": [33, 48], "samples": [{ "path": "natural/C5v6.wav" }] },
-            { "range": [49, 64], "samples": [{ "path": "natural/C5v8.wav" }] },
-            { "range": [65, 80], "samples": [{ "path": "natural/C5v10.wav" }] },
-            { "range": [81, 96], "samples": [{ "path": "natural/C5v12.wav" }] },
-            { "range": [97, 112], "samples": [{ "path": "natural/C5v14.wav" }] },
-            { "range": [113, 127], "samples": [{ "path": "natural/C5v16.wav" }] }
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_C5.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_C5.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_C5.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_C5.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_C5.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_C5.opus" }] },
+            { "range": [109, 127], "samples": [{ "path": "samples/Steinway_Mixed_ff_up_C5.opus" }] }
+          ]
+        },
+        {
+          "pitch": 73,
+          "velocityLayers": [
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_C#5.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_C#5.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_C#5.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_C#5.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_C#5.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_C#5.opus" }] },
+            {
+              "range": [109, 127],
+              "samples": [{ "path": "samples/Steinway_Mixed_ff_up_C#5.opus" }]
+            }
+          ]
+        },
+        {
+          "pitch": 74,
+          "velocityLayers": [
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_D5.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_D5.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_D5.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_D5.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_D5.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_D5.opus" }] },
+            { "range": [109, 127], "samples": [{ "path": "samples/Steinway_Mixed_ff_up_D5.opus" }] }
           ]
         },
         {
           "pitch": 75,
           "velocityLayers": [
-            { "range": [1, 16], "samples": [{ "path": "natural/D#5v2.wav" }] },
-            { "range": [17, 32], "samples": [{ "path": "natural/D#5v4.wav" }] },
-            { "range": [33, 48], "samples": [{ "path": "natural/D#5v6.wav" }] },
-            { "range": [49, 64], "samples": [{ "path": "natural/D#5v8.wav" }] },
-            { "range": [65, 80], "samples": [{ "path": "natural/D#5v10.wav" }] },
-            { "range": [81, 96], "samples": [{ "path": "natural/D#5v12.wav" }] },
-            { "range": [97, 112], "samples": [{ "path": "natural/D#5v14.wav" }] },
-            { "range": [113, 127], "samples": [{ "path": "natural/D#5v16.wav" }] }
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_D#5.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_D#5.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_D#5.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_D#5.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_D#5.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_D#5.opus" }] },
+            {
+              "range": [109, 127],
+              "samples": [{ "path": "samples/Steinway_Mixed_ff_up_D#5.opus" }]
+            }
+          ]
+        },
+        {
+          "pitch": 76,
+          "velocityLayers": [
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_E5.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_E5.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_E5.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_E5.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_E5.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_E5.opus" }] },
+            { "range": [109, 127], "samples": [{ "path": "samples/Steinway_Mixed_ff_up_E5.opus" }] }
+          ]
+        },
+        {
+          "pitch": 77,
+          "velocityLayers": [
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_F5.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_F5.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_F5.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_F5.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_F5.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_F5.opus" }] },
+            { "range": [109, 127], "samples": [{ "path": "samples/Steinway_Mixed_ff_up_F5.opus" }] }
           ]
         },
         {
           "pitch": 78,
           "velocityLayers": [
-            { "range": [1, 16], "samples": [{ "path": "natural/F#5v2.wav" }] },
-            { "range": [17, 32], "samples": [{ "path": "natural/F#5v4.wav" }] },
-            { "range": [33, 48], "samples": [{ "path": "natural/F#5v6.wav" }] },
-            { "range": [49, 64], "samples": [{ "path": "natural/F#5v8.wav" }] },
-            { "range": [65, 80], "samples": [{ "path": "natural/F#5v10.wav" }] },
-            { "range": [81, 96], "samples": [{ "path": "natural/F#5v12.wav" }] },
-            { "range": [97, 112], "samples": [{ "path": "natural/F#5v14.wav" }] },
-            { "range": [113, 127], "samples": [{ "path": "natural/F#5v16.wav" }] }
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_F#5.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_F#5.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_F#5.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_F#5.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_F#5.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_F#5.opus" }] },
+            {
+              "range": [109, 127],
+              "samples": [{ "path": "samples/Steinway_Mixed_ff_up_F#5.opus" }]
+            }
+          ]
+        },
+        {
+          "pitch": 79,
+          "velocityLayers": [
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_G5.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_G5.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_G5.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_G5.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_G5.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_G5.opus" }] },
+            { "range": [109, 127], "samples": [{ "path": "samples/Steinway_Mixed_ff_up_G5.opus" }] }
+          ]
+        },
+        {
+          "pitch": 80,
+          "velocityLayers": [
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_G#5.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_G#5.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_G#5.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_G#5.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_G#5.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_G#5.opus" }] },
+            {
+              "range": [109, 127],
+              "samples": [{ "path": "samples/Steinway_Mixed_ff_up_G#5.opus" }]
+            }
           ]
         },
         {
           "pitch": 81,
           "velocityLayers": [
-            { "range": [1, 16], "samples": [{ "path": "natural/A5v2.wav" }] },
-            { "range": [17, 32], "samples": [{ "path": "natural/A5v4.wav" }] },
-            { "range": [33, 48], "samples": [{ "path": "natural/A5v6.wav" }] },
-            { "range": [49, 64], "samples": [{ "path": "natural/A5v8.wav" }] },
-            { "range": [65, 80], "samples": [{ "path": "natural/A5v10.wav" }] },
-            { "range": [81, 96], "samples": [{ "path": "natural/A5v12.wav" }] },
-            { "range": [97, 112], "samples": [{ "path": "natural/A5v14.wav" }] },
-            { "range": [113, 127], "samples": [{ "path": "natural/A5v16.wav" }] }
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_A5.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_A5.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_A5.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_A5.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_A5.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_A5.opus" }] },
+            { "range": [109, 127], "samples": [{ "path": "samples/Steinway_Mixed_ff_up_A5.opus" }] }
+          ]
+        },
+        {
+          "pitch": 82,
+          "velocityLayers": [
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_A#5.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_A#5.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_A#5.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_A#5.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_A#5.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_A#5.opus" }] },
+            {
+              "range": [109, 127],
+              "samples": [{ "path": "samples/Steinway_Mixed_ff_up_A#5.opus" }]
+            }
+          ]
+        },
+        {
+          "pitch": 83,
+          "velocityLayers": [
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_B5.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_B5.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_B5.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_B5.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_B5.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_B5.opus" }] },
+            { "range": [109, 127], "samples": [{ "path": "samples/Steinway_Mixed_ff_up_B5.opus" }] }
           ]
         },
         {
           "pitch": 84,
           "velocityLayers": [
-            { "range": [1, 16], "samples": [{ "path": "natural/C6v2.wav" }] },
-            { "range": [17, 32], "samples": [{ "path": "natural/C6v4.wav" }] },
-            { "range": [33, 48], "samples": [{ "path": "natural/C6v6.wav" }] },
-            { "range": [49, 64], "samples": [{ "path": "natural/C6v8.wav" }] },
-            { "range": [65, 80], "samples": [{ "path": "natural/C6v10.wav" }] },
-            { "range": [81, 96], "samples": [{ "path": "natural/C6v12.wav" }] },
-            { "range": [97, 112], "samples": [{ "path": "natural/C6v14.wav" }] },
-            { "range": [113, 127], "samples": [{ "path": "natural/C6v16.wav" }] }
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_C6.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_C6.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_C6.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_C6.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_C6.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_C6.opus" }] },
+            { "range": [109, 127], "samples": [{ "path": "samples/Steinway_Mixed_ff_up_C6.opus" }] }
+          ]
+        },
+        {
+          "pitch": 85,
+          "velocityLayers": [
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_C#6.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_C#6.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_C#6.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_C#6.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_C#6.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_C#6.opus" }] },
+            {
+              "range": [109, 127],
+              "samples": [{ "path": "samples/Steinway_Mixed_ff_up_C#6.opus" }]
+            }
+          ]
+        },
+        {
+          "pitch": 86,
+          "velocityLayers": [
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_D6.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_D6.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_D6.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_D6.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_D6.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_D6.opus" }] },
+            { "range": [109, 127], "samples": [{ "path": "samples/Steinway_Mixed_ff_up_D6.opus" }] }
           ]
         },
         {
           "pitch": 87,
           "velocityLayers": [
-            { "range": [1, 16], "samples": [{ "path": "natural/D#6v2.wav" }] },
-            { "range": [17, 32], "samples": [{ "path": "natural/D#6v4.wav" }] },
-            { "range": [33, 48], "samples": [{ "path": "natural/D#6v6.wav" }] },
-            { "range": [49, 64], "samples": [{ "path": "natural/D#6v8.wav" }] },
-            { "range": [65, 80], "samples": [{ "path": "natural/D#6v10.wav" }] },
-            { "range": [81, 96], "samples": [{ "path": "natural/D#6v12.wav" }] },
-            { "range": [97, 112], "samples": [{ "path": "natural/D#6v14.wav" }] },
-            { "range": [113, 127], "samples": [{ "path": "natural/D#6v16.wav" }] }
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_D#6.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_D#6.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_D#6.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_D#6.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_D#6.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_D#6.opus" }] },
+            {
+              "range": [109, 127],
+              "samples": [{ "path": "samples/Steinway_Mixed_ff_up_D#6.opus" }]
+            }
+          ]
+        },
+        {
+          "pitch": 88,
+          "velocityLayers": [
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_E6.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_E6.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_E6.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_E6.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_E6.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_E6.opus" }] },
+            { "range": [109, 127], "samples": [{ "path": "samples/Steinway_Mixed_ff_up_E6.opus" }] }
+          ]
+        },
+        {
+          "pitch": 89,
+          "velocityLayers": [
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_F6.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_F6.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_F6.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_F6.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_F6.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_F6.opus" }] },
+            { "range": [109, 127], "samples": [{ "path": "samples/Steinway_Mixed_ff_up_F6.opus" }] }
           ]
         },
         {
           "pitch": 90,
           "velocityLayers": [
-            { "range": [1, 16], "samples": [{ "path": "natural/F#6v2.wav" }] },
-            { "range": [17, 32], "samples": [{ "path": "natural/F#6v4.wav" }] },
-            { "range": [33, 48], "samples": [{ "path": "natural/F#6v6.wav" }] },
-            { "range": [49, 64], "samples": [{ "path": "natural/F#6v8.wav" }] },
-            { "range": [65, 80], "samples": [{ "path": "natural/F#6v10.wav" }] },
-            { "range": [81, 96], "samples": [{ "path": "natural/F#6v12.wav" }] },
-            { "range": [97, 112], "samples": [{ "path": "natural/F#6v14.wav" }] },
-            { "range": [113, 127], "samples": [{ "path": "natural/F#6v16.wav" }] }
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_F#6.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_F#6.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_F#6.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_F#6.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_F#6.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_F#6.opus" }] },
+            {
+              "range": [109, 127],
+              "samples": [{ "path": "samples/Steinway_Mixed_ff_up_F#6.opus" }]
+            }
+          ]
+        },
+        {
+          "pitch": 91,
+          "velocityLayers": [
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_G6.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_G6.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_G6.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_G6.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_G6.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_G6.opus" }] },
+            { "range": [109, 127], "samples": [{ "path": "samples/Steinway_Mixed_ff_up_G6.opus" }] }
+          ]
+        },
+        {
+          "pitch": 92,
+          "velocityLayers": [
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_G#6.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_G#6.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_G#6.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_G#6.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_G#6.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_G#6.opus" }] },
+            {
+              "range": [109, 127],
+              "samples": [{ "path": "samples/Steinway_Mixed_ff_up_G#6.opus" }]
+            }
           ]
         },
         {
           "pitch": 93,
           "velocityLayers": [
-            { "range": [1, 16], "samples": [{ "path": "natural/A6v2.wav" }] },
-            { "range": [17, 32], "samples": [{ "path": "natural/A6v4.wav" }] },
-            { "range": [33, 48], "samples": [{ "path": "natural/A6v6.wav" }] },
-            { "range": [49, 64], "samples": [{ "path": "natural/A6v8.wav" }] },
-            { "range": [65, 80], "samples": [{ "path": "natural/A6v10.wav" }] },
-            { "range": [81, 96], "samples": [{ "path": "natural/A6v12.wav" }] },
-            { "range": [97, 112], "samples": [{ "path": "natural/A6v14.wav" }] },
-            { "range": [113, 127], "samples": [{ "path": "natural/A6v16.wav" }] }
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_A6.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_A6.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_A6.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_A6.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_A6.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_A6.opus" }] },
+            { "range": [109, 127], "samples": [{ "path": "samples/Steinway_Mixed_ff_up_A6.opus" }] }
+          ]
+        },
+        {
+          "pitch": 94,
+          "velocityLayers": [
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_A#6.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_A#6.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_A#6.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_A#6.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_A#6.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_A#6.opus" }] },
+            {
+              "range": [109, 127],
+              "samples": [{ "path": "samples/Steinway_Mixed_ff_up_A#6.opus" }]
+            }
+          ]
+        },
+        {
+          "pitch": 95,
+          "velocityLayers": [
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_B6.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_B6.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_B6.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_B6.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_B6.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_B6.opus" }] },
+            { "range": [109, 127], "samples": [{ "path": "samples/Steinway_Mixed_ff_up_B6.opus" }] }
           ]
         },
         {
           "pitch": 96,
           "velocityLayers": [
-            { "range": [1, 16], "samples": [{ "path": "natural/C7v2.wav" }] },
-            { "range": [17, 32], "samples": [{ "path": "natural/C7v4.wav" }] },
-            { "range": [33, 48], "samples": [{ "path": "natural/C7v6.wav" }] },
-            { "range": [49, 64], "samples": [{ "path": "natural/C7v8.wav" }] },
-            { "range": [65, 80], "samples": [{ "path": "natural/C7v10.wav" }] },
-            { "range": [81, 96], "samples": [{ "path": "natural/C7v12.wav" }] },
-            { "range": [97, 112], "samples": [{ "path": "natural/C7v14.wav" }] },
-            { "range": [113, 127], "samples": [{ "path": "natural/C7v16.wav" }] }
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_C7.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_C7.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_C7.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_C7.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_C7.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_C7.opus" }] },
+            { "range": [109, 127], "samples": [{ "path": "samples/Steinway_Mixed_ff_up_C7.opus" }] }
+          ]
+        },
+        {
+          "pitch": 97,
+          "velocityLayers": [
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_C#7.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_C#7.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_C#7.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_C#7.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_C#7.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_C#7.opus" }] },
+            {
+              "range": [109, 127],
+              "samples": [{ "path": "samples/Steinway_Mixed_ff_up_C#7.opus" }]
+            }
+          ]
+        },
+        {
+          "pitch": 98,
+          "velocityLayers": [
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_D7.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_D7.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_D7.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_D7.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_D7.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_D7.opus" }] },
+            { "range": [109, 127], "samples": [{ "path": "samples/Steinway_Mixed_ff_up_D7.opus" }] }
           ]
         },
         {
           "pitch": 99,
           "velocityLayers": [
-            { "range": [1, 16], "samples": [{ "path": "natural/D#7v2.wav" }] },
-            { "range": [17, 32], "samples": [{ "path": "natural/D#7v4.wav" }] },
-            { "range": [33, 48], "samples": [{ "path": "natural/D#7v6.wav" }] },
-            { "range": [49, 64], "samples": [{ "path": "natural/D#7v8.wav" }] },
-            { "range": [65, 80], "samples": [{ "path": "natural/D#7v10.wav" }] },
-            { "range": [81, 96], "samples": [{ "path": "natural/D#7v12.wav" }] },
-            { "range": [97, 112], "samples": [{ "path": "natural/D#7v14.wav" }] },
-            { "range": [113, 127], "samples": [{ "path": "natural/D#7v16.wav" }] }
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_D#7.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_D#7.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_D#7.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_D#7.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_D#7.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_D#7.opus" }] },
+            {
+              "range": [109, 127],
+              "samples": [{ "path": "samples/Steinway_Mixed_ff_up_D#7.opus" }]
+            }
+          ]
+        },
+        {
+          "pitch": 100,
+          "velocityLayers": [
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_E7.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_E7.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_E7.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_E7.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_E7.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_E7.opus" }] },
+            { "range": [109, 127], "samples": [{ "path": "samples/Steinway_Mixed_ff_up_E7.opus" }] }
+          ]
+        },
+        {
+          "pitch": 101,
+          "velocityLayers": [
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_F7.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_F7.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_F7.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_F7.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_F7.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_F7.opus" }] },
+            { "range": [109, 127], "samples": [{ "path": "samples/Steinway_Mixed_ff_up_F7.opus" }] }
           ]
         },
         {
           "pitch": 102,
           "velocityLayers": [
-            { "range": [1, 16], "samples": [{ "path": "natural/F#7v2.wav" }] },
-            { "range": [17, 32], "samples": [{ "path": "natural/F#7v4.wav" }] },
-            { "range": [33, 48], "samples": [{ "path": "natural/F#7v6.wav" }] },
-            { "range": [49, 64], "samples": [{ "path": "natural/F#7v8.wav" }] },
-            { "range": [65, 80], "samples": [{ "path": "natural/F#7v10.wav" }] },
-            { "range": [81, 96], "samples": [{ "path": "natural/F#7v12.wav" }] },
-            { "range": [97, 112], "samples": [{ "path": "natural/F#7v14.wav" }] },
-            { "range": [113, 127], "samples": [{ "path": "natural/F#7v16.wav" }] }
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_F#7.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_F#7.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_F#7.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_F#7.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_F#7.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_F#7.opus" }] },
+            {
+              "range": [109, 127],
+              "samples": [{ "path": "samples/Steinway_Mixed_ff_up_F#7.opus" }]
+            }
+          ]
+        },
+        {
+          "pitch": 103,
+          "velocityLayers": [
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_G7.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_G7.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_G7.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_G7.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_G7.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_G7.opus" }] },
+            { "range": [109, 127], "samples": [{ "path": "samples/Steinway_Mixed_ff_up_G7.opus" }] }
+          ]
+        },
+        {
+          "pitch": 104,
+          "velocityLayers": [
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_G#7.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_G#7.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_G#7.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_G#7.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_G#7.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_G#7.opus" }] },
+            {
+              "range": [109, 127],
+              "samples": [{ "path": "samples/Steinway_Mixed_ff_up_G#7.opus" }]
+            }
           ]
         },
         {
           "pitch": 105,
           "velocityLayers": [
-            { "range": [1, 16], "samples": [{ "path": "natural/A7v2.wav" }] },
-            { "range": [17, 32], "samples": [{ "path": "natural/A7v4.wav" }] },
-            { "range": [33, 48], "samples": [{ "path": "natural/A7v6.wav" }] },
-            { "range": [49, 64], "samples": [{ "path": "natural/A7v8.wav" }] },
-            { "range": [65, 80], "samples": [{ "path": "natural/A7v10.wav" }] },
-            { "range": [81, 96], "samples": [{ "path": "natural/A7v12.wav" }] },
-            { "range": [97, 112], "samples": [{ "path": "natural/A7v14.wav" }] },
-            { "range": [113, 127], "samples": [{ "path": "natural/A7v16.wav" }] }
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_A7.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_A7.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_A7.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_A7.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_A7.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_A7.opus" }] },
+            { "range": [109, 127], "samples": [{ "path": "samples/Steinway_Mixed_ff_up_A7.opus" }] }
+          ]
+        },
+        {
+          "pitch": 106,
+          "velocityLayers": [
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_A#7.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_A#7.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_A#7.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_A#7.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_A#7.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_A#7.opus" }] },
+            {
+              "range": [109, 127],
+              "samples": [{ "path": "samples/Steinway_Mixed_ff_up_A#7.opus" }]
+            }
+          ]
+        },
+        {
+          "pitch": 107,
+          "velocityLayers": [
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_B7.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_B7.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_B7.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_B7.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_B7.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_B7.opus" }] },
+            { "range": [109, 127], "samples": [{ "path": "samples/Steinway_Mixed_ff_up_B7.opus" }] }
           ]
         },
         {
           "pitch": 108,
           "velocityLayers": [
-            { "range": [1, 16], "samples": [{ "path": "natural/C8v2.wav" }] },
-            { "range": [17, 32], "samples": [{ "path": "natural/C8v4.wav" }] },
-            { "range": [33, 48], "samples": [{ "path": "natural/C8v6.wav" }] },
-            { "range": [49, 64], "samples": [{ "path": "natural/C8v8.wav" }] },
-            { "range": [65, 80], "samples": [{ "path": "natural/C8v10.wav" }] },
-            { "range": [81, 96], "samples": [{ "path": "natural/C8v12.wav" }] },
-            { "range": [97, 112], "samples": [{ "path": "natural/C8v14.wav" }] },
-            { "range": [113, 127], "samples": [{ "path": "natural/C8v16.wav" }] }
+            { "range": [1, 18], "samples": [{ "path": "samples/Steinway_Mixed_ppp_up_C8.opus" }] },
+            { "range": [19, 36], "samples": [{ "path": "samples/Steinway_Mixed_pp_up_C8.opus" }] },
+            { "range": [37, 54], "samples": [{ "path": "samples/Steinway_Mixed_p_up_C8.opus" }] },
+            { "range": [55, 72], "samples": [{ "path": "samples/Steinway_Mixed_mp_up_C8.opus" }] },
+            { "range": [73, 90], "samples": [{ "path": "samples/Steinway_Mixed_mf_up_C8.opus" }] },
+            { "range": [91, 108], "samples": [{ "path": "samples/Steinway_Mixed_f_up_C8.opus" }] },
+            { "range": [109, 127], "samples": [{ "path": "samples/Steinway_Mixed_ff_up_C8.opus" }] }
           ]
         }
       ]

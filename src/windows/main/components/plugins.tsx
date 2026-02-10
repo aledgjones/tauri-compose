@@ -1,6 +1,6 @@
 import { FC, useMemo, useState } from "react";
 import { IconButton } from "../../../ui/icon-button";
-import { mdiRefresh, mdiMagnify, mdiCog } from "@mdi/js";
+import { mdiRefresh, mdiMagnify, mdiOpenInNew } from "@mdi/js";
 import { useSamplerState } from "../../../services/state";
 import { TokenizedText } from "../../../ui/text";
 import { actions } from "../../../services/actions";
@@ -34,7 +34,7 @@ const PluginTile: FC<PluginTileProps> = ({ plugin, isLoaded }) => {
     new WebviewWindow(windowLabel, {
       url: `/plugin-settings.html?id=${encodeURIComponent(plugin.id)}`,
       title: "",
-      width: 550,
+      width: 600,
       height: 600,
       resizable: false,
       titleBarStyle: "overlay",
@@ -57,11 +57,11 @@ const PluginTile: FC<PluginTileProps> = ({ plugin, isLoaded }) => {
         <div className="flex-1" />
 
         <IconButton
-          path={mdiCog}
+          path={mdiOpenInNew}
           variant="filled"
           className="bg-transparent"
           isDisabled={!isLoaded}
-          size={0.9}
+          size={0.75}
           onClick={handleOpenSettings}
         />
       </div>
