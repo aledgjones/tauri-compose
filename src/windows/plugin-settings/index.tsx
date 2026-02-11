@@ -158,7 +158,7 @@ export const Main: FC = () => {
     }
 
     try {
-      await actions.sampler.audition(pluginId, note, 100, selection.id);
+      await actions.sampler.audition(pluginId, note, 80, selection.id);
     } catch (error) {
       console.error(`Failed to play note ${note}:`, error);
     }

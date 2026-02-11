@@ -19,6 +19,7 @@
 /// ```
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
+use std::env;
 use std::fs::{self, File};
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -594,6 +595,10 @@ fn main() {
     println!("Output:  {}", output_dir.display());
     println!();
 
+    // Parse command line arguments
+    let args: Vec<String> = env::args().collect();
+    let target_instrument = if args.len() > 1 { Some(args[1].clone()) } else { None };
+
     // Discover instruments
     let mut instruments: Vec<PathBuf> = Vec::new();
     if let Ok(entries) = fs::read_dir(&instruments_dir) {
@@ -607,12 +612,31 @@ fn main() {
 
     instruments.sort();
 
+    // Filter instruments if a target is specified
+    if let Some(ref target) = target_instrument {
+        instruments.retain(|path| {
+            path.file_name()
+                .and_then(|n| n.to_str())
+                .map(|s| s == target)
+                .unwrap_or(false)
+        });
+        if instruments.is_empty() {
+            eprintln!("No instrument found with name '{}'", target);
+            std::process::exit(1);
+        }
+    }
+
     if instruments.is_empty() {
         eprintln!("No instruments found in {}", instruments_dir.display());
         std::process::exit(1);
     }
 
     println!("Found {} instrument(s)", instruments.len());
+    if let Some(ref target) = target_instrument {
+        println!("Compiling instrument: {}", target);
+    } else {
+        println!("Compiling all instruments");
+    }
     println!();
 
     let mut success_count = 0;
