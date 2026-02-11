@@ -164,11 +164,11 @@ impl symphonia::core::io::MediaSource for BoundedReader {
 pub struct StreamRequest {
     /// Path to the .scvi container file
     pub container_path: PathBuf,
-    /// Absolute byte offset of the Vorbis data within the container
-    pub ogg_offset: u64,
-    /// Byte length of the Vorbis data
-    pub ogg_length: u64,
-    /// Source sample rate of the Vorbis data
+    /// Absolute byte offset of the FLAC data within the container
+    pub flac_offset: u64,
+    /// Byte length of the FLAC data
+    pub flac_length: u64,
+    /// Source sample rate of the FLAC data
     pub source_sample_rate: u32,
     /// Target output sample rate
     pub target_sample_rate: u32,
@@ -204,13 +204,13 @@ pub fn start_stream(request: StreamRequest) {
 }
 
 fn run_stream(req: StreamRequest) -> Result<(), Box<dyn std::error::Error>> {
-    // Open a bounded reader directly on the Vorbis data within the container
+    // Open a bounded reader directly on the FLAC data within the container
     let file = File::open(&req.container_path)?;
-    let reader = BoundedReader::new(file, req.ogg_offset, req.ogg_length)?;
+    let reader = BoundedReader::new(file, req.flac_offset, req.flac_length)?;
     let mss = MediaSourceStream::new(Box::new(reader), Default::default());
 
     let mut hint = Hint::new();
-    hint.with_extension("ogg");
+    hint.with_extension("flac");
 
     let probed = get_probe().format(
         &hint,

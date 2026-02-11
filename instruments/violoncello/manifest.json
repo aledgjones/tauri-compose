@@ -4653,387 +4653,6 @@
       ]
     },
     {
-      "id": "trill-whole",
-      "name": "Trill (Whole)",
-      "range": [[36, 96]],
-      "zones": [
-        {
-          "velocityLayers": [
-            {
-              "range": [1, 42],
-              "samples": [{ "path": "samples/SoloCello_trill_half_PP_C2.opus" }]
-            },
-            {
-              "range": [43, 84],
-              "samples": [{ "path": "samples/SoloCello_trill_half_MF_C2.opus" }]
-            },
-            {
-              "range": [85, 127],
-              "samples": [{ "path": "samples/SoloCello_trill_half_FF_C2.opus" }]
-            }
-          ],
-          "pitch": 36
-        },
-        {
-          "velocityLayers": [
-            {
-              "range": [1, 42],
-              "samples": [{ "path": "samples/SoloCello_trill_half_PP_D2.opus" }]
-            },
-            {
-              "range": [43, 84],
-              "samples": [{ "path": "samples/SoloCello_trill_half_MF_D2.opus" }]
-            },
-            {
-              "range": [85, 127],
-              "samples": [{ "path": "samples/SoloCello_trill_half_FF_D2.opus" }]
-            }
-          ],
-          "pitch": 38
-        },
-        {
-          "velocityLayers": [
-            {
-              "range": [1, 42],
-              "samples": [{ "path": "samples/SoloCello_trill_half_PP_E2.opus" }]
-            },
-            {
-              "range": [43, 84],
-              "samples": [{ "path": "samples/SoloCello_trill_half_MF_E2.opus" }]
-            },
-            {
-              "range": [85, 127],
-              "samples": [{ "path": "samples/SoloCello_trill_half_FF_E2.opus" }]
-            }
-          ],
-          "pitch": 40
-        },
-        {
-          "velocityLayers": [
-            {
-              "range": [1, 42],
-              "samples": [{ "path": "samples/SoloCello_trill_half_PP_F#2.opus" }]
-            },
-            {
-              "range": [43, 84],
-              "samples": [{ "path": "samples/SoloCello_trill_half_MF_F#2.opus" }]
-            },
-            {
-              "range": [85, 127],
-              "samples": [{ "path": "samples/SoloCello_trill_half_FF_F#2.opus" }]
-            }
-          ],
-          "pitch": 42
-        },
-        {
-          "velocityLayers": [
-            {
-              "range": [1, 42],
-              "samples": [{ "path": "samples/SoloCello_trill_half_PP_G#2.opus" }]
-            },
-            {
-              "range": [43, 84],
-              "samples": [{ "path": "samples/SoloCello_trill_half_MF_G#2.opus" }]
-            },
-            {
-              "range": [85, 127],
-              "samples": [{ "path": "samples/SoloCello_trill_half_FF_G#2.opus" }]
-            }
-          ],
-          "pitch": 44
-        },
-        {
-          "velocityLayers": [
-            {
-              "range": [1, 42],
-              "samples": [{ "path": "samples/SoloCello_trill_half_PP_A#2.opus" }]
-            },
-            {
-              "range": [43, 84],
-              "samples": [{ "path": "samples/SoloCello_trill_half_MF_A#2.opus" }]
-            },
-            {
-              "range": [85, 127],
-              "samples": [{ "path": "samples/SoloCello_trill_half_FF_A#2.opus" }]
-            }
-          ],
-          "pitch": 46
-        },
-        {
-          "velocityLayers": [
-            {
-              "range": [1, 42],
-              "samples": [{ "path": "samples/SoloCello_trill_half_PP_C3.opus" }]
-            },
-            {
-              "range": [43, 84],
-              "samples": [{ "path": "samples/SoloCello_trill_half_MF_C3.opus" }]
-            },
-            {
-              "range": [85, 127],
-              "samples": [{ "path": "samples/SoloCello_trill_half_FF_C3.opus" }]
-            }
-          ],
-          "pitch": 48
-        },
-        {
-          "velocityLayers": [
-            {
-              "range": [1, 42],
-              "samples": [{ "path": "samples/SoloCello_trill_half_PP_D3.opus" }]
-            },
-            {
-              "range": [43, 84],
-              "samples": [{ "path": "samples/SoloCello_trill_half_MF_D3.opus" }]
-            },
-            {
-              "range": [85, 127],
-              "samples": [{ "path": "samples/SoloCello_trill_half_FF_D3.opus" }]
-            }
-          ],
-          "pitch": 50
-        },
-        {
-          "velocityLayers": [
-            {
-              "range": [1, 42],
-              "samples": [{ "path": "samples/SoloCello_trill_half_PP_E3.opus" }]
-            },
-            {
-              "range": [43, 84],
-              "samples": [{ "path": "samples/SoloCello_trill_half_MF_E3.opus" }]
-            },
-            {
-              "range": [85, 127],
-              "samples": [{ "path": "samples/SoloCello_trill_half_FF_E3.opus" }]
-            }
-          ],
-          "pitch": 52
-        },
-        {
-          "velocityLayers": [
-            {
-              "range": [1, 42],
-              "samples": [{ "path": "samples/SoloCello_trill_half_PP_F#3.opus" }]
-            },
-            {
-              "range": [43, 84],
-              "samples": [{ "path": "samples/SoloCello_trill_half_MF_F#3.opus" }]
-            },
-            {
-              "range": [85, 127],
-              "samples": [{ "path": "samples/SoloCello_trill_half_FF_F#3.opus" }]
-            }
-          ],
-          "pitch": 54
-        },
-        {
-          "velocityLayers": [
-            {
-              "range": [1, 42],
-              "samples": [{ "path": "samples/SoloCello_trill_half_PP_G#3.opus" }]
-            },
-            {
-              "range": [43, 84],
-              "samples": [{ "path": "samples/SoloCello_trill_half_MF_G#3.opus" }]
-            },
-            {
-              "range": [85, 127],
-              "samples": [{ "path": "samples/SoloCello_trill_half_FF_G#3.opus" }]
-            }
-          ],
-          "pitch": 56
-        },
-        {
-          "velocityLayers": [
-            {
-              "range": [1, 42],
-              "samples": [{ "path": "samples/SoloCello_trill_half_PP_A#3.opus" }]
-            },
-            {
-              "range": [43, 84],
-              "samples": [{ "path": "samples/SoloCello_trill_half_MF_A#3.opus" }]
-            },
-            {
-              "range": [85, 127],
-              "samples": [{ "path": "samples/SoloCello_trill_half_FF_A#3.opus" }]
-            }
-          ],
-          "pitch": 58
-        },
-        {
-          "velocityLayers": [
-            {
-              "range": [1, 42],
-              "samples": [{ "path": "samples/SoloCello_trill_half_PP_C4.opus" }]
-            },
-            {
-              "range": [43, 84],
-              "samples": [{ "path": "samples/SoloCello_trill_half_MF_C4.opus" }]
-            },
-            {
-              "range": [85, 127],
-              "samples": [{ "path": "samples/SoloCello_trill_half_FF_C4.opus" }]
-            }
-          ],
-          "pitch": 60
-        },
-        {
-          "velocityLayers": [
-            {
-              "range": [1, 42],
-              "samples": [{ "path": "samples/SoloCello_trill_half_PP_D4.opus" }]
-            },
-            {
-              "range": [43, 84],
-              "samples": [{ "path": "samples/SoloCello_trill_half_MF_D4.opus" }]
-            },
-            {
-              "range": [85, 127],
-              "samples": [{ "path": "samples/SoloCello_trill_half_FF_D4.opus" }]
-            }
-          ],
-          "pitch": 62
-        },
-        {
-          "velocityLayers": [
-            {
-              "range": [1, 42],
-              "samples": [{ "path": "samples/SoloCello_trill_half_PP_E4.opus" }]
-            },
-            {
-              "range": [43, 84],
-              "samples": [{ "path": "samples/SoloCello_trill_half_MF_E4.opus" }]
-            },
-            {
-              "range": [85, 127],
-              "samples": [{ "path": "samples/SoloCello_trill_half_FF_E4.opus" }]
-            }
-          ],
-          "pitch": 64
-        },
-        {
-          "velocityLayers": [
-            {
-              "range": [1, 42],
-              "samples": [{ "path": "samples/SoloCello_trill_half_PP_F#4.opus" }]
-            },
-            {
-              "range": [43, 84],
-              "samples": [{ "path": "samples/SoloCello_trill_half_MF_F#4.opus" }]
-            },
-            {
-              "range": [85, 127],
-              "samples": [{ "path": "samples/SoloCello_trill_half_FF_F#4.opus" }]
-            }
-          ],
-          "pitch": 66
-        },
-        {
-          "velocityLayers": [
-            {
-              "range": [1, 42],
-              "samples": [{ "path": "samples/SoloCello_trill_half_PP_G#4.opus" }]
-            },
-            {
-              "range": [43, 84],
-              "samples": [{ "path": "samples/SoloCello_trill_half_MF_G#4.opus" }]
-            },
-            {
-              "range": [85, 127],
-              "samples": [{ "path": "samples/SoloCello_trill_half_FF_G#4.opus" }]
-            }
-          ],
-          "pitch": 68
-        },
-        {
-          "velocityLayers": [
-            {
-              "range": [1, 42],
-              "samples": [{ "path": "samples/SoloCello_trill_half_PP_A#4.opus" }]
-            },
-            {
-              "range": [43, 84],
-              "samples": [{ "path": "samples/SoloCello_trill_half_MF_A#4.opus" }]
-            },
-            {
-              "range": [85, 127],
-              "samples": [{ "path": "samples/SoloCello_trill_half_FF_A#4.opus" }]
-            }
-          ],
-          "pitch": 70
-        },
-        {
-          "velocityLayers": [
-            {
-              "range": [1, 42],
-              "samples": [{ "path": "samples/SoloCello_trill_half_PP_C5.opus" }]
-            },
-            {
-              "range": [43, 84],
-              "samples": [{ "path": "samples/SoloCello_trill_half_MF_C5.opus" }]
-            },
-            {
-              "range": [85, 127],
-              "samples": [{ "path": "samples/SoloCello_trill_half_FF_C5.opus" }]
-            }
-          ],
-          "pitch": 72
-        },
-        {
-          "velocityLayers": [
-            {
-              "range": [1, 42],
-              "samples": [{ "path": "samples/SoloCello_trill_half_PP_D5.opus" }]
-            },
-            {
-              "range": [43, 84],
-              "samples": [{ "path": "samples/SoloCello_trill_half_MF_D5.opus" }]
-            },
-            {
-              "range": [85, 127],
-              "samples": [{ "path": "samples/SoloCello_trill_half_FF_D5.opus" }]
-            }
-          ],
-          "pitch": 74
-        },
-        {
-          "velocityLayers": [
-            {
-              "range": [1, 42],
-              "samples": [{ "path": "samples/SoloCello_trill_half_PP_E5.opus" }]
-            },
-            {
-              "range": [43, 84],
-              "samples": [{ "path": "samples/SoloCello_trill_half_MF_E5.opus" }]
-            },
-            {
-              "range": [85, 127],
-              "samples": [{ "path": "samples/SoloCello_trill_half_FF_E5.opus" }]
-            }
-          ],
-          "pitch": 76
-        },
-        {
-          "velocityLayers": [
-            {
-              "range": [1, 42],
-              "samples": [{ "path": "samples/SoloCello_trill_half_PP_F#5.opus" }]
-            },
-            {
-              "range": [43, 84],
-              "samples": [{ "path": "samples/SoloCello_trill_half_MF_F#5.opus" }]
-            },
-            {
-              "range": [85, 127],
-              "samples": [{ "path": "samples/SoloCello_trill_half_FF_F#5.opus" }]
-            }
-          ],
-          "pitch": 78
-        }
-      ]
-    },
-    {
       "id": "trill-half",
       "name": "Trill (Half)",
       "range": [[36, 96]],
@@ -5408,6 +5027,387 @@
             {
               "range": [85, 127],
               "samples": [{ "path": "samples/SoloCello_trill_whole_FF_F#5.opus" }]
+            }
+          ],
+          "pitch": 78
+        }
+      ]
+    },
+    {
+      "id": "trill-whole",
+      "name": "Trill (Whole)",
+      "range": [[36, 96]],
+      "zones": [
+        {
+          "velocityLayers": [
+            {
+              "range": [1, 42],
+              "samples": [{ "path": "samples/SoloCello_trill_half_PP_C2.opus" }]
+            },
+            {
+              "range": [43, 84],
+              "samples": [{ "path": "samples/SoloCello_trill_half_MF_C2.opus" }]
+            },
+            {
+              "range": [85, 127],
+              "samples": [{ "path": "samples/SoloCello_trill_half_FF_C2.opus" }]
+            }
+          ],
+          "pitch": 36
+        },
+        {
+          "velocityLayers": [
+            {
+              "range": [1, 42],
+              "samples": [{ "path": "samples/SoloCello_trill_half_PP_D2.opus" }]
+            },
+            {
+              "range": [43, 84],
+              "samples": [{ "path": "samples/SoloCello_trill_half_MF_D2.opus" }]
+            },
+            {
+              "range": [85, 127],
+              "samples": [{ "path": "samples/SoloCello_trill_half_FF_D2.opus" }]
+            }
+          ],
+          "pitch": 38
+        },
+        {
+          "velocityLayers": [
+            {
+              "range": [1, 42],
+              "samples": [{ "path": "samples/SoloCello_trill_half_PP_E2.opus" }]
+            },
+            {
+              "range": [43, 84],
+              "samples": [{ "path": "samples/SoloCello_trill_half_MF_E2.opus" }]
+            },
+            {
+              "range": [85, 127],
+              "samples": [{ "path": "samples/SoloCello_trill_half_FF_E2.opus" }]
+            }
+          ],
+          "pitch": 40
+        },
+        {
+          "velocityLayers": [
+            {
+              "range": [1, 42],
+              "samples": [{ "path": "samples/SoloCello_trill_half_PP_F#2.opus" }]
+            },
+            {
+              "range": [43, 84],
+              "samples": [{ "path": "samples/SoloCello_trill_half_MF_F#2.opus" }]
+            },
+            {
+              "range": [85, 127],
+              "samples": [{ "path": "samples/SoloCello_trill_half_FF_F#2.opus" }]
+            }
+          ],
+          "pitch": 42
+        },
+        {
+          "velocityLayers": [
+            {
+              "range": [1, 42],
+              "samples": [{ "path": "samples/SoloCello_trill_half_PP_G#2.opus" }]
+            },
+            {
+              "range": [43, 84],
+              "samples": [{ "path": "samples/SoloCello_trill_half_MF_G#2.opus" }]
+            },
+            {
+              "range": [85, 127],
+              "samples": [{ "path": "samples/SoloCello_trill_half_FF_G#2.opus" }]
+            }
+          ],
+          "pitch": 44
+        },
+        {
+          "velocityLayers": [
+            {
+              "range": [1, 42],
+              "samples": [{ "path": "samples/SoloCello_trill_half_PP_A#2.opus" }]
+            },
+            {
+              "range": [43, 84],
+              "samples": [{ "path": "samples/SoloCello_trill_half_MF_A#2.opus" }]
+            },
+            {
+              "range": [85, 127],
+              "samples": [{ "path": "samples/SoloCello_trill_half_FF_A#2.opus" }]
+            }
+          ],
+          "pitch": 46
+        },
+        {
+          "velocityLayers": [
+            {
+              "range": [1, 42],
+              "samples": [{ "path": "samples/SoloCello_trill_half_PP_C3.opus" }]
+            },
+            {
+              "range": [43, 84],
+              "samples": [{ "path": "samples/SoloCello_trill_half_MF_C3.opus" }]
+            },
+            {
+              "range": [85, 127],
+              "samples": [{ "path": "samples/SoloCello_trill_half_FF_C3.opus" }]
+            }
+          ],
+          "pitch": 48
+        },
+        {
+          "velocityLayers": [
+            {
+              "range": [1, 42],
+              "samples": [{ "path": "samples/SoloCello_trill_half_PP_D3.opus" }]
+            },
+            {
+              "range": [43, 84],
+              "samples": [{ "path": "samples/SoloCello_trill_half_MF_D3.opus" }]
+            },
+            {
+              "range": [85, 127],
+              "samples": [{ "path": "samples/SoloCello_trill_half_FF_D3.opus" }]
+            }
+          ],
+          "pitch": 50
+        },
+        {
+          "velocityLayers": [
+            {
+              "range": [1, 42],
+              "samples": [{ "path": "samples/SoloCello_trill_half_PP_E3.opus" }]
+            },
+            {
+              "range": [43, 84],
+              "samples": [{ "path": "samples/SoloCello_trill_half_MF_E3.opus" }]
+            },
+            {
+              "range": [85, 127],
+              "samples": [{ "path": "samples/SoloCello_trill_half_FF_E3.opus" }]
+            }
+          ],
+          "pitch": 52
+        },
+        {
+          "velocityLayers": [
+            {
+              "range": [1, 42],
+              "samples": [{ "path": "samples/SoloCello_trill_half_PP_F#3.opus" }]
+            },
+            {
+              "range": [43, 84],
+              "samples": [{ "path": "samples/SoloCello_trill_half_MF_F#3.opus" }]
+            },
+            {
+              "range": [85, 127],
+              "samples": [{ "path": "samples/SoloCello_trill_half_FF_F#3.opus" }]
+            }
+          ],
+          "pitch": 54
+        },
+        {
+          "velocityLayers": [
+            {
+              "range": [1, 42],
+              "samples": [{ "path": "samples/SoloCello_trill_half_PP_G#3.opus" }]
+            },
+            {
+              "range": [43, 84],
+              "samples": [{ "path": "samples/SoloCello_trill_half_MF_G#3.opus" }]
+            },
+            {
+              "range": [85, 127],
+              "samples": [{ "path": "samples/SoloCello_trill_half_FF_G#3.opus" }]
+            }
+          ],
+          "pitch": 56
+        },
+        {
+          "velocityLayers": [
+            {
+              "range": [1, 42],
+              "samples": [{ "path": "samples/SoloCello_trill_half_PP_A#3.opus" }]
+            },
+            {
+              "range": [43, 84],
+              "samples": [{ "path": "samples/SoloCello_trill_half_MF_A#3.opus" }]
+            },
+            {
+              "range": [85, 127],
+              "samples": [{ "path": "samples/SoloCello_trill_half_FF_A#3.opus" }]
+            }
+          ],
+          "pitch": 58
+        },
+        {
+          "velocityLayers": [
+            {
+              "range": [1, 42],
+              "samples": [{ "path": "samples/SoloCello_trill_half_PP_C4.opus" }]
+            },
+            {
+              "range": [43, 84],
+              "samples": [{ "path": "samples/SoloCello_trill_half_MF_C4.opus" }]
+            },
+            {
+              "range": [85, 127],
+              "samples": [{ "path": "samples/SoloCello_trill_half_FF_C4.opus" }]
+            }
+          ],
+          "pitch": 60
+        },
+        {
+          "velocityLayers": [
+            {
+              "range": [1, 42],
+              "samples": [{ "path": "samples/SoloCello_trill_half_PP_D4.opus" }]
+            },
+            {
+              "range": [43, 84],
+              "samples": [{ "path": "samples/SoloCello_trill_half_MF_D4.opus" }]
+            },
+            {
+              "range": [85, 127],
+              "samples": [{ "path": "samples/SoloCello_trill_half_FF_D4.opus" }]
+            }
+          ],
+          "pitch": 62
+        },
+        {
+          "velocityLayers": [
+            {
+              "range": [1, 42],
+              "samples": [{ "path": "samples/SoloCello_trill_half_PP_E4.opus" }]
+            },
+            {
+              "range": [43, 84],
+              "samples": [{ "path": "samples/SoloCello_trill_half_MF_E4.opus" }]
+            },
+            {
+              "range": [85, 127],
+              "samples": [{ "path": "samples/SoloCello_trill_half_FF_E4.opus" }]
+            }
+          ],
+          "pitch": 64
+        },
+        {
+          "velocityLayers": [
+            {
+              "range": [1, 42],
+              "samples": [{ "path": "samples/SoloCello_trill_half_PP_F#4.opus" }]
+            },
+            {
+              "range": [43, 84],
+              "samples": [{ "path": "samples/SoloCello_trill_half_MF_F#4.opus" }]
+            },
+            {
+              "range": [85, 127],
+              "samples": [{ "path": "samples/SoloCello_trill_half_FF_F#4.opus" }]
+            }
+          ],
+          "pitch": 66
+        },
+        {
+          "velocityLayers": [
+            {
+              "range": [1, 42],
+              "samples": [{ "path": "samples/SoloCello_trill_half_PP_G#4.opus" }]
+            },
+            {
+              "range": [43, 84],
+              "samples": [{ "path": "samples/SoloCello_trill_half_MF_G#4.opus" }]
+            },
+            {
+              "range": [85, 127],
+              "samples": [{ "path": "samples/SoloCello_trill_half_FF_G#4.opus" }]
+            }
+          ],
+          "pitch": 68
+        },
+        {
+          "velocityLayers": [
+            {
+              "range": [1, 42],
+              "samples": [{ "path": "samples/SoloCello_trill_half_PP_A#4.opus" }]
+            },
+            {
+              "range": [43, 84],
+              "samples": [{ "path": "samples/SoloCello_trill_half_MF_A#4.opus" }]
+            },
+            {
+              "range": [85, 127],
+              "samples": [{ "path": "samples/SoloCello_trill_half_FF_A#4.opus" }]
+            }
+          ],
+          "pitch": 70
+        },
+        {
+          "velocityLayers": [
+            {
+              "range": [1, 42],
+              "samples": [{ "path": "samples/SoloCello_trill_half_PP_C5.opus" }]
+            },
+            {
+              "range": [43, 84],
+              "samples": [{ "path": "samples/SoloCello_trill_half_MF_C5.opus" }]
+            },
+            {
+              "range": [85, 127],
+              "samples": [{ "path": "samples/SoloCello_trill_half_FF_C5.opus" }]
+            }
+          ],
+          "pitch": 72
+        },
+        {
+          "velocityLayers": [
+            {
+              "range": [1, 42],
+              "samples": [{ "path": "samples/SoloCello_trill_half_PP_D5.opus" }]
+            },
+            {
+              "range": [43, 84],
+              "samples": [{ "path": "samples/SoloCello_trill_half_MF_D5.opus" }]
+            },
+            {
+              "range": [85, 127],
+              "samples": [{ "path": "samples/SoloCello_trill_half_FF_D5.opus" }]
+            }
+          ],
+          "pitch": 74
+        },
+        {
+          "velocityLayers": [
+            {
+              "range": [1, 42],
+              "samples": [{ "path": "samples/SoloCello_trill_half_PP_E5.opus" }]
+            },
+            {
+              "range": [43, 84],
+              "samples": [{ "path": "samples/SoloCello_trill_half_MF_E5.opus" }]
+            },
+            {
+              "range": [85, 127],
+              "samples": [{ "path": "samples/SoloCello_trill_half_FF_E5.opus" }]
+            }
+          ],
+          "pitch": 76
+        },
+        {
+          "velocityLayers": [
+            {
+              "range": [1, 42],
+              "samples": [{ "path": "samples/SoloCello_trill_half_PP_F#5.opus" }]
+            },
+            {
+              "range": [43, 84],
+              "samples": [{ "path": "samples/SoloCello_trill_half_MF_F#5.opus" }]
+            },
+            {
+              "range": [85, 127],
+              "samples": [{ "path": "samples/SoloCello_trill_half_FF_F#5.opus" }]
             }
           ],
           "pitch": 78

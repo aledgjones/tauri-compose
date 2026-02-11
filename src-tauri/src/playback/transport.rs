@@ -210,8 +210,8 @@ fn render_note(
 
     let request = StreamRequest {
         container_path: sample.container_path.clone(),
-        ogg_offset: sample.ogg_offset,
-        ogg_length: sample.ogg_length,
+        flac_offset: sample.flac_offset,
+        flac_length: sample.flac_length,
         source_sample_rate: sample.source_sample_rate,
         target_sample_rate: sample_rate,
         channels,

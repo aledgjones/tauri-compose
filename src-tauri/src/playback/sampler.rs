@@ -50,12 +50,12 @@ pub struct CacheSample {
     pub channels: u8,
     /// Path to the .scvi container (for disk streaming)
     pub container_path: PathBuf,
-    /// Source sample rate of the Opus data
+    /// Source sample rate of the FLAC data
     pub source_sample_rate: u32,
-    /// Byte offset of the Vorbis data within the container
-    pub ogg_offset: u64,
-    /// Byte length of the Vorbis data within the container
-    pub ogg_length: u64,
+    /// Byte offset of the FLAC data within the container
+    pub flac_offset: u64,
+    /// Byte length of the FLAC data within the container
+    pub flac_length: u64,
 }
 
 #[derive(Clone)]
@@ -231,8 +231,8 @@ impl SamplerContext {
                                 channels: index.channels,
                                 container_path: container_path.clone(),
                                 source_sample_rate: index.sample_rate,
-                                ogg_offset: index.file_offset,
-                                ogg_length: index.length,
+                                flac_offset: index.file_offset,
+                                flac_length: index.length,
                             },
                         });
                     }
@@ -485,8 +485,8 @@ pub fn sampler_audition(
 
     let request = StreamRequest {
         container_path: sample.container_path.clone(),
-        ogg_offset: sample.ogg_offset,
-        ogg_length: sample.ogg_length,
+        flac_offset: sample.flac_offset,
+        flac_length: sample.flac_length,
         source_sample_rate: sample.source_sample_rate,
         target_sample_rate,
         channels,

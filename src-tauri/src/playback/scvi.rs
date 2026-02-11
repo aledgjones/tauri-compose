@@ -101,7 +101,7 @@ pub struct SampleIndex {
     pub sample_id: u32,
     /// Absolute byte offset within the file (sdat_offset + entry.offset)
     pub file_offset: u64,
-    /// Byte length of the Vorbis data
+    /// Byte length of the FLAC data
     pub length: u64,
     pub sample_rate: u32,
     pub channels: u8,
