@@ -189,9 +189,9 @@ export const Main: FC = () => {
             {plugin.name}
           </div>
 
-          <div className="flex items-center gap-4 mt-1">
+          <div className="flex items-center gap-2 mt-1">
             <div className="text-neutral-400 text-sm">by {plugin.author}</div>
-            <div className="w-1 h-1 bg-neutral-600 rounded-full" />
+            <div className="w-1 h-1 bg-neutral-400 rounded-full" />
             <div className="text-neutral-400 text-sm">v{plugin.version}</div>
           </div>
         </div>

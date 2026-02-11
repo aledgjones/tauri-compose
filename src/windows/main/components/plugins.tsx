@@ -34,9 +34,9 @@ const PluginTile: FC<PluginTileProps> = ({ plugin, isLoaded }) => {
     new WebviewWindow(windowLabel, {
       url: `/plugin-settings.html?id=${encodeURIComponent(plugin.id)}`,
       title: "",
-      width: 600,
+      width: 500,
       height: 600,
-      resizable: false,
+      resizable: true,
       titleBarStyle: "overlay",
       theme: "dark",
       center: true,
