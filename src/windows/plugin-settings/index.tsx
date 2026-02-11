@@ -106,7 +106,7 @@ const ArticulationItem: FC<InstrumentTileProps> = ({
     <button
       onClick={onSelect}
       className={classNames(
-        "border flex items-center justify-center gap-3 p-3 rounded cursor-pointer transition-colors min-w-23 h-12 text-center",
+        "border p-3 rounded cursor-pointer transition-colors min-w-23 shrink-0 h-12 text-center",
         {
           "bg-sky-500/10 border-sky-500": isSelected,
           "bg-neutral-800/20 border-neutral-800/50 hover:bg-neutral-800/50":
@@ -114,10 +114,8 @@ const ArticulationItem: FC<InstrumentTileProps> = ({
         },
       )}
     >
-      <div className="flex-1 min-w-0">
-        <div className="text-white text-[11px] uppercase">
-          {articulation.name}
-        </div>
+      <div className="text-white text-[11px] uppercase whitespace-nowrap">
+        {articulation.name}
       </div>
     </button>
   );
@@ -178,7 +176,7 @@ export const Main: FC = () => {
     <div className="flex flex-col h-screen bg-neutral-950">
       <div
         data-tauri-drag-region
-        className="shrink-0 flex-1 bg-neutral-900 bg-no-repeat bg-cover bg-center relative flex flex-col justify-end p-6 pb-6"
+        className="shrink-0 flex-1 bg-neutral-900 bg-no-repeat bg-cover bg-center relative flex flex-col justify-end"
         style={{ backgroundImage: `url(${coverImageUrl})` }}
       >
         <div className="absolute bottom-0 left-0 right-0 w-full pointer-events-none">
@@ -186,7 +184,7 @@ export const Main: FC = () => {
           <div className="bg-neutral-950 h-8" />
         </div>
 
-        <div className="relative z-10 mb-4">
+        <div className="relative z-10 mb-4 px-6">
           <div className="text-neutral-100 text-2xl font-bold">
             {plugin.name}
           </div>
@@ -198,7 +196,7 @@ export const Main: FC = () => {
           </div>
         </div>
 
-        <div className="flex gap-2 z-10">
+        <div className="flex gap-2 z-10 overflow-auto px-6 pb-6">
           {plugin.articulations.map((articulation) => (
             <ArticulationItem
               key={articulation.id}
