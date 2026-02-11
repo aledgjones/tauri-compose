@@ -597,7 +597,11 @@ fn main() {
 
     // Parse command line arguments
     let args: Vec<String> = env::args().collect();
-    let target_instrument = if args.len() > 1 { Some(args[1].clone()) } else { None };
+    let target_instrument = if args.len() > 1 {
+        Some(args[1].clone())
+    } else {
+        None
+    };
 
     // Discover instruments
     let mut instruments: Vec<PathBuf> = Vec::new();
