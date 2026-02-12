@@ -24,8 +24,8 @@ name = "scvi-inspect"
 path = "src/bin/scvi_inspect.rs"
 
 [[bin]]
-name = "release"
-path = "src/bin/release.rs"
+name = "generate-manifest"
+path = "src/bin/generate_manifest.rs"
 
 [[bin]]
 name = "solo-compose"

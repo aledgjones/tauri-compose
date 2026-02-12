@@ -34,9 +34,9 @@ const PluginTile: FC<PluginTileProps> = ({ plugin, isLoaded }) => {
     new WebviewWindow(windowLabel, {
       url: `/plugin-settings.html?id=${encodeURIComponent(plugin.id)}`,
       title: "",
-      width: 500,
-      height: 600,
-      resizable: true,
+      width: 550,
+      height: 650,
+      resizable: false,
       titleBarStyle: "overlay",
       theme: "dark",
       center: true,
@@ -66,7 +66,7 @@ const PluginTile: FC<PluginTileProps> = ({ plugin, isLoaded }) => {
         />
       </div>
 
-      <div className="text-center absolute bottom-0 left-0 right-0 p-4 bg-linear-0 from-black/50 to-black/0">
+      <div className="text-center absolute bottom-0 left-0 right-0 p-4 pt-20 bg-linear-0 from-black/75 to-black/0">
         <div className="text-white text-sm truncate font-semibold">
           <TokenizedText>{plugin.name}</TokenizedText>
         </div>

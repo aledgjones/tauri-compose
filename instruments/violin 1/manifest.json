@@ -1,0 +1,10 @@
+{
+  "meta": {
+    "id": "sso.strings.violin.1",
+    "name": "SSO Violin 1",
+    "author": "Solo Compose",
+    "version": "1.4.0",
+    "type": "pitched"
+  },
+  "articulations": []
+}

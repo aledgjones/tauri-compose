@@ -1,10 +1,10 @@
 {
   "meta": {
-    "version": "1.0.0",
-    "type": "pitched",
     "id": "sso.keyboard.harpsichord",
     "name": "SSO Harpsichord",
-    "author": "Solo Compose"
+    "author": "Solo Compose",
+    "version": "1.0.0",
+    "type": "pitched"
   },
   "articulations": [
     {
@@ -13,7 +13,7 @@
       "range": [[36, 84]],
       "zones": [
         {
-          "pitch": 36,
+          "pitch": 34,
           "velocityLayers": [
             {
               "range": [1, 127],
@@ -22,7 +22,7 @@
           ]
         },
         {
-          "pitch": 38,
+          "pitch": 36,
           "velocityLayers": [
             {
               "range": [1, 127],
@@ -31,7 +31,7 @@
           ]
         },
         {
-          "pitch": 39,
+          "pitch": 37,
           "velocityLayers": [
             {
               "range": [1, 127],
@@ -40,7 +40,7 @@
           ]
         },
         {
-          "pitch": 40,
+          "pitch": 38,
           "velocityLayers": [
             {
               "range": [1, 127],
@@ -49,7 +49,7 @@
           ]
         },
         {
-          "pitch": 41,
+          "pitch": 39,
           "velocityLayers": [
             {
               "range": [1, 127],
@@ -58,7 +58,7 @@
           ]
         },
         {
-          "pitch": 42,
+          "pitch": 40,
           "velocityLayers": [
             {
               "range": [1, 127],
@@ -67,7 +67,7 @@
           ]
         },
         {
-          "pitch": 43,
+          "pitch": 41,
           "velocityLayers": [
             {
               "range": [1, 127],
@@ -76,7 +76,7 @@
           ]
         },
         {
-          "pitch": 44,
+          "pitch": 42,
           "velocityLayers": [
             {
               "range": [1, 127],
@@ -85,7 +85,7 @@
           ]
         },
         {
-          "pitch": 45,
+          "pitch": 43,
           "velocityLayers": [
             {
               "range": [1, 127],
@@ -94,7 +94,7 @@
           ]
         },
         {
-          "pitch": 46,
+          "pitch": 44,
           "velocityLayers": [
             {
               "range": [1, 127],
@@ -103,7 +103,7 @@
           ]
         },
         {
-          "pitch": 47,
+          "pitch": 45,
           "velocityLayers": [
             {
               "range": [1, 127],
@@ -112,7 +112,7 @@
           ]
         },
         {
-          "pitch": 48,
+          "pitch": 46,
           "velocityLayers": [
             {
               "range": [1, 127],
@@ -121,7 +121,7 @@
           ]
         },
         {
-          "pitch": 49,
+          "pitch": 47,
           "velocityLayers": [
             {
               "range": [1, 127],
@@ -130,7 +130,7 @@
           ]
         },
         {
-          "pitch": 50,
+          "pitch": 48,
           "velocityLayers": [
             {
               "range": [1, 127],
@@ -139,7 +139,7 @@
           ]
         },
         {
-          "pitch": 51,
+          "pitch": 49,
           "velocityLayers": [
             {
               "range": [1, 127],
@@ -148,7 +148,7 @@
           ]
         },
         {
-          "pitch": 52,
+          "pitch": 50,
           "velocityLayers": [
             {
               "range": [1, 127],
@@ -157,7 +157,7 @@
           ]
         },
         {
-          "pitch": 53,
+          "pitch": 51,
           "velocityLayers": [
             {
               "range": [1, 127],
@@ -166,7 +166,7 @@
           ]
         },
         {
-          "pitch": 54,
+          "pitch": 52,
           "velocityLayers": [
             {
               "range": [1, 127],
@@ -175,7 +175,7 @@
           ]
         },
         {
-          "pitch": 55,
+          "pitch": 53,
           "velocityLayers": [
             {
               "range": [1, 127],
@@ -184,7 +184,7 @@
           ]
         },
         {
-          "pitch": 56,
+          "pitch": 54,
           "velocityLayers": [
             {
               "range": [1, 127],
@@ -193,7 +193,7 @@
           ]
         },
         {
-          "pitch": 57,
+          "pitch": 55,
           "velocityLayers": [
             {
               "range": [1, 127],
@@ -202,7 +202,7 @@
           ]
         },
         {
-          "pitch": 58,
+          "pitch": 56,
           "velocityLayers": [
             {
               "range": [1, 127],
@@ -211,7 +211,7 @@
           ]
         },
         {
-          "pitch": 59,
+          "pitch": 57,
           "velocityLayers": [
             {
               "range": [1, 127],
@@ -220,7 +220,7 @@
           ]
         },
         {
-          "pitch": 60,
+          "pitch": 58,
           "velocityLayers": [
             {
               "range": [1, 127],
@@ -229,7 +229,7 @@
           ]
         },
         {
-          "pitch": 61,
+          "pitch": 59,
           "velocityLayers": [
             {
               "range": [1, 127],
@@ -238,7 +238,7 @@
           ]
         },
         {
-          "pitch": 62,
+          "pitch": 60,
           "velocityLayers": [
             {
               "range": [1, 127],
@@ -247,7 +247,7 @@
           ]
         },
         {
-          "pitch": 63,
+          "pitch": 61,
           "velocityLayers": [
             {
               "range": [1, 127],
@@ -256,7 +256,7 @@
           ]
         },
         {
-          "pitch": 64,
+          "pitch": 62,
           "velocityLayers": [
             {
               "range": [1, 127],
@@ -265,7 +265,7 @@
           ]
         },
         {
-          "pitch": 65,
+          "pitch": 63,
           "velocityLayers": [
             {
               "range": [1, 127],
@@ -274,7 +274,7 @@
           ]
         },
         {
-          "pitch": 66,
+          "pitch": 64,
           "velocityLayers": [
             {
               "range": [1, 127],
@@ -283,7 +283,7 @@
           ]
         },
         {
-          "pitch": 67,
+          "pitch": 65,
           "velocityLayers": [
             {
               "range": [1, 127],
@@ -292,7 +292,7 @@
           ]
         },
         {
-          "pitch": 68,
+          "pitch": 66,
           "velocityLayers": [
             {
               "range": [1, 127],
@@ -301,7 +301,7 @@
           ]
         },
         {
-          "pitch": 69,
+          "pitch": 67,
           "velocityLayers": [
             {
               "range": [1, 127],
@@ -310,7 +310,7 @@
           ]
         },
         {
-          "pitch": 70,
+          "pitch": 68,
           "velocityLayers": [
             {
               "range": [1, 127],
@@ -319,7 +319,7 @@
           ]
         },
         {
-          "pitch": 71,
+          "pitch": 69,
           "velocityLayers": [
             {
               "range": [1, 127],
@@ -328,7 +328,7 @@
           ]
         },
         {
-          "pitch": 72,
+          "pitch": 70,
           "velocityLayers": [
             {
               "range": [1, 127],
@@ -337,7 +337,7 @@
           ]
         },
         {
-          "pitch": 73,
+          "pitch": 71,
           "velocityLayers": [
             {
               "range": [1, 127],
@@ -346,7 +346,7 @@
           ]
         },
         {
-          "pitch": 74,
+          "pitch": 72,
           "velocityLayers": [
             {
               "range": [1, 127],
@@ -355,7 +355,7 @@
           ]
         },
         {
-          "pitch": 75,
+          "pitch": 73,
           "velocityLayers": [
             {
               "range": [1, 127],
@@ -364,7 +364,7 @@
           ]
         },
         {
-          "pitch": 76,
+          "pitch": 74,
           "velocityLayers": [
             {
               "range": [1, 127],
@@ -373,7 +373,7 @@
           ]
         },
         {
-          "pitch": 77,
+          "pitch": 75,
           "velocityLayers": [
             {
               "range": [1, 127],
@@ -382,7 +382,7 @@
           ]
         },
         {
-          "pitch": 78,
+          "pitch": 76,
           "velocityLayers": [
             {
               "range": [1, 127],
@@ -391,7 +391,7 @@
           ]
         },
         {
-          "pitch": 79,
+          "pitch": 77,
           "velocityLayers": [
             {
               "range": [1, 127],
@@ -400,7 +400,7 @@
           ]
         },
         {
-          "pitch": 80,
+          "pitch": 78,
           "velocityLayers": [
             {
               "range": [1, 127],
@@ -409,7 +409,7 @@
           ]
         },
         {
-          "pitch": 81,
+          "pitch": 79,
           "velocityLayers": [
             {
               "range": [1, 127],
@@ -418,7 +418,7 @@
           ]
         },
         {
-          "pitch": 82,
+          "pitch": 80,
           "velocityLayers": [
             {
               "range": [1, 127],
@@ -427,7 +427,7 @@
           ]
         },
         {
-          "pitch": 83,
+          "pitch": 81,
           "velocityLayers": [
             {
               "range": [1, 127],
@@ -436,7 +436,7 @@
           ]
         },
         {
-          "pitch": 84,
+          "pitch": 82,
           "velocityLayers": [
             {
               "range": [1, 127],

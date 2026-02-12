@@ -195,17 +195,17 @@ export const Main: FC = () => {
             <div className="text-neutral-400 text-sm">v{plugin.version}</div>
           </div>
         </div>
+      </div>
 
-        <div className="flex gap-2 z-10 overflow-auto px-6 pb-6">
-          {plugin.articulations.map((articulation) => (
-            <ArticulationItem
-              key={articulation.id}
-              articulation={articulation}
-              isSelected={selection?.id === articulation.id}
-              onSelect={() => setSelectionId(articulation.id)}
-            />
-          ))}
-        </div>
+      <div className="flex gap-2 z-10 overflow-auto px-6 pb-6">
+        {plugin.articulations.map((articulation) => (
+          <ArticulationItem
+            key={articulation.id}
+            articulation={articulation}
+            isSelected={selection?.id === articulation.id}
+            onSelect={() => setSelectionId(articulation.id)}
+          />
+        ))}
       </div>
 
       <div className="px-4 pb-0.5 bg-neutral-800">
