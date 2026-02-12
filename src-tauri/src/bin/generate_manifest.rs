@@ -259,8 +259,49 @@ fn main() {
             .push(sample);
     }
 
-    // Generate articulations
-    for (articulation_key, samples) in articulations {
+    // Define articulation order (easy to update)
+    let articulation_order = vec![
+        "sustain",
+        "espressivo",
+        "nonvib",
+        "marcato",
+        "staccato",
+        "staccatissimo",
+        "tremolo",
+        "trill_half",
+        "trill_whole",
+        "sul_ponticello",
+        "sul_tasto",
+        "harmonic",
+        "pizzicato",
+        "bartok",
+        "bartok_pizz",
+        "col_legno",
+        "Fall",
+        "fall",
+    ];
+
+    // Convert articulations to a vector for custom sorting
+    let mut articulation_entries: Vec<(String, Vec<ParsedSample>)> =
+        articulations.into_iter().collect();
+
+    // Sort articulations by custom order, with unknown articulations at the end
+    articulation_entries.sort_by_key(|(key, _)| {
+        articulation_order
+            .iter()
+            .position(|&order_key| order_key == key)
+            .unwrap_or(articulation_order.len())
+    });
+
+    // Log warnings for unknown articulations
+    for (key, _) in &articulation_entries {
+        if !articulation_order.contains(&key.as_str()) {
+            eprintln!("Warning: Unknown articulation '{}' - adding at end", key);
+        }
+    }
+
+    // Generate articulations in the sorted order
+    for (articulation_key, samples) in articulation_entries {
         // Group by pitch
         let mut pitches: BTreeMap<u8, Vec<&ParsedSample>> = BTreeMap::new();
         for sample in &samples {
