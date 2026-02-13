@@ -279,6 +279,10 @@ fn main() {
         "col_legno",
         "Fall",
         "fall",
+        "Hit",
+        "Roll",
+        "Hard_Hit",
+        "Hard_Roll",
     ];
 
     // Convert articulations to a vector for custom sorting

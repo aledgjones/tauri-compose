@@ -1,12 +1,454 @@
 {
   "meta": {
-    "id": "sso.percussion.tubular_bells",
+    "id": "sso.percussion.tubular-bells",
     "name": "SSO Tubular Bells",
     "author": "Solo Compose",
     "version": "1.0.0",
     "type": "pitched"
   },
   "articulations": [
+    {
+      "id": "soft-sustain",
+      "name": "Sustain (Soft)",
+      "range": [[60, 76]],
+      "zones": [
+        {
+          "pitch": 60,
+          "velocityLayers": [
+            {
+              "range": [1, 42],
+              "samples": [
+                { "path": "samples/TubularBells_Soft_sustain_P_C4_RR1.opus" },
+                { "path": "samples/TubularBells_Soft_sustain_P_C4_RR2.opus" }
+              ]
+            },
+            {
+              "range": [43, 84],
+              "samples": [
+                { "path": "samples/TubularBells_Soft_sustain_MF_C4_RR1.opus" },
+                { "path": "samples/TubularBells_Soft_sustain_MF_C4_RR2.opus" }
+              ]
+            },
+            {
+              "range": [85, 127],
+              "samples": [
+                { "path": "samples/TubularBells_Soft_sustain_F_C4_RR1.opus" },
+                { "path": "samples/TubularBells_Soft_sustain_F_C4_RR2.opus" }
+              ]
+            }
+          ]
+        },
+        {
+          "pitch": 61,
+          "velocityLayers": [
+            {
+              "range": [1, 42],
+              "samples": [
+                { "path": "samples/TubularBells_Soft_sustain_P_C#4_RR1.opus" },
+                { "path": "samples/TubularBells_Soft_sustain_P_C#4_RR2.opus" }
+              ]
+            },
+            {
+              "range": [43, 84],
+              "samples": [
+                { "path": "samples/TubularBells_Soft_sustain_MF_C#4_RR1.opus" },
+                { "path": "samples/TubularBells_Soft_sustain_MF_C#4_RR2.opus" }
+              ]
+            },
+            {
+              "range": [85, 127],
+              "samples": [
+                { "path": "samples/TubularBells_Soft_sustain_F_C#4_RR1.opus" },
+                { "path": "samples/TubularBells_Soft_sustain_F_C#4_RR2.opus" }
+              ]
+            }
+          ]
+        },
+        {
+          "pitch": 62,
+          "velocityLayers": [
+            {
+              "range": [1, 42],
+              "samples": [
+                { "path": "samples/TubularBells_Soft_sustain_P_D4_RR1.opus" },
+                { "path": "samples/TubularBells_Soft_sustain_P_D4_RR2.opus" }
+              ]
+            },
+            {
+              "range": [43, 84],
+              "samples": [
+                { "path": "samples/TubularBells_Soft_sustain_MF_D4_RR1.opus" },
+                { "path": "samples/TubularBells_Soft_sustain_MF_D4_RR2.opus" }
+              ]
+            },
+            {
+              "range": [85, 127],
+              "samples": [
+                { "path": "samples/TubularBells_Soft_sustain_F_D4_RR1.opus" },
+                { "path": "samples/TubularBells_Soft_sustain_F_D4_RR2.opus" }
+              ]
+            }
+          ]
+        },
+        {
+          "pitch": 63,
+          "velocityLayers": [
+            {
+              "range": [1, 42],
+              "samples": [
+                { "path": "samples/TubularBells_Soft_sustain_P_D#4_RR1.opus" },
+                { "path": "samples/TubularBells_Soft_sustain_P_D#4_RR2.opus" }
+              ]
+            },
+            {
+              "range": [43, 84],
+              "samples": [
+                { "path": "samples/TubularBells_Soft_sustain_MF_D#4_RR1.opus" },
+                { "path": "samples/TubularBells_Soft_sustain_MF_D#4_RR2.opus" }
+              ]
+            },
+            {
+              "range": [85, 127],
+              "samples": [
+                { "path": "samples/TubularBells_Soft_sustain_F_D#4_RR1.opus" },
+                { "path": "samples/TubularBells_Soft_sustain_F_D#4_RR2.opus" }
+              ]
+            }
+          ]
+        },
+        {
+          "pitch": 64,
+          "velocityLayers": [
+            {
+              "range": [1, 42],
+              "samples": [
+                { "path": "samples/TubularBells_Soft_sustain_P_E4_RR1.opus" },
+                { "path": "samples/TubularBells_Soft_sustain_P_E4_RR2.opus" }
+              ]
+            },
+            {
+              "range": [43, 84],
+              "samples": [
+                { "path": "samples/TubularBells_Soft_sustain_MF_E4_RR1.opus" },
+                { "path": "samples/TubularBells_Soft_sustain_MF_E4_RR2.opus" }
+              ]
+            },
+            {
+              "range": [85, 127],
+              "samples": [
+                { "path": "samples/TubularBells_Soft_sustain_F_E4_RR1.opus" },
+                { "path": "samples/TubularBells_Soft_sustain_F_E4_RR2.opus" }
+              ]
+            }
+          ]
+        },
+        {
+          "pitch": 65,
+          "velocityLayers": [
+            {
+              "range": [1, 42],
+              "samples": [
+                { "path": "samples/TubularBells_Soft_sustain_P_F4_RR1.opus" },
+                { "path": "samples/TubularBells_Soft_sustain_P_F4_RR2.opus" }
+              ]
+            },
+            {
+              "range": [43, 84],
+              "samples": [
+                { "path": "samples/TubularBells_Soft_sustain_MF_F4_RR1.opus" },
+                { "path": "samples/TubularBells_Soft_sustain_MF_F4_RR2.opus" }
+              ]
+            },
+            {
+              "range": [85, 127],
+              "samples": [
+                { "path": "samples/TubularBells_Soft_sustain_F_F4_RR1.opus" },
+                { "path": "samples/TubularBells_Soft_sustain_F_F4_RR2.opus" }
+              ]
+            }
+          ]
+        },
+        {
+          "pitch": 66,
+          "velocityLayers": [
+            {
+              "range": [1, 42],
+              "samples": [
+                { "path": "samples/TubularBells_Soft_sustain_P_F#4_RR1.opus" },
+                { "path": "samples/TubularBells_Soft_sustain_P_F#4_RR2.opus" }
+              ]
+            },
+            {
+              "range": [43, 84],
+              "samples": [
+                { "path": "samples/TubularBells_Soft_sustain_MF_F#4_RR1.opus" },
+                { "path": "samples/TubularBells_Soft_sustain_MF_F#4_RR2.opus" }
+              ]
+            },
+            {
+              "range": [85, 127],
+              "samples": [
+                { "path": "samples/TubularBells_Soft_sustain_F_F#4_RR1.opus" },
+                { "path": "samples/TubularBells_Soft_sustain_F_F#4_RR2.opus" }
+              ]
+            }
+          ]
+        },
+        {
+          "pitch": 67,
+          "velocityLayers": [
+            {
+              "range": [1, 42],
+              "samples": [
+                { "path": "samples/TubularBells_Soft_sustain_P_G4_RR1.opus" },
+                { "path": "samples/TubularBells_Soft_sustain_P_G4_RR2.opus" }
+              ]
+            },
+            {
+              "range": [43, 84],
+              "samples": [
+                { "path": "samples/TubularBells_Soft_sustain_MF_G4_RR1.opus" },
+                { "path": "samples/TubularBells_Soft_sustain_MF_G4_RR2.opus" }
+              ]
+            },
+            {
+              "range": [85, 127],
+              "samples": [
+                { "path": "samples/TubularBells_Soft_sustain_F_G4_RR1.opus" },
+                { "path": "samples/TubularBells_Soft_sustain_F_G4_RR2.opus" }
+              ]
+            }
+          ]
+        },
+        {
+          "pitch": 68,
+          "velocityLayers": [
+            {
+              "range": [1, 42],
+              "samples": [
+                { "path": "samples/TubularBells_Soft_sustain_P_G#4_RR1.opus" },
+                { "path": "samples/TubularBells_Soft_sustain_P_G#4_RR2.opus" }
+              ]
+            },
+            {
+              "range": [43, 84],
+              "samples": [
+                { "path": "samples/TubularBells_Soft_sustain_MF_G#4_RR1.opus" },
+                { "path": "samples/TubularBells_Soft_sustain_MF_G#4_RR2.opus" }
+              ]
+            },
+            {
+              "range": [85, 127],
+              "samples": [
+                { "path": "samples/TubularBells_Soft_sustain_F_G#4_RR1.opus" },
+                { "path": "samples/TubularBells_Soft_sustain_F_G#4_RR2.opus" }
+              ]
+            }
+          ]
+        },
+        {
+          "pitch": 69,
+          "velocityLayers": [
+            {
+              "range": [1, 42],
+              "samples": [
+                { "path": "samples/TubularBells_Soft_sustain_P_A4_RR1.opus" },
+                { "path": "samples/TubularBells_Soft_sustain_P_A4_RR2.opus" }
+              ]
+            },
+            {
+              "range": [43, 84],
+              "samples": [
+                { "path": "samples/TubularBells_Soft_sustain_MF_A4_RR1.opus" },
+                { "path": "samples/TubularBells_Soft_sustain_MF_A4_RR2.opus" }
+              ]
+            },
+            {
+              "range": [85, 127],
+              "samples": [
+                { "path": "samples/TubularBells_Soft_sustain_F_A4_RR1.opus" },
+                { "path": "samples/TubularBells_Soft_sustain_F_A4_RR2.opus" }
+              ]
+            }
+          ]
+        },
+        {
+          "pitch": 70,
+          "velocityLayers": [
+            {
+              "range": [1, 42],
+              "samples": [
+                { "path": "samples/TubularBells_Soft_sustain_P_A#4_RR1.opus" },
+                { "path": "samples/TubularBells_Soft_sustain_P_A#4_RR2.opus" }
+              ]
+            },
+            {
+              "range": [43, 84],
+              "samples": [
+                { "path": "samples/TubularBells_Soft_sustain_MF_A#4_RR1.opus" },
+                { "path": "samples/TubularBells_Soft_sustain_MF_A#4_RR2.opus" }
+              ]
+            },
+            {
+              "range": [85, 127],
+              "samples": [
+                { "path": "samples/TubularBells_Soft_sustain_F_A#4_RR1.opus" },
+                { "path": "samples/TubularBells_Soft_sustain_F_A#4_RR2.opus" }
+              ]
+            }
+          ]
+        },
+        {
+          "pitch": 71,
+          "velocityLayers": [
+            {
+              "range": [1, 42],
+              "samples": [
+                { "path": "samples/TubularBells_Soft_sustain_P_B4_RR1.opus" },
+                { "path": "samples/TubularBells_Soft_sustain_P_B4_RR2.opus" }
+              ]
+            },
+            {
+              "range": [43, 84],
+              "samples": [
+                { "path": "samples/TubularBells_Soft_sustain_MF_B4_RR1.opus" },
+                { "path": "samples/TubularBells_Soft_sustain_MF_B4_RR2.opus" }
+              ]
+            },
+            {
+              "range": [85, 127],
+              "samples": [
+                { "path": "samples/TubularBells_Soft_sustain_F_B4_RR1.opus" },
+                { "path": "samples/TubularBells_Soft_sustain_F_B4_RR2.opus" }
+              ]
+            }
+          ]
+        },
+        {
+          "pitch": 72,
+          "velocityLayers": [
+            {
+              "range": [1, 42],
+              "samples": [
+                { "path": "samples/TubularBells_Soft_sustain_P_C5_RR1.opus" },
+                { "path": "samples/TubularBells_Soft_sustain_P_C5_RR2.opus" }
+              ]
+            },
+            {
+              "range": [43, 84],
+              "samples": [
+                { "path": "samples/TubularBells_Soft_sustain_MF_C5_RR1.opus" },
+                { "path": "samples/TubularBells_Soft_sustain_MF_C5_RR2.opus" }
+              ]
+            },
+            {
+              "range": [85, 127],
+              "samples": [
+                { "path": "samples/TubularBells_Soft_sustain_F_C5_RR1.opus" },
+                { "path": "samples/TubularBells_Soft_sustain_F_C5_RR2.opus" }
+              ]
+            }
+          ]
+        },
+        {
+          "pitch": 73,
+          "velocityLayers": [
+            {
+              "range": [1, 42],
+              "samples": [
+                { "path": "samples/TubularBells_Soft_sustain_P_C#5_RR1.opus" },
+                { "path": "samples/TubularBells_Soft_sustain_P_C#5_RR2.opus" }
+              ]
+            },
+            {
+              "range": [43, 84],
+              "samples": [
+                { "path": "samples/TubularBells_Soft_sustain_MF_C#5_RR1.opus" },
+                { "path": "samples/TubularBells_Soft_sustain_MF_C#5_RR2.opus" }
+              ]
+            },
+            {
+              "range": [85, 127],
+              "samples": [
+                { "path": "samples/TubularBells_Soft_sustain_F_C#5_RR1.opus" },
+                { "path": "samples/TubularBells_Soft_sustain_F_C#5_RR2.opus" }
+              ]
+            }
+          ]
+        },
+        {
+          "pitch": 74,
+          "velocityLayers": [
+            {
+              "range": [1, 42],
+              "samples": [
+                { "path": "samples/TubularBells_Soft_sustain_P_D5_RR1.opus" },
+                { "path": "samples/TubularBells_Soft_sustain_P_D5_RR2.opus" }
+              ]
+            },
+            {
+              "range": [43, 84],
+              "samples": [
+                { "path": "samples/TubularBells_Soft_sustain_MF_D5_RR1.opus" },
+                { "path": "samples/TubularBells_Soft_sustain_MF_D5_RR2.opus" }
+              ]
+            },
+            {
+              "range": [85, 127],
+              "samples": [
+                { "path": "samples/TubularBells_Soft_sustain_F_D5_RR1.opus" },
+                { "path": "samples/TubularBells_Soft_sustain_F_D5_RR2.opus" }
+              ]
+            }
+          ]
+        },
+        {
+          "pitch": 75,
+          "velocityLayers": [
+            {
+              "range": [1, 63],
+              "samples": [
+                { "path": "samples/TubularBells_Soft_sustain_MF_D#5_RR1.opus" },
+                { "path": "samples/TubularBells_Soft_sustain_MF_D#5_RR2.opus" }
+              ]
+            },
+            {
+              "range": [64, 127],
+              "samples": [
+                { "path": "samples/TubularBells_Soft_sustain_F_D#5_RR1.opus" },
+                { "path": "samples/TubularBells_Soft_sustain_F_D#5_RR2.opus" }
+              ]
+            }
+          ]
+        },
+        {
+          "pitch": 76,
+          "velocityLayers": [
+            {
+              "range": [1, 42],
+              "samples": [
+                { "path": "samples/TubularBells_Soft_sustain_P_E5_RR1.opus" },
+                { "path": "samples/TubularBells_Soft_sustain_P_E5_RR2.opus" }
+              ]
+            },
+            {
+              "range": [43, 84],
+              "samples": [
+                { "path": "samples/TubularBells_Soft_sustain_MF_E5_RR1.opus" },
+                { "path": "samples/TubularBells_Soft_sustain_MF_E5_RR2.opus" }
+              ]
+            },
+            {
+              "range": [85, 127],
+              "samples": [
+                { "path": "samples/TubularBells_Soft_sustain_F_E5_RR1.opus" },
+                { "path": "samples/TubularBells_Soft_sustain_F_E5_RR2.opus" }
+              ]
+            }
+          ]
+        }
+      ]
+    },
     {
       "id": "hard-sustain",
       "name": "Sustain (Hard)",
@@ -462,448 +904,6 @@
               "samples": [
                 { "path": "samples/TubularBells_Hard_sustain_F_F5_RR1.opus" },
                 { "path": "samples/TubularBells_Hard_sustain_F_F5_RR2.opus" }
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "id": "soft-sustain",
-      "name": "Sustain (Soft)",
-      "range": [[60, 76]],
-      "zones": [
-        {
-          "pitch": 60,
-          "velocityLayers": [
-            {
-              "range": [1, 42],
-              "samples": [
-                { "path": "samples/TubularBells_Soft_sustain_P_C4_RR1.opus" },
-                { "path": "samples/TubularBells_Soft_sustain_P_C4_RR2.opus" }
-              ]
-            },
-            {
-              "range": [43, 84],
-              "samples": [
-                { "path": "samples/TubularBells_Soft_sustain_MF_C4_RR1.opus" },
-                { "path": "samples/TubularBells_Soft_sustain_MF_C4_RR2.opus" }
-              ]
-            },
-            {
-              "range": [85, 127],
-              "samples": [
-                { "path": "samples/TubularBells_Soft_sustain_F_C4_RR1.opus" },
-                { "path": "samples/TubularBells_Soft_sustain_F_C4_RR2.opus" }
-              ]
-            }
-          ]
-        },
-        {
-          "pitch": 61,
-          "velocityLayers": [
-            {
-              "range": [1, 42],
-              "samples": [
-                { "path": "samples/TubularBells_Soft_sustain_P_C#4_RR1.opus" },
-                { "path": "samples/TubularBells_Soft_sustain_P_C#4_RR2.opus" }
-              ]
-            },
-            {
-              "range": [43, 84],
-              "samples": [
-                { "path": "samples/TubularBells_Soft_sustain_MF_C#4_RR1.opus" },
-                { "path": "samples/TubularBells_Soft_sustain_MF_C#4_RR2.opus" }
-              ]
-            },
-            {
-              "range": [85, 127],
-              "samples": [
-                { "path": "samples/TubularBells_Soft_sustain_F_C#4_RR1.opus" },
-                { "path": "samples/TubularBells_Soft_sustain_F_C#4_RR2.opus" }
-              ]
-            }
-          ]
-        },
-        {
-          "pitch": 62,
-          "velocityLayers": [
-            {
-              "range": [1, 42],
-              "samples": [
-                { "path": "samples/TubularBells_Soft_sustain_P_D4_RR1.opus" },
-                { "path": "samples/TubularBells_Soft_sustain_P_D4_RR2.opus" }
-              ]
-            },
-            {
-              "range": [43, 84],
-              "samples": [
-                { "path": "samples/TubularBells_Soft_sustain_MF_D4_RR1.opus" },
-                { "path": "samples/TubularBells_Soft_sustain_MF_D4_RR2.opus" }
-              ]
-            },
-            {
-              "range": [85, 127],
-              "samples": [
-                { "path": "samples/TubularBells_Soft_sustain_F_D4_RR1.opus" },
-                { "path": "samples/TubularBells_Soft_sustain_F_D4_RR2.opus" }
-              ]
-            }
-          ]
-        },
-        {
-          "pitch": 63,
-          "velocityLayers": [
-            {
-              "range": [1, 42],
-              "samples": [
-                { "path": "samples/TubularBells_Soft_sustain_P_D#4_RR1.opus" },
-                { "path": "samples/TubularBells_Soft_sustain_P_D#4_RR2.opus" }
-              ]
-            },
-            {
-              "range": [43, 84],
-              "samples": [
-                { "path": "samples/TubularBells_Soft_sustain_MF_D#4_RR1.opus" },
-                { "path": "samples/TubularBells_Soft_sustain_MF_D#4_RR2.opus" }
-              ]
-            },
-            {
-              "range": [85, 127],
-              "samples": [
-                { "path": "samples/TubularBells_Soft_sustain_F_D#4_RR1.opus" },
-                { "path": "samples/TubularBells_Soft_sustain_F_D#4_RR2.opus" }
-              ]
-            }
-          ]
-        },
-        {
-          "pitch": 64,
-          "velocityLayers": [
-            {
-              "range": [1, 42],
-              "samples": [
-                { "path": "samples/TubularBells_Soft_sustain_P_E4_RR1.opus" },
-                { "path": "samples/TubularBells_Soft_sustain_P_E4_RR2.opus" }
-              ]
-            },
-            {
-              "range": [43, 84],
-              "samples": [
-                { "path": "samples/TubularBells_Soft_sustain_MF_E4_RR1.opus" },
-                { "path": "samples/TubularBells_Soft_sustain_MF_E4_RR2.opus" }
-              ]
-            },
-            {
-              "range": [85, 127],
-              "samples": [
-                { "path": "samples/TubularBells_Soft_sustain_F_E4_RR1.opus" },
-                { "path": "samples/TubularBells_Soft_sustain_F_E4_RR2.opus" }
-              ]
-            }
-          ]
-        },
-        {
-          "pitch": 65,
-          "velocityLayers": [
-            {
-              "range": [1, 42],
-              "samples": [
-                { "path": "samples/TubularBells_Soft_sustain_P_F4_RR1.opus" },
-                { "path": "samples/TubularBells_Soft_sustain_P_F4_RR2.opus" }
-              ]
-            },
-            {
-              "range": [43, 84],
-              "samples": [
-                { "path": "samples/TubularBells_Soft_sustain_MF_F4_RR1.opus" },
-                { "path": "samples/TubularBells_Soft_sustain_MF_F4_RR2.opus" }
-              ]
-            },
-            {
-              "range": [85, 127],
-              "samples": [
-                { "path": "samples/TubularBells_Soft_sustain_F_F4_RR1.opus" },
-                { "path": "samples/TubularBells_Soft_sustain_F_F4_RR2.opus" }
-              ]
-            }
-          ]
-        },
-        {
-          "pitch": 66,
-          "velocityLayers": [
-            {
-              "range": [1, 42],
-              "samples": [
-                { "path": "samples/TubularBells_Soft_sustain_P_F#4_RR1.opus" },
-                { "path": "samples/TubularBells_Soft_sustain_P_F#4_RR2.opus" }
-              ]
-            },
-            {
-              "range": [43, 84],
-              "samples": [
-                { "path": "samples/TubularBells_Soft_sustain_MF_F#4_RR1.opus" },
-                { "path": "samples/TubularBells_Soft_sustain_MF_F#4_RR2.opus" }
-              ]
-            },
-            {
-              "range": [85, 127],
-              "samples": [
-                { "path": "samples/TubularBells_Soft_sustain_F_F#4_RR1.opus" },
-                { "path": "samples/TubularBells_Soft_sustain_F_F#4_RR2.opus" }
-              ]
-            }
-          ]
-        },
-        {
-          "pitch": 67,
-          "velocityLayers": [
-            {
-              "range": [1, 42],
-              "samples": [
-                { "path": "samples/TubularBells_Soft_sustain_P_G4_RR1.opus" },
-                { "path": "samples/TubularBells_Soft_sustain_P_G4_RR2.opus" }
-              ]
-            },
-            {
-              "range": [43, 84],
-              "samples": [
-                { "path": "samples/TubularBells_Soft_sustain_MF_G4_RR1.opus" },
-                { "path": "samples/TubularBells_Soft_sustain_MF_G4_RR2.opus" }
-              ]
-            },
-            {
-              "range": [85, 127],
-              "samples": [
-                { "path": "samples/TubularBells_Soft_sustain_F_G4_RR1.opus" },
-                { "path": "samples/TubularBells_Soft_sustain_F_G4_RR2.opus" }
-              ]
-            }
-          ]
-        },
-        {
-          "pitch": 68,
-          "velocityLayers": [
-            {
-              "range": [1, 42],
-              "samples": [
-                { "path": "samples/TubularBells_Soft_sustain_P_G#4_RR1.opus" },
-                { "path": "samples/TubularBells_Soft_sustain_P_G#4_RR2.opus" }
-              ]
-            },
-            {
-              "range": [43, 84],
-              "samples": [
-                { "path": "samples/TubularBells_Soft_sustain_MF_G#4_RR1.opus" },
-                { "path": "samples/TubularBells_Soft_sustain_MF_G#4_RR2.opus" }
-              ]
-            },
-            {
-              "range": [85, 127],
-              "samples": [
-                { "path": "samples/TubularBells_Soft_sustain_F_G#4_RR1.opus" },
-                { "path": "samples/TubularBells_Soft_sustain_F_G#4_RR2.opus" }
-              ]
-            }
-          ]
-        },
-        {
-          "pitch": 69,
-          "velocityLayers": [
-            {
-              "range": [1, 42],
-              "samples": [
-                { "path": "samples/TubularBells_Soft_sustain_P_A4_RR1.opus" },
-                { "path": "samples/TubularBells_Soft_sustain_P_A4_RR2.opus" }
-              ]
-            },
-            {
-              "range": [43, 84],
-              "samples": [
-                { "path": "samples/TubularBells_Soft_sustain_MF_A4_RR1.opus" },
-                { "path": "samples/TubularBells_Soft_sustain_MF_A4_RR2.opus" }
-              ]
-            },
-            {
-              "range": [85, 127],
-              "samples": [
-                { "path": "samples/TubularBells_Soft_sustain_F_A4_RR1.opus" },
-                { "path": "samples/TubularBells_Soft_sustain_F_A4_RR2.opus" }
-              ]
-            }
-          ]
-        },
-        {
-          "pitch": 70,
-          "velocityLayers": [
-            {
-              "range": [1, 42],
-              "samples": [
-                { "path": "samples/TubularBells_Soft_sustain_P_A#4_RR1.opus" },
-                { "path": "samples/TubularBells_Soft_sustain_P_A#4_RR2.opus" }
-              ]
-            },
-            {
-              "range": [43, 84],
-              "samples": [
-                { "path": "samples/TubularBells_Soft_sustain_MF_A#4_RR1.opus" },
-                { "path": "samples/TubularBells_Soft_sustain_MF_A#4_RR2.opus" }
-              ]
-            },
-            {
-              "range": [85, 127],
-              "samples": [
-                { "path": "samples/TubularBells_Soft_sustain_F_A#4_RR1.opus" },
-                { "path": "samples/TubularBells_Soft_sustain_F_A#4_RR2.opus" }
-              ]
-            }
-          ]
-        },
-        {
-          "pitch": 71,
-          "velocityLayers": [
-            {
-              "range": [1, 42],
-              "samples": [
-                { "path": "samples/TubularBells_Soft_sustain_P_B4_RR1.opus" },
-                { "path": "samples/TubularBells_Soft_sustain_P_B4_RR2.opus" }
-              ]
-            },
-            {
-              "range": [43, 84],
-              "samples": [
-                { "path": "samples/TubularBells_Soft_sustain_MF_B4_RR1.opus" },
-                { "path": "samples/TubularBells_Soft_sustain_MF_B4_RR2.opus" }
-              ]
-            },
-            {
-              "range": [85, 127],
-              "samples": [
-                { "path": "samples/TubularBells_Soft_sustain_F_B4_RR1.opus" },
-                { "path": "samples/TubularBells_Soft_sustain_F_B4_RR2.opus" }
-              ]
-            }
-          ]
-        },
-        {
-          "pitch": 72,
-          "velocityLayers": [
-            {
-              "range": [1, 42],
-              "samples": [
-                { "path": "samples/TubularBells_Soft_sustain_P_C5_RR1.opus" },
-                { "path": "samples/TubularBells_Soft_sustain_P_C5_RR2.opus" }
-              ]
-            },
-            {
-              "range": [43, 84],
-              "samples": [
-                { "path": "samples/TubularBells_Soft_sustain_MF_C5_RR1.opus" },
-                { "path": "samples/TubularBells_Soft_sustain_MF_C5_RR2.opus" }
-              ]
-            },
-            {
-              "range": [85, 127],
-              "samples": [
-                { "path": "samples/TubularBells_Soft_sustain_F_C5_RR1.opus" },
-                { "path": "samples/TubularBells_Soft_sustain_F_C5_RR2.opus" }
-              ]
-            }
-          ]
-        },
-        {
-          "pitch": 73,
-          "velocityLayers": [
-            {
-              "range": [1, 42],
-              "samples": [
-                { "path": "samples/TubularBells_Soft_sustain_P_C#5_RR1.opus" },
-                { "path": "samples/TubularBells_Soft_sustain_P_C#5_RR2.opus" }
-              ]
-            },
-            {
-              "range": [43, 84],
-              "samples": [
-                { "path": "samples/TubularBells_Soft_sustain_MF_C#5_RR1.opus" },
-                { "path": "samples/TubularBells_Soft_sustain_MF_C#5_RR2.opus" }
-              ]
-            },
-            {
-              "range": [85, 127],
-              "samples": [
-                { "path": "samples/TubularBells_Soft_sustain_F_C#5_RR1.opus" },
-                { "path": "samples/TubularBells_Soft_sustain_F_C#5_RR2.opus" }
-              ]
-            }
-          ]
-        },
-        {
-          "pitch": 74,
-          "velocityLayers": [
-            {
-              "range": [1, 42],
-              "samples": [
-                { "path": "samples/TubularBells_Soft_sustain_P_D5_RR1.opus" },
-                { "path": "samples/TubularBells_Soft_sustain_P_D5_RR2.opus" }
-              ]
-            },
-            {
-              "range": [43, 84],
-              "samples": [
-                { "path": "samples/TubularBells_Soft_sustain_MF_D5_RR1.opus" },
-                { "path": "samples/TubularBells_Soft_sustain_MF_D5_RR2.opus" }
-              ]
-            },
-            {
-              "range": [85, 127],
-              "samples": [
-                { "path": "samples/TubularBells_Soft_sustain_F_D5_RR1.opus" },
-                { "path": "samples/TubularBells_Soft_sustain_F_D5_RR2.opus" }
-              ]
-            }
-          ]
-        },
-        {
-          "pitch": 75,
-          "velocityLayers": [
-            {
-              "range": [1, 63],
-              "samples": [
-                { "path": "samples/TubularBells_Soft_sustain_MF_D#5_RR1.opus" },
-                { "path": "samples/TubularBells_Soft_sustain_MF_D#5_RR2.opus" }
-              ]
-            },
-            {
-              "range": [64, 127],
-              "samples": [
-                { "path": "samples/TubularBells_Soft_sustain_F_D#5_RR1.opus" },
-                { "path": "samples/TubularBells_Soft_sustain_F_D#5_RR2.opus" }
-              ]
-            }
-          ]
-        },
-        {
-          "pitch": 76,
-          "velocityLayers": [
-            {
-              "range": [1, 42],
-              "samples": [
-                { "path": "samples/TubularBells_Soft_sustain_P_E5_RR1.opus" },
-                { "path": "samples/TubularBells_Soft_sustain_P_E5_RR2.opus" }
-              ]
-            },
-            {
-              "range": [43, 84],
-              "samples": [
-                { "path": "samples/TubularBells_Soft_sustain_MF_E5_RR1.opus" },
-                { "path": "samples/TubularBells_Soft_sustain_MF_E5_RR2.opus" }
-              ]
-            },
-            {
-              "range": [85, 127],
-              "samples": [
-                { "path": "samples/TubularBells_Soft_sustain_F_E5_RR1.opus" },
-                { "path": "samples/TubularBells_Soft_sustain_F_E5_RR2.opus" }
               ]
             }
           ]
