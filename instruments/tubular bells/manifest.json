@@ -8,7 +8,7 @@
   },
   "articulations": [
     {
-      "id": "soft-sustain",
+      "id": "sustain-soft",
       "name": "Sustain (Soft)",
       "range": [[60, 76]],
       "zones": [
@@ -450,7 +450,7 @@
       ]
     },
     {
-      "id": "hard-sustain",
+      "id": "sustain-hard",
       "name": "Sustain (Hard)",
       "range": [[60, 77]],
       "zones": [

@@ -1,0 +1,299 @@
+{
+  "meta": {
+    "id": "sso.percussion.bongo",
+    "name": "SSO Bongo",
+    "author": "Solo Compose",
+    "version": "1.0.0",
+    "type": "percussion"
+  },
+  "articulations": [
+    {
+      "id": "hit-hands",
+      "name": "Hit (Hands)",
+      "range": [
+        [60, 60],
+        [62, 62]
+      ],
+      "zones": [
+        {
+          "pitch": 60,
+          "velocityLayers": [
+            {
+              "range": [1, 31],
+              "samples": [
+                { "path": "samples/Bongos_Hands_Hit 2_P_C4_RR1.opus" },
+                { "path": "samples/Bongos_Hands_Hit 2_P_C4_RR2.opus" },
+                { "path": "samples/Bongos_Hands_Hit 2_P_C4_RR3.opus" },
+                { "path": "samples/Bongos_Hands_Hit 2_P_C4_RR4.opus" }
+              ]
+            },
+            {
+              "range": [32, 63],
+              "samples": [
+                { "path": "samples/Bongos_Hands_Hit 2_MP_C4_RR1.opus" },
+                { "path": "samples/Bongos_Hands_Hit 2_MP_C4_RR2.opus" },
+                { "path": "samples/Bongos_Hands_Hit 2_MP_C4_RR3.opus" },
+                { "path": "samples/Bongos_Hands_Hit 2_MP_C4_RR4.opus" }
+              ]
+            },
+            {
+              "range": [64, 95],
+              "samples": [
+                { "path": "samples/Bongos_Hands_Hit 2_MF_C4_RR1.opus" },
+                { "path": "samples/Bongos_Hands_Hit 2_MF_C4_RR2.opus" },
+                { "path": "samples/Bongos_Hands_Hit 2_MF_C4_RR3.opus" },
+                { "path": "samples/Bongos_Hands_Hit 2_MF_C4_RR4.opus" }
+              ]
+            },
+            {
+              "range": [96, 127],
+              "samples": [
+                { "path": "samples/Bongos_Hands_Hit 2_F_C4_RR1.opus" },
+                { "path": "samples/Bongos_Hands_Hit 2_F_C4_RR2.opus" },
+                { "path": "samples/Bongos_Hands_Hit 2_F_C4_RR3.opus" },
+                { "path": "samples/Bongos_Hands_Hit 2_F_C4_RR4.opus" }
+              ]
+            }
+          ]
+        },
+        {
+          "pitch": 62,
+          "velocityLayers": [
+            {
+              "range": [1, 31],
+              "samples": [
+                { "path": "samples/Bongos_Hands_Hit 1_P_D4_RR1.opus" },
+                { "path": "samples/Bongos_Hands_Hit 1_P_D4_RR2.opus" },
+                { "path": "samples/Bongos_Hands_Hit 1_P_D4_RR3.opus" },
+                { "path": "samples/Bongos_Hands_Hit 1_P_D4_RR4.opus" }
+              ]
+            },
+            {
+              "range": [32, 63],
+              "samples": [
+                { "path": "samples/Bongos_Hands_Hit 1_MP_D4_RR1.opus" },
+                { "path": "samples/Bongos_Hands_Hit 1_MP_D4_RR2.opus" },
+                { "path": "samples/Bongos_Hands_Hit 1_MP_D4_RR3.opus" },
+                { "path": "samples/Bongos_Hands_Hit 1_MP_D4_RR4.opus" }
+              ]
+            },
+            {
+              "range": [64, 95],
+              "samples": [
+                { "path": "samples/Bongos_Hands_Hit 1_MF_D4_RR1.opus" },
+                { "path": "samples/Bongos_Hands_Hit 1_MF_D4_RR2.opus" },
+                { "path": "samples/Bongos_Hands_Hit 1_MF_D4_RR3.opus" },
+                { "path": "samples/Bongos_Hands_Hit 1_MF_D4_RR4.opus" }
+              ]
+            },
+            {
+              "range": [96, 127],
+              "samples": [
+                { "path": "samples/Bongos_Hands_Hit 1_F_D4_RR1.opus" },
+                { "path": "samples/Bongos_Hands_Hit 1_F_D4_RR2.opus" },
+                { "path": "samples/Bongos_Hands_Hit 1_F_D4_RR3.opus" },
+                { "path": "samples/Bongos_Hands_Hit 1_F_D4_RR4.opus" }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "roll-hands",
+      "name": "Roll (Hands)",
+      "range": [
+        [60, 60],
+        [62, 62]
+      ],
+      "zones": [
+        {
+          "pitch": 60,
+          "velocityLayers": [
+            {
+              "range": [1, 31],
+              "samples": [{ "path": "samples/Bongos_Hands_Roll 2_P_C4.opus" }]
+            },
+            {
+              "range": [32, 63],
+              "samples": [{ "path": "samples/Bongos_Hands_Roll 2_MP_C4.opus" }]
+            },
+            {
+              "range": [64, 95],
+              "samples": [{ "path": "samples/Bongos_Hands_Roll 2_MF_C4.opus" }]
+            },
+            {
+              "range": [96, 127],
+              "samples": [{ "path": "samples/Bongos_Hands_Roll 2_F_C4.opus" }]
+            }
+          ]
+        },
+        {
+          "pitch": 62,
+          "velocityLayers": [
+            {
+              "range": [1, 31],
+              "samples": [{ "path": "samples/Bongos_Hands_Roll 1_P_D4.opus" }]
+            },
+            {
+              "range": [32, 63],
+              "samples": [{ "path": "samples/Bongos_Hands_Roll 1_MP_D4.opus" }]
+            },
+            {
+              "range": [64, 95],
+              "samples": [{ "path": "samples/Bongos_Hands_Roll 1_MF_D4.opus" }]
+            },
+            {
+              "range": [96, 127],
+              "samples": [{ "path": "samples/Bongos_Hands_Roll 1_F_D4.opus" }]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "hit-sticks",
+      "name": "Hit (Sticks)",
+      "range": [
+        [60, 60],
+        [62, 62]
+      ],
+      "zones": [
+        {
+          "pitch": 60,
+          "velocityLayers": [
+            {
+              "range": [1, 31],
+              "samples": [
+                { "path": "samples/Bongos_Sticks_Hit 2_P_C4_RR1.opus" },
+                { "path": "samples/Bongos_Sticks_Hit 2_P_C4_RR2.opus" },
+                { "path": "samples/Bongos_Sticks_Hit 2_P_C4_RR3.opus" },
+                { "path": "samples/Bongos_Sticks_Hit 2_P_C4_RR4.opus" }
+              ]
+            },
+            {
+              "range": [32, 63],
+              "samples": [
+                { "path": "samples/Bongos_Sticks_Hit 2_MP_C4_RR1.opus" },
+                { "path": "samples/Bongos_Sticks_Hit 2_MP_C4_RR2.opus" },
+                { "path": "samples/Bongos_Sticks_Hit 2_MP_C4_RR3.opus" },
+                { "path": "samples/Bongos_Sticks_Hit 2_MP_C4_RR4.opus" }
+              ]
+            },
+            {
+              "range": [64, 95],
+              "samples": [
+                { "path": "samples/Bongos_Sticks_Hit 2_MF_C4_RR1.opus" },
+                { "path": "samples/Bongos_Sticks_Hit 2_MF_C4_RR2.opus" },
+                { "path": "samples/Bongos_Sticks_Hit 2_MF_C4_RR3.opus" },
+                { "path": "samples/Bongos_Sticks_Hit 2_MF_C4_RR4.opus" }
+              ]
+            },
+            {
+              "range": [96, 127],
+              "samples": [
+                { "path": "samples/Bongos_Sticks_Hit 2_F_C4_RR1.opus" },
+                { "path": "samples/Bongos_Sticks_Hit 2_F_C4_RR2.opus" },
+                { "path": "samples/Bongos_Sticks_Hit 2_F_C4_RR3.opus" },
+                { "path": "samples/Bongos_Sticks_Hit 2_F_C4_RR4.opus" }
+              ]
+            }
+          ]
+        },
+        {
+          "pitch": 62,
+          "velocityLayers": [
+            {
+              "range": [1, 31],
+              "samples": [
+                { "path": "samples/Bongos_Sticks_Hit 1_P_D4_RR1.opus" },
+                { "path": "samples/Bongos_Sticks_Hit 1_P_D4_RR2.opus" },
+                { "path": "samples/Bongos_Sticks_Hit 1_P_D4_RR3.opus" },
+                { "path": "samples/Bongos_Sticks_Hit 1_P_D4_RR4.opus" }
+              ]
+            },
+            {
+              "range": [32, 63],
+              "samples": [
+                { "path": "samples/Bongos_Sticks_Hit 1_MP_D4_RR1.opus" },
+                { "path": "samples/Bongos_Sticks_Hit 1_MP_D4_RR2.opus" },
+                { "path": "samples/Bongos_Sticks_Hit 1_MP_D4_RR3.opus" },
+                { "path": "samples/Bongos_Sticks_Hit 1_MP_D4_RR4.opus" }
+              ]
+            },
+            {
+              "range": [64, 95],
+              "samples": [
+                { "path": "samples/Bongos_Sticks_Hit 1_MF_D4_RR1.opus" },
+                { "path": "samples/Bongos_Sticks_Hit 1_MF_D4_RR2.opus" },
+                { "path": "samples/Bongos_Sticks_Hit 1_MF_D4_RR3.opus" },
+                { "path": "samples/Bongos_Sticks_Hit 1_MF_D4_RR4.opus" }
+              ]
+            },
+            {
+              "range": [96, 127],
+              "samples": [
+                { "path": "samples/Bongos_Sticks_Hit 1_F_D4_RR1.opus" },
+                { "path": "samples/Bongos_Sticks_Hit 1_F_D4_RR2.opus" },
+                { "path": "samples/Bongos_Sticks_Hit 1_F_D4_RR3.opus" },
+                { "path": "samples/Bongos_Sticks_Hit 1_F_D4_RR4.opus" }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "roll-sticks",
+      "name": "Roll (Sticks)",
+      "range": [
+        [60, 60],
+        [62, 62]
+      ],
+      "zones": [
+        {
+          "pitch": 60,
+          "velocityLayers": [
+            {
+              "range": [1, 31],
+              "samples": [{ "path": "samples/Bongos_Sticks_Roll 2_P_C4.opus" }]
+            },
+            {
+              "range": [32, 63],
+              "samples": [{ "path": "samples/Bongos_Sticks_Roll 2_MP_C4.opus" }]
+            },
+            {
+              "range": [64, 95],
+              "samples": [{ "path": "samples/Bongos_Sticks_Roll 2_MF_C4.opus" }]
+            },
+            {
+              "range": [96, 127],
+              "samples": [{ "path": "samples/Bongos_Sticks_Roll 2_F_C4.opus" }]
+            }
+          ]
+        },
+        {
+          "pitch": 62,
+          "velocityLayers": [
+            {
+              "range": [1, 31],
+              "samples": [{ "path": "samples/Bongos_Sticks_Roll 1_P_D4.opus" }]
+            },
+            {
+              "range": [32, 63],
+              "samples": [{ "path": "samples/Bongos_Sticks_Roll 1_MP_D4.opus" }]
+            },
+            {
+              "range": [64, 95],
+              "samples": [{ "path": "samples/Bongos_Sticks_Roll 1_MF_D4.opus" }]
+            },
+            {
+              "range": [96, 127],
+              "samples": [{ "path": "samples/Bongos_Sticks_Roll 1_F_D4.opus" }]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -4,7 +4,7 @@
     "name": "SSO Bass Drum",
     "author": "Solo Compose",
     "version": "1.0.0",
-    "type": "pitched"
+    "type": "percussion"
   },
   "articulations": [
     {
@@ -112,7 +112,7 @@
       ]
     },
     {
-      "id": "hard-hit",
+      "id": "hit-hard",
       "name": "Hit (Hard)",
       "range": [[62, 62]],
       "zones": [
@@ -169,7 +169,7 @@
       ]
     },
     {
-      "id": "hard-roll",
+      "id": "roll-hard",
       "name": "Roll (Hard)",
       "range": [[62, 62]],
       "zones": [
