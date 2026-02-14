@@ -65,103 +65,6 @@
       ]
     },
     {
-      "id": "cymbals",
-      "name": "Cymbals",
-      "range": [[60, 61]],
-      "zones": [
-        {
-          "pitch": 60,
-          "velocityLayers": [
-            {
-              "range": [1, 25],
-              "samples": [
-                { "path": "samples/Drums_Crash_RR1_C#1.opus" },
-                { "path": "samples/Drums_Crash_RR2_C#1.opus" }
-              ]
-            },
-            {
-              "range": [26, 50],
-              "samples": [
-                { "path": "samples/Drums_Crash_RR1_C#1_0001.opus" },
-                { "path": "samples/Drums_Crash_RR2_C#1_0001.opus" }
-              ]
-            },
-            {
-              "range": [51, 75],
-              "samples": [
-                { "path": "samples/Drums_Crash_RR1_C#1_0002.opus" },
-                { "path": "samples/Drums_Crash_RR2_C#1_0002.opus" }
-              ]
-            },
-            {
-              "range": [76, 100],
-              "samples": [
-                { "path": "samples/Drums_Crash_RR1_C#1_0003.opus" },
-                { "path": "samples/Drums_Crash_RR2_C#1_0003.opus" }
-              ]
-            },
-            {
-              "range": [101, 127],
-              "samples": [
-                { "path": "samples/Drums_Crash_RR1_C#1_0004.opus" },
-                { "path": "samples/Drums_Crash_RR2_C#1_0004.opus" }
-              ]
-            }
-          ]
-        },
-        {
-          "pitch": 61,
-          "velocityLayers": [
-            {
-              "range": [1, 21],
-              "samples": [{ "path": "samples/Drums_CymbalChokes_RR1_B1.opus" }]
-            },
-            {
-              "range": [22, 43],
-              "samples": [{ "path": "samples/Drums_CymbalChokes_RR1_B1_0001.opus" }]
-            },
-            {
-              "range": [44, 65],
-              "samples": [{ "path": "samples/Drums_CymbalChokes_RR1_B1_0002.opus" }]
-            },
-            {
-              "range": [66, 87],
-              "samples": [{ "path": "samples/Drums_CymbalChokes_RR1_B1_0003.opus" }]
-            },
-            {
-              "range": [88, 109],
-              "samples": [{ "path": "samples/Drums_CymbalChokes_RR1_B1_0004.opus" }]
-            },
-            {
-              "range": [110, 127],
-              "samples": [{ "path": "samples/Drums_CymbalChokes_RR1_B1_0005.opus" }]
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "id": "snares",
-      "name": "Snares",
-      "range": [[60, 61]],
-      "zones": [
-        {
-          "pitch": 60,
-          "velocityLayers": [
-            {
-              "range": [1, 25],
-              "samples": [
-                { "path": "samples/Drums_Snare_RR1_D#1.opus" },
-                { "path": "samples/Drums_Snare_RR2_D#1.opus" },
-                { "path": "samples/Drums_Snare_RR3_D#1.opus" },
-                { "path": "samples/Drums_Snare_RR4_D#1.opus" }
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    {
       "id": "toms",
       "name": "Toms",
       "range": [[60, 62]],
@@ -283,6 +186,399 @@
                 { "path": "samples/Drums_HiTom_RR1_A0_0004.opus" },
                 { "path": "samples/Drums_HiTom_RR2_A0_0004.opus" }
               ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "snares",
+      "name": "Snares",
+      "range": [[60, 66]],
+      "zones": [
+        {
+          "pitch": 60,
+          "velocityLayers": [
+            {
+              "range": [1, 25],
+              "samples": [
+                { "path": "samples/Drums_Snare_RR1_D0.opus" },
+                { "path": "samples/Drums_Snare_RR2_D0.opus" },
+                { "path": "samples/Drums_Snare_RR3_D0.opus" },
+                { "path": "samples/Drums_Snare_RR4_D0.opus" }
+              ]
+            },
+            {
+              "range": [26, 50],
+              "samples": [
+                { "path": "samples/Drums_Snare_RR1_D0_0001.opus" },
+                { "path": "samples/Drums_Snare_RR2_D0_0001.opus" },
+                { "path": "samples/Drums_Snare_RR3_D0_0001.opus" },
+                { "path": "samples/Drums_Snare_RR4_D0_0001.opus" }
+              ]
+            },
+            {
+              "range": [51, 75],
+              "samples": [
+                { "path": "samples/Drums_Snare_RR1_D0_0002.opus" },
+                { "path": "samples/Drums_Snare_RR2_D0_0002.opus" },
+                { "path": "samples/Drums_Snare_RR3_D0_0002.opus" },
+                { "path": "samples/Drums_Snare_RR4_D0_0002.opus" }
+              ]
+            },
+            {
+              "range": [76, 100],
+              "samples": [
+                { "path": "samples/Drums_Snare_RR1_D0_0003.opus" },
+                { "path": "samples/Drums_Snare_RR2_D0_0003.opus" },
+                { "path": "samples/Drums_Snare_RR3_D0_0003.opus" },
+                { "path": "samples/Drums_Snare_RR4_D0_0003.opus" }
+              ]
+            },
+            {
+              "range": [101, 127],
+              "samples": [
+                { "path": "samples/Drums_Snare_RR1_D0_0004.opus" },
+                { "path": "samples/Drums_Snare_RR2_D0_0004.opus" },
+                { "path": "samples/Drums_Snare_RR3_D0_0004.opus" },
+                { "path": "samples/Drums_Snare_RR4_D0_0004.opus" }
+              ]
+            }
+          ]
+        },
+        {
+          "pitch": 61,
+          "velocityLayers": [
+            {
+              "range": [1, 21],
+              "samples": [
+                { "path": "samples/Drums_SnareFlams_RR1_E0.opus" },
+                { "path": "samples/Drums_SnareFlams_RR2_E0.opus" }
+              ]
+            },
+            {
+              "range": [22, 43],
+              "samples": [
+                { "path": "samples/Drums_SnareFlams_RR1_E0_0001.opus" },
+                { "path": "samples/Drums_SnareFlams_RR2_E0_0001.opus" }
+              ]
+            },
+            {
+              "range": [44, 65],
+              "samples": [
+                { "path": "samples/Drums_SnareFlams_RR1_E0_0002.opus" },
+                { "path": "samples/Drums_SnareFlams_RR2_E0_0002.opus" }
+              ]
+            },
+            {
+              "range": [66, 87],
+              "samples": [
+                { "path": "samples/Drums_SnareFlams_RR1_E0_0003.opus" },
+                { "path": "samples/Drums_SnareFlams_RR2_E0_0003.opus" }
+              ]
+            },
+            {
+              "range": [88, 109],
+              "samples": [
+                { "path": "samples/Drums_SnareFlams_RR1_E0_0004.opus" },
+                { "path": "samples/Drums_SnareFlams_RR2_E0_0004.opus" }
+              ]
+            },
+            {
+              "range": [110, 127],
+              "samples": [
+                { "path": "samples/Drums_SnareFlams_RR1_E0_0005.opus" },
+                { "path": "samples/Drums_SnareFlams_RR2_E0_0005.opus" }
+              ]
+            }
+          ]
+        },
+        {
+          "pitch": 62,
+          "velocityLayers": [
+            {
+              "range": [1, 21],
+              "samples": [
+                { "path": "samples/Drums_SnareDrags_RR1_D#0.opus" },
+                { "path": "samples/Drums_SnareDrags_RR2_D#0.opus" }
+              ]
+            },
+            {
+              "range": [22, 43],
+              "samples": [
+                { "path": "samples/Drums_SnareDrags_RR1_D#0_0001.opus" },
+                { "path": "samples/Drums_SnareDrags_RR2_D#0_0001.opus" }
+              ]
+            },
+            {
+              "range": [44, 65],
+              "samples": [
+                { "path": "samples/Drums_SnareDrags_RR1_D#0_0002.opus" },
+                { "path": "samples/Drums_SnareDrags_RR2_D#0_0002.opus" }
+              ]
+            },
+            {
+              "range": [66, 87],
+              "samples": [
+                { "path": "samples/Drums_SnareDrags_RR1_D#0_0003.opus" },
+                { "path": "samples/Drums_SnareDrags_RR2_D#0_0003.opus" }
+              ]
+            },
+            {
+              "range": [88, 109],
+              "samples": [
+                { "path": "samples/Drums_SnareDrags_RR1_D#0_0004.opus" },
+                { "path": "samples/Drums_SnareDrags_RR2_D#0_0004.opus" }
+              ]
+            },
+            {
+              "range": [110, 127],
+              "samples": [
+                { "path": "samples/Drums_SnareDrags_RR1_D#0_0005.opus" },
+                { "path": "samples/Drums_SnareDrags_RR2_D#0_0005.opus" }
+              ]
+            }
+          ]
+        },
+        {
+          "pitch": 63,
+          "velocityLayers": [
+            { "range": [1, 25], "samples": [{ "path": "samples/Drums_SnareRoll_PP_F0.opus" }] },
+            {
+              "range": [26, 50],
+              "samples": [{ "path": "samples/Drums_SnareRoll_P_F0.opus" }]
+            },
+            {
+              "range": [51, 75],
+              "samples": [{ "path": "samples/Drums_SnareRoll_MP_F0.opus" }]
+            },
+            {
+              "range": [76, 100],
+              "samples": [{ "path": "samples/Drums_SnareRoll_MF_F0.opus" }]
+            },
+            {
+              "range": [101, 127],
+              "samples": [{ "path": "samples/Drums_SnareRoll_F_F0.opus" }]
+            }
+          ]
+        },
+        {
+          "pitch": 64,
+          "velocityLayers": [
+            {
+              "range": [1, 21],
+              "samples": [
+                { "path": "samples/Drums_Snare_SnaresOff_RR1_A-1.opus" },
+                { "path": "samples/Drums_Snare_SnaresOff_RR2_A-1.opus" }
+              ]
+            },
+            {
+              "range": [22, 43],
+              "samples": [
+                { "path": "samples/Drums_Snare_SnaresOff_RR1_A-1_0001.opus" },
+                { "path": "samples/Drums_Snare_SnaresOff_RR2_A-1_0001.opus" }
+              ]
+            },
+            {
+              "range": [44, 65],
+              "samples": [
+                { "path": "samples/Drums_Snare_SnaresOff_RR1_A-1_0002.opus" },
+                { "path": "samples/Drums_Snare_SnaresOff_RR2_A-1_0002.opus" }
+              ]
+            },
+            {
+              "range": [66, 87],
+              "samples": [
+                { "path": "samples/Drums_Snare_SnaresOff_RR1_A-1_0003.opus" },
+                { "path": "samples/Drums_Snare_SnaresOff_RR2_A-1_0003.opus" }
+              ]
+            },
+            {
+              "range": [88, 109],
+              "samples": [
+                { "path": "samples/Drums_Snare_SnaresOff_RR1_A-1_0004.opus" },
+                { "path": "samples/Drums_Snare_SnaresOff_RR2_A-1_0004.opus" }
+              ]
+            },
+            {
+              "range": [110, 127],
+              "samples": [
+                { "path": "samples/Drums_Snare_SnaresOff_RR1_A-1_0005.opus" },
+                { "path": "samples/Drums_Snare_SnaresOff_RR2_A-1_0005.opus" }
+              ]
+            }
+          ]
+        },
+        {
+          "pitch": 65,
+          "velocityLayers": [
+            {
+              "range": [1, 21],
+              "samples": [
+                { "path": "samples/Drums_Snare_SnareOff_Drag_RR1_A#-1.opus" },
+                { "path": "samples/Drums_Snare_SnareOff_Drag_RR2_A#-1.opus" }
+              ]
+            },
+            {
+              "range": [22, 43],
+              "samples": [
+                { "path": "samples/Drums_Snare_SnareOff_Drag_RR1_A#-1_0001.opus" },
+                { "path": "samples/Drums_Snare_SnareOff_Drag_RR2_A#-1_0001.opus" }
+              ]
+            },
+            {
+              "range": [44, 65],
+              "samples": [
+                { "path": "samples/Drums_Snare_SnareOff_Drag_RR1_A#-1_0002.opus" },
+                { "path": "samples/Drums_Snare_SnareOff_Drag_RR2_A#-1_0002.opus" }
+              ]
+            },
+            {
+              "range": [66, 87],
+              "samples": [
+                { "path": "samples/Drums_Snare_SnareOff_Drag_RR1_A#-1_0003.opus" },
+                { "path": "samples/Drums_Snare_SnareOff_Drag_RR2_A#-1_0003.opus" }
+              ]
+            },
+            {
+              "range": [88, 109],
+              "samples": [
+                { "path": "samples/Drums_Snare_SnareOff_Drag_RR1_A#-1_0004.opus" },
+                { "path": "samples/Drums_Snare_SnareOff_Drag_RR2_A#-1_0004.opus" }
+              ]
+            },
+            {
+              "range": [110, 127],
+              "samples": [
+                { "path": "samples/Drums_Snare_SnareOff_Drag_RR1_A#-1_0005.opus" },
+                { "path": "samples/Drums_Snare_SnareOff_Drag_RR2_A#-1_0005.opus" }
+              ]
+            }
+          ]
+        },
+        {
+          "pitch": 66,
+          "velocityLayers": [
+            {
+              "range": [1, 25],
+              "samples": [
+                { "path": "samples/Drums_Snare_Sidestick_RR1_C#0.opus" },
+                { "path": "samples/Drums_Snare_Sidestick_RR2_C#0.opus" },
+                { "path": "samples/Drums_Snare_Sidestick_RR3_C#0.opus" },
+                { "path": "samples/Drums_Snare_Sidestick_RR4_C#0.opus" }
+              ]
+            },
+            {
+              "range": [26, 50],
+              "samples": [
+                { "path": "samples/Drums_Snare_Sidestick_RR1_C#0_0001.opus" },
+                { "path": "samples/Drums_Snare_Sidestick_RR2_C#0_0001.opus" },
+                { "path": "samples/Drums_Snare_Sidestick_RR3_C#0_0001.opus" },
+                { "path": "samples/Drums_Snare_Sidestick_RR4_C#0_0001.opus" }
+              ]
+            },
+            {
+              "range": [51, 75],
+              "samples": [
+                { "path": "samples/Drums_Snare_Sidestick_RR1_C#0_0002.opus" },
+                { "path": "samples/Drums_Snare_Sidestick_RR2_C#0_0002.opus" },
+                { "path": "samples/Drums_Snare_Sidestick_RR3_C#0_0002.opus" },
+                { "path": "samples/Drums_Snare_Sidestick_RR4_C#0_0002.opus" }
+              ]
+            },
+            {
+              "range": [76, 100],
+              "samples": [
+                { "path": "samples/Drums_Snare_Sidestick_RR1_C#0_0003.opus" },
+                { "path": "samples/Drums_Snare_Sidestick_RR2_C#0_0003.opus" },
+                { "path": "samples/Drums_Snare_Sidestick_RR3_C#0_0003.opus" },
+                { "path": "samples/Drums_Snare_Sidestick_RR4_C#0_0003.opus" }
+              ]
+            },
+            {
+              "range": [101, 127],
+              "samples": [
+                { "path": "samples/Drums_Snare_Sidestick_RR1_C#0_0004.opus" },
+                { "path": "samples/Drums_Snare_Sidestick_RR2_C#0_0004.opus" },
+                { "path": "samples/Drums_Snare_Sidestick_RR3_C#0_0004.opus" },
+                { "path": "samples/Drums_Snare_Sidestick_RR4_C#0_0004.opus" }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cymbals",
+      "name": "Cymbals",
+      "range": [[60, 62]],
+      "zones": [
+        {
+          "pitch": 60,
+          "velocityLayers": [
+            {
+              "range": [1, 25],
+              "samples": [
+                { "path": "samples/Drums_Crash_RR1_C#1.opus" },
+                { "path": "samples/Drums_Crash_RR2_C#1.opus" }
+              ]
+            },
+            {
+              "range": [26, 50],
+              "samples": [
+                { "path": "samples/Drums_Crash_RR1_C#1_0001.opus" },
+                { "path": "samples/Drums_Crash_RR2_C#1_0001.opus" }
+              ]
+            },
+            {
+              "range": [51, 75],
+              "samples": [
+                { "path": "samples/Drums_Crash_RR1_C#1_0002.opus" },
+                { "path": "samples/Drums_Crash_RR2_C#1_0002.opus" }
+              ]
+            },
+            {
+              "range": [76, 100],
+              "samples": [
+                { "path": "samples/Drums_Crash_RR1_C#1_0003.opus" },
+                { "path": "samples/Drums_Crash_RR2_C#1_0003.opus" }
+              ]
+            },
+            {
+              "range": [101, 127],
+              "samples": [
+                { "path": "samples/Drums_Crash_RR1_C#1_0004.opus" },
+                { "path": "samples/Drums_Crash_RR2_C#1_0004.opus" }
+              ]
+            }
+          ]
+        },
+        {
+          "pitch": 61,
+          "velocityLayers": [
+            {
+              "range": [1, 21],
+              "samples": [{ "path": "samples/Drums_CymbalChokes_RR1_B1.opus" }]
+            },
+            {
+              "range": [22, 43],
+              "samples": [{ "path": "samples/Drums_CymbalChokes_RR1_B1_0001.opus" }]
+            },
+            {
+              "range": [44, 65],
+              "samples": [{ "path": "samples/Drums_CymbalChokes_RR1_B1_0002.opus" }]
+            },
+            {
+              "range": [66, 87],
+              "samples": [{ "path": "samples/Drums_CymbalChokes_RR1_B1_0003.opus" }]
+            },
+            {
+              "range": [88, 109],
+              "samples": [{ "path": "samples/Drums_CymbalChokes_RR1_B1_0004.opus" }]
+            },
+            {
+              "range": [110, 127],
+              "samples": [{ "path": "samples/Drums_CymbalChokes_RR1_B1_0005.opus" }]
             }
           ]
         }
