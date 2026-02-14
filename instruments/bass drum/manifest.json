@@ -3,17 +3,17 @@
     "id": "sso.percussion.bass-drum",
     "name": "SSO Bass Drum",
     "author": "Solo Compose",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "type": "percussion"
   },
   "articulations": [
     {
-      "id": "hit",
-      "name": "Hit",
-      "range": [[62, 62]],
+      "id": "hit-soft",
+      "name": "Hit (Soft)",
+      "range": [[60, 60]],
       "zones": [
         {
-          "pitch": 62,
+          "pitch": 60,
           "velocityLayers": [
             {
               "range": [1, 25],
@@ -65,12 +65,12 @@
       ]
     },
     {
-      "id": "roll",
-      "name": "Roll",
-      "range": [[62, 62]],
+      "id": "roll-soft",
+      "name": "Roll (Soft)",
+      "range": [[60, 60]],
       "zones": [
         {
-          "pitch": 62,
+          "pitch": 60,
           "velocityLayers": [
             {
               "range": [1, 25],
@@ -114,10 +114,10 @@
     {
       "id": "hit-hard",
       "name": "Hit (Hard)",
-      "range": [[62, 62]],
+      "range": [[60, 60]],
       "zones": [
         {
-          "pitch": 62,
+          "pitch": 60,
           "velocityLayers": [
             {
               "range": [1, 25],
@@ -171,10 +171,10 @@
     {
       "id": "roll-hard",
       "name": "Roll (Hard)",
-      "range": [[62, 62]],
+      "range": [[60, 60]],
       "zones": [
         {
-          "pitch": 62,
+          "pitch": 60,
           "velocityLayers": [
             {
               "range": [1, 25],

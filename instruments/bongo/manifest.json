@@ -3,17 +3,14 @@
     "id": "sso.percussion.bongo",
     "name": "SSO Bongo",
     "author": "Solo Compose",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "type": "percussion"
   },
   "articulations": [
     {
       "id": "hit-hands",
       "name": "Hit (Hands)",
-      "range": [
-        [60, 60],
-        [62, 62]
-      ],
+      "range": [[60, 61]],
       "zones": [
         {
           "pitch": 60,
@@ -57,7 +54,7 @@
           ]
         },
         {
-          "pitch": 62,
+          "pitch": 61,
           "velocityLayers": [
             {
               "range": [1, 31],
@@ -102,10 +99,7 @@
     {
       "id": "roll-hands",
       "name": "Roll (Hands)",
-      "range": [
-        [60, 60],
-        [62, 62]
-      ],
+      "range": [[60, 61]],
       "zones": [
         {
           "pitch": 60,
@@ -129,7 +123,7 @@
           ]
         },
         {
-          "pitch": 62,
+          "pitch": 61,
           "velocityLayers": [
             {
               "range": [1, 31],
@@ -154,10 +148,7 @@
     {
       "id": "hit-sticks",
       "name": "Hit (Sticks)",
-      "range": [
-        [60, 60],
-        [62, 62]
-      ],
+      "range": [[60, 61]],
       "zones": [
         {
           "pitch": 60,
@@ -201,7 +192,7 @@
           ]
         },
         {
-          "pitch": 62,
+          "pitch": 61,
           "velocityLayers": [
             {
               "range": [1, 31],
@@ -246,10 +237,7 @@
     {
       "id": "roll-sticks",
       "name": "Roll (Sticks)",
-      "range": [
-        [60, 60],
-        [62, 62]
-      ],
+      "range": [[60, 61]],
       "zones": [
         {
           "pitch": 60,
@@ -273,7 +261,7 @@
           ]
         },
         {
-          "pitch": 62,
+          "pitch": 61,
           "velocityLayers": [
             {
               "range": [1, 31],
