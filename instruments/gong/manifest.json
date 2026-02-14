@@ -1,0 +1,115 @@
+{
+  "meta": {
+    "id": "sso.percussion.gong",
+    "name": "SSO Gong",
+    "author": "Solo Compose",
+    "version": "1.0.0",
+    "type": "percussion"
+  },
+  "articulations": [
+    {
+      "id": "gong-soft",
+      "name": "Gong (Soft)",
+      "range": [[60, 60]],
+      "zones": [
+        {
+          "pitch": 60,
+          "velocityLayers": [
+            {
+              "range": [1, 25],
+              "samples": [
+                { "path": "samples/Gong_Soft_sustain_P_D4_RR1.opus" },
+                { "path": "samples/Gong_Soft_sustain_P_D4_RR2.opus" },
+                { "path": "samples/Gong_Soft_sustain_P_D4_RR3.opus" },
+                { "path": "samples/Gong_Soft_sustain_P_D4_RR4.opus" },
+                { "path": "samples/Gong_Soft_sustain_P_D4_RR5.opus" }
+              ]
+            },
+            {
+              "range": [26, 50],
+              "samples": [
+                { "path": "samples/Gong_Soft_sustain_MP_D4_RR1.opus" },
+                { "path": "samples/Gong_Soft_sustain_MP_D4_RR2.opus" },
+                { "path": "samples/Gong_Soft_sustain_MP_D4_RR3.opus" },
+                { "path": "samples/Gong_Soft_sustain_MP_D4_RR4.opus" },
+                { "path": "samples/Gong_Soft_sustain_MP_D4_RR5.opus" }
+              ]
+            },
+            {
+              "range": [51, 75],
+              "samples": [
+                { "path": "samples/Gong_Soft_sustain_MF_D4_RR1.opus" },
+                { "path": "samples/Gong_Soft_sustain_MF_D4_RR2.opus" },
+                { "path": "samples/Gong_Soft_sustain_MF_D4_RR3.opus" },
+                { "path": "samples/Gong_Soft_sustain_MF_D4_RR4.opus" },
+                { "path": "samples/Gong_Soft_sustain_MF_D4_RR5.opus" }
+              ]
+            },
+            {
+              "range": [76, 127],
+              "samples": [
+                { "path": "samples/Gong_Soft_sustain_F_D4_RR1.opus" },
+                { "path": "samples/Gong_Soft_sustain_F_D4_RR2.opus" },
+                { "path": "samples/Gong_Soft_sustain_F_D4_RR3.opus" },
+                { "path": "samples/Gong_Soft_sustain_F_D4_RR4.opus" },
+                { "path": "samples/Gong_Soft_sustain_F_D4_RR5.opus" }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "gong-hard",
+      "name": "Gong (Hard)",
+      "range": [[60, 60]],
+      "zones": [
+        {
+          "pitch": 60,
+          "velocityLayers": [
+            {
+              "range": [1, 25],
+              "samples": [
+                { "path": "samples/Gong_Hard_sustain_P_D4_RR1.opus" },
+                { "path": "samples/Gong_Hard_sustain_P_D4_RR2.opus" },
+                { "path": "samples/Gong_Hard_sustain_P_D4_RR3.opus" },
+                { "path": "samples/Gong_Hard_sustain_P_D4_RR4.opus" },
+                { "path": "samples/Gong_Hard_sustain_P_D4_RR5.opus" }
+              ]
+            },
+            {
+              "range": [26, 50],
+              "samples": [
+                { "path": "samples/Gong_Hard_sustain_MP_D4_RR1.opus" },
+                { "path": "samples/Gong_Hard_sustain_MP_D4_RR2.opus" },
+                { "path": "samples/Gong_Hard_sustain_MP_D4_RR3.opus" },
+                { "path": "samples/Gong_Hard_sustain_MP_D4_RR4.opus" },
+                { "path": "samples/Gong_Hard_sustain_MP_D4_RR5.opus" }
+              ]
+            },
+            {
+              "range": [51, 75],
+              "samples": [
+                { "path": "samples/Gong_Hard_sustain_MF_D4_RR1.opus" },
+                { "path": "samples/Gong_Hard_sustain_MF_D4_RR2.opus" },
+                { "path": "samples/Gong_Hard_sustain_MF_D4_RR3.opus" },
+                { "path": "samples/Gong_Hard_sustain_MF_D4_RR4.opus" },
+                { "path": "samples/Gong_Hard_sustain_MF_D4_RR5.opus" }
+              ]
+            },
+            {
+              "range": [76, 127],
+              "samples": [
+                { "path": "samples/Gong_Hard_sustain_F_D4_RR1.opus" },
+                { "path": "samples/Gong_Hard_sustain_F_D4_RR2.opus" },
+                { "path": "samples/Gong_Hard_sustain_F_D4_RR3.opus" },
+                { "path": "samples/Gong_Hard_sustain_F_D4_RR4.opus" },
+                { "path": "samples/Gong_Hard_sustain_F_D4_RR5.opus" }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
