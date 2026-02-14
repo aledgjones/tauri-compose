@@ -1,3 +1,63 @@
+## Release Notes for v1.20.0
+
+### 🏗️ Features
+
+- feat: complete drum kit
+- feat: cymbals
+- feat: more drum kit articulations
+- feat: drum kit partial
+- feat: bongo
+- feat: bass drum
+- feat: violin 2, tubular bells
+- feat: violin 1
+- feat: violin samples
+- feat: harpsichord
+- feat: flac and manifest
+- feat: viola partial
+- feat: cello
+- feat: vorbis samples
+- feat: refresh audio devices
+- feat: percussion ai pass
+- feat: ranges
+- feat: streaming samples
+- feat: articulation ordering
+- feat: binary samples
+- feat: clarinet
+- feat: bassoon
+- feat: flute
+- feat: simpler instrument structure
+- feat: cello
+- feat: basic auditioning
+- feat: reduce piano size
+- feat: cleanup instrument and integrity check
+- feat: init sampler window
+- feat: sampler state
+- feat: active only filters
+- feat: scvi search
+- feat: scvi instruments
+- feat: flac and mp3 instruemnt encoding
+- feat: piano
+- feat: add ids to samplers with lite variant
+- feat: plugin loading info with correct meta
+
+### 🐞 Fixes
+
+- fix: formatting
+- fix: duration fixes
+- fix: bump piano version
+- fix: plugin tweaks
+- fix: violin instrument
+- fix: covers
+- fix: perf timing style tweaks
+- fix: correct paths in generated scvi instruments
+- fix: meta structure piano
+- fix: plugin types TS
+- fix: build issues
+
+### 📝 Other
+
+- faet: muse samples
+
 ## Release Notes for v1.19.7
 
 ### 🏗️ Features

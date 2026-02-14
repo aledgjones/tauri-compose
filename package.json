@@ -51,10 +51,10 @@
     "dev": "vite",
     "format": "prettier --check .",
     "format:fix": "prettier --write .",
-    "generate-scvi": "./scripts/scvi-compress",
-    "generate-scvi:build": "cd src-tauri && cargo build --release --bin scvi-compress && cp target/release/scvi-compress ../scripts/scvi-compress",
     "generate-manifest": "./scripts/generate-manifest",
     "generate-manifest:build": "cd src-tauri && cargo build --release --bin generate-manifest && cp target/release/generate-manifest ../scripts/generate-manifest",
+    "generate-scvi": "./scripts/scvi-compress",
+    "generate-scvi:build": "cd src-tauri && cargo build --release --bin scvi-compress && cp target/release/scvi-compress ../scripts/scvi-compress",
     "inspect-scvi": "./scripts/scvi-inspect",
     "inspect-scvi:build": "cd src-tauri && cargo build --release --bin scvi-inspect && cp target/release/scvi-inspect ../scripts/scvi-inspect",
     "lint": "eslint 'src/**/*.{ts,tsx}'",
@@ -69,5 +69,5 @@
     "tauri": "tauri"
   },
   "type": "module",
-  "version": "1.19.7"
+  "version": "1.20.0"
 }
