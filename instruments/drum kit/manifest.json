@@ -511,7 +511,7 @@
     {
       "id": "cymbals",
       "name": "Cymbals",
-      "range": [[60, 62]],
+      "range": [[60, 64]],
       "zones": [
         {
           "pitch": 60,
@@ -579,6 +579,126 @@
             {
               "range": [110, 127],
               "samples": [{ "path": "samples/Drums_CymbalChokes_RR1_B1_0005.opus" }]
+            }
+          ]
+        },
+        {
+          "pitch": 62,
+          "velocityLayers": [
+            {
+              "range": [1, 25],
+              "samples": [
+                { "path": "samples/Drums_RideCymb_RR1_D#1.opus" },
+                { "path": "samples/Drums_RideCymb_RR2_D#1.opus" }
+              ]
+            },
+            {
+              "range": [26, 50],
+              "samples": [
+                { "path": "samples/Drums_RideCymb_RR1_D#1_0001.opus" },
+                { "path": "samples/Drums_RideCymb_RR2_D#1_0001.opus" }
+              ]
+            },
+            {
+              "range": [51, 75],
+              "samples": [
+                { "path": "samples/Drums_RideCymb_RR1_D#1_0002.opus" },
+                { "path": "samples/Drums_RideCymb_RR2_D#1_0002.opus" }
+              ]
+            },
+            {
+              "range": [76, 100],
+              "samples": [
+                { "path": "samples/Drums_RideCymb_RR1_D#1_0003.opus" },
+                { "path": "samples/Drums_RideCymb_RR2_D#1_0003.opus" }
+              ]
+            },
+            {
+              "range": [101, 127],
+              "samples": [
+                { "path": "samples/Drums_RideCymb_RR1_D#1_0004.opus" },
+                { "path": "samples/Drums_RideCymb_RR2_D#1_0004.opus" }
+              ]
+            }
+          ]
+        },
+        {
+          "pitch": 63,
+          "velocityLayers": [
+            {
+              "range": [1, 25],
+              "samples": [
+                { "path": "samples/Drums_RideCymb_Bell_RR1_F1.opus" },
+                { "path": "samples/Drums_RideCymb_Bell_RR2_F1.opus" }
+              ]
+            },
+            {
+              "range": [26, 50],
+              "samples": [
+                { "path": "samples/Drums_RideCymb_Bell_RR1_F1_0001.opus" },
+                { "path": "samples/Drums_RideCymb_Bell_RR2_F1_0001.opus" }
+              ]
+            },
+            {
+              "range": [51, 75],
+              "samples": [
+                { "path": "samples/Drums_RideCymb_Bell_RR1_F1_0002.opus" },
+                { "path": "samples/Drums_RideCymb_Bell_RR2_F1_0002.opus" }
+              ]
+            },
+            {
+              "range": [76, 100],
+              "samples": [
+                { "path": "samples/Drums_RideCymb_Bell_RR1_F1_0003.opus" },
+                { "path": "samples/Drums_RideCymb_Bell_RR2_F1_0003.opus" }
+              ]
+            },
+            {
+              "range": [101, 127],
+              "samples": [
+                { "path": "samples/Drums_RideCymb_Bell_RR1_F1_0004.opus" },
+                { "path": "samples/Drums_RideCymb_Bell_RR2_F1_0004.opus" }
+              ]
+            }
+          ]
+        },
+        {
+          "pitch": 64,
+          "velocityLayers": [
+            {
+              "range": [1, 25],
+              "samples": [
+                { "path": "samples/Drums_Splash_RR1_A1.opus" },
+                { "path": "samples/Drums_Splash_RR2_A1.opus" }
+              ]
+            },
+            {
+              "range": [26, 50],
+              "samples": [
+                { "path": "samples/Drums_Splash_RR1_A1_0001.opus" },
+                { "path": "samples/Drums_Splash_RR2_A1_0001.opus" }
+              ]
+            },
+            {
+              "range": [51, 75],
+              "samples": [
+                { "path": "samples/Drums_Splash_RR1_A1_0002.opus" },
+                { "path": "samples/Drums_Splash_RR2_A1_0002.opus" }
+              ]
+            },
+            {
+              "range": [76, 100],
+              "samples": [
+                { "path": "samples/Drums_Splash_RR1_A1_0003.opus" },
+                { "path": "samples/Drums_Splash_RR2_A1_0003.opus" }
+              ]
+            },
+            {
+              "range": [101, 127],
+              "samples": [
+                { "path": "samples/Drums_Splash_RR1_A1_0004.opus" },
+                { "path": "samples/Drums_Splash_RR2_A1_0004.opus" }
+              ]
             }
           ]
         }
