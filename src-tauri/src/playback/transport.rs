@@ -39,22 +39,13 @@ fn find_articulation_id(
     articulation: &Articulation,
     articulations: &rustc_hash::FxHashMap<String, CacheArticulation>,
 ) -> Option<String> {
-    let target = match articulation {
-        Articulation::None => None,
-        Articulation::Staccato => Some("staccato"),
-        Articulation::Staccatissimo => Some("staccatissimo"),
-        Articulation::Tenuto => Some("tenuto"),
-        Articulation::StaccatoTenuto => Some("staccato-tenuto"),
-    };
-
-    // Try exact match first
-    if let Some(target_id) = target {
-        if articulations.contains_key(target_id) {
-            return Some(target_id.to_string());
-        }
+    // TODO: convert this mapping into a dynamic mapping in the manifest,
+    // e.g. via a "default_articulation" field or similar — this would allow
+    // non-standard articulations and more flexible mappings in the future.
+    if articulations.contains_key("sustain") {
+        return Some("sustain".to_string());
     }
 
-    // Fall back to the first available articulation (the "default" / natural articulation)
     articulations.keys().next().cloned()
 }
 
