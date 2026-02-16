@@ -118,10 +118,91 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\n🎉 Release {} completed successfully!", new_version);
     println!("📋 Next steps:");
     println!("   1. Review the changes");
-    println!("   2. Push the tag: git push origin v{}", new_version);
-    println!("   3. Create a GitHub release if needed");
+    println!("   2. Tag will be pushed and a draft GitHub release will be created.");
+
+    // Push the tag
+    println!("🚀 Pushing tag v{}...", new_version);
+    let push_status = Command::new("git")
+        .args(["push", "origin", &format!("v{}", new_version)])
+        .status()?;
+    if !push_status.success() {
+        eprintln!("❌ Failed to push tag v{}", new_version);
+        std::process::exit(1);
+    }
+    println!("✅ Tag v{} pushed", new_version);
+
+    // Generate release notes from releases.md
+    let releases_md = fs::read_to_string("releases.md")?;
+    let release_section = extract_release_notes(&releases_md, &new_version);
+
+    // Create draft GitHub release with notes
+    println!("🚀 Creating draft GitHub release...");
+    let gh_status = Command::new("gh")
+        .args([
+            "release",
+            "create",
+            &format!("v{}", new_version),
+            "--draft",
+            "--title",
+            &format!("v{}", new_version),
+            "--notes",
+            &release_section,
+        ])
+        .status()?;
+    if !gh_status.success() {
+        eprintln!(
+            "❌ Failed to create draft GitHub release for v{}",
+            new_version
+        );
+        std::process::exit(1);
+    }
+    println!("✅ Draft GitHub release created for v{}", new_version);
+
+    // Open the draft release in browser
+    println!("🌐 Opening draft GitHub release in browser...");
+    let repo_url = get_github_repo_url()?;
+    let release_url = format!("{}/releases/tag/v{}", repo_url, new_version);
+    Command::new("open").arg(&release_url).status()?;
+    println!("✅ Draft release opened in browser: {}", release_url);
 
     Ok(())
+}
+
+fn extract_release_notes(releases_md: &str, version: &str) -> String {
+    let header = format!("## Release Notes for v{}", version);
+    if let Some(start) = releases_md.find(&header) {
+        let after_header = &releases_md[start..];
+        let end = after_header
+            .find("## Release Notes for v")
+            .unwrap_or(after_header.len());
+        after_header[..end].trim().to_string()
+    } else {
+        format!("Release notes for v{} not found.", version)
+    }
+}
+
+fn get_github_repo_url() -> Result<String, Box<dyn std::error::Error>> {
+    let output = Command::new("git")
+        .args(["config", "--get", "remote.origin.url"])
+        .output()?;
+    if !output.status.success() {
+        return Err("Failed to get GitHub repo URL".into());
+    }
+    let url = String::from_utf8(output.stdout)?.trim().to_string();
+    // Convert SSH or HTTPS to web URL
+    if url.starts_with("git@github.com:") {
+        let repo = url
+            .trim_start_matches("git@github.com:")
+            .trim_end_matches(".git");
+        Ok(format!("https://github.com/{}", repo))
+    } else if url.starts_with("https://github.com/") {
+        let repo = url
+            .trim_start_matches("https://github.com/")
+            .trim_end_matches(".git");
+        Ok(format!("https://github.com/{}", repo))
+    } else {
+        Err("Unsupported GitHub remote URL format".into())
+    }
 }
 
 fn get_last_tag() -> Result<String, Box<dyn std::error::Error>> {
