@@ -1,3 +1,9 @@
+## Release Notes for v1.20.3
+
+### 🐞 Fixes
+
+- fix(SC-000): release supports ids
+
 ## Release Notes for v1.20.2
 
 ### 🏗️ Features
