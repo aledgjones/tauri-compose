@@ -1,3 +1,26 @@
+## Release Notes for v1.20.1
+
+### 🏗️ Features
+
+- feat: initial articulation concept
+- feat: default sustain articulation
+- feat: initial flute 1 pass
+- feat: gong
+
+### 🐞 Fixes
+
+- fix: cleanup unused exporessions
+- fix: cleaner gradient
+
+### 🔧 Chores
+
+- chore: clippy fixes
+- chore: cleanup legacy instrument
+
+### 📝 Other
+
+- feat(SC-141): align articulation enums and implement keyboard shortcuts for articulations
+
 ## Release Notes for v1.20.0
 
 ### 🏗️ Features
