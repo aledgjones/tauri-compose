@@ -1,3 +1,9 @@
+## Release Notes for v1.20.2
+
+### 🏗️ Features
+
+- feat: release updates
+
 ## Release Notes for v1.20.1
 
 ### 🏗️ Features
