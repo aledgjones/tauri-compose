@@ -759,6 +759,17 @@ export const actions = {
           accidental,
         });
       },
+      setArticulation: (
+        track_id: UniqueId,
+        tone_id: UniqueId,
+        articulation: Articulation,
+      ) => {
+        return invoke<void>("score_entries_tone_articulation_set", {
+          track_id,
+          tone_id,
+          articulation,
+        });
+      },
     },
     entry: {
       shift: (track_id: UniqueId, entry_id: UniqueId, new_tick: Tick) => {

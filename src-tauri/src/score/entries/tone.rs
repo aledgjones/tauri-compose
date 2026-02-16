@@ -388,3 +388,25 @@ pub fn score_entries_tone_accidental_set(
 
     new_pitch
 }
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn score_entries_tone_articulation_set(
+    app: tauri::AppHandle,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
+    track_id: UniqueId,
+    tone_id: UniqueId,
+    articulation: Articulation,
+) {
+    let mut state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
+
+    let track = state.score.tracks.by_id.get_mut(&track_id).unwrap();
+    let entry = track.entries.by_id.get_mut(&tone_id).unwrap();
+
+    if let Entry::Tone(tone) = entry {
+        tone.articulation = articulation;
+    }
+
+    state.emit(&app, &mut renderer, true);
+}

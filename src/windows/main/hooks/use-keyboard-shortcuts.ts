@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from "react";
 import { useAppState } from "../../../services/state";
-import { Accidental } from "../../../services/types";
+import { Accidental, Articulation } from "../../../services/types";
 import { actions } from "../../../services/actions";
 
 type Modifiers = { command: boolean; control: boolean; option: boolean };
@@ -167,6 +167,17 @@ export const useKeyboardShortcuts = () => {
         key: "Escape",
         modifiers: { command: false, control: false, option: false },
         action: () => actions.ui.sequencer.clearSelection(),
+      },
+      {
+        key: "]",
+        modifiers: { command: false, control: false, option: false },
+        action: () => {
+          return actions.score.tone.setArticulation(
+            selectionInfo.trackId,
+            selectionInfo.toneId,
+            Articulation.Staccato,
+          );
+        },
       },
     ];
 
