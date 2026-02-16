@@ -179,6 +179,39 @@ export const useKeyboardShortcuts = () => {
           );
         },
       },
+      {
+        key: "\\",
+        modifiers: { command: false, control: false, option: false },
+        action: () => {
+          return actions.score.tone.setArticulation(
+            selectionInfo.trackId,
+            selectionInfo.toneId,
+            Articulation.Tenuto,
+          );
+        },
+      },
+      {
+        key: "[",
+        modifiers: { command: false, control: false, option: false },
+        action: () => {
+          return actions.score.tone.setArticulation(
+            selectionInfo.trackId,
+            selectionInfo.toneId,
+            Articulation.Accent,
+          );
+        },
+      },
+      {
+        key: "'",
+        modifiers: { command: false, control: false, option: false },
+        action: () => {
+          return actions.score.tone.setArticulation(
+            selectionInfo.trackId,
+            selectionInfo.toneId,
+            Articulation.Marcato,
+          );
+        },
+      },
     ];
 
     const handleKeyDown = async (e: KeyboardEvent) => {

@@ -5,7 +5,7 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 pub enum Articulation {
     None,
     Staccato,
-    Staccatissimo,
     Tenuto,
-    StaccatoTenuto,
+    Accent,
+    Marcato,
 }

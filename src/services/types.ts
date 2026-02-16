@@ -44,9 +44,9 @@ export enum Accidental {
 export enum Articulation {
   None,
   Staccato,
-  Staccatissimo,
   Tenuto,
-  StaccatoTenuto,
+  Accent,
+  Marcato,
 }
 
 export enum Tool {
