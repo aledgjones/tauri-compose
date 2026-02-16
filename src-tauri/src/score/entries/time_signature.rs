@@ -83,7 +83,7 @@ impl TimeSignature {
     fn kind_from_beats(beats: u8) -> TimeSignatureType {
         if beats == 0 {
             TimeSignatureType::Open
-        } else if beats > 3 && beats % 3 == 0 {
+        } else if beats > 3 && beats.is_multiple_of(3) {
             TimeSignatureType::Compound
         } else if beats == 1 || beats == 2 || beats == 3 || beats == 4 {
             TimeSignatureType::Simple
@@ -148,7 +148,7 @@ impl TimeSignature {
     /// Return true if a tick is on an arbitrary beat type
     pub fn is_on_beat_type(&self, tick: Tick, beat_type: &NoteDuration) -> bool {
         let ticks_per_beat = beat_type.to_ticks();
-        ((tick - self.tick) % ticks_per_beat) == 0
+        (tick - self.tick).is_multiple_of(ticks_per_beat)
     }
 
     fn digit_to_glyph(input: char) -> String {

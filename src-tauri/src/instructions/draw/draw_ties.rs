@@ -53,7 +53,7 @@ fn tie_points_y(
 ) -> [f32; 3] {
     let is_on_line = offset % 2 == 0;
     let is_wide = width > 10.0;
-    let direction_modifier = tie_direction.to_modifier() as f32 * -1.0;
+    let direction_modifier = -(tie_direction.to_modifier() as f32);
 
     let (ends_tweak, middle_tweak) = match start.is_chord() {
         true => {

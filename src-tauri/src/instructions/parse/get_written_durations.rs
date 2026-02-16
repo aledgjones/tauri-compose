@@ -499,8 +499,11 @@ impl NotationTrack {
                 }
             }
 
+            let is_offbeat = (tick - start).is_multiple_of(half_beat);
+            let is_onbeat = (tick - start).is_multiple_of(whole_beat);
+
             // if we are on an offbeat whole note there must be a note
-            if (tick - start) % half_beat == 0 && (tick - start) % whole_beat != 0 {
+            if is_offbeat && !is_onbeat {
                 if self.is_tick_empty(tick) || self.is_tick_rest(tick) {
                     return false;
                 } else {

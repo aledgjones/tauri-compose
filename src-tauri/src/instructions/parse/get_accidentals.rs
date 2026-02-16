@@ -100,7 +100,7 @@ pub fn sort_accidentals_alternate(accidentals: &[UniqueId]) -> Vec<UniqueId> {
         i += 1;
     }
 
-    if accidentals.len() % 2 != 0 {
+    if !accidentals.len().is_multiple_of(2) {
         output.push(accidentals[i]);
     }
 

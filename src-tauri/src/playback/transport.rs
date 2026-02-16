@@ -36,7 +36,6 @@ fn seconds_per_tick(bpm: f64) -> f64 {
 
 /// Map the score Articulation enum to the sampler articulation ID string.
 fn find_articulation_id(
-    articulation: &Articulation,
     articulations: &rustc_hash::FxHashMap<String, CacheArticulation>,
 ) -> Option<String> {
     // TODO: convert this mapping into a dynamic mapping in the manifest,
@@ -112,6 +111,7 @@ impl TransportContext {
 /// the voice to the mixer. The streamer decodes from disk, applies pitch
 /// shifting, envelope, and volume/pan, then pushes audio into a shared
 /// buffer that the mixer drains in the audio callback.
+#[allow(clippy::too_many_arguments)]
 fn render_note(
     cache: &Cache,
     articulation_id: &str,
@@ -370,7 +370,7 @@ fn transport_thread(
                 None => continue,
             };
 
-            let art_id = match find_articulation_id(&articulation, &cache.articulations) {
+            let art_id = match find_articulation_id(&cache.articulations) {
                 Some(id) => id,
                 None => continue,
             };

@@ -4,10 +4,8 @@
 ///
 /// Dumps the full structure of an SCVI binary container: header layout,
 /// sample index, and articulation mappings.
-
 #[path = "../playback/scvi.rs"]
 mod scvi;
-
 use scvi::ScviContainer;
 use std::path::Path;
 
@@ -29,7 +27,7 @@ fn inspect(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
     // ── Header ─────────────────────────────────────────────────────────
 
     println!("╔══════════════════════════════════════════════════════════════╗");
-    println!("║  SCVI Container Inspection                                  ║");
+    println!("║  SCVI Container Inspection                                   ║");
     println!("╠══════════════════════════════════════════════════════════════╣");
     println!("║  File:   {:<51} ║", path.display());
     println!("║  ID:     {:<51} ║", m.id);

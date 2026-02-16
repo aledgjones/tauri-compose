@@ -6,12 +6,6 @@ use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use tauri::State;
 
-#[derive(Serialize_repr, Deserialize_repr, Clone, PartialEq)]
-#[repr(u8)]
-pub enum SequencerSelectionType {
-    Tone = 0,
-}
-
 #[derive(Clone, Serialize, Deserialize, PartialEq)]
 #[serde(tag = "type")]
 pub enum Selection {

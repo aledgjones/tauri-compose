@@ -158,7 +158,7 @@ fn generate_velocity_layers(samples: &[&ParsedSample]) -> Vec<VelocityLayer> {
     for sample in samples {
         dynamics
             .entry(sample.dynamic.clone())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(sample);
     }
 
@@ -191,7 +191,7 @@ fn generate_velocity_layers(samples: &[&ParsedSample]) -> Vec<VelocityLayer> {
         for sample in samples_for_dynamic {
             rr_groups
                 .entry(sample.round_robin)
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(sample);
         }
 
@@ -255,7 +255,7 @@ fn main() {
     for sample in parsed_samples {
         articulations
             .entry(sample.articulation.clone())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(sample);
     }
 
@@ -309,10 +309,7 @@ fn main() {
         // Group by pitch
         let mut pitches: BTreeMap<u8, Vec<&ParsedSample>> = BTreeMap::new();
         for sample in &samples {
-            pitches
-                .entry(sample.midi_note)
-                .or_insert_with(Vec::new)
-                .push(sample);
+            pitches.entry(sample.midi_note).or_default().push(sample);
         }
 
         let mut zones = Vec::new();
