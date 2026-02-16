@@ -244,17 +244,18 @@ fn categorize_commits(commits: Vec<String>) -> std::collections::HashMap<String,
 
     for commit in commits {
         let message = commit.split_once(' ').map(|x| x.1).unwrap_or(&commit);
-        if message.starts_with("feat:") {
+        // Accept feat:, feat(SC-XXX):, fix:, fix(SC-XXX):, chore:, chore(SC-XXX):
+        if message.starts_with("feat:") || message.starts_with("feat(") {
             categorized
                 .get_mut("feat")
                 .unwrap()
                 .push(message.to_string());
-        } else if message.starts_with("fix:") {
+        } else if message.starts_with("fix:") || message.starts_with("fix(") {
             categorized
                 .get_mut("fix")
                 .unwrap()
                 .push(message.to_string());
-        } else if message.starts_with("chore:") {
+        } else if message.starts_with("chore:") || message.starts_with("chore(") {
             categorized
                 .get_mut("chore")
                 .unwrap()
