@@ -18,10 +18,13 @@ use skia_safe::gpu::direct_contexts::make_metal;
 use skia_safe::gpu::mtl::{BackendContext, TextureInfo};
 use skia_safe::gpu::surfaces::wrap_backend_render_target;
 use skia_safe::gpu::{DirectContext, SurfaceOrigin};
+use skia_safe::gradient::{Gradient, Interpolation};
+use skia_safe::gradient_shader::GradientColors;
+use skia_safe::shaders::linear_gradient;
 use skia_safe::utils::text_utils::Align as SkiaAlign;
 use skia_safe::{
-    Canvas, ClipOp, Color, ColorSpace, ColorType, Font, Paint, PaintStyle, Path, PathBuilder,
-    PathEffect, Point as SkiaPoint, Rect, Shader, Surface, SurfaceProps, TileMode,
+    Canvas, ClipOp, Color, Color4f, ColorSpace, ColorType, Font, Paint, PaintStyle, Path,
+    PathBuilder, PathEffect, Point as SkiaPoint, Rect, Surface, SurfaceProps, TileMode,
 };
 use std::error::Error;
 use std::time::Instant;
@@ -31,14 +34,13 @@ const PADDING: f32 = 100.0;
 const SCROLLBAR_WIDTH: f32 = 7.0;
 const SCROLLBAR_PADDING: f32 = 4.0;
 const SCROLLBAR_COLOR: Color = Color::from_argb(200, 60, 60, 60);
-const BACKGROUND_COLOR: Color = Color::from_rgb(10, 10, 10);
-const GRADIENT_COLORS: [Color; 4] = [
-    Color::from_rgb(2, 94, 149),
-    Color::from_rgb(3, 161, 222),
-    Color::from_rgb(107, 199, 236),
-    Color::from_rgb(180, 218, 221),
-];
 const GRADIENT_POSITIONS: [f32; 4] = [0.0, 0.33, 0.66, 1.0];
+static GRADIENT_COLORS: [Color4f; 4] = [
+    Color4f::new(2.0 / 255.0, 94.0 / 255.0, 149.0 / 255.0, 1.0),
+    Color4f::new(3.0 / 255.0, 161.0 / 255.0, 222.0 / 255.0, 1.0),
+    Color4f::new(107.0 / 255.0, 199.0 / 255.0, 236.0 / 255.0, 1.0),
+    Color4f::new(180.0 / 255.0, 218.0 / 255.0, 221.0 / 255.0, 1.0),
+];
 
 // Type aliases for cleaner code
 type MetalDevice = Retained<ProtocolObject<dyn objc2_metal::MTLDevice>>;
@@ -200,18 +202,19 @@ impl MetalRenderer {
     }
 
     fn draw_background(&self, canvas: &Canvas, texture_width: i32, texture_height: i32) {
-        canvas.clear(BACKGROUND_COLOR);
-        let colors = GRADIENT_COLORS;
-        let positions = GRADIENT_POSITIONS;
-        let gradient_shader = Shader::linear_gradient(
+        let stops = GradientColors::new(
+            &GRADIENT_COLORS,
+            Some(&GRADIENT_POSITIONS),
+            TileMode::Clamp,
+            None,
+        );
+        let gradient = Gradient::new(stops, Interpolation::default());
+        let gradient_shader = linear_gradient(
             (
                 SkiaPoint::new(0.0, 0.0),
                 SkiaPoint::new(0.0, texture_height as f32),
             ),
-            &colors[..],
-            Some(&positions[..]),
-            TileMode::Clamp,
-            None,
+            &gradient,
             None,
         );
         let mut background_paint = Paint::default();
