@@ -1,21 +1,8 @@
-use crate::score::{
-    components::pitch::{Accidental, Pitch},
-    entries::clef::{Clef, ClefDrawType},
-};
+use crate::score::components::pitch::{Accidental, Pitch};
+use crate::score::entries::clef::{Clef, ClefDrawType};
 use lazy_static::lazy_static;
 use serde::Serialize;
 use serde_repr::{Deserialize_repr, Serialize_repr};
-
-#[derive(Copy, Clone, Hash, Eq, PartialEq, Serialize_repr, Deserialize_repr)]
-#[repr(u8)]
-pub enum Expression {
-    Natural = 0,
-    Pizzicato,
-    Spiccato,
-    Staccato,
-    Tremolo,
-    Mute, // may have to convert to MuteStaccato etc. later for mixed expressions
-}
 
 #[derive(Copy, Clone, Serialize_repr, Deserialize_repr)]
 #[repr(u8)]
