@@ -1,4 +1,5 @@
 pub mod get_accidentals;
+pub mod get_articulations;
 pub mod get_barlines;
 pub mod get_beams;
 pub mod get_dots;

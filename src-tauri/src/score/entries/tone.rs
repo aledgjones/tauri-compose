@@ -1,6 +1,6 @@
 use super::key_signature::KeySignature;
 use super::Entry;
-use crate::score::components::articulation::Articulation;
+use crate::score::components::articulation::{Articulation, Articulations};
 use crate::score::components::duration::{Tick, Ticks};
 use crate::score::components::pitch::{Accidental, Pitch};
 use crate::score::components::velocity::Velocity;
@@ -8,6 +8,7 @@ use crate::score::tracks::Track;
 use crate::utils::UniqueId;
 use crate::AppContextState;
 use crate::RendererContextState;
+
 use serde::{Deserialize, Serialize};
 use tauri::State;
 
@@ -20,7 +21,7 @@ pub struct Tone {
     pub duration: Ticks,
     pub pitch: Pitch,
     pub velocity: Velocity,
-    pub articulation: Option<Articulation>,
+    pub articulations: Articulations,
 }
 
 impl Tone {
@@ -30,7 +31,7 @@ impl Tone {
         duration: Ticks,
         pitch: Pitch,
         velocity: Velocity,
-        articulation: Option<Articulation>,
+        articulations: Articulations,
     ) -> Self {
         Self {
             id,
@@ -38,7 +39,7 @@ impl Tone {
             duration,
             pitch,
             velocity,
-            articulation,
+            articulations,
         }
     }
 }
@@ -62,13 +63,13 @@ impl Track {
         output
     }
 
-    /// Return the first articulation present at `tick`, if any.
-    pub fn first_articulation_at_tick(&self, tick: &Tick) -> Option<Articulation> {
+    /// Return the first non-empty articulation *set* present at `tick`, if any.
+    pub fn first_articulations_at_tick(&self, tick: &Tick) -> Option<Articulations> {
         if let Some(tone_ids) = self.entries.by_tick.get(tick) {
             for tone_id in tone_ids {
                 if let Some(Entry::Tone(tone)) = self.entries.by_id.get(tone_id) {
-                    if let Some(ref articulation) = tone.articulation {
-                        return Some(articulation.clone());
+                    if !tone.articulations.is_empty() {
+                        return Some(tone.articulations.clone());
                     }
                 }
             }
@@ -76,12 +77,12 @@ impl Track {
         None
     }
 
-    /// Apply `articulation` to all Tone entries at `tick`.
-    pub fn apply_articulation_to_tick(&mut self, tick: Tick, articulation: Option<Articulation>) {
+    /// Replace the articulations set for all Tone entries at `tick`.
+    pub fn apply_articulations_to_tick(&mut self, tick: Tick, articulations: &Articulations) {
         if let Some(tone_ids) = self.entries.by_tick.get(&tick) {
             for tone_id in tone_ids {
                 if let Some(Entry::Tone(tone)) = self.entries.by_id.get_mut(tone_id) {
-                    tone.articulation = articulation.clone();
+                    tone.articulations = articulations.clone();
                 }
             }
         }
@@ -100,7 +101,7 @@ pub fn score_entries_tone_create(
     pitch_int: u8,
     accidental: Option<Accidental>,
     velocity: u8,
-    articulation: Option<Articulation>,
+    articulations: Articulations,
 ) -> UniqueId {
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
@@ -120,36 +121,28 @@ pub fn score_entries_tone_create(
         }
     };
 
-    // Determine effective articulation for the new tone:
-    // - if caller provided an articulation -> use it and apply it to all tones at the tick
-    // - if caller passed None -> inherit the first articulation present at the tick (if any)
-    match articulation {
-        Some(ref a) => {
-            // create with the provided articulation and then apply it to existing tones
-            track.insert_entry(Entry::Tone(Tone::new(
-                tone_id,
-                tick,
-                duration,
-                pitch,
-                Velocity::new(velocity),
-                Some(a.clone()),
-            )));
+    // Determine the effective articulation set for the new tone.
+    // - If caller provided a non-empty set => use it and apply it to all tones at the tick.
+    // - If caller provided an empty set => inherit the first-existing tone's set at that tick
+    //   (if any); otherwise remain empty. Do NOT modify existing tones when caller's set is empty.
+    let effective_articulations: Articulations = if !articulations.is_empty() {
+        articulations.clone()
+    } else {
+        track.first_articulations_at_tick(&tick).unwrap_or_default()
+    };
 
-            // Ensure all tones at this tick use the provided articulation
-            track.apply_articulation_to_tick(tick, Some(a.clone()));
-        }
-        None => {
-            // Try to inherit an articulation already present at this tick
-            let inherited = track.first_articulation_at_tick(&tick);
-            track.insert_entry(Entry::Tone(Tone::new(
-                tone_id,
-                tick,
-                duration,
-                pitch,
-                Velocity::new(velocity),
-                inherited.clone(),
-            )));
-        }
+    track.insert_entry(Entry::Tone(Tone::new(
+        tone_id,
+        tick,
+        duration,
+        pitch,
+        Velocity::new(velocity),
+        effective_articulations.clone(),
+    )));
+
+    // If the caller supplied a non-empty set, apply it to all tones at the tick.
+    if !articulations.is_empty() {
+        track.apply_articulations_to_tick(tick, &articulations);
     }
 
     state.emit(&app, &mut renderer, true);
@@ -219,7 +212,7 @@ pub fn score_entries_tone_slice(
         new_duration,
         original_tone.pitch,
         original_tone.velocity,
-        original_tone.articulation.clone(),
+        original_tone.articulations.clone(),
     );
 
     track.insert_entry(Entry::Tone(new_tone));
@@ -355,17 +348,15 @@ pub fn score_entries_tone_unify_articulations(
 
     let track = state.score.tracks.by_id.get_mut(&track_id).unwrap();
 
-    let (moved_tone_articulation, moved_tick) = match track.entries.by_id.get(&entry_id) {
-        Some(Entry::Tone(tone)) => (tone.articulation.clone(), tone.tick),
+    let (moved_tone_articulations, moved_tick) = match track.entries.by_id.get(&entry_id) {
+        Some(Entry::Tone(tone)) => (tone.articulations.clone(), tone.tick),
         _ => return,
     };
 
-    if let Some(ref articulation) = moved_tone_articulation {
-        track.apply_articulation_to_tick(moved_tick, Some(articulation.clone()));
-    } else if let Some(found) = track.first_articulation_at_tick(&moved_tick) {
-        if let Some(Entry::Tone(moved_tone)) = track.entries.by_id.get_mut(&entry_id) {
-            moved_tone.articulation = Some(found);
-        }
+    if !moved_tone_articulations.is_empty() {
+        track.apply_articulations_to_tick(moved_tick, &moved_tone_articulations);
+    } else if let Some(found_set) = track.first_articulations_at_tick(&moved_tick) {
+        track.apply_articulations_to_tick(moved_tick, &found_set);
     }
 
     state.emit(&app, &mut renderer, true);
@@ -482,29 +473,17 @@ pub fn score_entries_tone_articulation_set(
     let track = state.score.tracks.by_id.get_mut(&track_id).unwrap();
     let entry = track.entries.by_id.get_mut(&tone_id).unwrap();
 
-    // use the selected tone as the guide for articulation toggling.
-    let (tick, next_articulation) = if let Entry::Tone(tone) = entry {
-        if tone.articulation.as_ref() == Some(&articulation) {
-            (tone.tick, None)
-        } else {
-            (tone.tick, Some(articulation))
-        }
+    // Use the selected tone as the guide: compute the resulting articulation set once,
+    // then apply that set uniformly to all tones at the tick.
+    let (tick, selected_set) = if let Entry::Tone(tone) = entry {
+        (tone.tick, tone.articulations.clone())
     } else {
         return;
     };
 
-    let entry_ids = match track.entries.by_tick.get(&tick) {
-        Some(ids) => ids.clone(),
-        None => {
-            return;
-        }
-    };
+    let resulting_set = selected_set.toggle(articulation);
 
-    for entry_id in entry_ids {
-        if let Some(Entry::Tone(tone)) = track.entries.by_id.get_mut(&entry_id) {
-            tone.articulation = next_articulation.clone();
-        }
-    }
+    track.apply_articulations_to_tick(tick, &resulting_set);
 
     state.emit(&app, &mut renderer, true);
 }

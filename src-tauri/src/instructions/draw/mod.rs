@@ -1,4 +1,5 @@
 pub mod draw_accidentals;
+pub mod draw_articulations;
 pub mod draw_barline;
 pub mod draw_beam;
 pub mod draw_braces;

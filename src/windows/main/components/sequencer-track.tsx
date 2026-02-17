@@ -120,7 +120,7 @@ const handleWriteTool = async (
     pitch,
     null,
     100,
-    null,
+    [],
   );
 
   // Audition the created note

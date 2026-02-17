@@ -44,6 +44,10 @@ export enum Accidental {
 export enum Articulation {
   Staccato,
   Tenuto,
+  Staccatissimo,
+  StaccatoTenuto,
+  Accent,
+  Marcato,
 }
 
 export enum Tool {
@@ -197,7 +201,7 @@ export type Tone = {
   duration: Ticks;
   pitch: Pitch;
   velocity: Velocity;
-  articulation: Articulation | null;
+  articulations: Articulation[];
 };
 
 export type Entry = TimeSignature | KeySignature | Tone;

@@ -12,6 +12,7 @@ use crate::score::entries::clef::Clef;
 use crate::utils::UniqueId;
 use crate::AppContext;
 use draw::draw_accidentals::draw_accidental;
+use draw::draw_articulations::draw_articulations;
 use draw::draw_barline::draw_barline;
 use draw::draw_beam::draw_beam;
 use draw::draw_braces::draw_braces;
@@ -31,6 +32,7 @@ use draw::draw_systemic_barline::draw_systemic_barline;
 use draw::draw_ties::draw_ties;
 use draw::draw_time_signature::draw_time_signature;
 use parse::get_accidentals::get_accidentals;
+use parse::get_articulations::get_articulations;
 use parse::get_barlines::get_barlines;
 use parse::get_beams::get_beams;
 use parse::get_dots::get_dots;
@@ -107,6 +109,7 @@ pub fn generate_render_instructions(
     let shunts_by_track =
         get_note_shunts(&notation_by_track, &tone_offsets, &stem_directions_by_track);
     let dots_by_track = get_dots(flow, &notation_by_track, &tone_offsets);
+    let articulations_by_track = get_articulations(&notation_by_track);
     let accidentals_by_track = get_accidentals(
         flow,
         &state.score.tracks,
@@ -523,6 +526,25 @@ pub fn generate_render_instructions(
                                 state.ui.sequencer.selection.as_ref(),
                                 renderer,
                             );
+                        }
+                    }
+
+                    // ARTICULATIONS (draw once per notation event)
+                    if let Some(track_artics) = articulations_by_track.get(track_id) {
+                        if let Some(articulation_set) = track_artics.get(tick) {
+                            for articulation in articulation_set.iter() {
+                                draw_articulations(
+                                    &Point {
+                                        x: stave_left + x,
+                                        y: stave_top,
+                                    },
+                                    articulation,
+                                    notation,
+                                    glyph_width,
+                                    stem_directions.get(tick),
+                                    renderer,
+                                );
+                            }
                         }
                     }
                 }
