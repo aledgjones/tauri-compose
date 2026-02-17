@@ -1,3 +1,9 @@
+## Release Notes for v1.20.6
+
+### 🐞 Fixes
+
+- fix: release scripts
+
 ## Release Notes for v1.20.5
 
 ### 🏗️ Features
