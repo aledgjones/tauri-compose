@@ -532,19 +532,17 @@ pub fn generate_render_instructions(
                     // ARTICULATIONS (draw once per notation event)
                     if let Some(track_artics) = articulations_by_track.get(track_id) {
                         if let Some(articulation_set) = track_artics.get(tick) {
-                            for articulation in articulation_set.iter() {
-                                draw_articulations(
-                                    &Point {
-                                        x: stave_left + x,
-                                        y: stave_top,
-                                    },
-                                    articulation,
-                                    notation,
-                                    glyph_width,
-                                    stem_directions.get(tick),
-                                    renderer,
-                                );
-                            }
+                            draw_articulations(
+                                &Point {
+                                    x: stave_left + x,
+                                    y: stave_top,
+                                },
+                                articulation_set,
+                                notation,
+                                glyph_width,
+                                stem_directions.get(tick),
+                                renderer,
+                            );
                         }
                     }
                 }

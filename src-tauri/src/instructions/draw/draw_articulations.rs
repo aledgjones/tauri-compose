@@ -4,11 +4,12 @@ use crate::score::components::articulation::Articulation;
 use crate::score::components::duration::Direction;
 use crate::score::components::measurements::Point;
 use crate::score::components::text::{Align, Font, FontFamily, Justify};
+use rustc_hash::FxHashSet;
 use skia_safe::Color;
 
 pub fn draw_articulations(
     origin: &Point,
-    articulation: &Articulation,
+    articulations: &FxHashSet<Articulation>,
     notation: &Notation,
     glyph_width: f32,
     stem_direction: Option<&Direction>,
@@ -26,105 +27,107 @@ pub fn draw_articulations(
 
     let x = origin.x + (glyph_width / 2.0);
 
-    match articulation {
-        Articulation::Staccato => {
-            let glyph = match stem_direction {
-                Some(Direction::Down) | None => "\u{E4A2}",
-                Some(Direction::Up) => "\u{E4A3}",
-            };
-            let y = match stem_direction {
-                Some(Direction::Down) | None => {
-                    let offset = origin.y + (info.highest as f32 / 2.0) - 0.85;
-                    if info.highest == -2 || info.highest == 0 {
-                        offset - 0.5
-                    } else {
-                        offset
+    for articulation in articulations.iter() {
+        match articulation {
+            Articulation::Staccato => {
+                let glyph = match stem_direction {
+                    Some(Direction::Down) | None => "\u{E4A2}",
+                    Some(Direction::Up) => "\u{E4A3}",
+                };
+                let y = match stem_direction {
+                    Some(Direction::Down) | None => {
+                        let offset = origin.y + (info.highest as f32 / 2.0) - 0.85;
+                        if info.highest == -2 || info.highest == 0 {
+                            offset - 0.5
+                        } else {
+                            offset
+                        }
                     }
-                }
-                Some(Direction::Up) => {
-                    let offset = origin.y + (info.lowest as f32 / 2.0) + 0.85;
-                    if info.lowest == 2 || info.lowest == 0 {
-                        offset + 0.5
-                    } else {
-                        offset
+                    Some(Direction::Up) => {
+                        let offset = origin.y + (info.lowest as f32 / 2.0) + 0.85;
+                        if info.lowest == 2 || info.lowest == 0 {
+                            offset + 0.5
+                        } else {
+                            offset
+                        }
                     }
-                }
-            };
-            renderer.text(
-                glyph,
-                &Font {
-                    size: 4.0,
-                    family: FontFamily::Bravura,
-                    align: Align::Bottom,
-                    justify: Justify::Middle,
-                },
-                &Point { x, y },
-                Color::BLACK,
-            );
+                };
+                renderer.text(
+                    glyph,
+                    &Font {
+                        size: 4.0,
+                        family: FontFamily::Bravura,
+                        align: Align::Bottom,
+                        justify: Justify::Middle,
+                    },
+                    &Point { x, y },
+                    Color::BLACK,
+                );
+            }
+            Articulation::Tenuto => {
+                let glyph = match stem_direction {
+                    Some(Direction::Down) | None => "\u{E4A4}",
+                    Some(Direction::Up) => "\u{E4A5}",
+                };
+                let y = match stem_direction {
+                    Some(Direction::Down) | None => {
+                        let offset = origin.y + (info.highest as f32 / 2.0) - 0.9;
+                        if info.highest == -2 || info.highest == 0 {
+                            offset - 0.5
+                        } else {
+                            offset
+                        }
+                    }
+                    Some(Direction::Up) => {
+                        let offset = origin.y + (info.lowest as f32 / 2.0) + 0.9;
+                        if info.lowest == 2 || info.lowest == 0 {
+                            offset + 0.5
+                        } else {
+                            offset
+                        }
+                    }
+                };
+                renderer.text(
+                    glyph,
+                    &Font {
+                        size: 4.0,
+                        family: FontFamily::Bravura,
+                        align: Align::Bottom,
+                        justify: Justify::Middle,
+                    },
+                    &Point { x, y },
+                    Color::BLACK,
+                );
+            }
+            Articulation::Staccatissimo => {
+                // cannot be rendered inside the stave, clamp to the nearest possible position instead.
+                let glyph = match stem_direction {
+                    Some(Direction::Down) | None => "\u{E4A6}",
+                    Some(Direction::Up) => "\u{E4A7}",
+                };
+                let y = match stem_direction {
+                    Some(Direction::Down) | None => {
+                        let highest_clamped = info.highest.min(-3);
+                        origin.y + (highest_clamped as f32 / 2.0) - 0.95
+                    }
+                    Some(Direction::Up) => {
+                        let lowest_clamped = info.lowest.max(3);
+                        origin.y + (lowest_clamped as f32 / 2.0) + 0.95
+                    }
+                };
+                renderer.text(
+                    glyph,
+                    &Font {
+                        size: 4.0,
+                        family: FontFamily::Bravura,
+                        align: Align::Bottom,
+                        justify: Justify::Middle,
+                    },
+                    &Point { x, y },
+                    Color::BLACK,
+                );
+            }
+            _ => (),
         }
-        Articulation::Tenuto => {
-            let glyph = match stem_direction {
-                Some(Direction::Down) | None => "\u{E4A4}",
-                Some(Direction::Up) => "\u{E4A5}",
-            };
-            let y = match stem_direction {
-                Some(Direction::Down) | None => {
-                    let offset = origin.y + (info.highest as f32 / 2.0) - 0.9;
-                    if info.highest == -2 || info.highest == 0 {
-                        offset - 0.5
-                    } else {
-                        offset
-                    }
-                }
-                Some(Direction::Up) => {
-                    let offset = origin.y + (info.lowest as f32 / 2.0) + 0.9;
-                    if info.lowest == 2 || info.lowest == 0 {
-                        offset + 0.5
-                    } else {
-                        offset
-                    }
-                }
-            };
-            renderer.text(
-                glyph,
-                &Font {
-                    size: 4.0,
-                    family: FontFamily::Bravura,
-                    align: Align::Bottom,
-                    justify: Justify::Middle,
-                },
-                &Point { x, y },
-                Color::BLACK,
-            );
-        }
-        Articulation::Staccatissimo => {
-            // cannot be rendered inside the stave, clamp to the nearest possible position instead.
-            let glyph = match stem_direction {
-                Some(Direction::Down) | None => "\u{E4A6}",
-                Some(Direction::Up) => "\u{E4A7}",
-            };
-            let y = match stem_direction {
-                Some(Direction::Down) | None => {
-                    let highest_clamped = info.highest.min(-3);
-                    origin.y + (highest_clamped as f32 / 2.0) - 0.95
-                }
-                Some(Direction::Up) => {
-                    let lowest_clamped = info.lowest.max(3);
-                    origin.y + (lowest_clamped as f32 / 2.0) + 0.95
-                }
-            };
-            renderer.text(
-                glyph,
-                &Font {
-                    size: 4.0,
-                    family: FontFamily::Bravura,
-                    align: Align::Bottom,
-                    justify: Justify::Middle,
-                },
-                &Point { x, y },
-                Color::BLACK,
-            );
-        }
-        _ => (),
     }
 }

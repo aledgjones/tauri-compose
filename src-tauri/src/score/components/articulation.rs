@@ -37,7 +37,7 @@ impl Articulation {
     }
 }
 
-/// Newtype wrapper around an FxHashSet of `Articulation` values. This provides
+/// Wrapper type around an FxHashSet of `Articulation` values. This provides
 /// encapsulated behavior such as `toggle` that enforces group invariants.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(transparent)]
