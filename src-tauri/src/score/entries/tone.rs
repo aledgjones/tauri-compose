@@ -405,7 +405,11 @@ pub fn score_entries_tone_articulation_set(
     let entry = track.entries.by_id.get_mut(&tone_id).unwrap();
 
     if let Entry::Tone(tone) = entry {
-        tone.articulation = articulation;
+        if tone.articulation == articulation {
+            tone.articulation = Articulation::None;
+        } else {
+            tone.articulation = articulation;
+        }
     }
 
     state.emit(&app, &mut renderer, true);
