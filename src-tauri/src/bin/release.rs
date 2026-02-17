@@ -165,9 +165,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Open the draft release in browser
     println!("🌐 Opening draft GitHub release in browser...");
     let repo_url = get_github_repo_url()?;
-    let release_url = format!("{}/releases/tag/v{}", repo_url, new_version);
-    Command::new("open").arg(&release_url).status()?;
-    println!("✅ Draft release opened in browser: {}", release_url);
+    let release_edit_url = format!("{}/releases/edit/v{}", repo_url, new_version);
+    Command::new("open").arg(&release_edit_url).status()?;
+    println!("✅ Draft release opened in browser: {}", release_edit_url);
 
     Ok(())
 }
