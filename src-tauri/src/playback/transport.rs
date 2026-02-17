@@ -1,7 +1,6 @@
 use crate::playback::mixer::MixerHandle;
 use crate::playback::sampler::{Cache, CacheArticulation};
 use crate::playback::streamer::{self, StreamBuffer, StreamRequest};
-use crate::score::components::articulation::Articulation;
 use crate::score::components::duration::Tick;
 use crate::score::Score;
 use crate::utils::UniqueId;
