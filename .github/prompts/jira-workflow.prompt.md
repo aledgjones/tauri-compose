@@ -1,6 +1,7 @@
 ---
 name: "Ticket to Branch & Plan"
 description: "Fetches a Jira ticket, creates a branch, and drafts a technical plan."
+tools: [execute, read, com.atlassian/atlassian-mcp-server/*]
 ---
 
 # Context
@@ -11,15 +12,15 @@ You are an expert developer. You have access to the Jira MCP server and the Loca
 
 The user will provide a Jira Ticket ID (e.g., SC-123). Follow these steps exactly:
 
-1. **Fetch Details:** Use the `get_jira_issue` tool to retrieve the title, description, and acceptance criteria for {{ticket_id}}.
+1. **Fetch Details:** Use the `com.atlassian/atlassian-mcp-server` tool to retrieve the title, description, and acceptance criteria for {{ticket_id}}.
    - If the ticket cannot be found, output an error and stop.
 2. **Create Branch:**
    - Sanitize and simplify the ticket title for a branch name (lowercase, replace spaces/special chars with hyphens, truncate to 50 chars).
    - Construct the branch name: `(feat|fix)/{{ticket_id}}-<sanitized-summary>`.
-   - Use the `execute_command` tool to run: `git checkout -b <branch_name>`.
+   - Use the `execute` tools to run: `git checkout -b <branch_name>`.
    - If branch creation fails, output the error and stop.
 3. **Analyze & Plan:**
-   - Read the relevant codebase files using `read_file`.
+   - Read the relevant codebase files using `read`.
    - Provide a high-level **Technical Design Document**:
      - **Overview:** Brief summary of the approach.
      - **Files to Change:** List and rationale.
@@ -38,6 +39,11 @@ The user will provide a Jira Ticket ID (e.g., SC-123). Follow these steps exactl
 <recap>
 
 ## Proposed Changes
+
+- Bullet 1
+- Bullet 2
+
+## Risks/Considerations
 
 - Bullet 1
 - Bullet 2
