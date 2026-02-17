@@ -2,9 +2,7 @@ use semver::Version;
 use serde_json::Value;
 use std::env;
 use std::fs;
-use std::io::Write;
 use std::process::Command;
-use tempfile::NamedTempFile;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = env::args().collect();
@@ -130,83 +128,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     println!("✅ Tag v{} pushed", new_version);
 
-    // Generate release notes from releases.md
-    let releases_md = fs::read_to_string("releases.md")?;
-    let release_section = extract_release_notes(&releases_md, &new_version);
-
-    // Write release notes to a temporary file
-    let mut notes_file = NamedTempFile::new()?;
-    notes_file.write_all(release_section.as_bytes())?;
-    let notes_path = notes_file.path().to_str().unwrap();
-
-    // Create draft GitHub release with notes-file
-    println!("🚀 Creating draft GitHub release...");
-    let gh_status = Command::new("gh")
-        .args([
-            "release",
-            "create",
-            &format!("v{}", new_version),
-            "--draft",
-            "--title",
-            &format!("v{}", new_version),
-            "--notes-file",
-            notes_path,
-        ])
-        .status()?;
-    if !gh_status.success() {
-        eprintln!(
-            "❌ Failed to create draft GitHub release for v{}",
-            new_version
-        );
-        std::process::exit(1);
-    }
-    println!("✅ Draft GitHub release created for v{}", new_version);
-
-    // Open the draft release in browser
-    println!("🌐 Opening draft GitHub release in browser...");
-    let repo_url = get_github_repo_url()?;
-    let release_edit_url = format!("{}/releases/edit/v{}", repo_url, new_version);
-    Command::new("open").arg(&release_edit_url).status()?;
-    println!("✅ Draft release opened in browser: {}", release_edit_url);
-
     Ok(())
-}
-
-fn extract_release_notes(releases_md: &str, version: &str) -> String {
-    let header = format!("## Release Notes for v{}", version);
-    if let Some(start) = releases_md.find(&header) {
-        let after_header = &releases_md[start..];
-        let end = after_header
-            .find("## Release Notes for v")
-            .unwrap_or(after_header.len());
-        after_header[..end].trim().to_string()
-    } else {
-        format!("Release notes for v{} not found.", version)
-    }
-}
-
-fn get_github_repo_url() -> Result<String, Box<dyn std::error::Error>> {
-    let output = Command::new("git")
-        .args(["config", "--get", "remote.origin.url"])
-        .output()?;
-    if !output.status.success() {
-        return Err("Failed to get GitHub repo URL".into());
-    }
-    let url = String::from_utf8(output.stdout)?.trim().to_string();
-    // Convert SSH or HTTPS to web URL
-    if url.starts_with("git@github.com:") {
-        let repo = url
-            .trim_start_matches("git@github.com:")
-            .trim_end_matches(".git");
-        Ok(format!("https://github.com/{}", repo))
-    } else if url.starts_with("https://github.com/") {
-        let repo = url
-            .trim_start_matches("https://github.com/")
-            .trim_end_matches(".git");
-        Ok(format!("https://github.com/{}", repo))
-    } else {
-        Err("Unsupported GitHub remote URL format".into())
-    }
 }
 
 fn get_last_tag() -> Result<String, Box<dyn std::error::Error>> {
