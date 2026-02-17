@@ -190,6 +190,17 @@ export const useKeyboardShortcuts = () => {
           );
         },
       },
+      {
+        key: "}",
+        modifiers: { command: false, control: false, option: false },
+        action: () => {
+          return actions.score.tone.setArticulation(
+            selectionInfo.trackId,
+            selectionInfo.toneId,
+            Articulation.Staccatissimo,
+          );
+        },
+      },
     ];
 
     const handleKeyDown = async (e: KeyboardEvent) => {

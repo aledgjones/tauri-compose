@@ -97,6 +97,34 @@ pub fn draw_articulations(
                 Color::BLACK,
             );
         }
+        Articulation::Staccatissimo => {
+            // cannot be rendered inside the stave, clamp to the nearest possible position instead.
+            let glyph = match stem_direction {
+                Some(Direction::Down) | None => "\u{E4A6}",
+                Some(Direction::Up) => "\u{E4A7}",
+            };
+            let y = match stem_direction {
+                Some(Direction::Down) | None => {
+                    let highest_clamped = info.highest.min(-3);
+                    origin.y + (highest_clamped as f32 / 2.0) - 0.95
+                }
+                Some(Direction::Up) => {
+                    let lowest_clamped = info.lowest.max(3);
+                    origin.y + (lowest_clamped as f32 / 2.0) + 0.95
+                }
+            };
+            renderer.text(
+                glyph,
+                &Font {
+                    size: 4.0,
+                    family: FontFamily::Bravura,
+                    align: Align::Bottom,
+                    justify: Justify::Middle,
+                },
+                &Point { x, y },
+                Color::BLACK,
+            );
+        }
         _ => (),
     }
 }
