@@ -1,3 +1,9 @@
+## Release Notes for v1.20.4
+
+### 🏗️ Features
+
+- feat: toggle articulations
+
 ## Release Notes for v1.20.3
 
 ### 🐞 Fixes
