@@ -44,7 +44,7 @@ impl Tone {
 }
 
 impl Track {
-    /// Returns the time signature entry at a given tick if it exists
+    /// Returns tone entry at a given tick if it exists
     pub fn get_tones_at_tick(&self, tick: &Tick) -> Vec<&Tone> {
         let mut output = Vec::new();
 
@@ -60,6 +60,31 @@ impl Track {
         }
 
         output
+    }
+
+    /// Return the first articulation present at `tick`, if any.
+    pub fn first_articulation_at_tick(&self, tick: &Tick) -> Option<Articulation> {
+        if let Some(tone_ids) = self.entries.by_tick.get(tick) {
+            for tone_id in tone_ids {
+                if let Some(Entry::Tone(tone)) = self.entries.by_id.get(tone_id) {
+                    if let Some(ref articulation) = tone.articulation {
+                        return Some(articulation.clone());
+                    }
+                }
+            }
+        }
+        None
+    }
+
+    /// Apply `articulation` to all Tone entries at `tick`.
+    pub fn apply_articulation_to_tick(&mut self, tick: Tick, articulation: Option<Articulation>) {
+        if let Some(tone_ids) = self.entries.by_tick.get(&tick) {
+            for tone_id in tone_ids {
+                if let Some(Entry::Tone(tone)) = self.entries.by_id.get_mut(tone_id) {
+                    tone.articulation = articulation.clone();
+                }
+            }
+        }
     }
 }
 
@@ -289,50 +314,34 @@ pub fn score_entries_tone_shift(
 
     let track = state.score.tracks.by_id.get_mut(&track_id).unwrap();
 
-    let moved_tone_articulation = match track.entries.by_id.get(&entry_id) {
-        Some(Entry::Tone(tone)) => tone.articulation.clone(),
-        _ => {
-            track.shift_entry(entry_id, new_tick);
-            state.emit(&app, &mut renderer, true);
-            return;
-        }
-    };
-
-    // Moved tone has articulation, apply to all at destination
-    if let Some(ref moved_artic) = moved_tone_articulation {
-        track.shift_entry(entry_id, new_tick);
-        if let Some(ids) = track.entries.by_tick.get(&new_tick) {
-            for entry_id in ids {
-                if let Some(Entry::Tone(tone)) = track.entries.by_id.get_mut(entry_id) {
-                    tone.articulation = Some(moved_artic.clone());
-                }
-            }
-        }
-        state.emit(&app, &mut renderer, true);
-        return;
-    }
-
-    // Moved tone has no articulation
-    // Find an articulation at the destination
-    let mut found_articulation = None;
-    if let Some(ids) = track.entries.by_tick.get(&new_tick) {
-        for entry_id in ids {
-            if let Some(Entry::Tone(tone)) = track.entries.by_id.get(entry_id) {
-                if let Some(ref artic) = tone.articulation {
-                    found_articulation = Some(artic.clone());
-                    break;
-                }
-            }
-        }
-    }
-
-    // Move the tone
     track.shift_entry(entry_id, new_tick);
 
-    // If found, set the moved tone's articulation
-    if let Some(Entry::Tone(moved_tone)) = track.entries.by_id.get_mut(&entry_id) {
-        if let Some(artic) = found_articulation {
-            moved_tone.articulation = Some(artic);
+    state.emit(&app, &mut renderer, true);
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn score_entries_tone_unify_articulations(
+    app: tauri::AppHandle,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
+    track_id: UniqueId,
+    entry_id: UniqueId,
+) {
+    let mut state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
+
+    let track = state.score.tracks.by_id.get_mut(&track_id).unwrap();
+
+    let (moved_tone_articulation, moved_tick) = match track.entries.by_id.get(&entry_id) {
+        Some(Entry::Tone(tone)) => (tone.articulation.clone(), tone.tick),
+        _ => return,
+    };
+
+    if let Some(ref articulation) = moved_tone_articulation {
+        track.apply_articulation_to_tick(moved_tick, Some(articulation.clone()));
+    } else if let Some(found) = track.first_articulation_at_tick(&moved_tick) {
+        if let Some(Entry::Tone(moved_tone)) = track.entries.by_id.get_mut(&entry_id) {
+            moved_tone.articulation = Some(found);
         }
     }
 

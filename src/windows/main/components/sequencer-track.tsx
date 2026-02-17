@@ -407,9 +407,11 @@ const handlePositionDragging = async (
     }
   };
 
-  const handlePointerUp = () => {
+  const handlePointerUp = async () => {
     document.removeEventListener("pointermove", handlePointerMove);
     document.removeEventListener("pointerup", handlePointerUp);
+
+    await actions.score.tone.unifyArticulations(track.id, clickTarget.id);
   };
 
   document.addEventListener("pointermove", handlePointerMove);

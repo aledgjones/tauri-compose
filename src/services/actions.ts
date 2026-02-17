@@ -679,6 +679,12 @@ export const actions = {
           new_tick,
         });
       },
+      unifyArticulations: (track_id: UniqueId, entry_id: UniqueId) => {
+        return invoke<void>("score_entries_tone_unify_articulations", {
+          track_id,
+          entry_id,
+        });
+      },
       setDuration: (track_id: UniqueId, tone_id: UniqueId, duration: Ticks) => {
         return invoke("score_entries_tone_duration_set", {
           track_id,
