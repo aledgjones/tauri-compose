@@ -1,3 +1,12 @@
+## Release Notes for v1.20.5
+
+### 🏗️ Features
+
+- feat: unify articulations in chords
+- feat: update status
+- feat: prompts update
+- feat: mcp jira workflow
+
 ## Release Notes for v1.20.4
 
 ### 🏗️ Features
