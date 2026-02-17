@@ -660,7 +660,7 @@ export const actions = {
         pitch_int: number,
         accidental: Accidental | null,
         velocity: number,
-        articulation: Articulation,
+        articulation: Articulation | null,
       ) => {
         return invoke<UniqueId>("score_entries_tone_create", {
           track_id,

@@ -3,7 +3,6 @@ import { TickConfig } from "../hooks/use-ticks";
 import { KeyType, Slots } from "../hooks/use-slots";
 import classNames from "classnames";
 import {
-  Articulation,
   Flow,
   NoteDuration,
   Tool,
@@ -121,7 +120,7 @@ const handleWriteTool = async (
     pitch,
     null,
     100,
-    Articulation.None,
+    null,
   );
 
   // Audition the created note
