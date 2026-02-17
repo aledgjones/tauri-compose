@@ -403,7 +403,7 @@ const handlePositionDragging = async (
 
     // Update tick if it changed
     if (clampedNewTick !== lastTick) {
-      await actions.score.entry.shift(track.id, clickTarget.id, clampedNewTick);
+      await actions.score.tone.shift(track.id, clickTarget.id, clampedNewTick);
       lastTick = clampedNewTick;
     }
   };

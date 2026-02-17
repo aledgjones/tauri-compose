@@ -225,7 +225,7 @@ fn collect_notes_at_tick(
     score: &Score,
     flow_id: UniqueId,
     tick: Tick,
-) -> Vec<(String, Articulation, u8, u8, u64, UniqueId)> {
+) -> Vec<(String, u8, u8, u64, UniqueId)> {
     let mut notes = Vec::new();
 
     let flow = match score.flows.by_id.get(&flow_id) {
@@ -270,7 +270,6 @@ fn collect_notes_at_tick(
                     for tone in tones {
                         notes.push((
                             plugin_id.clone(),
-                            tone.articulation.clone(),
                             tone.pitch.int,
                             tone.velocity.int(),
                             tone.duration,
@@ -345,7 +344,7 @@ fn transport_thread(
         let raw_notes = collect_notes_at_tick(&snapshot.score, snapshot.flow_id, current_tick);
 
         // Render and submit each note
-        for (plugin_id, articulation, pitch, velocity, duration_ticks, instrument_id) in raw_notes {
+        for (plugin_id, pitch, velocity, duration_ticks, instrument_id) in raw_notes {
             // Get live mix params for this instrument
             let params = match local_mix.get(&instrument_id) {
                 Some(p) => p,

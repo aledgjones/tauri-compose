@@ -20,7 +20,7 @@ pub struct Tone {
     pub duration: Ticks,
     pub pitch: Pitch,
     pub velocity: Velocity,
-    pub articulation: Articulation,
+    pub articulation: Option<Articulation>,
 }
 
 impl Tone {
@@ -30,7 +30,7 @@ impl Tone {
         duration: Ticks,
         pitch: Pitch,
         velocity: Velocity,
-        articulation: Articulation,
+        articulation: Option<Articulation>,
     ) -> Self {
         Self {
             id,
@@ -75,7 +75,7 @@ pub fn score_entries_tone_create(
     pitch_int: u8,
     accidental: Option<Accidental>,
     velocity: u8,
-    articulation: Articulation,
+    articulation: Option<Articulation>,
 ) -> UniqueId {
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
@@ -171,7 +171,7 @@ pub fn score_entries_tone_slice(
         new_duration,
         original_tone.pitch,
         original_tone.velocity,
-        original_tone.articulation,
+        original_tone.articulation.clone(),
     );
 
     track.insert_entry(Entry::Tone(new_tone));
@@ -276,7 +276,7 @@ pub fn score_entries_tone_set_position_and_duration(
 }
 
 #[tauri::command(rename_all = "snake_case")]
-pub fn score_entries_shift(
+pub fn score_entries_tone_shift(
     app: tauri::AppHandle,
     state: State<'_, AppContextState>,
     renderer_state: State<'_, RendererContextState>,
@@ -288,7 +288,53 @@ pub fn score_entries_shift(
     let mut renderer = renderer_state.lock().unwrap();
 
     let track = state.score.tracks.by_id.get_mut(&track_id).unwrap();
+
+    let moved_tone_articulation = match track.entries.by_id.get(&entry_id) {
+        Some(Entry::Tone(tone)) => tone.articulation.clone(),
+        _ => {
+            track.shift_entry(entry_id, new_tick);
+            state.emit(&app, &mut renderer, true);
+            return;
+        }
+    };
+
+    // Moved tone has articulation, apply to all at destination
+    if let Some(ref moved_artic) = moved_tone_articulation {
+        track.shift_entry(entry_id, new_tick);
+        if let Some(ids) = track.entries.by_tick.get(&new_tick) {
+            for entry_id in ids {
+                if let Some(Entry::Tone(tone)) = track.entries.by_id.get_mut(entry_id) {
+                    tone.articulation = Some(moved_artic.clone());
+                }
+            }
+        }
+        state.emit(&app, &mut renderer, true);
+        return;
+    }
+
+    // Moved tone has no articulation
+    // Find an articulation at the destination
+    let mut found_articulation = None;
+    if let Some(ids) = track.entries.by_tick.get(&new_tick) {
+        for entry_id in ids {
+            if let Some(Entry::Tone(tone)) = track.entries.by_id.get(entry_id) {
+                if let Some(ref artic) = tone.articulation {
+                    found_articulation = Some(artic.clone());
+                    break;
+                }
+            }
+        }
+    }
+
+    // Move the tone
     track.shift_entry(entry_id, new_tick);
+
+    // If found, set the moved tone's articulation
+    if let Some(Entry::Tone(moved_tone)) = track.entries.by_id.get_mut(&entry_id) {
+        if let Some(artic) = found_articulation {
+            moved_tone.articulation = Some(artic);
+        }
+    }
 
     state.emit(&app, &mut renderer, true);
 }
@@ -406,10 +452,10 @@ pub fn score_entries_tone_articulation_set(
 
     // use the selected tone as the guide for articulation toggling.
     let (tick, next_articulation) = if let Entry::Tone(tone) = entry {
-        if tone.articulation == articulation {
-            (tone.tick, Articulation::None)
+        if tone.articulation.as_ref() == Some(&articulation) {
+            (tone.tick, None)
         } else {
-            (tone.tick, articulation)
+            (tone.tick, Some(articulation))
         }
     } else {
         return;

@@ -672,6 +672,13 @@ export const actions = {
           articulation,
         });
       },
+      shift: (track_id: UniqueId, entry_id: UniqueId, new_tick: Tick) => {
+        return invoke("score_entries_tone_shift", {
+          track_id,
+          entry_id,
+          new_tick,
+        });
+      },
       setDuration: (track_id: UniqueId, tone_id: UniqueId, duration: Ticks) => {
         return invoke("score_entries_tone_duration_set", {
           track_id,
@@ -768,15 +775,6 @@ export const actions = {
           track_id,
           tone_id,
           articulation,
-        });
-      },
-    },
-    entry: {
-      shift: (track_id: UniqueId, entry_id: UniqueId, new_tick: Tick) => {
-        return invoke("score_entries_shift", {
-          track_id,
-          entry_id,
-          new_tick,
         });
       },
     },
