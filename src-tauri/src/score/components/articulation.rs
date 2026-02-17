@@ -6,6 +6,4 @@ pub enum Articulation {
     None,
     Staccato,
     Tenuto,
-    Accent,
-    Marcato,
 }

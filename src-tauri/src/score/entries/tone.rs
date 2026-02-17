@@ -404,11 +404,27 @@ pub fn score_entries_tone_articulation_set(
     let track = state.score.tracks.by_id.get_mut(&track_id).unwrap();
     let entry = track.entries.by_id.get_mut(&tone_id).unwrap();
 
-    if let Entry::Tone(tone) = entry {
+    // use the selected tone as the guide for articulation toggling.
+    let (tick, next_articulation) = if let Entry::Tone(tone) = entry {
         if tone.articulation == articulation {
-            tone.articulation = Articulation::None;
+            (tone.tick, Articulation::None)
         } else {
-            tone.articulation = articulation;
+            (tone.tick, articulation)
+        }
+    } else {
+        return;
+    };
+
+    let entry_ids = match track.entries.by_tick.get(&tick) {
+        Some(ids) => ids.clone(),
+        None => {
+            return;
+        }
+    };
+
+    for entry_id in entry_ids {
+        if let Some(Entry::Tone(tone)) = track.entries.by_id.get_mut(&entry_id) {
+            tone.articulation = next_articulation.clone();
         }
     }
 
