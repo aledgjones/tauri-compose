@@ -2,7 +2,9 @@ use semver::Version;
 use serde_json::Value;
 use std::env;
 use std::fs;
+use std::io::Write;
 use std::process::Command;
+use tempfile::NamedTempFile;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = env::args().collect();
@@ -116,9 +118,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🏷️  Created git tag: v{}", new_version);
 
     println!("\n🎉 Release {} completed successfully!", new_version);
-    println!("📋 Next steps:");
-    println!("   1. Review the changes");
-    println!("   2. Tag will be pushed and a draft GitHub release will be created.");
 
     // Push the tag
     println!("🚀 Pushing tag v{}...", new_version);
@@ -135,7 +134,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let releases_md = fs::read_to_string("releases.md")?;
     let release_section = extract_release_notes(&releases_md, &new_version);
 
-    // Create draft GitHub release with notes
+    // Write release notes to a temporary file
+    let mut notes_file = NamedTempFile::new()?;
+    notes_file.write_all(release_section.as_bytes())?;
+    let notes_path = notes_file.path().to_str().unwrap();
+
+    // Create draft GitHub release with notes-file
     println!("🚀 Creating draft GitHub release...");
     let gh_status = Command::new("gh")
         .args([
@@ -145,8 +149,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "--draft",
             "--title",
             &format!("v{}", new_version),
-            "--notes",
-            &release_section,
+            "--notes-file",
+            notes_path,
         ])
         .status()?;
     if !gh_status.success() {
