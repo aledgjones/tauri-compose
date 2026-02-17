@@ -1,3 +1,21 @@
+## Release Notes for v1.21.0
+
+### 🏗️ Features
+
+- feat: unify articulations on tone creation
+- feat: unify articulations on tone left handle adjustment
+- feat: unify articulations on end of drag
+- feat: moving tones unifies articulations
+
+### 🐞 Fixes
+
+- fix: align types
+- fix: refine release process
+
+### 🔧 Chores
+
+- chore: remove prompt config
+
 ## Release Notes for v1.20.7
 
 ### 🐞 Fixes
