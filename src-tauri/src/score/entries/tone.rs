@@ -120,14 +120,37 @@ pub fn score_entries_tone_create(
         }
     };
 
-    track.insert_entry(Entry::Tone(Tone::new(
-        tone_id,
-        tick,
-        duration,
-        pitch,
-        Velocity::new(velocity),
-        articulation,
-    )));
+    // Determine effective articulation for the new tone:
+    // - if caller provided an articulation -> use it and apply it to all tones at the tick
+    // - if caller passed None -> inherit the first articulation present at the tick (if any)
+    match articulation {
+        Some(ref a) => {
+            // create with the provided articulation and then apply it to existing tones
+            track.insert_entry(Entry::Tone(Tone::new(
+                tone_id,
+                tick,
+                duration,
+                pitch,
+                Velocity::new(velocity),
+                Some(a.clone()),
+            )));
+
+            // Ensure all tones at this tick use the provided articulation
+            track.apply_articulation_to_tick(tick, Some(a.clone()));
+        }
+        None => {
+            // Try to inherit an articulation already present at this tick
+            let inherited = track.first_articulation_at_tick(&tick);
+            track.insert_entry(Entry::Tone(Tone::new(
+                tone_id,
+                tick,
+                duration,
+                pitch,
+                Velocity::new(velocity),
+                inherited.clone(),
+            )));
+        }
+    }
 
     state.emit(&app, &mut renderer, true);
 
