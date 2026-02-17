@@ -1,3 +1,9 @@
+## Release Notes for v1.20.7
+
+### 🐞 Fixes
+
+- fix: open correct link to release
+
 ## Release Notes for v1.20.6
 
 ### 🐞 Fixes
