@@ -115,18 +115,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     create_git_tag(&new_version)?;
     println!("🏷️  Created git tag: v{}", new_version);
 
-    println!("\n🎉 Release {} completed successfully!", new_version);
-
-    // Push the tag
-    println!("🚀 Pushing tag v{}...", new_version);
+    // Push commits and the tag in a single command so remote has both the branch and tag
+    println!(
+        "🚀 Pushing commits (HEAD) and tag v{} to origin...",
+        new_version
+    );
     let push_status = Command::new("git")
-        .args(["push", "origin", &format!("v{}", new_version)])
+        .args(["push", "origin", "HEAD", &format!("v{}", new_version)])
         .status()?;
     if !push_status.success() {
-        eprintln!("❌ Failed to push tag v{}", new_version);
+        eprintln!("❌ Failed to push commits and tag v{}", new_version);
         std::process::exit(1);
     }
-    println!("✅ Tag v{} pushed", new_version);
+    println!("✅ Commits and tag v{} pushed", new_version);
+
+    println!("🎉 Release {} completed successfully!", new_version);
 
     Ok(())
 }
