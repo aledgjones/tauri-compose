@@ -61,6 +61,7 @@ Keep changes concise, deterministic and always respect the Rust ↔ TypeScript c
 - Keyboard shortcuts: look at `src/windows/main/hooks/use-keyboard-shortcuts.ts` for mappings that call `actions` directly.
 - Fonts/glyphs: Bravura glyphs are used in renderer and UI (`font-bravura` class + `src-tauri/src/renderer/fonts.rs`).
 - Icon strategy: `IconButton` for MDI/SVG; `BravuraIconButton` for SMuFL/Bravura glyphs (new component).
+- Do NOT add backwards-compatible re-export shim files when renaming components — update import sites to the new path and remove the old file.
 
 ## Examples (copy/paste patterns)
 
