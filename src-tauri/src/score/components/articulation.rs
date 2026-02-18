@@ -11,28 +11,34 @@ pub enum Articulation {
     StaccatoTenuto,
     Accent,
     Marcato,
+    Stressed,
+    Unstressed,
 }
 
-// Define mutually-exclusive articulation groups. Order denotes priority when
-// sanitizing a set that contains multiple members from the same group.
+// Define mutually-exclusive articulation groups.
 const STACCATO_GROUP: [Articulation; 4] = [
     Articulation::Staccatissimo,
     Articulation::StaccatoTenuto,
     Articulation::Staccato,
     Articulation::Tenuto,
 ];
-
 const ACCENT_GROUP: [Articulation; 2] = [Articulation::Accent, Articulation::Marcato];
+const STRESS_GROUP: [Articulation; 2] = [Articulation::Stressed, Articulation::Unstressed];
 
 impl Articulation {
     /// Return the group this articulation belongs to (if any).
     pub fn exclusivity_group(&self) -> &'static [Articulation] {
         match self {
-            Articulation::Staccato
-            | Articulation::Tenuto
-            | Articulation::Staccatissimo
-            | Articulation::StaccatoTenuto => &STACCATO_GROUP,
-            Articulation::Accent | Articulation::Marcato => &ACCENT_GROUP,
+            Articulation::Staccato => &STACCATO_GROUP,
+            Articulation::Tenuto => &STACCATO_GROUP,
+            Articulation::Staccatissimo => &STACCATO_GROUP,
+            Articulation::StaccatoTenuto => &STACCATO_GROUP,
+
+            Articulation::Accent => &ACCENT_GROUP,
+            Articulation::Marcato => &ACCENT_GROUP,
+
+            Articulation::Stressed => &STRESS_GROUP,
+            Articulation::Unstressed => &STRESS_GROUP,
         }
     }
 }

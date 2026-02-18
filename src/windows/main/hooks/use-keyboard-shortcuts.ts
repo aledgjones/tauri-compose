@@ -169,7 +169,7 @@ export const useKeyboardShortcuts = () => {
         action: () => actions.ui.sequencer.clearSelection(),
       },
       {
-        key: "]",
+        key: "[",
         modifiers: { command: false, control: false, option: false },
         action: () => {
           return actions.score.tone.setArticulation(
@@ -180,7 +180,7 @@ export const useKeyboardShortcuts = () => {
         },
       },
       {
-        key: "\\",
+        key: "'",
         modifiers: { command: false, control: false, option: false },
         action: () => {
           return actions.score.tone.setArticulation(
@@ -191,13 +191,68 @@ export const useKeyboardShortcuts = () => {
         },
       },
       {
-        key: "}",
+        key: "]",
         modifiers: { command: false, control: false, option: false },
         action: () => {
           return actions.score.tone.setArticulation(
             selectionInfo.trackId,
             selectionInfo.toneId,
             Articulation.Staccatissimo,
+          );
+        },
+      },
+      {
+        key: "\\",
+        modifiers: { command: false, control: false, option: false },
+        action: () => {
+          return actions.score.tone.setArticulation(
+            selectionInfo.trackId,
+            selectionInfo.toneId,
+            Articulation.StaccatoTenuto,
+          );
+        },
+      },
+      {
+        key: "{",
+        modifiers: { command: false, control: false, option: false },
+        action: () => {
+          return actions.score.tone.setArticulation(
+            selectionInfo.trackId,
+            selectionInfo.toneId,
+            Articulation.Accent,
+          );
+        },
+      },
+      {
+        key: '"',
+        modifiers: { command: false, control: false, option: false },
+        action: () => {
+          return actions.score.tone.setArticulation(
+            selectionInfo.trackId,
+            selectionInfo.toneId,
+            Articulation.Marcato,
+          );
+        },
+      },
+      {
+        key: "}",
+        modifiers: { command: false, control: false, option: false },
+        action: () => {
+          return actions.score.tone.setArticulation(
+            selectionInfo.trackId,
+            selectionInfo.toneId,
+            Articulation.Stressed,
+          );
+        },
+      },
+      {
+        key: "|",
+        modifiers: { command: false, control: false, option: false },
+        action: () => {
+          return actions.score.tone.setArticulation(
+            selectionInfo.trackId,
+            selectionInfo.toneId,
+            Articulation.Unstressed,
           );
         },
       },

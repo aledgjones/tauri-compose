@@ -2,7 +2,7 @@ import { FC, useMemo } from "react";
 import classNames from "classnames";
 import { useAppState } from "../../../../../services/state";
 import { actions } from "../../../../../services/actions";
-import { Articulation, Tone } from "../../../../../services/types";
+import { Articulation, Tone, Accidental } from "../../../../../services/types";
 import { BravuraIconButton } from "../../../../../ui/buttons/bravura-icon-button";
 import { SMuFL } from "../../../../../ui/buttons/smufl";
 
@@ -10,8 +10,26 @@ type LeftPanelProps = { spanRow: boolean };
 
 const ARTICULATIONS: { articulation: Articulation; glyph: SMuFL; title: string; offset?: number }[] = [
   { articulation: Articulation.Staccato, glyph: SMuFL.Staccato, title: "Staccato" },
-  { articulation: Articulation.Tenuto, glyph: SMuFL.Tenuto, title: "Tenuto" },
-  { articulation: Articulation.Staccatissimo, glyph: SMuFL.Staccatissimo, title: "Staccatissimo", offset: 4 },
+  { articulation: Articulation.Staccatissimo, glyph: SMuFL.Staccatissimo, title: "Staccatissimo", offset: 3 },
+  { articulation: Articulation.Tenuto, glyph: SMuFL.Tenuto, title: "Tenuto", offset: -1 },
+
+  { articulation: Articulation.StaccatoTenuto, glyph: SMuFL.StaccatoTenuto, title: "Staccato Tenuto", offset: 3 },
+];
+
+const ACCENTUATIONS: { articulation: Articulation; glyph: SMuFL; title: string; offset?: number }[] = [
+  { articulation: Articulation.Accent, glyph: SMuFL.Accent, title: "Accent", offset: 3 },
+  { articulation: Articulation.Marcato, glyph: SMuFL.Marcato, title: "Marcato", offset: 3 },
+];
+
+const STRESSES: { articulation: Articulation; glyph: SMuFL; title: string; offset?: number }[] = [
+  { articulation: Articulation.Stressed, glyph: SMuFL.Stressed, title: "Stressed", offset: 3 },
+  { articulation: Articulation.Unstressed, glyph: SMuFL.Unstressed, title: "Unstressed", offset: 3 },
+];
+
+const ACCIDENTALS: { accidental: Accidental; glyph: SMuFL; title: string, offset?: number }[] = [
+  { accidental: Accidental.Natural, glyph: SMuFL.Natural, title: "Natural", offset: -2 },
+  { accidental: Accidental.Flat, glyph: SMuFL.Flat, title: "Flat", offset: 3 },
+  { accidental: Accidental.Sharp, glyph: SMuFL.Sharp, title: "Sharp", offset: -2 },
 ];
 
 export const LeftPanel: FC<LeftPanelProps> = ({ spanRow }) => {
@@ -39,27 +57,94 @@ export const LeftPanel: FC<LeftPanelProps> = ({ spanRow }) => {
 
 
 
+
+
   return (
     <div
-      className={classNames("bg-neutral-900 flex flex-col items-center", {
-        "row-span-2": spanRow,
-      })}
+      className={classNames("flex flex-col gap-0.5", { "row-span-2": spanRow, })}
     >
-      {ARTICULATIONS.map((s) => (
-        <BravuraIconButton
-          key={s.title}
-          variant="interactive"
-          bravura={s.glyph}
-          title={s.title}
-          offset={s.offset}
-          onClick={() => {
-            if (selection?.type !== "Tone" || !tone) return;
-            actions.score.tone.setArticulation(selection.track_id, selection.tone_id, s.articulation);
-          }}
-          isDisabled={!tone}
-          isSelected={!!tone?.articulations.includes(s.articulation)}
-        />
-      ))}
+      <div className="bg-neutral-900 flex">
+        {ACCIDENTALS.map((a) => (
+          <BravuraIconButton
+            key={a.title}
+            variant="interactive"
+            bravura={a.glyph}
+            title={a.title}
+            offset={a.offset}
+            onClick={() => {
+              if (selection?.type !== "Tone" || !tone) return;
+              actions.score.tone.setAccidental(selection.track_id, selection.tone_id, a.accidental);
+            }}
+            isDisabled={!tone}
+            isSelected={tone?.pitch.accidental === a.accidental}
+          />
+        ))}
+      </div>
+
+      <div className="bg-neutral-900 grid grid-cols-2 grid-rows-2 gap-0.5">
+        {ARTICULATIONS.map((s, i) => (
+          <BravuraIconButton
+            key={s.title}
+            variant="interactive"
+            bravura={s.glyph}
+            title={s.title}
+            offset={s.offset}
+            className={classNames({ "mb-0.5": i == 1 })}
+            onClick={() => {
+              if (selection?.type !== "Tone" || !tone) return;
+              actions.score.tone.setArticulation(selection.track_id, selection.tone_id, s.articulation);
+            }}
+            isDisabled={!tone}
+            isSelected={!!tone?.articulations.includes(s.articulation)}
+          />
+        ))}
+      </div>
+
+      <div className="flex gap-0.5">
+        <div className="flex gap-0.5">
+          <div className="bg-neutral-900 flex flex-col gap-0.5">
+            {ACCENTUATIONS.map((s) => (
+              <BravuraIconButton
+                key={s.title}
+                variant="interactive"
+                bravura={s.glyph}
+                title={s.title}
+                offset={s.offset}
+                onClick={() => {
+                  if (selection?.type !== "Tone" || !tone) return;
+                  actions.score.tone.setArticulation(selection.track_id, selection.tone_id, s.articulation);
+                }}
+                isDisabled={!tone}
+                isSelected={!!tone?.articulations.includes(s.articulation)}
+              />
+            ))}
+          </div>
+
+          <div className="bg-neutral-900 flex flex-col gap-0.5">
+            {STRESSES.map((s) => (
+              <BravuraIconButton
+                key={s.title}
+                variant="interactive"
+                bravura={s.glyph}
+                title={s.title}
+                offset={s.offset}
+                onClick={() => {
+                  if (selection?.type !== "Tone" || !tone) return;
+                  actions.score.tone.setArticulation(selection.track_id, selection.tone_id, s.articulation);
+                }}
+                isDisabled={!tone}
+                isSelected={!!tone?.articulations.includes(s.articulation)}
+              />
+            ))}
+          </div>
+        </div>
+
+
+      </div>
+
+
+
+      <div className="bg-neutral-900 flex-1" />
     </div>
   );
 };

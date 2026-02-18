@@ -17,7 +17,7 @@ export const Write = () => {
   return (
     <>
       <div
-        className="overflow-hidden grid grid-cols-[36px_1fr_36px] gap-0.5 py-0.5"
+        className="overflow-hidden grid grid-cols-[74px_1fr_36px] gap-0.5 py-0.5"
         style={{ gridTemplateRows }}
       >
         <LeftPanel spanRow={!minimized} />

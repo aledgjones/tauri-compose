@@ -48,6 +48,8 @@ export enum Articulation {
   StaccatoTenuto,
   Accent,
   Marcato,
+  Stressed,
+  Unstressed,
 }
 
 export enum Tool {
