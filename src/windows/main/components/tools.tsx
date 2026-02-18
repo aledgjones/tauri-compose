@@ -4,7 +4,7 @@ import {
   mdiRedo,
   mdiUndo,
 } from "@mdi/js";
-import { IconButton } from "../../../ui/icon-button";
+import { IconButton } from "../../../ui/buttons/icon-button";
 import classNames from "classnames";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { FC } from "react";
@@ -56,14 +56,14 @@ export const Tools: FC<Props> = ({ className }) => {
       <IconButton
         isDisabled
         className="text-white"
-        onClick={() => {}}
+        onClick={() => { }}
         variant="interactive"
         path={mdiUndo}
       />
       <IconButton
         isDisabled
         className="text-white"
-        onClick={() => {}}
+        onClick={() => { }}
         variant="interactive"
         path={mdiRedo}
       />

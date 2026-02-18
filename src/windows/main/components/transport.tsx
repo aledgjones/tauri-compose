@@ -5,7 +5,7 @@ import {
   mdiSkipPrevious,
   mdiStop,
 } from "@mdi/js";
-import { IconButton } from "../../../ui/icon-button";
+import { IconButton } from "../../../ui/buttons/icon-button";
 import classNames from "classnames";
 import { FC, useMemo } from "react";
 import { useTransportState } from "../../../services/state/context";
@@ -87,7 +87,7 @@ export const Transport: FC<Props> = ({ className }) => {
       <IconButton
         className="text-white"
         variant="interactive"
-        onClick={() => {}}
+        onClick={() => { }}
         path={mdiMetronome}
       />
     </div>

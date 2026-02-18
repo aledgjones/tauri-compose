@@ -4,7 +4,7 @@ import { NotFound } from "../../components/not-found";
 import { Setup } from "./screens/setup";
 import { Tools } from "./components/tools";
 import { Transport } from "./components/transport";
-import { IconButton } from "../../ui/icon-button";
+import { IconButton } from "../../ui/buttons/icon-button";
 import { mdiTuneVertical, mdiMovieRoll } from "@mdi/js";
 import { AppBar } from "../../components/app-bar";
 import { Select } from "../../ui/select";
@@ -90,14 +90,14 @@ export const Main = () => {
           <IconButton
             className="mr-0.5 text-white"
             variant="interactive"
-            onClick={() => {}}
+            onClick={() => { }}
             path={mdiTuneVertical}
             isDisabled
           />
           <IconButton
             className="text-white"
             variant="interactive"
-            onClick={() => {}}
+            onClick={() => { }}
             path={mdiMovieRoll}
             isDisabled
           />

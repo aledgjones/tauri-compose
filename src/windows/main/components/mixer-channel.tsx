@@ -1,6 +1,6 @@
 import { FC } from "react";
 import { mdiSizeM, mdiSizeS } from "@mdi/js";
-import { IconButton } from "../../../ui/icon-button";
+import { IconButton } from "../../../ui/buttons/icon-button";
 import { Fader } from "./fader";
 import { Instrument } from "../../../services/types";
 import { TokenizedText } from "../../../ui/text";

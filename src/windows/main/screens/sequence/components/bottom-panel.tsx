@@ -3,7 +3,7 @@ import { useAppState } from "../../../../../services/state";
 import { BottomPanelTab } from "../../../../../services/types";
 import { actions } from "../../../../../services/actions";
 import { mdiCableData, mdiPiano, mdiTuneVertical } from "@mdi/js";
-import { IconButton } from "../../../../../ui/icon-button";
+import { IconButton } from "../../../../../ui/buttons/icon-button";
 import { Sequencer, SequencerToolbar } from "../../../components/sequencer";
 import { Mixer, MixerToolbar } from "../../../components/mixer";
 import { Plugins, PluginsToolbar } from "../../../components/plugins";

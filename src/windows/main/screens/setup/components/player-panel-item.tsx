@@ -13,7 +13,7 @@ import {
 } from "../../../../../services/types";
 import { Icon } from "../../../../../ui/icon";
 import classNames from "classnames";
-import { IconButton } from "../../../../../ui/icon-button";
+import { IconButton } from "../../../../../ui/buttons/icon-button";
 import { actions } from "../../../../../services/actions";
 import {
   FC,

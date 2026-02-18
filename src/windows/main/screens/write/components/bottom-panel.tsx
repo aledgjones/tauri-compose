@@ -7,7 +7,7 @@ import {
   mdiPiano,
   mdiTuneVertical,
 } from "@mdi/js";
-import { IconButton } from "../../../../../ui/icon-button";
+import { IconButton } from "../../../../../ui/buttons/icon-button";
 import { Sequencer, SequencerToolbar } from "../../../components/sequencer";
 import { Mixer, MixerToolbar } from "../../../components/mixer";
 import { useBottomPanelState } from "../../../hooks/use-bottom-panel-state";

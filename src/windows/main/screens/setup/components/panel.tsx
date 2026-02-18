@@ -1,5 +1,5 @@
 import classNames from "classnames";
-import { IconButton } from "../../../../../ui/icon-button";
+import { IconButton } from "../../../../../ui/buttons/icon-button";
 import { FC, PropsWithChildren } from "react";
 
 type IconConfig = {

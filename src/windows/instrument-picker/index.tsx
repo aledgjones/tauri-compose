@@ -6,7 +6,7 @@ import { invoke } from "@tauri-apps/api/core";
 import classNames from "classnames";
 import { Icon } from "../../ui/icon";
 import { mdiChevronRight } from "@mdi/js";
-import { Button } from "../../ui/button";
+import { Button } from "../../ui/buttons/button";
 
 type InstrumentDefinition = {
   id: string;

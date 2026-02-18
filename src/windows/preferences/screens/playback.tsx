@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { actions } from "../../../services/actions";
 import { useAudioState } from "../../../services/state";
 import { Select } from "../../../ui/select";
-import { IconButton } from "../../../ui/icon-button";
+import { IconButton } from "../../../ui/buttons/icon-button";
 import { mdiRefresh } from "@mdi/js";
 
 export const Playback = () => {

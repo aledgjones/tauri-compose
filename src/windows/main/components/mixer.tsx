@@ -2,7 +2,7 @@ import { FC, useMemo } from "react";
 import { generateRainbowColors } from "../../../services/utils";
 import { MixerChannel } from "./mixer-channel";
 import { Instrument } from "../../../services/types";
-import { IconButton } from "../../../ui/icon-button";
+import { IconButton } from "../../../ui/buttons/icon-button";
 import { mdiSizeM, mdiSizeS } from "@mdi/js";
 import { actions } from "../../../services/actions";
 

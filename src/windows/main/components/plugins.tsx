@@ -1,5 +1,5 @@
 import { FC, useMemo, useState } from "react";
-import { IconButton } from "../../../ui/icon-button";
+import { IconButton } from "../../../ui/buttons/icon-button";
 import { mdiRefresh, mdiMagnify, mdiOpenInNew } from "@mdi/js";
 import { useSamplerState } from "../../../services/state";
 import { TokenizedText } from "../../../ui/text";

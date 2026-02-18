@@ -2,7 +2,7 @@ import { mdiDelete } from "@mdi/js";
 import classNames from "classnames";
 import { FC, useMemo } from "react";
 import { Instrument } from "../../../../../services/types";
-import { IconButton } from "../../../../../ui/icon-button";
+import { IconButton } from "../../../../../ui/buttons/icon-button";
 import { actions } from "../../../../../services/actions";
 import { TokenizedText } from "../../../../../ui/text";
 

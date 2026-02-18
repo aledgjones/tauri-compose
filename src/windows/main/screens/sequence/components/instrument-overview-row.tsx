@@ -1,6 +1,6 @@
 import { FC, useMemo } from "react";
 import { Instrument } from "../../../../../services/types";
-import { IconButton } from "../../../../../ui/icon-button";
+import { IconButton } from "../../../../../ui/buttons/icon-button";
 import { mdiCableData, mdiSizeM, mdiSizeS } from "@mdi/js";
 import { TokenizedText } from "../../../../../ui/text";
 import classNames from "classnames";
