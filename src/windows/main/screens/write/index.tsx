@@ -3,6 +3,7 @@ import { BottomPanel } from "./components/bottom-panel";
 import { ZoomWidget } from "../../components/zoom-widget";
 import { useAppState } from "../../../../services/state";
 import { actions } from "../../../../services/actions";
+import { LeftPanel } from "./components/left-panel";
 import MdiIcon from "@mdi/react";
 import { mdiChevronDown, mdiChevronUp } from "@mdi/js";
 import classNames from "classnames";
@@ -19,9 +20,7 @@ export const Write = () => {
         className="overflow-hidden grid grid-cols-[36px_1fr_36px] gap-0.5 py-0.5"
         style={{ gridTemplateRows }}
       >
-        <div
-          className={classNames("bg-neutral-900", { "row-span-2": !minimized })}
-        ></div>
+        <LeftPanel spanRow={!minimized} />
         <Renderer />
         <div
           className={classNames("bg-neutral-900", { "row-span-2": !minimized })}

@@ -1,11 +1,12 @@
 import classNames from "classnames";
 import { FC } from "react";
 import { getTheme, Variant } from "./shared";
+import { SMuFL } from "./smufl";
 
 type Props = {
   variant?: Variant;
-  bravura: string;
-  size?: number; // px
+  bravura: SMuFL;
+  size?: number;
   offset?: number;
   title?: string;
   isDisabled?: boolean;
@@ -14,7 +15,6 @@ type Props = {
   className?: string;
 };
 
-// Export only the component so Fast Refresh keeps working reliably.
 export const BravuraIconButton: FC<Props> = ({
   variant = "interactive",
   bravura,
