@@ -1,3 +1,23 @@
+## Release Notes for v1.22.0
+
+### 🏗️ Features
+
+- feat: articulations buttons
+- feat: copilot instructions update
+- feat: organise buttons into folder
+- feat: instructions file for agents
+- feat: setup articulation iterations
+- feat: staccatissimo rendering
+- feat: basic articulation rendering
+
+### 🐞 Fixes
+
+- fix: unused imports
+
+### 🔧 Chores
+
+- chore: add rule to instructions, no short var names.
+
 ## Release Notes for v1.21.0
 
 ### 🏗️ Features
