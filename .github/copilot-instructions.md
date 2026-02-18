@@ -43,6 +43,7 @@ Keep changes concise, deterministic and always respect the Rust ↔ TypeScript c
 - Renderer expects pre-parsed instruction data; when changing drawing semantics update both parse + draw code in `src-tauri/src/instructions/`.
 - Prefer non‑mutating APIs where practical (example: `Articulations::toggle` returns a new set to avoid borrow problems).
 - Use `rustc_hash::FxHashMap`/`FxHashSet` in Rust score code for performance and consistency.
+- variables should NOT be shorterned (e.g. `articulations` not `arts`) for readability, even if it means slightly more verbose code.
 
 ## Common edit checklist (feature / bugfix PR)
 
