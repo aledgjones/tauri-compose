@@ -1,3 +1,9 @@
+## Release Notes for v1.22.1
+
+### 🏗️ Features
+
+- feat: better release process
+
 ## Release Notes for v1.22.0
 
 ### 🏗️ Features
