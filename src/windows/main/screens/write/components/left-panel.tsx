@@ -9,11 +9,10 @@ import { SMuFL } from "../../../../../ui/buttons/smufl";
 type LeftPanelProps = { spanRow: boolean };
 
 const ARTICULATIONS: { articulation: Articulation; glyph: SMuFL; title: string; offset?: number }[] = [
-  { articulation: Articulation.Staccato, glyph: SMuFL.Staccato, title: "Staccato" },
   { articulation: Articulation.Staccatissimo, glyph: SMuFL.Staccatissimo, title: "Staccatissimo", offset: 3 },
-  { articulation: Articulation.Tenuto, glyph: SMuFL.Tenuto, title: "Tenuto", offset: -1 },
-
+  { articulation: Articulation.Staccato, glyph: SMuFL.Staccato, title: "Staccato" },
   { articulation: Articulation.StaccatoTenuto, glyph: SMuFL.StaccatoTenuto, title: "Staccato Tenuto", offset: 3 },
+  { articulation: Articulation.Tenuto, glyph: SMuFL.Tenuto, title: "Tenuto", offset: -1 },
 ];
 
 const ACCENTUATIONS: { articulation: Articulation; glyph: SMuFL; title: string; offset?: number }[] = [
@@ -103,7 +102,7 @@ export const LeftPanel: FC<LeftPanelProps> = ({ spanRow }) => {
       <div className="flex gap-0.5">
         <div className="flex gap-0.5">
           <div className="bg-neutral-900 flex flex-col gap-0.5">
-            {ACCENTUATIONS.map((s) => (
+            {STRESSES.map((s) => (
               <BravuraIconButton
                 key={s.title}
                 variant="interactive"
@@ -121,7 +120,7 @@ export const LeftPanel: FC<LeftPanelProps> = ({ spanRow }) => {
           </div>
 
           <div className="bg-neutral-900 flex flex-col gap-0.5">
-            {STRESSES.map((s) => (
+            {ACCENTUATIONS.map((s) => (
               <BravuraIconButton
                 key={s.title}
                 variant="interactive"

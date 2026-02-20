@@ -541,6 +541,7 @@ pub fn generate_render_instructions(
                                 notation,
                                 glyph_width,
                                 stem_directions.get(tick),
+                                stem_length,
                                 renderer,
                             );
                         }

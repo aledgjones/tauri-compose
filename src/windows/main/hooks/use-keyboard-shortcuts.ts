@@ -169,7 +169,7 @@ export const useKeyboardShortcuts = () => {
         action: () => actions.ui.sequencer.clearSelection(),
       },
       {
-        key: "[",
+        key: "]",
         modifiers: { command: false, control: false, option: false },
         action: () => {
           return actions.score.tone.setArticulation(
@@ -180,7 +180,7 @@ export const useKeyboardShortcuts = () => {
         },
       },
       {
-        key: "'",
+        key: "\\",
         modifiers: { command: false, control: false, option: false },
         action: () => {
           return actions.score.tone.setArticulation(
@@ -191,7 +191,7 @@ export const useKeyboardShortcuts = () => {
         },
       },
       {
-        key: "]",
+        key: "[",
         modifiers: { command: false, control: false, option: false },
         action: () => {
           return actions.score.tone.setArticulation(
@@ -202,7 +202,7 @@ export const useKeyboardShortcuts = () => {
         },
       },
       {
-        key: "\\",
+        key: "'",
         modifiers: { command: false, control: false, option: false },
         action: () => {
           return actions.score.tone.setArticulation(
@@ -213,7 +213,7 @@ export const useKeyboardShortcuts = () => {
         },
       },
       {
-        key: "{",
+        key: "}",
         modifiers: { command: false, control: false, option: false },
         action: () => {
           return actions.score.tone.setArticulation(
@@ -224,7 +224,7 @@ export const useKeyboardShortcuts = () => {
         },
       },
       {
-        key: '"',
+        key: "|",
         modifiers: { command: false, control: false, option: false },
         action: () => {
           return actions.score.tone.setArticulation(
@@ -235,7 +235,7 @@ export const useKeyboardShortcuts = () => {
         },
       },
       {
-        key: "}",
+        key: "{",
         modifiers: { command: false, control: false, option: false },
         action: () => {
           return actions.score.tone.setArticulation(
@@ -246,7 +246,7 @@ export const useKeyboardShortcuts = () => {
         },
       },
       {
-        key: "|",
+        key: '"',
         modifiers: { command: false, control: false, option: false },
         action: () => {
           return actions.score.tone.setArticulation(
