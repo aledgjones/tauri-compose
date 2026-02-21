@@ -39,7 +39,10 @@ pub fn draw_articulations(
                 let y = match stem_direction {
                     Some(Direction::Down) | None => {
                         let offset = origin.y + (info.highest as f32 / 2.0) - 0.85;
-                        if info.highest == -2 || info.highest == 0 {
+
+                        if info.highest > 5 {
+                            origin.y + 1.65
+                        } else if info.highest > -3 && info.highest % 2 == 0 {
                             offset - 0.5
                         } else {
                             offset
@@ -47,7 +50,10 @@ pub fn draw_articulations(
                     }
                     Some(Direction::Up) => {
                         let offset = origin.y + (info.lowest as f32 / 2.0) + 0.85;
-                        if info.lowest == 2 || info.lowest == 0 {
+
+                        if info.lowest < -5 {
+                            origin.y - 1.65
+                        } else if info.lowest < 3 && info.lowest % 2 == 0 {
                             offset + 0.5
                         } else {
                             offset
@@ -74,7 +80,10 @@ pub fn draw_articulations(
                 let y = match stem_direction {
                     Some(Direction::Down) | None => {
                         let offset = origin.y + (info.highest as f32 / 2.0) - 0.9;
-                        if info.highest == -2 || info.highest == 0 {
+
+                        if info.highest > 5 {
+                            origin.y + 1.6
+                        } else if info.highest > -3 && info.highest % 2 == 0 {
                             offset - 0.5
                         } else {
                             offset
@@ -82,7 +91,10 @@ pub fn draw_articulations(
                     }
                     Some(Direction::Up) => {
                         let offset = origin.y + (info.lowest as f32 / 2.0) + 0.9;
-                        if info.lowest == 2 || info.lowest == 0 {
+
+                        if info.lowest < -5 {
+                            origin.y - 1.6
+                        } else if info.lowest < 3 && info.lowest % 2 == 0 {
                             offset + 0.5
                         } else {
                             offset
@@ -138,7 +150,10 @@ pub fn draw_articulations(
                 let staccato_y = match stem_direction {
                     Some(Direction::Down) | None => {
                         let offset = origin.y + (info.highest as f32 / 2.0) - 0.85;
-                        if info.highest == -2 || info.highest == 0 {
+
+                        if info.highest > 5 {
+                            origin.y + 1.65
+                        } else if info.highest > -3 && info.highest % 2 == 0 {
                             offset - 0.5
                         } else {
                             offset
@@ -146,7 +161,10 @@ pub fn draw_articulations(
                     }
                     Some(Direction::Up) => {
                         let offset = origin.y + (info.lowest as f32 / 2.0) + 0.85;
-                        if info.lowest == 2 || info.lowest == 0 {
+
+                        if info.lowest < -5 {
+                            origin.y - 1.65
+                        } else if info.lowest < 3 && info.lowest % 2 == 0 {
                             offset + 0.5
                         } else {
                             offset
@@ -173,14 +191,14 @@ pub fn draw_articulations(
 
                 let tenuto_y = match stem_direction {
                     Some(Direction::Down) | None => {
-                        if info.highest == -1 || info.highest == 0 {
+                        if info.highest > -2 {
                             staccato_y - 1.05
                         } else {
                             staccato_y - 0.55
                         }
                     }
                     Some(Direction::Up) => {
-                        if info.lowest == 1 || info.lowest == 0 {
+                        if info.lowest < 2 {
                             staccato_y + 1.05
                         } else {
                             staccato_y + 0.55
@@ -218,27 +236,43 @@ pub fn draw_articulations(
                     || articulations.contains(&Articulation::Tenuto);
 
                 if has_single_space_articulation {
-                    if info.highest == 0 {
-                        offset - 2.5
-                    } else if info.highest == -1 || info.highest == -2 {
+                    if info.highest > 5 {
+                        origin.y + 1.0
+                    } else if info.highest > 0 && info.highest % 2 != 0 {
+                        offset - 1.5
+                    } else if info.highest > 0 && info.highest % 2 == 0 {
                         offset - 2.0
+                    } else if info.highest <= 0 && info.highest > -2 {
+                        origin.y - 2.5
+                    } else if info.highest == -2 {
+                        origin.y - 3.0
                     } else {
                         offset - 1.5
                     }
                 } else if articulations.contains(&Articulation::StaccatoTenuto) {
-                    if info.highest == 0 {
+                    if info.lowest > 4 {
+                        origin.y
+                    } else if info.lowest == 4 {
                         offset - 3.0
-                    } else if info.highest == -1 || info.highest == -2 {
+                    } else if info.lowest == 3 {
+                        offset - 2.5
+                    } else if info.lowest == 2 {
+                        offset - 3.5
+                    } else if info.lowest == 1 || info.lowest == 0 {
+                        offset - 3.0
+                    } else if info.lowest == -1 || info.lowest == -2 {
                         offset - 2.5
                     } else {
                         offset - 2.0
                     }
                 } else if articulations.contains(&Articulation::Staccatissimo) {
                     (origin.y - 4.0).min(offset - 2.5)
-                } else if info.highest == -1 {
-                    offset - 2.0
-                } else if info.highest == -2 {
+                } else if info.highest > 5 {
+                    origin.y + 2.0
+                } else if info.highest > 0 && info.highest % 2 != 0 {
                     offset - 1.5
+                } else if info.lowest < 0 && info.lowest > -4 {
+                    origin.y - 2.5
                 } else {
                     offset - 1.0
                 }
@@ -250,15 +284,29 @@ pub fn draw_articulations(
                     || articulations.contains(&Articulation::Tenuto);
 
                 if has_single_space_articulation {
-                    if info.lowest == 0 {
-                        offset + 2.5
-                    } else if info.lowest == 1 || info.lowest == 2 {
+                    if info.lowest < -5 {
+                        origin.y - 1.0
+                    } else if info.lowest < 0 && info.lowest % 2 != 0 {
+                        offset + 1.5
+                    } else if info.lowest < 0 && info.lowest % 2 == 0 {
                         offset + 2.0
+                    } else if info.lowest >= 0 && info.lowest < 2 {
+                        origin.y + 2.5
+                    } else if info.lowest == 2 {
+                        origin.y + 3.0
                     } else {
                         offset + 1.5
                     }
                 } else if articulations.contains(&Articulation::StaccatoTenuto) {
-                    if info.lowest == 0 {
+                    if info.lowest < -4 {
+                        origin.y
+                    } else if info.lowest == -4 {
+                        offset + 3.0
+                    } else if info.lowest == -3 {
+                        offset + 2.5
+                    } else if info.lowest == -2 {
+                        offset + 3.5
+                    } else if info.lowest == -1 || info.lowest == 0 {
                         offset + 3.0
                     } else if info.lowest == 1 || info.lowest == 2 {
                         offset + 2.5
@@ -267,10 +315,12 @@ pub fn draw_articulations(
                     }
                 } else if articulations.contains(&Articulation::Staccatissimo) {
                     (origin.y + 4.0).max(offset + 2.5)
-                } else if info.lowest == 1 {
-                    offset + 2.0
-                } else if info.lowest == 2 {
+                } else if info.lowest < -5 {
+                    origin.y - 2.0
+                } else if info.lowest < 0 && info.lowest % 2 != 0 {
                     offset + 1.5
+                } else if info.lowest > 0 && info.lowest < 4 {
+                    origin.y + 2.5
                 } else {
                     offset + 1.0
                 }
