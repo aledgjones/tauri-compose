@@ -122,31 +122,31 @@ const DURATIONS: {
       duration: noteDurationToTicks(NoteDuration.Half),
       glyph: SMuFL.HalfNote,
       title: "Half",
-      offset: 6,
+      offset: 9,
     },
     {
       duration: noteDurationToTicks(NoteDuration.Quarter),
       glyph: SMuFL.QuarterNote,
       title: "Quarter",
-      offset: 6,
+      offset: 9,
     },
     {
       duration: noteDurationToTicks(NoteDuration.Eighth),
       glyph: SMuFL.EighthNote,
       title: "Eighth",
-      offset: 6,
+      offset: 9,
     },
     {
       duration: noteDurationToTicks(NoteDuration.Sixteenth),
       glyph: SMuFL.SixteenthNote,
       title: "Sixteenth",
-      offset: 6,
+      offset: 9,
     },
     {
       duration: noteDurationToTicks(NoteDuration.ThirtySecond),
       glyph: SMuFL.ThirtySecondNote,
       title: "Thirty-Second",
-      offset: 7,
+      offset: 11,
     },
   ];
 
@@ -185,8 +185,8 @@ export const LeftPanel: FC<LeftPanelProps> = ({ spanRow }) => {
             bravura={glyph}
             title={title}
             offset={offset}
-            size={24}
-            className="h-12"
+            size={32}
+            className="h-14"
             onClick={() => {
               if (selection?.type !== "Tone" || !tone) return;
               actions.score.tone.setDuration(
@@ -209,6 +209,7 @@ export const LeftPanel: FC<LeftPanelProps> = ({ spanRow }) => {
             bravura={a.glyph}
             title={a.title}
             offset={a.offset}
+            className="h-11"
             onClick={() => {
               if (selection?.type !== "Tone" || !tone) return;
               actions.score.tone.setAccidental(
