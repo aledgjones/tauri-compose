@@ -1,3 +1,12 @@
+## Release Notes for v1.23.0
+
+### 🏗️ Features
+
+- feat: tone selection panel
+- feat: rendering articulations more accurately
+- feat: accidentals
+- feat: articulations and accidental panel
+
 ## Release Notes for v1.22.1
 
 ### 🏗️ Features
