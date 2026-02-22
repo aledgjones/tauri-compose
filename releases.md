@@ -1,3 +1,13 @@
+## Release Notes for v1.23.1
+
+### 🏗️ Features
+
+- feat: style tweaks left panel
+
+### 🐞 Fixes
+
+- fix: spacing tweaks for accidentals. tighten spacing and allow accidentals to eat inot more of the note spacing.
+
 ## Release Notes for v1.23.0
 
 ### 🏗️ Features
