@@ -1,6 +1,6 @@
 import prettyMilliseconds from "pretty-ms";
 import React, { useEffect, useState } from "react";
-import { AppState, LayoutType, UniqueId } from "./types";
+import { AppState, LayoutType, UniqueId, NoteDuration } from "./types";
 
 const THIRTY_SECONDS = 30 * 1000;
 const ONE_WEEK = 7 * 24 * 60 * 60 * 1000;
@@ -115,6 +115,30 @@ export const parseTimeSignature = (input: string) => {
   if (!validBeatTypes.includes(beatType)) return null;
 
   return { beats, beatType };
+};
+
+// helpers for converting between NoteDuration enum values and raw tick counts
+export const noteDurationToTicks = (dur: NoteDuration): number => {
+  switch (dur) {
+    case NoteDuration.Whole:
+      return 128;
+    case NoteDuration.Half:
+      return 64;
+    case NoteDuration.Quarter:
+      return 32;
+    case NoteDuration.Eighth:
+      return 16;
+    case NoteDuration.Sixteenth:
+      return 8;
+    case NoteDuration.ThirtySecond:
+      return 4;
+    case NoteDuration.SixtyFourth:
+      return 2;
+    case NoteDuration.HudredTwentyEighth:
+      return 1;
+    default:
+      return 0;
+  }
 };
 
 /**

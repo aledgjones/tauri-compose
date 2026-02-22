@@ -17,4 +17,11 @@ export enum SMuFL {
   Sharp = "\u{E262}",
   Natural = "\u{E261}",
   Flat = "\u{E260}",
+
+  WholeNote = "\u{E1D2}",
+  HalfNote = "\u{E1D3}",
+  QuarterNote = "\u{E1D5}",
+  EighthNote = "\u{E1D7}",
+  SixteenthNote = "\u{E1D9}",
+  ThirtySecondNote = "\u{E1DB}",
 }
