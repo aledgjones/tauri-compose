@@ -202,7 +202,6 @@ pub fn get_horizontal_spacing(
                 // extend spacing to accomodate accidentals + pre shunts that are part of the next note (if needed)
                 if let Some((next_tick, next_entry)) = notation.get_next_notation(*tick) {
                     if !barlines.contains_key(&next_tick) {
-                        // natural minimum for note value
                         let min = entry.min_spacing(shunts, engrave, beams);
                         let next_metrics = next_entry.glyph_metrics();
                         let next_glyph_width = next_metrics.total_width();
@@ -219,20 +218,30 @@ pub fn get_horizontal_spacing(
                             _ => 0.0,
                         };
 
-                        let pre_shunt = if next_has_pre_shunt {
+                        let pre_shunt_width = if next_has_pre_shunt {
                             next_glyph_width
                         } else {
                             0.0
                         };
 
-                        let space_for_all_pre = accidentals_width + pre_shunt + min;
+                        let ledger_line_width = match &entry.info {
+                            Some(info) if info.highest < -5 || info.lowest > 5 => 0.4,
+                            _ => 0.0,
+                        };
 
-                        if min > spacing {
-                            spacing = min;
+                        let avoid_collisions_spacing = accidentals_width
+                            + pre_shunt_width
+                            + min.width
+                            + ledger_line_width
+                            + 0.2;
+
+                        let min_natural_spacing = min.total_width() + pre_shunt_width;
+                        if min_natural_spacing > spacing {
+                            spacing = min_natural_spacing;
                         }
 
-                        if space_for_all_pre > spacing {
-                            spacing = space_for_all_pre;
+                        if avoid_collisions_spacing > spacing {
+                            spacing = avoid_collisions_spacing;
                         }
                     }
                 };

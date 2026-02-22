@@ -5,7 +5,6 @@ use super::get_shunts::Shunts;
 use super::get_tone_offset_info::get_tone_offset_info;
 use super::get_tone_offset_info::ToneOffsetInfo;
 use super::get_tone_offsets::ToneVerticalOffsets;
-use crate::renderer::converter::Space;
 use crate::score::components::duration::Direction;
 use crate::score::components::duration::NoteDuration;
 use crate::score::components::duration::Tick;
@@ -238,30 +237,37 @@ impl Notation {
         false
     }
 
-    pub fn min_spacing(&self, shunts: &Shunts, engrave: &Engrave, beams: &Beams) -> Space {
+    pub fn min_spacing(&self, shunts: &Shunts, engrave: &Engrave, beams: &Beams) -> BoundingBox {
         let metrics = self.glyph_metrics();
         let glyph_width = metrics.total_width();
 
-        let mut min_space = glyph_width;
-
-        if self.is_dotted() {
-            min_space += 1.0;
-        }
+        let mut avoid_collisions_spacing = glyph_width;
 
         if self.has_post_shunt(shunts) {
-            min_space += glyph_width;
+            avoid_collisions_spacing += glyph_width;
         } else if self.is_flagged(beams) {
-            min_space += 0.5;
+            avoid_collisions_spacing += 0.5;
         }
 
         // only apply min tie space if internal ties (chords)
-        if self.has_tie() && self.is_chord() {
-            min_space += engrave.minimum_tie_space;
+        let mut spacing = if self.has_tie() && self.is_chord() {
+            engrave.minimum_tie_space
         } else {
-            min_space += engrave.minimum_note_space;
+            engrave.minimum_note_space
         };
 
-        min_space
+        if self.is_dotted() {
+            // avoid the dot
+            avoid_collisions_spacing += 0.2;
+            // extra spacing which can be eaten into.
+            spacing += 0.4;
+        }
+
+        BoundingBox {
+            width: avoid_collisions_spacing,
+            height: 1.0,
+            right_padding: spacing,
+        }
     }
 
     pub fn metrics(&self, shunts: &Shunts, engrave: &Engrave, beams: &Beams) -> BoundingBox {
@@ -270,13 +276,13 @@ impl Notation {
             Some(base) => {
                 let space = engrave.base_note_space
                     * base.spacing_ratio(engrave.note_space_ratio, self.is_dotted());
-                if space > min {
+                if space > min.total_width() {
                     space
                 } else {
-                    min
+                    min.total_width()
                 }
             }
-            None => min,
+            None => min.total_width(),
         };
 
         BoundingBox {
