@@ -2,8 +2,8 @@
 title: "Testing Foundation & Tooling Modernization"
 slug: "testing-foundation-tooling-modernization"
 created: "2026-03-04"
-status: "ready-for-dev"
-stepsCompleted: [1, 2, 3, 4]
+status: "phases-1-3-complete"
+stepsCompleted: [1, 2, 3]
 tech_stack:
   [
     "vitest",
@@ -14,37 +14,33 @@ tech_stack:
     "typescript-eslint v8",
     "lint-staged",
     "simple-git-hooks",
-    "tauri-driver",
-    "webdriverio",
   ]
 files_to_modify:
   # Phase 1 — Testing Foundation
   - "package.json" # add test deps + scripts
   - "vite.config.ts" # extend with test config (or new vitest.config.ts)
   - "tsconfig.json" # add test include paths
-  - "src/services/__tests__/pitch-utils.test.ts" # NEW — pure function tests
-  - "src/services/__tests__/utils.test.ts" # NEW — pure function tests (parseTimeSignature, noteDurationToTicks, color utils)
-  - "src/services/__tests__/sequencer-utils.test.ts" # NEW — DOM query helper tests
+  - "src/services/pitch-utils.test.ts" # NEW — pure function tests
+  - "src/services/utils.test.ts" # NEW — pure function tests (parseTimeSignature, noteDurationToTicks, color utils)
+  - "src/services/sequencer-utils.test.ts" # NEW — DOM query helper tests
   - "src/__mocks__/@tauri-apps/api/core.ts" # NEW — Tauri invoke mock
   - "src-tauri/src/score/components/duration.rs" # add #[cfg(test)] module
   - "src-tauri/src/renderer/converter.rs" # add #[cfg(test)] module
   - "src-tauri/src/instructions/parse/get_measures.rs" # add #[cfg(test)] module
   - "src-tauri/src/score/entries/mod.rs" # add #[cfg(test)] module
   # Phase 2 — Component & Hook Testing
-  - "src/ui/__tests__/checkbox.test.tsx" # NEW
-  - "src/ui/__tests__/switch.test.tsx" # NEW
-  - "src/ui/__tests__/tabs.test.tsx" # NEW
-  - "src/ui/__tests__/select.test.tsx" # NEW
-  - "src/services/__tests__/hooks.test.tsx" # NEW — useHumanizedTime, useAsync
-  - "src/components/__tests__/snap-picker.test.tsx" # NEW
+  - "src/ui/checkbox.test.tsx" # NEW
+  - "src/ui/switch.test.tsx" # NEW
+  - "src/ui/tabs.test.tsx" # NEW
+  - "src/ui/select.test.tsx" # NEW
+  - "src/services/hooks.test.tsx" # NEW — useHumanizedTime, useAsync
+  - "src/components/snap-picker.test.tsx" # NEW
   # Phase 3 — Tooling & Guardrails
   - "eslint.config.js" # modernize to typescript-eslint v8 unified config
-  - ".simple-git-hooks.json" # NEW — pre-commit hook config (or package.json field)
-  - ".lintstagedrc.json" # NEW — lint-staged config
+  - "package.json" # simple-git-hooks + lint-staged config added as package.json fields
   - "TESTING.md" # NEW — test patterns & conventions doc
-  # Phase 4 — E2E Smoke Tests
-  - "tests/e2e/app-launch.test.ts" # NEW — smoke test: app launches
-  - "tests/e2e/wdio.conf.ts" # NEW — WebdriverIO config for tauri-driver
+  - "docs/development-guide.md" # updated Testing section + new Git Conventions section
+  # Phase 4 — E2E Smoke Tests (DEFERRED — see Phase 4 notes)
 code_patterns:
   - "FC<Props> functional components only"
   - "snake_case type properties crossing FE↔BE boundary"
@@ -53,11 +49,11 @@ code_patterns:
   - "Numeric enums mirrored between TS and Rust via serde_repr"
   - "kebab-case TS/TSX filenames, snake_case Rust filenames"
   - "One component per file"
-  - "__tests__/ co-located test directories"
+  - "Test files colocated next to source (e.g. utils.ts → utils.test.ts)"
 test_patterns:
   - "Vitest + happy-dom for TS/TSX"
   - "#[cfg(test)] modules for Rust"
-  - "Co-located __tests__/ directories next to source"
+  - "Test files colocated next to source, no __tests__/ subdirectories"
   - "@testing-library/react for component tests"
   - "Manual mocks in src/__mocks__/ for Tauri API"
   - "WebdriverIO + tauri-driver for E2E smoke tests"
@@ -145,9 +141,9 @@ Add Vitest + React Testing Library for frontend testing, establish Rust `#[cfg(t
 
 - **Vitest over Jest:** Native Vite integration, shares transform pipeline and path aliases, zero-config with existing `vite.config.ts`. No separate Babel/SWC transform needed.
 - **happy-dom over jsdom:** Lighter and faster, sufficient for this app's DOM needs (no complex browser APIs required).
-- **`__tests__/` co-located directories:** Tests live next to their source (`src/services/__tests__/`, `src/ui/__tests__/`) rather than a top-level `tests/` folder. Keeps tests discoverable and co-located with what they test.
+- **Test files colocated next to source:** Test files live directly alongside the source file they test (e.g. `utils.ts` → `utils.test.ts`) rather than in `__tests__/` subdirectories or a top-level `tests/` folder. Keeps tests immediately discoverable without an extra directory hop.
 - **Tauri mock in `src/__mocks__/`:** Vitest supports `__mocks__` directories for manual module mocks. A mock for `@tauri-apps/api/core` intercepts all `invoke()` calls.
-- **simple-git-hooks over husky:** Lighter footprint, zero dependency, configured via `package.json` or `.simple-git-hooks.json`.
+- **simple-git-hooks over husky:** Lighter footprint, zero dependency, configured via `simple-git-hooks` field in `package.json` (not a separate `.simple-git-hooks.json` file).
 - **`typescript-eslint` v8 unified config:** Replaces separate `@typescript-eslint/eslint-plugin` + `@typescript-eslint/parser` with single `typescript-eslint` import and `tseslint.config(...)` API. Cleaner, enables type-checked rules.
 - **WebdriverIO for E2E:** Most mature JS WebDriver client. Pairs with `tauri-driver` which wraps the native WebView's WebDriver protocol. Tests run against the real compiled app binary.
 - **E2E as smoke only:** Score rendering is Skia/Metal — invisible to WebDriver. Unit/integration tests cover ~90% of value. E2E covers IPC contract, multi-window lifecycle, and critical user journeys only.
@@ -159,17 +155,17 @@ Add Vitest + React Testing Library for frontend testing, establish Rust `#[cfg(t
 
 #### Story 1.1: Install Vitest & Configure Test Runner
 
-- [ ] Task 1.1.1: Install test dependencies
+- [x] Task 1.1.1: Install test dependencies
   - File: `package.json`
   - Action: Add devDependencies: `vitest`, `@vitest/coverage-v8`, `happy-dom`, `@testing-library/react`, `@testing-library/user-event`, `@testing-library/jest-dom`
   - Notes: Use latest stable versions. All are devDependencies only.
 
-- [ ] Task 1.1.2: Add test scripts to package.json
+- [x] Task 1.1.2: Add test scripts to package.json
   - File: `package.json`
   - Action: Add scripts: `"test": "vitest run"`, `"test:watch": "vitest"`, `"test:coverage": "vitest run --coverage"`
   - Notes: `vitest run` executes once (CI-friendly), `vitest` runs in watch mode (dev-friendly).
 
-- [ ] Task 1.1.3: Add Vitest config to vite.config.ts
+- [x] Task 1.1.3: Add Vitest config to vite.config.ts
   - File: `vite.config.ts`
   - Action: Add `/// <reference types="vitest/config" />` at top. Add `test` block to the config object:
     ```ts
@@ -197,19 +193,19 @@ Add Vitest + React Testing Library for frontend testing, establish Rust `#[cfg(t
     }));
     ```
 
-- [ ] Task 1.1.4: Create test setup file
+- [x] Task 1.1.4: Create test setup file
   - File: `src/test-setup.ts` — **NEW**
   - Action: Create with `import '@testing-library/jest-dom/vitest'` to register custom DOM matchers globally.
   - Notes: This enables `.toBeVisible()`, `.toHaveAttribute()`, etc. in all test files without per-file imports.
 
-- [ ] Task 1.1.5: Add Vitest types to test setup
+- [x] Task 1.1.5: Add Vitest types to test setup
   - File: `src/test-setup.ts`
   - Action: Add `/// <reference types="vitest/globals" />` as the first line of the test setup file. Do **NOT** add a `compilerOptions.types` array to `tsconfig.json` — doing so would override TypeScript's automatic `@types/*` inclusion and break the build (e.g. losing `@types/react` globals).
   - Notes: The triple-slash directive is scoped to the test setup file, which Vitest loads before all tests. This cleanly provides global `describe`, `it`, `expect` types without affecting the main build.
 
 #### Story 1.2: Create Tauri IPC Mock
 
-- [ ] Task 1.2.1: Create manual mock for `@tauri-apps/api/core`
+- [x] Task 1.2.1: Create manual mock for `@tauri-apps/api/core`
   - File: `src/__mocks__/@tauri-apps/api/core.ts` — **NEW**
   - Action: Create mock that exports a vi.fn() `invoke` function. The mock should:
     - Export `const invoke = vi.fn()` as a named export
@@ -219,8 +215,8 @@ Add Vitest + React Testing Library for frontend testing, establish Rust `#[cfg(t
 
 #### Story 1.3: Pure Function Tests — TypeScript
 
-- [ ] Task 1.3.1: Test `pitch-utils.ts` functions
-  - File: `src/services/__tests__/pitch-utils.test.ts` — **NEW**
+- [x] Task 1.3.1: Test `pitch-utils.ts` functions
+  - File: `src/services/pitch-utils.test.ts` — **NEW**
   - Action: Write tests for all 5 exported functions:
     - `naturalizePitch(pitch)` — test all 5 accidental cases (DoubleSharp through DoubleFlat) + default
     - `getPitchLetter(pitch)` — test C/D/E/F/G/A/B mapping from base pitch mod 12, plus non-natural-note input returning `""`
@@ -229,8 +225,8 @@ Add Vitest + React Testing Library for frontend testing, establish Rust `#[cfg(t
     - `getPitchName(pitch)` — integration test combining letter + accidental + octave (e.g. `{int: 60, accidental: Accidental.Natural}` → `"C4"`)
   - Notes: Import `Pitch` and `Accidental` types from `../types`. Use real enum values from `types.ts`. The `Accidental` enum uses signed integers centered on zero: `DoubleSharp = 2, Sharp = 1, Natural = 0, Flat = -1, DoubleFlat = -2`.
 
-- [ ] Task 1.3.2: Test `utils.ts` pure functions
-  - File: `src/services/__tests__/utils.test.ts` — **NEW**
+- [x] Task 1.3.2: Test `utils.ts` pure functions
+  - File: `src/services/utils.test.ts` — **NEW**
   - Action: Write tests for pure functions only (no hooks — those are Phase 2):
     - `parseTimeSignature(input)` — valid inputs (`"4/4"` → `{beats: 4, beatType: 4}`), invalid beat types (`"4/3"` → `null`), malformed strings (`"abc"`, `""`, `"4/"`) → `null`
     - `noteDurationToTicks(dur)` — test all 8 `NoteDuration` enum values map to correct tick counts (Whole=128 through HudredTwentyEighth=1), plus default case → 0
@@ -239,8 +235,8 @@ Add Vitest + React Testing Library for frontend testing, establish Rust `#[cfg(t
     - `lightenColor(hex, factor)` — test returns valid hex, factor 0 returns same color, factor 1 returns near-white
   - Notes: Import `NoteDuration` from `../types`. Color function tests should validate format and reasonable output ranges, not exact RGB values (floating-point rounding).
 
-- [ ] Task 1.3.3: Test `sequencer-utils.ts` DOM query
-  - File: `src/services/__tests__/sequencer-utils.test.ts` — **NEW**
+- [x] Task 1.3.3: Test `sequencer-utils.ts` DOM query
+  - File: `src/services/sequencer-utils.test.ts` — **NEW**
   - Action: Write tests for `getSequencerClickTarget(target)`:
     - Given element with `data-tone-id="42"` ancestor → returns `{type: "Tone", id: 42}`
     - Given element with no `data-tone-id` ancestor → returns `null`
@@ -249,7 +245,7 @@ Add Vitest + React Testing Library for frontend testing, establish Rust `#[cfg(t
 
 #### Story 1.4: Rust Test Foundations
 
-- [ ] Task 1.4.1: Add `#[cfg(test)]` module to `duration.rs`
+- [x] Task 1.4.1: Add `#[cfg(test)]` module to `duration.rs`
   - File: `src-tauri/src/score/components/duration.rs`
   - Action: Append `#[cfg(test)] mod tests {}` block with tests for:
     - `NoteDuration::from_ticks(ticks)` — all 8 valid tick values return `Some(correct_variant)`, invalid tick (e.g. `99`) returns `None`
@@ -259,7 +255,7 @@ Add Vitest + React Testing Library for frontend testing, establish Rust `#[cfg(t
     - `NoteDuration::spacing_ratio(ratio, is_dotted)` — spot-check a few values, verify dotted multiplier is 1.2x
   - Notes: Use `#[test]` attribute on each test function. Use `assert_eq!` for value comparisons. Add `#[should_panic]` test for `HudredTwentyEighth.half()`.
 
-- [ ] Task 1.4.2: Add `#[cfg(test)]` module to `converter.rs`
+- [x] Task 1.4.2: Add `#[cfg(test)]` module to `converter.rs`
   - File: `src-tauri/src/renderer/converter.rs`
   - Action: Append `#[cfg(test)] mod tests {}` block with tests for:
     - `Converter::spaces_to_px(spaces)` — given known `px_per_mm` and `mm_per_space`, verify calculation: `spaces * mm_per_space * px_per_mm`
@@ -267,7 +263,7 @@ Add Vitest + React Testing Library for frontend testing, establish Rust `#[cfg(t
     - Round-trip: `converter.px_to_spaces(converter.spaces_to_px(5.0))` ≈ `5.0` (within f32 epsilon)
   - Notes: Construct `Converter::new(px_per_mm, mm_per_space)` with known values. Use `assert!((result - expected).abs() < f32::EPSILON)` for float comparisons.
 
-- [ ] Task 1.4.3: Add `#[cfg(test)]` module to `get_measures.rs`
+- [x] Task 1.4.3: Add `#[cfg(test)]` module to `get_measures.rs`
   - File: `src-tauri/src/instructions/parse/get_measures.rs`
   - Action: Append `#[cfg(test)] mod tests {}` block with tests for:
     - Given a flow with a single 4/4 time signature at tick 0 and length 512 → returns measures at ticks 0, 128, 256, 384
@@ -284,7 +280,7 @@ Add Vitest + React Testing Library for frontend testing, establish Rust `#[cfg(t
     ```
     Use `FxHashMap::default()` for all hash maps and `FxHashSet::default()` for hash sets.
 
-- [ ] Task 1.4.4: Add `#[cfg(test)]` module to `entries/mod.rs`
+- [x] Task 1.4.4: Add `#[cfg(test)]` module to `entries/mod.rs`
   - File: `src-tauri/src/score/entries/mod.rs`
   - Action: Append `#[cfg(test)] mod tests {}` block with tests for:
     - `Entries::new()` — creates empty `by_tick` and `by_id` maps
@@ -303,8 +299,8 @@ Add Vitest + React Testing Library for frontend testing, establish Rust `#[cfg(t
 
 #### Story 2.1: UI Primitive Component Tests
 
-- [ ] Task 2.1.1: Test `Checkbox` component
-  - File: `src/ui/__tests__/checkbox.test.tsx` — **NEW**
+- [x] Task 2.1.1: Test `Checkbox` component
+  - File: `src/ui/checkbox.test.tsx` — **NEW**
   - Action: Write tests using React Testing Library:
     - Renders without crashing
     - When `value=true`, check icon is visible
@@ -315,8 +311,8 @@ Add Vitest + React Testing Library for frontend testing, establish Rust `#[cfg(t
     - `onPointerDown` callback fires when provided
   - Notes: Import `render`, `screen` from `@testing-library/react`, `userEvent` from `@testing-library/user-event`. Use `vi.fn()` for `onChange` and `onPointerDown` callbacks. The `Checkbox` component currently has no `role` or `aria-*` attributes unlike `Switch` — test the a11y gap as a documented finding, even if the component doesn't pass those assertions today.
 
-- [ ] Task 2.1.2: Test `Switch` component
-  - File: `src/ui/__tests__/switch.test.tsx` — **NEW**
+- [x] Task 2.1.2: Test `Switch` component
+  - File: `src/ui/switch.test.tsx` — **NEW**
   - Action: Write tests:
     - Renders with `role="switch"` attribute
     - `aria-checked` reflects `value` prop
@@ -327,8 +323,8 @@ Add Vitest + React Testing Library for frontend testing, establish Rust `#[cfg(t
     - `onPointerDown` callback fires when provided
   - Notes: The `Switch` component has good a11y attributes — use `screen.getByRole('switch')` for querying. Use `vi.fn()` for `onPointerDown` callback.
 
-- [ ] Task 2.1.3: Test `Tabs` component
-  - File: `src/ui/__tests__/tabs.test.tsx` — **NEW**
+- [x] Task 2.1.3: Test `Tabs` component
+  - File: `src/ui/tabs.test.tsx` — **NEW**
   - Action: Write tests:
     - Renders all options as buttons
     - Selected tab has active styling class (`text-black bg-sky-500`)
@@ -336,8 +332,8 @@ Add Vitest + React Testing Library for frontend testing, establish Rust `#[cfg(t
     - Works with generic type parameter (test with string and number values)
   - Notes: `Tabs` is generic (`<T extends Key>`) — test with concrete types.
 
-- [ ] Task 2.1.4: Test `Select` component
-  - File: `src/ui/__tests__/select.test.tsx` — **NEW**
+- [x] Task 2.1.4: Test `Select` component
+  - File: `src/ui/select.test.tsx` — **NEW**
   - Action: Write tests:
     - Renders with placeholder when value is null
     - Dropdown is closed by default
@@ -350,8 +346,8 @@ Add Vitest + React Testing Library for frontend testing, establish Rust `#[cfg(t
 
 #### Story 2.2: Custom Hook Tests
 
-- [ ] Task 2.2.1: Test `useHumanizedTime` hook
-  - File: `src/services/__tests__/hooks.test.tsx` — **NEW**
+- [x] Task 2.2.1: Test `useHumanizedTime` hook
+  - File: `src/services/hooks.test.tsx` — **NEW**
   - Action: Write tests using `renderHook` from `@testing-library/react`:
     - Given timestamp within 30 seconds → returns `"Just now"`
     - Given timestamp > 1 week ago → returns locale date string
@@ -359,8 +355,8 @@ Add Vitest + React Testing Library for frontend testing, establish Rust `#[cfg(t
     - Hook updates on interval (use `vi.useFakeTimers()` to advance time)
   - Notes: Mock `Date.now()` with `vi.setSystemTime()` for deterministic results. Import `renderHook` from `@testing-library/react`. Remember to call `vi.useRealTimers()` in `afterEach`.
 
-- [ ] Task 2.2.2: Test `useAsync` hook
-  - File: `src/services/__tests__/hooks.test.tsx` (append to same file)
+- [x] Task 2.2.2: Test `useAsync` hook
+  - File: `src/services/hooks.test.tsx` (append to same file)
   - Action: Write tests:
     - Calls async function on mount
     - Catches and logs errors without throwing
@@ -369,8 +365,8 @@ Add Vitest + React Testing Library for frontend testing, establish Rust `#[cfg(t
 
 #### Story 2.3: Composite Component Test
 
-- [ ] Task 2.3.1: Test `SnapPicker` component
-  - File: `src/components/__tests__/snap-picker.test.tsx` — **NEW**
+- [x] Task 2.3.1: Test `SnapPicker` component
+  - File: `src/components/snap-picker.test.tsx` — **NEW**
   - Action: Write tests:
     - Renders all SNAP_OPTIONS (Quarter, Eighth, Sixteenth, Thirty-Second)
     - Current value is displayed
@@ -381,12 +377,12 @@ Add Vitest + React Testing Library for frontend testing, establish Rust `#[cfg(t
 
 #### Story 3.1: Modernize ESLint Config
 
-- [ ] Task 3.1.1: Install unified `typescript-eslint` v8 package
+- [x] Task 3.1.1: Install unified `typescript-eslint` v8 package
   - File: `package.json`
   - Action: Install `typescript-eslint` (unified package). Install `eslint-config-prettier`. Remove `@typescript-eslint/eslint-plugin` and `@typescript-eslint/parser` from devDependencies (they're bundled in the unified package now).
   - Notes: The unified `typescript-eslint` package re-exports the plugin and parser internally.
 
-- [ ] Task 3.1.2: Rewrite ESLint config to unified API
+- [x] Task 3.1.2: Rewrite ESLint config to unified API
   - File: `eslint.config.js`
   - Action: Replace current config with `typescript-eslint` v8 unified API:
 
@@ -430,13 +426,13 @@ Add Vitest + React Testing Library for frontend testing, establish Rust `#[cfg(t
 
   - Notes: The `tseslint.config(...)` wrapper replaces the raw array export. `eslintConfigPrettier` goes last to disable ESLint rules that conflict with Prettier formatting (e.g. `indent`, `quotes`, `semi`). **Important:** Adding `eslint-config-prettier` may silently disable some rules that were previously active. After migration, run `npx eslint-config-prettier 'src/**/*.{ts,tsx}'` to list which rules are being turned off. Verify none of those rules were relied upon for logic checks (most are purely stylistic). Removes the manual `parser`/`parserOptions` — typescript-eslint handles this internally.
 
-- [ ] Task 3.1.3: Verify ESLint still passes
+- [x] Task 3.1.3: Verify ESLint still passes
   - Action: Run `npm run lint` and verify zero new errors introduced by the config migration.
   - Notes: This is a refactor — behavior should be identical. If new errors appear, they're likely rules that were silently not applied before.
 
 #### Story 3.2: Pre-commit Hooks
 
-- [ ] Task 3.2.1: Install lint-staged and simple-git-hooks
+- [x] Task 3.2.1: Install lint-staged and simple-git-hooks
   - File: `package.json`
   - Action: Add devDependencies: `lint-staged`, `simple-git-hooks`. Add `"simple-git-hooks"` and `"lint-staged"` config sections to `package.json`:
     ```json
@@ -456,7 +452,7 @@ Add Vitest + React Testing Library for frontend testing, establish Rust `#[cfg(t
 
 #### Story 3.3: Coverage Thresholds
 
-- [ ] Task 3.3.1: Set initial coverage thresholds
+- [x] Task 3.3.1: Set initial coverage thresholds
   - File: `vite.config.ts`
   - Action: Add `thresholds` to the `test.coverage` config:
     ```ts
@@ -471,10 +467,10 @@ Add Vitest + React Testing Library for frontend testing, establish Rust `#[cfg(t
 
 #### Story 3.4: Test Pattern Documentation
 
-- [ ] Task 3.4.1: Create `TESTING.md`
+- [x] Task 3.4.1: Create `TESTING.md`
   - File: `TESTING.md` — **NEW**
   - Action: Document all test conventions established in Phases 1-2:
-    - Test file naming: `*.test.ts` / `*.test.tsx` in `__tests__/` directories
+    - Test file naming: `*.test.ts` / `*.test.tsx` colocated next to the source file (not in `__tests__/` subdirectories)
     - Test runner: Vitest with happy-dom environment
     - Component testing: React Testing Library patterns (render, screen, userEvent)
     - Hook testing: `renderHook` pattern
@@ -484,7 +480,9 @@ Add Vitest + React Testing Library for frontend testing, establish Rust `#[cfg(t
     - Example test for each category (pure function, component, hook, Rust)
   - Notes: This file is specifically for AI agents to reference when writing new tests. Keep it concise and pattern-focused, not tutorial-style.
 
-### Phase 4: E2E Smoke Tests (Architecture)
+### Phase 4: E2E Smoke Tests — DEFERRED
+
+> **Deferred 2026-03-04:** `tauri-driver` v2 only supports Linux. This project targets macOS only at present. All Phase 4 work has been reverted (`tests/e2e/` removed, WDIO packages uninstalled). Revisit if a Linux CI pipeline is added or when `tauri-driver` gains macOS support.
 
 #### Story 4.1: WebdriverIO + tauri-driver Setup
 
@@ -533,42 +531,42 @@ Add Vitest + React Testing Library for frontend testing, establish Rust `#[cfg(t
 
 #### Phase 1
 
-- [ ] AC 1.1: Given a fresh clone and `npm install`, when `npm test` is run, then Vitest executes and all tests pass with zero failures.
-- [ ] AC 1.2: Given the Vitest config, when `npm run test:coverage` is run, then a coverage report is generated showing coverage for `src/**/*.{ts,tsx}` files.
-- [ ] AC 1.3: Given `pitch-utils.test.ts`, when tests run, then all 5 exported functions are tested with correct assertions for all `Accidental` enum values and pitch calculations.
-- [ ] AC 1.4: Given `utils.test.ts`, when tests run, then `parseTimeSignature` is tested with valid inputs (`"4/4"`, `"6/8"`, `"3/4"`), invalid beat types (`"4/3"`), and malformed strings (`""`, `"abc"`, `"4/"`).
-- [ ] AC 1.5: Given `utils.test.ts`, when tests run, then `noteDurationToTicks` is tested for all 8 `NoteDuration` values, verifying correct tick counts (Whole=128 through HudredTwentyEighth=1).
-- [ ] AC 1.12: Given `utils.test.ts`, when tests run, then `desaturateColor` is tested to verify it returns a valid hex string, that factors `(1, 1)` return a near-identical color, and factors `(0, 0.5)` produce a desaturated result.
-- [ ] AC 1.13: Given `utils.test.ts`, when tests run, then `lightenColor` is tested to verify it returns a valid hex string, that factor `0` returns the same color, and factor `1` returns near-white.
-- [ ] AC 1.6: Given `sequencer-utils.test.ts`, when tests run in happy-dom, then `getSequencerClickTarget` correctly identifies elements with `data-tone-id` attribute and returns `null` for elements without it.
-- [ ] AC 1.7: Given the Tauri mock at `src/__mocks__/@tauri-apps/api/core.ts`, when any test imports `invoke` from `@tauri-apps/api/core`, then the mock `vi.fn()` is used instead of the real Tauri API.
-- [ ] AC 1.8: Given `cargo test` run in `src-tauri/`, when tests execute, then `duration.rs` tests pass for `from_ticks`, `to_ticks`, `half`, `to_modifier`, and `spacing_ratio`.
-- [ ] AC 1.9: Given `cargo test` run in `src-tauri/`, when tests execute, then `converter.rs` tests verify `spaces_to_px` and `px_to_spaces` are mathematical inverses within f32 precision.
-- [ ] AC 1.10: Given `cargo test` run in `src-tauri/`, when tests execute, then `get_measures.rs` tests verify correct measure boundary calculation for 4/4 and time signature changes.
-- [ ] AC 1.11: Given `cargo test` run in `src-tauri/`, when tests execute, then `entries/mod.rs` tests verify `Entry::id()`, `Entry::tick()`, and `Entry::set_tick()` for all 5 entry variants.
+- [x] AC 1.1: Given a fresh clone and `npm install`, when `npm test` is run, then Vitest executes and all tests pass with zero failures.
+- [x] AC 1.2: Given the Vitest config, when `npm run test:coverage` is run, then a coverage report is generated showing coverage for `src/**/*.{ts,tsx}` files.
+- [x] AC 1.3: Given `pitch-utils.test.ts`, when tests run, then all 5 exported functions are tested with correct assertions for all `Accidental` enum values and pitch calculations.
+- [x] AC 1.4: Given `utils.test.ts`, when tests run, then `parseTimeSignature` is tested with valid inputs (`"4/4"`, `"6/8"`, `"3/4"`), invalid beat types (`"4/3"`), and malformed strings (`""`, `"abc"`, `"4/"`).
+- [x] AC 1.5: Given `utils.test.ts`, when tests run, then `noteDurationToTicks` is tested for all 8 `NoteDuration` values, verifying correct tick counts (Whole=128 through HudredTwentyEighth=1).
+- [x] AC 1.12: Given `utils.test.ts`, when tests run, then `desaturateColor` is tested to verify it returns a valid hex string, that factors `(1, 1)` return a near-identical color, and factors `(0, 0.5)` produce a desaturated result.
+- [x] AC 1.13: Given `utils.test.ts`, when tests run, then `lightenColor` is tested to verify it returns a valid hex string, that factor `0` returns the same color, and factor `1` returns near-white.
+- [x] AC 1.6: Given `sequencer-utils.test.ts`, when tests run in happy-dom, then `getSequencerClickTarget` correctly identifies elements with `data-tone-id` attribute and returns `null` for elements without it.
+- [x] AC 1.7: Given the Tauri mock at `src/__mocks__/@tauri-apps/api/core.ts`, when any test imports `invoke` from `@tauri-apps/api/core`, then the mock `vi.fn()` is used instead of the real Tauri API.
+- [x] AC 1.8: Given `cargo test` run in `src-tauri/`, when tests execute, then `duration.rs` tests pass for `from_ticks`, `to_ticks`, `half`, `to_modifier`, and `spacing_ratio`.
+- [x] AC 1.9: Given `cargo test` run in `src-tauri/`, when tests execute, then `converter.rs` tests verify `spaces_to_px` and `px_to_spaces` are mathematical inverses within f32 precision.
+- [x] AC 1.10: Given `cargo test` run in `src-tauri/`, when tests execute, then `get_measures.rs` tests verify correct measure boundary calculation for 4/4 and time signature changes.
+- [x] AC 1.11: Given `cargo test` run in `src-tauri/`, when tests execute, then `entries/mod.rs` tests verify `Entry::id()`, `Entry::tick()`, and `Entry::set_tick()` for all 5 entry variants.
 
 #### Phase 2
 
-- [ ] AC 2.1: Given `checkbox.test.tsx`, when tests run, then `Checkbox` component renders correctly for both `value=true` and `value=false`, and clicking fires `onChange` with toggled value.
-- [ ] AC 2.2: Given `switch.test.tsx`, when tests run, then `Switch` component has correct `role="switch"`, `aria-checked`, and `aria-label` attributes, and clicking fires `onChange`.
-- [ ] AC 2.3: Given `tabs.test.tsx`, when tests run, then all tab options render, the selected tab has active styling, and clicking fires `onChange` with the correct value.
-- [ ] AC 2.4: Given `select.test.tsx`, when tests run, then dropdown opens on click, option selection fires `onChange` and closes the dropdown, and clicking outside closes it.
-- [ ] AC 2.5: Given `hooks.test.tsx`, when `useHumanizedTime` is tested with fake timers, then it returns `"Just now"` for timestamps within 30 seconds, a locale date for timestamps > 1 week old, and relative time for timestamps in between.
-- [ ] AC 2.6: Given `hooks.test.tsx`, when `useAsync` is tested, then it calls the async function on mount and catches rejected promises without throwing.
-- [ ] AC 2.7: Given `snap-picker.test.tsx`, when tests run, then `SnapPicker` renders all 4 snap options and selecting one fires `onChange` with the correct `NoteDuration` value.
+- [x] AC 2.1: Given `checkbox.test.tsx`, when tests run, then `Checkbox` component renders correctly for both `value=true` and `value=false`, and clicking fires `onChange` with toggled value.
+- [x] AC 2.2: Given `switch.test.tsx`, when tests run, then `Switch` component has correct `role="switch"`, `aria-checked`, and `aria-label` attributes, and clicking fires `onChange`.
+- [x] AC 2.3: Given `tabs.test.tsx`, when tests run, then all tab options render, the selected tab has active styling, and clicking fires `onChange` with the correct value.
+- [x] AC 2.4: Given `select.test.tsx`, when tests run, then dropdown opens on click, option selection fires `onChange` and closes the dropdown, and clicking outside closes it.
+- [x] AC 2.5: Given `hooks.test.tsx`, when `useHumanizedTime` is tested with fake timers, then it returns `"Just now"` for timestamps within 30 seconds, a locale date for timestamps > 1 week old, and relative time for timestamps in between.
+- [x] AC 2.6: Given `hooks.test.tsx`, when `useAsync` is tested, then it calls the async function on mount and catches rejected promises without throwing.
+- [x] AC 2.7: Given `snap-picker.test.tsx`, when tests run, then `SnapPicker` renders all 4 snap options and selecting one fires `onChange` with the correct `NoteDuration` value.
 
 #### Phase 3
 
-- [ ] AC 3.1: Given the modernized `eslint.config.js`, when `npm run lint` is run, then zero new errors are introduced compared to the pre-migration baseline. Note: `eslint-config-prettier` intentionally disables formatting-related rules — verify with `npx eslint-config-prettier` that only stylistic (not logic) rules are affected.
-- [ ] AC 3.2: Given `eslint.config.js`, when inspected, then it uses `typescript-eslint` unified import and `tseslint.config(...)` API, with `eslint-config-prettier` applied last.
-- [ ] AC 3.3: Given a staged `.ts` file with a lint error, when `git commit` is run, then `lint-staged` runs ESLint and Prettier on the staged file, and the commit is blocked if lint errors remain.
-- [ ] AC 3.4: Given `TESTING.md` exists at project root, when an AI agent reads it, then it contains clear examples for: pure function tests, component tests, hook tests, Tauri mock usage, and Rust `#[cfg(test)]` patterns.
-- [ ] AC 3.5: Given coverage thresholds of 5% for all metrics, when `npm run test:coverage` is run and coverage drops below thresholds, then the test run fails.
+- [x] AC 3.1: Given the modernized `eslint.config.js`, when `npm run lint` is run, then zero new errors are introduced compared to the pre-migration baseline. Note: `eslint-config-prettier` intentionally disables formatting-related rules — verify with `npx eslint-config-prettier` that only stylistic (not logic) rules are affected.
+- [x] AC 3.2: Given `eslint.config.js`, when inspected, then it uses `typescript-eslint` unified import and `tseslint.config(...)` API, with `eslint-config-prettier` applied last.
+- [x] AC 3.3: Given a staged `.ts` file with a lint error, when `git commit` is run, then `lint-staged` runs ESLint and Prettier on the staged file, and the commit is blocked if lint errors remain.
+- [x] AC 3.4: Given `TESTING.md` exists at project root, when an AI agent reads it, then it contains clear examples for: pure function tests, component tests, hook tests, Tauri mock usage, and Rust `#[cfg(test)]` patterns.
+- [x] AC 3.5: Given coverage thresholds of 5% for all metrics, when `npm run test:coverage` is run and coverage drops below thresholds, then the test run fails.
 
 #### Phase 4
 
-- [ ] AC 4.1: Given `tauri-driver` installed and app binary built, when `npm run test:e2e` is run, then WebdriverIO starts `tauri-driver`, launches the app, and the smoke test passes.
-- [ ] AC 4.2: Given `app-launch.test.ts`, when the test runs, then it verifies the app window opens, a DOM element is queryable, and the app doesn't crash within 5 seconds.
+- [ ] AC 4.1 _(deferred)_: Given `tauri-driver` installed and app binary built, when `npm run test:e2e` is run, then WebdriverIO starts `tauri-driver`, launches the app, and the smoke test passes.
+- [ ] AC 4.2 _(deferred)_: Given `app-launch.test.ts`, when the test runs, then it verifies the app window opens, a DOM element is queryable, and the app doesn't crash within 5 seconds.
 
 ## Additional Context
 
@@ -590,12 +588,9 @@ Add Vitest + React Testing Library for frontend testing, establish Rust `#[cfg(t
 - `lint-staged` — run linters on staged files only
 - `simple-git-hooks` — lightweight git hooks manager
 
-**New npm devDependencies (Phase 4):**
+**New npm devDependencies (Phase 4) — DEFERRED:**
 
-- `@wdio/cli` — WebdriverIO CLI
-- `@wdio/local-runner` — local test runner
-- `@wdio/mocha-framework` — mocha adapter for WDIO
-- `tauri-driver` — Tauri WebDriver bridge (installed via `cargo install tauri-driver`)
+> Phase 4 is deferred. `tauri-driver` v2 is Linux-only; project currently targets macOS only. These packages have not been installed.
 
 **Rust (no new Cargo dependencies needed):** Tests use `#[cfg(test)]` with existing crate dependencies. No additional test framework required — Rust's built-in test harness is sufficient.
 
