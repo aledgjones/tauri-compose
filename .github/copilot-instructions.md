@@ -1,82 +1,58 @@
-# Copilot / AI agent quick instructions — Compose
+<!-- BMAD:START -->
+# BMAD Method — Project Instructions
 
-Target: make an AI coding agent immediately productive in this repository.
-Keep changes concise, deterministic and always respect the Rust ↔ TypeScript contract.
+## Project Configuration
 
-## Big picture (what matters)
+- **Project**: compose
+- **User**: Aled
+- **Communication Language**: English
+- **Document Output Language**: English
+- **User Skill Level**: intermediate
+- **Output Folder**: {project-root}/_bmad-output
+- **Planning Artifacts**: {project-root}/_bmad-output/planning-artifacts
+- **Implementation Artifacts**: {project-root}/_bmad-output/implementation-artifacts
+- **Project Knowledge**: {project-root}/docs
 
-- Desktop app: React + Vite frontend (TypeScript) + Tauri Rust backend (Skia renderer, audio engine).
-- Frontend <-> Backend bridge: Tauri commands (Rust `#[tauri::command]`) invoked from `src/services/actions.ts` using `invoke(...)`.
-- Rendering pipeline lives in Rust: parse → instructions → draw (see `src-tauri/src/instructions/*` and `src-tauri/src/renderer/*`).
-- Frontend state and UI live under `src/` (notably `src/services/` and `src/windows/main/`).
+## BMAD Runtime Structure
 
-## Fast onboarding map (open these first)
+- **Agent definitions**: `_bmad/bmm/agents/` (BMM module) and `_bmad/core/agents/` (core)
+- **Workflow definitions**: `_bmad/bmm/workflows/` (organized by phase)
+- **Core tasks**: `_bmad/core/tasks/` (help, editorial review, indexing, sharding, adversarial review)
+- **Core workflows**: `_bmad/core/workflows/` (brainstorming, party-mode, advanced-elicitation)
+- **Workflow engine**: `_bmad/core/tasks/workflow.xml` (executes YAML-based workflows)
+- **Module configuration**: `_bmad/bmm/config.yaml`
+- **Core configuration**: `_bmad/core/config.yaml`
+- **Agent manifest**: `_bmad/_config/agent-manifest.csv`
+- **Workflow manifest**: `_bmad/_config/workflow-manifest.csv`
+- **Help manifest**: `_bmad/_config/bmad-help.csv`
+- **Agent memory**: `_bmad/_memory/`
 
-- UI + app shell: `src/windows/main/` (screens, components)
-- Shared frontend types: `src/services/types.ts`
-- Frontend actions → Tauri commands: `src/services/actions.ts`
-- Rust score model & logic: `src-tauri/src/score/` (entries, tracks, components)
-- Renderer / engraving: `src-tauri/src/instructions/` and `src-tauri/src/renderer/`
-- Fonts / Bravura: `src/assets/fonts/*` and `src-tauri/src/renderer/fonts.rs`
-- Entry points: `src/main.tsx` (frontend), `src-tauri/src/lib.rs` / `main.rs` (backend)
+## Key Conventions
 
-## Developer workflows (commands you will use)
+- Always load `_bmad/bmm/config.yaml` before any agent activation or workflow execution
+- Store all config fields as session variables: `{user_name}`, `{communication_language}`, `{output_folder}`, `{planning_artifacts}`, `{implementation_artifacts}`, `{project_knowledge}`
+- MD-based workflows execute directly — load and follow the `.md` file
+- YAML-based workflows require the workflow engine — load `workflow.xml` first, then pass the `.yaml` config
+- Follow step-based workflow execution: load steps JIT, never multiple at once
+- Save outputs after EACH step when using the workflow engine
+- The `{project-root}` variable resolves to the workspace root at runtime
 
-- Start full dev app (builds Rust + hot reload): npm run start:dev
-- Run frontend vite only: npm run dev
-- Type-check frontend: npm run check-types
-- Rust quick check (no-link): cd src-tauri && cargo check
-- Lint frontend: npm run lint / npm run lint:fix
-- Run Rust unit tests (crate): cd src-tauri && cargo test
-- Build production app: npm run start:release (tauri build)
+## Available Agents
 
-> MUST: Always run `npm run check-types` and `cd src-tauri && cargo check` after making changes. You are not finished until related errors _and_ warnings are fixed.
+| Agent | Persona | Title | Capabilities |
+|---|---|---|---|
+| bmad-master | BMad Master | BMad Master Executor, Knowledge Custodian, and Workflow Orchestrator | runtime resource management, workflow orchestration, task execution, knowledge custodian |
+| analyst | Mary | Business Analyst | market research, competitive analysis, requirements elicitation, domain expertise |
+| architect | Winston | Architect | distributed systems, cloud infrastructure, API design, scalable patterns |
+| dev | Amelia | Developer Agent | story execution, test-driven development, code implementation |
+| pm | John | Product Manager | PRD creation, requirements discovery, stakeholder alignment, user interviews |
+| qa | Quinn | QA Engineer | test automation, API testing, E2E testing, coverage analysis |
+| quick-flow-solo-dev | Barry | Quick Flow Solo Dev | rapid spec creation, lean implementation, minimum ceremony |
+| sm | Bob | Scrum Master | sprint planning, story preparation, agile ceremonies, backlog management |
+| tech-writer | Paige | Technical Writer | documentation, Mermaid diagrams, standards compliance, concept explanation |
+| ux-designer | Sally | UX Designer | user research, interaction design, UI patterns, experience strategy |
 
-## Project-specific conventions & patterns
+## Slash Commands
 
-- Tauri commands are `snake_case` in Rust (e.g. `score_entries_tone_articulation_set`) and mapped in `src/services/actions.ts` to friendly names (e.g. `actions.score.tone.setArticulation`).
-- Keep backend authoritative for domain rules (examples: articulation exclusivity & tick-unification live in Rust `src-tauri/src/score/*`).
-- Shared model changes must be mirrored in both languages:
-  - Rust: `src-tauri/src/score/components/...`
-  - TS: `src/services/types.ts`
-  - Actions: add/modify mapping in `src/services/actions.ts`
-- Renderer expects pre-parsed instruction data; when changing drawing semantics update both parse + draw code in `src-tauri/src/instructions/`.
-- Prefer non‑mutating APIs where practical (example: `Articulations::toggle` returns a new set to avoid borrow problems).
-- Use `rustc_hash::FxHashMap`/`FxHashSet` in Rust score code for performance and consistency.
-- variables should NOT be shorterned (e.g. `articulations` not `arts`) for readability, even if it means slightly more verbose code.
-
-## Common edit checklist (feature / bugfix PR)
-
-1. Update Rust model/logic under `src-tauri/src/score/` (if domain change).
-2. Add or modify `#[tauri::command]` if front-end needs to call it.
-3. Mirror type changes in `src/services/types.ts` and add action in `src/services/actions.ts`.
-4. Update / add UI component under `src/ui/` or `src/windows/main/screens/`.
-5. Update renderer (Rust) only if drawing/engraving semantics changed (`src-tauri/src/instructions/*`).
-6. Run: `npm run check-types` && `cd src-tauri && cargo check` — resolve **all** related errors and warnings before proceeding.
-7. Manual visual QA in dev app (`npm run start:dev`).
-
-## Integration points & gotchas (be precise)
-
-- Serialization: Rust uses Serde; many domain types are serialized as-transparent newtypes. Changing Rust serialization WILL require TS type updates.
-- Keyboard shortcuts: look at `src/windows/main/hooks/use-keyboard-shortcuts.ts` for mappings that call `actions` directly.
-- Fonts/glyphs: Bravura glyphs are used in renderer and UI (`font-bravura` class + `src-tauri/src/renderer/fonts.rs`).
-- Icon strategy: `IconButton` for MDI/SVG; `BravuraIconButton` for SMuFL/Bravura glyphs (new component).
-- Do NOT add backwards-compatible re-export shim files when renaming components — update import sites to the new path and remove the old file.
-
-## Examples (copy/paste patterns)
-
-- Add a Tauri command and expose it to the UI:
-  - Rust: add `#[tauri::command] fn score_entries_my_action(...) { ... }` in `src-tauri/src/score/entries/*.rs`.
-  - Frontend: add mapping to `src/services/actions.ts` that calls `invoke("score_entries_my_action", {...})`.
-  - Types: update `src/services/types.ts` if arguments or return types changed.
-
-- Renderer change (draw new glyph): update parser `src-tauri/src/instructions/parse/*` and drawer `src-tauri/src/instructions/draw/*` (keep parse → draw contract intact).
-
-## PR checklist for AI agents
-
-- Update both Rust and TS types when touching shared models.
-- Run `npm run check-types` and `cd src-tauri && cargo check && cargo test` locally; fix all errors and warnings and include the outputs in the PR description. Do **not** mark the work as done while type-check or cargo check produce errors or new warnings.
-
----
-
-If any area above is unclear or you want more examples (Tauri command templates, renderer hooks, or where to add tests), tell me which section to expand and I'll iterate.
+Type `/bmad-` in Copilot Chat to see all available BMAD workflows and agent activators. Agents are also available in the agents dropdown.
+<!-- BMAD:END -->
