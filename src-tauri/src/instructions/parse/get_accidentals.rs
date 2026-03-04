@@ -269,3 +269,32 @@ pub fn get_accidentals(
 
     output
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn accidentals_new_is_empty() {
+        let a = Accidentals::new();
+        assert!(a.by_id.is_empty());
+        assert!(a.slots_by_tick.is_empty());
+    }
+
+    #[test]
+    fn accidentals_default_is_empty() {
+        let a = Accidentals::default();
+        assert!(a.by_id.is_empty());
+        assert!(a.slots_by_tick.is_empty());
+    }
+
+    #[test]
+    fn accidental_notation_stores_fields() {
+        let an = AccidentalNotation {
+            tone_id: 42,
+            slot: 3,
+        };
+        assert_eq!(an.tone_id, 42);
+        assert_eq!(an.slot, 3);
+    }
+}

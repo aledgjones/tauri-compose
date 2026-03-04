@@ -83,15 +83,81 @@ it("returns 'Just now' for a recent timestamp", () => {
 
 ## Tauri IPC Mock
 
-All calls to `@tauri-apps/api/core`'s `invoke()` are intercepted by the manual mock at `src/__mocks__/@tauri-apps/api/core.ts`. Vitest resolves this automatically via the `__mocks__` convention.
-
-To assert on IPC calls or control return values:
+All calls to `@tauri-apps/api/core`'s `invoke()` are intercepted by the manual mock at `src/__mocks__/@tauri-apps/api/core.ts`. **The auto-mock is NOT loaded automatically** — every test file that uses Tauri APIs must include an explicit factory call:
 
 ```ts
+// Required in every file that calls invoke()
+vi.mock("@tauri-apps/api/core", () => ({
+  invoke: vi.fn().mockResolvedValue(undefined),
+}));
+
 import { invoke } from "@tauri-apps/api/core";
 
-// invoke is already a vi.fn() — shape it per test
+// Shape per test
 vi.mocked(invoke).mockResolvedValueOnce({ bpm: 120 });
+```
+
+## Context-Aware Component Tests (renderWithProviders)
+
+Components that call `useAppState()`, `useAudioState()`, `useSamplerState()`, or `useTransportState()` need all four React contexts. Use `renderWithProviders` from `src/services/test-utils.tsx`:
+
+```tsx
+import { renderWithProviders, createAppState } from '../../../services/test-utils';
+
+it('renders selected tone info', () => {
+  const appState = createAppState({
+    ui: { sequencer: { selection: { type: 'Tone', ... } } } as never,
+  });
+  renderWithProviders(<MyComponent />, { appState });
+  expect(screen.getByText(/Piano/)).toBeInTheDocument();
+});
+
+it('renders nothing when no selection', () => {
+  renderWithProviders(<MyComponent />); // uses default state
+  expect(screen.getByText('No selection')).toBeInTheDocument();
+});
+```
+
+`createAppState(overrides?)` deep-merges overrides into `initialAppState`. Arrays are **replaced**, not merged.
+
+## Context-Aware Hook Tests (createWrapper)
+
+For hooks that call context selectors, pass `createWrapper()` as the `wrapper` option:
+
+```tsx
+import { renderHook } from "@testing-library/react";
+import { createWrapper, createAppState } from "../../../services/test-utils";
+
+it("returns null when no selection", () => {
+  const { result } = renderHook(() => useSelectedToneInfo(), {
+    wrapper: createWrapper(),
+  });
+  expect(result.current).toBeNull();
+});
+```
+
+## Mocking the Actions Module
+
+Components that import from `services/actions` should mock the entire module with vi.fn() stubs. Always use the factory overload:
+
+```tsx
+vi.mock("../../../services/actions", () => ({
+  actions: {
+    transport: {
+      play: vi.fn(),
+      pause: vi.fn(),
+      stop: vi.fn(),
+    },
+  },
+}));
+
+import { actions } from "../../../services/actions";
+
+it("calls play on click", async () => {
+  renderWithProviders(<Transport />);
+  await userEvent.click(screen.getByRole("button", { name: /play/i }));
+  expect(vi.mocked(actions.transport.play)).toHaveBeenCalledOnce();
+});
 ```
 
 ## Rust Tests
@@ -122,7 +188,7 @@ assert!(matches!(NoteDuration::from_ticks(128), Some(NoteDuration::Quaver)));
 
 Coverage is collected with `@vitest/coverage-v8`. Run `npm run test:coverage` to generate a report in `coverage/`.
 
-Thresholds are enforced at **5%** across statements, branches, functions, and lines. As the test suite grows, raise these in the `test.coverage.thresholds` block in [vite.config.ts](vite.config.ts).
+Thresholds are enforced at **statements 30%, branches 25%, functions 22%, lines 30%** in the `test.coverage.thresholds` block in [vite.config.ts](vite.config.ts). As the test suite grows, raise these values — never lower them (ratchet rule).
 
 ## Pre-commit Hook
 

@@ -41,3 +41,47 @@ pub fn get_key_signatures(flow: &Flow, tracks: &Tracks) -> KeySignatures {
 
     output
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::score::flows::Flow;
+    use crate::score::tracks::{Track, Tracks};
+
+    #[test]
+    fn key_signature_draw_def_new_stores_fields() {
+        use crate::score::entries::key_signature::{KeySignature, KeySignatureMode};
+        let ks = KeySignature::new(1, 0, KeySignatureMode::Major, 2);
+        let def = KeySignatureDrawDef::new(false, ks);
+        assert!(!def.negate);
+    }
+
+    #[test]
+    fn key_signature_draw_def_negate_true() {
+        use crate::score::entries::key_signature::{KeySignature, KeySignatureMode};
+        let ks = KeySignature::new(1, 0, KeySignatureMode::Major, 0);
+        let def = KeySignatureDrawDef::new(true, ks);
+        assert!(def.negate);
+    }
+
+    #[test]
+    fn get_key_signatures_empty_flow_returns_empty() {
+        let mut flow = Flow::new(1, 100);
+        flow.length = 0; // no ticks to iterate
+        let mut tracks = Tracks::new();
+        tracks.by_id.insert(100, Track::new(100));
+        let result = get_key_signatures(&flow, &tracks);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn get_key_signatures_no_entries_returns_empty() {
+        let mut flow = Flow::new(1, 100);
+        flow.length = 128; // one whole note worth of ticks
+        let mut tracks = Tracks::new();
+        tracks.by_id.insert(100, Track::new(100));
+        // no key signature entries in master track
+        let result = get_key_signatures(&flow, &tracks);
+        assert!(result.is_empty());
+    }
+}

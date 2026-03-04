@@ -173,3 +173,67 @@ pub fn score_entries_clef_clear(
 
     state.emit(&app, &mut renderer, true);
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::score::components::pitch::{Accidental, Pitch};
+
+    fn g_clef() -> Clef {
+        Clef::new(
+            1,
+            0,
+            Pitch::new(67, Accidental::Natural),
+            2,
+            ClefDrawType::G,
+        )
+    }
+
+    fn hidden_clef() -> Clef {
+        Clef::new(
+            2,
+            0,
+            Pitch::new(60, Accidental::Natural),
+            0,
+            ClefDrawType::Hidden,
+        )
+    }
+
+    #[test]
+    fn clef_new_stores_fields() {
+        let c = g_clef();
+        assert_eq!(c.id, 1);
+        assert_eq!(c.offset, 2);
+    }
+
+    #[test]
+    fn full_size_g_clef_metrics_width() {
+        let bb = g_clef().metrics(true);
+        assert!((bb.width - 2.8).abs() < f32::EPSILON);
+        assert!((bb.right_padding - 1.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn small_g_clef_metrics_width() {
+        let bb = g_clef().metrics(false);
+        assert!((bb.width - 1.75).abs() < f32::EPSILON);
+        assert!((bb.height - 2.5).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn hidden_clef_metrics_has_zero_width_and_padding() {
+        let bb = hidden_clef().metrics(true);
+        assert!((bb.width - 0.0).abs() < f32::EPSILON);
+        assert!((bb.right_padding - 0.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn g_clef_glyph_is_some() {
+        assert_eq!(g_clef().glyph(), Some(String::from("\u{E050}")));
+    }
+
+    #[test]
+    fn hidden_clef_glyph_is_none() {
+        assert_eq!(hidden_clef().glyph(), None);
+    }
+}

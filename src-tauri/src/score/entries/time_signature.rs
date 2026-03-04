@@ -334,3 +334,42 @@ pub fn score_entries_time_signature_clear(
 
     state.emit(&app, &mut renderer, true);
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn new_stores_beats_and_beat_type() {
+        let ts = TimeSignature::new(
+            1,
+            0,
+            4,
+            NoteDuration::Quarter,
+            TimeSignatureDrawType::Regular,
+            None,
+        );
+        assert_eq!(ts.beats, 4);
+        assert_eq!(ts.id, 1);
+        assert_eq!(ts.tick, 0);
+    }
+
+    #[test]
+    fn new_with_explicit_groupings_uses_them() {
+        let ts = TimeSignature::new(
+            2,
+            0,
+            6,
+            NoteDuration::Eighth,
+            TimeSignatureDrawType::Regular,
+            Some(vec![3, 3]),
+        );
+        assert_eq!(ts.groupings, vec![3, 3]);
+    }
+
+    #[test]
+    fn default_creates_4_4_hidden() {
+        let ts = TimeSignature::default();
+        assert_eq!(ts.beats, 4);
+    }
+}

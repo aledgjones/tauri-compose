@@ -101,3 +101,61 @@ impl Articulations {
         out
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn toggle_adds_when_absent() {
+        let arts = Articulations::new();
+        let result = arts.toggle(Articulation::Staccato);
+        assert!(result.contains(&Articulation::Staccato));
+        assert_eq!(result.len(), 1);
+    }
+
+    #[test]
+    fn toggle_removes_when_present() {
+        let arts = Articulations::new().toggle(Articulation::Staccato);
+        let result = arts.toggle(Articulation::Staccato);
+        assert!(!result.contains(&Articulation::Staccato));
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn toggle_replaces_conflicting_staccato_group_member() {
+        let arts = Articulations::new().toggle(Articulation::Staccato);
+        let result = arts.toggle(Articulation::Tenuto);
+        assert!(!result.contains(&Articulation::Staccato));
+        assert!(result.contains(&Articulation::Tenuto));
+        assert_eq!(result.len(), 1);
+    }
+
+    #[test]
+    fn toggle_replaces_conflicting_accent_group_member() {
+        let arts = Articulations::new().toggle(Articulation::Accent);
+        let result = arts.toggle(Articulation::Marcato);
+        assert!(!result.contains(&Articulation::Accent));
+        assert!(result.contains(&Articulation::Marcato));
+    }
+
+    #[test]
+    fn toggle_preserves_non_conflicting_groups() {
+        let arts = Articulations::new()
+            .toggle(Articulation::Staccato)
+            .toggle(Articulation::Accent);
+        let result = arts.toggle(Articulation::Stressed);
+        assert!(result.contains(&Articulation::Staccato));
+        assert!(result.contains(&Articulation::Accent));
+        assert!(result.contains(&Articulation::Stressed));
+        assert_eq!(result.len(), 3);
+    }
+
+    #[test]
+    fn toggle_stress_group_is_exclusive() {
+        let arts = Articulations::new().toggle(Articulation::Stressed);
+        let result = arts.toggle(Articulation::Unstressed);
+        assert!(!result.contains(&Articulation::Stressed));
+        assert!(result.contains(&Articulation::Unstressed));
+    }
+}

@@ -160,3 +160,42 @@ pub fn score_entries_barline_clear(
 
     state.emit(&app, &mut renderer, true);
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn barline_new_stores_fields() {
+        let b = Barline::new(42, 128, BarlineDrawType::Single);
+        assert_eq!(b.id, 42);
+        assert_eq!(b.tick, 128);
+        assert!(b.barline_draw_type == BarlineDrawType::Single);
+    }
+
+    #[test]
+    fn single_metrics_has_zero_width_and_one_padding() {
+        let bb = BarlineDrawType::Single.metrics();
+        assert!((bb.width - 0.0).abs() < f32::EPSILON);
+        assert!((bb.right_padding - 1.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn final_metrics_has_zero_right_padding() {
+        let bb = BarlineDrawType::Final.metrics();
+        assert!((bb.right_padding - 0.0).abs() < f32::EPSILON);
+        assert!((bb.width - 1.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn end_start_repeat_metrics_has_largest_width() {
+        let bb = BarlineDrawType::EndStartRepeat.metrics();
+        assert!((bb.width - 3.5).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn double_metrics_has_half_space_width() {
+        let bb = BarlineDrawType::Double.metrics();
+        assert!((bb.width - 0.5).abs() < f32::EPSILON);
+    }
+}

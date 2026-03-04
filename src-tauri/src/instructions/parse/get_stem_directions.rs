@@ -106,3 +106,67 @@ impl Notation {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::instructions::parse::{
+        get_tone_offset_info::ToneOffsetInfo, get_written_durations::Notation,
+    };
+
+    fn notation_with_info(furthest: i8) -> Notation {
+        let mut n = Notation::new(0, 32);
+        n.info = Some(ToneOffsetInfo {
+            highest: furthest,
+            lowest: furthest,
+            furthest,
+        });
+        n
+    }
+
+    #[test]
+    fn stem_direction_up_when_furthest_is_zero() {
+        let n = notation_with_info(0);
+        assert!(n.get_stem_direction() == Direction::Up);
+    }
+
+    #[test]
+    fn stem_direction_up_when_furthest_positive() {
+        let n = notation_with_info(3);
+        assert!(n.get_stem_direction() == Direction::Up);
+    }
+
+    #[test]
+    fn stem_direction_down_when_furthest_negative() {
+        let n = notation_with_info(-2);
+        assert!(n.get_stem_direction() == Direction::Down);
+    }
+
+    // --- get_span_stem_direction majority vote ---
+
+    #[test]
+    fn span_direction_favours_majority_up() {
+        use crate::instructions::parse::get_beams::{Beam, BeamSegments, FractionalBeams};
+        use rustc_hash::FxHashMap;
+
+        let mut beam_ticks = FxHashMap::default();
+        beam_ticks.insert(0u64, 1u8);
+        beam_ticks.insert(32u64, 1u8);
+
+        let beam = Beam {
+            ticks: beam_ticks,
+            start: 0,
+            stop: 32,
+            beam_segments: BeamSegments::default(),
+            fractional_beams: FractionalBeams::default(),
+        };
+
+        let mut track = FxHashMap::default();
+        track.insert(0u64, notation_with_info(3)); // furthest=3 → Up
+        track.insert(32u64, notation_with_info(2)); // furthest=2 → Up
+
+        let notation_track = NotationTrack { length: 64, track };
+        let direction = get_span_stem_direction(&beam, &notation_track);
+        assert!(direction == Direction::Up);
+    }
+}

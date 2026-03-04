@@ -70,3 +70,85 @@ impl Track {
         self.entries.by_id.remove(&entry_id)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::score::components::{
+        articulation::Articulations,
+        pitch::{Accidental, Pitch},
+        velocity::Velocity,
+    };
+    use crate::score::entries::{tone::Tone, Entry};
+
+    fn make_tone(id: UniqueId, tick: Tick) -> Entry {
+        Entry::Tone(Tone::new(
+            id,
+            tick,
+            32,
+            Pitch::new(60, Accidental::Natural),
+            Velocity::new(90),
+            Articulations::new(),
+        ))
+    }
+
+    #[test]
+    fn insert_entry_adds_to_both_indices() {
+        let mut track = Track::new(1);
+        track.insert_entry(make_tone(5, 64));
+        assert!(track.entries.by_id.contains_key(&5));
+        let ids = track.entries.by_tick.get(&64).unwrap();
+        assert!(ids.contains(&5));
+    }
+
+    #[test]
+    fn insert_multiple_entries_at_same_tick() {
+        let mut track = Track::new(1);
+        track.insert_entry(make_tone(1, 64));
+        track.insert_entry(make_tone(2, 64));
+        let ids = track.entries.by_tick.get(&64).unwrap();
+        assert_eq!(ids.len(), 2);
+        assert!(ids.contains(&1));
+        assert!(ids.contains(&2));
+    }
+
+    #[test]
+    fn shift_entry_moves_to_new_tick() {
+        let mut track = Track::new(1);
+        track.insert_entry(make_tone(5, 64));
+        track.shift_entry(5, 128);
+        let at_64 = track.entries.by_tick.get(&64).unwrap();
+        assert!(!at_64.contains(&5));
+        let at_128 = track.entries.by_tick.get(&128).unwrap();
+        assert!(at_128.contains(&5));
+        assert!(track.entries.by_id.contains_key(&5));
+    }
+
+    #[test]
+    fn shift_entry_noop_when_same_tick() {
+        let mut track = Track::new(1);
+        track.insert_entry(make_tone(5, 64));
+        track.shift_entry(5, 64);
+        let ids = track.entries.by_tick.get(&64).unwrap();
+        assert_eq!(ids.len(), 1);
+        assert!(ids.contains(&5));
+    }
+
+    #[test]
+    fn remove_entry_removes_from_both_indices() {
+        let mut track = Track::new(1);
+        track.insert_entry(make_tone(5, 64));
+        let removed = track.remove_entry(5);
+        assert!(removed.is_some());
+        assert!(!track.entries.by_id.contains_key(&5));
+        let at_64 = track.entries.by_tick.get(&64).unwrap();
+        assert!(!at_64.contains(&5));
+    }
+
+    #[test]
+    fn remove_entry_returns_none_for_missing_id() {
+        let mut track = Track::new(1);
+        let removed = track.remove_entry(999);
+        assert!(removed.is_none());
+    }
+}

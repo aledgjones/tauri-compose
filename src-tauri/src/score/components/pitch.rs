@@ -716,3 +716,178 @@ impl Pitch {
         Pitch::new(new_int as u8, self.accidental)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::score::entries::key_signature::{KeySignature, KeySignatureMode};
+
+    fn c_major() -> KeySignature {
+        KeySignature::new(0, 0, KeySignatureMode::Major, 0)
+    }
+
+    fn g_major() -> KeySignature {
+        // 1 sharp (F#)
+        KeySignature::new(0, 0, KeySignatureMode::Major, 1)
+    }
+
+    // --- Accidental::to_glyph ---
+
+    #[test]
+    fn to_glyph_double_sharp() {
+        assert_eq!(Accidental::DoubleSharp.to_glyph(), "\u{E263}");
+    }
+
+    #[test]
+    fn to_glyph_sharp() {
+        assert_eq!(Accidental::Sharp.to_glyph(), "\u{E262}");
+    }
+
+    #[test]
+    fn to_glyph_natural() {
+        assert_eq!(Accidental::Natural.to_glyph(), "\u{E261}");
+    }
+
+    #[test]
+    fn to_glyph_flat() {
+        assert_eq!(Accidental::Flat.to_glyph(), "\u{E260}");
+    }
+
+    #[test]
+    fn to_glyph_double_flat() {
+        assert_eq!(Accidental::DoubleFlat.to_glyph(), "\u{E264}");
+    }
+
+    // --- Pitch::base ---
+
+    #[test]
+    fn base_natural_is_unchanged() {
+        assert_eq!(Pitch::new(60, Accidental::Natural).base(), 60);
+    }
+
+    #[test]
+    fn base_sharp_subtracts_one() {
+        assert_eq!(Pitch::new(61, Accidental::Sharp).base(), 60);
+    }
+
+    #[test]
+    fn base_flat_adds_one() {
+        assert_eq!(Pitch::new(61, Accidental::Flat).base(), 62);
+    }
+
+    #[test]
+    fn base_double_sharp_subtracts_two() {
+        assert_eq!(Pitch::new(62, Accidental::DoubleSharp).base(), 60);
+    }
+
+    #[test]
+    fn base_double_flat_adds_two() {
+        assert_eq!(Pitch::new(60, Accidental::DoubleFlat).base(), 62);
+    }
+
+    // --- Pitch::half_steps ---
+
+    #[test]
+    fn half_steps_c_natural_is_zero() {
+        // MIDI 60 = C4; base % 12 = 0
+        assert_eq!(Pitch::new(60, Accidental::Natural).half_steps(), 0);
+    }
+
+    #[test]
+    fn half_steps_d_natural_is_two() {
+        assert_eq!(Pitch::new(62, Accidental::Natural).half_steps(), 2);
+    }
+
+    // --- Pitch::steps ---
+
+    #[test]
+    fn steps_c_is_zero() {
+        assert_eq!(Pitch::new(60, Accidental::Natural).steps(), 0);
+    }
+
+    #[test]
+    fn steps_d_is_one() {
+        assert_eq!(Pitch::new(62, Accidental::Natural).steps(), 1);
+    }
+
+    #[test]
+    fn steps_e_is_two() {
+        assert_eq!(Pitch::new(64, Accidental::Natural).steps(), 2);
+    }
+
+    #[test]
+    fn steps_g_is_four() {
+        assert_eq!(Pitch::new(67, Accidental::Natural).steps(), 4);
+    }
+
+    // --- Pitch::octave ---
+
+    #[test]
+    fn octave_c4() {
+        // C0 = 12, C4 = 60 => (60 - 12) / 12 = 4
+        assert_eq!(Pitch::new(60, Accidental::Natural).octave(), 4);
+    }
+
+    #[test]
+    fn octave_c5() {
+        assert_eq!(Pitch::new(72, Accidental::Natural).octave(), 5);
+    }
+
+    // --- Pitch::steps_between ---
+
+    #[test]
+    fn steps_between_c4_to_g4_is_four() {
+        let c4 = Pitch::new(60, Accidental::Natural);
+        let g4 = Pitch::new(67, Accidental::Natural);
+        assert_eq!(Pitch::steps_between(&c4, &g4), 4);
+    }
+
+    #[test]
+    fn steps_between_c4_to_c5_is_seven() {
+        let c4 = Pitch::new(60, Accidental::Natural);
+        let c5 = Pitch::new(72, Accidental::Natural);
+        assert_eq!(Pitch::steps_between(&c4, &c5), 7);
+    }
+
+    #[test]
+    fn steps_between_is_negative_descending() {
+        let c4 = Pitch::new(60, Accidental::Natural);
+        let g4 = Pitch::new(67, Accidental::Natural);
+        assert_eq!(Pitch::steps_between(&g4, &c4), -4);
+    }
+
+    // --- Pitch::shift_by_octaves ---
+
+    #[test]
+    fn shift_by_octaves_up_one() {
+        let p = Pitch::new(60, Accidental::Natural);
+        let shifted = p.shift_by_octaves(1);
+        assert_eq!(shifted.int, 72);
+        assert!(shifted.accidental == Accidental::Natural);
+    }
+
+    #[test]
+    fn shift_by_octaves_down_one() {
+        let p = Pitch::new(60, Accidental::Natural);
+        let shifted = p.shift_by_octaves(-1);
+        assert_eq!(shifted.int, 48);
+    }
+
+    // --- Pitch::from_int ---
+
+    #[test]
+    fn from_int_c_in_c_major_is_natural() {
+        let ks = c_major();
+        let p = Pitch::from_int(60, &ks);
+        assert_eq!(p.int, 60);
+        assert!(p.accidental == Accidental::Natural);
+    }
+
+    #[test]
+    fn from_int_f_sharp_in_g_major_is_sharp() {
+        // G major has one sharp: F# = MIDI 66
+        let ks = g_major();
+        let p = Pitch::from_int(66, &ks);
+        assert!(p.accidental == Accidental::Sharp);
+    }
+}

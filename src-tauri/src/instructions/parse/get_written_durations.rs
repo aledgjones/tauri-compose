@@ -918,3 +918,169 @@ pub fn get_written_durations(
 
     entries
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // --- Notation::is_writable ---
+
+    #[test]
+    fn quarter_note_is_writable() {
+        assert!(Notation::is_writable(32)); // Quarter = 32 ticks
+    }
+
+    #[test]
+    fn dotted_quarter_is_not_writable() {
+        assert!(!Notation::is_writable(48)); // 32 + 16 = dotted quarter
+    }
+
+    #[test]
+    fn whole_note_is_writable() {
+        assert!(Notation::is_writable(128));
+    }
+
+    // --- Notation::is_rest / is_chord / has_tie ---
+
+    #[test]
+    fn new_notation_is_a_rest() {
+        let n = Notation::new(0, 32);
+        assert!(n.is_rest());
+    }
+
+    #[test]
+    fn notation_with_tones_is_not_a_rest() {
+        use crate::score::components::{
+            articulation::Articulations,
+            pitch::{Accidental, Pitch},
+            velocity::Velocity,
+        };
+        use crate::score::entries::tone::Tone;
+        let mut n = Notation::new(0, 32);
+        n.tones.push(Tone::new(
+            1,
+            0,
+            32,
+            Pitch::new(60, Accidental::Natural),
+            Velocity::new(80),
+            Articulations::new(),
+        ));
+        assert!(!n.is_rest());
+    }
+
+    #[test]
+    fn single_tone_is_not_a_chord() {
+        use crate::score::components::{
+            articulation::Articulations,
+            pitch::{Accidental, Pitch},
+            velocity::Velocity,
+        };
+        use crate::score::entries::tone::Tone;
+        let mut n = Notation::new(0, 32);
+        n.tones.push(Tone::new(
+            1,
+            0,
+            32,
+            Pitch::new(60, Accidental::Natural),
+            Velocity::new(80),
+            Articulations::new(),
+        ));
+        assert!(!n.is_chord());
+    }
+
+    #[test]
+    fn two_tones_is_a_chord() {
+        use crate::score::components::{
+            articulation::Articulations,
+            pitch::{Accidental, Pitch},
+            velocity::Velocity,
+        };
+        use crate::score::entries::tone::Tone;
+        let mut n = Notation::new(0, 32);
+        n.tones.push(Tone::new(
+            1,
+            0,
+            32,
+            Pitch::new(60, Accidental::Natural),
+            Velocity::new(80),
+            Articulations::new(),
+        ));
+        n.tones.push(Tone::new(
+            2,
+            0,
+            32,
+            Pitch::new(64, Accidental::Natural),
+            Velocity::new(80),
+            Articulations::new(),
+        ));
+        assert!(n.is_chord());
+    }
+
+    #[test]
+    fn new_notation_has_no_ties() {
+        let n = Notation::new(0, 32);
+        assert!(!n.has_tie());
+    }
+
+    // --- Notation::is_dotted ---
+
+    #[test]
+    fn dotted_duration_is_dotted() {
+        let n = Notation::new(0, 48); // dotted quarter
+        assert!(n.is_dotted());
+    }
+
+    #[test]
+    fn quarter_duration_is_not_dotted() {
+        let n = Notation::new(0, 32);
+        assert!(!n.is_dotted());
+    }
+
+    // --- NotationTrack ---
+
+    #[test]
+    fn new_notation_track_is_empty() {
+        let nt = NotationTrack::new(128);
+        assert_eq!(nt.length, 128);
+        assert!(nt.track.is_empty());
+    }
+
+    #[test]
+    fn is_tick_empty_on_empty_track() {
+        let nt = NotationTrack::new(128);
+        assert!(nt.is_tick_empty(32));
+    }
+
+    #[test]
+    fn is_tick_empty_returns_false_after_insert() {
+        let mut nt = NotationTrack::new(128);
+        nt.track.insert(32, Notation::new(32, 32));
+        assert!(!nt.is_tick_empty(32));
+    }
+
+    #[test]
+    fn is_tick_rest_on_empty_track_is_false() {
+        let nt = NotationTrack::new(128);
+        assert!(!nt.is_tick_rest(32));
+    }
+
+    #[test]
+    fn is_tick_rest_is_true_for_rest_notation() {
+        let mut nt = NotationTrack::new(128);
+        nt.track.insert(32, Notation::new(32, 32)); // new notation has no tones = rest
+        assert!(nt.is_tick_rest(32));
+    }
+
+    #[test]
+    fn is_range_empty_on_empty_track() {
+        let nt = NotationTrack::new(128);
+        assert!(nt.is_range_empty(0, 64));
+    }
+
+    #[test]
+    fn is_range_empty_returns_false_when_entry_in_range() {
+        let mut nt = NotationTrack::new(128);
+        nt.track.insert(32, Notation::new(32, 32));
+        assert!(!nt.is_range_empty(0, 64));
+    }
+}

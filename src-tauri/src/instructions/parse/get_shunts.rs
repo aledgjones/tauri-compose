@@ -122,3 +122,73 @@ impl Notation {
         clusters
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::instructions::parse::get_written_durations::Notation;
+    use crate::score::components::{
+        articulation::Articulations,
+        pitch::{Accidental, Pitch},
+        velocity::Velocity,
+    };
+    use crate::score::entries::tone::Tone;
+    use crate::utils::UniqueId;
+    use rustc_hash::FxHashMap;
+
+    fn make_tone(id: UniqueId, pitch_int: u8) -> Tone {
+        Tone::new(
+            id,
+            0,
+            32,
+            Pitch::new(pitch_int, Accidental::Natural),
+            Velocity::new(80),
+            Articulations::new(),
+        )
+    }
+
+    #[test]
+    fn shunt_ordering_pre_less_than_none() {
+        assert!(Shunt::Pre < Shunt::None);
+    }
+
+    #[test]
+    fn shunt_ordering_none_less_than_post() {
+        assert!(Shunt::None < Shunt::Post);
+    }
+
+    #[test]
+    fn get_clusters_single_tone_returns_one_cluster() {
+        let mut n = Notation::new(0, 32);
+        n.tones.push(make_tone(1, 60));
+        let mut offsets: ToneVerticalOffsets = FxHashMap::default();
+        offsets.insert(1, 0);
+        let clusters = n.get_clusters(&offsets);
+        assert_eq!(clusters.len(), 1);
+        assert_eq!(clusters[0].len(), 1);
+    }
+
+    #[test]
+    fn get_clusters_non_adjacent_tones_return_two_clusters() {
+        let mut n = Notation::new(0, 32);
+        n.tones.push(make_tone(1, 60)); // offset 0
+        n.tones.push(make_tone(2, 55)); // offset -2
+        let mut offsets: ToneVerticalOffsets = FxHashMap::default();
+        offsets.insert(1, 0);
+        offsets.insert(2, -2); // gap of 2 > 1
+        let clusters = n.get_clusters(&offsets);
+        assert_eq!(clusters.len(), 2);
+    }
+
+    #[test]
+    fn get_clusters_adjacent_tones_return_one_cluster() {
+        let mut n = Notation::new(0, 32);
+        n.tones.push(make_tone(1, 60)); // offset 0
+        n.tones.push(make_tone(2, 59)); // offset -1
+        let mut offsets: ToneVerticalOffsets = FxHashMap::default();
+        offsets.insert(1, 0);
+        offsets.insert(2, -1); // gap of 1, not > 1
+        let clusters = n.get_clusters(&offsets);
+        assert_eq!(clusters.len(), 1);
+    }
+}

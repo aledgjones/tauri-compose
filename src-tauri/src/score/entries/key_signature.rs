@@ -271,3 +271,68 @@ pub fn score_entries_key_signature_clear(
 
     state.emit(&app, &mut renderer, true);
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn key_signature_new_stores_fields() {
+        let ks = KeySignature::new(10, 64, KeySignatureMode::Major, 2);
+        assert_eq!(ks.id, 10);
+        assert_eq!(ks.tick, 64);
+        assert_eq!(ks.offset, 2);
+    }
+
+    #[test]
+    fn accidentals_one_sharp_has_one_pitch() {
+        // G major = 1 sharp
+        let ks = KeySignature::new(0, 0, KeySignatureMode::Major, 1);
+        assert_eq!(ks.accidentals().len(), 1);
+    }
+
+    #[test]
+    fn accidentals_two_flats_has_two_pitches() {
+        let ks = KeySignature::new(0, 0, KeySignatureMode::Major, -2);
+        assert_eq!(ks.accidentals().len(), 2);
+    }
+
+    #[test]
+    fn accidentals_c_major_is_empty() {
+        let ks = KeySignature::new(0, 0, KeySignatureMode::Major, 0);
+        assert!(ks.accidentals().is_empty());
+    }
+
+    #[test]
+    fn metrics_width_equals_abs_offset() {
+        let ks_sharp = KeySignature::new(0, 0, KeySignatureMode::Major, 3);
+        let bb = ks_sharp.metrics();
+        assert!((bb.width - 3.0).abs() < f32::EPSILON);
+        assert!((bb.right_padding - 1.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn metrics_zero_offset_has_zero_padding() {
+        let ks = KeySignature::new(0, 0, KeySignatureMode::Major, 0);
+        let bb = ks.metrics();
+        assert!((bb.right_padding - 0.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn glyph_positive_offset_returns_sharp_glyph() {
+        let ks = KeySignature::new(0, 0, KeySignatureMode::Major, 2);
+        assert_eq!(ks.glyph(), "\u{E262}");
+    }
+
+    #[test]
+    fn glyph_negative_offset_returns_flat_glyph() {
+        let ks = KeySignature::new(0, 0, KeySignatureMode::Major, -2);
+        assert_eq!(ks.glyph(), "\u{E260}");
+    }
+
+    #[test]
+    fn default_key_signature_is_c_major() {
+        let ks = KeySignature::default();
+        assert_eq!(ks.offset, 0);
+    }
+}

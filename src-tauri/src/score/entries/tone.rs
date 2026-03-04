@@ -487,3 +487,42 @@ pub fn score_entries_tone_articulation_set(
 
     state.emit(&app, &mut renderer, true);
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::score::components::{
+        articulation::Articulations,
+        pitch::{Accidental, Pitch},
+        velocity::Velocity,
+    };
+
+    #[test]
+    fn tone_new_stores_all_fields() {
+        let pitch = Pitch::new(60, Accidental::Natural);
+        let velocity = Velocity::new(100);
+        let arts = Articulations::new();
+        let tone = Tone::new(99, 128, 32, pitch, velocity, arts);
+        assert_eq!(tone.id, 99);
+        assert_eq!(tone.tick, 128);
+        assert_eq!(tone.duration, 32);
+        assert_eq!(tone.pitch.int, 60);
+        assert_eq!(tone.velocity.int(), 100);
+        assert!(tone.articulations.is_empty());
+    }
+
+    #[test]
+    fn tone_new_with_articulation() {
+        use crate::score::components::articulation::Articulation;
+        let arts = Articulations::new().toggle(Articulation::Staccato);
+        let tone = Tone::new(
+            1,
+            0,
+            16,
+            Pitch::new(64, Accidental::Natural),
+            Velocity::new(80),
+            arts,
+        );
+        assert!(tone.articulations.contains(&Articulation::Staccato));
+    }
+}

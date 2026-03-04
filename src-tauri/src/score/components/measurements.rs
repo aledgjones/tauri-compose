@@ -84,3 +84,47 @@ pub struct CurvePoint {
     pub y: Space,
     pub thickness: Space,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn bounding_box_total_width_sums_width_and_padding() {
+        let bb = BoundingBox {
+            width: 3.0,
+            height: 4.0,
+            right_padding: 1.5,
+        };
+        assert!((bb.total_width() - 4.5).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn bounding_box_total_width_zero_padding() {
+        let bb = BoundingBox {
+            width: 2.0,
+            height: 4.0,
+            right_padding: 0.0,
+        };
+        assert!((bb.total_width() - 2.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn padding_mm_to_spaces_divides_each_side() {
+        let padding = PaddingMm::new(4.0, 2.0, 6.0, 1.0);
+        let spaces = padding.to_spaces(&2.0);
+        assert!((spaces.top - 2.0).abs() < f32::EPSILON);
+        assert!((spaces.right - 1.0).abs() < f32::EPSILON);
+        assert!((spaces.bottom - 3.0).abs() < f32::EPSILON);
+        assert!((spaces.left - 0.5).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn padding_mm_new_stores_fields() {
+        let p = PaddingMm::new(1.0, 2.0, 3.0, 4.0);
+        assert!((p.top - 1.0).abs() < f32::EPSILON);
+        assert!((p.right - 2.0).abs() < f32::EPSILON);
+        assert!((p.bottom - 3.0).abs() < f32::EPSILON);
+        assert!((p.left - 4.0).abs() < f32::EPSILON);
+    }
+}

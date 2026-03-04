@@ -119,3 +119,52 @@ pub fn get_barlines(flow: &Flow, tracks: &Tracks, measures: &Measures) -> Barlin
 
     output
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::score::flows::Flow;
+    use crate::score::tracks::{Track, Tracks};
+    use rustc_hash::FxHashMap;
+
+    #[test]
+    fn barline_draw_def_new_stores_all_fields() {
+        let def = BarlineDrawDef::new(true, false, true, Some(BarlineDrawType::Single));
+        assert!(def.end_repeat);
+        assert!(!def.start_repeat);
+        assert!(def.split_by_signature);
+        assert!(def.draw_type.is_some());
+    }
+
+    #[test]
+    fn barline_draw_def_default_is_all_false() {
+        let def = BarlineDrawDef::default();
+        assert!(!def.end_repeat);
+        assert!(!def.start_repeat);
+        assert!(!def.split_by_signature);
+        assert!(def.draw_type.is_none());
+    }
+
+    #[test]
+    fn get_barlines_with_empty_flow_returns_empty() {
+        let mut flow = Flow::new(1, 100);
+        flow.length = 0;
+        let mut tracks = Tracks::new();
+        tracks.by_id.insert(100, Track::new(100));
+        let measures: Measures = FxHashMap::default();
+        let result = get_barlines(&flow, &tracks, &measures);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn get_barlines_with_no_entries_and_no_measures_returns_empty() {
+        let mut flow = Flow::new(1, 100);
+        flow.length = 128;
+        let mut tracks = Tracks::new();
+        tracks.by_id.insert(100, Track::new(100));
+        // empty measures and no barline entries
+        let measures: Measures = FxHashMap::default();
+        let result = get_barlines(&flow, &tracks, &measures);
+        assert!(result.is_empty());
+    }
+}
