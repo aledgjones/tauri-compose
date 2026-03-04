@@ -1,3 +1,16 @@
+## Release Notes for v1.23.2
+
+### 🏗️ Features
+
+- feat(tooling): add testing foundation, modernize ESLint, and add pre-commit hooks
+- feat: testing/tooling spec
+- feat: project overview
+- feat: BMad
+
+### 🔧 Chores
+
+- chore: revert Phase 4 E2E work — tauri-driver v2 is Linux-only
+
 ## Release Notes for v1.23.1
 
 ### 🏗️ Features

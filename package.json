@@ -46,6 +46,15 @@
     "vite": "7.3.1",
     "vitest": "^4.0.18"
   },
+  "lint-staged": {
+    "*.{json,md,css,html}": [
+      "prettier --write"
+    ],
+    "*.{ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ]
+  },
   "name": "compose",
   "overrides": {
     "react-inspector": {
@@ -67,6 +76,7 @@
     "inspect-scvi:build": "cd src-tauri && cargo build --release --bin scvi-inspect && cp target/release/scvi-inspect ../scripts/scvi-inspect",
     "lint": "eslint 'src/**/*.{ts,tsx}'",
     "lint:fix": "eslint 'src/**/*.{ts,tsx}' --fix",
+    "prepare": "simple-git-hooks || true",
     "preview": "vite preview",
     "release:build": "cd src-tauri && cargo build --release --bin release && cp target/release/release ../scripts/release",
     "release:major": "./scripts/release major",
@@ -76,22 +86,12 @@
     "start:release": "tauri build",
     "tauri": "tauri",
     "test": "vitest run",
-    "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "prepare": "simple-git-hooks || true"
+    "test:watch": "vitest"
   },
   "simple-git-hooks": {
     "pre-commit": "npx lint-staged"
   },
-  "lint-staged": {
-    "*.{ts,tsx}": [
-      "eslint --fix",
-      "prettier --write"
-    ],
-    "*.{json,md,css,html}": [
-      "prettier --write"
-    ]
-  },
   "type": "module",
-  "version": "1.23.1"
+  "version": "1.23.2"
 }
