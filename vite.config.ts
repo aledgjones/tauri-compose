@@ -7,7 +7,9 @@ const host = process.env.TAURI_DEV_HOST;
 
 // https://vitejs.dev/config/
 export default defineConfig(async () => ({
-  plugins: [react(), eslintPlugin()],
+  // eslintPlugin spawns a file-watcher that outlives the test process.
+  // Skip it during Vitest runs to prevent the "close timed out" hang.
+  plugins: [react(), ...(process.env.VITEST ? [] : [eslintPlugin()])],
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //
@@ -57,10 +59,10 @@ export default defineConfig(async () => ({
         "src/vite-env.d.ts",
       ],
       thresholds: {
-        statements: 30,
-        branches: 25,
-        functions: 22,
-        lines: 30,
+        statements: 35,
+        branches: 30,
+        functions: 25,
+        lines: 35,
       },
     },
     setupFiles: ["./src/test-setup.ts"],

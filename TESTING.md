@@ -188,7 +188,7 @@ assert!(matches!(NoteDuration::from_ticks(128), Some(NoteDuration::Quaver)));
 
 Coverage is collected with `@vitest/coverage-v8`. Run `npm run test:coverage` to generate a report in `coverage/`.
 
-Thresholds are enforced at **statements 30%, branches 25%, functions 22%, lines 30%** in the `test.coverage.thresholds` block in [vite.config.ts](vite.config.ts). As the test suite grows, raise these values — never lower them (ratchet rule).
+Thresholds are enforced at **statements 35%, branches 30%, functions 25%, lines 35%** in the `test.coverage.thresholds` block in [vite.config.ts](vite.config.ts). As the test suite grows, raise these values — never lower them (ratchet rule).
 
 ## Pre-commit Hook
 

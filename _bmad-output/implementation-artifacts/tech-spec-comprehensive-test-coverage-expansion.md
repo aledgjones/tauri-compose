@@ -2,7 +2,7 @@
 title: "Comprehensive Test Coverage Expansion"
 slug: "comprehensive-test-coverage-expansion"
 created: "2026-03-04"
-status: "ready-for-dev"
+status: "implementation-complete"
 stepsCompleted: [1, 2, 3, 4]
 tech_stack:
   [
@@ -228,7 +228,7 @@ Systematically expand test coverage across 10 phases:
 
 #### Story 1.1: Create Shared Test Utilities
 
-- [ ] Task 1.1.1: Create `renderWithProviders` helper
+- [x] Task 1.1.1: Create `renderWithProviders` helper
   - File: `src/services/test-utils.tsx` — **NEW**
   - Action: Create a test utility file that exports:
     - `renderWithProviders(ui, options?)` — wraps `render()` from `@testing-library/react` with all 4 context providers. Accepts optional `appState`, `audioState`, `samplerState`, `transportState` overrides that are shallow-merged with the defaults from `context.tsx`.
@@ -253,7 +253,7 @@ Systematically expand test coverage across 10 phases:
 
 #### Story 2.1: Popover Parser Tests
 
-- [ ] Task 2.1.1: Test `parseBarlinePopover`
+- [x] Task 2.1.1: Test `parseBarlinePopover`
   - File: `src/services/popovers.test.ts` — **NEW**
   - Action: Mock `./actions` module with `vi.mock`. Write tests for:
     - `"clear"` → calls `actions.score.barline.clearAtTick(flow_id, tick)`
@@ -267,7 +267,7 @@ Systematically expand test coverage across 10 phases:
     - Unknown input → throws `Error`
   - Notes: The mock should make `actions.score.barline.create` and `actions.score.barline.clearAtTick` be `vi.fn()` stubs. Reset mocks in `beforeEach`. Use fixed `flow_id = 1` and `tick = 128` for all tests.
 
-- [ ] Task 2.1.2: Test `parseClefPopover`
+- [x] Task 2.1.2: Test `parseClefPopover`
   - File: `src/services/popovers.test.ts` (append)
   - Action: Write tests for:
     - `"clear"` → calls `actions.score.clef.clear(flow_id, tick, stave_id)`
@@ -278,7 +278,7 @@ Systematically expand test coverage across 10 phases:
     - Unknown input → throws `Error`
   - Notes: Use fixed `stave_id = 10` for all clef tests.
 
-- [ ] Task 2.1.3: Test `parseKeySignaturePopover`
+- [x] Task 2.1.3: Test `parseKeySignaturePopover`
   - File: `src/services/popovers.test.ts` (append)
   - Action: Write tests for:
     - `"clear"` → calls `actions.score.keySignature.clearAtTick(flow_id, tick)`
@@ -289,7 +289,7 @@ Systematically expand test coverage across 10 phases:
     - Unknown input → throws `Error`
   - Notes: Test at least one input per key signature offset. For brevity, don't test every alias — test the primary plus one alias per group.
 
-- [ ] Task 2.1.4: Test `parseTimeSignaturePopover`
+- [x] Task 2.1.4: Test `parseTimeSignaturePopover`
   - File: `src/services/popovers.test.ts` (append)
   - Action: Write tests for:
     - `"4/4"` → calls `actions.score.timeSignature.create(flow_id, tick, 4, NoteDuration.Quarter, TimeSignatureDrawType.Regular)`
@@ -304,7 +304,7 @@ Systematically expand test coverage across 10 phases:
 
 #### Story 2.2: IPC Wrapper Test
 
-- [ ] Task 2.2.1: Test `hitTest` function
+- [x] Task 2.2.1: Test `hitTest` function
   - File: `src/services/hit-test.test.ts` — **NEW**
   - Action: Write tests:
     - Calls `invoke("renderer_hit_test", { x, y, pan_x, pan_y, zoom })` with correct args
@@ -315,7 +315,7 @@ Systematically expand test coverage across 10 phases:
 
 #### Story 3.1: Button Component Tests
 
-- [ ] Task 3.1.1: Test `getTheme` function
+- [x] Task 3.1.1: Test `getTheme` function
   - File: `src/ui/buttons/shared.test.ts` — **NEW**
   - Action: Write tests for:
     - Each `Variant` ("standard", "interactive", "filled", "filled-dark", "outline") returns correct class string
@@ -323,7 +323,7 @@ Systematically expand test coverage across 10 phases:
     - `isSelected = false` returns variant-specific classes
   - Notes: Pure function, no React needed.
 
-- [ ] Task 3.1.2: Test `Button` component
+- [x] Task 3.1.2: Test `Button` component
   - File: `src/ui/buttons/button.test.tsx` — **NEW**
   - Action: Write tests:
     - Renders children text
@@ -332,7 +332,7 @@ Systematically expand test coverage across 10 phases:
     - Custom `className` is applied
   - Notes: Simple component, no context dependency.
 
-- [ ] Task 3.1.3: Test `IconButton` component
+- [x] Task 3.1.3: Test `IconButton` component
   - File: `src/ui/buttons/icon-button.test.tsx` — **NEW**
   - Action: Write tests:
     - Renders without crashing
@@ -342,7 +342,7 @@ Systematically expand test coverage across 10 phases:
     - Different variants apply correct theme classes
   - Notes: Uses `@mdi/react` `MdiIcon` — it renders an SVG. Don't assert on SVG internals.
 
-- [ ] Task 3.1.4: Test `BravuraIconButton` component
+- [x] Task 3.1.4: Test `BravuraIconButton` component
   - File: `src/ui/buttons/bravura-icon-button.test.tsx` — **NEW**
   - Action: Write tests:
     - Renders without crashing with a `SMuFL` glyph
@@ -354,7 +354,7 @@ Systematically expand test coverage across 10 phases:
 
 #### Story 3.2: Input Component Tests
 
-- [ ] Task 3.2.1: Test `TextInput` component
+- [x] Task 3.2.1: Test `TextInput` component
   - File: `src/ui/input/text-input.test.tsx` — **NEW**
   - Action: Write tests:
     - Renders with initial value
@@ -368,7 +368,7 @@ Systematically expand test coverage across 10 phases:
     - `variant` prop switches between "default" and "dark" styling
   - Notes: Use `userEvent.type()` for input simulation. Use `userEvent.tab()` or `fireEvent.blur()` for blur.
 
-- [ ] Task 3.2.2: Test `NumberInput` component
+- [x] Task 3.2.2: Test `NumberInput` component
   - File: `src/ui/input/number-input.test.tsx` — **NEW**
   - Action: Write tests:
     - Renders value with correct decimal places
@@ -379,7 +379,7 @@ Systematically expand test coverage across 10 phases:
     - `readOnly` prop prevents editing
   - Notes: Uses `Big.js` for precision — test that `decimalPlaces` is respected (e.g. `step=0.1, decimalPlaces=2` shows `"1.00"`).
 
-- [ ] Task 3.2.3: Test `Input` discriminated union component
+- [x] Task 3.2.3: Test `Input` discriminated union component
   - File: `src/ui/input/index.test.tsx` — **NEW**
   - Action: Write tests:
     - `type="text"` renders `TextInput`
@@ -388,7 +388,7 @@ Systematically expand test coverage across 10 phases:
 
 #### Story 3.3: Other UI Primitives
 
-- [ ] Task 3.3.1: Test `Textarea` component
+- [x] Task 3.3.1: Test `Textarea` component
   - File: `src/ui/textarea.test.tsx` — **NEW**
   - Action: Write tests:
     - Renders with value and label
@@ -397,7 +397,7 @@ Systematically expand test coverage across 10 phases:
     - `readOnly` prop sets `contentEditable` correctly
   - Notes: Has auto-resize logic via `scrollHeight` — happy-dom may not fully support this, test the callback behavior rather than visual height.
 
-- [ ] Task 3.3.2: Test `Menu` component
+- [x] Task 3.3.2: Test `Menu` component
   - File: `src/ui/menu.test.tsx` — **NEW**
   - Action: Write tests:
     - Renders all menu items
@@ -406,7 +406,7 @@ Systematically expand test coverage across 10 phases:
     - Sections render when a selected item has them
   - Notes: Generic component `<T extends Key>` — test with concrete types.
 
-- [ ] Task 3.3.3: Test `TokenizedText` component
+- [x] Task 3.3.3: Test `TokenizedText` component
   - File: `src/ui/text/index.test.tsx` — **NEW**
   - Action: Write tests:
     - Plain text renders unchanged
@@ -417,7 +417,7 @@ Systematically expand test coverage across 10 phases:
 
 #### Story 3.4: Popover Component Test
 
-- [ ] Task 3.4.1: Test `Popover` component
+- [x] Task 3.4.1: Test `Popover` component
   - File: `src/ui/popover.test.tsx` — **NEW**
   - Action: Write tests using `renderWithProviders`:
     - When `popover` is null, nothing renders
@@ -434,13 +434,13 @@ Systematically expand test coverage across 10 phases:
 
 #### Story 4.1: Remaining Shared Components
 
-- [ ] Task 4.1.1: Test `NotFound` component
+- [x] Task 4.1.1: Test `NotFound` component
   - File: `src/components/not-found.test.tsx` — **NEW**
   - Action: Write test:
     - Renders "Nothing here, yet..." text
   - Notes: Trivial static component. One test for smoke.
 
-- [ ] Task 4.1.2: Test `SelectByImage` component
+- [x] Task 4.1.2: Test `SelectByImage` component
   - File: `src/components/select-by-image.test.tsx` — **NEW**
   - Action: Write tests:
     - Renders all options as buttons with images
@@ -449,7 +449,7 @@ Systematically expand test coverage across 10 phases:
     - Label text renders when provided
   - Notes: Generic component — test with string values.
 
-- [ ] Task 4.1.3: Test `AppBar` component
+- [x] Task 4.1.3: Test `AppBar` component
   - File: `src/components/app-bar.test.tsx` — **NEW**
   - Action: Write tests using `renderWithProviders`:
     - Renders drag region div
@@ -457,7 +457,7 @@ Systematically expand test coverage across 10 phases:
     - Title updates when `current_file_path` changes
   - Notes: Mock `@tauri-apps/api/window` — `getCurrentWindow` returns `{ setTitle: vi.fn() }`.
 
-- [ ] Task 4.1.4: Test `DragScroll` component
+- [x] Task 4.1.4: Test `DragScroll` component
   - File: `src/components/drag-scroll.test.tsx` — **NEW**
   - Action: Write tests:
     - Renders children
@@ -469,7 +469,7 @@ Systematically expand test coverage across 10 phases:
 
 #### Story 5.1: Pure Utility Tests
 
-- [ ] Task 5.1.1: Test `repeatArray` utility
+- [x] Task 5.1.1: Test `repeatArray` utility
   - File: `src/windows/main/utils/repeat-array.test.ts` — **NEW**
   - Action: Write tests:
     - `repeatArray([1, 2], 3)` → `[1, 2, 1, 2, 1, 2]`
@@ -480,7 +480,7 @@ Systematically expand test coverage across 10 phases:
 
 #### Story 5.2: Hook Tests
 
-- [ ] Task 5.2.1: Test `useTicks` hook
+- [x] Task 5.2.1: Test `useTicks` hook
   - File: `src/windows/main/hooks/use-ticks.test.ts` — **NEW**
   - Action: Write tests using `renderHook`:
     - Given `null` flow and master → returns `{ tickWidth: 0, entries: [], length: 0 }`
@@ -489,7 +489,7 @@ Systematically expand test coverage across 10 phases:
     - Sub-beats render for time signatures with beat types < Eighth
   - Notes: Construct inline fixture objects matching the `Flow` and `Track` types. The hook is pure `useMemo` — no context dependency, just data in → data out.
 
-- [ ] Task 5.2.2: Test `useSlotPattern` hook
+- [x] Task 5.2.2: Test `useSlotPattern` hook
   - File: `src/windows/main/hooks/use-slots.test.ts` — **NEW**
   - Action: Write tests using `renderHook`:
     - `useSlotPattern(1)` returns pattern with 12 slots (one octave)
@@ -499,7 +499,7 @@ Systematically expand test coverage across 10 phases:
     - `height` equals `slotHeight * pattern.length`
   - Notes: Also export and test `SLOT_PATTERN` directly as a pure function.
 
-- [ ] Task 5.2.3: Test `useBottomPanelState` hook
+- [x] Task 5.2.3: Test `useBottomPanelState` hook
   - File: `src/windows/main/hooks/use-bottom-panel-state.test.ts` — **NEW**
   - Action: Write tests using `renderHook` + context wrapper:
     - Returns `instrumentOptions` derived from players → instruments
@@ -509,7 +509,7 @@ Systematically expand test coverage across 10 phases:
     - Returns correct `tool` and `snapValue` from sequencer state
   - Notes: Must wrap in `AppContext.Provider` with a state fixture that has players, instruments, and flows populated.
 
-- [ ] Task 5.2.4: Test `useSelectedToneInfo` hook
+- [x] Task 5.2.4: Test `useSelectedToneInfo` hook
   - File: `src/windows/main/hooks/use-selected-tone-info.test.ts` — **NEW**
   - Action: Write tests using `renderHook` + context wrapper:
     - Returns `null` when no selection
@@ -519,7 +519,7 @@ Systematically expand test coverage across 10 phases:
     - Returns correct `instrumentName` and `trackLabel`
   - Notes: Build fixture with players/instruments/flows/tracks populated. The hook uses `getPitchName` which is already tested — just verify it's called correctly.
 
-- [ ] Task 5.2.5: Test `useKeyboardShortcuts` hook
+- [x] Task 5.2.5: Test `useKeyboardShortcuts` hook
   - File: `src/windows/main/hooks/use-keyboard-shortcuts.test.ts` — **NEW**
   - Action: Write tests using `renderHook` + context wrapper:
     - With no selection, no shortcuts are registered (no errors)
@@ -536,7 +536,7 @@ Systematically expand test coverage across 10 phases:
 
 #### Story 6.1: Context Hook Tests
 
-- [ ] Task 6.1.1: Test context hooks throw outside provider
+- [x] Task 6.1.1: Test context hooks throw outside provider
   - File: `src/services/state/context.test.tsx` — **NEW**
   - Action: Write tests:
     - `useAppState()` throws `"useAppState must be used within an AppStateProvider"` when rendered outside `AppContext.Provider`
@@ -550,7 +550,7 @@ Systematically expand test coverage across 10 phases:
 
 #### Story 7.1: Window Components (Context-dependent)
 
-- [ ] Task 7.1.1: Test `Transport` component
+- [x] Task 7.1.1: Test `Transport` component
   - File: `src/windows/main/components/transport.test.tsx` — **NEW**
   - Action: Write tests using `renderWithProviders`:
     - Renders play/pause/stop buttons
@@ -560,7 +560,7 @@ Systematically expand test coverage across 10 phases:
     - Clicking stop calls `actions.transport.stop()`
   - Notes: Mock `../../../services/actions`. The component uses `useAppState` + `useTransportState` — provide both via `renderWithProviders`.
 
-- [ ] Task 7.1.2: Test `ZoomWidget` component
+- [x] Task 7.1.2: Test `ZoomWidget` component
   - File: `src/windows/main/components/zoom-widget.test.tsx` — **NEW**
   - Action: Write tests using `renderWithProviders`:
     - Renders current zoom percentage
@@ -569,21 +569,21 @@ Systematically expand test coverage across 10 phases:
     - Reset button resets to 100%
   - Notes: Mock actions module.
 
-- [ ] Task 7.1.3: Test `Fader` component
+- [x] Task 7.1.3: Test `Fader` component
   - File: `src/windows/main/components/fader.test.tsx` — **NEW**
   - Action: Write tests:
     - Renders fader control
     - Drag interaction calls `onChange` with new value
   - Notes: Fader is a slider-like UI. Test the rendering and callback, not the visual position.
 
-- [ ] Task 7.1.4: Test `Keyboard` component
+- [x] Task 7.1.4: Test `Keyboard` component
   - File: `src/windows/main/components/keyboard.test.tsx` — **NEW**
   - Action: Write tests:
     - Renders keyboard keys
     - Contains both black and white keys
   - Notes: This component renders piano keys for the sequencer. Test that the key pattern renders correctly.
 
-- [ ] Task 7.1.5: Test `Tools` component
+- [x] Task 7.1.5: Test `Tools` component
   - File: `src/windows/main/components/tools.test.tsx` — **NEW**
   - Action: Write tests using `renderWithProviders`:
     - Renders Select and Draw tool buttons
@@ -591,7 +591,7 @@ Systematically expand test coverage across 10 phases:
     - Clicking tool buttons calls the correct action
   - Notes: Mock actions module.
 
-- [ ] Task 7.1.6: Test `SelectedToneInfoDisplay` component
+- [x] Task 7.1.6: Test `SelectedToneInfoDisplay` component
   - File: `src/windows/main/components/selected-tone-info-display.test.tsx` — **NEW**
   - Action: Write tests:
     - Renders note name, instrument name, and track label when given info
@@ -602,7 +602,7 @@ Systematically expand test coverage across 10 phases:
 
 #### Story 8.1: Component Tests
 
-- [ ] Task 8.1.1: Add `#[cfg(test)]` module to `pitch.rs`
+- [x] Task 8.1.1: Add `#[cfg(test)]` module to `pitch.rs`
   - File: `src-tauri/src/score/components/pitch.rs`
   - Action: Append `#[cfg(test)] mod tests {}` block with tests for:
     - `Accidental::to_glyph()` — all 5 variants return correct Unicode glyph
@@ -620,7 +620,7 @@ Systematically expand test coverage across 10 phases:
     - `ACCIDENTAL_MAP` entry count — verify expected number of key signature mappings exist
   - Notes: Construct `KeySignature` fixtures for C Major (offset 0), 2 flats, etc. This is the most important Rust test file — `Pitch` is used everywhere in the score model.
 
-- [ ] Task 8.1.2: Add `#[cfg(test)]` module to `articulation.rs`
+- [x] Task 8.1.2: Add `#[cfg(test)]` module to `articulation.rs`
   - File: `src-tauri/src/score/components/articulation.rs`
   - Action: Append tests for:
     - `Articulations::new()` is empty
@@ -632,7 +632,7 @@ Systematically expand test coverage across 10 phases:
     - `len()`, `is_empty()`, `contains()` behave correctly
   - Notes: The exclusivity group invariant is critical behavioral logic. Test it thoroughly.
 
-- [ ] Task 8.1.3: Add `#[cfg(test)]` module to `measurements.rs`
+- [x] Task 8.1.3: Add `#[cfg(test)]` module to `measurements.rs`
   - File: `src-tauri/src/score/components/measurements.rs`
   - Action: Append tests for:
     - `BoundingBox::total_width()` → `width + right_padding`
@@ -640,7 +640,7 @@ Systematically expand test coverage across 10 phases:
     - `PaddingSpaces::new()` — constructs with correct fields
   - Notes: Simple math, but foundational types used everywhere.
 
-- [ ] Task 8.1.4: Add `#[cfg(test)]` module to `velocity.rs`
+- [x] Task 8.1.4: Add `#[cfg(test)]` module to `velocity.rs`
   - File: `src-tauri/src/score/components/velocity.rs`
   - Action: Append tests for:
     - `Velocity::new(100).int()` → `100`
@@ -650,7 +650,7 @@ Systematically expand test coverage across 10 phases:
 
 #### Story 8.2: Track Operations Tests
 
-- [ ] Task 8.2.1: Add `#[cfg(test)]` module to `tracks.rs`
+- [x] Task 8.2.1: Add `#[cfg(test)]` module to `tracks.rs`
   - File: `src-tauri/src/score/tracks.rs`
   - Action: Append tests for:
     - `Track::new(id)` — creates track with empty entries
@@ -665,7 +665,7 @@ Systematically expand test coverage across 10 phases:
 
 #### Story 8.3: Entry Subtype Tests
 
-- [ ] Task 8.3.1: Add `#[cfg(test)]` module to `barline.rs`
+- [x] Task 8.3.1: Add `#[cfg(test)]` module to `barline.rs`
   - File: `src-tauri/src/score/entries/barline.rs`
   - Action: Append tests for:
     - `BarlineDrawType::metrics()` — each variant returns correct `BoundingBox` (width, height, right_padding)
@@ -673,7 +673,7 @@ Systematically expand test coverage across 10 phases:
     - `Track::get_barline_at_tick()` — returns barline when present, `None` when absent
   - Notes: Build a `Track` fixture, insert a `Barline` entry, query.
 
-- [ ] Task 8.3.2: Add `#[cfg(test)]` module to `clef.rs`
+- [x] Task 8.3.2: Add `#[cfg(test)]` module to `clef.rs`
   - File: `src-tauri/src/score/entries/clef.rs`
   - Action: Append tests for:
     - `Clef::metrics(true)` and `Clef::metrics(false)` — full vs reduced size
@@ -683,7 +683,7 @@ Systematically expand test coverage across 10 phases:
     - `Track::get_clef_at_tick()` — returns clef when present, `None` when absent
   - Notes: Use concrete Pitch values for clef construction.
 
-- [ ] Task 8.3.3: Add `#[cfg(test)]` module to `key_signature.rs`
+- [x] Task 8.3.3: Add `#[cfg(test)]` module to `key_signature.rs`
   - File: `src-tauri/src/score/entries/key_signature.rs`
   - Action: Append tests for:
     - `KeySignature::accidentals()` — offset 3 (sharps) returns 3 sharps, offset -2 (flats) returns 2 flats, offset 0 returns empty set
@@ -692,7 +692,7 @@ Systematically expand test coverage across 10 phases:
     - `KeySignature::default()` — returns Major, offset 0
   - Notes: Verify the sharps/flats returned match the SHARPS/FLATS constants.
 
-- [ ] Task 8.3.4: Add `#[cfg(test)]` module to `time_signature.rs`
+- [x] Task 8.3.4: Add `#[cfg(test)]` module to `time_signature.rs`
   - File: `src-tauri/src/score/entries/time_signature.rs`
   - Action: Append tests for:
     - `TimeSignature::default()` — returns 4/4 hidden
@@ -701,7 +701,7 @@ Systematically expand test coverage across 10 phases:
     - Time signature type classification if such method exists
   - Notes: Check the file for any additional pure methods beyond construction and default.
 
-- [ ] Task 8.3.5: Add `#[cfg(test)]` module to `tone.rs`
+- [x] Task 8.3.5: Add `#[cfg(test)]` module to `tone.rs`
   - File: `src-tauri/src/score/entries/tone.rs`
   - Action: Append tests for:
     - `Tone::new(...)` — construction with all 6 fields
@@ -714,7 +714,7 @@ Systematically expand test coverage across 10 phases:
 
 #### Story 9.1: Parse Function Tests
 
-- [ ] Task 9.1.1: Add `#[cfg(test)]` module to `get_barlines.rs`
+- [x] Task 9.1.1: Add `#[cfg(test)]` module to `get_barlines.rs`
   - File: `src-tauri/src/instructions/parse/get_barlines.rs`
   - Action: Append tests for:
     - Given flow with no custom barlines → returns default barline defs at measure boundaries
@@ -722,14 +722,14 @@ Systematically expand test coverage across 10 phases:
     - Given EndStartRepeat barline with a time sig at same tick → `split_by_signature` is true
   - Notes: Requires constructing `Flow`, `Tracks`, and `Measures` fixtures. Reuse the fixture pattern from `get_measures` tests.
 
-- [ ] Task 9.1.2: Add `#[cfg(test)]` module to `get_key_signatures.rs`
+- [x] Task 9.1.2: Add `#[cfg(test)]` module to `get_key_signatures.rs`
   - File: `src-tauri/src/instructions/parse/get_key_signatures.rs`
   - Action: Append tests for:
     - Given a flow with key sig offset 3 (A major) at tick 0 → returns entry at tick 0 with `negate: false`
     - Given a key sig change back to C major (offset 0) at tick 128 → returns entry with `negate: true` (cancels previous sharps)
   - Notes: Construct `Flow` and `Tracks` with key signature entries in the master track.
 
-- [ ] Task 9.1.3: Add `#[cfg(test)]` module to `get_shunts.rs`
+- [x] Task 9.1.3: Add `#[cfg(test)]` module to `get_shunts.rs`
   - File: `src-tauri/src/instructions/parse/get_shunts.rs`
   - Action: Append tests for `note_shunts_in_chord`:
     - Single tone → `Shunt::None`
@@ -738,7 +738,7 @@ Systematically expand test coverage across 10 phases:
     - Three tones a step apart (cluster) → alternating shunts
   - Notes: Test the core `note_shunts_in_chord` function directly with constructed fixtures. This is pure algorithmic logic — no IO.
 
-- [ ] Task 9.1.4: Add `#[cfg(test)]` module to `get_accidentals.rs`
+- [x] Task 9.1.4: Add `#[cfg(test)]` module to `get_accidentals.rs`
   - File: `src-tauri/src/instructions/parse/get_accidentals.rs`
   - Action: Append tests for:
     - `sort_accidentals_alternate` — alternates IDs from top and bottom
@@ -746,7 +746,7 @@ Systematically expand test coverage across 10 phases:
     - `fits_in_slot` — returns true/false based on offset proximity
   - Notes: Test the helper functions individually. Skip the full `get_accidentals` function as it requires the full `NotationByTrack` pipeline — test the building blocks instead.
 
-- [ ] Task 9.1.5: Add `#[cfg(test)]` module to `get_stem_directions.rs`
+- [x] Task 9.1.5: Add `#[cfg(test)]` module to `get_stem_directions.rs`
   - File: `src-tauri/src/instructions/parse/get_stem_directions.rs`
   - Action: Append tests for `get_span_stem_direction`:
     - All notes above middle → returns `Up`
@@ -754,7 +754,7 @@ Systematically expand test coverage across 10 phases:
     - Equal up/down → uses furthest note to break tie
   - Notes: Construct `Beam` and `NotationTrack` fixtures with known offsets.
 
-- [ ] Task 9.1.6: Add `#[cfg(test)]` module to `get_written_durations.rs`
+- [x] Task 9.1.6: Add `#[cfg(test)]` module to `get_written_durations.rs`
   - File: `src-tauri/src/instructions/parse/get_written_durations.rs`
   - Action: Append tests for `Notation` struct methods:
     - `is_rest()` — true when no tones, false when tones present
@@ -767,7 +767,7 @@ Systematically expand test coverage across 10 phases:
     - `glyph_metrics()` — returns correct `BoundingBox` for rest vs note vs whole
   - Notes: `Notation::new(tick, duration)` creates a rest (empty tones). Push tones to make it a note. Test the whole vs half vs quarter distinction.
 
-- [ ] Task 9.1.7: Add `#[cfg(test)]` module to `get_vertical_spacing.rs`
+- [x] Task 9.1.7: Add `#[cfg(test)]` module to `get_vertical_spacing.rs`
   - File: `src-tauri/src/instructions/parse/get_vertical_spacing.rs`
   - Action: Append tests for:
     - Single instrument with one stave → height equals stave lines - 1
@@ -780,12 +780,12 @@ Systematically expand test coverage across 10 phases:
 
 #### Story 10.1: Update Thresholds and Documentation
 
-- [ ] Task 10.1.1: Run coverage report and ratchet thresholds
+- [x] Task 10.1.1: Run coverage report and ratchet thresholds
   - File: `vite.config.ts`
   - Action: After all tests pass, run `npm run test:coverage`, note actual coverage percentages, and bump the `thresholds` object in `vite.config.ts` to match (rounded down to nearest 5%). Target: statements ≥ 60%, branches ≥ 50%, functions ≥ 55%, lines ≥ 60%.
   - Notes: These numbers reflect pragmatic coverage — some files (boot.tsx, index.tsx routers, provider.tsx) are legitimately excluded from unit tests. Adjust based on actual numbers.
 
-- [ ] Task 10.1.2: Update `TESTING.md` with new patterns
+- [x] Task 10.1.2: Update `TESTING.md` with new patterns
   - File: `TESTING.md`
   - Action: Add sections for:
     - `renderWithProviders` usage pattern with example
@@ -799,52 +799,52 @@ Systematically expand test coverage across 10 phases:
 
 #### Phase 1
 
-- [ ] AC 1.1: Given `src/services/test-utils.tsx`, when imported, `renderWithProviders` wraps a component in all 4 context providers and `createAppState` produces a deep-merged state.
+- [x] AC 1.1: Given `src/services/test-utils.tsx`, when imported, `renderWithProviders` wraps a component in all 4 context providers and `createAppState` produces a deep-merged state.
 
 #### Phase 2
 
-- [ ] AC 2.1: Given `popovers.test.ts`, when tests run, then all 4 popover parsers are tested with valid inputs that verify the correct `actions.score.*` method is called with the right arguments, and invalid inputs throw errors.
-- [ ] AC 2.2: Given `hit-test.test.ts`, when tests run, then `hitTest` calls `invoke("renderer_hit_test")` with correct argument mapping.
+- [x] AC 2.1: Given `popovers.test.ts`, when tests run, then all 4 popover parsers are tested with valid inputs that verify the correct `actions.score.*` method is called with the right arguments, and invalid inputs throw errors.
+- [x] AC 2.2: Given `hit-test.test.ts`, when tests run, then `hitTest` calls `invoke("renderer_hit_test")` with correct argument mapping.
 
 #### Phase 3
 
-- [ ] AC 3.1: Given button test files, when tests run, then `Button`, `IconButton`, `BravuraIconButton` render correctly, fire onClick, and apply variant/disabled/selected styling.
-- [ ] AC 3.2: Given input test files, when tests run, then `TextInput` handles typing/blur/enter, `NumberInput` handles arrow key increment/decrement with precision, and `Input` routes to the correct sub-component.
-- [ ] AC 3.3: Given `textarea.test.tsx`, `menu.test.tsx`, and text tests, when tests run, components render correctly and handle user interaction.
-- [ ] AC 3.4: Given `popover.test.tsx`, when tests run, then the Popover component shows/hides correctly, dispatches to the right parser on Enter, and closes on Escape/blur.
+- [x] AC 3.1: Given button test files, when tests run, then `Button`, `IconButton`, `BravuraIconButton` render correctly, fire onClick, and apply variant/disabled/selected styling.
+- [x] AC 3.2: Given input test files, when tests run, then `TextInput` handles typing/blur/enter, `NumberInput` handles arrow key increment/decrement with precision, and `Input` routes to the correct sub-component.
+- [x] AC 3.3: Given `textarea.test.tsx`, `menu.test.tsx`, and text tests, when tests run, components render correctly and handle user interaction.
+- [x] AC 3.4: Given `popover.test.tsx`, when tests run, then the Popover component shows/hides correctly, dispatches to the right parser on Enter, and closes on Escape/blur.
 
 #### Phase 4
 
-- [ ] AC 4.1: Given shared component test files, when tests run, then `NotFound`, `SelectByImage`, `AppBar`, and `DragScroll` render correctly and handle interactions.
+- [x] AC 4.1: Given shared component test files, when tests run, then `NotFound`, `SelectByImage`, `AppBar`, and `DragScroll` render correctly and handle interactions.
 
 #### Phase 5
 
-- [ ] AC 5.1: Given `repeat-array.test.ts`, when tests run, then array repetition works for normal, empty, and zero-count cases.
-- [ ] AC 5.2: Given hook test files, when tests run, then `useTicks` calculates correct bar/beat positions, `useSlotPattern` generates correct piano key patterns, `useBottomPanelState` derives correct panel state, `useSelectedToneInfo` returns correct tone info, and `useKeyboardShortcuts` dispatches correct actions.
+- [x] AC 5.1: Given `repeat-array.test.ts`, when tests run, then array repetition works for normal, empty, and zero-count cases.
+- [x] AC 5.2: Given hook test files, when tests run, then `useTicks` calculates correct bar/beat positions, `useSlotPattern` generates correct piano key patterns, `useBottomPanelState` derives correct panel state, `useSelectedToneInfo` returns correct tone info, and `useKeyboardShortcuts` dispatches correct actions.
 
 #### Phase 6
 
-- [ ] AC 6.1: Given `context.test.tsx`, when tests run, then all 4 context hooks throw the correct error when used outside their provider and return state when used inside.
+- [x] AC 6.1: Given `context.test.tsx`, when tests run, then all 4 context hooks throw the correct error when used outside their provider and return state when used inside.
 
 #### Phase 7
 
-- [ ] AC 7.1: Given window component test files, when tests run, then `Transport`, `ZoomWidget`, `Fader`, `Keyboard`, `Tools`, and `SelectedToneInfoDisplay` render correctly with context data and fire correct actions on interaction.
+- [x] AC 7.1: Given window component test files, when tests run, then `Transport`, `ZoomWidget`, `Fader`, `Keyboard`, `Tools`, and `SelectedToneInfoDisplay` render correctly with context data and fire correct actions on interaction.
 
 #### Phase 8
 
-- [ ] AC 8.1: Given `cargo test`, when tests execute, then `pitch.rs` tests cover `base()`, `steps()`, `half_steps()`, `octave()`, `steps_between()`, `shift_by_steps()`, `shift_by_octaves()`, `from_int()`, and `Accidental::to_glyph()`.
-- [ ] AC 8.2: Given `cargo test`, when tests execute, then `articulation.rs` tests verify `toggle()` enforces exclusivity groups and `Articulations` collection methods work correctly.
-- [ ] AC 8.3: Given `cargo test`, when tests execute, then `tracks.rs` tests verify `insert_entry`/`shift_entry`/`remove_entry` maintain dual-index invariant.
-- [ ] AC 8.4: Given `cargo test`, when tests execute, then all 5 entry subtype modules have tests for construction, pure methods, and `Track::get_*_at_tick()` queries.
+- [x] AC 8.1: Given `cargo test`, when tests execute, then `pitch.rs` tests cover `base()`, `steps()`, `half_steps()`, `octave()`, `steps_between()`, `shift_by_steps()`, `shift_by_octaves()`, `from_int()`, and `Accidental::to_glyph()`.
+- [x] AC 8.2: Given `cargo test`, when tests execute, then `articulation.rs` tests verify `toggle()` enforces exclusivity groups and `Articulations` collection methods work correctly.
+- [x] AC 8.3: Given `cargo test`, when tests execute, then `tracks.rs` tests verify `insert_entry`/`shift_entry`/`remove_entry` maintain dual-index invariant.
+- [x] AC 8.4: Given `cargo test`, when tests execute, then all 5 entry subtype modules have tests for construction, pure methods, and `Track::get_*_at_tick()` queries.
 
 #### Phase 9
 
-- [ ] AC 9.1: Given `cargo test`, when tests execute, then parse pipeline tests cover `get_barlines`, `get_key_signatures`, `note_shunts_in_chord`, accidental helpers, `get_span_stem_direction`, `Notation` methods, and `get_vertical_spacing`.
+- [x] AC 9.1: Given `cargo test`, when tests execute, then parse pipeline tests cover `get_barlines`, `get_key_signatures`, `note_shunts_in_chord`, accidental helpers, `get_span_stem_direction`, `Notation` methods, and `get_vertical_spacing`.
 
 #### Phase 10
 
-- [ ] AC 10.1: Given updated `vite.config.ts` thresholds, when `npm run test:coverage` is run with coverage below the new thresholds, then the test run fails.
-- [ ] AC 10.2: Given updated `TESTING.md`, when an AI agent reads it, it includes `renderWithProviders` pattern, actions mocking pattern, and context wrapper examples.
+- [x] AC 10.1: Given updated `vite.config.ts` thresholds, when `npm run test:coverage` is run with coverage below the new thresholds, then the test run fails.
+- [x] AC 10.2: Given updated `TESTING.md`, when an AI agent reads it, it includes `renderWithProviders` pattern, actions mocking pattern, and context wrapper examples.
 
 ## Additional Context
 
