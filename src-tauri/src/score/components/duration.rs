@@ -104,3 +104,203 @@ pub const NOTE_DURATIONS: [NoteDuration; 8] = [
     NoteDuration::SixtyFourth,
     NoteDuration::HudredTwentyEighth,
 ];
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // --- from_ticks ---
+
+    #[test]
+    fn from_ticks_whole() {
+        assert!(matches!(
+            NoteDuration::from_ticks(128),
+            Some(NoteDuration::Whole)
+        ));
+    }
+
+    #[test]
+    fn from_ticks_half() {
+        assert!(matches!(
+            NoteDuration::from_ticks(64),
+            Some(NoteDuration::Half)
+        ));
+    }
+
+    #[test]
+    fn from_ticks_quarter() {
+        assert!(matches!(
+            NoteDuration::from_ticks(32),
+            Some(NoteDuration::Quarter)
+        ));
+    }
+
+    #[test]
+    fn from_ticks_eighth() {
+        assert!(matches!(
+            NoteDuration::from_ticks(16),
+            Some(NoteDuration::Eighth)
+        ));
+    }
+
+    #[test]
+    fn from_ticks_sixteenth() {
+        assert!(matches!(
+            NoteDuration::from_ticks(8),
+            Some(NoteDuration::Sixteenth)
+        ));
+    }
+
+    #[test]
+    fn from_ticks_thirty_second() {
+        assert!(matches!(
+            NoteDuration::from_ticks(4),
+            Some(NoteDuration::ThirtySecond)
+        ));
+    }
+
+    #[test]
+    fn from_ticks_sixty_fourth() {
+        assert!(matches!(
+            NoteDuration::from_ticks(2),
+            Some(NoteDuration::SixtyFourth)
+        ));
+    }
+
+    #[test]
+    fn from_ticks_hudred_twenty_eighth() {
+        assert!(matches!(
+            NoteDuration::from_ticks(1),
+            Some(NoteDuration::HudredTwentyEighth)
+        ));
+    }
+
+    #[test]
+    fn from_ticks_invalid_returns_none() {
+        assert!(NoteDuration::from_ticks(99).is_none());
+        assert!(NoteDuration::from_ticks(0).is_none());
+        assert!(NoteDuration::from_ticks(3).is_none());
+    }
+
+    // --- to_ticks ---
+
+    #[test]
+    fn to_ticks_all_variants() {
+        assert_eq!(NoteDuration::Whole.to_ticks(), 128);
+        assert_eq!(NoteDuration::Half.to_ticks(), 64);
+        assert_eq!(NoteDuration::Quarter.to_ticks(), 32);
+        assert_eq!(NoteDuration::Eighth.to_ticks(), 16);
+        assert_eq!(NoteDuration::Sixteenth.to_ticks(), 8);
+        assert_eq!(NoteDuration::ThirtySecond.to_ticks(), 4);
+        assert_eq!(NoteDuration::SixtyFourth.to_ticks(), 2);
+        assert_eq!(NoteDuration::HudredTwentyEighth.to_ticks(), 1);
+    }
+
+    // --- round-trip ---
+
+    #[test]
+    fn round_trip_from_ticks_to_ticks() {
+        for dur in &NOTE_DURATIONS {
+            let ticks = dur.to_ticks();
+            let result = NoteDuration::from_ticks(ticks);
+            assert!(result.is_some(), "from_ticks({ticks}) returned None");
+            assert_eq!(result.unwrap().to_ticks(), ticks);
+        }
+    }
+
+    // --- half ---
+
+    #[test]
+    fn half_whole_to_half() {
+        assert!(matches!(NoteDuration::Whole.half(), NoteDuration::Half));
+    }
+
+    #[test]
+    fn half_half_to_quarter() {
+        assert!(matches!(NoteDuration::Half.half(), NoteDuration::Quarter));
+    }
+
+    #[test]
+    fn half_quarter_to_eighth() {
+        assert!(matches!(NoteDuration::Quarter.half(), NoteDuration::Eighth));
+    }
+
+    #[test]
+    fn half_eighth_to_sixteenth() {
+        assert!(matches!(
+            NoteDuration::Eighth.half(),
+            NoteDuration::Sixteenth
+        ));
+    }
+
+    #[test]
+    fn half_sixteenth_to_thirty_second() {
+        assert!(matches!(
+            NoteDuration::Sixteenth.half(),
+            NoteDuration::ThirtySecond
+        ));
+    }
+
+    #[test]
+    fn half_thirty_second_to_sixty_fourth() {
+        assert!(matches!(
+            NoteDuration::ThirtySecond.half(),
+            NoteDuration::SixtyFourth
+        ));
+    }
+
+    #[test]
+    fn half_sixty_fourth_to_hudred_twenty_eighth() {
+        assert!(matches!(
+            NoteDuration::SixtyFourth.half(),
+            NoteDuration::HudredTwentyEighth
+        ));
+    }
+
+    #[test]
+    #[should_panic]
+    fn half_hudred_twenty_eighth_panics() {
+        NoteDuration::HudredTwentyEighth.half();
+    }
+
+    // --- Direction::to_modifier ---
+
+    #[test]
+    fn direction_up_is_minus_one() {
+        assert_eq!(Direction::Up.to_modifier(), -1);
+    }
+
+    #[test]
+    fn direction_down_is_plus_one() {
+        assert_eq!(Direction::Down.to_modifier(), 1);
+    }
+
+    // --- spacing_ratio ---
+
+    #[test]
+    fn spacing_ratio_quarter_undotted_is_one() {
+        let ratio = 1.5f32;
+        assert!(
+            (NoteDuration::Quarter.spacing_ratio(ratio, false) - 1.0).abs() < f32::EPSILON,
+            "Quarter undotted spacing ratio should be 1.0"
+        );
+    }
+
+    #[test]
+    fn spacing_ratio_whole_is_ratio_times_two() {
+        let ratio = 1.5f32;
+        let expected = ratio * 2.0;
+        assert!((NoteDuration::Whole.spacing_ratio(ratio, false) - expected).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn spacing_ratio_dotted_is_1_2x_undotted() {
+        let ratio = 1.5f32;
+        let undotted = NoteDuration::Quarter.spacing_ratio(ratio, false);
+        let dotted = NoteDuration::Quarter.spacing_ratio(ratio, true);
+        assert!(
+            (dotted / undotted - 1.2).abs() < 1e-6,
+            "dotted should be exactly 1.2x undotted"
+        );
+    }
+}

@@ -76,3 +76,173 @@ impl Entry {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::score::components::{
+        articulation::Articulations,
+        duration::NoteDuration,
+        pitch::{Accidental, Pitch},
+        velocity::Velocity,
+    };
+    use barline::{Barline, BarlineDrawType};
+    use clef::{Clef, ClefDrawType};
+    use key_signature::{KeySignature, KeySignatureMode};
+    use time_signature::{TimeSignature, TimeSignatureDrawType};
+    use tone::Tone;
+
+    fn make_barline(id: UniqueId, tick: Tick) -> Entry {
+        Entry::Barline(Barline {
+            id,
+            tick,
+            barline_draw_type: BarlineDrawType::Single,
+        })
+    }
+
+    fn make_clef(id: UniqueId, tick: Tick) -> Entry {
+        Entry::Clef(Clef::new(
+            id,
+            tick,
+            Pitch::new(67, Accidental::Natural),
+            0,
+            ClefDrawType::G,
+        ))
+    }
+
+    fn make_key_signature(id: UniqueId, tick: Tick) -> Entry {
+        Entry::KeySignature(KeySignature::new(id, tick, KeySignatureMode::Major, 0))
+    }
+
+    fn make_time_signature(id: UniqueId, tick: Tick) -> Entry {
+        Entry::TimeSignature(TimeSignature::new(
+            id,
+            tick,
+            4,
+            NoteDuration::Quarter,
+            TimeSignatureDrawType::Hidden,
+            None,
+        ))
+    }
+
+    fn make_tone(id: UniqueId, tick: Tick) -> Entry {
+        Entry::Tone(Tone::new(
+            id,
+            tick,
+            32,
+            Pitch::new(60, Accidental::Natural),
+            Velocity::new(90),
+            Articulations::new(),
+        ))
+    }
+
+    // --- Entries::new() ---
+
+    #[test]
+    fn entries_new_is_empty() {
+        let entries = Entries::new();
+        assert!(entries.by_tick.is_empty());
+        assert!(entries.by_id.is_empty());
+    }
+
+    // --- Entry::id() ---
+
+    #[test]
+    fn barline_id_returns_correct_value() {
+        let entry = make_barline(1, 0);
+        assert_eq!(entry.id(), 1);
+    }
+
+    #[test]
+    fn clef_id_returns_correct_value() {
+        let entry = make_clef(2, 0);
+        assert_eq!(entry.id(), 2);
+    }
+
+    #[test]
+    fn key_signature_id_returns_correct_value() {
+        let entry = make_key_signature(3, 0);
+        assert_eq!(entry.id(), 3);
+    }
+
+    #[test]
+    fn time_signature_id_returns_correct_value() {
+        let entry = make_time_signature(4, 0);
+        assert_eq!(entry.id(), 4);
+    }
+
+    #[test]
+    fn tone_id_returns_correct_value() {
+        let entry = make_tone(5, 0);
+        assert_eq!(entry.id(), 5);
+    }
+
+    // --- Entry::tick() ---
+
+    #[test]
+    fn barline_tick_returns_correct_value() {
+        let entry = make_barline(1, 42);
+        assert_eq!(entry.tick(), 42);
+    }
+
+    #[test]
+    fn clef_tick_returns_correct_value() {
+        let entry = make_clef(2, 128);
+        assert_eq!(entry.tick(), 128);
+    }
+
+    #[test]
+    fn key_signature_tick_returns_correct_value() {
+        let entry = make_key_signature(3, 256);
+        assert_eq!(entry.tick(), 256);
+    }
+
+    #[test]
+    fn time_signature_tick_returns_correct_value() {
+        let entry = make_time_signature(4, 512);
+        assert_eq!(entry.tick(), 512);
+    }
+
+    #[test]
+    fn tone_tick_returns_correct_value() {
+        let entry = make_tone(5, 64);
+        assert_eq!(entry.tick(), 64);
+    }
+
+    // --- Entry::set_tick() ---
+
+    #[test]
+    fn set_tick_updates_barline() {
+        let mut entry = make_barline(10, 0);
+        entry.set_tick(99);
+        assert_eq!(entry.tick(), 99);
+    }
+
+    #[test]
+    fn set_tick_updates_clef() {
+        let mut entry = make_clef(11, 0);
+        entry.set_tick(200);
+        assert_eq!(entry.tick(), 200);
+    }
+
+    #[test]
+    fn set_tick_updates_key_signature() {
+        let mut entry = make_key_signature(12, 0);
+        entry.set_tick(50);
+        assert_eq!(entry.tick(), 50);
+    }
+
+    #[test]
+    fn set_tick_updates_time_signature() {
+        let mut entry = make_time_signature(13, 0);
+        entry.set_tick(128);
+        assert_eq!(entry.tick(), 128);
+    }
+
+    #[test]
+    fn set_tick_updates_tone() {
+        let mut entry = make_tone(14, 0);
+        entry.set_tick(32);
+        assert_eq!(entry.tick(), 32);
+    }
+}

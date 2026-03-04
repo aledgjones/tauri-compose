@@ -1,4 +1,4 @@
-import { defineConfig } from "vite";
+import { defineConfig } from "vitest/config";
 import { resolve } from "path";
 import react from "@vitejs/plugin-react";
 import eslintPlugin from "@nabla/vite-plugin-eslint";
@@ -43,5 +43,26 @@ export default defineConfig(async () => ({
         projectSettings: resolve(__dirname, "project-settings.html"),
       },
     },
+  },
+  test: {
+    globals: true,
+    environment: "happy-dom",
+    include: ["src/**/*.test.{ts,tsx}"],
+    coverage: {
+      provider: "v8" as const,
+      include: ["src/**/*.{ts,tsx}"],
+      exclude: [
+        "src/**/*.test.{ts,tsx}",
+        "src/__mocks__/**",
+        "src/vite-env.d.ts",
+      ],
+      thresholds: {
+        statements: 5,
+        branches: 5,
+        functions: 5,
+        lines: 5,
+      },
+    },
+    setupFiles: ["./src/test-setup.ts"],
   },
 }));

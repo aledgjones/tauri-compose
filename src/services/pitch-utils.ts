@@ -68,7 +68,7 @@ export const getPitchOctave = (pitch: Pitch) => {
  */
 export const getPitchName = (pitch: Pitch): string => {
   const letter = getPitchLetter(pitch);
-  let accidental = getAccidentalString(pitch.accidental);
+  const accidental = getAccidentalString(pitch.accidental);
   const octave = getPitchOctave(pitch);
 
   return `${letter}${accidental}${octave}`;

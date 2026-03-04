@@ -32,10 +32,12 @@ npm install
 ## Validation Before Commit
 
 ```bash
-npm run lint && npm run check-types && cd src-tauri && cargo clippy
+npm run lint && npm run check-types && npm test && cd src-tauri && cargo clippy
 ```
 
-All three must pass. Clippy warnings are treated as errors — do not suppress with `#[allow(...)]`.
+All four must pass. Clippy warnings are treated as errors — do not suppress with `#[allow(...)]`.
+
+Pre-commit hooks (via `lint-staged` + `simple-git-hooks`) run ESLint and Prettier automatically on staged files. If hooks are not running after a fresh clone, register them with `npx simple-git-hooks`.
 
 ## Versioning
 
@@ -93,12 +95,53 @@ Release profile optimized for maximum performance:
 
 ## Testing
 
-No test framework is currently configured. Validation relies on:
+See [TESTING.md](../TESTING.md) for full details. Quick reference:
 
-- TypeScript strict mode (`noUnusedLocals`, `noUnusedParameters`, `noFallthroughCasesInSwitch`)
-- ESLint (react-hooks, react-refresh, jsx-a11y, typescript-eslint)
-- `cargo clippy` for Rust
-- Manual testing
+| Command                 | Description                                 |
+| ----------------------- | ------------------------------------------- |
+| `npm test`              | Run all TypeScript tests once               |
+| `npm run test:watch`    | Watch mode                                  |
+| `npm run test:coverage` | Run with v8 coverage report                 |
+| `cargo test`            | Run all Rust unit tests (from `src-tauri/`) |
+
+Test files are colocated next to the source files they test (e.g. `utils.ts` → `utils.test.ts`).
+
+## Git Conventions
+
+All commit messages must follow [Conventional Commits](https://www.conventionalcommits.org/):
+
+```
+<type>(<optional scope>): <description>
+
+[optional body]
+```
+
+### Types
+
+| Type       | Use for                                                  |
+| ---------- | -------------------------------------------------------- |
+| `feat`     | New user-facing feature                                  |
+| `fix`      | Bug fix                                                  |
+| `chore`    | Tooling, config, dependency updates (no production code) |
+| `refactor` | Code restructure with no behaviour change                |
+| `test`     | Adding or updating tests only                            |
+| `docs`     | Documentation only                                       |
+| `perf`     | Performance improvement                                  |
+| `ci`       | CI/CD pipeline changes                                   |
+
+### Examples
+
+```
+feat(sequencer): add swing quantisation
+fix(pitch-utils): correct octave calculation for middle C
+chore: upgrade Tauri to 2.11
+test(duration): add round-trip coverage for from_ticks
+docs: update development guide with testing setup
+```
+
+- Use the imperative mood in the description ("add" not "added")
+- Keep the description under 72 characters
+- Reference Jira tickets in the body when applicable: `SC-123`
 
 ## IDE Setup
 

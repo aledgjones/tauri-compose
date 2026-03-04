@@ -18,6 +18,8 @@ export const Checkbox: FC<Props> = ({
 }) => {
   return (
     <button
+      role="checkbox"
+      aria-checked={value}
       onClick={() => onChange(!value)}
       onPointerDown={onPointerDown}
       className={`relative h-9 w-9 flex items-center justify-center ${className}`}
