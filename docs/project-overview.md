@@ -1,0 +1,48 @@
+# Solo Compose — Project Overview
+
+> **Music composition simplified.** A native desktop application for creating, sequencing, and engraving musical scores.
+
+**Version:** 1.23.1
+**Author:** Aled Jones
+**Identifier:** `com.soloapps.compose`
+
+---
+
+## Executive Summary
+
+Solo Compose is a Tauri-based desktop application that combines a React/TypeScript frontend with a Rust backend to deliver a professional music composition workflow. The app features five operational modes — Setup, Write, Engrave, Sequence, and Print — with hardware-accelerated score rendering via Skia/Metal. Audio playback uses a custom disk-streaming sampler engine with real-time mixing.
+
+## Architecture Type
+
+- **Repository:** Monolith
+- **Project Type:** Desktop (Tauri 2)
+- **Pattern:** Native-rendered score surface + React UI shell
+- **State Model:** Rust-owned state pushed to all frontend windows via Tauri events
+
+## Tech Stack Summary
+
+| Layer         | Technology                | Version    |
+| ------------- | ------------------------- | ---------- |
+| Frontend      | React + TypeScript        | 19.2 / 5.9 |
+| Bundler       | Vite                      | 7.3        |
+| Styling       | Tailwind CSS              | 4.2        |
+| Native Shell  | Tauri                     | 2.10       |
+| Backend       | Rust (2021 edition)       | stable     |
+| Rendering     | skia-safe (Metal)         | 0.93       |
+| Audio I/O     | cpal                      | 0.17       |
+| Audio Decode  | symphonia (FLAC) + rubato | 0.5 / 1.0  |
+| Storage       | sled (embedded KV)        | 0.34       |
+| Serialization | serde + serde_repr        | 1.0        |
+
+## Key Feature Areas
+
+1. **Notation Editor** — Professional score writing with multiple clef types, key/time signatures, barlines, articulations
+2. **Score Engraving** — Hardware-accelerated rendering via 19-module parse pipeline → 20-module draw pipeline → Metal backend
+3. **Audio Sequencing** — Piano roll editor with multi-track instrument sequencing, expression control
+4. **Sampler Engine** — Custom SCVI binary container format, disk-streaming FLAC playback, real-time mixing with per-instrument volume/pan/mute/solo
+5. **Multi-Window UI** — 8 HTML entry points (main, debugger, instrument-picker, layout-settings, player-settings, plugin-settings, preferences, project-settings)
+6. **Instrument Library** — 12+ instrument patches (orchestral strings, keyboards, percussion, woodwinds) with multi-velocity sampling
+
+## File Format
+
+Projects are saved as `.soloc` files — gzip-compressed JSON containing the complete score state. A migration system (`migrations/`) handles backward compatibility across versions.
