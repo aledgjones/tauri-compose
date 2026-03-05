@@ -4,7 +4,7 @@
  * Strategy: mock invoke + dialog helpers, call every action, verify the
  * correct Tauri command name and argument object are forwarded.
  */
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // ---------------------------------------------------------------------------
 // Mocks — declared before the module-under-test is imported
@@ -52,9 +52,16 @@ import {
 // ---------------------------------------------------------------------------
 const mockInvoke = vi.mocked(invoke);
 
+let consoleLog: ReturnType<typeof vi.spyOn>;
+
 beforeEach(() => {
   vi.clearAllMocks();
   mockInvoke.mockResolvedValue(undefined);
+  consoleLog = vi.spyOn(console, "log").mockImplementation(() => {});
+});
+
+afterEach(() => {
+  consoleLog.mockRestore();
 });
 
 // ---------------------------------------------------------------------------
