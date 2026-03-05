@@ -73,9 +73,7 @@ describe("useAsync", () => {
 
   it("catches rejected promises and logs the error without throwing", async () => {
     const error = new Error("boom");
-    const consoleSpy = vi
-      .spyOn(console, "log")
-      .mockImplementation(() => undefined);
+    const consoleSpy = vi.spyOn(console, "log");
     const asyncFn = vi.fn().mockRejectedValue(error);
 
     renderHook(() => useAsync(asyncFn));
