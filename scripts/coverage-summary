@@ -1,0 +1,56 @@
+#!/usr/bin/env node
+
+import { readFileSync } from "fs";
+import { resolve, dirname } from "path";
+import { fileURLToPath } from "url";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const data = JSON.parse(
+  readFileSync(resolve(__dirname, "../coverage/coverage-final.json"), "utf8"),
+);
+
+let ts = 0,
+  cs = 0;
+let tb = 0,
+  cb = 0;
+let tf = 0,
+  cf = 0;
+let tl = 0,
+  cl = 0;
+
+for (const f of Object.values(data)) {
+  const s = f.s || {};
+  const b = f.b || {};
+  const fn = f.f || {};
+  const sm = f.statementMap || {};
+
+  ts += Object.keys(s).length;
+  cs += Object.values(s).filter((v) => v > 0).length;
+
+  for (const vals of Object.values(b)) {
+    tb += vals.length;
+    cb += vals.filter((v) => v > 0).length;
+  }
+
+  tf += Object.keys(fn).length;
+  cf += Object.values(fn).filter((v) => v > 0).length;
+
+  // V8 coverage doesn't populate `l`; derive lines from statementMap instead.
+  const lm = {};
+  for (const [k, v] of Object.entries(s)) {
+    const ln = sm[k] && sm[k].start.line;
+    if (ln !== undefined) {
+      if (!(ln in lm)) lm[ln] = 0;
+      lm[ln] += v;
+    }
+  }
+  tl += Object.keys(lm).length;
+  cl += Object.values(lm).filter((v) => v > 0).length;
+}
+
+const pct = (c, t) => ((c / t) * 100).toFixed(1) + "%";
+
+console.log(`Statements: ${cs}/${ts} = ${pct(cs, ts)}`);
+console.log(`Branches:   ${cb}/${tb} = ${pct(cb, tb)}`);
+console.log(`Functions:  ${cf}/${tf} = ${pct(cf, tf)}`);
+console.log(`Lines:      ${cl}/${tl} = ${pct(cl, tl)}`);
