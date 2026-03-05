@@ -47,4 +47,52 @@ describe("Fader", () => {
     fireEvent.keyDown(button, { key: "ArrowUp" });
     expect(onChange).not.toHaveBeenCalled();
   });
+
+  it("does not call onChange on unrelated key press", () => {
+    const onChange = vi.fn();
+    render(<Fader volume={50} onChange={onChange} />);
+    const button = screen.getByRole("button");
+    fireEvent.keyDown(button, { key: "Enter" });
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("calls onChange on pointerDown and calculates volume from position", () => {
+    const onChange = vi.fn();
+    render(<Fader volume={50} onChange={onChange} />);
+    const button = screen.getByRole("button");
+    // jsdom getBoundingClientRect returns all zeros; offset = 0 - clientY, clamped to 0
+    fireEvent.pointerDown(button, { clientY: 50 });
+    expect(onChange).toHaveBeenCalledWith(0);
+  });
+
+  it("does not call onChange on pointerDown when disabled", () => {
+    const onChange = vi.fn();
+    render(<Fader volume={50} onChange={onChange} disabled />);
+    const button = screen.getByRole("button");
+    fireEvent.pointerDown(button, { clientY: 50 });
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("calls onChange on pointermove after pointerDown", () => {
+    const onChange = vi.fn();
+    render(<Fader volume={50} onChange={onChange} />);
+    const button = screen.getByRole("button");
+    fireEvent.pointerDown(button, { clientY: 50 });
+    onChange.mockClear();
+    // simulate pointermove on document
+    fireEvent.pointerMove(document, { clientY: 30 });
+    expect(onChange).toHaveBeenCalledWith(0);
+  });
+
+  it("stops calling onChange after pointerUp", () => {
+    const onChange = vi.fn();
+    render(<Fader volume={50} onChange={onChange} />);
+    const button = screen.getByRole("button");
+    fireEvent.pointerDown(button, { clientY: 50 });
+    fireEvent.pointerUp(document);
+    onChange.mockClear();
+    // now pointermove should not trigger onChange
+    fireEvent.pointerMove(document, { clientY: 30 });
+    expect(onChange).not.toHaveBeenCalled();
+  });
 });

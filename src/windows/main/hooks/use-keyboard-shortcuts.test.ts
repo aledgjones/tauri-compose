@@ -231,6 +231,270 @@ describe("useKeyboardShortcuts", () => {
     );
   });
 
+  it("dispatches shiftPitchByOctave(-1) on ArrowDown+Cmd+Option", async () => {
+    renderHook(() => useKeyboardShortcuts(), {
+      wrapper: createWrapper({ appState: buildStateWithToneSelection() }),
+    });
+
+    await act(async () => {
+      window.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "ArrowDown",
+          metaKey: true,
+          altKey: true,
+        }),
+      );
+    });
+
+    expect(actions.score.tone.shiftPitchByOctave).toHaveBeenCalledWith(
+      TRACK_ID,
+      TONE_ID,
+      -1,
+    );
+  });
+
+  it("dispatches setAccidental(Sharp) on '='", async () => {
+    renderHook(() => useKeyboardShortcuts(), {
+      wrapper: createWrapper({ appState: buildStateWithToneSelection() }),
+    });
+    await act(async () => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "=" }));
+    });
+    expect(actions.score.tone.setAccidental).toHaveBeenCalledWith(
+      TRACK_ID,
+      TONE_ID,
+      Accidental.Sharp,
+    );
+  });
+
+  it("dispatches setAccidental(Flat) on '-'", async () => {
+    renderHook(() => useKeyboardShortcuts(), {
+      wrapper: createWrapper({ appState: buildStateWithToneSelection() }),
+    });
+    await act(async () => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "-" }));
+    });
+    expect(actions.score.tone.setAccidental).toHaveBeenCalledWith(
+      TRACK_ID,
+      TONE_ID,
+      Accidental.Flat,
+    );
+  });
+
+  it("dispatches setAccidental(Natural) on '0'", async () => {
+    renderHook(() => useKeyboardShortcuts(), {
+      wrapper: createWrapper({ appState: buildStateWithToneSelection() }),
+    });
+    await act(async () => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "0" }));
+    });
+    expect(actions.score.tone.setAccidental).toHaveBeenCalledWith(
+      TRACK_ID,
+      TONE_ID,
+      Accidental.Natural,
+    );
+  });
+
+  it("dispatches remove on Delete", async () => {
+    renderHook(() => useKeyboardShortcuts(), {
+      wrapper: createWrapper({ appState: buildStateWithToneSelection() }),
+    });
+    await act(async () => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Delete" }));
+    });
+    expect(actions.score.tone.remove).toHaveBeenCalledWith(TRACK_ID, TONE_ID);
+  });
+
+  it("dispatches setArticulation(Tenuto) on '\\'", async () => {
+    renderHook(() => useKeyboardShortcuts(), {
+      wrapper: createWrapper({ appState: buildStateWithToneSelection() }),
+    });
+    await act(async () => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "\\" }));
+    });
+    expect(actions.score.tone.setArticulation).toHaveBeenCalledWith(
+      TRACK_ID,
+      TONE_ID,
+      Articulation.Tenuto,
+    );
+  });
+
+  it("dispatches setArticulation(Staccatissimo) on '['", async () => {
+    renderHook(() => useKeyboardShortcuts(), {
+      wrapper: createWrapper({ appState: buildStateWithToneSelection() }),
+    });
+    await act(async () => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "[" }));
+    });
+    expect(actions.score.tone.setArticulation).toHaveBeenCalledWith(
+      TRACK_ID,
+      TONE_ID,
+      Articulation.Staccatissimo,
+    );
+  });
+
+  it('dispatches setArticulation(StaccatoTenuto) on "\'"', async () => {
+    renderHook(() => useKeyboardShortcuts(), {
+      wrapper: createWrapper({ appState: buildStateWithToneSelection() }),
+    });
+    await act(async () => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "'" }));
+    });
+    expect(actions.score.tone.setArticulation).toHaveBeenCalledWith(
+      TRACK_ID,
+      TONE_ID,
+      Articulation.StaccatoTenuto,
+    );
+  });
+
+  it("dispatches setArticulation(Accent) on '}'", async () => {
+    renderHook(() => useKeyboardShortcuts(), {
+      wrapper: createWrapper({ appState: buildStateWithToneSelection() }),
+    });
+    await act(async () => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "}" }));
+    });
+    expect(actions.score.tone.setArticulation).toHaveBeenCalledWith(
+      TRACK_ID,
+      TONE_ID,
+      Articulation.Accent,
+    );
+  });
+
+  it("dispatches setArticulation(Marcato) on '|'", async () => {
+    renderHook(() => useKeyboardShortcuts(), {
+      wrapper: createWrapper({ appState: buildStateWithToneSelection() }),
+    });
+    await act(async () => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "|" }));
+    });
+    expect(actions.score.tone.setArticulation).toHaveBeenCalledWith(
+      TRACK_ID,
+      TONE_ID,
+      Articulation.Marcato,
+    );
+  });
+
+  it("dispatches setArticulation(Stressed) on '{'", async () => {
+    renderHook(() => useKeyboardShortcuts(), {
+      wrapper: createWrapper({ appState: buildStateWithToneSelection() }),
+    });
+    await act(async () => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "{" }));
+    });
+    expect(actions.score.tone.setArticulation).toHaveBeenCalledWith(
+      TRACK_ID,
+      TONE_ID,
+      Articulation.Stressed,
+    );
+  });
+
+  it("dispatches setArticulation(Unstressed) on '\"' ", async () => {
+    renderHook(() => useKeyboardShortcuts(), {
+      wrapper: createWrapper({ appState: buildStateWithToneSelection() }),
+    });
+    await act(async () => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: '"' }));
+    });
+    expect(actions.score.tone.setArticulation).toHaveBeenCalledWith(
+      TRACK_ID,
+      TONE_ID,
+      Articulation.Unstressed,
+    );
+  });
+
+  it("calls audition when shouldAudition=true and result is a number with assigned plugin", async () => {
+    const PLUGIN_ID = "plugin-abc";
+    const state = buildStateWithToneSelection();
+    // give the instrument an assigned plugin so audition fires
+    (state.score.instruments.by_id as Record<number, unknown>)[INSTRUMENT_ID] =
+      {
+        id: INSTRUMENT_ID,
+        definition_id: "piano",
+        instrument_type: 0,
+        long_name: "Piano",
+        short_name: "Pno.",
+        stave_ids: [STAVE_ID],
+        count: null,
+        assigned_plugin_id: PLUGIN_ID,
+        volume: 100,
+        pan: 0,
+        mute: false,
+        solo: false,
+      };
+    state.preferences = { ...state.preferences, audition: true };
+
+    // shiftPitchByStep returns a new pitch int (number) → audition should fire
+    vi.mocked(actions.score.tone.shiftPitchByStep).mockResolvedValueOnce(61);
+
+    renderHook(() => useKeyboardShortcuts(), {
+      wrapper: createWrapper({ appState: state }),
+    });
+
+    await act(async () => {
+      window.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "ArrowUp", altKey: true }),
+      );
+    });
+
+    expect(actions.sampler.audition).toHaveBeenCalledWith(PLUGIN_ID, 61);
+  });
+
+  it("does not audition when audition preference is disabled", async () => {
+    const PLUGIN_ID = "plugin-abc";
+    const state = buildStateWithToneSelection();
+    (state.score.instruments.by_id as Record<number, unknown>)[INSTRUMENT_ID] =
+      {
+        id: INSTRUMENT_ID,
+        definition_id: "piano",
+        instrument_type: 0,
+        long_name: "Piano",
+        short_name: "Pno.",
+        stave_ids: [STAVE_ID],
+        count: null,
+        assigned_plugin_id: PLUGIN_ID,
+        volume: 100,
+        pan: 0,
+        mute: false,
+        solo: false,
+      };
+    state.preferences = { ...state.preferences, audition: false };
+
+    vi.mocked(actions.score.tone.shiftPitchByStep).mockResolvedValueOnce(61);
+
+    renderHook(() => useKeyboardShortcuts(), {
+      wrapper: createWrapper({ appState: state }),
+    });
+
+    await act(async () => {
+      window.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "ArrowUp", altKey: true }),
+      );
+    });
+
+    expect(actions.sampler.audition).not.toHaveBeenCalled();
+  });
+
+  it("does not audition when instrument has no assigned plugin", async () => {
+    const state = buildStateWithToneSelection();
+    state.preferences = { ...state.preferences, audition: true };
+    // instrument has no assigned plugin (null by default in buildStateWithToneSelection)
+
+    vi.mocked(actions.score.tone.shiftPitchByStep).mockResolvedValueOnce(62);
+
+    renderHook(() => useKeyboardShortcuts(), {
+      wrapper: createWrapper({ appState: state }),
+    });
+
+    await act(async () => {
+      window.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "ArrowUp", altKey: true }),
+      );
+    });
+
+    expect(actions.sampler.audition).not.toHaveBeenCalled();
+  });
+
   it("does not fire any action for unknown key", async () => {
     renderHook(() => useKeyboardShortcuts(), {
       wrapper: createWrapper({ appState: buildStateWithToneSelection() }),

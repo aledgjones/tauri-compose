@@ -1,0 +1,1159 @@
+/**
+ * Comprehensive tests for services/actions.ts
+ *
+ * Strategy: mock invoke + dialog helpers, call every action, verify the
+ * correct Tauri command name and argument object are forwarded.
+ */
+import { describe, it, expect, vi, beforeEach } from "vitest";
+
+// ---------------------------------------------------------------------------
+// Mocks — declared before the module-under-test is imported
+// ---------------------------------------------------------------------------
+vi.mock("@tauri-apps/api/core", () => ({
+  invoke: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("@tauri-apps/plugin-dialog", () => ({
+  save: vi.fn().mockResolvedValue("/default/path.soloc"),
+  open: vi.fn().mockResolvedValue("/default/open.soloc"),
+}));
+
+vi.mock("@tauri-apps/api/webviewWindow", () => ({
+  WebviewWindow: vi.fn().mockImplementation(() => ({
+    once: vi.fn().mockResolvedValue(vi.fn()),
+    close: vi.fn(),
+  })),
+}));
+
+import { invoke } from "@tauri-apps/api/core";
+import { save, open } from "@tauri-apps/plugin-dialog";
+import { actions } from "./actions";
+import {
+  Accidental,
+  Articulation,
+  AutoCountStyle,
+  BarlineDrawType,
+  BottomPanelTab,
+  BracketingApproach,
+  BracketStyle,
+  ClefDrawType,
+  KeySignatureMode,
+  LayoutType,
+  NoteDuration,
+  PlayerType,
+  SetupSelectionType,
+  Tab,
+  TimeSignatureDrawType,
+  Tool,
+} from "./types";
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+const mockInvoke = vi.mocked(invoke);
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  mockInvoke.mockResolvedValue(undefined);
+});
+
+// ---------------------------------------------------------------------------
+// Top-level
+// ---------------------------------------------------------------------------
+describe("actions.initialize", () => {
+  it("calls invoke('initialize')", async () => {
+    await actions.initialize();
+    expect(mockInvoke).toHaveBeenCalledWith("initialize");
+  });
+});
+
+describe("actions.reset", () => {
+  it("calls invoke('reset')", async () => {
+    await actions.reset();
+    expect(mockInvoke).toHaveBeenCalledWith("reset");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// audio
+// ---------------------------------------------------------------------------
+describe("actions.audio", () => {
+  it("setDevice calls invoke with device_id", async () => {
+    await actions.audio.setDevice("hw:0");
+    expect(mockInvoke).toHaveBeenCalledWith("audio_device_set", {
+      device_id: "hw:0",
+    });
+  });
+
+  it("setDeviceSampleRate calls invoke with sample_rate", async () => {
+    await actions.audio.setDeviceSampleRate(48000);
+    expect(mockInvoke).toHaveBeenCalledWith("audio_device_sample_rate_set", {
+      sample_rate: 48000,
+    });
+  });
+
+  it("refreshDevices calls invoke correctly", async () => {
+    await actions.audio.refreshDevices();
+    expect(mockInvoke).toHaveBeenCalledWith("audio_devices_refresh");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// sampler
+// ---------------------------------------------------------------------------
+describe("actions.sampler", () => {
+  it("rescanPlugins calls invoke correctly", async () => {
+    await actions.sampler.rescanPlugins();
+    expect(mockInvoke).toHaveBeenCalledWith("sampler_rescan_plugins");
+  });
+
+  it("syncWithInstruments calls invoke with assigned_plugin_ids", async () => {
+    await actions.sampler.syncWithInstruments(["a", "b"]);
+    expect(mockInvoke).toHaveBeenCalledWith("sampler_sync_with_instruments", {
+      assigned_plugin_ids: ["a", "b"],
+    });
+  });
+
+  it("audition calls invoke with all required fields", async () => {
+    await actions.sampler.audition("plug-1", 60, 80, "artic-1", 300);
+    expect(mockInvoke).toHaveBeenCalledWith("sampler_audition", {
+      plugin_id: "plug-1",
+      note: 60,
+      velocity: 80,
+      articulation_id: "artic-1",
+      duration_ms: 300,
+    });
+  });
+
+  it("audition uses defaults for optional params", async () => {
+    await actions.sampler.audition("plug-2", 62);
+    expect(mockInvoke).toHaveBeenCalledWith("sampler_audition", {
+      plugin_id: "plug-2",
+      note: 62,
+      velocity: 100,
+      articulation_id: null,
+      duration_ms: 250,
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// ui.*
+// ---------------------------------------------------------------------------
+describe("actions.ui", () => {
+  it("setTab calls invoke with tab", async () => {
+    await actions.ui.setTab(Tab.Write);
+    expect(mockInvoke).toHaveBeenCalledWith("ui_tab_set", { tab: Tab.Write });
+  });
+
+  it("setActiveLayoutId calls invoke correctly", async () => {
+    await actions.ui.setActiveLayoutId(3);
+    expect(mockInvoke).toHaveBeenCalledWith("ui_layout_id_set", {
+      layout_id: 3,
+    });
+  });
+
+  it("setActiveFlowId calls invoke correctly", async () => {
+    await actions.ui.setActiveFlowId(7);
+    expect(mockInvoke).toHaveBeenCalledWith("ui_flow_id_set", { flow_id: 7 });
+  });
+
+  describe("preferences", () => {
+    it("setAudition calls invoke correctly", async () => {
+      await actions.ui.preferences.setAudition(true);
+      expect(mockInvoke).toHaveBeenCalledWith("preferences_audition_set", {
+        audition: true,
+      });
+    });
+  });
+
+  describe("renderer", () => {
+    it("setZoom calls invoke with zoom", async () => {
+      await actions.ui.renderer.setZoom(1.5);
+      expect(mockInvoke).toHaveBeenCalledWith("ui_renderer_zoom_set", {
+        zoom: 1.5,
+      });
+    });
+
+    it("setPan calls invoke with x,y", async () => {
+      await actions.ui.renderer.setPan(10, 20);
+      expect(mockInvoke).toHaveBeenCalledWith("ui_renderer_pan_set", {
+        x: 10,
+        y: 20,
+      });
+    });
+
+    it("setBounds calls invoke with bounds and px_per_mm", async () => {
+      const bounds = { x: 0, y: 0, width: 800, height: 600 };
+      await actions.ui.renderer.setBounds(3.78, bounds);
+      expect(mockInvoke).toHaveBeenCalledWith("ui_renderer_bounds_set", {
+        bounds,
+        px_per_mm: 3.78,
+      });
+    });
+
+    it("toggleDebug calls invoke correctly", async () => {
+      await actions.ui.renderer.toggleDebug();
+      expect(mockInvoke).toHaveBeenCalledWith("ui_renderer_debug_toggle");
+    });
+
+    it("getSelectionCoordinates calls invoke correctly", async () => {
+      mockInvoke.mockResolvedValueOnce([5, 10]);
+      const result = await actions.ui.renderer.getSelectionCoordinates();
+      expect(mockInvoke).toHaveBeenCalledWith("ui_get_selection_coordinates");
+      expect(result).toEqual([5, 10]);
+    });
+  });
+
+  describe("sequencer", () => {
+    it("setInstrument calls invoke with id", async () => {
+      await actions.ui.sequencer.setInstrument(42);
+      expect(mockInvoke).toHaveBeenCalledWith("ui_sequencer_instrument_set", {
+        id: 42,
+      });
+    });
+
+    it("setTrack calls invoke with id", async () => {
+      await actions.ui.sequencer.setTrack(5);
+      expect(mockInvoke).toHaveBeenCalledWith("ui_sequencer_track_set", {
+        id: 5,
+      });
+    });
+
+    it("setTool calls invoke with tool", async () => {
+      await actions.ui.sequencer.setTool(Tool.Write);
+      expect(mockInvoke).toHaveBeenCalledWith("ui_sequencer_tool_set", {
+        tool: Tool.Write,
+      });
+    });
+
+    it("setSnap calls invoke with snap", async () => {
+      await actions.ui.sequencer.setSnap(NoteDuration.Eighth);
+      expect(mockInvoke).toHaveBeenCalledWith("ui_sequencer_snap_set", {
+        snap: NoteDuration.Eighth,
+      });
+    });
+
+    it("setCoords calls invoke with x,y", async () => {
+      await actions.ui.sequencer.setCoords(100, 200);
+      expect(mockInvoke).toHaveBeenCalledWith("ui_sequencer_coords_set", {
+        x: 100,
+        y: 200,
+      });
+    });
+
+    it("selectTone calls invoke with all IDs", async () => {
+      await actions.ui.sequencer.selectTone(1, 2, 3, 4, 5);
+      expect(mockInvoke).toHaveBeenCalledWith(
+        "ui_sequencer_selection_set_tone",
+        {
+          tone_id: 1,
+          track_id: 2,
+          stave_id: 3,
+          flow_id: 4,
+          instrument_id: 5,
+        },
+      );
+    });
+
+    it("selectRest calls invoke with all IDs", async () => {
+      await actions.ui.sequencer.selectRest(64, 2, 3, 4, 5);
+      expect(mockInvoke).toHaveBeenCalledWith(
+        "ui_sequencer_selection_set_rest",
+        {
+          tick: 64,
+          track_id: 2,
+          stave_id: 3,
+          flow_id: 4,
+          instrument_id: 5,
+        },
+      );
+    });
+
+    it("clearSelection calls invoke correctly", async () => {
+      await actions.ui.sequencer.clearSelection();
+      expect(mockInvoke).toHaveBeenCalledWith("ui_sequencer_selection_clear");
+    });
+  });
+
+  describe("screens.setup", () => {
+    it("select calls invoke with selection_type and id", async () => {
+      await actions.ui.screens.setup.select(SetupSelectionType.Player, 1);
+      expect(mockInvoke).toHaveBeenCalledWith("ui_setup_selection_set", {
+        selection_type: SetupSelectionType.Player,
+        id: 1,
+      });
+    });
+
+    it("clearSelection calls invoke correctly", async () => {
+      await actions.ui.screens.setup.clearSelection();
+      expect(mockInvoke).toHaveBeenCalledWith("ui_setup_selection_clear");
+    });
+
+    it("expand calls invoke with id", async () => {
+      await actions.ui.screens.setup.expand(10);
+      expect(mockInvoke).toHaveBeenCalledWith("ui_setup_expanded_insert", {
+        id: 10,
+      });
+    });
+
+    it("collapse calls invoke with id", async () => {
+      await actions.ui.screens.setup.collapse(10);
+      expect(mockInvoke).toHaveBeenCalledWith("ui_setup_expanded_remove", {
+        id: 10,
+      });
+    });
+  });
+
+  describe("screens.write.bottomPanel", () => {
+    it("toggle calls invoke correctly", async () => {
+      await actions.ui.screens.write.bottomPanel.toggle();
+      expect(mockInvoke).toHaveBeenCalledWith(
+        "ui_write_bottom_panel_minimized_toggle",
+      );
+    });
+
+    it("setTab calls invoke with tab", async () => {
+      await actions.ui.screens.write.bottomPanel.setTab(
+        BottomPanelTab.Sequencer,
+      );
+      expect(mockInvoke).toHaveBeenCalledWith("ui_write_bottom_panel_tab_set", {
+        tab: BottomPanelTab.Sequencer,
+      });
+    });
+  });
+
+  describe("screens.sequence.bottomPanel", () => {
+    it("toggle calls invoke correctly", async () => {
+      await actions.ui.screens.sequence.bottomPanel.toggle();
+      expect(mockInvoke).toHaveBeenCalledWith(
+        "ui_sequence_bottom_panel_minimized_toggle",
+      );
+    });
+
+    it("setTab calls invoke with tab", async () => {
+      await actions.ui.screens.sequence.bottomPanel.setTab(
+        BottomPanelTab.Mixer,
+      );
+      expect(mockInvoke).toHaveBeenCalledWith(
+        "ui_sequence_bottom_panel_tab_set",
+        { tab: BottomPanelTab.Mixer },
+      );
+    });
+
+    it("instruments.setShowActiveOnly calls invoke correctly", async () => {
+      await actions.ui.screens.sequence.bottomPanel.instruments.setShowActiveOnly(
+        true,
+      );
+      expect(mockInvoke).toHaveBeenCalledWith(
+        "ui_sequence_show_active_only_set",
+        { show_active_only: true },
+      );
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// score.engrave
+// ---------------------------------------------------------------------------
+describe("actions.score.engrave", () => {
+  const lt = LayoutType.FullScore;
+
+  it("setSystemicBarlineSingleInstrumentSystem", async () => {
+    await actions.score.engrave.setSystemicBarlineSingleInstrumentSystem(
+      lt,
+      true,
+    );
+    expect(mockInvoke).toHaveBeenCalledWith(
+      "score_engraves_systemic_barline_single_instrument_system_set",
+      { layout_type: lt, value: true },
+    );
+  });
+
+  it("setBracketingApproach", async () => {
+    await actions.score.engrave.setBracketingApproach(
+      lt,
+      BracketingApproach.Orchestral,
+    );
+    expect(mockInvoke).toHaveBeenCalledWith(
+      "score_engraves_bracketing_approach_set",
+      { layout_type: lt, value: BracketingApproach.Orchestral },
+    );
+  });
+
+  it("setBracketStyle", async () => {
+    await actions.score.engrave.setBracketStyle(lt, BracketStyle.Line);
+    expect(mockInvoke).toHaveBeenCalledWith(
+      "score_engraves_bracket_style_set",
+      { layout_type: lt, value: BracketStyle.Line },
+    );
+  });
+
+  it("setBracketSingleStaves", async () => {
+    await actions.score.engrave.setBracketSingleStaves(lt, false);
+    expect(mockInvoke).toHaveBeenCalledWith(
+      "score_engraves_bracket_single_staves_set",
+      { layout_type: lt, value: false },
+    );
+  });
+
+  it("setBaseNoteSpace", async () => {
+    await actions.score.engrave.setBaseNoteSpace(lt, 12);
+    expect(mockInvoke).toHaveBeenCalledWith(
+      "score_engraves_base_note_space_set",
+      { layout_type: lt, value: 12 },
+    );
+  });
+
+  it("setMinimumNoteSpace", async () => {
+    await actions.score.engrave.setMinimumNoteSpace(lt, 5);
+    expect(mockInvoke).toHaveBeenCalledWith(
+      "score_engraves_minimum_note_space_set",
+      { layout_type: lt, value: 5 },
+    );
+  });
+
+  it("setMinimumTieSpace", async () => {
+    await actions.score.engrave.setMinimumTieSpace(lt, 3);
+    expect(mockInvoke).toHaveBeenCalledWith(
+      "score_engraves_minimum_tie_space_set",
+      { layout_type: lt, value: 3 },
+    );
+  });
+
+  it("setNoteSpaceRatio", async () => {
+    await actions.score.engrave.setNoteSpaceRatio(lt, 1.4);
+    expect(mockInvoke).toHaveBeenCalledWith(
+      "score_engraves_note_space_ratio_set",
+      { layout_type: lt, value: 1.4 },
+    );
+  });
+
+  it("setSpace", async () => {
+    await actions.score.engrave.setSpace(lt, 8);
+    expect(mockInvoke).toHaveBeenCalledWith("score_engraves_space_set", {
+      layout_type: lt,
+      value: 8,
+    });
+  });
+
+  it("setFramePaddingTop", async () => {
+    await actions.score.engrave.setFramePaddingTop(lt, 10);
+    expect(mockInvoke).toHaveBeenCalledWith(
+      "score_engraves_frame_padding_top_set",
+      { layout_type: lt, value: 10 },
+    );
+  });
+
+  it("setFramePaddingBottom", async () => {
+    await actions.score.engrave.setFramePaddingBottom(lt, 10);
+    expect(mockInvoke).toHaveBeenCalledWith(
+      "score_engraves_frame_padding_bottom_set",
+      { layout_type: lt, value: 10 },
+    );
+  });
+
+  it("setPagePaddingTop", async () => {
+    await actions.score.engrave.setPagePaddingTop(lt, 20);
+    expect(mockInvoke).toHaveBeenCalledWith(
+      "score_engraves_page_padding_top_set",
+      { layout_type: lt, value: 20 },
+    );
+  });
+
+  it("setPagePaddingRight", async () => {
+    await actions.score.engrave.setPagePaddingRight(lt, 15);
+    expect(mockInvoke).toHaveBeenCalledWith(
+      "score_engraves_page_padding_right_set",
+      { layout_type: lt, value: 15 },
+    );
+  });
+
+  it("setPagePaddingBottom", async () => {
+    await actions.score.engrave.setPagePaddingBottom(lt, 20);
+    expect(mockInvoke).toHaveBeenCalledWith(
+      "score_engraves_page_padding_bottom_set",
+      { layout_type: lt, value: 20 },
+    );
+  });
+
+  it("setPagePaddingLeft", async () => {
+    await actions.score.engrave.setPagePaddingLeft(lt, 15);
+    expect(mockInvoke).toHaveBeenCalledWith(
+      "score_engraves_page_padding_left_set",
+      { layout_type: lt, value: 15 },
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// score.flow
+// ---------------------------------------------------------------------------
+describe("actions.score.flow", () => {
+  it("create returns the new flow id", async () => {
+    mockInvoke.mockResolvedValueOnce(5);
+    const id = await actions.score.flow.create();
+    expect(mockInvoke).toHaveBeenCalledWith("score_flows_create");
+    expect(id).toBe(5);
+  });
+
+  it("rename calls invoke correctly", async () => {
+    await actions.score.flow.rename(1, "My Flow");
+    expect(mockInvoke).toHaveBeenCalledWith("score_flows_rename", {
+      flow_id: 1,
+      title: "My Flow",
+    });
+  });
+
+  it("move calls invoke with indices", async () => {
+    await actions.score.flow.move(0, 2);
+    expect(mockInvoke).toHaveBeenCalledWith("score_flows_move", {
+      from_index: 0,
+      to_index: 2,
+    });
+  });
+
+  it("assignPlayer calls invoke correctly", async () => {
+    await actions.score.flow.assignPlayer(1, 10);
+    expect(mockInvoke).toHaveBeenCalledWith("score_flows_assign_player", {
+      flow_id: 1,
+      player_id: 10,
+    });
+  });
+
+  it("unassignPlayer calls invoke correctly", async () => {
+    await actions.score.flow.unassignPlayer(1, 10);
+    expect(mockInvoke).toHaveBeenCalledWith("score_flows_unassign_player", {
+      flow_id: 1,
+      player_id: 10,
+    });
+  });
+
+  it("remove calls invoke with flow_id", async () => {
+    await actions.score.flow.remove(3);
+    expect(mockInvoke).toHaveBeenCalledWith("score_flows_remove", {
+      flow_id: 3,
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// score.layout
+// ---------------------------------------------------------------------------
+describe("actions.score.layout", () => {
+  it("create returns the new layout id", async () => {
+    mockInvoke.mockResolvedValueOnce(9);
+    const id = await actions.score.layout.create(LayoutType.Part);
+    expect(mockInvoke).toHaveBeenCalledWith("score_layouts_create", {
+      layout_type: LayoutType.Part,
+    });
+    expect(id).toBe(9);
+  });
+
+  it("rename calls invoke correctly", async () => {
+    await actions.score.layout.rename(2, "Part A");
+    expect(mockInvoke).toHaveBeenCalledWith("score_layouts_rename", {
+      layout_id: 2,
+      title: "Part A",
+    });
+  });
+
+  it("assignPlayer calls invoke correctly", async () => {
+    await actions.score.layout.assignPlayer(2, 5);
+    expect(mockInvoke).toHaveBeenCalledWith("score_layouts_assign_player", {
+      layout_id: 2,
+      player_id: 5,
+    });
+  });
+
+  it("unassignPlayer calls invoke correctly", async () => {
+    await actions.score.layout.unassignPlayer(2, 5);
+    expect(mockInvoke).toHaveBeenCalledWith("score_layouts_unassign_player", {
+      layout_id: 2,
+      player_id: 5,
+    });
+  });
+
+  it("assignFlow calls invoke correctly", async () => {
+    await actions.score.layout.assignFlow(2, 3);
+    expect(mockInvoke).toHaveBeenCalledWith("score_layouts_assign_flow", {
+      layout_id: 2,
+      player_id: 3,
+    });
+  });
+
+  it("unassignFlow calls invoke correctly", async () => {
+    await actions.score.layout.unassignFlow(2, 3);
+    expect(mockInvoke).toHaveBeenCalledWith("score_layouts_unassign_flow", {
+      layout_id: 2,
+      player_id: 3,
+    });
+  });
+
+  it("move calls invoke correctly", async () => {
+    await actions.score.layout.move(0, 1);
+    expect(mockInvoke).toHaveBeenCalledWith("score_layouts_move", {
+      from_index: 0,
+      to_index: 1,
+    });
+  });
+
+  it("remove calls invoke correctly", async () => {
+    await actions.score.layout.remove(4);
+    expect(mockInvoke).toHaveBeenCalledWith("score_layouts_remove", {
+      layout_id: 4,
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// score.player
+// ---------------------------------------------------------------------------
+describe("actions.score.player", () => {
+  it("create returns the new player id", async () => {
+    mockInvoke.mockResolvedValueOnce(7);
+    const id = await actions.score.player.create(PlayerType.Solo);
+    expect(mockInvoke).toHaveBeenCalledWith("score_players_create", {
+      player_type: PlayerType.Solo,
+    });
+    expect(id).toBe(7);
+  });
+
+  it("assignInstrument calls invoke correctly", async () => {
+    await actions.score.player.assignInstrument(1, 20);
+    expect(mockInvoke).toHaveBeenCalledWith("score_players_assign_instrument", {
+      player_id: 1,
+      instrument_id: 20,
+    });
+  });
+
+  it("unassignInstrument calls invoke correctly", async () => {
+    await actions.score.player.unassignInstrument(1, 20);
+    expect(mockInvoke).toHaveBeenCalledWith(
+      "score_players_unassign_instrument",
+      { player_id: 1, instrument_id: 20 },
+    );
+  });
+
+  it("move calls invoke correctly", async () => {
+    await actions.score.player.move(0, 2);
+    expect(mockInvoke).toHaveBeenCalledWith("score_players_move", {
+      from_index: 0,
+      to_index: 2,
+    });
+  });
+
+  it("remove calls invoke correctly", async () => {
+    await actions.score.player.remove(3);
+    expect(mockInvoke).toHaveBeenCalledWith("score_players_remove", {
+      player_id: 3,
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// score.instrument
+// ---------------------------------------------------------------------------
+describe("actions.score.instrument", () => {
+  it("create returns the new instrument id", async () => {
+    mockInvoke.mockResolvedValueOnce(11);
+    const id = await actions.score.instrument.create("piano");
+    expect(mockInvoke).toHaveBeenCalledWith("score_instruments_create", {
+      definition_id: "piano",
+    });
+    expect(id).toBe(11);
+  });
+
+  it("move calls invoke correctly", async () => {
+    await actions.score.instrument.move(0, 1, 2, 3);
+    expect(mockInvoke).toHaveBeenCalledWith("score_instruments_move", {
+      from_index: 0,
+      to_index: 1,
+      from_player_id: 2,
+      to_player_id: 3,
+    });
+  });
+
+  it("remove calls invoke correctly", async () => {
+    await actions.score.instrument.remove(10);
+    expect(mockInvoke).toHaveBeenCalledWith("score_instruments_remove", {
+      instrument_id: 10,
+    });
+  });
+
+  it("assignPlugin calls invoke with plugin_id", async () => {
+    await actions.score.instrument.assignPlugin(10, "vst-1");
+    expect(mockInvoke).toHaveBeenCalledWith("score_instruments_assign_plugin", {
+      instrument_id: 10,
+      plugin_id: "vst-1",
+    });
+  });
+
+  it("assignPlugin accepts null plugin_id", async () => {
+    await actions.score.instrument.assignPlugin(10, null);
+    expect(mockInvoke).toHaveBeenCalledWith("score_instruments_assign_plugin", {
+      instrument_id: 10,
+      plugin_id: null,
+    });
+  });
+
+  it("setVolume calls invoke correctly", async () => {
+    await actions.score.instrument.setVolume(10, 80);
+    expect(mockInvoke).toHaveBeenCalledWith("score_instruments_set_volume", {
+      instrument_id: 10,
+      volume: 80,
+    });
+  });
+
+  it("setPan calls invoke correctly", async () => {
+    await actions.score.instrument.setPan(10, -50);
+    expect(mockInvoke).toHaveBeenCalledWith("score_instruments_set_pan", {
+      instrument_id: 10,
+      pan: -50,
+    });
+  });
+
+  it("setMute calls invoke correctly", async () => {
+    await actions.score.instrument.setMute(10, true);
+    expect(mockInvoke).toHaveBeenCalledWith("score_instruments_set_mute", {
+      instrument_id: 10,
+      mute: true,
+    });
+  });
+
+  it("setSolo calls invoke correctly", async () => {
+    await actions.score.instrument.setSolo(10, false);
+    expect(mockInvoke).toHaveBeenCalledWith("score_instruments_set_solo", {
+      instrument_id: 10,
+      solo: false,
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// score.config
+// ---------------------------------------------------------------------------
+describe("actions.score.config", () => {
+  it("autoCountStyles.setSolo calls invoke correctly", async () => {
+    await actions.score.config.autoCountStyles.setSolo(AutoCountStyle.Arabic);
+    expect(mockInvoke).toHaveBeenCalledWith(
+      "score_config_auto_count_styles_solo_set",
+      { auto_count_style: AutoCountStyle.Arabic },
+    );
+  });
+
+  it("autoCountStyles.setSection calls invoke correctly", async () => {
+    await actions.score.config.autoCountStyles.setSection(AutoCountStyle.Roman);
+    expect(mockInvoke).toHaveBeenCalledWith(
+      "score_config_auto_count_styles_section_set",
+      { auto_count_style: AutoCountStyle.Roman },
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// score.meta
+// ---------------------------------------------------------------------------
+describe("actions.score.meta", () => {
+  const metaCases: Array<[keyof typeof actions.score.meta, string, string]> = [
+    ["setTitle", "score_meta_title_set", "title"],
+    ["setSubtitle", "score_meta_subtitle_set", "subtitle"],
+    ["setDedication", "score_meta_dedication_set", "dedication"],
+    ["setComposer", "score_meta_composer_set", "composer"],
+    ["setArranger", "score_meta_arranger_set", "arranger"],
+    ["setLyricist", "score_meta_lyricist_set", "lyricist"],
+    ["setArtist", "score_meta_artist_set", "artist"],
+    ["setCopyist", "score_meta_copyist_set", "copyist"],
+    ["setPublisher", "score_meta_publisher_set", "publisher"],
+    ["setEditor", "score_meta_editor_set", "editor"],
+    ["setCopyright", "score_meta_copyright_set", "copyright"],
+    ["setWorkNumber", "score_meta_work_number_set", "work_number"],
+    [
+      "setCompositionYear",
+      "score_meta_composition_year_set",
+      "composition_year",
+    ],
+    ["setComposerDates", "score_meta_composer_dates_set", "composer_dates"],
+    [
+      "setOtherInformation",
+      "score_meta_other_information_set",
+      "other_information",
+    ],
+  ];
+
+  it.each(metaCases)(
+    "%s calls invoke(%s, { %s: value })",
+    async (method, command, argKey) => {
+      await (actions.score.meta[method] as (v: string) => Promise<void>)(
+        "test-value",
+      );
+      expect(mockInvoke).toHaveBeenCalledWith(command, {
+        [argKey]: "test-value",
+      });
+    },
+  );
+});
+
+// ---------------------------------------------------------------------------
+// score.barline
+// ---------------------------------------------------------------------------
+describe("actions.score.barline", () => {
+  it("create calls invoke correctly", async () => {
+    mockInvoke.mockResolvedValueOnce(99);
+    const id = await actions.score.barline.create(1, 64, BarlineDrawType.Final);
+    expect(mockInvoke).toHaveBeenCalledWith("score_entries_barline_create", {
+      flow_id: 1,
+      tick: 64,
+      barline_draw_type: BarlineDrawType.Final,
+    });
+    expect(id).toBe(99);
+  });
+
+  it("clearAtTick calls invoke correctly", async () => {
+    await actions.score.barline.clearAtTick(1, 64);
+    expect(mockInvoke).toHaveBeenCalledWith("score_entries_barline_clear", {
+      flow_id: 1,
+      tick: 64,
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// score.clef
+// ---------------------------------------------------------------------------
+describe("actions.score.clef", () => {
+  it("create calls invoke correctly", async () => {
+    await actions.score.clef.create(1, 0, 100, 71, 0, ClefDrawType.G);
+    expect(mockInvoke).toHaveBeenCalledWith("score_entries_clef_create", {
+      flow_id: 1,
+      tick: 0,
+      stave_id: 100,
+      pitch: 71,
+      offset: 0,
+      clef_draw_type: ClefDrawType.G,
+    });
+  });
+
+  it("clear calls invoke correctly", async () => {
+    await actions.score.clef.clear(1, 0, 100);
+    expect(mockInvoke).toHaveBeenCalledWith("score_entries_clef_clear", {
+      flow_id: 1,
+      tick: 0,
+      stave_id: 100,
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// score.keySignature
+// ---------------------------------------------------------------------------
+describe("actions.score.keySignature", () => {
+  it("create calls invoke correctly", async () => {
+    await actions.score.keySignature.create(1, 0, KeySignatureMode.Major, 0);
+    expect(mockInvoke).toHaveBeenCalledWith(
+      "score_entries_key_signature_create",
+      {
+        flow_id: 1,
+        tick: 0,
+        mode: KeySignatureMode.Major,
+        offset: 0,
+      },
+    );
+  });
+
+  it("clearAtTick calls invoke correctly", async () => {
+    await actions.score.keySignature.clearAtTick(1, 0);
+    expect(mockInvoke).toHaveBeenCalledWith(
+      "score_entries_key_signature_clear",
+      { flow_id: 1, tick: 0 },
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// score.timeSignature
+// ---------------------------------------------------------------------------
+describe("actions.score.timeSignature", () => {
+  it("create calls invoke correctly", async () => {
+    await actions.score.timeSignature.create(
+      1,
+      0,
+      4,
+      NoteDuration.Quarter,
+      TimeSignatureDrawType.Regular,
+    );
+    expect(mockInvoke).toHaveBeenCalledWith(
+      "score_entries_time_signature_create",
+      {
+        flow_id: 1,
+        tick: 0,
+        beats: 4,
+        beat_type: NoteDuration.Quarter,
+        draw_type: TimeSignatureDrawType.Regular,
+      },
+    );
+  });
+
+  it("clearAtTick calls invoke correctly", async () => {
+    await actions.score.timeSignature.clearAtTick(1, 0);
+    expect(mockInvoke).toHaveBeenCalledWith(
+      "score_entries_time_signature_clear",
+      { flow_id: 1, tick: 0 },
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// score.tone
+// ---------------------------------------------------------------------------
+describe("actions.score.tone", () => {
+  it("create calls invoke and returns id", async () => {
+    mockInvoke.mockResolvedValueOnce(200);
+    const id = await actions.score.tone.create(
+      10,
+      32,
+      32,
+      60,
+      Accidental.Natural,
+      100,
+      [Articulation.Staccato],
+    );
+    expect(mockInvoke).toHaveBeenCalledWith("score_entries_tone_create", {
+      track_id: 10,
+      tick: 32,
+      duration: 32,
+      pitch_int: 60,
+      accidental: Accidental.Natural,
+      velocity: 100,
+      articulations: [Articulation.Staccato],
+    });
+    expect(id).toBe(200);
+  });
+
+  it("shift calls invoke correctly", async () => {
+    await actions.score.tone.shift(10, 200, 64);
+    expect(mockInvoke).toHaveBeenCalledWith("score_entries_tone_shift", {
+      track_id: 10,
+      entry_id: 200,
+      new_tick: 64,
+    });
+  });
+
+  it("unifyArticulations calls invoke correctly", async () => {
+    await actions.score.tone.unifyArticulations(10, 200);
+    expect(mockInvoke).toHaveBeenCalledWith(
+      "score_entries_tone_unify_articulations",
+      { track_id: 10, entry_id: 200 },
+    );
+  });
+
+  it("setDuration calls invoke correctly", async () => {
+    await actions.score.tone.setDuration(10, 200, 32);
+    expect(mockInvoke).toHaveBeenCalledWith("score_entries_tone_duration_set", {
+      track_id: 10,
+      tone_id: 200,
+      duration: 32,
+    });
+  });
+
+  it("setPositionAndDuration calls invoke correctly", async () => {
+    await actions.score.tone.setPositionAndDuration(10, 200, 64, 16);
+    expect(mockInvoke).toHaveBeenCalledWith(
+      "score_entries_tone_set_position_and_duration",
+      { track_id: 10, tone_id: 200, tick: 64, duration: 16 },
+    );
+  });
+
+  it("setPitch calls invoke correctly", async () => {
+    await actions.score.tone.setPitch(10, 200, 62, Accidental.Sharp);
+    expect(mockInvoke).toHaveBeenCalledWith("score_entries_tone_pitch_set", {
+      track_id: 10,
+      tone_id: 200,
+      pitch_int: 62,
+      accidental: Accidental.Sharp,
+    });
+  });
+
+  it("remove calls invoke correctly", async () => {
+    await actions.score.tone.remove(10, 200);
+    expect(mockInvoke).toHaveBeenCalledWith(
+      "score_entries_tone_duration_remove",
+      { track_id: 10, tone_id: 200 },
+    );
+  });
+
+  it("slice calls invoke correctly", async () => {
+    await actions.score.tone.slice(10, 200, 48);
+    expect(mockInvoke).toHaveBeenCalledWith("score_entries_tone_slice", {
+      track_id: 10,
+      tone_id: 200,
+      slice_tick: 48,
+    });
+  });
+
+  it("shiftPitchByStep calls invoke correctly", async () => {
+    await actions.score.tone.shiftPitchByStep(1, 10, 200, 2);
+    expect(mockInvoke).toHaveBeenCalledWith(
+      "score_entries_tone_pitch_shift_by_steps",
+      { flow_id: 1, track_id: 10, tone_id: 200, steps: 2 },
+    );
+  });
+
+  it("shiftPitchByOctave calls invoke correctly", async () => {
+    await actions.score.tone.shiftPitchByOctave(10, 200, 1);
+    expect(mockInvoke).toHaveBeenCalledWith(
+      "score_entries_tone_pitch_shift_by_octaves",
+      { track_id: 10, tone_id: 200, octaves: 1 },
+    );
+  });
+
+  it("setAccidental calls invoke correctly", async () => {
+    await actions.score.tone.setAccidental(10, 200, Accidental.Flat);
+    expect(mockInvoke).toHaveBeenCalledWith(
+      "score_entries_tone_accidental_set",
+      { track_id: 10, tone_id: 200, accidental: Accidental.Flat },
+    );
+  });
+
+  it("setArticulation calls invoke correctly", async () => {
+    await actions.score.tone.setArticulation(10, 200, Articulation.Tenuto);
+    expect(mockInvoke).toHaveBeenCalledWith(
+      "score_entries_tone_articulation_set",
+      { track_id: 10, tone_id: 200, articulation: Articulation.Tenuto },
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// transport
+// ---------------------------------------------------------------------------
+describe("actions.transport", () => {
+  it("play calls invoke('transport_play')", async () => {
+    await actions.transport.play();
+    expect(mockInvoke).toHaveBeenCalledWith("transport_play");
+  });
+
+  it("pause calls invoke('transport_pause')", async () => {
+    await actions.transport.pause();
+    expect(mockInvoke).toHaveBeenCalledWith("transport_pause");
+  });
+
+  it("stop calls invoke('transport_stop')", async () => {
+    await actions.transport.stop();
+    expect(mockInvoke).toHaveBeenCalledWith("transport_stop");
+  });
+
+  it("seek calls invoke with tick", async () => {
+    await actions.transport.seek(128);
+    expect(mockInvoke).toHaveBeenCalledWith("transport_seek", { tick: 128 });
+  });
+
+  it("setTempo calls invoke with bpm", async () => {
+    await actions.transport.setTempo(120);
+    expect(mockInvoke).toHaveBeenCalledWith("transport_set_tempo", {
+      bpm: 120,
+    });
+  });
+
+  it("getState calls invoke and returns the state", async () => {
+    const mockState = { playing: true, current_tick: 64, tempo: 120 };
+    mockInvoke.mockResolvedValueOnce(mockState);
+    const state = await actions.transport.getState();
+    expect(mockInvoke).toHaveBeenCalledWith("transport_get_state");
+    expect(state).toEqual(mockState);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// file
+// ---------------------------------------------------------------------------
+describe("actions.file", () => {
+  describe("save — existing file path", () => {
+    it("saves to the current path and adds to recents", async () => {
+      mockInvoke.mockResolvedValueOnce("/project/song.soloc"); // get_current_file_path
+      await actions.file.save();
+      expect(mockInvoke).toHaveBeenCalledWith("save_project_to_file", {
+        file_path: "/project/song.soloc",
+      });
+      expect(mockInvoke).toHaveBeenCalledWith("add_recent_file", {
+        file_path: "/project/song.soloc",
+      });
+    });
+  });
+
+  describe("save — no existing file", () => {
+    it("falls back to saveAs when no current path", async () => {
+      mockInvoke.mockResolvedValueOnce(null); // get_current_file_path → null
+      vi.mocked(save).mockResolvedValueOnce("/new/song.soloc");
+      await actions.file.save();
+      // save dialog should have been opened
+      expect(save).toHaveBeenCalled();
+      expect(mockInvoke).toHaveBeenCalledWith("save_project_to_file", {
+        file_path: "/new/song.soloc",
+      });
+    });
+  });
+
+  describe("saveAs", () => {
+    it("shows dialog and saves to chosen path", async () => {
+      vi.mocked(save).mockResolvedValueOnce("/chosen/file.soloc");
+      await actions.file.saveAs();
+      expect(mockInvoke).toHaveBeenCalledWith("save_project_to_file", {
+        file_path: "/chosen/file.soloc",
+      });
+      expect(mockInvoke).toHaveBeenCalledWith("add_recent_file", {
+        file_path: "/chosen/file.soloc",
+      });
+    });
+
+    it("throws when dialog is cancelled (returns null)", async () => {
+      vi.mocked(save).mockResolvedValueOnce(null);
+      await expect(actions.file.saveAs()).rejects.toThrow(
+        "Save cancelled by user",
+      );
+    });
+  });
+
+  describe("load", () => {
+    it("opens dialog and loads the chosen file", async () => {
+      vi.mocked(open).mockResolvedValueOnce("/loaded/file.soloc");
+      await actions.file.load();
+      expect(mockInvoke).toHaveBeenCalledWith("load_project_from_file", {
+        file_path: "/loaded/file.soloc",
+      });
+      expect(mockInvoke).toHaveBeenCalledWith("add_recent_file", {
+        file_path: "/loaded/file.soloc",
+      });
+    });
+
+    it("throws when dialog is cancelled (returns null)", async () => {
+      vi.mocked(open).mockResolvedValueOnce(null);
+      await expect(actions.file.load()).rejects.toThrow(
+        "Load cancelled or invalid file selection",
+      );
+    });
+
+    it("throws when dialog returns an array", async () => {
+      // open() typed as single or array — array means multi-select which is invalid
+      vi.mocked(open).mockResolvedValueOnce([
+        "/a.soloc",
+        "/b.soloc",
+      ] as unknown as string);
+      await expect(actions.file.load()).rejects.toThrow(
+        "Load cancelled or invalid file selection",
+      );
+    });
+  });
+
+  describe("loadFromPath", () => {
+    it("loads and adds to recents", async () => {
+      await actions.file.loadFromPath("/recent/song.soloc");
+      expect(mockInvoke).toHaveBeenCalledWith("load_project_from_file", {
+        file_path: "/recent/song.soloc",
+      });
+      expect(mockInvoke).toHaveBeenCalledWith("add_recent_file", {
+        file_path: "/recent/song.soloc",
+      });
+    });
+  });
+});
