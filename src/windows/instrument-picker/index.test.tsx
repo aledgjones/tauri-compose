@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { screen } from "@testing-library/react";
+import { screen, act } from "@testing-library/react";
 import { renderWithProviders } from "../../services/test-utils";
 import { Main } from "./index";
 
@@ -20,15 +20,15 @@ vi.mock("@tauri-apps/api/event", () => ({
 }));
 
 describe("InstrumentPicker Main", () => {
-  it("renders the app bar drag region", () => {
-    const { container } = renderWithProviders(<Main />);
+  it("renders the app bar drag region", async () => {
+    const { container } = await act(async () => renderWithProviders(<Main />));
     expect(
       container.querySelector("[data-tauri-drag-region]"),
     ).toBeInTheDocument();
   });
 
-  it("renders the Select Instrument button", () => {
-    renderWithProviders(<Main />);
+  it("renders the Select Instrument button", async () => {
+    await act(async () => renderWithProviders(<Main />));
     expect(
       screen.getByRole("button", { name: "Select Instrument" }),
     ).toBeInTheDocument();
