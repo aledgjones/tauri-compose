@@ -308,6 +308,81 @@ describe("parseKeySignaturePopover", () => {
     );
   });
 
+  // Major sharps 2-5
+  it.each([
+    ["B", 5],
+    ["5s", 5],
+    ["5#", 5],
+    ["E", 4],
+    ["4s", 4],
+    ["4#", 4],
+    ["A", 3],
+    ["3s", 3],
+    ["3#", 3],
+    ["D", 2],
+    ["2s", 2],
+    ["2#", 2],
+  ] as [string, number][])('Major sharp: "%s" → offset %i', (input, offset) => {
+    parseKeySignaturePopover(input, FLOW_ID, TICK);
+    expect(actions.score.keySignature.create).toHaveBeenCalledWith(
+      FLOW_ID,
+      TICK,
+      KeySignatureMode.Major,
+      offset,
+    );
+  });
+
+  // Major flats 2-6
+  it.each([
+    ["Bb", -2],
+    ["2f", -2],
+    ["2b", -2],
+    ["Eb", -3],
+    ["3f", -3],
+    ["3b", -3],
+    ["Ab", -4],
+    ["4f", -4],
+    ["4b", -4],
+    ["Db", -5],
+    ["5f", -5],
+    ["5b", -5],
+    ["Gb", -6],
+    ["6f", -6],
+    ["6b", -6],
+  ] as [string, number][])('Major flat: "%s" → offset %i', (input, offset) => {
+    parseKeySignaturePopover(input, FLOW_ID, TICK);
+    expect(actions.score.keySignature.create).toHaveBeenCalledWith(
+      FLOW_ID,
+      TICK,
+      KeySignatureMode.Major,
+      offset,
+    );
+  });
+
+  // Minor keys remaining
+  it.each([
+    ["d#", 6],
+    ["g#", 5],
+    ["c#", 4],
+    ["f#", 3],
+    ["b", 2],
+    ["e", 1],
+    ["d", -1],
+    ["g", -2],
+    ["c", -3],
+    ["f", -4],
+    ["bb", -5],
+    ["eb", -6],
+  ] as [string, number][])('Minor key: "%s" → offset %i', (input, offset) => {
+    parseKeySignaturePopover(input, FLOW_ID, TICK);
+    expect(actions.score.keySignature.create).toHaveBeenCalledWith(
+      FLOW_ID,
+      TICK,
+      KeySignatureMode.Minor,
+      offset,
+    );
+  });
+
   it("throws for unknown input", () => {
     expect(() => parseKeySignaturePopover("xyz", FLOW_ID, TICK)).toThrow(
       "Unknown input: xyz",
@@ -394,6 +469,61 @@ describe("parseTimeSignaturePopover", () => {
       2,
       NoteDuration.Half,
       TimeSignatureDrawType.SplitCommonTime,
+    );
+  });
+
+  it('parses "4/1" → Whole beats', () => {
+    parseTimeSignaturePopover("4/1", FLOW_ID, TICK);
+    expect(actions.score.timeSignature.create).toHaveBeenCalledWith(
+      FLOW_ID,
+      TICK,
+      4,
+      NoteDuration.Whole,
+      TimeSignatureDrawType.Regular,
+    );
+  });
+
+  it('parses "4/16" → Sixteenth beats', () => {
+    parseTimeSignaturePopover("4/16", FLOW_ID, TICK);
+    expect(actions.score.timeSignature.create).toHaveBeenCalledWith(
+      FLOW_ID,
+      TICK,
+      4,
+      NoteDuration.Sixteenth,
+      TimeSignatureDrawType.Regular,
+    );
+  });
+
+  it('parses "4/32" → ThirtySecond beats', () => {
+    parseTimeSignaturePopover("4/32", FLOW_ID, TICK);
+    expect(actions.score.timeSignature.create).toHaveBeenCalledWith(
+      FLOW_ID,
+      TICK,
+      4,
+      NoteDuration.ThirtySecond,
+      TimeSignatureDrawType.Regular,
+    );
+  });
+
+  it('parses "4/64" → SixtyFourth beats', () => {
+    parseTimeSignaturePopover("4/64", FLOW_ID, TICK);
+    expect(actions.score.timeSignature.create).toHaveBeenCalledWith(
+      FLOW_ID,
+      TICK,
+      4,
+      NoteDuration.SixtyFourth,
+      TimeSignatureDrawType.Regular,
+    );
+  });
+
+  it('parses "4/128" → HundredTwentyEighth beats', () => {
+    parseTimeSignaturePopover("4/128", FLOW_ID, TICK);
+    expect(actions.score.timeSignature.create).toHaveBeenCalledWith(
+      FLOW_ID,
+      TICK,
+      4,
+      NoteDuration.HudredTwentyEighth,
+      TimeSignatureDrawType.Regular,
     );
   });
 

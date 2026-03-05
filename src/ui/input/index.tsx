@@ -23,7 +23,7 @@ export interface TextInputProps extends BaseInputProps {
 
 export interface NumberInputProps extends BaseInputProps {
   type: "number";
-  value: number;
+  value?: number;
   onChange: (value: number) => void;
   step: number;
   decimalPlaces: number;

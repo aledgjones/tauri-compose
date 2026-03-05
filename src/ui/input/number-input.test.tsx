@@ -92,4 +92,67 @@ describe("NumberInput", () => {
     );
     expect(screen.getByRole("textbox")).toHaveAttribute("readonly");
   });
+
+  it("does nothing on ArrowUp when value is undefined", () => {
+    const onChange = vi.fn();
+    render(
+      <NumberInput
+        type="number"
+        value={undefined}
+        onChange={onChange}
+        step={1}
+        decimalPlaces={0}
+      />,
+    );
+    fireEvent.keyDown(screen.getByRole("textbox"), { key: "ArrowUp" });
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("does nothing on ArrowDown when value is undefined", () => {
+    const onChange = vi.fn();
+    render(
+      <NumberInput
+        type="number"
+        value={undefined}
+        onChange={onChange}
+        step={1}
+        decimalPlaces={0}
+      />,
+    );
+    fireEvent.keyDown(screen.getByRole("textbox"), { key: "ArrowDown" });
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("does nothing on non-arrow key press (default switch case)", () => {
+    const onChange = vi.fn();
+    render(
+      <NumberInput
+        type="number"
+        value={5}
+        onChange={onChange}
+        step={1}
+        decimalPlaces={0}
+      />,
+    );
+    fireEvent.keyDown(screen.getByRole("textbox"), { key: "Enter" });
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("calls onChange with undefined when blurred with empty display", () => {
+    const onChange = vi.fn();
+    render(
+      <NumberInput
+        type="number"
+        value={5}
+        onChange={onChange}
+        step={1}
+        decimalPlaces={0}
+      />,
+    );
+    const input = screen.getByRole("textbox");
+    fireEvent.change(input, { target: { value: "" } });
+    fireEvent.blur(input);
+    // toPrecision("") returns "" → toValue("") returns undefined
+    expect(onChange).toHaveBeenCalledWith(undefined);
+  });
 });
