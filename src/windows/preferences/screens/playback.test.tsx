@@ -82,4 +82,39 @@ describe("Playback", () => {
     fireEvent.click(buttons[1]);
     expect(actions.audio.refreshDevices).toHaveBeenCalledOnce();
   });
+
+  it("calls actions.audio.setDevice when a different device is selected", async () => {
+    renderWithProviders(<Playback />, { audioState: audioWithDevices });
+    // Click the Output Device trigger to open the dropdown
+    const triggerBtn = screen.getAllByRole("button")[0];
+    fireEvent.click(triggerBtn);
+    // Click the "USB Audio" option
+    const usbOption = screen.getByRole("option", { name: /USB Audio/ });
+    fireEvent.click(usbOption);
+    await vi.runAllTimersAsync().catch(() => {});
+    expect(actions.audio.setDevice).toHaveBeenCalledWith("dev-b");
+  });
+
+  it("does not call setDevice when the same device is selected again", async () => {
+    renderWithProviders(<Playback />, { audioState: audioWithDevices });
+    const triggerBtn = screen.getAllByRole("button")[0];
+    fireEvent.click(triggerBtn);
+    // Click the already-selected "Built-in Output" option
+    const sameOption = screen.getByRole("option", { name: /Built-in Output/ });
+    fireEvent.click(sameOption);
+    await vi.runAllTimersAsync().catch(() => {});
+    expect(actions.audio.setDevice).not.toHaveBeenCalled();
+  });
+
+  it("calls setDeviceSampleRate when a sample rate is selected", async () => {
+    renderWithProviders(<Playback />, { audioState: audioWithDevices });
+    // Click the Sample Rate trigger (last button in the form)
+    const buttons = screen.getAllByRole("button");
+    fireEvent.click(buttons[buttons.length - 1]);
+    // Click the "48000" option
+    const rateOption = screen.getByRole("option", { name: "48000" });
+    fireEvent.click(rateOption);
+    await vi.runAllTimersAsync().catch(() => {});
+    expect(actions.audio.setDeviceSampleRate).toHaveBeenCalledWith(48000);
+  });
 });

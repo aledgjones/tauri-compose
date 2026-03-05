@@ -127,4 +127,181 @@ describe("LayoutPanelItem", () => {
       10,
     );
   });
+
+  it("does not call select when layout is already selected", () => {
+    const appState = createAppState({
+      ui: {
+        screens: {
+          setup: {
+            selection: { id: 10, selection_type: SetupSelectionType.Layout },
+          },
+        },
+      } as never,
+      score: {
+        layouts: { order: [10], by_id: { 10: mockLayout } },
+      } as never,
+    });
+    renderWithProviders(<LayoutPanelItem layout={mockLayout} />, { appState });
+    fireEvent.pointerDown(screen.getByDisplayValue("My Score"));
+    expect(actions.ui.screens.setup.select).not.toHaveBeenCalled();
+  });
+
+  it("renders checkbox when a Flow is selected (assignable mode)", () => {
+    const appState = createAppState({
+      ui: {
+        screens: {
+          setup: {
+            selection: { id: 5, selection_type: SetupSelectionType.Flow },
+          },
+        },
+      } as never,
+      score: {
+        layouts: { order: [10], by_id: { 10: mockLayout } },
+      } as never,
+    });
+    renderWithProviders(<LayoutPanelItem layout={mockLayout} />, { appState });
+    expect(screen.getByRole("checkbox")).toBeInTheDocument();
+  });
+
+  it("renders checkbox when a Player is selected (assignable mode)", () => {
+    const appState = createAppState({
+      ui: {
+        screens: {
+          setup: {
+            selection: { id: 7, selection_type: SetupSelectionType.Player },
+          },
+        },
+      } as never,
+      score: {
+        layouts: { order: [10], by_id: { 10: mockLayout } },
+      } as never,
+    });
+    renderWithProviders(<LayoutPanelItem layout={mockLayout} />, { appState });
+    expect(screen.getByRole("checkbox")).toBeInTheDocument();
+  });
+
+  it("checkbox is checked when layout.flow_ids includes the selected flow", () => {
+    const layout: Layout = { ...mockLayout, flow_ids: [5] };
+    const appState = createAppState({
+      ui: {
+        screens: {
+          setup: {
+            selection: { id: 5, selection_type: SetupSelectionType.Flow },
+          },
+        },
+      } as never,
+      score: {
+        layouts: { order: [10], by_id: { 10: layout } },
+      } as never,
+    });
+    renderWithProviders(<LayoutPanelItem layout={layout} />, { appState });
+    expect(screen.getByRole("checkbox")).toBeChecked();
+  });
+
+  it("checkbox is checked when layout.player_ids includes the selected player", () => {
+    const layout: Layout = { ...mockLayout, player_ids: [7] };
+    const appState = createAppState({
+      ui: {
+        screens: {
+          setup: {
+            selection: { id: 7, selection_type: SetupSelectionType.Player },
+          },
+        },
+      } as never,
+      score: {
+        layouts: { order: [10], by_id: { 10: layout } },
+      } as never,
+    });
+    renderWithProviders(<LayoutPanelItem layout={layout} />, { appState });
+    expect(screen.getByRole("checkbox")).toBeChecked();
+  });
+
+  it("calls assignFlow when checkbox toggled on with Flow selection", async () => {
+    const appState = createAppState({
+      ui: {
+        screens: {
+          setup: {
+            selection: { id: 5, selection_type: SetupSelectionType.Flow },
+          },
+        },
+      } as never,
+      score: {
+        layouts: { order: [10], by_id: { 10: mockLayout } },
+      } as never,
+    });
+    renderWithProviders(<LayoutPanelItem layout={mockLayout} />, { appState });
+    fireEvent.click(screen.getByRole("checkbox"));
+    await vi.runAllTimersAsync().catch(() => {});
+    expect(actions.score.layout.assignFlow).toHaveBeenCalledWith(10, 5);
+  });
+
+  it("calls unassignFlow when checkbox toggled off with Flow selection", async () => {
+    const layout: Layout = { ...mockLayout, flow_ids: [5] };
+    const appState = createAppState({
+      ui: {
+        screens: {
+          setup: {
+            selection: { id: 5, selection_type: SetupSelectionType.Flow },
+          },
+        },
+      } as never,
+      score: {
+        layouts: { order: [10], by_id: { 10: layout } },
+      } as never,
+    });
+    renderWithProviders(<LayoutPanelItem layout={layout} />, { appState });
+    fireEvent.click(screen.getByRole("checkbox"));
+    await vi.runAllTimersAsync().catch(() => {});
+    expect(actions.score.layout.unassignFlow).toHaveBeenCalledWith(10, 5);
+  });
+
+  it("calls assignPlayer when checkbox toggled on with Player selection", async () => {
+    const appState = createAppState({
+      ui: {
+        screens: {
+          setup: {
+            selection: { id: 7, selection_type: SetupSelectionType.Player },
+          },
+        },
+      } as never,
+      score: {
+        layouts: { order: [10], by_id: { 10: mockLayout } },
+      } as never,
+    });
+    renderWithProviders(<LayoutPanelItem layout={mockLayout} />, { appState });
+    fireEvent.click(screen.getByRole("checkbox"));
+    await vi.runAllTimersAsync().catch(() => {});
+    expect(actions.score.layout.assignPlayer).toHaveBeenCalledWith(10, 7);
+  });
+
+  it("calls unassignPlayer when checkbox toggled off with Player selection", async () => {
+    const layout: Layout = { ...mockLayout, player_ids: [7] };
+    const appState = createAppState({
+      ui: {
+        screens: {
+          setup: {
+            selection: { id: 7, selection_type: SetupSelectionType.Player },
+          },
+        },
+      } as never,
+      score: {
+        layouts: { order: [10], by_id: { 10: layout } },
+      } as never,
+    });
+    renderWithProviders(<LayoutPanelItem layout={layout} />, { appState });
+    fireEvent.click(screen.getByRole("checkbox"));
+    await vi.runAllTimersAsync().catch(() => {});
+    expect(actions.score.layout.unassignPlayer).toHaveBeenCalledWith(10, 7);
+  });
+
+  it("renders correctly for LayoutType.Part (uses file icon)", () => {
+    const partLayout: Layout = { ...mockLayout, layout_type: LayoutType.Part };
+    const appState = createAppState({
+      score: {
+        layouts: { order: [10], by_id: { 10: partLayout } },
+      } as never,
+    });
+    renderWithProviders(<LayoutPanelItem layout={partLayout} />, { appState });
+    expect(screen.getByDisplayValue("My Score")).toBeInTheDocument();
+  });
 });

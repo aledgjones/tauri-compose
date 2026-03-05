@@ -200,10 +200,10 @@ Thresholds are enforced in the `test.coverage.thresholds` block in [vite.config.
 
 | Metric     | Threshold |
 | ---------- | --------- |
-| Statements | 70%       |
-| Branches   | 60%       |
-| Functions  | 75%       |
-| Lines      | 70%       |
+| Statements | 80%       |
+| Branches   | 80%       |
+| Functions  | 80%       |
+| Lines      | 80%       |
 
 As the test suite grows, raise these values — never lower them (ratchet rule).
 
