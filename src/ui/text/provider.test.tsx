@@ -121,4 +121,52 @@ describe("TokenizationProvider", () => {
       expect(keys).toContain(key);
     }
   });
+
+  it("all user-defined meta tokens render() return the corresponding meta field", () => {
+    const state = createAppState();
+    state.score.meta.subtitle = "Subtitle";
+    state.score.meta.dedication = "Dedication";
+    state.score.meta.composer = "Composer";
+    state.score.meta.arranger = "Arranger";
+    state.score.meta.lyricist = "Lyricist";
+    state.score.meta.artist = "Artist";
+    state.score.meta.copyist = "Copyist";
+    state.score.meta.publisher = "Publisher";
+    state.score.meta.editor = "Editor";
+    state.score.meta.copyright = "Copyright";
+    state.score.meta.work_number = "Op.1";
+    state.score.meta.composition_year = "1990";
+    state.score.meta.composer_dates = "1960–2020";
+    state.score.meta.other_information = "Other info";
+
+    const tokens = captureTokens(state);
+    expect(tokens.get("${project-subtitle}")?.render()).toBe("Subtitle");
+    expect(tokens.get("${project-dedication}")?.render()).toBe("Dedication");
+    expect(tokens.get("${project-composer}")?.render()).toBe("Composer");
+    expect(tokens.get("${project-arranger}")?.render()).toBe("Arranger");
+    expect(tokens.get("${project-lyricist}")?.render()).toBe("Lyricist");
+    expect(tokens.get("${project-artist}")?.render()).toBe("Artist");
+    expect(tokens.get("${project-copyist}")?.render()).toBe("Copyist");
+    expect(tokens.get("${project-publisher}")?.render()).toBe("Publisher");
+    expect(tokens.get("${project-editor}")?.render()).toBe("Editor");
+    expect(tokens.get("${project-copyright}")?.render()).toBe("Copyright");
+    expect(tokens.get("${project-work-number}")?.render()).toBe("Op.1");
+    expect(tokens.get("${project-composition-year}")?.render()).toBe("1990");
+    expect(tokens.get("${project-composer-dates}")?.render()).toBe("1960–2020");
+    expect(tokens.get("${project-other-information}")?.render()).toBe(
+      "Other info",
+    );
+  });
+
+  it("remaining static symbol tokens render correct unicode", () => {
+    const tokens = captureTokens();
+    expect(tokens.get("${natural}")?.render()).toBe("\u{E261}");
+    expect(tokens.get("${flat}")?.render()).toBe("\u{E260}");
+    expect(tokens.get("${double-sharp}")?.render()).toBe("\u{E263}");
+    expect(tokens.get("${double-flat}")?.render()).toBe("\u{E264}");
+    // Verify sym=false for copy and sym=true for accidentals
+    expect(tokens.get("${natural}")?.sym).toBe(true);
+    expect(tokens.get("${double-sharp}")?.sym).toBe(true);
+    expect(tokens.get("${double-flat}")?.sym).toBe(true);
+  });
 });

@@ -240,4 +240,154 @@ describe("Popover", () => {
     expect(parseBarlinePopover).not.toHaveBeenCalled();
     expect(setPopover).not.toHaveBeenCalled();
   });
+
+  // -------------------------------------------------------------------------
+  // Clef — null stave_id should not close or dispatch
+  // -------------------------------------------------------------------------
+  it("Enter for Clef does nothing when stave_id is null (no selection)", async () => {
+    const user = userEvent.setup();
+    const noSelectionState = createAppState();
+    renderWithProviders(
+      <Popover
+        popover={{ x: 0, y: 0, type: PopoverType.Clef }}
+        setPopover={setPopover}
+      />,
+      { appState: noSelectionState },
+    );
+    await user.type(screen.getByRole("textbox"), "treble{Enter}");
+    expect(parseClefPopover).not.toHaveBeenCalled();
+    expect(setPopover).not.toHaveBeenCalled();
+  });
+
+  // -------------------------------------------------------------------------
+  // Tick from Tone selection
+  // -------------------------------------------------------------------------
+  it("Enter for Barline reads tick from a Tone selection entry", async () => {
+    const user = userEvent.setup();
+    const TRACK_ID = 500;
+    const TONE_ID = 600;
+    const TONE_TICK = 192;
+
+    const stateWithTone = createAppState({
+      score: {
+        tracks: {
+          by_id: {
+            [TRACK_ID]: {
+              id: TRACK_ID,
+              entries: {
+                by_tick: {},
+                by_id: {
+                  [TONE_ID]: {
+                    id: TONE_ID,
+                    type: "Tone",
+                    tick: TONE_TICK,
+                    duration: 128,
+                    pitch: { step: 0, octave: 4, alter: 0 },
+                    velocity: { value: 64 },
+                    articulations: [],
+                  },
+                },
+              },
+            },
+          },
+        } as never,
+      } as never,
+      ui: {
+        sequencer: {
+          selection: {
+            type: "Tone",
+            flow_id: FLOW_ID,
+            instrument_id: 10,
+            stave_id: STAVE_ID,
+            track_id: TRACK_ID,
+            tone_id: TONE_ID,
+          },
+        },
+      } as never,
+    });
+
+    renderWithProviders(
+      <Popover
+        popover={{ x: 0, y: 0, type: PopoverType.Barline }}
+        setPopover={setPopover}
+      />,
+      { appState: stateWithTone },
+    );
+
+    await user.type(screen.getByRole("textbox"), "||{Enter}");
+    expect(parseBarlinePopover).toHaveBeenCalledWith("||", FLOW_ID, TONE_TICK);
+    expect(setPopover).toHaveBeenCalledWith(null);
+  });
+
+  // -------------------------------------------------------------------------
+  // Keyboard shortcuts (document-level, Shift+key when popover is null)
+  // -------------------------------------------------------------------------
+  it("Shift+B fires setPopover with Barline type", async () => {
+    renderPopover(null);
+    fireEvent.keyDown(document, { key: "B", shiftKey: true });
+    // async action — wait for setPopover
+    await waitFor(() => {
+      expect(setPopover).toHaveBeenCalledWith({
+        x: 100,
+        y: 200,
+        type: PopoverType.Barline,
+      });
+    });
+  });
+
+  it("Shift+C fires setPopover with Clef type", async () => {
+    renderPopover(null);
+    fireEvent.keyDown(document, { key: "C", shiftKey: true });
+    await waitFor(() => {
+      expect(setPopover).toHaveBeenCalledWith({
+        x: 100,
+        y: 200,
+        type: PopoverType.Clef,
+      });
+    });
+  });
+
+  it("Shift+K fires setPopover with KeySignature type", async () => {
+    renderPopover(null);
+    fireEvent.keyDown(document, { key: "K", shiftKey: true });
+    await waitFor(() => {
+      expect(setPopover).toHaveBeenCalledWith({
+        x: 100,
+        y: 200,
+        type: PopoverType.KeySignature,
+      });
+    });
+  });
+
+  it("Shift+M fires setPopover with TimeSignature type", async () => {
+    renderPopover(null);
+    fireEvent.keyDown(document, { key: "M", shiftKey: true });
+    await waitFor(() => {
+      expect(setPopover).toHaveBeenCalledWith({
+        x: 100,
+        y: 200,
+        type: PopoverType.TimeSignature,
+      });
+    });
+  });
+
+  it("keyboard shortcuts are skipped when popover is already open", async () => {
+    // When popover is not null, the handler returns early
+    renderPopover({ x: 0, y: 0, type: PopoverType.Barline });
+    vi.clearAllMocks();
+    fireEvent.keyDown(document, { key: "B", shiftKey: true });
+    await new Promise((r) => setTimeout(r, 50));
+    expect(setPopover).not.toHaveBeenCalled();
+  });
+
+  it("does not open popover when getSelectionCoordinates returns null", async () => {
+    const { actions: mockActions } = await import("../services/actions");
+    vi.mocked(
+      mockActions.ui.renderer.getSelectionCoordinates,
+    ).mockResolvedValueOnce(null);
+    renderPopover(null);
+    fireEvent.keyDown(document, { key: "B", shiftKey: true });
+    await new Promise((r) => setTimeout(r, 50));
+    expect(setPopover).not.toHaveBeenCalled();
+  });
 });
