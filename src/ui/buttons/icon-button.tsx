@@ -1,12 +1,13 @@
 import MdiIcon from "@mdi/react";
 import { IconProps } from "@mdi/react/dist/IconProps";
 import classNames from "classnames";
-import { FC } from "react";
+import { FC, PointerEvent } from "react";
 import { getTheme, Variant } from "./shared";
 
 type Props = {
   variant: Variant;
   onClick: () => void;
+  onPointerDown?: (e: PointerEvent<HTMLButtonElement>) => void;
   isDisabled?: boolean;
   isSelected?: boolean;
 };
@@ -17,6 +18,7 @@ export const IconButton: FC<IconProps & Props> = ({
   className,
   size = 1,
   onClick,
+  onPointerDown,
   isDisabled = false,
   isSelected,
   ...props
@@ -24,6 +26,7 @@ export const IconButton: FC<IconProps & Props> = ({
   return (
     <button
       onClick={onClick}
+      onPointerDown={onPointerDown}
       className={classNames(
         "flex items-center justify-center h-9 w-9",
         getTheme(variant, isSelected),

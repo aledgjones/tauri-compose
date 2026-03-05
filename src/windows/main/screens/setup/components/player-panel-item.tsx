@@ -249,16 +249,15 @@ export const PlayerPanelItem: FC<Props> = ({ player }) => {
         )}
 
         {!isAssignable && (
-          <button onPointerDown={onBlockPointerDown}>
-            <IconButton
-              variant="standard"
-              path={mdiChevronDown}
-              className={classNames("transition-transform", fg, {
-                "rotate-180": isExpanded,
-              })}
-              onClick={onToggleExpand}
-            />
-          </button>
+          <IconButton
+            variant="standard"
+            path={mdiChevronDown}
+            className={classNames("transition-transform", fg, {
+              "rotate-180": isExpanded,
+            })}
+            onClick={onToggleExpand}
+            onPointerDown={onBlockPointerDown}
+          />
         )}
       </div>
       <div
