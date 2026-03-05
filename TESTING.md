@@ -186,9 +186,52 @@ assert!(matches!(NoteDuration::from_ticks(128), Some(NoteDuration::Quaver)));
 
 ## Coverage
 
-Coverage is collected with `@vitest/coverage-v8`. Run `npm run test:coverage` to generate a report in `coverage/`.
+Coverage for the TypeScript/React layer uses [`@vitest/coverage-v8`](https://vitest.dev/guide/coverage).
 
-Thresholds are enforced at **statements 70%, branches 60%, functions 75%, lines 70%** in the `test.coverage.thresholds` block in [vite.config.ts](vite.config.ts). As the test suite grows, raise these values — never lower them (ratchet rule).
+```bash
+# Generate report in coverage/
+npm run test:coverage
+
+# Print totals from last generated report
+npm run test:coverage:summary
+```
+
+Thresholds are enforced in the `test.coverage.thresholds` block in [vite.config.ts](vite.config.ts):
+
+| Metric     | Threshold |
+| ---------- | --------- |
+| Statements | 70%       |
+| Branches   | 60%       |
+| Functions  | 75%       |
+| Lines      | 70%       |
+
+As the test suite grows, raise these values — never lower them (ratchet rule).
+
+## Rust Coverage
+
+Coverage for the Tauri/Rust layer uses [`cargo-llvm-cov`](https://github.com/taiki-e/cargo-llvm-cov).
+
+```bash
+# Install once
+cargo install cargo-llvm-cov
+rustup component add llvm-tools-preview
+
+# Show summary table
+npm run test:coverage:rust:summary
+
+# Enforce thresholds (exits non-zero if below)
+npm run test:coverage:rust
+```
+
+Thresholds are enforced via flags in the `test:coverage:rust` script in [package.json](package.json):
+
+| Metric    | Threshold |
+| --------- | --------- |
+| Lines     | 10%       |
+| Functions | 30%       |
+| Regions   | 15%       |
+
+As the Rust test suite grows, raise these values — never lower them (ratchet rule).
 
 ## Pre-commit Hook
 
