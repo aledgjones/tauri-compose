@@ -87,14 +87,14 @@
     "tauri": "tauri",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "test:coverage:summary": "node -e \"const data=require('./coverage/coverage-final.json');let ts=0,cs=0,tb=0,cb=0,tf=0,cf=0;for(const f of Object.values(data)){const s=f.s||{},b=f.b||{},fn=f.f||{};ts+=Object.keys(s).length;cs+=Object.values(s).filter(v=>v>0).length;for(const vals of Object.values(b)){tb+=vals.length;cb+=vals.filter(v=>v>0).length;}tf+=Object.keys(fn).length;cf+=Object.values(fn).filter(v=>v>0).length;}console.log('Statements: '+cs+'/'+ts+' = '+(cs/ts*100).toFixed(1)+'%');console.log('Branches:   '+cb+'/'+tb+' = '+(cb/tb*100).toFixed(1)+'%');console.log('Functions:  '+cf+'/'+tf+' = '+(cf/tf*100).toFixed(1)+'%');\"",
     "test:coverage:rust": "cd src-tauri && cargo llvm-cov --lib --fail-under-lines 10 --fail-under-functions 30 --fail-under-regions 15",
     "test:coverage:rust:summary": "cd src-tauri && cargo llvm-cov --lib",
+    "test:coverage:summary": "node -e \"const data=require('./coverage/coverage-final.json');let ts=0,cs=0,tb=0,cb=0,tf=0,cf=0;for(const f of Object.values(data)){const s=f.s||{},b=f.b||{},fn=f.f||{};ts+=Object.keys(s).length;cs+=Object.values(s).filter(v=>v>0).length;for(const vals of Object.values(b)){tb+=vals.length;cb+=vals.filter(v=>v>0).length;}tf+=Object.keys(fn).length;cf+=Object.values(fn).filter(v=>v>0).length;}console.log('Statements: '+cs+'/'+ts+' = '+(cs/ts*100).toFixed(1)+'%');console.log('Branches:   '+cb+'/'+tb+' = '+(cb/tb*100).toFixed(1)+'%');console.log('Functions:  '+cf+'/'+tf+' = '+(cf/tf*100).toFixed(1)+'%');\"",
     "test:watch": "vitest"
   },
   "simple-git-hooks": {
     "pre-commit": "npx lint-staged"
   },
   "type": "module",
-  "version": "1.23.2"
+  "version": "1.23.3"
 }

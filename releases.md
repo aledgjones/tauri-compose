@@ -1,3 +1,29 @@
+## Release Notes for v1.23.3
+
+### 🏗️ Features
+
+- feat: test coverage expansion docs
+
+### 🐞 Fixes
+
+- fix: further test coverage improvements
+- fix: coverage summary script
+
+### 🔧 Chores
+
+- chore: test coverage improvements
+- chore: bump test coverage
+- chore: code review test coverage
+- chore: rust test coverage
+- chore: ts test suite
+- chore: don't include coverage reports in git history
+
+### 📝 Other
+
+- test: add Rust coverage scripts and update TESTING.md coverage docs
+- test: expand FE coverage with 24 new test files, raise thresholds
+- test: expand FE coverage to 53% and bump thresholds
+
 ## Release Notes for v1.23.2
 
 ### 🏗️ Features
