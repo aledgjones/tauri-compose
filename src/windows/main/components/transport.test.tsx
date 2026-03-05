@@ -65,4 +65,31 @@ describe("Transport", () => {
     fireEvent.click(buttons[2]); // stop button (index 2)
     expect(actions.transport.stop).toHaveBeenCalledOnce();
   });
+
+  it("calls actions.transport.seek(0) when skip-previous button clicked", () => {
+    renderWithProviders(<Transport />, {
+      transportState: { playing: false, current_tick: 128, tempo: 120 },
+    });
+    const buttons = screen.getAllByRole("button");
+    fireEvent.click(buttons[0]); // skip-previous is the first button
+    expect(actions.transport.seek).toHaveBeenCalledWith(0);
+  });
+
+  it("formats a mid-flow tick position correctly", () => {
+    // tick 160 = bar 2, beat 1, sub 000 in 4/4 (160 / 128 = 1 full bar, remainder 32 → beat 2)
+    // bar=Math.floor(160/128)+1=2, beat=Math.floor((160%128)/32)+1=2, sub=160%32=0
+    renderWithProviders(<Transport />, {
+      transportState: { playing: false, current_tick: 160, tempo: 120 },
+    });
+    expect(screen.getByText("2.2.000")).toBeInTheDocument();
+  });
+
+  it("shows metronome toggle button", () => {
+    renderWithProviders(<Transport />, {
+      transportState: { playing: false, current_tick: 0, tempo: 120 },
+    });
+    const buttons = screen.getAllByRole("button");
+    // Should have at least 4 buttons: skip-prev, play/pause, stop, metronome
+    expect(buttons.length).toBeGreaterThanOrEqual(4);
+  });
 });

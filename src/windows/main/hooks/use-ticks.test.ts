@@ -82,4 +82,59 @@ describe("useTicks", () => {
     const { result } = renderHook(() => useTicks(flow, master, 1));
     expect(result.current.length).toBe(256);
   });
+
+  it("returns sub entries for 4/4 time (beat_type=Quarter < Eighth)", () => {
+    // Quarter (4) < Eighth (8), so sub-beat ticks should be generated
+    const flow = makeFlow(128); // one bar
+    const master = makeMasterTrack(1, 4, NoteDuration.Quarter);
+    const { result } = renderHook(() => useTicks(flow, master, 1));
+    const subEntries = result.current.entries.filter((e) => e.type === "sub");
+    // In 4/4: beatTicks=32, beatTicks/2=16. Sub entries at 16, 48, 80, 112 → 4 subs
+    expect(subEntries.length).toBeGreaterThan(0);
+  });
+
+  it("returns NO sub entries for 6/8 time (beat_type=Eighth, not < Eighth)", () => {
+    // Eighth (8) is NOT < Eighth (8), so the sub branch is false
+    const flow = makeFlow(192); // 6/8 bar: beatTicks=(32*4)/8=16, barTicks=6*16=96 → ~2 bars
+    const master = makeMasterTrack(1, 6, NoteDuration.Eighth);
+    const { result } = renderHook(() => useTicks(flow, master, 1));
+    const subEntries = result.current.entries.filter((e) => e.type === "sub");
+    expect(subEntries).toHaveLength(0);
+  });
+
+  it("handles time signature change at a mid-flow tick", () => {
+    // Two time sigs: 4/4 at tick 0, then 3/4 at tick 128
+    const timeSig4_4Id = 1;
+    const timeSig3_4Id = 2;
+    const master: import("../../../services/types").Track = {
+      id: 100,
+      entries: {
+        by_tick: { 0: [timeSig4_4Id], 128: [timeSig3_4Id] },
+        by_id: {
+          [timeSig4_4Id]: {
+            id: timeSig4_4Id,
+            tick: 0,
+            type: "TimeSignature",
+            beats: 4,
+            beat_type: NoteDuration.Quarter,
+          },
+          [timeSig3_4Id]: {
+            id: timeSig3_4Id,
+            tick: 128,
+            type: "TimeSignature",
+            beats: 3,
+            beat_type: NoteDuration.Quarter,
+          },
+        },
+      },
+    };
+    const flow = makeFlow(256);
+    const { result } = renderHook(() => useTicks(flow, master, 1));
+    const barEntries = result.current.entries.filter((e) => e.type === "bar");
+    // Should have bars starting at 0 and 128
+    expect(barEntries.some((e) => e.x === 0)).toBe(true);
+    expect(barEntries.some((e) => e.x === 128 * result.current.tickWidth)).toBe(
+      true,
+    );
+  });
 });

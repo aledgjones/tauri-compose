@@ -197,4 +197,62 @@ describe("useSelectedToneInfo", () => {
     expect(result.current?.trackLabel).toContain("voice");
     expect(result.current?.trackLabel).not.toContain("Staff");
   });
+
+  it("returns null when Tone selection exists but tone_id is not found in track entries", () => {
+    // Track exists, but the tone with the selected tone_id is absent
+    const score = buildBaseScore();
+    // Override the track with an empty entries set
+    score.tracks.by_id[TRACK_ID] = {
+      id: TRACK_ID,
+      entries: { by_tick: {}, by_id: {} },
+    } as never;
+
+    const state = createAppState({
+      score: score as never,
+      ui: {
+        sequencer: {
+          selection: {
+            type: "Tone",
+            flow_id: FLOW_ID,
+            instrument_id: INSTRUMENT_ID,
+            stave_id: STAVE_ID,
+            track_id: TRACK_ID,
+            tone_id: TONE_ID, // not present in empty track
+          },
+        },
+      } as never,
+    });
+
+    const { result } = renderHook(() => useSelectedToneInfo(), {
+      wrapper: createWrapper({ appState: state }),
+    });
+    expect(result.current).toBeNull();
+  });
+
+  it("returns instrumentName as 'Unknown' when instrument is missing", () => {
+    // Track + selection exist but instruments.by_id is empty
+    const score = buildBaseScore();
+    delete (score.instruments.by_id as Record<number, unknown>)[INSTRUMENT_ID];
+
+    const state = createAppState({
+      score: score as never,
+      ui: {
+        sequencer: {
+          selection: {
+            type: "Tone",
+            flow_id: FLOW_ID,
+            instrument_id: INSTRUMENT_ID,
+            stave_id: STAVE_ID,
+            track_id: TRACK_ID,
+            tone_id: TONE_ID,
+          },
+        },
+      } as never,
+    });
+
+    const { result } = renderHook(() => useSelectedToneInfo(), {
+      wrapper: createWrapper({ appState: state }),
+    });
+    expect(result.current?.instrumentName).toBe("Unknown");
+  });
 });

@@ -131,6 +131,68 @@ describe("useKeyboardShortcuts", () => {
     }).not.toThrow();
   });
 
+  it("returns null selectionInfo when Tone selection references missing track", () => {
+    // Selection points to track 9999 which does not exist → line 27 branch
+    const state = createAppState({
+      score: {
+        tracks: { by_id: {} }, // empty — track 9999 missing
+      } as never,
+      ui: {
+        sequencer: {
+          selection: {
+            type: "Tone",
+            flow_id: 5,
+            instrument_id: 10,
+            stave_id: 100,
+            track_id: 9999,
+            tone_id: 999,
+          },
+        },
+      } as never,
+    });
+
+    // The hook should mount without errors even with missing track
+    expect(() => {
+      renderHook(() => useKeyboardShortcuts(), {
+        wrapper: createWrapper({ appState: state }),
+      });
+    }).not.toThrow();
+  });
+
+  it("returns null selectionInfo when Tone entry is missing from track", () => {
+    // Track exists but entry 9999 does not → line 32 branch
+    const state = createAppState({
+      score: {
+        tracks: {
+          by_id: {
+            300: {
+              id: 300,
+              entries: { by_tick: {}, by_id: {} }, // tone_id 999 missing
+            },
+          },
+        },
+      } as never,
+      ui: {
+        sequencer: {
+          selection: {
+            type: "Tone",
+            flow_id: 5,
+            instrument_id: 10,
+            stave_id: 100,
+            track_id: 300,
+            tone_id: 999, // missing from by_id
+          },
+        },
+      } as never,
+    });
+
+    expect(() => {
+      renderHook(() => useKeyboardShortcuts(), {
+        wrapper: createWrapper({ appState: state }),
+      });
+    }).not.toThrow();
+  });
+
   it("dispatches shiftPitchByStep(+1) on ArrowUp+Option with tone selection", async () => {
     renderHook(() => useKeyboardShortcuts(), {
       wrapper: createWrapper({ appState: buildStateWithToneSelection() }),

@@ -68,6 +68,6 @@ When connected to atlassian-rovo-mcp:
 
 ## Coverage Analysis
 
-- **MUST** use `npm run coverage:summary` to display coverage totals — do NOT write ad-hoc Python or Node scripts inline for this purpose
-- **MUST** use `npm run test:coverage` to generate/refresh the coverage data before running `coverage:summary` if the data may be stale
+- **MUST** use `npm run test:coverage:summary` to display coverage totals — do NOT write ad-hoc Python or Node scripts inline for this purpose
+- **MUST** use `npm run test:coverage` to generate/refresh the coverage data before running `test:coverage:summary` if the data may be stale
 - These scripts are safe to auto-approve; inline coverage scripts are not
