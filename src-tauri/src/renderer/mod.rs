@@ -471,4 +471,36 @@ mod tests {
             panic!("expected Circle instruction");
         }
     }
+
+    #[test]
+    fn constrain_pan_centers_small_page_within_bounds() {
+        let mut renderer = make_test_renderer();
+        renderer.bounds = (0.0, 0.0, 500.0, 400.0);
+
+        let (pan_x, pan_y) = renderer.constrain_pan(0.0, 0.0, 100.0, 80.0, 1.0);
+
+        assert!((pan_x - 200.0).abs() < 1e-5);
+        assert!((pan_y - 160.0).abs() < 1e-5);
+    }
+
+    #[test]
+    fn constrain_pan_clamps_large_page_to_allowed_range() {
+        let mut renderer = make_test_renderer();
+        renderer.bounds = (0.0, 0.0, 500.0, 400.0);
+
+        let (pan_x, pan_y) = renderer.constrain_pan(250.0, -900.0, 600.0, 700.0, 1.0);
+
+        assert_eq!(pan_x, 100.0);
+        assert_eq!(pan_y, -400.0);
+    }
+
+    #[test]
+    fn update_bounds_sets_bounds_and_scale_without_backend() {
+        let mut renderer = make_test_renderer();
+
+        renderer.update_bounds(10.0, 20.0, 300.0, 200.0, 2.0).unwrap();
+
+        assert_eq!(renderer.bounds, (10.0, 20.0, 300.0, 200.0));
+        assert_eq!(renderer.pixel_density, 2.0);
+    }
 }

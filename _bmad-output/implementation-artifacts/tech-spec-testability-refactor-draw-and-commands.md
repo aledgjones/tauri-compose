@@ -448,7 +448,7 @@ A phased refactoring initiative with mixed small phases — each phase extracts 
   - Action: Run `cargo llvm-cov --lib` and review any files still below 50% regions. Identify if there are quick wins (untested pure functions) that were missed.
   - Notes: This is a sweep task — may generate follow-up work items.
 
-- [ ] Task 7.3: Add `constrain_pan()` and `update_bounds()` tests to `renderer/mod.rs`
+- [x] Task 7.3: Add `constrain_pan()` and `update_bounds()` tests to `renderer/mod.rs`
   - File: `src-tauri/src/renderer/mod.rs`
   - Action: These are pure computation methods on `RendererContext` that don't need a backend. Test `constrain_pan` with various viewport/page/zoom combos. Test `update_bounds` with `backend: None` (should just set fields without error).
   - Notes: Quick wins for renderer coverage.
