@@ -219,3 +219,105 @@ pub fn draw_ledger_lines(
         renderer,
     );
 }
+
+#[cfg(test)]
+mod tests {
+    use super::draw_ledger_lines;
+    use crate::instructions::parse::get_accidentals::Accidentals;
+    use crate::instructions::parse::get_shunts::Shunts;
+    use crate::instructions::parse::get_tone_offset_info::ToneOffsetInfo;
+    use crate::instructions::parse::get_written_durations::Notation;
+    use crate::renderer::{DrawInstruction, test_helpers::make_test_renderer};
+    use crate::score::components::measurements::Point;
+    use rustc_hash::FxHashMap;
+
+    fn empty_shunts() -> Shunts {
+        Shunts { by_id: FxHashMap::default(), by_offset: FxHashMap::default() }
+    }
+
+    fn notation_with_info(highest: i8, lowest: i8) -> Notation {
+        let mut n = Notation::new(0, 32);
+        n.info = Some(ToneOffsetInfo { highest, lowest, furthest: 0 });
+        n
+    }
+
+    #[test]
+    fn no_ledger_lines_for_mid_staff_note() {
+        let entry = notation_with_info(0, 0);
+        let mut r = make_test_renderer();
+        draw_ledger_lines(
+            &Point { x: 0.0, y: 0.0 },
+            &0,
+            &entry,
+            1.175,
+            &empty_shunts(),
+            &Accidentals::new(),
+            &FxHashMap::default(),
+            &mut r,
+        );
+        assert_eq!(r.instructions.len(), 0);
+    }
+
+    #[test]
+    fn one_high_ledger_line_for_offset_minus_six() {
+        // highest = -6: range (-6..-5), only -6 (even) → 1 line
+        let entry = notation_with_info(-6, 0);
+        let mut r = make_test_renderer();
+        draw_ledger_lines(
+            &Point { x: 0.0, y: 0.0 },
+            &0,
+            &entry,
+            1.175,
+            &empty_shunts(),
+            &Accidentals::new(),
+            &FxHashMap::default(),
+            &mut r,
+        );
+        let lines = r.instructions.iter()
+            .filter(|i| matches!(i, DrawInstruction::Line { .. }))
+            .count();
+        assert_eq!(lines, 1);
+    }
+
+    #[test]
+    fn one_low_ledger_line_for_offset_six() {
+        // lowest = 6: range (5..7).rev() = 6,5; only 6 (even) → 1 line
+        let entry = notation_with_info(0, 6);
+        let mut r = make_test_renderer();
+        draw_ledger_lines(
+            &Point { x: 0.0, y: 0.0 },
+            &0,
+            &entry,
+            1.175,
+            &empty_shunts(),
+            &Accidentals::new(),
+            &FxHashMap::default(),
+            &mut r,
+        );
+        let lines = r.instructions.iter()
+            .filter(|i| matches!(i, DrawInstruction::Line { .. }))
+            .count();
+        assert_eq!(lines, 1);
+    }
+
+    #[test]
+    fn two_ledger_lines_for_high_and_low() {
+        // highest = -6 (1 high), lowest = 6 (1 low) → 2 lines total
+        let entry = notation_with_info(-6, 6);
+        let mut r = make_test_renderer();
+        draw_ledger_lines(
+            &Point { x: 0.0, y: 0.0 },
+            &0,
+            &entry,
+            1.175,
+            &empty_shunts(),
+            &Accidentals::new(),
+            &FxHashMap::default(),
+            &mut r,
+        );
+        let lines = r.instructions.iter()
+            .filter(|i| matches!(i, DrawInstruction::Line { .. }))
+            .count();
+        assert_eq!(lines, 2);
+    }
+}

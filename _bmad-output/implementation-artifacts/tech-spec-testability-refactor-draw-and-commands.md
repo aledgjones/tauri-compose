@@ -311,7 +311,7 @@ A phased refactoring initiative with mixed small phases — each phase extracts 
 
 **Coverage target**: Regions 60%, Functions 76%, Lines 54%
 
-- [ ] Task 4.1: Create shared test fixture builders for draw tests
+- [x] Task 4.1: Create shared test fixture builders for draw tests
   - File: `src-tauri/src/instructions/draw/mod.rs` (add `#[cfg(test)] pub mod test_helpers`)
   - Action: Create reusable builder functions:
     1. `make_vertical_spacing(stave_ids: &[(UniqueId, f32, f32)]) -> VerticalSpacing` — builds spacing with given stave positions
@@ -320,7 +320,7 @@ A phased refactoring initiative with mixed small phases — each phase extracts 
     4. `make_stem_lengths(entries: &[(Tick, StemDef)]) -> StemLengths` — builds tick→StemDef mapping
   - Notes: These builders eliminate the boilerplate needed to test complex draw files. Each builder takes the minimum info and constructs consistent data structures.
 
-- [ ] Task 4.2: Add tests for `draw_barline.rs`
+- [x] Task 4.2: Add tests for `draw_barline.rs`
   - File: `src-tauri/src/instructions/draw/draw_barline.rs`
   - Action: Test all 8 `BarlineDrawType` variants (Single, Double, Triple, Dashed, Final, StartRepeat, EndRepeat, EndStartRepeat). For each, verify:
     1. Correct number of line/dashed_line instructions
@@ -328,7 +328,7 @@ A phased refactoring initiative with mixed small phases — each phase extracts 
     3. Correct top/bottom coordinates from vertical spans
   - Notes: Use fixture builder from Task 4.1. Need at least 1 barline span and 1 stave in vertical spacing. Optionally extract the `top`/`bottom` calculation as a pure helper.
 
-- [ ] Task 4.3: Add tests for `draw_beam.rs` + extract pure helpers
+- [x] Task 4.3: Add tests for `draw_beam.rs` + extract pure helpers
   - File: `src-tauri/src/instructions/draw/draw_beam.rs`
   - Action:
     1. Extract `fn beam_angle(start: &StemDef, stop: &StemDef) -> f32` as a pure helper (currently inline in `draw_beam`).
@@ -337,12 +337,12 @@ A phased refactoring initiative with mixed small phases — each phase extracts 
     4. Test `draw_beam` with headless renderer: simple 2-note beam (1 outer shape), beam with inner segments (multiple shapes), fractional beam, up vs. down stem direction.
   - Notes: The Beam struct fixture needs `ticks`, `start`, `stop`, `beam_segments`, and `fractional_beams` populated consistently. Use builder from Task 4.1.
 
-- [ ] Task 4.4: Add tests for `draw_ledger_lines.rs`
+- [x] Task 4.4: Add tests for `draw_ledger_lines.rs`
   - File: `src-tauri/src/instructions/draw/draw_ledger_lines.rs`
   - Action: Test ledger lines above staff, below staff, and combination. Verify correct number of line instructions and y-positions.
   - Notes: Has 4 functions (185 regions). Needs `LedgerLines` + `VerticalSpacing` fixtures.
 
-- [ ] Task 4.5: Add tests for `draw_brackets.rs` and `draw_ties.rs`
+- [x] Task 4.5: Add tests for `draw_brackets.rs` and `draw_ties.rs`
   - File: `src-tauri/src/instructions/draw/draw_brackets.rs`, `draw_ties.rs`
   - Action:
     1. **draw_brackets**: Test bracket rendering with vertical span. Verify line instructions.
@@ -461,9 +461,9 @@ A phased refactoring initiative with mixed small phases — each phase extracts 
 
 - [x] AC 2: Given `DrawInstruction` and `HitTarget` with `Debug` + `PartialEq` derives (or pattern-matched assertions), when a draw test asserts on instruction contents, then the assertion compiles and provides useful error messages on failure.
 
-- [ ] AC 3: Given `draw_barline` called with each of the 8 `BarlineDrawType` variants, when the function completes, then `renderer.instructions` contains the correct number and type of line/dashed_line/circle instructions per variant.
+- [x] AC 3: Given `draw_barline` called with each of the 8 `BarlineDrawType` variants, when the function completes, then `renderer.instructions` contains the correct number and type of line/dashed_line/circle instructions per variant.
 
-- [ ] AC 4: Given `draw_beam` called with a simple 2-note beam, when the function completes, then `renderer.instructions` contains at least 1 `DrawInstruction::Shape` representing the outer beam.
+- [x] AC 4: Given `draw_beam` called with a simple 2-note beam, when the function completes, then `renderer.instructions` contains at least 1 `DrawInstruction::Shape` representing the outer beam.
 
 - [x] AC 5: Given `draw_notehead` called with `selection: Some(Selection::Tone { tone_id, .. })` matching the tone, when rendered, then the text instruction uses color `rgb(14, 165, 233)` (blue).
 

@@ -10,6 +10,25 @@ use skia_safe::Color;
 const BEAM_THICKNESS: f32 = 0.5;
 const STEM_TWEAK: f32 = STAVE_LINE_WIDTH / 2.0;
 
+/// Calculates the beam angle (rise/run) between two stem tips.
+/// Returns 0.0 when the stems have the same x position (avoid division by zero).
+pub(crate) fn compute_beam_angle(start: &StemDef, stop: &StemDef) -> f32 {
+    if stop.tail.x != start.tail.x {
+        (stop.tail.y - start.tail.y) / (stop.tail.x - start.tail.x)
+    } else {
+        0.0
+    }
+}
+
+/// Returns the y-axis tweak needed when drawing beam shapes relative to stem tips.
+/// Up-stems: 0 (beam sits on top of the tip), Down-stems: BEAM_THICKNESS (shift down).
+pub(crate) fn compute_stem_length_tweak(direction: &Direction) -> f32 {
+    match direction {
+        Direction::Up => 0.0,
+        Direction::Down => BEAM_THICKNESS,
+    }
+}
+
 fn draw_beam_shape(
     origin: &Point,
     start_x: f32,
@@ -159,17 +178,10 @@ pub fn draw_beam(
     let start = &stem_lengths[&beam.start];
     let stop = &stem_lengths[&beam.stop];
 
-    let draw_to_stem_length_tweak = match stem_directions[&beam.start] {
-        Direction::Up => 0.0,
-        Direction::Down => BEAM_THICKNESS,
-    };
+    let draw_to_stem_length_tweak = compute_stem_length_tweak(&stem_directions[&beam.start]);
 
     // Calculate beam angle for consistency across all beams in this group
-    let beam_angle = if stop.tail.x != start.tail.x {
-        (stop.tail.y - start.tail.y) / (stop.tail.x - start.tail.x)
-    } else {
-        0.0
-    };
+    let beam_angle = compute_beam_angle(start, stop);
 
     // Draw outer beam
     draw_outer_beam(
@@ -209,5 +221,92 @@ pub fn draw_beam(
                 );
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{compute_beam_angle, compute_stem_length_tweak, draw_beam};
+    use crate::instructions::draw::test_helpers::make_two_note_beam;
+    use crate::renderer::{DrawInstruction, test_helpers::make_test_renderer};
+    use crate::score::components::duration::Direction;
+    use crate::score::components::measurements::Point;
+
+    // ─── pure helper tests ───────────────────────────────────────────────────
+
+    #[test]
+    fn beam_angle_flat_stems() {
+        let (beam, stems, _) = make_two_note_beam();
+        let start = &stems[&beam.start];
+        let stop = &stems[&beam.stop];
+        let angle = compute_beam_angle(start, stop);
+        // both tails at y=-3.5, so angle = 0
+        assert!((angle - 0.0).abs() < 1e-5);
+    }
+
+    #[test]
+    fn beam_angle_slanted_stems() {
+        use crate::instructions::draw::test_helpers::make_stem_def;
+        use rustc_hash::FxHashMap;
+        let mut stems = FxHashMap::default();
+        stems.insert(0u64, make_stem_def(0.0, -3.5));
+        stems.insert(8u64, make_stem_def(4.0, -4.5));
+        let angle = compute_beam_angle(&stems[&0], &stems[&8]);
+        // rise = -4.5 - (-3.5) = -1.0, run = 4.0; angle = -0.25
+        assert!((angle - (-0.25)).abs() < 1e-5);
+    }
+
+    #[test]
+    fn beam_angle_zero_division_guard() {
+        use crate::instructions::draw::test_helpers::make_stem_def;
+        let same = make_stem_def(2.0, -3.5);
+        let angle = compute_beam_angle(&same, &same);
+        assert_eq!(angle, 0.0);
+    }
+
+    #[test]
+    fn stem_length_tweak_up_is_zero() {
+        assert_eq!(compute_stem_length_tweak(&Direction::Up), 0.0);
+    }
+
+    #[test]
+    fn stem_length_tweak_down_is_beam_thickness() {
+        // BEAM_THICKNESS = 0.5
+        assert!((compute_stem_length_tweak(&Direction::Down) - 0.5).abs() < 1e-5);
+    }
+
+    // ─── draw_beam integration tests ─────────────────────────────────────────
+
+    #[test]
+    fn two_note_beam_produces_at_least_one_shape() {
+        let (beam, stem_lengths, stem_directions) = make_two_note_beam();
+        let origin = Point { x: 0.0, y: 0.0 };
+        let mut r = make_test_renderer();
+        draw_beam(&origin, &beam, &stem_lengths, &stem_directions, &mut r);
+        let shapes = r.instructions.iter()
+            .filter(|i| matches!(i, DrawInstruction::Shape { .. }))
+            .count();
+        assert!(shapes >= 1, "expected at least 1 Shape instruction, got {}", shapes);
+    }
+
+    #[test]
+    fn down_stem_beam_produces_shape() {
+        use crate::instructions::draw::test_helpers::{make_stem_def, make_two_note_beam};
+        use rustc_hash::FxHashMap;
+        use crate::score::components::duration::Direction;
+        let (beam, mut stem_lengths, _) = make_two_note_beam();
+        // Flip stems to down direction (tails below heads)
+        stem_lengths.insert(beam.start, make_stem_def(0.0, 3.5));
+        stem_lengths.insert(beam.stop, make_stem_def(4.0, 3.5));
+        let mut stem_directions = FxHashMap::default();
+        stem_directions.insert(beam.start, Direction::Down);
+        stem_directions.insert(beam.stop, Direction::Down);
+        let origin = Point { x: 0.0, y: 0.0 };
+        let mut r = make_test_renderer();
+        draw_beam(&origin, &beam, &stem_lengths, &stem_directions, &mut r);
+        let shapes = r.instructions.iter()
+            .filter(|i| matches!(i, DrawInstruction::Shape { .. }))
+            .count();
+        assert!(shapes >= 1);
     }
 }
