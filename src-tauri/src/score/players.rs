@@ -257,10 +257,7 @@ mod tests {
         score.flows.order.push(flow_id);
         score.flows.by_id.insert(flow_id, Flow::new(flow_id, 100));
         score.layouts = Layouts::new();
-        score
-            .layouts
-            .order
-            .push(part_layout_id);
+        score.layouts.order.push(part_layout_id);
         score.layouts.by_id.insert(
             part_layout_id,
             Layout::new(part_layout_id, LayoutType::Part),
@@ -269,8 +266,7 @@ mod tests {
         AppContext {
             ui: Ui::new(),
             score,
-            preferences: serde_json::from_str::<Preferences>(r#"{"audition":true}"#)
-                .unwrap(),
+            preferences: serde_json::from_str::<Preferences>(r#"{"audition":true}"#).unwrap(),
             next_id: 1,
             current_file_path: None,
         }

@@ -346,7 +346,12 @@ mod tests {
             vec![Point { x: 0.0, y: 0.0 }, Point { x: 2.0, y: 0.0 }],
         );
         assert_eq!(r.instructions.len(), 1);
-        if let DrawInstruction::Line { width, color, points } = &r.instructions[0] {
+        if let DrawInstruction::Line {
+            width,
+            color,
+            points,
+        } = &r.instructions[0]
+        {
             assert!((width - 0.125).abs() < 1e-5);
             assert_eq!(*color, Color::BLACK);
             assert_eq!(points.len(), 2);
@@ -364,7 +369,10 @@ mod tests {
             vec![Point { x: 0.0, y: 0.0 }, Point { x: 2.0, y: 0.0 }],
         );
         assert_eq!(r.instructions.len(), 1);
-        assert!(matches!(r.instructions[0], DrawInstruction::DashedLine { .. }));
+        assert!(matches!(
+            r.instructions[0],
+            DrawInstruction::DashedLine { .. }
+        ));
     }
 
     #[test]
@@ -382,7 +390,10 @@ mod tests {
             Color::BLACK,
         );
         assert_eq!(r.instructions.len(), 1);
-        if let DrawInstruction::Text { text, font_family, .. } = &r.instructions[0] {
+        if let DrawInstruction::Text {
+            text, font_family, ..
+        } = &r.instructions[0]
+        {
             assert_eq!(text, "hello");
             assert_eq!(*font_family, FontFamily::Bravura);
         } else {
@@ -419,9 +430,21 @@ mod tests {
         r.curve(
             Color::BLACK,
             [
-                CurvePoint { x: 0.0, y: 0.0, thickness: 0.1 },
-                CurvePoint { x: 1.0, y: -0.5, thickness: 0.2 },
-                CurvePoint { x: 2.0, y: 0.0, thickness: 0.1 },
+                CurvePoint {
+                    x: 0.0,
+                    y: 0.0,
+                    thickness: 0.1,
+                },
+                CurvePoint {
+                    x: 1.0,
+                    y: -0.5,
+                    thickness: 0.2,
+                },
+                CurvePoint {
+                    x: 2.0,
+                    y: 0.0,
+                    thickness: 0.1,
+                },
             ],
         );
         assert_eq!(r.instructions.len(), 1);
@@ -433,7 +456,10 @@ mod tests {
         let mut r = make_test_renderer();
         r.rectangle(0.0, 0.0, 2.0, 1.0, Color::BLACK);
         assert_eq!(r.instructions.len(), 1);
-        assert!(matches!(r.instructions[0], DrawInstruction::Rectangle { .. }));
+        assert!(matches!(
+            r.instructions[0],
+            DrawInstruction::Rectangle { .. }
+        ));
     }
 
     #[test]
@@ -452,7 +478,11 @@ mod tests {
     #[test]
     fn multiple_draw_calls_accumulate_instructions() {
         let mut r = make_test_renderer();
-        r.line(0.125, Color::BLACK, vec![Point { x: 0.0, y: 0.0 }, Point { x: 1.0, y: 0.0 }]);
+        r.line(
+            0.125,
+            Color::BLACK,
+            vec![Point { x: 0.0, y: 0.0 }, Point { x: 1.0, y: 0.0 }],
+        );
         r.circle(0.5, Color::BLACK, &Point { x: 1.0, y: 1.0 });
         r.rectangle(0.0, 0.0, 2.0, 1.0, Color::BLACK);
         assert_eq!(r.instructions.len(), 3);
@@ -498,7 +528,9 @@ mod tests {
     fn update_bounds_sets_bounds_and_scale_without_backend() {
         let mut renderer = make_test_renderer();
 
-        renderer.update_bounds(10.0, 20.0, 300.0, 200.0, 2.0).unwrap();
+        renderer
+            .update_bounds(10.0, 20.0, 300.0, 200.0, 2.0)
+            .unwrap();
 
         assert_eq!(renderer.bounds, (10.0, 20.0, 300.0, 200.0));
         assert_eq!(renderer.pixel_density, 2.0);
