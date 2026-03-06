@@ -1,0 +1,252 @@
+{
+  "id": "barlines",
+  "name": "Barlines",
+  "description": "Focused barline fixtures covering all draw types in one reference flow plus end-start repeat boundary collisions with clef, key, and time changes.",
+  "payload": {
+    "title": "Debugger Fixture — Barlines",
+    "activeTab": 1,
+    "instruments": [
+      {
+        "id": "violin",
+        "definitionId": "strings.violin"
+      }
+    ],
+    "flows": [
+      {
+        "title": "Barline draw types reference",
+        "flowLength": 1024,
+        "timeSignatures": [
+          {
+            "tick": 0,
+            "beats": 4,
+            "beatType": 4
+          }
+        ],
+        "barlines": [
+          { "tick": 0, "drawType": 5 },
+          { "tick": 128, "drawType": 0 },
+          { "tick": 256, "drawType": 1 },
+          { "tick": 384, "drawType": 2 },
+          { "tick": 512, "drawType": 3 },
+          { "tick": 640, "drawType": 6 },
+          { "tick": 768, "drawType": 7 },
+          { "tick": 896, "drawType": 4 },
+          { "tick": 1024, "drawType": 4 }
+        ],
+        "parts": [
+          {
+            "instrumentId": "violin",
+            "tones": [
+              { "tick": 0, "duration": 128, "pitchInt": 72 },
+              { "tick": 128, "duration": 128, "pitchInt": 74 },
+              { "tick": 256, "duration": 128, "pitchInt": 76 },
+              { "tick": 384, "duration": 128, "pitchInt": 77 },
+              { "tick": 512, "duration": 128, "pitchInt": 79 },
+              { "tick": 640, "duration": 128, "pitchInt": 81 },
+              { "tick": 768, "duration": 128, "pitchInt": 83 },
+              { "tick": 896, "duration": 128, "pitchInt": 84 }
+            ]
+          }
+        ]
+      },
+      {
+        "title": "End-start repeat with a clef change",
+        "flowLength": 256,
+        "timeSignatures": [
+          {
+            "tick": 0,
+            "beats": 4,
+            "beatType": 4
+          }
+        ],
+        "barlines": [
+          { "tick": 0, "drawType": 5 },
+          { "tick": 128, "drawType": 7 },
+          { "tick": 256, "drawType": 4 }
+        ],
+        "parts": [
+          {
+            "instrumentId": "violin",
+            "clefs": [{ "tick": 128, "drawType": 3, "pitchInt": 60, "offset": 0 }],
+            "tones": [
+              { "tick": 0, "duration": 128, "pitchInt": 74 },
+              { "tick": 128, "duration": 128, "pitchInt": 60 }
+            ]
+          }
+        ]
+      },
+      {
+        "title": "End-start repeat with a key change",
+        "flowLength": 256,
+        "timeSignatures": [
+          {
+            "tick": 0,
+            "beats": 4,
+            "beatType": 4
+          }
+        ],
+        "keySignatures": [
+          { "tick": 0, "mode": 0, "offset": 0 },
+          { "tick": 128, "mode": 0, "offset": 3 }
+        ],
+        "barlines": [
+          { "tick": 0, "drawType": 5 },
+          { "tick": 128, "drawType": 7 },
+          { "tick": 256, "drawType": 4 }
+        ],
+        "parts": [
+          {
+            "instrumentId": "violin",
+            "tones": [
+              { "tick": 0, "duration": 128, "pitchInt": 76 },
+              { "tick": 128, "duration": 128, "pitchInt": 77 }
+            ]
+          }
+        ]
+      },
+      {
+        "title": "End-start repeat with a time-signature change",
+        "flowLength": 256,
+        "timeSignatures": [
+          {
+            "tick": 0,
+            "beats": 4,
+            "beatType": 4,
+            "drawType": 1
+          },
+          {
+            "tick": 128,
+            "beats": 2,
+            "beatType": 2,
+            "drawType": 3
+          }
+        ],
+        "barlines": [
+          { "tick": 0, "drawType": 5 },
+          { "tick": 128, "drawType": 7 },
+          { "tick": 256, "drawType": 4 }
+        ],
+        "parts": [
+          {
+            "instrumentId": "violin",
+            "tones": [
+              { "tick": 0, "duration": 128, "pitchInt": 77 },
+              { "tick": 128, "duration": 128, "pitchInt": 79 }
+            ]
+          }
+        ]
+      },
+      {
+        "title": "End-start repeat with clef, key, and time changes",
+        "flowLength": 256,
+        "timeSignatures": [
+          {
+            "tick": 0,
+            "beats": 4,
+            "beatType": 4,
+            "drawType": 1
+          },
+          {
+            "tick": 128,
+            "beats": 2,
+            "beatType": 2,
+            "drawType": 3
+          }
+        ],
+        "keySignatures": [
+          { "tick": 0, "mode": 0, "offset": 1 },
+          { "tick": 128, "mode": 1, "offset": -4 }
+        ],
+        "barlines": [
+          { "tick": 0, "drawType": 5 },
+          { "tick": 128, "drawType": 7 },
+          { "tick": 256, "drawType": 4 }
+        ],
+        "parts": [
+          {
+            "instrumentId": "violin",
+            "clefs": [{ "tick": 128, "drawType": 2, "pitchInt": 53, "offset": -2 }],
+            "tones": [
+              { "tick": 0, "duration": 128, "pitchInt": 79 },
+              { "tick": 128, "duration": 128, "pitchInt": 55 }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "cases": [
+    {
+      "flowTitle": "Barline draw types reference",
+      "name": "Opening start repeat",
+      "measure": 1,
+      "timeSignature": "4/4"
+    },
+    {
+      "flowTitle": "Barline draw types reference",
+      "name": "Single barline draw type",
+      "measure": 2,
+      "timeSignature": "4/4"
+    },
+    {
+      "flowTitle": "Barline draw types reference",
+      "name": "Double barline draw type",
+      "measure": 3,
+      "timeSignature": "4/4"
+    },
+    {
+      "flowTitle": "Barline draw types reference",
+      "name": "Triple barline draw type",
+      "measure": 4,
+      "timeSignature": "4/4"
+    },
+    {
+      "flowTitle": "Barline draw types reference",
+      "name": "Dashed barline draw type",
+      "measure": 5,
+      "timeSignature": "4/4"
+    },
+    {
+      "flowTitle": "Barline draw types reference",
+      "name": "Closing end repeat",
+      "measure": 6,
+      "timeSignature": "4/4"
+    },
+    {
+      "flowTitle": "Barline draw types reference",
+      "name": "Combined end-start repeat boundary",
+      "measure": 7,
+      "timeSignature": "4/4"
+    },
+    {
+      "flowTitle": "Barline draw types reference",
+      "name": "Final barline draw type",
+      "measure": 8,
+      "timeSignature": "4/4"
+    },
+    {
+      "flowTitle": "End-start repeat with a clef change",
+      "name": "End-start repeat aligned with a clef change",
+      "measure": 2,
+      "timeSignature": "4/4"
+    },
+    {
+      "flowTitle": "End-start repeat with a key change",
+      "name": "End-start repeat aligned with a key-signature change",
+      "measure": 2,
+      "timeSignature": "4/4"
+    },
+    {
+      "flowTitle": "End-start repeat with a time-signature change",
+      "name": "End-start repeat aligned with a time-signature change",
+      "measure": 2,
+      "timeSignature": "2/2"
+    },
+    {
+      "flowTitle": "End-start repeat with clef, key, and time changes",
+      "name": "End-start repeat aligned with clef, key, and time updates",
+      "measure": 2,
+      "timeSignature": "2/2"
+    }
+  ]
+}

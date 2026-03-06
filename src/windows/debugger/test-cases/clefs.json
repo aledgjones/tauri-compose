@@ -1,0 +1,141 @@
+{
+  "id": "clefs",
+  "name": "Clefs",
+  "description": "Focused clef fixtures covering isolated clef changes and repeat-boundary placement.",
+  "payload": {
+    "title": "Debugger Fixture — Clefs",
+    "activeTab": 1,
+    "instruments": [
+      {
+        "id": "violin",
+        "definitionId": "strings.violin"
+      },
+      {
+        "id": "snare",
+        "definitionId": "unpitched-percussion.snare"
+      }
+    ],
+    "flows": [
+      {
+        "title": "Bass clef inserted before a repeat pivot",
+        "flowLength": 256,
+        "timeSignatures": [
+          {
+            "tick": 0,
+            "beats": 4,
+            "beatType": 4
+          }
+        ],
+        "barlines": [
+          { "tick": 0, "drawType": 5 },
+          { "tick": 256, "drawType": 4 }
+        ],
+        "parts": [
+          {
+            "instrumentId": "violin",
+            "clefs": [{ "tick": 128, "drawType": 2, "pitchInt": 53, "offset": -2 }],
+            "tones": [
+              { "tick": 0, "duration": 128, "pitchInt": 72 },
+              { "tick": 128, "duration": 128, "pitchInt": 67 }
+            ]
+          }
+        ]
+      },
+      {
+        "title": "Alto clef aligned with an end-start repeat",
+        "flowLength": 256,
+        "timeSignatures": [
+          {
+            "tick": 0,
+            "beats": 4,
+            "beatType": 4
+          }
+        ],
+        "barlines": [
+          { "tick": 0, "drawType": 5 },
+          { "tick": 128, "drawType": 7 },
+          { "tick": 256, "drawType": 4 }
+        ],
+        "parts": [
+          {
+            "instrumentId": "violin",
+            "clefs": [{ "tick": 128, "drawType": 3, "pitchInt": 60, "offset": 0 }],
+            "tones": [
+              { "tick": 0, "duration": 128, "pitchInt": 72 },
+              { "tick": 128, "duration": 128, "pitchInt": 60 }
+            ]
+          }
+        ]
+      },
+      {
+        "title": "Percussion clef before a closing repeat",
+        "flowLength": 256,
+        "timeSignatures": [
+          {
+            "tick": 0,
+            "beats": 4,
+            "beatType": 4
+          }
+        ],
+        "barlines": [
+          { "tick": 0, "drawType": 5 },
+          { "tick": 256, "drawType": 6 }
+        ],
+        "parts": [
+          {
+            "instrumentId": "violin",
+            "clefs": [{ "tick": 128, "drawType": 4, "pitchInt": 60, "offset": 0 }],
+            "tones": [
+              { "tick": 0, "duration": 128, "pitchInt": 72 },
+              { "tick": 128, "duration": 128, "pitchInt": 60 }
+            ]
+          }
+        ]
+      },
+      {
+        "title": "Percussion clef on a percussion staff",
+        "flowLength": 128,
+        "timeSignatures": [
+          {
+            "tick": 0,
+            "beats": 4,
+            "beatType": 4
+          }
+        ],
+        "parts": [
+          {
+            "instrumentId": "snare",
+            "clefs": [{ "tick": 0, "drawType": 4, "pitchInt": 60, "offset": 0 }],
+            "tones": [{ "tick": 0, "duration": 128, "pitchInt": 60 }]
+          }
+        ]
+      }
+    ]
+  },
+  "cases": [
+    {
+      "flowTitle": "Bass clef inserted before a repeat pivot",
+      "name": "Bass clef change on the second measure",
+      "measure": 2,
+      "timeSignature": "4/4"
+    },
+    {
+      "flowTitle": "Alto clef aligned with an end-start repeat",
+      "name": "Alto clef at an end-start repeat",
+      "measure": 2,
+      "timeSignature": "4/4"
+    },
+    {
+      "flowTitle": "Percussion clef before a closing repeat",
+      "name": "Percussion clef before the final repeat boundary",
+      "measure": 2,
+      "timeSignature": "4/4"
+    },
+    {
+      "flowTitle": "Percussion clef on a percussion staff",
+      "name": "Percussion clef baseline on an unpitched staff",
+      "measure": 1,
+      "timeSignature": "4/4"
+    }
+  ]
+}

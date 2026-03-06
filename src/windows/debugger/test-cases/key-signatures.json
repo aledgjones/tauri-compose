@@ -1,0 +1,373 @@
+{
+  "id": "key-signatures",
+  "name": "Key signatures",
+  "description": "Focused key-signature fixtures covering clef-dependent positioning, cancellations to zero offset, and repeat-boundary transitions.",
+  "payload": {
+    "title": "Debugger Fixture — Key Signatures",
+    "activeTab": 1,
+    "instruments": [
+      {
+        "id": "violin",
+        "definitionId": "strings.violin"
+      },
+      {
+        "id": "viola",
+        "definitionId": "strings.viola"
+      },
+      {
+        "id": "cello",
+        "definitionId": "strings.violoncello"
+      },
+      {
+        "id": "piano",
+        "definitionId": "keyboard.piano"
+      }
+    ],
+    "flows": [
+      {
+        "title": "Three sharps across treble, alto, and bass clefs",
+        "flowLength": 128,
+        "timeSignatures": [
+          {
+            "tick": 0,
+            "beats": 4,
+            "beatType": 4
+          }
+        ],
+        "keySignatures": [{ "tick": 0, "mode": 0, "offset": 3 }],
+        "parts": [
+          {
+            "instrumentId": "violin",
+            "tones": [{ "tick": 0, "duration": 128, "pitchInt": 72 }]
+          },
+          {
+            "instrumentId": "viola",
+            "tones": [{ "tick": 0, "duration": 128, "pitchInt": 60 }]
+          },
+          {
+            "instrumentId": "cello",
+            "tones": [{ "tick": 0, "duration": 128, "pitchInt": 48 }]
+          }
+        ]
+      },
+      {
+        "title": "Four flats in minor at an end-start repeat",
+        "flowLength": 256,
+        "timeSignatures": [
+          {
+            "tick": 0,
+            "beats": 4,
+            "beatType": 4
+          }
+        ],
+        "barlines": [
+          { "tick": 0, "drawType": 5 },
+          { "tick": 128, "drawType": 7 },
+          { "tick": 256, "drawType": 4 }
+        ],
+        "keySignatures": [
+          { "tick": 0, "mode": 0, "offset": 0 },
+          { "tick": 128, "mode": 1, "offset": -4 }
+        ],
+        "parts": [
+          {
+            "instrumentId": "violin",
+            "tones": [
+              { "tick": 0, "duration": 128, "pitchInt": 72 },
+              { "tick": 128, "duration": 128, "pitchInt": 76 }
+            ]
+          },
+          {
+            "instrumentId": "viola",
+            "tones": [
+              { "tick": 0, "duration": 128, "pitchInt": 60 },
+              { "tick": 128, "duration": 128, "pitchInt": 64 }
+            ]
+          },
+          {
+            "instrumentId": "cello",
+            "tones": [
+              { "tick": 0, "duration": 128, "pitchInt": 48 },
+              { "tick": 128, "duration": 128, "pitchInt": 52 }
+            ]
+          }
+        ]
+      },
+      {
+        "title": "Seven sharps across string clefs",
+        "flowLength": 128,
+        "timeSignatures": [
+          {
+            "tick": 0,
+            "beats": 4,
+            "beatType": 4
+          }
+        ],
+        "keySignatures": [{ "tick": 0, "mode": 0, "offset": 7 }],
+        "parts": [
+          {
+            "instrumentId": "violin",
+            "tones": [{ "tick": 0, "duration": 128, "pitchInt": 77 }]
+          },
+          {
+            "instrumentId": "viola",
+            "tones": [{ "tick": 0, "duration": 128, "pitchInt": 65 }]
+          },
+          {
+            "instrumentId": "cello",
+            "tones": [{ "tick": 0, "duration": 128, "pitchInt": 53 }]
+          }
+        ]
+      },
+      {
+        "title": "Seven flats before a closing repeat",
+        "flowLength": 256,
+        "timeSignatures": [
+          {
+            "tick": 0,
+            "beats": 4,
+            "beatType": 4
+          }
+        ],
+        "barlines": [
+          { "tick": 0, "drawType": 5 },
+          { "tick": 256, "drawType": 6 }
+        ],
+        "keySignatures": [
+          { "tick": 0, "mode": 0, "offset": 0 },
+          { "tick": 128, "mode": 1, "offset": -7 }
+        ],
+        "parts": [
+          {
+            "instrumentId": "violin",
+            "tones": [
+              { "tick": 0, "duration": 128, "pitchInt": 72 },
+              { "tick": 128, "duration": 128, "pitchInt": 79 }
+            ]
+          },
+          {
+            "instrumentId": "viola",
+            "tones": [
+              { "tick": 0, "duration": 128, "pitchInt": 60 },
+              { "tick": 128, "duration": 128, "pitchInt": 67 }
+            ]
+          },
+          {
+            "instrumentId": "cello",
+            "tones": [
+              { "tick": 0, "duration": 128, "pitchInt": 48 },
+              { "tick": 128, "duration": 128, "pitchInt": 55 }
+            ]
+          }
+        ]
+      },
+      {
+        "title": "Cancellation to C from three sharps",
+        "flowLength": 256,
+        "timeSignatures": [
+          {
+            "tick": 0,
+            "beats": 4,
+            "beatType": 4
+          }
+        ],
+        "keySignatures": [
+          { "tick": 0, "mode": 0, "offset": 3 },
+          { "tick": 128, "mode": 0, "offset": 0 }
+        ],
+        "parts": [
+          {
+            "instrumentId": "violin",
+            "tones": [
+              { "tick": 0, "duration": 128, "pitchInt": 72 },
+              { "tick": 128, "duration": 128, "pitchInt": 74 }
+            ]
+          },
+          {
+            "instrumentId": "viola",
+            "tones": [
+              { "tick": 0, "duration": 128, "pitchInt": 60 },
+              { "tick": 128, "duration": 128, "pitchInt": 62 }
+            ]
+          },
+          {
+            "instrumentId": "cello",
+            "tones": [
+              { "tick": 0, "duration": 128, "pitchInt": 48 },
+              { "tick": 128, "duration": 128, "pitchInt": 50 }
+            ]
+          }
+        ]
+      },
+      {
+        "title": "Cancellation to C from four flats",
+        "flowLength": 256,
+        "timeSignatures": [
+          {
+            "tick": 0,
+            "beats": 4,
+            "beatType": 4
+          }
+        ],
+        "keySignatures": [
+          { "tick": 0, "mode": 0, "offset": -4 },
+          { "tick": 128, "mode": 0, "offset": 0 }
+        ],
+        "parts": [
+          {
+            "instrumentId": "violin",
+            "tones": [
+              { "tick": 0, "duration": 128, "pitchInt": 76 },
+              { "tick": 128, "duration": 128, "pitchInt": 77 }
+            ]
+          },
+          {
+            "instrumentId": "viola",
+            "tones": [
+              { "tick": 0, "duration": 128, "pitchInt": 64 },
+              { "tick": 128, "duration": 128, "pitchInt": 65 }
+            ]
+          },
+          {
+            "instrumentId": "cello",
+            "tones": [
+              { "tick": 0, "duration": 128, "pitchInt": 52 },
+              { "tick": 128, "duration": 128, "pitchInt": 53 }
+            ]
+          }
+        ]
+      },
+      {
+        "title": "Cancellation to A minor from three flats",
+        "flowLength": 256,
+        "timeSignatures": [
+          {
+            "tick": 0,
+            "beats": 4,
+            "beatType": 4
+          }
+        ],
+        "keySignatures": [
+          { "tick": 0, "mode": 1, "offset": -3 },
+          { "tick": 128, "mode": 1, "offset": 0 }
+        ],
+        "parts": [
+          {
+            "instrumentId": "violin",
+            "tones": [
+              { "tick": 0, "duration": 128, "pitchInt": 72 },
+              { "tick": 128, "duration": 128, "pitchInt": 71 }
+            ]
+          },
+          {
+            "instrumentId": "piano",
+            "staveIndex": 0,
+            "tones": [
+              { "tick": 0, "duration": 128, "pitchInt": 76 },
+              { "tick": 128, "duration": 128, "pitchInt": 74 }
+            ]
+          },
+          {
+            "instrumentId": "piano",
+            "staveIndex": 1,
+            "tones": [
+              { "tick": 0, "duration": 128, "pitchInt": 52 },
+              { "tick": 128, "duration": 128, "pitchInt": 50 }
+            ]
+          }
+        ]
+      },
+      {
+        "title": "Cancellation at a repeat boundary with clef changes",
+        "flowLength": 256,
+        "timeSignatures": [
+          {
+            "tick": 0,
+            "beats": 4,
+            "beatType": 4,
+            "drawType": 1
+          }
+        ],
+        "barlines": [
+          { "tick": 0, "drawType": 5 },
+          { "tick": 128, "drawType": 7 },
+          { "tick": 256, "drawType": 4 }
+        ],
+        "keySignatures": [
+          { "tick": 0, "mode": 0, "offset": 4 },
+          { "tick": 128, "mode": 0, "offset": 0 }
+        ],
+        "parts": [
+          {
+            "instrumentId": "piano",
+            "staveIndex": 0,
+            "clefs": [{ "tick": 128, "drawType": 3, "pitchInt": 60, "offset": 0 }],
+            "tones": [
+              { "tick": 0, "duration": 128, "pitchInt": 72 },
+              { "tick": 128, "duration": 128, "pitchInt": 76 }
+            ]
+          },
+          {
+            "instrumentId": "piano",
+            "staveIndex": 1,
+            "clefs": [{ "tick": 128, "drawType": 1, "pitchInt": 67, "offset": 2 }],
+            "tones": [
+              { "tick": 0, "duration": 128, "pitchInt": 48 },
+              { "tick": 128, "duration": 128, "pitchInt": 52 }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "cases": [
+    {
+      "flowTitle": "Three sharps across treble, alto, and bass clefs",
+      "name": "Three sharps with clef-dependent vertical positions",
+      "measure": 1,
+      "timeSignature": "4/4"
+    },
+    {
+      "flowTitle": "Four flats in minor at an end-start repeat",
+      "name": "Four flats introduced at a repeat boundary",
+      "measure": 2,
+      "timeSignature": "4/4"
+    },
+    {
+      "flowTitle": "Seven sharps across string clefs",
+      "name": "Full sharp key signature across G, C, and F clefs",
+      "measure": 1,
+      "timeSignature": "4/4"
+    },
+    {
+      "flowTitle": "Seven flats before a closing repeat",
+      "name": "Full flat key signature before a closing repeat",
+      "measure": 2,
+      "timeSignature": "4/4"
+    },
+    {
+      "flowTitle": "Cancellation to C from three sharps",
+      "name": "Cancelling naturals to C major from sharps",
+      "measure": 2,
+      "timeSignature": "4/4"
+    },
+    {
+      "flowTitle": "Cancellation to C from four flats",
+      "name": "Cancelling naturals to C major from flats",
+      "measure": 2,
+      "timeSignature": "4/4"
+    },
+    {
+      "flowTitle": "Cancellation to A minor from three flats",
+      "name": "Cancelling naturals to A minor",
+      "measure": 2,
+      "timeSignature": "4/4"
+    },
+    {
+      "flowTitle": "Cancellation at a repeat boundary with clef changes",
+      "name": "Cancellation and clef change at the same repeat boundary",
+      "measure": 2,
+      "timeSignature": "4/4"
+    }
+  ]
+}
