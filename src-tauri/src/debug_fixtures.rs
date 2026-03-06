@@ -1,6 +1,10 @@
 use crate::playback::sampler::sync_sampler_with_score;
 use crate::score::components::articulation::{Articulation, Articulations};
 use crate::score::components::duration::{NoteDuration, Tick, Ticks};
+use crate::score::components::pitch::{Accidental, Pitch};
+use crate::score::entries::barline::{Barline, BarlineDrawType};
+use crate::score::entries::clef::{Clef, ClefDrawType};
+use crate::score::entries::key_signature::{KeySignature, KeySignatureMode};
 use crate::score::entries::time_signature::{TimeSignature, TimeSignatureDrawType};
 use crate::score::entries::Entry;
 use crate::score::flows::Flow;
@@ -38,7 +42,12 @@ pub struct DebugScoreFixtureInstrument {
 pub struct DebugScoreFixtureFlow {
     pub title: String,
     pub flow_length: Ticks,
+    #[serde(default)]
     pub time_signatures: Vec<DebugScoreFixtureTimeSignature>,
+    #[serde(default)]
+    pub barlines: Vec<DebugScoreFixtureBarline>,
+    #[serde(default)]
+    pub key_signatures: Vec<DebugScoreFixtureKeySignature>,
     pub parts: Vec<DebugScoreFixturePart>,
 }
 
@@ -47,7 +56,35 @@ pub struct DebugScoreFixtureFlow {
 pub struct DebugScoreFixturePart {
     pub instrument_id: String,
     pub stave_index: Option<usize>,
+    #[serde(default)]
+    pub clefs: Vec<DebugScoreFixtureClef>,
+    #[serde(default)]
     pub tones: Vec<DebugScoreFixtureTone>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DebugScoreFixtureBarline {
+    pub tick: Tick,
+    pub draw_type: BarlineDrawType,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DebugScoreFixtureKeySignature {
+    pub tick: Tick,
+    pub mode: KeySignatureMode,
+    pub offset: i8,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DebugScoreFixtureClef {
+    pub tick: Tick,
+    pub pitch_int: u8,
+    pub offset: i8,
+    pub draw_type: ClefDrawType,
+    pub accidental: Option<Accidental>,
 }
 
 #[derive(Deserialize)]
@@ -203,6 +240,31 @@ pub fn debug_load_score_fixture(
             )));
         }
 
+        let mut key_signatures = fixture_flow.key_signatures;
+        key_signatures.sort_by_key(|signature| signature.tick);
+
+        for key_signature in key_signatures {
+            let key_signature_id = state.generate_id();
+            master.insert_entry(Entry::KeySignature(KeySignature::new(
+                key_signature_id,
+                key_signature.tick,
+                key_signature.mode,
+                key_signature.offset,
+            )));
+        }
+
+        let mut barlines = fixture_flow.barlines;
+        barlines.sort_by_key(|barline| barline.tick);
+
+        for barline in barlines {
+            let barline_id = state.generate_id();
+            master.insert_entry(Entry::Barline(Barline::new(
+                barline_id,
+                barline.tick,
+                barline.draw_type,
+            )));
+        }
+
         let mut flow = Flow::new(flow_id, master_id);
         flow.title = fixture_flow.title;
         flow.length = fixture_flow.flow_length;
@@ -232,6 +294,19 @@ pub fn debug_load_score_fixture(
                         part.stave_index.unwrap_or(0)
                     )
                 })?;
+            let stave_master_id = state
+                .score
+                .flows
+                .by_id
+                .get(&flow_id)
+                .and_then(|flow| flow.staves.by_id.get(&stave_id))
+                .map(|stave| stave.master_id)
+                .ok_or_else(|| {
+                    format!(
+                        "Fixture stave master could not be resolved for instrument '{}'",
+                        part.instrument_id
+                    )
+                })?;
             let track_id = state
                 .score
                 .flows
@@ -245,6 +320,34 @@ pub fn debug_load_score_fixture(
                         part.instrument_id
                     )
                 })?;
+
+            let mut clefs = part.clefs;
+            clefs.sort_by_key(|clef| clef.tick);
+
+            for clef in clefs {
+                let clef_id = state.generate_id();
+                let master = state
+                    .score
+                    .tracks
+                    .by_id
+                    .get_mut(&stave_master_id)
+                    .ok_or_else(|| "Fixture stave master is missing".to_string())?;
+
+                if let Some(old) = master.get_clef_at_tick(&clef.tick) {
+                    master.remove_entry(old.id);
+                }
+
+                master.insert_entry(Entry::Clef(Clef::new(
+                    clef_id,
+                    clef.tick,
+                    Pitch::new(
+                        clef.pitch_int,
+                        clef.accidental.unwrap_or(Accidental::Natural),
+                    ),
+                    clef.offset,
+                    clef.draw_type,
+                )));
+            }
 
             for tone in part.tones {
                 let tone_id = state.generate_id();

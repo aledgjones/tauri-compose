@@ -1,0 +1,277 @@
+{
+  "id": "accidental-gallery",
+  "name": "Accidental gallery",
+  "description": "Visual accidentals coverage across explicit spellings, key-signature interactions, and barline or repeat resets.",
+  "payload": {
+    "title": "Debugger Fixture — Accidental Gallery",
+    "activeTab": 1,
+    "instruments": [
+      {
+        "id": "violin",
+        "definitionId": "strings.violin"
+      }
+    ],
+    "flows": [
+      {
+        "title": "Explicit accidental spellings",
+        "flowLength": 640,
+        "timeSignatures": [
+          {
+            "tick": 0,
+            "beats": 4,
+            "beatType": 4
+          }
+        ],
+        "parts": [
+          {
+            "instrumentId": "violin",
+            "tones": [
+              { "tick": 0, "duration": 32, "pitchInt": 60, "accidental": 0 },
+              { "tick": 32, "duration": 32, "pitchInt": 61, "accidental": 1 },
+              { "tick": 64, "duration": 32, "pitchInt": 62, "accidental": 2 },
+              { "tick": 96, "duration": 32, "pitchInt": 62, "accidental": 0 },
+
+              { "tick": 128, "duration": 32, "pitchInt": 65, "accidental": 0 },
+              { "tick": 160, "duration": 32, "pitchInt": 64, "accidental": -1 },
+              { "tick": 192, "duration": 32, "pitchInt": 63, "accidental": -2 },
+              { "tick": 224, "duration": 32, "pitchInt": 65, "accidental": 0 },
+
+              { "tick": 256, "duration": 32, "pitchInt": 68, "accidental": 1 },
+              { "tick": 288, "duration": 32, "pitchInt": 68 },
+              { "tick": 320, "duration": 32, "pitchInt": 68, "accidental": 0 },
+              { "tick": 352, "duration": 32, "pitchInt": 68 },
+
+              { "tick": 384, "duration": 32, "pitchInt": 70, "accidental": -1 },
+              { "tick": 416, "duration": 32, "pitchInt": 70 },
+              { "tick": 448, "duration": 32, "pitchInt": 71, "accidental": 0 },
+              { "tick": 480, "duration": 32, "pitchInt": 71 },
+
+              { "tick": 512, "duration": 32, "pitchInt": 61, "accidental": 1 },
+              { "tick": 544, "duration": 32, "pitchInt": 62, "accidental": -1 },
+              { "tick": 576, "duration": 32, "pitchInt": 62, "accidental": 2 },
+              { "tick": 608, "duration": 32, "pitchInt": 60, "accidental": -2 }
+            ]
+          }
+        ]
+      },
+      {
+        "title": "Accidentals against key signatures",
+        "flowLength": 640,
+        "timeSignatures": [
+          {
+            "tick": 0,
+            "beats": 4,
+            "beatType": 4
+          }
+        ],
+        "keySignatures": [
+          {
+            "tick": 0,
+            "mode": 0,
+            "offset": 2
+          },
+          {
+            "tick": 256,
+            "mode": 0,
+            "offset": -3
+          },
+          {
+            "tick": 512,
+            "mode": 1,
+            "offset": 0
+          }
+        ],
+        "parts": [
+          {
+            "instrumentId": "violin",
+            "tones": [
+              { "tick": 0, "duration": 32, "pitchInt": 66 },
+              { "tick": 32, "duration": 32, "pitchInt": 65, "accidental": 0 },
+              { "tick": 64, "duration": 32, "pitchInt": 73 },
+              { "tick": 96, "duration": 32, "pitchInt": 72, "accidental": 0 },
+
+              { "tick": 128, "duration": 32, "pitchInt": 67 },
+              { "tick": 160, "duration": 32, "pitchInt": 68, "accidental": -1 },
+              { "tick": 192, "duration": 32, "pitchInt": 74 },
+              { "tick": 224, "duration": 32, "pitchInt": 75, "accidental": -1 },
+
+              { "tick": 256, "duration": 32, "pitchInt": 70 },
+              { "tick": 288, "duration": 32, "pitchInt": 71, "accidental": 0 },
+              { "tick": 320, "duration": 32, "pitchInt": 63 },
+              { "tick": 352, "duration": 32, "pitchInt": 64, "accidental": 0 },
+
+              { "tick": 384, "duration": 32, "pitchInt": 68 },
+              { "tick": 416, "duration": 32, "pitchInt": 69, "accidental": 0 },
+              { "tick": 448, "duration": 32, "pitchInt": 63 },
+              { "tick": 480, "duration": 32, "pitchInt": 62, "accidental": 1 },
+
+              { "tick": 512, "duration": 32, "pitchInt": 66, "accidental": 1 },
+              { "tick": 544, "duration": 32, "pitchInt": 65 },
+              { "tick": 576, "duration": 32, "pitchInt": 70, "accidental": -1 },
+              { "tick": 608, "duration": 32, "pitchInt": 71 }
+            ]
+          }
+        ]
+      },
+      {
+        "title": "Accidentals across barlines and repeats",
+        "flowLength": 640,
+        "timeSignatures": [
+          {
+            "tick": 0,
+            "beats": 4,
+            "beatType": 4
+          }
+        ],
+        "barlines": [
+          {
+            "tick": 0,
+            "drawType": 5
+          },
+          {
+            "tick": 256,
+            "drawType": 7
+          },
+          {
+            "tick": 512,
+            "drawType": 6
+          },
+          {
+            "tick": 640,
+            "drawType": 4
+          }
+        ],
+        "keySignatures": [
+          {
+            "tick": 0,
+            "mode": 0,
+            "offset": 1
+          }
+        ],
+        "parts": [
+          {
+            "instrumentId": "violin",
+            "tones": [
+              { "tick": 0, "duration": 32, "pitchInt": 66 },
+              { "tick": 32, "duration": 32, "pitchInt": 65, "accidental": 0 },
+              { "tick": 64, "duration": 32, "pitchInt": 65 },
+              { "tick": 96, "duration": 32, "pitchInt": 66 },
+
+              { "tick": 128, "duration": 32, "pitchInt": 70, "accidental": -1 },
+              { "tick": 160, "duration": 32, "pitchInt": 70 },
+              { "tick": 192, "duration": 32, "pitchInt": 71, "accidental": 0 },
+              { "tick": 224, "duration": 32, "pitchInt": 71 },
+
+              { "tick": 256, "duration": 32, "pitchInt": 65, "accidental": 0 },
+              { "tick": 288, "duration": 32, "pitchInt": 66 },
+              { "tick": 320, "duration": 32, "pitchInt": 70, "accidental": -1 },
+              { "tick": 352, "duration": 32, "pitchInt": 71, "accidental": 0 },
+
+              { "tick": 384, "duration": 32, "pitchInt": 62, "accidental": 2 },
+              { "tick": 416, "duration": 32, "pitchInt": 62 },
+              { "tick": 448, "duration": 32, "pitchInt": 60, "accidental": -2 },
+              { "tick": 480, "duration": 32, "pitchInt": 60 },
+
+              { "tick": 512, "duration": 32, "pitchInt": 65, "accidental": 0 },
+              { "tick": 544, "duration": 32, "pitchInt": 66 },
+              { "tick": 576, "duration": 32, "pitchInt": 71, "accidental": 0 },
+              { "tick": 608, "duration": 32, "pitchInt": 70, "accidental": -1 }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "cases": [
+    {
+      "flowTitle": "Explicit accidental spellings",
+      "name": "Natural, sharp, and double-sharp spellings",
+      "measure": 1,
+      "timeSignature": "4/4"
+    },
+    {
+      "flowTitle": "Explicit accidental spellings",
+      "name": "Natural, flat, and double-flat spellings",
+      "measure": 2,
+      "timeSignature": "4/4"
+    },
+    {
+      "flowTitle": "Explicit accidental spellings",
+      "name": "Sharp carried within the bar then cancelled",
+      "measure": 3,
+      "timeSignature": "4/4"
+    },
+    {
+      "flowTitle": "Explicit accidental spellings",
+      "name": "Flat carried within the bar then cancelled",
+      "measure": 4,
+      "timeSignature": "4/4"
+    },
+    {
+      "flowTitle": "Explicit accidental spellings",
+      "name": "Mixed enharmonic respellings",
+      "measure": 5,
+      "timeSignature": "4/4"
+    },
+    {
+      "flowTitle": "Accidentals against key signatures",
+      "name": "Naturals cancelling F♯ and C♯ in D major",
+      "measure": 1,
+      "timeSignature": "4/4"
+    },
+    {
+      "flowTitle": "Accidentals against key signatures",
+      "name": "Extra chromatic alteration on top of the key signature",
+      "measure": 2,
+      "timeSignature": "4/4"
+    },
+    {
+      "flowTitle": "Accidentals against key signatures",
+      "name": "B♭ and E♭ under three flats",
+      "measure": 3,
+      "timeSignature": "4/4"
+    },
+    {
+      "flowTitle": "Accidentals against key signatures",
+      "name": "Naturals and raised notes under three flats",
+      "measure": 4,
+      "timeSignature": "4/4"
+    },
+    {
+      "flowTitle": "Accidentals against key signatures",
+      "name": "Chromatic spellings after returning to no key signature",
+      "measure": 5,
+      "timeSignature": "4/4"
+    },
+    {
+      "flowTitle": "Accidentals across barlines and repeats",
+      "name": "Accidental state established inside the opening repeat",
+      "measure": 1,
+      "timeSignature": "4/4"
+    },
+    {
+      "flowTitle": "Accidentals across barlines and repeats",
+      "name": "Flat and natural carry within the same bar",
+      "measure": 2,
+      "timeSignature": "4/4"
+    },
+    {
+      "flowTitle": "Accidentals across barlines and repeats",
+      "name": "End-start repeat resets the accidental context",
+      "measure": 3,
+      "timeSignature": "4/4"
+    },
+    {
+      "flowTitle": "Accidentals across barlines and repeats",
+      "name": "Double accidentals before the closing repeat",
+      "measure": 4,
+      "timeSignature": "4/4"
+    },
+    {
+      "flowTitle": "Accidentals across barlines and repeats",
+      "name": "Accidental state after the repeat boundary",
+      "measure": 5,
+      "timeSignature": "4/4"
+    }
+  ]
+}
