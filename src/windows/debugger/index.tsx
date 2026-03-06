@@ -10,6 +10,7 @@ import { actions } from "../../services/actions";
 import { chromeDark, ObjectInspector } from "react-inspector";
 import { Switch } from "../../ui/switch";
 import { PerformanceTimings } from "./components/performance-timings";
+import { ScoreFixtureLoader } from "./components/score-fixture-loader";
 
 export const Main = () => {
   const state = useAppState();
@@ -26,7 +27,7 @@ export const Main = () => {
   }, []);
 
   return (
-    <div className="h-dvh bg-neutral-950 grid grid-rows-[28px_auto_auto_1fr_1fr_1fr] gap-2 overflow-hidden pb-2">
+    <div className="h-dvh bg-neutral-950 grid grid-rows-[28px_auto_auto_auto_1fr_1fr_1fr] gap-2 overflow-hidden pb-2">
       <AppBar title="Debugger" />
 
       <PerformanceTimings />
@@ -38,6 +39,8 @@ export const Main = () => {
           onChange={() => actions.ui.renderer.toggleDebug()}
         />
       </div>
+
+      <ScoreFixtureLoader />
 
       <div className="bg-neutral-900 p-2 overflow-auto mx-2">
         <ObjectInspector

@@ -1,0 +1,168 @@
+{
+  "id": "notation-splitting",
+  "name": "Notation splitting",
+  "description": "Pattern gallery for written-duration and note-splitting behavior. Separate flows divide 4/4 and 3/4 scenarios.",
+  "payload": {
+    "title": "Debugger Fixture — Notation Splitting",
+    "activeTab": 1,
+    "instruments": [
+      {
+        "id": "violin",
+        "definitionId": "strings.violin"
+      }
+    ],
+    "flows": [
+      {
+        "title": "4/4 patterns",
+        "flowLength": 768,
+        "timeSignatures": [
+          {
+            "tick": 0,
+            "beats": 4,
+            "beatType": 4
+          }
+        ],
+        "parts": [
+          {
+            "instrumentId": "violin",
+            "tones": [
+              { "tick": 0, "duration": 32, "pitchInt": 72 },
+              { "tick": 32, "duration": 32, "pitchInt": 74 },
+              { "tick": 64, "duration": 32, "pitchInt": 76 },
+              { "tick": 96, "duration": 32, "pitchInt": 77 },
+
+              { "tick": 128, "duration": 64, "pitchInt": 69 },
+              { "tick": 192, "duration": 32, "pitchInt": 71 },
+              { "tick": 224, "duration": 32, "pitchInt": 72 },
+
+              { "tick": 256, "duration": 32, "pitchInt": 67 },
+              { "tick": 288, "duration": 64, "pitchInt": 69 },
+              { "tick": 352, "duration": 32, "pitchInt": 71 },
+
+              { "tick": 384, "duration": 32, "pitchInt": 72 },
+              { "tick": 416, "duration": 96, "pitchInt": 74 },
+
+              { "tick": 512, "duration": 96, "pitchInt": 76 },
+              { "tick": 608, "duration": 32, "pitchInt": 77 },
+
+              { "tick": 640, "duration": 16, "pitchInt": 72 },
+              { "tick": 656, "duration": 32, "pitchInt": 74 },
+              { "tick": 688, "duration": 32, "pitchInt": 76 },
+              { "tick": 720, "duration": 32, "pitchInt": 77 },
+              { "tick": 752, "duration": 16, "pitchInt": 79 }
+            ]
+          }
+        ]
+      },
+      {
+        "title": "3/4 patterns",
+        "flowLength": 576,
+        "timeSignatures": [
+          {
+            "tick": 0,
+            "beats": 3,
+            "beatType": 4
+          }
+        ],
+        "parts": [
+          {
+            "instrumentId": "violin",
+            "tones": [
+              { "tick": 0, "duration": 32, "pitchInt": 72 },
+              { "tick": 32, "duration": 32, "pitchInt": 74 },
+              { "tick": 64, "duration": 32, "pitchInt": 76 },
+
+              { "tick": 96, "duration": 48, "pitchInt": 77 },
+              { "tick": 144, "duration": 48, "pitchInt": 79 },
+
+              { "tick": 192, "duration": 48, "pitchInt": 74 },
+
+              { "tick": 288, "duration": 32, "pitchInt": 72 },
+              { "tick": 320, "duration": 48, "pitchInt": 74 },
+              { "tick": 368, "duration": 16, "pitchInt": 76 },
+
+              { "tick": 384, "duration": 32, "pitchInt": 69 },
+              { "tick": 416, "duration": 48, "pitchInt": 71 },
+
+              { "tick": 512, "duration": 64, "pitchInt": 71 }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "cases": [
+    {
+      "flowTitle": "4/4 patterns",
+      "name": "Four straight quarter notes",
+      "measure": 1,
+      "timeSignature": "4/4"
+    },
+    {
+      "flowTitle": "4/4 patterns",
+      "name": "Half note followed by two quarter notes",
+      "measure": 2,
+      "timeSignature": "4/4"
+    },
+    {
+      "flowTitle": "4/4 patterns",
+      "name": "QHQ preserved pattern",
+      "measure": 3,
+      "timeSignature": "4/4"
+    },
+    {
+      "flowTitle": "4/4 patterns",
+      "name": "Q + dotted-half preserved pattern",
+      "measure": 4,
+      "timeSignature": "4/4"
+    },
+    {
+      "flowTitle": "4/4 patterns",
+      "name": "Dotted-half + Q preserved pattern",
+      "measure": 5,
+      "timeSignature": "4/4"
+    },
+    {
+      "flowTitle": "4/4 patterns",
+      "name": "Offbeat EQQQE syncopation",
+      "measure": 6,
+      "timeSignature": "4/4"
+    },
+    {
+      "flowTitle": "3/4 patterns",
+      "name": "Three straight quarter notes",
+      "measure": 1,
+      "timeSignature": "3/4"
+    },
+    {
+      "flowTitle": "3/4 patterns",
+      "name": "Dotted-quarter + dotted-quarter rewrite",
+      "measure": 2,
+      "timeSignature": "3/4"
+    },
+    {
+      "flowTitle": "3/4 patterns",
+      "name": "Dotted quarter followed by rest at beat two",
+      "measure": 3,
+      "timeSignature": "3/4"
+    },
+    {
+      "flowTitle": "3/4 patterns",
+      "name": "Quarter + dotted-quarter + eighth note stays unsplit",
+      "measure": 4,
+      "timeSignature": "3/4"
+    },
+    {
+      "flowTitle": "3/4 patterns",
+      "name": "Quarter + dotted-quarter + eighth rest splits at beat three",
+      "measure": 5,
+      "timeSignature": "3/4"
+    },
+    {
+      "flowTitle": "3/4 patterns",
+      "name": "Half note starting on beat two stays unsplit",
+      "measure": 6,
+      "timeSignature": "3/4"
+    }
+  ]
+}

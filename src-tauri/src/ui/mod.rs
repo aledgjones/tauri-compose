@@ -62,6 +62,10 @@ impl Ui {
             screens: Screens::new(),
         }
     }
+
+    pub fn set_tab(&mut self, tab: Tab) {
+        self.tab = tab;
+    }
 }
 
 #[tauri::command(rename_all = "snake_case")]
