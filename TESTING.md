@@ -227,9 +227,9 @@ Thresholds are enforced via flags in the `test:coverage:rust` script in [package
 
 | Metric    | Threshold |
 | --------- | --------- |
-| Lines     | 10%       |
-| Functions | 30%       |
-| Regions   | 15%       |
+| Lines     | 40%       |
+| Functions | 65%       |
+| Regions   | 50%       |
 
 As the Rust test suite grows, raise these values — never lower them (ratchet rule).
 

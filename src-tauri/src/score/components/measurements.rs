@@ -127,4 +127,13 @@ mod tests {
         assert!((p.bottom - 3.0).abs() < f32::EPSILON);
         assert!((p.left - 4.0).abs() < f32::EPSILON);
     }
+
+    #[test]
+    fn padding_spaces_new_stores_fields() {
+        let p = PaddingSpaces::new(1.0, 2.0, 3.0, 4.0);
+        assert!((p.top - 1.0).abs() < f32::EPSILON);
+        assert!((p.right - 2.0).abs() < f32::EPSILON);
+        assert!((p.bottom - 3.0).abs() < f32::EPSILON);
+        assert!((p.left - 4.0).abs() < f32::EPSILON);
+    }
 }

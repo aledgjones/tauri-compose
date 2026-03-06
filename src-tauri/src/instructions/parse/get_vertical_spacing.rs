@@ -96,4 +96,99 @@ mod tests {
         assert!((vs.height - 0.0).abs() < f32::EPSILON);
         assert!(vs.instruments.is_empty());
     }
+
+    #[test]
+    fn get_vertical_spacing_with_one_instrument_has_positive_height() {
+        use crate::score::engraves::Engraves;
+        use crate::score::flows::Flow;
+        use crate::score::instruments::{defs::InstrumentType, Instrument};
+        use crate::score::layouts::LayoutType;
+        use crate::score::staves::Stave;
+
+        let stave_id = 10u64;
+        let instrument = Instrument {
+            id: 50,
+            definition_id: String::from("test"),
+            instrument_type: InstrumentType::Melodic,
+            long_name: String::from("Piano"),
+            short_name: String::from("Pno."),
+            stave_ids: vec![stave_id],
+            count: None,
+            assigned_plugin_id: None,
+            volume: 100,
+            pan: 64,
+            mute: false,
+            solo: false,
+        };
+
+        let mut flow = Flow::new(1, 100);
+        // Insert a 5-line stave into the flow
+        flow.staves.by_id.insert(
+            stave_id,
+            Stave {
+                id: stave_id,
+                lines: vec![1, 1, 1, 1, 1],
+                master_id: 100,
+                track_ids: Vec::new(),
+            },
+        );
+
+        let engraves = Engraves::new();
+        let engrave = &engraves.by_layout_type[&LayoutType::FullScore];
+
+        let vs = get_vertical_spacing(&flow, &vec![&instrument], engrave);
+        assert!(vs.height > 0.0);
+        assert!(vs.instruments.contains_key(&50));
+        assert!(vs.staves.contains_key(&stave_id));
+    }
+
+    #[test]
+    fn get_vertical_spacing_two_instruments_adds_spacing() {
+        use crate::score::engraves::Engraves;
+        use crate::score::flows::Flow;
+        use crate::score::instruments::{defs::InstrumentType, Instrument};
+        use crate::score::layouts::LayoutType;
+        use crate::score::staves::Stave;
+
+        let stave_id_1 = 10u64;
+        let stave_id_2 = 11u64;
+
+        let mk_instrument = |id: u64, stave_id: u64| Instrument {
+            id,
+            definition_id: String::from("test"),
+            instrument_type: InstrumentType::Melodic,
+            long_name: String::new(),
+            short_name: String::new(),
+            stave_ids: vec![stave_id],
+            count: None,
+            assigned_plugin_id: None,
+            volume: 100,
+            pan: 64,
+            mute: false,
+            solo: false,
+        };
+        let inst1 = mk_instrument(50, stave_id_1);
+        let inst2 = mk_instrument(51, stave_id_2);
+
+        let mut flow = Flow::new(1, 100);
+        for sid in [stave_id_1, stave_id_2] {
+            flow.staves.by_id.insert(
+                sid,
+                Stave {
+                    id: sid,
+                    lines: vec![1, 1, 1, 1, 1],
+                    master_id: 100,
+                    track_ids: Vec::new(),
+                },
+            );
+        }
+
+        let engraves = Engraves::new();
+        let engrave = &engraves.by_layout_type[&LayoutType::FullScore];
+
+        let vs_one = get_vertical_spacing(&flow, &vec![&inst1], engrave);
+        let vs_two = get_vertical_spacing(&flow, &vec![&inst1, &inst2], engrave);
+        // Two instruments should have more height than one
+        assert!(vs_two.height > vs_one.height);
+    }
 }

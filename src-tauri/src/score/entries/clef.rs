@@ -236,4 +236,77 @@ mod tests {
     fn hidden_clef_glyph_is_none() {
         assert_eq!(hidden_clef().glyph(), None);
     }
+
+    #[test]
+    fn default_clef_is_c_at_middle() {
+        let c = Clef::default();
+        assert_eq!(c.id, 0);
+        assert_eq!(c.offset, 0);
+        assert!(c.draw_as == ClefDrawType::C);
+    }
+
+    #[test]
+    fn f_clef_glyph() {
+        let c = Clef::new(1, 0, Pitch::new(53, Accidental::Natural), -2, ClefDrawType::F);
+        assert_eq!(c.glyph(), Some(String::from("\u{E062}")));
+    }
+
+    #[test]
+    fn c_clef_glyph() {
+        let c = Clef::new(1, 0, Pitch::new(60, Accidental::Natural), 0, ClefDrawType::C);
+        assert_eq!(c.glyph(), Some(String::from("\u{E05C}")));
+    }
+
+    #[test]
+    fn percussion_clef_glyph() {
+        let c = Clef::new(
+            1,
+            0,
+            Pitch::new(60, Accidental::Natural),
+            0,
+            ClefDrawType::Percussion,
+        );
+        assert_eq!(c.glyph(), Some(String::from("\u{E069}")));
+    }
+
+    #[test]
+    fn get_clef_at_tick_returns_none_on_empty_track() {
+        use crate::score::tracks::Track;
+        let track = Track::new(1);
+        assert!(track.get_clef_at_tick(&0).is_none());
+    }
+
+    #[test]
+    fn get_clef_at_tick_returns_clef_when_present() {
+        use crate::score::entries::Entry;
+        use crate::score::tracks::Track;
+        let mut track = Track::new(1);
+        let clef = Clef::new(10, 0, Pitch::new(67, Accidental::Natural), 2, ClefDrawType::G);
+        track.insert_entry(Entry::Clef(clef));
+        let found = track.get_clef_at_tick(&0).unwrap();
+        assert_eq!(found.id, 10);
+    }
+
+    #[test]
+    fn get_clef_at_tick_ignores_different_tick() {
+        use crate::score::entries::Entry;
+        use crate::score::tracks::Track;
+        let mut track = Track::new(1);
+        let clef = Clef::new(10, 64, Pitch::new(67, Accidental::Natural), 2, ClefDrawType::G);
+        track.insert_entry(Entry::Clef(clef));
+        assert!(track.get_clef_at_tick(&0).is_none());
+    }
+
+    #[test]
+    fn small_hidden_clef_also_zero_width() {
+        let bb = hidden_clef().metrics(false);
+        assert!((bb.width - 0.0).abs() < f32::EPSILON);
+        assert!((bb.right_padding - 0.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn g_clef_tick_set_on_new() {
+        let c = g_clef();
+        assert_eq!(c.tick, 0);
+    }
 }

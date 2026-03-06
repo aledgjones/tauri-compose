@@ -276,3 +276,107 @@ pub fn get_horizontal_spacing(
 
     spacings
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn slot_count_reflects_all_variants() {
+        // Slot::NoteSpacing = 10, so count = 11
+        assert_eq!(Slot::count(), 11);
+    }
+
+    #[test]
+    fn horizontal_spacing_span_new_has_zero_values() {
+        let span = HorizontalSpacingSpan::new();
+        assert_eq!(span.x, 0.0);
+        assert_eq!(span.width, 0.0);
+    }
+
+    #[test]
+    fn horizontal_spacing_new_creates_correct_size() {
+        // length=1 → (1+1)*11 = 22 spans
+        let hs = HorizontalSpacing::new(1);
+        assert_eq!(hs.widths.len(), 22);
+    }
+
+    #[test]
+    fn horizontal_spacing_get_returns_default_span() {
+        let hs = HorizontalSpacing::new(4);
+        let span = hs.get(0, Slot::NoteSpacing);
+        assert_eq!(span.width, 0.0);
+    }
+
+    #[test]
+    fn horizontal_spacing_set_width_updates_correct_slot() {
+        let mut hs = HorizontalSpacing::new(4);
+        hs.set_width(2, Slot::Barline, 3.5);
+        let span = hs.get(2, Slot::Barline);
+        assert!((span.width - 3.5).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn horizontal_spacing_set_does_not_affect_other_slots() {
+        let mut hs = HorizontalSpacing::new(4);
+        hs.set_width(1, Slot::Clef, 2.0);
+        let unaffected = hs.get(1, Slot::Barline);
+        assert_eq!(unaffected.width, 0.0);
+    }
+
+    #[test]
+    fn horizontal_spacing_initial_width_is_zero() {
+        let hs = HorizontalSpacing::new(4);
+        assert_eq!(hs.width, 0.0);
+    }
+
+    #[test]
+    fn slot_padding_start_is_zero() {
+        assert_eq!(Slot::PaddingStart as usize, 0);
+    }
+
+    #[test]
+    fn slot_note_spacing_is_last() {
+        assert_eq!(Slot::NoteSpacing as usize, Slot::count() - 1);
+    }
+
+    #[test]
+    fn horizontal_spacing_new_length_zero_still_allocates() {
+        // length=0 → (0+1)*11 = 11 spans
+        let hs = HorizontalSpacing::new(0);
+        assert_eq!(hs.widths.len(), 11);
+    }
+
+    #[test]
+    fn horizontal_spacing_set_width_at_tick_zero() {
+        let mut hs = HorizontalSpacing::new(4);
+        hs.set_width(0, Slot::PaddingStart, 5.0);
+        let span = hs.get(0, Slot::PaddingStart);
+        assert!((span.width - 5.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn horizontal_spacing_multiple_slots_at_same_tick() {
+        let mut hs = HorizontalSpacing::new(4);
+        hs.set_width(1, Slot::Clef, 1.5);
+        hs.set_width(1, Slot::TimeSignature, 2.5);
+        assert!((hs.get(1, Slot::Clef).width - 1.5).abs() < f32::EPSILON);
+        assert!((hs.get(1, Slot::TimeSignature).width - 2.5).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn horizontal_spacing_span_new_x_and_width_are_floats() {
+        let span = HorizontalSpacingSpan::new();
+        let _ = span.x + span.width; // just ensure they are f32 compatible
+        assert_eq!(span.x, 0.0_f32);
+    }
+
+    #[test]
+    fn horizontal_spacing_set_overwrite_updates_value() {
+        let mut hs = HorizontalSpacing::new(4);
+        hs.set_width(0, Slot::KeySignature, 1.0);
+        hs.set_width(0, Slot::KeySignature, 4.0);
+        let span = hs.get(0, Slot::KeySignature);
+        assert!((span.width - 4.0).abs() < f32::EPSILON);
+    }
+}

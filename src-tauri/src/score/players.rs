@@ -232,3 +232,72 @@ pub fn score_players_remove(
 
     state.emit(&app, &mut renderer, true);
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn players_new_is_empty() {
+        let p = Players::new();
+        assert!(p.order.is_empty());
+        assert!(p.by_id.is_empty());
+    }
+
+    #[test]
+    fn player_new_stores_id() {
+        let p = Player::new(5, PlayerType::Solo);
+        assert_eq!(p.id, 5);
+    }
+
+    #[test]
+    fn player_new_solo_type() {
+        let p = Player::new(1, PlayerType::Solo);
+        assert!(matches!(p.player_type, PlayerType::Solo));
+    }
+
+    #[test]
+    fn player_new_section_type() {
+        let p = Player::new(2, PlayerType::Section);
+        assert!(matches!(p.player_type, PlayerType::Section));
+    }
+
+    #[test]
+    fn player_new_has_empty_instrument_ids() {
+        let p = Player::new(1, PlayerType::Solo);
+        assert!(p.instrument_ids.is_empty());
+    }
+
+    #[test]
+    fn player_instrument_ids_can_push() {
+        let mut p = Player::new(1, PlayerType::Solo);
+        p.instrument_ids.push(10);
+        assert_eq!(p.instrument_ids.len(), 1);
+        assert_eq!(p.instrument_ids[0], 10);
+    }
+
+    #[test]
+    fn players_by_id_can_insert() {
+        let mut ps = Players::new();
+        let player = Player::new(7, PlayerType::Solo);
+        ps.by_id.insert(7, player);
+        ps.order.push(7);
+        assert_eq!(ps.by_id.len(), 1);
+        assert_eq!(ps.order.len(), 1);
+    }
+
+    #[test]
+    fn player_type_solo_and_section_are_different() {
+        assert!(PlayerType::Solo != PlayerType::Section);
+    }
+
+    #[test]
+    fn player_type_solo_equality() {
+        assert!(matches!(PlayerType::Solo, PlayerType::Solo));
+    }
+
+    #[test]
+    fn player_type_section_equality() {
+        assert!(matches!(PlayerType::Section, PlayerType::Section));
+    }
+}

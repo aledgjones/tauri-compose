@@ -286,3 +286,354 @@ pub fn get_stem_lengths(
 
     output
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::instructions::parse::get_horizontal_spacing::HorizontalSpacing;
+    use crate::instructions::parse::get_tone_offset_info::ToneOffsetInfo;
+    use crate::instructions::parse::get_written_durations::{Notation, NotationTrack};
+    use crate::score::components::articulation::Articulations;
+    use crate::score::components::duration::{Direction, NoteDuration};
+    use crate::score::components::pitch::{Accidental, Pitch};
+    use crate::score::components::velocity::Velocity;
+    use crate::score::entries::tone::Tone;
+    use crate::score::engraves::Engraves;
+    use crate::score::layouts::LayoutType;
+    use rustc_hash::FxHashMap;
+
+    fn make_note_with_info(tick: u64, duration: u64, id: u64, highest: i8, lowest: i8) -> Notation {
+        let mut n = Notation::new(tick, duration);
+        n.tones.push(Tone::new(
+            id,
+            tick,
+            duration,
+            Pitch::new(60, Accidental::Natural),
+            Velocity::new(100),
+            Articulations::new(),
+        ));
+        n.info = Some(ToneOffsetInfo { highest, lowest, furthest: highest });
+        n
+    }
+
+    #[test]
+    fn get_stem_lengths_in_track_empty_track_returns_empty() {
+        let track = NotationTrack::new(512);
+        let stem_directions: StemDirections = FxHashMap::default();
+        let beams: Beams = Vec::new();
+        let engraves = Engraves::new();
+        let engrave = &engraves.by_layout_type[&LayoutType::FullScore];
+        let hs = HorizontalSpacing::new(512);
+        let result = get_stem_lengths_in_track(&track, &stem_directions, &beams, engrave, &hs);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn get_stem_lengths_in_track_rest_is_excluded() {
+        let mut track = NotationTrack::new(512);
+        // A rest (no tones) should not produce a stem
+        let r = Notation::new(0, NoteDuration::Quarter.to_ticks());
+        track.track.insert(0, r);
+        let stem_directions: StemDirections = FxHashMap::default();
+        let beams: Beams = Vec::new();
+        let engraves = Engraves::new();
+        let engrave = &engraves.by_layout_type[&LayoutType::FullScore];
+        let hs = HorizontalSpacing::new(512);
+        let result = get_stem_lengths_in_track(&track, &stem_directions, &beams, engrave, &hs);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn get_stem_lengths_in_track_whole_note_excluded() {
+        // Whole notes do not get stems
+        let mut track = NotationTrack::new(512);
+        let whole = NoteDuration::Whole.to_ticks();
+        let note = make_note_with_info(0, whole, 1, 2, 2);
+        track.track.insert(0, note);
+
+        let mut stem_directions: StemDirections = FxHashMap::default();
+        stem_directions.insert(0, Direction::Up);
+        let beams: Beams = Vec::new();
+        let engraves = Engraves::new();
+        let engrave = &engraves.by_layout_type[&LayoutType::FullScore];
+        let hs = HorizontalSpacing::new(512);
+        let result = get_stem_lengths_in_track(&track, &stem_directions, &beams, engrave, &hs);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn get_stem_lengths_in_track_quarter_note_up_produces_stem() {
+        let mut track = NotationTrack::new(512);
+        let q = NoteDuration::Quarter.to_ticks();
+        let note = make_note_with_info(0, q, 1, 4, 4);
+        track.track.insert(0, note);
+
+        let mut stem_directions: StemDirections = FxHashMap::default();
+        stem_directions.insert(0, Direction::Up);
+        let beams: Beams = Vec::new();
+        let engraves = Engraves::new();
+        let engrave = &engraves.by_layout_type[&LayoutType::FullScore];
+        let hs = HorizontalSpacing::new(512);
+        let result = get_stem_lengths_in_track(&track, &stem_directions, &beams, engrave, &hs);
+        assert!(result.contains_key(&0));
+        let stem = &result[&0];
+        // Stem up: tail should be above (more negative y) than head
+        assert!(stem.tail.y <= stem.head.y);
+    }
+
+    #[test]
+    fn get_stem_lengths_in_track_quarter_note_down_produces_stem() {
+        let mut track = NotationTrack::new(512);
+        let q = NoteDuration::Quarter.to_ticks();
+        let note = make_note_with_info(0, q, 1, 4, 4);
+        track.track.insert(0, note);
+
+        let mut stem_directions: StemDirections = FxHashMap::default();
+        stem_directions.insert(0, Direction::Down);
+        let beams: Beams = Vec::new();
+        let engraves = Engraves::new();
+        let engrave = &engraves.by_layout_type[&LayoutType::FullScore];
+        let hs = HorizontalSpacing::new(512);
+        let result = get_stem_lengths_in_track(&track, &stem_directions, &beams, engrave, &hs);
+        assert!(result.contains_key(&0));
+        let stem = &result[&0];
+        // Stem down: tail should be below (more positive y) than head
+        assert!(stem.tail.y >= stem.head.y);
+    }
+
+    #[test]
+    fn beam_slant_returns_none_for_same_start_stop_guide() {
+        // start and stop both have guide note at same offset → BeamSlant::None
+        let eighth = NoteDuration::Eighth.to_ticks();
+        let mut track = NotationTrack::new(512);
+        let note1 = make_note_with_info(0, eighth, 1, 4, 4);
+        let note2 = make_note_with_info(eighth, eighth, 2, 4, 4);
+        track.track.insert(0, note1);
+        track.track.insert(eighth, note2);
+
+        let mut ticks = FxHashMap::default();
+        ticks.insert(0u64, 1u8);
+        ticks.insert(eighth, 1u8);
+
+        let beam = Beam {
+            ticks,
+            start: 0,
+            stop: eighth,
+            beam_segments: FxHashMap::default(),
+            fractional_beams: FxHashMap::default(),
+        };
+
+        let slant = get_beam_slant(&beam, &track, &Direction::Up);
+        assert!(matches!(slant, BeamSlant::None));
+    }
+
+    #[test]
+    fn beam_slant_returns_up_when_start_higher_than_stop() {
+        // start guide note higher (lower offset = higher physically) than stop
+        // Direction::Up uses highest offset; higher = larger number is LOWER physically
+        // Start at offset 6 (lower), stop at offset 2 (higher): start_guide=6 > stop_guide=2
+        // → 6 > 2 → BeamSlant::Up
+        let eighth = NoteDuration::Eighth.to_ticks();
+        let mut track = NotationTrack::new(512);
+        let note1 = make_note_with_info(0, eighth, 1, 6, 6);       // highest=6
+        let note2 = make_note_with_info(eighth, eighth, 2, 2, 2);  // highest=2
+        track.track.insert(0, note1);
+        track.track.insert(eighth, note2);
+
+        let mut ticks = FxHashMap::default();
+        ticks.insert(0u64, 1u8);
+        ticks.insert(eighth, 1u8);
+
+        let beam = Beam {
+            ticks,
+            start: 0,
+            stop: eighth,
+            beam_segments: FxHashMap::default(),
+            fractional_beams: FxHashMap::default(),
+        };
+
+        let slant = get_beam_slant(&beam, &track, &Direction::Up);
+        assert!(matches!(slant, BeamSlant::Up));
+    }
+
+    #[test]
+    fn beam_slant_returns_down_when_stop_higher_than_start() {
+        // Direction::Up uses highest; stop_guide > start_guide → BeamSlant::Down
+        let eighth = NoteDuration::Eighth.to_ticks();
+        let mut track = NotationTrack::new(512);
+        let note1 = make_note_with_info(0, eighth, 1, 2, 2);        // highest=2
+        let note2 = make_note_with_info(eighth, eighth, 2, 6, 6);  // highest=6
+        track.track.insert(0, note1);
+        track.track.insert(eighth, note2);
+
+        let mut ticks = FxHashMap::default();
+        ticks.insert(0u64, 1u8);
+        ticks.insert(eighth, 1u8);
+
+        let beam = Beam {
+            ticks,
+            start: 0,
+            stop: eighth,
+            beam_segments: FxHashMap::default(),
+            fractional_beams: FxHashMap::default(),
+        };
+
+        let slant = get_beam_slant(&beam, &track, &Direction::Up);
+        assert!(matches!(slant, BeamSlant::Down));
+    }
+
+    #[test]
+    fn beam_slant_none_when_inner_note_breaks_slope_upward() {
+        // start=2, stop=6 (slant would be Down), but middle note at 0 < both → flattened to None
+        let eighth = NoteDuration::Eighth.to_ticks();
+        let mut track = NotationTrack::new(512);
+        let note1 = make_note_with_info(0, eighth, 1, 2, 2);
+        let note2 = make_note_with_info(eighth, eighth, 2, 0, 0);   // below both start and stop
+        let note3 = make_note_with_info(eighth * 2, eighth, 3, 6, 6);
+        track.track.insert(0, note1);
+        track.track.insert(eighth, note2);
+        track.track.insert(eighth * 2, note3);
+
+        let mut ticks = FxHashMap::default();
+        ticks.insert(0u64, 1u8);
+        ticks.insert(eighth, 1u8);
+        ticks.insert(eighth * 2, 1u8);
+
+        let beam = Beam {
+            ticks,
+            start: 0,
+            stop: eighth * 2,
+            beam_segments: FxHashMap::default(),
+            fractional_beams: FxHashMap::default(),
+        };
+
+        let slant = get_beam_slant(&beam, &track, &Direction::Up);
+        assert!(matches!(slant, BeamSlant::None));
+    }
+
+    #[test]
+    fn get_stem_lengths_in_track_half_note_has_stem() {
+        let mut track = NotationTrack::new(512);
+        let half = NoteDuration::Half.to_ticks();
+        let note = make_note_with_info(0, half, 1, 4, 4);
+        track.track.insert(0, note);
+
+        let mut stem_directions: StemDirections = FxHashMap::default();
+        stem_directions.insert(0, Direction::Up);
+        let beams: Beams = Vec::new();
+        let engraves = Engraves::new();
+        let engrave = &engraves.by_layout_type[&LayoutType::FullScore];
+        let hs = HorizontalSpacing::new(512);
+        let result = get_stem_lengths_in_track(&track, &stem_directions, &beams, engrave, &hs);
+        assert!(result.contains_key(&0));
+    }
+
+    #[test]
+    fn get_stem_lengths_in_track_eighth_note_up_has_stem() {
+        let mut track = NotationTrack::new(512);
+        let eighth = NoteDuration::Eighth.to_ticks();
+        let note = make_note_with_info(0, eighth, 1, 4, 4);
+        track.track.insert(0, note);
+
+        let mut stem_directions: StemDirections = FxHashMap::default();
+        stem_directions.insert(0, Direction::Up);
+        let beams: Beams = Vec::new();
+        let engraves = Engraves::new();
+        let engrave = &engraves.by_layout_type[&LayoutType::FullScore];
+        let hs = HorizontalSpacing::new(512);
+        let result = get_stem_lengths_in_track(&track, &stem_directions, &beams, engrave, &hs);
+        assert!(result.contains_key(&0));
+        let stem = &result[&0];
+        assert!(stem.tail.y <= stem.head.y);
+    }
+
+    #[test]
+    fn get_stem_lengths_in_track_two_beamed_eighths_both_have_stems() {
+        let eighth = NoteDuration::Eighth.to_ticks();
+        let mut track = NotationTrack::new(512);
+        let note1 = make_note_with_info(0, eighth, 1, 4, 4);
+        let note2 = make_note_with_info(eighth, eighth, 2, 4, 4);
+        track.track.insert(0, note1);
+        track.track.insert(eighth, note2);
+
+        let mut stem_directions: StemDirections = FxHashMap::default();
+        stem_directions.insert(0, Direction::Up);
+        stem_directions.insert(eighth, Direction::Up);
+
+        // Build a beam for these two notes
+        let mut ticks = FxHashMap::default();
+        ticks.insert(0u64, 1u8);
+        ticks.insert(eighth, 1u8);
+        let beam = Beam {
+            ticks,
+            start: 0,
+            stop: eighth,
+            beam_segments: FxHashMap::default(),
+            fractional_beams: FxHashMap::default(),
+        };
+        let beams: Beams = vec![beam];
+
+        let engraves = Engraves::new();
+        let engrave = &engraves.by_layout_type[&LayoutType::FullScore];
+        let hs = HorizontalSpacing::new(512);
+        let result = get_stem_lengths_in_track(&track, &stem_directions, &beams, engrave, &hs);
+        assert!(result.contains_key(&0));
+        assert!(result.contains_key(&eighth));
+    }
+
+    #[test]
+    fn get_stem_lengths_in_track_note_on_line_up_direction() {
+        // offset 0 is even (on staff line), direction Up
+        let mut track = NotationTrack::new(512);
+        let q = NoteDuration::Quarter.to_ticks();
+        let note = make_note_with_info(0, q, 1, 0, 0); // highest=0 (on center line)
+        track.track.insert(0, note);
+
+        let mut stem_directions: StemDirections = FxHashMap::default();
+        stem_directions.insert(0, Direction::Down);
+        let beams: Beams = Vec::new();
+        let engraves = Engraves::new();
+        let engrave = &engraves.by_layout_type[&LayoutType::FullScore];
+        let hs = HorizontalSpacing::new(512);
+        let result = get_stem_lengths_in_track(&track, &stem_directions, &beams, engrave, &hs);
+        assert!(result.contains_key(&0));
+    }
+
+    #[test]
+    fn get_furthest_tail_with_two_note_beam_up() {
+        // Two notes beamed stem-up: furthest tail should be negative (above staff)
+        let eighth = NoteDuration::Eighth.to_ticks();
+        let mut track = NotationTrack::new(512);
+        let note1 = make_note_with_info(0, eighth, 1, 4, 4);
+        let note2 = make_note_with_info(eighth, eighth, 2, 4, 4);
+        track.track.insert(0, note1);
+        track.track.insert(eighth, note2);
+
+        let mut stem_directions: StemDirections = FxHashMap::default();
+        stem_directions.insert(0, Direction::Up);
+        stem_directions.insert(eighth, Direction::Up);
+
+        let mut ticks = FxHashMap::default();
+        ticks.insert(0u64, 1u8);
+        ticks.insert(eighth, 1u8);
+        let beam = Beam {
+            ticks,
+            start: 0,
+            stop: eighth,
+            beam_segments: FxHashMap::default(),
+            fractional_beams: FxHashMap::default(),
+        };
+        let beams: Beams = vec![beam];
+
+        let engraves = Engraves::new();
+        let engrave = &engraves.by_layout_type[&LayoutType::FullScore];
+        let hs = HorizontalSpacing::new(512);
+        let result = get_stem_lengths_in_track(&track, &stem_directions, &beams, engrave, &hs);
+        // Both stems should be present
+        assert_eq!(result.len(), 2);
+        // Direction::Up → tails should be above heads (negative y)
+        for stem in result.values() {
+            assert!(stem.tail.y <= stem.head.y);
+        }
+    }
+}

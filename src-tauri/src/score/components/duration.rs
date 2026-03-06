@@ -303,4 +303,45 @@ mod tests {
             "dotted should be exactly 1.2x undotted"
         );
     }
+
+    #[test]
+    fn spacing_ratio_eighth_is_1_over_ratio() {
+        let ratio = 1.5f32;
+        let expected = 1.0 / ratio;
+        assert!((NoteDuration::Eighth.spacing_ratio(ratio, false) - expected).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn spacing_ratio_sixteenth_is_1_over_ratio_times_2() {
+        let ratio = 1.5f32;
+        let expected = 1.0 / (ratio * 2.0);
+        assert!((NoteDuration::Sixteenth.spacing_ratio(ratio, false) - expected).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn spacing_ratio_thirty_second_is_1_over_ratio_times_4() {
+        let ratio = 1.5f32;
+        let expected = 1.0 / (ratio * 4.0);
+        assert!((NoteDuration::ThirtySecond.spacing_ratio(ratio, false) - expected).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn spacing_ratio_sixty_fourth_is_1_over_ratio_times_8() {
+        let ratio = 1.5f32;
+        let expected = 1.0 / (ratio * 8.0);
+        assert!((NoteDuration::SixtyFourth.spacing_ratio(ratio, false) - expected).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn spacing_ratio_hundred_twenty_eighth_is_1_over_ratio_times_16() {
+        let ratio = 1.5f32;
+        let expected = 1.0 / (ratio * 16.0);
+        assert!((NoteDuration::HudredTwentyEighth.spacing_ratio(ratio, false) - expected).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn spacing_ratio_half_is_ratio() {
+        let ratio = 1.5f32;
+        assert!((NoteDuration::Half.spacing_ratio(ratio, false) - ratio).abs() < f32::EPSILON);
+    }
 }

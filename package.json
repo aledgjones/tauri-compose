@@ -87,7 +87,7 @@
     "tauri": "tauri",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "test:coverage:rust": "cd src-tauri && cargo llvm-cov --lib --fail-under-lines 10 --fail-under-functions 30 --fail-under-regions 15",
+    "test:coverage:rust": "cd src-tauri && cargo llvm-cov --lib --fail-under-lines 40 --fail-under-functions 65 --fail-under-regions 50",
     "test:coverage:rust:summary": "cd src-tauri && cargo llvm-cov --lib",
     "test:coverage:summary": "./scripts/coverage-summary",
     "test:logs": "VITEST_LOGS=1 vitest run",

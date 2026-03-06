@@ -198,4 +198,85 @@ mod tests {
         let bb = BarlineDrawType::Double.metrics();
         assert!((bb.width - 0.5).abs() < f32::EPSILON);
     }
+
+    #[test]
+    fn triple_metrics_has_one_space_width() {
+        let bb = BarlineDrawType::Triple.metrics();
+        assert!((bb.width - 1.0).abs() < f32::EPSILON);
+        assert!((bb.right_padding - 1.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn dashed_metrics_has_zero_width_and_one_padding() {
+        let bb = BarlineDrawType::Dashed.metrics();
+        assert!((bb.width - 0.0).abs() < f32::EPSILON);
+        assert!((bb.right_padding - 1.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn start_repeat_metrics_has_two_space_width() {
+        let bb = BarlineDrawType::StartRepeat.metrics();
+        assert!((bb.width - 2.0).abs() < f32::EPSILON);
+        assert!((bb.right_padding - 1.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn end_repeat_metrics_has_two_space_width() {
+        let bb = BarlineDrawType::EndRepeat.metrics();
+        assert!((bb.width - 2.0).abs() < f32::EPSILON);
+        assert!((bb.right_padding - 1.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn all_barline_metrics_have_four_height() {
+        let types = [
+            BarlineDrawType::Single,
+            BarlineDrawType::Double,
+            BarlineDrawType::Triple,
+            BarlineDrawType::Dashed,
+            BarlineDrawType::Final,
+            BarlineDrawType::StartRepeat,
+            BarlineDrawType::EndRepeat,
+            BarlineDrawType::EndStartRepeat,
+        ];
+        for draw_type in types {
+            let bb = draw_type.metrics();
+            assert!((bb.height - 4.0).abs() < f32::EPSILON);
+        }
+    }
+
+    #[test]
+    fn get_barline_at_tick_returns_none_on_empty_track() {
+        use crate::score::tracks::Track;
+        let track = Track::new(1);
+        assert!(track.get_barline_at_tick(&128).is_none());
+    }
+
+    #[test]
+    fn get_barline_at_tick_returns_barline_when_present() {
+        use crate::score::entries::Entry;
+        use crate::score::tracks::Track;
+        let mut track = Track::new(1);
+        let barline = Barline::new(42, 128, BarlineDrawType::Final);
+        track.insert_entry(Entry::Barline(barline));
+        let found = track.get_barline_at_tick(&128).unwrap();
+        assert_eq!(found.id, 42);
+        assert!(found.barline_draw_type == BarlineDrawType::Final);
+    }
+
+    #[test]
+    fn get_barline_at_tick_ignores_different_tick() {
+        use crate::score::entries::Entry;
+        use crate::score::tracks::Track;
+        let mut track = Track::new(1);
+        let barline = Barline::new(42, 128, BarlineDrawType::Double);
+        track.insert_entry(Entry::Barline(barline));
+        assert!(track.get_barline_at_tick(&0).is_none());
+    }
+
+    #[test]
+    fn barline_equality_on_draw_type() {
+        assert!(BarlineDrawType::Single == BarlineDrawType::Single);
+        assert!(BarlineDrawType::Single != BarlineDrawType::Double);
+    }
 }

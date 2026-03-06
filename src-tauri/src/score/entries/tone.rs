@@ -525,4 +525,153 @@ mod tests {
         );
         assert!(tone.articulations.contains(&Articulation::Staccato));
     }
+
+    // --- Track::get_tones_at_tick ---
+
+    #[test]
+    fn get_tones_at_tick_returns_empty_vec_on_empty_track() {
+        use crate::score::tracks::Track;
+        let track = Track::new(1);
+        let tones = track.get_tones_at_tick(&0);
+        assert!(tones.is_empty());
+    }
+
+    #[test]
+    fn get_tones_at_tick_returns_tone_when_present() {
+        use crate::score::entries::Entry;
+        use crate::score::tracks::Track;
+        let mut track = Track::new(1);
+        let tone = Tone::new(
+            42,
+            64,
+            32,
+            Pitch::new(60, Accidental::Natural),
+            Velocity::new(80),
+            Articulations::new(),
+        );
+        track.insert_entry(Entry::Tone(tone));
+        let tones = track.get_tones_at_tick(&64);
+        assert_eq!(tones.len(), 1);
+        assert_eq!(tones[0].id, 42);
+    }
+
+    #[test]
+    fn get_tones_at_tick_returns_empty_for_wrong_tick() {
+        use crate::score::entries::Entry;
+        use crate::score::tracks::Track;
+        let mut track = Track::new(1);
+        let tone = Tone::new(
+            42,
+            64,
+            32,
+            Pitch::new(60, Accidental::Natural),
+            Velocity::new(80),
+            Articulations::new(),
+        );
+        track.insert_entry(Entry::Tone(tone));
+        assert!(track.get_tones_at_tick(&0).is_empty());
+    }
+
+    #[test]
+    fn get_tones_at_tick_returns_multiple_tones() {
+        use crate::score::entries::Entry;
+        use crate::score::tracks::Track;
+        let mut track = Track::new(1);
+        for id in 1..=3 {
+            let tone = Tone::new(
+                id,
+                0,
+                32,
+                Pitch::new(60 + id as u8, Accidental::Natural),
+                Velocity::new(80),
+                Articulations::new(),
+            );
+            track.insert_entry(Entry::Tone(tone));
+        }
+        let tones = track.get_tones_at_tick(&0);
+        assert_eq!(tones.len(), 3);
+    }
+
+    // --- Track::first_articulations_at_tick ---
+
+    #[test]
+    fn first_articulations_at_tick_returns_none_on_empty_track() {
+        use crate::score::tracks::Track;
+        let track = Track::new(1);
+        assert!(track.first_articulations_at_tick(&0).is_none());
+    }
+
+    #[test]
+    fn first_articulations_at_tick_returns_none_when_tone_has_empty_arts() {
+        use crate::score::entries::Entry;
+        use crate::score::tracks::Track;
+        let mut track = Track::new(1);
+        let tone = Tone::new(
+            1,
+            0,
+            32,
+            Pitch::new(60, Accidental::Natural),
+            Velocity::new(80),
+            Articulations::new(),
+        );
+        track.insert_entry(Entry::Tone(tone));
+        assert!(track.first_articulations_at_tick(&0).is_none());
+    }
+
+    #[test]
+    fn first_articulations_at_tick_returns_arts_when_present() {
+        use crate::score::components::articulation::Articulation;
+        use crate::score::entries::Entry;
+        use crate::score::tracks::Track;
+        let mut track = Track::new(1);
+        let arts = Articulations::new().toggle(Articulation::Staccato);
+        let tone = Tone::new(
+            1,
+            0,
+            32,
+            Pitch::new(60, Accidental::Natural),
+            Velocity::new(80),
+            arts,
+        );
+        track.insert_entry(Entry::Tone(tone));
+        let found = track.first_articulations_at_tick(&0);
+        assert!(found.is_some());
+        assert!(found.unwrap().contains(&Articulation::Staccato));
+    }
+
+    // --- Track::apply_articulations_to_tick ---
+
+    #[test]
+    fn apply_articulations_to_tick_updates_all_tones() {
+        use crate::score::components::articulation::Articulation;
+        use crate::score::entries::Entry;
+        use crate::score::tracks::Track;
+        let mut track = Track::new(1);
+        for id in 1..=2u64 {
+            let tone = Tone::new(
+                id,
+                0,
+                32,
+                Pitch::new(60 + id as u8, Accidental::Natural),
+                Velocity::new(80),
+                Articulations::new(),
+            );
+            track.insert_entry(Entry::Tone(tone));
+        }
+        let new_arts = Articulations::new().toggle(Articulation::Tenuto);
+        track.apply_articulations_to_tick(0, &new_arts);
+        for tone in track.get_tones_at_tick(&0) {
+            assert!(tone.articulations.contains(&Articulation::Tenuto));
+        }
+    }
+
+    #[test]
+    fn apply_articulations_to_tick_noop_on_empty_track() {
+        use crate::score::components::articulation::Articulation;
+        use crate::score::tracks::Track;
+        let mut track = Track::new(1);
+        let arts = Articulations::new().toggle(Articulation::Accent);
+        // Should not panic on empty
+        track.apply_articulations_to_tick(0, &arts);
+    }
 }

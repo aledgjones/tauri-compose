@@ -81,3 +81,131 @@ pub fn migrate(data: serde_json::Value) -> Result<serde_json::Value, String> {
 
     Ok(data)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn migrate_passthrough_when_no_score_key() {
+        let data = json!({"other": 1});
+        let result = migrate(data).unwrap();
+        assert_eq!(result["other"], 1);
+    }
+
+    #[test]
+    fn migrate_reduces_tick_by_factor_8() {
+        let data = json!({
+            "score": {
+                "tracks": {
+                    "by_id": {
+                        "t1": {
+                            "entries": {
+                                "by_id": {
+                                    "e1": {"tick": 128u64, "duration": 64u64}
+                                },
+                                "by_tick": {
+                                    "128": ["e1"]
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        let result = migrate(data).unwrap();
+        let tick = &result["score"]["tracks"]["by_id"]["t1"]["entries"]["by_id"]["e1"]["tick"];
+        assert_eq!(tick, 16);
+    }
+
+    #[test]
+    fn migrate_reduces_duration_by_factor_8() {
+        let data = json!({
+            "score": {
+                "tracks": {
+                    "by_id": {
+                        "t1": {
+                            "entries": {
+                                "by_id": {
+                                    "e1": {"tick": 8u64, "duration": 64u64}
+                                },
+                                "by_tick": {
+                                    "8": ["e1"]
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        let result = migrate(data).unwrap();
+        let dur = &result["score"]["tracks"]["by_id"]["t1"]["entries"]["by_id"]["e1"]["duration"];
+        assert_eq!(dur, 8);
+    }
+
+    #[test]
+    fn migrate_remaps_by_tick_keys() {
+        let data = json!({
+            "score": {
+                "tracks": {
+                    "by_id": {
+                        "t1": {
+                            "entries": {
+                                "by_id": {
+                                    "e1": {"tick": 16u64, "duration": 8u64}
+                                },
+                                "by_tick": {
+                                    "16": ["e1"]
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        let result = migrate(data).unwrap();
+        let by_tick = &result["score"]["tracks"]["by_id"]["t1"]["entries"]["by_tick"];
+        // old key "16" / 8 = "2"
+        assert!(by_tick.get("2").is_some());
+        assert!(by_tick.get("16").is_none());
+    }
+
+    #[test]
+    fn migrate_reduces_flow_length() {
+        let data = json!({
+            "score": {
+                "flows": {
+                    "by_id": {
+                        "f1": {"length": 384u64}
+                    }
+                }
+            }
+        });
+        let result = migrate(data).unwrap();
+        let len = &result["score"]["flows"]["by_id"]["f1"]["length"];
+        assert_eq!(len, 48);
+    }
+
+    #[test]
+    fn migrate_resets_renderer_pan_and_zoom() {
+        let data = json!({
+            "score": {
+                "ui": {
+                    "renderer": {
+                        "zoom": 150.0,
+                        "pan_x": 200.0,
+                        "pan_y": 300.0
+                    }
+                }
+            }
+        });
+        let result = migrate(data).unwrap();
+        let zoom = &result["score"]["ui"]["renderer"]["zoom"];
+        let pan_x = &result["score"]["ui"]["renderer"]["pan_x"];
+        let pan_y = &result["score"]["ui"]["renderer"]["pan_y"];
+        assert_eq!(zoom.as_f64().unwrap(), 100.0);
+        assert_eq!(pan_x.as_f64().unwrap(), 100.0);
+        assert_eq!(pan_y.as_f64().unwrap(), 100.0);
+    }
+}

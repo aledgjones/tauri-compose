@@ -191,4 +191,120 @@ mod tests {
         let clusters = n.get_clusters(&offsets);
         assert_eq!(clusters.len(), 1);
     }
+
+    // --- note_shunts_in_chord ---
+
+    #[test]
+    fn note_shunts_single_tone_gets_none_shunt_when_stem_down() {
+        use super::*;
+        use crate::score::components::duration::Direction;
+
+        let tone = make_tone(1, 60);
+        let mut n = Notation::new(0, 32);
+        n.tones.push(tone.clone());
+
+        let mut offsets: ToneVerticalOffsets = FxHashMap::default();
+        offsets.insert(1, 0);
+
+        let mut shunts = Shunts {
+            by_id: FxHashMap::default(),
+            by_offset: FxHashMap::default(),
+        };
+
+        note_shunts_in_chord(&0, &n, &offsets, &Direction::Down, &mut shunts);
+
+        // odd-length cluster (1) => first_note_shunted=true; i=0 shunted=false => None
+        assert!(shunts.by_id[&(0, 1)] == Shunt::None);
+    }
+
+    #[test]
+    fn note_shunts_two_adjacent_tones_stem_up_gets_post_and_none() {
+        use super::*;
+        use crate::score::components::duration::Direction;
+
+        let tone1 = make_tone(1, 60); // offset 0
+        let tone2 = make_tone(2, 59); // offset -1 (adjacent)
+        let mut n = Notation::new(0, 32);
+        n.tones.push(tone1.clone());
+        n.tones.push(tone2.clone());
+
+        let mut offsets: ToneVerticalOffsets = FxHashMap::default();
+        offsets.insert(1, 0);
+        offsets.insert(2, -1);
+
+        let mut shunts = Shunts {
+            by_id: FxHashMap::default(),
+            by_offset: FxHashMap::default(),
+        };
+
+        // adjacent 2-tone cluster; stem Up; even length => first_note_shunted=true from stem rule
+        note_shunts_in_chord(&0, &n, &offsets, &Direction::Up, &mut shunts);
+
+        // i=0: shunted = first_note_shunted && i%2==0 => shunted (Post for Up)
+        // i=1: shunted = !( i%2 > 0 ) = false => None
+        let s1 = &shunts.by_id[&(0, 1)];
+        let s2 = &shunts.by_id[&(0, 2)];
+        // One should be Post and one None, but order is determined by stem
+        assert!(*s1 == Shunt::Post || *s1 == Shunt::None);
+        assert!(*s2 == Shunt::Post || *s2 == Shunt::None);
+        assert!(*s1 != *s2);
+    }
+
+    #[test]
+    fn note_shunts_two_adjacent_tones_stem_down_gets_pre_and_none() {
+        use super::*;
+        use crate::score::components::duration::Direction;
+
+        let tone1 = make_tone(1, 60);
+        let tone2 = make_tone(2, 59);
+        let mut n = Notation::new(0, 32);
+        n.tones.push(tone1.clone());
+        n.tones.push(tone2.clone());
+
+        let mut offsets: ToneVerticalOffsets = FxHashMap::default();
+        offsets.insert(1, 0);
+        offsets.insert(2, -1);
+
+        let mut shunts = Shunts {
+            by_id: FxHashMap::default(),
+            by_offset: FxHashMap::default(),
+        };
+
+        note_shunts_in_chord(&0, &n, &offsets, &Direction::Down, &mut shunts);
+
+        let s1 = &shunts.by_id[&(0, 1)];
+        let s2 = &shunts.by_id[&(0, 2)];
+        assert!(*s1 == Shunt::Pre || *s1 == Shunt::None);
+        assert!(*s2 == Shunt::Pre || *s2 == Shunt::None);
+        assert!(*s1 != *s2);
+    }
+
+    #[test]
+    fn note_shunts_three_tones_odd_cluster_stem_up() {
+        use super::*;
+        use crate::score::components::duration::Direction;
+
+        // 3 non-adjacent tones → three clusters of 1 each
+        let tone1 = make_tone(1, 60);
+        let tone2 = make_tone(2, 55);
+        let tone3 = make_tone(3, 50);
+        let mut n = Notation::new(0, 32);
+        n.tones.push(tone1.clone());
+        n.tones.push(tone2.clone());
+        n.tones.push(tone3.clone());
+
+        let mut offsets: ToneVerticalOffsets = FxHashMap::default();
+        offsets.insert(1, 4);
+        offsets.insert(2, 0);
+        offsets.insert(3, -4);
+
+        let mut shunts = Shunts {
+            by_id: FxHashMap::default(),
+            by_offset: FxHashMap::default(),
+        };
+
+        note_shunts_in_chord(&0, &n, &offsets, &Direction::Up, &mut shunts);
+        // 3 entries should be in shunts
+        assert_eq!(shunts.by_id.len(), 3);
+    }
 }

@@ -372,4 +372,361 @@ mod tests {
         let ts = TimeSignature::default();
         assert_eq!(ts.beats, 4);
     }
+
+    // --- kind() ---
+
+    #[test]
+    fn kind_open_when_zero_beats() {
+        let ts = TimeSignature::new(1, 0, 0, NoteDuration::Quarter, TimeSignatureDrawType::Open, None);
+        assert!(matches!(ts.kind(), TimeSignatureType::Open));
+    }
+
+    #[test]
+    fn kind_simple_for_four_four() {
+        let ts = TimeSignature::new(1, 0, 4, NoteDuration::Quarter, TimeSignatureDrawType::Regular, None);
+        assert!(matches!(ts.kind(), TimeSignatureType::Simple));
+    }
+
+    #[test]
+    fn kind_compound_for_six_eight() {
+        let ts = TimeSignature::new(1, 0, 6, NoteDuration::Eighth, TimeSignatureDrawType::Regular, None);
+        assert!(matches!(ts.kind(), TimeSignatureType::Compound));
+    }
+
+    #[test]
+    fn kind_complex_for_five_four() {
+        let ts = TimeSignature::new(1, 0, 5, NoteDuration::Quarter, TimeSignatureDrawType::Regular, None);
+        assert!(matches!(ts.kind(), TimeSignatureType::Complex));
+    }
+
+    #[test]
+    fn kind_complex_for_seven_eight() {
+        let ts = TimeSignature::new(1, 0, 7, NoteDuration::Eighth, TimeSignatureDrawType::Regular, None);
+        assert!(matches!(ts.kind(), TimeSignatureType::Complex));
+    }
+
+    #[test]
+    fn kind_simple_for_two_four() {
+        let ts = TimeSignature::new(1, 0, 2, NoteDuration::Quarter, TimeSignatureDrawType::Regular, None);
+        assert!(matches!(ts.kind(), TimeSignatureType::Simple));
+    }
+
+    #[test]
+    fn kind_simple_for_three_four() {
+        let ts = TimeSignature::new(1, 0, 3, NoteDuration::Quarter, TimeSignatureDrawType::Regular, None);
+        assert!(matches!(ts.kind(), TimeSignatureType::Simple));
+    }
+
+    // --- ticks_per_beat / ticks_per_bar ---
+
+    #[test]
+    fn ticks_per_beat_quarter_is_32() {
+        let ts = TimeSignature::new(1, 0, 4, NoteDuration::Quarter, TimeSignatureDrawType::Regular, None);
+        assert_eq!(ts.ticks_per_beat(), 32);
+    }
+
+    #[test]
+    fn ticks_per_beat_eighth_is_16() {
+        let ts = TimeSignature::new(1, 0, 6, NoteDuration::Eighth, TimeSignatureDrawType::Regular, None);
+        assert_eq!(ts.ticks_per_beat(), 16);
+    }
+
+    #[test]
+    fn ticks_per_beat_half_is_64() {
+        let ts = TimeSignature::new(1, 0, 2, NoteDuration::Half, TimeSignatureDrawType::Regular, None);
+        assert_eq!(ts.ticks_per_beat(), 64);
+    }
+
+    #[test]
+    fn ticks_per_bar_four_four_is_128() {
+        let ts = TimeSignature::new(1, 0, 4, NoteDuration::Quarter, TimeSignatureDrawType::Regular, None);
+        assert_eq!(ts.ticks_per_bar(), 128);
+    }
+
+    #[test]
+    fn ticks_per_bar_three_four_is_96() {
+        let ts = TimeSignature::new(1, 0, 3, NoteDuration::Quarter, TimeSignatureDrawType::Regular, None);
+        assert_eq!(ts.ticks_per_bar(), 96);
+    }
+
+    #[test]
+    fn ticks_per_bar_six_eight_is_96() {
+        let ts = TimeSignature::new(1, 0, 6, NoteDuration::Eighth, TimeSignatureDrawType::Regular, None);
+        assert_eq!(ts.ticks_per_bar(), 96);
+    }
+
+    // --- is_on_beat / is_on_beat_type ---
+
+    #[test]
+    fn is_on_beat_true_at_bar_start() {
+        let ts = TimeSignature::new(1, 0, 4, NoteDuration::Quarter, TimeSignatureDrawType::Regular, None);
+        assert!(ts.is_on_beat(0));
+    }
+
+    #[test]
+    fn is_on_beat_true_at_second_beat() {
+        let ts = TimeSignature::new(1, 0, 4, NoteDuration::Quarter, TimeSignatureDrawType::Regular, None);
+        assert!(ts.is_on_beat(32));
+    }
+
+    #[test]
+    fn is_on_beat_false_at_eighth() {
+        let ts = TimeSignature::new(1, 0, 4, NoteDuration::Quarter, TimeSignatureDrawType::Regular, None);
+        assert!(!ts.is_on_beat(16));
+    }
+
+    #[test]
+    fn is_on_beat_type_eighth_at_8th_boundary() {
+        let ts = TimeSignature::new(1, 0, 4, NoteDuration::Quarter, TimeSignatureDrawType::Regular, None);
+        assert!(ts.is_on_beat_type(16, &NoteDuration::Eighth));
+    }
+
+    // --- get_tick_at_beat ---
+
+    #[test]
+    fn get_tick_at_beat_one_is_start() {
+        let ts = TimeSignature::new(1, 0, 4, NoteDuration::Quarter, TimeSignatureDrawType::Regular, None);
+        assert_eq!(ts.get_tick_at_beat(0, 1), 0);
+    }
+
+    #[test]
+    fn get_tick_at_beat_two_is_one_quarter() {
+        let ts = TimeSignature::new(1, 0, 4, NoteDuration::Quarter, TimeSignatureDrawType::Regular, None);
+        assert_eq!(ts.get_tick_at_beat(0, 2), 32);
+    }
+
+    #[test]
+    fn get_tick_at_beat_four_is_three_quarters() {
+        let ts = TimeSignature::new(1, 0, 4, NoteDuration::Quarter, TimeSignatureDrawType::Regular, None);
+        assert_eq!(ts.get_tick_at_beat(0, 4), 96);
+    }
+
+    // --- groupings_to_ticks ---
+
+    #[test]
+    fn groupings_to_ticks_4_4_default() {
+        let ts = TimeSignature::new(1, 0, 4, NoteDuration::Quarter, TimeSignatureDrawType::Regular, None);
+        let ticks = ts.groupings_to_ticks(0);
+        // groups: [2,2] quarters each group 2*32=64 ticks
+        assert_eq!(ticks[0], 0);
+        assert!(ticks.len() > 1);
+    }
+
+    #[test]
+    fn groupings_to_ticks_respects_start_offset() {
+        let ts = TimeSignature::new(
+            1,
+            128,
+            4,
+            NoteDuration::Quarter,
+            TimeSignatureDrawType::Regular,
+            None,
+        );
+        let ticks = ts.groupings_to_ticks(128);
+        assert_eq!(ticks[0], 128);
+    }
+
+    // --- number_to_glyph ---
+
+    #[test]
+    fn number_to_glyph_single_digit() {
+        assert_eq!(TimeSignature::number_to_glyph(4), "\u{E084}");
+    }
+
+    #[test]
+    fn number_to_glyph_zero() {
+        assert_eq!(TimeSignature::number_to_glyph(0), "\u{E080}");
+    }
+
+    #[test]
+    fn number_to_glyph_double_digit() {
+        // 12 = '1' + '2'
+        assert_eq!(TimeSignature::number_to_glyph(12), "\u{E081}\u{E082}");
+    }
+
+    // --- beats_to_glyph / beat_type_to_glyph ---
+
+    #[test]
+    fn beats_to_glyph_four() {
+        let ts = TimeSignature::new(1, 0, 4, NoteDuration::Quarter, TimeSignatureDrawType::Regular, None);
+        assert_eq!(ts.beats_to_glyph(), "\u{E084}");
+    }
+
+    #[test]
+    fn beat_type_to_glyph_quarter_is_four() {
+        let ts = TimeSignature::new(1, 0, 4, NoteDuration::Quarter, TimeSignatureDrawType::Regular, None);
+        assert_eq!(ts.beat_type_to_glyph(), "\u{E084}");
+    }
+
+    #[test]
+    fn beat_type_to_glyph_half_is_two() {
+        let ts = TimeSignature::new(1, 0, 2, NoteDuration::Half, TimeSignatureDrawType::Regular, None);
+        assert_eq!(ts.beat_type_to_glyph(), "\u{E082}");
+    }
+
+    #[test]
+    fn beat_type_to_glyph_eighth_is_eight() {
+        let ts = TimeSignature::new(1, 0, 6, NoteDuration::Eighth, TimeSignatureDrawType::Regular, None);
+        assert_eq!(ts.beat_type_to_glyph(), "\u{E088}");
+    }
+
+    #[test]
+    fn beat_type_to_glyph_whole_is_one() {
+        let ts = TimeSignature::new(1, 0, 1, NoteDuration::Whole, TimeSignatureDrawType::Regular, None);
+        assert_eq!(ts.beat_type_to_glyph(), "\u{E081}");
+    }
+
+    #[test]
+    fn beat_type_to_glyph_sixteenth_is_16() {
+        let ts = TimeSignature::new(1, 0, 4, NoteDuration::Sixteenth, TimeSignatureDrawType::Regular, None);
+        assert_eq!(ts.beat_type_to_glyph(), "\u{E081}\u{E086}");
+    }
+
+    #[test]
+    fn beat_type_to_glyph_thirty_second_is_32() {
+        let ts = TimeSignature::new(1, 0, 4, NoteDuration::ThirtySecond, TimeSignatureDrawType::Regular, None);
+        assert_eq!(ts.beat_type_to_glyph(), "\u{E083}\u{E082}");
+    }
+
+    #[test]
+    fn beat_type_to_glyph_sixty_fourth_is_64() {
+        let ts = TimeSignature::new(1, 0, 4, NoteDuration::SixtyFourth, TimeSignatureDrawType::Regular, None);
+        assert_eq!(ts.beat_type_to_glyph(), "\u{E086}\u{E084}");
+    }
+
+    #[test]
+    fn beat_type_to_glyph_hundred_twenty_eighth_is_128() {
+        let ts = TimeSignature::new(1, 0, 4, NoteDuration::HudredTwentyEighth, TimeSignatureDrawType::Regular, None);
+        assert_eq!(ts.beat_type_to_glyph(), "\u{E081}\u{E082}\u{E088}");
+    }
+
+    // --- metrics ---
+
+    #[test]
+    fn metrics_4_4_has_positive_width() {
+        let ts = TimeSignature::new(1, 0, 4, NoteDuration::Quarter, TimeSignatureDrawType::Regular, None);
+        let bb = ts.metrics();
+        assert!(bb.width > 0.0);
+        assert!((bb.right_padding - 1.0).abs() < f32::EPSILON);
+    }
+
+    // --- Track methods ---
+
+    #[test]
+    fn get_time_signature_at_tick_returns_none_on_empty_track() {
+        use crate::score::tracks::Track;
+        let track = Track::new(1);
+        assert!(track.get_time_signature_at_tick(&0).is_none());
+    }
+
+    #[test]
+    fn get_time_signature_at_tick_returns_ts_when_present() {
+        use crate::score::entries::Entry;
+        use crate::score::tracks::Track;
+        let mut track = Track::new(1);
+        let ts = TimeSignature::new(
+            7,
+            0,
+            4,
+            NoteDuration::Quarter,
+            TimeSignatureDrawType::Regular,
+            None,
+        );
+        track.insert_entry(Entry::TimeSignature(ts));
+        let found = track.get_time_signature_at_tick(&0).unwrap();
+        assert_eq!(found.id, 7);
+    }
+
+    #[test]
+    fn get_time_signature_at_tick_returns_none_for_wrong_tick() {
+        use crate::score::entries::Entry;
+        use crate::score::tracks::Track;
+        let mut track = Track::new(1);
+        let ts = TimeSignature::new(
+            7,
+            64,
+            4,
+            NoteDuration::Quarter,
+            TimeSignatureDrawType::Regular,
+            None,
+        );
+        track.insert_entry(Entry::TimeSignature(ts));
+        assert!(track.get_time_signature_at_tick(&0).is_none());
+    }
+
+    #[test]
+    fn get_time_signature_after_tick_returns_none_on_empty_track() {
+        use crate::score::tracks::Track;
+        let track = Track::new(1);
+        assert!(track.get_time_signature_after_tick(0, 256).is_none());
+    }
+
+    #[test]
+    fn get_time_signature_after_tick_finds_next_ts() {
+        use crate::score::entries::Entry;
+        use crate::score::tracks::Track;
+        let mut track = Track::new(1);
+        let ts = TimeSignature::new(
+            7,
+            128,
+            3,
+            NoteDuration::Quarter,
+            TimeSignatureDrawType::Regular,
+            None,
+        );
+        track.insert_entry(Entry::TimeSignature(ts));
+        let found = track.get_time_signature_after_tick(0, 256).unwrap();
+        assert_eq!(found.id, 7);
+    }
+
+    #[test]
+    fn get_time_signature_after_tick_does_not_return_at_same_tick() {
+        use crate::score::entries::Entry;
+        use crate::score::tracks::Track;
+        let mut track = Track::new(1);
+        let ts = TimeSignature::new(
+            7,
+            64,
+            4,
+            NoteDuration::Quarter,
+            TimeSignatureDrawType::Regular,
+            None,
+        );
+        track.insert_entry(Entry::TimeSignature(ts));
+        // after_tick(64, ...) checks 65..length
+        assert!(track.get_time_signature_after_tick(64, 256).is_none());
+    }
+
+    // --- default groupings ---
+
+    #[test]
+    fn default_groupings_one_beat_is_one_group() {
+        let ts = TimeSignature::new(1, 0, 1, NoteDuration::Quarter, TimeSignatureDrawType::Regular, None);
+        assert_eq!(ts.groupings, vec![1]);
+    }
+
+    #[test]
+    fn default_groupings_three_beats_is_one_group() {
+        let ts = TimeSignature::new(1, 0, 3, NoteDuration::Quarter, TimeSignatureDrawType::Regular, None);
+        assert_eq!(ts.groupings, vec![3]);
+    }
+
+    #[test]
+    fn default_groupings_four_beats_is_two_twos() {
+        let ts = TimeSignature::new(1, 0, 4, NoteDuration::Quarter, TimeSignatureDrawType::Regular, None);
+        assert_eq!(ts.groupings, vec![2, 2]);
+    }
+
+    #[test]
+    fn default_groupings_six_beats_is_two_threes() {
+        let ts = TimeSignature::new(1, 0, 6, NoteDuration::Eighth, TimeSignatureDrawType::Regular, None);
+        assert_eq!(ts.groupings, vec![3, 3]);
+    }
+
+    #[test]
+    fn default_groupings_five_beats_complex() {
+        let ts = TimeSignature::new(1, 0, 5, NoteDuration::Quarter, TimeSignatureDrawType::Regular, None);
+        // 5 = complex: 3 + 2
+        assert_eq!(ts.groupings.iter().sum::<u8>(), 5);
+    }
 }

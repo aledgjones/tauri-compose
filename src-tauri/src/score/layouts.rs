@@ -76,6 +76,103 @@ impl AppContext {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn layouts_new_has_one_entry() {
+        let layouts = Layouts::new();
+        assert_eq!(layouts.order.len(), 1);
+        assert_eq!(layouts.by_id.len(), 1);
+    }
+
+    #[test]
+    fn layouts_new_default_is_full_score() {
+        let layouts = Layouts::new();
+        let layout = &layouts.by_id[&layouts.order[0]];
+        assert!(layout.layout_type == LayoutType::FullScore);
+    }
+
+    #[test]
+    fn layout_new_stores_id() {
+        let layout = Layout::new(42, LayoutType::FullScore);
+        assert_eq!(layout.id, 42);
+    }
+
+    #[test]
+    fn layout_new_empty_title() {
+        let layout = Layout::new(1, LayoutType::Part);
+        assert!(layout.title.is_empty());
+    }
+
+    #[test]
+    fn layout_new_empty_player_ids() {
+        let layout = Layout::new(1, LayoutType::FullScore);
+        assert!(layout.player_ids.is_empty());
+    }
+
+    #[test]
+    fn layout_new_empty_flow_ids() {
+        let layout = Layout::new(1, LayoutType::FullScore);
+        assert!(layout.flow_ids.is_empty());
+    }
+
+    #[test]
+    fn layout_type_full_score_and_part_are_different() {
+        assert!(LayoutType::FullScore != LayoutType::Part);
+    }
+
+    #[test]
+    fn layout_player_ids_can_insert() {
+        let mut layout = Layout::new(1, LayoutType::FullScore);
+        layout.player_ids.insert(99);
+        assert!(layout.player_ids.contains(&99));
+    }
+
+    #[test]
+    fn layout_player_ids_can_remove() {
+        let mut layout = Layout::new(1, LayoutType::FullScore);
+        layout.player_ids.insert(99);
+        layout.player_ids.remove(&99);
+        assert!(layout.player_ids.is_empty());
+    }
+
+    #[test]
+    fn layout_flow_ids_can_insert() {
+        let mut layout = Layout::new(1, LayoutType::FullScore);
+        layout.flow_ids.insert(42);
+        assert!(layout.flow_ids.contains(&42));
+    }
+
+    #[test]
+    fn layout_flow_ids_can_remove() {
+        let mut layout = Layout::new(1, LayoutType::FullScore);
+        layout.flow_ids.insert(42);
+        layout.flow_ids.remove(&42);
+        assert!(layout.flow_ids.is_empty());
+    }
+
+    #[test]
+    fn layout_title_can_be_set() {
+        let mut layout = Layout::new(1, LayoutType::Part);
+        layout.title = String::from("Violin I");
+        assert_eq!(layout.title, "Violin I");
+    }
+
+    #[test]
+    fn layouts_new_order_is_single_zero() {
+        let layouts = Layouts::new();
+        assert_eq!(layouts.order, vec![0]);
+    }
+
+    #[test]
+    fn layout_type_part_stays_part() {
+        let layout = Layout::new(5, LayoutType::Part);
+        assert!(layout.layout_type == LayoutType::Part);
+    }
+}
+
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_layouts_create(
     app: tauri::AppHandle,

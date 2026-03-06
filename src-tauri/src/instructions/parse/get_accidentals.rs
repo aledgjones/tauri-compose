@@ -273,6 +273,8 @@ pub fn get_accidentals(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::score::components::pitch::Pitch;
+    use crate::score::entries::key_signature::KeySignatureMode;
 
     #[test]
     fn accidentals_new_is_empty() {
@@ -296,5 +298,250 @@ mod tests {
         };
         assert_eq!(an.tone_id, 42);
         assert_eq!(an.slot, 3);
+    }
+
+    // --- sort_accidentals_alternate ---
+
+    #[test]
+    fn sort_accidentals_alternate_even_count() {
+        let ids = vec![1u64, 2, 3, 4];
+        let result = sort_accidentals_alternate(&ids);
+        assert_eq!(result.len(), 4);
+        // Must contain all original ids
+        for id in &ids {
+            assert!(result.contains(id));
+        }
+    }
+
+    #[test]
+    fn sort_accidentals_alternate_odd_count() {
+        let ids = vec![1u64, 2, 3];
+        let result = sort_accidentals_alternate(&ids);
+        assert_eq!(result.len(), 3);
+        for id in &ids {
+            assert!(result.contains(id));
+        }
+    }
+
+    #[test]
+    fn sort_accidentals_alternate_single_element() {
+        let ids = vec![99u64];
+        let result = sort_accidentals_alternate(&ids);
+        assert_eq!(result, vec![99u64]);
+    }
+
+    // --- is_accidental_needed ---
+
+    fn make_test_tone(id: u64, pitch_int: u8, accidental: Accidental) -> Tone {
+        use crate::score::components::{articulation::Articulations, velocity::Velocity};
+        Tone::new(
+            id,
+            0,
+            32,
+            Pitch::new(pitch_int, accidental),
+            Velocity::new(80),
+            Articulations::new(),
+        )
+    }
+
+    #[test]
+    fn natural_in_c_major_needs_no_accidental() {
+        use rustc_hash::{FxHashMap, FxHashSet};
+        let tone = make_test_tone(1, 60, Accidental::Natural); // C natural
+        let key_sig = KeySignature::default(); // C major, offset=0
+        let previous_tones: FxHashSet<u64> = FxHashSet::default();
+        let altered: FxHashMap<u8, Accidental> = FxHashMap::default();
+        assert!(!is_accidental_needed(
+            &tone,
+            &vec![tone.clone()],
+            &previous_tones,
+            &altered,
+            &key_sig
+        ));
+    }
+
+    #[test]
+    fn sharp_not_in_key_needs_accidental() {
+        use rustc_hash::{FxHashMap, FxHashSet};
+        let tone = make_test_tone(1, 61, Accidental::Sharp); // C# not in C major
+        let key_sig = KeySignature::default(); // C major
+        let previous_tones: FxHashSet<u64> = FxHashSet::default();
+        let altered: FxHashMap<u8, Accidental> = FxHashMap::default();
+        assert!(is_accidental_needed(
+            &tone,
+            &vec![tone.clone()],
+            &previous_tones,
+            &altered,
+            &key_sig
+        ));
+    }
+
+    #[test]
+    fn tied_tone_needs_no_accidental() {
+        use rustc_hash::{FxHashMap, FxHashSet};
+        let tone = make_test_tone(1, 61, Accidental::Sharp);
+        let key_sig = KeySignature::default();
+        let mut previous_tones: FxHashSet<u64> = FxHashSet::default();
+        previous_tones.insert(1); // tone.id in previous
+        let altered: FxHashMap<u8, Accidental> = FxHashMap::default();
+        assert!(!is_accidental_needed(
+            &tone,
+            &vec![tone.clone()],
+            &previous_tones,
+            &altered,
+            &key_sig
+        ));
+    }
+
+    #[test]
+    fn altered_pitch_with_different_accidental_needs_accidental() {
+        use rustc_hash::{FxHashMap, FxHashSet};
+        let tone = make_test_tone(1, 60, Accidental::Natural); // C natural
+        let key_sig = KeySignature::default();
+        let previous_tones: FxHashSet<u64> = FxHashSet::default();
+        let mut altered: FxHashMap<u8, Accidental> = FxHashMap::default();
+        // C was previously altered to Sharp
+        altered.insert(tone.pitch.base(), Accidental::Sharp);
+        assert!(is_accidental_needed(
+            &tone,
+            &vec![tone.clone()],
+            &previous_tones,
+            &altered,
+            &key_sig
+        ));
+    }
+
+    #[test]
+    fn sharp_in_g_major_key_needs_no_accidental() {
+        use rustc_hash::{FxHashMap, FxHashSet};
+        // G major has F# (pitch int 66, accidental Sharp)
+        let key_sig = KeySignature::new(0, 0, KeySignatureMode::Major, 1);
+        let tone = make_test_tone(1, 66, Accidental::Sharp); // F#
+        let previous_tones: FxHashSet<u64> = FxHashSet::default();
+        let altered: FxHashMap<u8, Accidental> = FxHashMap::default();
+        assert!(!is_accidental_needed(
+            &tone,
+            &vec![tone.clone()],
+            &previous_tones,
+            &altered,
+            &key_sig
+        ));
+    }
+
+    // --- get_tones_needing_accidentals ---
+
+    #[test]
+    fn get_tones_needing_accidentals_sharp_in_c_major_needs_accidental() {
+        use crate::instructions::parse::get_written_durations::Notation;
+        use rustc_hash::{FxHashMap, FxHashSet};
+        let tone = make_test_tone(1, 61, Accidental::Sharp); // C#
+        let mut entry = Notation::new(0, 32);
+        entry.tones.push(tone.clone());
+        let key_sig = KeySignature::default();
+        let mut previous: FxHashSet<u64> = FxHashSet::default();
+        let mut altered: FxHashMap<u8, Accidental> = FxHashMap::default();
+        let result = get_tones_needing_accidentals(&entry, &mut previous, &mut altered, &key_sig);
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0], 1);
+    }
+
+    #[test]
+    fn get_tones_needing_accidentals_natural_in_c_major_not_needed() {
+        use crate::instructions::parse::get_written_durations::Notation;
+        use rustc_hash::{FxHashMap, FxHashSet};
+        let tone = make_test_tone(1, 60, Accidental::Natural); // C natural
+        let mut entry = Notation::new(0, 32);
+        entry.tones.push(tone.clone());
+        let key_sig = KeySignature::default();
+        let mut previous: FxHashSet<u64> = FxHashSet::default();
+        let mut altered: FxHashMap<u8, Accidental> = FxHashMap::default();
+        let result = get_tones_needing_accidentals(&entry, &mut previous, &mut altered, &key_sig);
+        assert!(result.is_empty());
+    }
+
+    // --- fits_in_slot ---
+
+    fn make_empty_shunts() -> super::super::get_shunts::Shunts {
+        super::super::get_shunts::Shunts {
+            by_id: rustc_hash::FxHashMap::default(),
+            by_offset: rustc_hash::FxHashMap::default(),
+        }
+    }
+
+    #[test]
+    fn fits_in_slot_returns_true_when_no_conflicts() {
+        let slots: Vec<AccidentalNotation> = vec![];
+        let mut tone_offsets: ToneVerticalOffsets = rustc_hash::FxHashMap::default();
+        tone_offsets.insert(1, 0);
+        let shunts = make_empty_shunts();
+        // slot 1, offset 0: no existing entries, no shunts → should fit
+        assert!(fits_in_slot(0, 1, 0, &slots, &tone_offsets, &shunts));
+    }
+
+    #[test]
+    fn fits_in_slot_returns_false_when_same_slot_close_offset() {
+        // Two accidentals in slot 1, offset 0 and offset 2 → diff=2, less than 6
+        let slots: Vec<AccidentalNotation> = vec![AccidentalNotation {
+            tone_id: 99,
+            slot: 1,
+        }];
+        let mut tone_offsets: ToneVerticalOffsets = rustc_hash::FxHashMap::default();
+        tone_offsets.insert(99, 0); // existing accidental at offset 0
+        let shunts = make_empty_shunts();
+        // new accidental at offset 2 → diff=2 < 6 → doesn't fit
+        assert!(!fits_in_slot(0, 1, 2, &slots, &tone_offsets, &shunts));
+    }
+
+    #[test]
+    fn fits_in_slot_returns_true_when_different_slot() {
+        // Existing entry is in slot 2, new is in slot 1 → no conflict
+        let slots: Vec<AccidentalNotation> = vec![AccidentalNotation {
+            tone_id: 99,
+            slot: 2,
+        }];
+        let mut tone_offsets: ToneVerticalOffsets = rustc_hash::FxHashMap::default();
+        tone_offsets.insert(99, 0);
+        let shunts = make_empty_shunts();
+        assert!(fits_in_slot(0, 1, 0, &slots, &tone_offsets, &shunts));
+    }
+
+    #[test]
+    fn fits_in_slot_returns_true_when_far_apart_same_slot() {
+        // Two accidentals in slot 1, offsets 0 and 10 → diff=10 >= 6 → fits
+        let slots: Vec<AccidentalNotation> = vec![AccidentalNotation {
+            tone_id: 99,
+            slot: 1,
+        }];
+        let mut tone_offsets: ToneVerticalOffsets = rustc_hash::FxHashMap::default();
+        tone_offsets.insert(99, 0);
+        let shunts = make_empty_shunts();
+        assert!(fits_in_slot(0, 1, 10, &slots, &tone_offsets, &shunts));
+    }
+
+    // --- find_slot ---
+
+    #[test]
+    fn find_slot_returns_slot_1_when_no_conflicts() {
+        let slots: Vec<AccidentalNotation> = vec![];
+        let mut tone_offsets: ToneVerticalOffsets = rustc_hash::FxHashMap::default();
+        tone_offsets.insert(1, 0);
+        let shunts = make_empty_shunts();
+        let slot = find_slot(0, 1, &slots, &tone_offsets, &shunts);
+        assert_eq!(slot, 1);
+    }
+
+    #[test]
+    fn find_slot_advances_to_slot_2_when_slot1_has_conflict() {
+        // Existing entry at slot 1 and offset 0; new tone wants offset 2 → slot 1 fails, slot 2 works
+        let slots: Vec<AccidentalNotation> = vec![AccidentalNotation {
+            tone_id: 99,
+            slot: 1,
+        }];
+        let mut tone_offsets: ToneVerticalOffsets = rustc_hash::FxHashMap::default();
+        tone_offsets.insert(99, 0);
+        tone_offsets.insert(1, 2); // close to existing
+        let shunts = make_empty_shunts();
+        let slot = find_slot(0, 1, &slots, &tone_offsets, &shunts);
+        assert!(slot >= 2);
     }
 }

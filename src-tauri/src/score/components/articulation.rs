@@ -158,4 +158,27 @@ mod tests {
         assert!(!result.contains(&Articulation::Stressed));
         assert!(result.contains(&Articulation::Unstressed));
     }
+
+    #[test]
+    fn is_empty_true_when_new() {
+        assert!(Articulations::new().is_empty());
+    }
+
+    #[test]
+    fn is_empty_false_after_toggle() {
+        assert!(!Articulations::new().toggle(Articulation::Staccato).is_empty());
+    }
+
+    #[test]
+    fn iter_yields_all_articulations() {
+        let arts = Articulations::new().toggle(Articulation::Staccato).toggle(Articulation::Accent);
+        let collected: Vec<_> = arts.iter().collect();
+        assert_eq!(collected.len(), 2);
+    }
+
+    #[test]
+    fn new_creates_empty_articulations() {
+        let arts = Articulations::new();
+        assert_eq!(arts.len(), 0);
+    }
 }

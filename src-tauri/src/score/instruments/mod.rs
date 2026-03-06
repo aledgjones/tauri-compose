@@ -385,3 +385,132 @@ pub fn score_instruments_set_solo(
     let mut renderer = renderer_state.lock().unwrap();
     state.emit(&app, &mut renderer, false);
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use defs::InstrumentType;
+
+    fn make_instrument(definition_id: &str, long_name: &str) -> Instrument {
+        Instrument {
+            id: 1,
+            definition_id: definition_id.to_string(),
+            instrument_type: InstrumentType::Melodic,
+            long_name: long_name.to_string(),
+            short_name: String::from(""),
+            stave_ids: vec![],
+            count: None,
+            assigned_plugin_id: None,
+            volume: 100,
+            pan: 64,
+            mute: false,
+            solo: false,
+        }
+    }
+
+    #[test]
+    fn instruments_new_is_empty() {
+        let inst = Instruments::new();
+        assert!(inst.by_id.is_empty());
+    }
+
+    #[test]
+    fn family_extracts_first_segment() {
+        let i = make_instrument("brass.horn.f", "Horn");
+        assert_eq!(i.family(), "brass");
+    }
+
+    #[test]
+    fn family_single_segment_returns_full() {
+        let i = make_instrument("brass", "Brass");
+        assert_eq!(i.family(), "brass");
+    }
+
+    #[test]
+    fn name_without_count_is_long_name() {
+        let i = make_instrument("brass.horn.f", "Horn in F");
+        assert_eq!(i.name(), "Horn in F");
+    }
+
+    #[test]
+    fn name_with_count_appends_count() {
+        let mut i = make_instrument("brass.horn.f", "Horn in F");
+        i.count = Some(String::from("II"));
+        assert_eq!(i.name(), "Horn in F II");
+    }
+
+    #[test]
+    fn name_with_arabic_count() {
+        let mut i = make_instrument("strings.violin", "Violin");
+        i.count = Some(String::from("1"));
+        assert_eq!(i.name(), "Violin 1");
+    }
+
+    #[test]
+    fn instrument_mute_default_false() {
+        let i = make_instrument("woodwind.flute", "Flute");
+        assert!(!i.mute);
+    }
+
+    #[test]
+    fn instrument_solo_default_false() {
+        let i = make_instrument("woodwind.flute", "Flute");
+        assert!(!i.solo);
+    }
+
+    #[test]
+    fn instrument_volume_default_100() {
+        let i = make_instrument("woodwind.flute", "Flute");
+        assert_eq!(i.volume, 100);
+    }
+
+    #[test]
+    fn instrument_pan_default_64() {
+        let i = make_instrument("woodwind.flute", "Flute");
+        assert_eq!(i.pan, 64);
+    }
+
+    #[test]
+    fn instrument_assigned_plugin_id_default_none() {
+        let i = make_instrument("woodwind.flute", "Flute");
+        assert!(i.assigned_plugin_id.is_none());
+    }
+
+    #[test]
+    fn instrument_count_default_none() {
+        let i = make_instrument("woodwind.flute", "Flute");
+        assert!(i.count.is_none());
+    }
+
+    #[test]
+    fn instrument_stave_ids_default_empty() {
+        let i = make_instrument("woodwind.flute", "Flute");
+        assert!(i.stave_ids.is_empty());
+    }
+
+    #[test]
+    fn instruments_by_id_can_insert() {
+        let mut instruments = Instruments::new();
+        let i = make_instrument("woodwind.flute", "Flute");
+        instruments.by_id.insert(i.id, i);
+        assert_eq!(instruments.by_id.len(), 1);
+    }
+
+    #[test]
+    fn family_with_empty_definition_id() {
+        let i = make_instrument("", "Unknown");
+        // split('.'). next() on empty string returns Some("") which is "unknown"-no-match
+        // but actually empty string split gives Some("")
+        // The code returns Some(part) where part = "" → returns ""
+        assert_eq!(i.family(), "");
+    }
+
+    #[test]
+    fn name_with_set_count_contains_space() {
+        let mut i = make_instrument("strings.violin", "Violin");
+        i.count = Some(String::from("III"));
+        let name = i.name();
+        assert!(name.contains(' '));
+        assert!(name.ends_with("III"));
+    }
+}

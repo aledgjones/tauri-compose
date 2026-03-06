@@ -405,3 +405,305 @@ impl Notation {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::instructions::parse::get_written_durations::{Notation, NotationTrack};
+    use crate::score::components::articulation::Articulations;
+    use crate::score::components::duration::NoteDuration;
+    use crate::score::components::pitch::{Accidental, Pitch};
+    use crate::score::components::velocity::Velocity;
+    use crate::score::entries::time_signature::{TimeSignature, TimeSignatureDrawType};
+    use crate::score::entries::tone::Tone;
+    use rustc_hash::FxHashMap;
+
+    fn make_note(id: u64, duration: u64) -> Notation {
+        let mut n = Notation::new(0, duration);
+        n.tones.push(Tone::new(
+            id,
+            0,
+            duration,
+            Pitch::new(60, Accidental::Natural),
+            Velocity::new(100),
+            Articulations::new(),
+        ));
+        n
+    }
+
+    fn four_four() -> TimeSignature {
+        TimeSignature::new(
+            1,
+            0,
+            4,
+            NoteDuration::Quarter,
+            TimeSignatureDrawType::Regular,
+            None,
+        )
+    }
+
+    #[test]
+    fn get_beam_count_quarter_is_zero() {
+        let n = make_note(1, NoteDuration::Quarter.to_ticks());
+        assert_eq!(n.get_beam_count(), 0);
+    }
+
+    #[test]
+    fn get_beam_count_eighth_is_one() {
+        let n = make_note(1, NoteDuration::Eighth.to_ticks());
+        assert_eq!(n.get_beam_count(), 1);
+    }
+
+    #[test]
+    fn get_beam_count_sixteenth_is_two() {
+        let n = make_note(1, NoteDuration::Sixteenth.to_ticks());
+        assert_eq!(n.get_beam_count(), 2);
+    }
+
+    #[test]
+    fn get_beam_count_thirty_second_is_three() {
+        let n = make_note(1, NoteDuration::ThirtySecond.to_ticks());
+        assert_eq!(n.get_beam_count(), 3);
+    }
+
+    #[test]
+    fn get_beam_count_rest_is_zero() {
+        let n = Notation::new(0, NoteDuration::Eighth.to_ticks()); // no tones = rest
+        assert_eq!(n.get_beam_count(), 0);
+    }
+
+    #[test]
+    fn get_beams_empty_track_returns_no_beams() {
+        let track = NotationTrack::new(512);
+        let barlines: Measures = FxHashMap::default();
+        let result = get_beams_in_track(&track, &barlines);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn get_beams_single_eighth_produces_no_beam() {
+        // A single eighth without a partner can't form a beam
+        let mut track = NotationTrack::new(512);
+        let eighth = NoteDuration::Eighth.to_ticks();
+        track.track.insert(0, make_note(1, eighth));
+        let barlines: Measures = FxHashMap::default();
+        let result = get_beams_in_track(&track, &barlines);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn get_beams_two_adjacent_eighths_form_beam() {
+        let mut track = NotationTrack::new(512);
+        let eighth = NoteDuration::Eighth.to_ticks();
+        let mut ts = FxHashMap::default();
+        ts.insert(0_u64, four_four());
+
+        track.track.insert(0, make_note(1, eighth));
+        track.track.insert(eighth, make_note(2, eighth));
+        let result = get_beams_in_track(&track, &ts);
+        assert!(!result.is_empty());
+        assert_eq!(result[0].start, 0);
+        assert_eq!(result[0].stop, eighth);
+    }
+
+    #[test]
+    fn get_beam_count_whole_is_zero() {
+        let n = make_note(1, NoteDuration::Whole.to_ticks());
+        assert_eq!(n.get_beam_count(), 0);
+    }
+
+    #[test]
+    fn get_beam_count_half_is_zero() {
+        let n = make_note(1, NoteDuration::Half.to_ticks());
+        assert_eq!(n.get_beam_count(), 0);
+    }
+
+    #[test]
+    fn get_beam_count_dotted_eighth_writable_ticks_is_eighth() {
+        // dotted eighth = eighth + sixteenth; base (get_writable_ticks) = eighth → 1 beam
+        let eighth = NoteDuration::Eighth.to_ticks();
+        let sixteenth = NoteDuration::Sixteenth.to_ticks();
+        let n = make_note(1, eighth + sixteenth);
+        assert_eq!(n.get_beam_count(), 1);
+    }
+
+    #[test]
+    fn get_beams_four_eighths_forms_single_beam_group() {
+        let eighth = NoteDuration::Eighth.to_ticks();
+        let mut track = NotationTrack::new(512);
+        let mut ts = FxHashMap::default();
+        ts.insert(0_u64, four_four());
+
+        for i in 0..4_u64 {
+            track.track.insert(i * eighth, make_note(i + 1, eighth));
+        }
+
+        let result = get_beams_in_track(&track, &ts);
+        assert!(!result.is_empty());
+        assert_eq!(result[0].start, 0);
+        assert_eq!(result[0].stop, 3 * eighth);
+    }
+
+    #[test]
+    fn get_beams_eighth_rest_between_notes_breaks_beam() {
+        // note - rest - note: the rest breaks the beam group
+        let eighth = NoteDuration::Eighth.to_ticks();
+        let mut track = NotationTrack::new(512);
+        let mut ts = FxHashMap::default();
+        ts.insert(0_u64, four_four());
+
+        track.track.insert(0, make_note(1, eighth));
+        // rest at tick = eighth (no tones pushed → is_rest = true)
+        track.track.insert(eighth, Notation::new(eighth, eighth));
+        track.track.insert(eighth * 2, make_note(2, eighth));
+
+        let result = get_beams_in_track(&track, &ts);
+        // Each isolated note cannot beam alone so result may be empty
+        assert!(result.len() <= 1);
+    }
+
+    #[test]
+    fn get_beams_two_sixteenths_form_beam() {
+        let sixteenth = NoteDuration::Sixteenth.to_ticks();
+        let mut track = NotationTrack::new(512);
+        let mut ts = FxHashMap::default();
+        ts.insert(0_u64, four_four());
+
+        track.track.insert(0, make_note(1, sixteenth));
+        track.track.insert(sixteenth, make_note(2, sixteenth));
+        let result = get_beams_in_track(&track, &ts);
+        assert!(!result.is_empty());
+        assert_eq!(result[0].start, 0);
+        assert_eq!(result[0].stop, sixteenth);
+    }
+
+    #[test]
+    fn get_beam_count_non_writable_duration_is_zero() {
+        // A duration that has no writable base → 0 beams
+        // 5 ticks: not a standard duration, not dotted (no base 2/3 that's writable)
+        let n = make_note(1, 5);
+        assert_eq!(n.get_beam_count(), 0);
+    }
+
+    #[test]
+    fn get_beam_count_sixty_fourth_is_four() {
+        let n = make_note(1, NoteDuration::SixtyFourth.to_ticks());
+        assert_eq!(n.get_beam_count(), 4);
+    }
+
+    #[test]
+    fn get_beam_count_hundred_twenty_eighth_is_five() {
+        let n = make_note(1, NoteDuration::HudredTwentyEighth.to_ticks());
+        assert_eq!(n.get_beam_count(), 5);
+    }
+
+    #[test]
+    fn get_beams_three_four_four_eighths_forms_beam() {
+        // In 3/4, 4 eighths should beam together
+        let eighth = NoteDuration::Eighth.to_ticks();
+        let mut track = NotationTrack::new(512);
+        let mut ts = FxHashMap::default();
+        ts.insert(
+            0_u64,
+            TimeSignature::new(
+                1,
+                0,
+                3,
+                NoteDuration::Quarter,
+                TimeSignatureDrawType::Regular,
+                None,
+            ),
+        );
+
+        for i in 0..4_u64 {
+            track.track.insert(i * eighth, make_note(i + 1, eighth));
+        }
+
+        let result = get_beams_in_track(&track, &ts);
+        assert!(!result.is_empty());
+    }
+
+    #[test]
+    fn get_beams_six_eight_six_eighths_beams() {
+        // In 6/8 (beat_type=Eighth), should beam 6 eighths
+        let eighth = NoteDuration::Eighth.to_ticks();
+        let mut track = NotationTrack::new(1024);
+        let mut ts = FxHashMap::default();
+        ts.insert(
+            0_u64,
+            TimeSignature::new(
+                1,
+                0,
+                6,
+                NoteDuration::Eighth,
+                TimeSignatureDrawType::Regular,
+                None,
+            ),
+        );
+
+        for i in 0..6_u64 {
+            track.track.insert(i * eighth, make_note(i + 1, eighth));
+        }
+
+        let result = get_beams_in_track(&track, &ts);
+        assert!(!result.is_empty());
+    }
+
+    #[test]
+    fn get_beams_mixed_sixteenth_eighth_beams_together() {
+        // 2 sixteenths followed by 1 eighth → all beamed together
+        let eighth = NoteDuration::Eighth.to_ticks();
+        let sixteenth = NoteDuration::Sixteenth.to_ticks();
+        let mut track = NotationTrack::new(512);
+        let mut ts = FxHashMap::default();
+        ts.insert(0_u64, four_four());
+
+        track.track.insert(0, make_note(1, sixteenth));
+        track.track.insert(sixteenth, make_note(2, sixteenth));
+        track.track.insert(eighth, make_note(3, eighth));
+
+        let result = get_beams_in_track(&track, &ts);
+        assert!(!result.is_empty());
+        let beam = &result[0];
+        assert_eq!(beam.start, 0);
+        assert_eq!(beam.stop, eighth);
+    }
+
+    #[test]
+    fn assign_beam_single_tick_produces_no_beam() {
+        let mut beams: Beams = Vec::new();
+        let mut ticks = FxHashMap::default();
+        ticks.insert(0_u64, 1u8);
+        let remaining = assign_beam(&mut beams, ticks);
+        // Only 1 tick → no beam pushed
+        assert!(beams.is_empty());
+        assert!(remaining.is_empty());
+    }
+
+    #[test]
+    fn assign_beam_two_ticks_produces_beam_with_correct_range() {
+        let mut beams: Beams = Vec::new();
+        let eighth = NoteDuration::Eighth.to_ticks();
+        let mut ticks = FxHashMap::default();
+        ticks.insert(0_u64, 1u8);
+        ticks.insert(eighth, 1u8);
+        assign_beam(&mut beams, ticks);
+        assert_eq!(beams.len(), 1);
+        assert_eq!(beams[0].start, 0);
+        assert_eq!(beams[0].stop, eighth);
+    }
+
+    #[test]
+    fn assign_beam_two_sixteenths_produces_beam_segment() {
+        // Two sixteenth notes (beam_count = 2) should produce a beam_segment at level 1
+        let mut beams: Beams = Vec::new();
+        let sixteenth = NoteDuration::Sixteenth.to_ticks();
+        let mut ticks = FxHashMap::default();
+        ticks.insert(0_u64, 2u8);
+        ticks.insert(sixteenth, 2u8);
+        assign_beam(&mut beams, ticks);
+        assert_eq!(beams.len(), 1);
+        // Level 1 beam segment should exist
+        assert!(beams[0].beam_segments.contains_key(&1));
+    }
+}

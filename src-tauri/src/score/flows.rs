@@ -268,3 +268,90 @@ pub fn score_flows_remove(
 
     state.emit(&app, &mut renderer, true);
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn flows_new_is_empty() {
+        let f = Flows::new();
+        assert!(f.order.is_empty());
+        assert!(f.by_id.is_empty());
+    }
+
+    #[test]
+    fn flow_new_stores_id() {
+        let f = Flow::new(42, 100);
+        assert_eq!(f.id, 42);
+    }
+
+    #[test]
+    fn flow_new_stores_master_id() {
+        let f = Flow::new(42, 100);
+        assert_eq!(f.master_id, 100);
+    }
+
+    #[test]
+    fn flow_new_has_empty_player_ids() {
+        let f = Flow::new(1, 2);
+        assert!(f.player_ids.is_empty());
+    }
+
+    #[test]
+    fn flow_new_has_positive_default_length() {
+        let f = Flow::new(1, 2);
+        assert!(f.length > 0);
+    }
+
+    #[test]
+    fn flow_new_has_empty_title() {
+        let f = Flow::new(1, 2);
+        assert_eq!(f.title, "");
+    }
+
+    #[test]
+    fn flow_new_has_empty_staves() {
+        let f = Flow::new(1, 2);
+        assert!(f.staves.by_id.is_empty());
+    }
+
+    #[test]
+    fn flows_order_can_push() {
+        let mut flows = Flows::new();
+        let f = Flow::new(10, 20);
+        flows.by_id.insert(10, f);
+        flows.order.push(10);
+        assert_eq!(flows.order.len(), 1);
+        assert!(flows.by_id.contains_key(&10));
+    }
+
+    #[test]
+    fn flow_player_ids_can_insert() {
+        let mut f = Flow::new(1, 2);
+        f.player_ids.insert(99);
+        assert!(f.player_ids.contains(&99));
+    }
+
+    #[test]
+    fn flow_player_ids_can_remove() {
+        let mut f = Flow::new(1, 2);
+        f.player_ids.insert(99);
+        f.player_ids.remove(&99);
+        assert!(!f.player_ids.contains(&99));
+    }
+
+    #[test]
+    fn flow_title_can_be_set() {
+        let mut f = Flow::new(1, 2);
+        f.title = String::from("Movement I");
+        assert_eq!(f.title, "Movement I");
+    }
+
+    #[test]
+    fn flow_length_can_be_modified() {
+        let mut f = Flow::new(1, 2);
+        f.length = 256;
+        assert_eq!(f.length, 256);
+    }
+}

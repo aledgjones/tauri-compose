@@ -741,3 +741,99 @@ pub fn score_instruments_get_all_definitions() -> Vec<InstrumentIdPath> {
 pub fn get_instrument_definition(id: &String) -> Option<&InstrumentDefinition> {
     INSTRUMENT_DEFINITIONS.iter().find(|&def| def.id == id)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn get_instrument_definition_finds_flute() {
+        let id = String::from("woodwinds.flute");
+        let def = get_instrument_definition(&id);
+        assert!(def.is_some());
+        assert_eq!(def.unwrap().id, "woodwinds.flute");
+    }
+
+    #[test]
+    fn get_instrument_definition_finds_piano() {
+        let id = String::from("keyboard.piano");
+        let def = get_instrument_definition(&id);
+        assert!(def.is_some());
+        assert_eq!(def.unwrap().long_name, "Piano");
+    }
+
+    #[test]
+    fn get_instrument_definition_finds_violin() {
+        let id = String::from("strings.violin");
+        let def = get_instrument_definition(&id);
+        assert!(def.is_some());
+        assert_eq!(def.unwrap().short_name, "Vln.");
+    }
+
+    #[test]
+    fn get_instrument_definition_returns_none_for_unknown() {
+        let id = String::from("not.real.instrument");
+        assert!(get_instrument_definition(&id).is_none());
+    }
+
+    #[test]
+    fn get_instrument_definition_piano_has_two_staves() {
+        let id = String::from("keyboard.piano");
+        let def = get_instrument_definition(&id).unwrap();
+        assert_eq!(def.staves.len(), 2);
+    }
+
+    #[test]
+    fn get_instrument_definition_flute_has_one_stave() {
+        let id = String::from("woodwinds.flute");
+        let def = get_instrument_definition(&id).unwrap();
+        assert_eq!(def.staves.len(), 1);
+    }
+
+    #[test]
+    fn get_instrument_definition_flute_has_five_lines() {
+        let id = String::from("woodwinds.flute");
+        let def = get_instrument_definition(&id).unwrap();
+        assert_eq!(def.staves[0].lines.len(), 5);
+    }
+
+    #[test]
+    fn get_instrument_definition_kick_is_percussive() {
+        let id = String::from("unpitched-percussion.kick");
+        let def = get_instrument_definition(&id).unwrap();
+        assert!(matches!(def.instrument_type, InstrumentType::Percussive));
+    }
+
+    #[test]
+    fn get_instrument_definition_violin_is_melodic() {
+        let id = String::from("strings.violin");
+        let def = get_instrument_definition(&id).unwrap();
+        assert!(matches!(def.instrument_type, InstrumentType::Melodic));
+    }
+
+    #[test]
+    fn instrument_definitions_list_is_not_empty() {
+        assert!(!INSTRUMENT_DEFINITIONS.is_empty());
+    }
+
+    #[test]
+    fn all_definitions_have_at_least_one_stave() {
+        for def in INSTRUMENT_DEFINITIONS.iter() {
+            assert!(!def.staves.is_empty(), "Instrument {} has no staves", def.id);
+        }
+    }
+
+    #[test]
+    fn get_instrument_definition_brass_horn() {
+        let id = String::from("brass.horn.f");
+        let def = get_instrument_definition(&id);
+        assert!(def.is_some());
+    }
+
+    #[test]
+    fn get_instrument_definition_viola_path_contains_strings() {
+        let id = String::from("strings.viola");
+        let def = get_instrument_definition(&id).unwrap();
+        assert_eq!(def.path[0], "Strings");
+    }
+}

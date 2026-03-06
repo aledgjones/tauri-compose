@@ -167,4 +167,88 @@ mod tests {
         let result = get_barlines(&flow, &tracks, &measures);
         assert!(result.is_empty());
     }
+
+    #[test]
+    fn get_barlines_single_at_measure_boundary() {
+        use crate::score::components::duration::NoteDuration;
+        use crate::score::entries::time_signature::{TimeSignature, TimeSignatureDrawType};
+        let mut flow = Flow::new(1, 100);
+        flow.length = 256;
+        let mut tracks = Tracks::new();
+        tracks.by_id.insert(100, Track::new(100));
+        // single barline at tick 128 (measure boundary)
+        let mut measures: Measures = FxHashMap::default();
+        measures.insert(
+            128,
+            TimeSignature::new(
+                1,
+                0,
+                4,
+                NoteDuration::Quarter,
+                TimeSignatureDrawType::Regular,
+                None,
+            ),
+        );
+        let result = get_barlines(&flow, &tracks, &measures);
+        assert!(result.contains_key(&128));
+        let def = &result[&128];
+        assert!(!def.end_repeat);
+        assert!(!def.start_repeat);
+    }
+
+    #[test]
+    fn get_barlines_end_repeat_barline() {
+        use crate::score::entries::barline::{Barline, BarlineDrawType};
+        use crate::score::entries::Entry;
+        let mut flow = Flow::new(1, 100);
+        flow.length = 256;
+        let mut track = Track::new(100);
+        let barline = Barline::new(1, 128, BarlineDrawType::EndRepeat);
+        track.insert_entry(Entry::Barline(barline));
+        let mut tracks = Tracks::new();
+        tracks.by_id.insert(100, track);
+        let measures: Measures = FxHashMap::default();
+        let result = get_barlines(&flow, &tracks, &measures);
+        assert!(result.contains_key(&128));
+        assert!(result[&128].end_repeat);
+    }
+
+    #[test]
+    fn get_barlines_start_repeat_barline_at_tick_zero_has_no_extra_draw_type() {
+        use crate::score::entries::barline::{Barline, BarlineDrawType};
+        use crate::score::entries::Entry;
+        let mut flow = Flow::new(1, 100);
+        flow.length = 256;
+        let mut track = Track::new(100);
+        let barline = Barline::new(1, 0, BarlineDrawType::StartRepeat);
+        track.insert_entry(Entry::Barline(barline));
+        let mut tracks = Tracks::new();
+        tracks.by_id.insert(100, track);
+        let measures: Measures = FxHashMap::default();
+        let result = get_barlines(&flow, &tracks, &measures);
+        assert!(result.contains_key(&0));
+        let def = &result[&0];
+        assert!(def.start_repeat);
+        assert!(def.draw_type.is_none()); // tick == 0 → no extra barline
+    }
+
+    #[test]
+    fn get_barlines_non_esr_types_go_directly_into_output() {
+        use crate::score::entries::barline::{Barline, BarlineDrawType};
+        use crate::score::entries::Entry;
+        let mut flow = Flow::new(1, 100);
+        flow.length = 256;
+        let mut track = Track::new(100);
+        let barline = Barline::new(1, 64, BarlineDrawType::Final);
+        track.insert_entry(Entry::Barline(barline));
+        let mut tracks = Tracks::new();
+        tracks.by_id.insert(100, track);
+        let measures: Measures = FxHashMap::default();
+        let result = get_barlines(&flow, &tracks, &measures);
+        assert!(result.contains_key(&64));
+        let def = &result[&64];
+        assert!(!def.end_repeat);
+        assert!(!def.start_repeat);
+        assert!(def.draw_type.is_some());
+    }
 }

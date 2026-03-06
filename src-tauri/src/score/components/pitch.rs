@@ -890,4 +890,62 @@ mod tests {
         let p = Pitch::from_int(66, &ks);
         assert!(p.accidental == Accidental::Sharp);
     }
+
+    #[test]
+    fn shift_by_steps_up_one_from_c4() {
+        // C4 (60) up one step → D4 (62)
+        let ks = c_major();
+        let c4 = Pitch::new(60, Accidental::Natural);
+        let d4 = c4.shift_by_steps(1, &ks);
+        assert_eq!(d4.int, 62); // D4 MIDI
+    }
+
+    #[test]
+    fn shift_by_steps_up_zero_returns_same() {
+        let ks = c_major();
+        let c4 = Pitch::new(60, Accidental::Natural);
+        let result = c4.shift_by_steps(0, &ks);
+        assert_eq!(result.int, 60);
+    }
+
+    #[test]
+    fn shift_by_steps_down_one_from_d4() {
+        let ks = c_major();
+        let d4 = Pitch::new(62, Accidental::Natural);
+        let c4 = d4.shift_by_steps(-1, &ks);
+        assert_eq!(c4.int, 60);
+    }
+
+    #[test]
+    fn shift_by_steps_up_seven_is_octave() {
+        let ks = c_major();
+        let c4 = Pitch::new(60, Accidental::Natural);
+        let c5 = c4.shift_by_steps(7, &ks);
+        assert_eq!(c5.int, 72); // C5
+    }
+
+    #[test]
+    fn shift_by_steps_half_step_boundary_e_to_f() {
+        // E4 (64) + 1 step → F4 (65), half-step boundary
+        let ks = c_major();
+        let e4 = Pitch::new(64, Accidental::Natural);
+        let f4 = e4.shift_by_steps(1, &ks);
+        assert_eq!(f4.int, 65);
+    }
+
+    #[test]
+    fn from_int_d_in_c_major_is_natural() {
+        let ks = c_major();
+        let p = Pitch::from_int(62, &ks);
+        assert_eq!(p.int, 62);
+        assert!(p.accidental == Accidental::Natural);
+    }
+
+    #[test]
+    fn from_int_b_flat_in_f_major() {
+        // F major has one flat: Bb = MIDI 70
+        let ks = KeySignature::new(0, 0, KeySignatureMode::Major, -1); // 1 flat = Bb
+        let p = Pitch::from_int(70, &ks);
+        assert!(p.accidental == Accidental::Flat);
+    }
 }

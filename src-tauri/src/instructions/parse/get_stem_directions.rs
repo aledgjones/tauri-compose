@@ -169,4 +169,150 @@ mod tests {
         let direction = get_span_stem_direction(&beam, &notation_track);
         assert!(direction == Direction::Up);
     }
+
+    #[test]
+    fn span_direction_down_when_majority_down() {
+        use crate::instructions::parse::get_beams::{Beam, BeamSegments, FractionalBeams};
+        use rustc_hash::FxHashMap;
+
+        let mut beam_ticks = FxHashMap::default();
+        beam_ticks.insert(0u64, 1u8);
+        beam_ticks.insert(32u64, 1u8);
+        beam_ticks.insert(64u64, 1u8);
+
+        let beam = Beam {
+            ticks: beam_ticks,
+            start: 0,
+            stop: 64,
+            beam_segments: BeamSegments::default(),
+            fractional_beams: FractionalBeams::default(),
+        };
+
+        let mut track = FxHashMap::default();
+        track.insert(0u64, notation_with_info(-2)); // Down
+        track.insert(32u64, notation_with_info(-3)); // Down
+        track.insert(64u64, notation_with_info(1)); // Up
+
+        let notation_track = NotationTrack { length: 96, track };
+        let direction = get_span_stem_direction(&beam, &notation_track);
+        assert!(direction == Direction::Down);
+    }
+
+    #[test]
+    fn span_direction_tie_broken_by_furthest_negative() {
+        use crate::instructions::parse::get_beams::{Beam, BeamSegments, FractionalBeams};
+        use rustc_hash::FxHashMap;
+
+        let mut beam_ticks = FxHashMap::default();
+        beam_ticks.insert(0u64, 1u8);
+        beam_ticks.insert(32u64, 1u8);
+
+        let beam = Beam {
+            ticks: beam_ticks,
+            start: 0,
+            stop: 32,
+            beam_segments: BeamSegments::default(),
+            fractional_beams: FractionalBeams::default(),
+        };
+
+        // Equal up/down: one positive furthest, one negative
+        let mut track = FxHashMap::default();
+        track.insert(0u64, notation_with_info(1)); // Up
+        track.insert(32u64, notation_with_info(-2)); // Down
+
+        let notation_track = NotationTrack { length: 64, track };
+        let direction = get_span_stem_direction(&beam, &notation_track);
+        // furthest absolute is -2 (abs=2 > abs=1), so max=-2 and max<0 → Down
+        assert!(direction == Direction::Down);
+    }
+
+    #[test]
+    fn get_stem_directions_in_track_rest_not_included() {
+        // A rest (no tones) has no stem direction
+        let track = NotationTrack::new(128);
+        let beams = vec![];
+        let result = get_stem_directions_in_track(&track, &beams);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn get_stem_directions_in_track_note_included() {
+        use crate::score::components::articulation::Articulations;
+        use crate::score::components::pitch::{Accidental, Pitch};
+        use crate::score::components::velocity::Velocity;
+        use crate::score::entries::tone::Tone;
+
+        let mut n = notation_with_info(1); // Up
+                                           // give it a tone so is_rest() = false
+        n.tones.push(Tone::new(
+            1,
+            0,
+            32,
+            Pitch::new(60, Accidental::Natural),
+            Velocity::new(100),
+            Articulations::new(),
+        ));
+
+        let mut track_map = FxHashMap::default();
+        track_map.insert(0u64, n);
+
+        let notation_track = NotationTrack {
+            length: 128,
+            track: track_map,
+        };
+        let beams = vec![];
+        let result = get_stem_directions_in_track(&notation_track, &beams);
+        assert_eq!(result.len(), 1);
+        assert!(matches!(result[&0], Direction::Up));
+    }
+
+    #[test]
+    fn get_stem_directions_in_track_beam_overrides_direction() {
+        use crate::instructions::parse::get_beams::{Beam, BeamSegments, FractionalBeams};
+        use crate::score::components::articulation::Articulations;
+        use crate::score::components::pitch::{Accidental, Pitch};
+        use crate::score::components::velocity::Velocity;
+        use crate::score::entries::tone::Tone;
+
+        fn make_tone_for(id: u64, tick: u64) -> Tone {
+            Tone::new(
+                id,
+                tick,
+                32,
+                Pitch::new(60, Accidental::Natural),
+                Velocity::new(100),
+                Articulations::new(),
+            )
+        }
+
+        let mut beam_ticks = FxHashMap::default();
+        beam_ticks.insert(0u64, 1u8);
+        beam_ticks.insert(32u64, 1u8);
+
+        let beam = Beam {
+            ticks: beam_ticks,
+            start: 0,
+            stop: 32,
+            beam_segments: BeamSegments::default(),
+            fractional_beams: FractionalBeams::default(),
+        };
+
+        let mut n0 = notation_with_info(1);
+        n0.tones.push(make_tone_for(1, 0));
+        let mut n32 = notation_with_info(-3);
+        n32.tones.push(make_tone_for(2, 32));
+
+        let mut track_map = FxHashMap::default();
+        track_map.insert(0u64, n0);
+        track_map.insert(32u64, n32);
+
+        let notation_track = NotationTrack {
+            length: 64,
+            track: track_map,
+        };
+        let result = get_stem_directions_in_track(&notation_track, &vec![beam]);
+        // Span direction should be Down (furthest = -3 wins)
+        assert!(matches!(result[&0], Direction::Down));
+        assert!(matches!(result[&32], Direction::Down));
+    }
 }

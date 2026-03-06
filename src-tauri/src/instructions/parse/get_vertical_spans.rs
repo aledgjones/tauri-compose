@@ -151,3 +151,132 @@ pub fn get_vertical_spans(instruments: &Vec<&Instrument>, engrave: &Engrave) -> 
 
     output
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::score::engraves::Engraves;
+    use crate::score::instruments::{defs::InstrumentType, Instrument};
+    use crate::score::layouts::LayoutType;
+
+    fn make_instrument(id: u64, definition_id: &str, stave_ids: Vec<u64>) -> Instrument {
+        Instrument {
+            id,
+            definition_id: definition_id.to_string(),
+            instrument_type: InstrumentType::Melodic,
+            long_name: String::new(),
+            short_name: String::new(),
+            stave_ids,
+            count: None,
+            assigned_plugin_id: None,
+            volume: 100,
+            pan: 64,
+            mute: false,
+            solo: false,
+        }
+    }
+
+    #[test]
+    fn empty_instruments_produces_empty_spans() {
+        let engraves = Engraves::new();
+        let engrave = &engraves.by_layout_type[&LayoutType::FullScore];
+        let vs = get_vertical_spans(&vec![], engrave);
+        assert!(vs.brackets.is_empty());
+        assert!(vs.barlines.is_empty());
+    }
+
+    #[test]
+    fn single_instrument_produces_one_barline_span() {
+        let engraves = Engraves::new();
+        let engrave = &engraves.by_layout_type[&LayoutType::FullScore];
+        let inst = make_instrument(1, "woodwinds.flute", vec![10]);
+        let vs = get_vertical_spans(&vec![&inst], engrave);
+        // one instrument → always one barline span
+        assert_eq!(vs.barlines.len(), 1);
+        assert_eq!(vs.barlines[0].start, 1);
+        assert_eq!(vs.barlines[0].stop, 1);
+    }
+
+    #[test]
+    fn none_bracketing_approach_produces_no_brackets() {
+        // Full score uses Orchestral by default; let's test no-bracket using clone
+        use crate::score::components::{
+            measurements::PaddingMm,
+            text::{Align, Font, FontFamily, Justify},
+        };
+        use crate::score::engraves::{BracketStyle, BracketingApproach, Engrave};
+        let none_engrave = Engrave {
+            space: 1.5,
+            page_padding: PaddingMm::new(30.0, 20.0, 30.0, 20.0),
+            frame_padding: PaddingMm::new(20.0, 0.0, 20.0, 0.0),
+            instrument_spacing: 8.0,
+            stave_spacing: 6.0,
+            system_start_padding: 0.75,
+            instrument_name_font: Font {
+                size: 1.75,
+                family: FontFamily::LibreBaskerville,
+                justify: Justify::End,
+                align: Align::Middle,
+            },
+            instrument_name_spacing: 2.0,
+            systemic_barline_single_instrument_system: false,
+            bracketing_approach: BracketingApproach::None,
+            bracket_style: BracketStyle::None,
+            bracket_single_staves: false,
+            base_note_space: 4.0,
+            minimum_note_space: 2.0,
+            minimum_tie_space: 2.0,
+            note_space_ratio: 0.5,
+            maximum_beam_slant: 0.5,
+        };
+        let inst1 = make_instrument(1, "woodwinds.flute", vec![10]);
+        let inst2 = make_instrument(2, "woodwinds.oboe", vec![11]);
+        let vs = get_vertical_spans(&vec![&inst1, &inst2], &none_engrave);
+        assert!(vs.brackets.is_empty());
+    }
+
+    #[test]
+    fn orchestral_same_family_merges_bracket() {
+        let engraves = Engraves::new();
+        let engrave = &engraves.by_layout_type[&LayoutType::FullScore];
+        // Full score uses Orchestral bracketing
+        let inst1 = make_instrument(1, "woodwinds.flute", vec![10]);
+        let inst2 = make_instrument(2, "woodwinds.oboe", vec![11]);
+        let vs = get_vertical_spans(&vec![&inst1, &inst2], engrave);
+        // Both woodwinds → one bracket spanning both
+        assert_eq!(vs.brackets.len(), 1);
+        assert_eq!(vs.brackets[0].start, 1);
+        assert_eq!(vs.brackets[0].stop, 2);
+    }
+
+    #[test]
+    fn orchestral_different_families_get_separate_brackets() {
+        let engraves = Engraves::new();
+        let engrave = &engraves.by_layout_type[&LayoutType::FullScore];
+        let inst1 = make_instrument(1, "woodwinds.flute", vec![10]);
+        let inst2 = make_instrument(2, "brass.horn.f", vec![11]);
+        let vs = get_vertical_spans(&vec![&inst1, &inst2], engrave);
+        // Different families → two separate bracket spans
+        assert_eq!(vs.brackets.len(), 2);
+    }
+
+    #[test]
+    fn instrument_with_multiple_staves_gets_brace() {
+        let engraves = Engraves::new();
+        let engrave = &engraves.by_layout_type[&LayoutType::FullScore];
+        let inst = make_instrument(1, "keyboard.piano", vec![10, 11]);
+        let vs = get_vertical_spans(&vec![&inst], engrave);
+        assert_eq!(vs.braces.len(), 1);
+        assert_eq!(vs.braces[0].start, 10);
+        assert_eq!(vs.braces[0].stop, 11);
+    }
+
+    #[test]
+    fn instrument_with_single_stave_gets_no_brace() {
+        let engraves = Engraves::new();
+        let engrave = &engraves.by_layout_type[&LayoutType::FullScore];
+        let inst = make_instrument(1, "woodwinds.flute", vec![10]);
+        let vs = get_vertical_spans(&vec![&inst], engrave);
+        assert!(vs.braces.is_empty());
+    }
+}

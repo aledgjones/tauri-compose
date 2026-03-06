@@ -459,3 +459,113 @@ pub fn score_engraves_page_padding_left_set(
 
     state.emit(&app, &mut renderer, true);
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn engraves_new_has_full_score_entry() {
+        let e = Engraves::new();
+        assert!(e.by_layout_type.contains_key(&LayoutType::FullScore));
+    }
+
+    #[test]
+    fn engraves_new_has_part_entry() {
+        let e = Engraves::new();
+        assert!(e.by_layout_type.contains_key(&LayoutType::Part));
+    }
+
+    #[test]
+    fn full_score_space_is_1_5() {
+        let e = Engraves::new();
+        let full = &e.by_layout_type[&LayoutType::FullScore];
+        assert!((full.space - 1.5).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn part_space_is_2_0() {
+        let e = Engraves::new();
+        let part = &e.by_layout_type[&LayoutType::Part];
+        assert!((part.space - 2.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn full_score_instrument_spacing_is_positive() {
+        let e = Engraves::new();
+        let full = &e.by_layout_type[&LayoutType::FullScore];
+        assert!(full.instrument_spacing > 0.0);
+    }
+
+    #[test]
+    fn full_score_stave_spacing_is_positive() {
+        let e = Engraves::new();
+        let full = &e.by_layout_type[&LayoutType::FullScore];
+        assert!(full.stave_spacing > 0.0);
+    }
+
+    #[test]
+    fn full_score_base_note_space_is_positive() {
+        let e = Engraves::new();
+        let full = &e.by_layout_type[&LayoutType::FullScore];
+        assert!(full.base_note_space > 0.0);
+    }
+
+    #[test]
+    fn part_instrument_spacing_greater_than_full_score() {
+        let e = Engraves::new();
+        let full = &e.by_layout_type[&LayoutType::FullScore];
+        let part = &e.by_layout_type[&LayoutType::Part];
+        // Part layout uses larger space so per-space metrics are same; space itself is larger
+        assert!(part.space > full.space);
+    }
+
+    #[test]
+    fn full_score_minimum_note_space_is_positive() {
+        let e = Engraves::new();
+        let full = &e.by_layout_type[&LayoutType::FullScore];
+        assert!(full.minimum_note_space > 0.0);
+    }
+
+    #[test]
+    fn full_score_minimum_tie_space_is_positive() {
+        let e = Engraves::new();
+        let full = &e.by_layout_type[&LayoutType::FullScore];
+        assert!(full.minimum_tie_space > 0.0);
+    }
+
+    #[test]
+    fn full_score_note_space_ratio_in_range() {
+        let e = Engraves::new();
+        let full = &e.by_layout_type[&LayoutType::FullScore];
+        assert!(full.note_space_ratio > 1.0); // ratio > 1 expands space logarithmically
+    }
+
+    #[test]
+    fn full_score_maximum_beam_slant_positive() {
+        let e = Engraves::new();
+        let full = &e.by_layout_type[&LayoutType::FullScore];
+        assert!(full.maximum_beam_slant > 0.0);
+    }
+
+    #[test]
+    fn full_score_page_padding_positive() {
+        let e = Engraves::new();
+        let full = &e.by_layout_type[&LayoutType::FullScore];
+        assert!(full.page_padding.top > 0.0);
+    }
+
+    #[test]
+    fn full_score_instrument_name_spacing_positive() {
+        let e = Engraves::new();
+        let full = &e.by_layout_type[&LayoutType::FullScore];
+        assert!(full.instrument_name_spacing > 0.0);
+    }
+
+    #[test]
+    fn full_score_system_start_padding_positive() {
+        let e = Engraves::new();
+        let full = &e.by_layout_type[&LayoutType::FullScore];
+        assert!(full.system_start_padding > 0.0);
+    }
+}

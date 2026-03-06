@@ -273,3 +273,117 @@ pub fn score_meta_other_information_set(
 
     state.emit(&app, &mut renderer, true);
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn meta_new_has_empty_title() {
+        let m = Meta::new();
+        assert_eq!(m.title, "");
+    }
+
+    #[test]
+    fn meta_new_has_empty_composer() {
+        let m = Meta::new();
+        assert_eq!(m.composer, "");
+    }
+
+    #[test]
+    fn meta_new_has_empty_subtitle() {
+        let m = Meta::new();
+        assert_eq!(m.subtitle, "");
+    }
+
+    #[test]
+    fn meta_new_has_positive_created_timestamp() {
+        let m = Meta::new();
+        assert!(m.created > 0);
+    }
+
+    #[test]
+    fn meta_new_has_non_empty_app_version() {
+        let m = Meta::new();
+        assert!(!m.app_version.is_empty());
+    }
+
+    #[test]
+    fn meta_new_has_empty_lyricist() {
+        let m = Meta::new();
+        assert_eq!(m.lyricist, "");
+    }
+
+    #[test]
+    fn meta_new_has_empty_copyright() {
+        let m = Meta::new();
+        assert_eq!(m.copyright, "");
+    }
+
+    #[test]
+    fn meta_new_has_empty_dedication() {
+        let m = Meta::new();
+        assert_eq!(m.dedication, "");
+    }
+
+    #[test]
+    fn meta_new_has_empty_arranger() {
+        let m = Meta::new();
+        assert_eq!(m.arranger, "");
+    }
+
+    #[test]
+    fn meta_new_has_empty_artist() {
+        let m = Meta::new();
+        assert_eq!(m.artist, "");
+    }
+
+    #[test]
+    fn meta_new_has_empty_copyist() {
+        let m = Meta::new();
+        assert_eq!(m.copyist, "");
+    }
+
+    #[test]
+    fn meta_new_has_empty_publisher() {
+        let m = Meta::new();
+        assert_eq!(m.publisher, "");
+    }
+
+    #[test]
+    fn meta_new_has_empty_editor() {
+        let m = Meta::new();
+        assert_eq!(m.editor, "");
+    }
+
+    #[test]
+    fn meta_new_has_empty_work_number() {
+        let m = Meta::new();
+        assert_eq!(m.work_number, "");
+    }
+
+    #[test]
+    fn meta_new_has_empty_composition_year() {
+        let m = Meta::new();
+        assert_eq!(m.composition_year, "");
+    }
+
+    #[test]
+    fn meta_new_has_empty_composer_dates() {
+        let m = Meta::new();
+        assert_eq!(m.composer_dates, "");
+    }
+
+    #[test]
+    fn meta_new_has_empty_other_information() {
+        let m = Meta::new();
+        assert_eq!(m.other_information, "");
+    }
+
+    #[test]
+    fn meta_title_can_be_set() {
+        let mut m = Meta::new();
+        m.title = String::from("Symphony No. 1");
+        assert_eq!(m.title, "Symphony No. 1");
+    }
+}
