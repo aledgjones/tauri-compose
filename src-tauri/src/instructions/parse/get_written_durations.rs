@@ -731,6 +731,16 @@ impl NotationTrack {
             }
         }
 
+        if let Some(entry) = self.track.get(&beat_two) {
+            if !entry.is_rest() && entry.duration == dotted_quarter {
+                if let Some(next_entry) = self.track.get(&(beat_two + dotted_quarter)) {
+                    if next_entry.is_rest() {
+                        self.split(beat_three);
+                    }
+                }
+            }
+        }
+
         self.split_at_next_boundary_for_off_grid_events(
             &[
                 (beat_one, beat_two, beat_two),
@@ -2923,6 +2933,30 @@ mod tests {
     }
 
     #[test]
+    fn split_simple_unit_in_three_four_splits_beat_two_dotted_quarter_when_final_eighth_is_rest() {
+        let q = NoteDuration::Quarter.to_ticks();
+        let e = NoteDuration::Eighth.to_ticks();
+        let dotted_quarter = q + e;
+        let time_signature = make_time_signature_for_test(0, 3, NoteDuration::Quarter);
+        let mut track = NotationTrack::new(q * 3);
+        track.track.insert(0, make_note_at(0, q, 1));
+        track.track.insert(q, make_note_at(q, dotted_quarter, 2));
+        track.track.insert(q * 2 + e, make_rest_at(q * 2 + e, e));
+
+        track.split_simple_unit(0, q * 3, &time_signature, &time_signature);
+
+        assert_notation_track_matches(
+            &track,
+            vec![
+                notation_expectation(0, q, false, vec![1], vec![]),
+                notation_expectation(q, q, false, vec![2], vec![2]),
+                notation_expectation(q * 2, e, false, vec![2], vec![]),
+                notation_expectation(q * 2 + e, e, true, vec![], vec![]),
+            ],
+        );
+    }
+
+    #[test]
     fn split_at_next_boundary_for_off_grid_events_splits_at_supplied_boundary() {
         let q = NoteDuration::Quarter.to_ticks();
         let eighth = NoteDuration::Eighth.to_ticks();
@@ -3355,6 +3389,36 @@ mod tests {
     }
 
     #[test]
+    fn get_written_durations_in_three_four_splits_quarter_plus_dotted_quarter_plus_eighth_rest_at_beat_three(
+    ) {
+        let q = NoteDuration::Quarter.to_ticks();
+        let e = NoteDuration::Eighth.to_ticks();
+        let dotted_quarter = q + e;
+        let time_signature = make_time_signature_for_test(0, 3, NoteDuration::Quarter);
+        let (flow, instrument, tracks, track_id) =
+            make_parser_fixture(time_signature, &[(1, 0, q, 60), (2, q, dotted_quarter, 62)]);
+        let instruments = vec![&instrument];
+        let measures = crate::instructions::parse::get_measures::get_measures(&flow, &tracks);
+        let tone_offsets = crate::instructions::parse::get_tone_offsets::get_tone_offsets(
+            &flow,
+            &instruments,
+            &tracks,
+        );
+        let notation =
+            get_written_durations(&flow, &instruments, &tracks, &measures, &tone_offsets);
+
+        assert_notation_track_matches(
+            &notation[&track_id],
+            vec![
+                notation_expectation(0, q, false, vec![1], vec![]),
+                notation_expectation(q, q, false, vec![2], vec![2]),
+                notation_expectation(q * 2, e, false, vec![2], vec![]),
+                notation_expectation(q * 2 + e, e, true, vec![], vec![]),
+            ],
+        );
+    }
+
+    #[test]
     fn get_written_durations_preserves_basic_three_four_patterns() {
         let q = NoteDuration::Quarter.to_ticks();
         let e = NoteDuration::Eighth.to_ticks();
@@ -3434,6 +3498,16 @@ mod tests {
                     notation_expectation(0, q, false, vec![1], vec![]),
                     notation_expectation(q, q + e, false, vec![2], vec![]),
                     notation_expectation(q * 2 + e, e, false, vec![3], vec![]),
+                ],
+            },
+            Scenario {
+                name: "quarter plus dotted quarter plus final eighth rest splits at beat three",
+                tone_specs: vec![(1, 0, q, 60), (2, q, q + e, 62)],
+                expectations: vec![
+                    notation_expectation(0, q, false, vec![1], vec![]),
+                    notation_expectation(q, q, false, vec![2], vec![2]),
+                    notation_expectation(q * 2, e, false, vec![2], vec![]),
+                    notation_expectation(q * 2 + e, e, true, vec![], vec![]),
                 ],
             },
             Scenario {

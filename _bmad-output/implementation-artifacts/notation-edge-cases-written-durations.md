@@ -19,7 +19,7 @@ This document now carries not only the edge cases, but also the validated musica
 - `F-003`: Intentional tie-propagation rule, not a bug.
 - `F-004`: Intentional `3/4` eighth-grid offbeat rule, not a bug.
 - `F-005`: Intentional `3/4` rule — a half note starting on beat 2 should remain unsplit.
-- `F-006`: Real bug — in `3/4`, `quarter + dotted-quarter + eighth note` should remain unsplit, but `quarter + dotted-quarter + eighth rest` should split at beat 3.
+- `F-006`: Fixed in current branch — in `3/4`, `quarter + dotted-quarter + eighth note` remains unsplit, while `quarter + dotted-quarter + eighth rest` now splits at beat 3.
 - `F-007`: Intentional design approach — nuanced exception matching, not a bug.
 - `F-008`: Intentional single-track fallback behavior after an offbeat-pattern match fails, not a bug.
 
@@ -34,7 +34,7 @@ This document now carries not only the edge cases, but also the validated musica
 
 - Do not assume that a surprising unsplit value is a bug; check whether it is a protected convention first.
 - When changing `split_three_beat_simple_unit()` or the `4/4` preservation helpers, review the high-level scenario tests before proposing simplifications.
-- Treat `F-006` as the current actionable notation bug from this review.
+- `F-006` was the actionable notation bug from this review and is now fixed in the current branch.
 - If future work introduces multi-voice stave logic, revisit single-track assumptions separately rather than altering current behavior implicitly.
 
 ## F-001
@@ -99,11 +99,11 @@ This document now carries not only the edge cases, but also the validated musica
 - **Scenario:** In `3/4`, a bar contains quarter note + dotted-quarter + final eighth slot. The subtle rule is:
   - quarter + dotted-quarter + eighth note should stay unsplit at beat 3
   - quarter + dotted-quarter + eighth rest should split at beat 3
-- **Current Behavior:** The note-ending version is intentionally preserved unsplit, but the rest-ending counterpart is the important bug candidate because it should make beat 3 explicit.
+- **Current Behavior:** The note-ending version is intentionally preserved unsplit, and the rest-ending counterpart is now explicitly split at beat 3 so the final beat stays visible.
 - **Why Suspicious:** These two shapes look very similar in raw duration terms, but they should not be engraved the same way. The presence of a final rest changes the readability requirement in `3/4`.
 - **Preserved In This Spec:** Yes. The new scenario suite locks down the current rendering so future changes are visible immediately.
-- **Status:** Bug.
-- **Recommended Follow-up:** Add/fix explicit coverage for the rest-ending case so `3/4` bars with quarter + dotted-quarter + eighth rest split at beat 3, while preserving the note-ending case unsplit.
+- **Status:** Fixed in current branch.
+- **Recommended Follow-up:** Preserve explicit regression coverage for both sides of the rule so future `3/4` refactors keep the note-ending case unsplit and the rest-ending case split at beat 3.
 
 ## F-007
 
