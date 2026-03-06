@@ -147,3 +147,139 @@ pub fn draw_rest(
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::instructions::parse::get_horizontal_spacing::HorizontalSpacing;
+    use crate::instructions::parse::get_written_durations::Notation;
+    use crate::renderer::test_helpers::make_test_renderer;
+    use crate::renderer::DrawInstruction;
+    use crate::ui::sequencer::Selection;
+
+    fn make_notation(duration: u64) -> Notation {
+        Notation::new(0, duration)
+    }
+
+    fn make_spacing(duration: u64) -> HorizontalSpacing {
+        // Must be large enough for get(tick + duration - 1, ...) to not panic
+        HorizontalSpacing::new(duration)
+    }
+
+    #[test]
+    fn non_full_bar_rest_produces_text_and_hit_target() {
+        let mut renderer = make_test_renderer();
+        let entry = make_notation(32);
+        let spacing = make_spacing(32);
+        draw_rest(
+            &Point { x: 2.0, y: 5.0 },
+            0,
+            "\u{E4E5}", // quarter rest glyph
+            &entry,
+            false,
+            &spacing,
+            None,
+            1,
+            1,
+            1,
+            1,
+            5.0,
+            &mut renderer,
+        );
+        assert_eq!(renderer.instructions.len(), 1);
+        assert!(matches!(
+            renderer.instructions[0],
+            DrawInstruction::Text { .. }
+        ));
+        assert_eq!(renderer.hit_targets.len(), 1);
+    }
+
+    #[test]
+    fn full_bar_rest_produces_text_and_hit_target() {
+        let mut renderer = make_test_renderer();
+        let entry = make_notation(32);
+        let spacing = make_spacing(32);
+        draw_rest(
+            &Point { x: 2.0, y: 5.0 },
+            0,
+            "\u{E4E3}", // whole-bar rest glyph
+            &entry,
+            true,
+            &spacing,
+            None,
+            1,
+            1,
+            1,
+            1,
+            5.0,
+            &mut renderer,
+        );
+        assert_eq!(renderer.instructions.len(), 1);
+        assert!(matches!(
+            renderer.instructions[0],
+            DrawInstruction::Text { .. }
+        ));
+        assert_eq!(renderer.hit_targets.len(), 1);
+    }
+
+    #[test]
+    fn selected_rest_uses_blue_color() {
+        let mut renderer = make_test_renderer();
+        let entry = make_notation(32);
+        let spacing = make_spacing(32);
+        let selection = Selection::Rest {
+            tick: 0,
+            track_id: 42,
+            stave_id: 1,
+            flow_id: 1,
+            instrument_id: 1,
+        };
+        draw_rest(
+            &Point { x: 0.0, y: 0.0 },
+            0,
+            "\u{E4E5}",
+            &entry,
+            false,
+            &spacing,
+            Some(&selection),
+            42,
+            1,
+            1,
+            1,
+            0.0,
+            &mut renderer,
+        );
+        if let DrawInstruction::Text { color, .. } = &renderer.instructions[0] {
+            assert_eq!(*color, skia_safe::Color::from_rgb(14, 165, 233));
+        } else {
+            panic!("expected Text");
+        }
+    }
+
+    #[test]
+    fn unselected_rest_uses_black_color() {
+        let mut renderer = make_test_renderer();
+        let entry = make_notation(32);
+        let spacing = make_spacing(32);
+        draw_rest(
+            &Point { x: 0.0, y: 0.0 },
+            0,
+            "\u{E4E5}",
+            &entry,
+            false,
+            &spacing,
+            None,
+            1,
+            1,
+            1,
+            1,
+            0.0,
+            &mut renderer,
+        );
+        if let DrawInstruction::Text { color, .. } = &renderer.instructions[0] {
+            assert_eq!(*color, skia_safe::Color::BLACK);
+        } else {
+            panic!("expected Text");
+        }
+    }
+}

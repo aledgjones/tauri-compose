@@ -33,19 +33,28 @@ mod tests {
     #[test]
     fn draw_clef_treble_produces_one_text_instruction() {
         let mut renderer = make_test_renderer();
-        let clef = Clef { draw_as: ClefDrawType::G, ..Default::default() };
+        let clef = Clef {
+            draw_as: ClefDrawType::G,
+            ..Default::default()
+        };
         let origin = Point { x: 2.0, y: 10.0 };
 
         draw_clef(&origin, &clef, true, &mut renderer);
 
         assert_eq!(renderer.instructions.len(), 1);
-        assert!(matches!(renderer.instructions[0], DrawInstruction::Text { .. }));
+        assert!(matches!(
+            renderer.instructions[0],
+            DrawInstruction::Text { .. }
+        ));
     }
 
     #[test]
     fn draw_clef_full_size_uses_font_size_4() {
         let mut renderer = make_test_renderer();
-        let clef = Clef { draw_as: ClefDrawType::G, ..Default::default() };
+        let clef = Clef {
+            draw_as: ClefDrawType::G,
+            ..Default::default()
+        };
 
         draw_clef(&Point { x: 0.0, y: 0.0 }, &clef, true, &mut renderer);
 
@@ -60,7 +69,10 @@ mod tests {
     #[test]
     fn draw_clef_small_size_uses_font_size_2_5() {
         let mut renderer = make_test_renderer();
-        let clef = Clef { draw_as: ClefDrawType::G, ..Default::default() };
+        let clef = Clef {
+            draw_as: ClefDrawType::G,
+            ..Default::default()
+        };
 
         draw_clef(&Point { x: 0.0, y: 0.0 }, &clef, false, &mut renderer);
 
@@ -74,7 +86,10 @@ mod tests {
     #[test]
     fn draw_clef_hidden_produces_no_instructions() {
         let mut renderer = make_test_renderer();
-        let clef = Clef { draw_as: ClefDrawType::Hidden, ..Default::default() };
+        let clef = Clef {
+            draw_as: ClefDrawType::Hidden,
+            ..Default::default()
+        };
 
         draw_clef(&Point { x: 0.0, y: 0.0 }, &clef, true, &mut renderer);
 
@@ -84,7 +99,11 @@ mod tests {
     #[test]
     fn draw_clef_offset_shifts_y_position() {
         let mut renderer = make_test_renderer();
-        let clef = Clef { draw_as: ClefDrawType::G, offset: 2, ..Default::default() }; // 0.5 * 2 = 1.0 space shift
+        let clef = Clef {
+            draw_as: ClefDrawType::G,
+            offset: 2,
+            ..Default::default()
+        }; // 0.5 * 2 = 1.0 space shift
         let origin = Point { x: 0.0, y: 5.0 };
 
         draw_clef(&origin, &clef, true, &mut renderer);

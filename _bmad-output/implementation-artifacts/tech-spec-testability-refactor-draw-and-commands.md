@@ -211,7 +211,7 @@ A phased refactoring initiative with mixed small phases — each phase extracts 
 
 **Coverage target**: Regions 56%, Functions 72%, Lines 49%
 
-- [ ] Task 2.1: Add tests for low-complexity draw files (5 files)
+- [x] Task 2.1: Add tests for low-complexity draw files (5 files)
   - Files: `draw_dot.rs`, `draw_accidentals.rs` (add `draw_accidental` function test), `draw_sub_brackets.rs`, `draw_key_signature.rs`, `draw_time_signature.rs`
   - Action: For each file:
     1. Construct headless `RendererContext`
@@ -220,7 +220,7 @@ A phased refactoring initiative with mixed small phases — each phase extracts 
     4. Assert on instruction count and variant fields
   - Notes: `draw_dot` has 3 branches (post_shunt / up_stem_flag / default) — test all three. `draw_accidentals` already has pure helper tests; add a test for the `draw_accidental` function itself. Optionally extract `dot_x_offset()` as a pure helper from `draw_dot.rs`.
 
-- [ ] Task 2.2: Extract `Track::set_tone_duration()` from `score_entries_tone_duration_set`
+- [x] Task 2.2: Extract `Track::set_tone_duration()` from `score_entries_tone_duration_set`
   - File: `src-tauri/src/score/entries/tone.rs`
   - Action:
     1. Add method to `impl Track`: `pub fn set_tone_duration(&mut self, tone_id: UniqueId, duration: Ticks)` — looks up entry by ID, if `Entry::Tone`, sets `tone.duration = duration`.
@@ -228,7 +228,7 @@ A phased refactoring initiative with mixed small phases — each phase extracts 
     3. Add unit test for the new method.
   - Notes: Simplest possible extraction — 2 lines of logic. Good first example of the pattern.
 
-- [ ] Task 2.3: Extract `Track::set_tone_pitch()` with shared pitch resolution
+- [x] Task 2.3: Extract `Track::set_tone_pitch()` with shared pitch resolution
   - File: `src-tauri/src/score/entries/tone.rs`
   - Action:
     1. Add method `pub fn resolve_pitch(&self, tick: Tick, pitch_int: u8, accidental: Option<Accidental>) -> Pitch` — encapsulates the repeated pitch resolution logic (if `Some(accidental)` → `Pitch::new`, else → lookup key sig → `Pitch::from_int`).
@@ -237,7 +237,7 @@ A phased refactoring initiative with mixed small phases — each phase extracts 
     4. Add unit tests for `resolve_pitch` (with/without explicit accidental, with/without key signature on track) and `set_tone_pitch`.
   - Notes: This deduplicates pitch resolution — `tone_create` will also use `resolve_pitch` in Phase 3.
 
-- [ ] Task 2.4: Extract `Track::shift_tone_pitch_by_octaves()` and `Track::set_tone_accidental()`
+- [x] Task 2.4: Extract `Track::shift_tone_pitch_by_octaves()` and `Track::set_tone_accidental()`
   - File: `src-tauri/src/score/entries/tone.rs`
   - Action:
     1. `pub fn shift_tone_pitch_by_octaves(&mut self, tone_id: UniqueId, octaves: i8) -> Option<u8>` — delegates to `tone.pitch.shift_by_octaves()`.
@@ -254,7 +254,7 @@ A phased refactoring initiative with mixed small phases — each phase extracts 
 
 **Coverage target**: Regions 58%, Functions 74%, Lines 52%
 
-- [ ] Task 3.1: Add tests for moderate draw files (3 files)
+- [x] Task 3.1: Add tests for moderate draw files (3 files)
   - Files: `draw_notehead.rs`, `draw_rest.rs`, `draw_articulations.rs`
   - Action:
     1. **draw_notehead**: Test with no shunt, pre-shunt, post-shunt. Test with selection matching the tone (blue color) vs. no selection (black). Verify both `DrawInstruction::Text` and `HitTarget` output.
@@ -262,7 +262,7 @@ A phased refactoring initiative with mixed small phases — each phase extracts 
     3. **draw_articulations**: Test with different articulation types and stem directions. Verify correct glyph placement relative to notehead.
   - Notes: `draw_notehead` has 13 params but most are scalars — the main fixture work is constructing `Shunts` with a matching `(Tick, UniqueId)` key. Create a `make_shunts()` helper.
 
-- [ ] Task 3.2: Extract `Track::create_tone()` from `score_entries_tone_create`
+- [x] Task 3.2: Extract `Track::create_tone()` from `score_entries_tone_create`
   - File: `src-tauri/src/score/entries/tone.rs`
   - Action:
     1. Add `pub fn create_tone(&mut self, tone_id: UniqueId, tick: Tick, duration: Ticks, pitch_int: u8, accidental: Option<Accidental>, velocity: u8, articulations: Articulations) -> UniqueId` — calls `self.resolve_pitch()` (from Task 2.3), resolves articulation inheritance via `first_articulations_at_tick`, creates and inserts tone, propagates articulations.
@@ -270,7 +270,7 @@ A phased refactoring initiative with mixed small phases — each phase extracts 
     3. Add tests: create tone with explicit accidental, create tone inferring from key sig, create tone inheriting articulations from existing tones, create tone with its own articulations overwriting others.
   - Notes: This is the largest single extraction (~25 lines). Reuses `resolve_pitch` from Task 2.3.
 
-- [ ] Task 3.3: Extract `Track::slice_tone()` from `score_entries_tone_slice`
+- [x] Task 3.3: Extract `Track::slice_tone()` from `score_entries_tone_slice`
   - File: `src-tauri/src/score/entries/tone.rs`
   - Action:
     1. Add `pub fn slice_tone(&mut self, tone_id: UniqueId, new_tone_id: UniqueId, slice_tick: Tick) -> Option<UniqueId>` — clones tone, validates slice point is within tone duration, shortens original, creates remainder, inserts it.
@@ -278,7 +278,7 @@ A phased refactoring initiative with mixed small phases — each phase extracts 
     3. Add tests: slice in middle (happy path), slice at start (returns None), slice at end (returns None), slice outside range (returns None), verify both halves have correct tick/duration/pitch.
   - Notes: Guard clauses (`slice_tick <= start || slice_tick >= end`) are the key edge cases to test.
 
-- [ ] Task 3.4: Extract `Track::set_tone_position_and_duration()` and `Track::unify_articulations_at_entry()`
+- [x] Task 3.4: Extract `Track::set_tone_position_and_duration()` and `Track::unify_articulations_at_entry()`
   - File: `src-tauri/src/score/entries/tone.rs`
   - Action:
     1. `pub fn set_tone_position_and_duration(&mut self, tone_id: UniqueId, tick: Tick, duration: Ticks)` — removes from old `by_tick` index, updates fields, adds to new index. Should use `shift_entry` + duration set internally rather than manually managing indices.
@@ -287,7 +287,7 @@ A phased refactoring initiative with mixed small phases — each phase extracts 
     4. Tests for position change (verify `by_tick` index updated correctly), unify with existing articulations, unify with empty articulations.
   - Notes: `set_tone_position_and_duration` currently reaches into `track.entries.by_tick` directly — the extracted method should clean this up to use existing `Track` index management methods where possible.
 
-- [ ] Task 3.5: Extract `Track::shift_tone_pitch_by_steps()`
+- [x] Task 3.5: Extract `Track::shift_tone_pitch_by_steps()`
   - File: `src-tauri/src/score/entries/tone.rs`
   - Action:
     1. Add `pub fn shift_tone_pitch_by_steps(&mut self, tone_id: UniqueId, steps: i8, key_signature: &KeySignature) -> Option<u8>` — the method takes an already-resolved key signature (the command is responsible for looking up the master track to get it).
@@ -295,7 +295,7 @@ A phased refactoring initiative with mixed small phases — each phase extracts 
     3. Tests with different step values and key signatures.
   - Notes: The key signature resolution stays in the command since it requires cross-entity lookup (flow → master track). The method only does the pitch mutation.
 
-- [ ] Task 3.6: Extract `Track::toggle_articulation_at_tone()`
+- [x] Task 3.6: Extract `Track::toggle_articulation_at_tone()`
   - File: `src-tauri/src/score/entries/tone.rs`
   - Action:
     1. Add `pub fn toggle_articulation_at_tone(&mut self, tone_id: UniqueId, articulation: Articulation)` — looks up tone, clones its articulations, toggles the given articulation, applies to all tones at tick.
@@ -457,27 +457,27 @@ A phased refactoring initiative with mixed small phases — each phase extracts 
 
 ### Draw Layer Testing
 
-- [ ] AC 1: Given a `RendererContext` constructed with `backend: None` and `Converter::new(1.0, 1.0)`, when any draw function from `instructions/draw/` is called with valid inputs, then `renderer.instructions` contains the expected `DrawInstruction` variant(s) with correct field values.
+- [x] AC 1: Given a `RendererContext` constructed with `backend: None` and `Converter::new(1.0, 1.0)`, when any draw function from `instructions/draw/` is called with valid inputs, then `renderer.instructions` contains the expected `DrawInstruction` variant(s) with correct field values.
 
-- [ ] AC 2: Given `DrawInstruction` and `HitTarget` with `Debug` + `PartialEq` derives (or pattern-matched assertions), when a draw test asserts on instruction contents, then the assertion compiles and provides useful error messages on failure.
+- [x] AC 2: Given `DrawInstruction` and `HitTarget` with `Debug` + `PartialEq` derives (or pattern-matched assertions), when a draw test asserts on instruction contents, then the assertion compiles and provides useful error messages on failure.
 
 - [ ] AC 3: Given `draw_barline` called with each of the 8 `BarlineDrawType` variants, when the function completes, then `renderer.instructions` contains the correct number and type of line/dashed_line/circle instructions per variant.
 
 - [ ] AC 4: Given `draw_beam` called with a simple 2-note beam, when the function completes, then `renderer.instructions` contains at least 1 `DrawInstruction::Shape` representing the outer beam.
 
-- [ ] AC 5: Given `draw_notehead` called with `selection: Some(Selection::Tone { tone_id, .. })` matching the tone, when rendered, then the text instruction uses color `rgb(14, 165, 233)` (blue).
+- [x] AC 5: Given `draw_notehead` called with `selection: Some(Selection::Tone { tone_id, .. })` matching the tone, when rendered, then the text instruction uses color `rgb(14, 165, 233)` (blue).
 
 ### Command Extraction — tone.rs
 
-- [ ] AC 6: Given a `Track` with a key signature entry, when `Track::resolve_pitch(tick, pitch_int, None)` is called, then the returned `Pitch` has an accidental inferred from the key signature at or before that tick.
+- [x] AC 6: Given a `Track` with a key signature entry, when `Track::resolve_pitch(tick, pitch_int, None)` is called, then the returned `Pitch` has an accidental inferred from the key signature at or before that tick.
 
-- [ ] AC 7: Given a `Track` with a tone, when `Track::slice_tone(tone_id, new_id, slice_tick)` is called with `slice_tick` within the tone's duration, then the original tone's duration is shortened, a new tone is inserted at `slice_tick` with the remaining duration, and `Some(new_id)` is returned.
+- [x] AC 7: Given a `Track` with a tone, when `Track::slice_tone(tone_id, new_id, slice_tick)` is called with `slice_tick` within the tone's duration, then the original tone's duration is shortened, a new tone is inserted at `slice_tick` with the remaining duration, and `Some(new_id)` is returned.
 
-- [ ] AC 8: Given a `Track` with a tone, when `Track::slice_tone()` is called with `slice_tick` at or before the tone's start tick (or at/after its end), then `None` is returned and no modifications are made.
+- [x] AC 8: Given a `Track` with a tone, when `Track::slice_tone()` is called with `slice_tick` at or before the tone's start tick (or at/after its end), then `None` is returned and no modifications are made.
 
-- [ ] AC 9: Given a `Track` with multiple tones at the same tick, when `Track::create_tone()` is called with non-empty articulations, then all existing tones at that tick have their articulations updated to match.
+- [x] AC 9: Given a `Track` with multiple tones at the same tick, when `Track::create_tone()` is called with non-empty articulations, then all existing tones at that tick have their articulations updated to match.
 
-- [ ] AC 10: Given the `score_entries_tone_create` command before and after refactoring, when called with identical parameters, then the resulting `Score` state is identical (behavior preservation).
+- [x] AC 10: Given the `score_entries_tone_create` command before and after refactoring, when called with identical parameters, then the resulting `Score` state is identical (behavior preservation).
 
 ### Command Extraction — flows/players/instruments
 

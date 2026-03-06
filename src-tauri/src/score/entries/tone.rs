@@ -90,7 +90,12 @@ impl Track {
 
     /// Resolve a pitch from a MIDI integer + optional explicit accidental.
     /// If no accidental is provided, infers from the key signature at `tick`.
-    pub fn resolve_pitch(&self, tick: Tick, pitch_int: u8, accidental: Option<Accidental>) -> Pitch {
+    pub fn resolve_pitch(
+        &self,
+        tick: Tick,
+        pitch_int: u8,
+        accidental: Option<Accidental>,
+    ) -> Pitch {
         match accidental {
             Some(acc) => Pitch::new(pitch_int, acc),
             None => {
@@ -111,7 +116,12 @@ impl Track {
     }
 
     /// Set the pitch of the tone identified by `tone_id`, resolving via key signature if needed.
-    pub fn set_tone_pitch(&mut self, tone_id: UniqueId, pitch_int: u8, accidental: Option<Accidental>) {
+    pub fn set_tone_pitch(
+        &mut self,
+        tone_id: UniqueId,
+        pitch_int: u8,
+        accidental: Option<Accidental>,
+    ) {
         let tick = if let Some(Entry::Tone(tone)) = self.entries.by_id.get(&tone_id) {
             tone.tick
         } else {
@@ -144,6 +154,123 @@ impl Track {
             None
         }
     }
+
+    /// Create a tone with pitch resolution and articulation inheritance, then insert it.
+    #[allow(clippy::too_many_arguments)]
+    pub fn create_tone(
+        &mut self,
+        tone_id: UniqueId,
+        tick: Tick,
+        duration: Ticks,
+        pitch_int: u8,
+        accidental: Option<Accidental>,
+        velocity: u8,
+        articulations: Articulations,
+    ) -> UniqueId {
+        let pitch = self.resolve_pitch(tick, pitch_int, accidental);
+        let effective_articulations = if !articulations.is_empty() {
+            articulations.clone()
+        } else {
+            self.first_articulations_at_tick(&tick).unwrap_or_default()
+        };
+        self.insert_entry(Entry::Tone(Tone::new(
+            tone_id,
+            tick,
+            duration,
+            pitch,
+            Velocity::new(velocity),
+            effective_articulations,
+        )));
+        if !articulations.is_empty() {
+            self.apply_articulations_to_tick(tick, &articulations);
+        }
+        tone_id
+    }
+
+    /// Slice a tone at `slice_tick`, inserting a tail tone with `new_tone_id`.
+    /// Returns `Some(new_tone_id)` on success, `None` if `slice_tick` is outside the tone's range.
+    pub fn slice_tone(
+        &mut self,
+        tone_id: UniqueId,
+        new_tone_id: UniqueId,
+        slice_tick: Tick,
+    ) -> Option<UniqueId> {
+        let original = match self.entries.by_id.get(&tone_id) {
+            Some(Entry::Tone(tone)) => tone.clone(),
+            _ => return None,
+        };
+        let tone_start = original.tick;
+        let tone_end = original.tick + original.duration;
+        if slice_tick <= tone_start || slice_tick >= tone_end {
+            return None;
+        }
+        if let Some(Entry::Tone(tone)) = self.entries.by_id.get_mut(&tone_id) {
+            tone.duration = slice_tick - tone_start;
+        }
+        let new_tone = Tone::new(
+            new_tone_id,
+            slice_tick,
+            tone_end - slice_tick,
+            original.pitch,
+            original.velocity,
+            original.articulations.clone(),
+        );
+        self.insert_entry(Entry::Tone(new_tone));
+        Some(new_tone_id)
+    }
+
+    /// Move a tone to `tick` and update its `duration`, keeping the `by_tick` index consistent.
+    pub fn set_tone_position_and_duration(
+        &mut self,
+        tone_id: UniqueId,
+        tick: Tick,
+        duration: Ticks,
+    ) {
+        self.shift_entry(tone_id, tick);
+        self.set_tone_duration(tone_id, duration);
+    }
+
+    /// Reconcile articulations at the moved entry's tick:
+    /// if the entry has articulations, propagate them; else inherit from existing tones at that tick.
+    pub fn unify_articulations_at_entry(&mut self, entry_id: UniqueId) {
+        let (moved_articulations, moved_tick) = match self.entries.by_id.get(&entry_id) {
+            Some(Entry::Tone(tone)) => (tone.articulations.clone(), tone.tick),
+            _ => return,
+        };
+        if !moved_articulations.is_empty() {
+            self.apply_articulations_to_tick(moved_tick, &moved_articulations);
+        } else if let Some(found_set) = self.first_articulations_at_tick(&moved_tick) {
+            self.apply_articulations_to_tick(moved_tick, &found_set);
+        }
+    }
+
+    /// Shift the pitch of `tone_id` by diatonic steps using the given key signature.
+    /// Returns new MIDI int if found.
+    pub fn shift_tone_pitch_by_steps(
+        &mut self,
+        tone_id: UniqueId,
+        steps: i8,
+        key_signature: &KeySignature,
+    ) -> Option<u8> {
+        if let Some(Entry::Tone(tone)) = self.entries.by_id.get_mut(&tone_id) {
+            tone.pitch = tone.pitch.shift_by_steps(steps, key_signature);
+            Some(tone.pitch.int)
+        } else {
+            None
+        }
+    }
+
+    /// Toggle an articulation on `tone_id` and apply the resulting set to all tones at that tick.
+    pub fn toggle_articulation_at_tone(&mut self, tone_id: UniqueId, articulation: Articulation) {
+        let (tick, resulting_set) = match self.entries.by_id.get(&tone_id) {
+            Some(Entry::Tone(tone)) => {
+                let set = tone.articulations.clone().toggle(articulation);
+                (tone.tick, set)
+            }
+            _ => return,
+        };
+        self.apply_articulations_to_tick(tick, &resulting_set);
+    }
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -164,43 +291,16 @@ pub fn score_entries_tone_create(
     let mut renderer = renderer_state.lock().unwrap();
 
     let tone_id = state.generate_id();
-
     let track = state.score.tracks.by_id.get_mut(&track_id).unwrap();
-
-    let pitch = match accidental {
-        Some(accidental) => Pitch::new(pitch_int, accidental),
-        None => {
-            let key_signature = match track.get_key_signature_before_tick_inclusive(tick) {
-                Some(key_signature) => key_signature,
-                None => &KeySignature::default(),
-            };
-            Pitch::from_int(pitch_int, key_signature)
-        }
-    };
-
-    // Determine the effective articulation set for the new tone.
-    // - If caller provided a non-empty set => use it and apply it to all tones at the tick.
-    // - If caller provided an empty set => inherit the first-existing tone's set at that tick
-    //   (if any); otherwise remain empty. Do NOT modify existing tones when caller's set is empty.
-    let effective_articulations: Articulations = if !articulations.is_empty() {
-        articulations.clone()
-    } else {
-        track.first_articulations_at_tick(&tick).unwrap_or_default()
-    };
-
-    track.insert_entry(Entry::Tone(Tone::new(
+    track.create_tone(
         tone_id,
         tick,
         duration,
-        pitch,
-        Velocity::new(velocity),
-        effective_articulations.clone(),
-    )));
-
-    // If the caller supplied a non-empty set, apply it to all tones at the tick.
-    if !articulations.is_empty() {
-        track.apply_articulations_to_tick(tick, &articulations);
-    }
+        pitch_int,
+        accidental,
+        velocity,
+        articulations,
+    );
 
     state.emit(&app, &mut renderer, true);
 
@@ -238,42 +338,14 @@ pub fn score_entries_tone_slice(
     let mut renderer = renderer_state.lock().unwrap();
 
     let new_tone_id = state.generate_id();
-
     let track = state.score.tracks.by_id.get_mut(&track_id).unwrap();
-    let entry = track.entries.by_id.get_mut(&tone_id).unwrap();
-    let original_tone = match entry {
-        Entry::Tone(tone) => tone.clone(),
-        _ => return None,
-    };
+    let result = track.slice_tone(tone_id, new_tone_id, slice_tick);
 
-    let tone_start = original_tone.tick;
-    let tone_end = original_tone.tick + original_tone.duration;
-
-    if slice_tick <= tone_start || slice_tick >= tone_end {
-        return None;
+    if result.is_some() {
+        state.emit(&app, &mut renderer, true);
     }
 
-    // Shorten the original tone
-    if let Entry::Tone(tone) = entry {
-        tone.duration = slice_tick - tone_start;
-    }
-
-    // Create new tone for the remainder
-    let new_duration = tone_end - slice_tick;
-    let new_tone = Tone::new(
-        new_tone_id,
-        slice_tick,
-        new_duration,
-        original_tone.pitch,
-        original_tone.velocity,
-        original_tone.articulations.clone(),
-    );
-
-    track.insert_entry(Entry::Tone(new_tone));
-
-    state.emit(&app, &mut renderer, true);
-
-    Some(new_tone_id)
+    result
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -327,21 +399,7 @@ pub fn score_entries_tone_set_position_and_duration(
     let mut renderer = renderer_state.lock().unwrap();
 
     let track = state.score.tracks.by_id.get_mut(&track_id).unwrap();
-    let entry = track.entries.by_id.get_mut(&tone_id).unwrap();
-    if let Entry::Tone(tone) = entry {
-        // Remove from old tick index
-        if let Some(ids) = track.entries.by_tick.get_mut(&tone.tick) {
-            ids.retain(|id| *id != tone_id);
-        }
-
-        // Update tone properties
-        tone.tick = tick;
-        tone.duration = duration;
-
-        // Add to new tick index
-        let tick_vec = track.entries.by_tick.entry(tick).or_default();
-        tick_vec.push(tone_id);
-    }
+    track.set_tone_position_and_duration(tone_id, tick, duration);
 
     state.emit(&app, &mut renderer, true);
 }
@@ -377,17 +435,7 @@ pub fn score_entries_tone_unify_articulations(
     let mut renderer = renderer_state.lock().unwrap();
 
     let track = state.score.tracks.by_id.get_mut(&track_id).unwrap();
-
-    let (moved_tone_articulations, moved_tick) = match track.entries.by_id.get(&entry_id) {
-        Some(Entry::Tone(tone)) => (tone.articulations.clone(), tone.tick),
-        _ => return,
-    };
-
-    if !moved_tone_articulations.is_empty() {
-        track.apply_articulations_to_tick(moved_tick, &moved_tone_articulations);
-    } else if let Some(found_set) = track.first_articulations_at_tick(&moved_tick) {
-        track.apply_articulations_to_tick(moved_tick, &found_set);
-    }
+    track.unify_articulations_at_entry(entry_id);
 
     state.emit(&app, &mut renderer, true);
 }
@@ -406,29 +454,21 @@ pub fn score_entries_tone_pitch_shift_by_steps(
     let mut renderer = renderer_state.lock().unwrap();
 
     let flow = state.score.flows.by_id.get(&flow_id)?;
-
     let master_track = state.score.tracks.by_id.get(&flow.master_id).unwrap();
     let track = state.score.tracks.by_id.get(&track_id).unwrap();
 
-    let tone = track.entries.by_id.get(&tone_id);
-    let tone = match tone {
-        Some(Entry::Tone(tone)) => tone,
+    let tone_tick = match track.entries.by_id.get(&tone_id) {
+        Some(Entry::Tone(tone)) => tone.tick,
         _ => return None,
     };
 
-    let key_signature = match master_track.get_key_signature_before_tick_inclusive(tone.tick) {
+    let key_signature = match master_track.get_key_signature_before_tick_inclusive(tone_tick) {
         Some(key_sig) => key_sig.clone(),
         None => KeySignature::default(),
     };
 
     let track = state.score.tracks.by_id.get_mut(&track_id).unwrap();
-    let entry = track.entries.by_id.get_mut(&tone_id).unwrap();
-    let new_pitch = if let Entry::Tone(tone) = entry {
-        tone.pitch = tone.pitch.shift_by_steps(steps, &key_signature);
-        Some(tone.pitch.int)
-    } else {
-        None
-    };
+    let new_pitch = track.shift_tone_pitch_by_steps(tone_id, steps, &key_signature);
 
     state.emit(&app, &mut renderer, true);
 
@@ -487,19 +527,7 @@ pub fn score_entries_tone_articulation_set(
     let mut renderer = renderer_state.lock().unwrap();
 
     let track = state.score.tracks.by_id.get_mut(&track_id).unwrap();
-    let entry = track.entries.by_id.get_mut(&tone_id).unwrap();
-
-    // Use the selected tone as the guide: compute the resulting articulation set once,
-    // then apply that set uniformly to all tones at the tick.
-    let (tick, selected_set) = if let Entry::Tone(tone) = entry {
-        (tone.tick, tone.articulations.clone())
-    } else {
-        return;
-    };
-
-    let resulting_set = selected_set.toggle(articulation);
-
-    track.apply_articulations_to_tick(tick, &resulting_set);
+    track.toggle_articulation_at_tone(tone_id, articulation);
 
     state.emit(&app, &mut renderer, true);
 }
@@ -693,7 +721,12 @@ mod tests {
 
     // --- helpers ---
 
-    fn make_track_with_tone(tone_id: u64, tick: u64, pitch_int: u8, accidental: Accidental) -> Track {
+    fn make_track_with_tone(
+        tone_id: u64,
+        tick: u64,
+        pitch_int: u8,
+        accidental: Accidental,
+    ) -> Track {
         use crate::score::entries::Entry;
         use crate::score::tracks::Track;
         let mut track = Track::new(1);
@@ -849,5 +882,264 @@ mod tests {
         let mut track = make_track_with_tone(1, 0, 60, Accidental::Natural);
         let result = track.set_tone_accidental(999, Accidental::Sharp);
         assert_eq!(result, None);
+    }
+
+    // --- Track::create_tone ---
+
+    #[test]
+    fn create_tone_with_explicit_accidental() {
+        use crate::score::entries::Entry;
+        use crate::score::tracks::Track;
+        let mut track = Track::new(1);
+        track.create_tone(
+            1,
+            0,
+            32,
+            62,
+            Some(Accidental::Sharp),
+            80,
+            Articulations::new(),
+        );
+        if let Some(Entry::Tone(tone)) = track.entries.by_id.get(&1) {
+            assert_eq!(tone.pitch.int, 62);
+            assert_eq!(tone.pitch.accidental, Accidental::Sharp);
+        } else {
+            panic!("tone not found");
+        }
+    }
+
+    #[test]
+    fn create_tone_inherits_articulations() {
+        use crate::score::components::articulation::Articulation;
+        use crate::score::entries::Entry;
+        // Insert an existing tone with Staccato at tick 0
+        let mut track = make_track_with_tone(1, 0, 60, Accidental::Natural);
+        if let Some(Entry::Tone(t)) = track.entries.by_id.get_mut(&1) {
+            t.articulations = Articulations::new().toggle(Articulation::Staccato);
+        }
+        // Create a new tone at same tick with empty articulations → should inherit
+        track.create_tone(
+            2,
+            0,
+            32,
+            64,
+            Some(Accidental::Natural),
+            80,
+            Articulations::new(),
+        );
+        if let Some(Entry::Tone(tone)) = track.entries.by_id.get(&2) {
+            assert!(tone.articulations.contains(&Articulation::Staccato));
+        } else {
+            panic!("tone not found");
+        }
+    }
+
+    #[test]
+    fn create_tone_applies_provided_articulations_to_all_at_tick() {
+        use crate::score::components::articulation::Articulation;
+        use crate::score::entries::Entry;
+        let mut track = make_track_with_tone(1, 0, 60, Accidental::Natural);
+        let arts = Articulations::new().toggle(Articulation::Tenuto);
+        track.create_tone(2, 0, 32, 64, Some(Accidental::Natural), 80, arts);
+        // Both tones at tick 0 should have Tenuto
+        if let Some(Entry::Tone(t)) = track.entries.by_id.get(&1) {
+            assert!(t.articulations.contains(&Articulation::Tenuto));
+        } else {
+            panic!("tone 1 not found");
+        }
+    }
+
+    // --- Track::slice_tone ---
+
+    #[test]
+    fn slice_tone_returns_some_and_creates_remainder() {
+        use crate::score::entries::Entry;
+        // make_track_with_tone gives duration=32; slice in the middle at tick 16
+        let mut track = make_track_with_tone(1, 0, 60, Accidental::Natural);
+        let result = track.slice_tone(1, 99, 16);
+        assert_eq!(result, Some(99));
+        // Original shortened to 16
+        if let Some(Entry::Tone(orig)) = track.entries.by_id.get(&1) {
+            assert_eq!(orig.duration, 16);
+        }
+        // Remainder at tick 16 with duration 16
+        if let Some(Entry::Tone(tail)) = track.entries.by_id.get(&99) {
+            assert_eq!(tail.tick, 16);
+            assert_eq!(tail.duration, 16);
+        } else {
+            panic!("tail tone not found");
+        }
+    }
+
+    #[test]
+    fn slice_tone_returns_none_at_start() {
+        let mut track = make_track_with_tone(1, 0, 64, Accidental::Natural);
+        assert_eq!(track.slice_tone(1, 99, 0), None);
+    }
+
+    #[test]
+    fn slice_tone_returns_none_at_end() {
+        let mut track = make_track_with_tone(1, 0, 64, Accidental::Natural);
+        assert_eq!(track.slice_tone(1, 99, 64), None);
+    }
+
+    #[test]
+    fn slice_tone_returns_none_outside_range() {
+        let mut track = make_track_with_tone(1, 0, 64, Accidental::Natural);
+        assert_eq!(track.slice_tone(1, 99, 100), None);
+    }
+
+    // --- Track::set_tone_position_and_duration ---
+
+    #[test]
+    fn set_tone_position_and_duration_updates_tick_and_duration() {
+        use crate::score::entries::Entry;
+        let mut track = make_track_with_tone(1, 0, 32, Accidental::Natural);
+        track.set_tone_position_and_duration(1, 64, 48);
+        if let Some(Entry::Tone(tone)) = track.entries.by_id.get(&1) {
+            assert_eq!(tone.tick, 64);
+            assert_eq!(tone.duration, 48);
+        } else {
+            panic!("tone not found");
+        }
+        // by_tick index updated: tone should be at tick 64, not 0
+        assert!(!track
+            .entries
+            .by_tick
+            .get(&0)
+            .map(|v| v.contains(&1))
+            .unwrap_or(false));
+        assert!(track
+            .entries
+            .by_tick
+            .get(&64)
+            .map(|v| v.contains(&1))
+            .unwrap_or(false));
+    }
+
+    // --- Track::unify_articulations_at_entry ---
+
+    #[test]
+    fn unify_articulations_propagates_from_entry_with_articulations() {
+        use crate::score::components::articulation::Articulation;
+        use crate::score::entries::Entry;
+        use crate::score::tracks::Track;
+        let mut track = Track::new(1);
+        let arts = Articulations::new().toggle(Articulation::Accent);
+        // Two tones at tick 0: one with Accent, one without
+        let tone1 = Tone::new(
+            1,
+            0,
+            32,
+            Pitch::new(60, Accidental::Natural),
+            Velocity::new(80),
+            arts.clone(),
+        );
+        let tone2 = Tone::new(
+            2,
+            0,
+            32,
+            Pitch::new(64, Accidental::Natural),
+            Velocity::new(80),
+            Articulations::new(),
+        );
+        track.insert_entry(Entry::Tone(tone1));
+        track.insert_entry(Entry::Tone(tone2));
+        track.unify_articulations_at_entry(1);
+        // Both tones should now have Accent
+        if let Some(Entry::Tone(t)) = track.entries.by_id.get(&2) {
+            assert!(t.articulations.contains(&Articulation::Accent));
+        } else {
+            panic!("tone 2 not found");
+        }
+    }
+
+    // --- Track::shift_tone_pitch_by_steps ---
+
+    #[test]
+    fn shift_tone_pitch_by_steps_up_one() {
+        // C natural (60) up 1 step = D (62)
+        let mut track = make_track_with_tone(1, 0, 60, Accidental::Natural);
+        let key_sig = KeySignature::default();
+        let result = track.shift_tone_pitch_by_steps(1, 1, &key_sig);
+        assert_eq!(result, Some(62));
+    }
+
+    #[test]
+    fn shift_tone_pitch_by_steps_returns_none_for_missing_tone() {
+        let mut track = make_track_with_tone(1, 0, 60, Accidental::Natural);
+        let key_sig = KeySignature::default();
+        assert_eq!(track.shift_tone_pitch_by_steps(999, 1, &key_sig), None);
+    }
+
+    // --- Track::toggle_articulation_at_tone ---
+
+    #[test]
+    fn toggle_articulation_adds_when_absent() {
+        use crate::score::components::articulation::Articulation;
+        use crate::score::entries::Entry;
+        let mut track = make_track_with_tone(1, 0, 60, Accidental::Natural);
+        track.toggle_articulation_at_tone(1, Articulation::Staccato);
+        if let Some(Entry::Tone(tone)) = track.entries.by_id.get(&1) {
+            assert!(tone.articulations.contains(&Articulation::Staccato));
+        } else {
+            panic!("tone not found");
+        }
+    }
+
+    #[test]
+    fn toggle_articulation_removes_when_present() {
+        use crate::score::components::articulation::Articulation;
+        use crate::score::entries::Entry;
+        use crate::score::tracks::Track;
+        let arts = Articulations::new().toggle(Articulation::Tenuto);
+        let mut track = Track::new(1);
+        let tone = Tone::new(
+            1,
+            0,
+            32,
+            Pitch::new(60, Accidental::Natural),
+            Velocity::new(80),
+            arts,
+        );
+        track.insert_entry(Entry::Tone(tone));
+        track.toggle_articulation_at_tone(1, Articulation::Tenuto);
+        if let Some(Entry::Tone(t)) = track.entries.by_id.get(&1) {
+            assert!(!t.articulations.contains(&Articulation::Tenuto));
+        } else {
+            panic!("tone not found");
+        }
+    }
+
+    #[test]
+    fn toggle_articulation_propagates_to_all_tones_at_tick() {
+        use crate::score::components::articulation::Articulation;
+        use crate::score::entries::Entry;
+        use crate::score::tracks::Track;
+        let mut track = Track::new(1);
+        let tone1 = Tone::new(
+            1,
+            0,
+            32,
+            Pitch::new(60, Accidental::Natural),
+            Velocity::new(80),
+            Articulations::new(),
+        );
+        let tone2 = Tone::new(
+            2,
+            0,
+            32,
+            Pitch::new(64, Accidental::Natural),
+            Velocity::new(80),
+            Articulations::new(),
+        );
+        track.insert_entry(Entry::Tone(tone1));
+        track.insert_entry(Entry::Tone(tone2));
+        track.toggle_articulation_at_tone(1, Articulation::Staccato);
+        if let Some(Entry::Tone(t)) = track.entries.by_id.get(&2) {
+            assert!(t.articulations.contains(&Articulation::Staccato));
+        } else {
+            panic!("tone 2 not found");
+        }
     }
 }
