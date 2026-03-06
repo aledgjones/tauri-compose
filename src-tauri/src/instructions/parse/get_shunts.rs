@@ -307,4 +307,47 @@ mod tests {
         // 3 entries should be in shunts
         assert_eq!(shunts.by_id.len(), 3);
     }
+
+    #[test]
+    fn get_note_shunts_assigns_shunts_for_each_split_chord_fragment() {
+        use crate::score::components::duration::Direction;
+
+        let mut entry_one = Notation::new(0, 32);
+        entry_one.tones.push(make_tone(1, 60));
+        entry_one.tones.push(make_tone(2, 59));
+
+        let mut entry_two = Notation::new(32, 16);
+        entry_two.tones.push(make_tone(1, 60));
+        entry_two.tones.push(make_tone(2, 59));
+
+        let mut notation = NotationByTrack::default();
+        let mut notation_track = FxHashMap::default();
+        notation_track.insert(0_u64, entry_one);
+        notation_track.insert(32_u64, entry_two);
+        notation.insert(
+            99,
+            crate::instructions::parse::get_written_durations::NotationTrack {
+                length: 96,
+                track: notation_track,
+            },
+        );
+
+        let mut offsets: ToneVerticalOffsets = FxHashMap::default();
+        offsets.insert(1, 0);
+        offsets.insert(2, -1);
+
+        let mut stem_directions = StemDirectionsByTrack::default();
+        let mut by_tick = FxHashMap::default();
+        by_tick.insert(0_u64, Direction::Up);
+        by_tick.insert(32_u64, Direction::Up);
+        stem_directions.insert(99, by_tick);
+
+        let result = get_note_shunts(&notation, &offsets, &stem_directions);
+        let shunts = &result[&99];
+
+        assert!(shunts.by_id.contains_key(&(0, 1)));
+        assert!(shunts.by_id.contains_key(&(0, 2)));
+        assert!(shunts.by_id.contains_key(&(32, 1)));
+        assert!(shunts.by_id.contains_key(&(32, 2)));
+    }
 }

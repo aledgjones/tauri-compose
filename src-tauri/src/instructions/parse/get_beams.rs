@@ -442,6 +442,30 @@ mod tests {
         )
     }
 
+    fn three_four() -> TimeSignature {
+        TimeSignature::new(
+            2,
+            0,
+            3,
+            NoteDuration::Quarter,
+            TimeSignatureDrawType::Regular,
+            None,
+        )
+    }
+
+    fn make_note_at(tick: u64, id: u64, duration: u64) -> Notation {
+        let mut n = Notation::new(tick, duration);
+        n.tones.push(Tone::new(
+            id,
+            tick,
+            duration,
+            Pitch::new(60, Accidental::Natural),
+            Velocity::new(100),
+            Articulations::new(),
+        ));
+        n
+    }
+
     #[test]
     fn get_beam_count_quarter_is_zero() {
         let n = make_note(1, NoteDuration::Quarter.to_ticks());
@@ -504,6 +528,24 @@ mod tests {
         assert!(!result.is_empty());
         assert_eq!(result[0].start, 0);
         assert_eq!(result[0].stop, eighth);
+    }
+
+    #[test]
+    fn get_beams_three_four_split_dotted_quarters_do_not_form_false_beams() {
+        let quarter = NoteDuration::Quarter.to_ticks();
+        let eighth = NoteDuration::Eighth.to_ticks();
+        let dotted_quarter = quarter + eighth;
+        let mut track = NotationTrack::new(quarter * 3);
+        let mut barlines = FxHashMap::default();
+        barlines.insert(0_u64, three_four());
+
+        track.track.insert(0, make_note_at(0, 1, dotted_quarter));
+        track.track.insert(dotted_quarter, make_note_at(dotted_quarter, 2, eighth));
+        track.track.insert(quarter * 2, make_note_at(quarter * 2, 2, quarter));
+
+        let result = get_beams_in_track(&track, &barlines);
+
+        assert!(result.is_empty());
     }
 
     #[test]

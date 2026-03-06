@@ -300,6 +300,20 @@ mod tests {
         assert_eq!(an.slot, 3);
     }
 
+    fn make_sharp_tone(id: u64, tick: Tick) -> Tone {
+        use crate::score::components::articulation::Articulations;
+        use crate::score::components::velocity::Velocity;
+
+        Tone::new(
+            id,
+            tick,
+            32,
+            Pitch::new(61, Accidental::Sharp),
+            Velocity::new(100),
+            Articulations::new(),
+        )
+    }
+
     // --- sort_accidentals_alternate ---
 
     #[test]
@@ -321,6 +335,34 @@ mod tests {
         for id in &ids {
             assert!(result.contains(id));
         }
+    }
+
+    #[test]
+    fn get_accidentals_in_track_does_not_repeat_accidental_on_split_tied_fragment() {
+        let mut notation = NotationTrack::new(64);
+        let mut first = Notation::new(0, 32);
+        first.tones.push(make_sharp_tone(1, 0));
+        first.ties.insert(1);
+
+        let mut second = Notation::new(32, 16);
+        second.tones.push(make_sharp_tone(1, 32));
+
+        notation.track.insert(0, first);
+        notation.track.insert(32, second);
+
+        let master = Track::new(99);
+        let barlines = Barlines::default();
+        let mut tone_offsets = ToneVerticalOffsets::default();
+        tone_offsets.insert(1, 0);
+        let shunts = Shunts {
+            by_id: FxHashMap::default(),
+            by_offset: FxHashMap::default(),
+        };
+
+        let result = get_accidentals_in_track(&notation, &master, &barlines, &tone_offsets, &shunts);
+
+        assert!(result.by_id.contains_key(&(0, 1)));
+        assert!(!result.by_id.contains_key(&(32, 1)));
     }
 
     #[test]

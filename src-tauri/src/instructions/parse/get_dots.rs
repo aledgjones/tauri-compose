@@ -310,4 +310,29 @@ mod tests {
         // 0 is even, best effort places at 1 (offset + 1)
         assert!(!dots.is_empty());
     }
+
+    #[test]
+    fn get_dots_in_track_only_marks_the_dotted_fragment_of_split_three_four_note() {
+        let quarter = NoteDuration::Quarter.to_ticks();
+        let eighth = NoteDuration::Eighth.to_ticks();
+        let dotted_quarter = quarter + eighth;
+        let mut track = NotationTrack::new(quarter * 3);
+        let mut offsets: ToneVerticalOffsets = FxHashMap::default();
+
+        let dotted = make_dotted_notation(0, dotted_quarter, vec![(1, 1)], &mut offsets);
+        let mut tail = Notation::new(dotted_quarter, eighth);
+        tail.tones.push(make_tone(1, 1, &mut offsets));
+        let mut final_quarter = Notation::new(quarter * 2, quarter);
+        final_quarter.tones.push(make_tone(1, 1, &mut offsets));
+
+        track.track.insert(0, dotted);
+        track.track.insert(dotted_quarter, tail);
+        track.track.insert(quarter * 2, final_quarter);
+
+        let result = get_dots_in_track(&track, &offsets);
+
+        assert!(result.contains_key(&0));
+        assert!(!result.contains_key(&dotted_quarter));
+        assert!(!result.contains_key(&(quarter * 2)));
+    }
 }

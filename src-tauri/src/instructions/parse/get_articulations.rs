@@ -148,4 +148,23 @@ mod tests {
         assert!(result[&0].contains(&Articulation::Tenuto));
         assert!(result[&128].contains(&Articulation::Marcato));
     }
+
+    #[test]
+    fn split_note_fragments_keep_articulations_at_each_written_tick() {
+        let mut track = NotationTrack::new(96);
+        let mut first = Notation::new(0, 32);
+        first.tones.push(make_tone_with_articulation(1, Articulation::Staccato));
+        let mut second = Notation::new(32, 16);
+        second
+            .tones
+            .push(make_tone_with_articulation(1, Articulation::Staccato));
+
+        track.track.insert(0, first);
+        track.track.insert(32, second);
+
+        let result = get_articulations_in_track(&track);
+
+        assert!(result[&0].contains(&Articulation::Staccato));
+        assert!(result[&32].contains(&Articulation::Staccato));
+    }
 }

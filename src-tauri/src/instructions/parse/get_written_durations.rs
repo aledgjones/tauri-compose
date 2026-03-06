@@ -298,6 +298,14 @@ pub struct NotationTrack {
     pub track: FxHashMap<Tick, Notation>,
 }
 
+struct FourBeatBoundaries {
+    start: Tick,
+    beat_two: Tick,
+    beat_three: Tick,
+    beat_four: Tick,
+    stop: Tick,
+}
+
 impl NotationTrack {
     pub fn new(length: Ticks) -> NotationTrack {
         let track = FxHashMap::default();
@@ -578,261 +586,230 @@ impl NotationTrack {
         }
     }
 
-    pub fn split_simple_unit(
+    fn unit_needs_splitting(
+        &self,
+        start: Tick,
+        stop: Tick,
+        original_time_signature: &TimeSignature,
+    ) -> bool {
+        let ticks_per_original_beat = original_time_signature.ticks_per_beat();
+
+        if (stop - start) > ticks_per_original_beat {
+            return true;
+        }
+
+        for tick in start..stop {
+            if let Some(notation) = self.track.get(&tick) {
+                if notation.is_rest() && notation.is_dotted() && notation.tick != start {
+                    return true;
+                }
+
+                if !Notation::is_writable(notation.duration) {
+                    return true;
+                }
+            }
+        }
+
+        false
+    }
+
+    fn recurse_simple_two_beat_unit(
+        &mut self,
+        start: Tick,
+        stop: Tick,
+        original_time_signature: &TimeSignature,
+    ) {
+        self.split_simple_unit(
+            start,
+            stop,
+            original_time_signature,
+            &TimeSignature::new(
+                0,
+                original_time_signature.tick,
+                4,
+                original_time_signature.beat_type.half(),
+                TimeSignatureDrawType::Regular,
+                None,
+            ),
+        );
+    }
+
+    fn split_at_next_boundary_for_off_grid_events(
+        &mut self,
+        ranges: &[(Tick, Tick, Tick)],
+        grid: Ticks,
+    ) {
+        for (range_start, range_stop, split_at) in ranges {
+            for tick in *range_start..*range_stop {
+                if let Some(entry) = self.track.get(&tick) {
+                    if (entry.tick - *range_start) % grid != 0 {
+                        self.split(*split_at);
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    fn split_non_writable_three_beat_durations(
+        &mut self,
+        start: Tick,
+        stop: Tick,
+        beat_two: Tick,
+        beat_three: Tick,
+    ) {
+        for tick in start..stop {
+            if let Some(entry) = self.track.get(&tick) {
+                let duration = entry.get_writable_ticks().unwrap_or(entry.duration);
+
+                if !Notation::is_writable(duration) {
+                    let end = entry.tick + duration;
+
+                    if tick < beat_three && end > beat_three {
+                        self.split(beat_three);
+
+                        let remaining = beat_three - tick;
+
+                        if !Notation::is_writable(remaining) && tick < beat_two && end > beat_two {
+                            self.split(beat_two);
+                        }
+
+                        continue;
+                    }
+
+                    if tick < beat_two && end > beat_two {
+                        self.split(beat_two);
+                    }
+                }
+            };
+        }
+    }
+
+    fn split_rests_at_boundaries(&mut self, start: Tick, stop: Tick, boundaries: &[Tick]) {
+        for tick in start..stop {
+            if let Some(entry) = self.track.get(&tick) {
+                if entry.is_rest() {
+                    let end = entry.tick + entry.duration;
+
+                    for boundary in boundaries {
+                        if tick < *boundary && end > *boundary {
+                            self.split(*boundary);
+                        }
+                    }
+                }
+            };
+        }
+    }
+
+    fn split_three_beat_simple_unit(
         &mut self,
         start: Tick,
         stop: Tick,
         original_time_signature: &TimeSignature,
         time_signature: &TimeSignature,
     ) {
-        // we stop once there are no events in the range
-        if self.is_range_empty(start, stop) {
+        let beat_one = start;
+        let beat_two = time_signature.get_tick_at_beat(start, 2);
+        let beat_three = time_signature.get_tick_at_beat(start, 3);
+
+        let eigth = NoteDuration::Eighth.to_ticks();
+        let dotted_quarter = NoteDuration::Quarter.to_ticks() + eigth;
+
+        if self.is_offbeat_pattern(start, stop, time_signature.beat_type.to_ticks()) {
             return;
         }
 
+        if let Some(entry) = self.track.get(&beat_one) {
+            if !entry.is_rest() && entry.duration == dotted_quarter {
+                if let Some(next_entry) = self.track.get(&(beat_one + dotted_quarter)) {
+                    if next_entry.is_rest() {
+                        self.split(beat_two);
+                    } else if next_entry.duration == dotted_quarter {
+                        self.split(beat_three);
+                    }
+                }
+            }
+        }
+
+        self.split_at_next_boundary_for_off_grid_events(
+            &[(beat_one, beat_two, beat_two), (beat_two, beat_three, beat_three)],
+            eigth,
+        );
+
+        self.split_non_writable_three_beat_durations(start, stop, beat_two, beat_three);
+
+        if self.is_tick_empty(beat_two) && self.is_tick_empty(beat_three) {
+            if let Some(entry) = self.track.get(&(beat_one + dotted_quarter)) {
+                if entry.is_rest() || entry.duration != dotted_quarter {
+                    self.split(beat_three);
+                }
+            }
+        }
+
+        self.split_rests_at_boundaries(start, stop, &[beat_two, beat_three]);
+
+        let next = TimeSignature::new(
+            0,
+            time_signature.tick,
+            4,
+            time_signature.beat_type.half().half(),
+            TimeSignatureDrawType::Regular,
+            None,
+        );
+
+        self.split_simple_unit(beat_one, beat_two, original_time_signature, &next);
+        self.split_simple_unit(beat_two, beat_three, original_time_signature, &next);
+        self.split_simple_unit(beat_three, stop, original_time_signature, &next);
+    }
+
+    fn should_preserve_four_beat_pattern(
+        &self,
+        boundaries: &FourBeatBoundaries,
+        original_time_signature: &TimeSignature,
+        time_signature: &TimeSignature,
+    ) -> bool {
         let ticks_per_original_beat = original_time_signature.ticks_per_beat();
 
-        let mut needs_splitting = (stop - start) > ticks_per_original_beat;
-        if !needs_splitting {
-            for tick in start..stop {
-                if let Some(notation) = self.track.get(&tick) {
-                    // Dotted rests can only appear at the beginning of a unit
-                    if notation.is_rest() && notation.is_dotted() && notation.tick != start {
-                        needs_splitting = true;
-                        break;
-                    }
+        [
+            self.is_qhq_pattern(
+                boundaries.start,
+                boundaries.beat_two,
+                boundaries.beat_four,
+                boundaries.stop,
+            ),
+            self.is_qmdot_pattern(boundaries.start, boundaries.beat_two, boundaries.stop),
+            self.is_mdotq_pattern(
+                ticks_per_original_beat,
+                boundaries.start,
+                boundaries.beat_three,
+                boundaries.beat_four,
+                boundaries.stop,
+            ),
+            self.is_offbeat_pattern(
+                boundaries.start,
+                boundaries.stop,
+                time_signature.beat_type.to_ticks(),
+            ),
+        ]
+        .iter()
+        .any(|&pattern_matched| pattern_matched)
+    }
 
-                    // Everything else needs to be writable
-                    if !Notation::is_writable(notation.duration) {
-                        needs_splitting = true;
-                        break;
-                    }
-                }
-            }
-        }
-
-        if !needs_splitting {
-            return;
-        }
-
-        match time_signature.beats {
-            2 => {
-                self.split_simple_unit(
-                    start,
-                    stop,
-                    original_time_signature,
-                    &TimeSignature::new(
-                        0,
-                        original_time_signature.tick,
-                        4,
-                        original_time_signature.beat_type.half(),
-                        TimeSignatureDrawType::Regular,
-                        None,
-                    ),
-                );
-            }
-            3 => {
-                let beat_one = start;
-                let beat_two = time_signature.get_tick_at_beat(start, 2);
-                let beat_three = time_signature.get_tick_at_beat(start, 3);
-
-                let eigth = NoteDuration::Eighth.to_ticks();
-                let dotted_quarter = NoteDuration::Quarter.to_ticks() + eigth;
-
-                let patterns =
-                    [self.is_offbeat_pattern(start, stop, time_signature.beat_type.to_ticks())];
-
-                if patterns.iter().any(|&pattern_matched| pattern_matched) {
-                    // These patterns span the entire unit so we can early return as there is no
-                    // higher fidelity that is needed.
-                    return;
-                }
-
-                // Patterns that start with a dotted quarter on beat 1
-                if let Some(entry) = self.track.get(&beat_one) {
-                    if !entry.is_rest() && entry.duration == dotted_quarter {
-                        if let Some(next_entry) = self.track.get(&(beat_one + dotted_quarter)) {
-                            // if the first beat is a dotted 1/4 and it's followed by a rest, we split at beat 2
-                            if next_entry.is_rest() {
-                                self.split(beat_two);
-                            }
-                            // split 2 dotted quarters at beat 3 so it doesn't look like 6/8
-                            else if next_entry.duration == dotted_quarter {
-                                self.split(beat_three);
-                            }
-                        }
-                    }
-                }
-
-                // Split at the next beat if any note starts off the eighth-note grid. Esures valid note lengths are not
-                // erroniously drawn across beat boundries. No need to check the last beat since it ends at the stop point.
-                let ranges = [
-                    (beat_one, beat_two, beat_two),
-                    (beat_two, beat_three, beat_three),
-                ];
-
-                for (start, end, split_at) in ranges {
-                    for tick in start..end {
-                        if let Some(entry) = self.track.get(&tick) {
-                            if (entry.tick - start) % eigth != 0 {
-                                self.split(split_at);
-                                break;
-                            }
-                        }
-                    }
-                }
-
-                // Split all non-writable durations at beat boundaries
-                for tick in start..stop {
-                    if let Some(entry) = self.track.get(&tick) {
-                        let duration = entry.get_writable_ticks().unwrap_or(entry.duration);
-
-                        if !Notation::is_writable(duration) {
-                            let end = entry.tick + duration;
-
-                            // Split at the last beat if non-writable
-                            if tick < beat_three && end > beat_three {
-                                self.split(beat_three);
-
-                                let remaining = beat_three - tick;
-
-                                // If the remaining is still not writable and if it goes across beat 2, we split it
-                                // otherwise it's managed by the next recursion
-                                if !Notation::is_writable(remaining)
-                                    && tick < beat_two
-                                    && end > beat_two
-                                {
-                                    self.split(beat_two);
-                                }
-
-                                continue;
-                            }
-
-                            // It does not cross beat 3 but crosses beat 2
-                            if tick < beat_two && end > beat_two {
-                                self.split(beat_two);
-                            }
-                        }
-                    };
-                }
-
-                // if we haven't made any splits we split at the third beat
-                if self.is_tick_empty(beat_two) && self.is_tick_empty(beat_three) {
-                    // the exception is if there is a dotted quarter at the end of the bar
-                    if let Some(entry) = self.track.get(&(beat_one + dotted_quarter)) {
-                        if entry.is_rest() || entry.duration != dotted_quarter {
-                            self.split(beat_three);
-                        }
-                    }
-                }
-
-                // Split all rests at beat boundaries. Do this right at the end as rests don't count
-                // towards the "if we haven't made any splits we split at the third beat" rule
-                for tick in start..stop {
-                    if let Some(entry) = self.track.get(&tick) {
-                        if entry.is_rest() {
-                            let end = entry.tick + entry.duration;
-                            if tick < beat_two && end > beat_two {
-                                self.split(beat_two);
-                            }
-
-                            if tick < beat_three && end > beat_three {
-                                self.split(beat_three);
-                            }
-                        }
-                    };
-                }
-
-                let next = TimeSignature::new(
-                    0,
-                    time_signature.tick,
-                    4,
-                    time_signature.beat_type.half().half(),
-                    TimeSignatureDrawType::Regular,
-                    None,
-                );
-
-                self.split_simple_unit(beat_one, beat_two, original_time_signature, &next);
-                self.split_simple_unit(beat_two, beat_three, original_time_signature, &next);
-                self.split_simple_unit(beat_three, stop, original_time_signature, &next);
-            }
-            4 => {
-                let beat_one = start;
-                let beat_two = time_signature.get_tick_at_beat(start, 2);
-                let beat_three = time_signature.get_tick_at_beat(start, 3);
-                let beat_four = time_signature.get_tick_at_beat(start, 4);
-
-                let patterns = [
-                    self.is_qhq_pattern(beat_one, beat_two, beat_four, stop),
-                    self.is_qmdot_pattern(beat_one, beat_two, stop),
-                    self.is_mdotq_pattern(
-                        ticks_per_original_beat,
-                        beat_one,
-                        beat_three,
-                        beat_four,
-                        stop,
-                    ),
-                    self.is_offbeat_pattern(start, stop, time_signature.beat_type.to_ticks()),
-                ];
-
-                if patterns.iter().any(|&pattern_matched| pattern_matched) {
-                    // These patterns span the entire unit so we can early return as there is no
-                    // higher fidelity that is needed.
-                    return;
-                }
-
-                // Allow spanning the middle point for notes with dotted rhythms at the beginning of the unit,
-                // the exception being a dotted note with a base of the tiem signature that is followed by a rest.
-                if let Some(notation) = self.track.get(&beat_one) {
-                    if !notation.is_rest()
-                        && notation.duration == beat_four - beat_one
-                        && (notation.duration != (ticks_per_original_beat / 2) * 3
-                            || !self.is_tick_rest(beat_four))
-                    {
-                        let next_unit_time_signature = TimeSignature::new(
-                            0,
-                            time_signature.tick,
-                            4,
-                            time_signature.beat_type.half(),
-                            TimeSignatureDrawType::Regular,
-                            None,
-                        );
-                        self.split_simple_unit(
-                            beat_four,
-                            stop,
-                            original_time_signature,
-                            &next_unit_time_signature,
-                        );
-                        return;
-                    }
-                }
-
-                // Allow spanning the middle point for notes with dotted rhythms at the end of the unit less than a beat length
-                if let Some(notation) = self.track.get(&beat_two) {
-                    if !notation.is_rest()
-                        && notation.duration == stop - beat_two
-                        && notation.duration < ticks_per_original_beat
-                    {
-                        let next_unit_time_signature = TimeSignature::new(
-                            0,
-                            time_signature.tick,
-                            4,
-                            time_signature.beat_type.half(),
-                            TimeSignatureDrawType::Regular,
-                            None,
-                        );
-                        self.split_simple_unit(
-                            beat_one,
-                            beat_two,
-                            original_time_signature,
-                            &next_unit_time_signature,
-                        );
-                        return;
-                    }
-                }
-
-                self.split(beat_three);
-
+    fn try_preserve_four_beat_leading_span(
+        &mut self,
+        stop: Tick,
+        beat_one: Tick,
+        beat_four: Tick,
+        ticks_per_original_beat: Ticks,
+        original_time_signature: &TimeSignature,
+        time_signature: &TimeSignature,
+    ) -> bool {
+        if let Some(notation) = self.track.get(&beat_one) {
+            if !notation.is_rest()
+                && notation.duration == beat_four - beat_one
+                && (notation.duration != (ticks_per_original_beat / 2) * 3
+                    || !self.is_tick_rest(beat_four))
+            {
                 let next_unit_time_signature = TimeSignature::new(
                     0,
                     time_signature.tick,
@@ -841,20 +818,156 @@ impl NotationTrack {
                     TimeSignatureDrawType::Regular,
                     None,
                 );
-
                 self.split_simple_unit(
-                    start,
-                    beat_three,
-                    original_time_signature,
-                    &next_unit_time_signature,
-                );
-                self.split_simple_unit(
-                    beat_three,
+                    beat_four,
                     stop,
                     original_time_signature,
                     &next_unit_time_signature,
                 );
+                return true;
             }
+        }
+
+        false
+    }
+
+    fn try_preserve_four_beat_trailing_span(
+        &mut self,
+        beat_one: Tick,
+        beat_two: Tick,
+        original_time_signature: &TimeSignature,
+        time_signature: &TimeSignature,
+        stop: Tick,
+    ) -> bool {
+        if let Some(notation) = self.track.get(&beat_two) {
+            if !notation.is_rest()
+                && notation.duration == stop - beat_two
+                && notation.duration < original_time_signature.ticks_per_beat()
+            {
+                let next_unit_time_signature = TimeSignature::new(
+                    0,
+                    time_signature.tick,
+                    4,
+                    time_signature.beat_type.half(),
+                    TimeSignatureDrawType::Regular,
+                    None,
+                );
+                self.split_simple_unit(
+                    beat_one,
+                    beat_two,
+                    original_time_signature,
+                    &next_unit_time_signature,
+                );
+                return true;
+            }
+        }
+
+        false
+    }
+
+    fn split_four_beat_simple_unit(
+        &mut self,
+        start: Tick,
+        stop: Tick,
+        original_time_signature: &TimeSignature,
+        time_signature: &TimeSignature,
+    ) {
+        let beat_one = start;
+        let beat_two = time_signature.get_tick_at_beat(start, 2);
+        let beat_three = time_signature.get_tick_at_beat(start, 3);
+        let beat_four = time_signature.get_tick_at_beat(start, 4);
+        let ticks_per_original_beat = original_time_signature.ticks_per_beat();
+        let boundaries = FourBeatBoundaries {
+            start,
+            beat_two,
+            beat_three,
+            beat_four,
+            stop,
+        };
+
+        if self.should_preserve_four_beat_pattern(
+            &boundaries,
+            original_time_signature,
+            time_signature,
+        ) {
+            return;
+        }
+
+        if self.try_preserve_four_beat_leading_span(
+            stop,
+            beat_one,
+            beat_four,
+            ticks_per_original_beat,
+            original_time_signature,
+            time_signature,
+        ) {
+            return;
+        }
+
+        if self.try_preserve_four_beat_trailing_span(
+            beat_one,
+            beat_two,
+            original_time_signature,
+            time_signature,
+            stop,
+        ) {
+            return;
+        }
+
+        self.split(beat_three);
+
+        let next_unit_time_signature = TimeSignature::new(
+            0,
+            time_signature.tick,
+            4,
+            time_signature.beat_type.half(),
+            TimeSignatureDrawType::Regular,
+            None,
+        );
+
+        self.split_simple_unit(
+            start,
+            beat_three,
+            original_time_signature,
+            &next_unit_time_signature,
+        );
+        self.split_simple_unit(
+            beat_three,
+            stop,
+            original_time_signature,
+            &next_unit_time_signature,
+        );
+    }
+
+    pub fn split_simple_unit(
+        &mut self,
+        start: Tick,
+        stop: Tick,
+        original_time_signature: &TimeSignature,
+        time_signature: &TimeSignature,
+    ) {
+        if self.is_range_empty(start, stop) {
+            return;
+        }
+
+        if !self.unit_needs_splitting(start, stop, original_time_signature) {
+            return;
+        }
+
+        match time_signature.beats {
+            2 => self.recurse_simple_two_beat_unit(start, stop, original_time_signature),
+            3 => self.split_three_beat_simple_unit(
+                start,
+                stop,
+                original_time_signature,
+                time_signature,
+            ),
+            4 => self.split_four_beat_simple_unit(
+                start,
+                stop,
+                original_time_signature,
+                time_signature,
+            ),
             _ => (),
         }
     }
@@ -2488,5 +2601,443 @@ mod tests {
         });
         let guide = n.get_beam_guide_note(&Direction::Down);
         assert_eq!(guide, -2);
+    }
+
+    #[derive(Debug, PartialEq, Eq)]
+    struct NotationExpectation {
+        tick: Tick,
+        duration: Ticks,
+        is_rest: bool,
+        tone_ids: Vec<u64>,
+        tie_ids: Vec<u64>,
+    }
+
+    fn notation_expectation(
+        tick: Tick,
+        duration: Ticks,
+        is_rest: bool,
+        tone_ids: Vec<u64>,
+        tie_ids: Vec<u64>,
+    ) -> NotationExpectation {
+        NotationExpectation {
+            tick,
+            duration,
+            is_rest,
+            tone_ids,
+            tie_ids,
+        }
+    }
+
+    fn assert_notation_track_matches(
+        notation_track: &NotationTrack,
+        expectations: Vec<NotationExpectation>,
+    ) {
+        let mut actual = notation_track.track.values().collect::<Vec<_>>();
+        actual.sort_by_key(|entry| entry.tick);
+
+        let normalized_actual = actual
+            .into_iter()
+            .map(|entry| {
+                let mut tone_ids = entry.tones.iter().map(|tone| tone.id).collect::<Vec<_>>();
+                let mut tie_ids = entry.ties.iter().copied().collect::<Vec<_>>();
+                tone_ids.sort_unstable();
+                tie_ids.sort_unstable();
+
+                NotationExpectation {
+                    tick: entry.tick,
+                    duration: entry.duration,
+                    is_rest: entry.is_rest(),
+                    tone_ids,
+                    tie_ids,
+                }
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(normalized_actual, expectations);
+    }
+
+    fn make_time_signature_for_test(tick: Tick, beats: u8, beat_type: NoteDuration) -> TimeSignature {
+        TimeSignature::new(
+            1,
+            tick,
+            beats,
+            beat_type,
+            TimeSignatureDrawType::Regular,
+            None,
+        )
+    }
+
+    fn make_tone_entry(id: u64, tick: Tick, duration: Ticks, pitch_int: u8) -> Entry {
+        use crate::score::components::articulation::Articulations;
+        use crate::score::components::pitch::{Accidental, Pitch};
+        use crate::score::components::velocity::Velocity;
+        use crate::score::entries::tone::Tone;
+
+        Entry::Tone(Tone::new(
+            id,
+            tick,
+            duration,
+            Pitch::new(pitch_int, Accidental::Natural),
+            Velocity::new(100),
+            Articulations::new(),
+        ))
+    }
+
+    fn make_parser_fixture(
+        time_signature: TimeSignature,
+        tone_specs: &[(u64, Tick, Ticks, u8)],
+    ) -> (Flow, Instrument, Tracks, u64) {
+        use crate::score::components::pitch::{Accidental, Pitch};
+        use crate::score::entries::clef::{Clef, ClefDrawType};
+        use crate::score::entries::Entry;
+        use crate::score::instruments::defs::InstrumentType;
+        use crate::score::staves::{Stave, Staves};
+        use rustc_hash::{FxHashMap, FxHashSet};
+
+        let master_id = 10;
+        let track_id = 11;
+        let stave_id = 12;
+        let instrument_id = 13;
+        let flow_id = 14;
+
+        let mut master = Track::new(master_id);
+        master.insert_entry(Entry::TimeSignature(time_signature.clone()));
+        master.insert_entry(Entry::Clef(Clef::new(
+            2,
+            0,
+            Pitch::new(60, Accidental::Natural),
+            0,
+            ClefDrawType::C,
+        )));
+
+        let mut track = Track::new(track_id);
+        for (id, tick, duration, pitch_int) in tone_specs {
+            track.insert_entry(make_tone_entry(*id, *tick, *duration, *pitch_int));
+        }
+
+        let mut by_id = FxHashMap::default();
+        by_id.insert(master_id, master);
+        by_id.insert(track_id, track);
+
+        let mut staves = Staves::new();
+        staves.by_id.insert(
+            stave_id,
+            Stave {
+                id: stave_id,
+                lines: vec![1, 1, 1, 1, 1],
+                master_id,
+                track_ids: vec![track_id],
+            },
+        );
+
+        let flow = Flow {
+            id: flow_id,
+            title: String::new(),
+            player_ids: FxHashSet::default(),
+            length: time_signature.ticks_per_bar(),
+            master_id,
+            staves,
+        };
+
+        let instrument = Instrument {
+            id: instrument_id,
+            definition_id: String::from("test.instrument"),
+            instrument_type: InstrumentType::Melodic,
+            long_name: String::from("Test Instrument"),
+            short_name: String::from("Test"),
+            stave_ids: vec![stave_id],
+            count: None,
+            assigned_plugin_id: None,
+            volume: 100,
+            pan: 64,
+            mute: false,
+            solo: false,
+        };
+
+        (flow, instrument, Tracks { by_id }, track_id)
+    }
+
+    #[test]
+    fn split_preserves_left_tie_to_split_tone_and_right_existing_ties() {
+        let q = NoteDuration::Quarter.to_ticks();
+        let mut track = NotationTrack::new(q * 4);
+        let mut notation = make_note_at(0, q * 2, 7);
+        notation.ties.insert(99);
+        track.track.insert(0, notation);
+
+        track.split(q);
+
+        assert_notation_track_matches(
+            &track,
+            vec![
+                notation_expectation(0, q, false, vec![7], vec![7]),
+                notation_expectation(q, q, false, vec![7], vec![99]),
+            ],
+        );
+    }
+
+    #[test]
+    fn split_simple_unit_preserves_qhq_pattern_in_four_four() {
+        let q = NoteDuration::Quarter.to_ticks();
+        let time_signature = make_time_signature_for_test(0, 4, NoteDuration::Quarter);
+        let mut track = NotationTrack::new(q * 4);
+        track.track.insert(0, make_note_at(0, q, 1));
+        track.track.insert(q, make_note_at(q, q * 2, 2));
+        track.track.insert(q * 3, make_note_at(q * 3, q, 3));
+
+        track.split_simple_unit(0, q * 4, &time_signature, &time_signature);
+
+        assert_notation_track_matches(
+            &track,
+            vec![
+                notation_expectation(0, q, false, vec![1], vec![]),
+                notation_expectation(q, q * 2, false, vec![2], vec![]),
+                notation_expectation(q * 3, q, false, vec![3], vec![]),
+            ],
+        );
+    }
+
+    #[test]
+    fn split_simple_unit_preserves_whole_note_covering_entire_four_four_unit() {
+        let q = NoteDuration::Quarter.to_ticks();
+        let time_signature = make_time_signature_for_test(0, 4, NoteDuration::Quarter);
+        let mut track = NotationTrack::new(q * 4);
+        track.track.insert(0, make_note_at(0, q * 4, 1));
+
+        track.split_simple_unit(0, q * 4, &time_signature, &time_signature);
+
+        assert_notation_track_matches(
+            &track,
+            vec![notation_expectation(0, q * 4, false, vec![1], vec![])],
+        );
+    }
+
+    #[test]
+    fn split_simple_unit_in_three_four_splits_second_dotted_quarter_at_beat_three() {
+        let q = NoteDuration::Quarter.to_ticks();
+        let dotted_quarter = q + NoteDuration::Eighth.to_ticks();
+        let time_signature = make_time_signature_for_test(0, 3, NoteDuration::Quarter);
+        let mut track = NotationTrack::new(q * 3);
+        track.track.insert(0, make_note_at(0, dotted_quarter, 1));
+        track.track.insert(dotted_quarter, make_note_at(dotted_quarter, dotted_quarter, 2));
+
+        track.split_simple_unit(0, q * 3, &time_signature, &time_signature);
+
+        assert_notation_track_matches(
+            &track,
+            vec![
+                notation_expectation(0, dotted_quarter, false, vec![1], vec![]),
+                notation_expectation(dotted_quarter, q / 2, false, vec![2], vec![2]),
+                notation_expectation(q * 2, q, false, vec![2], vec![]),
+            ],
+        );
+    }
+
+    #[test]
+    fn split_simple_unit_in_three_four_splits_dotted_quarter_followed_by_rest_at_beat_two() {
+        let q = NoteDuration::Quarter.to_ticks();
+        let dotted_quarter = q + NoteDuration::Eighth.to_ticks();
+        let time_signature = make_time_signature_for_test(0, 3, NoteDuration::Quarter);
+        let mut track = NotationTrack::new(q * 3);
+        track.track.insert(0, make_note_at(0, dotted_quarter, 1));
+        track.track.insert(dotted_quarter, make_rest_at(dotted_quarter, dotted_quarter));
+
+        track.split_simple_unit(0, q * 3, &time_signature, &time_signature);
+
+        assert_notation_track_matches(
+            &track,
+            vec![
+                notation_expectation(0, q, false, vec![1], vec![1]),
+                notation_expectation(q, q / 2, false, vec![1], vec![]),
+                notation_expectation(dotted_quarter, q / 2, true, vec![], vec![]),
+                notation_expectation(q * 2, q, true, vec![], vec![]),
+            ],
+        );
+    }
+
+    #[test]
+    fn split_at_next_boundary_for_off_grid_events_splits_at_supplied_boundary() {
+        let q = NoteDuration::Quarter.to_ticks();
+        let eighth = NoteDuration::Eighth.to_ticks();
+        let mut track = NotationTrack::new(q * 3);
+        track.track.insert(0, make_note_at(0, q, 1));
+        track.track.insert(q + 1, make_note_at(q + 1, eighth - 1, 2));
+
+        track.split_at_next_boundary_for_off_grid_events(&[(q, q * 2, q * 2)], eighth);
+
+        assert!(track.track.contains_key(&(q * 2)));
+        assert_eq!(track.track[&(q * 2)].duration, 1);
+    }
+
+    #[test]
+    fn split_rests_at_boundaries_splits_rest_at_each_crossed_boundary() {
+        let q = NoteDuration::Quarter.to_ticks();
+        let mut track = NotationTrack::new(q * 3);
+        track.track.insert(q, make_rest_at(q, q * 2));
+
+        track.split_rests_at_boundaries(q, q * 3, &[q * 2]);
+
+        assert_notation_track_matches(
+            &track,
+            vec![
+                notation_expectation(q, q, true, vec![], vec![]),
+                notation_expectation(q * 2, q, true, vec![], vec![]),
+            ],
+        );
+    }
+
+    #[test]
+    fn get_written_durations_preserves_qhq_pattern_end_to_end() {
+        let q = NoteDuration::Quarter.to_ticks();
+        let time_signature = make_time_signature_for_test(0, 4, NoteDuration::Quarter);
+        let (flow, instrument, tracks, track_id) = make_parser_fixture(
+            time_signature,
+            &[(1, 0, q, 60), (2, q, q * 2, 62), (3, q * 3, q, 64)],
+        );
+        let instruments = vec![&instrument];
+        let measures = crate::instructions::parse::get_measures::get_measures(&flow, &tracks);
+        let tone_offsets = crate::instructions::parse::get_tone_offsets::get_tone_offsets(
+            &flow,
+            &instruments,
+            &tracks,
+        );
+        let notation = get_written_durations(&flow, &instruments, &tracks, &measures, &tone_offsets);
+
+        assert_notation_track_matches(
+            &notation[&track_id],
+            vec![
+                notation_expectation(0, q, false, vec![1], vec![]),
+                notation_expectation(q, q * 2, false, vec![2], vec![]),
+                notation_expectation(q * 3, q, false, vec![3], vec![]),
+            ],
+        );
+    }
+
+    #[test]
+    fn get_written_durations_preserves_whole_note_covering_entire_four_four_bar() {
+        let q = NoteDuration::Quarter.to_ticks();
+        let time_signature = make_time_signature_for_test(0, 4, NoteDuration::Quarter);
+        let (flow, instrument, tracks, track_id) =
+            make_parser_fixture(time_signature, &[(1, 0, q * 4, 60)]);
+        let instruments = vec![&instrument];
+        let measures = crate::instructions::parse::get_measures::get_measures(&flow, &tracks);
+        let tone_offsets = crate::instructions::parse::get_tone_offsets::get_tone_offsets(
+            &flow,
+            &instruments,
+            &tracks,
+        );
+        let notation = get_written_durations(&flow, &instruments, &tracks, &measures, &tone_offsets);
+
+        assert_notation_track_matches(
+            &notation[&track_id],
+            vec![notation_expectation(0, q * 4, false, vec![1], vec![])],
+        );
+    }
+
+    #[test]
+    fn get_written_durations_in_three_four_splits_second_dotted_quarter_at_beat_three() {
+        let q = NoteDuration::Quarter.to_ticks();
+        let dotted_quarter = q + NoteDuration::Eighth.to_ticks();
+        let time_signature = make_time_signature_for_test(0, 3, NoteDuration::Quarter);
+        let (flow, instrument, tracks, track_id) = make_parser_fixture(
+            time_signature,
+            &[(1, 0, dotted_quarter, 60), (2, dotted_quarter, dotted_quarter, 62)],
+        );
+        let instruments = vec![&instrument];
+        let measures = crate::instructions::parse::get_measures::get_measures(&flow, &tracks);
+        let tone_offsets = crate::instructions::parse::get_tone_offsets::get_tone_offsets(
+            &flow,
+            &instruments,
+            &tracks,
+        );
+        let notation = get_written_durations(&flow, &instruments, &tracks, &measures, &tone_offsets);
+
+        assert_notation_track_matches(
+            &notation[&track_id],
+            vec![
+                notation_expectation(0, dotted_quarter, false, vec![1], vec![]),
+                notation_expectation(dotted_quarter, q / 2, false, vec![2], vec![2]),
+                notation_expectation(q * 2, q, false, vec![2], vec![]),
+            ],
+        );
+    }
+
+    #[test]
+    fn get_written_durations_in_three_four_splits_dotted_quarter_followed_by_rest_at_beat_two() {
+        let q = NoteDuration::Quarter.to_ticks();
+        let dotted_quarter = q + NoteDuration::Eighth.to_ticks();
+        let time_signature = make_time_signature_for_test(0, 3, NoteDuration::Quarter);
+        let (flow, instrument, tracks, track_id) =
+            make_parser_fixture(time_signature, &[(1, 0, dotted_quarter, 60)]);
+        let instruments = vec![&instrument];
+        let measures = crate::instructions::parse::get_measures::get_measures(&flow, &tracks);
+        let tone_offsets = crate::instructions::parse::get_tone_offsets::get_tone_offsets(
+            &flow,
+            &instruments,
+            &tracks,
+        );
+        let notation = get_written_durations(&flow, &instruments, &tracks, &measures, &tone_offsets);
+
+        assert_notation_track_matches(
+            &notation[&track_id],
+            vec![
+                notation_expectation(0, q, false, vec![1], vec![1]),
+                notation_expectation(q, q / 2, false, vec![1], vec![]),
+                notation_expectation(dotted_quarter, q / 2, true, vec![], vec![]),
+                notation_expectation(q * 2, q, true, vec![], vec![]),
+            ],
+        );
+    }
+
+    #[test]
+    #[should_panic]
+    fn get_written_durations_panics_for_compound_time_signature() {
+        let dotted_quarter = NoteDuration::Quarter;
+        let time_signature = make_time_signature_for_test(0, 6, dotted_quarter);
+        let (flow, instrument, tracks, _track_id) =
+            make_parser_fixture(time_signature, &[(1, 0, 32, 60)]);
+        let instruments = vec![&instrument];
+        let measures = crate::instructions::parse::get_measures::get_measures(&flow, &tracks);
+        let tone_offsets = crate::instructions::parse::get_tone_offsets::get_tone_offsets(
+            &flow,
+            &instruments,
+            &tracks,
+        );
+
+        let _ = get_written_durations(&flow, &instruments, &tracks, &measures, &tone_offsets);
+    }
+
+    #[test]
+    #[should_panic]
+    fn get_written_durations_panics_for_complex_time_signature() {
+        let time_signature = make_time_signature_for_test(0, 5, NoteDuration::Quarter);
+        let (flow, instrument, tracks, _track_id) =
+            make_parser_fixture(time_signature, &[(1, 0, 32, 60)]);
+        let instruments = vec![&instrument];
+        let measures = crate::instructions::parse::get_measures::get_measures(&flow, &tracks);
+        let tone_offsets = crate::instructions::parse::get_tone_offsets::get_tone_offsets(
+            &flow,
+            &instruments,
+            &tracks,
+        );
+
+        let _ = get_written_durations(&flow, &instruments, &tracks, &measures, &tone_offsets);
+    }
+
+    #[test]
+    #[should_panic]
+    fn get_written_durations_panics_for_open_time_signature() {
+        let time_signature = make_time_signature_for_test(0, 0, NoteDuration::Quarter);
+        let (flow, instrument, tracks, _track_id) =
+            make_parser_fixture(time_signature, &[(1, 0, 32, 60)]);
+        let instruments = vec![&instrument];
+        let measures = crate::instructions::parse::get_measures::get_measures(&flow, &tracks);
+        let tone_offsets = crate::instructions::parse::get_tone_offsets::get_tone_offsets(
+            &flow,
+            &instruments,
+            &tracks,
+        );
+
+        let _ = get_written_durations(&flow, &instruments, &tracks, &measures, &tone_offsets);
     }
 }

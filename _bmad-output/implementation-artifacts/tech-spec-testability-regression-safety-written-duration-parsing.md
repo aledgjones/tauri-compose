@@ -2,8 +2,8 @@
 title: "Testability & Regression Safety Plan for Written Duration Parsing"
 slug: "testability-regression-safety-written-duration-parsing"
 created: "2026-03-06"
-status: "ready-for-dev"
-stepsCompleted: [1, 2, 3, 4]
+status: "implemented"
+stepsCompleted: [1, 2, 3, 4, 5, 6]
 tech_stack:
   - "Rust 2021"
   - "Tauri 2.10"
@@ -22,6 +22,8 @@ files_to_modify:
   - "src-tauri/src/instructions/parse/get_dots.rs"
   - "src-tauri/src/instructions/parse/get_articulations.rs"
   - "src-tauri/src/instructions/parse/get_stem_directions.rs"
+  - "_bmad-output/implementation-artifacts/notation-edge-cases-written-durations.md"
+related_documents:
   - "_bmad-output/implementation-artifacts/notation-edge-cases-written-durations.md"
 code_patterns:
   - "clarity-first helper extraction from large recursive parsing methods"
@@ -43,6 +45,7 @@ test_patterns:
 # Tech-Spec: Testability & Regression Safety Plan for Written Duration Parsing
 
 **Created:** 2026-03-06
+**Completed:** 2026-03-06
 
 ## Overview
 
@@ -129,32 +132,32 @@ Refactor the written-duration parsing flow for clarity first and testability sec
 
 ### Tasks
 
-- [ ] Task 1: Establish the behavior baseline and target assertions for written-duration parsing
+- [x] Task 1: Establish the behavior baseline and target assertions for written-duration parsing
   - File: `src-tauri/src/instructions/parse/get_written_durations.rs`
   - Action: Audit the current test module and group existing coverage into three buckets: low-level method tests already present, missing rule-level tests, and missing whole-scenario regression tests. Add a durable characterization checkpoint consisting of a baseline scenario matrix plus baseline expected outputs for the current high-risk cases before structural refactors begin.
   - Notes: This is a planning-in-code task, not a behavior change. The aim is to stop adding ad hoc tests and instead build a deliberate regression net around the risky logic before structural changes begin. This checkpoint must exist before Task 2 starts.
 
-- [ ] Task 2: Refactor `split_simple_unit()` and closely related rule paths for readability without changing behavior
+- [x] Task 2: Refactor `split_simple_unit()` and closely related rule paths for readability without changing behavior
   - File: `src-tauri/src/instructions/parse/get_written_durations.rs`
   - Action: Extract the densest rule clusters in `split_simple_unit()` into small, clearly named helper functions that preserve current semantics, especially around: split-need detection, 3-beat pattern exceptions, off-grid split checks, non-writable duration splitting, rest-boundary splitting, and 4-beat middle-span exceptions.
   - Notes: Keep the helpers in the same file unless a move materially improves clarity. Do not introduce indirection whose only value is test access. Keep all tick math anchored in existing `TimeSignature` APIs where possible. Land this in small steps with tests added or updated before each refactor slice where practical. A refactor slice should cover only one rule cluster or one helper extraction family at a time.
 
-- [ ] Task 3: Add compact fixture builders for meaningful notation scenarios
+- [x] Task 3: Add compact fixture builders for meaningful notation scenarios
   - File: `src-tauri/src/instructions/parse/get_written_durations.rs`
   - Action: Add small test-only constructors for the minimum graph needed to run real parsing: `Flow`, `Instrument`, `Stave`, `Track`, `Tracks`, `Measures`, `Tone`, and `TimeSignature`. Use these builders to express scenarios in musical terms rather than raw map assembly.
   - Notes: Keep builders local to the `#[cfg(test)]` module in `get_written_durations.rs` and treat that module as the owner of the primary parser-fixture vocabulary. Prefer a few focused helpers over a reusable mini-framework. The production code should stay simpler, not more abstract.
 
-- [ ] Task 4: Strengthen direct rule and structure tests around `NotationTrack`
+- [x] Task 4: Strengthen direct rule and structure tests around `NotationTrack`
   - File: `src-tauri/src/instructions/parse/get_written_durations.rs`
   - Action: Add targeted tests for rule helpers and structural behavior that are still under-protected, including: split recursion stop conditions, dotted-rest handling inside units, off-grid event detection, beat-boundary splits for non-writable durations, tie propagation after `split()`, and negative cases where pattern exceptions intentionally suppress splits.
   - Notes: These tests should assert exact event starts and durations, not just booleans, whenever a rule mutates notation structure.
 
-- [ ] Task 5: Add table-driven scenario tests for the core musical patterns in simple meter
+- [x] Task 5: Add table-driven scenario tests for the core musical patterns in simple meter
   - File: `src-tauri/src/instructions/parse/get_written_durations.rs`
   - Action: Introduce scenario tables covering representative simple-meter outcomes for 2-, 3-, and 4-beat units. Include cases for dotted rhythms, offbeat groupings, qhq / qm. / m.q pattern preservation, rest splitting across beats, no-split cases, and unsupported non-simple time-signature boundary cases.
   - Notes: Each scenario should describe the raw input events and assert the final written notation sequence using one canonical local assertion format, such as `NotationExpectation { tick, duration, is_rest, tone_ids, tie_ids }`.
 
-- [ ] Task 6: Add end-to-end `get_written_durations()` regression tests from raw score inputs
+- [x] Task 6: Add end-to-end `get_written_durations()` regression tests from raw score inputs
   - Files:
     - `src-tauri/src/instructions/parse/get_written_durations.rs`
     - `src-tauri/src/instructions/parse/get_measures.rs`
@@ -163,7 +166,7 @@ Refactor the written-duration parsing flow for clarity first and testability sec
   - Action: Build full parser tests that create realistic `Flow` / `Instrument` / `Track` graphs, run `get_measures()`, `get_tone_offsets()`, and `get_written_durations()`, and assert the resulting notation track contents. Add direct tests for any related helper function whose behavior is required to make the end-to-end expectations trustworthy.
   - Notes: Focus on scenarios that protect the complete puzzle, not isolated helpers for their own sake. If related helper files only need fixture support rather than production changes, keep modifications minimal. Include explicit characterization tests for unsupported `Compound`, `Complex`, and `Open` paths if current behavior is panic/unsupported, so that boundary remains intentional and visible.
 
-- [ ] Task 7: Add downstream confidence checks for notation consumers where written-duration shape matters
+- [x] Task 7: Add downstream confidence checks for notation consumers where written-duration shape matters
   - Files:
     - `src-tauri/src/instructions/parse/get_beams.rs`
     - `src-tauri/src/instructions/parse/get_shunts.rs`
@@ -174,12 +177,12 @@ Refactor the written-duration parsing flow for clarity first and testability sec
   - Action: Add or extend tests that prove downstream consumers behave correctly with notation structures produced by the new scenario fixtures, especially where written durations influence beam grouping, shunt assignment, accidental handling, dot calculation, articulation grouping, or stem-direction assumptions.
   - Notes: This is not a separate coverage initiative for these files. Only add tests that materially increase confidence that written-duration refactors have not broken adjacent parse behavior.
 
-- [ ] Task 8: Capture suspicious notation behaviors and explicit current boundaries in a separate findings document
+- [x] Task 8: Capture suspicious notation behaviors and explicit current boundaries in a separate findings document
   - File: `_bmad-output/implementation-artifacts/notation-edge-cases-written-durations.md`
   - Action: Create a concise follow-up document listing edge cases, ambiguous conventions, and suspicious current behaviors found during implementation or test writing. Use a fixed schema with: `ID`, `Area`, `Scenario`, `Current Behavior`, `Why Suspicious`, `Preserved In This Spec`, and `Recommended Follow-up`.
   - Notes: Candidate findings already identified include recursive 2-beat handling, pattern exceptions that suppress expected splits, fixed eighth-note assumptions in some rule branches, and unsupported `Compound` / `Complex` / `Open` time signatures.
 
-- [ ] Task 9: Validate confidence gains with focused test execution and coverage review
+- [x] Task 9: Validate confidence gains with focused test execution and coverage review
   - Files:
     - `src-tauri/src/instructions/parse/get_written_durations.rs`
     - `_bmad-output/implementation-artifacts/notation-edge-cases-written-durations.md`
@@ -189,19 +192,41 @@ Refactor the written-duration parsing flow for clarity first and testability sec
 
 ### Acceptance Criteria
 
-- [ ] AC 1: Given the current written-duration behavior, when the clarity refactor is applied to `split_simple_unit()` and its supporting rule paths, then the output notation for existing covered scenarios remains unchanged.
-- [ ] AC 1a: Given the parser before any refactor begins, when baseline characterization tests are added, then they capture known-good outputs for the current high-risk written-duration scenarios and become the parity gate for later refactors.
-- [ ] AC 2: Given a simple-meter unit that does not require splitting, when the parser evaluates it, then no extra notation events are introduced and the original writable event boundaries are preserved.
-- [ ] AC 3: Given a simple-meter unit containing non-writable durations or dotted rests in disallowed positions, when written durations are generated, then the resulting notation is split at the same beat boundaries required by current behavior.
-- [ ] AC 4: Given recognized preservation patterns such as qhq, qm., m.q, and supported offbeat patterns, when written durations are generated, then the parser preserves those spans and does not apply the normal middle split for the unit.
-- [ ] AC 5: Given a notation event that is split into multiple written durations, when the split occurs, then the resulting notation entries preserve tones and apply ties exactly as the current implementation does.
-- [ ] AC 6: Given representative 2-beat, 3-beat, and 4-beat raw input scenarios, when table-driven scenario tests run, then each scenario asserts the ordered written notation result with explicit ticks, durations, rest state, and tie state.
-- [ ] AC 7: Given realistic raw score inputs containing flow, stave, track, instrument, and tone data, when `get_measures()`, `get_tone_offsets()`, and `get_written_durations()` are run together, then the resulting notation tracks match expected end-to-end written outcomes.
-- [ ] AC 7a: Given unsupported `Compound`, `Complex`, or `Open` time signatures, when written-duration parsing is invoked against them, then the current unsupported behavior is made explicit in tests and documentation rather than remaining implicit.
-- [ ] AC 8: Given downstream parse consumers that rely on notation shape, when written-duration fixtures are fed into beam, shunt, accidental, dot, articulation, and stem-direction tests, then those consumers continue to behave consistently with the produced notation structure.
-- [ ] AC 9: Given ambiguous or suspicious notation rules discovered during this work, when the implementation is complete, then they are documented in a separate findings document and not silently changed as part of this spec.
-- [ ] AC 10: Given the completed work, when `cargo test --lib` and `cargo llvm-cov --lib` are run, then the parser-focused tests pass and provide materially stronger regression coverage for the written-duration pipeline.
-- [ ] AC 10a: Given the completed refactor, when the parse pipeline is reviewed, then existing parallel boundaries and performance-sensitive traversal patterns are preserved unless a deliberate, documented exception was required for clarity.
+- [x] AC 1: Given the current written-duration behavior, when the clarity refactor is applied to `split_simple_unit()` and its supporting rule paths, then the output notation for existing covered scenarios remains unchanged.
+- [x] AC 1a: Given the parser before any refactor begins, when baseline characterization tests are added, then they capture known-good outputs for the current high-risk written-duration scenarios and become the parity gate for later refactors.
+- [x] AC 2: Given a simple-meter unit that does not require splitting, when the parser evaluates it, then no extra notation events are introduced and the original writable event boundaries are preserved.
+- [x] AC 3: Given a simple-meter unit containing non-writable durations or dotted rests in disallowed positions, when written durations are generated, then the resulting notation is split at the same beat boundaries required by current behavior.
+- [x] AC 4: Given recognized preservation patterns such as qhq, qm., m.q, and supported offbeat patterns, when written durations are generated, then the parser preserves those spans and does not apply the normal middle split for the unit.
+- [x] AC 5: Given a notation event that is split into multiple written durations, when the split occurs, then the resulting notation entries preserve tones and apply ties exactly as the current implementation does.
+- [x] AC 6: Given representative 2-beat, 3-beat, and 4-beat raw input scenarios, when table-driven scenario tests run, then each scenario asserts the ordered written notation result with explicit ticks, durations, rest state, and tie state.
+- [x] AC 7: Given realistic raw score inputs containing flow, stave, track, instrument, and tone data, when `get_measures()`, `get_tone_offsets()`, and `get_written_durations()` are run together, then the resulting notation tracks match expected end-to-end written outcomes.
+- [x] AC 7a: Given unsupported `Compound`, `Complex`, or `Open` time signatures, when written-duration parsing is invoked against them, then the current unsupported behavior is made explicit in tests and documentation rather than remaining implicit.
+- [x] AC 8: Given downstream parse consumers that rely on notation shape, when written-duration fixtures are fed into beam, shunt, accidental, dot, articulation, and stem-direction tests, then those consumers continue to behave consistently with the produced notation structure.
+- [x] AC 9: Given ambiguous or suspicious notation rules discovered during this work, when the implementation is complete, then they are documented in a separate findings document and not silently changed as part of this spec.
+- [x] AC 10: Given the completed work, when `cargo test --lib` and `cargo llvm-cov --lib` are run, then the parser-focused tests pass and provide materially stronger regression coverage for the written-duration pipeline.
+- [x] AC 10a: Given the completed refactor, when the parse pipeline is reviewed, then existing parallel boundaries and performance-sensitive traversal patterns are preserved unless a deliberate, documented exception was required for clarity.
+
+## Implementation Outcome
+
+### Delivered Changes
+
+- Refactored `split_simple_unit()` into smaller rule-focused helpers while preserving current notation behavior.
+- Added compact parser fixture builders and a canonical `NotationExpectation` assertion path for scenario and end-to-end tests.
+- Expanded direct coverage for 3/4 hotspot behavior, tie propagation, off-grid splitting, rest-boundary splitting, and preserved 4/4 patterns.
+- Added downstream regression checks for beams, shunts, accidentals, dots, articulations, and stem directions.
+- Captured preserved suspicious behavior and current unsupported boundaries in the linked findings document.
+
+### Validation Summary
+
+- `cargo test --lib` passed after the implementation and review-fix passes.
+- `cargo llvm-cov --lib` was rerun during the work and showed improved parser confidence.
+- Final recorded Rust coverage summary for this work reached approximately 68.47% lines, 77.89% functions, and 65.65% regions.
+
+### Review Resolution Notes
+
+- Fixed: F2 (3/4 hotspot coverage), F3 (explicit four-beat boundary struct), F5 (downstream regression coverage), F6 (documentation linkage), F8 (clearer assertion diagnostics), and F9 (direct seam tests).
+- Intentionally preserved: F1 (existing boundary behavior), F4 (fixture breadth limitation), and F7 (unsupported-meter `todo!()` boundary).
+- Follow-up findings remain documented in `_bmad-output/implementation-artifacts/notation-edge-cases-written-durations.md` for later behavior-change work.
 
 ## Additional Context
 
@@ -246,4 +271,5 @@ Manual review should include scanning the scenario names and expected outputs to
 - Avoid turning the parser into a dependency-injected system just to make tests easier. Local helpers and expressive fixtures are the preferred route.
 - If a scenario reveals behavior that appears musically wrong but is currently relied on by the code, preserve it in implementation, cover it with a test if it is intentional, and record it in the separate findings document if it is suspicious.
 - Primary fixture ownership should stay in `get_written_durations.rs`; related files should only receive thin support tests, not duplicate fixture frameworks.
+- Follow-up findings and preserved suspicious behaviors are tracked in `_bmad-output/implementation-artifacts/notation-edge-cases-written-durations.md`.
 - Future follow-up work can use the separate findings document to drive a behavior-change spec once the current parser behavior is fully characterized.

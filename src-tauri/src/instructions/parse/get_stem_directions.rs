@@ -315,4 +315,44 @@ mod tests {
         assert!(matches!(result[&0], Direction::Down));
         assert!(matches!(result[&32], Direction::Down));
     }
+
+    #[test]
+    fn get_stem_directions_in_track_keeps_split_fragments_without_beams() {
+        use crate::score::components::articulation::Articulations;
+        use crate::score::components::pitch::{Accidental, Pitch};
+        use crate::score::components::velocity::Velocity;
+        use crate::score::entries::tone::Tone;
+
+        let mut first = notation_with_info(2);
+        first.tones.push(Tone::new(
+            1,
+            0,
+            48,
+            Pitch::new(60, Accidental::Natural),
+            Velocity::new(100),
+            Articulations::new(),
+        ));
+        let mut second = notation_with_info(2);
+        second.tones.push(Tone::new(
+            1,
+            48,
+            16,
+            Pitch::new(60, Accidental::Natural),
+            Velocity::new(100),
+            Articulations::new(),
+        ));
+
+        let mut track_map = FxHashMap::default();
+        track_map.insert(0_u64, first);
+        track_map.insert(48_u64, second);
+
+        let notation_track = NotationTrack {
+            length: 96,
+            track: track_map,
+        };
+        let result = get_stem_directions_in_track(&notation_track, &vec![]);
+
+        assert!(matches!(result[&0], Direction::Up));
+        assert!(matches!(result[&48], Direction::Up));
+    }
 }
