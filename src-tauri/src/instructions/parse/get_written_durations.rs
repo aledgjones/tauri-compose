@@ -2632,10 +2632,14 @@ mod tests {
         notation_track: &NotationTrack,
         expectations: Vec<NotationExpectation>,
     ) {
+        assert_eq!(normalize_notation_track(notation_track), expectations);
+    }
+
+    fn normalize_notation_track(notation_track: &NotationTrack) -> Vec<NotationExpectation> {
         let mut actual = notation_track.track.values().collect::<Vec<_>>();
         actual.sort_by_key(|entry| entry.tick);
 
-        let normalized_actual = actual
+        actual
             .into_iter()
             .map(|entry| {
                 let mut tone_ids = entry.tones.iter().map(|tone| tone.id).collect::<Vec<_>>();
@@ -2651,9 +2655,7 @@ mod tests {
                     tie_ids,
                 }
             })
-            .collect::<Vec<_>>();
-
-        assert_eq!(normalized_actual, expectations);
+            .collect::<Vec<_>>()
     }
 
     fn make_time_signature_for_test(tick: Tick, beats: u8, beat_type: NoteDuration) -> TimeSignature {
@@ -2685,6 +2687,14 @@ mod tests {
 
     fn make_parser_fixture(
         time_signature: TimeSignature,
+        tone_specs: &[(u64, Tick, Ticks, u8)],
+    ) -> (Flow, Instrument, Tracks, u64) {
+        make_parser_fixture_with_length(time_signature.clone(), time_signature.ticks_per_bar(), tone_specs)
+    }
+
+    fn make_parser_fixture_with_length(
+        time_signature: TimeSignature,
+        flow_length: Ticks,
         tone_specs: &[(u64, Tick, Ticks, u8)],
     ) -> (Flow, Instrument, Tracks, u64) {
         use crate::score::components::pitch::{Accidental, Pitch};
@@ -2734,7 +2744,7 @@ mod tests {
             id: flow_id,
             title: String::new(),
             player_ids: FxHashSet::default(),
-            length: time_signature.ticks_per_bar(),
+            length: flow_length,
             master_id,
             staves,
         };
@@ -2755,6 +2765,47 @@ mod tests {
         };
 
         (flow, instrument, Tracks { by_id }, track_id)
+    }
+
+    fn assert_written_duration_scenario(
+        name: &str,
+        time_signature: TimeSignature,
+        tone_specs: &[(u64, Tick, Ticks, u8)],
+        expectations: Vec<NotationExpectation>,
+    ) {
+        assert_written_duration_scenario_with_length(
+            name,
+            time_signature.clone(),
+            time_signature.ticks_per_bar(),
+            tone_specs,
+            expectations,
+        );
+    }
+
+    fn assert_written_duration_scenario_with_length(
+        name: &str,
+        time_signature: TimeSignature,
+        flow_length: Ticks,
+        tone_specs: &[(u64, Tick, Ticks, u8)],
+        expectations: Vec<NotationExpectation>,
+    ) {
+        let (flow, instrument, tracks, track_id) =
+            make_parser_fixture_with_length(time_signature, flow_length, tone_specs);
+        let instruments = vec![&instrument];
+        let measures = crate::instructions::parse::get_measures::get_measures(&flow, &tracks);
+        let tone_offsets = crate::instructions::parse::get_tone_offsets::get_tone_offsets(
+            &flow,
+            &instruments,
+            &tracks,
+        );
+        let notation =
+            get_written_durations(&flow, &instruments, &tracks, &measures, &tone_offsets);
+
+        assert_eq!(
+            normalize_notation_track(&notation[&track_id]),
+            expectations,
+            "scenario: {name}"
+        );
     }
 
     #[test]
@@ -2861,7 +2912,7 @@ mod tests {
         let eighth = NoteDuration::Eighth.to_ticks();
         let mut track = NotationTrack::new(q * 3);
         track.track.insert(0, make_note_at(0, q, 1));
-        track.track.insert(q + 1, make_note_at(q + 1, eighth - 1, 2));
+        track.track.insert(q + 1, make_note_at(q + 1, q, 2));
 
         track.split_at_next_boundary_for_off_grid_events(&[(q, q * 2, q * 2)], eighth);
 
@@ -2911,6 +2962,268 @@ mod tests {
                 notation_expectation(q * 3, q, false, vec![3], vec![]),
             ],
         );
+    }
+
+    #[test]
+    fn get_written_durations_preserves_basic_four_four_patterns() {
+        let q = NoteDuration::Quarter.to_ticks();
+        let four_four = make_time_signature_for_test(0, 4, NoteDuration::Quarter);
+
+        struct Scenario {
+            name: &'static str,
+            tone_specs: Vec<(u64, Tick, Ticks, u8)>,
+            expectations: Vec<NotationExpectation>,
+        }
+
+        let scenarios = vec![
+            Scenario {
+                name: "four straight quarter notes",
+                tone_specs: vec![
+                    (1, 0, q, 60),
+                    (2, q, q, 62),
+                    (3, q * 2, q, 64),
+                    (4, q * 3, q, 65),
+                ],
+                expectations: vec![
+                    notation_expectation(0, q, false, vec![1], vec![]),
+                    notation_expectation(q, q, false, vec![2], vec![]),
+                    notation_expectation(q * 2, q, false, vec![3], vec![]),
+                    notation_expectation(q * 3, q, false, vec![4], vec![]),
+                ],
+            },
+            Scenario {
+                name: "half note followed by two quarter notes",
+                tone_specs: vec![(1, 0, q * 2, 60), (2, q * 2, q, 62), (3, q * 3, q, 64)],
+                expectations: vec![
+                    notation_expectation(0, q * 2, false, vec![1], vec![]),
+                    notation_expectation(q * 2, q, false, vec![2], vec![]),
+                    notation_expectation(q * 3, q, false, vec![3], vec![]),
+                ],
+            },
+            Scenario {
+                name: "quarter rests on beats one and three remain visible",
+                tone_specs: vec![(1, q, q, 60), (2, q * 3, q, 64)],
+                expectations: vec![
+                    notation_expectation(0, q, true, vec![], vec![]),
+                    notation_expectation(q, q, false, vec![1], vec![]),
+                    notation_expectation(q * 2, q, true, vec![], vec![]),
+                    notation_expectation(q * 3, q, false, vec![2], vec![]),
+                ],
+            },
+        ];
+
+        for scenario in scenarios {
+            assert_written_duration_scenario(
+                scenario.name,
+                four_four.clone(),
+                &scenario.tone_specs,
+                scenario.expectations,
+            );
+        }
+    }
+
+    #[test]
+    fn get_written_durations_splits_near_miss_four_four_patterns() {
+        let q = NoteDuration::Quarter.to_ticks();
+        let four_four = make_time_signature_for_test(0, 4, NoteDuration::Quarter);
+
+        struct Scenario {
+            name: &'static str,
+            tone_specs: Vec<(u64, Tick, Ticks, u8)>,
+            expectations: Vec<NotationExpectation>,
+        }
+
+        let scenarios = vec![
+            Scenario {
+                name: "qhq lookalike with extra interior event collapses to plain quarter motion",
+                tone_specs: vec![
+                    (1, 0, q, 60),
+                    (2, q, q, 62),
+                    (3, q * 2, q, 64),
+                    (4, q * 3, q, 65),
+                ],
+                expectations: vec![
+                    notation_expectation(0, q, false, vec![1], vec![]),
+                    notation_expectation(q, q, false, vec![2], vec![]),
+                    notation_expectation(q * 2, q, false, vec![3], vec![]),
+                    notation_expectation(q * 3, q, false, vec![4], vec![]),
+                ],
+            },
+            Scenario {
+                name: "qmdot lookalike with no second note resolves into quarter rest structure",
+                tone_specs: vec![(1, 0, q, 60)],
+                expectations: vec![
+                    notation_expectation(0, q, false, vec![1], vec![]),
+                    notation_expectation(q, q, true, vec![], vec![]),
+                    notation_expectation(q * 2, q * 2, true, vec![], vec![]),
+                ],
+            },
+            Scenario {
+                name: "offbeat lookalike with on beat intrusion currently resolves into overlapped beat fragments",
+                tone_specs: vec![
+                    (1, 0, NoteDuration::Eighth.to_ticks(), 60),
+                    (2, NoteDuration::Eighth.to_ticks(), q, 62),
+                    (3, q, NoteDuration::Eighth.to_ticks(), 64),
+                    (4, q + NoteDuration::Eighth.to_ticks(), q, 65),
+                    (5, q * 2 + NoteDuration::Eighth.to_ticks(), q, 67),
+                    (6, q * 3 + NoteDuration::Eighth.to_ticks(), NoteDuration::Eighth.to_ticks(), 69),
+                ],
+                expectations: vec![
+                    notation_expectation(0, NoteDuration::Eighth.to_ticks(), false, vec![1], vec![]),
+                    notation_expectation(NoteDuration::Eighth.to_ticks(), NoteDuration::Eighth.to_ticks(), false, vec![2], vec![2]),
+                    notation_expectation(q, NoteDuration::Eighth.to_ticks(), false, vec![2, 3], vec![]),
+                    notation_expectation(q + NoteDuration::Eighth.to_ticks(), NoteDuration::Eighth.to_ticks(), false, vec![4], vec![4]),
+                    notation_expectation(q * 2, NoteDuration::Eighth.to_ticks(), false, vec![4], vec![]),
+                    notation_expectation(q * 2 + NoteDuration::Eighth.to_ticks(), q, false, vec![5], vec![]),
+                    notation_expectation(q * 3 + NoteDuration::Eighth.to_ticks(), NoteDuration::Eighth.to_ticks(), false, vec![6], vec![]),
+                ],
+            },
+        ];
+
+        for scenario in scenarios {
+            assert_written_duration_scenario(
+                scenario.name,
+                four_four.clone(),
+                &scenario.tone_specs,
+                scenario.expectations,
+            );
+        }
+    }
+
+    #[test]
+    fn get_written_durations_covers_default_four_four_split_archetypes() {
+        let q = NoteDuration::Quarter.to_ticks();
+        let e = NoteDuration::Eighth.to_ticks();
+        let four_four = make_time_signature_for_test(0, 4, NoteDuration::Quarter);
+
+        struct Scenario {
+            name: &'static str,
+            tone_specs: Vec<(u64, Tick, Ticks, u8)>,
+            expectations: Vec<NotationExpectation>,
+        }
+
+        let scenarios = vec![
+            Scenario {
+                name: "half note starting on beat two splits into tied quarters",
+                tone_specs: vec![(1, q, q * 2, 60)],
+                expectations: vec![
+                    notation_expectation(0, q, true, vec![], vec![]),
+                    notation_expectation(q, q, false, vec![1], vec![1]),
+                    notation_expectation(q * 2, q, false, vec![1], vec![]),
+                    notation_expectation(q * 3, q, true, vec![], vec![]),
+                ],
+            },
+            Scenario {
+                name: "dotted note from the and of one currently remains unsplit",
+                tone_specs: vec![(1, e, q + e, 62), (2, q * 2, q * 2, 65)],
+                expectations: vec![
+                    notation_expectation(0, e, true, vec![], vec![]),
+                    notation_expectation(e, q + e, false, vec![1], vec![]),
+                    notation_expectation(q * 2, q * 2, false, vec![2], vec![]),
+                ],
+            },
+            Scenario {
+                name: "quarter from the and of two currently remains unsplit over beat three",
+                tone_specs: vec![(1, 0, q * 2, 60), (2, q * 2 + e, q, 64), (3, q * 3 + e, e, 67)],
+                expectations: vec![
+                    notation_expectation(0, q * 2, false, vec![1], vec![]),
+                    notation_expectation(q * 2, e, true, vec![], vec![]),
+                    notation_expectation(q * 2 + e, q, false, vec![2], vec![]),
+                    notation_expectation(q * 3 + e, e, false, vec![3], vec![]),
+                ],
+            },
+            Scenario {
+                name: "leading dotted half remains readable before final quarter rest",
+                tone_specs: vec![(1, 0, q * 3, 60)],
+                expectations: vec![
+                    notation_expectation(0, q * 3, false, vec![1], vec![]),
+                    notation_expectation(q * 3, q, true, vec![], vec![]),
+                ],
+            },
+        ];
+
+        for scenario in scenarios {
+            assert_written_duration_scenario(
+                scenario.name,
+                four_four.clone(),
+                &scenario.tone_specs,
+                scenario.expectations,
+            );
+        }
+    }
+
+    #[test]
+    fn get_written_durations_preserves_explicit_four_four_patterns() {
+        let q = NoteDuration::Quarter.to_ticks();
+        let e = NoteDuration::Eighth.to_ticks();
+        let four_four = make_time_signature_for_test(0, 4, NoteDuration::Quarter);
+
+        struct Scenario {
+            name: &'static str,
+            tone_specs: Vec<(u64, Tick, Ticks, u8)>,
+            expectations: Vec<NotationExpectation>,
+        }
+
+        let scenarios = vec![
+            Scenario {
+                name: "qmdot pattern spans beats two through four",
+                tone_specs: vec![(1, 0, q, 60), (2, q, q * 3, 62)],
+                expectations: vec![
+                    notation_expectation(0, q, false, vec![1], vec![]),
+                    notation_expectation(q, q * 3, false, vec![2], vec![]),
+                ],
+            },
+            Scenario {
+                name: "mdotq pattern spans beats one through three",
+                tone_specs: vec![(1, 0, q * 3, 60), (2, q * 3, q, 62)],
+                expectations: vec![
+                    notation_expectation(0, q * 3, false, vec![1], vec![]),
+                    notation_expectation(q * 3, q, false, vec![2], vec![]),
+                ],
+            },
+            Scenario {
+                name: "offbeat eqqqe pattern stays unsplit across the bar",
+                tone_specs: vec![
+                    (1, 0, e, 60),
+                    (2, e, q, 62),
+                    (3, q + e, q, 64),
+                    (4, q * 2 + e, q, 65),
+                    (5, q * 3 + e, e, 67),
+                ],
+                expectations: vec![
+                    notation_expectation(0, e, false, vec![1], vec![]),
+                    notation_expectation(e, q, false, vec![2], vec![]),
+                    notation_expectation(q + e, q, false, vec![3], vec![]),
+                    notation_expectation(q * 2 + e, q, false, vec![4], vec![]),
+                    notation_expectation(q * 3 + e, e, false, vec![5], vec![]),
+                ],
+            },
+            Scenario {
+                name: "leading rest offbeat syncopation remains readable",
+                tone_specs: vec![
+                    (1, e, q, 62),
+                    (2, q + e, q, 64),
+                    (3, q * 2 + e, q, 65),
+                    (4, q * 3 + e, e, 67),
+                ],
+                expectations: vec![
+                    notation_expectation(0, e, true, vec![], vec![]),
+                    notation_expectation(e, q, false, vec![1], vec![]),
+                    notation_expectation(q + e, q, false, vec![2], vec![]),
+                    notation_expectation(q * 2 + e, q, false, vec![3], vec![]),
+                    notation_expectation(q * 3 + e, e, false, vec![4], vec![]),
+                ],
+            },
+        ];
+
+        for scenario in scenarios {
+            assert_written_duration_scenario(
+                scenario.name,
+                four_four.clone(),
+                &scenario.tone_specs,
+                scenario.expectations,
+            );
+        }
     }
 
     #[test]
@@ -2987,6 +3300,419 @@ mod tests {
                 notation_expectation(q * 2, q, true, vec![], vec![]),
             ],
         );
+    }
+
+    #[test]
+    fn get_written_durations_preserves_basic_three_four_patterns() {
+        let q = NoteDuration::Quarter.to_ticks();
+        let e = NoteDuration::Eighth.to_ticks();
+        let three_four = make_time_signature_for_test(0, 3, NoteDuration::Quarter);
+
+        struct Scenario {
+            name: &'static str,
+            tone_specs: Vec<(u64, Tick, Ticks, u8)>,
+            expectations: Vec<NotationExpectation>,
+        }
+
+        let scenarios = vec![
+            Scenario {
+                name: "three straight quarter notes",
+                tone_specs: vec![(1, 0, q, 60), (2, q, q, 62), (3, q * 2, q, 64)],
+                expectations: vec![
+                    notation_expectation(0, q, false, vec![1], vec![]),
+                    notation_expectation(q, q, false, vec![2], vec![]),
+                    notation_expectation(q * 2, q, false, vec![3], vec![]),
+                ],
+            },
+            Scenario {
+                name: "half note followed by quarter note",
+                tone_specs: vec![(1, 0, q * 2, 60), (2, q * 2, q, 64)],
+                expectations: vec![
+                    notation_expectation(0, q * 2, false, vec![1], vec![]),
+                    notation_expectation(q * 2, q, false, vec![2], vec![]),
+                ],
+            },
+            Scenario {
+                name: "three four offbeat syncopation keeps its staggered shape",
+                tone_specs: vec![(1, e, q, 60), (2, q + e, q, 62), (3, q * 2 + e, e, 64)],
+                expectations: vec![
+                    notation_expectation(0, e, true, vec![], vec![]),
+                    notation_expectation(e, q, false, vec![1], vec![]),
+                    notation_expectation(q + e, q, false, vec![2], vec![]),
+                    notation_expectation(q * 2 + e, e, false, vec![3], vec![]),
+                ],
+            },
+        ];
+
+        for scenario in scenarios {
+            assert_written_duration_scenario(
+                scenario.name,
+                three_four.clone(),
+                &scenario.tone_specs,
+                scenario.expectations,
+            );
+        }
+    }
+
+    #[test]
+    fn get_written_durations_covers_default_three_four_split_archetypes() {
+        let q = NoteDuration::Quarter.to_ticks();
+        let e = NoteDuration::Eighth.to_ticks();
+        let three_four = make_time_signature_for_test(0, 3, NoteDuration::Quarter);
+
+        struct Scenario {
+            name: &'static str,
+            tone_specs: Vec<(u64, Tick, Ticks, u8)>,
+            expectations: Vec<NotationExpectation>,
+        }
+
+        let scenarios = vec![
+            Scenario {
+                name: "half note starting on beat two currently remains a half note",
+                tone_specs: vec![(1, q, q * 2, 60)],
+                expectations: vec![
+                    notation_expectation(0, q, true, vec![], vec![]),
+                    notation_expectation(q, q * 2, false, vec![1], vec![]),
+                ],
+            },
+            Scenario {
+                name: "quarter plus dotted quarter plus closing eighth currently stays unsplit on beat two",
+                tone_specs: vec![(1, 0, q, 60), (2, q, q + e, 62), (3, q * 2 + e, e, 64)],
+                expectations: vec![
+                    notation_expectation(0, q, false, vec![1], vec![]),
+                    notation_expectation(q, q + e, false, vec![2], vec![]),
+                    notation_expectation(q * 2 + e, e, false, vec![3], vec![]),
+                ],
+            },
+            Scenario {
+                name: "eighth syncopation across beat two currently remains an unsplit quarter",
+                tone_specs: vec![(1, e, q, 60), (2, q * 2, q, 64)],
+                expectations: vec![
+                    notation_expectation(0, e, true, vec![], vec![]),
+                    notation_expectation(e, q, false, vec![1], vec![]),
+                    notation_expectation(q + e, e, true, vec![], vec![]),
+                    notation_expectation(q * 2, q, false, vec![2], vec![]),
+                ],
+            },
+            Scenario {
+                name: "quarter plus dotted quarter plus eighth currently leaves beat two unsplit",
+                tone_specs: vec![(1, 0, q, 60), (2, q, q + e, 62), (3, q * 2 + e, e, 64)],
+                expectations: vec![
+                    notation_expectation(0, q, false, vec![1], vec![]),
+                    notation_expectation(q, q + e, false, vec![2], vec![]),
+                    notation_expectation(q * 2 + e, e, false, vec![3], vec![]),
+                ],
+            },
+        ];
+
+        for scenario in scenarios {
+            assert_written_duration_scenario(
+                scenario.name,
+                three_four.clone(),
+                &scenario.tone_specs,
+                scenario.expectations,
+            );
+        }
+    }
+
+    #[test]
+    fn get_written_durations_characterizes_three_four_compound_feel_lookalikes() {
+        let q = NoteDuration::Quarter.to_ticks();
+        let e = NoteDuration::Eighth.to_ticks();
+        let three_four = make_time_signature_for_test(0, 3, NoteDuration::Quarter);
+
+        struct Scenario {
+            name: &'static str,
+            tone_specs: Vec<(u64, Tick, Ticks, u8)>,
+            expectations: Vec<NotationExpectation>,
+        }
+
+        let scenarios = vec![
+            Scenario {
+                name: "dotted quarter plus rewritten second dotted quarter avoids six eight look",
+                tone_specs: vec![(1, 0, q + e, 60), (2, q + e, q + e, 62)],
+                expectations: vec![
+                    notation_expectation(0, q + e, false, vec![1], vec![]),
+                    notation_expectation(q + e, e, false, vec![2], vec![2]),
+                    notation_expectation(q * 2, q, false, vec![2], vec![]),
+                ],
+            },
+            Scenario {
+                name: "eighth plus dotted quarter plus quarter currently preserves the dotted middle span",
+                tone_specs: vec![(1, 0, e, 60), (2, e, q + e, 62), (3, q * 2, q, 64)],
+                expectations: vec![
+                    notation_expectation(0, e, false, vec![1], vec![]),
+                    notation_expectation(e, q + e, false, vec![2], vec![]),
+                    notation_expectation(q * 2, q, false, vec![3], vec![]),
+                ],
+            },
+            Scenario {
+                name: "dotted quarter plus eighth plus quarter keeps the beat three arrival obvious",
+                tone_specs: vec![(1, 0, q + e, 60), (2, q + e, e, 62), (3, q * 2, q, 64)],
+                expectations: vec![
+                    notation_expectation(0, q + e, false, vec![1], vec![]),
+                    notation_expectation(q + e, e, false, vec![2], vec![]),
+                    notation_expectation(q * 2, q, false, vec![3], vec![]),
+                ],
+            },
+            Scenario {
+                name: "quarter plus eighth plus quarter plus eighth currently preserves the middle quarter span",
+                tone_specs: vec![(1, 0, q, 60), (2, q, e, 62), (3, q + e, q, 64), (4, q * 2 + e, e, 65)],
+                expectations: vec![
+                    notation_expectation(0, q, false, vec![1], vec![]),
+                    notation_expectation(q, e, false, vec![2], vec![]),
+                    notation_expectation(q + e, q, false, vec![3], vec![]),
+                    notation_expectation(q * 2 + e, e, false, vec![4], vec![]),
+                ],
+            },
+        ];
+
+        for scenario in scenarios {
+            assert_written_duration_scenario(
+                scenario.name,
+                three_four.clone(),
+                &scenario.tone_specs,
+                scenario.expectations,
+            );
+        }
+    }
+
+    #[test]
+    fn get_written_durations_covers_rest_led_and_rest_trailed_syncopation() {
+        let q = NoteDuration::Quarter.to_ticks();
+        let e = NoteDuration::Eighth.to_ticks();
+        let four_four = make_time_signature_for_test(0, 4, NoteDuration::Quarter);
+
+        struct Scenario {
+            name: &'static str,
+            tone_specs: Vec<(u64, Tick, Ticks, u8)>,
+            expectations: Vec<NotationExpectation>,
+        }
+
+        let scenarios = vec![
+            Scenario {
+                name: "eighth rest then quarter syncopation then quarter then closing eighth",
+                tone_specs: vec![(1, e, q, 60), (2, q + e, q, 62), (3, q * 2 + e, q, 64), (4, q * 3 + e, e, 65)],
+                expectations: vec![
+                    notation_expectation(0, e, true, vec![], vec![]),
+                    notation_expectation(e, q, false, vec![1], vec![]),
+                    notation_expectation(q + e, q, false, vec![2], vec![]),
+                    notation_expectation(q * 2 + e, q, false, vec![3], vec![]),
+                    notation_expectation(q * 3 + e, e, false, vec![4], vec![]),
+                ],
+            },
+            Scenario {
+                name: "quarter then eighth rest then eighth pickup then two quarters",
+                tone_specs: vec![(1, 0, q, 60), (2, q + e, e, 62), (3, q * 2, q, 64), (4, q * 3, q, 65)],
+                expectations: vec![
+                    notation_expectation(0, q, false, vec![1], vec![]),
+                    notation_expectation(q, e, true, vec![], vec![]),
+                    notation_expectation(q + e, e, false, vec![2], vec![]),
+                    notation_expectation(q * 2, q, false, vec![3], vec![]),
+                    notation_expectation(q * 3, q, false, vec![4], vec![]),
+                ],
+            },
+            Scenario {
+                name: "half rest then two quarter notes remains grouped by beat",
+                tone_specs: vec![(1, q * 2, q, 60), (2, q * 3, q, 62)],
+                expectations: vec![
+                    notation_expectation(0, q * 2, true, vec![], vec![]),
+                    notation_expectation(q * 2, q, false, vec![1], vec![]),
+                    notation_expectation(q * 3, q, false, vec![2], vec![]),
+                ],
+            },
+        ];
+
+        for scenario in scenarios {
+            assert_written_duration_scenario(
+                scenario.name,
+                four_four.clone(),
+                &scenario.tone_specs,
+                scenario.expectations,
+            );
+        }
+    }
+
+    #[test]
+    fn get_written_durations_covers_common_teaching_rhythms() {
+        let q = NoteDuration::Quarter.to_ticks();
+        let e = NoteDuration::Eighth.to_ticks();
+        let four_four = make_time_signature_for_test(0, 4, NoteDuration::Quarter);
+
+        struct Scenario {
+            name: &'static str,
+            tone_specs: Vec<(u64, Tick, Ticks, u8)>,
+            expectations: Vec<NotationExpectation>,
+        }
+
+        let scenarios = vec![
+            Scenario {
+                name: "two half notes",
+                tone_specs: vec![(1, 0, q * 2, 60), (2, q * 2, q * 2, 64)],
+                expectations: vec![
+                    notation_expectation(0, q * 2, false, vec![1], vec![]),
+                    notation_expectation(q * 2, q * 2, false, vec![2], vec![]),
+                ],
+            },
+            Scenario {
+                name: "quarter two eighths quarter quarter",
+                tone_specs: vec![(1, 0, q, 60), (2, q, e, 62), (3, q + e, e, 64), (4, q * 2, q, 65), (5, q * 3, q, 67)],
+                expectations: vec![
+                    notation_expectation(0, q, false, vec![1], vec![]),
+                    notation_expectation(q, e, false, vec![2], vec![]),
+                    notation_expectation(q + e, e, false, vec![3], vec![]),
+                    notation_expectation(q * 2, q, false, vec![4], vec![]),
+                    notation_expectation(q * 3, q, false, vec![5], vec![]),
+                ],
+            },
+            Scenario {
+                name: "two eighths quarter two eighths quarter",
+                tone_specs: vec![(1, 0, e, 60), (2, e, e, 62), (3, q, q, 64), (4, q * 2, e, 65), (5, q * 2 + e, e, 67), (6, q * 3, q, 69)],
+                expectations: vec![
+                    notation_expectation(0, e, false, vec![1], vec![]),
+                    notation_expectation(e, e, false, vec![2], vec![]),
+                    notation_expectation(q, q, false, vec![3], vec![]),
+                    notation_expectation(q * 2, e, false, vec![4], vec![]),
+                    notation_expectation(q * 2 + e, e, false, vec![5], vec![]),
+                    notation_expectation(q * 3, q, false, vec![6], vec![]),
+                ],
+            },
+            Scenario {
+                name: "dotted quarter eighth half",
+                tone_specs: vec![(1, 0, q + e, 60), (2, q + e, e, 62), (3, q * 2, q * 2, 64)],
+                expectations: vec![
+                    notation_expectation(0, q + e, false, vec![1], vec![]),
+                    notation_expectation(q + e, e, false, vec![2], vec![]),
+                    notation_expectation(q * 2, q * 2, false, vec![3], vec![]),
+                ],
+            },
+            Scenario {
+                name: "half dotted quarter eighth",
+                tone_specs: vec![(1, 0, q * 2, 60), (2, q * 2, q + e, 62), (3, q * 3 + e, e, 64)],
+                expectations: vec![
+                    notation_expectation(0, q * 2, false, vec![1], vec![]),
+                    notation_expectation(q * 2, q + e, false, vec![2], vec![]),
+                    notation_expectation(q * 3 + e, e, false, vec![3], vec![]),
+                ],
+            },
+        ];
+
+        for scenario in scenarios {
+            assert_written_duration_scenario(
+                scenario.name,
+                four_four.clone(),
+                &scenario.tone_specs,
+                scenario.expectations,
+            );
+        }
+    }
+
+    #[test]
+    fn get_written_durations_preserves_chord_tone_sets_in_pattern_regressions() {
+        let q = NoteDuration::Quarter.to_ticks();
+        let e = NoteDuration::Eighth.to_ticks();
+        let four_four = make_time_signature_for_test(0, 4, NoteDuration::Quarter);
+        let three_four = make_time_signature_for_test(0, 3, NoteDuration::Quarter);
+
+        assert_written_duration_scenario(
+            "four four split chord keeps both tones through the tie",
+            four_four,
+            &[(1, q, q * 2, 60), (2, q, q * 2, 64)],
+            vec![
+                notation_expectation(0, q, true, vec![], vec![]),
+                notation_expectation(q, q, false, vec![1, 2], vec![1, 2]),
+                notation_expectation(q * 2, q, false, vec![1, 2], vec![]),
+                notation_expectation(q * 3, q, true, vec![], vec![]),
+            ],
+        );
+
+        assert_written_duration_scenario(
+            "three four rewritten second dotted quarter chord keeps full chord on both fragments",
+            three_four,
+            &[(1, 0, q + e, 60), (2, 0, q + e, 64), (3, q + e, q + e, 67), (4, q + e, q + e, 71)],
+            vec![
+                notation_expectation(0, q + e, false, vec![1, 2], vec![]),
+                notation_expectation(q + e, e, false, vec![3, 4], vec![3, 4]),
+                notation_expectation(q * 2, q, false, vec![3, 4], vec![]),
+            ],
+        );
+    }
+
+    #[test]
+    fn get_written_durations_handles_barline_crossing_patterns() {
+        let q = NoteDuration::Quarter.to_ticks();
+        let bar = q * 4;
+        let four_four = make_time_signature_for_test(0, 4, NoteDuration::Quarter);
+
+        assert_written_duration_scenario_with_length(
+            "note crossing the barline ties cleanly into the next bar",
+            four_four.clone(),
+            bar * 2,
+            &[
+                (1, 0, q, 60),
+                (2, q, q, 62),
+                (3, q * 2, q, 64),
+                (4, q * 3, q * 2, 65),
+                (5, bar + q, q, 67),
+                (6, bar + q * 2, q, 69),
+                (7, bar + q * 3, q, 71),
+            ],
+            vec![
+                notation_expectation(0, q, false, vec![1], vec![]),
+                notation_expectation(q, q, false, vec![2], vec![]),
+                notation_expectation(q * 2, q, false, vec![3], vec![]),
+                notation_expectation(q * 3, q, false, vec![4], vec![4]),
+                notation_expectation(bar, q, false, vec![4], vec![]),
+                notation_expectation(bar + q, q, false, vec![5], vec![]),
+                notation_expectation(bar + q * 2, q, false, vec![6], vec![]),
+                notation_expectation(bar + q * 3, q, false, vec![7], vec![]),
+            ],
+        );
+
+        assert_written_duration_scenario_with_length(
+            "rest crossing the barline stays split at the measure boundary",
+            four_four,
+            bar * 2,
+            &[
+                (1, 0, q, 60),
+                (2, q, q, 62),
+                (3, q * 2, q, 64),
+                (4, bar + q, q, 67),
+                (5, bar + q * 2, q, 69),
+                (6, bar + q * 3, q, 71),
+            ],
+            vec![
+                notation_expectation(0, q, false, vec![1], vec![]),
+                notation_expectation(q, q, false, vec![2], vec![]),
+                notation_expectation(q * 2, q, false, vec![3], vec![]),
+                notation_expectation(q * 3, q, true, vec![], vec![]),
+                notation_expectation(bar, q, true, vec![], vec![]),
+                notation_expectation(bar + q, q, false, vec![4], vec![]),
+                notation_expectation(bar + q * 2, q, false, vec![5], vec![]),
+                notation_expectation(bar + q * 3, q, false, vec![6], vec![]),
+            ],
+        );
+    }
+
+    #[test]
+    #[should_panic]
+    fn get_written_durations_panics_for_six_eight_dotted_quarter_pair() {
+        let e = NoteDuration::Eighth.to_ticks();
+        let dotted_quarter = NoteDuration::Quarter.to_ticks() + e;
+        let time_signature = make_time_signature_for_test(0, 6, NoteDuration::Eighth);
+        let (flow, instrument, tracks, _track_id) = make_parser_fixture(
+            time_signature,
+            &[(1, 0, dotted_quarter, 60), (2, dotted_quarter, dotted_quarter, 62)],
+        );
+        let instruments = vec![&instrument];
+        let measures = crate::instructions::parse::get_measures::get_measures(&flow, &tracks);
+        let tone_offsets = crate::instructions::parse::get_tone_offsets::get_tone_offsets(
+            &flow,
+            &instruments,
+            &tracks,
+        );
+
+        let _ = get_written_durations(&flow, &instruments, &tracks, &measures, &tone_offsets);
     }
 
     #[test]
