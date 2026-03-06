@@ -159,7 +159,6 @@ impl KeySignature {
                 },
                 _ => None,
             },
-            ClefDrawType::Hidden => None,
             ClefDrawType::Percussion => None,
         }
     }
@@ -364,45 +363,53 @@ mod tests {
 
     #[test]
     fn pattern_g_clef_sharps_returns_some() {
-        use crate::score::entries::clef::{Clef, ClefDrawType};
         use crate::score::components::pitch::{Accidental, Pitch};
+        use crate::score::entries::clef::{Clef, ClefDrawType};
         let ks = KeySignature::new(0, 0, KeySignatureMode::Major, 1);
-        let clef = Clef::new(0, 0, Pitch::new(67, Accidental::Natural), 2, ClefDrawType::G);
+        let clef = Clef::new(
+            0,
+            0,
+            Pitch::new(67, Accidental::Natural),
+            2,
+            ClefDrawType::G,
+        );
         assert!(ks.pattern(&clef).is_some());
     }
 
     #[test]
     fn pattern_g_clef_flats_returns_some() {
-        use crate::score::entries::clef::{Clef, ClefDrawType};
         use crate::score::components::pitch::{Accidental, Pitch};
+        use crate::score::entries::clef::{Clef, ClefDrawType};
         let ks = KeySignature::new(0, 0, KeySignatureMode::Major, -1);
-        let clef = Clef::new(0, 0, Pitch::new(67, Accidental::Natural), 2, ClefDrawType::G);
+        let clef = Clef::new(
+            0,
+            0,
+            Pitch::new(67, Accidental::Natural),
+            2,
+            ClefDrawType::G,
+        );
         assert!(ks.pattern(&clef).is_some());
     }
 
     #[test]
     fn pattern_c_major_returns_none() {
-        use crate::score::entries::clef::{Clef, ClefDrawType};
         use crate::score::components::pitch::{Accidental, Pitch};
+        use crate::score::entries::clef::{Clef, ClefDrawType};
         let ks = KeySignature::new(0, 0, KeySignatureMode::Major, 0);
-        let clef = Clef::new(0, 0, Pitch::new(67, Accidental::Natural), 2, ClefDrawType::G);
-        assert!(ks.pattern(&clef).is_none());
-    }
-
-    #[test]
-    fn pattern_hidden_clef_returns_none() {
-        use crate::score::entries::clef::{Clef, ClefDrawType};
-        use crate::score::components::pitch::{Accidental, Pitch};
-        let ks = KeySignature::new(0, 0, KeySignatureMode::Major, 2);
-        let clef =
-            Clef::new(0, 0, Pitch::new(60, Accidental::Natural), 0, ClefDrawType::Hidden);
+        let clef = Clef::new(
+            0,
+            0,
+            Pitch::new(67, Accidental::Natural),
+            2,
+            ClefDrawType::G,
+        );
         assert!(ks.pattern(&clef).is_none());
     }
 
     #[test]
     fn pattern_percussion_clef_returns_none() {
-        use crate::score::entries::clef::{Clef, ClefDrawType};
         use crate::score::components::pitch::{Accidental, Pitch};
+        use crate::score::entries::clef::{Clef, ClefDrawType};
         let ks = KeySignature::new(0, 0, KeySignatureMode::Major, 2);
         let clef = Clef::new(
             0,
@@ -416,65 +423,107 @@ mod tests {
 
     #[test]
     fn pattern_f_clef_offset_minus_two_sharps_returns_some() {
-        use crate::score::entries::clef::{Clef, ClefDrawType};
         use crate::score::components::pitch::{Accidental, Pitch};
+        use crate::score::entries::clef::{Clef, ClefDrawType};
         let ks = KeySignature::new(0, 0, KeySignatureMode::Major, 1);
-        let clef = Clef::new(0, 0, Pitch::new(53, Accidental::Natural), -2, ClefDrawType::F);
+        let clef = Clef::new(
+            0,
+            0,
+            Pitch::new(53, Accidental::Natural),
+            -2,
+            ClefDrawType::F,
+        );
         assert!(ks.pattern(&clef).is_some());
     }
 
     #[test]
     fn pattern_f_clef_offset_minus_two_flats_returns_some() {
-        use crate::score::entries::clef::{Clef, ClefDrawType};
         use crate::score::components::pitch::{Accidental, Pitch};
+        use crate::score::entries::clef::{Clef, ClefDrawType};
         let ks = KeySignature::new(0, 0, KeySignatureMode::Major, -1);
-        let clef = Clef::new(0, 0, Pitch::new(53, Accidental::Natural), -2, ClefDrawType::F);
+        let clef = Clef::new(
+            0,
+            0,
+            Pitch::new(53, Accidental::Natural),
+            -2,
+            ClefDrawType::F,
+        );
         assert!(ks.pattern(&clef).is_some());
     }
 
     #[test]
     fn pattern_c_clef_offset_zero_sharps_returns_some() {
-        use crate::score::entries::clef::{Clef, ClefDrawType};
         use crate::score::components::pitch::{Accidental, Pitch};
+        use crate::score::entries::clef::{Clef, ClefDrawType};
         let ks = KeySignature::new(0, 0, KeySignatureMode::Major, 1);
-        let clef = Clef::new(0, 0, Pitch::new(60, Accidental::Natural), 0, ClefDrawType::C);
+        let clef = Clef::new(
+            0,
+            0,
+            Pitch::new(60, Accidental::Natural),
+            0,
+            ClefDrawType::C,
+        );
         assert!(ks.pattern(&clef).is_some());
     }
 
     #[test]
     fn pattern_c_clef_offset_zero_flats_returns_some() {
-        use crate::score::entries::clef::{Clef, ClefDrawType};
         use crate::score::components::pitch::{Accidental, Pitch};
+        use crate::score::entries::clef::{Clef, ClefDrawType};
         let ks = KeySignature::new(0, 0, KeySignatureMode::Major, -1);
-        let clef = Clef::new(0, 0, Pitch::new(60, Accidental::Natural), 0, ClefDrawType::C);
+        let clef = Clef::new(
+            0,
+            0,
+            Pitch::new(60, Accidental::Natural),
+            0,
+            ClefDrawType::C,
+        );
         assert!(ks.pattern(&clef).is_some());
     }
 
     #[test]
     fn pattern_c_clef_offset_minus_two_sharps_returns_some() {
-        use crate::score::entries::clef::{Clef, ClefDrawType};
         use crate::score::components::pitch::{Accidental, Pitch};
+        use crate::score::entries::clef::{Clef, ClefDrawType};
         let ks = KeySignature::new(0, 0, KeySignatureMode::Major, 1);
-        let clef = Clef::new(0, 0, Pitch::new(60, Accidental::Natural), -2, ClefDrawType::C);
+        let clef = Clef::new(
+            0,
+            0,
+            Pitch::new(60, Accidental::Natural),
+            -2,
+            ClefDrawType::C,
+        );
         assert!(ks.pattern(&clef).is_some());
     }
 
     #[test]
     fn pattern_c_clef_offset_minus_two_flats_returns_some() {
-        use crate::score::entries::clef::{Clef, ClefDrawType};
         use crate::score::components::pitch::{Accidental, Pitch};
+        use crate::score::entries::clef::{Clef, ClefDrawType};
         let ks = KeySignature::new(0, 0, KeySignatureMode::Major, -1);
-        let clef = Clef::new(0, 0, Pitch::new(60, Accidental::Natural), -2, ClefDrawType::C);
+        let clef = Clef::new(
+            0,
+            0,
+            Pitch::new(60, Accidental::Natural),
+            -2,
+            ClefDrawType::C,
+        );
         assert!(ks.pattern(&clef).is_some());
     }
 
     #[test]
     fn pattern_unknown_clef_offset_returns_none() {
-        use crate::score::entries::clef::{Clef, ClefDrawType};
         use crate::score::components::pitch::{Accidental, Pitch};
+        use crate::score::entries::clef::{Clef, ClefDrawType};
         // G clef with offset != 2 → None
         let ks = KeySignature::new(0, 0, KeySignatureMode::Major, 1);
-        let clef = Clef::new(0, 0, Pitch::new(67, Accidental::Natural), 0, ClefDrawType::G);
+        let clef = Clef::new(
+            0,
+            0,
+            Pitch::new(67, Accidental::Natural),
+            0,
+            ClefDrawType::G,
+        );
         assert!(ks.pattern(&clef).is_none());
     }
 

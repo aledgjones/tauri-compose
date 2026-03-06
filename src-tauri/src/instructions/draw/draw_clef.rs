@@ -84,19 +84,6 @@ mod tests {
     }
 
     #[test]
-    fn draw_clef_hidden_produces_no_instructions() {
-        let mut renderer = make_test_renderer();
-        let clef = Clef {
-            draw_as: ClefDrawType::Hidden,
-            ..Default::default()
-        };
-
-        draw_clef(&Point { x: 0.0, y: 0.0 }, &clef, true, &mut renderer);
-
-        assert!(renderer.instructions.is_empty());
-    }
-
-    #[test]
     fn draw_clef_offset_shifts_y_position() {
         let mut renderer = make_test_renderer();
         let clef = Clef {

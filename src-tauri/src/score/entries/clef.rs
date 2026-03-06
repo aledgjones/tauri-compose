@@ -14,11 +14,10 @@ use super::Entry;
 #[derive(Clone, Copy, Hash, Eq, PartialEq, Serialize_repr, Deserialize_repr)]
 #[repr(u8)]
 pub enum ClefDrawType {
-    Hidden,
-    G,
-    F,
-    C,
-    Percussion,
+    G = 1,
+    F = 2,
+    C = 3,
+    Percussion = 4,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -42,28 +41,27 @@ impl Clef {
     }
 
     pub fn metrics(&self, is_full_size: bool) -> BoundingBox {
-        match self.draw_as {
-            ClefDrawType::Hidden => BoundingBox {
-                width: 0.0,
-                height: 4.0,
-                right_padding: 0.0,
-            },
-            _ => BoundingBox {
-                width: if is_full_size { 2.8 } else { 1.75 },
-                height: if is_full_size { 4.0 } else { 2.5 },
-                right_padding: 1.0,
-            },
+        BoundingBox {
+            width: if is_full_size { 2.8 } else { 1.75 },
+            height: if is_full_size { 4.0 } else { 2.5 },
+            right_padding: 1.0,
         }
     }
 
     pub fn glyph(&self) -> Option<String> {
         match self.draw_as {
-            ClefDrawType::Hidden => None,
             ClefDrawType::G => Some(String::from("\u{E050}")),
             ClefDrawType::F => Some(String::from("\u{E062}")),
             ClefDrawType::C => Some(String::from("\u{E05C}")),
             ClefDrawType::Percussion => Some(String::from("\u{E069}")),
         }
+    }
+
+    pub fn can_render_key_signature(&self) -> bool {
+        matches!(
+            self.draw_as,
+            ClefDrawType::G | ClefDrawType::F | ClefDrawType::C
+        )
     }
 }
 
@@ -87,6 +85,16 @@ impl Track {
         for key in entry_keys {
             if let Some(Entry::Clef(time_signature)) = self.entries.by_id.get(key) {
                 return Some(time_signature);
+            }
+        }
+
+        None
+    }
+
+    pub fn get_clef_before_tick_inclusive(&self, tick: Tick) -> Option<&Clef> {
+        for i in (0..tick + 1).rev() {
+            if let Some(clef) = self.get_clef_at_tick(&i) {
+                return Some(clef);
             }
         }
 
@@ -189,16 +197,6 @@ mod tests {
         )
     }
 
-    fn hidden_clef() -> Clef {
-        Clef::new(
-            2,
-            0,
-            Pitch::new(60, Accidental::Natural),
-            0,
-            ClefDrawType::Hidden,
-        )
-    }
-
     #[test]
     fn clef_new_stores_fields() {
         let c = g_clef();
@@ -221,20 +219,25 @@ mod tests {
     }
 
     #[test]
-    fn hidden_clef_metrics_has_zero_width_and_padding() {
-        let bb = hidden_clef().metrics(true);
-        assert!((bb.width - 0.0).abs() < f32::EPSILON);
-        assert!((bb.right_padding - 0.0).abs() < f32::EPSILON);
-    }
-
-    #[test]
     fn g_clef_glyph_is_some() {
         assert_eq!(g_clef().glyph(), Some(String::from("\u{E050}")));
     }
 
     #[test]
-    fn hidden_clef_glyph_is_none() {
-        assert_eq!(hidden_clef().glyph(), None);
+    fn percussion_clef_cannot_render_key_signature() {
+        let c = Clef::new(
+            1,
+            0,
+            Pitch::new(60, Accidental::Natural),
+            0,
+            ClefDrawType::Percussion,
+        );
+        assert!(!c.can_render_key_signature());
+    }
+
+    #[test]
+    fn g_clef_can_render_key_signature() {
+        assert!(g_clef().can_render_key_signature());
     }
 
     #[test]
@@ -247,13 +250,25 @@ mod tests {
 
     #[test]
     fn f_clef_glyph() {
-        let c = Clef::new(1, 0, Pitch::new(53, Accidental::Natural), -2, ClefDrawType::F);
+        let c = Clef::new(
+            1,
+            0,
+            Pitch::new(53, Accidental::Natural),
+            -2,
+            ClefDrawType::F,
+        );
         assert_eq!(c.glyph(), Some(String::from("\u{E062}")));
     }
 
     #[test]
     fn c_clef_glyph() {
-        let c = Clef::new(1, 0, Pitch::new(60, Accidental::Natural), 0, ClefDrawType::C);
+        let c = Clef::new(
+            1,
+            0,
+            Pitch::new(60, Accidental::Natural),
+            0,
+            ClefDrawType::C,
+        );
         assert_eq!(c.glyph(), Some(String::from("\u{E05C}")));
     }
 
@@ -281,7 +296,13 @@ mod tests {
         use crate::score::entries::Entry;
         use crate::score::tracks::Track;
         let mut track = Track::new(1);
-        let clef = Clef::new(10, 0, Pitch::new(67, Accidental::Natural), 2, ClefDrawType::G);
+        let clef = Clef::new(
+            10,
+            0,
+            Pitch::new(67, Accidental::Natural),
+            2,
+            ClefDrawType::G,
+        );
         track.insert_entry(Entry::Clef(clef));
         let found = track.get_clef_at_tick(&0).unwrap();
         assert_eq!(found.id, 10);
@@ -292,16 +313,40 @@ mod tests {
         use crate::score::entries::Entry;
         use crate::score::tracks::Track;
         let mut track = Track::new(1);
-        let clef = Clef::new(10, 64, Pitch::new(67, Accidental::Natural), 2, ClefDrawType::G);
+        let clef = Clef::new(
+            10,
+            64,
+            Pitch::new(67, Accidental::Natural),
+            2,
+            ClefDrawType::G,
+        );
         track.insert_entry(Entry::Clef(clef));
         assert!(track.get_clef_at_tick(&0).is_none());
     }
 
     #[test]
-    fn small_hidden_clef_also_zero_width() {
-        let bb = hidden_clef().metrics(false);
-        assert!((bb.width - 0.0).abs() < f32::EPSILON);
-        assert!((bb.right_padding - 0.0).abs() < f32::EPSILON);
+    fn get_clef_before_tick_inclusive_returns_latest_prior_clef() {
+        use crate::score::entries::Entry;
+        use crate::score::tracks::Track;
+
+        let mut track = Track::new(1);
+        track.insert_entry(Entry::Clef(Clef::new(
+            10,
+            0,
+            Pitch::new(67, Accidental::Natural),
+            2,
+            ClefDrawType::G,
+        )));
+        track.insert_entry(Entry::Clef(Clef::new(
+            11,
+            64,
+            Pitch::new(53, Accidental::Natural),
+            -2,
+            ClefDrawType::F,
+        )));
+
+        let found = track.get_clef_before_tick_inclusive(96).unwrap();
+        assert_eq!(found.id, 11);
     }
 
     #[test]

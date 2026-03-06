@@ -49,7 +49,11 @@ mod tests {
     use crate::score::entries::key_signature::{KeySignature, KeySignatureMode};
 
     fn make_g_clef() -> Clef {
-        Clef { draw_as: ClefDrawType::G, offset: 2, ..Default::default() }
+        Clef {
+            draw_as: ClefDrawType::G,
+            offset: 2,
+            ..Default::default()
+        }
     }
 
     #[test]
@@ -72,7 +76,10 @@ mod tests {
         draw_key_signature(&Point { x: 0.0, y: 0.0 }, &clef, &ks, false, &mut renderer);
 
         assert_eq!(renderer.instructions.len(), 1);
-        assert!(matches!(renderer.instructions[0], DrawInstruction::Text { .. }));
+        assert!(matches!(
+            renderer.instructions[0],
+            DrawInstruction::Text { .. }
+        ));
     }
 
     #[test]
@@ -93,12 +100,30 @@ mod tests {
         let clef = make_g_clef();
         let ks = KeySignature::new(0, 0, KeySignatureMode::Major, 1);
 
-        draw_key_signature(&Point { x: 0.0, y: 0.0 }, &clef, &ks, false, &mut renderer_sharp);
-        draw_key_signature(&Point { x: 0.0, y: 0.0 }, &clef, &ks, true, &mut renderer_natural);
+        draw_key_signature(
+            &Point { x: 0.0, y: 0.0 },
+            &clef,
+            &ks,
+            false,
+            &mut renderer_sharp,
+        );
+        draw_key_signature(
+            &Point { x: 0.0, y: 0.0 },
+            &clef,
+            &ks,
+            true,
+            &mut renderer_natural,
+        );
 
-        if let (DrawInstruction::Text { text: sharp_text, .. }, DrawInstruction::Text { text: nat_text, .. }) =
-            (&renderer_sharp.instructions[0], &renderer_natural.instructions[0])
-        {
+        if let (
+            DrawInstruction::Text {
+                text: sharp_text, ..
+            },
+            DrawInstruction::Text { text: nat_text, .. },
+        ) = (
+            &renderer_sharp.instructions[0],
+            &renderer_natural.instructions[0],
+        ) {
             assert_ne!(sharp_text, nat_text);
             let natural_glyph = crate::score::components::pitch::Accidental::Natural.to_glyph();
             assert_eq!(*nat_text, natural_glyph);
@@ -108,9 +133,12 @@ mod tests {
     }
 
     #[test]
-    fn hidden_clef_produces_no_instructions_even_with_key_sig() {
+    fn percussion_clef_produces_no_instructions_even_with_key_sig() {
         let mut renderer = make_test_renderer();
-        let clef = Clef { draw_as: ClefDrawType::Hidden, ..Default::default() };
+        let clef = Clef {
+            draw_as: ClefDrawType::Percussion,
+            ..Default::default()
+        };
         let ks = KeySignature::new(0, 0, KeySignatureMode::Major, 3);
 
         draw_key_signature(&Point { x: 0.0, y: 0.0 }, &clef, &ks, false, &mut renderer);

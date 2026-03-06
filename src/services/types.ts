@@ -15,11 +15,10 @@ export enum BarlineDrawType {
 }
 
 export enum ClefDrawType {
-  Hidden = 0,
-  G,
-  F,
-  C,
-  Percussion,
+  G = 1,
+  F = 2,
+  C = 3,
+  Percussion = 4,
 }
 
 export enum NoteDuration {

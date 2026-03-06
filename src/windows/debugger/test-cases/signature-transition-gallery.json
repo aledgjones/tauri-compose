@@ -62,8 +62,7 @@
             "clefs": [
               { "tick": 128, "drawType": 2, "pitchInt": 53, "offset": -2 },
               { "tick": 256, "drawType": 3, "pitchInt": 60, "offset": 0 },
-              { "tick": 384, "drawType": 4, "pitchInt": 60, "offset": 0 },
-              { "tick": 512, "drawType": 0, "pitchInt": 60, "offset": 0 }
+              { "tick": 384, "drawType": 4, "pitchInt": 60, "offset": 0 }
             ],
             "tones": [
               { "tick": 0, "duration": 128, "pitchInt": 72 },
@@ -238,8 +237,7 @@
             "staveIndex": 0,
             "clefs": [
               { "tick": 256, "drawType": 3, "pitchInt": 60, "offset": 0 },
-              { "tick": 384, "drawType": 1, "pitchInt": 67, "offset": 2 },
-              { "tick": 512, "drawType": 0, "pitchInt": 60, "offset": 0 }
+              { "tick": 384, "drawType": 1, "pitchInt": 67, "offset": 2 }
             ],
             "tones": [
               { "tick": 0, "duration": 128, "pitchInt": 72 },
@@ -267,10 +265,7 @@
           },
           {
             "instrumentId": "snare",
-            "clefs": [
-              { "tick": 256, "drawType": 4, "pitchInt": 60, "offset": 0 },
-              { "tick": 384, "drawType": 0, "pitchInt": 60, "offset": 0 }
-            ],
+            "clefs": [{ "tick": 256, "drawType": 4, "pitchInt": 60, "offset": 0 }],
             "tones": [
               { "tick": 0, "duration": 128, "pitchInt": 60 },
               { "tick": 128, "duration": 128, "pitchInt": 60 },
@@ -310,7 +305,7 @@
     },
     {
       "flowTitle": "Repeat barlines with clefs",
-      "name": "Hidden clef at the last measure change",
+      "name": "Percussion clef carried into the last measure",
       "measure": 5,
       "timeSignature": "4/4"
     },
@@ -370,7 +365,7 @@
     },
     {
       "flowTitle": "Stacked changes at end-start repeats",
-      "name": "Hidden signature state after the collision test",
+      "name": "Percussion-only lower staff after the collision test",
       "measure": 5,
       "timeSignature": "Hidden 4/4"
     }

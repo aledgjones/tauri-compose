@@ -91,36 +91,69 @@ pub fn get_horizontal_spacing(
     spacings.set_width(0, Slot::BarPadding, 0.5);
 
     for entry in flow_master.entries.by_id.values() {
-        match entry {
-            Entry::KeySignature(key_signature) => {
-                let metrics = if key_signature.offset == 0 {
-                    // find width needed to cancel the previous key signature
-                    match flow_master.get_key_signature_before_tick(key_signature.tick) {
-                        Some(previous) => previous.metrics(),
-                        None => BoundingBox {
-                            width: 0.0,
-                            height: 0.0,
-                            right_padding: 0.0,
-                        },
+        if let Entry::TimeSignature(time_signature) = entry {
+            let metrics = time_signature.metrics();
+            spacings.set_width(
+                time_signature.tick,
+                Slot::TimeSignature,
+                metrics.total_width(),
+            );
+        }
+    }
+
+    for instrument in instruments {
+        for stave_id in &instrument.stave_ids {
+            let stave = &flow.staves.by_id[stave_id];
+            let stave_master = &tracks.by_id[&stave.master_id];
+
+            for entry in flow_master.entries.by_id.values() {
+                if let Entry::KeySignature(key_signature) = entry {
+                    let render_key_signature = if key_signature.offset == 0 {
+                        flow_master.get_key_signature_before_tick(key_signature.tick)
+                    } else {
+                        Some(key_signature)
+                    };
+
+                    let width = match stave_master
+                        .get_clef_before_tick_inclusive(key_signature.tick)
+                    {
+                        Some(clef)
+                            if clef.can_render_key_signature()
+                                && render_key_signature
+                                    .is_some_and(|signature| signature.pattern(clef).is_some()) =>
+                        {
+                            let metrics = if key_signature.offset == 0 {
+                                match flow_master.get_key_signature_before_tick(key_signature.tick)
+                                {
+                                    Some(previous) => previous.metrics(),
+                                    None => BoundingBox {
+                                        width: 0.0,
+                                        height: 0.0,
+                                        right_padding: 0.0,
+                                    },
+                                }
+                            } else {
+                                key_signature.metrics()
+                            };
+
+                            metrics.total_width()
+                        }
+                        _ => 0.0,
+                    };
+                    let current = spacings.get(key_signature.tick, Slot::KeySignature).width;
+
+                    if width > current {
+                        spacings.set_width(key_signature.tick, Slot::KeySignature, width);
                     }
-                } else {
-                    key_signature.metrics()
-                };
-                spacings.set_width(
-                    key_signature.tick,
-                    Slot::KeySignature,
-                    metrics.total_width(),
-                );
+                }
             }
-            Entry::TimeSignature(time_signature) => {
-                let metrics = time_signature.metrics();
-                spacings.set_width(
-                    time_signature.tick,
-                    Slot::TimeSignature,
-                    metrics.total_width(),
-                );
+
+            for entry in stave_master.entries.by_id.values() {
+                if let Entry::Clef(clef) = entry {
+                    let metrics = clef.metrics(clef.tick == 0);
+                    spacings.set_width(clef.tick, Slot::Clef, metrics.total_width());
+                }
             }
-            _ => (),
         }
     }
 
@@ -136,7 +169,7 @@ pub fn get_horizontal_spacing(
             let metrics = draw_type.metrics();
 
             let has_time_signature = flow_master.get_time_signature_at_tick(tick).is_some();
-            let has_key_signature = flow_master.get_key_signature_at_tick(tick).is_some();
+            let has_key_signature = spacings.get(*tick, Slot::KeySignature).width > 0.0;
 
             if has_key_signature {
                 spacings.set_width(*tick, Slot::Barline, metrics.width + 0.5);
@@ -150,19 +183,6 @@ pub fn get_horizontal_spacing(
         if def.start_repeat {
             let metrics = BarlineDrawType::StartRepeat.metrics();
             spacings.set_width(*tick, Slot::StartRepeat, metrics.total_width());
-        }
-    }
-
-    for instrument in instruments {
-        for stave_id in &instrument.stave_ids {
-            let stave = &flow.staves.by_id[stave_id];
-            let stave_master = &tracks.by_id[&stave.master_id];
-            for entry in stave_master.entries.by_id.values() {
-                if let Entry::Clef(clef) = entry {
-                    let metrics = clef.metrics(clef.tick == 0);
-                    spacings.set_width(clef.tick, Slot::Clef, metrics.total_width());
-                }
-            }
         }
     }
 
@@ -378,5 +398,193 @@ mod tests {
         hs.set_width(0, Slot::KeySignature, 4.0);
         let span = hs.get(0, Slot::KeySignature);
         assert!((span.width - 4.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn percussion_clef_yields_zero_key_signature_width_in_flow_pass() {
+        use crate::score::components::pitch::{Accidental, Pitch};
+        use crate::score::engraves::Engraves;
+        use crate::score::entries::clef::{Clef, ClefDrawType};
+        use crate::score::entries::key_signature::{KeySignature, KeySignatureMode};
+        use crate::score::entries::time_signature::{TimeSignature, TimeSignatureDrawType};
+        use crate::score::entries::Entry;
+        use crate::score::instruments::defs::InstrumentType;
+        use crate::score::instruments::Instrument;
+        use crate::score::layouts::LayoutType;
+        use crate::score::staves::Stave;
+        use crate::score::tracks::{Track, Tracks};
+        use rustc_hash::{FxHashMap, FxHashSet};
+
+        let mut flow = Flow::new(1, 100);
+        flow.player_ids = FxHashSet::default();
+        flow.length = 128;
+        flow.staves.by_id.insert(
+            10,
+            Stave {
+                id: 10,
+                lines: vec![1, 1, 1, 1, 1],
+                master_id: 200,
+                track_ids: vec![],
+            },
+        );
+
+        let instrument = Instrument {
+            id: 20,
+            definition_id: String::from("unpitched-percussion.snare"),
+            instrument_type: InstrumentType::Percussive,
+            long_name: String::from("Snare"),
+            short_name: String::from("Sn."),
+            stave_ids: vec![10],
+            count: None,
+            assigned_plugin_id: None,
+            volume: 100,
+            pan: 64,
+            mute: false,
+            solo: false,
+        };
+
+        let mut flow_master = Track::new(100);
+        flow_master.insert_entry(Entry::TimeSignature(TimeSignature::new(
+            1,
+            0,
+            4,
+            crate::score::components::duration::NoteDuration::Quarter,
+            TimeSignatureDrawType::Regular,
+            None,
+        )));
+        flow_master.insert_entry(Entry::KeySignature(KeySignature::new(
+            400,
+            64,
+            KeySignatureMode::Major,
+            -5,
+        )));
+
+        let mut stave_master = Track::new(200);
+        stave_master.insert_entry(Entry::Clef(Clef::new(
+            300,
+            0,
+            Pitch::new(60, Accidental::Natural),
+            0,
+            ClefDrawType::Percussion,
+        )));
+
+        let mut tracks = Tracks::new();
+        tracks.by_id = FxHashMap::default();
+        tracks.by_id.insert(100, flow_master);
+        tracks.by_id.insert(200, stave_master);
+
+        let engraves = Engraves::new();
+        let engrave = engraves.by_layout_type.get(&LayoutType::FullScore).unwrap();
+
+        let spacing = get_horizontal_spacing(
+            &flow,
+            &vec![&instrument],
+            &tracks,
+            &NotationByTrack::default(),
+            &Barlines::default(),
+            &ShuntsByTrack::default(),
+            &BeamsByTrack::default(),
+            &AccidentalsByTrack::default(),
+            engrave,
+        );
+
+        assert_eq!(spacing.get(64, Slot::KeySignature).width, 0.0);
+    }
+
+    #[test]
+    fn cancelling_key_signature_reserves_width_from_previous_signature() {
+        use crate::score::components::pitch::{Accidental, Pitch};
+        use crate::score::engraves::Engraves;
+        use crate::score::entries::clef::{Clef, ClefDrawType};
+        use crate::score::entries::key_signature::{KeySignature, KeySignatureMode};
+        use crate::score::entries::time_signature::{TimeSignature, TimeSignatureDrawType};
+        use crate::score::entries::Entry;
+        use crate::score::instruments::defs::InstrumentType;
+        use crate::score::instruments::Instrument;
+        use crate::score::layouts::LayoutType;
+        use crate::score::staves::Stave;
+        use crate::score::tracks::{Track, Tracks};
+        use rustc_hash::{FxHashMap, FxHashSet};
+
+        let mut flow = Flow::new(1, 100);
+        flow.player_ids = FxHashSet::default();
+        flow.length = 128;
+        flow.staves.by_id.insert(
+            10,
+            Stave {
+                id: 10,
+                lines: vec![1, 1, 1, 1, 1],
+                master_id: 200,
+                track_ids: vec![],
+            },
+        );
+
+        let instrument = Instrument {
+            id: 20,
+            definition_id: String::from("strings.violin"),
+            instrument_type: InstrumentType::Melodic,
+            long_name: String::from("Violin"),
+            short_name: String::from("Vln."),
+            stave_ids: vec![10],
+            count: None,
+            assigned_plugin_id: None,
+            volume: 100,
+            pan: 64,
+            mute: false,
+            solo: false,
+        };
+
+        let mut flow_master = Track::new(100);
+        flow_master.insert_entry(Entry::TimeSignature(TimeSignature::new(
+            1,
+            0,
+            4,
+            crate::score::components::duration::NoteDuration::Quarter,
+            TimeSignatureDrawType::Regular,
+            None,
+        )));
+        flow_master.insert_entry(Entry::KeySignature(KeySignature::new(
+            401,
+            32,
+            KeySignatureMode::Major,
+            3,
+        )));
+        flow_master.insert_entry(Entry::KeySignature(KeySignature::new(
+            402,
+            64,
+            KeySignatureMode::Major,
+            0,
+        )));
+
+        let mut stave_master = Track::new(200);
+        stave_master.insert_entry(Entry::Clef(Clef::new(
+            300,
+            0,
+            Pitch::new(67, Accidental::Natural),
+            2,
+            ClefDrawType::G,
+        )));
+
+        let mut tracks = Tracks::new();
+        tracks.by_id = FxHashMap::default();
+        tracks.by_id.insert(100, flow_master);
+        tracks.by_id.insert(200, stave_master);
+
+        let engraves = Engraves::new();
+        let engrave = engraves.by_layout_type.get(&LayoutType::FullScore).unwrap();
+
+        let spacing = get_horizontal_spacing(
+            &flow,
+            &vec![&instrument],
+            &tracks,
+            &NotationByTrack::default(),
+            &Barlines::default(),
+            &ShuntsByTrack::default(),
+            &BeamsByTrack::default(),
+            &AccidentalsByTrack::default(),
+            engrave,
+        );
+
+        assert!(spacing.get(64, Slot::KeySignature).width > 0.0);
     }
 }

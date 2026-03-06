@@ -139,6 +139,20 @@ export const parseClefPopover = (
       break;
     }
 
+    case "percussion":
+    case "perc":
+    case "PERC": {
+      actions.score.clef.create(
+        flow_id,
+        tick,
+        stave_id,
+        60,
+        0,
+        ClefDrawType.Percussion,
+      );
+      break;
+    }
+
     default: {
       throw new Error(`Unknown input: ${input}`);
     }
