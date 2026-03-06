@@ -189,8 +189,7 @@ A phased refactoring initiative with mixed small phases — each phase extracts 
   - Notes: Since test modules can't easily share helpers across files, define this as `pub(crate) fn make_test_renderer() -> RendererContext` inside `#[cfg(test)] mod tests` in `renderer/mod.rs`, or as a `#[cfg(test)] pub mod test_helpers` at the renderer module level so draw test files can import it.
 
 - [x] Task 1.3: Add headless tests for trivial draw files (7 files)
-  - **Completed (2/7):** `draw_stem.rs` (96% regions), `draw_clef.rs` (96% regions)
-  - **Remaining:** `draw_flag.rs`, `draw_braces.rs`, `draw_names.rs`, `draw_staves.rs`, `draw_systemic_barline.rs`
+  - `draw_stem.rs` (96% regions), `draw_clef.rs` (96%), `draw_flag.rs` (97%), `draw_braces.rs` (98%), `draw_names.rs` (99%), `draw_staves.rs` (99%), `draw_systemic_barline.rs` (98%)
   - Files: `draw_stem.rs`, `draw_clef.rs`, `draw_flag.rs`, `draw_braces.rs`, `draw_names.rs`, `draw_staves.rs`, `draw_systemic_barline.rs`
   - Action: For each file, add a `#[cfg(test)] mod tests` block that:
     1. Constructs a `RendererContext` using the helper from Task 1.2
