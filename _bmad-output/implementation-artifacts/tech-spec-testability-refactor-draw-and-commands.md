@@ -439,14 +439,14 @@ A phased refactoring initiative with mixed small phases — each phase extracts 
 
 **Coverage target**: Regions 65%+, Functions 80%+, Lines 58%+
 
-- [ ] Task 7.1: Bump coverage thresholds
+- [x] Task 7.1: Bump coverage thresholds
   - File: `src-tauri/Cargo.toml` or coverage config, `TESTING.md`
   - Action: Update coverage thresholds to match achieved levels (ratchet up). Update `TESTING.md` with new values.
   - Notes: Run `cargo llvm-cov --lib` to get final numbers before setting thresholds.
 
-- [ ] Task 7.2: Audit remaining uncovered regions
+- [x] Task 7.2: Audit remaining uncovered regions
   - Action: Run `cargo llvm-cov --lib` and review any files still below 50% regions. Identify if there are quick wins (untested pure functions) that were missed.
-  - Notes: This is a sweep task — may generate follow-up work items.
+  - Notes: Audit result: `score/layouts.rs` (44.67%), `score/meta.rs` (36.48%), and the `ui/*.rs` modules remain the main low-coverage pockets. These are the next quick-win candidates after the command-extraction work.
 
 - [x] Task 7.3: Add `constrain_pan()` and `update_bounds()` tests to `renderer/mod.rs`
   - File: `src-tauri/src/renderer/mod.rs`
@@ -485,7 +485,7 @@ A phased refactoring initiative with mixed small phases — each phase extracts 
 
 - [x] AC 12: Given an `Instrument`, when `instrument.set_volume(200)` is called, then `instrument.volume` is clamped to `127`.
 
-- [ ] AC 13: Given the coverage thresholds after all phases complete, when `cargo llvm-cov --lib --fail-under-regions=X` is run, then the test suite passes with the ratcheted thresholds.
+- [x] AC 13: Given the coverage thresholds after all phases complete, when `cargo llvm-cov --lib --fail-under-regions=X` is run, then the test suite passes with the ratcheted thresholds.
 
 ## Additional Context
 
