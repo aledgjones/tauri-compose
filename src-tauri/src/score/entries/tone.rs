@@ -87,6 +87,63 @@ impl Track {
             }
         }
     }
+
+    /// Resolve a pitch from a MIDI integer + optional explicit accidental.
+    /// If no accidental is provided, infers from the key signature at `tick`.
+    pub fn resolve_pitch(&self, tick: Tick, pitch_int: u8, accidental: Option<Accidental>) -> Pitch {
+        match accidental {
+            Some(acc) => Pitch::new(pitch_int, acc),
+            None => {
+                let key_sig = match self.get_key_signature_before_tick_inclusive(tick) {
+                    Some(ks) => ks.clone(),
+                    None => KeySignature::default(),
+                };
+                Pitch::from_int(pitch_int, &key_sig)
+            }
+        }
+    }
+
+    /// Set the duration of the tone identified by `tone_id`.
+    pub fn set_tone_duration(&mut self, tone_id: UniqueId, duration: Ticks) {
+        if let Some(Entry::Tone(tone)) = self.entries.by_id.get_mut(&tone_id) {
+            tone.duration = duration;
+        }
+    }
+
+    /// Set the pitch of the tone identified by `tone_id`, resolving via key signature if needed.
+    pub fn set_tone_pitch(&mut self, tone_id: UniqueId, pitch_int: u8, accidental: Option<Accidental>) {
+        let tick = if let Some(Entry::Tone(tone)) = self.entries.by_id.get(&tone_id) {
+            tone.tick
+        } else {
+            return;
+        };
+        let pitch = self.resolve_pitch(tick, pitch_int, accidental);
+        if let Some(Entry::Tone(tone)) = self.entries.by_id.get_mut(&tone_id) {
+            tone.pitch = pitch;
+        }
+    }
+
+    /// Shift the pitch of `tone_id` by a number of octaves. Returns new MIDI int if found.
+    pub fn shift_tone_pitch_by_octaves(&mut self, tone_id: UniqueId, octaves: i8) -> Option<u8> {
+        if let Some(Entry::Tone(tone)) = self.entries.by_id.get_mut(&tone_id) {
+            tone.pitch = tone.pitch.shift_by_octaves(octaves);
+            Some(tone.pitch.int)
+        } else {
+            None
+        }
+    }
+
+    /// Set the accidental on `tone_id`, recomputing pitch from base + accidental offset. Returns new MIDI int if found.
+    pub fn set_tone_accidental(&mut self, tone_id: UniqueId, accidental: Accidental) -> Option<u8> {
+        if let Some(Entry::Tone(tone)) = self.entries.by_id.get_mut(&tone_id) {
+            let base_pitch = tone.pitch.base();
+            let new_pitch_int = (base_pitch as i8 + accidental as i8) as u8;
+            tone.pitch = Pitch::new(new_pitch_int, accidental);
+            Some(tone.pitch.int)
+        } else {
+            None
+        }
+    }
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -163,10 +220,7 @@ pub fn score_entries_tone_duration_set(
     let mut renderer = renderer_state.lock().unwrap();
 
     let track = state.score.tracks.by_id.get_mut(&track_id).unwrap();
-    let entry = track.entries.by_id.get_mut(&tone_id).unwrap();
-    if let Entry::Tone(tone) = entry {
-        tone.duration = duration;
-    }
+    track.set_tone_duration(tone_id, duration);
 
     state.emit(&app, &mut renderer, true);
 }
@@ -237,31 +291,7 @@ pub fn score_entries_tone_pitch_set(
     let mut renderer = renderer_state.lock().unwrap();
 
     let track = state.score.tracks.by_id.get_mut(&track_id).unwrap();
-
-    // Get the tick first to avoid borrowing conflicts
-    let tick = if let Some(Entry::Tone(tone)) = track.entries.by_id.get(&tone_id) {
-        tone.tick
-    } else {
-        return; // Tone not found
-    };
-
-    // Create the pitch based on whether an accidental was provided
-    let pitch = match accidental {
-        Some(accidental) => Pitch::new(pitch_int, accidental),
-        None => {
-            let key_signature = match track.get_key_signature_before_tick_inclusive(tick) {
-                Some(key_sig) => key_sig.clone(),
-                None => KeySignature::default(),
-            };
-            Pitch::from_int(pitch_int, &key_signature)
-        }
-    };
-
-    // Now update the tone with the new pitch
-    let entry = track.entries.by_id.get_mut(&tone_id).unwrap();
-    if let Entry::Tone(tone) = entry {
-        tone.pitch = pitch;
-    }
+    track.set_tone_pitch(tone_id, pitch_int, accidental);
 
     state.emit(&app, &mut renderer, true);
 }
@@ -418,13 +448,7 @@ pub fn score_entries_tone_pitch_shift_by_octaves(
     let mut renderer = renderer_state.lock().unwrap();
 
     let track = state.score.tracks.by_id.get_mut(&track_id).unwrap();
-    let entry = track.entries.by_id.get_mut(&tone_id).unwrap();
-    let new_pitch = if let Entry::Tone(tone) = entry {
-        tone.pitch = tone.pitch.shift_by_octaves(octaves);
-        Some(tone.pitch.int)
-    } else {
-        None
-    };
+    let new_pitch = track.shift_tone_pitch_by_octaves(tone_id, octaves);
 
     state.emit(&app, &mut renderer, true);
     new_pitch
@@ -443,15 +467,7 @@ pub fn score_entries_tone_accidental_set(
     let mut renderer = renderer_state.lock().unwrap();
 
     let track = state.score.tracks.by_id.get_mut(&track_id).unwrap();
-    let entry = track.entries.by_id.get_mut(&tone_id).unwrap();
-    let new_pitch = if let Entry::Tone(tone) = entry {
-        let base_pitch = tone.pitch.base();
-        let new_pitch_int = (base_pitch as i8 + accidental as i8) as u8;
-        tone.pitch = Pitch::new(new_pitch_int, accidental);
-        Some(tone.pitch.int)
-    } else {
-        None
-    };
+    let new_pitch = track.set_tone_accidental(tone_id, accidental);
 
     state.emit(&app, &mut renderer, true);
 
@@ -673,5 +689,165 @@ mod tests {
         let arts = Articulations::new().toggle(Articulation::Accent);
         // Should not panic on empty
         track.apply_articulations_to_tick(0, &arts);
+    }
+
+    // --- helpers ---
+
+    fn make_track_with_tone(tone_id: u64, tick: u64, pitch_int: u8, accidental: Accidental) -> Track {
+        use crate::score::entries::Entry;
+        use crate::score::tracks::Track;
+        let mut track = Track::new(1);
+        let tone = Tone::new(
+            tone_id,
+            tick,
+            32,
+            Pitch::new(pitch_int, accidental),
+            Velocity::new(80),
+            Articulations::new(),
+        );
+        track.insert_entry(Entry::Tone(tone));
+        track
+    }
+
+    // --- Track::resolve_pitch ---
+
+    #[test]
+    fn resolve_pitch_uses_explicit_accidental() {
+        use crate::score::tracks::Track;
+        let track = Track::new(1);
+        // C4 = 60, force Sharp → should use Pitch::new(60, Sharp)
+        let pitch = track.resolve_pitch(0, 60, Some(Accidental::Sharp));
+        assert_eq!(pitch.int, 60);
+        assert_eq!(pitch.accidental, Accidental::Sharp);
+    }
+
+    #[test]
+    fn resolve_pitch_infers_from_key_sig_when_no_accidental() {
+        use crate::score::entries::key_signature::{KeySignature as KS, KeySignatureMode};
+        use crate::score::entries::Entry;
+        use crate::score::tracks::Track;
+        let mut track = Track::new(1);
+        // Insert a G-major key signature (1 sharp) at tick 0
+        let key_sig = KS::new(99, 0, KeySignatureMode::Major, 1);
+        track.insert_entry(Entry::KeySignature(key_sig));
+        // F# (pitch_int=66) in G-major should be inferred as F#
+        let pitch = track.resolve_pitch(0, 66, None);
+        assert_eq!(pitch.accidental, Accidental::Sharp);
+    }
+
+    #[test]
+    fn resolve_pitch_defaults_to_natural_with_no_key_sig() {
+        use crate::score::tracks::Track;
+        let track = Track::new(1);
+        // No key sig on track — should use C-major default (all natural)
+        let pitch = track.resolve_pitch(0, 60, None);
+        assert_eq!(pitch.accidental, Accidental::Natural);
+    }
+
+    // --- Track::set_tone_duration ---
+
+    #[test]
+    fn set_tone_duration_updates_duration() {
+        use crate::score::entries::Entry;
+        let mut track = make_track_with_tone(1, 0, 60, Accidental::Natural);
+        track.set_tone_duration(1, 64);
+        if let Some(Entry::Tone(tone)) = track.entries.by_id.get(&1) {
+            assert_eq!(tone.duration, 64);
+        } else {
+            panic!("tone not found");
+        }
+    }
+
+    #[test]
+    fn set_tone_duration_noop_for_missing_tone() {
+        let mut track = make_track_with_tone(1, 0, 60, Accidental::Natural);
+        // Should not panic when tone_id doesn't exist
+        track.set_tone_duration(999, 64);
+    }
+
+    // --- Track::set_tone_pitch ---
+
+    #[test]
+    fn set_tone_pitch_with_explicit_accidental() {
+        use crate::score::entries::Entry;
+        let mut track = make_track_with_tone(1, 0, 60, Accidental::Natural);
+        track.set_tone_pitch(1, 62, Some(Accidental::Sharp));
+        if let Some(Entry::Tone(tone)) = track.entries.by_id.get(&1) {
+            assert_eq!(tone.pitch.int, 62);
+            assert_eq!(tone.pitch.accidental, Accidental::Sharp);
+        } else {
+            panic!("tone not found");
+        }
+    }
+
+    #[test]
+    fn set_tone_pitch_infers_accidental_from_key_sig() {
+        use crate::score::entries::key_signature::{KeySignature as KS, KeySignatureMode};
+        use crate::score::entries::Entry;
+        let mut track = make_track_with_tone(1, 0, 60, Accidental::Natural);
+        // Insert G-major (1#) key signature
+        let key_sig = KS::new(99, 0, KeySignatureMode::Major, 1);
+        track.insert_entry(Entry::KeySignature(key_sig));
+        // Set pitch to F# (66) without explicit accidental — should become F#
+        track.set_tone_pitch(1, 66, None);
+        if let Some(Entry::Tone(tone)) = track.entries.by_id.get(&1) {
+            assert_eq!(tone.pitch.accidental, Accidental::Sharp);
+        } else {
+            panic!("tone not found");
+        }
+    }
+
+    // --- Track::shift_tone_pitch_by_octaves ---
+
+    #[test]
+    fn shift_tone_pitch_by_octaves_up_one() {
+        use crate::score::entries::Entry;
+        // C4 = 60; up 1 octave = 72
+        let mut track = make_track_with_tone(1, 0, 60, Accidental::Natural);
+        let result = track.shift_tone_pitch_by_octaves(1, 1);
+        assert_eq!(result, Some(72));
+        if let Some(Entry::Tone(tone)) = track.entries.by_id.get(&1) {
+            assert_eq!(tone.pitch.int, 72);
+        } else {
+            panic!("tone not found");
+        }
+    }
+
+    #[test]
+    fn shift_tone_pitch_by_octaves_down_one() {
+        // C5 = 72; down 1 octave = 60
+        let mut track = make_track_with_tone(1, 0, 72, Accidental::Natural);
+        let result = track.shift_tone_pitch_by_octaves(1, -1);
+        assert_eq!(result, Some(60));
+    }
+
+    #[test]
+    fn shift_tone_pitch_by_octaves_returns_none_for_missing_tone() {
+        let mut track = make_track_with_tone(1, 0, 60, Accidental::Natural);
+        let result = track.shift_tone_pitch_by_octaves(999, 1);
+        assert_eq!(result, None);
+    }
+
+    // --- Track::set_tone_accidental ---
+
+    #[test]
+    fn set_tone_accidental_updates_pitch() {
+        use crate::score::entries::Entry;
+        // C natural (int=60, accidental=Natural, base=60) + Sharp(+1) = 61
+        let mut track = make_track_with_tone(1, 0, 60, Accidental::Natural);
+        let result = track.set_tone_accidental(1, Accidental::Sharp);
+        assert_eq!(result, Some(61));
+        if let Some(Entry::Tone(tone)) = track.entries.by_id.get(&1) {
+            assert_eq!(tone.pitch.accidental, Accidental::Sharp);
+        } else {
+            panic!("tone not found");
+        }
+    }
+
+    #[test]
+    fn set_tone_accidental_returns_none_for_missing_tone() {
+        let mut track = make_track_with_tone(1, 0, 60, Accidental::Natural);
+        let result = track.set_tone_accidental(999, Accidental::Sharp);
+        assert_eq!(result, None);
     }
 }

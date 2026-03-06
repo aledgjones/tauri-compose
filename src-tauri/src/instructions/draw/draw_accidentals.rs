@@ -101,4 +101,137 @@ mod tests {
         let result = get_accidental_slot_offset(3, 1.5, true);
         assert!((result - 2.85).abs() < 1e-5);
     }
+
+    // --- draw_accidental tests ---
+
+    fn make_sharp_tone(id: u64) -> Tone {
+        use crate::score::components::articulation::Articulations;
+        use crate::score::components::pitch::{Accidental, Pitch};
+        use crate::score::components::velocity::Velocity;
+        Tone::new(
+            id,
+            0,
+            32,
+            Pitch::new(61, Accidental::Sharp),
+            Velocity::new(64),
+            Articulations::default(),
+        )
+    }
+
+    #[test]
+    fn draw_accidental_produces_one_text_instruction() {
+        use crate::renderer::test_helpers::make_test_renderer;
+        use crate::renderer::DrawInstruction;
+        let mut renderer = make_test_renderer();
+        let tone = make_sharp_tone(1);
+        let an = AccidentalNotation { tone_id: 1, slot: 1 };
+
+        draw_accidental(
+            &Point { x: 5.0, y: 0.0 },
+            &an,
+            &tone,
+            1.175,
+            false,
+            None,
+            &mut renderer,
+        );
+
+        assert_eq!(renderer.instructions.len(), 1);
+        assert!(matches!(renderer.instructions[0], DrawInstruction::Text { .. }));
+    }
+
+    #[test]
+    fn draw_accidental_uses_black_when_not_selected() {
+        use crate::renderer::test_helpers::make_test_renderer;
+        use crate::renderer::DrawInstruction;
+        use skia_safe::Color;
+        let mut renderer = make_test_renderer();
+        let tone = make_sharp_tone(1);
+        let an = AccidentalNotation { tone_id: 1, slot: 1 };
+
+        draw_accidental(
+            &Point { x: 5.0, y: 0.0 },
+            &an,
+            &tone,
+            1.175,
+            false,
+            None,
+            &mut renderer,
+        );
+
+        if let DrawInstruction::Text { color, .. } = &renderer.instructions[0] {
+            assert_eq!(*color, Color::BLACK);
+        } else {
+            panic!("expected Text instruction");
+        }
+    }
+
+    #[test]
+    fn draw_accidental_uses_blue_when_tone_is_selected() {
+        use crate::renderer::test_helpers::make_test_renderer;
+        use crate::renderer::DrawInstruction;
+        use crate::ui::sequencer::Selection;
+        use skia_safe::Color;
+        let mut renderer = make_test_renderer();
+        let tone = make_sharp_tone(42);
+        let an = AccidentalNotation { tone_id: 42, slot: 1 };
+        let selection = Selection::Tone {
+            flow_id: 1,
+            instrument_id: 1,
+            stave_id: 1,
+            track_id: 1,
+            tone_id: 42,
+        };
+
+        draw_accidental(
+            &Point { x: 5.0, y: 0.0 },
+            &an,
+            &tone,
+            1.175,
+            false,
+            Some(&selection),
+            &mut renderer,
+        );
+
+        if let DrawInstruction::Text { color, .. } = &renderer.instructions[0] {
+            assert_eq!(*color, Color::from_rgb(14, 165, 233));
+        } else {
+            panic!("expected Text instruction");
+        }
+    }
+
+    #[test]
+    fn draw_accidental_different_tone_id_selection_uses_black() {
+        use crate::renderer::test_helpers::make_test_renderer;
+        use crate::renderer::DrawInstruction;
+        use crate::ui::sequencer::Selection;
+        use skia_safe::Color;
+        let mut renderer = make_test_renderer();
+        let tone = make_sharp_tone(1);
+        let an = AccidentalNotation { tone_id: 1, slot: 1 };
+        // Selection points at a DIFFERENT tone
+        let selection = Selection::Tone {
+            flow_id: 1,
+            instrument_id: 1,
+            stave_id: 1,
+            track_id: 1,
+            tone_id: 999,
+        };
+
+        draw_accidental(
+            &Point { x: 0.0, y: 0.0 },
+            &an,
+            &tone,
+            1.175,
+            false,
+            Some(&selection),
+            &mut renderer,
+        );
+
+        if let DrawInstruction::Text { color, .. } = &renderer.instructions[0] {
+            assert_eq!(*color, Color::BLACK);
+        } else {
+            panic!("expected Text instruction");
+        }
+    }
 }

@@ -584,7 +584,7 @@ lazy_static! {
     };
 }
 
-#[derive(Copy, Clone, Hash, Eq, PartialEq, Serialize_repr, Deserialize_repr)]
+#[derive(Copy, Clone, Hash, Eq, PartialEq, Debug, Serialize_repr, Deserialize_repr)]
 #[repr(i8)]
 pub enum Accidental {
     DoubleSharp = 2,
