@@ -41,6 +41,26 @@ impl Instrument {
             None => self.long_name.clone(),
         }
     }
+
+    pub fn set_volume(&mut self, volume: u8) -> u8 {
+        let clamped = volume.min(127);
+        self.volume = clamped;
+        clamped
+    }
+
+    pub fn set_pan(&mut self, pan: u8) -> u8 {
+        let clamped = pan.min(127);
+        self.pan = clamped;
+        clamped
+    }
+
+    pub fn set_mute(&mut self, mute: bool) {
+        self.mute = mute;
+    }
+
+    pub fn set_solo(&mut self, solo: bool) {
+        self.solo = solo;
+    }
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -289,12 +309,15 @@ pub fn score_instruments_set_volume(
     instrument_id: UniqueId,
     volume: u8,
 ) {
-    let clamped = volume.min(127);
     let mut state = state.lock().unwrap();
 
-    if let Some(instrument) = state.score.instruments.by_id.get_mut(&instrument_id) {
-        instrument.volume = clamped;
-    }
+    let clamped = state
+        .score
+        .instruments
+        .by_id
+        .get_mut(&instrument_id)
+        .map(|instrument| instrument.set_volume(volume))
+        .unwrap_or_else(|| volume.min(127));
 
     // Update live mix params for in-flight playback
     if let Ok(mut mix) = transport_shared.mix_params.write() {
@@ -316,12 +339,15 @@ pub fn score_instruments_set_pan(
     instrument_id: UniqueId,
     pan: u8,
 ) {
-    let clamped = pan.min(127);
     let mut state = state.lock().unwrap();
 
-    if let Some(instrument) = state.score.instruments.by_id.get_mut(&instrument_id) {
-        instrument.pan = clamped;
-    }
+    let clamped = state
+        .score
+        .instruments
+        .by_id
+        .get_mut(&instrument_id)
+        .map(|instrument| instrument.set_pan(pan))
+        .unwrap_or_else(|| pan.min(127));
 
     // Update live mix params for in-flight playback
     if let Ok(mut mix) = transport_shared.mix_params.write() {
@@ -346,7 +372,7 @@ pub fn score_instruments_set_mute(
     let mut state = state.lock().unwrap();
 
     if let Some(instrument) = state.score.instruments.by_id.get_mut(&instrument_id) {
-        instrument.mute = mute;
+        instrument.set_mute(mute);
     }
 
     // Update live mix params for in-flight playback
@@ -372,7 +398,7 @@ pub fn score_instruments_set_solo(
     let mut state = state.lock().unwrap();
 
     if let Some(instrument) = state.score.instruments.by_id.get_mut(&instrument_id) {
-        instrument.solo = solo;
+        instrument.set_solo(solo);
     }
 
     // Update live mix params for in-flight playback
@@ -389,11 +415,13 @@ pub fn score_instruments_set_solo(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::score::players::{Player, PlayerType, Players};
+    use crate::score::Score;
     use defs::InstrumentType;
 
-    fn make_instrument(definition_id: &str, long_name: &str) -> Instrument {
+    fn make_instrument(id: UniqueId, definition_id: &str, long_name: &str) -> Instrument {
         Instrument {
-            id: 1,
+            id,
             definition_id: definition_id.to_string(),
             instrument_type: InstrumentType::Melodic,
             long_name: long_name.to_string(),
@@ -408,6 +436,32 @@ mod tests {
         }
     }
 
+    fn make_player(id: UniqueId, player_type: PlayerType, instrument_ids: Vec<UniqueId>) -> Player {
+        Player {
+            id,
+            player_type,
+            instrument_ids,
+        }
+    }
+
+    fn make_score(players: Vec<Player>, instruments: Vec<Instrument>) -> Score {
+        let mut score = Score::new();
+
+        score.players = Players {
+            order: players.iter().map(|player| player.id).collect(),
+            by_id: players
+                .into_iter()
+                .map(|player| (player.id, player))
+                .collect(),
+        };
+        score.instruments.by_id = instruments
+            .into_iter()
+            .map(|instrument| (instrument.id, instrument))
+            .collect();
+
+        score
+    }
+
     #[test]
     fn instruments_new_is_empty() {
         let inst = Instruments::new();
@@ -416,89 +470,89 @@ mod tests {
 
     #[test]
     fn family_extracts_first_segment() {
-        let i = make_instrument("brass.horn.f", "Horn");
+        let i = make_instrument(1, "brass.horn.f", "Horn");
         assert_eq!(i.family(), "brass");
     }
 
     #[test]
     fn family_single_segment_returns_full() {
-        let i = make_instrument("brass", "Brass");
+        let i = make_instrument(1, "brass", "Brass");
         assert_eq!(i.family(), "brass");
     }
 
     #[test]
     fn name_without_count_is_long_name() {
-        let i = make_instrument("brass.horn.f", "Horn in F");
+        let i = make_instrument(1, "brass.horn.f", "Horn in F");
         assert_eq!(i.name(), "Horn in F");
     }
 
     #[test]
     fn name_with_count_appends_count() {
-        let mut i = make_instrument("brass.horn.f", "Horn in F");
+        let mut i = make_instrument(1, "brass.horn.f", "Horn in F");
         i.count = Some(String::from("II"));
         assert_eq!(i.name(), "Horn in F II");
     }
 
     #[test]
     fn name_with_arabic_count() {
-        let mut i = make_instrument("strings.violin", "Violin");
+        let mut i = make_instrument(1, "strings.violin", "Violin");
         i.count = Some(String::from("1"));
         assert_eq!(i.name(), "Violin 1");
     }
 
     #[test]
     fn instrument_mute_default_false() {
-        let i = make_instrument("woodwind.flute", "Flute");
+        let i = make_instrument(1, "woodwind.flute", "Flute");
         assert!(!i.mute);
     }
 
     #[test]
     fn instrument_solo_default_false() {
-        let i = make_instrument("woodwind.flute", "Flute");
+        let i = make_instrument(1, "woodwind.flute", "Flute");
         assert!(!i.solo);
     }
 
     #[test]
     fn instrument_volume_default_100() {
-        let i = make_instrument("woodwind.flute", "Flute");
+        let i = make_instrument(1, "woodwind.flute", "Flute");
         assert_eq!(i.volume, 100);
     }
 
     #[test]
     fn instrument_pan_default_64() {
-        let i = make_instrument("woodwind.flute", "Flute");
+        let i = make_instrument(1, "woodwind.flute", "Flute");
         assert_eq!(i.pan, 64);
     }
 
     #[test]
     fn instrument_assigned_plugin_id_default_none() {
-        let i = make_instrument("woodwind.flute", "Flute");
+        let i = make_instrument(1, "woodwind.flute", "Flute");
         assert!(i.assigned_plugin_id.is_none());
     }
 
     #[test]
     fn instrument_count_default_none() {
-        let i = make_instrument("woodwind.flute", "Flute");
+        let i = make_instrument(1, "woodwind.flute", "Flute");
         assert!(i.count.is_none());
     }
 
     #[test]
     fn instrument_stave_ids_default_empty() {
-        let i = make_instrument("woodwind.flute", "Flute");
+        let i = make_instrument(1, "woodwind.flute", "Flute");
         assert!(i.stave_ids.is_empty());
     }
 
     #[test]
     fn instruments_by_id_can_insert() {
         let mut instruments = Instruments::new();
-        let i = make_instrument("woodwind.flute", "Flute");
+        let i = make_instrument(1, "woodwind.flute", "Flute");
         instruments.by_id.insert(i.id, i);
         assert_eq!(instruments.by_id.len(), 1);
     }
 
     #[test]
     fn family_with_empty_definition_id() {
-        let i = make_instrument("", "Unknown");
+        let i = make_instrument(1, "", "Unknown");
         // split('.'). next() on empty string returns Some("") which is "unknown"-no-match
         // but actually empty string split gives Some("")
         // The code returns Some(part) where part = "" → returns ""
@@ -507,10 +561,118 @@ mod tests {
 
     #[test]
     fn name_with_set_count_contains_space() {
-        let mut i = make_instrument("strings.violin", "Violin");
+        let mut i = make_instrument(1, "strings.violin", "Violin");
         i.count = Some(String::from("III"));
         let name = i.name();
         assert!(name.contains(' '));
         assert!(name.ends_with("III"));
+    }
+
+    #[test]
+    fn set_volume_clamps_to_midi_max() {
+        let mut instrument = make_instrument(1, "woodwind.flute", "Flute");
+
+        let clamped = instrument.set_volume(200);
+
+        assert_eq!(clamped, 127);
+        assert_eq!(instrument.volume, 127);
+    }
+
+    #[test]
+    fn set_pan_clamps_to_midi_max() {
+        let mut instrument = make_instrument(1, "woodwind.flute", "Flute");
+
+        let clamped = instrument.set_pan(200);
+
+        assert_eq!(clamped, 127);
+        assert_eq!(instrument.pan, 127);
+    }
+
+    #[test]
+    fn set_mute_updates_flag() {
+        let mut instrument = make_instrument(1, "woodwind.flute", "Flute");
+
+        instrument.set_mute(true);
+
+        assert!(instrument.mute);
+    }
+
+    #[test]
+    fn set_solo_updates_flag() {
+        let mut instrument = make_instrument(1, "woodwind.flute", "Flute");
+
+        instrument.set_solo(true);
+
+        assert!(instrument.solo);
+    }
+
+    #[test]
+    fn update_counts_numbers_duplicate_instruments_on_same_player() {
+        let mut score = make_score(
+            vec![make_player(1, PlayerType::Section, vec![10, 11])],
+            vec![
+                make_instrument(10, "strings.violin", "Violin"),
+                make_instrument(11, "strings.violin", "Violin"),
+            ],
+        );
+
+        score.update_counts();
+
+        assert_eq!(score.instruments.by_id[&10].count.as_deref(), Some("I"));
+        assert_eq!(score.instruments.by_id[&11].count.as_deref(), Some("II"));
+    }
+
+    #[test]
+    fn update_counts_numbers_duplicate_instruments_across_players() {
+        let mut score = make_score(
+            vec![
+                make_player(1, PlayerType::Section, vec![10]),
+                make_player(2, PlayerType::Section, vec![11]),
+            ],
+            vec![
+                make_instrument(10, "strings.violin", "Violin"),
+                make_instrument(11, "strings.violin", "Violin"),
+            ],
+        );
+
+        score.update_counts();
+
+        assert_eq!(score.instruments.by_id[&10].count.as_deref(), Some("I"));
+        assert_eq!(score.instruments.by_id[&11].count.as_deref(), Some("II"));
+    }
+
+    #[test]
+    fn update_counts_leaves_single_instrument_unlabelled() {
+        let mut score = make_score(
+            vec![make_player(1, PlayerType::Section, vec![10])],
+            vec![make_instrument(10, "woodwind.flute", "Flute")],
+        );
+
+        score.update_counts();
+
+        assert!(score.instruments.by_id[&10].count.is_none());
+    }
+
+    #[test]
+    fn update_counts_tracks_each_instrument_type_independently() {
+        let mut score = make_score(
+            vec![
+                make_player(1, PlayerType::Section, vec![10, 12]),
+                make_player(2, PlayerType::Section, vec![11, 13]),
+            ],
+            vec![
+                make_instrument(10, "strings.violin", "Violin"),
+                make_instrument(11, "strings.violin", "Violin"),
+                make_instrument(12, "woodwind.flute", "Flute"),
+                make_instrument(13, "woodwind.flute", "Flute"),
+            ],
+        );
+
+        score.update_counts();
+
+        assert_eq!(score.instruments.by_id[&10].count.as_deref(), Some("I"));
+        assert_eq!(score.instruments.by_id[&11].count.as_deref(), Some("II"));
+        assert_eq!(score.instruments.by_id[&12].count.as_deref(), Some("I"));
+        assert_eq!(score.instruments.by_id[&13].count.as_deref(), Some("II"));
     }
 }

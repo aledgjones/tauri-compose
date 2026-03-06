@@ -43,6 +43,11 @@ impl Players {
             by_id: FxHashMap::default(),
         }
     }
+
+    pub fn reorder(&mut self, from_index: usize, to_index: usize) {
+        let moved = self.order.remove(from_index);
+        self.order.insert(to_index, moved);
+    }
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -88,8 +93,7 @@ pub fn score_players_move(
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
 
-    let moved = state.score.players.order.remove(from_index);
-    state.score.players.order.insert(to_index, moved);
+    state.score.players.reorder(from_index, to_index);
 
     state.score.update_counts();
     state.emit(&app, &mut renderer, true);
@@ -237,6 +241,19 @@ pub fn score_players_remove(
 mod tests {
     use super::*;
 
+    fn make_players(order: &[UniqueId]) -> Players {
+        let mut players = Players::new();
+
+        for player_id in order {
+            players.order.push(*player_id);
+            players
+                .by_id
+                .insert(*player_id, Player::new(*player_id, PlayerType::Solo));
+        }
+
+        players
+    }
+
     #[test]
     fn players_new_is_empty() {
         let p = Players::new();
@@ -284,6 +301,15 @@ mod tests {
         ps.order.push(7);
         assert_eq!(ps.by_id.len(), 1);
         assert_eq!(ps.order.len(), 1);
+    }
+
+    #[test]
+    fn reorder_moves_player_within_order() {
+        let mut players = make_players(&[1, 2, 3]);
+
+        players.reorder(2, 0);
+
+        assert_eq!(players.order, vec![3, 1, 2]);
     }
 
     #[test]

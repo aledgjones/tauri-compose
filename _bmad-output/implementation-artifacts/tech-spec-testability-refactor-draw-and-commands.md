@@ -357,7 +357,7 @@ A phased refactoring initiative with mixed small phases — each phase extracts 
 
 **Coverage target**: Regions 62%, Functions 78%, Lines 56%
 
-- [ ] Task 5.1: Extract `Flows::rename()` and `Flows::reorder()`
+- [x] Task 5.1: Extract `Flows::rename()` and `Flows::reorder()`
   - File: `src-tauri/src/score/flows.rs`
   - Action:
     1. Add `pub fn rename(&mut self, flow_id: UniqueId, title: String)` to `impl Flows` — looks up flow, sets title.
@@ -366,7 +366,7 @@ A phased refactoring initiative with mixed small phases — each phase extracts 
     4. Add tests for both methods.
   - Notes: Trivial extractions. Low risk. These methods already fit naturally on `Flows`.
 
-- [ ] Task 5.2: Extract `Score::update_counts()` tests
+- [x] Task 5.2: Extract `Score::update_counts()` tests
   - File: `src-tauri/src/score/instruments/mod.rs`
   - Action: `Score::update_counts()` already lives on `impl Score` and is testable — just needs tests. Test:
     1. Two violins from same player → numbered "I", "II"
@@ -375,7 +375,7 @@ A phased refactoring initiative with mixed small phases — each phase extracts 
     4. Mixed instrument types → independent counting
   - Notes: This method already exists in testable form — it just lacks tests. Requires constructing a `Score` with `Players`, `Instruments`, and player `order`. May need a `make_score()` test helper.
 
-- [ ] Task 5.3: Extract instrument mixer methods
+- [x] Task 5.3: Extract instrument mixer methods
   - File: `src-tauri/src/score/instruments/mod.rs`
   - Action:
     1. Add to `impl Instrument`:
@@ -387,7 +387,7 @@ A phased refactoring initiative with mixed small phases — each phase extracts 
     3. Add tests for each method (especially volume/pan clamping).
   - Notes: The `transport_shared` update stays in the command (it needs `Arc<TransportShared>`). We're extracting just the data mutation.
 
-- [ ] Task 5.4: Add tests for `impl AppContext` flow methods
+- [x] Task 5.4: Add tests for `impl AppContext` flow methods
   - File: `src-tauri/src/score/flows.rs`
   - Action: The 4 `impl AppContext` methods (`assign_player_to_flow`, `assign_instrument_to_flow`, `unassign_player_from_flow`, `unassign_instrument_from_flow`) already exist on `AppContext`. If we can construct an `AppContext` in tests (no Tauri runtime needed — it's just data), test these directly. Otherwise, extract the score-mutation logic out of `AppContext` and onto `Score`.
   - Notes: **Investigate first**: Check if `AppContext` can be constructed in tests. It contains `score: Score`, `ui: UIState`, `id_counter`, etc. If it's all plain data, a `make_app_context()` test helper would unlock testing for all `impl AppContext` methods across flows, players, and instruments. If it can't be constructed (e.g. requires Tauri types), then extract the logic onto `Score` instead.
@@ -400,7 +400,7 @@ A phased refactoring initiative with mixed small phases — each phase extracts 
 
 **Coverage target**: Regions 64%, Functions 80%, Lines 58%
 
-- [ ] Task 6.1: Extract `Players::reorder()`
+- [x] Task 6.1: Extract `Players::reorder()`
   - File: `src-tauri/src/score/players.rs`
   - Action:
     1. Add `pub fn reorder(&mut self, from_index: usize, to_index: usize)` to `impl Players`.
@@ -481,9 +481,9 @@ A phased refactoring initiative with mixed small phases — each phase extracts 
 
 ### Command Extraction — flows/players/instruments
 
-- [ ] AC 11: Given a `Score` with instruments across players, when `Score::update_counts()` is called, then instruments of the same type across the player order receive sequential count labels.
+- [x] AC 11: Given a `Score` with instruments across players, when `Score::update_counts()` is called, then instruments of the same type across the player order receive sequential count labels.
 
-- [ ] AC 12: Given an `Instrument`, when `instrument.set_volume(200)` is called, then `instrument.volume` is clamped to `127`.
+- [x] AC 12: Given an `Instrument`, when `instrument.set_volume(200)` is called, then `instrument.volume` is clamped to `127`.
 
 - [ ] AC 13: Given the coverage thresholds after all phases complete, when `cargo llvm-cov --lib --fail-under-regions=X` is run, then the test suite passes with the ratcheted thresholds.
 

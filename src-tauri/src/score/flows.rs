@@ -25,6 +25,16 @@ impl Flows {
             by_id: FxHashMap::default(),
         }
     }
+
+    pub fn rename(&mut self, flow_id: UniqueId, title: String) {
+        let flow = self.by_id.get_mut(&flow_id).unwrap();
+        flow.title = title;
+    }
+
+    pub fn reorder(&mut self, from_index: usize, to_index: usize) {
+        let moved = self.order.remove(from_index);
+        self.order.insert(to_index, moved);
+    }
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -182,8 +192,7 @@ pub fn score_flows_rename(
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
 
-    let flow = state.score.flows.by_id.get_mut(&flow_id).unwrap();
-    flow.title = title;
+    state.score.flows.rename(flow_id, title);
 
     state.emit(&app, &mut renderer, true);
 }
@@ -199,8 +208,7 @@ pub fn score_flows_move(
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
 
-    let moved = state.score.flows.order.remove(from_index);
-    state.score.flows.order.insert(to_index, moved);
+    state.score.flows.reorder(from_index, to_index);
 
     state.emit(&app, &mut renderer, true);
 }
@@ -272,12 +280,183 @@ pub fn score_flows_remove(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::preferences::Preferences;
+    use crate::score::instruments::{Instrument, Instruments};
+    use crate::score::layouts::Layouts;
+    use crate::score::players::{Player, PlayerType, Players};
+    use crate::score::Score;
+    use crate::ui::Ui;
+    use crate::AppContext;
+
+    fn make_flows(order: &[UniqueId]) -> Flows {
+        let mut flows = Flows::new();
+
+        for flow_id in order {
+            flows.order.push(*flow_id);
+            flows
+                .by_id
+                .insert(*flow_id, Flow::new(*flow_id, flow_id + 100));
+        }
+
+        flows
+    }
+
+    fn make_instrument(id: UniqueId, definition_id: &str, stave_ids: Vec<UniqueId>) -> Instrument {
+        let definition_id = definition_id.to_string();
+        let def = get_instrument_definition(&definition_id).unwrap();
+        let instrument_type = def.instrument_type;
+        let long_name = def.long_name.to_string();
+        let short_name = def.short_name.to_string();
+
+        Instrument {
+            id,
+            definition_id,
+            instrument_type,
+            long_name,
+            short_name,
+            stave_ids,
+            count: None,
+            assigned_plugin_id: None,
+            volume: 100,
+            pan: 64,
+            mute: false,
+            solo: false,
+        }
+    }
+
+    fn make_app_context(players: Vec<Player>, instruments: Vec<Instrument>) -> AppContext {
+        let mut score = Score::new();
+        let flow_id = 50;
+        let master_id = 60;
+
+        score.players = Players {
+            order: players.iter().map(|player| player.id).collect(),
+            by_id: players
+                .into_iter()
+                .map(|player| (player.id, player))
+                .collect(),
+        };
+        score.instruments = Instruments {
+            by_id: instruments
+                .into_iter()
+                .map(|instrument| (instrument.id, instrument))
+                .collect(),
+        };
+        score.layouts = Layouts::new();
+        score.flows.order.push(flow_id);
+        score
+            .flows
+            .by_id
+            .insert(flow_id, Flow::new(flow_id, master_id));
+
+        AppContext {
+            ui: Ui::new(),
+            score,
+            preferences: serde_json::from_str::<Preferences>(r#"{"audition":true}"#).unwrap(),
+            next_id: 1,
+            current_file_path: None,
+        }
+    }
 
     #[test]
     fn flows_new_is_empty() {
         let f = Flows::new();
         assert!(f.order.is_empty());
         assert!(f.by_id.is_empty());
+    }
+
+    #[test]
+    fn rename_updates_flow_title() {
+        let mut flows = make_flows(&[1]);
+
+        flows.rename(1, String::from("Intro"));
+
+        assert_eq!(flows.by_id[&1].title, "Intro");
+    }
+
+    #[test]
+    fn reorder_moves_flow_id_within_order() {
+        let mut flows = make_flows(&[10, 20, 30]);
+
+        flows.reorder(0, 2);
+
+        assert_eq!(flows.order, vec![20, 30, 10]);
+    }
+
+    #[test]
+    fn assign_instrument_to_flow_creates_staves_and_tracks() {
+        let instrument = make_instrument(10, "strings.violin", vec![100]);
+        let mut app = make_app_context(vec![], vec![instrument]);
+
+        app.assign_instrument_to_flow(50, 10);
+
+        let flow = &app.score.flows.by_id[&50];
+        let stave = &flow.staves.by_id[&100];
+
+        assert_eq!(flow.staves.by_id.len(), 1);
+        assert_eq!(stave.track_ids.len(), 1);
+        assert!(app.score.tracks.by_id.contains_key(&stave.master_id));
+        assert!(app.score.tracks.by_id.contains_key(&stave.track_ids[0]));
+    }
+
+    #[test]
+    fn assign_player_to_flow_wires_all_player_instruments() {
+        let players = vec![Player {
+            id: 1,
+            player_type: PlayerType::Section,
+            instrument_ids: vec![10, 11],
+        }];
+        let instruments = vec![
+            make_instrument(10, "strings.violin", vec![100]),
+            make_instrument(11, "woodwinds.flute", vec![101]),
+        ];
+        let mut app = make_app_context(players, instruments);
+
+        app.assign_player_to_flow(50, 1);
+
+        let flow = &app.score.flows.by_id[&50];
+
+        assert!(flow.player_ids.contains(&1));
+        assert!(flow.staves.by_id.contains_key(&100));
+        assert!(flow.staves.by_id.contains_key(&101));
+        assert_eq!(app.score.tracks.by_id.len(), 4);
+    }
+
+    #[test]
+    fn unassign_instrument_from_flow_removes_stave_and_tracks() {
+        let instrument = make_instrument(10, "strings.violin", vec![100]);
+        let mut app = make_app_context(vec![], vec![instrument]);
+
+        app.assign_instrument_to_flow(50, 10);
+        let stave = app.score.flows.by_id[&50].staves.by_id[&100].clone();
+
+        app.unassign_instrument_from_flow(50, 10);
+
+        assert!(!app.score.flows.by_id[&50].staves.by_id.contains_key(&100));
+        assert!(!app.score.tracks.by_id.contains_key(&stave.master_id));
+        assert!(!app.score.tracks.by_id.contains_key(&stave.track_ids[0]));
+    }
+
+    #[test]
+    fn unassign_player_from_flow_removes_player_and_all_staves() {
+        let players = vec![Player {
+            id: 1,
+            player_type: PlayerType::Section,
+            instrument_ids: vec![10, 11],
+        }];
+        let instruments = vec![
+            make_instrument(10, "strings.violin", vec![100]),
+            make_instrument(11, "woodwinds.flute", vec![101]),
+        ];
+        let mut app = make_app_context(players, instruments);
+
+        app.assign_player_to_flow(50, 1);
+        app.unassign_player_from_flow(50, 1);
+
+        let flow = &app.score.flows.by_id[&50];
+        assert!(!flow.player_ids.contains(&1));
+        assert!(flow.staves.by_id.is_empty());
+        assert!(app.score.tracks.by_id.is_empty());
     }
 
     #[test]
