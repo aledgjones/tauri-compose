@@ -2,7 +2,7 @@ use crate::renderer::converter::Space;
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
-#[derive(Copy, Clone, Serialize_repr, Deserialize_repr)]
+#[derive(Copy, Clone, PartialEq, Debug, Serialize_repr, Deserialize_repr)]
 #[repr(u8)]
 pub enum Justify {
     Start,
@@ -10,7 +10,7 @@ pub enum Justify {
     End,
 }
 
-#[derive(Copy, Clone, Serialize_repr, Deserialize_repr)]
+#[derive(Copy, Clone, PartialEq, Debug, Serialize_repr, Deserialize_repr)]
 #[repr(u8)]
 pub enum Align {
     Top,
@@ -18,7 +18,7 @@ pub enum Align {
     Bottom,
 }
 
-#[derive(Copy, Clone, Serialize_repr, Deserialize_repr)]
+#[derive(Copy, Clone, PartialEq, Debug, Serialize_repr, Deserialize_repr)]
 #[repr(u8)]
 pub enum FontFamily {
     Bravura,

@@ -25,7 +25,7 @@ fn constrain_dimension(pan: f32, scaled_size: f32, bounds_size: f32) -> f32 {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum DrawInstruction {
     Line {
         width: f32,
@@ -69,7 +69,7 @@ pub enum DrawInstruction {
     },
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct HitTarget {
     pub entry: Selection,
     pub x: f32,
@@ -303,5 +303,172 @@ impl RendererContext {
         }
 
         Ok(())
+    }
+}
+
+/// Test helper module — available to all draw test modules via `use crate::renderer::test_helpers::*`
+#[cfg(test)]
+pub mod test_helpers {
+    use super::*;
+    use crate::renderer::converter::Converter;
+
+    pub fn make_test_renderer() -> RendererContext {
+        RendererContext {
+            backend: None,
+            converter: Converter::new(1.0, 1.0),
+            px_per_mm: 1.0,
+            instructions: Vec::new(),
+            width: 0.0,
+            height: 0.0,
+            hit_targets: Vec::new(),
+            bounds: (0.0, 0.0, 0.0, 0.0),
+            pixel_density: 1.0,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::test_helpers::make_test_renderer;
+    use super::*;
+    use crate::score::components::measurements::{CurvePoint, Point};
+    use crate::score::components::text::{Align, Font, FontFamily, Justify};
+    use skia_safe::Color;
+
+    // --- Task 1.4: RendererContext drawing method tests ---
+
+    #[test]
+    fn line_pushes_line_instruction() {
+        let mut r = make_test_renderer();
+        r.line(
+            0.125,
+            Color::BLACK,
+            vec![Point { x: 0.0, y: 0.0 }, Point { x: 2.0, y: 0.0 }],
+        );
+        assert_eq!(r.instructions.len(), 1);
+        if let DrawInstruction::Line { width, color, points } = &r.instructions[0] {
+            assert!((width - 0.125).abs() < 1e-5);
+            assert_eq!(*color, Color::BLACK);
+            assert_eq!(points.len(), 2);
+        } else {
+            panic!("expected DrawInstruction::Line");
+        }
+    }
+
+    #[test]
+    fn dashed_line_pushes_dashed_line_instruction() {
+        let mut r = make_test_renderer();
+        r.dashed_line(
+            0.125,
+            Color::BLACK,
+            vec![Point { x: 0.0, y: 0.0 }, Point { x: 2.0, y: 0.0 }],
+        );
+        assert_eq!(r.instructions.len(), 1);
+        assert!(matches!(r.instructions[0], DrawInstruction::DashedLine { .. }));
+    }
+
+    #[test]
+    fn text_pushes_text_instruction_with_correct_content() {
+        let mut r = make_test_renderer();
+        r.text(
+            "hello",
+            &Font {
+                size: 2.0,
+                family: FontFamily::Bravura,
+                justify: Justify::Start,
+                align: Align::Bottom,
+            },
+            &Point { x: 1.0, y: 1.0 },
+            Color::BLACK,
+        );
+        assert_eq!(r.instructions.len(), 1);
+        if let DrawInstruction::Text { text, font_family, .. } = &r.instructions[0] {
+            assert_eq!(text, "hello");
+            assert_eq!(*font_family, FontFamily::Bravura);
+        } else {
+            panic!("expected DrawInstruction::Text");
+        }
+    }
+
+    #[test]
+    fn circle_pushes_circle_instruction() {
+        let mut r = make_test_renderer();
+        r.circle(0.5, Color::BLACK, &Point { x: 1.0, y: 1.0 });
+        assert_eq!(r.instructions.len(), 1);
+        assert!(matches!(r.instructions[0], DrawInstruction::Circle { .. }));
+    }
+
+    #[test]
+    fn shape_pushes_shape_instruction() {
+        let mut r = make_test_renderer();
+        r.shape(
+            Color::BLACK,
+            vec![
+                Point { x: 0.0, y: 0.0 },
+                Point { x: 1.0, y: 0.0 },
+                Point { x: 1.0, y: 1.0 },
+            ],
+        );
+        assert_eq!(r.instructions.len(), 1);
+        assert!(matches!(r.instructions[0], DrawInstruction::Shape { .. }));
+    }
+
+    #[test]
+    fn curve_pushes_curve_instruction() {
+        let mut r = make_test_renderer();
+        r.curve(
+            Color::BLACK,
+            [
+                CurvePoint { x: 0.0, y: 0.0, thickness: 0.1 },
+                CurvePoint { x: 1.0, y: -0.5, thickness: 0.2 },
+                CurvePoint { x: 2.0, y: 0.0, thickness: 0.1 },
+            ],
+        );
+        assert_eq!(r.instructions.len(), 1);
+        assert!(matches!(r.instructions[0], DrawInstruction::Curve { .. }));
+    }
+
+    #[test]
+    fn rectangle_pushes_rectangle_instruction() {
+        let mut r = make_test_renderer();
+        r.rectangle(0.0, 0.0, 2.0, 1.0, Color::BLACK);
+        assert_eq!(r.instructions.len(), 1);
+        assert!(matches!(r.instructions[0], DrawInstruction::Rectangle { .. }));
+    }
+
+    #[test]
+    fn clear_empties_instructions_and_hit_targets() {
+        let mut r = make_test_renderer();
+        r.line(
+            0.125,
+            Color::BLACK,
+            vec![Point { x: 0.0, y: 0.0 }, Point { x: 1.0, y: 0.0 }],
+        );
+        r.clear();
+        assert!(r.instructions.is_empty());
+        assert!(r.hit_targets.is_empty());
+    }
+
+    #[test]
+    fn multiple_draw_calls_accumulate_instructions() {
+        let mut r = make_test_renderer();
+        r.line(0.125, Color::BLACK, vec![Point { x: 0.0, y: 0.0 }, Point { x: 1.0, y: 0.0 }]);
+        r.circle(0.5, Color::BLACK, &Point { x: 1.0, y: 1.0 });
+        r.rectangle(0.0, 0.0, 2.0, 1.0, Color::BLACK);
+        assert_eq!(r.instructions.len(), 3);
+    }
+
+    #[test]
+    fn converter_1_to_1_maps_space_coords_to_identical_px_coords() {
+        let mut r = make_test_renderer();
+        r.circle(1.0, Color::BLACK, &Point { x: 3.0, y: 4.0 });
+        if let DrawInstruction::Circle { radius, origin, .. } = &r.instructions[0] {
+            // Converter::new(1.0, 1.0) → 1 space == 1 px
+            assert!((radius - 1.0).abs() < 1e-5);
+            assert!((origin.0 - 3.0).abs() < 1e-5);
+            assert!((origin.1 - 4.0).abs() < 1e-5);
+        } else {
+            panic!("expected Circle instruction");
+        }
     }
 }

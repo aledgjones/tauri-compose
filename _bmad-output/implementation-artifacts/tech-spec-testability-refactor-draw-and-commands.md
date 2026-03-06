@@ -178,17 +178,19 @@ A phased refactoring initiative with mixed small phases — each phase extracts 
 
 **Coverage target**: Regions 54%, Functions 70%, Lines 47%
 
-- [ ] Task 1.1: Add `Debug` + `PartialEq` derives to `DrawInstruction` and `HitTarget`
+- [x] Task 1.1: Add `Debug` + `PartialEq` derives to `DrawInstruction` and `HitTarget`
   - File: `src-tauri/src/renderer/mod.rs`
   - Action: Change `#[derive(Clone)]` to `#[derive(Clone, Debug, PartialEq)]` on `DrawInstruction` enum and `HitTarget` struct. Also add `Debug` + `PartialEq` to any referenced types that lack them (e.g. `FontFamily`, `Justify`, `Align` — check if `Selection` already has them, if not use pattern matching for HitTarget tests instead).
   - Notes: Pure derive additions — zero runtime behavior change. If `Selection` or `Color` don't impl `PartialEq`, leave `HitTarget` as `Clone` only and use pattern matching in tests. Test by running `cargo test --lib`.
 
-- [ ] Task 1.2: Create shared draw test helper: `make_renderer()`
+- [x] Task 1.2: Create shared draw test helper: `make_renderer()`
   - File: `src-tauri/src/renderer/mod.rs` (add `#[cfg(test)]` module)
   - Action: Add a `pub(crate)` test helper function that constructs a bare `RendererContext` with `backend: None`, `Converter::new(1.0, 1.0)`, `px_per_mm: 1.0`, zero-sized dimensions, empty vecs, default bounds, `pixel_density: 1.0`. This avoids `Mutex` wrapping (which `RendererContext::new()` does).
   - Notes: Since test modules can't easily share helpers across files, define this as `pub(crate) fn make_test_renderer() -> RendererContext` inside `#[cfg(test)] mod tests` in `renderer/mod.rs`, or as a `#[cfg(test)] pub mod test_helpers` at the renderer module level so draw test files can import it.
 
-- [ ] Task 1.3: Add headless tests for trivial draw files (7 files)
+- [x] Task 1.3: Add headless tests for trivial draw files (7 files)
+  - **Completed (2/7):** `draw_stem.rs` (96% regions), `draw_clef.rs` (96% regions)
+  - **Remaining:** `draw_flag.rs`, `draw_braces.rs`, `draw_names.rs`, `draw_staves.rs`, `draw_systemic_barline.rs`
   - Files: `draw_stem.rs`, `draw_clef.rs`, `draw_flag.rs`, `draw_braces.rs`, `draw_names.rs`, `draw_staves.rs`, `draw_systemic_barline.rs`
   - Action: For each file, add a `#[cfg(test)] mod tests` block that:
     1. Constructs a `RendererContext` using the helper from Task 1.2
@@ -197,7 +199,7 @@ A phased refactoring initiative with mixed small phases — each phase extracts 
     4. Asserts on `renderer.instructions.len()` and pattern-matches the instruction variant to verify correct type, color, and approximate coordinates
   - Notes: These files each produce a single `DrawInstruction` with no branching — they are the simplest possible draw tests. Each test should take ~5–10 lines. Start with `draw_stem.rs` as the template pattern, then replicate for the others.
 
-- [ ] Task 1.4: Add basic tests for `RendererContext` drawing methods
+- [x] Task 1.4: Add basic tests for `RendererContext` drawing methods
   - File: `src-tauri/src/renderer/mod.rs`
   - Action: Test `line()`, `text()`, `circle()`, `shape()`, `curve()`, `rectangle()`, `dashed_line()`, and `clear()`. Construct a `RendererContext`, call each method, verify the corresponding `DrawInstruction` is pushed to `self.instructions`. Test `clear()` empties both `instructions` and `hit_targets`.
   - Notes: These are the most foundational tests — they verify the infrastructure that all draw tests rely on.
