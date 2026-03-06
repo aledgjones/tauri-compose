@@ -732,7 +732,10 @@ impl NotationTrack {
         }
 
         self.split_at_next_boundary_for_off_grid_events(
-            &[(beat_one, beat_two, beat_two), (beat_two, beat_three, beat_three)],
+            &[
+                (beat_one, beat_two, beat_two),
+                (beat_two, beat_three, beat_three),
+            ],
             eigth,
         );
 
@@ -2658,7 +2661,11 @@ mod tests {
             .collect::<Vec<_>>()
     }
 
-    fn make_time_signature_for_test(tick: Tick, beats: u8, beat_type: NoteDuration) -> TimeSignature {
+    fn make_time_signature_for_test(
+        tick: Tick,
+        beats: u8,
+        beat_type: NoteDuration,
+    ) -> TimeSignature {
         TimeSignature::new(
             1,
             tick,
@@ -2689,7 +2696,11 @@ mod tests {
         time_signature: TimeSignature,
         tone_specs: &[(u64, Tick, Ticks, u8)],
     ) -> (Flow, Instrument, Tracks, u64) {
-        make_parser_fixture_with_length(time_signature.clone(), time_signature.ticks_per_bar(), tone_specs)
+        make_parser_fixture_with_length(
+            time_signature.clone(),
+            time_signature.ticks_per_bar(),
+            tone_specs,
+        )
     }
 
     fn make_parser_fixture_with_length(
@@ -2870,7 +2881,10 @@ mod tests {
         let time_signature = make_time_signature_for_test(0, 3, NoteDuration::Quarter);
         let mut track = NotationTrack::new(q * 3);
         track.track.insert(0, make_note_at(0, dotted_quarter, 1));
-        track.track.insert(dotted_quarter, make_note_at(dotted_quarter, dotted_quarter, 2));
+        track.track.insert(
+            dotted_quarter,
+            make_note_at(dotted_quarter, dotted_quarter, 2),
+        );
 
         track.split_simple_unit(0, q * 3, &time_signature, &time_signature);
 
@@ -2891,7 +2905,9 @@ mod tests {
         let time_signature = make_time_signature_for_test(0, 3, NoteDuration::Quarter);
         let mut track = NotationTrack::new(q * 3);
         track.track.insert(0, make_note_at(0, dotted_quarter, 1));
-        track.track.insert(dotted_quarter, make_rest_at(dotted_quarter, dotted_quarter));
+        track
+            .track
+            .insert(dotted_quarter, make_rest_at(dotted_quarter, dotted_quarter));
 
         track.split_simple_unit(0, q * 3, &time_signature, &time_signature);
 
@@ -2952,7 +2968,8 @@ mod tests {
             &instruments,
             &tracks,
         );
-        let notation = get_written_durations(&flow, &instruments, &tracks, &measures, &tone_offsets);
+        let notation =
+            get_written_durations(&flow, &instruments, &tracks, &measures, &tone_offsets);
 
         assert_notation_track_matches(
             &notation[&track_id],
@@ -3124,7 +3141,11 @@ mod tests {
             },
             Scenario {
                 name: "quarter from the and of two currently remains unsplit over beat three",
-                tone_specs: vec![(1, 0, q * 2, 60), (2, q * 2 + e, q, 64), (3, q * 3 + e, e, 67)],
+                tone_specs: vec![
+                    (1, 0, q * 2, 60),
+                    (2, q * 2 + e, q, 64),
+                    (3, q * 3 + e, e, 67),
+                ],
                 expectations: vec![
                     notation_expectation(0, q * 2, false, vec![1], vec![]),
                     notation_expectation(q * 2, e, true, vec![], vec![]),
@@ -3239,7 +3260,8 @@ mod tests {
             &instruments,
             &tracks,
         );
-        let notation = get_written_durations(&flow, &instruments, &tracks, &measures, &tone_offsets);
+        let notation =
+            get_written_durations(&flow, &instruments, &tracks, &measures, &tone_offsets);
 
         assert_notation_track_matches(
             &notation[&track_id],
@@ -3254,7 +3276,10 @@ mod tests {
         let time_signature = make_time_signature_for_test(0, 3, NoteDuration::Quarter);
         let (flow, instrument, tracks, track_id) = make_parser_fixture(
             time_signature,
-            &[(1, 0, dotted_quarter, 60), (2, dotted_quarter, dotted_quarter, 62)],
+            &[
+                (1, 0, dotted_quarter, 60),
+                (2, dotted_quarter, dotted_quarter, 62),
+            ],
         );
         let instruments = vec![&instrument];
         let measures = crate::instructions::parse::get_measures::get_measures(&flow, &tracks);
@@ -3263,7 +3288,8 @@ mod tests {
             &instruments,
             &tracks,
         );
-        let notation = get_written_durations(&flow, &instruments, &tracks, &measures, &tone_offsets);
+        let notation =
+            get_written_durations(&flow, &instruments, &tracks, &measures, &tone_offsets);
 
         assert_notation_track_matches(
             &notation[&track_id],
@@ -3289,7 +3315,8 @@ mod tests {
             &instruments,
             &tracks,
         );
-        let notation = get_written_durations(&flow, &instruments, &tracks, &measures, &tone_offsets);
+        let notation =
+            get_written_durations(&flow, &instruments, &tracks, &measures, &tone_offsets);
 
         assert_notation_track_matches(
             &notation[&track_id],
@@ -3298,6 +3325,31 @@ mod tests {
                 notation_expectation(q, q / 2, false, vec![1], vec![]),
                 notation_expectation(dotted_quarter, q / 2, true, vec![], vec![]),
                 notation_expectation(q * 2, q, true, vec![], vec![]),
+            ],
+        );
+    }
+
+    #[test]
+    fn get_written_durations_in_three_four_keeps_half_note_starting_on_beat_two_unsplit() {
+        let q = NoteDuration::Quarter.to_ticks();
+        let time_signature = make_time_signature_for_test(0, 3, NoteDuration::Quarter);
+        let (flow, instrument, tracks, track_id) =
+            make_parser_fixture(time_signature, &[(1, q, q * 2, 60)]);
+        let instruments = vec![&instrument];
+        let measures = crate::instructions::parse::get_measures::get_measures(&flow, &tracks);
+        let tone_offsets = crate::instructions::parse::get_tone_offsets::get_tone_offsets(
+            &flow,
+            &instruments,
+            &tracks,
+        );
+        let notation =
+            get_written_durations(&flow, &instruments, &tracks, &measures, &tone_offsets);
+
+        assert_notation_track_matches(
+            &notation[&track_id],
+            vec![
+                notation_expectation(0, q, true, vec![], vec![]),
+                notation_expectation(q, q * 2, false, vec![1], vec![]),
             ],
         );
     }
@@ -3368,7 +3420,7 @@ mod tests {
 
         let scenarios = vec![
             Scenario {
-                name: "half note starting on beat two currently remains a half note",
+                name: "half note starting on beat two correctly remains a half note",
                 tone_specs: vec![(1, q, q * 2, 60)],
                 expectations: vec![
                     notation_expectation(0, q, true, vec![], vec![]),
@@ -3492,7 +3544,12 @@ mod tests {
         let scenarios = vec![
             Scenario {
                 name: "eighth rest then quarter syncopation then quarter then closing eighth",
-                tone_specs: vec![(1, e, q, 60), (2, q + e, q, 62), (3, q * 2 + e, q, 64), (4, q * 3 + e, e, 65)],
+                tone_specs: vec![
+                    (1, e, q, 60),
+                    (2, q + e, q, 62),
+                    (3, q * 2 + e, q, 64),
+                    (4, q * 3 + e, e, 65),
+                ],
                 expectations: vec![
                     notation_expectation(0, e, true, vec![], vec![]),
                     notation_expectation(e, q, false, vec![1], vec![]),
@@ -3503,7 +3560,12 @@ mod tests {
             },
             Scenario {
                 name: "quarter then eighth rest then eighth pickup then two quarters",
-                tone_specs: vec![(1, 0, q, 60), (2, q + e, e, 62), (3, q * 2, q, 64), (4, q * 3, q, 65)],
+                tone_specs: vec![
+                    (1, 0, q, 60),
+                    (2, q + e, e, 62),
+                    (3, q * 2, q, 64),
+                    (4, q * 3, q, 65),
+                ],
                 expectations: vec![
                     notation_expectation(0, q, false, vec![1], vec![]),
                     notation_expectation(q, e, true, vec![], vec![]),
@@ -3556,7 +3618,13 @@ mod tests {
             },
             Scenario {
                 name: "quarter two eighths quarter quarter",
-                tone_specs: vec![(1, 0, q, 60), (2, q, e, 62), (3, q + e, e, 64), (4, q * 2, q, 65), (5, q * 3, q, 67)],
+                tone_specs: vec![
+                    (1, 0, q, 60),
+                    (2, q, e, 62),
+                    (3, q + e, e, 64),
+                    (4, q * 2, q, 65),
+                    (5, q * 3, q, 67),
+                ],
                 expectations: vec![
                     notation_expectation(0, q, false, vec![1], vec![]),
                     notation_expectation(q, e, false, vec![2], vec![]),
@@ -3567,7 +3635,14 @@ mod tests {
             },
             Scenario {
                 name: "two eighths quarter two eighths quarter",
-                tone_specs: vec![(1, 0, e, 60), (2, e, e, 62), (3, q, q, 64), (4, q * 2, e, 65), (5, q * 2 + e, e, 67), (6, q * 3, q, 69)],
+                tone_specs: vec![
+                    (1, 0, e, 60),
+                    (2, e, e, 62),
+                    (3, q, q, 64),
+                    (4, q * 2, e, 65),
+                    (5, q * 2 + e, e, 67),
+                    (6, q * 3, q, 69),
+                ],
                 expectations: vec![
                     notation_expectation(0, e, false, vec![1], vec![]),
                     notation_expectation(e, e, false, vec![2], vec![]),
@@ -3588,7 +3663,11 @@ mod tests {
             },
             Scenario {
                 name: "half dotted quarter eighth",
-                tone_specs: vec![(1, 0, q * 2, 60), (2, q * 2, q + e, 62), (3, q * 3 + e, e, 64)],
+                tone_specs: vec![
+                    (1, 0, q * 2, 60),
+                    (2, q * 2, q + e, 62),
+                    (3, q * 3 + e, e, 64),
+                ],
                 expectations: vec![
                     notation_expectation(0, q * 2, false, vec![1], vec![]),
                     notation_expectation(q * 2, q + e, false, vec![2], vec![]),
@@ -3629,7 +3708,12 @@ mod tests {
         assert_written_duration_scenario(
             "three four rewritten second dotted quarter chord keeps full chord on both fragments",
             three_four,
-            &[(1, 0, q + e, 60), (2, 0, q + e, 64), (3, q + e, q + e, 67), (4, q + e, q + e, 71)],
+            &[
+                (1, 0, q + e, 60),
+                (2, 0, q + e, 64),
+                (3, q + e, q + e, 67),
+                (4, q + e, q + e, 71),
+            ],
             vec![
                 notation_expectation(0, q + e, false, vec![1, 2], vec![]),
                 notation_expectation(q + e, e, false, vec![3, 4], vec![3, 4]),
@@ -3702,7 +3786,10 @@ mod tests {
         let time_signature = make_time_signature_for_test(0, 6, NoteDuration::Eighth);
         let (flow, instrument, tracks, _track_id) = make_parser_fixture(
             time_signature,
-            &[(1, 0, dotted_quarter, 60), (2, dotted_quarter, dotted_quarter, 62)],
+            &[
+                (1, 0, dotted_quarter, 60),
+                (2, dotted_quarter, dotted_quarter, 62),
+            ],
         );
         let instruments = vec![&instrument];
         let measures = crate::instructions::parse::get_measures::get_measures(&flow, &tracks);

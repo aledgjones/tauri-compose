@@ -359,7 +359,8 @@ mod tests {
             by_offset: FxHashMap::default(),
         };
 
-        let result = get_accidentals_in_track(&notation, &master, &barlines, &tone_offsets, &shunts);
+        let result =
+            get_accidentals_in_track(&notation, &master, &barlines, &tone_offsets, &shunts);
 
         assert!(result.by_id.contains_key(&(0, 1)));
         assert!(!result.by_id.contains_key(&(32, 1)));
