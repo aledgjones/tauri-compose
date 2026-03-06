@@ -1,6 +1,7 @@
 pub mod defs;
 
 use super::{config::AutoCountStyle, Score};
+use crate::playback::sampler::sync_sampler_with_score;
 use crate::playback::transport::TransportSharedState;
 use crate::score::players::PlayerType;
 use crate::utils::UniqueId;
@@ -77,6 +78,14 @@ impl Instruments {
 }
 
 impl Score {
+    pub fn assigned_plugin_ids(&self) -> Vec<String> {
+        self.instruments
+            .by_id
+            .values()
+            .filter_map(|instrument| instrument.assigned_plugin_id.clone())
+            .collect()
+    }
+
     pub fn update_counts(&mut self) {
         let mut instruments_by_type: FxHashMap<PlayerType, FxHashMap<String, Vec<UniqueId>>> =
             FxHashMap::default();
@@ -238,24 +247,13 @@ pub fn score_instruments_remove(
 
     state.score.instruments.by_id.remove(&instrument_id);
 
-    // Sync sampler to unload plugins that are no longer needed
-    let assigned_plugin_ids: Vec<String> = state
-        .score
-        .instruments
-        .by_id
-        .values()
-        .filter_map(|i| i.assigned_plugin_id.clone())
-        .collect();
-
-    let mut sampler = sampler_state.lock().unwrap();
-    let audio = audio_state.lock().unwrap();
-    let sample_rate = audio.get_sample_rate();
-    drop(audio);
-
-    if let Err(e) = sampler.sync_with_instruments(&assigned_plugin_ids, sample_rate) {
-        eprintln!("Failed to sync sampler: {}", e);
-    }
-    sampler.emit(&app);
+    sync_sampler_with_score(
+        &app,
+        &state.score,
+        sampler_state.inner(),
+        audio_state.inner(),
+        "after instrument removal",
+    );
 
     let mut renderer = renderer_state.lock().unwrap();
     state.emit(&app, &mut renderer, true);
@@ -277,24 +275,13 @@ pub fn score_instruments_assign_plugin(
         instrument.assigned_plugin_id = plugin_id;
     }
 
-    // Collect all assigned plugin IDs and sync the sampler
-    let assigned_plugin_ids: Vec<String> = state
-        .score
-        .instruments
-        .by_id
-        .values()
-        .filter_map(|i| i.assigned_plugin_id.clone())
-        .collect();
-
-    let mut sampler = sampler_state.lock().unwrap();
-    let audio = audio_state.lock().unwrap();
-    let sample_rate = audio.get_sample_rate();
-    drop(audio); // Release audio lock before potentially slow operation
-
-    if let Err(e) = sampler.sync_with_instruments(&assigned_plugin_ids, sample_rate) {
-        eprintln!("Failed to sync sampler: {}", e);
-    }
-    sampler.emit(&app);
+    sync_sampler_with_score(
+        &app,
+        &state.score,
+        sampler_state.inner(),
+        audio_state.inner(),
+        "after plugin assignment",
+    );
 
     let mut renderer = renderer_state.lock().unwrap();
     state.emit(&app, &mut renderer, false);
@@ -674,5 +661,22 @@ mod tests {
         assert_eq!(score.instruments.by_id[&11].count.as_deref(), Some("II"));
         assert_eq!(score.instruments.by_id[&12].count.as_deref(), Some("I"));
         assert_eq!(score.instruments.by_id[&13].count.as_deref(), Some("II"));
+    }
+
+    #[test]
+    fn assigned_plugin_ids_collects_only_assigned_plugins() {
+        let mut score = make_score(
+            vec![make_player(1, PlayerType::Section, vec![10, 11, 12])],
+            vec![
+                make_instrument(10, "strings.violin", "Violin"),
+                make_instrument(11, "woodwind.flute", "Flute"),
+                make_instrument(12, "brass.horn.f", "Horn"),
+            ],
+        );
+
+        score.instruments.by_id.get_mut(&10).unwrap().assigned_plugin_id = Some(String::from("a"));
+        score.instruments.by_id.get_mut(&12).unwrap().assigned_plugin_id = Some(String::from("b"));
+
+        assert_eq!(score.assigned_plugin_ids(), vec![String::from("a"), String::from("b")]);
     }
 }

@@ -3,6 +3,7 @@ use crate::ui::sequencer::Tool;
 use crate::{AppContextState, AudioContextState, RendererContextState, SamplerContextState};
 use flate2::{read::GzDecoder, write::GzEncoder, Compression};
 use semver::Version;
+use crate::playback::sampler::sync_sampler_with_score;
 use serde_json::Value;
 use sled::Db;
 use std::fs;
@@ -149,14 +150,8 @@ pub fn load_project_from_file(
     // Update the current file path
     state.current_file_path = Some(file_path);
 
-    // Sync sampler with instruments from the loaded file
-    let assigned_plugin_ids: Vec<String> = state
-        .score
-        .instruments
-        .by_id
-        .values()
-        .filter_map(|i| i.assigned_plugin_id.clone())
-        .collect();
+
+    let score = state.score.clone();
 
     // Emit the updated state
     state.emit(&app, &mut renderer, true);
@@ -165,15 +160,13 @@ pub fn load_project_from_file(
     drop(state);
     drop(renderer);
 
-    let mut sampler = sampler_state.lock().unwrap();
-    let audio = audio_state.lock().unwrap();
-    let sample_rate = audio.get_sample_rate();
-    drop(audio);
-
-    if let Err(e) = sampler.sync_with_instruments(&assigned_plugin_ids, sample_rate) {
-        eprintln!("Failed to sync sampler after load: {}", e);
-    }
-    sampler.emit(&app);
+    sync_sampler_with_score(
+        &app,
+        &score,
+        sampler_state.inner(),
+        audio_state.inner(),
+        "after load",
+    );
 
     // Emit event to trigger menu refresh
     app.emit("soloc://recents-changed", ()).ok();

@@ -1,6 +1,9 @@
 use super::layouts::LayoutType;
+use crate::playback::sampler::sync_sampler_with_score;
 use crate::utils::UniqueId;
-use crate::{AppContextState, AudioContextState, RendererContextState, SamplerContextState};
+use crate::{
+    AppContext, AppContextState, AudioContextState, RendererContextState, SamplerContextState,
+};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
@@ -50,6 +53,29 @@ impl Players {
     }
 }
 
+impl AppContext {
+    pub fn create_player(&mut self, player_type: PlayerType) -> UniqueId {
+        let player_id = self.generate_id();
+        let player = Player::new(player_id, player_type);
+
+        self.score.players.order.push(player_id);
+        self.score.players.by_id.insert(player_id, player);
+
+        for flow_id in self.score.flows.order.clone() {
+            self.assign_player_to_flow(flow_id, player_id);
+        }
+
+        for layout_id in self.score.layouts.order.clone() {
+            let layout = &self.score.layouts.by_id[&layout_id];
+            if layout.layout_type == LayoutType::FullScore {
+                self.assign_player_to_layout(layout_id, player_id);
+            }
+        }
+
+        player_id
+    }
+}
+
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_players_create(
     app: tauri::AppHandle,
@@ -60,22 +86,7 @@ pub fn score_players_create(
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
 
-    let player_id = state.generate_id();
-    let player = Player::new(player_id, player_type);
-
-    state.score.players.order.push(player_id);
-    state.score.players.by_id.insert(player_id, player);
-
-    for flow_id in state.score.flows.order.clone() {
-        state.assign_player_to_flow(flow_id, player_id);
-    }
-
-    for layout_id in state.score.layouts.order.clone() {
-        let layout = &state.score.layouts.by_id[&layout_id];
-        if layout.layout_type == LayoutType::FullScore {
-            state.assign_player_to_layout(layout_id, player_id);
-        }
-    }
+    let player_id = state.create_player(player_type);
 
     state.emit(&app, &mut renderer, true);
 
@@ -149,24 +160,13 @@ pub fn score_players_unassign_instrument(
 
     state.score.update_counts();
 
-    // Sync sampler to unload plugins that are no longer needed
-    let assigned_plugin_ids: Vec<String> = state
-        .score
-        .instruments
-        .by_id
-        .values()
-        .filter_map(|i| i.assigned_plugin_id.clone())
-        .collect();
-
-    let mut sampler = sampler_state.lock().unwrap();
-    let audio = audio_state.lock().unwrap();
-    let sample_rate = audio.get_sample_rate();
-    drop(audio);
-
-    if let Err(e) = sampler.sync_with_instruments(&assigned_plugin_ids, sample_rate) {
-        eprintln!("Failed to sync sampler: {}", e);
-    }
-    sampler.emit(&app);
+    sync_sampler_with_score(
+        &app,
+        &state.score,
+        sampler_state.inner(),
+        audio_state.inner(),
+        "after player instrument unassignment",
+    );
 
     state.emit(&app, &mut renderer, true);
 }
@@ -215,24 +215,13 @@ pub fn score_players_remove(
 
     state.score.update_counts();
 
-    // Sync sampler to unload plugins that are no longer needed
-    let assigned_plugin_ids: Vec<String> = state
-        .score
-        .instruments
-        .by_id
-        .values()
-        .filter_map(|i| i.assigned_plugin_id.clone())
-        .collect();
-
-    let mut sampler = sampler_state.lock().unwrap();
-    let audio = audio_state.lock().unwrap();
-    let sample_rate = audio.get_sample_rate();
-    drop(audio);
-
-    if let Err(e) = sampler.sync_with_instruments(&assigned_plugin_ids, sample_rate) {
-        eprintln!("Failed to sync sampler: {}", e);
-    }
-    sampler.emit(&app);
+    sync_sampler_with_score(
+        &app,
+        &state.score,
+        sampler_state.inner(),
+        audio_state.inner(),
+        "after player removal",
+    );
 
     state.emit(&app, &mut renderer, true);
 }
@@ -240,6 +229,11 @@ pub fn score_players_remove(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::preferences::Preferences;
+    use crate::score::flows::{Flow, Flows};
+    use crate::score::layouts::{Layout, LayoutType, Layouts};
+    use crate::score::Score;
+    use crate::ui::Ui;
 
     fn make_players(order: &[UniqueId]) -> Players {
         let mut players = Players::new();
@@ -252,6 +246,34 @@ mod tests {
         }
 
         players
+    }
+
+    fn make_app_context() -> AppContext {
+        let mut score = Score::new();
+        let flow_id = 50;
+        let part_layout_id = 60;
+
+        score.flows = Flows::new();
+        score.flows.order.push(flow_id);
+        score.flows.by_id.insert(flow_id, Flow::new(flow_id, 100));
+        score.layouts = Layouts::new();
+        score
+            .layouts
+            .order
+            .push(part_layout_id);
+        score.layouts.by_id.insert(
+            part_layout_id,
+            Layout::new(part_layout_id, LayoutType::Part),
+        );
+
+        AppContext {
+            ui: Ui::new(),
+            score,
+            preferences: serde_json::from_str::<Preferences>(r#"{"audition":true}"#)
+                .unwrap(),
+            next_id: 1,
+            current_file_path: None,
+        }
     }
 
     #[test]
@@ -310,6 +332,20 @@ mod tests {
         players.reorder(2, 0);
 
         assert_eq!(players.order, vec![3, 1, 2]);
+    }
+
+    #[test]
+    fn create_player_wires_new_player_into_flows_and_full_score_layouts() {
+        let mut app = make_app_context();
+
+        let player_id = app.create_player(PlayerType::Section);
+
+        assert_eq!(player_id, 1);
+        assert_eq!(app.score.players.order, vec![player_id]);
+        assert!(app.score.players.by_id.contains_key(&player_id));
+        assert!(app.score.flows.by_id[&50].player_ids.contains(&player_id));
+        assert!(app.score.layouts.by_id[&0].player_ids.contains(&player_id));
+        assert!(!app.score.layouts.by_id[&60].player_ids.contains(&player_id));
     }
 
     #[test]

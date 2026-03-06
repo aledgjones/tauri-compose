@@ -1,5 +1,6 @@
 use crate::playback::scvi::ScviContainer;
 use crate::playback::streamer::{self, StreamBuffer, StreamRequest};
+use crate::score::Score;
 use crate::AudioContextState;
 use crate::SamplerContextState;
 use dirs;
@@ -92,6 +93,26 @@ pub struct Cache {
 pub struct SamplerContext {
     plugins: Vec<PluginMeta>,
     cache: FxHashMap<String, Cache>,
+}
+
+pub fn sync_sampler_with_score(
+    app: &AppHandle,
+    score: &Score,
+    sampler_state: &SamplerContextState,
+    audio_state: &AudioContextState,
+    error_context: &str,
+) {
+    let assigned_plugin_ids = score.assigned_plugin_ids();
+
+    let mut sampler = sampler_state.lock().unwrap();
+    let audio = audio_state.lock().unwrap();
+    let sample_rate = audio.get_sample_rate();
+    drop(audio);
+
+    if let Err(error) = sampler.sync_with_instruments(&assigned_plugin_ids, sample_rate) {
+        eprintln!("Failed to sync sampler {}: {}", error_context, error);
+    }
+    sampler.emit(app);
 }
 
 impl SamplerContext {

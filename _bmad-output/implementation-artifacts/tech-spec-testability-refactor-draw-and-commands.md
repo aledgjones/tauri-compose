@@ -408,7 +408,7 @@ A phased refactoring initiative with mixed small phases — each phase extracts 
     3. Add test.
   - Notes: Identical pattern to `Flows::reorder()` from Task 5.1.
 
-- [ ] Task 6.2: Deduplicate sampler sync pattern
+- [x] Task 6.2: Deduplicate sampler sync pattern
   - File: New helper function or method (location TBD based on Task 5.4 investigation)
   - Action: The following pattern appears in 4 commands:
     ```rust
@@ -424,7 +424,7 @@ A phased refactoring initiative with mixed small phases — each phase extracts 
     Extract as a standalone function: `fn sync_sampler(score: &Score, sampler_state: &SamplerContextState, audio_state: &AudioContextState, app: &AppHandle)`.
   - Notes: This doesn't need to be on a struct — it's a coordination helper. The function itself isn't unit-testable (needs sampler/audio state), but the extraction reduces duplication and makes the commands cleaner. The main benefit is code clarity, not direct testability.
 
-- [ ] Task 6.3: Extract remaining player command logic (if AppContext is constructable)
+- [x] Task 6.3: Extract remaining player command logic (if AppContext is constructable)
   - File: `src-tauri/src/score/players.rs`
   - Action: Based on findings from Task 5.4:
     - **If AppContext constructable**: Add tests for `score_players_create` by testing the orchestration logic on `AppContext` directly.
