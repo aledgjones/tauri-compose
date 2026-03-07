@@ -1,11 +1,10 @@
 import { describe, it, expect, vi } from "vitest";
-import { screen, userEvent } from "../../services/test-utils";
+import { screen } from "../../services/test-utils";
 import { renderWithProviders } from "../../services/test-utils";
 import { Main } from "./index";
 
-const { mockToggleDebug, mockLoadScoreFixture } = vi.hoisted(() => ({
+const { mockToggleDebug } = vi.hoisted(() => ({
   mockToggleDebug: vi.fn(),
-  mockLoadScoreFixture: vi.fn(),
 }));
 
 vi.mock("@tauri-apps/api/window", () => ({
@@ -23,9 +22,6 @@ vi.mock("react-inspector", () => ({
 
 vi.mock("../../services/actions", () => ({
   actions: {
-    debug: {
-      loadScoreFixture: mockLoadScoreFixture,
-    },
     ui: {
       renderer: {
         toggleDebug: mockToggleDebug,
@@ -49,14 +45,5 @@ describe("Debugger Main", () => {
   it("renders the toggle debug switch", () => {
     renderWithProviders(<Main />);
     expect(screen.getByText("Render Spacing Debugging")).toBeInTheDocument();
-  });
-
-  it("loads the selected score fixture from the debugger", async () => {
-    const user = userEvent.setup();
-    renderWithProviders(<Main />);
-
-    await user.click(screen.getByRole("button", { name: /^Load$/i }));
-
-    expect(mockLoadScoreFixture).toHaveBeenCalledTimes(1);
   });
 });

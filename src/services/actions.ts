@@ -23,7 +23,6 @@ import {
   UniqueId,
 } from "./types";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
-import type { ScoreFixturePayload } from "../windows/debugger/score-fixtures";
 
 export const actions = {
   initialize: () => {
@@ -31,11 +30,6 @@ export const actions = {
   },
   reset: () => {
     return invoke("reset");
-  },
-  debug: {
-    loadScoreFixture: (fixture: ScoreFixturePayload) => {
-      return invoke("debug_load_score_fixture", { fixture });
-    },
   },
   pickAnInstrument: () => {
     return new Promise<string | null>((resolve) => {

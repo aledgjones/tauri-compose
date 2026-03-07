@@ -1,4 +1,3 @@
-mod debug_fixtures;
 mod files;
 mod instructions;
 mod migrations;
@@ -21,7 +20,6 @@ use crate::playback::transport::{
     transport_stop, TransportContext,
 };
 use crate::renderer::backends::metal::MetalRenderer;
-use debug_fixtures::debug_load_score_fixture;
 use files::{
     add_recent_file, clear_recent_files, get_current_file_path, get_recent_files,
     load_project_from_file, refresh_menus, save_project_to_file, set_current_file_path,
@@ -416,7 +414,6 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             initialize,
             reset,
-            debug_load_score_fixture,
             save_project_to_file,
             load_project_from_file,
             get_current_file_path,
