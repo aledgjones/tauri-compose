@@ -326,12 +326,28 @@ When multiple instruments of the same type exist (e.g., two violins), the `Score
 
 ## Migration System
 
+Persisted projects are stored as `.soloc` containers with this high-level layout:
+
+```text
+[SOLOC magic][container_version][app_version_len][app_version][chunk_count]
+[chunk directory entries]
+[chunk payloads]
+```
+
+In container version `1`, the loader requires exactly one logical project payload chunk identified by `u32::from_le_bytes(*b"JSON")`. That `PROJECT_JSON` chunk is gzip-compressed and contains the canonical minified JSON document:
+
+```json
+{"ui": ..., "score": ..., "next_id": ...}
+```
+
+The container header `app_version` is the authoritative migration key. The JSON payload still stores `score.meta.app_version` for display and inspection, but load rejects the file if the header value and JSON value differ. Unknown future chunk types are ignored after directory validation, while unsupported flag bits, duplicate required chunks, and out-of-bounds chunk ranges fail explicitly.
+
 File migrations are defined in `src-tauri/src/migrations/mod.rs`:
 
 ```rust
-pub static ref MIGRATIONS: Vec<Migration> = vec![
-    ("1.19.0", v1_19_0::migrate),
-];
+pub static ref MIGRATIONS: Vec<Migration> = vec![];
 ```
 
-Each migration is a function `fn(Value) -> Result<Value, String>` that transforms the JSON data. Migrations run sequentially on file load when `meta.app_version < migration_version`. After all migrations, `app_version` is updated to the current binary version.
+Each migration is a function `fn(Value) -> Result<Value, String>` that transforms the JSON data. Migrations run sequentially on file load when the container header `app_version` is lower than the registered migration version. There are currently no active migrations registered. After all migrations, `score.meta.app_version` is rewritten to the current binary version so the JSON payload stays aligned with the header value written on the next save.
+
+Any persisted-data shape change, `.soloc` payload change, or load/save semantic change must include a migration review. If older files would not load correctly without transformation, add or update a migration in `src-tauri/src/migrations/` and register it in `mod.rs`.

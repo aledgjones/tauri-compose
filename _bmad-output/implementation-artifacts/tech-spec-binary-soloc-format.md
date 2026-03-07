@@ -2,7 +2,7 @@
 title: "Containerized .soloc Project File Format"
 slug: "soloc-container-format"
 created: "2026-03-07"
-status: "ready-for-dev"
+status: "Completed"
 stepsCompleted: [1, 2, 3, 4]
 tech_stack:
   ["Rust", "Tauri", "serde_json", "flate2", "semver", "custom binary container"]
@@ -277,13 +277,13 @@ This is still close to the current payload, but load should deserialize into `Pr
 
 ### Tasks
 
-- [ ] **Task 1: Define container constants and DTO**
+- [x] **Task 1: Define container constants and DTO**
   - File: `src-tauri/src/files.rs`
   - Add `MAGIC`, `CONTAINER_VERSION`, chunk-type constants, and `ProjectFile`
   - Define chunk type constants with `u32::from_le_bytes(*b"....")` style helpers for unambiguous on-disk encoding
   - Keep JSON serialization via `serde_json`
 
-- [ ] **Task 2: Replace raw gzip blob save with structured container save**
+- [x] **Task 2: Replace raw gzip blob save with structured container save**
   - File: `src-tauri/src/files.rs`
   - Serialize `ProjectFile` to minified JSON
   - gzip-compress JSON bytes
@@ -291,7 +291,7 @@ This is still close to the current payload, but load should deserialize into `Pr
   - Write atomically via temp path + rename in the same destination directory
   - Ensure header `app_version` and JSON `score.meta.app_version` are written with the same value
 
-- [ ] **Task 3: Replace raw gzip blob load with structured container load**
+- [x] **Task 3: Replace raw gzip blob load with structured container load**
   - File: `src-tauri/src/files.rs`
   - Parse header and chunk directory
   - Extract `PROJECT_JSON`
@@ -301,20 +301,20 @@ This is still close to the current payload, but load should deserialize into `Pr
   - Deserialize once into `ProjectFile`
   - Apply to state only after the full typed load succeeds
 
-- [ ] **Task 4: Tighten migration/load semantics**
+- [x] **Task 4: Tighten migration/load semantics**
   - File: `src-tauri/src/files.rs`
   - Remove the current partial subtree assignment pattern
   - If migrated JSON cannot deserialize into `ProjectFile`, return an error and leave state unchanged
   - If header and JSON versions differ, return an error and leave state unchanged
 
-- [ ] **Task 5: Keep migrations app-version keyed**
+- [x] **Task 5: Keep migrations app-version keyed**
   - File: `src-tauri/src/migrations/mod.rs`
   - Preserve the current semver-chain model
   - Do not introduce a second schema-version migration system for the JSON payload
   - Container version is only for outer file-layout changes
   - No redesign of the migration registry is expected; changes here should be minimal or unnecessary unless a helper extraction is useful
 
-- [ ] **Task 6: Validate and document future chunk behavior**
+- [x] **Task 6: Validate and document future chunk behavior**
   - File: `src-tauri/src/files.rs`
   - Unknown chunk types should be ignored for now unless they conflict with required chunks
   - Unknown/reserved flag bits should fail explicitly
@@ -322,19 +322,19 @@ This is still close to the current payload, but load should deserialize into `Pr
   - Duplicate required chunks should fail clearly
   - Bounds and integer-overflow checks should fail clearly before any chunk payload slicing
 
-- [ ] **Task 7: Build and manually verify**
+- [x] **Task 7: Build and manually verify**
   - Action: `cd src-tauri && cargo build`
   - Confirm save/load still works and malformed files return explicit errors
   - Confirm legacy raw `gzip(JSON)` `.soloc` files are intentionally rejected
 
-- [ ] **Task 8: Update project documentation**
+- [x] **Task 8: Update project documentation**
   - Files: `docs/project-overview.md`, `docs/architecture.md`, `docs/data-models.md`
   - Replace references to `.soloc` as raw `gzip(JSON)` with the new containerized format description
   - Document that the container header `app_version` is the authoritative migration key
   - Document that `score.meta.app_version` remains in the payload but must match the header value
   - Document the rule that persisted-data shape changes require a migration review and, when needed, a new migration entry
 
-- [ ] **Task 9: Update AI agent instructions**
+- [x] **Task 9: Update AI agent instructions**
   - File: `.github/copilot-instructions.md`
   - Add an explicit project rule for AI agents: any change to persisted project data structures, serialized `.soloc` payload shape, or load/save semantics must include migration impact assessment
   - Require AI agents to add or update a migration whenever a persisted-data change would make older files load incorrectly without transformation
@@ -467,6 +467,14 @@ Recommended wording for AI-agent guidance:
 ---
 
 ## Notes
+
+## Review Notes
+
+- Adversarial review completed
+- Findings: 10 total, 8 fixed, 2 skipped
+- Resolution approach: auto-fix
+- Validation completed in-session with `cargo build` and `cargo test --lib --manifest-path /Users/aledjones/compose/src-tauri/Cargo.toml`
+- Full UI-driven manual save/load exercise was not run in this session
 
 - This spec intentionally pivots away from the earlier `bincode` direction.
 - The goal is a more deliberate, professional `.soloc` file format without sacrificing migration simplicity.

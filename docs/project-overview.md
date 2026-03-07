@@ -45,4 +45,4 @@ Solo Compose is a Tauri-based desktop application that combines a React/TypeScri
 
 ## File Format
 
-Projects are saved as `.soloc` files — gzip-compressed JSON containing the complete score state. A migration system (`migrations/`) handles backward compatibility across versions.
+Projects are saved as `.soloc` files — a custom binary container with `SOLOC` magic, a container header, a chunk directory, and a required gzip-compressed `PROJECT_JSON` chunk containing `{ ui, score, next_id }` as minified JSON. The container header `app_version` is the authoritative migration key, while `score.meta.app_version` remains in the JSON payload for inspection and must match the header value. A migration system (`migrations/`) continues to transform JSON payloads across compatible app versions.

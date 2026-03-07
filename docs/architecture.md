@@ -195,9 +195,9 @@ Secondary windows (instrument-picker, preferences, etc.) close on blur via `taur
 
 ## File Format & Persistence
 
-- **Project files:** `.soloc` — gzip-compressed JSON containing `{ ui, score, next_id }`
+- **Project files:** `.soloc` — custom binary container with `SOLOC` magic, container version, authoritative header `app_version`, a chunk directory, and a required gzip-compressed `PROJECT_JSON` chunk containing `{ ui, score, next_id }`
 - **Recent files:** Stored in `sled` embedded database at app config directory
-- **Migration system:** `migrations/mod.rs` holds version-gated migration functions; applied on file load if `meta.app_version` < migration version
+- **Migration system:** `migrations/mod.rs` holds version-gated JSON migration functions; the loader uses the container header `app_version` as the authoritative migration key, validates it against `score.meta.app_version`, applies migrations to `serde_json::Value`, then performs a single typed deserialize before mutating app state
 - **Instrument plugins:** Discovered at runtime from `$DATA_DIR/Solo Compose/plugins/` — each is an SCVI binary container
 
 ---

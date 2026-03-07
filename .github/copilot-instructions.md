@@ -78,4 +78,6 @@ When connected to atlassian-rovo-mcp:
 - **MUST** identify which docs should be updated whenever a spec changes behavior, architecture, persistence, workflows, user-visible features, or developer expectations
 - **MUST** include explicit documentation update tasks and acceptance criteria in specs; docs are not a follow-up nice-to-have
 - **MUST** update AI-agent instructions as part of the work when project rules or required implementation practices change
-- **MUST** assess migration impact for any persisted-data or file-format change; if older data would not load correctly without transformation, add or update the corresponding migration
+- **MUST** assess migration impact for any persisted-data change, `.soloc` payload/file-format change, or load/save semantic change; if older data would not load correctly without transformation, add or update the corresponding migration
+- **MUST** update relevant docs whenever `.soloc` file-format behavior, persistence architecture, or migration rules change
+- **MUST NOT** merge persisted-data changes that break older files without the required migration update and explicit migration-impact note

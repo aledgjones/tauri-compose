@@ -1,5 +1,3 @@
-mod v1_19_0;
-
 use lazy_static::lazy_static;
 
 type Migration = (
@@ -8,5 +6,5 @@ type Migration = (
 );
 
 lazy_static! {
-    pub static ref MIGRATIONS: Vec<Migration> = vec![("1.19.0", v1_19_0::migrate),];
+    pub static ref MIGRATIONS: Vec<Migration> = vec![];
 }

@@ -237,8 +237,7 @@ compose/                              # Project root
 │   │   │       └── sequence.rs       # Sequence screen state
 │   │   │
 │   │   ├── migrations/               # File format migrations
-│   │   │   ├── mod.rs                # Migration registry
-│   │   │   └── v1_19_0.rs            # v1.19.0 migration
+│   │   │   └── mod.rs                # Migration registry
 │   │   │
 │   │   └── bin/                      # CLI tools (compiled separately)
 │   │       ├── scvi_compress.rs      # Compress instruments → SCVI format

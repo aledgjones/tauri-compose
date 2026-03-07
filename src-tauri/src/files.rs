@@ -1,17 +1,55 @@
 use crate::migrations::MIGRATIONS;
+use crate::playback::sampler::sync_sampler_with_score;
+use crate::score::Score;
 use crate::ui::sequencer::Tool;
+use crate::ui::Ui;
+use crate::utils::UniqueId;
 use crate::{AppContextState, AudioContextState, RendererContextState, SamplerContextState};
 use flate2::{read::GzDecoder, write::GzEncoder, Compression};
 use semver::Version;
-use crate::playback::sampler::sync_sampler_with_score;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sled::Db;
-use std::fs;
-use std::io::{Read, Write};
+use std::fs::{self, File, OpenOptions};
+use std::io::{Cursor, Read, Write};
+use std::path::{Path, PathBuf};
+use std::process;
+use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::menu::{MenuItem, PredefinedMenuItem};
 use tauri::{AppHandle, Emitter, Manager, State};
 
 const MAX_RECENT_FILES: usize = 10;
+const SOLOC_MAGIC: &[u8; 5] = b"SOLOC";
+const SOLOC_CONTAINER_VERSION: u8 = 1;
+const SOLOC_PROJECT_JSON_CHUNK_TYPE: u32 = u32::from_le_bytes(*b"JSON");
+const SOLOC_CHUNK_FLAG_GZIP: u16 = 1 << 0;
+const SOLOC_SUPPORTED_CHUNK_FLAGS: u16 = SOLOC_CHUNK_FLAG_GZIP;
+const SOLOC_RESERVED_CHUNK_FLAGS_MASK: u16 = !SOLOC_SUPPORTED_CHUNK_FLAGS;
+const SOLOC_CHUNK_DIRECTORY_ENTRY_SIZE: usize = 4 + 2 + 8 + 8;
+const CURRENT_APP_VERSION: &str = env!("CARGO_PKG_VERSION");
+const MAX_TEMP_FILE_ATTEMPTS: usize = 16;
+
+#[derive(Serialize, Deserialize)]
+struct ProjectFile {
+    ui: Ui,
+    score: Score,
+    next_id: UniqueId,
+}
+
+#[derive(Clone, Copy)]
+struct ChunkEntry {
+    type_code: u32,
+    flags: u16,
+    offset: u64,
+    length: u64,
+}
+
+#[derive(Debug)]
+struct ParsedSolocContainer<'a> {
+    app_version: String,
+    project_chunk_flags: u16,
+    project_payload: &'a [u8],
+}
 
 fn get_recent_db(app: &AppHandle) -> Result<Db, String> {
     let db_path = app
@@ -22,14 +60,22 @@ fn get_recent_db(app: &AppHandle) -> Result<Db, String> {
     sled::open(&db_path).map_err(|e| e.to_string())
 }
 
-fn migrate_project_data(mut data: Value) -> Result<Value, String> {
-    let file_version = data
-        .get("score")
+fn get_project_app_version(data: &Value) -> Option<&str> {
+    data.get("score")
         .and_then(|s| s.get("meta"))
         .and_then(|m| m.get("app_version"))
         .and_then(|v| v.as_str())
-        .unwrap_or("1.0.0");
+}
 
+fn set_project_app_version(data: &mut Value, app_version: &str) {
+    if let Some(score) = data.get_mut("score") {
+        if let Some(meta) = score.get_mut("meta") {
+            meta["app_version"] = Value::String(app_version.to_string());
+        }
+    }
+}
+
+fn migrate_project_data(mut data: Value, file_version: &str) -> Result<Value, String> {
     let file_version =
         Version::parse(file_version).map_err(|e| format!("Failed to parse version: {}", e))?;
 
@@ -42,14 +88,456 @@ fn migrate_project_data(mut data: Value) -> Result<Value, String> {
         }
     }
 
-    // update the meta app_version to current version
-    if let Some(score) = data.get_mut("score") {
-        if let Some(meta) = score.get_mut("meta") {
-            meta["app_version"] = Value::String(env!("CARGO_PKG_VERSION").to_string());
+    set_project_app_version(&mut data, CURRENT_APP_VERSION);
+
+    Ok(data)
+}
+
+fn validate_project_version_match(
+    header_app_version: &str,
+    project_data: &Value,
+) -> Result<(), String> {
+    let project_app_version = get_project_app_version(project_data)
+        .ok_or("Invalid .soloc version mismatch between header and project metadata".to_string())?;
+
+    if project_app_version != header_app_version {
+        return Err(
+            "Invalid .soloc version mismatch between header and project metadata".to_string(),
+        );
+    }
+
+    Ok(())
+}
+
+fn build_project_file(state: &crate::AppContext) -> ProjectFile {
+    let mut score = state.score.clone();
+    score.meta.app_version = CURRENT_APP_VERSION.to_string();
+
+    ProjectFile {
+        ui: state.ui.clone(),
+        score,
+        next_id: state.next_id,
+    }
+}
+
+fn compress_project_payload(json_data: &[u8]) -> Result<Vec<u8>, String> {
+    let mut encoder = GzEncoder::new(Vec::new(), Compression::best());
+    encoder
+        .write_all(json_data)
+        .map_err(|e| format!("Failed to compress project payload: {}", e))?;
+
+    let compressed_data = encoder
+        .finish()
+        .map_err(|e| format!("Failed to finish compression: {}", e))?;
+
+    Ok(compressed_data)
+}
+
+fn decompress_project_payload(payload: &[u8], flags: u16) -> Result<Vec<u8>, String> {
+    if flags & SOLOC_CHUNK_FLAG_GZIP == 0 {
+        return Err(
+            "Failed to decompress project payload: PROJECT_JSON chunk is not gzip-compressed"
+                .to_string(),
+        );
+    }
+
+    let mut decoder = GzDecoder::new(Cursor::new(payload));
+    let mut json_data = Vec::new();
+    decoder
+        .read_to_end(&mut json_data)
+        .map_err(|e| format!("Failed to decompress project payload: {}", e))?;
+
+    Ok(json_data)
+}
+
+fn build_soloc_container(app_version: &str, project_payload: &[u8]) -> Result<Vec<u8>, String> {
+    let app_version_bytes = app_version.as_bytes();
+    let app_version_len = u8::try_from(app_version_bytes.len())
+        .map_err(|_| "App version is too long for .soloc header".to_string())?;
+    let chunk_count = 1_u16;
+    let header_len = SOLOC_MAGIC.len() + 1 + 1 + app_version_bytes.len() + 2;
+    let directory_len = SOLOC_CHUNK_DIRECTORY_ENTRY_SIZE;
+    let payload_offset = header_len
+        .checked_add(directory_len)
+        .ok_or("Failed to build .soloc container: payload offset overflow".to_string())?;
+    let payload_offset = u64::try_from(payload_offset)
+        .map_err(|_| "Failed to build .soloc container: payload offset overflow".to_string())?;
+    let payload_length = u64::try_from(project_payload.len())
+        .map_err(|_| "Failed to build .soloc container: payload length overflow".to_string())?;
+    let total_len = usize::try_from(payload_offset)
+        .ok()
+        .and_then(|offset| offset.checked_add(project_payload.len()))
+        .ok_or("Failed to build .soloc container: file size overflow".to_string())?;
+
+    let mut container = Vec::with_capacity(total_len);
+    container.extend_from_slice(SOLOC_MAGIC);
+    container.push(SOLOC_CONTAINER_VERSION);
+    container.push(app_version_len);
+    container.extend_from_slice(app_version_bytes);
+    container.extend_from_slice(&chunk_count.to_le_bytes());
+    container.extend_from_slice(&SOLOC_PROJECT_JSON_CHUNK_TYPE.to_le_bytes());
+    container.extend_from_slice(&SOLOC_CHUNK_FLAG_GZIP.to_le_bytes());
+    container.extend_from_slice(&payload_offset.to_le_bytes());
+    container.extend_from_slice(&payload_length.to_le_bytes());
+    container.extend_from_slice(project_payload);
+
+    Ok(container)
+}
+
+fn parse_chunk_entry(file_data: &[u8], offset: usize) -> ChunkEntry {
+    let type_code = u32::from_le_bytes(file_data[offset..offset + 4].try_into().unwrap());
+    let flags = u16::from_le_bytes(file_data[offset + 4..offset + 6].try_into().unwrap());
+    let chunk_offset = u64::from_le_bytes(file_data[offset + 6..offset + 14].try_into().unwrap());
+    let length = u64::from_le_bytes(file_data[offset + 14..offset + 22].try_into().unwrap());
+
+    ChunkEntry {
+        type_code,
+        flags,
+        offset: chunk_offset,
+        length,
+    }
+}
+
+fn validate_chunk_bounds(
+    entry: ChunkEntry,
+    file_len: u64,
+    payload_start: u64,
+) -> Result<(), String> {
+    if entry.flags & SOLOC_RESERVED_CHUNK_FLAGS_MASK != 0 {
+        return Err(format!("Unsupported .soloc chunk flags: {}", entry.flags));
+    }
+
+    if entry.offset < payload_start {
+        return Err("Chunk points outside file bounds".to_string());
+    }
+
+    let chunk_end = entry
+        .offset
+        .checked_add(entry.length)
+        .ok_or("Chunk bounds overflow".to_string())?;
+
+    if chunk_end > file_len {
+        return Err("Chunk points outside file bounds".to_string());
+    }
+
+    Ok(())
+}
+
+fn parse_soloc_container(file_data: &[u8]) -> Result<ParsedSolocContainer<'_>, String> {
+    let minimum_header_len = SOLOC_MAGIC.len() + 1 + 1 + 2;
+    if file_data.len() < minimum_header_len {
+        return Err("File too small to be a valid .soloc file".to_string());
+    }
+
+    if &file_data[..SOLOC_MAGIC.len()] != SOLOC_MAGIC {
+        return Err("Invalid .soloc magic".to_string());
+    }
+
+    let container_version = file_data[SOLOC_MAGIC.len()];
+    if container_version != SOLOC_CONTAINER_VERSION {
+        return Err(format!(
+            "Unsupported .soloc container version: {}",
+            container_version
+        ));
+    }
+
+    let app_version_len = file_data[SOLOC_MAGIC.len() + 1] as usize;
+    let app_version_start = SOLOC_MAGIC.len() + 2;
+    let chunk_count_offset = app_version_start
+        .checked_add(app_version_len)
+        .ok_or("Truncated .soloc header".to_string())?;
+    let header_end = chunk_count_offset
+        .checked_add(2)
+        .ok_or("Truncated .soloc header".to_string())?;
+
+    if file_data.len() < header_end {
+        return Err("Truncated .soloc header".to_string());
+    }
+
+    let app_version = std::str::from_utf8(&file_data[app_version_start..chunk_count_offset])
+        .map_err(|e| format!("Invalid .soloc app version encoding: {}", e))?
+        .to_string();
+    Version::parse(&app_version).map_err(|e| format!("Invalid .soloc app version: {}", e))?;
+    let chunk_count = u16::from_le_bytes(
+        file_data[chunk_count_offset..header_end]
+            .try_into()
+            .unwrap(),
+    ) as usize;
+    let directory_len = chunk_count
+        .checked_mul(SOLOC_CHUNK_DIRECTORY_ENTRY_SIZE)
+        .ok_or("Truncated .soloc chunk directory".to_string())?;
+    let directory_end = header_end
+        .checked_add(directory_len)
+        .ok_or("Truncated .soloc chunk directory".to_string())?;
+
+    if file_data.len() < directory_end {
+        return Err("Truncated .soloc chunk directory".to_string());
+    }
+
+    let file_len = u64::try_from(file_data.len())
+        .map_err(|_| "File too large to be a valid .soloc file".to_string())?;
+    let payload_start =
+        u64::try_from(directory_end).map_err(|_| "Chunk points outside file bounds".to_string())?;
+    let mut project_chunk = None;
+
+    for entry_offset in (header_end..directory_end).step_by(SOLOC_CHUNK_DIRECTORY_ENTRY_SIZE) {
+        let entry = parse_chunk_entry(file_data, entry_offset);
+        validate_chunk_bounds(entry, file_len, payload_start)?;
+
+        if entry.type_code == SOLOC_PROJECT_JSON_CHUNK_TYPE {
+            if project_chunk.is_some() {
+                return Err("Duplicate PROJECT_JSON chunk".to_string());
+            }
+
+            project_chunk = Some(entry);
         }
     }
 
-    Ok(data)
+    let project_chunk = project_chunk.ok_or("Missing required PROJECT_JSON chunk".to_string())?;
+    let project_chunk_end = project_chunk
+        .offset
+        .checked_add(project_chunk.length)
+        .ok_or("Chunk bounds overflow".to_string())?;
+    let project_chunk_start = usize::try_from(project_chunk.offset)
+        .map_err(|_| "Chunk points outside file bounds".to_string())?;
+    let project_chunk_end = usize::try_from(project_chunk_end)
+        .map_err(|_| "Chunk points outside file bounds".to_string())?;
+
+    Ok(ParsedSolocContainer {
+        app_version,
+        project_chunk_flags: project_chunk.flags,
+        project_payload: &file_data[project_chunk_start..project_chunk_end],
+    })
+}
+
+fn build_temp_file_path(destination: &Path, attempt: usize) -> PathBuf {
+    let file_name = destination
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or("project.soloc");
+    let timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_nanos())
+        .unwrap_or(0);
+    let temp_file_name = format!(
+        ".{}.tmp-{}-{}-{}",
+        file_name,
+        process::id(),
+        timestamp,
+        attempt
+    );
+
+    destination
+        .parent()
+        .unwrap_or_else(|| Path::new("."))
+        .join(temp_file_name)
+}
+
+fn sync_parent_directory(parent: &Path) -> Result<(), String> {
+    File::open(parent)
+        .and_then(|directory| directory.sync_all())
+        .map_err(|e| format!("Failed to sync destination directory: {}", e))
+}
+
+fn write_file_atomically(destination: &Path, contents: &[u8]) -> Result<(), String> {
+    let parent = destination.parent().unwrap_or_else(|| Path::new("."));
+
+    for attempt in 0..MAX_TEMP_FILE_ATTEMPTS {
+        let temp_path = build_temp_file_path(destination, attempt);
+        let open_result = OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&temp_path);
+
+        let mut temp_file = match open_result {
+            Ok(file) => file,
+            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
+            Err(error) => return Err(format!("Failed to create temp file: {}", error)),
+        };
+
+        if let Err(error) = temp_file.write_all(contents) {
+            let _ = fs::remove_file(&temp_path);
+            return Err(format!("Failed to write file: {}", error));
+        }
+
+        if let Err(error) = temp_file.sync_all() {
+            let _ = fs::remove_file(&temp_path);
+            return Err(format!("Failed to sync temp file: {}", error));
+        }
+
+        drop(temp_file);
+
+        if let Err(error) = fs::rename(&temp_path, destination) {
+            let _ = fs::remove_file(&temp_path);
+            return Err(format!("Failed to rename temp file into place: {}", error));
+        }
+
+        sync_parent_directory(parent)?;
+        return Ok(());
+    }
+
+    Err("Failed to create a unique temp file for atomic save".to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    fn test_app_version() -> &'static str {
+        CURRENT_APP_VERSION
+    }
+
+    fn build_test_json(app_version: &str) -> Vec<u8> {
+        format!(
+            "{{\"score\":{{\"meta\":{{\"app_version\":\"{}\"}}}},\"ui\":{{}},\"next_id\":1}}",
+            app_version
+        )
+        .into_bytes()
+    }
+
+    fn build_test_container() -> Vec<u8> {
+        let app_version = test_app_version();
+        let json_payload = build_test_json(app_version);
+        let compressed_payload = compress_project_payload(&json_payload).unwrap();
+        build_soloc_container(app_version, &compressed_payload).unwrap()
+    }
+
+    fn header_end(app_version: &str) -> usize {
+        SOLOC_MAGIC.len() + 1 + 1 + app_version.len() + 2
+    }
+
+    fn flags_offset(app_version: &str) -> usize {
+        header_end(app_version) + 4
+    }
+
+    fn type_offset(app_version: &str) -> usize {
+        header_end(app_version)
+    }
+
+    fn payload_offset_offset(app_version: &str) -> usize {
+        type_offset(app_version) + 4 + 2
+    }
+
+    #[test]
+    fn parse_soloc_container_round_trips_project_payload() {
+        let container = build_test_container();
+        let app_version = test_app_version();
+
+        let parsed = parse_soloc_container(&container).unwrap();
+        let decompressed =
+            decompress_project_payload(parsed.project_payload, parsed.project_chunk_flags).unwrap();
+
+        assert_eq!(parsed.app_version, app_version);
+        assert_eq!(
+            std::str::from_utf8(&decompressed).unwrap(),
+            String::from_utf8(build_test_json(app_version)).unwrap()
+        );
+    }
+
+    #[test]
+    fn parse_soloc_container_rejects_invalid_magic() {
+        let mut container = build_test_container();
+        container[0] = b'X';
+
+        let error = parse_soloc_container(&container).unwrap_err();
+
+        assert_eq!(error, "Invalid .soloc magic");
+    }
+
+    #[test]
+    fn parse_soloc_container_rejects_missing_project_chunk() {
+        let mut container = build_test_container();
+        let type_offset = type_offset(test_app_version());
+        container[type_offset..type_offset + 4]
+            .copy_from_slice(&u32::from_le_bytes(*b"META").to_le_bytes());
+
+        let error = parse_soloc_container(&container).unwrap_err();
+
+        assert_eq!(error, "Missing required PROJECT_JSON chunk");
+    }
+
+    #[test]
+    fn parse_soloc_container_rejects_unsupported_flags() {
+        let mut container = build_test_container();
+        let flags_offset = flags_offset(test_app_version());
+        container[flags_offset..flags_offset + 2].copy_from_slice(&2_u16.to_le_bytes());
+
+        let error = parse_soloc_container(&container).unwrap_err();
+
+        assert_eq!(error, "Unsupported .soloc chunk flags: 2");
+    }
+
+    #[test]
+    fn parse_soloc_container_rejects_out_of_bounds_chunk() {
+        let mut container = build_test_container();
+        let payload_offset_offset = payload_offset_offset(test_app_version());
+        container[payload_offset_offset..payload_offset_offset + 8]
+            .copy_from_slice(&u64::MAX.to_le_bytes());
+
+        let error = parse_soloc_container(&container).unwrap_err();
+
+        assert_eq!(error, "Chunk bounds overflow");
+    }
+
+    #[test]
+    fn parse_soloc_container_rejects_duplicate_project_chunk() {
+        let app_version = test_app_version();
+        let mut container = build_test_container();
+        let header_end = header_end(app_version);
+        let original_entry =
+            container[header_end..header_end + SOLOC_CHUNK_DIRECTORY_ENTRY_SIZE].to_vec();
+        let chunk_count_offset = header_end - 2;
+        container[chunk_count_offset..header_end].copy_from_slice(&2_u16.to_le_bytes());
+        container.splice(
+            header_end + SOLOC_CHUNK_DIRECTORY_ENTRY_SIZE
+                ..header_end + SOLOC_CHUNK_DIRECTORY_ENTRY_SIZE,
+            original_entry,
+        );
+
+        let new_payload_offset =
+            u64::try_from(header_end + (SOLOC_CHUNK_DIRECTORY_ENTRY_SIZE * 2)).unwrap();
+        let first_offset = header_end + 6;
+        let second_offset = header_end + SOLOC_CHUNK_DIRECTORY_ENTRY_SIZE + 6;
+        container[first_offset..first_offset + 8]
+            .copy_from_slice(&new_payload_offset.to_le_bytes());
+        container[second_offset..second_offset + 8]
+            .copy_from_slice(&new_payload_offset.to_le_bytes());
+
+        let error = parse_soloc_container(&container).unwrap_err();
+
+        assert_eq!(error, "Duplicate PROJECT_JSON chunk");
+    }
+
+    #[test]
+    fn parse_soloc_container_rejects_chunk_pointing_into_header() {
+        let mut container = build_test_container();
+        let payload_offset_offset = payload_offset_offset(test_app_version());
+        container[payload_offset_offset..payload_offset_offset + 8]
+            .copy_from_slice(&0_u64.to_le_bytes());
+
+        let error = parse_soloc_container(&container).unwrap_err();
+
+        assert_eq!(error, "Chunk points outside file bounds");
+    }
+
+    #[test]
+    fn validate_project_version_match_rejects_mismatch() {
+        let project_data = json!({
+            "score": {
+                "meta": {
+                    "app_version": "0.0.1"
+                }
+            }
+        });
+
+        let error = validate_project_version_match(test_app_version(), &project_data).unwrap_err();
+
+        assert_eq!(
+            error,
+            "Invalid .soloc version mismatch between header and project metadata"
+        );
+    }
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -59,29 +547,14 @@ pub fn save_project_to_file(
     file_path: String,
 ) -> Result<(), String> {
     let mut state = state.lock().unwrap();
+    state.score.meta.app_version = CURRENT_APP_VERSION.to_string();
 
-    // Create the project data structure from the current app state
-    let project_data = serde_json::json!({
-        "ui": &state.ui,
-        "score": &state.score,
-        "next_id": &state.next_id
-    });
-
-    // Serialize to minified JSON
-    let json_string = serde_json::to_string(&project_data)
+    let project_file = build_project_file(&state);
+    let json_data = serde_json::to_vec(&project_file)
         .map_err(|e| format!("Failed to serialize project data: {}", e))?;
-
-    // Compress with gzip
-    let mut encoder = GzEncoder::new(Vec::new(), Compression::best());
-    encoder
-        .write_all(json_string.as_bytes())
-        .map_err(|e| format!("Failed to compress data: {}", e))?;
-    let compressed_data = encoder
-        .finish()
-        .map_err(|e| format!("Failed to finish compression: {}", e))?;
-
-    // Write compressed data to file
-    fs::write(&file_path, compressed_data).map_err(|e| format!("Failed to write file: {}", e))?;
+    let compressed_data = compress_project_payload(&json_data)?;
+    let container = build_soloc_container(CURRENT_APP_VERSION, &compressed_data)?;
+    write_file_atomically(Path::new(&file_path), &container)?;
 
     // Update the current file path
     state.current_file_path = Some(file_path);
@@ -101,55 +574,37 @@ pub fn load_project_from_file(
     audio_state: State<'_, AudioContextState>,
     file_path: String,
 ) -> Result<(), String> {
-    // Read the file
     let file_data = fs::read(&file_path).map_err(|e| format!("Failed to read file: {}", e))?;
+    let parsed_container = parse_soloc_container(&file_data)?;
+    let json_data = decompress_project_payload(
+        parsed_container.project_payload,
+        parsed_container.project_chunk_flags,
+    )?;
+    let project_data: Value = serde_json::from_slice(&json_data)
+        .map_err(|e| format!("Failed to parse project JSON: {}", e))?;
+    validate_project_version_match(&parsed_container.app_version, &project_data)?;
 
-    // Decompress gzip data
-    let mut decoder = GzDecoder::new(&file_data[..]);
-    let mut json_string = String::new();
-    decoder
-        .read_to_string(&mut json_string)
-        .map_err(|e| format!("Failed to decompress file: {}", e))?;
-
-    // Parse the JSON
-    let project_data: serde_json::Value = serde_json::from_str(&json_string)
-        .map_err(|e| format!("Failed to parse project data: {}", e))?;
-
-    // Apply migrations
-    let project_data = migrate_project_data(project_data)?;
+    let project_data = migrate_project_data(project_data, &parsed_container.app_version)
+        .map_err(|e| format!("Failed to migrate project data: {}", e))?;
+    let mut project_file: ProjectFile = serde_json::from_value(project_data)
+        .map_err(|e| format!("Failed to deserialize project file: {}", e))?;
+    project_file.score.meta.app_version = CURRENT_APP_VERSION.to_string();
 
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
 
-    // Load UI state if present
-    if let Some(ui_data) = project_data.get("ui") {
-        if let Ok(ui) = serde_json::from_value(ui_data.clone()) {
-            state.ui = ui;
-        }
-    }
+    state.ui = project_file.ui;
 
     // Reset ephemral state
     state.ui.sequencer.tool = Tool::Select;
     state.ui.screens.setup.selection = None;
     state.ui.sequencer.selection = None;
 
-    // Load score state
-    if let Some(score_data) = project_data.get("score") {
-        if let Ok(score) = serde_json::from_value(score_data.clone()) {
-            state.score = score;
-        }
-    }
-
-    // Load next_id if present
-    if let Some(next_id_data) = project_data.get("next_id") {
-        if let Ok(next_id) = serde_json::from_value(next_id_data.clone()) {
-            state.next_id = next_id;
-        }
-    }
+    state.score = project_file.score;
+    state.next_id = project_file.next_id;
 
     // Update the current file path
     state.current_file_path = Some(file_path);
-
 
     let score = state.score.clone();
 
