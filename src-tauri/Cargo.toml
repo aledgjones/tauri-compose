@@ -24,6 +24,10 @@ name = "scvi-inspect"
 path = "src/bin/scvi_inspect.rs"
 
 [[bin]]
+name = "build-fixtures"
+path = "src/bin/build_fixtures.rs"
+
+[[bin]]
 name = "generate-manifest"
 path = "src/bin/generate_manifest.rs"
 

@@ -68,6 +68,32 @@ The release tool must be compiled first: `npm run release:build`
 | `npm run inspect-scvi`            | Inspect SCVI container contents                           |
 | `npm run inspect-scvi:build`      | Compile the SCVI inspector                                |
 
+## Visual Regression Fixtures
+
+See [tests/fixtures/README.md](../tests/fixtures/README.md) for full details.
+
+Fixtures enable manual visual regression of score rendering: a human opens each generated `.soloc` file in the app and visually confirms rendering is correct.
+
+| Command                  | Description                                           |
+| ------------------------ | ----------------------------------------------------- |
+| `npm run build:fixtures` | Convert all `tests/fixtures/source/*.json` → `.soloc` |
+
+### Adding a new fixture
+
+1. Create `tests/fixtures/source/<concern>/<name>.json` — a valid project JSON payload (see [tests/fixtures/README.md](../tests/fixtures/README.md))
+2. Run `npm run build:fixtures`
+3. Open the generated `tests/fixtures/built/<concern>/<name>.soloc` in the app and verify rendering
+4. Commit the `.json` file only (`.soloc` files are gitignored)
+
+### `soloc.rs` — shared container logic
+
+The container encoding functions (`build_soloc_container`, `compress_project_payload`, `decompress_project_payload`) and all `.soloc` format constants live in `src-tauri/src/soloc.rs`. Both the production save path (`files.rs`) and the `build-fixtures` binary share this module via:
+
+- `files.rs` — `use crate::soloc::*`
+- `build_fixtures.rs` — `#[path = "../soloc.rs"] mod soloc`
+
+When making changes to the container format, update `soloc.rs` and rebuild fixtures with `npm run build:fixtures`.
+
 ## Build Configuration
 
 ### Vite (Frontend)
@@ -105,6 +131,8 @@ See [TESTING.md](../TESTING.md) for full details. Quick reference:
 | `cargo test`            | Run all Rust unit tests (from `src-tauri/`) |
 
 Test files are colocated next to the source files they test (e.g. `utils.ts` → `utils.test.ts`).
+
+For **visual regression testing** (manual, human-driven), see [tests/fixtures/README.md](../tests/fixtures/README.md).
 
 ## Git Conventions
 

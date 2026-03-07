@@ -72,6 +72,19 @@ When connected to atlassian-rovo-mcp:
 - **MUST** use `npm run test:coverage` to generate/refresh the coverage data before running `test:coverage:summary` if the data may be stale
 - These scripts are safe to auto-approve; inline coverage scripts are not
 
+## Visual Regression Fixtures
+
+- Fixture source files live in `tests/fixtures/source/` — plain JSON, committed to the repo
+- Built `.soloc` files live in `tests/fixtures/built/` — gitignored, regenerated on demand
+- **MUST** run `npm run build:fixtures` after adding or modifying any fixture JSON
+- **MUST** group fixture files by concern (e.g. `time-signatures/`, `rhythms/`, `clefs/`, `key-signatures/`)
+- **MUST** use flows to isolate individual test cases within a fixture file
+- **MUST NOT** commit `.soloc` files — they are binary output and are gitignored
+- See [tests/fixtures/README.md](../tests/fixtures/README.md) for the authoritative fixture guide
+- Fixture JSON `score.meta.app_version` **MUST** match the current `CARGO_PKG_VERSION` (currently `1.23.3`) — the build script will fail with a clear error if it is missing
+- When the `.soloc` container format changes, fixtures must be regenerated with `npm run build:fixtures`
+- **MUST NOT** use Compound (6/8, 9/8, 12/8, …) or Complex (5/4, 7/8, …) time signatures in fixtures — only Simple time signatures (beats 1–4) are implemented; Compound and Complex will **crash the app** (`todo!()` in the renderer)
+
 ## Spec and Documentation Requirements
 
 - **MUST** include documentation impact as part of every tech spec or implementation spec

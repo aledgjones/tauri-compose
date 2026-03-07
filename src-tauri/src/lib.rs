@@ -5,6 +5,7 @@ mod playback;
 mod preferences;
 mod renderer;
 mod score;
+pub mod soloc;
 mod ui;
 mod utils;
 

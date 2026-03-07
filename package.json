@@ -68,6 +68,7 @@
     "dev": "vite",
     "format": "prettier --check .",
     "format:fix": "prettier --write .",
+    "build:fixtures": "cargo run --manifest-path src-tauri/Cargo.toml --bin build-fixtures -- tests/fixtures/source tests/fixtures/built",
     "generate-manifest": "./scripts/generate-manifest",
     "generate-manifest:build": "cd src-tauri && cargo build --release --bin generate-manifest && cp target/release/generate-manifest ../scripts/generate-manifest",
     "generate-scvi": "./scripts/scvi-compress",
