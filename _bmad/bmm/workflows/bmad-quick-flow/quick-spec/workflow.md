@@ -1,12 +1,12 @@
 ---
 name: quick-spec
 description: 'Very quick process to create implementation-ready quick specs for small changes or features. Use when the user says "create a quick spec" or "generate a quick tech spec"'
-main_config: '{project-root}/_bmad/bmm/config.yaml'
+main_config: "{project-root}/_bmad/bmm/config.yaml"
 
 # Checkpoint handler paths
-advanced_elicitation: '{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml'
-party_mode_exec: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
-quick_dev_workflow: '{project-root}/_bmad/bmm/workflows/bmad-quick-flow/quick-dev/workflow.md'
+advanced_elicitation: "{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml"
+party_mode_exec: "{project-root}/_bmad/core/workflows/party-mode/workflow.md"
+quick_dev_workflow: "{project-root}/_bmad/bmm/workflows/bmad-quick-flow/quick-dev/workflow.md"
 ---
 
 # Quick-Spec Workflow
@@ -22,6 +22,7 @@ A specification is considered "Ready for Development" ONLY if it meets the follo
 - **Testable**: All ACs follow Given/When/Then and cover happy path and edge cases.
 - **Complete**: All investigation results from Step 2 are inlined; no placeholders or "TBD".
 - **Self-Contained**: A fresh agent can implement the feature without reading the workflow history.
+- **Documented**: The spec explicitly covers required documentation updates and, when project rules change, AI-agent instruction updates.
 
 ---
 

@@ -71,3 +71,11 @@ When connected to atlassian-rovo-mcp:
 - **MUST** use `npm run test:coverage:summary` to display coverage totals — do NOT write ad-hoc Python or Node scripts inline for this purpose
 - **MUST** use `npm run test:coverage` to generate/refresh the coverage data before running `test:coverage:summary` if the data may be stale
 - These scripts are safe to auto-approve; inline coverage scripts are not
+
+## Spec and Documentation Requirements
+
+- **MUST** include documentation impact as part of every tech spec or implementation spec
+- **MUST** identify which docs should be updated whenever a spec changes behavior, architecture, persistence, workflows, user-visible features, or developer expectations
+- **MUST** include explicit documentation update tasks and acceptance criteria in specs; docs are not a follow-up nice-to-have
+- **MUST** update AI-agent instructions as part of the work when project rules or required implementation practices change
+- **MUST** assess migration impact for any persisted-data or file-format change; if older data would not load correctly without transformation, add or update the corresponding migration

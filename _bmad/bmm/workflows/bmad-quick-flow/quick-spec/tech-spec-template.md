@@ -1,8 +1,8 @@
 ---
-title: '{title}'
-slug: '{slug}'
-created: '{date}'
-status: 'in-progress'
+title: "{title}"
+slug: "{slug}"
+created: "{date}"
+status: "in-progress"
 stepsCompleted: []
 tech_stack: []
 files_to_modify: []
@@ -58,6 +58,10 @@ test_patterns: []
 ### Acceptance Criteria
 
 {acceptance_criteria}
+
+### Documentation Impact
+
+{documentation_impact}
 
 ## Additional Context
 
