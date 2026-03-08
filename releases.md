@@ -1,3 +1,15 @@
+## Release Notes for v1.25.1
+
+### 🏗️ Features
+
+- feat: release script correction
+- feat: new release flow
+- feat: release and migrations spec
+
+### 🐞 Fixes
+
+- fix: formatting
+
 ## Release Notes for v1.25.0
 
 ### 🏗️ Features

@@ -67,6 +67,7 @@
     "build:fixtures": "cargo run --manifest-path src-tauri/Cargo.toml --bin build-fixtures -- tests/fixtures/source tests/fixtures/built",
     "check-types": "tsc --noEmit",
     "dev": "vite",
+    "finalize-release": "./scripts/release finalize",
     "format": "prettier --check .",
     "format:fix": "prettier --write .",
     "generate-manifest": "./scripts/generate-manifest",
@@ -78,12 +79,11 @@
     "lint": "eslint 'src/**/*.{ts,tsx}'",
     "lint:fix": "eslint 'src/**/*.{ts,tsx}' --fix",
     "prepare": "simple-git-hooks || true",
-    "preview": "vite preview",
-    "release:build": "cd src-tauri && cargo build --release --bin release && cp target/release/release ../scripts/release",
     "prepare-release:major": "./scripts/release prepare major",
     "prepare-release:minor": "./scripts/release prepare minor",
     "prepare-release:patch": "./scripts/release prepare patch",
-    "finalize-release": "./scripts/release finalize",
+    "preview": "vite preview",
+    "release:build": "cd src-tauri && cargo build --release --bin release && cp target/release/release ../scripts/release",
     "start:dev": "tauri dev",
     "start:release": "tauri build",
     "tauri": "tauri",
@@ -100,5 +100,5 @@
     "pre-commit": "npx lint-staged"
   },
   "type": "module",
-  "version": "1.25.0"
+  "version": "1.25.1"
 }

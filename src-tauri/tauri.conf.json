@@ -1,52 +1,54 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Solo Compose",
-  "version": "1.25.0",
-  "identifier": "com.soloapps.compose",
-  "build": {
-    "beforeDevCommand": "npm run dev",
-    "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "npm run build",
-    "frontendDist": "../dist"
-  },
   "app": {
-    "windows": [
-      {
-        "title": "Solo Compose",
-        "maximized": true,
-        "width": 800,
-        "height": 600,
-        "url": "index.html",
-        "acceptFirstMouse": true,
-        "minWidth": 1300,
-        "dragDropEnabled": false,
-        "theme": "Dark",
-        "titleBarStyle": "Overlay",
-        "transparent": true,
-        "backgroundColor": "#0a0a0a"
-      }
-    ],
     "macOSPrivateApi": true,
     "security": {
-      "csp": null,
       "assetProtocol": {
         "enable": true,
-        "scope": ["$DATA/Solo Compose/covers/**"]
+        "scope": [
+          "$DATA/Solo Compose/covers/**"
+        ]
+      },
+      "csp": null
+    },
+    "windows": [
+      {
+        "acceptFirstMouse": true,
+        "backgroundColor": "#0a0a0a",
+        "dragDropEnabled": false,
+        "height": 600,
+        "maximized": true,
+        "minWidth": 1300,
+        "theme": "Dark",
+        "title": "Solo Compose",
+        "titleBarStyle": "Overlay",
+        "transparent": true,
+        "url": "index.html",
+        "width": 800
       }
-    }
+    ]
+  },
+  "build": {
+    "beforeBuildCommand": "npm run build",
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "frontendDist": "../dist"
   },
   "bundle": {
-    "macOS": {
-      "minimumSystemVersion": "10.14"
-    },
     "active": true,
-    "targets": "dmg",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
-  }
+    ],
+    "macOS": {
+      "minimumSystemVersion": "10.14"
+    },
+    "targets": "dmg"
+  },
+  "identifier": "com.soloapps.compose",
+  "productName": "Solo Compose",
+  "version": "1.25.1"
 }
