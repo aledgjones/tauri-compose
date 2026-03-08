@@ -10,6 +10,7 @@ use std::process::{self, Command};
 type DynError = Box<dyn std::error::Error>;
 
 const PACKAGE_JSON_PATH: &str = "package.json";
+const PACKAGE_LOCK_PATH: &str = "package-lock.json";
 const CARGO_TOML_PATH: &str = "src-tauri/Cargo.toml";
 const CARGO_LOCK_PATH: &str = "src-tauri/Cargo.lock";
 const TAURI_CONF_PATH: &str = "src-tauri/tauri.conf.json";
@@ -342,6 +343,7 @@ fn update_version_files(
     prepared_version: &str,
 ) -> Result<(), DynError> {
     update_package_json_version(root.join(PACKAGE_JSON_PATH).as_path(), prepared_version)?;
+    update_package_lock_version(root.join(PACKAGE_LOCK_PATH).as_path(), prepared_version)?;
     update_cargo_toml_version(
         root.join(CARGO_TOML_PATH).as_path(),
         current_version,
@@ -353,6 +355,28 @@ fn update_version_files(
 
 fn update_package_json_version(path: &Path, new_version: &str) -> Result<(), DynError> {
     update_json_version(path, new_version)
+}
+
+fn update_package_lock_version(path: &Path, new_version: &str) -> Result<(), DynError> {
+    let content = fs::read_to_string(path)?;
+    let mut value: Value = serde_json::from_str(&content)?;
+    value["version"] = Value::String(new_version.to_string());
+
+    let packages = value
+        .get_mut("packages")
+        .and_then(Value::as_object_mut)
+        .ok_or("package-lock.json is missing the packages object")?;
+    let root_package = packages
+        .get_mut("")
+        .and_then(Value::as_object_mut)
+        .ok_or("package-lock.json is missing the root package entry")?;
+    root_package.insert(
+        String::from("version"),
+        Value::String(new_version.to_string()),
+    );
+
+    fs::write(path, serde_json::to_string_pretty(&value)?)?;
+    Ok(())
 }
 
 fn update_json_version(path: &Path, new_version: &str) -> Result<(), DynError> {
@@ -407,6 +431,7 @@ fn capture_prepare_snapshot(
 ) -> Result<WorkspaceSnapshot, DynError> {
     let tracked_paths = [
         PACKAGE_JSON_PATH,
+        PACKAGE_LOCK_PATH,
         CARGO_TOML_PATH,
         CARGO_LOCK_PATH,
         TAURI_CONF_PATH,
@@ -895,9 +920,6 @@ fn build_prep_manifest(
     root: &Path,
     input: PrepManifestInput<'_>,
 ) -> Result<ReleasePrepManifest, DynError> {
-    let mut manifest_paths = input.changed_paths.clone();
-    manifest_paths.insert(String::from(PREP_MANIFEST_PATH));
-
     let mut managed_files = Vec::new();
     let mut absent_paths = Vec::new();
 
@@ -926,7 +948,7 @@ fn build_prep_manifest(
         promoted_migration_path: input.migration_state.promoted_migration_path.clone(),
         pending_step_count: input.migration_state.pending_step_count,
         next_scaffold_source: input.migration_state.next_scaffold_source.clone(),
-        changed_paths: manifest_paths.into_iter().collect(),
+        changed_paths: input.changed_paths.iter().cloned().collect(),
         managed_files,
         absent_paths,
     })
@@ -1000,7 +1022,9 @@ fn validate_prepared_state_files(
     manifest: &ReleasePrepManifest,
     changed_paths: &BTreeSet<String>,
 ) -> Result<(), DynError> {
-    let expected_paths: BTreeSet<String> = manifest.changed_paths.iter().cloned().collect();
+    let mut expected_paths: BTreeSet<String> = manifest.changed_paths.iter().cloned().collect();
+    expected_paths.remove(PREP_MANIFEST_PATH);
+
     if changed_paths != &expected_paths {
         return Err(format!(
             "Prepared working tree has drifted. Expected changed paths {:?}, found {:?}",
@@ -1150,6 +1174,19 @@ mod tests {
     use std::path::PathBuf;
     use std::time::{SystemTime, UNIX_EPOCH};
 
+    const NEXT_SCAFFOLD_TEMPLATE: &str = concat!(
+        "use serde_json::Value;\n\n",
+        "type PendingStep = fn(Value) -> Result<Value, String>;\n\n",
+        "const PENDING_STEPS: &[PendingStep] = &[\n",
+        "];\n\n",
+        "pub fn migrate(mut data: Value) -> Result<Value, String> {\n",
+        "    for step in PENDING_STEPS {\n",
+        "        data = step(data)?;\n",
+        "    }\n\n",
+        "    Ok(data)\n",
+        "}\n"
+    );
+
     fn make_temp_dir(name: &str) -> PathBuf {
         let unique = format!(
             "compose-release-tests-{}-{}-{}",
@@ -1174,9 +1211,32 @@ mod tests {
     }
 
     #[test]
+    fn update_package_lock_version_updates_root_metadata() {
+        let root = make_temp_dir("package-lock");
+        write_file(
+            &root,
+            PACKAGE_LOCK_PATH,
+            "{\n  \"name\": \"compose\",\n  \"version\": \"1.25.0\",\n  \"packages\": {\n    \"\": {\n      \"name\": \"compose\",\n      \"version\": \"1.25.0\"\n    }\n  }\n}\n",
+        );
+
+        update_package_lock_version(&root.join(PACKAGE_LOCK_PATH), "1.25.1").unwrap();
+
+        let updated: Value =
+            serde_json::from_str(&fs::read_to_string(root.join(PACKAGE_LOCK_PATH)).unwrap())
+                .unwrap();
+
+        assert_eq!(updated["version"], Value::String(String::from("1.25.1")));
+        assert_eq!(
+            updated["packages"][""]["version"],
+            Value::String(String::from("1.25.1"))
+        );
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn count_pending_steps_detects_empty_scaffold() {
-        let scaffold =
-            build_next_migration_scaffold(include_str!("../migrations/next.rs")).unwrap();
+        let scaffold = build_next_migration_scaffold(NEXT_SCAFFOLD_TEMPLATE).unwrap();
         assert_eq!(count_pending_steps(&scaffold).unwrap(), 0);
     }
 
@@ -1231,8 +1291,7 @@ mod tests {
         write_file(&root, "src-tauri/src/migrations/1.25.0.rs", "pub fn migrate(_: serde_json::Value) -> Result<serde_json::Value, String> { unreachable!() }\n");
         write_file(&root, MIGRATIONS_MOD_PATH, "placeholder\n");
         write_file(&root, PREP_MANIFEST_PATH, "{}\n");
-        let scaffold =
-            build_next_migration_scaffold(include_str!("../migrations/next.rs")).unwrap();
+        let scaffold = build_next_migration_scaffold(NEXT_SCAFFOLD_TEMPLATE).unwrap();
 
         reseed_development_migration_state(&root, &scaffold).unwrap();
 
@@ -1315,6 +1374,44 @@ mod tests {
         ]);
 
         assert!(validate_prepared_state_files(&root, &manifest, &changed_paths).is_err());
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn validate_prepared_state_files_allows_legacy_visible_manifest_path() {
+        let root = make_temp_dir("legacy-manifest");
+        write_file(
+            &root,
+            PACKAGE_JSON_PATH,
+            "{\n  \"version\": \"1.25.0\"\n}\n",
+        );
+        write_file(&root, PREP_MANIFEST_PATH, "{}\n");
+
+        let manifest = ReleasePrepManifest {
+            base_commit: String::from("abc"),
+            previous_version: String::from("1.25.0"),
+            prepared_version: String::from("1.25.1"),
+            bump_type: BumpType::Patch,
+            last_tag: String::from("v1.25.0"),
+            release_tag: String::from("v1.25.1"),
+            promoted_migration_path: None,
+            pending_step_count: 0,
+            next_scaffold_source: String::from("scaffold"),
+            changed_paths: vec![
+                String::from(PACKAGE_JSON_PATH),
+                String::from(PREP_MANIFEST_PATH),
+            ],
+            managed_files: vec![PreparedFileHash {
+                path: String::from(PACKAGE_JSON_PATH),
+                blake3: blake3_hex(&root.join(PACKAGE_JSON_PATH)).unwrap(),
+            }],
+            absent_paths: vec![],
+        };
+
+        let changed_paths = BTreeSet::from([String::from(PACKAGE_JSON_PATH)]);
+
+        validate_prepared_state_files(&root, &manifest, &changed_paths).unwrap();
 
         fs::remove_dir_all(root).unwrap();
     }
