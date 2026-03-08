@@ -4408,7 +4408,7 @@ dependencies = [
 
 [[package]]
 name = "solo-compose"
-version = "1.24.0"
+version = "1.25.0"
 dependencies = [
  "audioadapter-buffers",
  "base64 0.22.1",

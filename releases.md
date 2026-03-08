@@ -1,3 +1,9 @@
+## Release Notes for v1.25.0
+
+### 🏗️ Features
+
+- feat: tempo properties
+
 ## Release Notes for v1.24.0
 
 ### 🏗️ Features
