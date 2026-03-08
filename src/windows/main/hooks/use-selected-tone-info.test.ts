@@ -97,6 +97,27 @@ describe("useSelectedToneInfo", () => {
     expect(result.current).toBeNull();
   });
 
+  it("returns null for tempo selections", () => {
+    const state = createAppState({
+      ui: {
+        sequencer: {
+          selection: {
+            type: "Tempo",
+            flow_id: FLOW_ID,
+            tempo_id: 123,
+            tick: 64,
+          },
+        },
+      } as never,
+    });
+
+    const { result } = renderHook(() => useSelectedToneInfo(), {
+      wrapper: createWrapper({ appState: state }),
+    });
+
+    expect(result.current).toBeNull();
+  });
+
   it("returns null when selection references a missing track", () => {
     const state = createAppState({
       ui: {

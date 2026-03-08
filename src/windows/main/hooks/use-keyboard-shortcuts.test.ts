@@ -131,6 +131,33 @@ describe("useKeyboardShortcuts", () => {
     }).not.toThrow();
   });
 
+  it("does not dispatch tone shortcuts when a tempo selection is active", async () => {
+    const state = createAppState({
+      ui: {
+        sequencer: {
+          selection: {
+            type: "Tempo",
+            flow_id: FLOW_ID,
+            tempo_id: 555,
+            tick: 64,
+          },
+        },
+      } as never,
+    });
+
+    renderHook(() => useKeyboardShortcuts(), {
+      wrapper: createWrapper({ appState: state }),
+    });
+
+    await act(async () => {
+      window.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "ArrowUp", altKey: true }),
+      );
+    });
+
+    expect(actions.score.tone.shiftPitchByStep).not.toHaveBeenCalled();
+  });
+
   it("returns null selectionInfo when Tone selection references missing track", () => {
     // Selection points to track 9999 which does not exist → line 27 branch
     const state = createAppState({

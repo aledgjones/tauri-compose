@@ -25,7 +25,7 @@ describe("hitTest", () => {
   });
 
   it("returns the resolved value from invoke", async () => {
-    const selection = { flow_id: 1, tick: 64 };
+    const selection = { type: "Tempo", flow_id: 1, tempo_id: 8, tick: 64 };
     vi.mocked(invoke).mockResolvedValueOnce(selection);
     const result = await hitTest(0, 0, 0, 0, 1);
     expect(result).toEqual(selection);

@@ -53,7 +53,7 @@ const getFlowIdFromSelection = (state: AppState) => {
 const getStaveIdFromSelection = (state: AppState) => {
   const selection = state.ui.sequencer.selection;
 
-  if (!selection) {
+  if (!selection || selection.type === "Tempo") {
     return null;
   }
 

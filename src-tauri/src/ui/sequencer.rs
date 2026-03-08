@@ -23,6 +23,11 @@ pub enum Selection {
         track_id: UniqueId,
         tick: u64,
     },
+    Tempo {
+        flow_id: UniqueId,
+        tempo_id: UniqueId,
+        tick: u64,
+    },
 }
 
 #[derive(Serialize_repr, Deserialize_repr, Clone)]
@@ -191,6 +196,27 @@ pub fn ui_sequencer_selection_set_rest(
 }
 
 #[tauri::command(rename_all = "snake_case")]
+pub fn ui_sequencer_selection_set_tempo(
+    app: tauri::AppHandle,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
+    flow_id: UniqueId,
+    tempo_id: UniqueId,
+    tick: u64,
+) {
+    let mut state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
+
+    state.ui.sequencer.selection = Some(Selection::Tempo {
+        flow_id,
+        tempo_id,
+        tick,
+    });
+
+    state.emit(&app, &mut renderer, true);
+}
+
+#[tauri::command(rename_all = "snake_case")]
 pub fn ui_sequencer_selection_clear(
     app: tauri::AppHandle,
     state: State<'_, AppContextState>,
@@ -202,4 +228,25 @@ pub fn ui_sequencer_selection_clear(
     state.ui.sequencer.selection = None;
 
     state.emit(&app, &mut renderer, true);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Selection;
+
+    #[test]
+    fn tempo_selection_serializes_with_expected_shape() {
+        let selection = Selection::Tempo {
+            flow_id: 11,
+            tempo_id: 12,
+            tick: 96,
+        };
+
+        let json = serde_json::to_value(selection).unwrap();
+
+        assert_eq!(json["type"], "Tempo");
+        assert_eq!(json["flow_id"], 11);
+        assert_eq!(json["tempo_id"], 12);
+        assert_eq!(json["tick"], 96);
+    }
 }

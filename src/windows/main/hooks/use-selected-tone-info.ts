@@ -15,6 +15,10 @@ export const useSelectedToneInfo = () => {
       return null;
     }
 
+    if (selection.type === "Tempo") {
+      return null;
+    }
+
     const track = state.score.tracks.by_id[selection.track_id];
 
     if (!track) {

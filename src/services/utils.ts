@@ -14,7 +14,7 @@ const TEMPO_DEFAULTS = {
 } as const;
 
 export type ParsedTempo = {
-  text: string | null;
+  text: string;
   beat_type: NoteDuration;
   dots: number;
   bpm: number;
@@ -192,7 +192,7 @@ export const parseTempo = (input: string): ParsedTempo | null => {
   }
 
   return {
-    text: null,
+    text: "",
     beat_type: NoteDuration.Quarter,
     dots: 0,
     bpm,

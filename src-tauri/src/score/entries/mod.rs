@@ -136,7 +136,7 @@ mod tests {
         Entry::Tempo(Tempo::new(
             id,
             tick,
-            Some(String::from("Allegro")),
+            String::from("Allegro"),
             NoteDuration::Quarter,
             0,
             120,

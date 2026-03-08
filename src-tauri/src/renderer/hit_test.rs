@@ -2,17 +2,14 @@ use crate::ui::sequencer::Selection;
 use crate::RendererContextState;
 use tauri::State;
 
-#[tauri::command(rename_all = "snake_case")]
-pub fn renderer_hit_test(
-    renderer_state: State<'_, RendererContextState>,
+fn hit_test_selection(
+    renderer: &crate::renderer::RendererContext,
     x: f32,
     y: f32,
     pan_x: f32,
     pan_y: f32,
     zoom: f32,
 ) -> Option<Selection> {
-    let renderer = renderer_state.lock().unwrap();
-
     let zoom_scale = zoom / 100.0;
 
     let render_x = (x - pan_x) / zoom_scale;
@@ -32,4 +29,63 @@ pub fn renderer_hit_test(
     }
 
     None
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn renderer_hit_test(
+    renderer_state: State<'_, RendererContextState>,
+    x: f32,
+    y: f32,
+    pan_x: f32,
+    pan_y: f32,
+    zoom: f32,
+) -> Option<Selection> {
+    let renderer = renderer_state.lock().unwrap();
+
+    hit_test_selection(&renderer, x, y, pan_x, pan_y, zoom)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::hit_test_selection;
+    use crate::renderer::{test_helpers::make_test_renderer, HitTarget};
+    use crate::ui::sequencer::Selection;
+
+    #[test]
+    fn returns_tempo_selection_when_click_is_inside_tempo_hit_target() {
+        let mut renderer = make_test_renderer();
+        renderer.hit_targets.push(HitTarget {
+            entry: Selection::Tempo {
+                flow_id: 4,
+                tempo_id: 8,
+                tick: 64,
+            },
+            x: 1.0,
+            y: 2.0,
+            width: 3.0,
+            height: 2.0,
+            popover_x: 1.0,
+            popover_y: 1.0,
+        });
+
+        let hit = hit_test_selection(&renderer, 2.5, 3.0, 0.0, 0.0, 100.0);
+
+        assert_eq!(
+            hit,
+            Some(Selection::Tempo {
+                flow_id: 4,
+                tempo_id: 8,
+                tick: 64,
+            })
+        );
+    }
+
+    #[test]
+    fn returns_none_when_click_is_outside_hit_targets() {
+        let renderer = make_test_renderer();
+
+        let hit = hit_test_selection(&renderer, 10.0, 15.0, 0.0, 0.0, 100.0);
+
+        assert!(hit.is_none());
+    }
 }

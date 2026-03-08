@@ -138,18 +138,18 @@ The audible musical note. **Never directly drawn** in the score — the parse pi
 
 Immediate absolute tempo markings live on the **flow master track** so the renderer and future playback-following-tempo work can query a single flow-wide source of truth.
 
-| Field            | Type             | Description                                        |
-| ---------------- | ---------------- | -------------------------------------------------- |
-| `id`             | `UniqueId`       |                                                    |
-| `tick`           | `Tick`           | Tick where the tempo marking is attached           |
-| `text`           | `Option<String>` | Optional named label such as `Allegro`             |
-| `beat_type`      | `NoteDuration`   | Metronome beat value (`Quarter` in v1 authoring)   |
-| `dots`           | `u8`             | Augmentation dots for the metronome note           |
-| `bpm`            | `u16`            | Resolved beats-per-minute value                    |
-| `hidden`         | `bool`           | If true, the entry persists but does not render    |
-| `show_text`      | `bool`           | Controls whether the textual label renders         |
-| `show_metronome` | `bool`           | Controls whether the metronome note and BPM render |
-| `parenthesized`  | `bool`           | Wraps the metronome portion in parentheses         |
+| Field            | Type           | Description                                                 |
+| ---------------- | -------------- | ----------------------------------------------------------- |
+| `id`             | `UniqueId`     |                                                             |
+| `tick`           | `Tick`         | Tick where the tempo marking is attached                    |
+| `text`           | `String`       | Stored label text; empty string represents no visible label |
+| `beat_type`      | `NoteDuration` | Metronome beat value (`Quarter` in v1 authoring)            |
+| `dots`           | `u8`           | Augmentation dots for the metronome note                    |
+| `bpm`            | `u16`          | Resolved beats-per-minute value                             |
+| `hidden`         | `bool`         | If true, the entry persists but does not render             |
+| `show_text`      | `bool`         | Controls whether the textual label renders                  |
+| `show_metronome` | `bool`         | Controls whether the metronome note and BPM render          |
+| `parenthesized`  | `bool`         | Wraps the metronome portion in parentheses                  |
 
 Supported v1 display forms are:
 
@@ -158,7 +158,11 @@ Supported v1 display forms are:
 - `Allegro (q=120)`
 - `q=120`
 
-Tempo entries are **notation/data only in this release**. They do not yet drive transport playback.
+Metronome-only tempos now persist as `text: ""` plus `show_text: false` rather than `text: null`.
+
+Tempo entries drive both score rendering and transport tempo resolution, and selected tempo entries can be edited from the write-screen `Properties` tab.
+
+This schema changed for the upcoming `1.25.0` release; older `.soloc` payloads that still contain `text: null` are normalized during load by migration `1.25.0`.
 
 ---
 
@@ -376,9 +380,15 @@ The container header `app_version` is the authoritative migration key. The JSON 
 File migrations are defined in `src-tauri/src/migrations/mod.rs`:
 
 ```rust
-pub static ref MIGRATIONS: Vec<Migration> = vec![];
+pub static ref MIGRATIONS: Vec<Migration> = vec![("1.25.0", v1_25_0::migrate)];
 ```
 
-Each migration is a function `fn(Value) -> Result<Value, String>` that transforms the JSON data. Migrations run sequentially on file load when the container header `app_version` is lower than the registered migration version. There are currently no active migrations registered. After all migrations, `score.meta.app_version` is rewritten to the current binary version so the JSON payload stays aligned with the header value written on the next save.
+Each migration is a function `fn(Value) -> Result<Value, String>` that transforms the JSON data. Migrations run sequentially on file load when the container header `app_version` is lower than the registered migration version. Migration modules should target the version that will first ship the breaking persistence change, even if the feature work lands before the release command is run. After all migrations, `score.meta.app_version` is rewritten to the current binary version so the JSON payload stays aligned with the header value written on the next save.
+
+Recommended persisted-data workflow:
+
+1. Implement the feature and validate whether persistence changed.
+2. If migration is required, add it under the next release version that will ship the change.
+3. Run the release flow last so the version bump, release notes, and shipped migration land together.
 
 Any persisted-data shape change, `.soloc` payload change, or load/save semantic change must include a migration review. If older files would not load correctly without transformation, add or update a migration in `src-tauri/src/migrations/` and register it in `mod.rs`.

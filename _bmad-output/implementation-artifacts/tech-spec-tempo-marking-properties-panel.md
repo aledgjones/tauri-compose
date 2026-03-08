@@ -36,7 +36,7 @@ files_to_modify:
   - "src-tauri/src/score/entries/mod.rs"
   - "src-tauri/src/playback/transport.rs"
   - "src-tauri/src/migrations/mod.rs"
-  - "src-tauri/src/migrations/1.24.0.rs"
+  - "src-tauri/src/migrations/1.25.0.rs"
   - "src-tauri/src/lib.rs"
   - "src-tauri/Cargo.toml"
   - "src-tauri/tauri.conf.json"
@@ -122,9 +122,9 @@ Extend the existing sequencer selection mechanism to include tempo entries, back
 - Existing selection-derived hooks such as [src/windows/main/hooks/use-selected-tone-info.ts](src/windows/main/hooks/use-selected-tone-info.ts) and tone-only keyboard behavior in [src/windows/main/hooks/use-keyboard-shortcuts.ts](src/windows/main/hooks/use-keyboard-shortcuts.ts) show that selection-specific logic is intentionally isolated in hooks/helpers. Tempo properties should follow that pattern instead of bloating the bottom-panel component.
 - Compact control primitives already exist in [src/ui/input/text-input.tsx](src/ui/input/text-input.tsx), [src/ui/input/number-input.tsx](src/ui/input/number-input.tsx), [src/ui/switch.tsx](src/ui/switch.tsx), [src/ui/checkbox.tsx](src/ui/checkbox.tsx), and [src/ui/buttons/icon-button.tsx](src/ui/buttons/icon-button.tsx), which supports the requested dense properties layout without inventing a new control system.
 - Persisted score schema changes already flow through the migration layer rooted at [src-tauri/src/migrations/mod.rs](src-tauri/src/migrations/mod.rs), so the nullable-to-required tempo-text change must include an explicit migration or backward-compatible load path instead of claiming “no migration required”.
-- Project versioning is semver-synced across [package.json](package.json), [src-tauri/Cargo.toml](src-tauri/Cargo.toml), and [src-tauri/tauri.conf.json](src-tauri/tauri.conf.json). Because this slice requires migration coverage for older `.soloc` files, implementation should start with a minor bump from `1.23.3` to `1.24.0` before the schema change lands.
-- Project versioning is semver-synced across [package.json](package.json), [src-tauri/Cargo.toml](src-tauri/Cargo.toml), and [src-tauri/tauri.conf.json](src-tauri/tauri.conf.json). Because this slice requires migration coverage for older `.soloc` files, implementation should start with the project’s scripted minor release flow via [package.json](package.json), using `npm run release:minor` before the schema change lands. Do not manually edit version numbers.
-- Migration files should be version-targeted modules named for the version they migrate to, for example [src-tauri/src/migrations/1.24.0.rs](src-tauri/src/migrations/1.24.0.rs), then imported and registered from [src-tauri/src/migrations/mod.rs](src-tauri/src/migrations/mod.rs).
+- Project versioning is semver-synced across [package.json](package.json), [src-tauri/Cargo.toml](src-tauri/Cargo.toml), and [src-tauri/tauri.conf.json](src-tauri/tauri.conf.json). Because this slice requires migration coverage for older `.soloc` files, implementation should land before the release command, and the migration should target the next release version that will first ship the schema change.
+- Project versioning is semver-synced across [package.json](package.json), [src-tauri/Cargo.toml](src-tauri/Cargo.toml), and [src-tauri/tauri.conf.json](src-tauri/tauri.conf.json). For this slice, that upcoming shipped version is `1.25.0`; a human should run the project’s scripted minor release flow via [package.json](package.json) after the work is complete so the generated release notes include the full slice. Do not manually edit version numbers.
+- Migration files should be version-targeted modules named for the upcoming release version they migrate to, for example [src-tauri/src/migrations/1.25.0.rs](src-tauri/src/migrations/1.25.0.rs), then imported and registered from [src-tauri/src/migrations/mod.rs](src-tauri/src/migrations/mod.rs).
 
 ### Files to Reference
 
@@ -156,8 +156,8 @@ Extend the existing sequencer selection mechanism to include tempo entries, back
 | [src-tauri/src/score/entries/mod.rs](src-tauri/src/score/entries/mod.rs)                                                                                    | Shared entry constructors/tests likely touched by any `Tempo` constructor/signature change                          |
 | [src-tauri/src/playback/transport.rs](src-tauri/src/playback/transport.rs)                                                                                  | Transport tests/helpers construct `Tempo` values and must stay aligned with schema changes                          |
 | [src-tauri/src/migrations/mod.rs](src-tauri/src/migrations/mod.rs)                                                                                          | Migration registry for persisted score-data changes                                                                 |
-| [src-tauri/src/migrations/1.24.0.rs](src-tauri/src/migrations/1.24.0.rs)                                                                                    | Concrete migration module for the tempo schema change after the minor version bump                                  |
-| [package.json](package.json)                                                                                                                                | Frontend app version that must be minor-bumped before schema-changing work begins                                   |
+| [src-tauri/src/migrations/1.25.0.rs](src-tauri/src/migrations/1.25.0.rs)                                                                                    | Concrete migration module for the tempo schema change in the next shipped minor release                             |
+| [package.json](package.json)                                                                                                                                | Frontend app version kept in sync by the human-run release flow that will ship this slice                           |
 | [src-tauri/Cargo.toml](src-tauri/Cargo.toml)                                                                                                                | Rust package version that must stay in sync with the app version                                                    |
 | [src-tauri/tauri.conf.json](src-tauri/tauri.conf.json)                                                                                                      | Tauri app version that must stay in sync with the app version                                                       |
 | [\_bmad-output/implementation-artifacts/tech-spec-immediate-tempo-markings.md](_bmad-output/implementation-artifacts/tech-spec-immediate-tempo-markings.md) | Prior completed tempo spec documenting current storage and rendering behavior                                       |
@@ -180,20 +180,20 @@ Extend the existing sequencer selection mechanism to include tempo entries, back
 - Tone-only hooks and keyboard shortcuts should degrade safely to `null`/no-op when a tempo selection is active; the implementation should avoid broad selection-side regressions by preserving existing tone behavior and only branching where tempo support is required.
 - Text-field edits should commit on blur or Enter rather than on every keystroke. All other tempo properties in this slice should apply immediately.
 - Because `Tempo.text` changes persisted schema in this plan, the implementation must include a migration/backward-compatible load path and the spec/docs must explicitly say migration is required.
-- Implementation should begin with a minor version bump from `1.23.3` to `1.24.0`, synced across [package.json](package.json), [src-tauri/Cargo.toml](src-tauri/Cargo.toml), and [src-tauri/tauri.conf.json](src-tauri/tauri.conf.json), before the schema change lands.
-- Implementation should begin by running `npm run release:minor`, which performs the required semver-synced minor bump and generates release notes before the schema change lands.
-- The migration for this slice should live in a dedicated version-targeted module at [src-tauri/src/migrations/1.24.0.rs](src-tauri/src/migrations/1.24.0.rs) and be registered from [src-tauri/src/migrations/mod.rs](src-tauri/src/migrations/mod.rs).
+- Implementation should land before the release command, with the migration targeted at the next shipped version for this breaking persistence change.
+- Once the slice is complete, have a human run `npm run release:minor`, which performs the required semver-synced minor bump and generates release notes that include the full implementation.
+- The migration for this slice should live in a dedicated version-targeted module at [src-tauri/src/migrations/1.25.0.rs](src-tauri/src/migrations/1.25.0.rs) and be registered from [src-tauri/src/migrations/mod.rs](src-tauri/src/migrations/mod.rs).
 
 ## Implementation Plan
 
 ### Tasks
 
-- [ ] Task 0: Bump the app version before schema-changing work begins
+- [ ] Task 0: Have a human run the app release flow after schema-changing work is complete
   - File: [package.json](package.json)
-  - Action: Run `npm run release:minor` before schema-changing work begins.
-  - Notes: This scripted flow must be used instead of manual version edits because it keeps version-synced files aligned and generates release notes. The resulting target version for this slice is expected to be `1.24.0`.
+  - Action: Have a human run `npm run release:minor` after schema-changing work and migration setup are complete.
+  - Notes: This scripted flow must be used instead of manual version edits because it keeps version-synced files aligned and generates release notes. The resulting shipped version for this slice is expected to be `1.25.0`.
 
-- [ ] Task 1: Extend sequencer selection to support tempo entries end-to-end
+- [x] Task 1: Extend sequencer selection to support tempo entries end-to-end
   - File: [src/services/types.ts](src/services/types.ts)
   - Action: Add a tempo-selection branch to the frontend `Selection` union with the exact shape `type: "Tempo"`, `flow_id`, `tempo_id`, and `tick`.
   - Notes: Keep the shape aligned exactly with Rust serialization and avoid breaking existing `Tone`/`Rest` consumers.
@@ -204,7 +204,7 @@ Extend the existing sequencer selection mechanism to include tempo entries, back
   - Action: Register/import the new tempo selection command.
   - Notes: Follow existing snake_case Tauri command conventions.
 
-- [ ] Task 2: Add tempo hit targets and selected highlighting to native score rendering
+- [x] Task 2: Add tempo hit targets and selected highlighting to native score rendering
   - File: [src-tauri/src/instructions/draw/draw_tempo.rs](src-tauri/src/instructions/draw/draw_tempo.rs)
   - Action: Thread the current optional sequencer selection into `draw_tempo()`, render selected tempo markings in the same sky accent used by other selections, and push a `HitTarget` covering the rendered tempo extent.
   - Notes: Reuse tempo metrics so hitboxes match visible content, and place popover coordinates appropriately above the top stave like other score directives.
@@ -218,7 +218,7 @@ Extend the existing sequencer selection mechanism to include tempo entries, back
   - Action: Confirm hit testing works unchanged with the new `Selection::Tempo` variant and add/adjust tests if variant matching needs coverage.
   - Notes: This should remain a generic rectangle hit test; the main change is the new returned selection shape.
 
-- [ ] Task 3: Wire tempo hit-test results into the existing React renderer selection flow
+- [x] Task 3: Wire tempo hit-test results into the existing React renderer selection flow
   - File: [src/windows/main/components/renderer.tsx](src/windows/main/components/renderer.tsx)
   - Action: Extend the click-hit-test branch to dispatch the new tempo selection action when `renderer_hit_test` returns a tempo target.
   - Notes: Do not auto-switch the write bottom panel to `Properties`; only update selection/highlight state. Preserve the current clear-selection-on-empty-click behavior.
@@ -232,7 +232,7 @@ Extend the existing sequencer selection mechanism to include tempo entries, back
   - Action: Broaden hit-test service expectations if needed so tempo-shaped selection payloads are covered.
   - Notes: The command surface is generic, so this may be a small assertion extension rather than a full new test block.
 
-- [ ] Task 4: Add an explicit backend update path for immediate tempo property editing
+- [x] Task 4: Add an explicit backend update path for immediate tempo property editing
   - File: [src-tauri/src/score/entries/tempo.rs](src-tauri/src/score/entries/tempo.rs)
   - Action: Simplify the tempo field model by changing `text` from `Option<String>` to a required `String`, add backward-compatible deserialization and/or a migration for older saved data, and add one or more Tauri update commands so the panel can mutate an existing tempo selection without recreate-at-tick behavior.
   - Notes: Preferred shape is a single `score_entries_tempo_update` command keyed by `flow_id` plus `tempo_id`, validating the entry exists on the flow master track and then mutating only the supplied editable fields. Metronome-only tempos should use an empty string with `show_text = false`.
@@ -242,7 +242,7 @@ Extend the existing sequencer selection mechanism to include tempo entries, back
   - File: [src-tauri/src/migrations/mod.rs](src-tauri/src/migrations/mod.rs)
   - Action: Import and register the dedicated migration module for this slice.
   - Notes: Migration files should be version-targeted modules named for the version they migrate to.
-  - File: [src-tauri/src/migrations/1.24.0.rs](src-tauri/src/migrations/1.24.0.rs)
+  - File: [src-tauri/src/migrations/1.25.0.rs](src-tauri/src/migrations/1.25.0.rs)
   - Action: Add the migration needed to normalize older tempo payloads that still store `text: null` into the new required-string representation.
   - Notes: This is mandatory if persisted project data would otherwise fail to load.
   - File: [src-tauri/src/score/entries/mod.rs](src-tauri/src/score/entries/mod.rs)
@@ -273,7 +273,7 @@ Extend the existing sequencer selection mechanism to include tempo entries, back
   - Action: Update popover tests so expected tempo payloads no longer use `null` text.
   - Notes: This closes the contract gap across parser, popover, action, and Rust layers.
 
-- [ ] Task 5: Build a reusable write-screen properties-panel foundation with dynamic section rendering
+- [x] Task 5: Build a reusable write-screen properties-panel foundation with dynamic section rendering
   - File: [src/windows/main/screens/write/components/properties-panel.tsx](src/windows/main/screens/write/components/properties-panel.tsx)
   - Action: Create the write-screen properties content shell that reads the current sequencer selection, renders a compact horizontally scrollable panel surface, and routes to selection-type-specific sections.
   - Notes: The shell should show an empty state when there is no selection or when the selected type has no implemented properties UI.
@@ -287,7 +287,7 @@ Extend the existing sequencer selection mechanism to include tempo entries, back
   - Action: Render the new `PropertiesPanel` when the active write bottom-panel tab is `BottomPanelTab.Properties`.
   - Notes: Leave existing sequencer and mixer behavior untouched.
 
-- [ ] Task 6: Implement the compact tempo properties section UI
+- [x] Task 6: Implement the compact tempo properties section UI
   - File: [src/windows/main/screens/write/components/tempo-properties-section.tsx](src/windows/main/screens/write/components/tempo-properties-section.tsx)
   - Action: Build the tempo-specific properties section with compact grouped controls for text, text visibility, BPM, beat type, metronome visibility, and parenthesized display.
   - Notes: Use existing UI primitives (`TextInput`, `NumberInput`, `Switch`, `IconButton`) and keep the layout dense, horizontally scrollable, and ready for future multi-section property groups.
@@ -298,7 +298,7 @@ Extend the existing sequencer selection mechanism to include tempo entries, back
   - Action: Reuse the existing `Tempo` type fields directly in the section props and avoid introducing duplicate view-model types unless a clear transformation boundary is needed.
   - Notes: The current schema already matches the requested controls closely.
 
-- [ ] Task 7: Connect tempo properties controls to immediate backend updates
+- [x] Task 7: Connect tempo properties controls to immediate backend updates
   - File: [src/windows/main/screens/write/components/tempo-properties-section.tsx](src/windows/main/screens/write/components/tempo-properties-section.tsx)
   - Action: Commit text changes on blur or Enter, and apply all other control changes immediately so score rendering and selection state stay live.
   - Notes: This is an explicit UX rule for the slice, not an implementation fallback.
@@ -306,7 +306,7 @@ Extend the existing sequencer selection mechanism to include tempo entries, back
   - Action: Preserve existing tone-only shortcut behavior by bailing out cleanly when the active selection is not `Tone`.
   - Notes: Tempo selection must not accidentally trigger tone mutation shortcuts.
 
-- [ ] Task 8: Add focused automated coverage for tempo selection and properties-panel behavior
+- [x] Task 8: Add focused automated coverage for tempo selection and properties-panel behavior
   - File: [src/windows/main/screens/write/components/bottom-panel.test.tsx](src/windows/main/screens/write/components/bottom-panel.test.tsx)
   - Action: Add tests that verify the `Properties` tab renders the new panel shell and appropriate empty/tempo states.
   - Notes: Extend, do not replace, the current tab rendering tests.
@@ -329,7 +329,7 @@ Extend the existing sequencer selection mechanism to include tempo entries, back
   - Action: Add Rust tests for setting and clearing tempo selection state if the module already supports that test style, or add the narrowest practical coverage nearby.
   - Notes: Selection serialization parity matters because hit targets and state matching depend on exact shape equality.
 
-- [ ] Task 9: Update documentation for the now-functional write properties panel
+- [x] Task 9: Update documentation for the now-functional write properties panel
   - File: [docs/architecture.md](docs/architecture.md)
   - Action: Update architecture notes to explain that write-screen score selection now includes tempo directives via native renderer hit targets and that the bottom-panel `Properties` tab hosts immediate tempo editing.
   - Notes: Document that this slice changes UI/interaction behavior but not persisted `.soloc` schema, so no migration is required.
@@ -342,27 +342,27 @@ Extend the existing sequencer selection mechanism to include tempo entries, back
 
 ### Acceptance Criteria
 
-- [ ] AC 1: Given the write screen is open and the user clicks a rendered tempo marking, when the renderer hit test resolves that marking, then the existing sequencer selection state becomes a tempo selection and the tempo marking is highlighted in the score.
-- [ ] AC 2: Given a tempo marking is selected, when the user remains on the current bottom-panel tab, then the selection highlight updates without automatically switching the UI to the `Properties` tab.
-- [ ] AC 3: Given a tempo marking is selected and the user opens the `Properties` tab, when the panel renders, then it shows a compact horizontally scrollable tempo properties section instead of the previous placeholder-empty content.
-- [ ] AC 4: Given no score item is selected, when the user opens the `Properties` tab, then the panel shows an explicit empty state.
-- [ ] AC 5: Given a non-tempo selection type that has no implemented properties UI yet, when the user opens the `Properties` tab, then the panel shows an explicit unsupported/empty state rather than broken or misleading controls.
-- [ ] AC 6: Given a selected tempo with textual content, when the user edits the text field and commits with blur or Enter, then the tempo entry updates through the action/backend path without requiring an apply button and the score re-renders with the new text.
-- [ ] AC 7: Given a selected tempo, when the user toggles text visibility, then the tempo updates immediately and the score hides or shows the descriptive text portion accordingly.
-- [ ] AC 8: Given a selected tempo, when the user changes the BPM control, then the tempo entry updates immediately and subsequent rendering/playback state continues to reflect the edited BPM value.
-- [ ] AC 9: Given a selected tempo, when the user changes the beat-type segmented control, then the selected beat type updates immediately and the metronome glyph in score rendering reflects the new note value.
-- [ ] AC 10: Given a selected tempo, when the user toggles metronome visibility, then the tempo updates immediately and the score hides or shows the metronome portion accordingly.
-- [ ] AC 11: Given a selected tempo with metronome display enabled, when the user toggles parenthesized display, then the tempo updates immediately and the rendered metronome text reflects the parentheses state.
-- [ ] AC 12: Given a metronome-only tempo, when it is stored or edited, then the data model uses an empty string plus `show_text = false` rather than relying on `Option<String>` to represent missing text.
-- [ ] AC 13: Given a tempo selection is active, when the user clicks empty renderer space, then the existing clear-selection behavior still clears the selection and the `Properties` tab returns to its empty state.
-- [ ] AC 14: Given tone-specific keyboard shortcuts already exist, when a tempo selection is active, then those tone mutation shortcuts do not fire against tempo data.
-- [ ] AC 15: Given a tempo marking is rendered, when its visible bounds are clicked near any of its displayed parts, then the hitbox is large enough to make selection practical and consistent with the drawn content.
-- [ ] AC 16: Given the properties-panel foundation is introduced for tempo first, when future non-tempo selection types are added, then the panel architecture already supports dynamic per-selection section rendering without rewriting the shell.
-- [ ] AC 17: Given this slice changes write-screen interaction behavior and adds new components, when the work is complete, then [docs/architecture.md](docs/architecture.md) and [docs/component-inventory.md](docs/component-inventory.md) are updated accordingly.
-- [ ] AC 18: Given an older saved project still contains tempo payloads with `text: null`, when the project is loaded after this slice, then migration/backward-compatible load logic normalizes the data and the file loads successfully.
-- [ ] AC 19: Given this slice changes persisted tempo schema, when the work is complete, then the spec and updated docs explicitly note that a migration/backward-compatible load path was required and implemented.
-- [ ] AC 20: Given this slice introduces a persisted-data migration, when implementation begins, then `npm run release:minor` is used before the schema change lands so version-synced files are updated consistently and release notes are generated.
-- [ ] AC 21: Given the project uses version-targeted migration modules, when this slice is implemented, then the tempo migration lives in [src-tauri/src/migrations/1.24.0.rs](src-tauri/src/migrations/1.24.0.rs) and is registered from [src-tauri/src/migrations/mod.rs](src-tauri/src/migrations/mod.rs).
+- [x] AC 1: Given the write screen is open and the user clicks a rendered tempo marking, when the renderer hit test resolves that marking, then the existing sequencer selection state becomes a tempo selection and the tempo marking is highlighted in the score.
+- [x] AC 2: Given a tempo marking is selected, when the user remains on the current bottom-panel tab, then the selection highlight updates without automatically switching the UI to the `Properties` tab.
+- [x] AC 3: Given a tempo marking is selected and the user opens the `Properties` tab, when the panel renders, then it shows a compact horizontally scrollable tempo properties section instead of the previous placeholder-empty content.
+- [x] AC 4: Given no score item is selected, when the user opens the `Properties` tab, then the panel shows an explicit empty state.
+- [x] AC 5: Given a non-tempo selection type that has no implemented properties UI yet, when the user opens the `Properties` tab, then the panel shows an explicit unsupported/empty state rather than broken or misleading controls.
+- [x] AC 6: Given a selected tempo with textual content, when the user edits the text field and commits with blur or Enter, then the tempo entry updates through the action/backend path without requiring an apply button and the score re-renders with the new text.
+- [x] AC 7: Given a selected tempo, when the user toggles text visibility, then the tempo updates immediately and the score hides or shows the descriptive text portion accordingly.
+- [x] AC 8: Given a selected tempo, when the user changes the BPM control, then the tempo entry updates immediately and subsequent rendering/playback state continues to reflect the edited BPM value.
+- [x] AC 9: Given a selected tempo, when the user changes the beat-type segmented control, then the selected beat type updates immediately and the metronome glyph in score rendering reflects the new note value.
+- [x] AC 10: Given a selected tempo, when the user toggles metronome visibility, then the tempo updates immediately and the score hides or shows the metronome portion accordingly.
+- [x] AC 11: Given a selected tempo with metronome display enabled, when the user toggles parenthesized display, then the tempo updates immediately and the rendered metronome text reflects the parentheses state.
+- [x] AC 12: Given a metronome-only tempo, when it is stored or edited, then the data model uses an empty string plus `show_text = false` rather than relying on `Option<String>` to represent missing text.
+- [x] AC 13: Given a tempo selection is active, when the user clicks empty renderer space, then the existing clear-selection behavior still clears the selection and the `Properties` tab returns to its empty state.
+- [x] AC 14: Given tone-specific keyboard shortcuts already exist, when a tempo selection is active, then those tone mutation shortcuts do not fire against tempo data.
+- [x] AC 15: Given a tempo marking is rendered, when its visible bounds are clicked near any of its displayed parts, then the hitbox is large enough to make selection practical and consistent with the drawn content.
+- [x] AC 16: Given the properties-panel foundation is introduced for tempo first, when future non-tempo selection types are added, then the panel architecture already supports dynamic per-selection section rendering without rewriting the shell.
+- [x] AC 17: Given this slice changes write-screen interaction behavior and adds new components, when the work is complete, then [docs/architecture.md](docs/architecture.md) and [docs/component-inventory.md](docs/component-inventory.md) are updated accordingly.
+- [x] AC 18: Given an older saved project still contains tempo payloads with `text: null`, when the project is loaded after this slice, then migration/backward-compatible load logic normalizes the data and the file loads successfully.
+- [x] AC 19: Given this slice changes persisted tempo schema, when the work is complete, then the spec and updated docs explicitly note that a migration/backward-compatible load path was required and implemented.
+- [ ] AC 20: Given this slice introduces a persisted-data migration, when implementation is complete, then a human uses `npm run release:minor` so version-synced files are updated consistently and release notes are generated for the full slice.
+- [x] AC 21: Given the project uses version-targeted migration modules, when this slice is implemented, then the tempo migration lives in [src-tauri/src/migrations/1.25.0.rs](src-tauri/src/migrations/1.25.0.rs) and is registered from [src-tauri/src/migrations/mod.rs](src-tauri/src/migrations/mod.rs).
 
 ### Documentation Impact
 
@@ -370,7 +370,7 @@ Extend the existing sequencer selection mechanism to include tempo entries, back
 - Update [docs/component-inventory.md](docs/component-inventory.md) to add the new write-screen properties-panel shell, tempo section component, and any new selection hook introduced for resolving tempo data.
 - Update [docs/data-models.md](docs/data-models.md) to reflect the tempo schema change from nullable text to required string plus `show_text` visibility semantics.
 - Explicitly note in the spec/docs that this slice changes persisted tempo schema or load semantics and therefore required a migration/backward-compatible load path for older `.soloc` files.
-- Update any release/versioning notes touched by the required pre-work minor bump if they would otherwise reference the old version, and treat the generated release notes from `npm run release:minor` as part of that scripted versioning flow rather than hand-editing version strings.
+- Update any release/versioning notes touched by the release-at-end minor bump if they would otherwise reference the old version, and treat the generated release notes from a human-run `npm run release:minor` as part of that scripted versioning flow rather than hand-editing version strings.
 - No AI-agent instruction update is expected unless implementation introduces a new durable project rule; if that happens during development, update [docs/project-context.md](docs/project-context.md) as part of the same slice.
 
 ## Additional Context
@@ -382,7 +382,7 @@ Extend the existing sequencer selection mechanism to include tempo entries, back
 - The properties-panel foundation depends on the existing write-screen bottom-panel shell and sequencer selection state already present in the app state.
 - If a dedicated tempo update command is introduced, frontend work depends on that backend command contract being defined first so UI actions can bind to a stable mutation surface.
 - Because this plan changes persisted tempo schema, implementation also depends on the project migration layer in [src-tauri/src/migrations/mod.rs](src-tauri/src/migrations/mod.rs).
-- Because this plan uses version-targeted migrations, implementation also depends on the scripted pre-work minor version bump landing first via `npm run release:minor` so the migration target version is correct and stable.
+- Because this plan uses version-targeted migrations, implementation depends on choosing the upcoming shipped version up front (`1.25.0` here) and having a human run `npm run release:minor` only after the feature and migration are complete.
 
 ### Testing Strategy
 
@@ -393,7 +393,8 @@ Extend the existing sequencer selection mechanism to include tempo entries, back
 - Add renderer interaction coverage so tempo hit-test results dispatch tempo selection correctly and empty clicks still clear selection.
 - Add inline Rust tests in the tempo draw/selection path to verify selected coloring and hit-target emission.
 - Add migration/load compatibility tests proving older tempo payloads with `text: null` are normalized and still load successfully.
-- Validate that `npm run release:minor` updated version-synced files consistently and produced the expected release-note output before schema work proceeds.
+- Validate that `npm run release:minor` updates version-synced files consistently and produces the expected release-note output once schema work is complete.
+- Validate that a human-run `npm run release:minor` updates version-synced files consistently and produces the expected release-note output once schema work is complete.
 - Manual validation should cover: selecting tempos at different ticks, verifying highlight color, opening the `Properties` tab, editing each control, confirming immediate score updates, clearing selection by clicking empty space, and confirming tone keyboard shortcuts remain safe when tempo is selected.
 
 ### Notes
@@ -402,6 +403,6 @@ Extend the existing sequencer selection mechanism to include tempo entries, back
 - Highest-risk renderer detail: tempo hitboxes must cover the full visible tempo content, including text-only, metronome-only, and parenthesized forms; otherwise the feature will feel unreliable even if technically implemented.
 - This spec now treats `show_text` as a first-class user-facing control and recommends simplifying the stored tempo text field to a required string so visibility semantics live in one place.
 - Highest-risk persistence detail: the required-string text change will break older saved data unless migration/backward-compatible load handling is implemented correctly and tested.
-- Highest-risk release-management detail: if `npm run release:minor` is skipped or delayed until after schema work starts, old/new `.soloc` boundaries become less precise and the migration target version becomes muddier.
+- Highest-risk release-management detail: if the team does not agree on the upcoming shipped version before schema work lands, migration naming and saved-file expectations can drift.
 - This slice intentionally builds a reusable panel shell for future selection types such as tones, but it should not over-generalize so far that tempo delivery slows down.
 - Out-of-scope future follow-up options include note/rest property sections, engrave-screen reuse of the properties-panel foundation, and broader score-directive editing beyond tempo.

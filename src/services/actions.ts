@@ -190,6 +190,13 @@ export const actions = {
           instrument_id,
         });
       },
+      selectTempo: (tempo_id: number, flow_id: number, tick: number) => {
+        return invoke("ui_sequencer_selection_set_tempo", {
+          tempo_id,
+          flow_id,
+          tick,
+        });
+      },
       clearSelection: () => {
         return invoke<void>("ui_sequencer_selection_clear");
       },
@@ -656,7 +663,7 @@ export const actions = {
       create: (
         flow_id: UniqueId,
         tick: Tick,
-        text: string | null,
+        text: string,
         beat_type: NoteDuration,
         dots: number,
         bpm: number,
@@ -668,6 +675,31 @@ export const actions = {
         return invoke<UniqueId>("score_entries_tempo_create", {
           flow_id,
           tick,
+          text,
+          beat_type,
+          dots,
+          bpm,
+          hidden,
+          show_text,
+          show_metronome,
+          parenthesized,
+        });
+      },
+      update: (
+        flow_id: UniqueId,
+        tempo_id: UniqueId,
+        text: string,
+        beat_type: NoteDuration,
+        dots: number,
+        bpm: number,
+        hidden: boolean,
+        show_text: boolean,
+        show_metronome: boolean,
+        parenthesized: boolean,
+      ) => {
+        return invoke<void>("score_entries_tempo_update", {
+          flow_id,
+          tempo_id,
           text,
           beat_type,
           dots,

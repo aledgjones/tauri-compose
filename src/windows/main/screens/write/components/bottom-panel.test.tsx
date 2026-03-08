@@ -95,7 +95,7 @@ describe("Write BottomPanel", () => {
     expect(buttons.length).toBeGreaterThanOrEqual(1);
   });
 
-  it("renders no toolbar for Properties tab", () => {
+  it("renders the properties panel empty state for Properties tab", () => {
     const appState = createAppState({
       ui: {
         screens: {
@@ -103,7 +103,7 @@ describe("Write BottomPanel", () => {
         },
       } as never,
     });
-    const { container } = renderWithProviders(<BottomPanel />, { appState });
-    expect(container).toBeInTheDocument();
+    renderWithProviders(<BottomPanel />, { appState });
+    expect(screen.getByText("No selection")).toBeInTheDocument();
   });
 });

@@ -123,6 +123,18 @@ export const Renderer: FC<Props> = ({ className }) => {
         return;
       }
 
+      if (hitResult && hitResult.type === "Tempo") {
+        e.preventDefault();
+
+        await actions.ui.sequencer.selectTempo(
+          hitResult.tempo_id,
+          hitResult.flow_id,
+          hitResult.tick,
+        );
+
+        return;
+      }
+
       // No hit - proceed with panning
       let isDragging = true;
       let hasMoved = false;

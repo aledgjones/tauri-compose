@@ -745,7 +745,7 @@ mod tests {
         Tempo::new(
             id,
             tick,
-            None,
+            String::new(),
             NoteDuration::Quarter,
             0,
             bpm,

@@ -270,6 +270,18 @@ describe("actions.ui", () => {
       );
     });
 
+    it("selectTempo calls invoke with the tempo selection payload", async () => {
+      await actions.ui.sequencer.selectTempo(8, 4, 64);
+      expect(mockInvoke).toHaveBeenCalledWith(
+        "ui_sequencer_selection_set_tempo",
+        {
+          tempo_id: 8,
+          flow_id: 4,
+          tick: 64,
+        },
+      );
+    });
+
     it("clearSelection calls invoke correctly", async () => {
       await actions.ui.sequencer.clearSelection();
       expect(mockInvoke).toHaveBeenCalledWith("ui_sequencer_selection_clear");
@@ -512,6 +524,34 @@ describe("actions.score.tempo", () => {
       show_text: true,
       show_metronome: true,
       parenthesized: false,
+    });
+  });
+
+  it("update calls invoke with the full tempo update payload", async () => {
+    await actions.score.tempo.update(
+      5,
+      9,
+      "Andante",
+      NoteDuration.Eighth,
+      1,
+      96,
+      false,
+      true,
+      true,
+      true,
+    );
+
+    expect(mockInvoke).toHaveBeenCalledWith("score_entries_tempo_update", {
+      flow_id: 5,
+      tempo_id: 9,
+      text: "Andante",
+      beat_type: NoteDuration.Eighth,
+      dots: 1,
+      bpm: 96,
+      hidden: false,
+      show_text: true,
+      show_metronome: true,
+      parenthesized: true,
     });
   });
 

@@ -146,7 +146,16 @@ Score Data (Entry variants in FxHashMaps)
 - `TimeSignature`, `KeySignature`, and `Tempo` entries live on the flow master track.
 - `Clef` entries live on stave master tracks.
 - Tempo markings do not reserve horizontal spacing; they align to the existing time-signature slot when present, otherwise to the accidental slot, and render once above the top stave in the draw phase.
+- Tempo markings now emit native renderer hit targets and participate in the shared sequencer selection model as `Selection::Tempo`, so score clicks, highlight state, and popover coordinates stay inside the Rust render pipeline instead of being approximated in React.
+- Selected tempo markings render with the same sky accent used by selected tones and rests.
 - Immediate absolute score tempo markings now drive transport tempo during playback and while stopped-state transport position is queried.
+
+### Write-screen properties editing
+
+- The write-screen bottom-panel `Properties` tab now hosts a reusable properties shell that switches by sequencer selection type.
+- v1 property editing is implemented for tempo selections only via a `TempoPropertiesSection`.
+- Tempo text commits on blur or Enter; beat type, BPM, show/hide toggles, and parenthesized state apply immediately through a dedicated backend update command.
+- Unsupported selection types still render an explicit empty state instead of misleading controls.
 
 ### Horizontal spacing slots
 
@@ -202,7 +211,7 @@ Score Data (Entry variants in FxHashMaps)
 - `transport_get_state()` reports truthful stopped-state tempo for the current tick as well, so stopped seek and stop-to-tick-0 transitions show the effective score tempo instead of stale playback tempo.
 - Pause/resume behaves like a fresh playback start from the current tick: pause retires the old thread, and resume re-snapshots score tempo data so edits made while paused are reflected.
 - Live edits during active playback still do not affect the in-flight run; a fresh play/resume cycle is required because transport playback uses a play-start score snapshot.
-- This slice changes playback behavior only. It does not change persisted score schema, `.soloc` format behavior, or migration requirements.
+- Tempo property editing also changes persisted tempo load/save semantics: `Tempo.text` is now stored as a required string, and migration `1.25.0` normalizes older `text: null` payloads to `""` during project load.
 
 ---
 

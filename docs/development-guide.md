@@ -57,6 +57,16 @@ npm run release:major   # 1.23.1 → 2.0.0
 
 The release tool must be compiled first: `npm run release:build`
 
+Release scripts are human-only. Agents must never run `release:patch`, `release:minor`, `release:major`, or any equivalent release/tag/publish flow.
+
+For persisted-data or load/save changes, use this order:
+
+1. Implement and validate the feature.
+2. Add any required migration under the next release version that will ship the change.
+3. Have a human run the release command last so the version bump and release notes include the full slice.
+
+Avoid manually editing synced version files just to reserve a migration target.
+
 ## Instrument Tools
 
 | Command                           | Description                                               |

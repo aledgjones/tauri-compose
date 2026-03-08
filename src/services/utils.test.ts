@@ -105,7 +105,7 @@ describe("parseTempo", () => {
 
   it("parses a metronome-only tempo", () => {
     expect(parseTempo("q=120")).toEqual({
-      text: null,
+      text: "",
       beat_type: NoteDuration.Quarter,
       dots: 0,
       bpm: 120,

@@ -70,6 +70,7 @@ pub fn generate_render_instructions(
 
     let converter = Converter::new(renderer.px_per_mm, engrave.space);
     let text_measurer = TextMeasurer::new(&converter);
+    let selection = state.ui.sequencer.selection.as_ref();
 
     // Phase 1: Vertical spacing and spans
     let vertical_start = Instant::now();
@@ -308,6 +309,9 @@ pub fn generate_render_instructions(
                         },
                         tempo,
                         &text_measurer,
+                        selection,
+                        flow_id,
+                        page_padding.top + top_stave.y,
                         renderer,
                     );
                 }

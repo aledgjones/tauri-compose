@@ -458,7 +458,7 @@ describe("parseTempoPopover", () => {
     expect(actions.score.tempo.create).toHaveBeenCalledWith(
       FLOW_ID,
       TICK,
-      null,
+      "",
       NoteDuration.Quarter,
       0,
       120,

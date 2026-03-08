@@ -207,7 +207,7 @@ export type Tempo = {
   id: UniqueId;
   tick: Tick;
   type: "Tempo";
-  text: string | null;
+  text: string;
   beat_type: NoteDuration;
   dots: number;
   bpm: number;
@@ -386,7 +386,14 @@ type RestSelection = {
   tick: number;
 };
 
-export type Selection = ToneSelection | RestSelection;
+type TempoSelection = {
+  type: "Tempo";
+  flow_id: UniqueId;
+  tempo_id: UniqueId;
+  tick: Tick;
+};
+
+export type Selection = ToneSelection | RestSelection | TempoSelection;
 
 export type AppState = {
   ui: {

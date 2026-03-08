@@ -167,7 +167,7 @@ describe("AppStateProvider", () => {
                     id: 100,
                     tick: 0,
                     type: "Tempo",
-                    text: null,
+                    text: "",
                     beat_type: NoteDuration.Quarter,
                     dots: 0,
                     bpm: 96,

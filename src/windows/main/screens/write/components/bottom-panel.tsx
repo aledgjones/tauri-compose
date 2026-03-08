@@ -11,6 +11,7 @@ import { IconButton } from "../../../../../ui/buttons/icon-button";
 import { Sequencer, SequencerToolbar } from "../../../components/sequencer";
 import { Mixer, MixerToolbar } from "../../../components/mixer";
 import { useBottomPanelState } from "../../../hooks/use-bottom-panel-state";
+import { PropertiesPanel } from "./properties-panel";
 
 const WRITE_TABS = [
   { tab: BottomPanelTab.Properties, icon: mdiFormatListBulletedSquare },
@@ -72,6 +73,7 @@ export const BottomPanel: FC = () => {
           instruments={instruments}
         />
       )}
+      {tab === BottomPanelTab.Properties && <PropertiesPanel />}
       {tab === BottomPanelTab.Mixer && <Mixer instruments={instruments} />}
     </div>
   );

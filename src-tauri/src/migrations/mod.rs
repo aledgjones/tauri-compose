@@ -1,3 +1,6 @@
+#[path = "1.25.0.rs"]
+mod v1_25_0;
+
 use lazy_static::lazy_static;
 
 type Migration = (
@@ -6,5 +9,5 @@ type Migration = (
 );
 
 lazy_static! {
-    pub static ref MIGRATIONS: Vec<Migration> = vec![];
+    pub static ref MIGRATIONS: Vec<Migration> = vec![("1.25.0", v1_25_0::migrate)];
 }

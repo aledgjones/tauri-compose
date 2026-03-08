@@ -133,11 +133,13 @@ Manages players, instruments, flows, and layouts.
 
 The notation editor view.
 
-| Component     | File                          | Description                                 |
-| ------------- | ----------------------------- | ------------------------------------------- |
-| `Write`       | `index.tsx`                   | Score view with collapsible bottom panel    |
-| `BottomPanel` | `components/bottom-panel.tsx` | Properties/Sequencer/Mixer/Instruments tabs |
-| `LeftPanel`   | `components/left-panel.tsx`   | Tool properties panel                       |
+| Component                | File                                      | Description                                                |
+| ------------------------ | ----------------------------------------- | ---------------------------------------------------------- |
+| `Write`                  | `index.tsx`                               | Score view with collapsible bottom panel                   |
+| `BottomPanel`            | `components/bottom-panel.tsx`             | Properties/Sequencer/Mixer/Instruments tabs                |
+| `PropertiesPanel`        | `components/properties-panel.tsx`         | Selection-aware shell for write-screen properties content  |
+| `TempoPropertiesSection` | `components/tempo-properties-section.tsx` | Immediate tempo editing controls inside the Properties tab |
+| `LeftPanel`              | `components/left-panel.tsx`               | Tool properties panel                                      |
 
 ### Sequence Screen (`screens/sequence/`)
 
@@ -155,10 +157,11 @@ Piano roll / sequencer view.
 
 ## Main Window Hooks
 
-| Hook                   | File                        | Description                                  |
-| ---------------------- | --------------------------- | -------------------------------------------- |
-| `useBottomPanelState`  | `use-bottom-panel-state.ts` | Manages bottom panel tab and minimized state |
-| `useKeyboardShortcuts` | `use-keyboard-shortcuts.ts` | Global keyboard shortcut handler             |
-| `useSelectedToneInfo`  | `use-selected-tone-info.ts` | Resolves selected tone details               |
-| `useSlots`             | `use-slots.ts`              | Manages slot allocation                      |
-| `useTicks`             | `use-ticks.ts`              | Tick position calculation                    |
+| Hook                   | File                        | Description                                                   |
+| ---------------------- | --------------------------- | ------------------------------------------------------------- |
+| `useBottomPanelState`  | `use-bottom-panel-state.ts` | Manages bottom panel tab and minimized state                  |
+| `useKeyboardShortcuts` | `use-keyboard-shortcuts.ts` | Global keyboard shortcut handler                              |
+| `useSelectedTempo`     | `use-selected-tempo.ts`     | Resolves the selected tempo entry from flow master-track data |
+| `useSelectedToneInfo`  | `use-selected-tone-info.ts` | Resolves selected tone details                                |
+| `useSlots`             | `use-slots.ts`              | Manages slot allocation                                       |
+| `useTicks`             | `use-ticks.ts`              | Tick position calculation                                     |

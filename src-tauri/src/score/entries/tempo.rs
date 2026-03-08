@@ -104,7 +104,7 @@ fn validate_tempo_entries(changes: &[Tempo]) {
 pub struct Tempo {
     pub id: UniqueId,
     pub tick: Tick,
-    pub text: Option<String>,
+    pub text: String,
     pub beat_type: NoteDuration,
     pub dots: u8,
     pub bpm: u16,
@@ -119,7 +119,7 @@ impl Tempo {
     pub fn new(
         id: UniqueId,
         tick: Tick,
-        text: Option<String>,
+        text: String,
         beat_type: NoteDuration,
         dots: u8,
         bpm: u16,
@@ -164,7 +164,7 @@ impl Tempo {
         Self::new(
             0,
             0,
-            None,
+            String::new(),
             NoteDuration::Quarter,
             0,
             DEFAULT_TEMPO_BPM,
@@ -201,7 +201,11 @@ impl Tempo {
     }
 
     pub fn display_text(&self) -> Option<&str> {
-        self.text.as_deref().filter(|_| self.show_text)
+        if self.show_text && !self.text.is_empty() {
+            Some(self.text.as_str())
+        } else {
+            None
+        }
     }
 
     pub fn metronome_prefix_text(&self) -> &'static str {
@@ -313,7 +317,7 @@ pub fn score_entries_tempo_create(
     transport_shared: State<'_, TransportSharedState>,
     flow_id: UniqueId,
     tick: Tick,
-    text: Option<String>,
+    text: String,
     beat_type: NoteDuration,
     dots: u8,
     bpm: u16,
@@ -359,6 +363,74 @@ pub fn score_entries_tempo_create(
     tempo_id
 }
 
+#[allow(clippy::too_many_arguments)]
+#[tauri::command(rename_all = "snake_case")]
+pub fn score_entries_tempo_update(
+    app: tauri::AppHandle,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
+    transport_shared: State<'_, TransportSharedState>,
+    flow_id: UniqueId,
+    tempo_id: UniqueId,
+    text: String,
+    beat_type: NoteDuration,
+    dots: u8,
+    bpm: u16,
+    hidden: bool,
+    show_text: bool,
+    show_metronome: bool,
+    parenthesized: bool,
+) -> Result<(), String> {
+    if !(20..=400).contains(&bpm) {
+        return Err(format!("Tempo BPM {} out of range", bpm));
+    }
+
+    let mut state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
+
+    let master_id = state
+        .score
+        .flows
+        .by_id
+        .get(&flow_id)
+        .map(|flow| flow.master_id)
+        .ok_or_else(|| format!("Flow {} not found", flow_id))?;
+    let master = state
+        .score
+        .tracks
+        .by_id
+        .get_mut(&master_id)
+        .ok_or_else(|| format!("Master track {} not found", master_id))?;
+
+    let tempo = master
+        .entries
+        .by_id
+        .get_mut(&tempo_id)
+        .ok_or_else(|| format!("Tempo {} not found", tempo_id))?;
+
+    let Entry::Tempo(tempo) = tempo else {
+        return Err(format!("Entry {} is not a tempo", tempo_id));
+    };
+
+    tempo.text = text;
+    tempo.beat_type = beat_type;
+    tempo.dots = dots;
+    tempo.bpm = bpm;
+    tempo.hidden = hidden;
+    tempo.show_text = show_text;
+    tempo.show_metronome = show_metronome;
+    tempo.parenthesized = parenthesized;
+
+    let current_tick = transport_shared
+        .current_tick
+        .load(std::sync::atomic::Ordering::Relaxed);
+    sync_transport_to_app_state(transport_shared.inner(), &state, current_tick);
+
+    state.emit(&app, &mut renderer, true);
+
+    Ok(())
+}
+
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_entries_tempo_clear(
     app: tauri::AppHandle,
@@ -397,7 +469,7 @@ mod tests {
         Tempo::new(
             id,
             tick,
-            Some(String::from("Allegro")),
+            String::from("Allegro"),
             NoteDuration::Quarter,
             0,
             120,
@@ -413,7 +485,7 @@ mod tests {
         let tempo = make_tempo(10, 64);
         assert_eq!(tempo.id, 10);
         assert_eq!(tempo.tick, 64);
-        assert_eq!(tempo.text.as_deref(), Some("Allegro"));
+        assert_eq!(tempo.text, "Allegro");
         assert_eq!(tempo.bpm, 120);
     }
 
@@ -424,7 +496,7 @@ mod tests {
         let tempo = Tempo::new(
             1,
             0,
-            Some(String::from("Allegro")),
+            String::from("Allegro"),
             NoteDuration::Quarter,
             0,
             120,
