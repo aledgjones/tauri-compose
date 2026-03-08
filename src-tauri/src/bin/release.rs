@@ -307,12 +307,7 @@ fn finalize_post_tag(root: &Path, manifest: &ReleasePrepManifest) -> Result<(), 
         fs::remove_file(&internal_manifest_path).map_err(|error| error.to_string())?;
     }
 
-    stage_paths_for_commit(&[
-        String::from(MIGRATIONS_MOD_PATH),
-        String::from(NEXT_MIGRATION_PATH),
-        String::from(PREP_MANIFEST_PATH),
-    ])
-    .map_err(|error| error.to_string())?;
+    stage_paths_for_commit(&reseed_stage_paths()).map_err(|error| error.to_string())?;
 
     run_command_checked(
         Command::new("git").args(["commit", "-m", RESEED_COMMIT_MESSAGE]),
@@ -1063,6 +1058,13 @@ fn tracked_stage_paths(manifest: &ReleasePrepManifest) -> Vec<String> {
         .collect()
 }
 
+fn reseed_stage_paths() -> Vec<String> {
+    vec![
+        String::from(MIGRATIONS_MOD_PATH),
+        String::from(NEXT_MIGRATION_PATH),
+    ]
+}
+
 fn stage_paths_for_commit(paths: &[String]) -> Result<(), DynError> {
     if paths.is_empty() {
         return Ok(());
@@ -1414,5 +1416,14 @@ mod tests {
         validate_prepared_state_files(&root, &manifest, &changed_paths).unwrap();
 
         fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn reseed_stage_paths_do_not_include_prep_manifest() {
+        let paths = reseed_stage_paths();
+
+        assert!(paths.contains(&String::from(MIGRATIONS_MOD_PATH)));
+        assert!(paths.contains(&String::from(NEXT_MIGRATION_PATH)));
+        assert!(!paths.contains(&String::from(PREP_MANIFEST_PATH)));
     }
 }
