@@ -162,7 +162,7 @@ Metronome-only tempos now persist as `text: ""` plus `show_text: false` rather t
 
 Tempo entries drive both score rendering and transport tempo resolution, and selected tempo entries can be edited from the write-screen `Properties` tab.
 
-This schema changed for the upcoming `1.25.0` release; older `.soloc` payloads that still contain `text: null` are normalized during load by migration `1.25.0`.
+This schema changed in `1.25.0`; older `.soloc` payloads that still contain `text: null` are normalized during load by migration `1.25.0`.
 
 ---
 
@@ -380,15 +380,19 @@ The container header `app_version` is the authoritative migration key. The JSON 
 File migrations are defined in `src-tauri/src/migrations/mod.rs`:
 
 ```rust
-pub static ref MIGRATIONS: Vec<Migration> = vec![("1.25.0", v1_25_0::migrate)];
+pub static ref MIGRATIONS: Vec<MigrationDescriptor> = vec![
+    MigrationDescriptor::shipped("1.25.0", v1_25_0::migrate),
+    MigrationDescriptor::pending_next(next::migrate),
+];
 ```
 
-Each migration is a function `fn(Value) -> Result<Value, String>` that transforms the JSON data. Migrations run sequentially on file load when the container header `app_version` is lower than the registered migration version. Migration modules should target the version that will first ship the breaking persistence change, even if the feature work lands before the release command is run. After all migrations, `score.meta.app_version` is rewritten to the current binary version so the JSON payload stays aligned with the header value written on the next save.
+Each migration is a function `fn(Value) -> Result<Value, String>` that transforms the JSON data. Shipped migrations run sequentially on file load when the container header `app_version` is lower than the registered concrete semver target. Development builds may also register a single logical pending migration bucket from `src-tauri/src/migrations/next.rs`; that pending migration runs after all shipped migrations without trying to parse `"next"` as semver. After all migrations, `score.meta.app_version` is rewritten to the current binary version so the JSON payload stays aligned with the header value written on the next save.
 
 Recommended persisted-data workflow:
 
 1. Implement the feature and validate whether persistence changed.
-2. If migration is required, add it under the next release version that will ship the change.
-3. Run the release flow last so the version bump, release notes, and shipped migration land together.
+2. If migration is required, add ordered pending step functions to `src-tauri/src/migrations/next.rs` and register them in its `PENDING_STEPS` collection.
+3. Have a human run `prepare-release:*` to compute the concrete target version, promote any real pending steps into a shipped migration file, and write `.release-prep.json`.
+4. After reviewing and validating the prepared tree, have a human run `finalize-release` so the release commit/tag ships only concrete migrations and the follow-up development commit restores a fresh empty `next.rs` scaffold.
 
-Any persisted-data shape change, `.soloc` payload change, or load/save semantic change must include a migration review. If older files would not load correctly without transformation, add or update a migration in `src-tauri/src/migrations/` and register it in `mod.rs`.
+Any persisted-data shape change, `.soloc` payload change, or load/save semantic change must include a migration review. If older files would not load correctly without transformation, add or update a migration in `src-tauri/src/migrations/` and register it in `mod.rs`. Saved file header versions and `score.meta.app_version` values remain concrete semver strings even while unreleased transforms live in the logical pending `next` bucket.

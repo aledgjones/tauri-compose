@@ -61,7 +61,6 @@ pub struct CacheSample {
 
 #[derive(Clone)]
 pub struct CacheSampleInfo {
-    pub path: String,
     pub sample: CacheSample,
 }
 
@@ -79,8 +78,6 @@ pub struct CacheZone {
 
 #[derive(Clone)]
 pub struct CacheArticulation {
-    pub id: String,
-    pub name: String,
     pub zones: Vec<CacheZone>,
 }
 
@@ -247,7 +244,6 @@ impl SamplerContext {
                             })?;
 
                         samples.push(CacheSampleInfo {
-                            path: format!("sample_{}", sample_ref.sample_id),
                             sample: CacheSample {
                                 channels: index.channels,
                                 container_path: container_path.clone(),
@@ -273,8 +269,6 @@ impl SamplerContext {
             articulations.insert(
                 art.id.clone(),
                 CacheArticulation {
-                    id: art.id.clone(),
-                    name: art.name.clone(),
                     zones,
                 },
             );

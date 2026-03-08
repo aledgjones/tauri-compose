@@ -2,7 +2,7 @@
 title: "Migration release flow with next.rs promotion"
 slug: "migration-release-flow-next-rs-promotion"
 created: "2026-03-08"
-status: "ready-for-dev"
+status: "Completed"
 stepsCompleted: [1, 2, 3, 4]
 tech_stack:
   - "Rust 2021"
@@ -106,47 +106,47 @@ Introduce a cumulative development migration module at `src-tauri/src/migrations
 
 ### Tasks
 
-- [ ] Task 1: Introduce an explicit pending-migration model that supports development-only `next` behavior without breaking semver-based file loading.
+- [x] Task 1: Introduce an explicit pending-migration model that supports development-only `next` behavior without breaking semver-based file loading.
   - File: `src-tauri/src/migrations/mod.rs`
   - Action: Replace the raw `(version, migrate_fn)` tuple registry with a typed migration descriptor that can distinguish shipped semver migrations from the single pending `next` migration.
   - Notes: Preserve ordered execution semantics; the registry must allow the loader to apply all shipped migrations whose target version is greater than the file header version, then apply the pending migration only when the source tree is in development state (i.e. the registry still contains the `next` descriptor).
-- [ ] Task 2: Add the cumulative development migration template and register it for local/test execution.
+- [x] Task 2: Add the cumulative development migration template and register it for local/test execution.
   - File: `src-tauri/src/migrations/next.rs`
   - Action: Create a new scaffold module with the same `fn(Value) -> Result<Value, String>` signature, colocated unit tests, and an ordered collection of pending migration step functions that `migrate()` executes in sequence.
   - Notes: The ordered collection is the single source of truth for whether a migration exists to promote: an empty collection means scaffold-only state; one or more steps means a real migration exists. Avoid separate boolean flags that can drift from the actual code.
-- [ ] Task 3: Update file-loading migration selection so saved `.soloc` files keep concrete semver headers while development builds can still run the pending `next` migration.
+- [x] Task 3: Update file-loading migration selection so saved `.soloc` files keep concrete semver headers while development builds can still run the pending `next` migration.
   - File: `src-tauri/src/files.rs`
   - Action: Refactor `migrate_project_data()` to consume the new registry shape, continue parsing concrete file header versions with `semver`, and special-case the pending migration so the literal logical key `"next"` never has to be parsed as semver.
   - Notes: The loader must continue rejecting malformed file header versions and header/JSON mismatches; `score.meta.app_version` should still be rewritten to `CURRENT_APP_VERSION` after migration completes.
-- [ ] Task 4: Add regression coverage for shipped vs pending migration behavior.
+- [x] Task 4: Add regression coverage for shipped vs pending migration behavior.
   - File: `src-tauri/src/files.rs`
   - Action: Add or extend unit tests to prove that versioned migrations are applied only when the header version is older than the shipped target and that the pending `next` migration path can be invoked in development scenarios without corrupting version handling.
   - Notes: Include edge cases for files already at current version and for registry entries that mix shipped and pending migrations.
-- [ ] Task 5: Split release automation into a prepare phase and a finalize phase.
+- [x] Task 5: Split release automation into a prepare phase and a finalize phase.
   - File: `src-tauri/src/bin/release.rs`
   - Action: Refactor the release binary into subcommands or equivalent command dispatch so it supports `prepare <patch|minor|major>` and `finalize` as separate human-triggered flows.
   - Notes: `prepare` should validate a clean git workspace, compute the release version first, inspect the pending step collection in `next.rs`, promote `next.rs` to the concrete versioned migration file only when real pending transforms exist, otherwise remove `next.rs` from the prepared release tree, rewrite `src-tauri/src/migrations/mod.rs` into shipped-only state with deterministic aliases like `#[path = "1.26.0.rs"] mod v1_26_0;`, bump synced version files, run any existing lockfile refresh step, generate release notes, and write `.release-prep.json` without committing or tagging.
-- [ ] Task 6: Define finalize-release behavior that preserves a clean tagged release while restoring post-release development state.
+- [x] Task 6: Define finalize-release behavior that preserves a clean tagged release while restoring post-release development state.
   - File: `src-tauri/src/bin/release.rs`
   - Action: Implement `finalize` so it assumes a reviewed prepared working tree, creates the release commit, tags that commit, then reseeds a fresh `next.rs` and updated registry state in a follow-up development commit before pushing branch HEAD and the new tag.
   - Notes: `finalize` must read and validate `.release-prep.json`, refuse to continue if the working tree no longer matches the prepared release facts, create the release commit and tag first, then reseed `next.rs`, restore the pending registry entry, remove the prep manifest, create the post-release development commit, and push branch HEAD plus the tag. The implementation must document failure recovery for the case where the release commit/tag succeeds but the reseed commit or push fails.
-- [ ] Task 7: Expose the split release workflow through package scripts.
+- [x] Task 7: Expose the split release workflow through package scripts.
   - File: `package.json`
   - Action: Replace or augment the current `release:patch|minor|major` scripts with prepare-phase entry points such as `prepare-release:patch|minor|major` plus a separate `finalize-release` command.
   - Notes: Keep `release:build` intact; document whether the legacy one-shot scripts are removed or retained as deprecated aliases.
-- [ ] Task 8: Update migration-system and release-process documentation to reflect the new workflow.
+- [x] Task 8: Update migration-system and release-process documentation to reflect the new workflow.
   - File: `docs/development-guide.md`
   - Action: Rewrite the persisted-data release guidance to describe development-time use of `next.rs`, the prepare-release command, human review/build expectations, and the finalize command.
   - Notes: Explicitly state that release scripts remain human-only and that the tag points to the concrete migration state without `next`.
-- [ ] Task 9: Update persistence architecture documentation for pending migration promotion semantics.
+- [x] Task 9: Update persistence architecture documentation for pending migration promotion semantics.
   - File: `docs/data-models.md`
   - Action: Replace the current version-targeted-during-development guidance with the new registry model: shipped versioned migrations plus a single cumulative pending `next` migration that is promoted during release preparation.
   - Notes: Document the order of operations, released-state invariants, and how `score.meta.app_version`/container header versions remain concrete semver values.
-- [ ] Task 10: Update AI-agent instructions to align with the new migration authoring rule.
+- [x] Task 10: Update AI-agent instructions to align with the new migration authoring rule.
   - File: `.github/copilot-instructions.md`
   - Action: Replace instructions that currently require targeting the next concrete release version during development with rules that direct persisted-data work to `src-tauri/src/migrations/next.rs`, then require the human prepare/finalize release flow to ship and reseed migrations.
   - Notes: Keep the prohibition on agents running release/tag/publish flows.
-- [ ] Task 11: Validate the full workflow end to end at the spec level.
+- [x] Task 11: Validate the full workflow end to end at the spec level.
   - File: `src-tauri/src/bin/release.rs`
   - Action: Add targeted tests or extract deterministic helper functions so promotion, prep-manifest generation/validation, release-note filtering, commit split behavior, failure recovery, and post-release reseeding can be verified without relying solely on manual git-side effects.
   - Notes: If the binary remains difficult to test directly, isolate file-transformation and state-transition logic into pure helpers and test those.
@@ -207,3 +207,9 @@ Introduce a cumulative development migration module at `src-tauri/src/migrations
 - This plan intentionally keeps the human workflow at two commands by having `finalize` create two commits in sequence: the tagged release commit and the post-release development reseed commit.
 - The reseed scaffold commit message should use a deterministic marker that release-note generation explicitly filters out so the scaffolding churn does not appear in the next public release notes.
 - If maintaining dual commits inside one finalize command proves too risky, implementation should preserve the release-state invariants first and then explicitly document why a third human-triggered reseed step would be required instead.
+
+## Review Notes
+
+- Adversarial review completed
+- Findings: 10 total, 9 fixed, 1 skipped (`F8`, left undecided because it depends on whether older internal specs should be migrated now or in follow-up cleanup)
+- Resolution approach: auto-fix

@@ -50,22 +50,31 @@ Version is kept in sync across three files:
 Use the custom release binary:
 
 ```bash
-npm run release:patch   # 1.23.1 → 1.23.2
-npm run release:minor   # 1.23.1 → 1.24.0
-npm run release:major   # 1.23.1 → 2.0.0
+npm run prepare-release:patch   # prepares 1.25.0 → 1.25.1
+npm run prepare-release:minor   # prepares 1.25.0 → 1.26.0
+npm run prepare-release:major   # prepares 1.25.0 → 2.0.0
+npm run finalize-release        # commits, tags, pushes, then reseeds next.rs
 ```
 
 The release tool must be compiled first: `npm run release:build`
 
-Release scripts are human-only. Agents must never run `release:patch`, `release:minor`, `release:major`, or any equivalent release/tag/publish flow.
+Release scripts are human-only. Agents must never run `prepare-release:patch`, `prepare-release:minor`, `prepare-release:major`, `finalize-release`, or any equivalent release/tag/publish flow.
 
 For persisted-data or load/save changes, use this order:
 
 1. Implement and validate the feature.
-2. Add any required migration under the next release version that will ship the change.
-3. Have a human run the release command last so the version bump and release notes include the full slice.
+2. Add any required pending migration steps in `src-tauri/src/migrations/next.rs`.
+3. Have a human run `prepare-release:*`, review and validate the prepared tree, then run `finalize-release` last so promotion, version sync, tagging, and post-release reseeding stay consistent.
 
 Avoid manually editing synced version files just to reserve a migration target.
+
+### Persisted-data release flow
+
+- Development state keeps exactly one cumulative pending migration scaffold at `src-tauri/src/migrations/next.rs`.
+- `prepare-release:*` computes the target version first, promotes any real pending steps from `next.rs` into a concrete versioned migration file, removes `next.rs` from the prepared release tree, updates synced version files, refreshes `Cargo.lock`, regenerates release notes, and writes `.release-prep.json` for finalize-time validation.
+- If `next.rs` only contains the empty scaffold, prepare removes it from the prepared release tree and ships no new migration file for that release.
+- `finalize-release` validates `.release-prep.json`, creates the concrete release commit and tag, then restores a fresh empty `next.rs` scaffold plus pending registry entry in a follow-up development commit before pushing branch HEAD and the new tag.
+- Tagged releases must never contain `src-tauri/src/migrations/next.rs`.
 
 ## Instrument Tools
 

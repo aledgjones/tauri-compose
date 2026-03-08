@@ -53,7 +53,6 @@ struct Manifest {
 struct ParsedSample {
     articulation: String,
     dynamic: String,
-    pitch: String,
     midi_note: u8,
     round_robin: Option<u8>,
     filename: String,
@@ -145,7 +144,6 @@ fn parse_sample_filename(filename: &str, _instrument: &str) -> Option<ParsedSamp
     Some(ParsedSample {
         articulation,
         dynamic: dynamic.to_string(),
-        pitch: pitch_part.to_string(),
         midi_note,
         round_robin,
         filename: filename.to_string(),

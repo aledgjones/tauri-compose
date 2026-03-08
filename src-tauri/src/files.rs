@@ -1,4 +1,4 @@
-use crate::migrations::MIGRATIONS;
+use crate::migrations::{MigrationKind, MIGRATIONS};
 use crate::playback::sampler::sync_sampler_with_score;
 use crate::playback::transport::{
     stop_transport_playback, sync_transport_to_app_state, TransportContext,
@@ -76,12 +76,19 @@ fn migrate_project_data(mut data: Value, file_version: &str) -> Result<Value, St
     let file_version =
         Version::parse(file_version).map_err(|e| format!("Failed to parse version: {}", e))?;
 
-    for (patch, migrate_fn) in MIGRATIONS.iter() {
-        let patch_version = Version::parse(patch)
-            .map_err(|e| format!("Failed to parse migration version: {}", e))?;
+    for migration in MIGRATIONS.iter() {
+        match migration.kind() {
+            MigrationKind::Shipped(target_version) => {
+                let patch_version = Version::parse(target_version)
+                    .map_err(|e| format!("Failed to parse migration version: {}", e))?;
 
-        if file_version < patch_version {
-            data = migrate_fn(data)?;
+                if file_version < patch_version {
+                    data = (migration.migrate())(data)?;
+                }
+            }
+            MigrationKind::PendingNext => {
+                data = (migration.migrate())(data)?;
+            }
         }
     }
 
@@ -315,6 +322,7 @@ fn write_file_atomically(destination: &Path, contents: &[u8]) -> Result<(), Stri
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::migrations::{MigrationKind, MIGRATIONS};
     use serde_json::json;
 
     fn test_app_version() -> &'static str {
@@ -350,6 +358,12 @@ mod tests {
 
     fn payload_offset_offset(app_version: &str) -> usize {
         type_offset(app_version) + 4 + 2
+    }
+
+    fn pending_migration_registered() -> bool {
+        MIGRATIONS
+            .iter()
+            .any(|migration| matches!(migration.kind(), MigrationKind::PendingNext))
     }
 
     #[test]
@@ -469,6 +483,112 @@ mod tests {
         assert_eq!(
             error,
             "Invalid .soloc version mismatch between header and project metadata"
+        );
+    }
+
+    #[test]
+    fn migrate_project_data_applies_shipped_migrations_for_older_files() {
+        let migrated = migrate_project_data(
+            json!({
+                "score": {
+                    "meta": {
+                        "app_version": "1.24.0"
+                    },
+                    "tracks": {
+                        "by_id": {
+                            "1": {
+                                "entries": {
+                                    "by_id": {
+                                        "10": {
+                                            "type": "Tempo",
+                                            "text": null
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "ui": {},
+                "next_id": 1
+            }),
+            "1.24.0",
+        )
+        .unwrap();
+
+        assert_eq!(
+            migrated["score"]["tracks"]["by_id"]["1"]["entries"]["by_id"]["10"]["text"],
+            ""
+        );
+        assert_eq!(
+            migrated["score"]["meta"]["app_version"],
+            Value::String(test_app_version().to_string())
+        );
+    }
+
+    #[test]
+    fn migrate_project_data_applies_pending_migration_in_development_state() {
+        if !pending_migration_registered() {
+            return;
+        }
+
+        let migrated = migrate_project_data(
+            json!({
+                "score": {
+                    "meta": {
+                        "app_version": test_app_version()
+                    }
+                },
+                "ui": {},
+                "next_id": 1
+            }),
+            test_app_version(),
+        )
+        .unwrap();
+
+        assert_eq!(
+            migrated["score"]["meta"]["app_version"],
+            Value::String(test_app_version().to_string())
+        );
+    }
+
+    #[test]
+    fn migrate_project_data_handles_mixed_shipped_and_pending_migrations() {
+        if !pending_migration_registered() {
+            return;
+        }
+
+        let migrated = migrate_project_data(
+            json!({
+                "score": {
+                    "meta": {
+                        "app_version": "1.24.0"
+                    },
+                    "tracks": {
+                        "by_id": {
+                            "1": {
+                                "entries": {
+                                    "by_id": {
+                                        "10": {
+                                            "type": "Tempo",
+                                            "text": null
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "ui": {},
+                "next_id": 1
+            }),
+            "1.24.0",
+        )
+        .unwrap();
+
+        assert_eq!(
+            migrated["score"]["tracks"]["by_id"]["1"]["entries"]["by_id"]["10"]["text"],
+            ""
         );
     }
 }

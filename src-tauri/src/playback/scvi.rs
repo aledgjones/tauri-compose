@@ -112,8 +112,6 @@ pub struct SampleIndex {
 pub struct ScviContainer {
     pub manifest: ContainerManifest,
     pub samples: Vec<SampleIndex>,
-    /// Absolute byte offset of SDAT chunk start within the file
-    sdat_offset: u64,
     /// Path to the .scvi file (needed to re-open for sample data reads)
     path: std::path::PathBuf,
     /// Offset and size of cover image, if present
@@ -189,7 +187,6 @@ impl ScviContainer {
         Ok(ScviContainer {
             manifest,
             samples,
-            sdat_offset: header.sdat_offset,
             path: path.to_path_buf(),
             cover_region,
         })

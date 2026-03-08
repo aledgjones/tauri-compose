@@ -23,6 +23,11 @@ fn inspect(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let container = ScviContainer::open(path)?;
     let m = &container.manifest.meta;
     let file_size = std::fs::metadata(path)?.len();
+    let cover_bytes = container.read_cover()?;
+    let container_type = match &m.r#type {
+        scvi::InstrumentType::Pitched => "pitched",
+        scvi::InstrumentType::Percussion => "percussion",
+    };
 
     // ── Header ─────────────────────────────────────────────────────────
 
@@ -34,6 +39,7 @@ fn inspect(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
     println!("║  Name:   {:<51} ║", m.name);
     println!("║  Author: {:<51} ║", m.author);
     println!("║  Ver:    {:<51} ║", m.version);
+    println!("║  Type:   {:<51} ║", container_type);
     println!("╚══════════════════════════════════════════════════════════════╝");
     println!();
 
@@ -79,6 +85,9 @@ fn inspect(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
     } else {
         println!("  COVER:   (none)");
     }
+    if let Some(bytes) = &cover_bytes {
+        println!("  COVER bytes loaded: {}", format_bytes(bytes.len() as u64));
+    }
     println!();
 
     // ── Sample index ───────────────────────────────────────────────────
@@ -101,6 +110,7 @@ fn inspect(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
         "", "", "", "", ""
     );
     for s in &container.samples {
+        let _ = container.get_sample_index(s.sample_id);
         println!(
             "  {:>6}  {:>12}  {:>10}  {:>6}  {:>4}",
             s.sample_id,

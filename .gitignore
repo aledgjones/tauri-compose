@@ -28,3 +28,4 @@ dist-ssr
 temp/
 
 coverage
+.release-prep.json

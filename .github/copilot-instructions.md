@@ -92,8 +92,9 @@ When connected to atlassian-rovo-mcp:
 - **MUST** include explicit documentation update tasks and acceptance criteria in specs; docs are not a follow-up nice-to-have
 - **MUST** update AI-agent instructions as part of the work when project rules or required implementation practices change
 - **MUST** assess migration impact for any persisted-data change, `.soloc` payload/file-format change, or load/save semantic change; if older data would not load correctly without transformation, add or update the corresponding migration
-- **MUST** target migrations at the next release version that will first ship the persistence change, even when implementation lands before the release command is run
-- **MUST** do persisted-data work in this order: implement the change, add/update the migration for the upcoming release version, then have a human run the release/version-bump flow last
+- **MUST** author unreleased persisted-data migrations in `src-tauri/src/migrations/next.rs` until a human prepares the release
+- **MUST** do persisted-data work in this order: implement the change, add/update pending migration steps in `src-tauri/src/migrations/next.rs`, then have a human run `prepare-release:*` and `finalize-release` last
 - **MUST NOT** run release scripts or any release/tag/publish workflow; release commands are human-only
+- **MUST** ensure shipped release states contain only concrete versioned migrations; `src-tauri/src/migrations/next.rs` is development-only and must be promoted/reseeded by the human prepare/finalize flow
 - **MUST** update relevant docs whenever `.soloc` file-format behavior, persistence architecture, or migration rules change
 - **MUST NOT** merge persisted-data changes that break older files without the required migration update and explicit migration-impact note

@@ -150,10 +150,11 @@ The score page is rendered natively by Rust/Skia/Metal — all other UI (panels,
 
 ### Development Workflow Rules
 
-- Versioning: semver via custom release binary (`npm run release:patch|minor|major`)
-- Version kept in sync across `package.json`, `Cargo.toml`, and `tauri.conf.json` (all currently 1.23.1)
+- Versioning: semver via custom release binary (`npm run prepare-release:{patch|minor|major}` then `npm run finalize-release`)
+- Version kept in sync across `package.json`, `Cargo.toml`, and `tauri.conf.json` (all currently 1.25.0)
 - Validate before committing: `npm run lint` + `npm run check-types` + `cargo clippy`
 - The app saves user projects as `.soloc` files — this is the application's native save format, not a source code or config format
+- Persisted-data migrations are authored in `src-tauri/src/migrations/next.rs` during development, promoted to a concrete version during `prepare-release:*`, and reseeded after `finalize-release`
 
 ### Critical Don't-Miss Rules
 
