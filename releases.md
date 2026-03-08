@@ -1,3 +1,57 @@
+## Release Notes for v1.24.0
+
+### 🏗️ Features
+
+- feat: absolute tempo playback
+- feat: tempo markings
+- feat: test fixtures
+- feat: test fixtures
+- feat: container file format
+- feat: file format spec
+- feat: fixtures tech spec
+- feat: fixture files
+- feat: fixtures
+- feat: add debugger score fixtures
+- feat: edge case analysis
+
+### 🐞 Fixes
+
+- fix: remove dead spec
+- fix: incorrect splitting at for -- quarter, quareter tied to eigth and eigth rest.
+- fix: formatting descripencies
+- fix: add missing key prop to SelectByImage; silence console.log in actions tests
+- fix: remove nested button in PlayerPanelItem, add onPointerDown to IconButton
+
+### 🔧 Chores
+
+- chore: properties panel quick spec
+- chore: remove dead spec
+- chore: cleanup fixture code
+- chore: test spec
+- chore: ratchet rust coverage thresholds
+- chore: test plan
+- chore: extract coverage summary into scripts/coverage-summary
+
+### 📝 Other
+
+- docs: add tech spec for binary .soloc project file format
+- docs: add tech spec for binary .soloc project file format
+- fix signature spacing and add cancellation fixtures
+- test: expand notation pattern regression coverage
+- test: harden written duration regression coverage
+- test: cover renderer pan and bounds
+- refactor: share sampler sync and player setup logic
+- test: expand score flow and instrument coverage
+- test(rust): Phase 4 — barline/beam/ledger/brackets/ties tests + extract beam_angle/stem_tweak helpers
+- test(rust): Phase 3 — draw_notehead/rest/articulations tests + tone medium command extractions
+- test(rust): Phase 2 complete — draw tests + tone impl extraction + clippy fixes
+- test(rust): Phase 1 complete — all 7 trivial draw files tested
+- test(rust): Phase 1 draw test infrastructure + stem/clef tests
+- test(rust): expand coverage across parse and score modules
+- test: expand FE coverage to 80%+ on all metrics
+- test: remove redundant mockImplementation from consoleSpy (global setup handles silencing)
+- test: fix act() warning in instrument-picker tests
+
 ## Release Notes for v1.23.3
 
 ### 🏗️ Features
