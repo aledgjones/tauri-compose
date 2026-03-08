@@ -1,6 +1,8 @@
 use crate::migrations::MIGRATIONS;
-use crate::playback::transport::{stop_transport_playback, sync_transport_to_app_state, TransportContext};
 use crate::playback::sampler::sync_sampler_with_score;
+use crate::playback::transport::{
+    stop_transport_playback, sync_transport_to_app_state, TransportContext,
+};
 use crate::score::Score;
 use crate::soloc::*;
 use crate::ui::sequencer::Tool;
