@@ -4,6 +4,25 @@ import { AppState, LayoutType, UniqueId, NoteDuration } from "./types";
 
 const THIRTY_SECONDS = 30 * 1000;
 const ONE_WEEK = 7 * 24 * 60 * 60 * 1000;
+const TEMPO_DEFAULTS = {
+  Largo: 50,
+  Adagio: 70,
+  Andante: 90,
+  Moderato: 110,
+  Allegro: 130,
+  Presto: 180,
+} as const;
+
+export type ParsedTempo = {
+  text: string | null;
+  beat_type: NoteDuration;
+  dots: number;
+  bpm: number;
+  hidden: boolean;
+  show_text: boolean;
+  show_metronome: boolean;
+  parenthesized: boolean;
+};
 
 const convertTimestampToHuman = (when: number) => {
   const calc = Date.now() - when;
@@ -115,6 +134,73 @@ export const parseTimeSignature = (input: string) => {
   if (!validBeatTypes.includes(beatType)) return null;
 
   return { beats, beatType };
+};
+
+export const parseTempo = (input: string): ParsedTempo | null => {
+  const namedMatch = input.match(
+    /^(Largo|Adagio|Andante|Moderato|Allegro|Presto)$/,
+  );
+
+  if (namedMatch) {
+    const text = namedMatch[1] as keyof typeof TEMPO_DEFAULTS;
+
+    return {
+      text,
+      beat_type: NoteDuration.Quarter,
+      dots: 0,
+      bpm: TEMPO_DEFAULTS[text],
+      hidden: false,
+      show_text: true,
+      show_metronome: false,
+      parenthesized: false,
+    };
+  }
+
+  const combinedMatch = input.match(
+    /^(Largo|Adagio|Andante|Moderato|Allegro|Presto) (q=([0-9]{2,3})|\(q=([0-9]{2,3})\))$/,
+  );
+
+  if (combinedMatch) {
+    const bpm = parseInt(combinedMatch[3] ?? combinedMatch[4], 10);
+
+    if (bpm < 20 || bpm > 400) {
+      return null;
+    }
+
+    return {
+      text: combinedMatch[1],
+      beat_type: NoteDuration.Quarter,
+      dots: 0,
+      bpm,
+      hidden: false,
+      show_text: true,
+      show_metronome: true,
+      parenthesized: Boolean(combinedMatch[4]),
+    };
+  }
+
+  const metronomeOnlyMatch = input.match(/^q=([0-9]{2,3})$/);
+
+  if (!metronomeOnlyMatch) {
+    return null;
+  }
+
+  const bpm = parseInt(metronomeOnlyMatch[1], 10);
+
+  if (bpm < 20 || bpm > 400) {
+    return null;
+  }
+
+  return {
+    text: null,
+    beat_type: NoteDuration.Quarter,
+    dots: 0,
+    bpm,
+    hidden: false,
+    show_text: false,
+    show_metronome: true,
+    parenthesized: false,
+  };
 };
 
 // helpers for converting between NoteDuration enum values and raw tick counts

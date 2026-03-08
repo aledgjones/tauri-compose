@@ -79,7 +79,7 @@ _This file contains critical rules and patterns that AI agents must follow when 
 - All Tauri commands: `#[tauri::command(rename_all = "snake_case")]`
 - `AppContext` behind `Mutex` — lock, mutate, call `emit()` to push state to all FE windows
 - Score uses `Space` unit system (staff spaces) — pixel conversion via `Converter::spaces_to_px()`
-- `Entry` is a tagged enum (`#[serde(tag = "type")]`) with 5 variants: Barline, Clef, KeySignature, TimeSignature, Tone
+- `Entry` is a tagged enum (`#[serde(tag = "type")]`) with 6 variants: Barline, Clef, KeySignature, Tempo, TimeSignature, Tone
 - Dual-index storage pattern: `by_tick: FxHashMap<Tick, Vec<UniqueId>>` + `by_id: FxHashMap<UniqueId, Entry>`
 
 ### Framework-Specific Rules
@@ -99,7 +99,7 @@ _This file contains critical rules and patterns that AI agents must follow when 
 
 The score page is rendered natively by Rust/Skia/Metal — all other UI (panels, buttons, inputs, toolbars) lives in the React/HTML layer.
 
-1. **Score data** → Tracks of `Entry` variants (Tone, Clef, KeySignature, TimeSignature, Barline) stored in dual-index `FxHashMap`s
+1. **Score data** → Tracks of `Entry` variants (Tone, Clef, KeySignature, Tempo, TimeSignature, Barline) stored in dual-index `FxHashMap`s
 2. **Parse phase** (`instructions/parse/`, 19 modules) → converts raw entries to written notation: measures, written durations, vertical/horizontal spacing, beams, stems, accidentals, articulations, shunts, dots — parallelized with `rayon`
 3. **Draw phase** (`instructions/draw/`, 20 modules) → generates `Vec<DrawInstruction>` (Line, Text, Circle, Curve, Shape, Rectangle) + `Vec<HitTarget>` — all coordinates in `Space` units converted to px via `Converter`
 4. **Native render** → `MetalRenderer` paints the score page only via Skia onto a `CAMetalLayer` attached to the native `NSView` — this is not the app UI, just the score sheet
@@ -107,6 +107,9 @@ The score page is rendered natively by Rust/Skia/Metal — all other UI (panels,
 
 - Draw instructions are cached on `RendererContext` and re-rendered on pan/zoom without recalculation
 - Recalculation only triggered by score mutations (via `emit()` flow)
+- Horizontal spacing slots are for **flow spacing only** — they are not a generic anchoring mechanism for every marking.
+- Prefer reusing an existing slot position when an element should align with current notation but should not push later notation horizontally.
+- As a general rule, avoid adding new slots unless the element genuinely changes left-to-right score flow; tempo markings are the current reference case for this rule.
 
 ### Code Quality & Style Rules
 
@@ -165,7 +168,7 @@ The score page is rendered natively by Rust/Skia/Metal — all other UI (panels,
 #### Serialization Gotchas
 
 - Enums are serialized as integers via `serde_repr` — when adding a new enum variant, it MUST be added at the same position in both Rust and TypeScript with matching integer values
-- `Entry` uses `#[serde(tag = "type")]` — the `type` field discriminates variants. Always handle all 5 variants when pattern-matching
+- `Entry` uses `#[serde(tag = "type")]` — the `type` field discriminates variants. Always handle all 6 variants when pattern-matching
 - Adding a new field to a Rust struct that serializes to FE requires updating the corresponding TypeScript type in `types.ts` — they must stay in sync manually
 
 #### Render Pipeline Gotchas
@@ -174,6 +177,8 @@ The score page is rendered natively by Rust/Skia/Metal — all other UI (panels,
 - Parse modules can use `rayon` for parallelism but draw modules push to `RendererContext` sequentially — don't parallelize the draw phase
 - `DrawInstruction` coordinates are pre-converted to px when pushed — the Metal backend consumes them as-is
 - Hit targets store coordinates in `Space` units — the hit-test function converts click coordinates to spaces before comparison
+- Slot additions should be rare: slots are for elements that consume horizontal flow space, not for every visual annotation
+- If a marking can align to an existing slot without pushing later notation, draw it relative to that slot instead of adding a new one
 
 #### Multi-Window Gotchas
 
@@ -191,12 +196,14 @@ The score page is rendered natively by Rust/Skia/Metal — all other UI (panels,
 ## Usage Guidelines
 
 **For AI Agents:**
+
 - Read this file before implementing any code in this project
 - Follow ALL rules exactly as documented
 - When in doubt, prefer the more restrictive option
 - Update this file if new patterns emerge during implementation
 
 **For Humans:**
+
 - Keep this file lean and focused on agent needs
 - Update when technology stack or conventions change
 - Review periodically — remove rules that become obvious over time

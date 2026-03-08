@@ -27,6 +27,8 @@ tests/fixtures/
 │   │   └── ledger-lines.json
 │   ├── rests/
 │   │   └── rests.json
+│   ├── tempo/
+│   │   └── tempo.json
 │   └── time-signatures/
 │       ├── four-four.json
 │       ├── three-four.json
@@ -37,6 +39,7 @@ tests/fixtures/
     ├── key-signatures/
     ├── ledger-lines/
     ├── rests/
+    ├── tempo/
     └── time-signatures/
 ```
 
@@ -87,6 +90,8 @@ A fixture JSON is a complete **project payload** with three top-level keys:
 ### 2 — Understand IDs
 
 Every object (player, instrument, stave, flow, track, entry) has a numeric `id`. IDs are unique within the whole document — never reuse a number. Use a simple incrementing scheme, e.g. 1–50 for infrastructure (layout, players, instruments, staves) and 100+ for entries (tones, time signatures, clefs, etc).
+
+**Stave identity note:** stave IDs are owned by the instrument and reused across every flow that includes that instrument. That means the same stave `id` can appear under multiple `flow.staves.by_id` maps in a fixture JSON, but it still refers to the same logical stave identity rather than a new independently-numbered object.
 
 ### 3 — Ticks
 
@@ -142,13 +147,14 @@ The easiest way to get the correct JSON shape for a new fixture:
 
 Entries in tracks use `"type"` as a serde tag:
 
-| `"type"`          | Struct        | Key fields                                             |
-| ----------------- | ------------- | ------------------------------------------------------ |
-| `"Tone"`          | Note/rest     | `tick`, `duration`, `pitch.int`, `velocity.int`        |
-| `"TimeSignature"` | Time sig      | `tick`, `beats`, `beat_type`, `draw_type`, `groupings` |
-| `"Clef"`          | Clef          | `tick`, `draw_as`, `pitch.int`, `offset`               |
-| `"KeySignature"`  | Key signature | `tick`, `offset`, `mode`                               |
-| `"Barline"`       | Barline       | `tick`, `barline_draw_type`                            |
+| `"type"`          | Struct        | Key fields                                                   |
+| ----------------- | ------------- | ------------------------------------------------------------ |
+| `"Tone"`          | Note/rest     | `tick`, `duration`, `pitch.int`, `velocity.int`              |
+| `"TimeSignature"` | Time sig      | `tick`, `beats`, `beat_type`, `draw_type`, `groupings`       |
+| `"Tempo"`         | Tempo marking | `tick`, `text`, `beat_type`, `dots`, `bpm`, visibility flags |
+| `"Clef"`          | Clef          | `tick`, `draw_as`, `pitch.int`, `offset`                     |
+| `"KeySignature"`  | Key signature | `tick`, `offset`, `mode`                                     |
+| `"Barline"`       | Barline       | `tick`, `barline_draw_type`                                  |
 
 #### `TimeSignature` `draw_type` values
 
@@ -178,6 +184,24 @@ Key signatures go on the **flow master track** (the same track as `TimeSignature
 ```
 
 `offset`: number of sharps (positive) or flats (negative). Range −7 to +7. `mode`: `0` = Major, `1` = Minor.
+
+#### Tempo placement
+
+Tempo entries also go on the **flow master track**. They can share a tick with `TimeSignature` or `KeySignature` entries.
+
+```json
+"by_tick": { "0": [timeSigId, tempoId] }
+```
+
+Use these v1 fields:
+
+- `text`: string or `null`
+- `beat_type`: `4` for quarter-note metronome marks in current fixtures
+- `dots`: `0`
+- `bpm`: integer in the inclusive `20..400` range
+- `hidden`, `show_text`, `show_metronome`, `parenthesized`: booleans controlling display
+
+Current notation fixtures should treat tempo markings as **visual only**. They do not change playback tempo yet.
 
 #### `Clef` `offset` values
 
@@ -245,7 +269,7 @@ Instrument (id=N)
   └── stave_ids
 
 Flow (id=N)
-  ├── master_id  → master Track (holds TimeSignature entries)
+  ├── master_id  → master Track (holds TimeSignature / KeySignature / Tempo entries)
   ├── player_ids
   └── staves.by_id
         └── Stave (id=N)
@@ -293,7 +317,7 @@ Not `{ 0: [100] }`. This is a Rust `BTreeMap<u32, Vec<u32>>` serialised via serd
 
 ### Multiple entries at the same tick — `by_tick` values are arrays
 
-A tick can have more than one entry. For example, `TimeSignature` and `KeySignature` both at tick 0:
+A tick can have more than one entry. For example, `TimeSignature`, `KeySignature`, and `Tempo` can share tick 0:
 
 ```json
 "by_tick": { "0": [100, 101] },

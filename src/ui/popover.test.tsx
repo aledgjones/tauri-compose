@@ -16,6 +16,7 @@ vi.mock("../services/actions", () => ({
       clef: { create: vi.fn(), clear: vi.fn() },
       keySignature: { create: vi.fn(), clearAtTick: vi.fn() },
       timeSignature: { create: vi.fn(), clearAtTick: vi.fn() },
+      tempo: { create: vi.fn(), clearAtTick: vi.fn() },
     },
     ui: {
       renderer: {
@@ -33,6 +34,7 @@ vi.mock("../services/popovers", async (importOriginal) => {
     parseBarlinePopover: vi.fn(),
     parseClefPopover: vi.fn(),
     parseKeySignaturePopover: vi.fn(),
+    parseTempoPopover: vi.fn(),
     parseTimeSignaturePopover: vi.fn(),
   };
 });
@@ -41,6 +43,7 @@ import {
   parseBarlinePopover,
   parseClefPopover,
   parseKeySignaturePopover,
+  parseTempoPopover,
   parseTimeSignaturePopover,
 } from "../services/popovers";
 
@@ -130,6 +133,11 @@ describe("Popover", () => {
     expect(screen.getByText("Time Signature")).toBeInTheDocument();
   });
 
+  it("shows 'Tempo' label for PopoverType.Tempo", () => {
+    renderPopover({ x: 0, y: 0, type: PopoverType.Tempo });
+    expect(screen.getByText("Tempo")).toBeInTheDocument();
+  });
+
   // -------------------------------------------------------------------------
   // Input value
   // -------------------------------------------------------------------------
@@ -204,6 +212,14 @@ describe("Popover", () => {
       FLOW_ID,
       TICK,
     );
+    expect(setPopover).toHaveBeenCalledWith(null);
+  });
+
+  it("Enter with valid tempo input calls parseTempoPopover and closes", async () => {
+    const user = userEvent.setup();
+    renderPopover({ x: 0, y: 0, type: PopoverType.Tempo });
+    await user.type(screen.getByRole("textbox"), "Allegro{Enter}");
+    expect(parseTempoPopover).toHaveBeenCalledWith("Allegro", FLOW_ID, TICK);
     expect(setPopover).toHaveBeenCalledWith(null);
   });
 
@@ -367,6 +383,18 @@ describe("Popover", () => {
         x: 100,
         y: 200,
         type: PopoverType.TimeSignature,
+      });
+    });
+  });
+
+  it("Shift+T fires setPopover with Tempo type", async () => {
+    renderPopover(null);
+    fireEvent.keyDown(document, { key: "T", shiftKey: true });
+    await waitFor(() => {
+      expect(setPopover).toHaveBeenCalledWith({
+        x: 100,
+        y: 200,
+        type: PopoverType.Tempo,
       });
     });
   });

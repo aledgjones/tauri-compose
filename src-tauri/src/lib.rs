@@ -48,6 +48,7 @@ use score::entries::clef::{score_entries_clef_clear, score_entries_clef_create};
 use score::entries::key_signature::{
     score_entries_key_signature_clear, score_entries_key_signature_create,
 };
+use score::entries::tempo::{score_entries_tempo_clear, score_entries_tempo_create};
 use score::entries::time_signature::{
     score_entries_time_signature_clear, score_entries_time_signature_create,
 };
@@ -460,6 +461,8 @@ pub fn run() {
             score_entries_clef_clear,
             score_entries_key_signature_create,
             score_entries_key_signature_clear,
+            score_entries_tempo_create,
+            score_entries_tempo_clear,
             score_entries_time_signature_create,
             score_entries_time_signature_clear,
             score_entries_tone_create,

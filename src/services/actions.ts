@@ -652,6 +652,39 @@ export const actions = {
         });
       },
     },
+    tempo: {
+      create: (
+        flow_id: UniqueId,
+        tick: Tick,
+        text: string | null,
+        beat_type: NoteDuration,
+        dots: number,
+        bpm: number,
+        hidden: boolean,
+        show_text: boolean,
+        show_metronome: boolean,
+        parenthesized: boolean,
+      ) => {
+        return invoke<UniqueId>("score_entries_tempo_create", {
+          flow_id,
+          tick,
+          text,
+          beat_type,
+          dots,
+          bpm,
+          hidden,
+          show_text,
+          show_metronome,
+          parenthesized,
+        });
+      },
+      clearAtTick: (flow_id: UniqueId, tick: Tick) => {
+        return invoke("score_entries_tempo_clear", {
+          flow_id,
+          tick,
+        });
+      },
+    },
     tone: {
       create: (
         track_id: UniqueId,

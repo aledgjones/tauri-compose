@@ -3,6 +3,7 @@ import {
   parseBarlinePopover,
   parseClefPopover,
   parseKeySignaturePopover,
+  parseTempoPopover,
   parseTimeSignaturePopover,
 } from "./popovers";
 import {
@@ -33,6 +34,10 @@ vi.mock("./actions", () => ({
         clearAtTick: vi.fn(),
       },
       timeSignature: {
+        create: vi.fn(),
+        clearAtTick: vi.fn(),
+      },
+      tempo: {
         create: vi.fn(),
         clearAtTick: vi.fn(),
       },
@@ -386,6 +391,87 @@ describe("parseKeySignaturePopover", () => {
   it("throws for unknown input", () => {
     expect(() => parseKeySignaturePopover("xyz", FLOW_ID, TICK)).toThrow(
       "Unknown input: xyz",
+    );
+  });
+});
+
+describe("parseTempoPopover", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('clears tempo when input is "clear"', () => {
+    parseTempoPopover("clear", FLOW_ID, TICK);
+    expect(actions.score.tempo.clearAtTick).toHaveBeenCalledWith(FLOW_ID, TICK);
+  });
+
+  it("creates a named tempo", () => {
+    parseTempoPopover("Allegro", FLOW_ID, TICK);
+    expect(actions.score.tempo.create).toHaveBeenCalledWith(
+      FLOW_ID,
+      TICK,
+      "Allegro",
+      NoteDuration.Quarter,
+      0,
+      130,
+      false,
+      true,
+      false,
+      false,
+    );
+  });
+
+  it("creates a named tempo with metronome mark", () => {
+    parseTempoPopover("Allegro q=120", FLOW_ID, TICK);
+    expect(actions.score.tempo.create).toHaveBeenCalledWith(
+      FLOW_ID,
+      TICK,
+      "Allegro",
+      NoteDuration.Quarter,
+      0,
+      120,
+      false,
+      true,
+      true,
+      false,
+    );
+  });
+
+  it("creates a parenthesized metronome mark", () => {
+    parseTempoPopover("Allegro (q=120)", FLOW_ID, TICK);
+    expect(actions.score.tempo.create).toHaveBeenCalledWith(
+      FLOW_ID,
+      TICK,
+      "Allegro",
+      NoteDuration.Quarter,
+      0,
+      120,
+      false,
+      true,
+      true,
+      true,
+    );
+  });
+
+  it("creates a metronome-only tempo", () => {
+    parseTempoPopover("q=120", FLOW_ID, TICK);
+    expect(actions.score.tempo.create).toHaveBeenCalledWith(
+      FLOW_ID,
+      TICK,
+      null,
+      NoteDuration.Quarter,
+      0,
+      120,
+      false,
+      false,
+      true,
+      false,
+    );
+  });
+
+  it("throws for invalid tempo input", () => {
+    expect(() => parseTempoPopover("Vivace", FLOW_ID, TICK)).toThrow(
+      "Unknown input: Vivace",
     );
   });
 });

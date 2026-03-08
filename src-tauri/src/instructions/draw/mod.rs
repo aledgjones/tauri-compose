@@ -16,6 +16,7 @@ pub mod draw_staves;
 pub mod draw_stem;
 pub mod draw_sub_brackets;
 pub mod draw_systemic_barline;
+pub mod draw_tempo;
 pub mod draw_ties;
 pub mod draw_time_signature;
 #[cfg(test)]

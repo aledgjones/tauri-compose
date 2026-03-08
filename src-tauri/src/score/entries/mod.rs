@@ -1,6 +1,7 @@
 pub mod barline;
 pub mod clef;
 pub mod key_signature;
+pub mod tempo;
 pub mod time_signature;
 pub mod tone;
 
@@ -11,6 +12,7 @@ use clef::Clef;
 use key_signature::KeySignature;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
+use tempo::Tempo;
 use time_signature::TimeSignature;
 use tone::Tone;
 
@@ -35,6 +37,7 @@ pub enum Entry {
     Barline(Barline),
     Clef(Clef),
     KeySignature(KeySignature),
+    Tempo(Tempo),
     TimeSignature(TimeSignature),
     Tone(Tone),
 }
@@ -46,6 +49,7 @@ impl Entry {
             Entry::Barline(barline) => barline.id,
             Entry::Clef(clef) => clef.id,
             Entry::KeySignature(key_signature) => key_signature.id,
+            Entry::Tempo(tempo) => tempo.id,
             Entry::TimeSignature(time_signature) => time_signature.id,
             Entry::Tone(tone) => tone.id,
         }
@@ -57,6 +61,7 @@ impl Entry {
             Entry::Barline(barline) => barline.tick,
             Entry::Clef(clef) => clef.tick,
             Entry::KeySignature(key_signature) => key_signature.tick,
+            Entry::Tempo(tempo) => tempo.tick,
             Entry::TimeSignature(time_signature) => time_signature.tick,
             Entry::Tone(tone) => tone.tick,
         }
@@ -71,6 +76,7 @@ impl Entry {
             Entry::Barline(barline) => barline.tick = tick,
             Entry::Clef(clef) => clef.tick = tick,
             Entry::KeySignature(key_signature) => key_signature.tick = tick,
+            Entry::Tempo(tempo) => tempo.tick = tick,
             Entry::TimeSignature(time_signature) => time_signature.tick = tick,
             Entry::Tone(tone) => tone.tick = tick,
         }
@@ -89,6 +95,7 @@ mod tests {
     use barline::{Barline, BarlineDrawType};
     use clef::{Clef, ClefDrawType};
     use key_signature::{KeySignature, KeySignatureMode};
+    use tempo::Tempo;
     use time_signature::{TimeSignature, TimeSignatureDrawType};
     use tone::Tone;
 
@@ -122,6 +129,21 @@ mod tests {
             NoteDuration::Quarter,
             TimeSignatureDrawType::Hidden,
             None,
+        ))
+    }
+
+    fn make_tempo(id: UniqueId, tick: Tick) -> Entry {
+        Entry::Tempo(Tempo::new(
+            id,
+            tick,
+            Some(String::from("Allegro")),
+            NoteDuration::Quarter,
+            0,
+            120,
+            false,
+            true,
+            true,
+            false,
         ))
     }
 
@@ -177,6 +199,12 @@ mod tests {
         assert_eq!(entry.id(), 5);
     }
 
+    #[test]
+    fn tempo_id_returns_correct_value() {
+        let entry = make_tempo(6, 0);
+        assert_eq!(entry.id(), 6);
+    }
+
     // --- Entry::tick() ---
 
     #[test]
@@ -207,6 +235,12 @@ mod tests {
     fn tone_tick_returns_correct_value() {
         let entry = make_tone(5, 64);
         assert_eq!(entry.tick(), 64);
+    }
+
+    #[test]
+    fn tempo_tick_returns_correct_value() {
+        let entry = make_tempo(6, 96);
+        assert_eq!(entry.tick(), 96);
     }
 
     // --- Entry::set_tick() ---
@@ -244,5 +278,12 @@ mod tests {
         let mut entry = make_tone(14, 0);
         entry.set_tick(32);
         assert_eq!(entry.tick(), 32);
+    }
+
+    #[test]
+    fn set_tick_updates_tempo() {
+        let mut entry = make_tempo(15, 0);
+        entry.set_tick(48);
+        assert_eq!(entry.tick(), 48);
     }
 }

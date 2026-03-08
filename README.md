@@ -16,7 +16,7 @@ Compose is a native desktop application that brings together the power of modern
 ### Key Features
 
 - **🎹 Multi-instrument Sampler** - High-quality instrument patches including orchestral instruments, guitars, keyboards, and percussion
-- **✍️ Notation Editor** - Intuitive score writing with professional engraving capabilities
+- **✍️ Notation Editor** - Intuitive score writing with professional engraving capabilities, including immediate tempo markings in the score
 - **🎵 Audio Sequencing** - Powerful sequencing engine with expression control and tempo management
 - **🎨 Multiple Layouts** - Organize your score into different layouts for various instruments and ensembles
 - **🖥️ Native Performance** - Hardware-accelerated rendering using Skia (Metal on macOS, OpenGL elsewhere)

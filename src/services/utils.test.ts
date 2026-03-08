@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { renderHook } from "@testing-library/react";
 import {
+  parseTempo,
   parseTimeSignature,
   noteDurationToTicks,
   generateRainbowColors,
@@ -59,6 +60,79 @@ describe("parseTimeSignature", () => {
 
   it("returns null for '/4'", () => {
     expect(parseTimeSignature("/4")).toBeNull();
+  });
+});
+
+describe("parseTempo", () => {
+  it("parses named tempo text with a derived bpm", () => {
+    expect(parseTempo("Allegro")).toEqual({
+      text: "Allegro",
+      beat_type: NoteDuration.Quarter,
+      dots: 0,
+      bpm: 130,
+      hidden: false,
+      show_text: true,
+      show_metronome: false,
+      parenthesized: false,
+    });
+  });
+
+  it("parses a named tempo plus metronome mark", () => {
+    expect(parseTempo("Allegro q=120")).toEqual({
+      text: "Allegro",
+      beat_type: NoteDuration.Quarter,
+      dots: 0,
+      bpm: 120,
+      hidden: false,
+      show_text: true,
+      show_metronome: true,
+      parenthesized: false,
+    });
+  });
+
+  it("parses a named tempo plus parenthesized metronome mark", () => {
+    expect(parseTempo("Allegro (q=120)")).toEqual({
+      text: "Allegro",
+      beat_type: NoteDuration.Quarter,
+      dots: 0,
+      bpm: 120,
+      hidden: false,
+      show_text: true,
+      show_metronome: true,
+      parenthesized: true,
+    });
+  });
+
+  it("parses a metronome-only tempo", () => {
+    expect(parseTempo("q=120")).toEqual({
+      text: null,
+      beat_type: NoteDuration.Quarter,
+      dots: 0,
+      bpm: 120,
+      hidden: false,
+      show_text: false,
+      show_metronome: true,
+      parenthesized: false,
+    });
+  });
+
+  it.each([
+    "allegro",
+    " Allegro",
+    "Allegro ",
+    "Allegro  q=120",
+    "Allegro(q=120)",
+    "Allegro ( q=120)",
+    "Allegro (q =120)",
+    "e=120",
+    "Vivace",
+    "q=19",
+    "q=401",
+    "Allegro q=19",
+    "Allegro q=401",
+    "q=",
+  ])("rejects invalid tempo input %s", (input) => {
+    expect(parseTempo(input)).toBeNull();
   });
 });
 

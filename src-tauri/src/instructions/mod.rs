@@ -29,6 +29,7 @@ use draw::draw_staves::draw_staves;
 use draw::draw_stem::draw_stem;
 use draw::draw_sub_brackets::draw_sub_brackets;
 use draw::draw_systemic_barline::draw_systemic_barline;
+use draw::draw_tempo::draw_tempo;
 use draw::draw_ties::draw_ties;
 use draw::draw_time_signature::draw_time_signature;
 use parse::get_accidentals::get_accidentals;
@@ -155,7 +156,7 @@ pub fn generate_render_instructions(
 
     renderer.instructions.clear();
     renderer.hit_targets.clear();
-    renderer.converter = converter;
+    renderer.converter = converter.clone();
     renderer.width = width;
     renderer.height = height;
 
@@ -286,6 +287,33 @@ pub fn generate_render_instructions(
         renderer,
     );
     let barlines_duration = barlines_start.elapsed();
+
+    if let Some(first_instrument) = instruments.first() {
+        if let Some(first_stave_id) = first_instrument.stave_ids.first() {
+            let top_stave = &vertical_spacing.staves[first_stave_id];
+
+            for tick in 0..flow.length {
+                if let Some(tempo) = flow_master.get_tempo_at_tick(&tick) {
+                    let _previous_tempo = flow_master.get_tempo_before_tick(tick);
+                    let tempo_metrics = tempo.metrics(&text_measurer);
+                    let span = if flow_master.get_time_signature_at_tick(&tick).is_some() {
+                        horizontal_spacing.get(tick, Slot::TimeSignature)
+                    } else {
+                        horizontal_spacing.get(tick, Slot::Accidentals)
+                    };
+                    draw_tempo(
+                        &Point {
+                            x: stave_left + span.x,
+                            y: page_padding.top + top_stave.y - tempo_metrics.height - 1.0,
+                        },
+                        tempo,
+                        &text_measurer,
+                        renderer,
+                    );
+                }
+            }
+        }
+    }
 
     // Phase 10: Stave contents (clefs, key signatures, time signatures, notes)
     let stave_start = Instant::now();

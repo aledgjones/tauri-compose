@@ -486,6 +486,44 @@ describe("actions.score.engrave", () => {
   });
 });
 
+describe("actions.score.tempo", () => {
+  it("create calls invoke with the tempo payload", async () => {
+    await actions.score.tempo.create(
+      5,
+      64,
+      "Allegro",
+      NoteDuration.Quarter,
+      0,
+      120,
+      false,
+      true,
+      true,
+      false,
+    );
+
+    expect(mockInvoke).toHaveBeenCalledWith("score_entries_tempo_create", {
+      flow_id: 5,
+      tick: 64,
+      text: "Allegro",
+      beat_type: NoteDuration.Quarter,
+      dots: 0,
+      bpm: 120,
+      hidden: false,
+      show_text: true,
+      show_metronome: true,
+      parenthesized: false,
+    });
+  });
+
+  it("clearAtTick calls invoke correctly", async () => {
+    await actions.score.tempo.clearAtTick(5, 64);
+    expect(mockInvoke).toHaveBeenCalledWith("score_entries_tempo_clear", {
+      flow_id: 5,
+      tick: 64,
+    });
+  });
+});
+
 // ---------------------------------------------------------------------------
 // score.flow
 // ---------------------------------------------------------------------------

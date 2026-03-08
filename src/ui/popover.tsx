@@ -7,6 +7,7 @@ import {
   parseBarlinePopover,
   parseClefPopover,
   parseKeySignaturePopover,
+  parseTempoPopover,
   parseTimeSignaturePopover,
   PopoverType,
 } from "../services/popovers";
@@ -16,6 +17,7 @@ import {
   mdiAlphaCBoxOutline,
   mdiAlphaKBoxOutline,
   mdiAlphaMBoxOutline,
+  mdiMetronome,
 } from "@mdi/js";
 import { AppState } from "../services/types";
 
@@ -84,6 +86,12 @@ const getMeta = (type: PopoverType) => {
         icon: mdiAlphaMBoxOutline,
       };
     }
+    case PopoverType.Tempo: {
+      return {
+        label: "Tempo",
+        icon: mdiMetronome,
+      };
+    }
     default:
       return { label: "", icon: mdiAlphaKBoxOutline };
   }
@@ -142,6 +150,16 @@ export const Popover: FC<Props> = ({ popover, setPopover }) => {
         if (coords) {
           const [x, y] = coords;
           setPopover({ x, y, type: PopoverType.TimeSignature });
+        }
+      }
+
+      if (e.shiftKey && e.key === "T") {
+        e.preventDefault();
+
+        const coords = await actions.ui.renderer.getSelectionCoordinates();
+        if (coords) {
+          const [x, y] = coords;
+          setPopover({ x, y, type: PopoverType.Tempo });
         }
       }
     };
@@ -205,6 +223,10 @@ export const Popover: FC<Props> = ({ popover, setPopover }) => {
             }
             case PopoverType.TimeSignature: {
               parseTimeSignaturePopover(term, flow_id, tick);
+              break;
+            }
+            case PopoverType.Tempo: {
+              parseTempoPopover(term, flow_id, tick);
               break;
             }
           }

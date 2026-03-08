@@ -114,7 +114,7 @@ Score Data (Entry variants in FxHashMaps)
 │  draw_staves, draw_notehead, draw_stem,      │
 │  draw_beam, draw_flag, draw_rest, draw_dot,  │
 │  draw_clef, draw_key_signature,              │
-│  draw_time_signature, draw_barline,          │
+│  draw_time_signature, draw_tempo, draw_barline, │
 │  draw_accidentals, draw_articulations,       │
 │  draw_ties, draw_ledger_lines, draw_names,   │
 │  draw_braces, draw_brackets,                 │
@@ -140,6 +140,21 @@ Score Data (Entry variants in FxHashMaps)
 - Pixel conversion: `Converter::spaces_to_px(spaces) = spaces × mm_per_space × px_per_mm`
 - Draw instructions are pre-converted to px when pushed to `RendererContext`
 - Hit targets store coordinates in Space units — the hit-test converts click coords to spaces
+
+### Flow-wide directives
+
+- `TimeSignature`, `KeySignature`, and `Tempo` entries live on the flow master track.
+- `Clef` entries live on stave master tracks.
+- Tempo markings do not reserve horizontal spacing; they align to the existing time-signature slot when present, otherwise to the accidental slot, and render once above the top stave in the draw phase.
+- Score tempo markings do **not** change transport tempo yet; playback integration is intentionally deferred.
+
+### Horizontal spacing slots
+
+- Slots in `get_horizontal_spacing()` are for **flow spacing**: they define left-to-right space that must push later notation over.
+- A slot should exist only when an element participates in the score's horizontal flow and changes where the next items must start.
+- Existing slots already cover the current flow-spacing model for clefs, key signatures, time signatures, barlines, accidentals, and note spacing.
+- As a general rule, new markings should **not** get new slots unless they truly change notation flow. Tempo markings are the reference example: they align to existing slots instead of creating their own.
+- If an element is visually anchored to an existing horizontal position and does not need to push later notation, prefer drawing it relative to an existing slot rather than adding another one.
 
 ### Caching
 

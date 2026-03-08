@@ -23,7 +23,7 @@ Score
 ├── Tracks            — Collection of all Tracks (by_id only)
 │   └── Track         — Contains Entries (the actual musical content)
 │       └── Entries   — Dual-indexed: by_tick + by_id
-│           └── Entry — Tagged enum: Tone | Barline | Clef | KeySignature | TimeSignature
+│           └── Entry — Tagged enum: Tone | Barline | Clef | KeySignature | Tempo | TimeSignature
 ├── Layouts           — Ordered collection of score layouts
 │   └── Layout        — Type (FullScore/Part), player and flow assignments
 └── Engraves          — Engraving settings per layout type
@@ -69,6 +69,7 @@ pub enum Entry {
     Barline(Barline),
     Clef(Clef),
     KeySignature(KeySignature),
+    Tempo(Tempo),
     TimeSignature(TimeSignature),
     Tone(Tone),
 }
@@ -132,6 +133,32 @@ The audible musical note. **Never directly drawn** in the score — the parse pi
 | `beat_type` | `NoteDuration`          | Denominator (Quarter=4, Eighth=8, etc.)            |
 | `draw_type` | `TimeSignatureDrawType` | Hidden, Regular, CommonTime, SplitCommonTime, Open |
 | `groupings` | `Vec<u8>`               | Beat grouping subdivisions                         |
+
+#### Tempo
+
+Immediate absolute tempo markings live on the **flow master track** so the renderer and future playback-following-tempo work can query a single flow-wide source of truth.
+
+| Field            | Type             | Description                                        |
+| ---------------- | ---------------- | -------------------------------------------------- |
+| `id`             | `UniqueId`       |                                                    |
+| `tick`           | `Tick`           | Tick where the tempo marking is attached           |
+| `text`           | `Option<String>` | Optional named label such as `Allegro`             |
+| `beat_type`      | `NoteDuration`   | Metronome beat value (`Quarter` in v1 authoring)   |
+| `dots`           | `u8`             | Augmentation dots for the metronome note           |
+| `bpm`            | `u16`            | Resolved beats-per-minute value                    |
+| `hidden`         | `bool`           | If true, the entry persists but does not render    |
+| `show_text`      | `bool`           | Controls whether the textual label renders         |
+| `show_metronome` | `bool`           | Controls whether the metronome note and BPM render |
+| `parenthesized`  | `bool`           | Wraps the metronome portion in parentheses         |
+
+Supported v1 display forms are:
+
+- `Allegro`
+- `Allegro q=120`
+- `Allegro (q=120)`
+- `q=120`
+
+Tempo entries are **notation/data only in this release**. They do not yet drive transport playback.
 
 ---
 
@@ -247,9 +274,13 @@ pub struct Track {
 }
 ```
 
+Each flow has:
+
+- A **flow master track** — contains flow-wide directives such as key signatures, time signatures, and tempo markings
+
 Each stave has:
 
-- A **master track** — contains clef, key signature, time signature entries
+- A **stave master track** — contains clef entries
 - One or more **user tracks** — contain tones and barlines
 
 ### Layout

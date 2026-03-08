@@ -8,13 +8,14 @@ import {
   TimeSignatureDrawType,
   UniqueId,
 } from "./types";
-import { parseTimeSignature } from "./utils";
+import { parseTempo, parseTimeSignature } from "./utils";
 
 export enum PopoverType {
   Barline = 0,
   Clef,
   KeySignature,
   TimeSignature,
+  Tempo,
 }
 
 export const parseBarlinePopover = (
@@ -637,4 +638,34 @@ export const parseTimeSignaturePopover = (
       throw new Error(`Unknown input: ${input}`);
     }
   }
+};
+
+export const parseTempoPopover = (
+  input: string,
+  flow_id: UniqueId,
+  tick: Tick,
+) => {
+  if (input === "clear") {
+    actions.score.tempo.clearAtTick(flow_id, tick);
+    return;
+  }
+
+  const parsed = parseTempo(input);
+
+  if (!parsed) {
+    throw new Error(`Unknown input: ${input}`);
+  }
+
+  actions.score.tempo.create(
+    flow_id,
+    tick,
+    parsed.text,
+    parsed.beat_type,
+    parsed.dots,
+    parsed.bpm,
+    parsed.hidden,
+    parsed.show_text,
+    parsed.show_metronome,
+    parsed.parenthesized,
+  );
 };

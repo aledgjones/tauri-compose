@@ -179,12 +179,42 @@ export enum TimeSignatureDrawType {
   Open, // X
 }
 
+export type Barline = {
+  id: UniqueId;
+  tick: Tick;
+  type: "Barline";
+  barline_draw_type: BarlineDrawType;
+};
+
+export type Clef = {
+  id: UniqueId;
+  tick: Tick;
+  type: "Clef";
+  draw_as: ClefDrawType;
+  pitch: Pitch;
+  offset: number;
+};
+
 export type TimeSignature = {
   id: UniqueId;
   tick: Tick;
   type: "TimeSignature";
   beats: number;
   beat_type: NoteDuration;
+};
+
+export type Tempo = {
+  id: UniqueId;
+  tick: Tick;
+  type: "Tempo";
+  text: string | null;
+  beat_type: NoteDuration;
+  dots: number;
+  bpm: number;
+  hidden: boolean;
+  show_text: boolean;
+  show_metronome: boolean;
+  parenthesized: boolean;
 };
 
 export type KeySignature = {
@@ -205,7 +235,13 @@ export type Tone = {
   articulations: Articulation[];
 };
 
-export type Entry = TimeSignature | KeySignature | Tone;
+export type Entry =
+  | Barline
+  | Clef
+  | TimeSignature
+  | KeySignature
+  | Tone
+  | Tempo;
 
 export type Track = {
   id: UniqueId;
