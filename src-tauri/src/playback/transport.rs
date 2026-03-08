@@ -2,9 +2,10 @@ use crate::playback::mixer::MixerHandle;
 use crate::playback::sampler::{Cache, CacheArticulation};
 use crate::playback::streamer::{self, StreamBuffer, StreamRequest};
 use crate::score::components::duration::Tick;
+use crate::score::entries::tempo::{EffectiveTempoResolver, DEFAULT_TEMPO_BPM};
 use crate::score::Score;
 use crate::utils::UniqueId;
-use crate::{AppContextState, AudioContextState, SamplerContextState};
+use crate::{AppContext, AppContextState, AudioContextState, SamplerContextState};
 use rand::RngExt;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
@@ -25,12 +26,100 @@ pub struct InstrumentMixParams {
 /// Ticks per quarter note
 const TICKS_PER_QUARTER: u64 = 32;
 
-/// Default tempo in BPM
-const DEFAULT_TEMPO: f64 = 120.0;
-
 /// Seconds per tick at a given BPM
 fn seconds_per_tick(bpm: f64) -> f64 {
     60.0 / (bpm * TICKS_PER_QUARTER as f64)
+}
+
+fn join_transport_thread(
+    handle: Option<std::thread::JoinHandle<()>>,
+) -> Result<(), String> {
+    if let Some(handle) = handle {
+        handle
+            .join()
+            .map_err(|_| String::from("Transport thread panicked"))?;
+    }
+
+    Ok(())
+}
+
+fn active_flow_id(app_ctx: &AppContext) -> Option<UniqueId> {
+    app_ctx
+        .ui
+        .flow_id
+        .or_else(|| app_ctx.score.flows.order.first().copied())
+}
+
+fn flow_tempo_resolver(score: &Score, flow_id: UniqueId) -> EffectiveTempoResolver {
+    let flow = score
+        .flows
+        .by_id
+        .get(&flow_id)
+        .unwrap_or_else(|| panic!("Missing flow {} while resolving transport tempo", flow_id));
+    let master_track = score.tracks.by_id.get(&flow.master_id).unwrap_or_else(|| {
+        panic!(
+            "Missing flow master track {} while resolving transport tempo",
+            flow.master_id
+        )
+    });
+
+    master_track.effective_tempo_resolver()
+}
+
+fn resolve_score_tempo_bpm(score: &Score, flow_id: Option<UniqueId>, tick: Tick) -> f64 {
+    match flow_id {
+        Some(flow_id) => flow_tempo_resolver(score, flow_id).resolve(tick).bpm_f64(),
+        None => f64::from(DEFAULT_TEMPO_BPM),
+    }
+}
+
+fn resolve_app_tempo_bpm(app_ctx: &AppContext, tick: Tick) -> f64 {
+    resolve_score_tempo_bpm(&app_ctx.score, active_flow_id(app_ctx), tick)
+}
+
+fn clamp_tick_to_score_flow(score: &Score, flow_id: Option<UniqueId>, tick: Tick) -> Tick {
+    let Some(flow_id) = flow_id else {
+        return tick;
+    };
+
+    let Some(flow) = score.flows.by_id.get(&flow_id) else {
+        return tick;
+    };
+
+    if flow.length == 0 {
+        0
+    } else {
+        tick.min(flow.length.saturating_sub(1))
+    }
+}
+
+fn publish_resolved_tempo(
+    shared: &TransportShared,
+    tempo_resolver: &EffectiveTempoResolver,
+    tick: Tick,
+) -> f64 {
+    shared.current_tick.store(tick, Ordering::Relaxed);
+    let bpm = tempo_resolver.resolve(tick).bpm_f64();
+    shared.set_tempo(bpm);
+    bpm
+}
+
+fn publish_app_tempo(shared: &TransportShared, app_ctx: &AppContext, tick: Tick) -> f64 {
+    shared.current_tick.store(tick, Ordering::Relaxed);
+    let bpm = resolve_app_tempo_bpm(app_ctx, tick);
+    shared.set_tempo(bpm);
+    bpm
+}
+
+fn accumulate_tick_deadline(
+    next_tick_deadline: std::time::Duration,
+    bpm: f64,
+) -> std::time::Duration {
+    next_tick_deadline + std::time::Duration::from_secs_f64(seconds_per_tick(bpm))
+}
+
+fn playback_can_start(current_tick: Tick, flow_length: Tick) -> bool {
+    current_tick < flow_length
 }
 
 /// Map the score Articulation enum to the sampler articulation ID string.
@@ -93,7 +182,7 @@ impl TransportContext {
             playing: AtomicBool::new(false),
             current_tick: AtomicU64::new(0),
             stop_signal: AtomicBool::new(false),
-            tempo_bits: AtomicU64::new(DEFAULT_TEMPO.to_bits()),
+            tempo_bits: AtomicU64::new(f64::from(DEFAULT_TEMPO_BPM).to_bits()),
             mix_params: RwLock::new(FxHashMap::default()),
         });
 
@@ -104,6 +193,33 @@ impl TransportContext {
 
         (ctx, shared)
     }
+}
+
+pub(crate) fn stop_transport_playback(
+    state: &Mutex<TransportContext>,
+) -> Result<TransportSharedState, String> {
+    let (shared, handle) = {
+        let mut ctx = state.lock().unwrap();
+
+        ctx.shared.stop_signal.store(true, Ordering::Release);
+        ctx.shared.playing.store(false, Ordering::Release);
+
+        (ctx.shared.clone(), ctx.thread_handle.take())
+    };
+
+    join_transport_thread(handle)?;
+    shared.stop_signal.store(false, Ordering::Release);
+
+    Ok(shared)
+}
+
+pub(crate) fn sync_transport_to_app_state(
+    shared: &TransportSharedState,
+    app_ctx: &AppContext,
+    tick: Tick,
+) -> f64 {
+    let tick = clamp_tick_to_score_flow(&app_ctx.score, active_flow_id(app_ctx), tick);
+    publish_app_tempo(shared, app_ctx, tick)
 }
 
 /// Render a single note by spawning a disk-streaming thread and submitting
@@ -306,17 +422,16 @@ struct PlaybackSnapshot {
     flow_id: UniqueId,
     flow_length: u64,
     sample_rate: u32,
+    tempo_resolver: EffectiveTempoResolver,
 }
 
 fn transport_thread(
     shared: Arc<TransportShared>,
-    tempo: f64,
     snapshot: PlaybackSnapshot,
     mixer_handle: crate::playback::mixer::MixerHandle,
 ) {
-    let spt = seconds_per_tick(tempo);
-    let tick_duration = std::time::Duration::from_secs_f64(spt);
-    let mut next_tick_deadline = std::time::Instant::now() + tick_duration;
+    let start = std::time::Instant::now();
+    let mut next_tick_offset = std::time::Duration::ZERO;
 
     loop {
         // Check stop signal
@@ -330,6 +445,9 @@ fn transport_thread(
         if current_tick >= snapshot.flow_length {
             break;
         }
+
+        let bpm = publish_resolved_tempo(&shared, &snapshot.tempo_resolver, current_tick);
+        let spt = seconds_per_tick(bpm);
 
         // Snapshot the live mix params into a local copy — hold the lock as briefly as possible
         // so that the heavy render_note work below is entirely lock-free.
@@ -391,12 +509,14 @@ fn transport_thread(
             .current_tick
             .store(current_tick + 1, Ordering::Relaxed);
 
+        next_tick_offset = accumulate_tick_deadline(next_tick_offset, bpm);
+        let next_tick_deadline = start + next_tick_offset;
+
         // Sleep until the next tick deadline — accounts for time spent rendering
         let now = std::time::Instant::now();
         if next_tick_deadline > now {
             std::thread::sleep(next_tick_deadline - now);
         }
-        next_tick_deadline += tick_duration;
     }
 
     // Playback ended — mark as not playing via atomic
@@ -415,33 +535,42 @@ pub fn transport_play(
     sampler_state: State<'_, SamplerContextState>,
     audio_state: State<'_, AudioContextState>,
 ) -> Result<(), String> {
-    let mut ctx = state.lock().unwrap();
+    let (shared, stale_handle) = {
+        let mut ctx = state.lock().unwrap();
 
-    // Already playing? Ignore.
-    if ctx.shared.playing.load(Ordering::Acquire) {
-        return Ok(());
-    }
+        if ctx.shared.playing.load(Ordering::Acquire) {
+            return Ok(());
+        }
+
+        (ctx.shared.clone(), ctx.thread_handle.take())
+    };
+
+    join_transport_thread(stale_handle)?;
 
     // Build a snapshot of everything the thread needs — snapshot locks are brief and one-time
-    let (snapshot, mixer_handle) = {
+    let (snapshot, mixer_handle, initial_tempo) = {
         let app_ctx = app_state.lock().unwrap();
-        let flow_id = app_ctx
-            .ui
-            .flow_id
-            .or_else(|| app_ctx.score.flows.order.first().copied());
+        let flow_id = active_flow_id(&app_ctx);
 
         let flow_id = match flow_id {
             Some(id) => id,
-            None => return Ok(()), // No flow to play
+            None => {
+                shared.set_tempo(f64::from(DEFAULT_TEMPO_BPM));
+                return Ok(());
+            }
         };
 
-        let flow_length = app_ctx
-            .score
-            .flows
-            .by_id
-            .get(&flow_id)
-            .map(|f| f.length)
-            .unwrap_or(0);
+        let flow = app_ctx.score.flows.by_id.get(&flow_id).unwrap_or_else(|| {
+            panic!("Missing flow {} while starting transport playback", flow_id)
+        });
+        let tempo_resolver = flow_tempo_resolver(&app_ctx.score, flow_id);
+        let current_tick = shared.current_tick.load(Ordering::Relaxed);
+        let initial_tempo = tempo_resolver.resolve(current_tick).bpm_f64();
+
+        if !playback_can_start(current_tick, flow.length) {
+            shared.set_tempo(initial_tempo);
+            return Ok(());
+        }
 
         let sampler = sampler_state.lock().unwrap();
         let sampler_cache = sampler.clone_cache();
@@ -456,12 +585,15 @@ pub fn transport_play(
             score: app_ctx.score.clone(),
             sampler_cache,
             flow_id,
-            flow_length,
+            flow_length: flow.length,
             sample_rate,
+            tempo_resolver,
         };
 
-        (snapshot, mixer_handle)
+        (snapshot, mixer_handle, initial_tempo)
     };
+
+    let mut ctx = state.lock().unwrap();
 
     // Populate live mix params from the score
     {
@@ -481,70 +613,272 @@ pub fn transport_play(
     }
 
     // Drop any old finished thread handle
-    let _ = ctx.thread_handle.take();
-
     // Reset stop signal
     ctx.shared.stop_signal.store(false, Ordering::Release);
     ctx.shared.playing.store(true, Ordering::Release);
+    ctx.shared.set_tempo(initial_tempo);
 
     let shared = ctx.shared.clone();
-    let tempo = ctx.shared.get_tempo();
 
     ctx.thread_handle = Some(std::thread::spawn(move || {
-        transport_thread(shared, tempo, snapshot, mixer_handle);
+        transport_thread(shared, snapshot, mixer_handle);
     }));
 
     Ok(())
 }
 
 #[tauri::command(rename_all = "snake_case")]
-pub fn transport_pause(state: State<'_, Mutex<TransportContext>>) -> Result<(), String> {
-    let ctx = state.lock().unwrap();
+pub fn transport_pause(
+    state: State<'_, Mutex<TransportContext>>,
+    app_state: State<'_, AppContextState>,
+) -> Result<(), String> {
+    let (shared, handle, was_playing) = {
+        let mut ctx = state.lock().unwrap();
+        let was_playing = ctx.shared.playing.load(Ordering::Acquire);
 
-    if ctx.shared.playing.load(Ordering::Acquire) {
-        ctx.shared.stop_signal.store(true, Ordering::Release);
+        if was_playing {
+            ctx.shared.stop_signal.store(true, Ordering::Release);
+            ctx.shared.playing.store(false, Ordering::Release);
+        }
+
+        (ctx.shared.clone(), ctx.thread_handle.take(), was_playing)
+    };
+
+    if was_playing {
+        join_transport_thread(handle)?;
     }
 
-    Ok(())
-}
-
-#[tauri::command(rename_all = "snake_case")]
-pub fn transport_stop(state: State<'_, Mutex<TransportContext>>) -> Result<(), String> {
-    let mut ctx = state.lock().unwrap();
-
-    // Signal the thread to stop
-    ctx.shared.stop_signal.store(true, Ordering::Release);
-    ctx.shared.playing.store(false, Ordering::Release);
-
-    // Drop the old thread handle (let thread exit on its own — no join to avoid deadlock)
-    let _ = ctx.thread_handle.take();
-
-    // Reset to beginning
-    ctx.shared.current_tick.store(0, Ordering::Relaxed);
+    let current_tick = shared.current_tick.load(Ordering::Relaxed);
+    let app_ctx = app_state.lock().unwrap();
+    publish_app_tempo(&shared, &app_ctx, current_tick);
 
     Ok(())
 }
 
 #[tauri::command(rename_all = "snake_case")]
-pub fn transport_seek(state: State<'_, Mutex<TransportContext>>, tick: u64) -> Result<(), String> {
-    let ctx = state.lock().unwrap();
-    ctx.shared.current_tick.store(tick, Ordering::Relaxed);
+pub fn transport_stop(
+    state: State<'_, Mutex<TransportContext>>,
+    app_state: State<'_, AppContextState>,
+) -> Result<(), String> {
+    let (shared, handle) = {
+        let mut ctx = state.lock().unwrap();
+
+        ctx.shared.stop_signal.store(true, Ordering::Release);
+        ctx.shared.playing.store(false, Ordering::Release);
+
+        (ctx.shared.clone(), ctx.thread_handle.take())
+    };
+
+    join_transport_thread(handle)?;
+
+    let app_ctx = app_state.lock().unwrap();
+    publish_app_tempo(&shared, &app_ctx, 0);
+
     Ok(())
 }
 
 #[tauri::command(rename_all = "snake_case")]
-pub fn transport_set_tempo(state: State<'_, TransportSharedState>, bpm: f64) -> Result<(), String> {
-    state.set_tempo(bpm.clamp(20.0, 400.0));
+pub fn transport_seek(
+    state: State<'_, Mutex<TransportContext>>,
+    app_state: State<'_, AppContextState>,
+    tick: u64,
+) -> Result<(), String> {
+    let (shared, playing) = {
+        let ctx = state.lock().unwrap();
+        (ctx.shared.clone(), ctx.shared.playing.load(Ordering::Acquire))
+    };
+
+    shared.current_tick.store(tick, Ordering::Relaxed);
+
+    if !playing {
+        let app_ctx = app_state.lock().unwrap();
+        publish_app_tempo(&shared, &app_ctx, tick);
+    }
+
     Ok(())
 }
 
 /// Lightweight poll command — reads atomics directly, no mutex lock needed.
 /// Frontend calls this via requestAnimationFrame during playback.
 #[tauri::command(rename_all = "snake_case")]
-pub fn transport_get_state(state: State<'_, TransportSharedState>) -> TransportState {
+pub fn transport_get_state(
+    state: State<'_, TransportSharedState>,
+    app_state: State<'_, AppContextState>,
+) -> TransportState {
+    let playing = state.playing.load(Ordering::Relaxed);
+    let current_tick = state.current_tick.load(Ordering::Relaxed);
+    let tempo = if playing {
+        state.get_tempo()
+    } else {
+        let app_ctx = app_state.lock().unwrap();
+        let tempo = resolve_app_tempo_bpm(&app_ctx, current_tick);
+        state.set_tempo(tempo);
+        tempo
+    };
+
     TransportState {
-        playing: state.playing.load(Ordering::Relaxed),
-        current_tick: state.current_tick.load(Ordering::Relaxed),
-        tempo: state.get_tempo(),
+        playing,
+        current_tick,
+        tempo,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::score::components::duration::NoteDuration;
+    use crate::score::entries::{tempo::Tempo, Entry};
+    use crate::score::flows::Flow;
+    use crate::score::tracks::Track;
+
+    fn make_transport_shared() -> TransportShared {
+        TransportShared {
+            playing: AtomicBool::new(false),
+            current_tick: AtomicU64::new(0),
+            stop_signal: AtomicBool::new(false),
+            tempo_bits: AtomicU64::new(f64::from(DEFAULT_TEMPO_BPM).to_bits()),
+            mix_params: RwLock::new(FxHashMap::default()),
+        }
+    }
+
+    fn make_tempo(id: UniqueId, tick: Tick, bpm: u16) -> Tempo {
+        Tempo::new(
+            id,
+            tick,
+            None,
+            NoteDuration::Quarter,
+            0,
+            bpm,
+            false,
+            false,
+            true,
+            false,
+        )
+    }
+
+    fn make_score_with_tempos(tempos: &[(Tick, u16)]) -> (Score, UniqueId) {
+        let flow_id = 1;
+        let master_id = 2;
+        let mut score = Score::new();
+        let mut flow = Flow::new(flow_id, master_id);
+        let mut master_track = Track::new(master_id);
+        flow.length = 0;
+
+        for (index, (tick, bpm)) in tempos.iter().enumerate() {
+            master_track.insert_entry(Entry::Tempo(make_tempo(
+                100 + index as UniqueId,
+                *tick,
+                *bpm,
+            )));
+            flow.length = flow.length.max(*tick + 1);
+        }
+
+        score.flows.order.push(flow_id);
+        score.flows.by_id.insert(flow_id, flow);
+        score.tracks.by_id.insert(master_id, master_track);
+
+        (score, flow_id)
+    }
+
+    #[test]
+    fn resolve_score_tempo_bpm_uses_fallback_when_flow_has_no_tempos() {
+        let (score, flow_id) = make_score_with_tempos(&[]);
+
+        assert_eq!(resolve_score_tempo_bpm(&score, Some(flow_id), 0), 120.0);
+        assert_eq!(resolve_score_tempo_bpm(&score, Some(flow_id), 64), 120.0);
+    }
+
+    #[test]
+    fn resolve_score_tempo_bpm_uses_tick_zero_tempo_before_fallback() {
+        let (score, flow_id) = make_score_with_tempos(&[(0, 96)]);
+
+        assert_eq!(resolve_score_tempo_bpm(&score, Some(flow_id), 0), 96.0);
+    }
+
+    #[test]
+    fn resolve_score_tempo_bpm_inherits_latest_tempo_for_mid_flow_start() {
+        let (score, flow_id) = make_score_with_tempos(&[(0, 96), (64, 144)]);
+
+        assert_eq!(resolve_score_tempo_bpm(&score, Some(flow_id), 63), 96.0);
+        assert_eq!(resolve_score_tempo_bpm(&score, Some(flow_id), 64), 144.0);
+        assert_eq!(resolve_score_tempo_bpm(&score, Some(flow_id), 80), 144.0);
+    }
+
+    #[test]
+    fn publish_resolved_tempo_updates_shared_state_for_stopped_seek() {
+        let shared = make_transport_shared();
+        let (score, flow_id) = make_score_with_tempos(&[(0, 90), (96, 132)]);
+        let resolver = flow_tempo_resolver(&score, flow_id);
+
+        let bpm = publish_resolved_tempo(&shared, &resolver, 96);
+
+        assert_eq!(bpm, 132.0);
+        assert_eq!(shared.current_tick.load(Ordering::Relaxed), 96);
+        assert_eq!(shared.get_tempo(), 132.0);
+    }
+
+    #[test]
+    fn publish_resolved_tempo_resets_to_tick_zero_tempo() {
+        let shared = make_transport_shared();
+        let (score, flow_id) = make_score_with_tempos(&[(0, 72), (96, 132)]);
+        let resolver = flow_tempo_resolver(&score, flow_id);
+
+        publish_resolved_tempo(&shared, &resolver, 128);
+        let bpm = publish_resolved_tempo(&shared, &resolver, 0);
+
+        assert_eq!(bpm, 72.0);
+        assert_eq!(shared.current_tick.load(Ordering::Relaxed), 0);
+        assert_eq!(shared.get_tempo(), 72.0);
+    }
+
+    #[test]
+    fn publish_resolved_tempo_re_resolves_when_resume_uses_fresh_snapshot() {
+        let shared = make_transport_shared();
+        let (old_score, old_flow_id) = make_score_with_tempos(&[(0, 96)]);
+        let (new_score, new_flow_id) = make_score_with_tempos(&[(0, 96), (64, 144)]);
+        let old_resolver = flow_tempo_resolver(&old_score, old_flow_id);
+        let new_resolver = flow_tempo_resolver(&new_score, new_flow_id);
+
+        publish_resolved_tempo(&shared, &old_resolver, 80);
+        let resumed_bpm = publish_resolved_tempo(&shared, &new_resolver, 80);
+
+        assert_eq!(resumed_bpm, 144.0);
+        assert_eq!(shared.get_tempo(), 144.0);
+    }
+
+    #[test]
+    fn accumulate_tick_deadline_adds_variable_bpm_durations_without_rebasing() {
+        let mut deadline = std::time::Duration::ZERO;
+
+        deadline = accumulate_tick_deadline(deadline, 120.0);
+        deadline = accumulate_tick_deadline(deadline, 60.0);
+        deadline = accumulate_tick_deadline(deadline, 120.0);
+
+        let expected = std::time::Duration::from_secs_f64(
+            seconds_per_tick(120.0) + seconds_per_tick(60.0) + seconds_per_tick(120.0),
+        );
+
+        assert_eq!(deadline, expected);
+    }
+
+    #[test]
+    #[should_panic(expected = "Tempo BPM 12 out of range at tick 64")]
+    fn resolve_score_tempo_bpm_fails_hard_for_malformed_tempo_data() {
+        let (score, flow_id) = make_score_with_tempos(&[(64, 12)]);
+
+        let _ = resolve_score_tempo_bpm(&score, Some(flow_id), 64);
+    }
+
+    #[test]
+    fn playback_can_start_rejects_positions_at_or_past_flow_end() {
+        assert!(playback_can_start(31, 32));
+        assert!(!playback_can_start(32, 32));
+        assert!(!playback_can_start(64, 32));
+    }
+
+    #[test]
+    fn clamp_tick_to_score_flow_clamps_tick_to_last_playable_position() {
+        let (score, flow_id) = make_score_with_tempos(&[(0, 90), (96, 132)]);
+        assert_eq!(clamp_tick_to_score_flow(&score, Some(flow_id), 9_999), 96);
     }
 }

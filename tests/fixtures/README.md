@@ -201,7 +201,7 @@ Use these v1 fields:
 - `bpm`: integer in the inclusive `20..400` range
 - `hidden`, `show_text`, `show_metronome`, `parenthesized`: booleans controlling display
 
-Current notation fixtures should treat tempo markings as **visual only**. They do not change playback tempo yet.
+Tempo markings are still useful notation fixtures, but they are no longer playback-neutral: transport playback now follows immediate absolute score tempos from the flow master track.
 
 #### `Clef` `offset` values
 

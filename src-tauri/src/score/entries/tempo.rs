@@ -1,4 +1,5 @@
 use super::Entry;
+use crate::playback::transport::{sync_transport_to_app_state, TransportSharedState};
 use crate::renderer::converter::Space;
 use crate::renderer::text_measurer::TextMeasurer;
 use crate::score::components::duration::{NoteDuration, Tick};
@@ -36,6 +37,68 @@ use tauri::State;
 pub const TEMPO_TEXT_GAP: Space = 0.3;
 pub const TEMPO_METRONOME_EQUALS_GAP: Space = 0.1;
 pub const TEMPO_DOT_GAP: Space = 0.2;
+pub const DEFAULT_TEMPO_BPM: u16 = 120;
+
+#[derive(Clone)]
+pub struct EffectiveTempoResolver {
+    fallback: Tempo,
+    changes: Vec<Tempo>,
+}
+
+impl EffectiveTempoResolver {
+    pub fn from_track(track: &Track) -> Self {
+        let mut changes = track
+            .entries
+            .by_id
+            .values()
+            .filter_map(|entry| match entry {
+                Entry::Tempo(tempo) => Some(tempo.clone()),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+
+        changes.sort_unstable_by_key(|tempo| tempo.tick);
+        validate_tempo_entries(&changes);
+
+        Self {
+            fallback: Tempo::transport_fallback(),
+            changes,
+        }
+    }
+
+    pub fn resolve(&self, tick: Tick) -> &Tempo {
+        let index = self.changes.partition_point(|tempo| tempo.tick <= tick);
+
+        if index == 0 {
+            &self.fallback
+        } else {
+            &self.changes[index - 1]
+        }
+    }
+}
+
+fn validate_tempo_entries(changes: &[Tempo]) {
+    let mut previous_tick = None;
+
+    for tempo in changes {
+        assert!(
+            (20..=400).contains(&tempo.bpm),
+            "Tempo BPM {} out of range at tick {}",
+            tempo.bpm,
+            tempo.tick
+        );
+
+        if let Some(last_tick) = previous_tick {
+            assert_ne!(
+                last_tick, tempo.tick,
+                "Multiple tempo entries found at tick {}",
+                tempo.tick
+            );
+        }
+
+        previous_tick = Some(tempo.tick);
+    }
+}
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Tempo {
@@ -95,6 +158,25 @@ impl Tempo {
             justify: Justify::Start,
             align: Align::Bottom,
         }
+    }
+
+    pub fn transport_fallback() -> Self {
+        Self::new(
+            0,
+            0,
+            None,
+            NoteDuration::Quarter,
+            0,
+            DEFAULT_TEMPO_BPM,
+            true,
+            false,
+            false,
+            false,
+        )
+    }
+
+    pub fn bpm_f64(&self) -> f64 {
+        f64::from(self.bpm)
     }
 
     pub fn metronome_font() -> Font {
@@ -195,6 +277,10 @@ impl Tempo {
 }
 
 impl Track {
+    pub fn effective_tempo_resolver(&self) -> EffectiveTempoResolver {
+        EffectiveTempoResolver::from_track(self)
+    }
+
     pub fn get_tempo_at_tick(&self, at: &Tick) -> Option<&Tempo> {
         let entry_keys = self.entries.by_tick.get(at)?;
 
@@ -224,6 +310,7 @@ pub fn score_entries_tempo_create(
     app: tauri::AppHandle,
     state: State<'_, AppContextState>,
     renderer_state: State<'_, RendererContextState>,
+    transport_shared: State<'_, TransportSharedState>,
     flow_id: UniqueId,
     tick: Tick,
     text: Option<String>,
@@ -262,6 +349,11 @@ pub fn score_entries_tempo_create(
         parenthesized,
     )));
 
+    let current_tick = transport_shared
+        .current_tick
+        .load(std::sync::atomic::Ordering::Relaxed);
+    sync_transport_to_app_state(transport_shared.inner(), &state, current_tick);
+
     state.emit(&app, &mut renderer, true);
 
     tempo_id
@@ -272,6 +364,7 @@ pub fn score_entries_tempo_clear(
     app: tauri::AppHandle,
     state: State<'_, AppContextState>,
     renderer_state: State<'_, RendererContextState>,
+    transport_shared: State<'_, TransportSharedState>,
     flow_id: UniqueId,
     tick: Tick,
 ) {
@@ -285,6 +378,11 @@ pub fn score_entries_tempo_clear(
     if let Some(old) = master.get_tempo_at_tick(&tick) {
         master.remove_entry(old.id);
     }
+
+    let current_tick = transport_shared
+        .current_tick
+        .load(std::sync::atomic::Ordering::Relaxed);
+    sync_transport_to_app_state(transport_shared.inner(), &state, current_tick);
 
     state.emit(&app, &mut renderer, true);
 }
@@ -392,5 +490,64 @@ mod tests {
 
         tempo.beat_type = NoteDuration::Eighth;
         assert_eq!(tempo.note_glyph(), "\u{E1D7}");
+    }
+
+    #[test]
+    fn effective_tempo_resolver_uses_fallback_when_no_tempo_exists() {
+        let track = Track::new(1);
+
+        let resolver = track.effective_tempo_resolver();
+
+        assert_eq!(resolver.resolve(0).bpm, DEFAULT_TEMPO_BPM);
+        assert_eq!(resolver.resolve(64).tick, 0);
+    }
+
+    #[test]
+    fn effective_tempo_resolver_prefers_tick_zero_tempo() {
+        let mut track = Track::new(1);
+        track.insert_entry(Entry::Tempo(make_tempo(7, 0)));
+
+        let resolver = track.effective_tempo_resolver();
+
+        assert_eq!(resolver.resolve(0).id, 7);
+        assert_eq!(resolver.resolve(0).bpm, 120);
+    }
+
+    #[test]
+    fn effective_tempo_resolver_inherits_latest_tempo_at_or_before_tick() {
+        let mut track = Track::new(1);
+        track.insert_entry(Entry::Tempo(make_tempo(7, 32)));
+        track.insert_entry(Entry::Tempo(Tempo {
+            bpm: 84,
+            ..make_tempo(8, 96)
+        }));
+
+        let resolver = track.effective_tempo_resolver();
+
+        assert_eq!(resolver.resolve(95).id, 7);
+        assert_eq!(resolver.resolve(96).id, 8);
+        assert_eq!(resolver.resolve(128).bpm, 84);
+    }
+
+    #[test]
+    #[should_panic(expected = "Multiple tempo entries found at tick 32")]
+    fn effective_tempo_resolver_panics_on_duplicate_ticks() {
+        let mut track = Track::new(1);
+        track.insert_entry(Entry::Tempo(make_tempo(7, 32)));
+        track.insert_entry(Entry::Tempo(make_tempo(8, 32)));
+
+        let _ = track.effective_tempo_resolver();
+    }
+
+    #[test]
+    #[should_panic(expected = "Tempo BPM 12 out of range at tick 64")]
+    fn effective_tempo_resolver_panics_on_out_of_range_bpm() {
+        let mut track = Track::new(1);
+        track.insert_entry(Entry::Tempo(Tempo {
+            bpm: 12,
+            ..make_tempo(7, 64)
+        }));
+
+        let _ = track.effective_tempo_resolver();
     }
 }

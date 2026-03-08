@@ -5,7 +5,10 @@ pub mod sequencer;
 use crate::ui::screens::sequence::Sequence;
 use crate::ui::screens::setup::Setup;
 use crate::ui::screens::write::Write;
-use crate::RendererContextState;
+use crate::{
+    playback::transport::{sync_transport_to_app_state, TransportSharedState},
+    RendererContextState,
+};
 use crate::{utils::UniqueId, AppContextState};
 use renderer::Renderer;
 use sequencer::Sequencer;
@@ -62,10 +65,6 @@ impl Ui {
             screens: Screens::new(),
         }
     }
-
-    pub fn set_tab(&mut self, tab: Tab) {
-        self.tab = tab;
-    }
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -102,12 +101,14 @@ pub fn ui_flow_id_set(
     app: tauri::AppHandle,
     state: State<'_, AppContextState>,
     renderer_state: State<'_, RendererContextState>,
+    transport_shared: State<'_, TransportSharedState>,
     flow_id: UniqueId,
 ) {
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
 
     state.ui.flow_id = Some(flow_id);
+    sync_transport_to_app_state(transport_shared.inner(), &state, 0);
 
     state.emit(&app, &mut renderer, true);
 }

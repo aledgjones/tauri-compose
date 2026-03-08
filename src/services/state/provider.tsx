@@ -1,9 +1,16 @@
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
-import { AppState, AudioState, SamplerState, TransportState } from "../types";
+import {
+  AppState,
+  AudioState,
+  SamplerState,
+  Tempo,
+  TransportState,
+  UniqueId,
+} from "../types";
 import { actions } from "../actions";
-import { FC, PropsWithChildren, useEffect, useState } from "react";
+import { FC, PropsWithChildren, useEffect, useMemo, useState } from "react";
 import {
   AppContext,
   initialAppState,
@@ -28,6 +35,7 @@ export const AppStateProvider: FC<Props> = ({
   const [transportState, setTransportState] = useState<TransportState>(
     initialTransportState,
   );
+  const [isInitialized, setIsInitialized] = useState(false);
 
   // Transport polling: poll atomics via lightweight command instead of event listener.
   // This keeps the transport thread completely silent — no app.emit() during playback.
@@ -58,13 +66,46 @@ export const AppStateProvider: FC<Props> = ({
     };
   }, [isPolling]);
 
+  const activeFlowId = useMemo<UniqueId | null>(() => {
+    return appState.ui.flow_id ?? appState.score.flows.order[0] ?? null;
+  }, [appState.ui.flow_id, appState.score.flows.order]);
+
+  const transportTempoSyncKey = useMemo(() => {
+    if (activeFlowId === null) {
+      return "no-flow";
+    }
+
+    const flow = appState.score.flows.by_id[activeFlowId];
+    if (!flow) {
+      return `missing-flow:${activeFlowId}`;
+    }
+
+    const masterTrack = appState.score.tracks.by_id[flow.master_id];
+    if (!masterTrack) {
+      return `missing-master:${flow.master_id}`;
+    }
+
+    const tempos = Object.values(masterTrack.entries.by_id)
+      .filter((entry): entry is Tempo => entry.type === "Tempo")
+      .sort((left, right) => left.tick - right.tick)
+      .map((tempo) => `${tempo.tick}:${tempo.bpm}`)
+      .join("|");
+
+    return `${activeFlowId}:${tempos}`;
+  }, [activeFlowId, appState.score.flows.by_id, appState.score.tracks.by_id]);
+
+  useEffect(() => {
+    if (!isInitialized || isPolling) return;
+
+    actions.transport.getState().then(setTransportState);
+  }, [isInitialized, isPolling, transportTempoSyncKey]);
+
   // Wrap transport actions to start/stop polling
   useEffect(() => {
     const originalPlay = actions.transport.play;
     const originalPause = actions.transport.pause;
     const originalStop = actions.transport.stop;
     const originalSeek = actions.transport.seek;
-    const originalSetTempo = actions.transport.setTempo;
 
     actions.transport.play = () => {
       const result = originalPlay();
@@ -98,20 +139,11 @@ export const AppStateProvider: FC<Props> = ({
       return result;
     };
 
-    actions.transport.setTempo = (bpm: number) => {
-      const result = originalSetTempo(bpm);
-      result.then(() => {
-        actions.transport.getState().then(setTransportState);
-      });
-      return result;
-    };
-
     return () => {
       actions.transport.play = originalPlay;
       actions.transport.pause = originalPause;
       actions.transport.stop = originalStop;
       actions.transport.seek = originalSeek;
-      actions.transport.setTempo = originalSetTempo;
     };
   }, []);
 
@@ -192,6 +224,7 @@ export const AppStateProvider: FC<Props> = ({
       }
 
       await actions.initialize();
+      setIsInitialized(true);
 
       // Initial menu refresh after initialization - delay to ensure menu is ready
       if (isMainWindow) {

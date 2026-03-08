@@ -17,8 +17,8 @@ use crate::playback::sampler::{
     SamplerContext,
 };
 use crate::playback::transport::{
-    transport_get_state, transport_pause, transport_play, transport_seek, transport_set_tempo,
-    transport_stop, TransportContext,
+    stop_transport_playback, sync_transport_to_app_state, transport_get_state, transport_pause,
+    transport_play, transport_seek, transport_stop, TransportContext, TransportSharedState,
 };
 use crate::renderer::backends::metal::MetalRenderer;
 use files::{
@@ -217,12 +217,14 @@ fn initialize(
     renderer_state: State<'_, RendererContextState>,
     audio_state: State<'_, AudioContextState>,
     sampler_state: State<'_, SamplerContextState>,
+    transport_shared: State<'_, TransportSharedState>,
 ) {
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
     let audio = audio_state.lock().unwrap();
     let sampler = sampler_state.lock().unwrap();
 
+    sync_transport_to_app_state(transport_shared.inner(), &state, 0);
     state.emit(&app, &mut renderer, true);
     audio.emit(&app);
     sampler.emit(&app);
@@ -235,7 +237,10 @@ fn reset(
     renderer_state: State<'_, RendererContextState>,
     sampler_state: State<'_, SamplerContextState>,
     audio_state: State<'_, AudioContextState>,
-) {
+    transport_state: State<'_, Mutex<TransportContext>>,
+) -> Result<(), String> {
+    let transport_shared = stop_transport_playback(transport_state.inner())?;
+
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
 
@@ -243,6 +248,8 @@ fn reset(
     state.score = Score::new();
     state.next_id = 1;
     state.current_file_path = None;
+
+    sync_transport_to_app_state(&transport_shared, &state, 0);
 
     renderer.clear();
 
@@ -262,6 +269,8 @@ fn reset(
         eprintln!("Failed to sync sampler after reset: {}", e);
     }
     sampler.emit(&app);
+
+    Ok(())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -435,7 +444,6 @@ pub fn run() {
             transport_pause,
             transport_stop,
             transport_seek,
-            transport_set_tempo,
             transport_get_state,
             preferences_audition_set,
             score_config_auto_count_styles_solo_set,

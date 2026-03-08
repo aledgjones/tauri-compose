@@ -146,7 +146,7 @@ Score Data (Entry variants in FxHashMaps)
 - `TimeSignature`, `KeySignature`, and `Tempo` entries live on the flow master track.
 - `Clef` entries live on stave master tracks.
 - Tempo markings do not reserve horizontal spacing; they align to the existing time-signature slot when present, otherwise to the accidental slot, and render once above the top stave in the draw phase.
-- Score tempo markings do **not** change transport tempo yet; playback integration is intentionally deferred.
+- Immediate absolute score tempo markings now drive transport tempo during playback and while stopped-state transport position is queried.
 
 ### Horizontal spacing slots
 
@@ -190,9 +190,19 @@ Score Data (Entry variants in FxHashMaps)
 ### Key Components
 
 - **Transport** — Uses atomics (`AtomicBool`, `AtomicU64`) for lock-free state sharing; instrument mix params via `RwLock<FxHashMap>`
+- **Tempo resolution** — Playback snapshots the score's flow master-track tempo data at play/resume start, resolves the active BPM once per tick via a bounded resolver, and silently falls back to 120 BPM when no score tempo applies
 - **Streamer** — Per-packet disk streaming (FLAC decode → resample → push to `StreamBuffer`); pre-allocates ~0.5s stereo buffer
 - **Mixer** — Fixed 64-slot voice array, lock-free slot claiming via `AtomicBool`; runs in cpal audio callback
 - **SCVI Format** — Custom binary container: `MAGIC(4)` + `Header` + `META(MessagePack)` + `SIDX(sample index)` + `SDAT(FLAC data)`
+
+### Transport tempo semantics
+
+- Playback start resolves tempo from the latest immediate absolute tempo at-or-before the current tick before the transport thread starts, so mid-flow starts report the correct inherited BPM immediately.
+- The transport thread re-resolves tempo once per playback tick from its play-start score snapshot, applies tempo changes exactly on the matching tick boundary, and accumulates tick deadlines from prior timing state to reduce drift.
+- `transport_get_state()` reports truthful stopped-state tempo for the current tick as well, so stopped seek and stop-to-tick-0 transitions show the effective score tempo instead of stale playback tempo.
+- Pause/resume behaves like a fresh playback start from the current tick: pause retires the old thread, and resume re-snapshots score tempo data so edits made while paused are reflected.
+- Live edits during active playback still do not affect the in-flight run; a fresh play/resume cycle is required because transport playback uses a play-start score snapshot.
+- This slice changes playback behavior only. It does not change persisted score schema, `.soloc` format behavior, or migration requirements.
 
 ---
 

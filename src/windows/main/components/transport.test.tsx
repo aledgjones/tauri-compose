@@ -27,7 +27,7 @@ describe("Transport", () => {
     });
     // The play button renders an SVG icon — we check buttons are rendered
     const buttons = screen.getAllByRole("button");
-    expect(buttons.length).toBeGreaterThanOrEqual(3); // skip-previous, play/pause, stop
+    expect(buttons.length).toBe(3);
   });
 
   it("renders current position display", () => {
@@ -84,12 +84,10 @@ describe("Transport", () => {
     expect(screen.getByText("2.2.000")).toBeInTheDocument();
   });
 
-  it("shows metronome toggle button", () => {
+  it("shows the current transport tempo", () => {
     renderWithProviders(<Transport />, {
-      transportState: { playing: false, current_tick: 0, tempo: 120 },
+      transportState: { playing: false, current_tick: 0, tempo: 132 },
     });
-    const buttons = screen.getAllByRole("button");
-    // Should have at least 4 buttons: skip-prev, play/pause, stop, metronome
-    expect(buttons.length).toBeGreaterThanOrEqual(4);
+    expect(screen.getByText("132 BPM")).toBeInTheDocument();
   });
 });

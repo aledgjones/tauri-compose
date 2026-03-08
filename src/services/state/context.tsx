@@ -17,6 +17,8 @@ import {
 } from "../types";
 import { createContext, useContext } from "react";
 
+export const DEFAULT_TRANSPORT_TEMPO = 120;
+
 export const initialAppState: AppState = {
   current_file_path: null,
   ui: {
@@ -172,7 +174,7 @@ export const SamplerContext = createContext<SamplerState | null>(null);
 export const initialTransportState: TransportState = {
   playing: false,
   current_tick: 0,
-  tempo: 120,
+  tempo: DEFAULT_TRANSPORT_TEMPO,
 };
 
 export const TransportContext = createContext<TransportState | null>(null);

@@ -1,4 +1,5 @@
 use crate::migrations::MIGRATIONS;
+use crate::playback::transport::{stop_transport_playback, sync_transport_to_app_state, TransportContext};
 use crate::playback::sampler::sync_sampler_with_score;
 use crate::score::Score;
 use crate::soloc::*;
@@ -14,6 +15,7 @@ use std::fs::{self, File, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process;
+use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::menu::{MenuItem, PredefinedMenuItem};
 use tauri::{AppHandle, Emitter, Manager, State};
@@ -495,14 +497,18 @@ pub fn save_project_to_file(
 }
 
 #[tauri::command(rename_all = "snake_case")]
+#[allow(clippy::too_many_arguments)] // Tauri command wiring requires separate managed state parameters here.
 pub fn load_project_from_file(
     app: AppHandle,
     state: State<'_, AppContextState>,
     renderer_state: State<'_, RendererContextState>,
     sampler_state: State<'_, SamplerContextState>,
     audio_state: State<'_, AudioContextState>,
+    transport_state: State<'_, Mutex<TransportContext>>,
     file_path: String,
 ) -> Result<(), String> {
+    let transport_shared = stop_transport_playback(transport_state.inner())?;
+
     let file_data = fs::read(&file_path).map_err(|e| format!("Failed to read file: {}", e))?;
     let parsed_container = parse_soloc_container(&file_data)?;
     let json_data = decompress_project_payload(
@@ -534,6 +540,7 @@ pub fn load_project_from_file(
 
     // Update the current file path
     state.current_file_path = Some(file_path);
+    sync_transport_to_app_state(&transport_shared, &state, 0);
 
     let score = state.score.clone();
 

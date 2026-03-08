@@ -1086,13 +1086,6 @@ describe("actions.transport", () => {
     expect(mockInvoke).toHaveBeenCalledWith("transport_seek", { tick: 128 });
   });
 
-  it("setTempo calls invoke with bpm", async () => {
-    await actions.transport.setTempo(120);
-    expect(mockInvoke).toHaveBeenCalledWith("transport_set_tempo", {
-      bpm: 120,
-    });
-  });
-
   it("getState calls invoke and returns the state", async () => {
     const mockState = { playing: true, current_tick: 64, tempo: 120 };
     mockInvoke.mockResolvedValueOnce(mockState);

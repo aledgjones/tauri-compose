@@ -914,7 +914,6 @@ export const actions = {
     pause: () => invoke("transport_pause"),
     stop: () => invoke("transport_stop"),
     seek: (tick: number) => invoke("transport_seek", { tick }),
-    setTempo: (bpm: number) => invoke("transport_set_tempo", { bpm }),
     getState: () => invoke<TransportState>("transport_get_state"),
   },
 };

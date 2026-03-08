@@ -1,10 +1,4 @@
-import {
-  mdiMetronome,
-  mdiPause,
-  mdiPlay,
-  mdiSkipPrevious,
-  mdiStop,
-} from "@mdi/js";
+import { mdiPause, mdiPlay, mdiSkipPrevious, mdiStop } from "@mdi/js";
 import { IconButton } from "../../../ui/buttons/icon-button";
 import classNames from "classnames";
 import { FC, useMemo } from "react";
@@ -84,12 +78,9 @@ export const Transport: FC<Props> = ({ className }) => {
       <p className="text-white font-mono text-sm bg-neutral-900 px-3 py-2">
         {position}
       </p>
-      <IconButton
-        className="text-white"
-        variant="interactive"
-        onClick={() => { }}
-        path={mdiMetronome}
-      />
+      <p className="text-white font-mono text-sm bg-neutral-900 px-3 py-2 min-w-20 text-center">
+        {`${Math.round(transport.tempo)} BPM`}
+      </p>
     </div>
   );
 };
