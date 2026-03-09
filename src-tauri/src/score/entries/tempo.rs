@@ -37,6 +37,7 @@ use tauri::State;
 pub const TEMPO_TEXT_GAP: Space = 0.3;
 pub const TEMPO_METRONOME_EQUALS_GAP: Space = 0.1;
 pub const TEMPO_DOT_GAP: Space = 0.2;
+pub const TEMPO_STAVE_OFFSET: Space = 5.0;
 pub const DEFAULT_TEMPO_BPM: u16 = 120;
 
 #[derive(Clone)]
@@ -151,15 +152,6 @@ impl Tempo {
         }
     }
 
-    pub fn bpm_font() -> Font {
-        Font {
-            size: 1.55,
-            family: FontFamily::LibreBaskerville,
-            justify: Justify::Start,
-            align: Align::Bottom,
-        }
-    }
-
     pub fn transport_fallback() -> Self {
         Self::new(
             0,
@@ -247,10 +239,10 @@ impl Tempo {
             .measure(self.note_glyph(), &Self::metronome_font())
             .width;
         let prefix_width = text_measurer
-            .measure(self.metronome_prefix_text(), &Self::bpm_font())
+            .measure(self.metronome_prefix_text(), &Self::text_font())
             .width;
         let suffix_width = text_measurer
-            .measure(&self.metronome_suffix_text(), &Self::bpm_font())
+            .measure(&self.metronome_suffix_text(), &Self::text_font())
             .width;
         let dot_width = if self.dots == 0 {
             0.0
@@ -268,13 +260,13 @@ impl Tempo {
 
         let prefix_height = if self.parenthesized {
             text_measurer
-                .measure(self.metronome_prefix_text(), &Self::bpm_font())
+                .measure(self.metronome_prefix_text(), &Self::text_font())
                 .height
         } else {
             0.0
         };
         let suffix_height = text_measurer
-            .measure(&self.metronome_suffix_text(), &Self::bpm_font())
+            .measure(&self.metronome_suffix_text(), &Self::text_font())
             .height;
 
         prefix_height.max(suffix_height)
@@ -572,7 +564,7 @@ mod tests {
         let expected_height = text_measurer
             .measure("Allegro", &Tempo::text_font())
             .height
-            .max(text_measurer.measure("= 120", &Tempo::bpm_font()).height);
+            .max(text_measurer.measure("= 120", &Tempo::text_font()).height);
 
         assert!((metrics.height - expected_height).abs() < f32::EPSILON);
     }

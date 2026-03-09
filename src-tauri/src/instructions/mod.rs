@@ -9,6 +9,7 @@ use crate::score::components::duration::{Direction, Ticks};
 use crate::score::components::measurements::Point;
 use crate::score::entries::barline::BarlineDrawType;
 use crate::score::entries::clef::Clef;
+use crate::score::entries::tempo::TEMPO_STAVE_OFFSET;
 use crate::utils::UniqueId;
 use crate::AppContext;
 use draw::draw_accidentals::draw_accidental;
@@ -296,7 +297,6 @@ pub fn generate_render_instructions(
             for tick in 0..flow.length {
                 if let Some(tempo) = flow_master.get_tempo_at_tick(&tick) {
                     let _previous_tempo = flow_master.get_tempo_before_tick(tick);
-                    let tempo_metrics = tempo.metrics(&text_measurer);
                     let span = if flow_master.get_time_signature_at_tick(&tick).is_some() {
                         horizontal_spacing.get(tick, Slot::TimeSignature)
                     } else {
@@ -305,7 +305,7 @@ pub fn generate_render_instructions(
                     draw_tempo(
                         &Point {
                             x: stave_left + span.x,
-                            y: page_padding.top + top_stave.y - tempo_metrics.height - 3.0,
+                            y: page_padding.top + top_stave.y - TEMPO_STAVE_OFFSET,
                         },
                         tempo,
                         &text_measurer,

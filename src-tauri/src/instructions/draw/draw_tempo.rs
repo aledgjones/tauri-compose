@@ -2,7 +2,7 @@ use crate::renderer::text_measurer::TextMeasurer;
 use crate::renderer::{HitTarget, RendererContext};
 use crate::score::components::measurements::Point;
 use crate::score::entries::tempo::{
-    Tempo, TEMPO_DOT_GAP, TEMPO_METRONOME_EQUALS_GAP, TEMPO_TEXT_GAP,
+    Tempo, TEMPO_DOT_GAP, TEMPO_METRONOME_EQUALS_GAP, TEMPO_STAVE_OFFSET, TEMPO_TEXT_GAP,
 };
 use crate::ui::sequencer::Selection;
 use crate::utils::UniqueId;
@@ -44,11 +44,13 @@ pub fn draw_tempo(
         if !prefix_text.is_empty() {
             renderer.text(
                 prefix_text,
-                &Tempo::bpm_font(),
+                &Tempo::text_font(),
                 &Point { x, y: origin.y },
                 color,
             );
-            x += text_measurer.measure(prefix_text, &Tempo::bpm_font()).width;
+            x += text_measurer
+                .measure(prefix_text, &Tempo::text_font())
+                .width;
         }
 
         let note_glyph = tempo.note_glyph();
@@ -82,7 +84,7 @@ pub fn draw_tempo(
         let bpm_text = tempo.metronome_suffix_text();
         renderer.text(
             &bpm_text,
-            &Tempo::bpm_font(),
+            &Tempo::text_font(),
             &Point {
                 x: metronome_tail,
                 y: origin.y,
@@ -103,7 +105,7 @@ pub fn draw_tempo(
             width: metrics.width.max(1.2),
             height: metrics.height.max(1.0),
             popover_x: origin.x,
-            popover_y: stave_top - 3.0,
+            popover_y: stave_top - TEMPO_STAVE_OFFSET,
         });
     }
 }
