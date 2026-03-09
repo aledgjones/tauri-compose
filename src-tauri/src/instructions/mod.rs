@@ -305,7 +305,7 @@ pub fn generate_render_instructions(
                     draw_tempo(
                         &Point {
                             x: stave_left + span.x,
-                            y: page_padding.top + top_stave.y - tempo_metrics.height - 2.0,
+                            y: page_padding.top + top_stave.y - tempo_metrics.height - 3.0,
                         },
                         tempo,
                         &text_measurer,
