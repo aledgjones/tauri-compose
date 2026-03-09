@@ -93,6 +93,8 @@ pub fn draw_rest(
             Some(NoteDuration::Eighth) => 2.0,
             Some(NoteDuration::Sixteenth) => 3.0,
             Some(NoteDuration::ThirtySecond) => 4.0,
+            Some(NoteDuration::SixtyFourth) => 5.0,
+            Some(NoteDuration::HudredTwentyEighth) => 6.0,
             _ => 1.0,
         };
 
@@ -103,6 +105,8 @@ pub fn draw_rest(
             Some(NoteDuration::Eighth) => 1.0,
             Some(NoteDuration::Sixteenth) => 1.2,
             Some(NoteDuration::ThirtySecond) => 1.5,
+            Some(NoteDuration::SixtyFourth) => 1.7,
+            Some(NoteDuration::HudredTwentyEighth) => 1.9,
             _ => 1.0,
         };
 
@@ -113,6 +117,8 @@ pub fn draw_rest(
             Some(NoteDuration::Eighth) => 1.0,
             Some(NoteDuration::Sixteenth) => 1.0,
             Some(NoteDuration::ThirtySecond) => 2.0,
+            Some(NoteDuration::SixtyFourth) => 2.5,
+            Some(NoteDuration::HudredTwentyEighth) => 3.0,
             _ => 1.0,
         };
 
@@ -281,5 +287,59 @@ mod tests {
         } else {
             panic!("expected Text");
         }
+    }
+
+    #[test]
+    fn sixty_fourth_rest_produces_expanded_hit_target() {
+        let mut renderer = make_test_renderer();
+        let entry = make_notation(NoteDuration::SixtyFourth.to_ticks());
+        let spacing = make_spacing(NoteDuration::SixtyFourth.to_ticks());
+
+        draw_rest(
+            &Point { x: 0.0, y: 0.0 },
+            0,
+            "\u{E4E9}",
+            &entry,
+            false,
+            &spacing,
+            None,
+            1,
+            1,
+            1,
+            1,
+            0.0,
+            &mut renderer,
+        );
+
+        assert_eq!(renderer.hit_targets.len(), 1);
+        assert!(renderer.hit_targets[0].height >= 5.0);
+        assert!(renderer.hit_targets[0].width >= 1.7);
+    }
+
+    #[test]
+    fn hundred_twenty_eighth_rest_produces_expanded_hit_target() {
+        let mut renderer = make_test_renderer();
+        let entry = make_notation(NoteDuration::HudredTwentyEighth.to_ticks());
+        let spacing = make_spacing(NoteDuration::HudredTwentyEighth.to_ticks());
+
+        draw_rest(
+            &Point { x: 0.0, y: 0.0 },
+            0,
+            "\u{E4EA}",
+            &entry,
+            false,
+            &spacing,
+            None,
+            1,
+            1,
+            1,
+            1,
+            0.0,
+            &mut renderer,
+        );
+
+        assert_eq!(renderer.hit_targets.len(), 1);
+        assert!(renderer.hit_targets[0].height >= 6.0);
+        assert!(renderer.hit_targets[0].width >= 1.9);
     }
 }

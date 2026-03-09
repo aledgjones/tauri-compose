@@ -82,8 +82,8 @@ impl Notation {
                 NoteDuration::Eighth => "\u{E4E6}",
                 NoteDuration::Sixteenth => "\u{E4E7}",
                 NoteDuration::ThirtySecond => "\u{E4E8}",
-                NoteDuration::SixtyFourth => todo!(),
-                NoteDuration::HudredTwentyEighth => todo!(),
+                NoteDuration::SixtyFourth => "\u{E4E9}",
+                NoteDuration::HudredTwentyEighth => "\u{E4EA}",
             },
             None => "\u{E4E5}", // Default quarter rest
         }
@@ -701,6 +701,11 @@ impl NotationTrack {
         }
     }
 
+    fn is_single_span(&self, start: Tick, stop: Tick) -> bool {
+        matches!(self.track.get(&start), Some(entry) if entry.duration == stop - start)
+            && (start + 1..stop).all(|tick| self.is_tick_empty(tick))
+    }
+
     fn split_three_beat_simple_unit(
         &mut self,
         start: Tick,
@@ -712,19 +717,19 @@ impl NotationTrack {
         let beat_two = time_signature.get_tick_at_beat(start, 2);
         let beat_three = time_signature.get_tick_at_beat(start, 3);
 
-        let eigth = NoteDuration::Eighth.to_ticks();
-        let dotted_quarter = NoteDuration::Quarter.to_ticks() + eigth;
+        let subdivision = time_signature.beat_type.half().to_ticks();
+        let dotted_beat = time_signature.beat_type.to_ticks() + subdivision;
 
         if self.is_offbeat_pattern(start, stop, time_signature.beat_type.to_ticks()) {
             return;
         }
 
         if let Some(entry) = self.track.get(&beat_one) {
-            if !entry.is_rest() && entry.duration == dotted_quarter {
-                if let Some(next_entry) = self.track.get(&(beat_one + dotted_quarter)) {
+            if !entry.is_rest() && entry.duration == dotted_beat {
+                if let Some(next_entry) = self.track.get(&(beat_one + dotted_beat)) {
                     if next_entry.is_rest() {
                         self.split(beat_two);
-                    } else if next_entry.duration == dotted_quarter {
+                    } else if next_entry.duration == dotted_beat {
                         self.split(beat_three);
                     }
                 }
@@ -732,8 +737,8 @@ impl NotationTrack {
         }
 
         if let Some(entry) = self.track.get(&beat_two) {
-            if !entry.is_rest() && entry.duration == dotted_quarter {
-                if let Some(next_entry) = self.track.get(&(beat_two + dotted_quarter)) {
+            if !entry.is_rest() && entry.duration == dotted_beat {
+                if let Some(next_entry) = self.track.get(&(beat_two + dotted_beat)) {
                     if next_entry.is_rest() {
                         self.split(beat_three);
                     }
@@ -746,14 +751,14 @@ impl NotationTrack {
                 (beat_one, beat_two, beat_two),
                 (beat_two, beat_three, beat_three),
             ],
-            eigth,
+            subdivision,
         );
 
         self.split_non_writable_three_beat_durations(start, stop, beat_two, beat_three);
 
         if self.is_tick_empty(beat_two) && self.is_tick_empty(beat_three) {
-            if let Some(entry) = self.track.get(&(beat_one + dotted_quarter)) {
-                if entry.is_rest() || entry.duration != dotted_quarter {
+            if let Some(entry) = self.track.get(&(beat_one + dotted_beat)) {
+                if entry.is_rest() || entry.duration != dotted_beat {
                     self.split(beat_three);
                 }
             }
@@ -984,6 +989,42 @@ impl NotationTrack {
             _ => (),
         }
     }
+
+    pub fn split_compound_unit(&mut self, start: Tick, stop: Tick, time_signature: &TimeSignature) {
+        if !matches!(time_signature.beat_type, NoteDuration::Eighth) {
+            panic!("Unsupported non-eighth compound meter")
+        }
+
+        if self.is_single_span(start, stop) {
+            return;
+        }
+
+        let boundaries = time_signature.groupings_to_ticks(start);
+
+        for boundary in &boundaries {
+            if *boundary > start && *boundary < stop {
+                self.split(*boundary);
+            }
+        }
+
+        let inner_signature = TimeSignature::new(
+            0,
+            start,
+            3,
+            NoteDuration::Eighth,
+            TimeSignatureDrawType::Regular,
+            None,
+        );
+
+        for window in boundaries.windows(2) {
+            let unit_start = window[0];
+            let unit_stop = window[1].min(stop);
+
+            if unit_start < unit_stop {
+                self.split_simple_unit(unit_start, unit_stop, &inner_signature, &inner_signature);
+            }
+        }
+    }
 }
 
 pub fn get_written_durations(
@@ -1013,14 +1054,21 @@ pub fn get_written_durations(
 
                             // split as measures
                             for (tick, time_signature) in measures {
+                                let measure_stop =
+                                    (*tick + time_signature.ticks_per_bar()).min(notation.length);
+
                                 match time_signature.kind() {
                                     TimeSignatureType::Simple => notation.split_simple_unit(
                                         *tick,
-                                        tick + time_signature.ticks_per_bar(),
+                                        measure_stop,
                                         time_signature,
                                         time_signature,
                                     ),
-                                    TimeSignatureType::Compound => todo!(),
+                                    TimeSignatureType::Compound => notation.split_compound_unit(
+                                        *tick,
+                                        measure_stop,
+                                        time_signature,
+                                    ),
                                     TimeSignatureType::Complex => todo!(),
                                     TimeSignatureType::Open => todo!(),
                                 }
@@ -1801,6 +1849,18 @@ mod tests {
     fn rest_glyph_thirty_second_returns_unicode() {
         let n = Notation::new(0, NoteDuration::ThirtySecond.to_ticks());
         assert_eq!(n.rest_glyph(), "\u{E4E8}");
+    }
+
+    #[test]
+    fn rest_glyph_sixty_fourth_returns_unicode() {
+        let n = Notation::new(0, NoteDuration::SixtyFourth.to_ticks());
+        assert_eq!(n.rest_glyph(), "\u{E4E9}");
+    }
+
+    #[test]
+    fn rest_glyph_hundred_twenty_eighth_returns_unicode() {
+        let n = Notation::new(0, NoteDuration::HudredTwentyEighth.to_ticks());
+        assert_eq!(n.rest_glyph(), "\u{E4EA}");
     }
 
     // --- Notation::glyph (dispatcher) ---
@@ -3853,32 +3913,282 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    fn get_written_durations_panics_for_six_eight_dotted_quarter_pair() {
+    fn get_written_durations_supports_compound_meter_regression_corpus() {
         let e = NoteDuration::Eighth.to_ticks();
-        let dotted_quarter = NoteDuration::Quarter.to_ticks() + e;
-        let time_signature = make_time_signature_for_test(0, 6, NoteDuration::Eighth);
-        let (flow, instrument, tracks, _track_id) = make_parser_fixture(
-            time_signature,
-            &[
-                (1, 0, dotted_quarter, 60),
-                (2, dotted_quarter, dotted_quarter, 62),
-            ],
-        );
-        let instruments = vec![&instrument];
-        let measures = crate::instructions::parse::get_measures::get_measures(&flow, &tracks);
-        let tone_offsets = crate::instructions::parse::get_tone_offsets::get_tone_offsets(
-            &flow,
-            &instruments,
-            &tracks,
-        );
+        let q = NoteDuration::Quarter.to_ticks();
+        let dotted_quarter = q + e;
 
-        let _ = get_written_durations(&flow, &instruments, &tracks, &measures, &tone_offsets);
+        struct Scenario {
+            name: &'static str,
+            time_signature: TimeSignature,
+            flow_length: Ticks,
+            tone_specs: Vec<(u64, Tick, Ticks, u8)>,
+            expectations: Vec<NotationExpectation>,
+        }
+
+        let scenarios = vec![
+            Scenario {
+                name: "6/8 six straight eighths stay grouped as 3 plus 3",
+                time_signature: make_time_signature_for_test(0, 6, NoteDuration::Eighth),
+                flow_length: e * 6,
+                tone_specs: vec![
+                    (1, 0, e, 60),
+                    (2, e, e, 62),
+                    (3, e * 2, e, 64),
+                    (4, e * 3, e, 65),
+                    (5, e * 4, e, 67),
+                    (6, e * 5, e, 69),
+                ],
+                expectations: vec![
+                    notation_expectation(0, e, false, vec![1], vec![]),
+                    notation_expectation(e, e, false, vec![2], vec![]),
+                    notation_expectation(e * 2, e, false, vec![3], vec![]),
+                    notation_expectation(e * 3, e, false, vec![4], vec![]),
+                    notation_expectation(e * 4, e, false, vec![5], vec![]),
+                    notation_expectation(e * 5, e, false, vec![6], vec![]),
+                ],
+            },
+            Scenario {
+                name: "6/8 dotted quarter big beats remain unsplit",
+                time_signature: make_time_signature_for_test(0, 6, NoteDuration::Eighth),
+                flow_length: e * 6,
+                tone_specs: vec![
+                    (1, 0, dotted_quarter, 60),
+                    (2, dotted_quarter, dotted_quarter, 62),
+                ],
+                expectations: vec![
+                    notation_expectation(0, dotted_quarter, false, vec![1], vec![]),
+                    notation_expectation(dotted_quarter, dotted_quarter, false, vec![2], vec![]),
+                ],
+            },
+            Scenario {
+                name: "6/8 full-bar note remains unsplit",
+                time_signature: make_time_signature_for_test(0, 6, NoteDuration::Eighth),
+                flow_length: e * 6,
+                tone_specs: vec![(1, 0, e * 6, 60)],
+                expectations: vec![notation_expectation(0, e * 6, false, vec![1], vec![])],
+            },
+            Scenario {
+                name: "6/8 full-bar rest remains unsplit",
+                time_signature: make_time_signature_for_test(0, 6, NoteDuration::Eighth),
+                flow_length: e * 6,
+                tone_specs: vec![],
+                expectations: vec![notation_expectation(0, e * 6, true, vec![], vec![])],
+            },
+            Scenario {
+                name:
+                    "6/8 inner three-beat splitting rewrites a second dotted eighth inside the beat",
+                time_signature: make_time_signature_for_test(0, 6, NoteDuration::Eighth),
+                flow_length: e * 6,
+                tone_specs: vec![
+                    (1, 0, e + e / 2, 60),
+                    (2, e + e / 2, e + e / 2, 62),
+                    (3, dotted_quarter, dotted_quarter, 64),
+                ],
+                expectations: vec![
+                    notation_expectation(0, e + e / 2, false, vec![1], vec![]),
+                    notation_expectation(e + e / 2, e / 2, false, vec![2], vec![2]),
+                    notation_expectation(e * 2, e, false, vec![2], vec![]),
+                    notation_expectation(dotted_quarter, dotted_quarter, false, vec![3], vec![]),
+                ],
+            },
+            Scenario {
+                name: "6/8 note crossing the compound beat boundary is tied",
+                time_signature: make_time_signature_for_test(0, 6, NoteDuration::Eighth),
+                flow_length: e * 6,
+                tone_specs: vec![(1, e * 2, q, 60)],
+                expectations: vec![
+                    notation_expectation(0, e, true, vec![], vec![]),
+                    notation_expectation(e, e, true, vec![], vec![]),
+                    notation_expectation(e * 2, e, false, vec![1], vec![1]),
+                    notation_expectation(e * 3, e, false, vec![1], vec![]),
+                    notation_expectation(e * 4, e, true, vec![], vec![]),
+                    notation_expectation(e * 5, e, true, vec![], vec![]),
+                ],
+            },
+            Scenario {
+                name: "6/8 rest crossing the compound beat boundary is split",
+                time_signature: make_time_signature_for_test(0, 6, NoteDuration::Eighth),
+                flow_length: e * 6,
+                tone_specs: vec![(1, 0, e, 60), (2, e * 5, e, 62)],
+                expectations: vec![
+                    notation_expectation(0, e, false, vec![1], vec![]),
+                    notation_expectation(e, e, true, vec![], vec![]),
+                    notation_expectation(e * 2, e, true, vec![], vec![]),
+                    notation_expectation(e * 3, e, true, vec![], vec![]),
+                    notation_expectation(e * 4, e, true, vec![], vec![]),
+                    notation_expectation(e * 5, e, false, vec![2], vec![]),
+                ],
+            },
+            Scenario {
+                name:
+                    "6/8 chord crossing the compound beat boundary preserves chord tones and ties",
+                time_signature: make_time_signature_for_test(0, 6, NoteDuration::Eighth),
+                flow_length: e * 6,
+                tone_specs: vec![(1, e * 2, q, 60), (2, e * 2, q, 64)],
+                expectations: vec![
+                    notation_expectation(0, e, true, vec![], vec![]),
+                    notation_expectation(e, e, true, vec![], vec![]),
+                    notation_expectation(e * 2, e, false, vec![1, 2], vec![1, 2]),
+                    notation_expectation(e * 3, e, false, vec![1, 2], vec![]),
+                    notation_expectation(e * 4, e, true, vec![], vec![]),
+                    notation_expectation(e * 5, e, true, vec![], vec![]),
+                ],
+            },
+            Scenario {
+                name: "9/8 straight eighths stay in three compound groups",
+                time_signature: make_time_signature_for_test(0, 9, NoteDuration::Eighth),
+                flow_length: e * 9,
+                tone_specs: vec![
+                    (1, 0, e, 60),
+                    (2, e, e, 61),
+                    (3, e * 2, e, 62),
+                    (4, e * 3, e, 63),
+                    (5, e * 4, e, 64),
+                    (6, e * 5, e, 65),
+                    (7, e * 6, e, 66),
+                    (8, e * 7, e, 67),
+                    (9, e * 8, e, 68),
+                ],
+                expectations: vec![
+                    notation_expectation(0, e, false, vec![1], vec![]),
+                    notation_expectation(e, e, false, vec![2], vec![]),
+                    notation_expectation(e * 2, e, false, vec![3], vec![]),
+                    notation_expectation(e * 3, e, false, vec![4], vec![]),
+                    notation_expectation(e * 4, e, false, vec![5], vec![]),
+                    notation_expectation(e * 5, e, false, vec![6], vec![]),
+                    notation_expectation(e * 6, e, false, vec![7], vec![]),
+                    notation_expectation(e * 7, e, false, vec![8], vec![]),
+                    notation_expectation(e * 8, e, false, vec![9], vec![]),
+                ],
+            },
+            Scenario {
+                name: "9/8 syncopation crossing one internal big beat boundary is split",
+                time_signature: make_time_signature_for_test(0, 9, NoteDuration::Eighth),
+                flow_length: e * 9,
+                tone_specs: vec![(1, e * 2, q, 60), (2, e * 6, dotted_quarter, 64)],
+                expectations: vec![
+                    notation_expectation(0, e, true, vec![], vec![]),
+                    notation_expectation(e, e, true, vec![], vec![]),
+                    notation_expectation(e * 2, e, false, vec![1], vec![1]),
+                    notation_expectation(e * 3, e, false, vec![1], vec![]),
+                    notation_expectation(e * 4, e, true, vec![], vec![]),
+                    notation_expectation(e * 5, e, true, vec![], vec![]),
+                    notation_expectation(e * 6, dotted_quarter, false, vec![2], vec![]),
+                ],
+            },
+            Scenario {
+                name: "9/8 rest-led syncopation keeps the compound beat grouping visible",
+                time_signature: make_time_signature_for_test(0, 9, NoteDuration::Eighth),
+                flow_length: e * 9,
+                tone_specs: vec![(1, e, q, 60), (2, e * 4, q, 64), (3, e * 7, q, 67)],
+                expectations: vec![
+                    notation_expectation(0, e, true, vec![], vec![]),
+                    notation_expectation(e, q, false, vec![1], vec![]),
+                    notation_expectation(e * 3, e, true, vec![], vec![]),
+                    notation_expectation(e * 4, q, false, vec![2], vec![]),
+                    notation_expectation(e * 6, e, true, vec![], vec![]),
+                    notation_expectation(e * 7, q, false, vec![3], vec![]),
+                ],
+            },
+            Scenario {
+                name: "12/8 straight eighths stay in four compound groups",
+                time_signature: make_time_signature_for_test(0, 12, NoteDuration::Eighth),
+                flow_length: e * 12,
+                tone_specs: (0..12)
+                    .map(|index| ((index + 1) as u64, index as u64 * e, e, 60 + index as u8))
+                    .collect::<Vec<_>>(),
+                expectations: (0..12)
+                    .map(|index| {
+                        notation_expectation(
+                            index as u64 * e,
+                            e,
+                            false,
+                            vec![(index + 1) as u64],
+                            vec![],
+                        )
+                    })
+                    .collect::<Vec<_>>(),
+            },
+            Scenario {
+                name: "12/8 barline-crossing note splits at the crossed big beat and barline",
+                time_signature: make_time_signature_for_test(0, 12, NoteDuration::Eighth),
+                flow_length: (e * 12) + (e * 2),
+                tone_specs: vec![
+                    (1, 0, dotted_quarter, 60),
+                    (2, dotted_quarter, dotted_quarter, 62),
+                    (3, dotted_quarter * 2, q, 64),
+                    (4, e * 8, e * 6, 67),
+                ],
+                expectations: vec![
+                    notation_expectation(0, dotted_quarter, false, vec![1], vec![]),
+                    notation_expectation(dotted_quarter, dotted_quarter, false, vec![2], vec![]),
+                    notation_expectation(dotted_quarter * 2, q, false, vec![3], vec![]),
+                    notation_expectation(e * 8, e, false, vec![4], vec![4]),
+                    notation_expectation(e * 9, dotted_quarter, false, vec![4], vec![4]),
+                    notation_expectation(e * 12, q, false, vec![4], vec![]),
+                ],
+            },
+            Scenario {
+                name: "12/8 barline-crossing rest splits at the crossed big beat and barline",
+                time_signature: make_time_signature_for_test(0, 12, NoteDuration::Eighth),
+                flow_length: (e * 12) + (e * 2),
+                tone_specs: vec![
+                    (1, 0, dotted_quarter, 60),
+                    (2, dotted_quarter, dotted_quarter, 62),
+                    (3, dotted_quarter * 2, q, 64),
+                ],
+                expectations: vec![
+                    notation_expectation(0, dotted_quarter, false, vec![1], vec![]),
+                    notation_expectation(dotted_quarter, dotted_quarter, false, vec![2], vec![]),
+                    notation_expectation(dotted_quarter * 2, q, false, vec![3], vec![]),
+                    notation_expectation(e * 8, e, true, vec![], vec![]),
+                    notation_expectation(e * 9, dotted_quarter, true, vec![], vec![]),
+                    notation_expectation(e * 12, q, true, vec![], vec![]),
+                ],
+            },
+            Scenario {
+                name: "15/8 proof case scales the same compound grouping rule",
+                time_signature: make_time_signature_for_test(0, 15, NoteDuration::Eighth),
+                flow_length: e * 15,
+                tone_specs: (0..15)
+                    .map(|index| {
+                        (
+                            (index + 1) as u64,
+                            index as u64 * e,
+                            e,
+                            60 + (index % 8) as u8,
+                        )
+                    })
+                    .collect::<Vec<_>>(),
+                expectations: (0..15)
+                    .map(|index| {
+                        notation_expectation(
+                            index as u64 * e,
+                            e,
+                            false,
+                            vec![(index + 1) as u64],
+                            vec![],
+                        )
+                    })
+                    .collect::<Vec<_>>(),
+            },
+        ];
+
+        for scenario in scenarios {
+            assert_written_duration_scenario_with_length(
+                scenario.name,
+                scenario.time_signature,
+                scenario.flow_length,
+                &scenario.tone_specs,
+                scenario.expectations,
+            );
+        }
     }
 
     #[test]
     #[should_panic]
-    fn get_written_durations_panics_for_compound_time_signature() {
+    fn get_written_durations_panics_for_non_eighth_compound_time_signature() {
         let dotted_quarter = NoteDuration::Quarter;
         let time_signature = make_time_signature_for_test(0, 6, dotted_quarter);
         let (flow, instrument, tracks, _track_id) =

@@ -540,8 +540,12 @@ mod tests {
         barlines.insert(0_u64, three_four());
 
         track.track.insert(0, make_note_at(0, 1, dotted_quarter));
-        track.track.insert(dotted_quarter, make_note_at(dotted_quarter, 2, eighth));
-        track.track.insert(quarter * 2, make_note_at(quarter * 2, 2, quarter));
+        track
+            .track
+            .insert(dotted_quarter, make_note_at(dotted_quarter, 2, eighth));
+        track
+            .track
+            .insert(quarter * 2, make_note_at(quarter * 2, 2, quarter));
 
         let result = get_beams_in_track(&track, &barlines);
 
@@ -689,6 +693,135 @@ mod tests {
 
         let result = get_beams_in_track(&track, &ts);
         assert!(!result.is_empty());
+    }
+
+    #[test]
+    fn get_beams_six_eight_breaks_straight_eighths_into_three_plus_three() {
+        let eighth = NoteDuration::Eighth.to_ticks();
+        let mut track = NotationTrack::new(1024);
+        let mut ts = FxHashMap::default();
+        ts.insert(
+            0_u64,
+            TimeSignature::new(
+                1,
+                0,
+                6,
+                NoteDuration::Eighth,
+                TimeSignatureDrawType::Regular,
+                None,
+            ),
+        );
+
+        for i in 0..6_u64 {
+            track.track.insert(i * eighth, make_note(i + 1, eighth));
+        }
+
+        let result = get_beams_in_track(&track, &ts);
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0].start, 0);
+        assert_eq!(result[0].stop, eighth * 2);
+        assert_eq!(result[1].start, eighth * 3);
+        assert_eq!(result[1].stop, eighth * 5);
+    }
+
+    #[test]
+    fn get_beams_nine_eight_breaks_straight_eighths_into_three_groups_of_three() {
+        let eighth = NoteDuration::Eighth.to_ticks();
+        let mut track = NotationTrack::new(1024);
+        let mut ts = FxHashMap::default();
+        ts.insert(
+            0_u64,
+            TimeSignature::new(
+                1,
+                0,
+                9,
+                NoteDuration::Eighth,
+                TimeSignatureDrawType::Regular,
+                None,
+            ),
+        );
+
+        for i in 0..9_u64 {
+            track.track.insert(i * eighth, make_note(i + 1, eighth));
+        }
+
+        let result = get_beams_in_track(&track, &ts);
+        assert_eq!(result.len(), 3);
+        assert_eq!(result[0].start, 0);
+        assert_eq!(result[0].stop, eighth * 2);
+        assert_eq!(result[1].start, eighth * 3);
+        assert_eq!(result[1].stop, eighth * 5);
+        assert_eq!(result[2].start, eighth * 6);
+        assert_eq!(result[2].stop, eighth * 8);
+    }
+
+    #[test]
+    fn get_beams_twelve_eight_breaks_straight_eighths_into_four_groups_of_three() {
+        let eighth = NoteDuration::Eighth.to_ticks();
+        let mut track = NotationTrack::new(1024);
+        let mut ts = FxHashMap::default();
+        ts.insert(
+            0_u64,
+            TimeSignature::new(
+                1,
+                0,
+                12,
+                NoteDuration::Eighth,
+                TimeSignatureDrawType::Regular,
+                None,
+            ),
+        );
+
+        for i in 0..12_u64 {
+            track.track.insert(i * eighth, make_note(i + 1, eighth));
+        }
+
+        let result = get_beams_in_track(&track, &ts);
+        assert_eq!(result.len(), 4);
+        assert_eq!(result[0].start, 0);
+        assert_eq!(result[0].stop, eighth * 2);
+        assert_eq!(result[1].start, eighth * 3);
+        assert_eq!(result[1].stop, eighth * 5);
+        assert_eq!(result[2].start, eighth * 6);
+        assert_eq!(result[2].stop, eighth * 8);
+        assert_eq!(result[3].start, eighth * 9);
+        assert_eq!(result[3].stop, eighth * 11);
+    }
+
+    #[test]
+    fn get_beams_compound_syncopation_breaks_at_big_beat_boundary() {
+        let eighth = NoteDuration::Eighth.to_ticks();
+        let mut track = NotationTrack::new(1024);
+        let mut ts = FxHashMap::default();
+        ts.insert(
+            0_u64,
+            TimeSignature::new(
+                1,
+                0,
+                6,
+                NoteDuration::Eighth,
+                TimeSignatureDrawType::Regular,
+                None,
+            ),
+        );
+
+        track.track.insert(eighth, make_note_at(eighth, 1, eighth));
+        track
+            .track
+            .insert(eighth * 2, make_note_at(eighth * 2, 2, eighth));
+        track
+            .track
+            .insert(eighth * 3, make_note_at(eighth * 3, 3, eighth));
+        track
+            .track
+            .insert(eighth * 4, make_note_at(eighth * 4, 4, eighth));
+
+        let result = get_beams_in_track(&track, &ts);
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0].start, eighth);
+        assert_eq!(result[0].stop, eighth * 2);
+        assert_eq!(result[1].start, eighth * 3);
+        assert_eq!(result[1].stop, eighth * 4);
     }
 
     #[test]
