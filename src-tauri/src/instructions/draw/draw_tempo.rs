@@ -44,13 +44,11 @@ pub fn draw_tempo(
         if !prefix_text.is_empty() {
             renderer.text(
                 prefix_text,
-                &Tempo::text_font(),
+                &Tempo::bpm_font(),
                 &Point { x, y: origin.y },
                 color,
             );
-            x += text_measurer
-                .measure(prefix_text, &Tempo::text_font())
-                .width;
+            x += text_measurer.measure(prefix_text, &Tempo::bpm_font()).width - 0.1;
         }
 
         let note_glyph = tempo.note_glyph();
@@ -60,7 +58,10 @@ pub fn draw_tempo(
         renderer.text(
             note_glyph,
             &Tempo::metronome_font(),
-            &Point { x, y: origin.y },
+            &Point {
+                x,
+                y: origin.y - 0.2,
+            },
             color,
         );
 
@@ -84,7 +85,7 @@ pub fn draw_tempo(
         let bpm_text = tempo.metronome_suffix_text();
         renderer.text(
             &bpm_text,
-            &Tempo::text_font(),
+            &Tempo::bpm_font(),
             &Point {
                 x: metronome_tail,
                 y: origin.y,
@@ -277,6 +278,38 @@ mod tests {
         }));
         assert!(renderer.instructions.iter().any(|instruction| {
             matches!(instruction, DrawInstruction::Text { text, .. } if text == "= 120)")
+        }));
+    }
+
+    #[test]
+    fn metronome_text_uses_smaller_font_than_tempo_text() {
+        let mut renderer = make_test_renderer();
+        let converter = renderer.converter.clone();
+        let text_measurer = TextMeasurer::new(&converter);
+        let tempo = make_tempo("Allegro", true, true, true);
+
+        draw_tempo(
+            &Point { x: 0.0, y: 0.0 },
+            &tempo,
+            &text_measurer,
+            None,
+            1,
+            0.0,
+            &mut renderer,
+        );
+
+        let expected_tempo_font_size = renderer.converter.spaces_to_px(Tempo::text_font().size);
+        let expected_bpm_font_size = renderer.converter.spaces_to_px(Tempo::bpm_font().size);
+
+        assert!(expected_bpm_font_size < expected_tempo_font_size);
+        assert!(renderer.instructions.iter().any(|instruction| {
+            matches!(instruction, DrawInstruction::Text { text, font_size, .. } if text == "Allegro" && (*font_size - expected_tempo_font_size).abs() < f32::EPSILON)
+        }));
+        assert!(renderer.instructions.iter().any(|instruction| {
+            matches!(instruction, DrawInstruction::Text { text, font_size, .. } if text == "(" && (*font_size - expected_bpm_font_size).abs() < f32::EPSILON)
+        }));
+        assert!(renderer.instructions.iter().any(|instruction| {
+            matches!(instruction, DrawInstruction::Text { text, font_size, .. } if text == "= 120)" && (*font_size - expected_bpm_font_size).abs() < f32::EPSILON)
         }));
     }
 
