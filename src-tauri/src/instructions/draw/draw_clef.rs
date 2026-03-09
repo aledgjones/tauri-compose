@@ -1,7 +1,7 @@
 use crate::renderer::{HitTarget, RendererContext};
 use crate::score::components::measurements::Point;
 use crate::score::components::text::{Align, Font, FontFamily, Justify};
-use crate::score::entries::clef::Clef;
+use crate::score::entries::clef::{Clef, ClefDrawType};
 use crate::utils::UniqueId;
 use skia_safe::Color;
 
@@ -44,6 +44,13 @@ pub fn draw_clef(
             color,
         );
 
+        let target_y = match clef.draw_as {
+            ClefDrawType::G => y - 3.0,
+            ClefDrawType::F => y - 1.0,
+            ClefDrawType::C => y - 2.0,
+            _ => y,
+        };
+
         renderer.hit_targets.push(HitTarget {
             entry: crate::ui::sequencer::Selection::Clef {
                 flow_id: context.flow_id,
@@ -52,7 +59,7 @@ pub fn draw_clef(
                 tick: clef.tick,
             },
             x: origin.x,
-            y: y - metrics.height,
+            y: target_y,
             width: metrics.width.max(1.0),
             height: metrics.height.max(1.0),
             popover_x: origin.x,

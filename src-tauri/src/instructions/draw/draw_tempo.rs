@@ -99,7 +99,7 @@ pub fn draw_tempo(
                 tick: tempo.tick,
             },
             x: origin.x,
-            y: origin.y - (metrics.height - 1.0),
+            y: origin.y - metrics.height + (metrics.height * 0.2),
             width: metrics.width.max(1.2),
             height: metrics.height.max(1.0),
             popover_x: origin.x,

@@ -231,6 +231,13 @@ impl Tempo {
         }
     }
 
+    fn text_height(&self, text_measurer: &TextMeasurer<'_>) -> Space {
+        match self.display_text() {
+            Some(text) => text_measurer.measure(text, &Self::text_font()).height,
+            None => 0.0,
+        }
+    }
+
     fn metronome_width(&self, text_measurer: &TextMeasurer<'_>) -> Space {
         if self.hidden || !self.show_metronome {
             return 0.0;
@@ -254,27 +261,49 @@ impl Tempo {
         prefix_width + note_width + dot_width + TEMPO_METRONOME_EQUALS_GAP + suffix_width
     }
 
+    fn metronome_text_height(&self, text_measurer: &TextMeasurer<'_>) -> Space {
+        if self.hidden || !self.show_metronome {
+            return 0.0;
+        }
+
+        let prefix_height = if self.parenthesized {
+            text_measurer
+                .measure(self.metronome_prefix_text(), &Self::bpm_font())
+                .height
+        } else {
+            0.0
+        };
+        let suffix_height = text_measurer
+            .measure(&self.metronome_suffix_text(), &Self::bpm_font())
+            .height;
+
+        prefix_height.max(suffix_height)
+    }
+
     pub fn metrics(&self, text_measurer: &TextMeasurer<'_>) -> BoundingBox {
         if self.hidden {
             return BoundingBox {
                 width: 0.0,
-                height: 4.0,
+                height: 0.0,
                 right_padding: 0.0,
             };
         }
 
         let text_width = self.text_width(text_measurer);
+        let text_height = self.text_height(text_measurer);
         let metronome_width = self.metronome_width(text_measurer);
+        let metronome_text_height = self.metronome_text_height(text_measurer);
         let gap = if text_width > 0.0 && metronome_width > 0.0 {
             TEMPO_TEXT_GAP
         } else {
             0.0
         };
         let width = text_width + gap + metronome_width;
+        let height = text_height.max(metronome_text_height);
 
         BoundingBox {
             width,
-            height: 4.0,
+            height,
             right_padding: 0.0,
         }
     }
@@ -508,6 +537,7 @@ mod tests {
 
         let metrics = tempo.metrics(&text_measurer);
         assert_eq!(metrics.width, 0.0);
+        assert_eq!(metrics.height, 0.0);
         assert_eq!(metrics.right_padding, 0.0);
     }
 
@@ -517,7 +547,34 @@ mod tests {
         let text_measurer = TextMeasurer::new(&renderer.converter);
         let metrics = make_tempo(1, 0).metrics(&text_measurer);
         assert!(metrics.width > 0.0);
+        assert!(metrics.height > 0.0);
         assert_eq!(metrics.right_padding, 0.0);
+    }
+
+    #[test]
+    fn metrics_height_uses_libre_text_only() {
+        let renderer = make_test_renderer();
+        let text_measurer = TextMeasurer::new(&renderer.converter);
+        let tempo = Tempo::new(
+            1,
+            0,
+            String::from("Allegro"),
+            NoteDuration::Quarter,
+            0,
+            120,
+            false,
+            true,
+            true,
+            false,
+        );
+
+        let metrics = tempo.metrics(&text_measurer);
+        let expected_height = text_measurer
+            .measure("Allegro", &Tempo::text_font())
+            .height
+            .max(text_measurer.measure("= 120", &Tempo::bpm_font()).height);
+
+        assert!((metrics.height - expected_height).abs() < f32::EPSILON);
     }
 
     #[test]

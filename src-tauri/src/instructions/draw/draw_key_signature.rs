@@ -67,7 +67,7 @@ pub fn draw_key_signature(
                     tick: context.tick,
                 },
                 x: origin.x,
-                y: origin.y - 3.0,
+                y: origin.y - 2.0,
                 width: metrics.width.max(1.0),
                 height: metrics.height.max(1.0),
                 popover_x: origin.x,
