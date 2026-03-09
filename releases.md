@@ -1,3 +1,20 @@
+## Release Notes for v1.25.2
+
+### 🏗️ Features
+
+- feat: unify properties panel structure
+- feat: all entry selection
+- feat: quick spec selection cleanup
+
+### 🐞 Fixes
+
+- fix: small tweaks to hit targets
+- fix(release): skip prep manifest in reseed stage
+
+### 🔧 Chores
+
+- chore: bump versions
+
 ## Release Notes for v1.25.1
 
 ### 🏗️ Features

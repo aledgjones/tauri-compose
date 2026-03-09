@@ -1,8 +1,8 @@
 // BEGIN GENERATED MIGRATIONS
 #[path = "1.25.0.rs"]
 mod v1_25_0;
-#[path = "next.rs"]
-mod next;
+#[path = "1.25.2.rs"]
+mod v1_25_2;
 
 // BEGIN SUPPORT MODULES
 // Add non-version helper modules here. The release tool preserves this section.
@@ -52,7 +52,7 @@ impl MigrationDescriptor {
 lazy_static! {
     pub static ref MIGRATIONS: Vec<MigrationDescriptor> = vec![
         MigrationDescriptor::shipped("1.25.0", v1_25_0::migrate),
-        MigrationDescriptor::pending_next(next::migrate),
+        MigrationDescriptor::shipped("1.25.2", v1_25_2::migrate),
     ];
 }
 
