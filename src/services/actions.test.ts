@@ -946,6 +946,7 @@ describe("actions.score.clef", () => {
       pitch: 71,
       offset: 0,
       clef_draw_type: ClefDrawType.G,
+      hidden: false,
     });
   });
 
@@ -955,6 +956,16 @@ describe("actions.score.clef", () => {
       flow_id: 1,
       tick: 0,
       stave_id: 100,
+    });
+  });
+
+  it("setHidden calls invoke correctly", async () => {
+    await actions.score.clef.setHidden(1, 100, 9, true);
+    expect(mockInvoke).toHaveBeenCalledWith("score_entries_clef_update", {
+      flow_id: 1,
+      stave_id: 100,
+      clef_id: 9,
+      hidden: true,
     });
   });
 });
@@ -972,6 +983,7 @@ describe("actions.score.keySignature", () => {
         tick: 0,
         mode: KeySignatureMode.Major,
         offset: 0,
+        hidden: false,
       },
     );
   });
@@ -981,6 +993,14 @@ describe("actions.score.keySignature", () => {
     expect(mockInvoke).toHaveBeenCalledWith(
       "score_entries_key_signature_clear",
       { flow_id: 1, tick: 0 },
+    );
+  });
+
+  it("setHidden calls invoke correctly", async () => {
+    await actions.score.keySignature.setHidden(1, 12, true);
+    expect(mockInvoke).toHaveBeenCalledWith(
+      "score_entries_key_signature_update",
+      { flow_id: 1, key_signature_id: 12, hidden: true },
     );
   });
 });
@@ -1005,6 +1025,7 @@ describe("actions.score.timeSignature", () => {
         beats: 4,
         beat_type: NoteDuration.Quarter,
         draw_type: TimeSignatureDrawType.Regular,
+        hidden: false,
       },
     );
   });
@@ -1022,6 +1043,7 @@ describe("actions.score.timeSignature", () => {
       1,
       9,
       TimeSignatureDrawType.CommonTime,
+      true,
     );
     expect(mockInvoke).toHaveBeenCalledWith(
       "score_entries_time_signature_update",
@@ -1029,6 +1051,7 @@ describe("actions.score.timeSignature", () => {
         flow_id: 1,
         time_signature_id: 9,
         draw_type: TimeSignatureDrawType.CommonTime,
+        hidden: true,
       },
     );
   });

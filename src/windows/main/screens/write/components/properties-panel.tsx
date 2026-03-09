@@ -1,12 +1,46 @@
-import { FC } from "react";
+import { FC, PropsWithChildren } from "react";
 import { useAppState } from "../../../../../services/state";
 import { useSelectedClef } from "../../../hooks/use-selected-clef";
 import { useSelectedKeySignature } from "../../../hooks/use-selected-key-signature";
 import { useSelectedTempo } from "../../../hooks/use-selected-tempo";
 import { useSelectedTimeSignature } from "../../../hooks/use-selected-time-signature";
+import { ClefPropertiesSection } from "./clef-properties-section";
 import { KeySignaturePropertiesSection } from "./key-signature-properties-section";
 import { TimeSignaturePropertiesSection } from "./time-signature-properties-section";
 import { TempoPropertiesSection } from "./tempo-properties-section";
+
+const Panel: FC<PropsWithChildren<{ testId?: string }>> = ({
+  children,
+  testId,
+}) => {
+  return (
+    <div
+      className="flex flex-1 min-h-0 bg-neutral-950 overflow-x-auto overflow-y-hidden"
+      data-testid={testId}
+    >
+      <div className="flex min-w-full gap-0.5">
+        {children}
+        <div className="bg-neutral-900 flex-1" />
+      </div>
+    </div>
+  );
+};
+
+type PanelSectionProps = PropsWithChildren<{
+  title: string;
+}>;
+export const PanelSection: FC<PanelSectionProps> = ({ title, children }) => {
+  return (
+    <section className="flex min-w-[18rem] flex-col bg-neutral-900">
+      <h3 className="text-xs text-white p-3 bg-neutral-800">{title}</h3>
+      <div className="p-3 gap-5 flex">{children}</div>
+    </section>
+  );
+};
+
+export const PanelSectionColumn: FC<PropsWithChildren> = ({ children }) => {
+  return <div className="flex flex-col gap-3 w-75">{children}</div>;
+};
 
 const EmptyState: FC<{
   title: string;
@@ -45,50 +79,46 @@ export const PropertiesPanel: FC = () => {
 
   if (selection.type === "Tempo" && selectedTempo) {
     return (
-      <div className="flex flex-1 min-h-0 bg-neutral-950 overflow-x-auto overflow-y-hidden">
-        <div className="flex min-w-full gap-0.5">
-          <TempoPropertiesSection
-            flowId={selectedTempo.flow_id}
-            tempo={selectedTempo.tempo}
-          />
-          <div className="bg-neutral-900 flex-1" />
-        </div>
-      </div>
+      <Panel>
+        <TempoPropertiesSection
+          flowId={selectedTempo.flow_id}
+          tempo={selectedTempo.tempo}
+        />
+      </Panel>
     );
   }
 
   if (selection.type === "TimeSignature" && selectedTimeSignature) {
     return (
-      <div className="flex flex-1 min-h-0 bg-neutral-950 overflow-x-auto overflow-y-hidden">
-        <div className="flex min-w-full gap-0.5">
-          <TimeSignaturePropertiesSection
-            flowId={selectedTimeSignature.flow_id}
-            timeSignature={selectedTimeSignature.time_signature}
-          />
-          <div className="bg-neutral-900 flex-1" />
-        </div>
-      </div>
+      <Panel data-testid="time-signature-properties-section">
+        <TimeSignaturePropertiesSection
+          flowId={selectedTimeSignature.flow_id}
+          timeSignature={selectedTimeSignature.time_signature}
+        />
+      </Panel>
     );
   }
 
   if (selection.type === "KeySignature" && selectedKeySignature) {
     return (
-      <div className="flex flex-1 min-h-0 bg-neutral-950 overflow-x-auto overflow-y-hidden">
-        <div className="flex min-w-full gap-0.5">
-          <KeySignaturePropertiesSection />
-          <div className="bg-neutral-900 flex-1" />
-        </div>
-      </div>
+      <Panel data-testid="key-signature-properties-section">
+        <KeySignaturePropertiesSection
+          flowId={selectedKeySignature.flow_id}
+          keySignature={selectedKeySignature.key_signature}
+        />
+      </Panel>
     );
   }
 
   if (selection.type === "Clef" && selectedClef) {
     return (
-      <EmptyState
-        testId="properties-panel-unsupported"
-        title="Clef properties out of scope"
-        description="Clef selection and delete shortcuts are supported, but clef property editing is not part of this slice yet."
-      />
+      <Panel data-testid="clef-properties-section">
+        <ClefPropertiesSection
+          flowId={selectedClef.flow_id}
+          staveId={selectedClef.stave_id}
+          clef={selectedClef.clef}
+        />
+      </Panel>
     );
   }
 

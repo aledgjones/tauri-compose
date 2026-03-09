@@ -110,31 +110,34 @@ The audible musical note. **Never directly drawn** in the score — the parse pi
 | --------- | -------------- | -------------------------------------------------- |
 | `id`      | `UniqueId`     |                                                    |
 | `tick`    | `Tick`         |                                                    |
-| `draw_as` | `ClefDrawType` | Hidden, G, F, C, Percussion                        |
+| `hidden`  | `bool`         | If true, the entry persists but does not render    |
+| `draw_as` | `ClefDrawType` | G, F, C, Percussion                                |
 | `pitch`   | `Pitch`        | The pitch the clef represents (G for treble, etc.) |
 | `offset`  | `i8`           | Visual offset from middle staff line               |
 
 #### KeySignature
 
-| Field    | Type               | Description                |
-| -------- | ------------------ | -------------------------- |
-| `id`     | `UniqueId`         |                            |
-| `tick`   | `Tick`             |                            |
-| `mode`   | `KeySignatureMode` | Major, Minor               |
-| `offset` | `i8`               | -7 to +7 (flats to sharps) |
+| Field    | Type               | Description                                     |
+| -------- | ------------------ | ----------------------------------------------- |
+| `id`     | `UniqueId`         |                                                 |
+| `tick`   | `Tick`             |                                                 |
+| `hidden` | `bool`             | If true, the entry persists but does not render |
+| `mode`   | `KeySignatureMode` | Major, Minor                                    |
+| `offset` | `i8`               | -7 to +7 (flats to sharps)                      |
 
 #### TimeSignature
 
-| Field       | Type                    | Description                                        |
-| ----------- | ----------------------- | -------------------------------------------------- |
-| `id`        | `UniqueId`              |                                                    |
-| `tick`      | `Tick`                  |                                                    |
-| `beats`     | `u8`                    | Numerator                                          |
-| `beat_type` | `NoteDuration`          | Denominator (Quarter=4, Eighth=8, etc.)            |
-| `draw_type` | `TimeSignatureDrawType` | Hidden, Regular, CommonTime, SplitCommonTime, Open |
-| `groupings` | `Vec<u8>`               | Beat grouping subdivisions                         |
+| Field       | Type                    | Description                                     |
+| ----------- | ----------------------- | ----------------------------------------------- |
+| `id`        | `UniqueId`              |                                                 |
+| `tick`      | `Tick`                  |                                                 |
+| `hidden`    | `bool`                  | If true, the entry persists but does not render |
+| `beats`     | `u8`                    | Numerator                                       |
+| `beat_type` | `NoteDuration`          | Denominator (Quarter=4, Eighth=8, etc.)         |
+| `draw_type` | `TimeSignatureDrawType` | Regular, CommonTime, SplitCommonTime, Open      |
+| `groupings` | `Vec<u8>`               | Beat grouping subdivisions                      |
 
-The frontend `TimeSignature` mirror now includes `draw_type` as well, because the write-screen Properties tab can switch valid 4/4 and 2/2 signatures between stacked numerals and common-time symbols without changing any persisted file schema.
+The frontend `TimeSignature` mirror now includes both `draw_type` and `hidden`, because the write-screen Properties tab can switch valid 4/4 and 2/2 signatures between stacked numerals and common-time symbols while also hiding the persisted directive without changing its musical meaning.
 
 #### Tempo
 
@@ -165,6 +168,8 @@ Metronome-only tempos now persist as `text: ""` plus `show_text: false` rather t
 Tempo entries drive both score rendering and transport tempo resolution, and selected tempo entries can be edited from the write-screen `Properties` tab.
 
 This schema changed in `1.25.0`; older `.soloc` payloads that still contain `text: null` are normalized during load by migration `1.25.0`.
+
+Unreleased directive visibility work also adds `hidden: bool` to clef, key-signature, and time-signature entries, and migrates legacy time signatures that previously encoded hidden state as `draw_type: 0` into `hidden: true` plus `draw_type: Regular` in `src-tauri/src/migrations/next.rs`.
 
 ### Sequencer Selection (UI-only)
 

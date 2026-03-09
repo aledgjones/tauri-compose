@@ -44,9 +44,12 @@ use score::engraves::{
     score_engraves_systemic_barline_single_instrument_system_set,
 };
 use score::entries::barline::{score_entries_barline_clear, score_entries_barline_create};
-use score::entries::clef::{score_entries_clef_clear, score_entries_clef_create};
+use score::entries::clef::{
+    score_entries_clef_clear, score_entries_clef_create, score_entries_clef_update,
+};
 use score::entries::key_signature::{
     score_entries_key_signature_clear, score_entries_key_signature_create,
+    score_entries_key_signature_update,
 };
 use score::entries::tempo::{
     score_entries_tempo_clear, score_entries_tempo_create, score_entries_tempo_update,
@@ -472,8 +475,10 @@ pub fn run() {
             score_entries_barline_clear,
             score_entries_clef_create,
             score_entries_clef_clear,
+            score_entries_clef_update,
             score_entries_key_signature_create,
             score_entries_key_signature_clear,
+            score_entries_key_signature_update,
             score_entries_tempo_create,
             score_entries_tempo_clear,
             score_entries_tempo_update,

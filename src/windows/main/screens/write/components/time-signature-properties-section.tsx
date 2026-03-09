@@ -1,4 +1,4 @@
-import { FC, useEffect, useMemo, useState } from "react";
+import { FC, useMemo } from "react";
 import { actions } from "../../../../../services/actions";
 import {
   NoteDuration,
@@ -7,6 +7,8 @@ import {
   UniqueId,
 } from "../../../../../services/types";
 import { Switch } from "../../../../../ui/switch";
+import { CommonPropertiesSection } from "./common-properties-section";
+import { PanelSection, PanelSectionColumn } from "./properties-panel";
 
 type Props = {
   flowId: UniqueId;
@@ -58,64 +60,54 @@ export const TimeSignaturePropertiesSection: FC<Props> = ({
   flowId,
   timeSignature,
 }) => {
-  const [draftTimeSignature, setDraftTimeSignature] = useState(timeSignature);
-
-  useEffect(() => {
-    setDraftTimeSignature(timeSignature);
-  }, [timeSignature]);
-
   const symbolFormEnabled = useMemo(() => {
     return (
-      isCommonTimeCandidate(draftTimeSignature) ||
-      isCutTimeCandidate(draftTimeSignature)
+      isCommonTimeCandidate(timeSignature) || isCutTimeCandidate(timeSignature)
     );
-  }, [draftTimeSignature]);
+  }, [timeSignature]);
 
   const symbolFormValue = useMemo(() => {
-    return getSwitchValue(draftTimeSignature);
-  }, [draftTimeSignature]);
+    return getSwitchValue(timeSignature);
+  }, [timeSignature]);
 
   return (
-    <div
-      className="flex min-w-max gap-0.5"
-      data-testid="time-signature-properties-section"
-    >
-      <section className="flex min-w-[18rem] flex-col bg-neutral-900">
-        <h3 className="text-xs text-white p-3 bg-neutral-800">
-          Time signature
-        </h3>
-        <div className="p-3 flex">
-          <div className="flex w-75 flex-col gap-3">
-            <Switch
-              small
-              label="Symbol form"
-              description="Use C / cutC instead of stacked numerals when the signature allows it."
-              value={symbolFormValue}
-              disabled={!symbolFormEnabled}
-              onChange={(enabled) => {
-                const nextDrawType = getNextDrawType(
-                  draftTimeSignature,
-                  enabled,
-                );
+    <>
+      <CommonPropertiesSection
+        hidden={timeSignature.hidden}
+        onHiddenChange={(hidden) => {
+          void actions.score.timeSignature.update(
+            flowId,
+            timeSignature.id,
+            timeSignature.draw_type,
+            hidden,
+          );
+        }}
+      />
+      <PanelSection title="Time signature">
+        <PanelSectionColumn>
+          <Switch
+            small
+            label="Symbol form"
+            description="Use C / cutC instead of stacked numerals when the signature allows it."
+            value={symbolFormValue}
+            disabled={!symbolFormEnabled}
+            onChange={(enabled) => {
+              const nextDrawType = getNextDrawType(timeSignature, enabled);
 
-                if (nextDrawType === null) {
-                  return;
-                }
+              if (nextDrawType === null) {
+                return;
+              }
 
-                void actions.score.timeSignature
-                  .update(flowId, timeSignature.id, nextDrawType)
-                  .then(() => {
-                    setDraftTimeSignature((current) => ({
-                      ...current,
-                      draw_type: nextDrawType,
-                    }));
-                  })
-                  .catch(() => undefined);
-              }}
-            />
-          </div>
-        </div>
-      </section>
-    </div>
+              void actions.score.timeSignature.update(
+                flowId,
+                timeSignature.id,
+                nextDrawType,
+                timeSignature.hidden,
+              );
+            }}
+          />
+        </PanelSectionColumn>
+      </PanelSection>
+    </>
   );
 };

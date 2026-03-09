@@ -527,6 +527,7 @@ export const parseTimeSignaturePopover = (
           parsed.beats,
           NoteDuration.Whole,
           TimeSignatureDrawType.Regular,
+          false,
         );
         return;
       }
@@ -537,6 +538,7 @@ export const parseTimeSignaturePopover = (
           parsed.beats,
           NoteDuration.Half,
           TimeSignatureDrawType.Regular,
+          false,
         );
         return;
       }
@@ -547,6 +549,7 @@ export const parseTimeSignaturePopover = (
           parsed.beats,
           NoteDuration.Quarter,
           TimeSignatureDrawType.Regular,
+          false,
         );
         return;
       }
@@ -557,6 +560,7 @@ export const parseTimeSignaturePopover = (
           parsed.beats,
           NoteDuration.Eighth,
           TimeSignatureDrawType.Regular,
+          false,
         );
         return;
       }
@@ -567,6 +571,7 @@ export const parseTimeSignaturePopover = (
           parsed.beats,
           NoteDuration.Sixteenth,
           TimeSignatureDrawType.Regular,
+          false,
         );
         return;
       }
@@ -577,6 +582,7 @@ export const parseTimeSignaturePopover = (
           parsed.beats,
           NoteDuration.ThirtySecond,
           TimeSignatureDrawType.Regular,
+          false,
         );
         return;
       }
@@ -587,6 +593,7 @@ export const parseTimeSignaturePopover = (
           parsed.beats,
           NoteDuration.SixtyFourth,
           TimeSignatureDrawType.Regular,
+          false,
         );
         return;
       }
@@ -597,6 +604,7 @@ export const parseTimeSignaturePopover = (
           parsed.beats,
           NoteDuration.HudredTwentyEighth,
           TimeSignatureDrawType.Regular,
+          false,
         );
         return;
       }
@@ -619,6 +627,7 @@ export const parseTimeSignaturePopover = (
         4,
         NoteDuration.Quarter,
         TimeSignatureDrawType.CommonTime,
+        false,
       );
       break;
     }
@@ -630,6 +639,7 @@ export const parseTimeSignaturePopover = (
         2,
         NoteDuration.Half,
         TimeSignatureDrawType.SplitCommonTime,
+        false,
       );
       break;
     }

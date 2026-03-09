@@ -69,6 +69,7 @@ const buildBaseScore = () => ({
               id: TIME_SIGNATURE_ID,
               tick: 64,
               type: "TimeSignature",
+              hidden: false,
               beats: 4,
               beat_type: NoteDuration.Quarter,
               draw_type: TimeSignatureDrawType.Regular,
@@ -77,6 +78,7 @@ const buildBaseScore = () => ({
               id: KEY_SIGNATURE_ID,
               tick: 64,
               type: "KeySignature",
+              hidden: false,
               mode: KeySignatureMode.Major,
               offset: 2,
             },
@@ -92,6 +94,7 @@ const buildBaseScore = () => ({
               id: CLEF_ID,
               tick: 64,
               type: "Clef",
+              hidden: false,
               draw_as: 1,
               pitch: { int: 67, accidental: 0 },
               offset: 2,
@@ -148,7 +151,8 @@ describe("PropertiesPanel", () => {
 
   it("routes tempo selections to the tempo properties section", () => {
     renderWithProviders(<PropertiesPanel />, { appState: buildTempoState() });
-    expect(screen.getByTestId("tempo-properties-section")).toBeInTheDocument();
+    expect(screen.getByText("Tempo")).toBeInTheDocument();
+    expect(screen.getByText("Common")).toBeInTheDocument();
     expect(screen.getByText("Show metronome")).toBeInTheDocument();
   });
 
@@ -168,15 +172,14 @@ describe("PropertiesPanel", () => {
     });
 
     renderWithProviders(<PropertiesPanel />, { appState });
-    expect(
-      screen.getByTestId("time-signature-properties-section"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Time signature")).toBeInTheDocument();
     expect(
       screen.getByRole("switch", { name: "Symbol form" }),
     ).toBeInTheDocument();
+    expect(screen.getByRole("switch", { name: "Hidden" })).toBeInTheDocument();
   });
 
-  it("routes key signature selections to the blank filler section", () => {
+  it("routes key signature selections to the key signature properties section", () => {
     const appState = createAppState({
       score: buildBaseScore() as never,
       ui: {
@@ -192,15 +195,11 @@ describe("PropertiesPanel", () => {
     });
 
     renderWithProviders(<PropertiesPanel />, { appState });
-    expect(
-      screen.getByTestId("key-signature-properties-section"),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByTestId("key-signature-properties-blank"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Common")).toBeInTheDocument();
+    expect(screen.getByRole("switch", { name: "Hidden" })).toBeInTheDocument();
   });
 
-  it("keeps clef selections on the unsupported state with out-of-scope messaging", () => {
+  it("routes clef selections to the clef properties section", () => {
     const appState = createAppState({
       score: buildBaseScore() as never,
       ui: {
@@ -217,11 +216,7 @@ describe("PropertiesPanel", () => {
     });
 
     renderWithProviders(<PropertiesPanel />, { appState });
-    expect(
-      screen.getByTestId("properties-panel-unsupported"),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText("Clef properties out of scope"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Common")).toBeInTheDocument();
+    expect(screen.getByRole("switch", { name: "Hidden" })).toBeInTheDocument();
   });
 });

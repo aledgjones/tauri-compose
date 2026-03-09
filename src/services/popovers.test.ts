@@ -492,6 +492,7 @@ describe("parseTimeSignaturePopover", () => {
       4,
       NoteDuration.Quarter,
       TimeSignatureDrawType.Regular,
+      false,
     );
   });
 
@@ -503,6 +504,7 @@ describe("parseTimeSignaturePopover", () => {
       6,
       NoteDuration.Eighth,
       TimeSignatureDrawType.Regular,
+      false,
     );
   });
 
@@ -514,6 +516,7 @@ describe("parseTimeSignaturePopover", () => {
       3,
       NoteDuration.Quarter,
       TimeSignatureDrawType.Regular,
+      false,
     );
   });
 
@@ -525,6 +528,7 @@ describe("parseTimeSignaturePopover", () => {
       2,
       NoteDuration.Half,
       TimeSignatureDrawType.Regular,
+      false,
     );
   });
 
@@ -544,6 +548,7 @@ describe("parseTimeSignaturePopover", () => {
       4,
       NoteDuration.Quarter,
       TimeSignatureDrawType.CommonTime,
+      false,
     );
   });
 
@@ -555,6 +560,7 @@ describe("parseTimeSignaturePopover", () => {
       2,
       NoteDuration.Half,
       TimeSignatureDrawType.SplitCommonTime,
+      false,
     );
   });
 
@@ -566,6 +572,7 @@ describe("parseTimeSignaturePopover", () => {
       4,
       NoteDuration.Whole,
       TimeSignatureDrawType.Regular,
+      false,
     );
   });
 
@@ -577,6 +584,7 @@ describe("parseTimeSignaturePopover", () => {
       4,
       NoteDuration.Sixteenth,
       TimeSignatureDrawType.Regular,
+      false,
     );
   });
 
@@ -588,6 +596,7 @@ describe("parseTimeSignaturePopover", () => {
       4,
       NoteDuration.ThirtySecond,
       TimeSignatureDrawType.Regular,
+      false,
     );
   });
 
@@ -599,6 +608,7 @@ describe("parseTimeSignaturePopover", () => {
       4,
       NoteDuration.SixtyFourth,
       TimeSignatureDrawType.Regular,
+      false,
     );
   });
 
@@ -610,6 +620,7 @@ describe("parseTimeSignaturePopover", () => {
       4,
       NoteDuration.HudredTwentyEighth,
       TimeSignatureDrawType.Regular,
+      false,
     );
   });
 

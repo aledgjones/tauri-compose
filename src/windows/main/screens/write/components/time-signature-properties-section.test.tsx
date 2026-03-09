@@ -31,6 +31,7 @@ describe("TimeSignaturePropertiesSection", () => {
           id: 7,
           tick: 64,
           type: "TimeSignature",
+          hidden: false,
           beats: 4,
           beat_type: NoteDuration.Quarter,
           draw_type: TimeSignatureDrawType.Regular,
@@ -45,6 +46,7 @@ describe("TimeSignaturePropertiesSection", () => {
         5,
         7,
         TimeSignatureDrawType.CommonTime,
+        false,
       );
     });
   });
@@ -57,6 +59,7 @@ describe("TimeSignaturePropertiesSection", () => {
           id: 7,
           tick: 64,
           type: "TimeSignature",
+          hidden: false,
           beats: 2,
           beat_type: NoteDuration.Half,
           draw_type: TimeSignatureDrawType.Regular,
@@ -71,6 +74,7 @@ describe("TimeSignaturePropertiesSection", () => {
         5,
         7,
         TimeSignatureDrawType.SplitCommonTime,
+        false,
       );
     });
   });
@@ -83,6 +87,7 @@ describe("TimeSignaturePropertiesSection", () => {
           id: 7,
           tick: 64,
           type: "TimeSignature",
+          hidden: false,
           beats: 3,
           beat_type: NoteDuration.Quarter,
           draw_type: TimeSignatureDrawType.Regular,
@@ -109,6 +114,7 @@ describe("TimeSignaturePropertiesSection", () => {
           id: 7,
           tick: 64,
           type: "TimeSignature",
+          hidden: false,
           beats: 4,
           beat_type: NoteDuration.Quarter,
           draw_type: TimeSignatureDrawType.Regular,
@@ -126,6 +132,7 @@ describe("TimeSignaturePropertiesSection", () => {
         5,
         7,
         TimeSignatureDrawType.CommonTime,
+        false,
       );
     });
 

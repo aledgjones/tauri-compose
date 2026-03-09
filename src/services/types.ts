@@ -172,11 +172,10 @@ export enum KeySignatureMode {
 }
 
 export enum TimeSignatureDrawType {
-  Hidden, // always hidden
-  Regular, // 4/4 etc
-  CommonTime, // C
-  SplitCommonTime, // ¢
-  Open, // X
+  Regular = 1, // 4/4 etc
+  CommonTime = 2, // C
+  SplitCommonTime = 3, // ¢
+  Open = 4, // X
 }
 
 export type Barline = {
@@ -190,6 +189,7 @@ export type Clef = {
   id: UniqueId;
   tick: Tick;
   type: "Clef";
+  hidden: boolean;
   draw_as: ClefDrawType;
   pitch: Pitch;
   offset: number;
@@ -199,6 +199,7 @@ export type TimeSignature = {
   id: UniqueId;
   tick: Tick;
   type: "TimeSignature";
+  hidden: boolean;
   beats: number;
   beat_type: NoteDuration;
   draw_type: TimeSignatureDrawType;
@@ -222,6 +223,7 @@ export type KeySignature = {
   id: UniqueId;
   tick: Tick;
   type: "KeySignature";
+  hidden: boolean;
   mode: KeySignatureMode;
   offset: number;
 };

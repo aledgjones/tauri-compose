@@ -1,4 +1,4 @@
-import { FC, ReactNode, useCallback, useEffect, useState } from "react";
+import { FC, useCallback, useEffect, useState } from "react";
 import { actions } from "../../../../../services/actions";
 import { NoteDuration, Tempo, UniqueId } from "../../../../../services/types";
 import { TextInput } from "../../../../../ui/input/text-input";
@@ -6,6 +6,8 @@ import { NumberInput } from "../../../../../ui/input/number-input";
 import { Switch } from "../../../../../ui/switch";
 import { BravuraIconButton } from "../../../../../ui/buttons/bravura-icon-button";
 import { SMuFL } from "../../../../../ui/buttons/smufl";
+import { CommonPropertiesSection } from "./common-properties-section";
+import { PanelSection, PanelSectionColumn } from "./properties-panel";
 
 type Props = {
   flowId: UniqueId;
@@ -55,22 +57,6 @@ const clampBpm = (value: number) => {
   return Math.max(20, Math.min(400, Math.round(value)));
 };
 
-const Section: FC<{ title: string; children: ReactNode }> = ({
-  title,
-  children,
-}) => {
-  return (
-    <section className="flex min-w-[18rem] flex-col bg-neutral-900">
-      <h3 className="text-xs text-white p-3 bg-neutral-800">{title}</h3>
-      <div className="p-3 gap-5 flex">{children}</div>
-    </section>
-  );
-};
-
-const SectionColumn: FC<{ children: ReactNode }> = ({ children }) => {
-  return <div className="flex flex-col gap-3 w-75">{children}</div>;
-};
-
 export const TempoPropertiesSection: FC<Props> = ({ flowId, tempo }) => {
   const [draftTempo, setDraftTempo] = useState(tempo);
   const [textDraft, setTextDraft] = useState(tempo.text);
@@ -113,12 +99,13 @@ export const TempoPropertiesSection: FC<Props> = ({ flowId, tempo }) => {
   };
 
   return (
-    <div
-      className="flex min-w-max gap-0.5"
-      data-testid="tempo-properties-section"
-    >
-      <Section title="Tempo">
-        <SectionColumn>
+    <>
+      <CommonPropertiesSection
+        hidden={draftTempo.hidden}
+        onHiddenChange={(hidden) => submitTempo({ hidden })}
+      />
+      <PanelSection title="Tempo">
+        <PanelSectionColumn>
           <TextInput
             type="text"
             label="Text"
@@ -135,8 +122,8 @@ export const TempoPropertiesSection: FC<Props> = ({ flowId, tempo }) => {
             value={draftTempo.show_text}
             onChange={(show_text) => submitTempo({ show_text })}
           />
-        </SectionColumn>
-        <SectionColumn>
+        </PanelSectionColumn>
+        <PanelSectionColumn>
           <div>
             <p className="text-xs mb-1 text-neutral-400">Beat type</p>
             <div className="flex">
@@ -177,8 +164,8 @@ export const TempoPropertiesSection: FC<Props> = ({ flowId, tempo }) => {
             value={draftTempo.parenthesized}
             onChange={(parenthesized) => submitTempo({ parenthesized })}
           />
-        </SectionColumn>
-      </Section>
-    </div>
+        </PanelSectionColumn>
+      </PanelSection>
+    </>
   );
 };

@@ -632,6 +632,7 @@ export const actions = {
         pitch: number,
         offset: number,
         clef_draw_type: ClefDrawType,
+        hidden = false,
       ) => {
         return invoke<UniqueId | null>("score_entries_clef_create", {
           flow_id,
@@ -640,6 +641,7 @@ export const actions = {
           pitch,
           offset,
           clef_draw_type,
+          hidden,
         });
       },
       clear: (flow_id: UniqueId, tick: Tick, stave_id: UniqueId) => {
@@ -649,6 +651,19 @@ export const actions = {
           stave_id,
         });
       },
+      setHidden: (
+        flow_id: UniqueId,
+        stave_id: UniqueId,
+        clef_id: UniqueId,
+        hidden: boolean,
+      ) => {
+        return invoke<void>("score_entries_clef_update", {
+          flow_id,
+          stave_id,
+          clef_id,
+          hidden,
+        });
+      },
     },
     keySignature: {
       create: (
@@ -656,18 +671,31 @@ export const actions = {
         tick: Tick,
         mode: KeySignatureMode,
         offset: number,
+        hidden = false,
       ) => {
         return invoke<UniqueId>("score_entries_key_signature_create", {
           flow_id,
           tick,
           mode,
           offset,
+          hidden,
         });
       },
       clearAtTick: (flow_id: UniqueId, tick: Tick) => {
         return invoke("score_entries_key_signature_clear", {
           flow_id,
           tick,
+        });
+      },
+      setHidden: (
+        flow_id: UniqueId,
+        key_signature_id: UniqueId,
+        hidden: boolean,
+      ) => {
+        return invoke<void>("score_entries_key_signature_update", {
+          flow_id,
+          key_signature_id,
+          hidden,
         });
       },
     },
@@ -678,6 +706,7 @@ export const actions = {
         beats: number,
         beat_type: NoteDuration,
         draw_type: TimeSignatureDrawType,
+        hidden = false,
       ) => {
         return invoke<UniqueId>("score_entries_time_signature_create", {
           flow_id,
@@ -685,6 +714,7 @@ export const actions = {
           beats,
           beat_type,
           draw_type,
+          hidden,
         });
       },
       clearAtTick: (flow_id: UniqueId, tick: Tick) => {
@@ -697,11 +727,13 @@ export const actions = {
         flow_id: UniqueId,
         time_signature_id: UniqueId,
         draw_type: TimeSignatureDrawType,
+        hidden: boolean,
       ) => {
         return invoke<void>("score_entries_time_signature_update", {
           flow_id,
           time_signature_id,
           draw_type,
+          hidden,
         });
       },
     },

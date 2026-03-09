@@ -127,7 +127,7 @@ mod tests {
             tick,
             4,
             NoteDuration::Quarter,
-            TimeSignatureDrawType::Hidden,
+            TimeSignatureDrawType::Regular,
             None,
         ))
     }

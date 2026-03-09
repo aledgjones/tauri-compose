@@ -24,6 +24,10 @@ pub fn draw_key_signature(
     context: &KeySignatureDrawContext,
     renderer: &mut RendererContext,
 ) {
+    if key_signature.hidden {
+        return;
+    }
+
     let glyph = if negate {
         Accidental::Natural.to_glyph()
     } else {
@@ -270,5 +274,31 @@ mod tests {
         assert!(renderer.instructions.iter().any(|instruction| {
             matches!(instruction, DrawInstruction::Text { color, .. } if *color == Color::from_rgb(14, 165, 233))
         }));
+    }
+
+    #[test]
+    fn hidden_key_signature_draws_nothing() {
+        let mut renderer = make_test_renderer();
+        let clef = make_g_clef();
+        let mut ks = KeySignature::new(7, 64, KeySignatureMode::Major, 2);
+        ks.hidden = true;
+
+        draw_key_signature(
+            &Point { x: 1.0, y: 4.0 },
+            &clef,
+            &ks,
+            false,
+            &KeySignatureDrawContext {
+                flow_id: 5,
+                key_signature_id: 7,
+                tick: 64,
+                stave_top: 4.0,
+                is_selected: false,
+            },
+            &mut renderer,
+        );
+
+        assert!(renderer.instructions.is_empty());
+        assert!(renderer.hit_targets.is_empty());
     }
 }

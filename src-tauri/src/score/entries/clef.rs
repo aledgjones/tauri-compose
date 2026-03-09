@@ -24,6 +24,7 @@ pub enum ClefDrawType {
 pub struct Clef {
     pub id: UniqueId,
     pub tick: Tick,
+    pub hidden: bool,
     pub draw_as: ClefDrawType,
     pub pitch: Pitch, // the pitch that the clef represents (treble => G, Alto => C etc.)
     pub offset: i8,   // visual offset from middle stave line
@@ -34,6 +35,7 @@ impl Clef {
         Self {
             id,
             tick,
+            hidden: false,
             draw_as,
             pitch,
             offset,
@@ -41,6 +43,14 @@ impl Clef {
     }
 
     pub fn metrics(&self, is_full_size: bool) -> BoundingBox {
+        if self.hidden {
+            return BoundingBox {
+                width: 0.0,
+                height: if is_full_size { 4.0 } else { 2.5 },
+                right_padding: 0.0,
+            };
+        }
+
         BoundingBox {
             width: if is_full_size { 2.8 } else { 1.75 },
             height: if is_full_size { 4.0 } else { 2.5 },
@@ -150,6 +160,7 @@ pub fn score_entries_clef_create(
     pitch: u8,
     offset: i8,
     clef_draw_type: ClefDrawType,
+    hidden: bool,
 ) -> UniqueId {
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
@@ -167,13 +178,14 @@ pub fn score_entries_clef_create(
     };
 
     // insert the new clef
-    let new = Clef::new(
+    let mut new = Clef::new(
         clef_id,
         tick,
         Pitch::new(pitch, Accidental::Natural),
         offset,
         clef_draw_type,
     );
+    new.hidden = hidden;
     master.insert_entry(Entry::Clef(new));
 
     state.emit(&app, &mut renderer, true);
@@ -208,6 +220,56 @@ pub fn score_entries_clef_clear(
     clear_clef_at_tick(master, tick, default_clef.as_ref());
 
     state.emit(&app, &mut renderer, true);
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn score_entries_clef_update(
+    app: tauri::AppHandle,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
+    flow_id: UniqueId,
+    stave_id: UniqueId,
+    clef_id: UniqueId,
+    hidden: bool,
+) -> Result<(), String> {
+    let mut state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
+
+    let master_id = {
+        let flow = state
+            .score
+            .flows
+            .by_id
+            .get(&flow_id)
+            .ok_or_else(|| String::from("Flow not found"))?;
+        let stave = flow
+            .staves
+            .by_id
+            .get(&stave_id)
+            .ok_or_else(|| String::from("Stave not found"))?;
+        stave.master_id
+    };
+
+    let entry = state
+        .score
+        .tracks
+        .by_id
+        .get_mut(&master_id)
+        .ok_or_else(|| String::from("Clef track not found"))?
+        .entries
+        .by_id
+        .get_mut(&clef_id)
+        .ok_or_else(|| String::from("Clef not found"))?;
+
+    let Entry::Clef(clef) = entry else {
+        return Err(String::from("Selected entry is not a clef"));
+    };
+
+    clef.hidden = hidden;
+
+    state.emit(&app, &mut renderer, true);
+
+    Ok(())
 }
 
 #[cfg(test)]

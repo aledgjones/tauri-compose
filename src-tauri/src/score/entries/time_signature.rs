@@ -22,17 +22,17 @@ pub enum TimeSignatureType {
 #[derive(Serialize_repr, Deserialize_repr, Clone, Copy, PartialEq, Eq, Debug)]
 #[repr(u8)]
 pub enum TimeSignatureDrawType {
-    Hidden,          // always hidden
-    Regular,         // 4/4 etc
-    CommonTime,      // C
-    SplitCommonTime, // ¢
-    Open,            // X
+    Regular = 1,         // 4/4 etc
+    CommonTime = 2,      // C
+    SplitCommonTime = 3, // ¢
+    Open = 4,            // X
 }
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct TimeSignature {
     pub id: UniqueId,
     pub tick: Tick,
+    pub hidden: bool,
     pub beats: u8,
     pub beat_type: NoteDuration,
     pub draw_type: TimeSignatureDrawType,
@@ -46,7 +46,7 @@ impl Default for TimeSignature {
             0,
             4,
             NoteDuration::Quarter,
-            TimeSignatureDrawType::Hidden,
+            TimeSignatureDrawType::Regular,
             None,
         )
     }
@@ -64,6 +64,7 @@ impl TimeSignature {
         Self {
             id,
             tick,
+            hidden: false,
             beats,
             beat_type,
             groupings: match groupings {
@@ -195,7 +196,7 @@ impl TimeSignature {
     }
 
     pub fn metrics(&self) -> BoundingBox {
-        if matches!(self.draw_type, TimeSignatureDrawType::Hidden) {
+        if self.hidden {
             return BoundingBox {
                 width: 0.0,
                 height: 4.0,
@@ -275,6 +276,7 @@ fn update_time_signature_draw_type(
     master: &mut Track,
     time_signature_id: UniqueId,
     draw_type: TimeSignatureDrawType,
+    hidden: bool,
 ) -> Result<bool, String> {
     let Some(entry) = master.entries.by_id.get_mut(&time_signature_id) else {
         return Err(String::from("Time signature not found"));
@@ -291,6 +293,7 @@ fn update_time_signature_draw_type(
     }
 
     time_signature.draw_type = draw_type;
+    time_signature.hidden = hidden;
 
     Ok(true)
 }
@@ -306,6 +309,7 @@ pub fn score_entries_time_signature_create(
     beats: u8,
     beat_type: NoteDuration,
     draw_type: TimeSignatureDrawType,
+    hidden: bool,
 ) -> Option<UniqueId> {
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
@@ -326,7 +330,9 @@ pub fn score_entries_time_signature_create(
         };
 
         // insert the new time signature
-        let new = TimeSignature::new(time_signature_id, tick, beats, beat_type, draw_type, None);
+        let mut new =
+            TimeSignature::new(time_signature_id, tick, beats, beat_type, draw_type, None);
+        new.hidden = hidden;
         let ticks_per_bar = new.ticks_per_bar();
         master.insert_entry(Entry::TimeSignature(new));
 
@@ -396,6 +402,7 @@ pub fn score_entries_time_signature_update(
     flow_id: UniqueId,
     time_signature_id: UniqueId,
     draw_type: TimeSignatureDrawType,
+    hidden: bool,
 ) -> Result<(), String> {
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
@@ -404,7 +411,7 @@ pub fn score_entries_time_signature_update(
     let master_id = flow.master_id;
     let master = state.score.tracks.by_id.get_mut(&master_id).unwrap();
 
-    update_time_signature_draw_type(master, time_signature_id, draw_type)?;
+    update_time_signature_draw_type(master, time_signature_id, draw_type, hidden)?;
 
     state.emit(&app, &mut renderer, true);
 
@@ -653,6 +660,7 @@ mod tests {
             &mut track,
             10,
             TimeSignatureDrawType::CommonTime,
+            false,
         );
 
         assert!(result.is_ok());
@@ -681,6 +689,7 @@ mod tests {
             &mut track,
             10,
             TimeSignatureDrawType::CommonTime,
+            false,
         );
 
         assert!(result.is_err());
@@ -999,14 +1008,15 @@ mod tests {
 
     #[test]
     fn hidden_metrics_have_zero_width_and_padding() {
-        let ts = TimeSignature::new(
+        let mut ts = TimeSignature::new(
             1,
             0,
             4,
             NoteDuration::Quarter,
-            TimeSignatureDrawType::Hidden,
+            TimeSignatureDrawType::Regular,
             None,
         );
+        ts.hidden = true;
         let bb = ts.metrics();
         assert!((bb.width - 0.0).abs() < f32::EPSILON);
         assert!((bb.right_padding - 0.0).abs() < f32::EPSILON);

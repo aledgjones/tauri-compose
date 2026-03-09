@@ -133,15 +133,17 @@ Manages players, instruments, flows, and layouts.
 
 The notation editor view.
 
-| Component                        | File                                               | Description                                                |
-| -------------------------------- | -------------------------------------------------- | ---------------------------------------------------------- |
-| `Write`                          | `index.tsx`                                        | Score view with collapsible bottom panel                   |
-| `BottomPanel`                    | `components/bottom-panel.tsx`                      | Properties/Sequencer/Mixer/Instruments tabs                |
-| `PropertiesPanel`                | `components/properties-panel.tsx`                  | Selection-aware shell for write-screen properties content  |
-| `TempoPropertiesSection`         | `components/tempo-properties-section.tsx`          | Immediate tempo editing controls inside the Properties tab |
-| `TimeSignaturePropertiesSection` | `components/time-signature-properties-section.tsx` | Symbol-form editing for selected time signatures           |
-| `KeySignaturePropertiesSection`  | `components/key-signature-properties-section.tsx`  | Intentional blank filler for selected key signatures       |
-| `LeftPanel`                      | `components/left-panel.tsx`                        | Tool properties panel                                      |
+| Component                        | File                                               | Description                                                                                                                             |
+| -------------------------------- | -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `Write`                          | `index.tsx`                                        | Score view with collapsible bottom panel                                                                                                |
+| `BottomPanel`                    | `components/bottom-panel.tsx`                      | Properties/Sequencer/Mixer/Instruments tabs                                                                                             |
+| `PropertiesPanel`                | `components/properties-panel.tsx`                  | Selection-aware shell for write-screen properties content plus shared `Panel` / `PanelSection` / `PanelSectionColumn` layout primitives |
+| `CommonPropertiesSection`        | `components/common-properties-section.tsx`         | Shared directive visibility section with the `Hidden` toggle                                                                            |
+| `TempoPropertiesSection`         | `components/tempo-properties-section.tsx`          | Immediate tempo editing controls plus shared visibility controls                                                                        |
+| `TimeSignaturePropertiesSection` | `components/time-signature-properties-section.tsx` | Symbol-form editing and shared visibility controls for selected time signatures                                                         |
+| `KeySignaturePropertiesSection`  | `components/key-signature-properties-section.tsx`  | Shared visibility controls for selected key signatures                                                                                  |
+| `ClefPropertiesSection`          | `components/clef-properties-section.tsx`           | Shared visibility controls for selected clefs                                                                                           |
+| `LeftPanel`                      | `components/left-panel.tsx`                        | Tool properties panel                                                                                                                   |
 
 ### Sequence Screen (`screens/sequence/`)
 
@@ -173,5 +175,4 @@ Piano roll / sequencer view.
 
 Notes:
 
-- `KeySignaturePropertiesSection` is intentionally blank in this slice.
-- Clef properties remain out of scope even though clef selection and deletion are now supported.
+- `KeySignaturePropertiesSection` and `ClefPropertiesSection` currently expose only the shared `Common` visibility controls.

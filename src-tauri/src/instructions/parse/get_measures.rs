@@ -67,7 +67,7 @@ mod tests {
             0,
             4,
             NoteDuration::Quarter,
-            TimeSignatureDrawType::Hidden,
+            TimeSignatureDrawType::Regular,
             None,
         );
         let flow = test_flow(master_id, 512);
@@ -91,7 +91,7 @@ mod tests {
             0,
             4,
             NoteDuration::Quarter,
-            TimeSignatureDrawType::Hidden,
+            TimeSignatureDrawType::Regular,
             None,
         );
         // 3/4 at tick 256 → ticks_per_bar = 32 * 3 = 96
@@ -100,7 +100,7 @@ mod tests {
             256,
             3,
             NoteDuration::Quarter,
-            TimeSignatureDrawType::Hidden,
+            TimeSignatureDrawType::Regular,
             None,
         );
         // 2 bars of 4/4 = 256 ticks, 2 bars of 3/4 = 192 ticks → length = 448

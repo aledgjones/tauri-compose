@@ -19,6 +19,10 @@ pub fn draw_clef(
     context: &ClefDrawContext,
     renderer: &mut RendererContext,
 ) {
+    if clef.hidden {
+        return;
+    }
+
     if let Some(glyph) = clef.glyph() {
         let metrics = clef.metrics(is_full_size);
         let y = origin.y + (0.5 * clef.offset as f32);
@@ -36,10 +40,7 @@ pub fn draw_clef(
                 align: Align::Bottom,
                 justify: Justify::Start,
             },
-            &Point {
-                x: origin.x,
-                y,
-            },
+            &Point { x: origin.x, y },
             color,
         );
 
@@ -211,5 +212,31 @@ mod tests {
         assert!(renderer.instructions.iter().any(|instruction| {
             matches!(instruction, DrawInstruction::Text { color, .. } if *color == Color::from_rgb(14, 165, 233))
         }));
+    }
+
+    #[test]
+    fn hidden_clef_draws_nothing() {
+        let mut renderer = make_test_renderer();
+        let clef = Clef {
+            hidden: true,
+            draw_as: ClefDrawType::G,
+            ..Default::default()
+        };
+
+        draw_clef(
+            &Point { x: 0.0, y: 0.0 },
+            &clef,
+            true,
+            &ClefDrawContext {
+                flow_id: 1,
+                stave_id: 2,
+                stave_top: 0.0,
+                is_selected: false,
+            },
+            &mut renderer,
+        );
+
+        assert!(renderer.instructions.is_empty());
+        assert!(renderer.hit_targets.is_empty());
     }
 }

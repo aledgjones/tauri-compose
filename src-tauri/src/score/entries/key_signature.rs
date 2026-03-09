@@ -85,6 +85,7 @@ pub enum KeySignatureMode {
 pub struct KeySignature {
     pub id: UniqueId,
     pub tick: Tick,
+    pub hidden: bool,
     pub mode: KeySignatureMode,
     pub offset: i8, // + == sharps | - == flats
 }
@@ -94,6 +95,7 @@ impl KeySignature {
         Self {
             id,
             tick,
+            hidden: false,
             mode,
             offset,
         }
@@ -118,6 +120,14 @@ impl KeySignature {
     }
 
     pub fn metrics(&self) -> BoundingBox {
+        if self.hidden {
+            return BoundingBox {
+                width: 0.0,
+                height: 4.0,
+                right_padding: 0.0,
+            };
+        }
+
         let width = self.offset.abs() as f32;
         let right_padding = if width > 0.0 { 1.0 } else { 0.0 };
 
@@ -224,6 +234,7 @@ fn clear_key_signature_at_tick(master: &mut Track, tick: Tick) -> bool {
     master.remove_entry(found.id).is_some()
 }
 
+#[allow(clippy::too_many_arguments)]
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_entries_key_signature_create(
     app: tauri::AppHandle,
@@ -233,6 +244,7 @@ pub fn score_entries_key_signature_create(
     tick: Tick,
     mode: KeySignatureMode,
     offset: i8,
+    hidden: bool,
 ) -> UniqueId {
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
@@ -249,7 +261,8 @@ pub fn score_entries_key_signature_create(
     };
 
     // insert the new key signature
-    let new = KeySignature::new(key_signature_id, tick, mode, offset);
+    let mut new = KeySignature::new(key_signature_id, tick, mode, offset);
+    new.hidden = hidden;
     master.insert_entry(Entry::KeySignature(new));
 
     state.emit(&app, &mut renderer, true);
@@ -275,6 +288,48 @@ pub fn score_entries_key_signature_clear(
     clear_key_signature_at_tick(master, tick);
 
     state.emit(&app, &mut renderer, true);
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn score_entries_key_signature_update(
+    app: tauri::AppHandle,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
+    flow_id: UniqueId,
+    key_signature_id: UniqueId,
+    hidden: bool,
+) -> Result<(), String> {
+    let mut state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
+
+    let master_id = state
+        .score
+        .flows
+        .by_id
+        .get(&flow_id)
+        .map(|flow| flow.master_id)
+        .ok_or_else(|| String::from("Flow not found"))?;
+
+    let entry = state
+        .score
+        .tracks
+        .by_id
+        .get_mut(&master_id)
+        .ok_or_else(|| String::from("Key signature track not found"))?
+        .entries
+        .by_id
+        .get_mut(&key_signature_id)
+        .ok_or_else(|| String::from("Key signature not found"))?;
+
+    let Entry::KeySignature(key_signature) = entry else {
+        return Err(String::from("Selected entry is not a key signature"));
+    };
+
+    key_signature.hidden = hidden;
+
+    state.emit(&app, &mut renderer, true);
+
+    Ok(())
 }
 
 #[cfg(test)]
