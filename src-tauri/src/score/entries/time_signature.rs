@@ -19,7 +19,7 @@ pub enum TimeSignatureType {
     Open,
 }
 
-#[derive(Serialize_repr, Deserialize_repr, Clone)]
+#[derive(Serialize_repr, Deserialize_repr, Clone, Copy, PartialEq, Eq, Debug)]
 #[repr(u8)]
 pub enum TimeSignatureDrawType {
     Hidden,          // always hidden
@@ -244,6 +244,57 @@ impl Track {
     }
 }
 
+fn time_signature_draw_type_is_valid(
+    time_signature: &TimeSignature,
+    draw_type: TimeSignatureDrawType,
+) -> bool {
+    match draw_type {
+        TimeSignatureDrawType::CommonTime => {
+            time_signature.beats == 4 && matches!(time_signature.beat_type, NoteDuration::Quarter)
+        }
+        TimeSignatureDrawType::SplitCommonTime => {
+            time_signature.beats == 2 && matches!(time_signature.beat_type, NoteDuration::Half)
+        }
+        _ => true,
+    }
+}
+
+fn clear_time_signature_at_tick(master: &mut Track, tick: Tick) -> bool {
+    if tick == 0 {
+        return false;
+    }
+
+    let Some(found) = master.get_time_signature_at_tick(&tick).cloned() else {
+        return false;
+    };
+
+    master.remove_entry(found.id).is_some()
+}
+
+fn update_time_signature_draw_type(
+    master: &mut Track,
+    time_signature_id: UniqueId,
+    draw_type: TimeSignatureDrawType,
+) -> Result<bool, String> {
+    let Some(entry) = master.entries.by_id.get_mut(&time_signature_id) else {
+        return Err(String::from("Time signature not found"));
+    };
+
+    let Entry::TimeSignature(time_signature) = entry else {
+        return Err(String::from("Selected entry is not a time signature"));
+    };
+
+    if !time_signature_draw_type_is_valid(time_signature, draw_type) {
+        return Err(String::from(
+            "Requested draw type is invalid for this time signature",
+        ));
+    }
+
+    time_signature.draw_type = draw_type;
+
+    Ok(true)
+}
+
 #[allow(clippy::too_many_arguments)]
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_entries_time_signature_create(
@@ -325,10 +376,6 @@ pub fn score_entries_time_signature_clear(
     flow_id: UniqueId,
     tick: Tick,
 ) {
-    if tick == 0 {
-        return;
-    }
-
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
 
@@ -336,11 +383,32 @@ pub fn score_entries_time_signature_clear(
     let master_id = flow.master_id;
     let master = state.score.tracks.by_id.get_mut(&master_id).unwrap();
 
-    if let Some(old) = master.get_time_signature_at_tick(&tick) {
-        master.remove_entry(old.id);
-    };
+    clear_time_signature_at_tick(master, tick);
 
     state.emit(&app, &mut renderer, true);
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn score_entries_time_signature_update(
+    app: tauri::AppHandle,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
+    flow_id: UniqueId,
+    time_signature_id: UniqueId,
+    draw_type: TimeSignatureDrawType,
+) -> Result<(), String> {
+    let mut state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
+
+    let flow = &state.score.flows.by_id[&flow_id];
+    let master_id = flow.master_id;
+    let master = state.score.tracks.by_id.get_mut(&master_id).unwrap();
+
+    update_time_signature_draw_type(master, time_signature_id, draw_type)?;
+
+    state.emit(&app, &mut renderer, true);
+
+    Ok(())
 }
 
 #[cfg(test)]
@@ -526,6 +594,100 @@ mod tests {
             None,
         );
         assert_eq!(ts.ticks_per_bar(), 128);
+    }
+
+    #[test]
+    fn clear_time_signature_at_tick_keeps_opening_signature() {
+        use crate::score::entries::Entry;
+        use crate::score::tracks::Track;
+
+        let mut track = Track::new(1);
+        track.insert_entry(Entry::TimeSignature(TimeSignature::new(
+            10,
+            0,
+            4,
+            NoteDuration::Quarter,
+            TimeSignatureDrawType::Regular,
+            None,
+        )));
+
+        assert!(!clear_time_signature_at_tick(&mut track, 0));
+        assert!(track.get_time_signature_at_tick(&0).is_some());
+    }
+
+    #[test]
+    fn clear_time_signature_at_tick_removes_non_zero_entry() {
+        use crate::score::entries::Entry;
+        use crate::score::tracks::Track;
+
+        let mut track = Track::new(1);
+        track.insert_entry(Entry::TimeSignature(TimeSignature::new(
+            10,
+            64,
+            4,
+            NoteDuration::Quarter,
+            TimeSignatureDrawType::Regular,
+            None,
+        )));
+
+        assert!(clear_time_signature_at_tick(&mut track, 64));
+        assert!(track.get_time_signature_at_tick(&64).is_none());
+    }
+
+    #[test]
+    fn update_time_signature_draw_type_applies_valid_symbol_forms() {
+        use crate::score::entries::Entry;
+        use crate::score::tracks::Track;
+
+        let mut track = Track::new(1);
+        track.insert_entry(Entry::TimeSignature(TimeSignature::new(
+            10,
+            64,
+            4,
+            NoteDuration::Quarter,
+            TimeSignatureDrawType::Regular,
+            None,
+        )));
+
+        let result = update_time_signature_draw_type(
+            &mut track,
+            10,
+            TimeSignatureDrawType::CommonTime,
+        );
+
+        assert!(result.is_ok());
+        assert_eq!(
+            track.get_time_signature_at_tick(&64).unwrap().draw_type,
+            TimeSignatureDrawType::CommonTime
+        );
+    }
+
+    #[test]
+    fn update_time_signature_draw_type_rejects_invalid_symbol_forms() {
+        use crate::score::entries::Entry;
+        use crate::score::tracks::Track;
+
+        let mut track = Track::new(1);
+        track.insert_entry(Entry::TimeSignature(TimeSignature::new(
+            10,
+            64,
+            3,
+            NoteDuration::Quarter,
+            TimeSignatureDrawType::Regular,
+            None,
+        )));
+
+        let result = update_time_signature_draw_type(
+            &mut track,
+            10,
+            TimeSignatureDrawType::CommonTime,
+        );
+
+        assert!(result.is_err());
+        assert_eq!(
+            track.get_time_signature_at_tick(&64).unwrap().draw_type,
+            TimeSignatureDrawType::Regular
+        );
     }
 
     #[test]

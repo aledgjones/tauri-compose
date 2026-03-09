@@ -2,8 +2,8 @@
 title: "Directive Selection Cleanup for Tempo, Time Signature, Key Signature, and Clef"
 slug: "directive-selection-cleanup-tempo-time-signature-key-signature-clef"
 created: "2026-03-09"
-status: "ready-for-dev"
-stepsCompleted: [1, 2, 3, 4]
+status: "Completed"
+stepsCompleted: [1, 2, 3, 4, 5, 6]
 tech_stack:
   - "TypeScript 5.9 + React 19 frontend with hook-based state derivation and typed Tauri action wrappers"
   - "Tauri 2.10 + Rust 2021 backend commands with mirrored FE/BE serialized selection types"
@@ -165,7 +165,7 @@ Extend the existing sequencer-selection, renderer hit-target, delete-hotkey, and
 
 ### Tasks
 
-- [ ] Task 1: Extend FE/BE selection models for directive entries
+- [x] Task 1: Extend FE/BE selection models for directive entries
   - File: [src/services/types.ts](src/services/types.ts)
   - Action: Add `TimeSignatureSelection`, `KeySignatureSelection`, and `ClefSelection` to the frontend `Selection` union using the exact payloads `type: "TimeSignature", flow_id, time_signature_id, tick`; `type: "KeySignature", flow_id, key_signature_id, tick`; and `type: "Clef", flow_id, stave_id, clef_id, tick`; also include `draw_type` on the frontend `TimeSignature` entry model.
   - Notes: These exact field names must mirror Rust serialization with no aliasing.
@@ -176,7 +176,7 @@ Extend the existing sequencer-selection, renderer hit-target, delete-hotkey, and
   - Action: Import and register the new selection-set commands.
   - Notes: Follow existing snake_case command naming.
 
-- [ ] Task 2: Make time signatures, key signatures, and clefs selectable in native rendering
+- [x] Task 2: Make time signatures, key signatures, and clefs selectable in native rendering
   - File: [src-tauri/src/instructions/draw/draw_clef.rs](src-tauri/src/instructions/draw/draw_clef.rs)
   - Action: Thread selection context into `draw_clef()`, tint selected clefs with the existing accent color, and emit stave-aware hit targets with stable popover coordinates.
   - Notes: Hit targets must include `stave_id` because clef deletion is stave-scoped.
@@ -193,7 +193,7 @@ Extend the existing sequencer-selection, renderer hit-target, delete-hotkey, and
   - Action: Add focused tests proving the generic hit test returns the new selection variants.
   - Notes: No renderer API changes should be required beyond new `Selection` payloads.
 
-- [ ] Task 3: Wire renderer click handling for new directive selections
+- [x] Task 3: Wire renderer click handling for new directive selections
   - File: [src/services/hit-test.ts](src/services/hit-test.ts)
   - Action: Verify the existing typed hit-test bridge remains correct with the expanded `Selection` union and adjust only if compile-time typing requires it.
   - Notes: Behavior should remain a thin pass-through.
@@ -213,7 +213,7 @@ Extend the existing sequencer-selection, renderer hit-target, delete-hotkey, and
   - Action: Add renderer interaction tests for all new hit-test result types.
   - Notes: Follow the existing mocked `hitTest()` pattern.
 
-- [ ] Task 4: Generalize delete-key behavior across selectable directives
+- [x] Task 4: Generalize delete-key behavior across selectable directives
   - File: [src/windows/main/hooks/use-keyboard-shortcuts.ts](src/windows/main/hooks/use-keyboard-shortcuts.ts)
   - Action: Refactor the tone-only `selectionInfo` flow into selection-kind-aware handlers so `Delete` and `Backspace` remove selected tempo, time signature, key signature, and clef entries while keeping pitch/articulation shortcuts tone-only.
   - Notes: `Escape` should continue clearing selection for every selectable type; for non-tick-0 deletions that remove an entry, call `actions.ui.sequencer.clearSelection()` after the delete command resolves.
@@ -224,7 +224,7 @@ Extend the existing sequencer-selection, renderer hit-target, delete-hotkey, and
   - Action: Add coverage proving delete/backspace dispatch correctly for tempo, time signature, key signature, and clef selections, and proving tone-only edit shortcuts still do nothing for non-tone selections.
   - Notes: Retain current tone regression coverage.
 
-- [ ] Task 5: Implement backend deletion invariants for tick-0 clefs and protected time signatures
+- [x] Task 5: Implement backend deletion invariants for tick-0 clefs and protected time signatures
   - File: [src-tauri/src/score/entries/clef.rs](src-tauri/src/score/entries/clef.rs)
   - Action: Replace the tick-0 early return with logic that restores the stave’s instrument-default clef when clearing the opening clef.
   - Notes: Resolve the owning instrument by finding the instrument whose `stave_ids` contains `stave_id`, derive the stave index within that instrument, load `get_instrument_definition(instrument.definition_id).staves[index].clef`, and mutate the existing tick-0 clef entry in place so the `clef_id` stays stable.
@@ -238,7 +238,7 @@ Extend the existing sequencer-selection, renderer hit-target, delete-hotkey, and
   - Action: Add/adjust tests for ordinary key-signature clear behavior so directive-delete coverage stays balanced.
   - Notes: No tick-0 fallback is required for key signatures in this slice.
 
-- [ ] Task 6: Add time-signature editing support for the properties panel
+- [x] Task 6: Add time-signature editing support for the properties panel
   - File: [src/services/actions.ts](src/services/actions.ts)
   - Action: Add a dedicated `actions.score.timeSignature.update(flow_id, time_signature_id, draw_type)` wrapper.
   - Notes: In this slice `draw_type` is the only editable time-signature property; do not add beats or beat-type editing.
@@ -252,7 +252,7 @@ Extend the existing sequencer-selection, renderer hit-target, delete-hotkey, and
   - Action: Add invoke contract coverage for the new time-signature update action.
   - Notes: Assert exact payload fields including `draw_type`.
 
-- [ ] Task 7: Build selection-derived hooks and properties-panel sections
+- [x] Task 7: Build selection-derived hooks and properties-panel sections
   - File: [src/windows/main/hooks/use-selected-time-signature.ts](src/windows/main/hooks/use-selected-time-signature.ts)
   - Action: Add a hook that resolves a selected time signature from the flow master track.
   - Notes: Mirror the `useSelectedTempo()` pattern.
@@ -272,7 +272,7 @@ Extend the existing sequencer-selection, renderer hit-target, delete-hotkey, and
   - Action: Route `TimeSignature` selections to the new time-signature section, `KeySignature` selections to the blank filler section, `Tempo` to the existing section, and leave `Clef` on the generic unsupported path.
   - Notes: Preserve the no-selection empty state and horizontal scroll shell; clef omission from properties is intentional and should be called out in component text/tests as out of scope rather than forgotten parity.
 
-- [ ] Task 8: Add focused frontend tests for new selection hooks and properties UI
+- [x] Task 8: Add focused frontend tests for new selection hooks and properties UI
   - File: [src/windows/main/hooks/use-selected-time-signature.test.ts](src/windows/main/hooks/use-selected-time-signature.test.ts)
   - Action: Add hook tests for successful resolution and missing-data fallthrough.
   - Notes: Use `renderHook()` plus `createWrapper()` fixtures.
@@ -289,7 +289,7 @@ Extend the existing sequencer-selection, renderer hit-target, delete-hotkey, and
   - Action: Test enabled/disabled `C` / `cutC` behavior and update dispatch.
   - Notes: Cover 4/4, 2/2, and invalid signatures such as 3/4.
 
-- [ ] Task 9: Add focused Rust tests for new selection and deletion behavior
+- [x] Task 9: Add focused Rust tests for new selection and deletion behavior
   - File: [src-tauri/src/ui/sequencer.rs](src-tauri/src/ui/sequencer.rs)
   - Action: Add serialization tests for the new selection variants.
   - Notes: Preserve the existing tempo serialization test style.
@@ -309,7 +309,7 @@ Extend the existing sequencer-selection, renderer hit-target, delete-hotkey, and
   - Action: Add tests for the new update command and the retained tick-0 clear no-op behavior.
   - Notes: Include invalid draw-type guard coverage.
 
-- [ ] Task 10: Update project documentation for the expanded directive-selection workflow
+- [x] Task 10: Update project documentation for the expanded directive-selection workflow
   - File: [docs/architecture.md](docs/architecture.md)
   - Action: Document that sequencer selection now includes tempo, time signature, key signature, and clef directives through renderer hit targets and shared selection state.
   - Notes: Include the tick-0 clef fallback and protected opening time-signature invariant.
@@ -322,27 +322,27 @@ Extend the existing sequencer-selection, renderer hit-target, delete-hotkey, and
 
 ### Acceptance Criteria
 
-- [ ] AC 1: Given a selected tempo marking in the write screen, when the user presses `Delete` or `Backspace`, then the app removes that tempo through the same shortcut pathway currently used for tone deletion.
-- [ ] AC 2: Given a rendered time signature, key signature, or clef in the write screen, when the user clicks it, then the renderer hit test returns the correct typed selection payload and the item becomes the active sequencer selection.
-- [ ] AC 3: Given a selected time signature, key signature, or clef, when the item is selected, then the native renderer highlights it with the same accent-color selection treatment used for other selectable score items.
-- [ ] AC 4: Given a selected time signature or key signature, when the Properties tab is open, then the panel renders the correct type-specific content: editable time-signature controls for time signatures and blank filler content for key signatures.
-- [ ] AC 5: Given a selected clef, when the Properties tab is open, then the panel does not crash and continues to show the generic unsupported-selection state because clef properties are intentionally out of scope for this slice.
-- [ ] AC 6: Given a selected 4/4 time signature, when the user turns the symbol-form switch on, then the stored `draw_type` updates to `CommonTime`; and given a selected 2/2 time signature, when the user turns the same switch on, then the stored `draw_type` updates to `SplitCommonTime`.
-- [ ] AC 7: Given a selected time signature that is not 4/4 or 2/2, when the Properties panel renders, then the `C` / `cutC` control is disabled and the app does not mutate the stored draw type.
-- [ ] AC 8: Given a selected key signature or time signature away from tick 0, when the user presses `Delete` or `Backspace`, then the corresponding entry is cleared and selection remains consistent with the updated score state.
-- [ ] AC 9: Given a selected clef away from tick 0, when the user presses `Delete` or `Backspace`, then the selected clef is removed from that stave master track.
-- [ ] AC 10: Given a selected clef at tick 0, when the user presses `Delete` or `Backspace`, then the opening clef is replaced with that stave’s instrument-default clef rather than leaving the flow without an initial clef.
-- [ ] AC 11: Given the opening time signature at tick 0 is selected, when the user presses `Delete` or `Backspace`, then the command is a safe no-op and the opening 4/4 time signature remains intact.
-- [ ] AC 12: Given the codebase documentation is updated for this slice, when a fresh developer reads the architecture, component inventory, and data-model docs, then they can see which directive types participate in selection/properties workflows and which start-of-flow invariants are enforced.
-- [ ] AC 13: Given a rendered key signature or time signature appears on multiple staves, when the user clicks any visible instance, then the app produces the same logical flow-master selection payload and keeps popover anchoring stable on the top-stave instance.
-- [ ] AC 14: Given a time signature has `draw_type = Hidden`, when the score renders, then no visible hit target is emitted and the hidden time signature cannot be selected by clicking empty space.
+- [x] AC 1: Given a selected tempo marking in the write screen, when the user presses `Delete` or `Backspace`, then the app removes that tempo through the same shortcut pathway currently used for tone deletion.
+- [x] AC 2: Given a rendered time signature, key signature, or clef in the write screen, when the user clicks it, then the renderer hit test returns the correct typed selection payload and the item becomes the active sequencer selection.
+- [x] AC 3: Given a selected time signature or key signature or clef, when the item is selected, then the native renderer highlights it with the same accent-color selection treatment used for other selectable score items.
+- [x] AC 4: Given a selected time signature or key signature, when the Properties tab is open, then the panel renders the correct type-specific content: editable time-signature controls for time signatures and blank filler content for key signatures.
+- [x] AC 5: Given a selected clef, when the Properties tab is open, then the panel does not crash and continues to show the generic unsupported-selection state because clef properties are intentionally out of scope for this slice.
+- [x] AC 6: Given a selected 4/4 time signature, when the user turns the symbol-form switch on, then the stored `draw_type` updates to `CommonTime`; and given a selected 2/2 time signature, when the user turns the same switch on, then the stored `draw_type` updates to `SplitCommonTime`.
+- [x] AC 7: Given a selected time signature that is not 4/4 or 2/2, when the Properties panel renders, then the `C` / `cutC` control is disabled and the app does not mutate the stored draw type.
+- [x] AC 8: Given a selected key signature or time signature away from tick 0, when the user presses `Delete` or `Backspace`, then the corresponding entry is cleared and selection remains consistent with the updated score state.
+- [x] AC 9: Given a selected clef away from tick 0, when the user presses `Delete` or `Backspace`, then the selected clef is removed from that stave master track.
+- [x] AC 10: Given a selected clef at tick 0, when the user presses `Delete` or `Backspace`, then the opening clef is replaced with that stave’s instrument-default clef rather than leaving the flow without an initial clef.
+- [x] AC 11: Given the opening time signature at tick 0 is selected, when the user presses `Delete` or `Backspace`, then the command is a safe no-op and the opening 4/4 time signature remains intact.
+- [x] AC 12: Given the codebase documentation is updated for this slice, when a fresh developer reads the architecture, component inventory, and data-model docs, then they can see which directive types participate in selection/properties workflows and which start-of-flow invariants are enforced.
+- [x] AC 13: Given a rendered key signature or time signature appears on multiple staves, when the user clicks any visible instance, then the app produces the same logical flow-master selection payload and keeps popover anchoring stable on the top-stave instance.
+- [x] AC 14: Given a time signature has `draw_type = Hidden`, when the score renders, then no visible hit target is emitted and the hidden time signature cannot be selected by clicking empty space.
 
 ### Documentation Impact
 
-- [ ] Update [docs/architecture.md](docs/architecture.md) to describe expanded directive selection via renderer hit targets, shared sequencer selection state, and start-of-flow deletion invariants.
-- [ ] Update [docs/component-inventory.md](docs/component-inventory.md) to list the new time-signature and key-signature properties-panel components and selection hooks.
-- [ ] Update [docs/data-models.md](docs/data-models.md) to document the expanded `Selection` union and the frontend `TimeSignature.draw_type` field.
-- [ ] Explicitly note in the documentation that this slice changes interaction behavior but does not change persisted `.soloc` schema, because `TimeSignature.draw_type` already exists in Rust-serialized score data and the new directive selection payloads live only in UI state, so no migration or `src-tauri/src/migrations/next.rs` change is required.
+- [x] Update [docs/architecture.md](docs/architecture.md) to describe expanded directive selection via renderer hit targets, shared sequencer selection state, and start-of-flow deletion invariants.
+- [x] Update [docs/component-inventory.md](docs/component-inventory.md) to list the new time-signature and key-signature properties-panel components and selection hooks.
+- [x] Update [docs/data-models.md](docs/data-models.md) to document the expanded `Selection` union and the frontend `TimeSignature.draw_type` field.
+- [x] Explicitly note in the documentation that this slice changes interaction behavior but does not change persisted `.soloc` schema, because `TimeSignature.draw_type` already exists in Rust-serialized score data and the new directive selection payloads live only in UI state, so no migration or `src-tauri/src/migrations/next.rs` change is required.
 
 ## Additional Context
 

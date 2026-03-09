@@ -88,4 +88,75 @@ mod tests {
 
         assert!(hit.is_none());
     }
+
+    #[test]
+    fn returns_new_directive_selection_variants_when_click_is_inside_hit_target() {
+        let mut renderer = make_test_renderer();
+        renderer.hit_targets.push(HitTarget {
+            entry: Selection::TimeSignature {
+                flow_id: 4,
+                time_signature_id: 8,
+                tick: 64,
+            },
+            x: 1.0,
+            y: 2.0,
+            width: 3.0,
+            height: 2.0,
+            popover_x: 1.0,
+            popover_y: 1.0,
+        });
+        renderer.hit_targets.push(HitTarget {
+            entry: Selection::KeySignature {
+                flow_id: 4,
+                key_signature_id: 9,
+                tick: 96,
+            },
+            x: 5.0,
+            y: 2.0,
+            width: 3.0,
+            height: 2.0,
+            popover_x: 5.0,
+            popover_y: 1.0,
+        });
+        renderer.hit_targets.push(HitTarget {
+            entry: Selection::Clef {
+                flow_id: 4,
+                stave_id: 3,
+                clef_id: 10,
+                tick: 128,
+            },
+            x: 9.0,
+            y: 2.0,
+            width: 3.0,
+            height: 2.0,
+            popover_x: 9.0,
+            popover_y: 1.0,
+        });
+
+        assert_eq!(
+            hit_test_selection(&renderer, 2.5, 3.0, 0.0, 0.0, 100.0),
+            Some(Selection::TimeSignature {
+                flow_id: 4,
+                time_signature_id: 8,
+                tick: 64,
+            })
+        );
+        assert_eq!(
+            hit_test_selection(&renderer, 6.5, 3.0, 0.0, 0.0, 100.0),
+            Some(Selection::KeySignature {
+                flow_id: 4,
+                key_signature_id: 9,
+                tick: 96,
+            })
+        );
+        assert_eq!(
+            hit_test_selection(&renderer, 10.5, 3.0, 0.0, 0.0, 100.0),
+            Some(Selection::Clef {
+                flow_id: 4,
+                stave_id: 3,
+                clef_id: 10,
+                tick: 128,
+            })
+        );
+    }
 }

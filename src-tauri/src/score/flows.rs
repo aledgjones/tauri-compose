@@ -61,6 +61,15 @@ impl Flow {
 }
 
 impl AppContext {
+    pub fn get_default_clef_for_stave(&self, stave_id: UniqueId) -> Option<Clef> {
+        self.score.instruments.by_id.values().find_map(|instrument| {
+            let stave_index = instrument.stave_ids.iter().position(|id| *id == stave_id)?;
+            let definition = get_instrument_definition(&instrument.definition_id)?;
+
+            definition.staves.get(stave_index).map(|stave| stave.clef.clone())
+        })
+    }
+
     pub fn assign_player_to_flow(&mut self, flow_id: UniqueId, player_id: UniqueId) {
         let flow = self.score.flows.by_id.get_mut(&flow_id).unwrap();
 
@@ -413,13 +422,44 @@ mod tests {
         let mut app = make_app_context(players, instruments);
 
         app.assign_player_to_flow(50, 1);
-
         let flow = &app.score.flows.by_id[&50];
 
         assert!(flow.player_ids.contains(&1));
         assert!(flow.staves.by_id.contains_key(&100));
         assert!(flow.staves.by_id.contains_key(&101));
         assert_eq!(app.score.tracks.by_id.len(), 4);
+    }
+
+    #[test]
+    fn get_default_clef_for_stave_returns_single_stave_default() {
+        let instrument = make_instrument(10, "strings.violin", vec![100]);
+        let app = make_app_context(vec![], vec![instrument]);
+
+        let clef = app.get_default_clef_for_stave(100).unwrap();
+
+        assert_eq!(
+            clef.draw_as as u8,
+            crate::score::entries::clef::ClefDrawType::G as u8
+        );
+        assert_eq!(clef.offset, 2);
+    }
+
+    #[test]
+    fn get_default_clef_for_stave_returns_correct_multi_stave_default() {
+        let instrument = make_instrument(10, "keyboard.piano", vec![100, 101]);
+        let app = make_app_context(vec![], vec![instrument]);
+
+        let top_clef = app.get_default_clef_for_stave(100).unwrap();
+        let bottom_clef = app.get_default_clef_for_stave(101).unwrap();
+
+        assert_eq!(
+            top_clef.draw_as as u8,
+            crate::score::entries::clef::ClefDrawType::G as u8
+        );
+        assert_eq!(
+            bottom_clef.draw_as as u8,
+            crate::score::entries::clef::ClefDrawType::F as u8
+        );
     }
 
     #[test]

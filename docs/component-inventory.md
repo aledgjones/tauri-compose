@@ -133,13 +133,15 @@ Manages players, instruments, flows, and layouts.
 
 The notation editor view.
 
-| Component                | File                                      | Description                                                |
-| ------------------------ | ----------------------------------------- | ---------------------------------------------------------- |
-| `Write`                  | `index.tsx`                               | Score view with collapsible bottom panel                   |
-| `BottomPanel`            | `components/bottom-panel.tsx`             | Properties/Sequencer/Mixer/Instruments tabs                |
-| `PropertiesPanel`        | `components/properties-panel.tsx`         | Selection-aware shell for write-screen properties content  |
-| `TempoPropertiesSection` | `components/tempo-properties-section.tsx` | Immediate tempo editing controls inside the Properties tab |
-| `LeftPanel`              | `components/left-panel.tsx`               | Tool properties panel                                      |
+| Component                        | File                                               | Description                                                |
+| -------------------------------- | -------------------------------------------------- | ---------------------------------------------------------- |
+| `Write`                          | `index.tsx`                                        | Score view with collapsible bottom panel                   |
+| `BottomPanel`                    | `components/bottom-panel.tsx`                      | Properties/Sequencer/Mixer/Instruments tabs                |
+| `PropertiesPanel`                | `components/properties-panel.tsx`                  | Selection-aware shell for write-screen properties content  |
+| `TempoPropertiesSection`         | `components/tempo-properties-section.tsx`          | Immediate tempo editing controls inside the Properties tab |
+| `TimeSignaturePropertiesSection` | `components/time-signature-properties-section.tsx` | Symbol-form editing for selected time signatures           |
+| `KeySignaturePropertiesSection`  | `components/key-signature-properties-section.tsx`  | Intentional blank filler for selected key signatures       |
+| `LeftPanel`                      | `components/left-panel.tsx`                        | Tool properties panel                                      |
 
 ### Sequence Screen (`screens/sequence/`)
 
@@ -157,11 +159,19 @@ Piano roll / sequencer view.
 
 ## Main Window Hooks
 
-| Hook                   | File                        | Description                                                   |
-| ---------------------- | --------------------------- | ------------------------------------------------------------- |
-| `useBottomPanelState`  | `use-bottom-panel-state.ts` | Manages bottom panel tab and minimized state                  |
-| `useKeyboardShortcuts` | `use-keyboard-shortcuts.ts` | Global keyboard shortcut handler                              |
-| `useSelectedTempo`     | `use-selected-tempo.ts`     | Resolves the selected tempo entry from flow master-track data |
-| `useSelectedToneInfo`  | `use-selected-tone-info.ts` | Resolves selected tone details                                |
-| `useSlots`             | `use-slots.ts`              | Manages slot allocation                                       |
-| `useTicks`             | `use-ticks.ts`              | Tick position calculation                                     |
+| Hook                       | File                             | Description                                                                    |
+| -------------------------- | -------------------------------- | ------------------------------------------------------------------------------ |
+| `useBottomPanelState`      | `use-bottom-panel-state.ts`      | Manages bottom panel tab and minimized state                                   |
+| `useKeyboardShortcuts`     | `use-keyboard-shortcuts.ts`      | Global keyboard shortcut handler for tone edits plus directive deletion/escape |
+| `useSelectedClef`          | `use-selected-clef.ts`           | Resolves the selected clef entry from stave master-track data                  |
+| `useSelectedKeySignature`  | `use-selected-key-signature.ts`  | Resolves the selected key signature entry from flow master-track data          |
+| `useSelectedTempo`         | `use-selected-tempo.ts`          | Resolves the selected tempo entry from flow master-track data                  |
+| `useSelectedTimeSignature` | `use-selected-time-signature.ts` | Resolves the selected time signature entry from flow master-track data         |
+| `useSelectedToneInfo`      | `use-selected-tone-info.ts`      | Resolves selected tone details                                                 |
+| `useSlots`                 | `use-slots.ts`                   | Manages slot allocation                                                        |
+| `useTicks`                 | `use-ticks.ts`                   | Tick position calculation                                                      |
+
+Notes:
+
+- `KeySignaturePropertiesSection` is intentionally blank in this slice.
+- Clef properties remain out of scope even though clef selection and deletion are now supported.

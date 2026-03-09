@@ -53,6 +53,7 @@ use score::entries::tempo::{
 };
 use score::entries::time_signature::{
     score_entries_time_signature_clear, score_entries_time_signature_create,
+    score_entries_time_signature_update,
 };
 use score::entries::tone::{
     score_entries_tone_accidental_set, score_entries_tone_articulation_set,
@@ -106,9 +107,10 @@ use ui::screens::setup::{
 use ui::screens::write::{ui_write_bottom_panel_minimized_toggle, ui_write_bottom_panel_tab_set};
 use ui::sequencer::{
     ui_sequencer_coords_set, ui_sequencer_instrument_set, ui_sequencer_selection_clear,
+    ui_sequencer_selection_set_clef, ui_sequencer_selection_set_key_signature,
     ui_sequencer_selection_set_rest, ui_sequencer_selection_set_tempo,
-    ui_sequencer_selection_set_tone, ui_sequencer_snap_set, ui_sequencer_tool_set,
-    ui_sequencer_track_set,
+    ui_sequencer_selection_set_time_signature, ui_sequencer_selection_set_tone,
+    ui_sequencer_snap_set, ui_sequencer_tool_set, ui_sequencer_track_set,
 };
 use ui::{ui_flow_id_set, ui_get_selection_coordinates, ui_layout_id_set, ui_tab_set, Ui};
 use utils::UniqueId;
@@ -477,6 +479,7 @@ pub fn run() {
             score_entries_tempo_update,
             score_entries_time_signature_create,
             score_entries_time_signature_clear,
+            score_entries_time_signature_update,
             score_entries_tone_create,
             score_entries_tone_duration_set,
             score_entries_tone_pitch_set,
@@ -542,8 +545,11 @@ pub fn run() {
             ui_sequencer_coords_set,
             ui_sequencer_instrument_set,
             ui_sequencer_selection_clear,
+            ui_sequencer_selection_set_clef,
+            ui_sequencer_selection_set_key_signature,
             ui_sequencer_selection_set_rest,
             ui_sequencer_selection_set_tempo,
+            ui_sequencer_selection_set_time_signature,
             ui_sequencer_selection_set_tone,
             ui_sequencer_snap_set,
             ui_sequencer_tool_set,

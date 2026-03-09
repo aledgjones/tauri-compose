@@ -111,6 +111,33 @@ impl Flow {
     }
 }
 
+fn restore_clef_to_default(clef: &mut Clef, default_clef: &Clef) {
+    clef.draw_as = default_clef.draw_as;
+    clef.pitch = default_clef.pitch;
+    clef.offset = default_clef.offset;
+}
+
+fn clear_clef_at_tick(master: &mut Track, tick: Tick, default_clef: Option<&Clef>) -> bool {
+    let Some(found) = master.get_clef_at_tick(&tick).cloned() else {
+        return false;
+    };
+
+    if tick == 0 {
+        let Some(default_clef) = default_clef else {
+            return false;
+        };
+
+        if let Some(Entry::Clef(clef)) = master.entries.by_id.get_mut(&found.id) {
+            restore_clef_to_default(clef, default_clef);
+            return true;
+        }
+
+        return false;
+    }
+
+    master.remove_entry(found.id).is_some()
+}
+
 #[allow(clippy::too_many_arguments)]
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_entries_clef_create(
@@ -163,21 +190,22 @@ pub fn score_entries_clef_clear(
     stave_id: UniqueId,
     tick: Tick,
 ) {
-    if tick == 0 {
-        return;
-    }
-
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
+    let default_clef = if tick == 0 {
+        state.get_default_clef_for_stave(stave_id)
+    } else {
+        None
+    };
 
-    let flow = &state.score.flows.by_id[&flow_id];
-    let stave = &flow.staves.by_id[&stave_id];
-    let master_id = stave.master_id;
+    let master_id = {
+        let flow = &state.score.flows.by_id[&flow_id];
+        let stave = &flow.staves.by_id[&stave_id];
+        stave.master_id
+    };
     let master = state.score.tracks.by_id.get_mut(&master_id).unwrap();
 
-    if let Some(old) = master.get_clef_at_tick(&tick) {
-        master.remove_entry(old.id);
-    };
+    clear_clef_at_tick(master, tick, default_clef.as_ref());
 
     state.emit(&app, &mut renderer, true);
 }
@@ -322,6 +350,55 @@ mod tests {
         );
         track.insert_entry(Entry::Clef(clef));
         assert!(track.get_clef_at_tick(&0).is_none());
+    }
+
+    #[test]
+    fn clear_clef_at_tick_restores_tick_zero_default_and_preserves_identity() {
+        use crate::score::entries::Entry;
+        use crate::score::tracks::Track;
+
+        let mut track = Track::new(1);
+        track.insert_entry(Entry::Clef(Clef::new(
+            10,
+            0,
+            Pitch::new(67, Accidental::Natural),
+            2,
+            ClefDrawType::G,
+        )));
+
+        let default_clef = Clef::new(
+            0,
+            0,
+            Pitch::new(53, Accidental::Natural),
+            -2,
+            ClefDrawType::F,
+        );
+
+        assert!(clear_clef_at_tick(&mut track, 0, Some(&default_clef)));
+
+        let restored = track.get_clef_at_tick(&0).unwrap();
+        assert_eq!(restored.id, 10);
+        assert_eq!(restored.draw_as as u8, ClefDrawType::F as u8);
+        assert_eq!(restored.offset, -2);
+        assert_eq!(restored.pitch.int, 53);
+    }
+
+    #[test]
+    fn clear_clef_at_tick_removes_non_zero_clef() {
+        use crate::score::entries::Entry;
+        use crate::score::tracks::Track;
+
+        let mut track = Track::new(1);
+        track.insert_entry(Entry::Clef(Clef::new(
+            10,
+            64,
+            Pitch::new(67, Accidental::Natural),
+            2,
+            ClefDrawType::G,
+        )));
+
+        assert!(clear_clef_at_tick(&mut track, 64, None));
+        assert!(track.get_clef_at_tick(&64).is_none());
     }
 
     #[test]

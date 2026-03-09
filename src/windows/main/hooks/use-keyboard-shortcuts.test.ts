@@ -10,6 +10,19 @@ import { Accidental, Articulation, PlayerType } from "../../../services/types";
 vi.mock("../../../services/actions", () => ({
   actions: {
     score: {
+      clef: {
+        clear: vi.fn().mockResolvedValue(undefined),
+      },
+      keySignature: {
+        clearAtTick: vi.fn().mockResolvedValue(undefined),
+      },
+      tempo: {
+        clearAtTick: vi.fn().mockResolvedValue(undefined),
+      },
+      timeSignature: {
+        clearAtTick: vi.fn().mockResolvedValue(undefined),
+        update: vi.fn().mockResolvedValue(undefined),
+      },
       tone: {
         shiftPitchByStep: vi.fn().mockResolvedValue(undefined),
         shiftPitchByOctave: vi.fn().mockResolvedValue(undefined),
@@ -392,6 +405,233 @@ describe("useKeyboardShortcuts", () => {
       window.dispatchEvent(new KeyboardEvent("keydown", { key: "Delete" }));
     });
     expect(actions.score.tone.remove).toHaveBeenCalledWith(TRACK_ID, TONE_ID);
+  });
+
+  it("deletes selected tempo and clears selection", async () => {
+    const state = createAppState({
+      ui: {
+        sequencer: {
+          selection: {
+            type: "Tempo",
+            flow_id: FLOW_ID,
+            tempo_id: 555,
+            tick: 64,
+          },
+        },
+      } as never,
+    });
+
+    renderHook(() => useKeyboardShortcuts(), {
+      wrapper: createWrapper({ appState: state }),
+    });
+
+    await act(async () => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Delete" }));
+    });
+
+    expect(actions.score.tempo.clearAtTick).toHaveBeenCalledWith(FLOW_ID, 64);
+    expect(actions.ui.sequencer.clearSelection).toHaveBeenCalledOnce();
+  });
+
+  it("clears selection when deleting the opening tempo", async () => {
+    const state = createAppState({
+      ui: {
+        sequencer: {
+          selection: {
+            type: "Tempo",
+            flow_id: FLOW_ID,
+            tempo_id: 555,
+            tick: 0,
+          },
+        },
+      } as never,
+    });
+
+    renderHook(() => useKeyboardShortcuts(), {
+      wrapper: createWrapper({ appState: state }),
+    });
+
+    await act(async () => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Delete" }));
+    });
+
+    expect(actions.score.tempo.clearAtTick).toHaveBeenCalledWith(FLOW_ID, 0);
+    expect(actions.ui.sequencer.clearSelection).toHaveBeenCalledOnce();
+  });
+
+  it("deletes selected time signature and clears selection away from tick 0", async () => {
+    const state = createAppState({
+      ui: {
+        sequencer: {
+          selection: {
+            type: "TimeSignature",
+            flow_id: FLOW_ID,
+            time_signature_id: 777,
+            tick: 64,
+          },
+        },
+      } as never,
+    });
+
+    renderHook(() => useKeyboardShortcuts(), {
+      wrapper: createWrapper({ appState: state }),
+    });
+
+    await act(async () => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Backspace" }));
+    });
+
+    expect(actions.score.timeSignature.clearAtTick).toHaveBeenCalledWith(
+      FLOW_ID,
+      64,
+    );
+    expect(actions.ui.sequencer.clearSelection).toHaveBeenCalledOnce();
+  });
+
+  it("keeps selection when deleting the opening time signature", async () => {
+    const state = createAppState({
+      ui: {
+        sequencer: {
+          selection: {
+            type: "TimeSignature",
+            flow_id: FLOW_ID,
+            time_signature_id: 777,
+            tick: 0,
+          },
+        },
+      } as never,
+    });
+
+    renderHook(() => useKeyboardShortcuts(), {
+      wrapper: createWrapper({ appState: state }),
+    });
+
+    await act(async () => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Delete" }));
+    });
+
+    expect(actions.score.timeSignature.clearAtTick).toHaveBeenCalledWith(
+      FLOW_ID,
+      0,
+    );
+    expect(actions.ui.sequencer.clearSelection).not.toHaveBeenCalled();
+  });
+
+  it("deletes selected key signature and clears selection", async () => {
+    const state = createAppState({
+      ui: {
+        sequencer: {
+          selection: {
+            type: "KeySignature",
+            flow_id: FLOW_ID,
+            key_signature_id: 778,
+            tick: 64,
+          },
+        },
+      } as never,
+    });
+
+    renderHook(() => useKeyboardShortcuts(), {
+      wrapper: createWrapper({ appState: state }),
+    });
+
+    await act(async () => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Delete" }));
+    });
+
+    expect(actions.score.keySignature.clearAtTick).toHaveBeenCalledWith(
+      FLOW_ID,
+      64,
+    );
+    expect(actions.ui.sequencer.clearSelection).toHaveBeenCalledOnce();
+  });
+
+  it("clears selection when deleting the opening key signature", async () => {
+    const state = createAppState({
+      ui: {
+        sequencer: {
+          selection: {
+            type: "KeySignature",
+            flow_id: FLOW_ID,
+            key_signature_id: 778,
+            tick: 0,
+          },
+        },
+      } as never,
+    });
+
+    renderHook(() => useKeyboardShortcuts(), {
+      wrapper: createWrapper({ appState: state }),
+    });
+
+    await act(async () => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Delete" }));
+    });
+
+    expect(actions.score.keySignature.clearAtTick).toHaveBeenCalledWith(
+      FLOW_ID,
+      0,
+    );
+    expect(actions.ui.sequencer.clearSelection).toHaveBeenCalledOnce();
+  });
+
+  it("deletes selected clef and clears selection away from tick 0", async () => {
+    const state = createAppState({
+      ui: {
+        sequencer: {
+          selection: {
+            type: "Clef",
+            flow_id: FLOW_ID,
+            stave_id: STAVE_ID,
+            clef_id: 779,
+            tick: 64,
+          },
+        },
+      } as never,
+    });
+
+    renderHook(() => useKeyboardShortcuts(), {
+      wrapper: createWrapper({ appState: state }),
+    });
+
+    await act(async () => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Delete" }));
+    });
+
+    expect(actions.score.clef.clear).toHaveBeenCalledWith(
+      FLOW_ID,
+      64,
+      STAVE_ID,
+    );
+    expect(actions.ui.sequencer.clearSelection).toHaveBeenCalledOnce();
+  });
+
+  it("does not dispatch tone-only edit shortcuts for a selected clef", async () => {
+    const state = createAppState({
+      ui: {
+        sequencer: {
+          selection: {
+            type: "Clef",
+            flow_id: FLOW_ID,
+            stave_id: STAVE_ID,
+            clef_id: 779,
+            tick: 64,
+          },
+        },
+      } as never,
+    });
+
+    renderHook(() => useKeyboardShortcuts(), {
+      wrapper: createWrapper({ appState: state }),
+    });
+
+    await act(async () => {
+      window.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "ArrowUp", altKey: true }),
+      );
+    });
+
+    expect(actions.score.tone.shiftPitchByStep).not.toHaveBeenCalled();
   });
 
   it("dispatches setArticulation(Tenuto) on '\\'", async () => {

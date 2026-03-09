@@ -118,6 +118,27 @@ describe("useSelectedToneInfo", () => {
     expect(result.current).toBeNull();
   });
 
+  it("returns null for directive selections without track context", () => {
+    const state = createAppState({
+      ui: {
+        sequencer: {
+          selection: {
+            type: "TimeSignature",
+            flow_id: FLOW_ID,
+            time_signature_id: 123,
+            tick: 64,
+          },
+        },
+      } as never,
+    });
+
+    const { result } = renderHook(() => useSelectedToneInfo(), {
+      wrapper: createWrapper({ appState: state }),
+    });
+
+    expect(result.current).toBeNull();
+  });
+
   it("returns null when selection references a missing track", () => {
     const state = createAppState({
       ui: {

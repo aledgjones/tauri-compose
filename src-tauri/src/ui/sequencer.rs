@@ -28,6 +28,22 @@ pub enum Selection {
         tempo_id: UniqueId,
         tick: u64,
     },
+    TimeSignature {
+        flow_id: UniqueId,
+        time_signature_id: UniqueId,
+        tick: u64,
+    },
+    KeySignature {
+        flow_id: UniqueId,
+        key_signature_id: UniqueId,
+        tick: u64,
+    },
+    Clef {
+        flow_id: UniqueId,
+        stave_id: UniqueId,
+        clef_id: UniqueId,
+        tick: u64,
+    },
 }
 
 #[derive(Serialize_repr, Deserialize_repr, Clone)]
@@ -217,6 +233,71 @@ pub fn ui_sequencer_selection_set_tempo(
 }
 
 #[tauri::command(rename_all = "snake_case")]
+pub fn ui_sequencer_selection_set_time_signature(
+    app: tauri::AppHandle,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
+    flow_id: UniqueId,
+    time_signature_id: UniqueId,
+    tick: u64,
+) {
+    let mut state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
+
+    state.ui.sequencer.selection = Some(Selection::TimeSignature {
+        flow_id,
+        time_signature_id,
+        tick,
+    });
+
+    state.emit(&app, &mut renderer, true);
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn ui_sequencer_selection_set_key_signature(
+    app: tauri::AppHandle,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
+    flow_id: UniqueId,
+    key_signature_id: UniqueId,
+    tick: u64,
+) {
+    let mut state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
+
+    state.ui.sequencer.selection = Some(Selection::KeySignature {
+        flow_id,
+        key_signature_id,
+        tick,
+    });
+
+    state.emit(&app, &mut renderer, true);
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn ui_sequencer_selection_set_clef(
+    app: tauri::AppHandle,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
+    flow_id: UniqueId,
+    stave_id: UniqueId,
+    clef_id: UniqueId,
+    tick: u64,
+) {
+    let mut state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
+
+    state.ui.sequencer.selection = Some(Selection::Clef {
+        flow_id,
+        stave_id,
+        clef_id,
+        tick,
+    });
+
+    state.emit(&app, &mut renderer, true);
+}
+
+#[tauri::command(rename_all = "snake_case")]
 pub fn ui_sequencer_selection_clear(
     app: tauri::AppHandle,
     state: State<'_, AppContextState>,
@@ -247,6 +328,56 @@ mod tests {
         assert_eq!(json["type"], "Tempo");
         assert_eq!(json["flow_id"], 11);
         assert_eq!(json["tempo_id"], 12);
+        assert_eq!(json["tick"], 96);
+    }
+
+    #[test]
+    fn time_signature_selection_serializes_with_expected_shape() {
+        let selection = Selection::TimeSignature {
+            flow_id: 11,
+            time_signature_id: 13,
+            tick: 96,
+        };
+
+        let json = serde_json::to_value(selection).unwrap();
+
+        assert_eq!(json["type"], "TimeSignature");
+        assert_eq!(json["flow_id"], 11);
+        assert_eq!(json["time_signature_id"], 13);
+        assert_eq!(json["tick"], 96);
+    }
+
+    #[test]
+    fn key_signature_selection_serializes_with_expected_shape() {
+        let selection = Selection::KeySignature {
+            flow_id: 11,
+            key_signature_id: 14,
+            tick: 96,
+        };
+
+        let json = serde_json::to_value(selection).unwrap();
+
+        assert_eq!(json["type"], "KeySignature");
+        assert_eq!(json["flow_id"], 11);
+        assert_eq!(json["key_signature_id"], 14);
+        assert_eq!(json["tick"], 96);
+    }
+
+    #[test]
+    fn clef_selection_serializes_with_expected_shape() {
+        let selection = Selection::Clef {
+            flow_id: 11,
+            stave_id: 4,
+            clef_id: 15,
+            tick: 96,
+        };
+
+        let json = serde_json::to_value(selection).unwrap();
+
+        assert_eq!(json["type"], "Clef");
+        assert_eq!(json["flow_id"], 11);
+        assert_eq!(json["stave_id"], 4);
+        assert_eq!(json["clef_id"], 15);
         assert_eq!(json["tick"], 96);
     }
 }

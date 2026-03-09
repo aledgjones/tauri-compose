@@ -4,55 +4,108 @@ import {
   createAppState,
   screen,
 } from "../../../../../services/test-utils";
-import { NoteDuration } from "../../../../../services/types";
+import {
+  KeySignatureMode,
+  NoteDuration,
+  TimeSignatureDrawType,
+} from "../../../../../services/types";
 import { PropertiesPanel } from "./properties-panel";
 
 const FLOW_ID = 9;
 const MASTER_ID = 10;
+const STAVE_ID = 11;
+const STAVE_MASTER_ID = 12;
 const TEMPO_ID = 44;
+const TIME_SIGNATURE_ID = 45;
+const KEY_SIGNATURE_ID = 46;
+const CLEF_ID = 47;
 
-const buildTempoState = () =>
-  createAppState({
-    score: {
-      flows: {
-        order: [FLOW_ID],
-        by_id: {
-          [FLOW_ID]: {
-            id: FLOW_ID,
-            title: "Flow",
-            player_ids: [],
-            length: 128,
-            master_id: MASTER_ID,
-            staves: { by_id: {} },
-          },
-        },
-      },
-      tracks: {
-        by_id: {
-          [MASTER_ID]: {
-            id: MASTER_ID,
-            entries: {
-              by_tick: { 64: [TEMPO_ID] },
-              by_id: {
-                [TEMPO_ID]: {
-                  id: TEMPO_ID,
-                  tick: 64,
-                  type: "Tempo",
-                  text: "Allegro",
-                  beat_type: NoteDuration.Quarter,
-                  dots: 0,
-                  bpm: 120,
-                  hidden: false,
-                  show_text: true,
-                  show_metronome: true,
-                  parenthesized: false,
-                },
-              },
+const buildBaseScore = () => ({
+  flows: {
+    order: [FLOW_ID],
+    by_id: {
+      [FLOW_ID]: {
+        id: FLOW_ID,
+        title: "Flow",
+        player_ids: [],
+        length: 128,
+        master_id: MASTER_ID,
+        staves: {
+          by_id: {
+            [STAVE_ID]: {
+              id: STAVE_ID,
+              lines: [1, 1, 1, 1, 1],
+              master_id: STAVE_MASTER_ID,
+              track_ids: [],
             },
           },
         },
       },
-    } as never,
+    },
+  },
+  tracks: {
+    by_id: {
+      [MASTER_ID]: {
+        id: MASTER_ID,
+        entries: {
+          by_tick: {
+            64: [TEMPO_ID, TIME_SIGNATURE_ID, KEY_SIGNATURE_ID],
+          },
+          by_id: {
+            [TEMPO_ID]: {
+              id: TEMPO_ID,
+              tick: 64,
+              type: "Tempo",
+              text: "Allegro",
+              beat_type: NoteDuration.Quarter,
+              dots: 0,
+              bpm: 120,
+              hidden: false,
+              show_text: true,
+              show_metronome: true,
+              parenthesized: false,
+            },
+            [TIME_SIGNATURE_ID]: {
+              id: TIME_SIGNATURE_ID,
+              tick: 64,
+              type: "TimeSignature",
+              beats: 4,
+              beat_type: NoteDuration.Quarter,
+              draw_type: TimeSignatureDrawType.Regular,
+            },
+            [KEY_SIGNATURE_ID]: {
+              id: KEY_SIGNATURE_ID,
+              tick: 64,
+              type: "KeySignature",
+              mode: KeySignatureMode.Major,
+              offset: 2,
+            },
+          },
+        },
+      },
+      [STAVE_MASTER_ID]: {
+        id: STAVE_MASTER_ID,
+        entries: {
+          by_tick: { 64: [CLEF_ID] },
+          by_id: {
+            [CLEF_ID]: {
+              id: CLEF_ID,
+              tick: 64,
+              type: "Clef",
+              draw_as: 1,
+              pitch: { int: 67, accidental: 0 },
+              offset: 2,
+            },
+          },
+        },
+      },
+    },
+  },
+});
+
+const buildTempoState = () =>
+  createAppState({
+    score: buildBaseScore() as never,
     ui: {
       sequencer: {
         selection: {
@@ -96,6 +149,79 @@ describe("PropertiesPanel", () => {
   it("routes tempo selections to the tempo properties section", () => {
     renderWithProviders(<PropertiesPanel />, { appState: buildTempoState() });
     expect(screen.getByTestId("tempo-properties-section")).toBeInTheDocument();
-    expect(screen.getByText("Metronome")).toBeInTheDocument();
+    expect(screen.getByText("Show metronome")).toBeInTheDocument();
+  });
+
+  it("routes time signature selections to the time signature properties section", () => {
+    const appState = createAppState({
+      score: buildBaseScore() as never,
+      ui: {
+        sequencer: {
+          selection: {
+            type: "TimeSignature",
+            flow_id: FLOW_ID,
+            time_signature_id: TIME_SIGNATURE_ID,
+            tick: 64,
+          },
+        },
+      } as never,
+    });
+
+    renderWithProviders(<PropertiesPanel />, { appState });
+    expect(
+      screen.getByTestId("time-signature-properties-section"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("switch", { name: "Symbol form" }),
+    ).toBeInTheDocument();
+  });
+
+  it("routes key signature selections to the blank filler section", () => {
+    const appState = createAppState({
+      score: buildBaseScore() as never,
+      ui: {
+        sequencer: {
+          selection: {
+            type: "KeySignature",
+            flow_id: FLOW_ID,
+            key_signature_id: KEY_SIGNATURE_ID,
+            tick: 64,
+          },
+        },
+      } as never,
+    });
+
+    renderWithProviders(<PropertiesPanel />, { appState });
+    expect(
+      screen.getByTestId("key-signature-properties-section"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByTestId("key-signature-properties-blank"),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps clef selections on the unsupported state with out-of-scope messaging", () => {
+    const appState = createAppState({
+      score: buildBaseScore() as never,
+      ui: {
+        sequencer: {
+          selection: {
+            type: "Clef",
+            flow_id: FLOW_ID,
+            stave_id: STAVE_ID,
+            clef_id: CLEF_ID,
+            tick: 64,
+          },
+        },
+      } as never,
+    });
+
+    renderWithProviders(<PropertiesPanel />, { appState });
+    expect(
+      screen.getByTestId("properties-panel-unsupported"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Clef properties out of scope"),
+    ).toBeInTheDocument();
   });
 });

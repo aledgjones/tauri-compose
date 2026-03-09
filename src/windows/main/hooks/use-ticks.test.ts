@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { renderHook } from "@testing-library/react";
 import { useTicks } from "./use-ticks";
-import { NoteDuration } from "../../../services/types";
+import { NoteDuration, TimeSignatureDrawType } from "../../../services/types";
 import type { Flow, Track } from "../../../services/types";
 
 // ---------------------------------------------------------------------------
@@ -22,6 +22,7 @@ const makeMasterTrack = (
         type: "TimeSignature",
         beats,
         beat_type: beatType,
+        draw_type: TimeSignatureDrawType.Regular,
       },
     },
   },
@@ -117,6 +118,7 @@ describe("useTicks", () => {
             type: "TimeSignature",
             beats: 4,
             beat_type: NoteDuration.Quarter,
+            draw_type: TimeSignatureDrawType.Regular,
           },
           [timeSig3_4Id]: {
             id: timeSig3_4Id,
@@ -124,6 +126,7 @@ describe("useTicks", () => {
             type: "TimeSignature",
             beats: 3,
             beat_type: NoteDuration.Quarter,
+            draw_type: TimeSignatureDrawType.Regular,
           },
         },
       },

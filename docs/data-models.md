@@ -134,6 +134,8 @@ The audible musical note. **Never directly drawn** in the score — the parse pi
 | `draw_type` | `TimeSignatureDrawType` | Hidden, Regular, CommonTime, SplitCommonTime, Open |
 | `groupings` | `Vec<u8>`               | Beat grouping subdivisions                         |
 
+The frontend `TimeSignature` mirror now includes `draw_type` as well, because the write-screen Properties tab can switch valid 4/4 and 2/2 signatures between stacked numerals and common-time symbols without changing any persisted file schema.
+
 #### Tempo
 
 Immediate absolute tempo markings live on the **flow master track** so the renderer and future playback-following-tempo work can query a single flow-wide source of truth.
@@ -163,6 +165,19 @@ Metronome-only tempos now persist as `text: ""` plus `show_text: false` rather t
 Tempo entries drive both score rendering and transport tempo resolution, and selected tempo entries can be edited from the write-screen `Properties` tab.
 
 This schema changed in `1.25.0`; older `.soloc` payloads that still contain `text: null` are normalized during load by migration `1.25.0`.
+
+### Sequencer Selection (UI-only)
+
+Sequencer selection state is mirrored between Rust and TypeScript and is **not** persisted into `.soloc` files. The selection union now includes:
+
+- `Tone { flow_id, instrument_id, stave_id, track_id, tone_id }`
+- `Rest { flow_id, instrument_id, stave_id, track_id, tick }`
+- `Tempo { flow_id, tempo_id, tick }`
+- `TimeSignature { flow_id, time_signature_id, tick }`
+- `KeySignature { flow_id, key_signature_id, tick }`
+- `Clef { flow_id, stave_id, clef_id, tick }`
+
+These directive-selection payloads exist only in UI state so the native renderer can round-trip hit targets, highlight state, keyboard deletion, and popover anchoring. They do not change persisted project JSON or require a migration.
 
 ---
 

@@ -31,6 +31,36 @@ describe("hitTest", () => {
     expect(result).toEqual(selection);
   });
 
+  it("passes through time signature, key signature, and clef hit results", async () => {
+    const results = [
+      {
+        type: "TimeSignature",
+        flow_id: 1,
+        time_signature_id: 8,
+        tick: 64,
+      },
+      {
+        type: "KeySignature",
+        flow_id: 1,
+        key_signature_id: 9,
+        tick: 64,
+      },
+      {
+        type: "Clef",
+        flow_id: 1,
+        stave_id: 2,
+        clef_id: 10,
+        tick: 64,
+      },
+    ];
+
+    for (const selection of results) {
+      vi.mocked(invoke).mockResolvedValueOnce(selection);
+      const result = await hitTest(0, 0, 0, 0, 1);
+      expect(result).toEqual(selection);
+    }
+  });
+
   it("returns null when invoke resolves null", async () => {
     vi.mocked(invoke).mockResolvedValueOnce(null);
     const result = await hitTest(0, 0, 0, 0, 1);

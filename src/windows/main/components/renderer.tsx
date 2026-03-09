@@ -95,44 +95,64 @@ export const Renderer: FC<Props> = ({ className }) => {
         zoomRef.current,
       );
 
-      if (hitResult && hitResult.type === "Tone") {
+      if (hitResult) {
         e.preventDefault();
 
-        await actions.ui.sequencer.selectTone(
-          hitResult.tone_id,
-          hitResult.track_id,
-          hitResult.stave_id,
-          hitResult.flow_id,
-          hitResult.instrument_id,
-        );
-
-        return;
-      }
-
-      if (hitResult && hitResult.type === "Rest") {
-        e.preventDefault();
-
-        await actions.ui.sequencer.selectRest(
-          hitResult.tick,
-          hitResult.track_id,
-          hitResult.stave_id,
-          hitResult.flow_id,
-          hitResult.instrument_id,
-        );
-
-        return;
-      }
-
-      if (hitResult && hitResult.type === "Tempo") {
-        e.preventDefault();
-
-        await actions.ui.sequencer.selectTempo(
-          hitResult.tempo_id,
-          hitResult.flow_id,
-          hitResult.tick,
-        );
-
-        return;
+        switch (hitResult.type) {
+          case "Tone": {
+            await actions.ui.sequencer.selectTone(
+              hitResult.tone_id,
+              hitResult.track_id,
+              hitResult.stave_id,
+              hitResult.flow_id,
+              hitResult.instrument_id,
+            );
+            return;
+          }
+          case "Rest": {
+            await actions.ui.sequencer.selectRest(
+              hitResult.tick,
+              hitResult.track_id,
+              hitResult.stave_id,
+              hitResult.flow_id,
+              hitResult.instrument_id,
+            );
+            return;
+          }
+          case "Tempo": {
+            await actions.ui.sequencer.selectTempo(
+              hitResult.tempo_id,
+              hitResult.flow_id,
+              hitResult.tick,
+            );
+            return;
+          }
+          case "TimeSignature": {
+            await actions.ui.sequencer.selectTimeSignature(
+              hitResult.flow_id,
+              hitResult.time_signature_id,
+              hitResult.tick,
+            );
+            return;
+          }
+          case "KeySignature": {
+            await actions.ui.sequencer.selectKeySignature(
+              hitResult.flow_id,
+              hitResult.key_signature_id,
+              hitResult.tick,
+            );
+            return;
+          }
+          case "Clef": {
+            await actions.ui.sequencer.selectClef(
+              hitResult.flow_id,
+              hitResult.stave_id,
+              hitResult.clef_id,
+              hitResult.tick,
+            );
+            return;
+          }
+        }
       }
 
       // No hit - proceed with panning

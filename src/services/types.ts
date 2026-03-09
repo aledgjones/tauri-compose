@@ -201,6 +201,7 @@ export type TimeSignature = {
   type: "TimeSignature";
   beats: number;
   beat_type: NoteDuration;
+  draw_type: TimeSignatureDrawType;
 };
 
 export type Tempo = {
@@ -393,7 +394,35 @@ type TempoSelection = {
   tick: Tick;
 };
 
-export type Selection = ToneSelection | RestSelection | TempoSelection;
+type TimeSignatureSelection = {
+  type: "TimeSignature";
+  flow_id: UniqueId;
+  time_signature_id: UniqueId;
+  tick: Tick;
+};
+
+type KeySignatureSelection = {
+  type: "KeySignature";
+  flow_id: UniqueId;
+  key_signature_id: UniqueId;
+  tick: Tick;
+};
+
+type ClefSelection = {
+  type: "Clef";
+  flow_id: UniqueId;
+  stave_id: UniqueId;
+  clef_id: UniqueId;
+  tick: Tick;
+};
+
+export type Selection =
+  | ToneSelection
+  | RestSelection
+  | TempoSelection
+  | TimeSignatureSelection
+  | KeySignatureSelection
+  | ClefSelection;
 
 export type AppState = {
   ui: {

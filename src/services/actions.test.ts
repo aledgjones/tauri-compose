@@ -282,6 +282,43 @@ describe("actions.ui", () => {
       );
     });
 
+    it("selectTimeSignature calls invoke with the time signature selection payload", async () => {
+      await actions.ui.sequencer.selectTimeSignature(4, 8, 64);
+      expect(mockInvoke).toHaveBeenCalledWith(
+        "ui_sequencer_selection_set_time_signature",
+        {
+          flow_id: 4,
+          time_signature_id: 8,
+          tick: 64,
+        },
+      );
+    });
+
+    it("selectKeySignature calls invoke with the key signature selection payload", async () => {
+      await actions.ui.sequencer.selectKeySignature(4, 9, 64);
+      expect(mockInvoke).toHaveBeenCalledWith(
+        "ui_sequencer_selection_set_key_signature",
+        {
+          flow_id: 4,
+          key_signature_id: 9,
+          tick: 64,
+        },
+      );
+    });
+
+    it("selectClef calls invoke with the clef selection payload", async () => {
+      await actions.ui.sequencer.selectClef(4, 3, 10, 64);
+      expect(mockInvoke).toHaveBeenCalledWith(
+        "ui_sequencer_selection_set_clef",
+        {
+          flow_id: 4,
+          stave_id: 3,
+          clef_id: 10,
+          tick: 64,
+        },
+      );
+    });
+
     it("clearSelection calls invoke correctly", async () => {
       await actions.ui.sequencer.clearSelection();
       expect(mockInvoke).toHaveBeenCalledWith("ui_sequencer_selection_clear");
@@ -977,6 +1014,22 @@ describe("actions.score.timeSignature", () => {
     expect(mockInvoke).toHaveBeenCalledWith(
       "score_entries_time_signature_clear",
       { flow_id: 1, tick: 0 },
+    );
+  });
+
+  it("update calls invoke correctly", async () => {
+    await actions.score.timeSignature.update(
+      1,
+      9,
+      TimeSignatureDrawType.CommonTime,
+    );
+    expect(mockInvoke).toHaveBeenCalledWith(
+      "score_entries_time_signature_update",
+      {
+        flow_id: 1,
+        time_signature_id: 9,
+        draw_type: TimeSignatureDrawType.CommonTime,
+      },
     );
   });
 });

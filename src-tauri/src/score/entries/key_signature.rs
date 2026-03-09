@@ -216,6 +216,14 @@ impl Track {
     }
 }
 
+fn clear_key_signature_at_tick(master: &mut Track, tick: Tick) -> bool {
+    let Some(found) = master.get_key_signature_at_tick(&tick).cloned() else {
+        return false;
+    };
+
+    master.remove_entry(found.id).is_some()
+}
+
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_entries_key_signature_create(
     app: tauri::AppHandle,
@@ -264,9 +272,7 @@ pub fn score_entries_key_signature_clear(
     let master_id = flow.master_id;
     let master = state.score.tracks.by_id.get_mut(&master_id).unwrap();
 
-    if let Some(old) = master.get_key_signature_at_tick(&tick) {
-        master.remove_entry(old.id);
-    };
+    clear_key_signature_at_tick(master, tick);
 
     state.emit(&app, &mut renderer, true);
 }
@@ -345,6 +351,23 @@ mod tests {
     fn accidentals_all_seven_sharps() {
         let ks = KeySignature::new(0, 0, KeySignatureMode::Major, 7);
         assert_eq!(ks.accidentals().len(), 7);
+    }
+
+    #[test]
+    fn clear_key_signature_at_tick_removes_existing_entry() {
+        use crate::score::entries::Entry;
+        use crate::score::tracks::Track;
+
+        let mut track = Track::new(1);
+        track.insert_entry(Entry::KeySignature(KeySignature::new(
+            11,
+            64,
+            KeySignatureMode::Major,
+            2,
+        )));
+
+        assert!(clear_key_signature_at_tick(&mut track, 64));
+        assert!(track.get_key_signature_at_tick(&64).is_none());
     }
 
     #[test]

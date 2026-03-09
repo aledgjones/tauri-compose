@@ -197,6 +197,41 @@ export const actions = {
           tick,
         });
       },
+      selectTimeSignature: (
+        flow_id: number,
+        time_signature_id: number,
+        tick: number,
+      ) => {
+        return invoke("ui_sequencer_selection_set_time_signature", {
+          flow_id,
+          time_signature_id,
+          tick,
+        });
+      },
+      selectKeySignature: (
+        flow_id: number,
+        key_signature_id: number,
+        tick: number,
+      ) => {
+        return invoke("ui_sequencer_selection_set_key_signature", {
+          flow_id,
+          key_signature_id,
+          tick,
+        });
+      },
+      selectClef: (
+        flow_id: number,
+        stave_id: number,
+        clef_id: number,
+        tick: number,
+      ) => {
+        return invoke("ui_sequencer_selection_set_clef", {
+          flow_id,
+          stave_id,
+          clef_id,
+          tick,
+        });
+      },
       clearSelection: () => {
         return invoke<void>("ui_sequencer_selection_clear");
       },
@@ -656,6 +691,17 @@ export const actions = {
         return invoke("score_entries_time_signature_clear", {
           flow_id,
           tick,
+        });
+      },
+      update: (
+        flow_id: UniqueId,
+        time_signature_id: UniqueId,
+        draw_type: TimeSignatureDrawType,
+      ) => {
+        return invoke<void>("score_entries_time_signature_update", {
+          flow_id,
+          time_signature_id,
+          draw_type,
         });
       },
     },

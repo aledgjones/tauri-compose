@@ -65,4 +65,11 @@ describe("Switch", () => {
     fireEvent.pointerDown(screen.getByRole("switch"));
     expect(onPointerDown).toHaveBeenCalledOnce();
   });
+
+  it("does not call onChange when disabled", () => {
+    const onChange = vi.fn();
+    render(<Switch value={false} onChange={onChange} disabled />);
+    fireEvent.click(screen.getByRole("switch"));
+    expect(onChange).not.toHaveBeenCalled();
+  });
 });

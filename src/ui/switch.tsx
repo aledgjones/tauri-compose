@@ -9,6 +9,7 @@ type Props = {
   className?: string;
   onPointerDown?: (event: PointerEvent<HTMLButtonElement>) => void;
   small?: boolean;
+  disabled?: boolean;
 };
 
 export const Switch: FC<Props> = ({
@@ -19,6 +20,7 @@ export const Switch: FC<Props> = ({
   label,
   description,
   small = false,
+  disabled = false,
 }) => {
   return (
     <div className="flex items-center">
@@ -31,14 +33,24 @@ export const Switch: FC<Props> = ({
         </div>
       )}
       <button
-        onClick={() => onChange(!value)}
+        onClick={() => {
+          if (!disabled) {
+            onChange(!value);
+          }
+        }}
         onPointerDown={onPointerDown}
         type="button"
         role="switch"
         aria-checked={value}
+        aria-disabled={disabled}
         aria-label={label}
+        disabled={disabled}
         className={classNames(
-          "relative flex items-center cursor-pointer border-none bg-transparent",
+          "relative flex items-center border-none bg-transparent",
+          {
+            "cursor-pointer": !disabled,
+            "cursor-not-allowed opacity-60": disabled,
+          },
           small ? "h-6 w-9" : "h-8 w-12",
           className,
         )}

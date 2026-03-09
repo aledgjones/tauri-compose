@@ -15,6 +15,9 @@ vi.mock("../../../services/actions", () => ({
         selectTone: vi.fn().mockResolvedValue(undefined),
         selectRest: vi.fn().mockResolvedValue(undefined),
         selectTempo: vi.fn().mockResolvedValue(undefined),
+        selectTimeSignature: vi.fn().mockResolvedValue(undefined),
+        selectKeySignature: vi.fn().mockResolvedValue(undefined),
+        selectClef: vi.fn().mockResolvedValue(undefined),
         clearSelection: vi.fn().mockResolvedValue(undefined),
       },
     },
@@ -66,6 +69,80 @@ describe("Renderer", () => {
 
     await waitFor(() => {
       expect(actions.ui.sequencer.selectTempo).toHaveBeenCalledWith(8, 4, 64);
+    });
+  });
+
+  it("dispatches time signature selection when hit testing resolves a time signature target", async () => {
+    vi.mocked(hitTest).mockResolvedValueOnce({
+      type: "TimeSignature",
+      flow_id: 4,
+      time_signature_id: 8,
+      tick: 64,
+    });
+
+    const { container } = render(<Renderer />, {
+      wrapper: createWrapper({ appState: createAppState() }),
+    });
+
+    const overlay = container.querySelector('[data-testid="renderer"] > div');
+    fireEvent.pointerDown(overlay!, { clientX: 10, clientY: 10 });
+
+    await waitFor(() => {
+      expect(actions.ui.sequencer.selectTimeSignature).toHaveBeenCalledWith(
+        4,
+        8,
+        64,
+      );
+    });
+  });
+
+  it("dispatches key signature selection when hit testing resolves a key signature target", async () => {
+    vi.mocked(hitTest).mockResolvedValueOnce({
+      type: "KeySignature",
+      flow_id: 4,
+      key_signature_id: 9,
+      tick: 64,
+    });
+
+    const { container } = render(<Renderer />, {
+      wrapper: createWrapper({ appState: createAppState() }),
+    });
+
+    const overlay = container.querySelector('[data-testid="renderer"] > div');
+    fireEvent.pointerDown(overlay!, { clientX: 10, clientY: 10 });
+
+    await waitFor(() => {
+      expect(actions.ui.sequencer.selectKeySignature).toHaveBeenCalledWith(
+        4,
+        9,
+        64,
+      );
+    });
+  });
+
+  it("dispatches clef selection when hit testing resolves a clef target", async () => {
+    vi.mocked(hitTest).mockResolvedValueOnce({
+      type: "Clef",
+      flow_id: 4,
+      stave_id: 3,
+      clef_id: 10,
+      tick: 64,
+    });
+
+    const { container } = render(<Renderer />, {
+      wrapper: createWrapper({ appState: createAppState() }),
+    });
+
+    const overlay = container.querySelector('[data-testid="renderer"] > div');
+    fireEvent.pointerDown(overlay!, { clientX: 10, clientY: 10 });
+
+    await waitFor(() => {
+      expect(actions.ui.sequencer.selectClef).toHaveBeenCalledWith(
+        4,
+        3,
+        10,
+        64,
+      );
     });
   });
 });

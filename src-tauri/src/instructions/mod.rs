@@ -17,10 +17,10 @@ use draw::draw_barline::draw_barline;
 use draw::draw_beam::draw_beam;
 use draw::draw_braces::draw_braces;
 use draw::draw_brackets::draw_brackets;
-use draw::draw_clef::draw_clef;
+use draw::draw_clef::{draw_clef, ClefDrawContext};
 use draw::draw_dot::draw_dots;
 use draw::draw_flag::draw_flag;
-use draw::draw_key_signature::draw_key_signature;
+use draw::draw_key_signature::{draw_key_signature, KeySignatureDrawContext};
 use draw::draw_ledger_lines::draw_ledger_lines;
 use draw::draw_names::draw_names;
 use draw::draw_notehead::draw_notehead;
@@ -347,6 +347,12 @@ pub fn generate_render_instructions(
                         },
                         &clef,
                         tick == 0,
+                        &ClefDrawContext {
+                            flow_id,
+                            stave_id: *stave_id,
+                            stave_top,
+                            is_selected: matches!(selection, Some(crate::ui::sequencer::Selection::Clef { flow_id: selected_flow_id, stave_id: selected_stave_id, clef_id, .. }) if *selected_flow_id == flow_id && *selected_stave_id == *stave_id && *clef_id == clef.id),
+                        },
                         renderer,
                     );
                 }
@@ -354,6 +360,9 @@ pub fn generate_render_instructions(
                 // KEY SIGNATURES
                 if let Some(def) = key_signatures.get(&tick) {
                     let span = horizontal_spacing.get(tick, Slot::KeySignature);
+                    let selection_key_signature = flow_master
+                        .get_key_signature_at_tick(&tick)
+                        .unwrap_or(&def.key_signature);
                     draw_key_signature(
                         &Point {
                             x: stave_left + span.x,
@@ -362,6 +371,13 @@ pub fn generate_render_instructions(
                         &clef,
                         &def.key_signature,
                         def.negate,
+                        &KeySignatureDrawContext {
+                            flow_id,
+                            key_signature_id: selection_key_signature.id,
+                            tick,
+                            stave_top,
+                            is_selected: matches!(selection, Some(crate::ui::sequencer::Selection::KeySignature { flow_id: selected_flow_id, key_signature_id, .. }) if *selected_flow_id == flow_id && *key_signature_id == selection_key_signature.id),
+                        },
                         renderer,
                     );
                 };
@@ -375,6 +391,10 @@ pub fn generate_render_instructions(
                             y: stave_top,
                         },
                         def,
+                        selection,
+                        flow_id,
+                        def.id,
+                        stave_top,
                         renderer,
                     )
                 }

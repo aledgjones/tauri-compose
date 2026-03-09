@@ -15,7 +15,12 @@ export const useSelectedToneInfo = () => {
       return null;
     }
 
-    if (selection.type === "Tempo") {
+    if (
+      selection.type === "Tempo" ||
+      selection.type === "TimeSignature" ||
+      selection.type === "KeySignature" ||
+      selection.type === "Clef"
+    ) {
       return null;
     }
 
