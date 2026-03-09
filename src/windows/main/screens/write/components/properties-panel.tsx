@@ -42,24 +42,6 @@ export const PanelSectionColumn: FC<PropsWithChildren> = ({ children }) => {
   return <div className="flex flex-col gap-3 w-75">{children}</div>;
 };
 
-const EmptyState: FC<{
-  title: string;
-  description: string;
-  testId: string;
-}> = ({ title, description, testId }) => {
-  return (
-    <div
-      className="flex flex-1 items-center justify-center bg-neutral-900 px-4 py-6 text-center"
-      data-testid={testId}
-    >
-      <div className="max-w-md space-y-1">
-        <p className="text-sm font-medium text-white">{title}</p>
-        <p className="text-xs text-neutral-400">{description}</p>
-      </div>
-    </div>
-  );
-};
-
 export const PropertiesPanel: FC = () => {
   const selection = useAppState().ui.sequencer.selection;
   const selectedTempo = useSelectedTempo();
@@ -68,13 +50,7 @@ export const PropertiesPanel: FC = () => {
   const selectedClef = useSelectedClef();
 
   if (selection === null) {
-    return (
-      <EmptyState
-        testId="properties-panel-empty"
-        title="No selection"
-        description="Select a score item to edit its properties."
-      />
-    );
+    return <div className="bg-neutral-900 flex-1" />;
   }
 
   if (selection.type === "Tempo" && selectedTempo) {
@@ -122,11 +98,5 @@ export const PropertiesPanel: FC = () => {
     );
   }
 
-  return (
-    <EmptyState
-      testId="properties-panel-unsupported"
-      title="Properties unavailable"
-      description="This selection type does not have an editor yet."
-    />
-  );
+  return <div className="bg-neutral-900 flex-1" />;
 };
