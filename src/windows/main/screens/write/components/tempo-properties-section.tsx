@@ -154,7 +154,7 @@ export const TempoPropertiesSection: FC<Props> = ({ flowId, tempo }) => {
           />
           <Switch
             small
-            label="Show metronome"
+            label="Show metronome marking"
             value={draftTempo.show_metronome}
             onChange={(show_metronome) => submitTempo({ show_metronome })}
           />
