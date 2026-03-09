@@ -173,6 +173,7 @@ pub fn generate_render_instructions(
         &instruments,
         &vertical_spacing,
         engrave,
+        state.ui.renderer.debug,
         renderer,
     );
 
