@@ -5,11 +5,47 @@ import { actions } from "../../../services/actions";
 
 type Modifiers = { command: boolean; control: boolean; option: boolean };
 
+const NON_TEXT_INPUT_TYPES = new Set([
+  "button",
+  "checkbox",
+  "color",
+  "file",
+  "hidden",
+  "image",
+  "radio",
+  "range",
+  "reset",
+  "submit",
+]);
+
 const matchesModifiers = (e: KeyboardEvent, pattern: Modifiers) => {
   return (
     e.metaKey === pattern.command &&
     e.ctrlKey === pattern.control &&
     e.altKey === pattern.option
+  );
+};
+
+const isEditableTarget = (target: EventTarget | null) => {
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+
+  if (target.isContentEditable || target.closest('[contenteditable="true"]')) {
+    return true;
+  }
+
+  if (target instanceof HTMLTextAreaElement) {
+    return true;
+  }
+
+  if (target instanceof HTMLInputElement) {
+    return !NON_TEXT_INPUT_TYPES.has(target.type);
+  }
+
+  return (
+    target.getAttribute("role") === "textbox" ||
+    target.closest('[role="textbox"]') !== null
   );
 };
 
@@ -307,6 +343,10 @@ export const useKeyboardShortcuts = () => {
       : [];
 
     const handleKeyDown = async (e: KeyboardEvent) => {
+      if (e.defaultPrevented || isEditableTarget(e.target)) {
+        return;
+      }
+
       if (
         e.key === "Escape" &&
         matchesModifiers(e, { command: false, control: false, option: false })

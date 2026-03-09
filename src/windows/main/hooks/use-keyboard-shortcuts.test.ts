@@ -127,6 +127,18 @@ const dispatchKey = (key: string, options?: KeyboardEventInit) => {
   });
 };
 
+const dispatchKeyFromElement = (
+  element: HTMLElement,
+  key: string,
+  options?: KeyboardEventInit,
+) => {
+  act(() => {
+    element.dispatchEvent(
+      new KeyboardEvent("keydown", { key, bubbles: true, ...options }),
+    );
+  });
+};
+
 describe("useKeyboardShortcuts", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -303,6 +315,40 @@ describe("useKeyboardShortcuts", () => {
     });
 
     expect(actions.score.tone.remove).toHaveBeenCalledWith(TRACK_ID, TONE_ID);
+  });
+
+  it("ignores delete shortcuts from text inputs", async () => {
+    const state = createAppState({
+      ui: {
+        sequencer: {
+          selection: {
+            type: "Tempo",
+            flow_id: FLOW_ID,
+            tempo_id: 555,
+            tick: 64,
+          },
+        },
+      } as never,
+    });
+
+    renderHook(() => useKeyboardShortcuts(), {
+      wrapper: createWrapper({ appState: state }),
+    });
+
+    const input = document.createElement("input");
+    input.type = "text";
+    document.body.appendChild(input);
+
+    try {
+      await act(async () => {
+        dispatchKeyFromElement(input, "Backspace");
+      });
+    } finally {
+      input.remove();
+    }
+
+    expect(actions.score.tempo.clearAtTick).not.toHaveBeenCalled();
+    expect(actions.ui.sequencer.clearSelection).not.toHaveBeenCalled();
   });
 
   it("dispatches clearSelection on Escape", async () => {
