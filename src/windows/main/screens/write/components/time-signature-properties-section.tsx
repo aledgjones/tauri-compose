@@ -87,8 +87,7 @@ export const TimeSignaturePropertiesSection: FC<Props> = ({
         <PanelSectionColumn>
           <Switch
             small
-            label="Symbol form"
-            description="Use C / cutC instead of stacked numerals when the signature allows it."
+            label="Common/Cut common"
             value={symbolFormValue}
             disabled={!symbolFormEnabled}
             onChange={(enabled) => {
