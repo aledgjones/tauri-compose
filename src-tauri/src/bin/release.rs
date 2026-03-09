@@ -20,6 +20,19 @@ const INTERNAL_PREP_MANIFEST_PATH: &str = ".git/solo-compose-release-prep.json";
 const MIGRATIONS_DIR: &str = "src-tauri/src/migrations";
 const MIGRATIONS_MOD_PATH: &str = "src-tauri/src/migrations/mod.rs";
 const NEXT_MIGRATION_PATH: &str = "src-tauri/src/migrations/next.rs";
+const NEXT_SCAFFOLD_TEMPLATE: &str = concat!(
+    "use serde_json::Value;\n\n",
+    "type PendingStep = fn(Value) -> Result<Value, String>;\n\n",
+    "const PENDING_STEPS: &[PendingStep] = &[\n",
+    "    // Add pending migration steps here, in order.\n",
+    "];\n\n",
+    "pub fn migrate(mut data: Value) -> Result<Value, String> {\n",
+    "    for step in PENDING_STEPS {\n",
+    "        data = step(data)?;\n",
+    "    }\n\n",
+    "    Ok(data)\n",
+    "}\n"
+);
 const RELEASE_NOTE_SKIP_MARKER: &str = "[skip-release-notes]";
 const RESEED_COMMIT_MESSAGE: &str = "chore(release): reseed next.rs scaffold [skip-release-notes]";
 const PENDING_STEPS_START: &str = "const PENDING_STEPS: &[PendingStep] = &[";
@@ -777,15 +790,8 @@ fn build_migrations_mod(
     lines.join("\n")
 }
 
-fn build_next_migration_scaffold(source: &str) -> Result<String, DynError> {
-    let body = pending_steps_body(source)?;
-    let body_start = body.as_ptr() as usize - source.as_ptr() as usize;
-    let body_end = body_start + body.len();
-    let mut scaffold = String::new();
-    scaffold.push_str(&source[..body_start]);
-    scaffold.push_str("\n    // Add pending migration steps here, in order.\n");
-    scaffold.push_str(&source[body_end..]);
-    Ok(scaffold)
+fn build_next_migration_scaffold(_source: &str) -> Result<String, DynError> {
+    Ok(String::from(NEXT_SCAFFOLD_TEMPLATE))
 }
 
 fn version_alias(version: &Version) -> String {
@@ -1176,19 +1182,6 @@ mod tests {
     use std::path::PathBuf;
     use std::time::{SystemTime, UNIX_EPOCH};
 
-    const NEXT_SCAFFOLD_TEMPLATE: &str = concat!(
-        "use serde_json::Value;\n\n",
-        "type PendingStep = fn(Value) -> Result<Value, String>;\n\n",
-        "const PENDING_STEPS: &[PendingStep] = &[\n",
-        "];\n\n",
-        "pub fn migrate(mut data: Value) -> Result<Value, String> {\n",
-        "    for step in PENDING_STEPS {\n",
-        "        data = step(data)?;\n",
-        "    }\n\n",
-        "    Ok(data)\n",
-        "}\n"
-    );
-
     fn make_temp_dir(name: &str) -> PathBuf {
         let unique = format!(
             "compose-release-tests-{}-{}-{}",
@@ -1240,6 +1233,29 @@ mod tests {
     fn count_pending_steps_detects_empty_scaffold() {
         let scaffold = build_next_migration_scaffold(NEXT_SCAFFOLD_TEMPLATE).unwrap();
         assert_eq!(count_pending_steps(&scaffold).unwrap(), 0);
+    }
+
+    #[test]
+    fn build_next_migration_scaffold_discards_previous_pending_content() {
+        let source = concat!(
+            "use serde_json::Value;\n\n",
+            "type PendingStep = fn(Value) -> Result<Value, String>;\n\n",
+            "fn migrate_directive_hidden_flags(data: Value) -> Result<Value, String> { Ok(data) }\n\n",
+            "const PENDING_STEPS: &[PendingStep] = &[\n",
+            "    migrate_directive_hidden_flags,\n",
+            "];\n\n",
+            "pub fn migrate(mut data: Value) -> Result<Value, String> {\n",
+            "    for step in PENDING_STEPS {\n",
+            "        data = step(data)?;\n",
+            "    }\n\n",
+            "    Ok(data)\n",
+            "}\n"
+        );
+
+        let scaffold = build_next_migration_scaffold(source).unwrap();
+
+        assert_eq!(scaffold, NEXT_SCAFFOLD_TEMPLATE);
+        assert!(!scaffold.contains("migrate_directive_hidden_flags"));
     }
 
     #[test]
@@ -1300,7 +1316,7 @@ mod tests {
         let next_source = fs::read_to_string(root.join(NEXT_MIGRATION_PATH)).unwrap();
         let mod_source = fs::read_to_string(root.join(MIGRATIONS_MOD_PATH)).unwrap();
 
-        assert!(next_source.contains("const PENDING_STEPS: &[PendingStep] = &["));
+        assert_eq!(next_source, NEXT_SCAFFOLD_TEMPLATE);
         assert!(mod_source.contains("MigrationDescriptor::pending_next(next::migrate)"));
         assert!(mod_source.contains("MigrationDescriptor::shipped(\"1.25.0\", v1_25_0::migrate)"));
 
