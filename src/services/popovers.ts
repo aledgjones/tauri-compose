@@ -84,7 +84,7 @@ export const parseBarlinePopover = (
   }
 };
 
-export const parseClefPopover = (
+export const parseClefPopover = async (
   input: string,
   flow_id: UniqueId,
   tick: Tick,
@@ -92,7 +92,7 @@ export const parseClefPopover = (
 ) => {
   switch (input) {
     case "clear": {
-      actions.score.clef.clear(flow_id, tick, stave_id);
+      await actions.score.clef.clear(flow_id, tick, stave_id);
       break;
     }
 
@@ -100,7 +100,17 @@ export const parseClefPopover = (
     case "g":
     case "G":
     case "sol": {
-      actions.score.clef.create(flow_id, tick, stave_id, 67, 2, ClefDrawType.G);
+      const clef_id = await actions.score.clef.create(
+        flow_id,
+        tick,
+        stave_id,
+        67,
+        2,
+        ClefDrawType.G,
+      );
+      if (clef_id !== null) {
+        await actions.ui.sequencer.selectClef(flow_id, stave_id, clef_id, tick);
+      }
       break;
     }
 
@@ -108,7 +118,7 @@ export const parseClefPopover = (
     case "f":
     case "F":
     case "fa": {
-      actions.score.clef.create(
+      const clef_id = await actions.score.clef.create(
         flow_id,
         tick,
         stave_id,
@@ -116,20 +126,33 @@ export const parseClefPopover = (
         -2,
         ClefDrawType.F,
       );
+      if (clef_id !== null) {
+        await actions.ui.sequencer.selectClef(flow_id, stave_id, clef_id, tick);
+      }
       break;
     }
 
     case "alto":
     case "ca":
     case "CA": {
-      actions.score.clef.create(flow_id, tick, stave_id, 60, 0, ClefDrawType.C);
+      const clef_id = await actions.score.clef.create(
+        flow_id,
+        tick,
+        stave_id,
+        60,
+        0,
+        ClefDrawType.C,
+      );
+      if (clef_id !== null) {
+        await actions.ui.sequencer.selectClef(flow_id, stave_id, clef_id, tick);
+      }
       break;
     }
 
     case "tenor":
     case "ct":
     case "CT": {
-      actions.score.clef.create(
+      const clef_id = await actions.score.clef.create(
         flow_id,
         tick,
         stave_id,
@@ -137,13 +160,16 @@ export const parseClefPopover = (
         -2,
         ClefDrawType.C,
       );
+      if (clef_id !== null) {
+        await actions.ui.sequencer.selectClef(flow_id, stave_id, clef_id, tick);
+      }
       break;
     }
 
     case "percussion":
     case "perc":
     case "PERC": {
-      actions.score.clef.create(
+      const clef_id = await actions.score.clef.create(
         flow_id,
         tick,
         stave_id,
@@ -151,6 +177,9 @@ export const parseClefPopover = (
         0,
         ClefDrawType.Percussion,
       );
+      if (clef_id !== null) {
+        await actions.ui.sequencer.selectClef(flow_id, stave_id, clef_id, tick);
+      }
       break;
     }
 
@@ -160,25 +189,30 @@ export const parseClefPopover = (
   }
 };
 
-export const parseKeySignaturePopover = (
+export const parseKeySignaturePopover = async (
   input: string,
   flow_id: UniqueId,
   tick: Tick,
 ) => {
   switch (input) {
     case "clear": {
-      actions.score.keySignature.clearAtTick(flow_id, tick);
+      await actions.score.keySignature.clearAtTick(flow_id, tick);
       break;
     }
 
     case "C#":
     case "7s":
     case "7#": {
-      actions.score.keySignature.create(
+      const key_signature_id = await actions.score.keySignature.create(
         flow_id,
         tick,
         KeySignatureMode.Major,
         7,
+      );
+      await actions.ui.sequencer.selectKeySignature(
+        flow_id,
+        key_signature_id,
+        tick,
       );
       break;
     }
@@ -186,11 +220,16 @@ export const parseKeySignaturePopover = (
     case "F#":
     case "6s":
     case "6#": {
-      actions.score.keySignature.create(
+      const key_signature_id = await actions.score.keySignature.create(
         flow_id,
         tick,
         KeySignatureMode.Major,
         6,
+      );
+      await actions.ui.sequencer.selectKeySignature(
+        flow_id,
+        key_signature_id,
+        tick,
       );
       break;
     }
@@ -198,11 +237,16 @@ export const parseKeySignaturePopover = (
     case "B":
     case "5s":
     case "5#": {
-      actions.score.keySignature.create(
+      const key_signature_id = await actions.score.keySignature.create(
         flow_id,
         tick,
         KeySignatureMode.Major,
         5,
+      );
+      await actions.ui.sequencer.selectKeySignature(
+        flow_id,
+        key_signature_id,
+        tick,
       );
       break;
     }
@@ -210,11 +254,16 @@ export const parseKeySignaturePopover = (
     case "E":
     case "4s":
     case "4#": {
-      actions.score.keySignature.create(
+      const key_signature_id = await actions.score.keySignature.create(
         flow_id,
         tick,
         KeySignatureMode.Major,
         4,
+      );
+      await actions.ui.sequencer.selectKeySignature(
+        flow_id,
+        key_signature_id,
+        tick,
       );
       break;
     }
@@ -222,11 +271,16 @@ export const parseKeySignaturePopover = (
     case "A":
     case "3s":
     case "3#": {
-      actions.score.keySignature.create(
+      const key_signature_id = await actions.score.keySignature.create(
         flow_id,
         tick,
         KeySignatureMode.Major,
         3,
+      );
+      await actions.ui.sequencer.selectKeySignature(
+        flow_id,
+        key_signature_id,
+        tick,
       );
       break;
     }
@@ -234,11 +288,16 @@ export const parseKeySignaturePopover = (
     case "D":
     case "2s":
     case "2#": {
-      actions.score.keySignature.create(
+      const key_signature_id = await actions.score.keySignature.create(
         flow_id,
         tick,
         KeySignatureMode.Major,
         2,
+      );
+      await actions.ui.sequencer.selectKeySignature(
+        flow_id,
+        key_signature_id,
+        tick,
       );
       break;
     }
@@ -246,11 +305,16 @@ export const parseKeySignaturePopover = (
     case "G":
     case "1s":
     case "1#": {
-      actions.score.keySignature.create(
+      const key_signature_id = await actions.score.keySignature.create(
         flow_id,
         tick,
         KeySignatureMode.Major,
         1,
+      );
+      await actions.ui.sequencer.selectKeySignature(
+        flow_id,
+        key_signature_id,
+        tick,
       );
       break;
     }
@@ -262,11 +326,16 @@ export const parseKeySignaturePopover = (
     case "0f":
     case "0#":
     case "0b": {
-      actions.score.keySignature.create(
+      const key_signature_id = await actions.score.keySignature.create(
         flow_id,
         tick,
         KeySignatureMode.Major,
         0,
+      );
+      await actions.ui.sequencer.selectKeySignature(
+        flow_id,
+        key_signature_id,
+        tick,
       );
       break;
     }
@@ -274,11 +343,16 @@ export const parseKeySignaturePopover = (
     case "F":
     case "1f":
     case "1b": {
-      actions.score.keySignature.create(
+      const key_signature_id = await actions.score.keySignature.create(
         flow_id,
         tick,
         KeySignatureMode.Major,
         -1,
+      );
+      await actions.ui.sequencer.selectKeySignature(
+        flow_id,
+        key_signature_id,
+        tick,
       );
       break;
     }
@@ -286,11 +360,16 @@ export const parseKeySignaturePopover = (
     case "Bb":
     case "2f":
     case "2b": {
-      actions.score.keySignature.create(
+      const key_signature_id = await actions.score.keySignature.create(
         flow_id,
         tick,
         KeySignatureMode.Major,
         -2,
+      );
+      await actions.ui.sequencer.selectKeySignature(
+        flow_id,
+        key_signature_id,
+        tick,
       );
       break;
     }
@@ -298,11 +377,16 @@ export const parseKeySignaturePopover = (
     case "Eb":
     case "3f":
     case "3b": {
-      actions.score.keySignature.create(
+      const key_signature_id = await actions.score.keySignature.create(
         flow_id,
         tick,
         KeySignatureMode.Major,
         -3,
+      );
+      await actions.ui.sequencer.selectKeySignature(
+        flow_id,
+        key_signature_id,
+        tick,
       );
       break;
     }
@@ -310,11 +394,16 @@ export const parseKeySignaturePopover = (
     case "Ab":
     case "4f":
     case "4b": {
-      actions.score.keySignature.create(
+      const key_signature_id = await actions.score.keySignature.create(
         flow_id,
         tick,
         KeySignatureMode.Major,
         -4,
+      );
+      await actions.ui.sequencer.selectKeySignature(
+        flow_id,
+        key_signature_id,
+        tick,
       );
       break;
     }
@@ -322,11 +411,16 @@ export const parseKeySignaturePopover = (
     case "Db":
     case "5f":
     case "5b": {
-      actions.score.keySignature.create(
+      const key_signature_id = await actions.score.keySignature.create(
         flow_id,
         tick,
         KeySignatureMode.Major,
         -5,
+      );
+      await actions.ui.sequencer.selectKeySignature(
+        flow_id,
+        key_signature_id,
+        tick,
       );
       break;
     }
@@ -334,11 +428,16 @@ export const parseKeySignaturePopover = (
     case "Gb":
     case "6f":
     case "6b": {
-      actions.score.keySignature.create(
+      const key_signature_id = await actions.score.keySignature.create(
         flow_id,
         tick,
         KeySignatureMode.Major,
         -6,
+      );
+      await actions.ui.sequencer.selectKeySignature(
+        flow_id,
+        key_signature_id,
+        tick,
       );
       break;
     }
@@ -346,161 +445,241 @@ export const parseKeySignaturePopover = (
     case "Cb":
     case "7f":
     case "7b": {
-      actions.score.keySignature.create(
+      const key_signature_id = await actions.score.keySignature.create(
         flow_id,
         tick,
         KeySignatureMode.Major,
         -7,
       );
+      await actions.ui.sequencer.selectKeySignature(
+        flow_id,
+        key_signature_id,
+        tick,
+      );
       break;
     }
 
     case "a#": {
-      actions.score.keySignature.create(
+      const key_signature_id = await actions.score.keySignature.create(
         flow_id,
         tick,
         KeySignatureMode.Minor,
         7,
       );
+      await actions.ui.sequencer.selectKeySignature(
+        flow_id,
+        key_signature_id,
+        tick,
+      );
       break;
     }
 
     case "d#": {
-      actions.score.keySignature.create(
+      const key_signature_id = await actions.score.keySignature.create(
         flow_id,
         tick,
         KeySignatureMode.Minor,
         6,
       );
+      await actions.ui.sequencer.selectKeySignature(
+        flow_id,
+        key_signature_id,
+        tick,
+      );
       break;
     }
 
     case "g#": {
-      actions.score.keySignature.create(
+      const key_signature_id = await actions.score.keySignature.create(
         flow_id,
         tick,
         KeySignatureMode.Minor,
         5,
       );
+      await actions.ui.sequencer.selectKeySignature(
+        flow_id,
+        key_signature_id,
+        tick,
+      );
       break;
     }
 
     case "c#": {
-      actions.score.keySignature.create(
+      const key_signature_id = await actions.score.keySignature.create(
         flow_id,
         tick,
         KeySignatureMode.Minor,
         4,
       );
+      await actions.ui.sequencer.selectKeySignature(
+        flow_id,
+        key_signature_id,
+        tick,
+      );
       break;
     }
 
     case "f#": {
-      actions.score.keySignature.create(
+      const key_signature_id = await actions.score.keySignature.create(
         flow_id,
         tick,
         KeySignatureMode.Minor,
         3,
       );
+      await actions.ui.sequencer.selectKeySignature(
+        flow_id,
+        key_signature_id,
+        tick,
+      );
       break;
     }
 
     case "b": {
-      actions.score.keySignature.create(
+      const key_signature_id = await actions.score.keySignature.create(
         flow_id,
         tick,
         KeySignatureMode.Minor,
         2,
       );
+      await actions.ui.sequencer.selectKeySignature(
+        flow_id,
+        key_signature_id,
+        tick,
+      );
       break;
     }
 
     case "e": {
-      actions.score.keySignature.create(
+      const key_signature_id = await actions.score.keySignature.create(
         flow_id,
         tick,
         KeySignatureMode.Minor,
         1,
       );
+      await actions.ui.sequencer.selectKeySignature(
+        flow_id,
+        key_signature_id,
+        tick,
+      );
       break;
     }
 
     case "a": {
-      actions.score.keySignature.create(
+      const key_signature_id = await actions.score.keySignature.create(
         flow_id,
         tick,
         KeySignatureMode.Minor,
         0,
       );
+      await actions.ui.sequencer.selectKeySignature(
+        flow_id,
+        key_signature_id,
+        tick,
+      );
       break;
     }
 
     case "d": {
-      actions.score.keySignature.create(
+      const key_signature_id = await actions.score.keySignature.create(
         flow_id,
         tick,
         KeySignatureMode.Minor,
         -1,
       );
+      await actions.ui.sequencer.selectKeySignature(
+        flow_id,
+        key_signature_id,
+        tick,
+      );
       break;
     }
 
     case "g": {
-      actions.score.keySignature.create(
+      const key_signature_id = await actions.score.keySignature.create(
         flow_id,
         tick,
         KeySignatureMode.Minor,
         -2,
       );
+      await actions.ui.sequencer.selectKeySignature(
+        flow_id,
+        key_signature_id,
+        tick,
+      );
       break;
     }
 
     case "c": {
-      actions.score.keySignature.create(
+      const key_signature_id = await actions.score.keySignature.create(
         flow_id,
         tick,
         KeySignatureMode.Minor,
         -3,
       );
+      await actions.ui.sequencer.selectKeySignature(
+        flow_id,
+        key_signature_id,
+        tick,
+      );
       break;
     }
 
     case "f": {
-      actions.score.keySignature.create(
+      const key_signature_id = await actions.score.keySignature.create(
         flow_id,
         tick,
         KeySignatureMode.Minor,
         -4,
       );
+      await actions.ui.sequencer.selectKeySignature(
+        flow_id,
+        key_signature_id,
+        tick,
+      );
       break;
     }
 
     case "bb": {
-      actions.score.keySignature.create(
+      const key_signature_id = await actions.score.keySignature.create(
         flow_id,
         tick,
         KeySignatureMode.Minor,
         -5,
       );
+      await actions.ui.sequencer.selectKeySignature(
+        flow_id,
+        key_signature_id,
+        tick,
+      );
       break;
     }
 
     case "eb": {
-      actions.score.keySignature.create(
+      const key_signature_id = await actions.score.keySignature.create(
         flow_id,
         tick,
         KeySignatureMode.Minor,
         -6,
       );
+      await actions.ui.sequencer.selectKeySignature(
+        flow_id,
+        key_signature_id,
+        tick,
+      );
       break;
     }
 
     case "ab": {
-      actions.score.keySignature.create(
+      const key_signature_id = await actions.score.keySignature.create(
         flow_id,
         tick,
         KeySignatureMode.Minor,
         -7,
+      );
+      await actions.ui.sequencer.selectKeySignature(
+        flow_id,
+        key_signature_id,
+        tick,
       );
       break;
     }
@@ -511,7 +690,7 @@ export const parseKeySignaturePopover = (
   }
 };
 
-export const parseTimeSignaturePopover = (
+export const parseTimeSignaturePopover = async (
   input: string,
   flow_id: UniqueId,
   tick: Tick,
@@ -521,7 +700,7 @@ export const parseTimeSignaturePopover = (
   if (parsed) {
     switch (parsed.beatType) {
       case 1: {
-        actions.score.timeSignature.create(
+        const time_signature_id = await actions.score.timeSignature.create(
           flow_id,
           tick,
           parsed.beats,
@@ -529,10 +708,15 @@ export const parseTimeSignaturePopover = (
           TimeSignatureDrawType.Regular,
           false,
         );
+        await actions.ui.sequencer.selectTimeSignature(
+          flow_id,
+          time_signature_id,
+          tick,
+        );
         return;
       }
       case 2: {
-        actions.score.timeSignature.create(
+        const time_signature_id = await actions.score.timeSignature.create(
           flow_id,
           tick,
           parsed.beats,
@@ -540,10 +724,15 @@ export const parseTimeSignaturePopover = (
           TimeSignatureDrawType.Regular,
           false,
         );
+        await actions.ui.sequencer.selectTimeSignature(
+          flow_id,
+          time_signature_id,
+          tick,
+        );
         return;
       }
       case 4: {
-        actions.score.timeSignature.create(
+        const time_signature_id = await actions.score.timeSignature.create(
           flow_id,
           tick,
           parsed.beats,
@@ -551,10 +740,15 @@ export const parseTimeSignaturePopover = (
           TimeSignatureDrawType.Regular,
           false,
         );
+        await actions.ui.sequencer.selectTimeSignature(
+          flow_id,
+          time_signature_id,
+          tick,
+        );
         return;
       }
       case 8: {
-        actions.score.timeSignature.create(
+        const time_signature_id = await actions.score.timeSignature.create(
           flow_id,
           tick,
           parsed.beats,
@@ -562,10 +756,15 @@ export const parseTimeSignaturePopover = (
           TimeSignatureDrawType.Regular,
           false,
         );
+        await actions.ui.sequencer.selectTimeSignature(
+          flow_id,
+          time_signature_id,
+          tick,
+        );
         return;
       }
       case 16: {
-        actions.score.timeSignature.create(
+        const time_signature_id = await actions.score.timeSignature.create(
           flow_id,
           tick,
           parsed.beats,
@@ -573,10 +772,15 @@ export const parseTimeSignaturePopover = (
           TimeSignatureDrawType.Regular,
           false,
         );
+        await actions.ui.sequencer.selectTimeSignature(
+          flow_id,
+          time_signature_id,
+          tick,
+        );
         return;
       }
       case 32: {
-        actions.score.timeSignature.create(
+        const time_signature_id = await actions.score.timeSignature.create(
           flow_id,
           tick,
           parsed.beats,
@@ -584,10 +788,15 @@ export const parseTimeSignaturePopover = (
           TimeSignatureDrawType.Regular,
           false,
         );
+        await actions.ui.sequencer.selectTimeSignature(
+          flow_id,
+          time_signature_id,
+          tick,
+        );
         return;
       }
       case 64: {
-        actions.score.timeSignature.create(
+        const time_signature_id = await actions.score.timeSignature.create(
           flow_id,
           tick,
           parsed.beats,
@@ -595,16 +804,26 @@ export const parseTimeSignaturePopover = (
           TimeSignatureDrawType.Regular,
           false,
         );
+        await actions.ui.sequencer.selectTimeSignature(
+          flow_id,
+          time_signature_id,
+          tick,
+        );
         return;
       }
       case 128: {
-        actions.score.timeSignature.create(
+        const time_signature_id = await actions.score.timeSignature.create(
           flow_id,
           tick,
           parsed.beats,
           NoteDuration.HudredTwentyEighth,
           TimeSignatureDrawType.Regular,
           false,
+        );
+        await actions.ui.sequencer.selectTimeSignature(
+          flow_id,
+          time_signature_id,
+          tick,
         );
         return;
       }
@@ -616,12 +835,12 @@ export const parseTimeSignaturePopover = (
 
   switch (input) {
     case "clear": {
-      actions.score.timeSignature.clearAtTick(flow_id, tick);
+      await actions.score.timeSignature.clearAtTick(flow_id, tick);
       break;
     }
 
     case "c": {
-      actions.score.timeSignature.create(
+      const time_signature_id = await actions.score.timeSignature.create(
         flow_id,
         tick,
         4,
@@ -629,17 +848,27 @@ export const parseTimeSignaturePopover = (
         TimeSignatureDrawType.CommonTime,
         false,
       );
+      await actions.ui.sequencer.selectTimeSignature(
+        flow_id,
+        time_signature_id,
+        tick,
+      );
       break;
     }
 
     case "cutc": {
-      actions.score.timeSignature.create(
+      const time_signature_id = await actions.score.timeSignature.create(
         flow_id,
         tick,
         2,
         NoteDuration.Half,
         TimeSignatureDrawType.SplitCommonTime,
         false,
+      );
+      await actions.ui.sequencer.selectTimeSignature(
+        flow_id,
+        time_signature_id,
+        tick,
       );
       break;
     }
@@ -650,13 +879,13 @@ export const parseTimeSignaturePopover = (
   }
 };
 
-export const parseTempoPopover = (
+export const parseTempoPopover = async (
   input: string,
   flow_id: UniqueId,
   tick: Tick,
 ) => {
   if (input === "clear") {
-    actions.score.tempo.clearAtTick(flow_id, tick);
+    await actions.score.tempo.clearAtTick(flow_id, tick);
     return;
   }
 
@@ -666,7 +895,7 @@ export const parseTempoPopover = (
     throw new Error(`Unknown input: ${input}`);
   }
 
-  actions.score.tempo.create(
+  const tempo_id = await actions.score.tempo.create(
     flow_id,
     tick,
     parsed.text,
@@ -678,4 +907,6 @@ export const parseTempoPopover = (
     parsed.show_metronome,
     parsed.parenthesized,
   );
+
+  await actions.ui.sequencer.selectTempo(tempo_id, flow_id, tick);
 };

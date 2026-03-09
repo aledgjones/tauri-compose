@@ -219,19 +219,19 @@ export const Popover: FC<Props> = ({ popover, setPopover }) => {
                 return;
               }
 
-              parseClefPopover(term, flow_id, tick, stave_id);
+              await parseClefPopover(term, flow_id, tick, stave_id);
               break;
             }
             case PopoverType.KeySignature: {
-              parseKeySignaturePopover(term, flow_id, tick);
+              await parseKeySignaturePopover(term, flow_id, tick);
               break;
             }
             case PopoverType.TimeSignature: {
-              parseTimeSignaturePopover(term, flow_id, tick);
+              await parseTimeSignaturePopover(term, flow_id, tick);
               break;
             }
             case PopoverType.Tempo: {
-              parseTempoPopover(term, flow_id, tick);
+              await parseTempoPopover(term, flow_id, tick);
               break;
             }
           }

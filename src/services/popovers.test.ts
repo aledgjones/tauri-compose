@@ -26,20 +26,28 @@ vi.mock("./actions", () => ({
         clearAtTick: vi.fn(),
       },
       clef: {
-        create: vi.fn(),
-        clear: vi.fn(),
+        create: vi.fn().mockResolvedValue(101),
+        clear: vi.fn().mockResolvedValue(undefined),
       },
       keySignature: {
-        create: vi.fn(),
-        clearAtTick: vi.fn(),
+        create: vi.fn().mockResolvedValue(102),
+        clearAtTick: vi.fn().mockResolvedValue(undefined),
       },
       timeSignature: {
-        create: vi.fn(),
-        clearAtTick: vi.fn(),
+        create: vi.fn().mockResolvedValue(103),
+        clearAtTick: vi.fn().mockResolvedValue(undefined),
       },
       tempo: {
-        create: vi.fn(),
-        clearAtTick: vi.fn(),
+        create: vi.fn().mockResolvedValue(104),
+        clearAtTick: vi.fn().mockResolvedValue(undefined),
+      },
+    },
+    ui: {
+      sequencer: {
+        selectTempo: vi.fn().mockResolvedValue(undefined),
+        selectTimeSignature: vi.fn().mockResolvedValue(undefined),
+        selectKeySignature: vi.fn().mockResolvedValue(undefined),
+        selectClef: vi.fn().mockResolvedValue(undefined),
       },
     },
   },
@@ -152,8 +160,8 @@ describe("parseClefPopover", () => {
     vi.clearAllMocks();
   });
 
-  it('clears clef when input is "clear"', () => {
-    parseClefPopover("clear", FLOW_ID, TICK, STAVE_ID);
+  it('clears clef when input is "clear"', async () => {
+    await parseClefPopover("clear", FLOW_ID, TICK, STAVE_ID);
     expect(actions.score.clef.clear).toHaveBeenCalledWith(
       FLOW_ID,
       TICK,
@@ -161,58 +169,76 @@ describe("parseClefPopover", () => {
     );
   });
 
-  it.each(["treble", "g", "G", "sol"])('creates G clef for "%s"', (input) => {
-    parseClefPopover(input, FLOW_ID, TICK, STAVE_ID);
-    expect(actions.score.clef.create).toHaveBeenCalledWith(
-      FLOW_ID,
-      TICK,
-      STAVE_ID,
-      67,
-      2,
-      ClefDrawType.G,
-    );
-  });
+  it.each(["treble", "g", "G", "sol"])(
+    'creates G clef for "%s"',
+    async (input) => {
+      await parseClefPopover(input, FLOW_ID, TICK, STAVE_ID);
+      expect(actions.score.clef.create).toHaveBeenCalledWith(
+        FLOW_ID,
+        TICK,
+        STAVE_ID,
+        67,
+        2,
+        ClefDrawType.G,
+      );
+      expect(actions.ui.sequencer.selectClef).toHaveBeenCalledWith(
+        FLOW_ID,
+        STAVE_ID,
+        101,
+        TICK,
+      );
+    },
+  );
 
-  it.each(["bass", "f", "F", "fa"])('creates F clef for "%s"', (input) => {
-    parseClefPopover(input, FLOW_ID, TICK, STAVE_ID);
-    expect(actions.score.clef.create).toHaveBeenCalledWith(
-      FLOW_ID,
-      TICK,
-      STAVE_ID,
-      53,
-      -2,
-      ClefDrawType.F,
-    );
-  });
+  it.each(["bass", "f", "F", "fa"])(
+    'creates F clef for "%s"',
+    async (input) => {
+      await parseClefPopover(input, FLOW_ID, TICK, STAVE_ID);
+      expect(actions.score.clef.create).toHaveBeenCalledWith(
+        FLOW_ID,
+        TICK,
+        STAVE_ID,
+        53,
+        -2,
+        ClefDrawType.F,
+      );
+    },
+  );
 
-  it.each(["alto", "ca", "CA"])('creates C alto clef for "%s"', (input) => {
-    parseClefPopover(input, FLOW_ID, TICK, STAVE_ID);
-    expect(actions.score.clef.create).toHaveBeenCalledWith(
-      FLOW_ID,
-      TICK,
-      STAVE_ID,
-      60,
-      0,
-      ClefDrawType.C,
-    );
-  });
+  it.each(["alto", "ca", "CA"])(
+    'creates C alto clef for "%s"',
+    async (input) => {
+      await parseClefPopover(input, FLOW_ID, TICK, STAVE_ID);
+      expect(actions.score.clef.create).toHaveBeenCalledWith(
+        FLOW_ID,
+        TICK,
+        STAVE_ID,
+        60,
+        0,
+        ClefDrawType.C,
+      );
+    },
+  );
 
-  it.each(["tenor", "ct", "CT"])('creates C tenor clef for "%s"', (input) => {
-    parseClefPopover(input, FLOW_ID, TICK, STAVE_ID);
-    expect(actions.score.clef.create).toHaveBeenCalledWith(
-      FLOW_ID,
-      TICK,
-      STAVE_ID,
-      60,
-      -2,
-      ClefDrawType.C,
-    );
-  });
+  it.each(["tenor", "ct", "CT"])(
+    'creates C tenor clef for "%s"',
+    async (input) => {
+      await parseClefPopover(input, FLOW_ID, TICK, STAVE_ID);
+      expect(actions.score.clef.create).toHaveBeenCalledWith(
+        FLOW_ID,
+        TICK,
+        STAVE_ID,
+        60,
+        -2,
+        ClefDrawType.C,
+      );
+    },
+  );
 
-  it("throws for unknown input", () => {
-    expect(() => parseClefPopover("bass2", FLOW_ID, TICK, STAVE_ID)).toThrow(
-      "Unknown input: bass2",
-    );
+  it("throws for unknown input", async () => {
+    await expect(
+      parseClefPopover("bass2", FLOW_ID, TICK, STAVE_ID),
+    ).rejects.toThrow("Unknown input: bass2");
   });
 });
 
@@ -224,8 +250,8 @@ describe("parseKeySignaturePopover", () => {
     vi.clearAllMocks();
   });
 
-  it('clears key signature when input is "clear"', () => {
-    parseKeySignaturePopover("clear", FLOW_ID, TICK);
+  it('clears key signature when input is "clear"', async () => {
+    await parseKeySignaturePopover("clear", FLOW_ID, TICK);
     expect(actions.score.keySignature.clearAtTick).toHaveBeenCalledWith(
       FLOW_ID,
       TICK,
@@ -241,20 +267,26 @@ describe("parseKeySignaturePopover", () => {
     ["G", 1],
     ["1s", 1],
   ])('creates Major key with offset %i for "%s"', (input, offset) => {
-    parseKeySignaturePopover(input, FLOW_ID, TICK);
-    expect(actions.score.keySignature.create).toHaveBeenCalledWith(
-      FLOW_ID,
-      TICK,
-      KeySignatureMode.Major,
-      offset,
-    );
+    return parseKeySignaturePopover(input, FLOW_ID, TICK).then(() => {
+      expect(actions.score.keySignature.create).toHaveBeenCalledWith(
+        FLOW_ID,
+        TICK,
+        KeySignatureMode.Major,
+        offset,
+      );
+      expect(actions.ui.sequencer.selectKeySignature).toHaveBeenCalledWith(
+        FLOW_ID,
+        102,
+        TICK,
+      );
+    });
   });
 
   // Major open/atonal
   it.each(["open", "atonal", "C", "0s", "0f", "0#", "0b"])(
     'creates Major key with offset 0 for "%s"',
-    (input) => {
-      parseKeySignaturePopover(input, FLOW_ID, TICK);
+    async (input) => {
+      await parseKeySignaturePopover(input, FLOW_ID, TICK);
       expect(actions.score.keySignature.create).toHaveBeenCalledWith(
         FLOW_ID,
         TICK,
@@ -273,18 +305,19 @@ describe("parseKeySignaturePopover", () => {
     ["7f", -7],
     ["7b", -7],
   ])('creates Major key with offset %i for "%s"', (input, offset) => {
-    parseKeySignaturePopover(input, FLOW_ID, TICK);
-    expect(actions.score.keySignature.create).toHaveBeenCalledWith(
-      FLOW_ID,
-      TICK,
-      KeySignatureMode.Major,
-      offset,
-    );
+    return parseKeySignaturePopover(input, FLOW_ID, TICK).then(() => {
+      expect(actions.score.keySignature.create).toHaveBeenCalledWith(
+        FLOW_ID,
+        TICK,
+        KeySignatureMode.Major,
+        offset,
+      );
+    });
   });
 
   // Minor keys
-  it('creates Minor key with offset 7 for "a#"', () => {
-    parseKeySignaturePopover("a#", FLOW_ID, TICK);
+  it('creates Minor key with offset 7 for "a#"', async () => {
+    await parseKeySignaturePopover("a#", FLOW_ID, TICK);
     expect(actions.score.keySignature.create).toHaveBeenCalledWith(
       FLOW_ID,
       TICK,
@@ -293,8 +326,8 @@ describe("parseKeySignaturePopover", () => {
     );
   });
 
-  it('creates Minor key with offset 0 for "a"', () => {
-    parseKeySignaturePopover("a", FLOW_ID, TICK);
+  it('creates Minor key with offset 0 for "a"', async () => {
+    await parseKeySignaturePopover("a", FLOW_ID, TICK);
     expect(actions.score.keySignature.create).toHaveBeenCalledWith(
       FLOW_ID,
       TICK,
@@ -303,8 +336,8 @@ describe("parseKeySignaturePopover", () => {
     );
   });
 
-  it('creates Minor key with offset -7 for "ab"', () => {
-    parseKeySignaturePopover("ab", FLOW_ID, TICK);
+  it('creates Minor key with offset -7 for "ab"', async () => {
+    await parseKeySignaturePopover("ab", FLOW_ID, TICK);
     expect(actions.score.keySignature.create).toHaveBeenCalledWith(
       FLOW_ID,
       TICK,
@@ -328,13 +361,14 @@ describe("parseKeySignaturePopover", () => {
     ["2s", 2],
     ["2#", 2],
   ] as [string, number][])('Major sharp: "%s" → offset %i', (input, offset) => {
-    parseKeySignaturePopover(input, FLOW_ID, TICK);
-    expect(actions.score.keySignature.create).toHaveBeenCalledWith(
-      FLOW_ID,
-      TICK,
-      KeySignatureMode.Major,
-      offset,
-    );
+    return parseKeySignaturePopover(input, FLOW_ID, TICK).then(() => {
+      expect(actions.score.keySignature.create).toHaveBeenCalledWith(
+        FLOW_ID,
+        TICK,
+        KeySignatureMode.Major,
+        offset,
+      );
+    });
   });
 
   // Major flats 2-6
@@ -355,13 +389,14 @@ describe("parseKeySignaturePopover", () => {
     ["6f", -6],
     ["6b", -6],
   ] as [string, number][])('Major flat: "%s" → offset %i', (input, offset) => {
-    parseKeySignaturePopover(input, FLOW_ID, TICK);
-    expect(actions.score.keySignature.create).toHaveBeenCalledWith(
-      FLOW_ID,
-      TICK,
-      KeySignatureMode.Major,
-      offset,
-    );
+    return parseKeySignaturePopover(input, FLOW_ID, TICK).then(() => {
+      expect(actions.score.keySignature.create).toHaveBeenCalledWith(
+        FLOW_ID,
+        TICK,
+        KeySignatureMode.Major,
+        offset,
+      );
+    });
   });
 
   // Minor keys remaining
@@ -379,19 +414,20 @@ describe("parseKeySignaturePopover", () => {
     ["bb", -5],
     ["eb", -6],
   ] as [string, number][])('Minor key: "%s" → offset %i', (input, offset) => {
-    parseKeySignaturePopover(input, FLOW_ID, TICK);
-    expect(actions.score.keySignature.create).toHaveBeenCalledWith(
-      FLOW_ID,
-      TICK,
-      KeySignatureMode.Minor,
-      offset,
-    );
+    return parseKeySignaturePopover(input, FLOW_ID, TICK).then(() => {
+      expect(actions.score.keySignature.create).toHaveBeenCalledWith(
+        FLOW_ID,
+        TICK,
+        KeySignatureMode.Minor,
+        offset,
+      );
+    });
   });
 
-  it("throws for unknown input", () => {
-    expect(() => parseKeySignaturePopover("xyz", FLOW_ID, TICK)).toThrow(
-      "Unknown input: xyz",
-    );
+  it("throws for unknown input", async () => {
+    await expect(
+      parseKeySignaturePopover("xyz", FLOW_ID, TICK),
+    ).rejects.toThrow("Unknown input: xyz");
   });
 });
 
@@ -400,13 +436,13 @@ describe("parseTempoPopover", () => {
     vi.clearAllMocks();
   });
 
-  it('clears tempo when input is "clear"', () => {
-    parseTempoPopover("clear", FLOW_ID, TICK);
+  it('clears tempo when input is "clear"', async () => {
+    await parseTempoPopover("clear", FLOW_ID, TICK);
     expect(actions.score.tempo.clearAtTick).toHaveBeenCalledWith(FLOW_ID, TICK);
   });
 
-  it("creates a named tempo", () => {
-    parseTempoPopover("Allegro", FLOW_ID, TICK);
+  it("creates a named tempo", async () => {
+    await parseTempoPopover("Allegro", FLOW_ID, TICK);
     expect(actions.score.tempo.create).toHaveBeenCalledWith(
       FLOW_ID,
       TICK,
@@ -419,10 +455,15 @@ describe("parseTempoPopover", () => {
       false,
       false,
     );
+    expect(actions.ui.sequencer.selectTempo).toHaveBeenCalledWith(
+      104,
+      FLOW_ID,
+      TICK,
+    );
   });
 
-  it("creates a named tempo with metronome mark", () => {
-    parseTempoPopover("Allegro q=120", FLOW_ID, TICK);
+  it("creates a named tempo with metronome mark", async () => {
+    await parseTempoPopover("Allegro q=120", FLOW_ID, TICK);
     expect(actions.score.tempo.create).toHaveBeenCalledWith(
       FLOW_ID,
       TICK,
@@ -437,8 +478,8 @@ describe("parseTempoPopover", () => {
     );
   });
 
-  it("creates a parenthesized metronome mark", () => {
-    parseTempoPopover("Allegro (q=120)", FLOW_ID, TICK);
+  it("creates a parenthesized metronome mark", async () => {
+    await parseTempoPopover("Allegro (q=120)", FLOW_ID, TICK);
     expect(actions.score.tempo.create).toHaveBeenCalledWith(
       FLOW_ID,
       TICK,
@@ -453,8 +494,8 @@ describe("parseTempoPopover", () => {
     );
   });
 
-  it("creates a metronome-only tempo", () => {
-    parseTempoPopover("q=120", FLOW_ID, TICK);
+  it("creates a metronome-only tempo", async () => {
+    await parseTempoPopover("q=120", FLOW_ID, TICK);
     expect(actions.score.tempo.create).toHaveBeenCalledWith(
       FLOW_ID,
       TICK,
@@ -469,8 +510,8 @@ describe("parseTempoPopover", () => {
     );
   });
 
-  it("throws for invalid tempo input", () => {
-    expect(() => parseTempoPopover("Vivace", FLOW_ID, TICK)).toThrow(
+  it("throws for invalid tempo input", async () => {
+    await expect(parseTempoPopover("Vivace", FLOW_ID, TICK)).rejects.toThrow(
       "Unknown input: Vivace",
     );
   });
@@ -484,8 +525,8 @@ describe("parseTimeSignaturePopover", () => {
     vi.clearAllMocks();
   });
 
-  it('parses "4/4" → Quarter beats', () => {
-    parseTimeSignaturePopover("4/4", FLOW_ID, TICK);
+  it('parses "4/4" → Quarter beats', async () => {
+    await parseTimeSignaturePopover("4/4", FLOW_ID, TICK);
     expect(actions.score.timeSignature.create).toHaveBeenCalledWith(
       FLOW_ID,
       TICK,
@@ -494,10 +535,15 @@ describe("parseTimeSignaturePopover", () => {
       TimeSignatureDrawType.Regular,
       false,
     );
+    expect(actions.ui.sequencer.selectTimeSignature).toHaveBeenCalledWith(
+      FLOW_ID,
+      103,
+      TICK,
+    );
   });
 
-  it('parses "6/8" → Eighth beats', () => {
-    parseTimeSignaturePopover("6/8", FLOW_ID, TICK);
+  it('parses "6/8" → Eighth beats', async () => {
+    await parseTimeSignaturePopover("6/8", FLOW_ID, TICK);
     expect(actions.score.timeSignature.create).toHaveBeenCalledWith(
       FLOW_ID,
       TICK,
@@ -508,8 +554,8 @@ describe("parseTimeSignaturePopover", () => {
     );
   });
 
-  it('parses "3/4" → Quarter beats', () => {
-    parseTimeSignaturePopover("3/4", FLOW_ID, TICK);
+  it('parses "3/4" → Quarter beats', async () => {
+    await parseTimeSignaturePopover("3/4", FLOW_ID, TICK);
     expect(actions.score.timeSignature.create).toHaveBeenCalledWith(
       FLOW_ID,
       TICK,
@@ -520,8 +566,8 @@ describe("parseTimeSignaturePopover", () => {
     );
   });
 
-  it('parses "2/2" → Half beats', () => {
-    parseTimeSignaturePopover("2/2", FLOW_ID, TICK);
+  it('parses "2/2" → Half beats', async () => {
+    await parseTimeSignaturePopover("2/2", FLOW_ID, TICK);
     expect(actions.score.timeSignature.create).toHaveBeenCalledWith(
       FLOW_ID,
       TICK,
@@ -532,16 +578,16 @@ describe("parseTimeSignaturePopover", () => {
     );
   });
 
-  it('clears time signature for "clear"', () => {
-    parseTimeSignaturePopover("clear", FLOW_ID, TICK);
+  it('clears time signature for "clear"', async () => {
+    await parseTimeSignaturePopover("clear", FLOW_ID, TICK);
     expect(actions.score.timeSignature.clearAtTick).toHaveBeenCalledWith(
       FLOW_ID,
       TICK,
     );
   });
 
-  it('creates CommonTime for "c"', () => {
-    parseTimeSignaturePopover("c", FLOW_ID, TICK);
+  it('creates CommonTime for "c"', async () => {
+    await parseTimeSignaturePopover("c", FLOW_ID, TICK);
     expect(actions.score.timeSignature.create).toHaveBeenCalledWith(
       FLOW_ID,
       TICK,
@@ -552,8 +598,8 @@ describe("parseTimeSignaturePopover", () => {
     );
   });
 
-  it('creates SplitCommonTime for "cutc"', () => {
-    parseTimeSignaturePopover("cutc", FLOW_ID, TICK);
+  it('creates SplitCommonTime for "cutc"', async () => {
+    await parseTimeSignaturePopover("cutc", FLOW_ID, TICK);
     expect(actions.score.timeSignature.create).toHaveBeenCalledWith(
       FLOW_ID,
       TICK,
@@ -564,8 +610,8 @@ describe("parseTimeSignaturePopover", () => {
     );
   });
 
-  it('parses "4/1" → Whole beats', () => {
-    parseTimeSignaturePopover("4/1", FLOW_ID, TICK);
+  it('parses "4/1" → Whole beats', async () => {
+    await parseTimeSignaturePopover("4/1", FLOW_ID, TICK);
     expect(actions.score.timeSignature.create).toHaveBeenCalledWith(
       FLOW_ID,
       TICK,
@@ -576,8 +622,8 @@ describe("parseTimeSignaturePopover", () => {
     );
   });
 
-  it('parses "4/16" → Sixteenth beats', () => {
-    parseTimeSignaturePopover("4/16", FLOW_ID, TICK);
+  it('parses "4/16" → Sixteenth beats', async () => {
+    await parseTimeSignaturePopover("4/16", FLOW_ID, TICK);
     expect(actions.score.timeSignature.create).toHaveBeenCalledWith(
       FLOW_ID,
       TICK,
@@ -588,8 +634,8 @@ describe("parseTimeSignaturePopover", () => {
     );
   });
 
-  it('parses "4/32" → ThirtySecond beats', () => {
-    parseTimeSignaturePopover("4/32", FLOW_ID, TICK);
+  it('parses "4/32" → ThirtySecond beats', async () => {
+    await parseTimeSignaturePopover("4/32", FLOW_ID, TICK);
     expect(actions.score.timeSignature.create).toHaveBeenCalledWith(
       FLOW_ID,
       TICK,
@@ -600,8 +646,8 @@ describe("parseTimeSignaturePopover", () => {
     );
   });
 
-  it('parses "4/64" → SixtyFourth beats', () => {
-    parseTimeSignaturePopover("4/64", FLOW_ID, TICK);
+  it('parses "4/64" → SixtyFourth beats', async () => {
+    await parseTimeSignaturePopover("4/64", FLOW_ID, TICK);
     expect(actions.score.timeSignature.create).toHaveBeenCalledWith(
       FLOW_ID,
       TICK,
@@ -612,8 +658,8 @@ describe("parseTimeSignaturePopover", () => {
     );
   });
 
-  it('parses "4/128" → HundredTwentyEighth beats', () => {
-    parseTimeSignaturePopover("4/128", FLOW_ID, TICK);
+  it('parses "4/128" → HundredTwentyEighth beats', async () => {
+    await parseTimeSignaturePopover("4/128", FLOW_ID, TICK);
     expect(actions.score.timeSignature.create).toHaveBeenCalledWith(
       FLOW_ID,
       TICK,
@@ -624,9 +670,9 @@ describe("parseTimeSignaturePopover", () => {
     );
   });
 
-  it("throws for unknown input", () => {
-    expect(() => parseTimeSignaturePopover("xyz", FLOW_ID, TICK)).toThrow(
-      "Unknown input: xyz",
-    );
+  it("throws for unknown input", async () => {
+    await expect(
+      parseTimeSignaturePopover("xyz", FLOW_ID, TICK),
+    ).rejects.toThrow("Unknown input: xyz");
   });
 });

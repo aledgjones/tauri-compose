@@ -49,7 +49,7 @@ export const Switch: FC<Props> = ({
           "relative flex items-center border-none bg-transparent",
           {
             "cursor-pointer": !disabled,
-            "cursor-not-allowed opacity-60": disabled,
+            "cursor-not-allowed opacity-40": disabled,
           },
           small ? "h-6 w-9" : "h-8 w-12",
           className,
