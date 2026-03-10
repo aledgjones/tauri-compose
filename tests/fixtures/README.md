@@ -25,6 +25,11 @@ tests/fixtures/
 │   │   └── key-signatures.json
 │   ├── ledger-lines/
 │   │   └── ledger-lines.json
+│   ├── rhythms/
+│   │   ├── written-durations-four-four.json
+│   │   ├── written-durations-three-four.json
+│   │   ├── written-durations-three-four-six-eight-comparison.json
+│   │   └── written-durations-compound.json
 │   ├── rests/
 │   │   └── rests.json
 │   ├── tempo/
@@ -38,6 +43,7 @@ tests/fixtures/
     ├── clefs/
     ├── key-signatures/
     ├── ledger-lines/
+    ├── rhythms/
     ├── rests/
     ├── tempo/
     └── time-signatures/
@@ -87,6 +93,9 @@ A fixture JSON is a complete **project payload** with three top-level keys:
 
 `next_id` must be higher than every `id` value used anywhere in the document.
 
+More generally: fixture JSON must follow the **current score structure** exactly, not just roughly resemble an older saved project.
+If the runtime score schema changes, hand-authored fixtures may need to be updated to include newly-required fields before they will open again.
+
 ### 2 — Understand IDs
 
 Every object (player, instrument, stave, flow, track, entry) has a numeric `id`. IDs are unique within the whole document — never reuse a number. Use a simple incrementing scheme, e.g. 1–50 for infrastructure (layout, players, instruments, staves) and 100+ for entries (tones, time signatures, clefs, etc).
@@ -127,6 +136,9 @@ The easiest way to get the correct JSON shape for a new fixture:
 4. Extract the JSON: `zcat <path/to/file.soloc> | python3 -m json.tool > my-fixture.json`
 5. Edit the JSON to clean up the title/subtitle, then move it to `tests/fixtures/source/<concern>/`
 6. Run `npm run build:fixtures`
+
+Using a freshly-saved project as the starting point matters because fixture JSON is expected to match the current persisted score structure.
+If you instead copy an older fixture or hand-assemble JSON from memory, deserialisation can fail on newly-added required fields.
 
 ### 6 — Key JSON fields
 
@@ -251,8 +263,9 @@ Rests are **not** explicit entries. The renderer automatically fills any gap bet
 Uses the `NoteDuration` repr: `1`=whole, `2`=half, `4`=quarter, `8`=eighth, `16`=sixteenth.
 
 > **Important**: Only **Simple** time signatures are currently supported in the renderer.
-> Simple = beats 1, 2, 3, or 4 (any beat type).
-> Compound (6/8, 9/8, etc.) and Complex (5/4, 7/8, etc.) are `todo!()` and will **crash the app**.
+> Simple = beats 1, 2, 3, or 4.
+> Compound signatures used by the app, such as 6/8, 9/8, and 12/8, are now valid in fixtures and should be covered with representative variants.
+> Complex signatures (5/4, 7/8, etc.) are still unsupported and should not be used in fixtures.
 
 #### Wiring overview
 
@@ -299,11 +312,12 @@ Practical implications:
 - **Alternating eighth note / eighth rest**: place `Tone` entries at ticks 0, 32, 64, 96, …; skip ticks 16, 48, 80, 112, … The renderer fills the skipped slots with eighth rests.
 - **Empty bass stave**: a voice track with no notes still needs `"entries": { "by_tick": {}, "by_id": {} }`. Do NOT omit the `entries` key or the `by_tick`/`by_id` maps — the deserialiser expects them.
 
-### Time signatures: only Simple are supported — Compound and Complex crash the app
+### Time signatures: Simple and Compound are valid fixture coverage, Complex is still blocked
 
-The renderer has `todo!()` branches for Compound (6/8, 9/8, 12/8, …) and Complex (5/4, 7/8, …) time signatures. Opening a fixture with one of these **panics the Rust backend and crashes the app with no useful error message**. This was discovered by accidentally using 5/4.
+Fixtures should now cover both Simple and Compound time signatures where the renderer supports them.
+That includes common compound variants such as 6/8, 9/8, and 12/8, plus any other compound signatures the current app can open correctly.
 
-**Safe values for `beats`**: 1, 2, 3, or 4 (any `beat_type`). Stick to these in all fixtures.
+Complex signatures (5/4, 7/8, etc.) are still not valid fixture targets. Avoid them until the renderer and load path support them end to end.
 
 ### `by_tick` keys are JSON strings, not numbers
 
@@ -328,6 +342,20 @@ A tick can have more than one entry. For example, `TimeSignature`, `KeySignature
 ```
 
 For key changes mid-flow, add a second `KeySignature` entry at the target tick alongside any other entries at that tick.
+
+### Deserialisation errors usually mean the fixture no longer matches the current score structure
+
+If opening a fixture fails with an error like `Failed to deserialize project file: missing field 'hidden'`, the fixture JSON is missing a field that now exists in the runtime score schema.
+
+The most common current example is directive entries needing an explicit `hidden` flag:
+
+- `TimeSignature`
+- `Clef`
+- `KeySignature`
+- `Tempo`
+
+For these entries, set `"hidden": false` unless you are intentionally testing hidden rendering.
+When in doubt, re-save a similar score from the current app and diff that JSON against the fixture you are editing.
 
 ### Key signatures live on the flow master track, not stave masters
 
@@ -377,16 +405,23 @@ Omitting it causes a deserialisation error.
 
 ## Existing fixtures
 
-| File                                        | Flows | What it tests                                                                                |
-| ------------------------------------------- | ----- | -------------------------------------------------------------------------------------------- |
-| `source/time-signatures/four-four.json`     | 4     | Quarter notes · Whole and half notes · Eighth note run (scale up/down) · Half + two quarters |
-| `source/time-signatures/three-four.json`    | 4     | Quarter notes · Dotted half note · Dotted quarter + eighth + quarter · Six eighths           |
-| `source/time-signatures/changing.json`      | 3     | 4/4 → 3/4 · 3/4 → 4/4 · 4/4 → 2/4 → 4/4                                                      |
-| `source/clefs/clefs.json`                   | 3     | Treble + bass clefs · Alto C clef · Mid-flow treble → bass clef change                       |
-| `source/key-signatures/key-signatures.json` | 4     | G major (1 sharp) · F major (1 flat) · A minor · Mid-flow key change (C → D major)           |
-| `source/rests/rests.json`                   | 4     | Whole bar rest · Half rests · Quarter rests · Eighth rests (alternating note/rest)           |
-| `source/articulations/articulations.json`   | 4     | Staccato · Tenuto · Accent + Marcato · Mixed articulations (one note each type)              |
-| `source/ledger-lines/ledger-lines.json`     | 3     | High notes ascending into treble ledger lines · Low notes into bass ledger lines · Extremes  |
+| File                                                                    | Flows | What it tests                                                                                |
+| ----------------------------------------------------------------------- | ----- | -------------------------------------------------------------------------------------------- |
+| `source/time-signatures/four-four.json`                                 | 4     | Quarter notes · Whole and half notes · Eighth note run (scale up/down) · Half + two quarters |
+| `source/time-signatures/three-four.json`                                | 4     | Quarter notes · Dotted half note · Dotted quarter + eighth + quarter · Six eighths           |
+| `source/time-signatures/changing.json`                                  | 3     | 4/4 → 3/4 · 3/4 → 4/4 · 4/4 → 2/4 → 4/4                                                      |
+| `source/clefs/clefs.json`                                               | 3     | Treble + bass clefs · Alto C clef · Mid-flow treble → bass clef change                       |
+| `source/key-signatures/key-signatures.json`                             | 4     | G major (1 sharp) · F major (1 flat) · A minor · Mid-flow key change (C → D major)           |
+| `source/rhythms/written-durations-four-four.json`                       | 29    | 4/4 written-duration parser scenarios, one flow per scenario title                           |
+| `source/rhythms/written-durations-three-four.json`                      | 24    | 3/4 written-duration parser scenarios, one flow per scenario title                           |
+| `source/rhythms/written-durations-three-four-six-eight-comparison.json` | 24    | Comparison flows that show one 3/4 bar followed by the same music after a 6/8 change         |
+| `source/rhythms/written-durations-compound.json`                        | 17    | Compound-meter written-duration parser scenarios across 6/8, 9/8, 12/8, and 15/8             |
+| `source/rests/rests.json`                                               | 4     | Whole bar rest · Half rests · Quarter rests · Eighth rests (alternating note/rest)           |
+| `source/articulations/articulations.json`                               | 4     | Staccato · Tenuto · Accent + Marcato · Mixed articulations (one note each type)              |
+| `source/ledger-lines/ledger-lines.json`                                 | 3     | High notes ascending into treble ledger lines · Low notes into bass ledger lines · Extremes  |
+
+The written-duration rhythm fixtures now cover the existing simple-meter and compound-meter corpora from `get_written_durations.rs`.
+The 3/4-versus-6/8 comparison fixture reuses the 3/4 source corpus and adds a mid-flow `TimeSignature` change so the same tones can be visually compared under both meters.
 
 ---
 

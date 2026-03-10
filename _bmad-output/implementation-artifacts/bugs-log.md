@@ -39,3 +39,17 @@
 - **Root cause:** The per-stave spacing pass checked renderability against the current `0`-offset signature, whose `pattern()` is `None`, instead of against the previous signature that supplies the cancellation glyph count.
 - **Fix:** When the current key signature has `offset == 0`, evaluate renderability and width using the previous key signature at that tick, then reserve the cancelling-natural width accordingly.
 - **Status:** Fixed
+
+## B-005 Compound-beat leading rests can be written too small
+
+- **Date:** 2026-03-10
+- **Area:** written-duration parser / compound-meter rest spelling
+- **Reported via:** ongoing 3/4 versus 6/8 parity review
+- **Symptom:** In compound times, rests inside a compound beat can be fragmented into multiple eighth rests when they should be written as a larger leading rest value.
+- **Expected rule:** Work in beat-local spellings for compound beats. `[8N, 8R, 8R]` is already correct. `[4R, 8N]` is correct and must not be rewritten as `[8R, 8R, 8N]`.
+- **Scope note:** This rule applies to compound times only. `3/8` is excluded and should continue to behave like a halved version of `3/4`, not like the compound-beat grouping used by `6/8`, `9/8`, `12/8`, and `15/8`.
+- **Required regression test:** Add a compound-meter scenario where a dotted-quarter beat contains `32` ticks of leading silence followed by an eighth note, and assert that the beat is written as `[4R, 8N]` rather than `[8R, 8R, 8N]`.
+- **Suggested fixture shape:** `tone_specs: vec![(1, 0, 48, 60), (2, 80, 16, 64)]` under `make_time_signature_for_test(0, 6, NoteDuration::Eighth)`.
+- **Root cause:** The compound splitter delegated each dotted-quarter group to an inner `3/8` simple-unit pass but discarded the original compound context, so the generic `3/8` rest-boundary splitter treated the leading quarter rest as two separate eighth-beat rests.
+- **Fix:** Preserve the outer compound-meter context while recursing into inner `3/8` units, and exempt the specific compound-beat pattern `[4R, 8N]` from the generic rest-boundary split so simple `3/8` behavior remains unchanged.
+- **Status:** Fixed

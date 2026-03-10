@@ -1,0 +1,2955 @@
+{
+  "next_id": 1712,
+  "score": {
+    "config": {
+      "auto_count_styles": {
+        "section": 1,
+        "solo": 0
+      }
+    },
+    "engraves": {
+      "by_layout_type": {
+        "0": {
+          "base_note_space": 4,
+          "bracket_single_staves": false,
+          "bracket_style": 1,
+          "bracketing_approach": 1,
+          "frame_padding": {
+            "bottom": 20,
+            "left": 0,
+            "right": 0,
+            "top": 20
+          },
+          "instrument_name_font": {
+            "align": 1,
+            "family": 1,
+            "justify": 2,
+            "size": 1.75
+          },
+          "instrument_name_spacing": 2,
+          "instrument_spacing": 8,
+          "maximum_beam_slant": 0.5,
+          "minimum_note_space": 0.8999999761581421,
+          "minimum_tie_space": 1.600000023841858,
+          "note_space_ratio": 1.409999966621399,
+          "page_padding": {
+            "bottom": 30,
+            "left": 20,
+            "right": 20,
+            "top": 30
+          },
+          "space": 1.5,
+          "stave_spacing": 6,
+          "system_start_padding": 0.75,
+          "systemic_barline_single_instrument_system": true
+        },
+        "1": {
+          "base_note_space": 4,
+          "bracket_single_staves": false,
+          "bracket_style": 1,
+          "bracketing_approach": 1,
+          "frame_padding": {
+            "bottom": 20,
+            "left": 0,
+            "right": 0,
+            "top": 20
+          },
+          "instrument_name_font": {
+            "align": 1,
+            "family": 1,
+            "justify": 2,
+            "size": 1.75
+          },
+          "instrument_name_spacing": 2,
+          "instrument_spacing": 8,
+          "maximum_beam_slant": 0.5,
+          "minimum_note_space": 0.8999999761581421,
+          "minimum_tie_space": 1.600000023841858,
+          "note_space_ratio": 1.409999966621399,
+          "page_padding": {
+            "bottom": 30,
+            "left": 20,
+            "right": 20,
+            "top": 30
+          },
+          "space": 2,
+          "stave_spacing": 6,
+          "system_start_padding": 0.75,
+          "systemic_barline_single_instrument_system": false
+        }
+      }
+    },
+    "flows": {
+      "order": [10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160, 170],
+      "by_id": {
+        "10": {
+          "id": 10,
+          "title": "6/8 six straight eighths stay grouped as 3 plus 3",
+          "player_ids": [1],
+          "length": 96,
+          "master_id": 11,
+          "staves": {
+            "by_id": {
+              "3": {
+                "id": 3,
+                "lines": [1, 1, 1, 1, 1],
+                "master_id": 12,
+                "track_ids": [13]
+              },
+              "4": {
+                "id": 4,
+                "lines": [1, 1, 1, 1, 1],
+                "master_id": 14,
+                "track_ids": [15]
+              }
+            }
+          }
+        },
+        "20": {
+          "id": 20,
+          "title": "6/8 dotted quarter big beats remain unsplit",
+          "player_ids": [1],
+          "length": 96,
+          "master_id": 21,
+          "staves": {
+            "by_id": {
+              "3": {
+                "id": 3,
+                "lines": [1, 1, 1, 1, 1],
+                "master_id": 22,
+                "track_ids": [23]
+              },
+              "4": {
+                "id": 4,
+                "lines": [1, 1, 1, 1, 1],
+                "master_id": 24,
+                "track_ids": [25]
+              }
+            }
+          }
+        },
+        "30": {
+          "id": 30,
+          "title": "6/8 full-bar note remains unsplit",
+          "player_ids": [1],
+          "length": 96,
+          "master_id": 31,
+          "staves": {
+            "by_id": {
+              "3": {
+                "id": 3,
+                "lines": [1, 1, 1, 1, 1],
+                "master_id": 32,
+                "track_ids": [33]
+              },
+              "4": {
+                "id": 4,
+                "lines": [1, 1, 1, 1, 1],
+                "master_id": 34,
+                "track_ids": [35]
+              }
+            }
+          }
+        },
+        "40": {
+          "id": 40,
+          "title": "6/8 full-bar rest remains unsplit",
+          "player_ids": [1],
+          "length": 96,
+          "master_id": 41,
+          "staves": {
+            "by_id": {
+              "3": {
+                "id": 3,
+                "lines": [1, 1, 1, 1, 1],
+                "master_id": 42,
+                "track_ids": [43]
+              },
+              "4": {
+                "id": 4,
+                "lines": [1, 1, 1, 1, 1],
+                "master_id": 44,
+                "track_ids": [45]
+              }
+            }
+          }
+        },
+        "50": {
+          "id": 50,
+          "title": "6/8 inner three-beat splitting rewrites a second dotted eighth inside the beat",
+          "player_ids": [1],
+          "length": 96,
+          "master_id": 51,
+          "staves": {
+            "by_id": {
+              "3": {
+                "id": 3,
+                "lines": [1, 1, 1, 1, 1],
+                "master_id": 52,
+                "track_ids": [53]
+              },
+              "4": {
+                "id": 4,
+                "lines": [1, 1, 1, 1, 1],
+                "master_id": 54,
+                "track_ids": [55]
+              }
+            }
+          }
+        },
+        "60": {
+          "id": 60,
+          "title": "6/8 note crossing the compound beat boundary is tied",
+          "player_ids": [1],
+          "length": 96,
+          "master_id": 61,
+          "staves": {
+            "by_id": {
+              "3": {
+                "id": 3,
+                "lines": [1, 1, 1, 1, 1],
+                "master_id": 62,
+                "track_ids": [63]
+              },
+              "4": {
+                "id": 4,
+                "lines": [1, 1, 1, 1, 1],
+                "master_id": 64,
+                "track_ids": [65]
+              }
+            }
+          }
+        },
+        "70": {
+          "id": 70,
+          "title": "6/8 rest crossing the compound beat boundary is split",
+          "player_ids": [1],
+          "length": 96,
+          "master_id": 71,
+          "staves": {
+            "by_id": {
+              "3": {
+                "id": 3,
+                "lines": [1, 1, 1, 1, 1],
+                "master_id": 72,
+                "track_ids": [73]
+              },
+              "4": {
+                "id": 4,
+                "lines": [1, 1, 1, 1, 1],
+                "master_id": 74,
+                "track_ids": [75]
+              }
+            }
+          }
+        },
+        "80": {
+          "id": 80,
+          "title": "6/8 chord crossing the compound beat boundary preserves chord tones and ties",
+          "player_ids": [1],
+          "length": 96,
+          "master_id": 81,
+          "staves": {
+            "by_id": {
+              "3": {
+                "id": 3,
+                "lines": [1, 1, 1, 1, 1],
+                "master_id": 82,
+                "track_ids": [83]
+              },
+              "4": {
+                "id": 4,
+                "lines": [1, 1, 1, 1, 1],
+                "master_id": 84,
+                "track_ids": [85]
+              }
+            }
+          }
+        },
+        "90": {
+          "id": 90,
+          "title": "9/8 straight eighths stay in three compound groups",
+          "player_ids": [1],
+          "length": 144,
+          "master_id": 91,
+          "staves": {
+            "by_id": {
+              "3": {
+                "id": 3,
+                "lines": [1, 1, 1, 1, 1],
+                "master_id": 92,
+                "track_ids": [93]
+              },
+              "4": {
+                "id": 4,
+                "lines": [1, 1, 1, 1, 1],
+                "master_id": 94,
+                "track_ids": [95]
+              }
+            }
+          }
+        },
+        "100": {
+          "id": 100,
+          "title": "9/8 full-bar note splits into dotted half tied to dotted quarter",
+          "player_ids": [1],
+          "length": 144,
+          "master_id": 101,
+          "staves": {
+            "by_id": {
+              "3": {
+                "id": 3,
+                "lines": [1, 1, 1, 1, 1],
+                "master_id": 102,
+                "track_ids": [103]
+              },
+              "4": {
+                "id": 4,
+                "lines": [1, 1, 1, 1, 1],
+                "master_id": 104,
+                "track_ids": [105]
+              }
+            }
+          }
+        },
+        "110": {
+          "id": 110,
+          "title": "9/8 syncopation crossing one internal big beat boundary is split",
+          "player_ids": [1],
+          "length": 144,
+          "master_id": 111,
+          "staves": {
+            "by_id": {
+              "3": {
+                "id": 3,
+                "lines": [1, 1, 1, 1, 1],
+                "master_id": 112,
+                "track_ids": [113]
+              },
+              "4": {
+                "id": 4,
+                "lines": [1, 1, 1, 1, 1],
+                "master_id": 114,
+                "track_ids": [115]
+              }
+            }
+          }
+        },
+        "120": {
+          "id": 120,
+          "title": "9/8 rest-led syncopation keeps the compound beat grouping visible",
+          "player_ids": [1],
+          "length": 144,
+          "master_id": 121,
+          "staves": {
+            "by_id": {
+              "3": {
+                "id": 3,
+                "lines": [1, 1, 1, 1, 1],
+                "master_id": 122,
+                "track_ids": [123]
+              },
+              "4": {
+                "id": 4,
+                "lines": [1, 1, 1, 1, 1],
+                "master_id": 124,
+                "track_ids": [125]
+              }
+            }
+          }
+        },
+        "130": {
+          "id": 130,
+          "title": "12/8 straight eighths stay in four compound groups",
+          "player_ids": [1],
+          "length": 192,
+          "master_id": 131,
+          "staves": {
+            "by_id": {
+              "3": {
+                "id": 3,
+                "lines": [1, 1, 1, 1, 1],
+                "master_id": 132,
+                "track_ids": [133]
+              },
+              "4": {
+                "id": 4,
+                "lines": [1, 1, 1, 1, 1],
+                "master_id": 134,
+                "track_ids": [135]
+              }
+            }
+          }
+        },
+        "140": {
+          "id": 140,
+          "title": "12/8 barline-crossing note splits at the crossed big beat and barline",
+          "player_ids": [1],
+          "length": 224,
+          "master_id": 141,
+          "staves": {
+            "by_id": {
+              "3": {
+                "id": 3,
+                "lines": [1, 1, 1, 1, 1],
+                "master_id": 142,
+                "track_ids": [143]
+              },
+              "4": {
+                "id": 4,
+                "lines": [1, 1, 1, 1, 1],
+                "master_id": 144,
+                "track_ids": [145]
+              }
+            }
+          }
+        },
+        "150": {
+          "id": 150,
+          "title": "12/8 barline-crossing rest splits at the crossed big beat and barline",
+          "player_ids": [1],
+          "length": 224,
+          "master_id": 151,
+          "staves": {
+            "by_id": {
+              "3": {
+                "id": 3,
+                "lines": [1, 1, 1, 1, 1],
+                "master_id": 152,
+                "track_ids": [153]
+              },
+              "4": {
+                "id": 4,
+                "lines": [1, 1, 1, 1, 1],
+                "master_id": 154,
+                "track_ids": [155]
+              }
+            }
+          }
+        },
+        "160": {
+          "id": 160,
+          "title": "15/8 proof case scales the same compound grouping rule",
+          "player_ids": [1],
+          "length": 240,
+          "master_id": 161,
+          "staves": {
+            "by_id": {
+              "3": {
+                "id": 3,
+                "lines": [1, 1, 1, 1, 1],
+                "master_id": 162,
+                "track_ids": [163]
+              },
+              "4": {
+                "id": 4,
+                "lines": [1, 1, 1, 1, 1],
+                "master_id": 164,
+                "track_ids": [165]
+              }
+            }
+          }
+        },
+        "170": {
+          "id": 170,
+          "title": "6/8 off-grid compound notation preserves hundred-twenty-eighth and sixty-fourth values",
+          "player_ids": [1],
+          "length": 96,
+          "master_id": 171,
+          "staves": {
+            "by_id": {
+              "3": {
+                "id": 3,
+                "lines": [1, 1, 1, 1, 1],
+                "master_id": 172,
+                "track_ids": [173]
+              },
+              "4": {
+                "id": 4,
+                "lines": [1, 1, 1, 1, 1],
+                "master_id": 174,
+                "track_ids": [175]
+              }
+            }
+          }
+        }
+      }
+    },
+    "instruments": {
+      "by_id": {
+        "2": {
+          "id": 2,
+          "definition_id": "keyboard.piano",
+          "instrument_type": 0,
+          "long_name": "Piano",
+          "short_name": "Pno.",
+          "stave_ids": [3, 4],
+          "count": null,
+          "assigned_plugin_id": null,
+          "volume": 100,
+          "pan": 64,
+          "mute": false,
+          "solo": false
+        }
+      }
+    },
+    "layouts": {
+      "by_id": {
+        "0": {
+          "id": 0,
+          "layout_type": 0,
+          "title": "",
+          "player_ids": [1],
+          "flow_ids": [10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160, 170]
+        }
+      },
+      "order": [0]
+    },
+    "meta": {
+      "app_version": "1.25.2",
+      "arranger": "",
+      "artist": "",
+      "composer": "",
+      "composer_dates": "",
+      "composition_year": "",
+      "copyist": "",
+      "copyright": "",
+      "created": 1772928000000,
+      "dedication": "",
+      "editor": "",
+      "lyricist": "",
+      "other_information": "",
+      "publisher": "",
+      "subtitle": "Visual Regression Fixture",
+      "title": "Written Durations Compound",
+      "work_number": ""
+    },
+    "players": {
+      "order": [1],
+      "by_id": {
+        "1": {
+          "id": 1,
+          "player_type": 0,
+          "instrument_ids": [2]
+        }
+      }
+    },
+    "tracks": {
+      "by_id": {
+        "11": {
+          "id": 11,
+          "entries": {
+            "by_tick": {
+              "0": [100]
+            },
+            "by_id": {
+              "100": {
+                "type": "TimeSignature",
+                "id": 100,
+                "tick": 0,
+                "hidden": false,
+                "beats": 6,
+                "beat_type": 8,
+                "draw_type": 1,
+                "groupings": [3, 3]
+              }
+            }
+          }
+        },
+        "12": {
+          "id": 12,
+          "entries": {
+            "by_tick": {
+              "0": [101]
+            },
+            "by_id": {
+              "101": {
+                "type": "Clef",
+                "id": 101,
+                "tick": 0,
+                "hidden": false,
+                "draw_as": 1,
+                "pitch": {
+                  "int": 67,
+                  "accidental": 0
+                },
+                "offset": 2
+              }
+            }
+          }
+        },
+        "13": {
+          "id": 13,
+          "entries": {
+            "by_tick": {
+              "0": [110],
+              "16": [111],
+              "32": [112],
+              "48": [113],
+              "64": [114],
+              "80": [115]
+            },
+            "by_id": {
+              "110": {
+                "type": "Tone",
+                "id": 110,
+                "tick": 0,
+                "duration": 16,
+                "pitch": {
+                  "int": 60,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
+                "articulations": []
+              },
+              "111": {
+                "type": "Tone",
+                "id": 111,
+                "tick": 16,
+                "duration": 16,
+                "pitch": {
+                  "int": 62,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
+                "articulations": []
+              },
+              "112": {
+                "type": "Tone",
+                "id": 112,
+                "tick": 32,
+                "duration": 16,
+                "pitch": {
+                  "int": 64,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
+                "articulations": []
+              },
+              "113": {
+                "type": "Tone",
+                "id": 113,
+                "tick": 48,
+                "duration": 16,
+                "pitch": {
+                  "int": 65,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
+                "articulations": []
+              },
+              "114": {
+                "type": "Tone",
+                "id": 114,
+                "tick": 64,
+                "duration": 16,
+                "pitch": {
+                  "int": 67,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
+                "articulations": []
+              },
+              "115": {
+                "type": "Tone",
+                "id": 115,
+                "tick": 80,
+                "duration": 16,
+                "pitch": {
+                  "int": 69,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
+                "articulations": []
+              }
+            }
+          }
+        },
+        "14": {
+          "id": 14,
+          "entries": {
+            "by_tick": {
+              "0": [102]
+            },
+            "by_id": {
+              "102": {
+                "type": "Clef",
+                "id": 102,
+                "tick": 0,
+                "hidden": false,
+                "draw_as": 2,
+                "pitch": {
+                  "int": 53,
+                  "accidental": 0
+                },
+                "offset": -2
+              }
+            }
+          }
+        },
+        "15": {
+          "id": 15,
+          "entries": {
+            "by_tick": {},
+            "by_id": {}
+          }
+        },
+        "21": {
+          "id": 21,
+          "entries": {
+            "by_tick": {
+              "0": [200]
+            },
+            "by_id": {
+              "200": {
+                "type": "TimeSignature",
+                "id": 200,
+                "tick": 0,
+                "hidden": false,
+                "beats": 6,
+                "beat_type": 8,
+                "draw_type": 1,
+                "groupings": [3, 3]
+              }
+            }
+          }
+        },
+        "22": {
+          "id": 22,
+          "entries": {
+            "by_tick": {
+              "0": [201]
+            },
+            "by_id": {
+              "201": {
+                "type": "Clef",
+                "id": 201,
+                "tick": 0,
+                "hidden": false,
+                "draw_as": 1,
+                "pitch": {
+                  "int": 67,
+                  "accidental": 0
+                },
+                "offset": 2
+              }
+            }
+          }
+        },
+        "23": {
+          "id": 23,
+          "entries": {
+            "by_tick": {
+              "0": [210],
+              "48": [211]
+            },
+            "by_id": {
+              "210": {
+                "type": "Tone",
+                "id": 210,
+                "tick": 0,
+                "duration": 48,
+                "pitch": {
+                  "int": 60,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
+                "articulations": []
+              },
+              "211": {
+                "type": "Tone",
+                "id": 211,
+                "tick": 48,
+                "duration": 48,
+                "pitch": {
+                  "int": 62,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
+                "articulations": []
+              }
+            }
+          }
+        },
+        "24": {
+          "id": 24,
+          "entries": {
+            "by_tick": {
+              "0": [202]
+            },
+            "by_id": {
+              "202": {
+                "type": "Clef",
+                "id": 202,
+                "tick": 0,
+                "hidden": false,
+                "draw_as": 2,
+                "pitch": {
+                  "int": 53,
+                  "accidental": 0
+                },
+                "offset": -2
+              }
+            }
+          }
+        },
+        "25": {
+          "id": 25,
+          "entries": {
+            "by_tick": {},
+            "by_id": {}
+          }
+        },
+        "31": {
+          "id": 31,
+          "entries": {
+            "by_tick": {
+              "0": [300]
+            },
+            "by_id": {
+              "300": {
+                "type": "TimeSignature",
+                "id": 300,
+                "tick": 0,
+                "hidden": false,
+                "beats": 6,
+                "beat_type": 8,
+                "draw_type": 1,
+                "groupings": [3, 3]
+              }
+            }
+          }
+        },
+        "32": {
+          "id": 32,
+          "entries": {
+            "by_tick": {
+              "0": [301]
+            },
+            "by_id": {
+              "301": {
+                "type": "Clef",
+                "id": 301,
+                "tick": 0,
+                "hidden": false,
+                "draw_as": 1,
+                "pitch": {
+                  "int": 67,
+                  "accidental": 0
+                },
+                "offset": 2
+              }
+            }
+          }
+        },
+        "33": {
+          "id": 33,
+          "entries": {
+            "by_tick": {
+              "0": [310]
+            },
+            "by_id": {
+              "310": {
+                "type": "Tone",
+                "id": 310,
+                "tick": 0,
+                "duration": 96,
+                "pitch": {
+                  "int": 60,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
+                "articulations": []
+              }
+            }
+          }
+        },
+        "34": {
+          "id": 34,
+          "entries": {
+            "by_tick": {
+              "0": [302]
+            },
+            "by_id": {
+              "302": {
+                "type": "Clef",
+                "id": 302,
+                "tick": 0,
+                "hidden": false,
+                "draw_as": 2,
+                "pitch": {
+                  "int": 53,
+                  "accidental": 0
+                },
+                "offset": -2
+              }
+            }
+          }
+        },
+        "35": {
+          "id": 35,
+          "entries": {
+            "by_tick": {},
+            "by_id": {}
+          }
+        },
+        "41": {
+          "id": 41,
+          "entries": {
+            "by_tick": {
+              "0": [400]
+            },
+            "by_id": {
+              "400": {
+                "type": "TimeSignature",
+                "id": 400,
+                "tick": 0,
+                "hidden": false,
+                "beats": 6,
+                "beat_type": 8,
+                "draw_type": 1,
+                "groupings": [3, 3]
+              }
+            }
+          }
+        },
+        "42": {
+          "id": 42,
+          "entries": {
+            "by_tick": {
+              "0": [401]
+            },
+            "by_id": {
+              "401": {
+                "type": "Clef",
+                "id": 401,
+                "tick": 0,
+                "hidden": false,
+                "draw_as": 1,
+                "pitch": {
+                  "int": 67,
+                  "accidental": 0
+                },
+                "offset": 2
+              }
+            }
+          }
+        },
+        "43": {
+          "id": 43,
+          "entries": {
+            "by_tick": {},
+            "by_id": {}
+          }
+        },
+        "44": {
+          "id": 44,
+          "entries": {
+            "by_tick": {
+              "0": [402]
+            },
+            "by_id": {
+              "402": {
+                "type": "Clef",
+                "id": 402,
+                "tick": 0,
+                "hidden": false,
+                "draw_as": 2,
+                "pitch": {
+                  "int": 53,
+                  "accidental": 0
+                },
+                "offset": -2
+              }
+            }
+          }
+        },
+        "45": {
+          "id": 45,
+          "entries": {
+            "by_tick": {},
+            "by_id": {}
+          }
+        },
+        "51": {
+          "id": 51,
+          "entries": {
+            "by_tick": {
+              "0": [500]
+            },
+            "by_id": {
+              "500": {
+                "type": "TimeSignature",
+                "id": 500,
+                "tick": 0,
+                "hidden": false,
+                "beats": 6,
+                "beat_type": 8,
+                "draw_type": 1,
+                "groupings": [3, 3]
+              }
+            }
+          }
+        },
+        "52": {
+          "id": 52,
+          "entries": {
+            "by_tick": {
+              "0": [501]
+            },
+            "by_id": {
+              "501": {
+                "type": "Clef",
+                "id": 501,
+                "tick": 0,
+                "hidden": false,
+                "draw_as": 1,
+                "pitch": {
+                  "int": 67,
+                  "accidental": 0
+                },
+                "offset": 2
+              }
+            }
+          }
+        },
+        "53": {
+          "id": 53,
+          "entries": {
+            "by_tick": {
+              "0": [510],
+              "24": [511],
+              "48": [512]
+            },
+            "by_id": {
+              "510": {
+                "type": "Tone",
+                "id": 510,
+                "tick": 0,
+                "duration": 24,
+                "pitch": {
+                  "int": 60,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
+                "articulations": []
+              },
+              "511": {
+                "type": "Tone",
+                "id": 511,
+                "tick": 24,
+                "duration": 24,
+                "pitch": {
+                  "int": 62,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
+                "articulations": []
+              },
+              "512": {
+                "type": "Tone",
+                "id": 512,
+                "tick": 48,
+                "duration": 48,
+                "pitch": {
+                  "int": 64,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
+                "articulations": []
+              }
+            }
+          }
+        },
+        "54": {
+          "id": 54,
+          "entries": {
+            "by_tick": {
+              "0": [502]
+            },
+            "by_id": {
+              "502": {
+                "type": "Clef",
+                "id": 502,
+                "tick": 0,
+                "hidden": false,
+                "draw_as": 2,
+                "pitch": {
+                  "int": 53,
+                  "accidental": 0
+                },
+                "offset": -2
+              }
+            }
+          }
+        },
+        "55": {
+          "id": 55,
+          "entries": {
+            "by_tick": {},
+            "by_id": {}
+          }
+        },
+        "61": {
+          "id": 61,
+          "entries": {
+            "by_tick": {
+              "0": [600]
+            },
+            "by_id": {
+              "600": {
+                "type": "TimeSignature",
+                "id": 600,
+                "tick": 0,
+                "hidden": false,
+                "beats": 6,
+                "beat_type": 8,
+                "draw_type": 1,
+                "groupings": [3, 3]
+              }
+            }
+          }
+        },
+        "62": {
+          "id": 62,
+          "entries": {
+            "by_tick": {
+              "0": [601]
+            },
+            "by_id": {
+              "601": {
+                "type": "Clef",
+                "id": 601,
+                "tick": 0,
+                "hidden": false,
+                "draw_as": 1,
+                "pitch": {
+                  "int": 67,
+                  "accidental": 0
+                },
+                "offset": 2
+              }
+            }
+          }
+        },
+        "63": {
+          "id": 63,
+          "entries": {
+            "by_tick": {
+              "32": [610]
+            },
+            "by_id": {
+              "610": {
+                "type": "Tone",
+                "id": 610,
+                "tick": 32,
+                "duration": 32,
+                "pitch": {
+                  "int": 60,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
+                "articulations": []
+              }
+            }
+          }
+        },
+        "64": {
+          "id": 64,
+          "entries": {
+            "by_tick": {
+              "0": [602]
+            },
+            "by_id": {
+              "602": {
+                "type": "Clef",
+                "id": 602,
+                "tick": 0,
+                "hidden": false,
+                "draw_as": 2,
+                "pitch": {
+                  "int": 53,
+                  "accidental": 0
+                },
+                "offset": -2
+              }
+            }
+          }
+        },
+        "65": {
+          "id": 65,
+          "entries": {
+            "by_tick": {},
+            "by_id": {}
+          }
+        },
+        "71": {
+          "id": 71,
+          "entries": {
+            "by_tick": {
+              "0": [700]
+            },
+            "by_id": {
+              "700": {
+                "type": "TimeSignature",
+                "id": 700,
+                "tick": 0,
+                "hidden": false,
+                "beats": 6,
+                "beat_type": 8,
+                "draw_type": 1,
+                "groupings": [3, 3]
+              }
+            }
+          }
+        },
+        "72": {
+          "id": 72,
+          "entries": {
+            "by_tick": {
+              "0": [701]
+            },
+            "by_id": {
+              "701": {
+                "type": "Clef",
+                "id": 701,
+                "tick": 0,
+                "hidden": false,
+                "draw_as": 1,
+                "pitch": {
+                  "int": 67,
+                  "accidental": 0
+                },
+                "offset": 2
+              }
+            }
+          }
+        },
+        "73": {
+          "id": 73,
+          "entries": {
+            "by_tick": {
+              "0": [710],
+              "80": [711]
+            },
+            "by_id": {
+              "710": {
+                "type": "Tone",
+                "id": 710,
+                "tick": 0,
+                "duration": 16,
+                "pitch": {
+                  "int": 60,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
+                "articulations": []
+              },
+              "711": {
+                "type": "Tone",
+                "id": 711,
+                "tick": 80,
+                "duration": 16,
+                "pitch": {
+                  "int": 62,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
+                "articulations": []
+              }
+            }
+          }
+        },
+        "74": {
+          "id": 74,
+          "entries": {
+            "by_tick": {
+              "0": [702]
+            },
+            "by_id": {
+              "702": {
+                "type": "Clef",
+                "id": 702,
+                "tick": 0,
+                "hidden": false,
+                "draw_as": 2,
+                "pitch": {
+                  "int": 53,
+                  "accidental": 0
+                },
+                "offset": -2
+              }
+            }
+          }
+        },
+        "75": {
+          "id": 75,
+          "entries": {
+            "by_tick": {},
+            "by_id": {}
+          }
+        },
+        "81": {
+          "id": 81,
+          "entries": {
+            "by_tick": {
+              "0": [800]
+            },
+            "by_id": {
+              "800": {
+                "type": "TimeSignature",
+                "id": 800,
+                "tick": 0,
+                "hidden": false,
+                "beats": 6,
+                "beat_type": 8,
+                "draw_type": 1,
+                "groupings": [3, 3]
+              }
+            }
+          }
+        },
+        "82": {
+          "id": 82,
+          "entries": {
+            "by_tick": {
+              "0": [801]
+            },
+            "by_id": {
+              "801": {
+                "type": "Clef",
+                "id": 801,
+                "tick": 0,
+                "hidden": false,
+                "draw_as": 1,
+                "pitch": {
+                  "int": 67,
+                  "accidental": 0
+                },
+                "offset": 2
+              }
+            }
+          }
+        },
+        "83": {
+          "id": 83,
+          "entries": {
+            "by_tick": {
+              "32": [810, 811]
+            },
+            "by_id": {
+              "810": {
+                "type": "Tone",
+                "id": 810,
+                "tick": 32,
+                "duration": 32,
+                "pitch": {
+                  "int": 60,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
+                "articulations": []
+              },
+              "811": {
+                "type": "Tone",
+                "id": 811,
+                "tick": 32,
+                "duration": 32,
+                "pitch": {
+                  "int": 64,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
+                "articulations": []
+              }
+            }
+          }
+        },
+        "84": {
+          "id": 84,
+          "entries": {
+            "by_tick": {
+              "0": [802]
+            },
+            "by_id": {
+              "802": {
+                "type": "Clef",
+                "id": 802,
+                "tick": 0,
+                "hidden": false,
+                "draw_as": 2,
+                "pitch": {
+                  "int": 53,
+                  "accidental": 0
+                },
+                "offset": -2
+              }
+            }
+          }
+        },
+        "85": {
+          "id": 85,
+          "entries": {
+            "by_tick": {},
+            "by_id": {}
+          }
+        },
+        "91": {
+          "id": 91,
+          "entries": {
+            "by_tick": {
+              "0": [900]
+            },
+            "by_id": {
+              "900": {
+                "type": "TimeSignature",
+                "id": 900,
+                "tick": 0,
+                "hidden": false,
+                "beats": 9,
+                "beat_type": 8,
+                "draw_type": 1,
+                "groupings": [3, 3, 3]
+              }
+            }
+          }
+        },
+        "92": {
+          "id": 92,
+          "entries": {
+            "by_tick": {
+              "0": [901]
+            },
+            "by_id": {
+              "901": {
+                "type": "Clef",
+                "id": 901,
+                "tick": 0,
+                "hidden": false,
+                "draw_as": 1,
+                "pitch": {
+                  "int": 67,
+                  "accidental": 0
+                },
+                "offset": 2
+              }
+            }
+          }
+        },
+        "93": {
+          "id": 93,
+          "entries": {
+            "by_tick": {
+              "0": [910],
+              "16": [911],
+              "32": [912],
+              "48": [913],
+              "64": [914],
+              "80": [915],
+              "96": [916],
+              "112": [917],
+              "128": [918]
+            },
+            "by_id": {
+              "910": {
+                "type": "Tone",
+                "id": 910,
+                "tick": 0,
+                "duration": 16,
+                "pitch": {
+                  "int": 60,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
+                "articulations": []
+              },
+              "911": {
+                "type": "Tone",
+                "id": 911,
+                "tick": 16,
+                "duration": 16,
+                "pitch": {
+                  "int": 61,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
+                "articulations": []
+              },
+              "912": {
+                "type": "Tone",
+                "id": 912,
+                "tick": 32,
+                "duration": 16,
+                "pitch": {
+                  "int": 62,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
+                "articulations": []
+              },
+              "913": {
+                "type": "Tone",
+                "id": 913,
+                "tick": 48,
+                "duration": 16,
+                "pitch": {
+                  "int": 63,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
+                "articulations": []
+              },
+              "914": {
+                "type": "Tone",
+                "id": 914,
+                "tick": 64,
+                "duration": 16,
+                "pitch": {
+                  "int": 64,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
+                "articulations": []
+              },
+              "915": {
+                "type": "Tone",
+                "id": 915,
+                "tick": 80,
+                "duration": 16,
+                "pitch": {
+                  "int": 65,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
+                "articulations": []
+              },
+              "916": {
+                "type": "Tone",
+                "id": 916,
+                "tick": 96,
+                "duration": 16,
+                "pitch": {
+                  "int": 66,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
+                "articulations": []
+              },
+              "917": {
+                "type": "Tone",
+                "id": 917,
+                "tick": 112,
+                "duration": 16,
+                "pitch": {
+                  "int": 67,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
+                "articulations": []
+              },
+              "918": {
+                "type": "Tone",
+                "id": 918,
+                "tick": 128,
+                "duration": 16,
+                "pitch": {
+                  "int": 68,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
+                "articulations": []
+              }
+            }
+          }
+        },
+        "94": {
+          "id": 94,
+          "entries": {
+            "by_tick": {
+              "0": [902]
+            },
+            "by_id": {
+              "902": {
+                "type": "Clef",
+                "id": 902,
+                "tick": 0,
+                "hidden": false,
+                "draw_as": 2,
+                "pitch": {
+                  "int": 53,
+                  "accidental": 0
+                },
+                "offset": -2
+              }
+            }
+          }
+        },
+        "95": {
+          "id": 95,
+          "entries": {
+            "by_tick": {},
+            "by_id": {}
+          }
+        },
+        "101": {
+          "id": 101,
+          "entries": {
+            "by_tick": {
+              "0": [1000]
+            },
+            "by_id": {
+              "1000": {
+                "type": "TimeSignature",
+                "id": 1000,
+                "tick": 0,
+                "hidden": false,
+                "beats": 9,
+                "beat_type": 8,
+                "draw_type": 1,
+                "groupings": [3, 3, 3]
+              }
+            }
+          }
+        },
+        "102": {
+          "id": 102,
+          "entries": {
+            "by_tick": {
+              "0": [1001]
+            },
+            "by_id": {
+              "1001": {
+                "type": "Clef",
+                "id": 1001,
+                "tick": 0,
+                "hidden": false,
+                "draw_as": 1,
+                "pitch": {
+                  "int": 67,
+                  "accidental": 0
+                },
+                "offset": 2
+              }
+            }
+          }
+        },
+        "103": {
+          "id": 103,
+          "entries": {
+            "by_tick": {
+              "0": [1010]
+            },
+            "by_id": {
+              "1010": {
+                "type": "Tone",
+                "id": 1010,
+                "tick": 0,
+                "duration": 144,
+                "pitch": {
+                  "int": 60,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
+                "articulations": []
+              }
+            }
+          }
+        },
+        "104": {
+          "id": 104,
+          "entries": {
+            "by_tick": {
+              "0": [1002]
+            },
+            "by_id": {
+              "1002": {
+                "type": "Clef",
+                "id": 1002,
+                "tick": 0,
+                "hidden": false,
+                "draw_as": 2,
+                "pitch": {
+                  "int": 53,
+                  "accidental": 0
+                },
+                "offset": -2
+              }
+            }
+          }
+        },
+        "105": {
+          "id": 105,
+          "entries": {
+            "by_tick": {},
+            "by_id": {}
+          }
+        },
+        "111": {
+          "id": 111,
+          "entries": {
+            "by_tick": {
+              "0": [1100]
+            },
+            "by_id": {
+              "1100": {
+                "type": "TimeSignature",
+                "id": 1100,
+                "tick": 0,
+                "hidden": false,
+                "beats": 9,
+                "beat_type": 8,
+                "draw_type": 1,
+                "groupings": [3, 3, 3]
+              }
+            }
+          }
+        },
+        "112": {
+          "id": 112,
+          "entries": {
+            "by_tick": {
+              "0": [1101]
+            },
+            "by_id": {
+              "1101": {
+                "type": "Clef",
+                "id": 1101,
+                "tick": 0,
+                "hidden": false,
+                "draw_as": 1,
+                "pitch": {
+                  "int": 67,
+                  "accidental": 0
+                },
+                "offset": 2
+              }
+            }
+          }
+        },
+        "113": {
+          "id": 113,
+          "entries": {
+            "by_tick": {
+              "32": [1110],
+              "96": [1111]
+            },
+            "by_id": {
+              "1110": {
+                "type": "Tone",
+                "id": 1110,
+                "tick": 32,
+                "duration": 32,
+                "pitch": {
+                  "int": 60,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
+                "articulations": []
+              },
+              "1111": {
+                "type": "Tone",
+                "id": 1111,
+                "tick": 96,
+                "duration": 48,
+                "pitch": {
+                  "int": 64,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
+                "articulations": []
+              }
+            }
+          }
+        },
+        "114": {
+          "id": 114,
+          "entries": {
+            "by_tick": {
+              "0": [1102]
+            },
+            "by_id": {
+              "1102": {
+                "type": "Clef",
+                "id": 1102,
+                "tick": 0,
+                "hidden": false,
+                "draw_as": 2,
+                "pitch": {
+                  "int": 53,
+                  "accidental": 0
+                },
+                "offset": -2
+              }
+            }
+          }
+        },
+        "115": {
+          "id": 115,
+          "entries": {
+            "by_tick": {},
+            "by_id": {}
+          }
+        },
+        "121": {
+          "id": 121,
+          "entries": {
+            "by_tick": {
+              "0": [1200]
+            },
+            "by_id": {
+              "1200": {
+                "type": "TimeSignature",
+                "id": 1200,
+                "tick": 0,
+                "hidden": false,
+                "beats": 9,
+                "beat_type": 8,
+                "draw_type": 1,
+                "groupings": [3, 3, 3]
+              }
+            }
+          }
+        },
+        "122": {
+          "id": 122,
+          "entries": {
+            "by_tick": {
+              "0": [1201]
+            },
+            "by_id": {
+              "1201": {
+                "type": "Clef",
+                "id": 1201,
+                "tick": 0,
+                "hidden": false,
+                "draw_as": 1,
+                "pitch": {
+                  "int": 67,
+                  "accidental": 0
+                },
+                "offset": 2
+              }
+            }
+          }
+        },
+        "123": {
+          "id": 123,
+          "entries": {
+            "by_tick": {
+              "16": [1210],
+              "64": [1211],
+              "112": [1212]
+            },
+            "by_id": {
+              "1210": {
+                "type": "Tone",
+                "id": 1210,
+                "tick": 16,
+                "duration": 32,
+                "pitch": {
+                  "int": 60,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
+                "articulations": []
+              },
+              "1211": {
+                "type": "Tone",
+                "id": 1211,
+                "tick": 64,
+                "duration": 32,
+                "pitch": {
+                  "int": 64,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
+                "articulations": []
+              },
+              "1212": {
+                "type": "Tone",
+                "id": 1212,
+                "tick": 112,
+                "duration": 32,
+                "pitch": {
+                  "int": 67,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
+                "articulations": []
+              }
+            }
+          }
+        },
+        "124": {
+          "id": 124,
+          "entries": {
+            "by_tick": {
+              "0": [1202]
+            },
+            "by_id": {
+              "1202": {
+                "type": "Clef",
+                "id": 1202,
+                "tick": 0,
+                "hidden": false,
+                "draw_as": 2,
+                "pitch": {
+                  "int": 53,
+                  "accidental": 0
+                },
+                "offset": -2
+              }
+            }
+          }
+        },
+        "125": {
+          "id": 125,
+          "entries": {
+            "by_tick": {},
+            "by_id": {}
+          }
+        },
+        "131": {
+          "id": 131,
+          "entries": {
+            "by_tick": {
+              "0": [1300]
+            },
+            "by_id": {
+              "1300": {
+                "type": "TimeSignature",
+                "id": 1300,
+                "tick": 0,
+                "hidden": false,
+                "beats": 12,
+                "beat_type": 8,
+                "draw_type": 1,
+                "groupings": [3, 3, 3, 3]
+              }
+            }
+          }
+        },
+        "132": {
+          "id": 132,
+          "entries": {
+            "by_tick": {
+              "0": [1301]
+            },
+            "by_id": {
+              "1301": {
+                "type": "Clef",
+                "id": 1301,
+                "tick": 0,
+                "hidden": false,
+                "draw_as": 1,
+                "pitch": {
+                  "int": 67,
+                  "accidental": 0
+                },
+                "offset": 2
+              }
+            }
+          }
+        },
+        "133": {
+          "id": 133,
+          "entries": {
+            "by_tick": {
+              "0": [1310],
+              "16": [1311],
+              "32": [1312],
+              "48": [1313],
+              "64": [1314],
+              "80": [1315],
+              "96": [1316],
+              "112": [1317],
+              "128": [1318],
+              "144": [1319],
+              "160": [1320],
+              "176": [1321]
+            },
+            "by_id": {
+              "1310": {
+                "type": "Tone",
+                "id": 1310,
+                "tick": 0,
+                "duration": 16,
+                "pitch": {
+                  "int": 60,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
+                "articulations": []
+              },
+              "1311": {
+                "type": "Tone",
+                "id": 1311,
+                "tick": 16,
+                "duration": 16,
+                "pitch": {
+                  "int": 61,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
+                "articulations": []
+              },
+              "1312": {
+                "type": "Tone",
+                "id": 1312,
+                "tick": 32,
+                "duration": 16,
+                "pitch": {
+                  "int": 62,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
+                "articulations": []
+              },
+              "1313": {
+                "type": "Tone",
+                "id": 1313,
+                "tick": 48,
+                "duration": 16,
+                "pitch": {
+                  "int": 63,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
+                "articulations": []
+              },
+              "1314": {
+                "type": "Tone",
+                "id": 1314,
+                "tick": 64,
+                "duration": 16,
+                "pitch": {
+                  "int": 64,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
+                "articulations": []
+              },
+              "1315": {
+                "type": "Tone",
+                "id": 1315,
+                "tick": 80,
+                "duration": 16,
+                "pitch": {
+                  "int": 65,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
+                "articulations": []
+              },
+              "1316": {
+                "type": "Tone",
+                "id": 1316,
+                "tick": 96,
+                "duration": 16,
+                "pitch": {
+                  "int": 66,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
+                "articulations": []
+              },
+              "1317": {
+                "type": "Tone",
+                "id": 1317,
+                "tick": 112,
+                "duration": 16,
+                "pitch": {
+                  "int": 67,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
+                "articulations": []
+              },
+              "1318": {
+                "type": "Tone",
+                "id": 1318,
+                "tick": 128,
+                "duration": 16,
+                "pitch": {
+                  "int": 68,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
+                "articulations": []
+              },
+              "1319": {
+                "type": "Tone",
+                "id": 1319,
+                "tick": 144,
+                "duration": 16,
+                "pitch": {
+                  "int": 69,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
+                "articulations": []
+              },
+              "1320": {
+                "type": "Tone",
+                "id": 1320,
+                "tick": 160,
+                "duration": 16,
+                "pitch": {
+                  "int": 70,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
+                "articulations": []
+              },
+              "1321": {
+                "type": "Tone",
+                "id": 1321,
+                "tick": 176,
+                "duration": 16,
+                "pitch": {
+                  "int": 71,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
+                "articulations": []
+              }
+            }
+          }
+        },
+        "134": {
+          "id": 134,
+          "entries": {
+            "by_tick": {
+              "0": [1302]
+            },
+            "by_id": {
+              "1302": {
+                "type": "Clef",
+                "id": 1302,
+                "tick": 0,
+                "hidden": false,
+                "draw_as": 2,
+                "pitch": {
+                  "int": 53,
+                  "accidental": 0
+                },
+                "offset": -2
+              }
+            }
+          }
+        },
+        "135": {
+          "id": 135,
+          "entries": {
+            "by_tick": {},
+            "by_id": {}
+          }
+        },
+        "141": {
+          "id": 141,
+          "entries": {
+            "by_tick": {
+              "0": [1400]
+            },
+            "by_id": {
+              "1400": {
+                "type": "TimeSignature",
+                "id": 1400,
+                "tick": 0,
+                "hidden": false,
+                "beats": 12,
+                "beat_type": 8,
+                "draw_type": 1,
+                "groupings": [3, 3, 3, 3]
+              }
+            }
+          }
+        },
+        "142": {
+          "id": 142,
+          "entries": {
+            "by_tick": {
+              "0": [1401]
+            },
+            "by_id": {
+              "1401": {
+                "type": "Clef",
+                "id": 1401,
+                "tick": 0,
+                "hidden": false,
+                "draw_as": 1,
+                "pitch": {
+                  "int": 67,
+                  "accidental": 0
+                },
+                "offset": 2
+              }
+            }
+          }
+        },
+        "143": {
+          "id": 143,
+          "entries": {
+            "by_tick": {
+              "0": [1410],
+              "48": [1411],
+              "96": [1412],
+              "128": [1413]
+            },
+            "by_id": {
+              "1410": {
+                "type": "Tone",
+                "id": 1410,
+                "tick": 0,
+                "duration": 48,
+                "pitch": {
+                  "int": 60,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
+                "articulations": []
+              },
+              "1411": {
+                "type": "Tone",
+                "id": 1411,
+                "tick": 48,
+                "duration": 48,
+                "pitch": {
+                  "int": 62,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
+                "articulations": []
+              },
+              "1412": {
+                "type": "Tone",
+                "id": 1412,
+                "tick": 96,
+                "duration": 32,
+                "pitch": {
+                  "int": 64,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
+                "articulations": []
+              },
+              "1413": {
+                "type": "Tone",
+                "id": 1413,
+                "tick": 128,
+                "duration": 96,
+                "pitch": {
+                  "int": 67,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
+                "articulations": []
+              }
+            }
+          }
+        },
+        "144": {
+          "id": 144,
+          "entries": {
+            "by_tick": {
+              "0": [1402]
+            },
+            "by_id": {
+              "1402": {
+                "type": "Clef",
+                "id": 1402,
+                "tick": 0,
+                "hidden": false,
+                "draw_as": 2,
+                "pitch": {
+                  "int": 53,
+                  "accidental": 0
+                },
+                "offset": -2
+              }
+            }
+          }
+        },
+        "145": {
+          "id": 145,
+          "entries": {
+            "by_tick": {},
+            "by_id": {}
+          }
+        },
+        "151": {
+          "id": 151,
+          "entries": {
+            "by_tick": {
+              "0": [1500]
+            },
+            "by_id": {
+              "1500": {
+                "type": "TimeSignature",
+                "id": 1500,
+                "tick": 0,
+                "hidden": false,
+                "beats": 12,
+                "beat_type": 8,
+                "draw_type": 1,
+                "groupings": [3, 3, 3, 3]
+              }
+            }
+          }
+        },
+        "152": {
+          "id": 152,
+          "entries": {
+            "by_tick": {
+              "0": [1501]
+            },
+            "by_id": {
+              "1501": {
+                "type": "Clef",
+                "id": 1501,
+                "tick": 0,
+                "hidden": false,
+                "draw_as": 1,
+                "pitch": {
+                  "int": 67,
+                  "accidental": 0
+                },
+                "offset": 2
+              }
+            }
+          }
+        },
+        "153": {
+          "id": 153,
+          "entries": {
+            "by_tick": {
+              "0": [1510],
+              "48": [1511],
+              "96": [1512]
+            },
+            "by_id": {
+              "1510": {
+                "type": "Tone",
+                "id": 1510,
+                "tick": 0,
+                "duration": 48,
+                "pitch": {
+                  "int": 60,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
+                "articulations": []
+              },
+              "1511": {
+                "type": "Tone",
+                "id": 1511,
+                "tick": 48,
+                "duration": 48,
+                "pitch": {
+                  "int": 62,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
+                "articulations": []
+              },
+              "1512": {
+                "type": "Tone",
+                "id": 1512,
+                "tick": 96,
+                "duration": 32,
+                "pitch": {
+                  "int": 64,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
+                "articulations": []
+              }
+            }
+          }
+        },
+        "154": {
+          "id": 154,
+          "entries": {
+            "by_tick": {
+              "0": [1502]
+            },
+            "by_id": {
+              "1502": {
+                "type": "Clef",
+                "id": 1502,
+                "tick": 0,
+                "hidden": false,
+                "draw_as": 2,
+                "pitch": {
+                  "int": 53,
+                  "accidental": 0
+                },
+                "offset": -2
+              }
+            }
+          }
+        },
+        "155": {
+          "id": 155,
+          "entries": {
+            "by_tick": {},
+            "by_id": {}
+          }
+        },
+        "161": {
+          "id": 161,
+          "entries": {
+            "by_tick": {
+              "0": [1600]
+            },
+            "by_id": {
+              "1600": {
+                "type": "TimeSignature",
+                "id": 1600,
+                "tick": 0,
+                "hidden": false,
+                "beats": 15,
+                "beat_type": 8,
+                "draw_type": 1,
+                "groupings": [3, 3, 3, 3, 3]
+              }
+            }
+          }
+        },
+        "162": {
+          "id": 162,
+          "entries": {
+            "by_tick": {
+              "0": [1601]
+            },
+            "by_id": {
+              "1601": {
+                "type": "Clef",
+                "id": 1601,
+                "tick": 0,
+                "hidden": false,
+                "draw_as": 1,
+                "pitch": {
+                  "int": 67,
+                  "accidental": 0
+                },
+                "offset": 2
+              }
+            }
+          }
+        },
+        "163": {
+          "id": 163,
+          "entries": {
+            "by_tick": {
+              "0": [1610],
+              "16": [1611],
+              "32": [1612],
+              "48": [1613],
+              "64": [1614],
+              "80": [1615],
+              "96": [1616],
+              "112": [1617],
+              "128": [1618],
+              "144": [1619],
+              "160": [1620],
+              "176": [1621],
+              "192": [1622],
+              "208": [1623],
+              "224": [1624]
+            },
+            "by_id": {
+              "1610": {
+                "type": "Tone",
+                "id": 1610,
+                "tick": 0,
+                "duration": 16,
+                "pitch": {
+                  "int": 60,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
+                "articulations": []
+              },
+              "1611": {
+                "type": "Tone",
+                "id": 1611,
+                "tick": 16,
+                "duration": 16,
+                "pitch": {
+                  "int": 61,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
+                "articulations": []
+              },
+              "1612": {
+                "type": "Tone",
+                "id": 1612,
+                "tick": 32,
+                "duration": 16,
+                "pitch": {
+                  "int": 62,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
+                "articulations": []
+              },
+              "1613": {
+                "type": "Tone",
+                "id": 1613,
+                "tick": 48,
+                "duration": 16,
+                "pitch": {
+                  "int": 63,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
+                "articulations": []
+              },
+              "1614": {
+                "type": "Tone",
+                "id": 1614,
+                "tick": 64,
+                "duration": 16,
+                "pitch": {
+                  "int": 64,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
+                "articulations": []
+              },
+              "1615": {
+                "type": "Tone",
+                "id": 1615,
+                "tick": 80,
+                "duration": 16,
+                "pitch": {
+                  "int": 65,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
+                "articulations": []
+              },
+              "1616": {
+                "type": "Tone",
+                "id": 1616,
+                "tick": 96,
+                "duration": 16,
+                "pitch": {
+                  "int": 66,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
+                "articulations": []
+              },
+              "1617": {
+                "type": "Tone",
+                "id": 1617,
+                "tick": 112,
+                "duration": 16,
+                "pitch": {
+                  "int": 67,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
+                "articulations": []
+              },
+              "1618": {
+                "type": "Tone",
+                "id": 1618,
+                "tick": 128,
+                "duration": 16,
+                "pitch": {
+                  "int": 60,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
+                "articulations": []
+              },
+              "1619": {
+                "type": "Tone",
+                "id": 1619,
+                "tick": 144,
+                "duration": 16,
+                "pitch": {
+                  "int": 61,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
+                "articulations": []
+              },
+              "1620": {
+                "type": "Tone",
+                "id": 1620,
+                "tick": 160,
+                "duration": 16,
+                "pitch": {
+                  "int": 62,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
+                "articulations": []
+              },
+              "1621": {
+                "type": "Tone",
+                "id": 1621,
+                "tick": 176,
+                "duration": 16,
+                "pitch": {
+                  "int": 63,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
+                "articulations": []
+              },
+              "1622": {
+                "type": "Tone",
+                "id": 1622,
+                "tick": 192,
+                "duration": 16,
+                "pitch": {
+                  "int": 64,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
+                "articulations": []
+              },
+              "1623": {
+                "type": "Tone",
+                "id": 1623,
+                "tick": 208,
+                "duration": 16,
+                "pitch": {
+                  "int": 65,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
+                "articulations": []
+              },
+              "1624": {
+                "type": "Tone",
+                "id": 1624,
+                "tick": 224,
+                "duration": 16,
+                "pitch": {
+                  "int": 66,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
+                "articulations": []
+              }
+            }
+          }
+        },
+        "164": {
+          "id": 164,
+          "entries": {
+            "by_tick": {
+              "0": [1602]
+            },
+            "by_id": {
+              "1602": {
+                "type": "Clef",
+                "id": 1602,
+                "tick": 0,
+                "hidden": false,
+                "draw_as": 2,
+                "pitch": {
+                  "int": 53,
+                  "accidental": 0
+                },
+                "offset": -2
+              }
+            }
+          }
+        },
+        "165": {
+          "id": 165,
+          "entries": {
+            "by_tick": {},
+            "by_id": {}
+          }
+        },
+        "171": {
+          "id": 171,
+          "entries": {
+            "by_tick": {
+              "0": [1700]
+            },
+            "by_id": {
+              "1700": {
+                "type": "TimeSignature",
+                "id": 1700,
+                "tick": 0,
+                "hidden": false,
+                "beats": 6,
+                "beat_type": 8,
+                "draw_type": 1,
+                "groupings": [3, 3]
+              }
+            }
+          }
+        },
+        "172": {
+          "id": 172,
+          "entries": {
+            "by_tick": {
+              "0": [1701]
+            },
+            "by_id": {
+              "1701": {
+                "type": "Clef",
+                "id": 1701,
+                "tick": 0,
+                "hidden": false,
+                "draw_as": 1,
+                "pitch": {
+                  "int": 67,
+                  "accidental": 0
+                },
+                "offset": 2
+              }
+            }
+          }
+        },
+        "173": {
+          "id": 173,
+          "entries": {
+            "by_tick": {
+              "1": [1710],
+              "50": [1711]
+            },
+            "by_id": {
+              "1710": {
+                "type": "Tone",
+                "id": 1710,
+                "tick": 1,
+                "duration": 2,
+                "pitch": {
+                  "int": 60,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
+                "articulations": []
+              },
+              "1711": {
+                "type": "Tone",
+                "id": 1711,
+                "tick": 50,
+                "duration": 2,
+                "pitch": {
+                  "int": 62,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
+                "articulations": []
+              }
+            }
+          }
+        },
+        "174": {
+          "id": 174,
+          "entries": {
+            "by_tick": {
+              "0": [1702]
+            },
+            "by_id": {
+              "1702": {
+                "type": "Clef",
+                "id": 1702,
+                "tick": 0,
+                "hidden": false,
+                "draw_as": 2,
+                "pitch": {
+                  "int": 53,
+                  "accidental": 0
+                },
+                "offset": -2
+              }
+            }
+          }
+        },
+        "175": {
+          "id": 175,
+          "entries": {
+            "by_tick": {},
+            "by_id": {}
+          }
+        }
+      }
+    }
+  },
+  "ui": {
+    "flow_id": 10,
+    "layout_id": 0,
+    "renderer": {
+      "debug": false,
+      "pan_x": 100,
+      "pan_y": 100,
+      "zoom": 100
+    },
+    "screens": {
+      "sequence": {
+        "bottom_panel_minimized": false,
+        "bottom_panel_tab": 1,
+        "show_active_only": true
+      },
+      "setup": {
+        "expanded": [],
+        "selection": null
+      },
+      "write": {
+        "bottom_panel_minimized": false,
+        "bottom_panel_tab": 1
+      }
+    },
+    "sequencer": {
+      "flow": null,
+      "instrument": null,
+      "selection": null,
+      "snap": 8,
+      "tool": 0,
+      "track": null,
+      "x": 0,
+      "y": 1008
+    },
+    "tab": 1
+  }
+}

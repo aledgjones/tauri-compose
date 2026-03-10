@@ -87,14 +87,15 @@
     "start:dev": "tauri dev",
     "start:release": "tauri build",
     "tauri": "tauri",
-    "test": "vitest run",
-    "test:coverage": "vitest run --coverage",
-    "test:coverage:rust": "cd src-tauri && cargo llvm-cov --lib --fail-under-lines 62 --fail-under-functions 76 --fail-under-regions 65",
-    "test:coverage:rust:summary": "cd src-tauri && cargo llvm-cov --lib",
-    "test:coverage:summary": "./scripts/coverage-summary",
-    "test:logs": "VITEST_LOGS=1 vitest run",
-    "test:logs:watch": "VITEST_LOGS=1 vitest",
-    "test:watch": "vitest"
+    "test:js": "vitest run",
+    "test:js:watch": "vitest",
+    "test:js:coverage": "vitest run --coverage",
+    "test:js:coverage:summary": "./scripts/coverage-summary",
+    "test:js:logs": "VITEST_LOGS=1 vitest run",
+    "test:js:logs:watch": "VITEST_LOGS=1 vitest",
+    "test:rust": "cd src-tauri && cargo test --lib",
+    "test:rust:coverage": "cd src-tauri && cargo llvm-cov --lib --fail-under-lines 62 --fail-under-functions 76 --fail-under-regions 65",
+    "test:rust:coverage:summary": "cd src-tauri && cargo llvm-cov --lib"
   },
   "simple-git-hooks": {
     "pre-commit": "npx lint-staged"

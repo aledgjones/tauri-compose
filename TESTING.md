@@ -6,12 +6,14 @@ This project uses [Vitest](https://vitest.dev) as the test runner for TypeScript
 
 ## Commands
 
-| Command                 | Description                            |
-| ----------------------- | -------------------------------------- |
-| `npm test`              | Run all TypeScript tests once          |
-| `npm run test:watch`    | Run tests in watch mode (TDD)          |
-| `npm run test:coverage` | Run tests with v8 coverage report      |
-| `cargo test`            | Run all Rust tests (from `src-tauri/`) |
+| Command                      | Description                            |
+| ---------------------------- | -------------------------------------- |
+| `npm run test:js`            | Run all TypeScript tests once          |
+| `npm run test:js:watch`      | Run tests in watch mode (TDD)          |
+| `npm run test:js:coverage`   | Run JS tests with v8 coverage report   |
+| `npm run test:js:logs`       | Run JS tests once with verbose logs    |
+| `npm run test:js:logs:watch` | Watch mode with verbose logs           |
+| `npm run test:rust`          | Run all Rust tests (from `src-tauri/`) |
 
 ## File Naming
 
@@ -190,10 +192,10 @@ Coverage for the TypeScript/React layer uses [`@vitest/coverage-v8`](https://vit
 
 ```bash
 # Generate report in coverage/
-npm run test:coverage
+npm run test:js:coverage
 
 # Print totals from last generated report
-npm run test:coverage:summary
+npm run test:js:coverage:summary
 ```
 
 Thresholds are enforced in the `test.coverage.thresholds` block in [vite.config.ts](vite.config.ts):
@@ -217,13 +219,13 @@ cargo install cargo-llvm-cov
 rustup component add llvm-tools-preview
 
 # Show summary table
-npm run test:coverage:rust:summary
+npm run test:rust:coverage:summary
 
 # Enforce thresholds (exits non-zero if below)
-npm run test:coverage:rust
+npm run test:rust:coverage
 ```
 
-Thresholds are enforced via flags in the `test:coverage:rust` script in [package.json](package.json):
+Thresholds are enforced via flags in the `test:rust:coverage` script in [package.json](package.json):
 
 | Metric    | Threshold |
 | --------- | --------- |

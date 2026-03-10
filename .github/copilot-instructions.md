@@ -68,8 +68,8 @@ When connected to atlassian-rovo-mcp:
 
 ## Coverage Analysis
 
-- **MUST** use `npm run test:coverage:summary` to display coverage totals — do NOT write ad-hoc Python or Node scripts inline for this purpose
-- **MUST** use `npm run test:coverage` to generate/refresh the coverage data before running `test:coverage:summary` if the data may be stale
+- **MUST** use `npm run test:js:coverage:summary` to display coverage totals — do NOT write ad-hoc Python or Node scripts inline for this purpose
+- **MUST** use `npm run test:js:coverage` to generate/refresh the coverage data before running `test:js:coverage:summary` if the data may be stale
 - These scripts are safe to auto-approve; inline coverage scripts are not
 
 ## Visual Regression Fixtures
@@ -83,7 +83,8 @@ When connected to atlassian-rovo-mcp:
 - See [tests/fixtures/README.md](../tests/fixtures/README.md) for the authoritative fixture guide
 - Fixture JSON `score.meta.app_version` **MUST** match the current `CARGO_PKG_VERSION` (currently `1.23.3`) — the build script will fail with a clear error if it is missing
 - When the `.soloc` container format changes, fixtures must be regenerated with `npm run build:fixtures`
-- **MUST NOT** use Compound (6/8, 9/8, 12/8, …) or Complex (5/4, 7/8, …) time signatures in fixtures — only Simple time signatures (beats 1–4) are implemented; Compound and Complex will **crash the app** (`todo!()` in the renderer)
+- Compound fixture coverage is now valid where the app supports it; add representative variants under `tests/fixtures/source/rhythms/` when exercising compound notation behavior
+- **MUST NOT** use Complex (5/4, 7/8, …) time signatures in fixtures until the renderer and load path support them end to end
 
 ## Spec and Documentation Requirements
 
@@ -91,6 +92,8 @@ When connected to atlassian-rovo-mcp:
 - **MUST** identify which docs should be updated whenever a spec changes behavior, architecture, persistence, workflows, user-visible features, or developer expectations
 - **MUST** include explicit documentation update tasks and acceptance criteria in specs; docs are not a follow-up nice-to-have
 - **MUST** update AI-agent instructions as part of the work when project rules or required implementation practices change
+- **MUST** keep shared written-duration parser test harness code under `src-tauri/src/instructions/parse/test_support/` and leave the musical scenario tables in `src-tauri/src/instructions/parse/get_written_durations.rs`; `get_written_durations_test_harness.rs` is the current home unless a focused follow-up intentionally splits that support by concern
+- **MUST NOT** introduce a repo-wide notation test framework when parser-local test support is sufficient; low-level `get_written_durations.rs` helper tests should remain local direct unit tests
 - **MUST** assess migration impact for any persisted-data change, `.soloc` payload/file-format change, or load/save semantic change; if older data would not load correctly without transformation, add or update the corresponding migration
 - **MUST** author unreleased persisted-data migrations in `src-tauri/src/migrations/next.rs` until a human prepares the release
 - **MUST** do persisted-data work in this order: implement the change, add/update pending migration steps in `src-tauri/src/migrations/next.rs`, then have a human run `prepare-release:*` and `finalize-release` last

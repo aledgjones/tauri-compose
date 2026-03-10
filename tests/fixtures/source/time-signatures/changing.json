@@ -2,45 +2,78 @@
   "next_id": 300,
   "score": {
     "config": {
-      "auto_count_styles": { "section": 1, "solo": 0 }
+      "auto_count_styles": {
+        "section": 1,
+        "solo": 0
+      }
     },
     "engraves": {
       "by_layout_type": {
         "0": {
-          "base_note_space": 4.0,
+          "base_note_space": 4,
           "bracket_single_staves": false,
           "bracket_style": 1,
           "bracketing_approach": 1,
-          "frame_padding": { "bottom": 20.0, "left": 0.0, "right": 0.0, "top": 20.0 },
-          "instrument_name_font": { "align": 1, "family": 1, "justify": 2, "size": 1.75 },
-          "instrument_name_spacing": 2.0,
-          "instrument_spacing": 8.0,
+          "frame_padding": {
+            "bottom": 20,
+            "left": 0,
+            "right": 0,
+            "top": 20
+          },
+          "instrument_name_font": {
+            "align": 1,
+            "family": 1,
+            "justify": 2,
+            "size": 1.75
+          },
+          "instrument_name_spacing": 2,
+          "instrument_spacing": 8,
           "maximum_beam_slant": 0.5,
           "minimum_note_space": 0.8999999761581421,
           "minimum_tie_space": 1.600000023841858,
           "note_space_ratio": 1.409999966621399,
-          "page_padding": { "bottom": 30.0, "left": 20.0, "right": 20.0, "top": 30.0 },
+          "page_padding": {
+            "bottom": 30,
+            "left": 20,
+            "right": 20,
+            "top": 30
+          },
           "space": 1.5,
-          "stave_spacing": 6.0,
+          "stave_spacing": 6,
           "system_start_padding": 0.75,
           "systemic_barline_single_instrument_system": true
         },
         "1": {
-          "base_note_space": 4.0,
+          "base_note_space": 4,
           "bracket_single_staves": false,
           "bracket_style": 1,
           "bracketing_approach": 1,
-          "frame_padding": { "bottom": 20.0, "left": 0.0, "right": 0.0, "top": 20.0 },
-          "instrument_name_font": { "align": 1, "family": 1, "justify": 2, "size": 1.75 },
-          "instrument_name_spacing": 2.0,
-          "instrument_spacing": 8.0,
+          "frame_padding": {
+            "bottom": 20,
+            "left": 0,
+            "right": 0,
+            "top": 20
+          },
+          "instrument_name_font": {
+            "align": 1,
+            "family": 1,
+            "justify": 2,
+            "size": 1.75
+          },
+          "instrument_name_spacing": 2,
+          "instrument_spacing": 8,
           "maximum_beam_slant": 0.5,
           "minimum_note_space": 0.8999999761581421,
           "minimum_tie_space": 1.600000023841858,
           "note_space_ratio": 1.409999966621399,
-          "page_padding": { "bottom": 30.0, "left": 20.0, "right": 20.0, "top": 30.0 },
-          "space": 2.0,
-          "stave_spacing": 6.0,
+          "page_padding": {
+            "bottom": 30,
+            "left": 20,
+            "right": 20,
+            "top": 30
+          },
+          "space": 2,
+          "stave_spacing": 6,
           "system_start_padding": 0.75,
           "systemic_barline_single_instrument_system": false
         }
@@ -57,8 +90,18 @@
           "master_id": 6,
           "staves": {
             "by_id": {
-              "3": { "id": 3, "lines": [1, 1, 1, 1, 1], "master_id": 9, "track_ids": [11] },
-              "4": { "id": 4, "lines": [1, 1, 1, 1, 1], "master_id": 12, "track_ids": [14] }
+              "3": {
+                "id": 3,
+                "lines": [1, 1, 1, 1, 1],
+                "master_id": 9,
+                "track_ids": [11]
+              },
+              "4": {
+                "id": 4,
+                "lines": [1, 1, 1, 1, 1],
+                "master_id": 12,
+                "track_ids": [14]
+              }
             }
           }
         },
@@ -70,8 +113,18 @@
           "master_id": 15,
           "staves": {
             "by_id": {
-              "3": { "id": 3, "lines": [1, 1, 1, 1, 1], "master_id": 18, "track_ids": [20] },
-              "4": { "id": 4, "lines": [1, 1, 1, 1, 1], "master_id": 21, "track_ids": [23] }
+              "3": {
+                "id": 3,
+                "lines": [1, 1, 1, 1, 1],
+                "master_id": 18,
+                "track_ids": [20]
+              },
+              "4": {
+                "id": 4,
+                "lines": [1, 1, 1, 1, 1],
+                "master_id": 21,
+                "track_ids": [23]
+              }
             }
           }
         },
@@ -83,8 +136,18 @@
           "master_id": 24,
           "staves": {
             "by_id": {
-              "3": { "id": 3, "lines": [1, 1, 1, 1, 1], "master_id": 28, "track_ids": [30] },
-              "4": { "id": 4, "lines": [1, 1, 1, 1, 1], "master_id": 31, "track_ids": [33] }
+              "3": {
+                "id": 3,
+                "lines": [1, 1, 1, 1, 1],
+                "master_id": 28,
+                "track_ids": [30]
+              },
+              "4": {
+                "id": 4,
+                "lines": [1, 1, 1, 1, 1],
+                "master_id": 31,
+                "track_ids": [33]
+              }
             }
           }
         }
@@ -142,7 +205,11 @@
     "players": {
       "order": [1],
       "by_id": {
-        "1": { "id": 1, "player_type": 0, "instrument_ids": [2] }
+        "1": {
+          "id": 1,
+          "player_type": 0,
+          "instrument_ids": [2]
+        }
       }
     },
     "tracks": {
@@ -150,7 +217,10 @@
         "6": {
           "id": 6,
           "entries": {
-            "by_tick": { "0": [7], "128": [8] },
+            "by_tick": {
+              "0": [7],
+              "128": [8]
+            },
             "by_id": {
               "7": {
                 "type": "TimeSignature",
@@ -159,7 +229,8 @@
                 "beats": 4,
                 "beat_type": 4,
                 "draw_type": 1,
-                "groupings": [2, 2]
+                "groupings": [2, 2],
+                "hidden": false
               },
               "8": {
                 "type": "TimeSignature",
@@ -168,7 +239,8 @@
                 "beats": 3,
                 "beat_type": 4,
                 "draw_type": 1,
-                "groupings": [3]
+                "groupings": [3],
+                "hidden": false
               }
             }
           }
@@ -176,15 +248,21 @@
         "9": {
           "id": 9,
           "entries": {
-            "by_tick": { "0": [10] },
+            "by_tick": {
+              "0": [10]
+            },
             "by_id": {
               "10": {
                 "type": "Clef",
                 "id": 10,
                 "tick": 0,
                 "draw_as": 1,
-                "pitch": { "int": 67, "accidental": 0 },
-                "offset": 2
+                "pitch": {
+                  "int": 67,
+                  "accidental": 0
+                },
+                "offset": 2,
+                "hidden": false
               }
             }
           }
@@ -207,8 +285,13 @@
                 "id": 100,
                 "tick": 0,
                 "duration": 32,
-                "pitch": { "int": 60, "accidental": 0 },
-                "velocity": { "int": 90 },
+                "pitch": {
+                  "int": 60,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
                 "articulations": []
               },
               "101": {
@@ -216,8 +299,13 @@
                 "id": 101,
                 "tick": 32,
                 "duration": 32,
-                "pitch": { "int": 62, "accidental": 0 },
-                "velocity": { "int": 90 },
+                "pitch": {
+                  "int": 62,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
                 "articulations": []
               },
               "102": {
@@ -225,8 +313,13 @@
                 "id": 102,
                 "tick": 64,
                 "duration": 32,
-                "pitch": { "int": 64, "accidental": 0 },
-                "velocity": { "int": 90 },
+                "pitch": {
+                  "int": 64,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
                 "articulations": []
               },
               "103": {
@@ -234,8 +327,13 @@
                 "id": 103,
                 "tick": 96,
                 "duration": 32,
-                "pitch": { "int": 67, "accidental": 0 },
-                "velocity": { "int": 90 },
+                "pitch": {
+                  "int": 67,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
                 "articulations": []
               },
               "104": {
@@ -243,8 +341,13 @@
                 "id": 104,
                 "tick": 128,
                 "duration": 32,
-                "pitch": { "int": 67, "accidental": 0 },
-                "velocity": { "int": 90 },
+                "pitch": {
+                  "int": 67,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
                 "articulations": []
               },
               "105": {
@@ -252,8 +355,13 @@
                 "id": 105,
                 "tick": 160,
                 "duration": 32,
-                "pitch": { "int": 64, "accidental": 0 },
-                "velocity": { "int": 90 },
+                "pitch": {
+                  "int": 64,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
                 "articulations": []
               },
               "106": {
@@ -261,8 +369,13 @@
                 "id": 106,
                 "tick": 192,
                 "duration": 32,
-                "pitch": { "int": 60, "accidental": 0 },
-                "velocity": { "int": 90 },
+                "pitch": {
+                  "int": 60,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
                 "articulations": []
               }
             }
@@ -271,24 +384,39 @@
         "12": {
           "id": 12,
           "entries": {
-            "by_tick": { "0": [13] },
+            "by_tick": {
+              "0": [13]
+            },
             "by_id": {
               "13": {
                 "type": "Clef",
                 "id": 13,
                 "tick": 0,
                 "draw_as": 2,
-                "pitch": { "int": 53, "accidental": 0 },
-                "offset": -2
+                "pitch": {
+                  "int": 53,
+                  "accidental": 0
+                },
+                "offset": -2,
+                "hidden": false
               }
             }
           }
         },
-        "14": { "id": 14, "entries": { "by_tick": {}, "by_id": {} } },
+        "14": {
+          "id": 14,
+          "entries": {
+            "by_tick": {},
+            "by_id": {}
+          }
+        },
         "15": {
           "id": 15,
           "entries": {
-            "by_tick": { "0": [16], "96": [17] },
+            "by_tick": {
+              "0": [16],
+              "96": [17]
+            },
             "by_id": {
               "16": {
                 "type": "TimeSignature",
@@ -297,7 +425,8 @@
                 "beats": 3,
                 "beat_type": 4,
                 "draw_type": 1,
-                "groupings": [3]
+                "groupings": [3],
+                "hidden": false
               },
               "17": {
                 "type": "TimeSignature",
@@ -306,7 +435,8 @@
                 "beats": 4,
                 "beat_type": 4,
                 "draw_type": 1,
-                "groupings": [2, 2]
+                "groupings": [2, 2],
+                "hidden": false
               }
             }
           }
@@ -314,15 +444,21 @@
         "18": {
           "id": 18,
           "entries": {
-            "by_tick": { "0": [19] },
+            "by_tick": {
+              "0": [19]
+            },
             "by_id": {
               "19": {
                 "type": "Clef",
                 "id": 19,
                 "tick": 0,
                 "draw_as": 1,
-                "pitch": { "int": 67, "accidental": 0 },
-                "offset": 2
+                "pitch": {
+                  "int": 67,
+                  "accidental": 0
+                },
+                "offset": 2,
+                "hidden": false
               }
             }
           }
@@ -345,8 +481,13 @@
                 "id": 150,
                 "tick": 0,
                 "duration": 32,
-                "pitch": { "int": 67, "accidental": 0 },
-                "velocity": { "int": 90 },
+                "pitch": {
+                  "int": 67,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
                 "articulations": []
               },
               "151": {
@@ -354,8 +495,13 @@
                 "id": 151,
                 "tick": 32,
                 "duration": 32,
-                "pitch": { "int": 64, "accidental": 0 },
-                "velocity": { "int": 90 },
+                "pitch": {
+                  "int": 64,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
                 "articulations": []
               },
               "152": {
@@ -363,8 +509,13 @@
                 "id": 152,
                 "tick": 64,
                 "duration": 32,
-                "pitch": { "int": 60, "accidental": 0 },
-                "velocity": { "int": 90 },
+                "pitch": {
+                  "int": 60,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
                 "articulations": []
               },
               "153": {
@@ -372,8 +523,13 @@
                 "id": 153,
                 "tick": 96,
                 "duration": 32,
-                "pitch": { "int": 60, "accidental": 0 },
-                "velocity": { "int": 90 },
+                "pitch": {
+                  "int": 60,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
                 "articulations": []
               },
               "154": {
@@ -381,8 +537,13 @@
                 "id": 154,
                 "tick": 128,
                 "duration": 32,
-                "pitch": { "int": 62, "accidental": 0 },
-                "velocity": { "int": 90 },
+                "pitch": {
+                  "int": 62,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
                 "articulations": []
               },
               "155": {
@@ -390,8 +551,13 @@
                 "id": 155,
                 "tick": 160,
                 "duration": 32,
-                "pitch": { "int": 64, "accidental": 0 },
-                "velocity": { "int": 90 },
+                "pitch": {
+                  "int": 64,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
                 "articulations": []
               },
               "156": {
@@ -399,8 +565,13 @@
                 "id": 156,
                 "tick": 192,
                 "duration": 32,
-                "pitch": { "int": 67, "accidental": 0 },
-                "velocity": { "int": 90 },
+                "pitch": {
+                  "int": 67,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
                 "articulations": []
               }
             }
@@ -409,24 +580,40 @@
         "21": {
           "id": 21,
           "entries": {
-            "by_tick": { "0": [22] },
+            "by_tick": {
+              "0": [22]
+            },
             "by_id": {
               "22": {
                 "type": "Clef",
                 "id": 22,
                 "tick": 0,
                 "draw_as": 2,
-                "pitch": { "int": 53, "accidental": 0 },
-                "offset": -2
+                "pitch": {
+                  "int": 53,
+                  "accidental": 0
+                },
+                "offset": -2,
+                "hidden": false
               }
             }
           }
         },
-        "23": { "id": 23, "entries": { "by_tick": {}, "by_id": {} } },
+        "23": {
+          "id": 23,
+          "entries": {
+            "by_tick": {},
+            "by_id": {}
+          }
+        },
         "24": {
           "id": 24,
           "entries": {
-            "by_tick": { "0": [25], "128": [26], "192": [27] },
+            "by_tick": {
+              "0": [25],
+              "128": [26],
+              "192": [27]
+            },
             "by_id": {
               "25": {
                 "type": "TimeSignature",
@@ -435,7 +622,8 @@
                 "beats": 4,
                 "beat_type": 4,
                 "draw_type": 1,
-                "groupings": [2, 2]
+                "groupings": [2, 2],
+                "hidden": false
               },
               "26": {
                 "type": "TimeSignature",
@@ -444,7 +632,8 @@
                 "beats": 2,
                 "beat_type": 4,
                 "draw_type": 1,
-                "groupings": [2]
+                "groupings": [2],
+                "hidden": false
               },
               "27": {
                 "type": "TimeSignature",
@@ -453,7 +642,8 @@
                 "beats": 4,
                 "beat_type": 4,
                 "draw_type": 1,
-                "groupings": [2, 2]
+                "groupings": [2, 2],
+                "hidden": false
               }
             }
           }
@@ -461,15 +651,21 @@
         "28": {
           "id": 28,
           "entries": {
-            "by_tick": { "0": [29] },
+            "by_tick": {
+              "0": [29]
+            },
             "by_id": {
               "29": {
                 "type": "Clef",
                 "id": 29,
                 "tick": 0,
                 "draw_as": 1,
-                "pitch": { "int": 67, "accidental": 0 },
-                "offset": 2
+                "pitch": {
+                  "int": 67,
+                  "accidental": 0
+                },
+                "offset": 2,
+                "hidden": false
               }
             }
           }
@@ -495,8 +691,13 @@
                 "id": 200,
                 "tick": 0,
                 "duration": 32,
-                "pitch": { "int": 60, "accidental": 0 },
-                "velocity": { "int": 90 },
+                "pitch": {
+                  "int": 60,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
                 "articulations": []
               },
               "201": {
@@ -504,8 +705,13 @@
                 "id": 201,
                 "tick": 32,
                 "duration": 32,
-                "pitch": { "int": 62, "accidental": 0 },
-                "velocity": { "int": 90 },
+                "pitch": {
+                  "int": 62,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
                 "articulations": []
               },
               "202": {
@@ -513,8 +719,13 @@
                 "id": 202,
                 "tick": 64,
                 "duration": 32,
-                "pitch": { "int": 64, "accidental": 0 },
-                "velocity": { "int": 90 },
+                "pitch": {
+                  "int": 64,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
                 "articulations": []
               },
               "203": {
@@ -522,8 +733,13 @@
                 "id": 203,
                 "tick": 96,
                 "duration": 32,
-                "pitch": { "int": 67, "accidental": 0 },
-                "velocity": { "int": 90 },
+                "pitch": {
+                  "int": 67,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
                 "articulations": []
               },
               "204": {
@@ -531,8 +747,13 @@
                 "id": 204,
                 "tick": 128,
                 "duration": 32,
-                "pitch": { "int": 67, "accidental": 0 },
-                "velocity": { "int": 90 },
+                "pitch": {
+                  "int": 67,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
                 "articulations": []
               },
               "205": {
@@ -540,8 +761,13 @@
                 "id": 205,
                 "tick": 160,
                 "duration": 32,
-                "pitch": { "int": 64, "accidental": 0 },
-                "velocity": { "int": 90 },
+                "pitch": {
+                  "int": 64,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
                 "articulations": []
               },
               "206": {
@@ -549,8 +775,13 @@
                 "id": 206,
                 "tick": 192,
                 "duration": 32,
-                "pitch": { "int": 60, "accidental": 0 },
-                "velocity": { "int": 90 },
+                "pitch": {
+                  "int": 60,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
                 "articulations": []
               },
               "207": {
@@ -558,8 +789,13 @@
                 "id": 207,
                 "tick": 224,
                 "duration": 32,
-                "pitch": { "int": 62, "accidental": 0 },
-                "velocity": { "int": 90 },
+                "pitch": {
+                  "int": 62,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
                 "articulations": []
               },
               "208": {
@@ -567,8 +803,13 @@
                 "id": 208,
                 "tick": 256,
                 "duration": 32,
-                "pitch": { "int": 64, "accidental": 0 },
-                "velocity": { "int": 90 },
+                "pitch": {
+                  "int": 64,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
                 "articulations": []
               },
               "209": {
@@ -576,8 +817,13 @@
                 "id": 209,
                 "tick": 288,
                 "duration": 32,
-                "pitch": { "int": 67, "accidental": 0 },
-                "velocity": { "int": 90 },
+                "pitch": {
+                  "int": 67,
+                  "accidental": 0
+                },
+                "velocity": {
+                  "int": 90
+                },
                 "articulations": []
               }
             }
@@ -586,35 +832,58 @@
         "31": {
           "id": 31,
           "entries": {
-            "by_tick": { "0": [32] },
+            "by_tick": {
+              "0": [32]
+            },
             "by_id": {
               "32": {
                 "type": "Clef",
                 "id": 32,
                 "tick": 0,
                 "draw_as": 2,
-                "pitch": { "int": 53, "accidental": 0 },
-                "offset": -2
+                "pitch": {
+                  "int": 53,
+                  "accidental": 0
+                },
+                "offset": -2,
+                "hidden": false
               }
             }
           }
         },
-        "33": { "id": 33, "entries": { "by_tick": {}, "by_id": {} } }
+        "33": {
+          "id": 33,
+          "entries": {
+            "by_tick": {},
+            "by_id": {}
+          }
+        }
       }
     }
   },
   "ui": {
     "flow_id": 5,
     "layout_id": 0,
-    "renderer": { "debug": false, "pan_x": 100.0, "pan_y": 100.0, "zoom": 100 },
+    "renderer": {
+      "debug": false,
+      "pan_x": 100,
+      "pan_y": 100,
+      "zoom": 100
+    },
     "screens": {
       "sequence": {
         "bottom_panel_minimized": false,
         "bottom_panel_tab": 1,
         "show_active_only": true
       },
-      "setup": { "expanded": [], "selection": null },
-      "write": { "bottom_panel_minimized": false, "bottom_panel_tab": 1 }
+      "setup": {
+        "expanded": [],
+        "selection": null
+      },
+      "write": {
+        "bottom_panel_minimized": false,
+        "bottom_panel_tab": 1
+      }
     },
     "sequencer": {
       "flow": null,
