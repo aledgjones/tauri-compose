@@ -739,6 +739,26 @@ impl NotationTrack {
         }
     }
 
+    fn should_preserve_compound_leading_quarter_rest(
+        &self,
+        start: Tick,
+        beat_two: Tick,
+        beat_three: Tick,
+        original_time_signature: &TimeSignature,
+        time_signature: &TimeSignature,
+    ) -> bool {
+        matches!(original_time_signature.kind(), TimeSignatureType::Compound)
+            && matches!(time_signature.beat_type, NoteDuration::Eighth)
+            && time_signature.beats == 3
+            && self.track.get(&start).is_some_and(|entry| {
+                entry.is_rest() && entry.duration == NoteDuration::Quarter.to_ticks()
+            })
+            && self.is_tick_empty(beat_two)
+            && self.track.get(&beat_three).is_some_and(|entry| {
+                !entry.is_rest() && entry.duration == NoteDuration::Eighth.to_ticks()
+            })
+    }
+
     fn is_single_span(&self, start: Tick, stop: Tick) -> bool {
         matches!(self.track.get(&start), Some(entry) if entry.duration == stop - start)
             && (start + 1..stop).all(|tick| self.is_tick_empty(tick))
@@ -815,7 +835,17 @@ impl NotationTrack {
             }
         }
 
-        self.split_rests_at_boundaries(start, stop, &[beat_two, beat_three]);
+        if self.should_preserve_compound_leading_quarter_rest(
+            start,
+            beat_two,
+            beat_three,
+            original_time_signature,
+            time_signature,
+        ) {
+            self.split_rests_at_boundaries(start, stop, &[beat_three]);
+        } else {
+            self.split_rests_at_boundaries(start, stop, &[beat_two, beat_three]);
+        }
 
         let next = TimeSignature::new(
             0,
@@ -1087,7 +1117,7 @@ impl NotationTrack {
             let unit_stop = window[1].min(stop);
 
             if unit_start < unit_stop {
-                self.split_simple_unit(unit_start, unit_stop, &inner_signature, &inner_signature);
+                self.split_simple_unit(unit_start, unit_stop, time_signature, &inner_signature);
             }
         }
     }
@@ -3874,8 +3904,7 @@ mod tests {
                 flow_length: e * 6,
                 tone_specs: vec![(1, e * 2, q, 60)],
                 expectations: vec![
-                    notation_expectation(0, e, true, vec![], vec![]),
-                    notation_expectation(e, e, true, vec![], vec![]),
+                    notation_expectation(0, q, true, vec![], vec![]),
                     notation_expectation(e * 2, e, false, vec![1], vec![1]),
                     notation_expectation(e * 3, e, false, vec![1], vec![]),
                     notation_expectation(e * 4, e, true, vec![], vec![]),
@@ -3891,8 +3920,7 @@ mod tests {
                     notation_expectation(0, e, false, vec![1], vec![]),
                     notation_expectation(e, e, true, vec![], vec![]),
                     notation_expectation(e * 2, e, true, vec![], vec![]),
-                    notation_expectation(e * 3, e, true, vec![], vec![]),
-                    notation_expectation(e * 4, e, true, vec![], vec![]),
+                    notation_expectation(e * 3, q, true, vec![], vec![]),
                     notation_expectation(e * 5, e, false, vec![2], vec![]),
                 ],
             },
@@ -3903,8 +3931,7 @@ mod tests {
                 flow_length: e * 6,
                 tone_specs: vec![(1, e * 2, q, 60), (2, e * 2, q, 64)],
                 expectations: vec![
-                    notation_expectation(0, e, true, vec![], vec![]),
-                    notation_expectation(e, e, true, vec![], vec![]),
+                    notation_expectation(0, q, true, vec![], vec![]),
                     notation_expectation(e * 2, e, false, vec![1, 2], vec![1, 2]),
                     notation_expectation(e * 3, e, false, vec![1, 2], vec![]),
                     notation_expectation(e * 4, e, true, vec![], vec![]),
@@ -3954,8 +3981,7 @@ mod tests {
                 flow_length: e * 9,
                 tone_specs: vec![(1, e * 2, q, 60), (2, e * 6, dotted_quarter, 64)],
                 expectations: vec![
-                    notation_expectation(0, e, true, vec![], vec![]),
-                    notation_expectation(e, e, true, vec![], vec![]),
+                    notation_expectation(0, q, true, vec![], vec![]),
                     notation_expectation(e * 2, e, false, vec![1], vec![1]),
                     notation_expectation(e * 3, e, false, vec![1], vec![]),
                     notation_expectation(e * 4, e, true, vec![], vec![]),
@@ -4111,6 +4137,17 @@ mod tests {
                     notation_expectation(0, q + (q / 2), false, vec![1], vec![1]),
                     notation_expectation(q + (q / 2), q / 2, false, vec![1], vec![]),
                     notation_expectation(q * 2, q, false, vec![2], vec![]),
+                ],
+            },
+            Scenario {
+                name: "6/8 variant of half note starting on beat 2 prefers a quarter rest then an eighth note",
+                time_signature: make_time_signature_for_test(0, 6, NoteDuration::Eighth),
+                flow_length: make_time_signature_for_test(0, 6, NoteDuration::Eighth).ticks_per_bar(),
+                tone_specs: vec![(1, q, q * 2, 60)],
+                expectations: vec![
+                    notation_expectation(0, q, true, vec![], vec![]),
+                    notation_expectation(q, q / 2, false, vec![1], vec![1]),
+                    notation_expectation(q + (q / 2), q + (q / 2), false, vec![1], vec![]),
                 ],
             },
             Scenario {
@@ -4295,19 +4332,17 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Known bug: B-005 compound leading rests should prefer [4R, 8N] over [8R, 8R, 8N]"]
-    fn six_eight_variant_of_half_note_starting_on_beat_two_prefers_a_quarter_rest_then_an_eighth_note(
-    ) {
-        let q = NoteDuration::Quarter.to_ticks();
+    fn three_eight_quarter_rest_then_eighth_note_keeps_simple_meter_spelling() {
+        let e = NoteDuration::Eighth.to_ticks();
 
         assert_written_duration_scenario(
-            "6/8 variant of half note starting on beat 2 prefers a quarter rest then an eighth note",
-            make_time_signature_for_test(0, 6, NoteDuration::Eighth),
-            &[(1, q, q * 2, 60)],
+            "3/8 quarter rest then eighth note keeps simple-meter beat spelling",
+            make_time_signature_for_test(0, 3, NoteDuration::Eighth),
+            &[(1, e * 2, e, 60)],
             vec![
-                notation_expectation(0, q, true, vec![], vec![]),
-                notation_expectation(q, q / 2, false, vec![1], vec![1]),
-                notation_expectation(q + (q / 2), q + (q / 2), false, vec![1], vec![]),
+                notation_expectation(0, e, true, vec![], vec![]),
+                notation_expectation(e, e, true, vec![], vec![]),
+                notation_expectation(e * 2, e, false, vec![1], vec![]),
             ],
         );
     }
