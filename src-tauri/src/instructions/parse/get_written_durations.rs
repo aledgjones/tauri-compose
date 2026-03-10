@@ -746,8 +746,8 @@ impl NotationTrack {
         let beat_two = time_signature.get_tick_at_beat(start, 2);
         let beat_three = time_signature.get_tick_at_beat(start, 3);
 
-        let subdivision = time_signature.beat_type.half().to_ticks();
-        let dotted_beat = time_signature.beat_type.to_ticks() + subdivision;
+        let eigth = NoteDuration::Eighth.to_ticks();
+        let dotted_quarter = NoteDuration::Quarter.to_ticks() + eigth;
 
         if self.is_offbeat_pattern(start, stop, time_signature.beat_type.to_ticks()) {
             return;
@@ -756,22 +756,22 @@ impl NotationTrack {
         self.split_three_beat_syncopated_quarter_between_eighth_rests(
             beat_two,
             beat_one,
-            beat_one + subdivision,
-            beat_two + subdivision,
+            beat_one + eigth,
+            beat_two + eigth,
         );
         self.split_three_beat_syncopated_quarter_between_eighth_rests(
             beat_three,
             beat_two,
-            beat_two + subdivision,
-            beat_three + subdivision,
+            beat_two + eigth,
+            beat_three + eigth,
         );
 
         if let Some(entry) = self.track.get(&beat_one) {
-            if !entry.is_rest() && entry.duration == dotted_beat {
-                if let Some(next_entry) = self.track.get(&(beat_one + dotted_beat)) {
+            if !entry.is_rest() && entry.duration == dotted_quarter {
+                if let Some(next_entry) = self.track.get(&(beat_one + dotted_quarter)) {
                     if next_entry.is_rest() {
                         self.split(beat_two);
-                    } else if next_entry.duration == dotted_beat {
+                    } else if next_entry.duration == dotted_quarter {
                         self.split(beat_three);
                     }
                 }
@@ -779,8 +779,8 @@ impl NotationTrack {
         }
 
         if let Some(entry) = self.track.get(&beat_two) {
-            if !entry.is_rest() && entry.duration == dotted_beat {
-                if let Some(next_entry) = self.track.get(&(beat_two + dotted_beat)) {
+            if !entry.is_rest() && entry.duration == dotted_quarter {
+                if let Some(next_entry) = self.track.get(&(beat_two + dotted_quarter)) {
                     if next_entry.is_rest() {
                         self.split(beat_three);
                     }
@@ -793,14 +793,14 @@ impl NotationTrack {
                 (beat_one, beat_two, beat_two),
                 (beat_two, beat_three, beat_three),
             ],
-            subdivision,
+            eigth,
         );
 
         self.split_non_writable_three_beat_durations(start, stop, beat_two, beat_three);
 
         if self.is_tick_empty(beat_two) && self.is_tick_empty(beat_three) {
-            if let Some(entry) = self.track.get(&(beat_one + dotted_beat)) {
-                if entry.is_rest() || entry.duration != dotted_beat {
+            if let Some(entry) = self.track.get(&(beat_one + dotted_quarter)) {
+                if entry.is_rest() || entry.duration != dotted_quarter {
                     self.split(beat_three);
                 }
             }
