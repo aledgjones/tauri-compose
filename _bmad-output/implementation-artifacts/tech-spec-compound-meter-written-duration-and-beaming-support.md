@@ -81,8 +81,10 @@ These rule statements are the implementation baseline for this spec. They are a 
 
 - In supported compound meters, the visible big beat is a dotted value equal to three written eighths.
 - If a note or chord exactly occupies one big beat and does not hide a more important arrival, prefer one dotted value rather than rewriting it into smaller fragments.
-- If a note, chord, or rest crosses a big-beat boundary and its unsplit spelling would hide that boundary, split at the crossed big-beat boundary and preserve continuity with ties for sounding material.
-- Rests must not conceal big-beat boundaries or barlines; split rests at every crossed big-beat boundary and measure boundary.
+- If a note or chord crosses a big-beat boundary and its unsplit spelling would hide that boundary, split at the crossed big-beat boundary and preserve continuity with ties for sounding material.
+- Non-full-bar rests must not conceal big-beat boundaries or barlines; split them at every crossed big-beat boundary and measure boundary.
+- Full-bar rests remain full-bar rests regardless of meter.
+- Full-bar compound notes may remain unsplit only when the duration is drawable as a standard note value. For example, `6/8` may stay as a dotted half, while `9/8` must split into drawable values such as dotted half tied to dotted quarter.
 - When multiple spellings are technically writable, prefer the spelling that keeps the big beat visually obvious.
 - Beam groups must reinforce the same big-beat boundaries shown by the written durations; in straight compound eighth-note motion that means groups of three eighths per big beat.
 - Chord tone membership and tie sets must remain identical before and after any rewrite.
@@ -166,6 +168,7 @@ These rule statements are the implementation baseline for this spec. They are a 
 - `6/8`: a rest spanning the beat-two boundary is split into two rest fragments.
 - `6/8`: a chord spanning the beat-two boundary preserves both tones on both tied fragments.
 - `9/8`: nine straight eighth notes beam and spell as `3 + 3 + 3`.
+- `9/8`: a full-bar note is rewritten as dotted-half tied to dotted-quarter because nine eighths is not a single drawable note value.
 - `9/8`: syncopation crossing one internal big-beat boundary is split to reveal that boundary.
 - `9/8`: a rest-led syncopation keeps the beat grouping visible.
 - `12/8`: twelve straight eighth notes beam and spell as `3 + 3 + 3 + 3`.
@@ -178,7 +181,7 @@ These rule statements are the implementation baseline for this spec. They are a 
 - [x] AC 1: Given a score in a time signature classified as `TimeSignatureType::Compound`, when `get_written_durations()` runs, then it returns notation output without panicking and preserves the original musical durations through writable fragments and ties.
 - [x] AC 2: Given a supported compound meter and an event whose duration is exactly one big beat, when written durations are generated, then the event is represented by one dotted value rather than by smaller tied fragments unless a barline forces a split.
 - [x] AC 3: Given a supported compound meter and an event that starts before one big-beat boundary and ends after it, when the unsplit spelling would hide that crossed boundary, then the output is split at that boundary and preserves continuity with ties for sounding material.
-- [x] AC 4: Given compound-meter rests that cross group or measure boundaries, when written durations are generated, then the rests are split at the required boundaries and remain drawable by downstream consumers.
+- [x] AC 4: Given compound-meter rests that cross group or measure boundaries, when written durations are generated, then non-full-bar rests are split at the required boundaries, full-bar rests remain full-bar rests, and all emitted rests remain drawable by downstream consumers.
 - [x] AC 5: Given compound-meter notes or chords that cross group or measure boundaries, when written durations are generated, then ties and chord tone sets are preserved exactly across all resulting fragments.
 - [x] AC 6: Given straight eighth-note runs in `6/8`, `9/8`, and `12/8`, when `get_beams()` runs, then beams break only at big-beat boundaries, producing `3 + 3`, `3 + 3 + 3`, and `3 + 3 + 3 + 3` groupings respectively.
 - [x] AC 7: Given existing simple-meter regression scenarios, when the new compound support ships, then the current simple-meter notation and beaming tests continue to pass unchanged.
@@ -208,6 +211,7 @@ These rule statements are the implementation baseline for this spec. They are a 
 
 - Add parser scenario tests for every item in the minimum regression corpus in this spec before treating the feature as complete.
 - Add parser scenario tests in `get_written_durations.rs` for normalized `6/8`, `9/8`, `12/8`, and one higher-count `x/8` case covering straight grouping, syncopation, rests, ties, chords, and barline crossings.
+- Add parser scenario tests that prove compound rewriting preserves newly reachable `SixtyFourth` and `HudredTwentyEighth` note or rest values instead of relying on draw-layer tests alone.
 - Replace current compound `#[should_panic]` expectations with positive assertions for supported compound signatures while keeping `Complex` and `Open` panic characterization until those meters are implemented.
 - Extend `get_beams.rs` tests so compound beam groupings are checked against the new written-duration behavior, including explicit break expectations for straight `6/8`, `9/8`, and `12/8` runs and at least one syncopated split case.
 - Add or update narrow draw tests in `draw_rest.rs` only if smaller rest durations become reachable through the new split rules.

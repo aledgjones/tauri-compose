@@ -122,6 +122,15 @@ impl Notation {
         }
     }
 
+    pub fn is_drawable_duration(duration: Ticks) -> bool {
+        if Notation::is_writable(duration) {
+            return true;
+        }
+
+        let base = (duration as f32 / 3.0) * 2.0;
+        base.fract() == 0.0 && Notation::is_writable(base as Ticks)
+    }
+
     pub fn is_writable(duration: Ticks) -> bool {
         for option in NOTE_DURATIONS {
             if duration == option.to_ticks() {
@@ -1038,7 +1047,22 @@ impl NotationTrack {
         }
 
         if self.is_single_span(start, stop) {
-            return;
+            if let Some(entry) = self.track.get(&start) {
+                if entry.is_rest() || Notation::is_drawable_duration(entry.duration) {
+                    return;
+                }
+            }
+
+            let boundaries = time_signature.groupings_to_ticks(start);
+            if let Some(split_at) = boundaries.iter().rev().copied().find(|boundary| {
+                *boundary > start
+                    && *boundary < stop
+                    && Notation::is_drawable_duration(*boundary - start)
+            }) {
+                self.split(split_at);
+                self.split_compound_unit(split_at, stop, time_signature);
+                return;
+            }
         }
 
         let boundaries = time_signature.groupings_to_ticks(start);
@@ -4283,6 +4307,16 @@ mod tests {
                 ],
             },
             Scenario {
+                name: "9/8 full-bar note splits into dotted half tied to dotted quarter",
+                time_signature: make_time_signature_for_test(0, 9, NoteDuration::Eighth),
+                flow_length: e * 9,
+                tone_specs: vec![(1, 0, e * 9, 60)],
+                expectations: vec![
+                    notation_expectation(0, dotted_quarter * 2, false, vec![1], vec![1]),
+                    notation_expectation(dotted_quarter * 2, dotted_quarter, false, vec![1], vec![]),
+                ],
+            },
+            Scenario {
                 name: "9/8 syncopation crossing one internal big beat boundary is split",
                 time_signature: make_time_signature_for_test(0, 9, NoteDuration::Eighth),
                 flow_length: e * 9,
@@ -4392,6 +4426,27 @@ mod tests {
                         )
                     })
                     .collect::<Vec<_>>(),
+            },
+            Scenario {
+                name: "6/8 off-grid compound notation preserves hundred-twenty-eighth and sixty-fourth values",
+                time_signature: make_time_signature_for_test(0, 6, NoteDuration::Eighth),
+                flow_length: e * 6,
+                tone_specs: vec![(1, 1, 2, 60), (2, e * 3 + 2, 2, 62)],
+                expectations: vec![
+                    notation_expectation(0, 1, true, vec![], vec![]),
+                    notation_expectation(1, 2, false, vec![1], vec![]),
+                    notation_expectation(3, 1, true, vec![], vec![]),
+                    notation_expectation(4, 4, true, vec![], vec![]),
+                    notation_expectation(8, 8, true, vec![], vec![]),
+                    notation_expectation(16, 16, true, vec![], vec![]),
+                    notation_expectation(32, 16, true, vec![], vec![]),
+                    notation_expectation(e * 3, 2, true, vec![], vec![]),
+                    notation_expectation(e * 3 + 2, 2, false, vec![2], vec![]),
+                    notation_expectation(e * 3 + 4, 4, true, vec![], vec![]),
+                    notation_expectation(e * 3 + 8, 8, true, vec![], vec![]),
+                    notation_expectation(e * 3 + 16, 16, true, vec![], vec![]),
+                    notation_expectation(e * 3 + 32, 16, true, vec![], vec![]),
+                ],
             },
         ];
 
