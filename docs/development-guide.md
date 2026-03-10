@@ -142,12 +142,13 @@ Release profile optimized for maximum performance:
 
 See [TESTING.md](../TESTING.md) for full details. Quick reference:
 
-| Command                 | Description                                 |
-| ----------------------- | ------------------------------------------- |
-| `npm test`              | Run all TypeScript tests once               |
-| `npm run test:watch`    | Watch mode                                  |
-| `npm run test:coverage` | Run with v8 coverage report                 |
-| `cargo test`            | Run all Rust unit tests (from `src-tauri/`) |
+| Command                    | Description                                 |
+| -------------------------- | ------------------------------------------- |
+| `npm run test:js`          | Run all TypeScript tests once               |
+| `npm run test:js:watch`    | Watch mode                                  |
+| `npm run test:js:coverage` | Run with v8 coverage report                 |
+| `npm run test:js:logs`     | Run JS tests once with verbose logs         |
+| `npm run test:rust`        | Run all Rust unit tests (from `src-tauri/`) |
 
 Test files are colocated next to the source files they test (e.g. `utils.ts` → `utils.test.ts`).
 
