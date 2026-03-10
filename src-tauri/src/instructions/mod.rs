@@ -129,6 +129,7 @@ pub fn generate_render_instructions(
         flow,
         &instruments,
         &state.score.tracks,
+        &measures,
         &notation_by_track,
         &barlines,
         &shunts_by_track,

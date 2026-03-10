@@ -1,18 +1,24 @@
 use super::get_accidentals::AccidentalsByTrack;
 use super::get_barlines::Barlines;
 use super::get_beams::BeamsByTrack;
+use super::get_measures::Measures;
 use super::get_shunts::ShuntsByTrack;
 use super::get_written_durations::NotationByTrack;
 use crate::renderer::converter::Space;
-use crate::score::components::duration::{Tick, Ticks};
+use crate::score::components::duration::{NoteDuration, Tick, Ticks};
 use crate::score::components::measurements::BoundingBox;
 use crate::score::engraves::Engrave;
 use crate::score::entries::barline::BarlineDrawType;
 use crate::score::entries::Entry;
+use crate::score::entries::time_signature::TimeSignature;
 use crate::score::flows::Flow;
 use crate::score::instruments::Instrument;
 use crate::score::tracks::Tracks;
 use rayon::prelude::*;
+
+const EMPTY_MEASURE_BASE_WIDTH_MULTIPLIER: f32 = 2.0;
+const EMPTY_MEASURE_WIDTH_EXPONENT: f32 = 0.3;
+const EMPTY_MEASURE_WIDTH_BLEND: f32 = 0.55;
 
 #[derive(Clone, Copy, Hash, Eq, PartialEq)]
 pub enum Slot {
@@ -72,11 +78,23 @@ impl HorizontalSpacing {
     }
 }
 
+fn empty_measure_width(time_signature: &TimeSignature, engrave: &Engrave) -> Space {
+    let normalized_ticks =
+        time_signature.ticks_per_bar() as f32 / NoteDuration::Whole.to_ticks() as f32;
+    let compressed_width = normalized_ticks.powf(EMPTY_MEASURE_WIDTH_EXPONENT);
+    let blended_width = 1.0 + ((compressed_width - 1.0) * EMPTY_MEASURE_WIDTH_BLEND);
+
+    engrave.base_note_space
+        * EMPTY_MEASURE_BASE_WIDTH_MULTIPLIER
+        * blended_width
+}
+
 #[allow(clippy::too_many_arguments)]
 pub fn get_horizontal_spacing(
     flow: &Flow,
     instruments: &Vec<&Instrument>,
     tracks: &Tracks,
+    measures: &Measures,
     notations_by_track: &NotationByTrack,
     barlines: &Barlines,
     shunts_by_track: &ShuntsByTrack,
@@ -89,6 +107,22 @@ pub fn get_horizontal_spacing(
 
     spacings.set_width(0, Slot::PaddingStart, 0.75);
     spacings.set_width(0, Slot::BarPadding, 0.5);
+
+    for (tick, time_signature) in measures {
+        let measure_stop = (*tick + time_signature.ticks_per_bar()).min(flow.length);
+        if measure_stop <= *tick {
+            continue;
+        }
+
+        let width_per_tick = empty_measure_width(time_signature, engrave) / (measure_stop - *tick) as f32;
+
+        for measure_tick in *tick..measure_stop {
+            let current = spacings.get(measure_tick, Slot::NoteSpacing).width;
+            if width_per_tick > current {
+                spacings.set_width(measure_tick, Slot::NoteSpacing, width_per_tick);
+            }
+        }
+    }
 
     for entry in flow_master.entries.by_id.values() {
         if let Entry::TimeSignature(time_signature) = entry {
@@ -300,6 +334,7 @@ pub fn get_horizontal_spacing(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::instructions::parse::get_measures::get_measures;
 
     #[test]
     fn slot_count_reflects_all_variants() {
@@ -480,6 +515,7 @@ mod tests {
             &flow,
             &vec![&instrument],
             &tracks,
+            &get_measures(&flow, &tracks),
             &NotationByTrack::default(),
             &Barlines::default(),
             &ShuntsByTrack::default(),
@@ -577,6 +613,7 @@ mod tests {
             &flow,
             &vec![&instrument],
             &tracks,
+            &get_measures(&flow, &tracks),
             &NotationByTrack::default(),
             &Barlines::default(),
             &ShuntsByTrack::default(),
@@ -586,5 +623,151 @@ mod tests {
         );
 
         assert!(spacing.get(64, Slot::KeySignature).width > 0.0);
+    }
+
+    #[test]
+    fn empty_measure_width_matches_between_three_four_and_six_eight() {
+        use crate::score::components::duration::NoteDuration;
+        use crate::score::engraves::Engraves;
+        use crate::score::entries::time_signature::{TimeSignature, TimeSignatureDrawType};
+        use crate::score::layouts::LayoutType;
+
+        let engraves = Engraves::new();
+        let engrave = engraves.by_layout_type.get(&LayoutType::FullScore).unwrap();
+        let three_four = TimeSignature::new(
+            1,
+            0,
+            3,
+            NoteDuration::Quarter,
+            TimeSignatureDrawType::Regular,
+            None,
+        );
+        let six_eight = TimeSignature::new(
+            1,
+            0,
+            6,
+            NoteDuration::Eighth,
+            TimeSignatureDrawType::Regular,
+            None,
+        );
+
+        assert!((empty_measure_width(&three_four, engrave) - empty_measure_width(&six_eight, engrave)).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn empty_measure_width_nine_eight_exceeds_six_eight() {
+        use crate::score::components::duration::NoteDuration;
+        use crate::score::engraves::Engraves;
+        use crate::score::entries::time_signature::{TimeSignature, TimeSignatureDrawType};
+        use crate::score::layouts::LayoutType;
+
+        let engraves = Engraves::new();
+        let engrave = engraves.by_layout_type.get(&LayoutType::FullScore).unwrap();
+        let six_eight = TimeSignature::new(
+            1,
+            0,
+            6,
+            NoteDuration::Eighth,
+            TimeSignatureDrawType::Regular,
+            None,
+        );
+        let nine_eight = TimeSignature::new(
+            1,
+            0,
+            9,
+            NoteDuration::Eighth,
+            TimeSignatureDrawType::Regular,
+            None,
+        );
+
+        assert!(empty_measure_width(&nine_eight, engrave) > empty_measure_width(&six_eight, engrave));
+    }
+
+    #[test]
+    fn horizontal_spacing_empty_nine_eight_bar_is_wider_than_empty_six_eight_bar() {
+        use crate::score::components::duration::NoteDuration;
+        use crate::score::entries::time_signature::{TimeSignature, TimeSignatureDrawType};
+        use crate::score::entries::Entry;
+        use crate::score::flows::Flow;
+        use crate::score::instruments::defs::InstrumentType;
+        use crate::score::instruments::Instrument;
+        use crate::score::layouts::LayoutType;
+        use crate::score::staves::Stave;
+        use crate::score::tracks::{Track, Tracks};
+        use rustc_hash::{FxHashMap, FxHashSet};
+
+        fn make_empty_spacing(time_signature: TimeSignature) -> HorizontalSpacing {
+            let mut flow = Flow::new(1, 100);
+            flow.player_ids = FxHashSet::default();
+            flow.length = time_signature.ticks_per_bar();
+            flow.staves.by_id.insert(
+                10,
+                Stave {
+                    id: 10,
+                    lines: vec![1, 1, 1, 1, 1],
+                    master_id: 200,
+                    track_ids: vec![],
+                },
+            );
+
+            let instrument = Instrument {
+                id: 20,
+                definition_id: String::from("strings.violin"),
+                instrument_type: InstrumentType::Melodic,
+                long_name: String::from("Violin"),
+                short_name: String::from("Vln."),
+                stave_ids: vec![10],
+                count: None,
+                assigned_plugin_id: None,
+                volume: 100,
+                pan: 64,
+                mute: false,
+                solo: false,
+            };
+
+            let mut flow_master = Track::new(100);
+            flow_master.insert_entry(Entry::TimeSignature(time_signature));
+
+            let mut tracks = Tracks::new();
+            tracks.by_id = FxHashMap::default();
+            tracks.by_id.insert(100, flow_master);
+            tracks.by_id.insert(200, Track::new(200));
+
+            let engraves = crate::score::engraves::Engraves::new();
+            let engrave = engraves.by_layout_type.get(&LayoutType::FullScore).unwrap();
+            let measures = get_measures(&flow, &tracks);
+
+            get_horizontal_spacing(
+                &flow,
+                &vec![&instrument],
+                &tracks,
+                &measures,
+                &NotationByTrack::default(),
+                &Barlines::default(),
+                &ShuntsByTrack::default(),
+                &BeamsByTrack::default(),
+                &AccidentalsByTrack::default(),
+                engrave,
+            )
+        }
+
+        let six_eight_spacing = make_empty_spacing(TimeSignature::new(
+            1,
+            0,
+            6,
+            NoteDuration::Eighth,
+            TimeSignatureDrawType::Regular,
+            None,
+        ));
+        let nine_eight_spacing = make_empty_spacing(TimeSignature::new(
+            1,
+            0,
+            9,
+            NoteDuration::Eighth,
+            TimeSignatureDrawType::Regular,
+            None,
+        ));
+
+        assert!(nine_eight_spacing.width > six_eight_spacing.width);
     }
 }
