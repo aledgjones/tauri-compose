@@ -701,6 +701,35 @@ impl NotationTrack {
         }
     }
 
+    fn split_three_beat_syncopated_quarter_between_eighth_rests(
+        &mut self,
+        split_at: Tick,
+        rest_before_tick: Tick,
+        note_tick: Tick,
+        rest_after_tick: Tick,
+    ) {
+        let eighth = NoteDuration::Eighth.to_ticks();
+        let quarter = NoteDuration::Quarter.to_ticks();
+
+        let has_leading_eighth_rest = self
+            .track
+            .get(&rest_before_tick)
+            .is_some_and(|entry| entry.is_rest() && entry.duration == eighth);
+        let has_trailing_eighth_rest = self
+            .track
+            .get(&rest_after_tick)
+            .is_some_and(|entry| entry.is_rest() && entry.duration == eighth);
+        let has_syncopated_quarter = self.track.get(&note_tick).is_some_and(|entry| {
+            !entry.is_rest()
+                && entry.duration == quarter
+                && entry.tick + entry.duration == rest_after_tick
+        });
+
+        if has_leading_eighth_rest && has_trailing_eighth_rest && has_syncopated_quarter {
+            self.split(split_at);
+        }
+    }
+
     fn is_single_span(&self, start: Tick, stop: Tick) -> bool {
         matches!(self.track.get(&start), Some(entry) if entry.duration == stop - start)
             && (start + 1..stop).all(|tick| self.is_tick_empty(tick))
@@ -723,6 +752,19 @@ impl NotationTrack {
         if self.is_offbeat_pattern(start, stop, time_signature.beat_type.to_ticks()) {
             return;
         }
+
+        self.split_three_beat_syncopated_quarter_between_eighth_rests(
+            beat_two,
+            beat_one,
+            beat_one + subdivision,
+            beat_two + subdivision,
+        );
+        self.split_three_beat_syncopated_quarter_between_eighth_rests(
+            beat_three,
+            beat_two,
+            beat_two + subdivision,
+            beat_three + subdivision,
+        );
 
         if let Some(entry) = self.track.get(&beat_one) {
             if !entry.is_rest() && entry.duration == dotted_beat {
@@ -3571,11 +3613,12 @@ mod tests {
                 ],
             },
             Scenario {
-                name: "eighth syncopation across beat two currently remains an unsplit quarter",
+                name: "eighth syncopation across beat two splits into tied eighths",
                 tone_specs: vec![(1, e, q, 60), (2, q * 2, q, 64)],
                 expectations: vec![
                     notation_expectation(0, e, true, vec![], vec![]),
-                    notation_expectation(e, q, false, vec![1], vec![]),
+                    notation_expectation(e, e, false, vec![1], vec![1]),
+                    notation_expectation(q, e, false, vec![1], vec![]),
                     notation_expectation(q + e, e, true, vec![], vec![]),
                     notation_expectation(q * 2, q, false, vec![2], vec![]),
                 ],
@@ -3727,6 +3770,183 @@ mod tests {
                 scenario.expectations,
             );
         }
+    }
+
+    #[test]
+    fn get_written_durations_characterizes_four_four_syncopation_from_and_of_one() {
+        let q = NoteDuration::Quarter.to_ticks();
+        let e = NoteDuration::Eighth.to_ticks();
+        let four_four = make_time_signature_for_test(0, 4, NoteDuration::Quarter);
+
+        assert_written_duration_scenario(
+            "4/4 note from the and of 1 remains unsplit into beat 2",
+            four_four,
+            &[(1, e, q + e, 62), (2, q * 2, q * 2, 65)],
+            vec![
+                notation_expectation(0, e, true, vec![], vec![]),
+                notation_expectation(e, q + e, false, vec![1], vec![]),
+                notation_expectation(q * 2, q * 2, false, vec![2], vec![]),
+            ],
+        );
+    }
+
+    #[test]
+    fn get_written_durations_characterizes_four_four_quarter_from_and_of_three() {
+        let q = NoteDuration::Quarter.to_ticks();
+        let e = NoteDuration::Eighth.to_ticks();
+        let four_four = make_time_signature_for_test(0, 4, NoteDuration::Quarter);
+
+        assert_written_duration_scenario(
+            "4/4 quarter from the and of 3 remains unsplit over beat 4",
+            four_four,
+            &[
+                (1, 0, q * 2, 60),
+                (2, q * 2 + e, q, 64),
+                (3, q * 3 + e, e, 67),
+            ],
+            vec![
+                notation_expectation(0, q * 2, false, vec![1], vec![]),
+                notation_expectation(q * 2, e, true, vec![], vec![]),
+                notation_expectation(q * 2 + e, q, false, vec![2], vec![]),
+                notation_expectation(q * 3 + e, e, false, vec![3], vec![]),
+            ],
+        );
+    }
+
+    #[test]
+    fn get_written_durations_splits_three_four_syncopation_across_beat_two() {
+        let q = NoteDuration::Quarter.to_ticks();
+        let e = NoteDuration::Eighth.to_ticks();
+        let three_four = make_time_signature_for_test(0, 3, NoteDuration::Quarter);
+
+        assert_written_duration_scenario(
+            "3/4 quarter from the and of 1 should show beat 2",
+            three_four,
+            &[(1, e, q, 60), (2, q * 2, q, 64)],
+            vec![
+                notation_expectation(0, e, true, vec![], vec![]),
+                notation_expectation(e, e, false, vec![1], vec![1]),
+                notation_expectation(q, e, false, vec![1], vec![]),
+                notation_expectation(q + e, e, true, vec![], vec![]),
+                notation_expectation(q * 2, q, false, vec![2], vec![]),
+            ],
+        );
+    }
+
+    #[test]
+    fn get_written_durations_keeps_three_four_syncopation_unsplit_when_beat_one_is_tone() {
+        let q = NoteDuration::Quarter.to_ticks();
+        let e = NoteDuration::Eighth.to_ticks();
+        let three_four = make_time_signature_for_test(0, 3, NoteDuration::Quarter);
+
+        assert_written_duration_scenario(
+            "3/4 quarter from the and of 1 stays unsplit when beat 1 is a tone",
+            three_four,
+            &[(1, 0, e, 60), (2, e, q, 62), (3, q * 2, q, 64)],
+            vec![
+                notation_expectation(0, e, false, vec![1], vec![]),
+                notation_expectation(e, q, false, vec![2], vec![]),
+                notation_expectation(q + e, e, true, vec![], vec![]),
+                notation_expectation(q * 2, q, false, vec![3], vec![]),
+            ],
+        );
+    }
+
+    #[test]
+    fn get_written_durations_keeps_three_four_syncopation_unsplit_when_two_point_five_is_tone() {
+        let q = NoteDuration::Quarter.to_ticks();
+        let e = NoteDuration::Eighth.to_ticks();
+        let three_four = make_time_signature_for_test(0, 3, NoteDuration::Quarter);
+
+        assert_written_duration_scenario(
+            "3/4 quarter from the and of 1 stays unsplit when 2.5 is a tone",
+            three_four,
+            &[(1, e, q, 60), (2, q + e, e, 62), (3, q * 2 + e, e, 64)],
+            vec![
+                notation_expectation(0, e, true, vec![], vec![]),
+                notation_expectation(e, q, false, vec![1], vec![]),
+                notation_expectation(q + e, e, false, vec![2], vec![]),
+                notation_expectation(q * 2, e, true, vec![], vec![]),
+                notation_expectation(q * 2 + e, e, false, vec![3], vec![]),
+            ],
+        );
+    }
+
+    #[test]
+    fn get_written_durations_characterizes_three_four_dotted_quarter_on_beat_two() {
+        let q = NoteDuration::Quarter.to_ticks();
+        let e = NoteDuration::Eighth.to_ticks();
+        let three_four = make_time_signature_for_test(0, 3, NoteDuration::Quarter);
+
+        assert_written_duration_scenario(
+            "3/4 dotted quarter on beat 2 remains unsplit",
+            three_four,
+            &[(1, 0, q, 60), (2, q, q + e, 62), (3, q * 2 + e, e, 64)],
+            vec![
+                notation_expectation(0, q, false, vec![1], vec![]),
+                notation_expectation(q, q + e, false, vec![2], vec![]),
+                notation_expectation(q * 2 + e, e, false, vec![3], vec![]),
+            ],
+        );
+    }
+
+    #[test]
+    fn get_written_durations_splits_three_four_syncopation_across_beat_three() {
+        let q = NoteDuration::Quarter.to_ticks();
+        let e = NoteDuration::Eighth.to_ticks();
+        let three_four = make_time_signature_for_test(0, 3, NoteDuration::Quarter);
+
+        assert_written_duration_scenario(
+            "3/4 quarter from the and of 2 should show beat 3 when bracketed by rests",
+            three_four,
+            &[(1, 0, q, 60), (2, q + e, q, 64)],
+            vec![
+                notation_expectation(0, q, false, vec![1], vec![]),
+                notation_expectation(q, e, true, vec![], vec![]),
+                notation_expectation(q + e, e, false, vec![2], vec![2]),
+                notation_expectation(q * 2, e, false, vec![2], vec![]),
+                notation_expectation(q * 2 + e, e, true, vec![], vec![]),
+            ],
+        );
+    }
+
+    #[test]
+    fn get_written_durations_keeps_three_four_late_syncopation_unsplit_when_beat_two_is_tone() {
+        let q = NoteDuration::Quarter.to_ticks();
+        let e = NoteDuration::Eighth.to_ticks();
+        let three_four = make_time_signature_for_test(0, 3, NoteDuration::Quarter);
+
+        assert_written_duration_scenario(
+            "3/4 quarter from the and of 2 stays unsplit when beat 2 is a tone",
+            three_four,
+            &[(1, 0, q, 60), (2, q, e, 62), (3, q + e, q, 64)],
+            vec![
+                notation_expectation(0, q, false, vec![1], vec![]),
+                notation_expectation(q, e, false, vec![2], vec![]),
+                notation_expectation(q + e, q, false, vec![3], vec![]),
+                notation_expectation(q * 2 + e, e, true, vec![], vec![]),
+            ],
+        );
+    }
+
+    #[test]
+    fn get_written_durations_keeps_three_four_late_syncopation_unsplit_when_three_point_five_is_tone(
+    ) {
+        let q = NoteDuration::Quarter.to_ticks();
+        let e = NoteDuration::Eighth.to_ticks();
+        let three_four = make_time_signature_for_test(0, 3, NoteDuration::Quarter);
+
+        assert_written_duration_scenario(
+            "3/4 quarter from the and of 2 stays unsplit when 3.5 is a tone",
+            three_four,
+            &[(1, 0, q, 60), (2, q + e, q, 64), (3, q * 2 + e, e, 67)],
+            vec![
+                notation_expectation(0, q, false, vec![1], vec![]),
+                notation_expectation(q, e, true, vec![], vec![]),
+                notation_expectation(q + e, q, false, vec![2], vec![]),
+                notation_expectation(q * 2 + e, e, false, vec![3], vec![]),
+            ],
+        );
     }
 
     #[test]
