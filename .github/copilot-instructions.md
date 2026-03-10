@@ -91,6 +91,8 @@ When connected to atlassian-rovo-mcp:
 - **MUST** identify which docs should be updated whenever a spec changes behavior, architecture, persistence, workflows, user-visible features, or developer expectations
 - **MUST** include explicit documentation update tasks and acceptance criteria in specs; docs are not a follow-up nice-to-have
 - **MUST** update AI-agent instructions as part of the work when project rules or required implementation practices change
+- **MUST** keep shared written-duration parser test harness code under `src-tauri/src/instructions/parse/test_support/` and leave the musical scenario tables in `src-tauri/src/instructions/parse/get_written_durations.rs`; `get_written_durations_test_harness.rs` is the current home unless a focused follow-up intentionally splits that support by concern
+- **MUST NOT** introduce a repo-wide notation test framework when parser-local test support is sufficient; low-level `get_written_durations.rs` helper tests should remain local direct unit tests
 - **MUST** assess migration impact for any persisted-data change, `.soloc` payload/file-format change, or load/save semantic change; if older data would not load correctly without transformation, add or update the corresponding migration
 - **MUST** author unreleased persisted-data migrations in `src-tauri/src/migrations/next.rs` until a human prepares the release
 - **MUST** do persisted-data work in this order: implement the change, add/update pending migration steps in `src-tauri/src/migrations/next.rs`, then have a human run `prepare-release:*` and `finalize-release` last

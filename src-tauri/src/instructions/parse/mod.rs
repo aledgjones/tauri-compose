@@ -17,3 +17,6 @@ pub mod get_tone_offsets;
 pub mod get_vertical_spacing;
 pub mod get_vertical_spans;
 pub mod get_written_durations;
+
+#[cfg(test)]
+pub(crate) mod test_support;

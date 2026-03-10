@@ -163,6 +163,27 @@ For **visual regression testing** (manual, human-driven), see [tests/fixtures/RE
 - Full-bar rests stay full-bar rests regardless of meter. Non-full-bar rests that cross a compound big-beat boundary must split at that boundary.
 - Full-bar compound notes may stay unsplit only when the resulting value is drawable in standard notation, such as a dotted half in `6/8`. Non-drawable full-bar values, such as `9/8`, must split into the largest drawable values first.
 - Parser regressions for rhythm rules belong in `src-tauri/src/instructions/parse/get_written_durations.rs` as explicit scenario tests with canonical expected notation fragments, not as snapshot-style or loosely asserted coverage.
+- Shared parser test harness code for written-duration scenarios belongs under `src-tauri/src/instructions/parse/test_support/`; keep only the reusable expectation normalization, fixture builders, and scenario runners there, with `get_written_durations_test_harness.rs` as the current home.
+- Keep the musical scenario tables themselves in `src-tauri/src/instructions/parse/get_written_durations.rs` so the behavior examples stay next to the parser logic they document, and keep low-level helper tests local instead of forcing them through the scenario harness.
+- New scenario-table regressions should follow the shared harness pattern, for example:
+
+```rust
+let four_four = make_time_signature_for_test(0, 4, NoteDuration::Quarter);
+
+assert_written_duration_scenarios(vec![Scenario {
+	name: "four straight quarter notes",
+	time_signature: four_four.clone(),
+	flow_length: four_four.ticks_per_bar(),
+	tone_specs: vec![(1, 0, q, 60), (2, q, q, 62), (3, q * 2, q, 64), (4, q * 3, q, 65)],
+	expectations: vec![
+		notation_expectation(0, q, false, vec![1], vec![]),
+		notation_expectation(q, q, false, vec![2], vec![]),
+		notation_expectation(q * 2, q, false, vec![3], vec![]),
+		notation_expectation(q * 3, q, false, vec![4], vec![]),
+	],
+}]);
+```
+
 - When compound rewriting can emit `SixtyFourth` or `HudredTwentyEighth` notes or rests, add parser-level scenario coverage for those values instead of relying only on draw tests.
 - Beaming regressions that depend on compound grouping belong in `src-tauri/src/instructions/parse/get_beams.rs` and should assert the exact beat-group breaks that the written-duration output implies.
 
