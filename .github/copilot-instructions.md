@@ -83,7 +83,8 @@ When connected to atlassian-rovo-mcp:
 - See [tests/fixtures/README.md](../tests/fixtures/README.md) for the authoritative fixture guide
 - Fixture JSON `score.meta.app_version` **MUST** match the current `CARGO_PKG_VERSION` (currently `1.23.3`) — the build script will fail with a clear error if it is missing
 - When the `.soloc` container format changes, fixtures must be regenerated with `npm run build:fixtures`
-- **MUST NOT** use Compound (6/8, 9/8, 12/8, …) or Complex (5/4, 7/8, …) time signatures in fixtures — only Simple time signatures (beats 1–4) are implemented; Compound and Complex will **crash the app** (`todo!()` in the renderer)
+- Compound fixture coverage is now valid where the app supports it; add representative variants under `tests/fixtures/source/rhythms/` when exercising compound notation behavior
+- **MUST NOT** use Complex (5/4, 7/8, …) time signatures in fixtures until the renderer and load path support them end to end
 
 ## Spec and Documentation Requirements
 

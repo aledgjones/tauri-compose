@@ -4086,6 +4086,233 @@ mod tests {
     }
 
     #[test]
+    fn get_written_durations_characterizes_six_eight_variants_of_basic_three_four_patterns() {
+        let q = NoteDuration::Quarter.to_ticks();
+        let e = NoteDuration::Eighth.to_ticks();
+        let scenarios = vec![
+            Scenario {
+                name: "6/8 variant of three straight quarter notes splits the middle quarter at the big beat boundary",
+                time_signature: make_time_signature_for_test(0, 6, NoteDuration::Eighth),
+                flow_length: make_time_signature_for_test(0, 6, NoteDuration::Eighth).ticks_per_bar(),
+                tone_specs: vec![(1, 0, q, 60), (2, q, q, 62), (3, q * 2, q, 64)],
+                expectations: vec![
+                    notation_expectation(0, q, false, vec![1], vec![]),
+                    notation_expectation(q, q / 2, false, vec![2], vec![2]),
+                    notation_expectation(q + (q / 2), q / 2, false, vec![2], vec![]),
+                    notation_expectation(q * 2, q, false, vec![3], vec![]),
+                ],
+            },
+            Scenario {
+                name: "6/8 variant of half note followed by quarter note splits the half note at the big beat boundary",
+                time_signature: make_time_signature_for_test(0, 6, NoteDuration::Eighth),
+                flow_length: make_time_signature_for_test(0, 6, NoteDuration::Eighth).ticks_per_bar(),
+                tone_specs: vec![(1, 0, q * 2, 60), (2, q * 2, q, 64)],
+                expectations: vec![
+                    notation_expectation(0, q + (q / 2), false, vec![1], vec![1]),
+                    notation_expectation(q + (q / 2), q / 2, false, vec![1], vec![]),
+                    notation_expectation(q * 2, q, false, vec![2], vec![]),
+                ],
+            },
+            Scenario {
+                name: "6/8 variant of dotted quarter plus rest keeps both compound beats whole",
+                time_signature: make_time_signature_for_test(0, 6, NoteDuration::Eighth),
+                flow_length: make_time_signature_for_test(0, 6, NoteDuration::Eighth).ticks_per_bar(),
+                tone_specs: vec![(1, 0, q + e, 60)],
+                expectations: vec![
+                    notation_expectation(0, q + e, false, vec![1], vec![]),
+                    notation_expectation(q + e, q + e, true, vec![], vec![]),
+                ],
+            },
+            Scenario {
+                name: "6/8 variant of two dotted quarters keeps both compound beats whole",
+                time_signature: make_time_signature_for_test(0, 6, NoteDuration::Eighth),
+                flow_length: make_time_signature_for_test(0, 6, NoteDuration::Eighth).ticks_per_bar(),
+                tone_specs: vec![(1, 0, q + e, 60), (2, q + e, q + e, 62)],
+                expectations: vec![
+                    notation_expectation(0, q + e, false, vec![1], vec![]),
+                    notation_expectation(q + e, q + e, false, vec![2], vec![]),
+                ],
+            },
+            Scenario {
+                name: "6/8 variant of quarter plus dotted quarter plus final rest splits the dotted quarter at the big beat boundary",
+                time_signature: make_time_signature_for_test(0, 6, NoteDuration::Eighth),
+                flow_length: make_time_signature_for_test(0, 6, NoteDuration::Eighth).ticks_per_bar(),
+                tone_specs: vec![(1, 0, q, 60), (2, q, q + e, 62)],
+                expectations: vec![
+                    notation_expectation(0, q, false, vec![1], vec![]),
+                    notation_expectation(q, e, false, vec![2], vec![2]),
+                    notation_expectation(q + e, q, false, vec![2], vec![]),
+                    notation_expectation(q * 2 + e, e, true, vec![], vec![]),
+                ],
+            },
+            Scenario {
+                name: "6/8 variant of quarter plus dotted quarter plus closing eighth splits the dotted quarter at the big beat boundary",
+                time_signature: make_time_signature_for_test(0, 6, NoteDuration::Eighth),
+                flow_length: make_time_signature_for_test(0, 6, NoteDuration::Eighth).ticks_per_bar(),
+                tone_specs: vec![(1, 0, q, 60), (2, q, q + e, 62), (3, q * 2 + e, e, 64)],
+                expectations: vec![
+                    notation_expectation(0, q, false, vec![1], vec![]),
+                    notation_expectation(q, e, false, vec![2], vec![2]),
+                    notation_expectation(q + e, q, false, vec![2], vec![]),
+                    notation_expectation(q * 2 + e, e, false, vec![3], vec![]),
+                ],
+            },
+            Scenario {
+                name: "6/8 variant of eighth syncopation across beat two keeps the offbeat quarter whole",
+                time_signature: make_time_signature_for_test(0, 6, NoteDuration::Eighth),
+                flow_length: make_time_signature_for_test(0, 6, NoteDuration::Eighth).ticks_per_bar(),
+                tone_specs: vec![(1, e, q, 60), (2, q * 2, q, 64)],
+                expectations: vec![
+                    notation_expectation(0, e, true, vec![], vec![]),
+                    notation_expectation(e, q, false, vec![1], vec![]),
+                    notation_expectation(q + e, e, true, vec![], vec![]),
+                    notation_expectation(q * 2, q, false, vec![2], vec![]),
+                ],
+            },
+            Scenario {
+                name: "6/8 variant of eighth plus dotted quarter plus quarter splits the dotted quarter at the big beat boundary",
+                time_signature: make_time_signature_for_test(0, 6, NoteDuration::Eighth),
+                flow_length: make_time_signature_for_test(0, 6, NoteDuration::Eighth).ticks_per_bar(),
+                tone_specs: vec![(1, 0, e, 60), (2, e, q + e, 62), (3, q * 2, q, 64)],
+                expectations: vec![
+                    notation_expectation(0, e, false, vec![1], vec![]),
+                    notation_expectation(e, q, false, vec![2], vec![2]),
+                    notation_expectation(q + e, e, false, vec![2], vec![]),
+                    notation_expectation(q * 2, q, false, vec![3], vec![]),
+                ],
+            },
+            Scenario {
+                name: "6/8 variant of dotted quarter plus eighth plus quarter matches the three-four rendering",
+                time_signature: make_time_signature_for_test(0, 6, NoteDuration::Eighth),
+                flow_length: make_time_signature_for_test(0, 6, NoteDuration::Eighth).ticks_per_bar(),
+                tone_specs: vec![(1, 0, q + e, 60), (2, q + e, e, 62), (3, q * 2, q, 64)],
+                expectations: vec![
+                    notation_expectation(0, q + e, false, vec![1], vec![]),
+                    notation_expectation(q + e, e, false, vec![2], vec![]),
+                    notation_expectation(q * 2, q, false, vec![3], vec![]),
+                ],
+            },
+            Scenario {
+                name: "6/8 variant of quarter plus eighth plus quarter plus eighth matches the three-four rendering",
+                time_signature: make_time_signature_for_test(0, 6, NoteDuration::Eighth),
+                flow_length: make_time_signature_for_test(0, 6, NoteDuration::Eighth).ticks_per_bar(),
+                tone_specs: vec![(1, 0, q, 60), (2, q, e, 62), (3, q + e, q, 64), (4, q * 2 + e, e, 65)],
+                expectations: vec![
+                    notation_expectation(0, q, false, vec![1], vec![]),
+                    notation_expectation(q, e, false, vec![2], vec![]),
+                    notation_expectation(q + e, q, false, vec![3], vec![]),
+                    notation_expectation(q * 2 + e, e, false, vec![4], vec![]),
+                ],
+            },
+            Scenario {
+                name: "6/8 variant of quarter from the and of 1 stays unsplit when beat 1 is a tone",
+                time_signature: make_time_signature_for_test(0, 6, NoteDuration::Eighth),
+                flow_length: make_time_signature_for_test(0, 6, NoteDuration::Eighth).ticks_per_bar(),
+                tone_specs: vec![(1, 0, e, 60), (2, e, q, 62), (3, q * 2, q, 64)],
+                expectations: vec![
+                    notation_expectation(0, e, false, vec![1], vec![]),
+                    notation_expectation(e, q, false, vec![2], vec![]),
+                    notation_expectation(q + e, e, true, vec![], vec![]),
+                    notation_expectation(q * 2, q, false, vec![3], vec![]),
+                ],
+            },
+            Scenario {
+                name: "6/8 variant of quarter from the and of 1 stays unsplit when 2.5 is a tone",
+                time_signature: make_time_signature_for_test(0, 6, NoteDuration::Eighth),
+                flow_length: make_time_signature_for_test(0, 6, NoteDuration::Eighth).ticks_per_bar(),
+                tone_specs: vec![(1, e, q, 60), (2, q + e, e, 62), (3, q * 2 + e, e, 64)],
+                expectations: vec![
+                    notation_expectation(0, e, true, vec![], vec![]),
+                    notation_expectation(e, q, false, vec![1], vec![]),
+                    notation_expectation(q + e, e, false, vec![2], vec![]),
+                    notation_expectation(q * 2, e, true, vec![], vec![]),
+                    notation_expectation(q * 2 + e, e, false, vec![3], vec![]),
+                ],
+            },
+            Scenario {
+                name: "6/8 variant of dotted quarter on beat 2 rewrites across the compound-beat boundary",
+                time_signature: make_time_signature_for_test(0, 6, NoteDuration::Eighth),
+                flow_length: make_time_signature_for_test(0, 6, NoteDuration::Eighth).ticks_per_bar(),
+                tone_specs: vec![(1, 0, q, 60), (2, q, q + e, 62), (3, q * 2 + e, e, 64)],
+                expectations: vec![
+                    notation_expectation(0, q, false, vec![1], vec![]),
+                    notation_expectation(q, e, false, vec![2], vec![2]),
+                    notation_expectation(q + e, q, false, vec![2], vec![]),
+                    notation_expectation(q * 2 + e, e, false, vec![3], vec![]),
+                ],
+            },
+            Scenario {
+                name: "6/8 variant of quarter from the and of 2 stays unsplit when bracketed by rests",
+                time_signature: make_time_signature_for_test(0, 6, NoteDuration::Eighth),
+                flow_length: make_time_signature_for_test(0, 6, NoteDuration::Eighth).ticks_per_bar(),
+                tone_specs: vec![(1, 0, q, 60), (2, q + e, q, 64)],
+                expectations: vec![
+                    notation_expectation(0, q, false, vec![1], vec![]),
+                    notation_expectation(q, e, true, vec![], vec![]),
+                    notation_expectation(q + e, q, false, vec![2], vec![]),
+                    notation_expectation(q * 2 + e, e, true, vec![], vec![]),
+                ],
+            },
+            Scenario {
+                name: "6/8 variant of quarter from the and of 2 stays unsplit when beat 2 is a tone",
+                time_signature: make_time_signature_for_test(0, 6, NoteDuration::Eighth),
+                flow_length: make_time_signature_for_test(0, 6, NoteDuration::Eighth).ticks_per_bar(),
+                tone_specs: vec![(1, 0, q, 60), (2, q, e, 62), (3, q + e, q, 64)],
+                expectations: vec![
+                    notation_expectation(0, q, false, vec![1], vec![]),
+                    notation_expectation(q, e, false, vec![2], vec![]),
+                    notation_expectation(q + e, q, false, vec![3], vec![]),
+                    notation_expectation(q * 2 + e, e, true, vec![], vec![]),
+                ],
+            },
+            Scenario {
+                name: "6/8 variant of quarter from the and of 2 stays unsplit when 3.5 is a tone",
+                time_signature: make_time_signature_for_test(0, 6, NoteDuration::Eighth),
+                flow_length: make_time_signature_for_test(0, 6, NoteDuration::Eighth).ticks_per_bar(),
+                tone_specs: vec![(1, 0, q, 60), (2, q + e, q, 64), (3, q * 2 + e, e, 67)],
+                expectations: vec![
+                    notation_expectation(0, q, false, vec![1], vec![]),
+                    notation_expectation(q, e, true, vec![], vec![]),
+                    notation_expectation(q + e, q, false, vec![2], vec![]),
+                    notation_expectation(q * 2 + e, e, false, vec![3], vec![]),
+                ],
+            },
+            Scenario {
+                name: "6/8 variant of three-four offbeat syncopation keeps its staggered shape",
+                time_signature: make_time_signature_for_test(0, 6, NoteDuration::Eighth),
+                flow_length: make_time_signature_for_test(0, 6, NoteDuration::Eighth).ticks_per_bar(),
+                tone_specs: vec![(1, e, q, 60), (2, q + e, q, 62), (3, q * 2 + e, e, 64)],
+                expectations: vec![
+                    notation_expectation(0, e, true, vec![], vec![]),
+                    notation_expectation(e, q, false, vec![1], vec![]),
+                    notation_expectation(q + e, q, false, vec![2], vec![]),
+                    notation_expectation(q * 2 + e, e, false, vec![3], vec![]),
+                ],
+            },
+        ];
+
+        assert_written_duration_scenarios(scenarios);
+    }
+
+    #[test]
+    #[ignore = "Known bug: B-005 compound leading rests should prefer [4R, 8N] over [8R, 8R, 8N]"]
+    fn six_eight_variant_of_half_note_starting_on_beat_two_prefers_a_quarter_rest_then_an_eighth_note(
+    ) {
+        let q = NoteDuration::Quarter.to_ticks();
+
+        assert_written_duration_scenario(
+            "6/8 variant of half note starting on beat 2 prefers a quarter rest then an eighth note",
+            make_time_signature_for_test(0, 6, NoteDuration::Eighth),
+            &[(1, q, q * 2, 60)],
+            vec![
+                notation_expectation(0, q, true, vec![], vec![]),
+                notation_expectation(q, q / 2, false, vec![1], vec![1]),
+                notation_expectation(q + (q / 2), q + (q / 2), false, vec![1], vec![]),
+            ],
+        );
+    }
+
+    #[test]
     #[should_panic]
     fn get_written_durations_panics_for_non_eighth_compound_time_signature() {
         let dotted_quarter = NoteDuration::Quarter;
