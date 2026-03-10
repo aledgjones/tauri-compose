@@ -9,8 +9,8 @@ use crate::score::components::duration::{NoteDuration, Tick, Ticks};
 use crate::score::components::measurements::BoundingBox;
 use crate::score::engraves::Engrave;
 use crate::score::entries::barline::BarlineDrawType;
-use crate::score::entries::Entry;
 use crate::score::entries::time_signature::TimeSignature;
+use crate::score::entries::Entry;
 use crate::score::flows::Flow;
 use crate::score::instruments::Instrument;
 use crate::score::tracks::Tracks;
@@ -84,9 +84,7 @@ fn empty_measure_width(time_signature: &TimeSignature, engrave: &Engrave) -> Spa
     let compressed_width = normalized_ticks.powf(EMPTY_MEASURE_WIDTH_EXPONENT);
     let blended_width = 1.0 + ((compressed_width - 1.0) * EMPTY_MEASURE_WIDTH_BLEND);
 
-    engrave.base_note_space
-        * EMPTY_MEASURE_BASE_WIDTH_MULTIPLIER
-        * blended_width
+    engrave.base_note_space * EMPTY_MEASURE_BASE_WIDTH_MULTIPLIER * blended_width
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -114,7 +112,8 @@ pub fn get_horizontal_spacing(
             continue;
         }
 
-        let width_per_tick = empty_measure_width(time_signature, engrave) / (measure_stop - *tick) as f32;
+        let width_per_tick =
+            empty_measure_width(time_signature, engrave) / (measure_stop - *tick) as f32;
 
         for measure_tick in *tick..measure_stop {
             let current = spacings.get(measure_tick, Slot::NoteSpacing).width;
@@ -651,7 +650,11 @@ mod tests {
             None,
         );
 
-        assert!((empty_measure_width(&three_four, engrave) - empty_measure_width(&six_eight, engrave)).abs() < f32::EPSILON);
+        assert!(
+            (empty_measure_width(&three_four, engrave) - empty_measure_width(&six_eight, engrave))
+                .abs()
+                < f32::EPSILON
+        );
     }
 
     #[test]
@@ -680,7 +683,9 @@ mod tests {
             None,
         );
 
-        assert!(empty_measure_width(&nine_eight, engrave) > empty_measure_width(&six_eight, engrave));
+        assert!(
+            empty_measure_width(&nine_eight, engrave) > empty_measure_width(&six_eight, engrave)
+        );
     }
 
     #[test]
