@@ -276,12 +276,10 @@ describe("PerformanceTimings", () => {
       layout_id: 4,
       active_flow_id: 20,
       active_flow_visible_in_layout: true,
-      fallback_draw_flow_id: null,
       prepared_flow_ids: [10, 20],
       prepared_flow_count: 2,
       composed_flow_ids: [10, 20],
       composed_flow_count: 2,
-      single_flow_draw_fallback: false,
     });
 
     await user.click(screen.getByRole("button", { name: /Layout Phase/ }));
@@ -290,13 +288,10 @@ describe("PerformanceTimings", () => {
     expect(screen.getByText(/Prepared flows: 10, 20/)).toBeInTheDocument();
     expect(screen.getByText(/Composed flows: 10, 20/)).toBeInTheDocument();
     expect(screen.getByText(/Composed flow count: 2/)).toBeInTheDocument();
-    expect(
-      screen.getByText(/Fallback draw mode: multi-flow-surface/),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Render path: shared-surface/)).toBeInTheDocument();
     expect(
       screen.getByText(/Active flow visible in layout: yes/),
     ).toBeInTheDocument();
-    expect(screen.queryByText(/Fallback draw flow:/)).not.toBeInTheDocument();
   });
 
   it("shows shared surface and viewport diagnostics when render surface details are emitted", async () => {
@@ -308,12 +303,10 @@ describe("PerformanceTimings", () => {
       layout_id: 4,
       active_flow_id: 20,
       active_flow_visible_in_layout: true,
-      fallback_draw_flow_id: null,
       prepared_flow_ids: [10, 20],
       prepared_flow_count: 2,
       composed_flow_ids: [10, 20],
       composed_flow_count: 2,
-      single_flow_draw_fallback: false,
     });
     firePayloadEvent("render-timing-surface-details", {
       surface_width_px: 1440,
@@ -322,10 +315,10 @@ describe("PerformanceTimings", () => {
       viewport_height_px: 420,
       page_count: 2,
       inter_flow_gap_px: 20,
-      first_page_x_px: 0,
-      second_page_x_px: 730,
-      first_page_width_px: 710,
-      second_page_width_px: 710,
+      page_boxes: [
+        { page_index: 0, x_px: 0, width_px: 710 },
+        { page_index: 1, x_px: 730, width_px: 710 },
+      ],
     });
 
     await user.click(screen.getByRole("button", { name: /Layout Phase/ }));
@@ -343,6 +336,44 @@ describe("PerformanceTimings", () => {
     expect(screen.getByText(/Inter-flow gap: 20.0px/)).toBeInTheDocument();
   });
 
+  it("shows all composed page boxes when 3+ flows are rendered on one surface", async () => {
+    const user = userEvent.setup();
+    render(<PerformanceTimings />);
+
+    fireTimingEvent("render-timing-flow-preparation", 8_000);
+    firePayloadEvent("render-timing-flow-preparation-details", {
+      layout_id: 4,
+      active_flow_id: 20,
+      active_flow_visible_in_layout: true,
+      prepared_flow_ids: [10, 20, 30],
+      prepared_flow_count: 3,
+      composed_flow_ids: [10, 20, 30],
+      composed_flow_count: 3,
+    });
+    firePayloadEvent("render-timing-surface-details", {
+      surface_width_px: 2180,
+      surface_height_px: 480,
+      viewport_width_px: 960,
+      viewport_height_px: 420,
+      page_count: 3,
+      inter_flow_gap_px: 20,
+      page_boxes: [
+        { page_index: 0, x_px: 0, width_px: 700 },
+        { page_index: 1, x_px: 720, width_px: 700 },
+        { page_index: 2, x_px: 1440, width_px: 740 },
+      ],
+    });
+
+    await user.click(screen.getByRole("button", { name: /Layout Phase/ }));
+
+    expect(screen.getByText(/Page count: 3/)).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /Page boxes: page 1 @ 0.0px, width 700.0px \| page 2 @ 720.0px, width 700.0px \| page 3 @ 1440.0px, width 740.0px/,
+      ),
+    ).toBeInTheDocument();
+  });
+
   it("clears stale flow-aware preparation diagnostics when the backend resets them", async () => {
     const user = userEvent.setup();
     render(<PerformanceTimings />);
@@ -352,12 +383,10 @@ describe("PerformanceTimings", () => {
       layout_id: 4,
       active_flow_id: 20,
       active_flow_visible_in_layout: false,
-      fallback_draw_flow_id: 20,
-      prepared_flow_ids: [],
-      prepared_flow_count: 0,
-      composed_flow_ids: [20],
+      prepared_flow_ids: [10],
+      prepared_flow_count: 1,
+      composed_flow_ids: [10],
       composed_flow_count: 1,
-      single_flow_draw_fallback: true,
     });
     firePayloadEvent("render-timing-surface-details", {
       surface_width_px: 1440,
@@ -366,15 +395,13 @@ describe("PerformanceTimings", () => {
       viewport_height_px: 420,
       page_count: 1,
       inter_flow_gap_px: 0,
-      first_page_x_px: 0,
-      second_page_x_px: null,
-      first_page_width_px: 1440,
-      second_page_width_px: null,
+      page_boxes: [{ page_index: 0, x_px: 0, width_px: 1440 }],
     });
 
     await user.click(screen.getByRole("button", { name: /Layout Phase/ }));
-    expect(screen.getByText(/Prepared flow count: 0/)).toBeInTheDocument();
-    expect(screen.getByText(/Fallback draw flow: 20/)).toBeInTheDocument();
+    expect(screen.getByText(/Prepared flow count: 1/)).toBeInTheDocument();
+    expect(screen.getByText(/Composed flows: 10/)).toBeInTheDocument();
+    expect(screen.getByText(/Render path: shared-surface/)).toBeInTheDocument();
     expect(
       screen.getByText(/Shared surface: 1440.0px x 480.0px/),
     ).toBeInTheDocument();
@@ -385,7 +412,7 @@ describe("PerformanceTimings", () => {
     firePayloadEvent("render-timing-surface-details", null);
 
     expect(
-      screen.queryByText(/Prepared flow count: 0/),
+      screen.queryByText(/Prepared flow count: 1/),
     ).not.toBeInTheDocument();
     expect(
       screen.queryByText(/Shared surface: 1440.0px x 480.0px/),

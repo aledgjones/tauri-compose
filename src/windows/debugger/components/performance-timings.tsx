@@ -6,12 +6,16 @@ type FlowPreparationDetails = {
   layout_id: number;
   active_flow_id: number;
   active_flow_visible_in_layout: boolean;
-  fallback_draw_flow_id: number | null;
   prepared_flow_ids: number[];
   prepared_flow_count: number;
   composed_flow_ids: number[];
   composed_flow_count: number;
-  single_flow_draw_fallback: boolean;
+};
+
+type RenderSurfacePageBox = {
+  page_index: number;
+  x_px: number;
+  width_px: number;
 };
 
 type RenderSurfaceDetails = {
@@ -21,11 +25,16 @@ type RenderSurfaceDetails = {
   viewport_height_px: number;
   page_count: number;
   inter_flow_gap_px: number;
-  first_page_x_px: number;
-  second_page_x_px: number | null;
-  first_page_width_px: number;
-  second_page_width_px: number | null;
+  page_boxes: RenderSurfacePageBox[];
 };
+
+const formatPageBoxes = (pageBoxes: RenderSurfacePageBox[]) =>
+  pageBoxes
+    .map(
+      (pageBox) =>
+        `page ${pageBox.page_index + 1} @ ${pageBox.x_px.toFixed(1)}px, width ${pageBox.width_px.toFixed(1)}px`,
+    )
+    .join(" | ");
 
 export const PerformanceTimings = () => {
   const [renderTimings, setRenderTimings] = useState<Record<string, number>>(
@@ -219,19 +228,7 @@ export const PerformanceTimings = () => {
                 Composed flow count:{" "}
                 {flowPreparationDetails.composed_flow_count}
               </div>
-              <div>
-                Fallback draw mode:{" "}
-                {flowPreparationDetails.single_flow_draw_fallback
-                  ? "active-flow-only"
-                  : "multi-flow-surface"}
-              </div>
-              {flowPreparationDetails.single_flow_draw_fallback &&
-                flowPreparationDetails.fallback_draw_flow_id !== null && (
-                  <div>
-                    Fallback draw flow:{" "}
-                    {flowPreparationDetails.fallback_draw_flow_id}
-                  </div>
-                )}
+              <div>Render path: shared-surface</div>
               {renderSurfaceDetails && (
                 <>
                   <div>
@@ -240,14 +237,12 @@ export const PerformanceTimings = () => {
                     {renderSurfaceDetails.surface_height_px.toFixed(1)}px
                   </div>
                   <div>Page count: {renderSurfaceDetails.page_count}</div>
-                  <div>
-                    Page boxes: page 1 @{" "}
-                    {renderSurfaceDetails.first_page_x_px.toFixed(1)}px, width{" "}
-                    {renderSurfaceDetails.first_page_width_px.toFixed(1)}px
-                    {renderSurfaceDetails.second_page_x_px !== null &&
-                      renderSurfaceDetails.second_page_width_px !== null &&
-                      ` | page 2 @ ${renderSurfaceDetails.second_page_x_px.toFixed(1)}px, width ${renderSurfaceDetails.second_page_width_px.toFixed(1)}px`}
-                  </div>
+                  {renderSurfaceDetails.page_boxes.length > 0 && (
+                    <div>
+                      Page boxes:{" "}
+                      {formatPageBoxes(renderSurfaceDetails.page_boxes)}
+                    </div>
+                  )}
                   {renderSurfaceDetails.page_count > 1 && (
                     <div>
                       Inter-flow gap:{" "}

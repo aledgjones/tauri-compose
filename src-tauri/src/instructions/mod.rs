@@ -110,6 +110,13 @@ struct ComposedFlowSurface {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize)]
+struct RenderSurfacePageDiagnostics {
+    page_index: usize,
+    x_px: f32,
+    width_px: f32,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize)]
 struct RenderSurfaceDiagnostics {
     surface_width_px: f32,
     surface_height_px: f32,
@@ -117,10 +124,7 @@ struct RenderSurfaceDiagnostics {
     viewport_height_px: f32,
     page_count: usize,
     inter_flow_gap_px: f32,
-    first_page_x_px: f32,
-    second_page_x_px: Option<f32>,
-    first_page_width_px: f32,
-    second_page_width_px: Option<f32>,
+    page_boxes: Vec<RenderSurfacePageDiagnostics>,
 }
 
 fn inter_flow_gap_spaces(converter: &Converter) -> Space {
@@ -790,28 +794,20 @@ pub fn generate_render_instructions(
             viewport_height_px: renderer.bounds.3,
             page_count: composed_surface.page_widths.len(),
             inter_flow_gap_px: converter.spaces_to_px(composed_surface.inter_flow_gap),
-            first_page_x_px: composed_surface
+            page_boxes: composed_surface
                 .page_offsets
-                .first()
+                .iter()
                 .copied()
-                .map(|offset| converter.spaces_to_px(offset))
-                .unwrap_or(0.0),
-            second_page_x_px: composed_surface
-                .page_offsets
-                .get(1)
-                .copied()
-                .map(|offset| converter.spaces_to_px(offset)),
-            first_page_width_px: composed_surface
-                .page_widths
-                .first()
-                .copied()
-                .map(|width| converter.spaces_to_px(width))
-                .unwrap_or(0.0),
-            second_page_width_px: composed_surface
-                .page_widths
-                .get(1)
-                .copied()
-                .map(|width| converter.spaces_to_px(width)),
+                .zip(composed_surface.page_widths.iter().copied())
+                .enumerate()
+                .map(
+                    |(page_index, (offset, width))| RenderSurfacePageDiagnostics {
+                        page_index,
+                        x_px: converter.spaces_to_px(offset),
+                        width_px: converter.spaces_to_px(width),
+                    },
+                )
+                .collect(),
         },
     );
 
@@ -1147,6 +1143,119 @@ mod tests {
         );
         assert_eq!(composed.hit_targets[1].x, 25.5);
         assert_eq!(composed.hit_targets[1].popover_x, 25.5);
+    }
+
+    #[test]
+    fn compose_render_segments_offsets_all_segments_and_tracks_page_boxes() {
+        let converter = Converter::new(1.0, 1.0);
+        let segments = vec![
+            FlowRenderSegment {
+                width: 5.0,
+                height: 3.0,
+                instructions: vec![DrawInstruction::Rectangle {
+                    x: 0.0,
+                    y: 0.0,
+                    width: 5.0,
+                    height: 3.0,
+                    color: Color::BLACK,
+                }],
+                hit_targets: vec![HitTarget {
+                    entry: Selection::Tempo {
+                        flow_id: 10,
+                        tempo_id: 1,
+                        tick: 0,
+                    },
+                    x: 1.0,
+                    y: 1.0,
+                    width: 1.0,
+                    height: 1.0,
+                    popover_x: 1.0,
+                    popover_y: 0.5,
+                }],
+                timings: RenderPhaseTimings::default(),
+            },
+            FlowRenderSegment {
+                width: 4.0,
+                height: 6.0,
+                instructions: vec![DrawInstruction::Rectangle {
+                    x: 0.0,
+                    y: 2.0,
+                    width: 4.0,
+                    height: 2.0,
+                    color: Color::WHITE,
+                }],
+                hit_targets: vec![HitTarget {
+                    entry: Selection::Tempo {
+                        flow_id: 20,
+                        tempo_id: 2,
+                        tick: 32,
+                    },
+                    x: 0.5,
+                    y: 1.5,
+                    width: 1.0,
+                    height: 1.0,
+                    popover_x: 0.5,
+                    popover_y: 1.0,
+                }],
+                timings: RenderPhaseTimings::default(),
+            },
+            FlowRenderSegment {
+                width: 3.0,
+                height: 4.0,
+                instructions: vec![DrawInstruction::Rectangle {
+                    x: 0.0,
+                    y: 1.0,
+                    width: 3.0,
+                    height: 2.0,
+                    color: Color::BLACK,
+                }],
+                hit_targets: vec![HitTarget {
+                    entry: Selection::Tempo {
+                        flow_id: 30,
+                        tempo_id: 3,
+                        tick: 64,
+                    },
+                    x: 0.25,
+                    y: 1.25,
+                    width: 1.0,
+                    height: 1.0,
+                    popover_x: 0.25,
+                    popover_y: 0.75,
+                }],
+                timings: RenderPhaseTimings::default(),
+            },
+        ];
+
+        let composed = compose_render_segments(segments, &converter);
+
+        assert_eq!(composed.width, 52.0);
+        assert_eq!(composed.height, 6.0);
+        assert_eq!(composed.page_offsets, vec![0.0, 25.0, 49.0]);
+        assert_eq!(composed.page_widths, vec![5.0, 4.0, 3.0]);
+        assert_eq!(composed.inter_flow_gap, 20.0);
+        assert_eq!(composed.page_backgrounds.len(), 3);
+        assert_eq!(
+            composed.page_backgrounds[2],
+            DrawInstruction::Rectangle {
+                x: 49.0,
+                y: 0.0,
+                width: 3.0,
+                height: 4.0,
+                color: Color::WHITE,
+            }
+        );
+        assert_eq!(
+            composed.instructions[2],
+            DrawInstruction::Rectangle {
+                x: 49.0,
+                y: 1.0,
+                width: 3.0,
+                height: 2.0,
+                color: Color::BLACK,
+            }
+        );
+        assert_eq!(composed.hit_targets[2].x, 49.25);
+        assert_eq!(composed.hit_targets[2].popover_x, 49.25);
     }
 
     #[test]
