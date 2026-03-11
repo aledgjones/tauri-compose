@@ -1,6 +1,6 @@
 # Story 1.5: Add Flow Labels to Multi-Flow Score View
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -162,11 +162,13 @@ GPT-5.4
 
 ### Debug Log References
 
-- Manual verification should include:
-  - one-flow score: confirm the single page stays visually clean and the label treatment remains restrained
-  - two-flow score: confirm each visible page shows the correct flow number and name in the top-left chip and no extra boundary treatment appears beyond the existing page box and gap
-  - compact desktop width: confirm the chip remains visible and legible without obscuring notation
-  - bottom-bar selection context: confirm selected score elements show the selected flow number and name in both Write and Sequence bottom bars when selection summary is available
+- Story closed on 2026-03-11 after live UX review rejected both proposed changes:
+  - native per-page flow labels were considered visually noisy and not worth keeping on the score surface
+  - expanded bottom-bar selection summaries were considered more confusing than helpful
+- The implementation was fully reverted before merge; no renderer, frontend, or test changes from this attempt remain in the codebase.
+- Closure rationale for future context:
+  - do not reintroduce passive page labels by default; this story direction was explicitly rejected after seeing it in the product
+  - do not broaden the bottom-bar selection summary with additional flow context unless a future story reframes the UX problem and validates a different presentation
 
 ### Completion Notes List
 
@@ -174,25 +176,16 @@ GPT-5.4
 - Flow labels are intended as small top-left chips on each visible page using existing flow order and flow title metadata.
 - Bottom-bar selection context is expected to surface flow number and name without changing selection semantics.
 - No dependency upgrade, persistence change, or migration work is expected for this story.
+- Closed without shipping after live review.
+- Reverted the native flow-label implementation completely.
+- Reverted the expanded bottom-bar selection-summary implementation completely.
+- Kept the story artifact as historical context so future work can avoid repeating the same rejected UX direction.
 
 ### File List
 
 - \_bmad-output/implementation-artifacts/1-5-add-flow-labels-to-multi-flow-score-view.md
 - \_bmad-output/implementation-artifacts/sprint-status.yaml
-- \_bmad-output/planning-artifacts/epics.md
-- \_bmad-output/implementation-artifacts/1-3-scroll-across-the-combined-multi-flow-score-width.md
-- \_bmad-output/implementation-artifacts/1-4-make-adjacent-flows-read-as-one-coherent-score.md
-- docs/architecture.md
-- docs/project-context.md
-- src-tauri/src/instructions/mod.rs
-- src-tauri/src/instructions/render_plan.rs
-- src-tauri/src/instructions/draw/draw_names.rs
-- src/windows/main/components/selected-tone-info-display.tsx
-- src/windows/main/components/selected-tone-info-display.test.tsx
-- src/windows/main/hooks/use-selected-tone-info.ts
-- src/windows/main/hooks/use-selected-tempo.ts
-- src/windows/main/hooks/use-selected-time-signature.ts
-- src/windows/main/hooks/use-selected-key-signature.ts
-- src/windows/main/hooks/use-selected-clef.ts
-- src/windows/main/screens/write/index.tsx
-- src/windows/main/screens/sequence/index.tsx
+
+### Change Log
+
+- 2026-03-11: story closed after live UX review rejected both page labels and expanded selection summaries; all implementation work from this attempt was reverted before merge.
