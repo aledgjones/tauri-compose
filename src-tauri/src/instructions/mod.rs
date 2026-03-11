@@ -1322,6 +1322,29 @@ mod tests {
     }
 
     #[test]
+    fn second_flow_preserves_its_rendered_notation_when_composed_into_a_shared_surface() {
+        let app = make_test_app_context(&[10, 20]);
+        let converter = Converter::new(1.0, 1.75);
+
+        let first_segment = build_flow_render_segment(&app, 0, 10, &converter);
+        let second_segment = build_flow_render_segment(&app, 0, 20, &converter);
+        let second_instructions = second_segment.instructions.clone();
+        let second_hit_targets = second_segment.hit_targets.clone();
+
+        let second_offset_spaces = first_segment.width + inter_flow_gap_spaces(&converter);
+        let second_offset_px = converter.spaces_to_px(second_offset_spaces);
+
+        let composed = compose_render_segments(vec![first_segment, second_segment], &converter);
+
+        assert!(second_instructions.iter().all(|instruction| composed
+            .instructions
+            .contains(&instruction.clone().offset(second_offset_px, 0.0))));
+        assert!(second_hit_targets.iter().all(|target| composed
+            .hit_targets
+            .contains(&target.clone().offset(second_offset_spaces, 0.0))));
+    }
+
+    #[test]
     fn compose_render_segments_preserves_flow_owned_selection_payloads() {
         let converter = Converter::new(1.0, 1.0);
         let segments = vec![
