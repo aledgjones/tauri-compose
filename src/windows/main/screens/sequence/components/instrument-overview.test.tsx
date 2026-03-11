@@ -15,6 +15,9 @@ import {
 
 vi.mock("../../../../../services/actions", () => ({
   actions: {
+    ui: {
+      setActiveFlowId: vi.fn(),
+    },
     score: {
       instrument: {
         assignPlugin: vi.fn().mockResolvedValue(undefined),
@@ -98,5 +101,55 @@ describe("InstrumentOverview", () => {
     renderWithProviders(<InstrumentOverview />, { appState });
     // No instruments, flow exists — should render the instrument list area (no 'no flows' message)
     expect(screen.queryByText(/you don't have any flows yet/i)).toBeNull();
+  });
+
+  it("falls back to the first available flow when ui.flow_id is stale", () => {
+    const appState = createAppState({
+      ui: { flow_id: 99 } as never,
+      score: {
+        flows: {
+          order: [1, 2],
+          by_id: {
+            1: { ...mockFlow, id: 1, title: "Flow A", player_ids: [] },
+            2: { ...mockFlow, id: 2, title: "Flow B", player_ids: [] },
+          },
+        },
+      } as never,
+    });
+
+    renderWithProviders(<InstrumentOverview />, { appState });
+
+    expect(screen.queryByText(/you don't have any flows yet/i)).toBeNull();
+    expect(
+      screen.getByRole("button", { name: "1. Flow A" }),
+    ).toBeInTheDocument();
+  });
+
+  it("renders the flow picker inside the sticky left overview header when multiple flows exist", () => {
+    const appState = createAppState({
+      ui: { flow_id: 2 } as never,
+      score: {
+        flows: {
+          order: [1, 2],
+          by_id: {
+            1: { ...mockFlow, id: 1, title: "Flow A" },
+            2: { ...mockFlow, id: 2, title: "Flow B" },
+          },
+        },
+        players: {
+          order: [10],
+          by_id: { 10: mockPlayer },
+        },
+        instruments: {
+          by_id: { 20: mockInstrument },
+        },
+      } as never,
+    });
+
+    renderWithProviders(<InstrumentOverview />, { appState });
+
+    expect(
+      screen.getByRole("button", { name: "2. Flow B" }),
+    ).toBeInTheDocument();
   });
 });

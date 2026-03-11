@@ -54,7 +54,7 @@ development_status:
   2-2-select-score-content-in-either-visible-flow: done
   2-3-preserve-stable-selection-while-one-visible-flow-updates: done
   2-4-open-contextual-popovers-within-the-multi-flow-score-surface: done
-  2-5-preserve-single-active-flow-behavior-across-score-and-sequencer-contexts: backlog
+  2-5-preserve-single-active-flow-behavior-across-score-and-sequencer-contexts: done
   epic-2-retrospective: optional
 
   epic-3: backlog

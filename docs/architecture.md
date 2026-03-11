@@ -78,6 +78,13 @@ Four React contexts mirror the backend state:
 
 **Exception:** Transport state uses `requestAnimationFrame` polling during playback to keep the transport thread silent (no `app.emit()` during playback).
 
+### Active-flow ownership
+
+- `ui.flow_id` is the single authoritative active-flow slot across score, Sequence, miniature piano rolls, and transport tempo resolution.
+- Explicit Sequence-local flow switching updates `ui.flow_id` directly; the shared top bar does not own a workflow-specific flow selector.
+- Deliberate score-object selection may hand off `ui.flow_id` to the selected object's flow through the backend selection seam.
+- Passive score interactions such as pan, zoom, hover, and miss-to-clear do not change `ui.flow_id`.
+
 ---
 
 ## Score Render Pipeline

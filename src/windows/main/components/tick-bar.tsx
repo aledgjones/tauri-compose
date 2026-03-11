@@ -5,9 +5,14 @@ import classNames from "classnames";
 type TickBarProps = {
   ticks: TickConfig;
   className?: string;
+  barNumberClassName?: string;
 };
 
-export const TickBar: FC<TickBarProps> = ({ ticks, className }) => {
+export const TickBar: FC<TickBarProps> = ({
+  ticks,
+  className,
+  barNumberClassName = "leading-7",
+}) => {
   return (
     <div
       className={classNames("h-7", className)}
@@ -25,7 +30,12 @@ export const TickBar: FC<TickBarProps> = ({ ticks, className }) => {
               })}
             >
               {entry.barNumber && (
-                <p className="text-white h-full pl-3 text-xs leading-7">
+                <p
+                  className={classNames(
+                    "text-white h-full pl-3 text-xs",
+                    barNumberClassName,
+                  )}
+                >
                   {entry.barNumber}
                 </p>
               )}

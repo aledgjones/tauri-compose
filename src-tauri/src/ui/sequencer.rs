@@ -2,6 +2,10 @@ use crate::score::components::duration::NoteDuration;
 use crate::utils::UniqueId;
 use crate::AppContextState;
 use crate::RendererContextState;
+use crate::{
+    playback::transport::{sync_transport_to_app_state, TransportSharedState},
+    ui::Ui,
+};
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use tauri::State;
@@ -46,6 +50,19 @@ pub enum Selection {
     },
 }
 
+impl Selection {
+    fn flow_id(&self) -> UniqueId {
+        match self {
+            Selection::Tone { flow_id, .. }
+            | Selection::Rest { flow_id, .. }
+            | Selection::Tempo { flow_id, .. }
+            | Selection::TimeSignature { flow_id, .. }
+            | Selection::KeySignature { flow_id, .. }
+            | Selection::Clef { flow_id, .. } => *flow_id,
+        }
+    }
+}
+
 #[derive(Serialize_repr, Deserialize_repr, Clone)]
 #[repr(u8)]
 pub enum Tool {
@@ -80,6 +97,11 @@ impl Sequencer {
             selection: None,
         }
     }
+}
+
+fn apply_selection(ui: &mut Ui, selection: Selection) {
+    ui.flow_id = Some(selection.flow_id());
+    ui.sequencer.selection = Some(selection);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -165,6 +187,7 @@ pub fn ui_sequencer_selection_set_tone(
     app: tauri::AppHandle,
     state: State<'_, AppContextState>,
     renderer_state: State<'_, RendererContextState>,
+    transport_shared: State<'_, TransportSharedState>,
     flow_id: UniqueId,
     instrument_id: UniqueId,
     stave_id: UniqueId,
@@ -174,13 +197,17 @@ pub fn ui_sequencer_selection_set_tone(
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
 
-    state.ui.sequencer.selection = Some(Selection::Tone {
-        flow_id,
-        instrument_id,
-        stave_id,
-        track_id,
-        tone_id,
-    });
+    apply_selection(
+        &mut state.ui,
+        Selection::Tone {
+            flow_id,
+            instrument_id,
+            stave_id,
+            track_id,
+            tone_id,
+        },
+    );
+    sync_transport_to_app_state(transport_shared.inner(), &state, 0);
 
     state.emit(&app, &mut renderer, true);
 }
@@ -191,6 +218,7 @@ pub fn ui_sequencer_selection_set_rest(
     app: tauri::AppHandle,
     state: State<'_, AppContextState>,
     renderer_state: State<'_, RendererContextState>,
+    transport_shared: State<'_, TransportSharedState>,
     flow_id: UniqueId,
     instrument_id: UniqueId,
     stave_id: UniqueId,
@@ -200,13 +228,17 @@ pub fn ui_sequencer_selection_set_rest(
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
 
-    state.ui.sequencer.selection = Some(Selection::Rest {
-        flow_id,
-        instrument_id,
-        stave_id,
-        track_id,
-        tick,
-    });
+    apply_selection(
+        &mut state.ui,
+        Selection::Rest {
+            flow_id,
+            instrument_id,
+            stave_id,
+            track_id,
+            tick,
+        },
+    );
+    sync_transport_to_app_state(transport_shared.inner(), &state, 0);
 
     state.emit(&app, &mut renderer, true);
 }
@@ -216,6 +248,7 @@ pub fn ui_sequencer_selection_set_tempo(
     app: tauri::AppHandle,
     state: State<'_, AppContextState>,
     renderer_state: State<'_, RendererContextState>,
+    transport_shared: State<'_, TransportSharedState>,
     flow_id: UniqueId,
     tempo_id: UniqueId,
     tick: u64,
@@ -223,11 +256,15 @@ pub fn ui_sequencer_selection_set_tempo(
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
 
-    state.ui.sequencer.selection = Some(Selection::Tempo {
-        flow_id,
-        tempo_id,
-        tick,
-    });
+    apply_selection(
+        &mut state.ui,
+        Selection::Tempo {
+            flow_id,
+            tempo_id,
+            tick,
+        },
+    );
+    sync_transport_to_app_state(transport_shared.inner(), &state, 0);
 
     state.emit(&app, &mut renderer, true);
 }
@@ -237,6 +274,7 @@ pub fn ui_sequencer_selection_set_time_signature(
     app: tauri::AppHandle,
     state: State<'_, AppContextState>,
     renderer_state: State<'_, RendererContextState>,
+    transport_shared: State<'_, TransportSharedState>,
     flow_id: UniqueId,
     time_signature_id: UniqueId,
     tick: u64,
@@ -244,11 +282,15 @@ pub fn ui_sequencer_selection_set_time_signature(
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
 
-    state.ui.sequencer.selection = Some(Selection::TimeSignature {
-        flow_id,
-        time_signature_id,
-        tick,
-    });
+    apply_selection(
+        &mut state.ui,
+        Selection::TimeSignature {
+            flow_id,
+            time_signature_id,
+            tick,
+        },
+    );
+    sync_transport_to_app_state(transport_shared.inner(), &state, 0);
 
     state.emit(&app, &mut renderer, true);
 }
@@ -258,6 +300,7 @@ pub fn ui_sequencer_selection_set_key_signature(
     app: tauri::AppHandle,
     state: State<'_, AppContextState>,
     renderer_state: State<'_, RendererContextState>,
+    transport_shared: State<'_, TransportSharedState>,
     flow_id: UniqueId,
     key_signature_id: UniqueId,
     tick: u64,
@@ -265,20 +308,26 @@ pub fn ui_sequencer_selection_set_key_signature(
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
 
-    state.ui.sequencer.selection = Some(Selection::KeySignature {
-        flow_id,
-        key_signature_id,
-        tick,
-    });
+    apply_selection(
+        &mut state.ui,
+        Selection::KeySignature {
+            flow_id,
+            key_signature_id,
+            tick,
+        },
+    );
+    sync_transport_to_app_state(transport_shared.inner(), &state, 0);
 
     state.emit(&app, &mut renderer, true);
 }
 
+#[allow(clippy::too_many_arguments)]
 #[tauri::command(rename_all = "snake_case")]
 pub fn ui_sequencer_selection_set_clef(
     app: tauri::AppHandle,
     state: State<'_, AppContextState>,
     renderer_state: State<'_, RendererContextState>,
+    transport_shared: State<'_, TransportSharedState>,
     flow_id: UniqueId,
     stave_id: UniqueId,
     clef_id: UniqueId,
@@ -287,12 +336,16 @@ pub fn ui_sequencer_selection_set_clef(
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
 
-    state.ui.sequencer.selection = Some(Selection::Clef {
-        flow_id,
-        stave_id,
-        clef_id,
-        tick,
-    });
+    apply_selection(
+        &mut state.ui,
+        Selection::Clef {
+            flow_id,
+            stave_id,
+            clef_id,
+            tick,
+        },
+    );
+    sync_transport_to_app_state(transport_shared.inner(), &state, 0);
 
     state.emit(&app, &mut renderer, true);
 }
@@ -313,7 +366,34 @@ pub fn ui_sequencer_selection_clear(
 
 #[cfg(test)]
 mod tests {
-    use super::Selection;
+    use super::{apply_selection, Selection};
+    use crate::ui::Ui;
+
+    #[test]
+    fn apply_selection_updates_the_shared_active_flow() {
+        let mut ui = Ui::new();
+
+        apply_selection(
+            &mut ui,
+            Selection::Clef {
+                flow_id: 11,
+                stave_id: 12,
+                clef_id: 13,
+                tick: 96,
+            },
+        );
+
+        assert_eq!(ui.flow_id, Some(11));
+        assert_eq!(
+            ui.sequencer.selection,
+            Some(Selection::Clef {
+                flow_id: 11,
+                stave_id: 12,
+                clef_id: 13,
+                tick: 96,
+            })
+        );
+    }
 
     #[test]
     fn tempo_selection_serializes_with_expected_shape() {

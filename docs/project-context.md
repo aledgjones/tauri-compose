@@ -93,6 +93,8 @@ _This file contains critical rules and patterns that AI agents must follow when 
 - Transport polling uses `requestAnimationFrame` loop — no events during playback to keep transport thread silent
 - Multi-window app: 8 HTML entry points, each mounts its own `AppStateProvider` in `boot.tsx`
 - All mutations go through the `actions` object in `actions.ts` via `invoke()` — never manipulate state directly
+- `ui.flow_id` is the one authoritative active-flow slot for score, Sequence, miniature piano rolls, and transport-derived tempo state; deliberate score-object selection may update it, but pan/zoom/hover/miss-to-clear must not
+- The shared top bar is reserved for universal controls (tabs, layout, transport, tools); workflow-specific single-flow switching belongs inside the owning workflow surface such as Sequence
 - UI styling: Tailwind utility classes + `classnames` — dark theme (neutral-900 base, sky-500 accents, transparent backgrounds)
 
 #### Score Render Pipeline

@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useAppState } from "../../../services/state";
 import { SelectOption } from "../../../ui/select";
 import { UniqueId, Instrument } from "../../../services/types";
+import { getFlowName } from "../../../services/utils";
 
 const ALPHABET = ["A", "B"];
 const TRACK_LABEL = ["Up-stem", "Down-stem"];
@@ -25,6 +26,19 @@ export const useBottomPanelState = () => {
         instrument.long_name + (instrument.count ? ` ${instrument.count}` : ""),
     }));
   }, [instruments]);
+
+  const flowOptions: SelectOption<UniqueId>[] = useMemo(() => {
+    return state.score.flows.order.flatMap((candidateFlowId, index) => {
+      if (!state.score.flows.by_id[candidateFlowId]) {
+        return [];
+      }
+
+      return {
+        value: candidateFlowId,
+        label: getFlowName(state, index, candidateFlowId),
+      };
+    });
+  }, [state]);
 
   const flowId = useMemo(() => {
     if (state.score.flows.order.length === 0) {
@@ -122,6 +136,7 @@ export const useBottomPanelState = () => {
   return {
     instruments,
     instrumentOptions,
+    flowOptions,
     flowId,
     instrumentId,
     tracks,

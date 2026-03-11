@@ -10,6 +10,7 @@ import { NoteDuration, Tool } from "../../../services/types";
 vi.mock("../../../services/actions", () => ({
   actions: {
     ui: {
+      setActiveFlowId: vi.fn(),
       sequencer: {
         setTool: vi.fn(),
         setSnap: vi.fn(),
@@ -25,6 +26,8 @@ import { actions } from "../../../services/actions";
 
 const baseToolbarProps = {
   tool: Tool.Select,
+  flowId: null,
+  flowOptions: [],
   instrumentId: null,
   instruments: [],
   trackId: null,
@@ -116,6 +119,23 @@ describe("SequencerToolbar", () => {
       />,
     );
     expect(screen.queryByText("Piano")).toBeNull();
+  });
+
+  it("renders a flow selector when multiple flow options exist", () => {
+    renderWithProviders(
+      <SequencerToolbar
+        {...baseToolbarProps}
+        flowId={2}
+        flowOptions={[
+          { value: 1, label: "1. Flow A" },
+          { value: 2, label: "2. Flow B" },
+        ]}
+      />,
+    );
+
+    expect(
+      screen.getByRole("button", { name: "2. Flow B" }),
+    ).toBeInTheDocument();
   });
 });
 

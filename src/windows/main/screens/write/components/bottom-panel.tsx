@@ -24,6 +24,7 @@ export const BottomPanel: FC = () => {
   const {
     instruments,
     instrumentOptions,
+    flowOptions,
     flowId,
     instrumentId,
     tracks,
@@ -39,6 +40,8 @@ export const BottomPanel: FC = () => {
         {tab === BottomPanelTab.Sequencer && (
           <SequencerToolbar
             tool={tool}
+            flowId={flowId}
+            flowOptions={flowOptions}
             instrumentId={instrumentId}
             instruments={instrumentOptions}
             trackId={trackId}
