@@ -88,6 +88,7 @@ NFR15: Accessibility improvements for this feature must not come at the expense 
 - Render timing instrumentation must be extended to cover multi-flow scenarios as part of the feature contract.
 - Regression protection is mandatory around written durations, notation behavior, hit-testing, and interaction continuity.
 - The UX shell remains VS Code-inspired: workflow tabs left, playback centered, tools right, with the score as the dominant work surface.
+- The shared top bar should contain universal tools and information only; flow-specific selectors belong inside the score, sequencer, piano-roll, or other workflow-local surfaces that actually depend on a single active flow.
 - The product remains macOS-first, desktop-first, and offline-first; no network dependency or cloud assumption can enter MVP.
 - The current note-entry model remains sequencer-first for primary input; score interaction remains focused on editing and directive popovers unless explicitly changed later.
 - Popovers and contextual editing should remain local, orientation-preserving interactions instead of large modal flows.
@@ -282,43 +283,76 @@ So that the multi-flow score view reads like one document instead of stitched-to
 **Then** notation-derivation and written-duration behavior remain unchanged
 **And** the boundary treatment provides sufficient visual coherence for readable two-flow score presentation without altering interaction behavior
 
-### Story 1.5: Add Flow Orientation Cues to Multi-Flow Score View
+### Story 1.5: Add Flow Labels to Multi-Flow Score View
 
 As a composer,
-I want the score view to show clear flow boundaries and current flow context,
-So that I can stay oriented while reading across multiple visible flows.
+I want each visible flow to show a small identifying label,
+So that I can tell which flow I am reading without adding more visual noise or changing interaction behavior.
 
 **Acceptance Criteria:**
 
 **Given** two flows are rendered in the same score surface
 **When** the score view is displayed
-**Then** each flow boundary is visually identifiable
-**And** the user can distinguish the relative order of the visible flows without extra navigation
+**Then** each visible flow page shows a small label at its top-left corner
+**And** the label includes the flow number and flow name
 
-**Given** multiple flows are visible in the score view
-**When** the current flow context is shown
-**Then** the UI provides a visible indication of the active or current flow position
-**And** the cue does not require full editing interaction changes to be implemented in this story
+**Given** visible flow labels are shown
+**When** a user reads across the multi-flow score surface
+**Then** the labels help identify visible flows and their order
+**And** no additional boundary treatment is added beyond the existing page box and inter-flow gap
 
 **Given** multiple flows are visible at compact desktop width with secondary panels collapsed
-**When** the score view remains the primary work surface
-**Then** flow boundaries and current-flow cues remain visible within the reduced workspace
-**And** the shell preserves the same score-first layout structure without switching to an alternate navigation model
+**When** the score remains the primary work surface
+**Then** each visible flow label remains visible and legible within the reduced workspace
+**And** the shell preserves the same score-first layout structure without introducing a different navigation model
 
-**Given** visible flow-orientation cues are present
-**When** a user relies on contrast or shape rather than color alone
-**Then** the current-flow cue remains distinguishable without depending solely on accent color
-**And** score readability remains intact
+**Given** visible flow labels are present
+**When** the score view is rendered
+**Then** the label styling uses the product accent treatment in a restrained way
+**And** the labels do not interfere with notation readability or obscure score content
 
-**Given** a score with one visible flow
+**Given** only one flow is visible
 **When** the score view renders
-**Then** the orientation cue behavior does not degrade the current single-flow experience
-**And** score readability remains intact
+**Then** the label treatment does not degrade the single-flow reading experience
+**And** the score remains visually clean
 
-**Given** this orientation increment is validated
-**When** the score view is reviewed end to end for Epic 1
-**Then** composers can read across multiple visible flows with clearer spatial understanding
-**And** the orientation cues remain useful before later interaction stories add selection and popover behavior across flows
+**Given** a score element is selected
+**When** selection context is shown in the bottom bar
+**Then** the selection display includes the selected flow number and name
+**And** this does not change how selection, active flow, or editing behavior works
+
+### Story 1.6: Render All Visible Flows in One Continuous Score Surface
+
+As a composer,
+I want score view to render every visible flow in sequence on the shared score surface,
+So that the multi-flow reading model extends from the initial two-flow slice to the full score I chose to display.
+
+**Acceptance Criteria:**
+
+**Given** a layout contains more than two visible flows
+**When** the score view renders through the updated multi-flow path
+**Then** all visible flows in the layout are composed into the shared score surface in `score.flows.order`
+**And** no arbitrary two-flow cap truncates the visible reading path
+
+**Given** all visible flows are composed into one score surface
+**When** the combined rendered extent exceeds the current visible viewport
+**Then** the user can continue reading across the full visible-flow sequence through the existing shared navigation model
+**And** the score view does not require any top-bar flow picker for basic score reading
+
+**Given** a layout contains one or two visible flows
+**When** the updated render path runs
+**Then** existing single-flow and two-flow behavior remains correct
+**And** the earlier Epic 1 presentation refinements remain intact
+
+**Given** all visible flows are rendered in sequence
+**When** the score view is shown at compact desktop width with secondary panels collapsed
+**Then** the score remains the primary work surface
+**And** the shell does not switch to a different navigation model to reach later visible flows
+
+**Given** all-visible-flow rendering is validated
+**When** notation and performance are reviewed end to end
+**Then** notation-derivation and persisted score semantics remain unchanged
+**And** the expanded composed surface remains compatible with the broader multi-flow performance and recalculation guardrails planned in later epics
 
 ## Epic 2: Interact Confidently Within Multi-Flow Score View
 
@@ -501,6 +535,16 @@ So that the broader editing model stays coherent while the score view becomes mo
 **When** sequencer or piano-roll context is shown
 **Then** the single active flow remains clearly defined
 **And** multi-flow score visibility does not imply multi-flow sequencer activity
+
+**Given** multi-flow score view is available while sequencer and piano-roll workflows remain single-flow
+**When** the user needs to change the active flow for those workflows
+**Then** workflow-local controls inside those screens provide an explicit way to switch the single active flow
+**And** score reading does not depend on that control for basic navigation across visible flows
+
+**Given** the application shell is shown across score, sequencer, and other workflows
+**When** multi-flow score view is active
+**Then** the shared top bar remains limited to universal tools and information
+**And** single-flow selectors for sequencer, piano-roll, playback, or related workflows are integrated into the relevant workflow-local surfaces instead of the top bar
 
 **Given** a user is working in a single-flow score scenario
 **When** score, sequencer, and piano-roll behaviors run through the updated model
@@ -715,6 +759,11 @@ So that the application still feels like a reliable native document tool.
 **When** secondary panels collapse or expand around the score view
 **Then** document, playback, and tool workflows remain reachable through the same top-level shell structure
 **And** multi-flow score view remains the primary visible work surface without introducing a different navigation model
+
+**Given** the shared top bar is visible across all workflows
+**When** the multi-flow feature is exercised across score, sequencer, and playback contexts
+**Then** the top bar continues to present only universal tools and information
+**And** workflow-specific flow selectors do not occupy persistent shared shell chrome
 
 **Given** this desktop-workflow increment is validated
 **When** the broader feature is reviewed

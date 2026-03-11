@@ -35,7 +35,7 @@ so that the multi-flow score view reads like one document instead of stitched-to
 - [x] Protect single-flow behavior and future layout evolution (AC: 3, 4)
   - [x] Preserve current single-flow presentation when fewer than two visible flows are composed.
   - [x] Do not take on selection, hit-testing, popovers, or active-flow semantics changes; those remain in later Epic 2 stories.
-  - [x] Avoid hard-coding assumptions that would block Story 1.5 flow-orientation cues or future frame/page-layout work.
+  - [x] Avoid hard-coding assumptions that would block Story 1.5 flow labels or future frame/page-layout work.
 - [x] Add focused regression coverage and verification for coherent adjacent-flow presentation (AC: 1, 2, 3, 4)
   - [x] Add Rust tests near the shared-surface composition seam to verify adjacent-flow composition can suppress or preserve page-start elements intentionally without regressing single-flow output.
   - [x] Extend diagnostics or manual verification only where needed so maintainers can confirm the second visible flow no longer looks like a duplicated page fragment while renderer extents and scrolling remain correct.
