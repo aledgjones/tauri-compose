@@ -412,7 +412,7 @@ Requirement identifiers in the Functional Requirements and Non-Functional Requir
 - FR33: The product can support future portability of score files, settings, and templates without requiring account-based sync in this MVP.
 - FR34: The product can remain usable as a fully offline-first composition environment even as future optional sync capabilities are considered.
 - FR35: Maintainers can evolve score presentation architecture without treating notation logic as part of the same capability change.
-- FR36: Maintainers can access render-timing output covering multi-flow rendering scenarios to validate correctness and performance during development, extending existing single-flow timing instrumentation where necessary.
+- FR36: Maintainers can access render-timing output covering unified-renderer flow scope and recalculation scope so correctness and performance can be validated during development.
 
 ## Non-Functional Requirements
 

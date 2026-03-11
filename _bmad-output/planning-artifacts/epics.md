@@ -55,7 +55,7 @@ FR32: Composers can keep a single active flow for sequencer and piano-roll workf
 FR33: The product can support future portability of score files, settings, and templates without requiring account-based sync in this MVP.
 FR34: The product can remain usable as a fully offline-first composition environment even as future optional sync capabilities are considered.
 FR35: Maintainers can evolve score presentation architecture without treating notation logic as part of the same capability change.
-FR36: Maintainers can access render-timing output covering multi-flow rendering scenarios to validate correctness and performance during development, extending existing single-flow timing instrumentation where necessary.
+FR36: Maintainers can access render-timing output covering unified-renderer flow scope and recalculation scope so correctness and performance can be validated during development.
 
 ### NonFunctional Requirements
 
@@ -525,14 +525,14 @@ Composers and maintainers can rely on multi-flow rendering to preserve notation 
 ### Story 3.1: Add Multi-Flow Render and Recalculation Visibility
 
 As a maintainer,
-I want render timing and diagnostic output to distinguish multi-flow work from single-flow work,
+I want render timing and diagnostic output to show which flows the unified render path processed and how much work each render or recalculation pass performed,
 So that multi-flow rendering can be evolved through small changes with evidence rather than guesswork.
 
 **Acceptance Criteria:**
 
-**Given** the score view render pipeline supports multi-flow composition inputs
+**Given** the score view render pipeline supports unified flow composition inputs
 **When** a score render completes
-**Then** timing output distinguishes single-flow and multi-flow rendering work
+**Then** timing output shows which flows were prepared and composed
 **And** the output exposes enough detail to understand which part of the render path was exercised
 
 **Given** a score with multiple flows
@@ -540,9 +540,9 @@ So that multi-flow rendering can be evolved through small changes with evidence 
 **Then** the diagnostic output shows whether the work was scoped to one flow or multiple flows
 **And** the instrumentation is sufficient to support later invalidation improvements
 
-**Given** a score with one flow
+**Given** the renderer is provided any valid set of visible flows
 **When** timing output is collected through the updated path
-**Then** existing single-flow timing visibility remains available
+**Then** existing timing visibility remains available for that pass
 **And** the instrumentation change does not alter score output behavior
 
 **Given** this observability increment is implemented
