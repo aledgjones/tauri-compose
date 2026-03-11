@@ -104,6 +104,7 @@ describe("Write BottomPanel", () => {
       } as never,
     });
     renderWithProviders(<BottomPanel />, { appState });
-    expect(screen.getByText("No selection")).toBeInTheDocument();
+    expect(screen.queryByText("No selection")).not.toBeInTheDocument();
+    expect(screen.getAllByRole("button")).toHaveLength(3);
   });
 });

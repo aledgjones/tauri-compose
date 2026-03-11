@@ -1,16 +1,19 @@
 mod draw;
 mod parse;
+mod render_plan;
+
+pub use render_plan::{prepare_flow_render_plan, FlowRenderPlan, FlowRenderPreparationDiagnostics};
 
 use crate::instructions::parse::get_horizontal_spacing::HorizontalSpacing;
 use crate::renderer::converter::{Converter, Space};
 use crate::renderer::text_measurer::TextMeasurer;
 use crate::renderer::RendererContext;
+use crate::renderer::{DrawInstruction, HitTarget};
 use crate::score::components::duration::{Direction, Ticks};
 use crate::score::components::measurements::Point;
 use crate::score::entries::barline::BarlineDrawType;
 use crate::score::entries::clef::Clef;
 use crate::score::entries::tempo::TEMPO_STAVE_OFFSET;
-use crate::utils::UniqueId;
 use crate::AppContext;
 use draw::draw_accidentals::draw_accidental;
 use draw::draw_articulations::draw_articulations;
@@ -51,50 +54,160 @@ use parse::get_vertical_spacing::get_vertical_spacing;
 use parse::get_vertical_spans::get_vertical_spans;
 use parse::get_written_durations::get_written_durations;
 use skia_safe::Color;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 use tauri::Emitter;
 
-pub fn generate_render_instructions(
-    app: &tauri::AppHandle,
-    state: &AppContext,
-    renderer: &mut RendererContext,
-    layout_id: UniqueId,
-    flow_id: UniqueId,
-) {
-    let total_start = Instant::now();
+const MIN_INTER_FLOW_GAP_PX: f32 = 20.0;
 
+#[derive(Clone, Copy, Default)]
+struct RenderPhaseTimings {
+    vertical: Duration,
+    layout: Duration,
+    structure: Duration,
+    notation: Duration,
+    elements: Duration,
+    spacing: Duration,
+    stems: Duration,
+    setup: Duration,
+    barlines: Duration,
+    stave: Duration,
+}
+
+impl RenderPhaseTimings {
+    fn add_assign(&mut self, other: Self) {
+        self.vertical += other.vertical;
+        self.layout += other.layout;
+        self.structure += other.structure;
+        self.notation += other.notation;
+        self.elements += other.elements;
+        self.spacing += other.spacing;
+        self.stems += other.stems;
+        self.setup += other.setup;
+        self.barlines += other.barlines;
+        self.stave += other.stave;
+    }
+}
+
+#[derive(Clone)]
+struct FlowRenderSegment {
+    width: Space,
+    height: Space,
+    instructions: Vec<DrawInstruction>,
+    hit_targets: Vec<HitTarget>,
+    timings: RenderPhaseTimings,
+}
+
+struct ComposedFlowSurface {
+    width: Space,
+    height: Space,
+    instructions: Vec<DrawInstruction>,
+    hit_targets: Vec<HitTarget>,
+}
+
+fn inter_flow_gap_spaces(converter: &Converter) -> Space {
+    converter.px_to_spaces(MIN_INTER_FLOW_GAP_PX)
+}
+
+fn make_segment_renderer(converter: &Converter) -> RendererContext {
+    RendererContext {
+        backend: None,
+        converter: converter.clone(),
+        px_per_mm: converter.px_per_mm,
+        instructions: Vec::new(),
+        width: 0.0,
+        height: 0.0,
+        hit_targets: Vec::new(),
+        bounds: (0.0, 0.0, 0.0, 0.0),
+        pixel_density: 1.0,
+    }
+}
+
+fn compose_render_segments(
+    segments: Vec<FlowRenderSegment>,
+    converter: &Converter,
+) -> ComposedFlowSurface {
+    let gap = if segments.len() > 1 {
+        inter_flow_gap_spaces(converter)
+    } else {
+        0.0
+    };
+
+    let mut width: Space = 0.0;
+    let mut height: Space = 0.0;
+    let mut cursor_x: Space = 0.0;
+    let mut instructions = Vec::new();
+    let mut hit_targets = Vec::new();
+    let segment_count = segments.len();
+
+    for (index, segment) in segments.into_iter().enumerate() {
+        let x_offset_px = converter.spaces_to_px(cursor_x);
+
+        instructions.extend(
+            segment
+                .instructions
+                .into_iter()
+                .map(|instruction| instruction.offset(x_offset_px, 0.0)),
+        );
+        hit_targets.extend(
+            segment
+                .hit_targets
+                .into_iter()
+                .map(|target| target.offset(cursor_x, 0.0)),
+        );
+
+        cursor_x += segment.width;
+        if index + 1 < segment_count {
+            cursor_x += gap;
+        }
+
+        width = f32::max(width, cursor_x);
+        height = f32::max(height, segment.height);
+    }
+
+    ComposedFlowSurface {
+        width,
+        height,
+        instructions,
+        hit_targets,
+    }
+}
+
+fn build_flow_render_segment(
+    state: &AppContext,
+    layout_id: crate::utils::UniqueId,
+    flow_id: crate::utils::UniqueId,
+    converter: &Converter,
+) -> FlowRenderSegment {
     let flow = &state.score.flows.by_id[&flow_id];
     let flow_master = &state.score.tracks.by_id[&flow.master_id];
     let layout = &state.score.layouts.by_id[&layout_id];
     let instruments = state.get_instruments(layout, flow);
     let engrave = &state.score.engraves.by_layout_type[&layout.layout_type];
 
-    let converter = Converter::new(renderer.px_per_mm, engrave.space);
-    let text_measurer = TextMeasurer::new(&converter);
+    let text_measurer = TextMeasurer::new(converter);
     let selection = state.ui.sequencer.selection.as_ref();
+    let mut segment_renderer = make_segment_renderer(converter);
 
-    // Phase 1: Vertical spacing and spans
+    let mut timings = RenderPhaseTimings::default();
+
     let vertical_start = Instant::now();
     let vertical_spacing = get_vertical_spacing(flow, &instruments, engrave);
     let vertical_spans = get_vertical_spans(&instruments, engrave);
-    let vertical_duration = vertical_start.elapsed();
+    timings.vertical = vertical_start.elapsed();
 
-    // Phase 2: Basic layout calculations
     let layout_start = Instant::now();
     let page_padding = engrave.page_padding.to_spaces(&engrave.space);
     let max_name_width = get_max_instrument_name_width(&instruments, engrave, &text_measurer);
     let max_bracket_width = get_max_brackets_width(&vertical_spacing, &vertical_spans, engrave);
-    let layout_duration = layout_start.elapsed();
+    timings.layout = layout_start.elapsed();
 
-    // Phase 3: Score structure parsing
     let structure_start = Instant::now();
     let measures = get_measures(flow, &state.score.tracks);
     let barlines = get_barlines(flow, &state.score.tracks, &measures);
     let key_signatures = get_key_signatures(flow, &state.score.tracks);
     let tone_offsets = get_tone_offsets(flow, &instruments, &state.score.tracks);
-    let structure_duration = structure_start.elapsed();
+    timings.structure = structure_start.elapsed();
 
-    // Phase 4: Notation analysis
     let notation_start = Instant::now();
     let notation_by_track = get_written_durations(
         flow,
@@ -103,9 +216,8 @@ pub fn generate_render_instructions(
         &measures,
         &tone_offsets,
     );
-    let notation_duration = notation_start.elapsed();
+    timings.notation = notation_start.elapsed();
 
-    // Phase 5: Musical elements analysis
     let elements_start = Instant::now();
     let beams_by_track = get_beams(flow, &notation_by_track, &measures);
     let stem_directions_by_track = get_stem_directions(&notation_by_track, &beams_by_track);
@@ -121,9 +233,8 @@ pub fn generate_render_instructions(
         &tone_offsets,
         &shunts_by_track,
     );
-    let elements_duration = elements_start.elapsed();
+    timings.elements = elements_start.elapsed();
 
-    // Phase 6: Horizontal spacing
     let spacing_start = Instant::now();
     let horizontal_spacing = get_horizontal_spacing(
         flow,
@@ -137,9 +248,8 @@ pub fn generate_render_instructions(
         &accidentals_by_track,
         engrave,
     );
-    let spacing_duration = spacing_start.elapsed();
+    timings.spacing = spacing_start.elapsed();
 
-    // Phase 7: Stem lengths
     let stems_start = Instant::now();
     let stem_lengths_by_track = get_stem_lengths(
         &notation_by_track,
@@ -148,23 +258,16 @@ pub fn generate_render_instructions(
         engrave,
         &horizontal_spacing,
     );
-    let stems_duration = stems_start.elapsed();
+    timings.stems = stems_start.elapsed();
 
-    // Phase 8: Setup and basic drawing
     let setup_start = Instant::now();
     let stave_left =
         page_padding.left + max_name_width + engrave.instrument_name_spacing + max_bracket_width;
     let height = page_padding.top + vertical_spacing.height + page_padding.bottom;
     let width = stave_left + horizontal_spacing.width + page_padding.right;
 
-    renderer.instructions.clear();
-    renderer.hit_targets.clear();
-    renderer.converter = converter.clone();
-    renderer.width = width;
-    renderer.height = height;
-
-    // Draw white background for the score page
-    renderer.rectangle(0.0, 0.0, width, height, skia_safe::Color::WHITE);
+    segment_renderer.width = width;
+    segment_renderer.height = height;
 
     draw_names(
         &Point {
@@ -175,7 +278,7 @@ pub fn generate_render_instructions(
         &vertical_spacing,
         engrave,
         state.ui.renderer.debug,
-        renderer,
+        &mut segment_renderer,
     );
 
     draw_braces(
@@ -185,7 +288,7 @@ pub fn generate_render_instructions(
         },
         &vertical_spans,
         &vertical_spacing,
-        renderer,
+        &mut segment_renderer,
     );
 
     draw_brackets(
@@ -196,7 +299,7 @@ pub fn generate_render_instructions(
         &vertical_spans,
         &vertical_spacing,
         engrave,
-        renderer,
+        &mut segment_renderer,
     );
 
     draw_sub_brackets(
@@ -206,7 +309,7 @@ pub fn generate_render_instructions(
         },
         &vertical_spans,
         &vertical_spacing,
-        renderer,
+        &mut segment_renderer,
     );
 
     draw_systemic_barline(
@@ -216,7 +319,7 @@ pub fn generate_render_instructions(
         },
         &vertical_spacing,
         engrave,
-        renderer,
+        &mut segment_renderer,
     );
 
     draw_staves(
@@ -228,11 +331,10 @@ pub fn generate_render_instructions(
         flow,
         &instruments,
         &vertical_spacing,
-        renderer,
+        &mut segment_renderer,
     );
-    let setup_duration = setup_start.elapsed();
+    timings.setup = setup_start.elapsed();
 
-    // Phase 9: Barlines
     let barlines_start = Instant::now();
     for (tick, def) in barlines {
         if def.start_repeat {
@@ -245,7 +347,7 @@ pub fn generate_render_instructions(
                 &BarlineDrawType::StartRepeat,
                 &vertical_spacing,
                 &vertical_spans,
-                renderer,
+                &mut segment_renderer,
             );
         }
 
@@ -259,7 +361,7 @@ pub fn generate_render_instructions(
                 &BarlineDrawType::EndRepeat,
                 &vertical_spacing,
                 &vertical_spans,
-                renderer,
+                &mut segment_renderer,
             );
         }
 
@@ -273,7 +375,7 @@ pub fn generate_render_instructions(
                 &draw_type,
                 &vertical_spacing,
                 &vertical_spans,
-                renderer,
+                &mut segment_renderer,
             );
         }
     }
@@ -288,9 +390,9 @@ pub fn generate_render_instructions(
         &BarlineDrawType::Final,
         &vertical_spacing,
         &vertical_spans,
-        renderer,
+        &mut segment_renderer,
     );
-    let barlines_duration = barlines_start.elapsed();
+    timings.barlines = barlines_start.elapsed();
 
     if let Some(first_instrument) = instruments.first() {
         if let Some(first_stave_id) = first_instrument.stave_ids.first() {
@@ -314,14 +416,13 @@ pub fn generate_render_instructions(
                         selection,
                         flow_id,
                         page_padding.top + top_stave.y,
-                        renderer,
+                        &mut segment_renderer,
                     );
                 }
             }
         }
     }
 
-    // Phase 10: Stave contents (clefs, key signatures, time signatures, notes)
     let stave_start = Instant::now();
     for instrument in &instruments {
         for stave_id in &instrument.stave_ids {
@@ -339,7 +440,6 @@ pub fn generate_render_instructions(
                     true
                 });
 
-                // CLEF
                 if should_draw_clef {
                     let span = horizontal_spacing.get(tick, Slot::Clef);
                     draw_clef(
@@ -355,11 +455,10 @@ pub fn generate_render_instructions(
                             stave_top,
                             is_selected: matches!(selection, Some(crate::ui::sequencer::Selection::Clef { flow_id: selected_flow_id, stave_id: selected_stave_id, clef_id, .. }) if *selected_flow_id == flow_id && *selected_stave_id == *stave_id && *clef_id == clef.id),
                         },
-                        renderer,
+                        &mut segment_renderer,
                     );
                 }
 
-                // KEY SIGNATURES
                 if let Some(def) = key_signatures.get(&tick) {
                     let span = horizontal_spacing.get(tick, Slot::KeySignature);
                     let selection_key_signature = flow_master
@@ -380,11 +479,10 @@ pub fn generate_render_instructions(
                             stave_top,
                             is_selected: matches!(selection, Some(crate::ui::sequencer::Selection::KeySignature { flow_id: selected_flow_id, key_signature_id, .. }) if *selected_flow_id == flow_id && *key_signature_id == selection_key_signature.id),
                         },
-                        renderer,
+                        &mut segment_renderer,
                     );
                 };
 
-                // TIME SIGNATURE
                 if let Some(def) = time_signature {
                     let span = horizontal_spacing.get(tick, Slot::TimeSignature);
                     draw_time_signature(
@@ -397,7 +495,7 @@ pub fn generate_render_instructions(
                         flow_id,
                         def.id,
                         stave_top,
-                        renderer,
+                        &mut segment_renderer,
                     )
                 }
             }
@@ -411,7 +509,6 @@ pub fn generate_render_instructions(
                 let beams = &beams_by_track[track_id];
                 let dots = &dots_by_track[track_id];
 
-                // TIES
                 draw_ties(
                     &Point {
                         x: stave_left,
@@ -422,10 +519,9 @@ pub fn generate_render_instructions(
                     &horizontal_spacing,
                     shunts,
                     &tone_offsets,
-                    renderer,
+                    &mut segment_renderer,
                 );
 
-                // BEAMS
                 for beam in beams {
                     draw_beam(
                         &Point {
@@ -435,7 +531,7 @@ pub fn generate_render_instructions(
                         beam,
                         stem_lengths,
                         stem_directions,
-                        renderer,
+                        &mut segment_renderer,
                     );
                 }
 
@@ -445,7 +541,6 @@ pub fn generate_render_instructions(
                     let glyph_width = metrics.total_width();
                     let has_post_shunt = notation.has_post_shunt(shunts);
 
-                    // RESTS
                     if notation.is_rest() {
                         let is_full_bar = measures.contains_key(tick)
                             && (measures.contains_key(&(tick + notation.duration))
@@ -467,19 +562,16 @@ pub fn generate_render_instructions(
                             flow_id,
                             instrument.id,
                             stave_top,
-                            renderer,
+                            &mut segment_renderer,
                         );
 
                         continue;
                     }
 
                     let x = horizontal_spacing.get(*tick, Slot::NoteSpacing).x;
-
-                    // Get stem data once for reuse
                     let stem_length = stem_lengths.get(tick);
                     let stem_direction = stem_directions.get(tick);
 
-                    // STEMS
                     if let Some(def) = stem_length {
                         draw_stem(
                             &Point {
@@ -487,11 +579,10 @@ pub fn generate_render_instructions(
                                 y: stave_top,
                             },
                             def,
-                            renderer,
+                            &mut segment_renderer,
                         );
                     }
 
-                    // FLAGS
                     let mut has_up_stem_flag = false;
                     if notation.is_flagged(beams) {
                         if let (Some(stem_dir), Some(stem_len)) = (stem_direction, stem_length) {
@@ -505,12 +596,11 @@ pub fn generate_render_instructions(
                                 notation,
                                 stem_dir,
                                 stem_len,
-                                renderer,
+                                &mut segment_renderer,
                             );
                         }
                     }
 
-                    // DOTS
                     if let Some(tick_dots) = dots.get(tick) {
                         draw_dots(
                             &Point {
@@ -521,11 +611,10 @@ pub fn generate_render_instructions(
                             glyph_width,
                             has_post_shunt,
                             has_up_stem_flag,
-                            renderer,
+                            &mut segment_renderer,
                         );
                     }
 
-                    // LEDGER LINES
                     if !notation.tones.is_empty() {
                         draw_ledger_lines(
                             &Point {
@@ -538,11 +627,10 @@ pub fn generate_render_instructions(
                             shunts,
                             accidentals,
                             &tone_offsets,
-                            renderer,
+                            &mut segment_renderer,
                         );
                     }
 
-                    // TONES
                     for tone in &notation.tones {
                         let vertical_offset = tone_offsets[&tone.id];
 
@@ -562,7 +650,7 @@ pub fn generate_render_instructions(
                             flow_id,
                             instrument.id,
                             stave_top,
-                            renderer,
+                            &mut segment_renderer,
                         );
 
                         if let Some(accidental) = accidentals.by_id.get(&(*tick, tone.id)) {
@@ -578,12 +666,11 @@ pub fn generate_render_instructions(
                                 glyph_width,
                                 has_pre_shunt,
                                 state.ui.sequencer.selection.as_ref(),
-                                renderer,
+                                &mut segment_renderer,
                             );
                         }
                     }
 
-                    // ARTICULATIONS (draw once per notation event)
                     if let Some(track_artics) = articulations_by_track.get(track_id) {
                         if let Some(articulation_set) = track_artics.get(tick) {
                             draw_articulations(
@@ -596,7 +683,7 @@ pub fn generate_render_instructions(
                                 glyph_width,
                                 stem_directions.get(tick),
                                 stem_length,
-                                renderer,
+                                &mut segment_renderer,
                             );
                         }
                     }
@@ -605,7 +692,6 @@ pub fn generate_render_instructions(
         }
     }
 
-    // Debug: draw slot visualization
     if state.ui.renderer.debug {
         draw_debug_layer(
             &horizontal_spacing,
@@ -613,40 +699,83 @@ pub fn generate_render_instructions(
             page_padding.top,
             vertical_spacing.height,
             flow.length,
-            renderer,
+            &mut segment_renderer,
         );
     }
 
-    let stave_duration = stave_start.elapsed();
+    timings.stave = stave_start.elapsed();
+
+    FlowRenderSegment {
+        width,
+        height,
+        instructions: segment_renderer.instructions,
+        hit_targets: segment_renderer.hit_targets,
+        timings,
+    }
+}
+
+pub fn generate_render_instructions(
+    app: &tauri::AppHandle,
+    state: &AppContext,
+    renderer: &mut RendererContext,
+    render_plan: &FlowRenderPlan,
+) {
+    let total_start = Instant::now();
+    let layout = &state.score.layouts.by_id[&render_plan.layout_id];
+    let engrave = &state.score.engraves.by_layout_type[&layout.layout_type];
+    let converter = Converter::new(renderer.px_per_mm, engrave.space);
+
+    let mut timings = RenderPhaseTimings::default();
+    let composed_flow_ids = render_plan.composed_flow_ids();
+    let segments = composed_flow_ids
+        .into_iter()
+        .map(|flow_id| build_flow_render_segment(state, render_plan.layout_id, flow_id, &converter))
+        .inspect(|segment| timings.add_assign(segment.timings))
+        .collect::<Vec<_>>();
+    let composed_surface = compose_render_segments(segments, &converter);
+
+    renderer.instructions.clear();
+    renderer.hit_targets.clear();
+    renderer.converter = converter.clone();
+    renderer.width = composed_surface.width;
+    renderer.height = composed_surface.height;
+    renderer.rectangle(
+        0.0,
+        0.0,
+        composed_surface.width,
+        composed_surface.height,
+        skia_safe::Color::WHITE,
+    );
+    renderer.instructions.extend(composed_surface.instructions);
+    renderer.hit_targets = composed_surface.hit_targets;
 
     let total_duration = total_start.elapsed();
 
-    // Emit timing events for each phase
     let _ = app.emit(
         "render-timing-vertical",
-        vertical_duration.as_micros() as u64,
+        timings.vertical.as_micros() as u64,
     );
-    let _ = app.emit("render-timing-layout", layout_duration.as_micros() as u64);
+    let _ = app.emit("render-timing-layout", timings.layout.as_micros() as u64);
     let _ = app.emit(
         "render-timing-structure",
-        structure_duration.as_micros() as u64,
+        timings.structure.as_micros() as u64,
     );
     let _ = app.emit(
         "render-timing-notation",
-        notation_duration.as_micros() as u64,
+        timings.notation.as_micros() as u64,
     );
     let _ = app.emit(
         "render-timing-elements",
-        elements_duration.as_micros() as u64,
+        timings.elements.as_micros() as u64,
     );
-    let _ = app.emit("render-timing-spacing", spacing_duration.as_micros() as u64);
-    let _ = app.emit("render-timing-stems", stems_duration.as_micros() as u64);
-    let _ = app.emit("render-timing-setup", setup_duration.as_micros() as u64);
+    let _ = app.emit("render-timing-spacing", timings.spacing.as_micros() as u64);
+    let _ = app.emit("render-timing-stems", timings.stems.as_micros() as u64);
+    let _ = app.emit("render-timing-setup", timings.setup.as_micros() as u64);
     let _ = app.emit(
         "render-timing-barlines",
-        barlines_duration.as_micros() as u64,
+        timings.barlines.as_micros() as u64,
     );
-    let _ = app.emit("render-timing-stave", stave_duration.as_micros() as u64);
+    let _ = app.emit("render-timing-stave", timings.stave.as_micros() as u64);
     let _ = app.emit("render-timing-total", total_duration.as_micros() as u64);
 }
 
@@ -716,5 +845,100 @@ fn draw_debug_layer(
             target.height,
             Color::from_argb(100, 255, 0, 0),
         );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        compose_render_segments, inter_flow_gap_spaces, FlowRenderSegment, RenderPhaseTimings,
+    };
+    use crate::renderer::converter::Converter;
+    use crate::renderer::{DrawInstruction, HitTarget};
+    use crate::ui::sequencer::Selection;
+    use skia_safe::Color;
+
+    #[test]
+    fn inter_flow_gap_meets_minimum_css_pixel_requirement() {
+        let converter = Converter::new(3.779_527_7, 1.75);
+
+        let gap_spaces = inter_flow_gap_spaces(&converter);
+
+        assert!(converter.spaces_to_px(gap_spaces) >= 20.0);
+    }
+
+    #[test]
+    fn compose_render_segments_offsets_second_segment_and_extents() {
+        let converter = Converter::new(1.0, 1.0);
+        let segments = vec![
+            FlowRenderSegment {
+                width: 5.0,
+                height: 3.0,
+                instructions: vec![DrawInstruction::Rectangle {
+                    x: 0.0,
+                    y: 0.0,
+                    width: 5.0,
+                    height: 3.0,
+                    color: Color::BLACK,
+                }],
+                hit_targets: vec![HitTarget {
+                    entry: Selection::Tempo {
+                        flow_id: 10,
+                        tempo_id: 1,
+                        tick: 0,
+                    },
+                    x: 1.0,
+                    y: 1.0,
+                    width: 1.0,
+                    height: 1.0,
+                    popover_x: 1.0,
+                    popover_y: 0.5,
+                }],
+                timings: RenderPhaseTimings::default(),
+            },
+            FlowRenderSegment {
+                width: 4.0,
+                height: 6.0,
+                instructions: vec![DrawInstruction::Rectangle {
+                    x: 0.0,
+                    y: 2.0,
+                    width: 4.0,
+                    height: 2.0,
+                    color: Color::WHITE,
+                }],
+                hit_targets: vec![HitTarget {
+                    entry: Selection::Tempo {
+                        flow_id: 20,
+                        tempo_id: 2,
+                        tick: 32,
+                    },
+                    x: 0.5,
+                    y: 1.5,
+                    width: 1.0,
+                    height: 1.0,
+                    popover_x: 0.5,
+                    popover_y: 1.0,
+                }],
+                timings: RenderPhaseTimings::default(),
+            },
+        ];
+
+        let composed = compose_render_segments(segments, &converter);
+
+        assert_eq!(composed.width, 29.0);
+        assert_eq!(composed.height, 6.0);
+
+        assert_eq!(
+            composed.instructions[1],
+            DrawInstruction::Rectangle {
+                x: 25.0,
+                y: 2.0,
+                width: 4.0,
+                height: 2.0,
+                color: Color::WHITE,
+            }
+        );
+        assert_eq!(composed.hit_targets[1].x, 25.5);
+        assert_eq!(composed.hit_targets[1].popover_x, 25.5);
     }
 }

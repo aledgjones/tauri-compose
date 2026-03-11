@@ -100,10 +100,11 @@ _This file contains critical rules and patterns that AI agents must follow when 
 The score page is rendered natively by Rust/Skia/Metal — all other UI (panels, buttons, inputs, toolbars) lives in the React/HTML layer.
 
 1. **Score data** → Tracks of `Entry` variants (Tone, Clef, KeySignature, Tempo, TimeSignature, Barline) stored in dual-index `FxHashMap`s
-2. **Parse phase** (`instructions/parse/`, 19 modules) → converts raw entries to written notation: measures, written durations, vertical/horizontal spacing, beams, stems, accidentals, articulations, shunts, dots — parallelized with `rayon`
-3. **Draw phase** (`instructions/draw/`, 20 modules) → generates `Vec<DrawInstruction>` (Line, Text, Circle, Curve, Shape, Rectangle) + `Vec<HitTarget>` — all coordinates in `Space` units converted to px via `Converter`
-4. **Native render** → `MetalRenderer` paints the score page only via Skia onto a `CAMetalLayer` attached to the native `NSView` — this is not the app UI, just the score sheet
-5. **FE interaction** → a transparent `<div>` overlays the native score surface, reports bounds/resize, handles pan/zoom/click, and delegates hit-testing to Rust via `invoke("renderer_hit_test")`
+2. **Flow preparation phase** (`instructions/render_plan.rs`) → derives ordered visible flow inputs from `layout.flow_ids` while preserving `score.flows.order`; the render path emits `render-timing-flow-preparation` plus `render-timing-flow-preparation-details` diagnostics before parse/draw work begins
+3. **Per-flow parse/draw phase** (`instructions/parse/`, `instructions/draw/`) → each visible flow segment is parsed and drawn independently into `Vec<DrawInstruction>` plus `Vec<HitTarget>` using renderer-space `Space` units and px conversion via `Converter`
+4. **Flow composition phase** (`instructions/mod.rs`) → Rust composes up to the first two visible flow segments into one shared page surface, offsets the second segment by a fixed renderer-space gap that guarantees at least 20 CSS pixels at normal zoom, and keeps combined hit targets in shared renderer space
+5. **Native render** → `MetalRenderer` paints the score page only via Skia onto a `CAMetalLayer` attached to the native `NSView` — this is not the app UI, just the score sheet
+6. **FE interaction** → a transparent `<div>` overlays the native score surface, reports bounds/resize, handles pan/zoom/click, and delegates hit-testing to Rust via `invoke("renderer_hit_test")`
 
 - Draw instructions are cached on `RendererContext` and re-rendered on pan/zoom without recalculation
 - Recalculation only triggered by score mutations (via `emit()` flow)

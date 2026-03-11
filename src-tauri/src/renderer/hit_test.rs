@@ -159,4 +159,33 @@ mod tests {
             })
         );
     }
+
+    #[test]
+    fn resolves_offset_second_flow_hit_targets_in_shared_renderer_space() {
+        let mut renderer = make_test_renderer();
+        renderer.hit_targets.push(HitTarget {
+            entry: Selection::Tempo {
+                flow_id: 20,
+                tempo_id: 8,
+                tick: 64,
+            },
+            x: 25.0,
+            y: 2.0,
+            width: 3.0,
+            height: 2.0,
+            popover_x: 25.0,
+            popover_y: 1.0,
+        });
+
+        let hit = hit_test_selection(&renderer, 26.5, 3.0, 0.0, 0.0, 100.0);
+
+        assert_eq!(
+            hit,
+            Some(Selection::Tempo {
+                flow_id: 20,
+                tempo_id: 8,
+                tick: 64,
+            })
+        );
+    }
 }

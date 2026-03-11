@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { PerformanceTimings } from "./performance-timings";
 
 // Capture listen callbacks so tests can fire them
-type ListenerFn = (event: { payload: number }) => void;
+type ListenerFn = (event: { payload: unknown }) => void;
 const listeners: Record<string, ListenerFn> = {};
 
 vi.mock("@tauri-apps/api/event", () => ({
@@ -21,6 +21,14 @@ const fireTimingEvent = (key: string, value: number) => {
   act(() => {
     if (listeners[key]) {
       listeners[key]({ payload: value });
+    }
+  });
+};
+
+const firePayloadEvent = (key: string, payload: unknown) => {
+  act(() => {
+    if (listeners[key]) {
+      listeners[key]({ payload });
     }
   });
 };
@@ -257,6 +265,77 @@ describe("PerformanceTimings", () => {
     const row = screen.getByText("Stave contents rendering").closest("div");
     const valueSpan = row?.querySelector("span:last-child");
     expect(valueSpan?.className).toContain("text-yellow-400");
+  });
+
+  it("shows flow-aware preparation diagnostics inside the layout timing panel", async () => {
+    const user = userEvent.setup();
+    render(<PerformanceTimings />);
+
+    fireTimingEvent("render-timing-flow-preparation", 12_000);
+    firePayloadEvent("render-timing-flow-preparation-details", {
+      layout_id: 4,
+      active_flow_id: 20,
+      active_flow_visible_in_layout: true,
+      fallback_draw_flow_id: null,
+      prepared_flow_ids: [10, 20],
+      prepared_flow_count: 2,
+      composed_flow_ids: [10, 20],
+      composed_flow_count: 2,
+      single_flow_draw_fallback: false,
+    });
+
+    await user.click(screen.getByRole("button", { name: /Layout Phase/ }));
+
+    expect(screen.getByText("Flow-aware preparation")).toBeInTheDocument();
+    expect(screen.getByText(/Prepared flows: 10, 20/)).toBeInTheDocument();
+    expect(screen.getByText(/Composed flows: 10, 20/)).toBeInTheDocument();
+    expect(screen.getByText(/Composed flow count: 2/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Fallback draw mode: multi-flow-surface/),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Active flow visible in layout: yes/),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Fallback draw flow:/)).not.toBeInTheDocument();
+  });
+
+  it("clears stale flow-aware preparation diagnostics when the backend resets them", async () => {
+    const user = userEvent.setup();
+    render(<PerformanceTimings />);
+
+    fireTimingEvent("render-timing-flow-preparation", 12_000);
+    firePayloadEvent("render-timing-flow-preparation-details", {
+      layout_id: 4,
+      active_flow_id: 20,
+      active_flow_visible_in_layout: false,
+      fallback_draw_flow_id: 20,
+      prepared_flow_ids: [],
+      prepared_flow_count: 0,
+      composed_flow_ids: [20],
+      composed_flow_count: 1,
+      single_flow_draw_fallback: true,
+    });
+
+    await user.click(screen.getByRole("button", { name: /Layout Phase/ }));
+    expect(screen.getByText(/Prepared flow count: 0/)).toBeInTheDocument();
+    expect(screen.getByText(/Fallback draw flow: 20/)).toBeInTheDocument();
+
+    fireTimingEvent("render-timing-flow-preparation", 0);
+    firePayloadEvent("render-timing-flow-preparation-details", null);
+
+    expect(
+      screen.queryByText(/Prepared flow count: 0/),
+    ).not.toBeInTheDocument();
+  });
+
+  it("counts flow preparation in the layout header severity", () => {
+    render(<PerformanceTimings />);
+
+    fireTimingEvent("render-timing-flow-preparation", 30_000);
+
+    const layoutBtn = screen.getByRole("button", { name: /Layout Phase/ });
+    const headerSpan = layoutBtn.querySelector("span:last-child");
+    expect(headerSpan?.className).toContain("text-yellow-400");
   });
 
   it("GPU row shows text-yellow-400 for flush timing", async () => {

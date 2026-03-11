@@ -26,7 +26,9 @@ use files::{
     load_project_from_file, refresh_menus, save_project_to_file, set_current_file_path,
     update_recent_files_menu,
 };
-use instructions::generate_render_instructions;
+use instructions::{
+    generate_render_instructions, prepare_flow_render_plan, FlowRenderPreparationDiagnostics,
+};
 use preferences::{preferences_audition_set, Preferences};
 use renderer::hit_test::renderer_hit_test;
 use renderer::RendererContext;
@@ -94,6 +96,7 @@ use score::players::{
 use score::Score;
 use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
+use std::time::Instant;
 use tauri::menu::{AboutMetadata, Menu, MenuItem, PredefinedMenuItem, Submenu};
 use tauri::{AppHandle, Emitter, Manager, State};
 use ui::renderer::{
@@ -163,8 +166,33 @@ impl AppContext {
                 .or_else(|| self.score.flows.order.first().copied());
 
             if let (Some(layout_id), Some(flow_id)) = (layout_id, flow_id) {
-                generate_render_instructions(app, self, renderer, layout_id, flow_id);
+                let preparation_start = Instant::now();
+                if let Some(render_plan) = prepare_flow_render_plan(&self.score, layout_id, flow_id)
+                {
+                    let preparation_duration = preparation_start.elapsed();
+                    let diagnostics = FlowRenderPreparationDiagnostics::from(&render_plan);
+
+                    let _ = app.emit(
+                        "render-timing-flow-preparation",
+                        preparation_duration.as_micros() as u64,
+                    );
+                    let _ = app.emit("render-timing-flow-preparation-details", diagnostics);
+
+                    generate_render_instructions(app, self, renderer, &render_plan);
+                } else {
+                    let _ = app.emit("render-timing-flow-preparation", 0_u64);
+                    let _ = app.emit(
+                        "render-timing-flow-preparation-details",
+                        Option::<FlowRenderPreparationDiagnostics>::None,
+                    );
+                    renderer.clear();
+                }
             } else {
+                let _ = app.emit("render-timing-flow-preparation", 0_u64);
+                let _ = app.emit(
+                    "render-timing-flow-preparation-details",
+                    Option::<FlowRenderPreparationDiagnostics>::None,
+                );
                 renderer.clear();
             }
         }

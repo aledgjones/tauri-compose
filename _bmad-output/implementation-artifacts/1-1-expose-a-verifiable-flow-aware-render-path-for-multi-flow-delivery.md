@@ -1,6 +1,6 @@
 # Story 1.1: Expose a Verifiable Flow-Aware Render Path for Multi-Flow Delivery
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -19,28 +19,28 @@ so that I can confirm multi-flow delivery is safe to build and debug before visi
 
 ## Tasks / Subtasks
 
-- [ ] Add a flow-aware preparation boundary in the Rust render orchestration layer (AC: 1, 2)
-  - [ ] Refactor the current single-flow render entry seam in `AppContext::render()` so it prepares ordered flow-aware inputs before handing work to the existing draw pipeline.
-  - [ ] Enumerate visible flows from the active layout using `layout.flow_ids`, but preserve ordering from `score.flows.order` rather than hash-set iteration order.
-  - [ ] Keep `ui.flow_id` as the active flow for this story, but route rendering through the new preparation path even when only one flow is actually drawn.
-- [ ] Expose explicit prepared flow units without changing current score output (AC: 1, 2, 3)
-  - [ ] Introduce an internal render-plan/prepared-flow type or equivalent helper that captures the data later stories will need for score-surface composition.
-  - [ ] Preserve the current user-visible single-flow output by continuing to draw only the active flow in Story 1.1.
-  - [ ] Make the prepared flow units inspectable in debugging output or timing diagnostics rather than duplicating score state in React.
-- [ ] Extend diagnostics so maintainers can verify the new path is active (AC: 1, 4)
-  - [ ] Emit additional timing or diagnostic signals that show flow-aware preparation ran before the existing per-flow parse/draw phases.
-  - [ ] Update the debugger timing surface to display the new signal in the existing timing UI rather than creating a separate debug panel.
-  - [ ] Include enough information to distinguish active-flow drawing from ordered multi-flow preparation.
-- [ ] Preserve notation, persistence, and renderer contracts (AC: 3)
-  - [ ] Keep written-duration and notation derivation logic unchanged; this story is orchestration only, not notation logic.
-  - [ ] Avoid `.soloc` semantic changes and do not add a migration unless persisted behavior truly changes.
-  - [ ] Preserve the native render pipeline and current hit-test/selection contracts for this story.
-- [ ] Add focused regression coverage and verification (AC: 1, 2, 3, 4)
-  - [ ] Add Rust tests around ordered flow enumeration and prepared-flow generation.
-  - [ ] Add or update debugger/Vitest coverage for any new timing event wiring.
-  - [ ] Validate with `npm run lint`, `npm run check-types`, `npm run test:js`, `npm run test:rust`, and `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features`.
-- [ ] Update docs if implementation changes documented renderer/debugger contracts
-  - [ ] Update `docs/architecture.md` and `docs/project-context.md` if new flow-aware timing phases, render-plan terminology, or debugger expectations become part of the stable development contract.
+- [x] Add a flow-aware preparation boundary in the Rust render orchestration layer (AC: 1, 2)
+  - [x] Refactor the current single-flow render entry seam in `AppContext::render()` so it prepares ordered flow-aware inputs before handing work to the existing draw pipeline.
+  - [x] Enumerate visible flows from the active layout using `layout.flow_ids`, but preserve ordering from `score.flows.order` rather than hash-set iteration order.
+  - [x] Keep `ui.flow_id` as the active flow for this story, but route rendering through the new preparation path even when only one flow is actually drawn.
+- [x] Expose explicit prepared flow units without changing current score output (AC: 1, 2, 3)
+  - [x] Introduce an internal render-plan/prepared-flow type or equivalent helper that captures the data later stories will need for score-surface composition.
+  - [x] Preserve the current user-visible single-flow output by continuing to draw only the active flow in Story 1.1.
+  - [x] Make the prepared flow units inspectable in debugging output or timing diagnostics rather than duplicating score state in React.
+- [x] Extend diagnostics so maintainers can verify the new path is active (AC: 1, 4)
+  - [x] Emit additional timing or diagnostic signals that show flow-aware preparation ran before the existing per-flow parse/draw phases.
+  - [x] Update the debugger timing surface to display the new signal in the existing timing UI rather than creating a separate debug panel.
+  - [x] Include enough information to distinguish active-flow drawing from ordered multi-flow preparation.
+- [x] Preserve notation, persistence, and renderer contracts (AC: 3)
+  - [x] Keep written-duration and notation derivation logic unchanged; this story is orchestration only, not notation logic.
+  - [x] Avoid `.soloc` semantic changes and do not add a migration unless persisted behavior truly changes.
+  - [x] Preserve the native render pipeline and current hit-test/selection contracts for this story.
+- [x] Add focused regression coverage and verification (AC: 1, 2, 3, 4)
+  - [x] Add Rust tests around ordered flow enumeration and prepared-flow generation.
+  - [x] Add or update debugger/Vitest coverage for any new timing event wiring.
+  - [x] Validate with `npm run lint`, `npm run check-types`, `npm run test:js`, `npm run test:rust`, and `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features`.
+- [x] Update docs if implementation changes documented renderer/debugger contracts
+  - [x] Update `docs/architecture.md` and `docs/project-context.md` if new flow-aware timing phases, render-plan terminology, or debugger expectations become part of the stable development contract.
 
 ## Dev Notes
 
@@ -163,7 +163,30 @@ GPT-5.4
 - Recent git history provides planning context only, not implementation precedent.
 - No external dependency upgrade is expected for this story.
 - No migration or persisted-data change is expected for this story.
+- Added `FlowRenderPlan` and `PreparedFlowRenderInput` in the Rust instruction layer so the renderer prepares explicit ordered visible-flow units before drawing the active flow.
+- Routed `AppContext::render()` through the flow-preparation seam and emitted `render-timing-flow-preparation` plus `render-timing-flow-preparation-details` before the existing parse/draw phases.
+- Extended the debugger `PerformanceTimings` panel to show the new flow-preparation timing row and structured diagnostics for layout, active flow, drawn flow, prepared flows, and fallback mode.
+- Added Rust and Vitest coverage for the flow-aware preparation path and refreshed stale write-screen test expectations so the repo-level JS suite is green again.
+- Validation passed with `npm run lint`, `npm run check-types`, `npm run test:js`, `npm run test:rust`, and `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features`.
+- Review fixes: kept active-flow rendering alive when a layout has no visible prepared flows, surfaced whether the active flow is currently visible inside layout diagnostics, and reset debugger preparation details when the backend cannot build a plan.
 
 ### File List
 
-- None yet. Implementation pending.
+- \_bmad-output/implementation-artifacts/1-1-expose-a-verifiable-flow-aware-render-path-for-multi-flow-delivery.md
+- \_bmad-output/implementation-artifacts/sprint-status.yaml
+- docs/architecture.md
+- docs/project-context.md
+- src-tauri/src/instructions/mod.rs
+- src-tauri/src/instructions/render_plan.rs
+- src-tauri/src/lib.rs
+- src/windows/debugger/components/performance-timings.test.tsx
+- src/windows/debugger/components/performance-timings.tsx
+- src/windows/main/screens/write/components/bottom-panel.test.tsx
+- src/windows/main/screens/write/components/properties-panel.test.tsx
+- src/windows/main/screens/write/components/tempo-properties-section.test.tsx
+- src/windows/main/screens/write/components/time-signature-properties-section.test.tsx
+
+## Change Log
+
+- 2026-03-11: Added a flow-aware render-plan seam, debugger diagnostics for ordered flow preparation, focused Rust/Vitest coverage, and aligned stale write-screen tests with the current properties UI contracts.
+- 2026-03-11: Review follow-up fixed hidden-flow and empty-layout render fallbacks, plus stale debugger preparation diagnostics.

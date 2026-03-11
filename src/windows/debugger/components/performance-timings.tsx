@@ -2,16 +2,31 @@ import { useEffect, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import classNames from "classnames";
 
+type FlowPreparationDetails = {
+  layout_id: number;
+  active_flow_id: number;
+  active_flow_visible_in_layout: boolean;
+  fallback_draw_flow_id: number | null;
+  prepared_flow_ids: number[];
+  prepared_flow_count: number;
+  composed_flow_ids: number[];
+  composed_flow_count: number;
+  single_flow_draw_fallback: boolean;
+};
+
 export const PerformanceTimings = () => {
   const [renderTimings, setRenderTimings] = useState<Record<string, number>>(
     {},
   );
+  const [flowPreparationDetails, setFlowPreparationDetails] =
+    useState<FlowPreparationDetails | null>(null);
   const [layoutCollapsed, setLayoutCollapsed] = useState(true);
   const [renderCollapsed, setRenderCollapsed] = useState(true);
   const [gpuCollapsed, setGpuCollapsed] = useState(true);
 
   useEffect(() => {
     const timingKeys = [
+      "render-timing-flow-preparation",
       "render-timing-vertical",
       "render-timing-layout",
       "render-timing-structure",
@@ -34,10 +49,20 @@ export const PerformanceTimings = () => {
       }),
     );
 
+    const detailsUnlistener = listen(
+      "render-timing-flow-preparation-details",
+      (event) => {
+        setFlowPreparationDetails(
+          (event.payload as FlowPreparationDetails | null) ?? null,
+        );
+      },
+    );
+
     return () => {
       unlisteners.forEach((unlisten) => {
         unlisten.then((fn) => fn());
       });
+      detailsUnlistener.then((fn) => fn());
     };
   }, []);
 
@@ -54,6 +79,7 @@ export const PerformanceTimings = () => {
           className={classNames("font-mono text-sm", {
             "text-red-400":
               ((renderTimings["render-timing-vertical"] || 0) +
+                (renderTimings["render-timing-flow-preparation"] || 0) +
                 (renderTimings["render-timing-layout"] || 0) +
                 (renderTimings["render-timing-structure"] || 0) +
                 (renderTimings["render-timing-notation"] || 0) +
@@ -64,6 +90,7 @@ export const PerformanceTimings = () => {
               50,
             "text-yellow-400":
               ((renderTimings["render-timing-vertical"] || 0) +
+                (renderTimings["render-timing-flow-preparation"] || 0) +
                 (renderTimings["render-timing-layout"] || 0) +
                 (renderTimings["render-timing-structure"] || 0) +
                 (renderTimings["render-timing-notation"] || 0) +
@@ -73,6 +100,7 @@ export const PerformanceTimings = () => {
                 1000 >
                 20 &&
               ((renderTimings["render-timing-vertical"] || 0) +
+                (renderTimings["render-timing-flow-preparation"] || 0) +
                 (renderTimings["render-timing-layout"] || 0) +
                 (renderTimings["render-timing-structure"] || 0) +
                 (renderTimings["render-timing-notation"] || 0) +
@@ -83,6 +111,7 @@ export const PerformanceTimings = () => {
                 50,
             "text-green-400":
               ((renderTimings["render-timing-vertical"] || 0) +
+                (renderTimings["render-timing-flow-preparation"] || 0) +
                 (renderTimings["render-timing-layout"] || 0) +
                 (renderTimings["render-timing-structure"] || 0) +
                 (renderTimings["render-timing-notation"] || 0) +
@@ -95,6 +124,7 @@ export const PerformanceTimings = () => {
         >
           {(
             (renderTimings["render-timing-vertical"] || 0) +
+            (renderTimings["render-timing-flow-preparation"] || 0) +
             (renderTimings["render-timing-layout"] || 0) +
             (renderTimings["render-timing-structure"] || 0) +
             (renderTimings["render-timing-notation"] || 0) +
@@ -107,6 +137,78 @@ export const PerformanceTimings = () => {
       </button>
       {!layoutCollapsed && (
         <div className="px-2 py-1.5">
+          <div className="flex items-center">
+            <span className="text-xs text-neutral-400 flex-1">
+              Flow-aware preparation
+            </span>
+            <span
+              className={classNames("text-xs font-mono text-right", {
+                "text-red-400":
+                  (renderTimings["render-timing-flow-preparation"] || 0) /
+                    1000 >
+                  50,
+                "text-yellow-400":
+                  (renderTimings["render-timing-flow-preparation"] || 0) /
+                    1000 >
+                    20 &&
+                  (renderTimings["render-timing-flow-preparation"] || 0) /
+                    1000 <=
+                    50,
+                "text-green-400":
+                  (renderTimings["render-timing-flow-preparation"] || 0) /
+                    1000 <=
+                  20,
+              })}
+            >
+              {(
+                renderTimings["render-timing-flow-preparation"] || 0
+              ).toLocaleString()}
+              μs
+            </span>
+          </div>
+          {flowPreparationDetails && (
+            <div className="mt-2 rounded bg-neutral-950/60 px-2 py-1.5 text-xs text-neutral-400">
+              <div>
+                Layout {flowPreparationDetails.layout_id} | Active flow{" "}
+                {flowPreparationDetails.active_flow_id}
+              </div>
+              <div>
+                Active flow visible in layout:{" "}
+                {flowPreparationDetails.active_flow_visible_in_layout
+                  ? "yes"
+                  : "no"}
+              </div>
+              <div>
+                Prepared flows:{" "}
+                {flowPreparationDetails.prepared_flow_ids.join(", ") || "none"}
+              </div>
+              <div>
+                Prepared flow count:{" "}
+                {flowPreparationDetails.prepared_flow_count}
+              </div>
+              <div>
+                Composed flows:{" "}
+                {flowPreparationDetails.composed_flow_ids.join(", ") || "none"}
+              </div>
+              <div>
+                Composed flow count:{" "}
+                {flowPreparationDetails.composed_flow_count}
+              </div>
+              <div>
+                Fallback draw mode:{" "}
+                {flowPreparationDetails.single_flow_draw_fallback
+                  ? "active-flow-only"
+                  : "multi-flow-surface"}
+              </div>
+              {flowPreparationDetails.single_flow_draw_fallback &&
+                flowPreparationDetails.fallback_draw_flow_id !== null && (
+                  <div>
+                    Fallback draw flow:{" "}
+                    {flowPreparationDetails.fallback_draw_flow_id}
+                  </div>
+                )}
+            </div>
+          )}
           <div className="flex items-center">
             <span className="text-xs text-neutral-400 flex-1">
               Vertical spacing & staves

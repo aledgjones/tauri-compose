@@ -41,8 +41,8 @@ story_location: /Users/aledjones/compose/_bmad-output/implementation-artifacts
 
 development_status:
   epic-1: in-progress
-  1-1-expose-a-verifiable-flow-aware-render-path-for-multi-flow-delivery: ready-for-dev
-  1-2-render-two-flows-in-one-score-surface-with-fixed-placement: backlog
+  1-1-expose-a-verifiable-flow-aware-render-path-for-multi-flow-delivery: done
+  1-2-render-two-flows-in-one-score-surface-with-fixed-placement: done
   1-3-scroll-across-the-combined-multi-flow-score-width: backlog
   1-4-make-adjacent-flows-read-as-one-coherent-score: backlog
   1-5-add-flow-orientation-cues-to-multi-flow-score-view: backlog

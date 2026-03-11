@@ -69,6 +69,89 @@ pub enum DrawInstruction {
     },
 }
 
+impl DrawInstruction {
+    pub fn offset(self, x_offset: f32, y_offset: f32) -> Self {
+        match self {
+            Self::Line {
+                width,
+                color,
+                points,
+            } => Self::Line {
+                width,
+                color,
+                points: points
+                    .into_iter()
+                    .map(|(x, y)| (x + x_offset, y + y_offset))
+                    .collect(),
+            },
+            Self::DashedLine {
+                width,
+                color,
+                points,
+                interval,
+            } => Self::DashedLine {
+                width,
+                color,
+                points: points
+                    .into_iter()
+                    .map(|(x, y)| (x + x_offset, y + y_offset))
+                    .collect(),
+                interval,
+            },
+            Self::Text {
+                text,
+                font_size,
+                font_family,
+                justify,
+                align,
+                point,
+                color,
+            } => Self::Text {
+                text,
+                font_size,
+                font_family,
+                justify,
+                align,
+                point: (point.0 + x_offset, point.1 + y_offset),
+                color,
+            },
+            Self::Circle {
+                radius,
+                color,
+                origin,
+            } => Self::Circle {
+                radius,
+                color,
+                origin: (origin.0 + x_offset, origin.1 + y_offset),
+            },
+            Self::Curve { color, points } => Self::Curve {
+                color,
+                points: points.map(|(x, y, thickness)| (x + x_offset, y + y_offset, thickness)),
+            },
+            Self::Shape { color, points } => Self::Shape {
+                color,
+                points: points
+                    .into_iter()
+                    .map(|(x, y)| (x + x_offset, y + y_offset))
+                    .collect(),
+            },
+            Self::Rectangle {
+                x,
+                y,
+                width,
+                height,
+                color,
+            } => Self::Rectangle {
+                x: x + x_offset,
+                y: y + y_offset,
+                width,
+                height,
+                color,
+            },
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct HitTarget {
     pub entry: Selection,
@@ -78,6 +161,20 @@ pub struct HitTarget {
     pub height: f32,
     pub popover_x: f32,
     pub popover_y: f32,
+}
+
+impl HitTarget {
+    pub fn offset(self, x_offset: Space, y_offset: Space) -> Self {
+        Self {
+            entry: self.entry,
+            x: self.x + x_offset,
+            y: self.y + y_offset,
+            width: self.width,
+            height: self.height,
+            popover_x: self.popover_x + x_offset,
+            popover_y: self.popover_y + y_offset,
+        }
+    }
 }
 
 pub struct RendererContext {
@@ -534,5 +631,53 @@ mod tests {
 
         assert_eq!(renderer.bounds, (10.0, 20.0, 300.0, 200.0));
         assert_eq!(renderer.pixel_density, 2.0);
+    }
+
+    #[test]
+    fn draw_instruction_offset_translates_rectangle_coordinates() {
+        let instruction = DrawInstruction::Rectangle {
+            x: 2.0,
+            y: 3.0,
+            width: 4.0,
+            height: 5.0,
+            color: Color::BLACK,
+        };
+
+        let offset = instruction.offset(10.0, 20.0);
+
+        assert_eq!(
+            offset,
+            DrawInstruction::Rectangle {
+                x: 12.0,
+                y: 23.0,
+                width: 4.0,
+                height: 5.0,
+                color: Color::BLACK,
+            }
+        );
+    }
+
+    #[test]
+    fn hit_target_offset_translates_bounds_and_popover_coordinates() {
+        let target = HitTarget {
+            entry: Selection::Tempo {
+                flow_id: 1,
+                tempo_id: 2,
+                tick: 3,
+            },
+            x: 1.0,
+            y: 2.0,
+            width: 3.0,
+            height: 4.0,
+            popover_x: 5.0,
+            popover_y: 6.0,
+        };
+
+        let offset = target.offset(10.0, 20.0);
+
+        assert_eq!(offset.x, 11.0);
+        assert_eq!(offset.y, 22.0);
+        assert_eq!(offset.popover_x, 15.0);
+        assert_eq!(offset.popover_y, 26.0);
     }
 }
