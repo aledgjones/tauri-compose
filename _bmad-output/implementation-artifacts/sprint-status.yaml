@@ -49,8 +49,8 @@ development_status:
   1-6-render-all-visible-flows-in-one-continuous-score-surface: done
   epic-1-retrospective: done
 
-  epic-2: backlog
-  2-1-resolve-hit-targets-across-two-visible-flows: backlog
+  epic-2: in-progress
+  2-1-resolve-hit-targets-across-two-visible-flows: done
   2-2-select-score-content-in-either-visible-flow: backlog
   2-3-preserve-stable-selection-while-one-visible-flow-updates: backlog
   2-4-open-contextual-popovers-within-the-multi-flow-score-surface: backlog

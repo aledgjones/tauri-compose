@@ -1320,4 +1320,107 @@ mod tests {
             .hit_targets
             .contains(&second_tempo_target.offset(second_offset_spaces, 0.0)));
     }
+
+    #[test]
+    fn compose_render_segments_preserves_flow_owned_selection_payloads() {
+        let converter = Converter::new(1.0, 1.0);
+        let segments = vec![
+            FlowRenderSegment {
+                width: 5.0,
+                height: 3.0,
+                instructions: Vec::new(),
+                hit_targets: vec![HitTarget {
+                    entry: Selection::Tone {
+                        flow_id: 10,
+                        track_id: 100,
+                        stave_id: 1000,
+                        instrument_id: 10000,
+                        tone_id: 1,
+                    },
+                    x: 1.0,
+                    y: 1.0,
+                    width: 1.0,
+                    height: 1.0,
+                    popover_x: 1.0,
+                    popover_y: 0.5,
+                }],
+                timings: RenderPhaseTimings::default(),
+            },
+            FlowRenderSegment {
+                width: 4.0,
+                height: 3.0,
+                instructions: Vec::new(),
+                hit_targets: vec![HitTarget {
+                    entry: Selection::Rest {
+                        flow_id: 20,
+                        track_id: 200,
+                        stave_id: 2000,
+                        instrument_id: 20000,
+                        tick: 32,
+                    },
+                    x: 0.5,
+                    y: 1.0,
+                    width: 1.0,
+                    height: 1.0,
+                    popover_x: 0.5,
+                    popover_y: 0.5,
+                }],
+                timings: RenderPhaseTimings::default(),
+            },
+            FlowRenderSegment {
+                width: 3.0,
+                height: 3.0,
+                instructions: Vec::new(),
+                hit_targets: vec![HitTarget {
+                    entry: Selection::Tempo {
+                        flow_id: 30,
+                        tempo_id: 3,
+                        tick: 64,
+                    },
+                    x: 0.25,
+                    y: 1.0,
+                    width: 1.0,
+                    height: 1.0,
+                    popover_x: 0.25,
+                    popover_y: 0.5,
+                }],
+                timings: RenderPhaseTimings::default(),
+            },
+        ];
+
+        let composed = compose_render_segments(segments, &converter);
+
+        assert_eq!(composed.hit_targets.len(), 3);
+        assert_eq!(
+            composed.hit_targets[0].entry,
+            Selection::Tone {
+                flow_id: 10,
+                track_id: 100,
+                stave_id: 1000,
+                instrument_id: 10000,
+                tone_id: 1,
+            }
+        );
+        assert_eq!(
+            composed.hit_targets[1].entry,
+            Selection::Rest {
+                flow_id: 20,
+                track_id: 200,
+                stave_id: 2000,
+                instrument_id: 20000,
+                tick: 32,
+            }
+        );
+        assert_eq!(
+            composed.hit_targets[2].entry,
+            Selection::Tempo {
+                flow_id: 30,
+                tempo_id: 3,
+                tick: 64,
+            }
+        );
+        assert_eq!(composed.hit_targets[0].x, 1.0);
+        assert_eq!(composed.hit_targets[1].x, 25.5);
+        assert_eq!(composed.hit_targets[2].x, 49.25);
+    }
 }

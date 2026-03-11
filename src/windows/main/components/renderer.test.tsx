@@ -72,6 +72,62 @@ describe("Renderer", () => {
     });
   });
 
+  it("dispatches tone selection when hit testing resolves a tone target in another visible flow", async () => {
+    vi.mocked(hitTest).mockResolvedValueOnce({
+      type: "Tone",
+      flow_id: 20,
+      track_id: 7,
+      stave_id: 8,
+      instrument_id: 9,
+      tone_id: 10,
+    });
+
+    const { container } = render(<Renderer />, {
+      wrapper: createWrapper({ appState: createAppState() }),
+    });
+
+    const overlay = container.querySelector('[data-testid="renderer"] > div');
+    fireEvent.pointerDown(overlay!, { clientX: 10, clientY: 10 });
+
+    await waitFor(() => {
+      expect(actions.ui.sequencer.selectTone).toHaveBeenCalledWith(
+        10,
+        7,
+        8,
+        20,
+        9,
+      );
+    });
+  });
+
+  it("dispatches rest selection when hit testing resolves a rest target in another visible flow", async () => {
+    vi.mocked(hitTest).mockResolvedValueOnce({
+      type: "Rest",
+      flow_id: 30,
+      track_id: 11,
+      stave_id: 12,
+      instrument_id: 13,
+      tick: 96,
+    });
+
+    const { container } = render(<Renderer />, {
+      wrapper: createWrapper({ appState: createAppState() }),
+    });
+
+    const overlay = container.querySelector('[data-testid="renderer"] > div');
+    fireEvent.pointerDown(overlay!, { clientX: 10, clientY: 10 });
+
+    await waitFor(() => {
+      expect(actions.ui.sequencer.selectRest).toHaveBeenCalledWith(
+        96,
+        11,
+        12,
+        30,
+        13,
+      );
+    });
+  });
+
   it("dispatches time signature selection when hit testing resolves a time signature target", async () => {
     vi.mocked(hitTest).mockResolvedValueOnce({
       type: "TimeSignature",

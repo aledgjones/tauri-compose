@@ -66,4 +66,31 @@ describe("hitTest", () => {
     const result = await hitTest(0, 0, 0, 0, 1);
     expect(result).toBeNull();
   });
+
+  it("passes through flow-aware tone and rest results without reinterpretation", async () => {
+    const results = [
+      {
+        type: "Tone" as const,
+        flow_id: 20,
+        track_id: 4,
+        stave_id: 5,
+        instrument_id: 6,
+        tone_id: 7,
+      },
+      {
+        type: "Rest" as const,
+        flow_id: 30,
+        track_id: 8,
+        stave_id: 9,
+        instrument_id: 10,
+        tick: 96,
+      },
+    ];
+
+    for (const selection of results) {
+      vi.mocked(invoke).mockResolvedValueOnce(selection);
+      const result = await hitTest(12, 24, 3, 6, 150);
+      expect(result).toEqual(selection);
+    }
+  });
 });
