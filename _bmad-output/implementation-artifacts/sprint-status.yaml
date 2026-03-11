@@ -47,7 +47,7 @@ development_status:
   1-4-make-adjacent-flows-read-as-one-coherent-score: done
   1-5-add-flow-labels-to-multi-flow-score-view: done
   1-6-render-all-visible-flows-in-one-continuous-score-surface: done
-  epic-1-retrospective: optional
+  epic-1-retrospective: done
 
   epic-2: backlog
   2-1-resolve-hit-targets-across-two-visible-flows: backlog
