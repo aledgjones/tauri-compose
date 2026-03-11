@@ -17,6 +17,30 @@ use serde::Serialize;
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use tauri::State;
 
+fn resolve_selection_coordinates(
+    selection: Option<&sequencer::Selection>,
+    ui_renderer: &renderer::Renderer,
+    renderer: &crate::renderer::RendererContext,
+) -> Option<(f32, f32)> {
+    let selection = selection?;
+
+    for target in &renderer.hit_targets {
+        if target.entry == *selection {
+            let zoom_scale = ui_renderer.zoom as f32 / 100.0;
+
+            let popover_x = renderer.converter.spaces_to_px(target.popover_x);
+            let x = popover_x * zoom_scale + ui_renderer.pan_x;
+
+            let popover_y = renderer.converter.spaces_to_px(target.popover_y);
+            let y = popover_y * zoom_scale + ui_renderer.pan_y;
+
+            return Some((x, y));
+        }
+    }
+
+    None
+}
+
 #[derive(Serialize_repr, Deserialize_repr, Clone)]
 #[repr(u8)]
 pub enum Tab {
@@ -121,24 +145,99 @@ pub fn ui_get_selection_coordinates(
     let state = state.lock().unwrap();
     let renderer = renderer_state.lock().unwrap();
 
-    if let Some(selection) = &state.ui.sequencer.selection {
-        // Find the hit target that matches this selection
-        for target in &renderer.hit_targets {
-            if target.entry == *selection {
-                let zoom_scale = state.ui.renderer.zoom as f32 / 100.0;
+    Ok(resolve_selection_coordinates(
+        state.ui.sequencer.selection.as_ref(),
+        &state.ui.renderer,
+        &renderer,
+    ))
+}
 
-                let popover_x = renderer.converter.spaces_to_px(target.popover_x);
-                let x = popover_x * zoom_scale + state.ui.renderer.pan_x;
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::renderer::{HitTarget, RendererContext};
+    use crate::ui::sequencer::Selection;
 
-                let popover_y = renderer.converter.spaces_to_px(target.popover_y);
-                let y = popover_y * zoom_scale + state.ui.renderer.pan_y;
+    fn make_renderer_context(hit_targets: Vec<HitTarget>) -> RendererContext {
+        let mut renderer = RendererContext::new().into_inner().unwrap();
+        renderer.hit_targets = hit_targets;
+        renderer
+    }
 
-                return Ok(Some((x, y)));
-            }
-        }
+    #[test]
+    fn resolves_later_flow_selection_coordinates_after_zoom_and_pan() {
+        let selection = Selection::Tempo {
+            flow_id: 20,
+            tempo_id: 9,
+            tick: 128,
+        };
+        let ui_renderer = renderer::Renderer {
+            zoom: 200,
+            pan_x: 30.0,
+            pan_y: -10.0,
+            debug: false,
+        };
+        let renderer = make_renderer_context(vec![HitTarget {
+            entry: selection.clone(),
+            x: 25.0,
+            y: 12.0,
+            width: 1.0,
+            height: 1.0,
+            popover_x: 25.5,
+            popover_y: 10.25,
+        }]);
 
-        Ok(None)
-    } else {
-        Ok(None)
+        let coordinates =
+            resolve_selection_coordinates(Some(&selection), &ui_renderer, &renderer);
+
+        assert_eq!(coordinates, Some((81.0, 10.5)));
+    }
+
+    #[test]
+    fn resolves_boundary_adjacent_selection_against_the_exact_matching_hit_target() {
+        let selected_target = Selection::Rest {
+            flow_id: 20,
+            instrument_id: 2,
+            stave_id: 3,
+            track_id: 4,
+            tick: 64,
+        };
+        let ui_renderer = renderer::Renderer {
+            zoom: 150,
+            pan_x: -5.0,
+            pan_y: 8.0,
+            debug: false,
+        };
+        let renderer = make_renderer_context(vec![
+            HitTarget {
+                entry: Selection::Rest {
+                    flow_id: 10,
+                    instrument_id: 2,
+                    stave_id: 3,
+                    track_id: 4,
+                    tick: 64,
+                },
+                x: 24.8,
+                y: 6.0,
+                width: 1.0,
+                height: 1.0,
+                popover_x: 24.9,
+                popover_y: 6.25,
+            },
+            HitTarget {
+                entry: selected_target.clone(),
+                x: 25.0,
+                y: 6.0,
+                width: 1.0,
+                height: 1.0,
+                popover_x: 25.1,
+                popover_y: 6.75,
+            },
+        ]);
+
+        let coordinates =
+            resolve_selection_coordinates(Some(&selected_target), &ui_renderer, &renderer);
+
+        assert_eq!(coordinates, Some((32.65, 18.125)));
     }
 }

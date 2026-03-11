@@ -115,6 +115,11 @@ export const Popover: FC<Props> = ({ popover, setPopover }) => {
   const popoverRef = useRef<HTMLDivElement>(null);
   const state = useAppState();
 
+  const closePopover = () => {
+    setPopover(null);
+    setValue("");
+  };
+
   useEffect(() => {
     const handleKeyDown = async (e: KeyboardEvent) => {
       if (popover) {
@@ -239,8 +244,7 @@ export const Popover: FC<Props> = ({ popover, setPopover }) => {
             }
           }
 
-          setPopover(null);
-          setValue("");
+          closePopover();
         } catch (error) {
           console.error("Invalid input:", error);
         }
@@ -248,8 +252,7 @@ export const Popover: FC<Props> = ({ popover, setPopover }) => {
         break;
       }
       case "Escape": {
-        setPopover(null);
-        setValue("");
+        closePopover();
         break;
       }
     }
@@ -261,8 +264,7 @@ export const Popover: FC<Props> = ({ popover, setPopover }) => {
   };
 
   const handleBlur = () => {
-    setPopover(null);
-    setValue("");
+    closePopover();
   };
 
   const meta = getMeta(popover.type);
