@@ -101,6 +101,7 @@ struct FlowRenderSegment {
 struct ComposedFlowSurface {
     width: Space,
     height: Space,
+    page_backgrounds: Vec<DrawInstruction>,
     instructions: Vec<DrawInstruction>,
     hit_targets: Vec<HitTarget>,
 }
@@ -144,12 +145,21 @@ fn compose_render_segments(
     let mut width: Space = 0.0;
     let mut height: Space = 0.0;
     let mut cursor_x: Space = 0.0;
+    let mut page_backgrounds = Vec::new();
     let mut instructions = Vec::new();
     let mut hit_targets = Vec::new();
     let segment_count = segments.len();
 
     for (index, segment) in segments.into_iter().enumerate() {
         let x_offset_px = converter.spaces_to_px(cursor_x);
+
+        page_backgrounds.push(DrawInstruction::Rectangle {
+            x: x_offset_px,
+            y: 0.0,
+            width: converter.spaces_to_px(segment.width),
+            height: converter.spaces_to_px(segment.height),
+            color: Color::WHITE,
+        });
 
         instructions.extend(
             segment
@@ -176,6 +186,7 @@ fn compose_render_segments(
     ComposedFlowSurface {
         width,
         height,
+        page_backgrounds,
         instructions,
         hit_targets,
     }
@@ -748,13 +759,9 @@ pub fn generate_render_instructions(
     renderer.converter = converter.clone();
     renderer.width = composed_surface.width;
     renderer.height = composed_surface.height;
-    renderer.rectangle(
-        0.0,
-        0.0,
-        composed_surface.width,
-        composed_surface.height,
-        skia_safe::Color::WHITE,
-    );
+    renderer
+        .instructions
+        .extend(composed_surface.page_backgrounds);
     renderer.instructions.extend(composed_surface.instructions);
     renderer.hit_targets = composed_surface.hit_targets;
 
@@ -946,6 +953,27 @@ mod tests {
 
         assert_eq!(composed.width, 29.0);
         assert_eq!(composed.height, 6.0);
+        assert_eq!(composed.page_backgrounds.len(), 2);
+        assert_eq!(
+            composed.page_backgrounds[0],
+            DrawInstruction::Rectangle {
+                x: 0.0,
+                y: 0.0,
+                width: 5.0,
+                height: 3.0,
+                color: Color::WHITE,
+            }
+        );
+        assert_eq!(
+            composed.page_backgrounds[1],
+            DrawInstruction::Rectangle {
+                x: 25.0,
+                y: 0.0,
+                width: 4.0,
+                height: 6.0,
+                color: Color::WHITE,
+            }
+        );
 
         assert_eq!(
             composed.instructions[1],
