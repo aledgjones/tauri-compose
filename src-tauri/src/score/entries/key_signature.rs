@@ -231,6 +231,17 @@ fn clear_key_signature_at_tick(master: &mut Track, tick: Tick) -> bool {
         return false;
     };
 
+    if tick == 0 {
+        if let Some(Entry::KeySignature(key_signature)) = master.entries.by_id.get_mut(&found.id) {
+            key_signature.mode = KeySignatureMode::Major;
+            key_signature.offset = 0;
+            key_signature.hidden = false;
+            return true;
+        }
+
+        return false;
+    }
+
     master.remove_entry(found.id).is_some()
 }
 
@@ -286,6 +297,7 @@ pub fn score_entries_key_signature_clear(
     let master = state.score.tracks.by_id.get_mut(&master_id).unwrap();
 
     clear_key_signature_at_tick(master, tick);
+    state.ui.sequencer.selection = None;
 
     state.emit(&app, &mut renderer, true);
 }
@@ -423,6 +435,28 @@ mod tests {
 
         assert!(clear_key_signature_at_tick(&mut track, 64));
         assert!(track.get_key_signature_at_tick(&64).is_none());
+    }
+
+    #[test]
+    fn clear_key_signature_at_tick_restores_opening_signature_to_c_major() {
+        use crate::score::entries::Entry;
+        use crate::score::tracks::Track;
+
+        let mut track = Track::new(1);
+        track.insert_entry(Entry::KeySignature(KeySignature::new(
+            11,
+            0,
+            KeySignatureMode::Minor,
+            -3,
+        )));
+
+        assert!(clear_key_signature_at_tick(&mut track, 0));
+
+        let restored = track.get_key_signature_at_tick(&0).unwrap();
+        assert_eq!(restored.id, 11);
+        assert!(matches!(restored.mode, KeySignatureMode::Major));
+        assert_eq!(restored.offset, 0);
+        assert!(!restored.hidden);
     }
 
     #[test]

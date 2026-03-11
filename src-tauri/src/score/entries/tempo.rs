@@ -480,6 +480,7 @@ pub fn score_entries_tempo_clear(
     if let Some(old) = master.get_tempo_at_tick(&tick) {
         master.remove_entry(old.id);
     }
+    state.ui.sequencer.selection = None;
 
     let current_tick = transport_shared
         .current_tick

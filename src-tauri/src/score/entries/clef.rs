@@ -218,6 +218,7 @@ pub fn score_entries_clef_clear(
     let master = state.score.tracks.by_id.get_mut(&master_id).unwrap();
 
     clear_clef_at_tick(master, tick, default_clef.as_ref());
+    state.ui.sequencer.selection = None;
 
     state.emit(&app, &mut renderer, true);
 }

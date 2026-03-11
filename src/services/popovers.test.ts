@@ -160,13 +160,11 @@ describe("parseClefPopover", () => {
     vi.clearAllMocks();
   });
 
-  it('clears clef when input is "clear"', async () => {
-    await parseClefPopover("clear", FLOW_ID, TICK, STAVE_ID);
-    expect(actions.score.clef.clear).toHaveBeenCalledWith(
-      FLOW_ID,
-      TICK,
-      STAVE_ID,
-    );
+  it('rejects "clear" because selected clefs should be deleted via the keyboard shortcut', async () => {
+    await expect(
+      parseClefPopover("clear", FLOW_ID, TICK, STAVE_ID),
+    ).rejects.toThrow("Unknown input: clear");
+    expect(actions.score.clef.clear).not.toHaveBeenCalled();
   });
 
   it.each(["treble", "g", "G", "sol"])(
@@ -250,18 +248,15 @@ describe("parseKeySignaturePopover", () => {
     vi.clearAllMocks();
   });
 
-  it('clears key signature when input is "clear"', async () => {
-    await parseKeySignaturePopover("clear", FLOW_ID, TICK);
-    expect(actions.score.keySignature.clearAtTick).toHaveBeenCalledWith(
-      FLOW_ID,
-      TICK,
-    );
+  it('rejects "clear" because selected key signatures should be deleted via the keyboard shortcut', async () => {
+    await expect(
+      parseKeySignaturePopover("clear", FLOW_ID, TICK),
+    ).rejects.toThrow("Unknown input: clear");
+    expect(actions.score.keySignature.clearAtTick).not.toHaveBeenCalled();
   });
 
-  // Major sharps
   it.each([
     ["C#", 7],
-    ["7s", 7],
     ["7#", 7],
     ["F#", 6],
     ["G", 1],
@@ -436,9 +431,11 @@ describe("parseTempoPopover", () => {
     vi.clearAllMocks();
   });
 
-  it('clears tempo when input is "clear"', async () => {
-    await parseTempoPopover("clear", FLOW_ID, TICK);
-    expect(actions.score.tempo.clearAtTick).toHaveBeenCalledWith(FLOW_ID, TICK);
+  it('rejects "clear" because selected tempos should be deleted via the keyboard shortcut', async () => {
+    await expect(parseTempoPopover("clear", FLOW_ID, TICK)).rejects.toThrow(
+      "Unknown input: clear",
+    );
+    expect(actions.score.tempo.clearAtTick).not.toHaveBeenCalled();
   });
 
   it("creates a named tempo", async () => {
@@ -578,12 +575,11 @@ describe("parseTimeSignaturePopover", () => {
     );
   });
 
-  it('clears time signature for "clear"', async () => {
-    await parseTimeSignaturePopover("clear", FLOW_ID, TICK);
-    expect(actions.score.timeSignature.clearAtTick).toHaveBeenCalledWith(
-      FLOW_ID,
-      TICK,
-    );
+  it('rejects "clear" because selected time signatures should be deleted via the keyboard shortcut', async () => {
+    await expect(
+      parseTimeSignaturePopover("clear", FLOW_ID, TICK),
+    ).rejects.toThrow("Unknown input: clear");
+    expect(actions.score.timeSignature.clearAtTick).not.toHaveBeenCalled();
   });
 
   it('creates CommonTime for "c"', async () => {

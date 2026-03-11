@@ -30,10 +30,13 @@ const getTickFromSelection = (state: AppState) => {
   }
 
   if (selection.type === "Tone") {
-    const tone =
-      state.score.tracks.by_id[selection.track_id].entries.by_id[
-        selection.tone_id
-      ];
+    const track = state.score.tracks.by_id[selection.track_id];
+    const tone = track?.entries.by_id[selection.tone_id];
+
+    if (!tone || tone.type !== "Tone") {
+      return null;
+    }
+
     return tone.tick;
   } else {
     return selection.tick;

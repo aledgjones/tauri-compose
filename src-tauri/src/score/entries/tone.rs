@@ -382,6 +382,8 @@ pub fn score_entries_tone_duration_remove(
     let track = state.score.tracks.by_id.get_mut(&track_id).unwrap();
     track.remove_entry(tone_id);
 
+    state.ui.sequencer.selection = None;
+
     state.emit(&app, &mut renderer, true);
 }
 

@@ -52,8 +52,8 @@ development_status:
   epic-2: in-progress
   2-1-resolve-hit-targets-across-two-visible-flows: done
   2-2-select-score-content-in-either-visible-flow: done
-  2-3-preserve-stable-selection-while-one-visible-flow-updates: backlog
-  2-4-open-contextual-popovers-within-the-multi-flow-score-surface: backlog
+  2-3-preserve-stable-selection-while-one-visible-flow-updates: done
+  2-4-open-contextual-popovers-within-the-multi-flow-score-surface: ready-for-dev
   2-5-make-active-flow-editing-context-explicit-in-multi-flow-score-view: backlog
   2-6-preserve-single-active-flow-behavior-across-score-and-sequencer-contexts: backlog
   epic-2-retrospective: optional
