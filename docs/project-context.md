@@ -110,6 +110,7 @@ The score page is rendered natively by Rust/Skia/Metal — all other UI (panels,
 
 - Draw instructions are cached on `RendererContext` and re-rendered on pan/zoom without recalculation
 - Recalculation only triggered by score mutations (via `emit()` flow)
+- The flow-preparation diagnostics contract is maintainer-facing and Rust-owned: valid recalculation passes report `render_mode`, prepared/composed/recalculated flow ids and counts, plus scope labels such as `single_flow`, `multiple_flows`, or `no_visible_flows`; reset paths continue to emit null-safe payloads so the debugger can show cleared/no-render state without inventing a parallel source of truth.
 - The composed `renderer.width` from the shared surface remains the single authoritative horizontal extent for native pan clamping, while the debugger timing panel can expose shared-surface versus viewport dimensions plus per-page box offsets for multi-flow reachability checks without creating a frontend-owned scroll model.
 - Horizontal spacing slots are for **flow spacing only** — they are not a generic anchoring mechanism for every marking.
 - Prefer reusing an existing slot position when an element should align with current notation but should not push later notation horizontally.

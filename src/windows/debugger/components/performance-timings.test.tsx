@@ -2,6 +2,15 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { PerformanceTimings } from "./performance-timings";
+import { createAppState } from "../../../services/test-utils";
+
+const { mockUseAppState } = vi.hoisted(() => ({
+  mockUseAppState: vi.fn(),
+}));
+
+vi.mock("../../../services/state", () => ({
+  useAppState: mockUseAppState,
+}));
 
 // Capture listen callbacks so tests can fire them
 type ListenerFn = (event: { payload: unknown }) => void;
@@ -64,9 +73,60 @@ const fireGpuTimings = (value: number) => {
   ].forEach((k) => fireTimingEvent(k, value));
 };
 
+const buildAppState = (layoutFlowIdsByLayoutId?: Record<number, number[]>) => {
+  const state = createAppState();
+
+  state.score.flows.order = [10, 20, 30];
+  state.score.flows.by_id = {
+    10: {
+      id: 10,
+      title: "Flow 1",
+      player_ids: [],
+      length: 16,
+      master_id: 110,
+      staves: { by_id: {} },
+    },
+    20: {
+      id: 20,
+      title: "Flow 2",
+      player_ids: [],
+      length: 16,
+      master_id: 120,
+      staves: { by_id: {} },
+    },
+    30: {
+      id: 30,
+      title: "Flow 3",
+      player_ids: [],
+      length: 16,
+      master_id: 130,
+      staves: { by_id: {} },
+    },
+  };
+
+  state.score.layouts.order = [4, 9];
+  state.score.layouts.by_id[4] = {
+    id: 4,
+    title: "Layout 4",
+    layout_type: 0,
+    player_ids: [],
+    flow_ids: layoutFlowIdsByLayoutId?.[4] ?? [10, 20, 30],
+  };
+  state.score.layouts.by_id[9] = {
+    id: 9,
+    title: "Layout 9",
+    layout_type: 0,
+    player_ids: [],
+    flow_ids: layoutFlowIdsByLayoutId?.[9] ?? [10, 20, 30],
+  };
+
+  return state;
+};
+
 describe("PerformanceTimings", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockUseAppState.mockReturnValue(buildAppState());
     // Reset listeners map
     for (const key of Object.keys(listeners)) {
       delete listeners[key];
@@ -268,45 +328,69 @@ describe("PerformanceTimings", () => {
   });
 
   it("shows flow-aware preparation diagnostics inside the layout timing panel", async () => {
-    const user = userEvent.setup();
     render(<PerformanceTimings />);
 
     fireTimingEvent("render-timing-flow-preparation", 12_000);
     firePayloadEvent("render-timing-flow-preparation-details", {
+      render_mode: "shared_surface",
       layout_id: 4,
       active_flow_id: 20,
       active_flow_visible_in_layout: true,
       prepared_flow_ids: [10, 20],
       prepared_flow_count: 2,
+      prepared_flow_scope: "multiple_flows",
       composed_flow_ids: [10, 20],
       composed_flow_count: 2,
+      composed_flow_scope: "multiple_flows",
+      recalculated_flow_ids: [10, 20],
+      recalculated_flow_count: 2,
+      recalculation_scope: "multiple_flows",
     });
 
-    await user.click(screen.getByRole("button", { name: /Layout Phase/ }));
-
-    expect(screen.getByText("Flow-aware preparation")).toBeInTheDocument();
-    expect(screen.getByText(/Prepared flows: 10, 20/)).toBeInTheDocument();
-    expect(screen.getByText(/Composed flows: 10, 20/)).toBeInTheDocument();
-    expect(screen.getByText(/Composed flow count: 2/)).toBeInTheDocument();
-    expect(screen.getByText(/Render path: shared-surface/)).toBeInTheDocument();
+    expect(screen.getByText(/Render Scope/)).toBeInTheDocument();
+    expect(screen.getByText("Flow cards")).toBeInTheDocument();
+    expect(screen.getByText(/Shared update/)).toBeInTheDocument();
+    expect(screen.getByText(/Unified shared surface/)).toBeInTheDocument();
+    expect(screen.getByText(/Planned 2 · Multiple flows/)).toBeInTheDocument();
     expect(
-      screen.getByText(/Active flow visible in layout: yes/),
+      screen.getByText(/Recalculated 2 · Multiple flows/),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Composed 2 · Multiple flows/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Multiple visible flows changed in this pass./),
+    ).toBeInTheDocument();
+    expect(screen.getAllByText(/^Flow 1$/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/^Flow 2$/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/^Flow 3$/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Flow 3/).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Not planned/)).toBeInTheDocument();
+    expect(screen.getByText(/^Active$/)).toBeInTheDocument();
+    expect(screen.getAllByText(/^Planned$/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/^Recalculated$/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/^Composed$/).length).toBeGreaterThan(0);
+    expect(
+      screen.getByText(/Layout 4 · Active flow 20 · Active flow visible: yes/),
     ).toBeInTheDocument();
   });
 
   it("shows shared surface and viewport diagnostics when render surface details are emitted", async () => {
-    const user = userEvent.setup();
     render(<PerformanceTimings />);
 
     fireTimingEvent("render-timing-flow-preparation", 8_000);
     firePayloadEvent("render-timing-flow-preparation-details", {
+      render_mode: "shared_surface",
       layout_id: 4,
       active_flow_id: 20,
       active_flow_visible_in_layout: true,
       prepared_flow_ids: [10, 20],
       prepared_flow_count: 2,
+      prepared_flow_scope: "multiple_flows",
       composed_flow_ids: [10, 20],
       composed_flow_count: 2,
+      composed_flow_scope: "multiple_flows",
+      recalculated_flow_ids: [10, 20],
+      recalculated_flow_count: 2,
+      recalculation_scope: "multiple_flows",
     });
     firePayloadEvent("render-timing-surface-details", {
       surface_width_px: 1440,
@@ -321,34 +405,36 @@ describe("PerformanceTimings", () => {
       ],
     });
 
-    await user.click(screen.getByRole("button", { name: /Layout Phase/ }));
-
-    expect(
-      screen.getByText(/Shared surface: 1440.0px x 480.0px/),
-    ).toBeInTheDocument();
-    expect(screen.getByText(/Viewport: 960.0px x 420.0px/)).toBeInTheDocument();
-    expect(screen.getByText(/Page count: 2/)).toBeInTheDocument();
     expect(
       screen.getByText(
-        /Page boxes: page 1 @ 0.0px, width 710.0px \| page 2 @ 730.0px, width 710.0px/,
+        /Canvas 1440.0px x 480.0px · Viewport 960.0px x 420.0px · Gap 20.0px/,
       ),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Inter-flow gap: 20.0px/)).toBeInTheDocument();
+    expect(screen.getByText(/Surface map/)).toBeInTheDocument();
+    expect(screen.getByText(/Page 1/)).toBeInTheDocument();
+    expect(screen.getByText(/Page 2/)).toBeInTheDocument();
+    expect(screen.getByText(/^0.0px$/)).toBeInTheDocument();
+    expect(screen.getAllByText(/^710.0px$/)).toHaveLength(2);
   });
 
   it("shows all composed page boxes when 3+ flows are rendered on one surface", async () => {
-    const user = userEvent.setup();
     render(<PerformanceTimings />);
 
     fireTimingEvent("render-timing-flow-preparation", 8_000);
     firePayloadEvent("render-timing-flow-preparation-details", {
+      render_mode: "shared_surface",
       layout_id: 4,
       active_flow_id: 20,
       active_flow_visible_in_layout: true,
       prepared_flow_ids: [10, 20, 30],
       prepared_flow_count: 3,
+      prepared_flow_scope: "multiple_flows",
       composed_flow_ids: [10, 20, 30],
       composed_flow_count: 3,
+      composed_flow_scope: "multiple_flows",
+      recalculated_flow_ids: [10, 20, 30],
+      recalculated_flow_count: 3,
+      recalculation_scope: "multiple_flows",
     });
     firePayloadEvent("render-timing-surface-details", {
       surface_width_px: 2180,
@@ -364,29 +450,38 @@ describe("PerformanceTimings", () => {
       ],
     });
 
-    await user.click(screen.getByRole("button", { name: /Layout Phase/ }));
-
-    expect(screen.getByText(/Page count: 3/)).toBeInTheDocument();
     expect(
       screen.getByText(
-        /Page boxes: page 1 @ 0.0px, width 700.0px \| page 2 @ 720.0px, width 700.0px \| page 3 @ 1440.0px, width 740.0px/,
+        /Canvas 2180.0px x 480.0px · Viewport 960.0px x 420.0px · Gap 20.0px/,
       ),
     ).toBeInTheDocument();
+    expect(screen.getByText(/Page 3/)).toBeInTheDocument();
+    expect(screen.getByText(/^1440.0px$/)).toBeInTheDocument();
+    expect(screen.getByText(/^740.0px$/)).toBeInTheDocument();
   });
 
   it("clears stale flow-aware preparation diagnostics when the backend resets them", async () => {
-    const user = userEvent.setup();
+    mockUseAppState.mockReturnValue(
+      buildAppState({ 4: [10], 9: [10, 20, 30] }),
+    );
+
     render(<PerformanceTimings />);
 
     fireTimingEvent("render-timing-flow-preparation", 12_000);
     firePayloadEvent("render-timing-flow-preparation-details", {
+      render_mode: "shared_surface",
       layout_id: 4,
       active_flow_id: 20,
       active_flow_visible_in_layout: false,
       prepared_flow_ids: [10],
       prepared_flow_count: 1,
+      prepared_flow_scope: "single_flow",
       composed_flow_ids: [10],
       composed_flow_count: 1,
+      composed_flow_scope: "single_flow",
+      recalculated_flow_ids: [10],
+      recalculated_flow_count: 1,
+      recalculation_scope: "single_flow",
     });
     firePayloadEvent("render-timing-surface-details", {
       surface_width_px: 1440,
@@ -398,26 +493,68 @@ describe("PerformanceTimings", () => {
       page_boxes: [{ page_index: 0, x_px: 0, width_px: 1440 }],
     });
 
-    await user.click(screen.getByRole("button", { name: /Layout Phase/ }));
-    expect(screen.getByText(/Prepared flow count: 1/)).toBeInTheDocument();
-    expect(screen.getByText(/Composed flows: 10/)).toBeInTheDocument();
-    expect(screen.getByText(/Render path: shared-surface/)).toBeInTheDocument();
+    expect(screen.getByText(/Targeted update/)).toBeInTheDocument();
+    expect(screen.getByText(/Planned 1 · Single flow/)).toBeInTheDocument();
     expect(
-      screen.getByText(/Shared surface: 1440.0px x 480.0px/),
+      screen.getByText(/Recalculated 1 · Single flow/),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Page count: 1/)).toBeInTheDocument();
+    expect(screen.getByText(/Composed 1 · Single flow/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/One visible flow changed in this pass./),
+    ).toBeInTheDocument();
+    expect(screen.getAllByText(/^Flow 1$/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/^Flow 2$/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/^Flow 3$/).length).toBeGreaterThan(0);
+    expect(screen.getByText(/^Active$/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Not planned/)).toHaveLength(2);
+    expect(
+      screen.getByText(
+        /Canvas 1440.0px x 480.0px · Viewport 960.0px x 420.0px/,
+      ),
+    ).toBeInTheDocument();
 
     fireTimingEvent("render-timing-flow-preparation", 0);
     firePayloadEvent("render-timing-flow-preparation-details", null);
     firePayloadEvent("render-timing-surface-details", null);
 
+    expect(screen.getByText(/No active render/)).toBeInTheDocument();
     expect(
-      screen.queryByText(/Prepared flow count: 1/),
-    ).not.toBeInTheDocument();
+      screen.getByText(/Waiting for a render plan or composed surface./),
+    ).toBeInTheDocument();
     expect(
-      screen.queryByText(/Shared surface: 1440.0px x 480.0px/),
+      screen.queryByText(/Canvas: 1440.0px x 480.0px/),
     ).not.toBeInTheDocument();
-    expect(screen.queryByText(/Page count: 1/)).not.toBeInTheDocument();
+  });
+
+  it("shows broad recalculation scope when multiple visible flows are recomputed", async () => {
+    render(<PerformanceTimings />);
+
+    fireTimingEvent("render-timing-flow-preparation", 9_000);
+    firePayloadEvent("render-timing-flow-preparation-details", {
+      render_mode: "shared_surface",
+      layout_id: 9,
+      active_flow_id: 30,
+      active_flow_visible_in_layout: true,
+      prepared_flow_ids: [10, 20, 30],
+      prepared_flow_count: 3,
+      prepared_flow_scope: "multiple_flows",
+      composed_flow_ids: [10, 20, 30],
+      composed_flow_count: 3,
+      composed_flow_scope: "multiple_flows",
+      recalculated_flow_ids: [10, 20, 30],
+      recalculated_flow_count: 3,
+      recalculation_scope: "multiple_flows",
+    });
+
+    expect(screen.getByText(/Shared update/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Multiple visible flows changed in this pass./),
+    ).toBeInTheDocument();
+    expect(screen.getAllByText(/^Flow 3$/).length).toBeGreaterThan(0);
+    expect(
+      screen.getByText(/Recalculated 3 · Multiple flows/),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/^Active$/)).toBeInTheDocument();
   });
 
   it("counts flow preparation in the layout header severity", () => {

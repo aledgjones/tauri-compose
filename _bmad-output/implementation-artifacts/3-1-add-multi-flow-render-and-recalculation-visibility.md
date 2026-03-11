@@ -1,6 +1,6 @@
 # Story 3.1: Add Multi-Flow Render and Recalculation Visibility
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -59,26 +59,26 @@ This increment is an observability story, not a notation or persistence story. T
 
 ## Tasks / Subtasks
 
-- [ ] Audit and extend the current render-timing contract rather than creating a new observability path (AC: 1, 2, 3, 4)
-  - [ ] Verify the current emit sequence in `src-tauri/src/lib.rs`, `src-tauri/src/instructions/render_plan.rs`, and `src-tauri/src/instructions/mod.rs`, including where flow preparation, composition, and surface diagnostics are already emitted.
-  - [ ] Identify the smallest backend-owned diagnostics shape that can describe prepared-flow scope, composed-flow scope, and recalculation scope without changing score output.
-  - [ ] Keep cleared/no-render behavior explicit by continuing to emit reset-safe payloads when no render plan or surface is available.
-- [ ] Add backend diagnostics for render mode and recalculation scope (AC: 1, 2, 3, 4)
-  - [ ] Extend the existing render-plan and/or render-surface diagnostics so they state which flow ids were prepared, composed, and recalculated, plus any compact counts or scope labels that make the pass easy to interpret.
-  - [ ] Ensure local updates can report whether recalculation was scoped to one flow or multiple flows, even if the current invalidation model still recomputes more than desired.
-  - [ ] Preserve the current timing events so existing debugger consumers do not lose baseline visibility for any render pass.
-  - [ ] Keep all FE↔BE diagnostics payloads in `snake_case` and Rust-owned.
-- [ ] Surface the expanded diagnostics in the existing debugger window (AC: 1, 2, 3)
-  - [ ] Update `src/windows/debugger/components/performance-timings.tsx` to show the new render-mode and recalculation-scope details inside the current layout timing panel or another clearly adjacent existing section.
-  - [ ] Preserve the current performance timing rows and severity behavior so the debugger remains comparable before and after this story.
-  - [ ] Avoid inventing user-facing score chrome, overlays, or React-owned interpretations of backend render truth.
-- [ ] Add focused regression coverage around the observability contract (AC: 1, 2, 3, 4)
-  - [ ] Add Rust tests around the diagnostics payload shape in `src-tauri/src/instructions/render_plan.rs` and any other backend seam changed by the implementation.
-  - [ ] Extend debugger tests in `src/windows/debugger/components/performance-timings.test.tsx` to prove narrow-scope, broad-scope, and reset scenarios render the expected details.
-  - [ ] Keep notation-sensitive regression coverage intact; if any render instrumentation touches parser-adjacent behavior, extend the nearest existing test support rather than creating a new framework.
-- [ ] Document the new maintainer-facing instrumentation contract where it materially changes project expectations (AC: 4)
-  - [ ] Update `docs/project-context.md` and `docs/architecture.md` if this story introduces a stable diagnostics contract or new required hook points for render-timing visibility.
-  - [ ] Update AI-agent instructions only if this story establishes a new required implementation rule for future render instrumentation work.
+- [x] Audit and extend the current render-timing contract rather than creating a new observability path (AC: 1, 2, 3, 4)
+  - [x] Verify the current emit sequence in `src-tauri/src/lib.rs`, `src-tauri/src/instructions/render_plan.rs`, and `src-tauri/src/instructions/mod.rs`, including where flow preparation, composition, and surface diagnostics are already emitted.
+  - [x] Identify the smallest backend-owned diagnostics shape that can describe prepared-flow scope, composed-flow scope, and recalculation scope without changing score output.
+  - [x] Keep cleared/no-render behavior explicit by continuing to emit reset-safe payloads when no render plan or surface is available.
+- [x] Add backend diagnostics for render mode and recalculation scope (AC: 1, 2, 3, 4)
+  - [x] Extend the existing render-plan and/or render-surface diagnostics so they state which flow ids were prepared, composed, and recalculated, plus any compact counts or scope labels that make the pass easy to interpret.
+  - [x] Ensure local updates can report whether recalculation was scoped to one flow or multiple flows, even if the current invalidation model still recomputes more than desired.
+  - [x] Preserve the current timing events so existing debugger consumers do not lose baseline visibility for any render pass.
+  - [x] Keep all FE↔BE diagnostics payloads in `snake_case` and Rust-owned.
+- [x] Surface the expanded diagnostics in the existing debugger window (AC: 1, 2, 3)
+  - [x] Update `src/windows/debugger/components/performance-timings.tsx` to show the new render-mode and recalculation-scope details inside the current layout timing panel or another clearly adjacent existing section.
+  - [x] Preserve the current performance timing rows and severity behavior so the debugger remains comparable before and after this story.
+  - [x] Avoid inventing user-facing score chrome, overlays, or React-owned interpretations of backend render truth.
+- [x] Add focused regression coverage around the observability contract (AC: 1, 2, 3, 4)
+  - [x] Add Rust tests around the diagnostics payload shape in `src-tauri/src/instructions/render_plan.rs` and any other backend seam changed by the implementation.
+  - [x] Extend debugger tests in `src/windows/debugger/components/performance-timings.test.tsx` to prove narrow-scope, broad-scope, and reset scenarios render the expected details.
+  - [x] Keep notation-sensitive regression coverage intact; if any render instrumentation touches parser-adjacent behavior, extend the nearest existing test support rather than creating a new framework.
+- [x] Document the new maintainer-facing instrumentation contract where it materially changes project expectations (AC: 4)
+  - [x] Update `docs/project-context.md` and `docs/architecture.md` if this story introduces a stable diagnostics contract or new required hook points for render-timing visibility.
+  - [x] Update AI-agent instructions only if this story establishes a new required implementation rule for future render instrumentation work.
 
 ## Dev Notes
 
@@ -204,13 +204,71 @@ GPT-5.4
 
 - Existing debugger timing surface: `src/windows/debugger/components/performance-timings.tsx`
 - Existing backend emit seams: `src-tauri/src/lib.rs`, `src-tauri/src/instructions/render_plan.rs`, `src-tauri/src/instructions/mod.rs`
+- Updated diagnostics contract: `src-tauri/src/instructions/render_plan.rs`
+- Updated debugger observability surface: `src/windows/debugger/components/performance-timings.tsx`
+- Updated debugger regression coverage: `src/windows/debugger/components/performance-timings.test.tsx`
+
+### Implementation Plan
+
+- Extend the existing Rust-owned flow-preparation diagnostics payload with explicit render mode plus prepared, composed, and recalculated scope metadata.
+- Keep reset/no-render behavior null-safe and teach the debugger timing panel to surface that cleared state explicitly.
+- Cover the contract with focused Rust tests and debugger tests, then document the maintainer-facing expectations in the existing project docs.
 
 ### Completion Notes List
 
 - Ultimate context engine analysis completed - comprehensive developer guide created.
 - Story is intentionally constrained to observability and debugger visibility; notation, persistence, and migration changes are out of scope.
 - External web research was unavailable; local repository artifacts and current source were used as the authoritative baseline.
+- Extended `FlowRenderPreparationDiagnostics` with explicit `render_mode`, prepared/composed scope labels, and recalculated-flow scope data while preserving null reset payloads for cleared/no-render passes.
+- Updated the debugger timing panel to show render mode, prepared/composed/recalculated flow scope, and explicit cleared-state messaging without changing the existing timing rows or severity thresholds.
+- Simplified the debugger presentation from a dense text list to a compact visual summary with pass-state banners and per-flow boxes so maintainers can spot broad versus focused refreshes at a glance while the Rust payload stays machine-readable.
+- Addressed code-review follow-ups by restoring explicit prepared/composed/recalculated scope lanes and a compact page-box surface map in the debugger while keeping the visual card-based presentation instead of reverting to a long text list.
+- Followed up on the debugger presentation by flipping the render-scope view to a flow-centric card layout so each visible flow shows its prepared/composed/recalculated status as chips while pass-level counts stay compact in the header.
+- Added focused Rust regression coverage for single-flow, multi-flow, and no-visible-flow diagnostics, plus debugger coverage for broad-scope and cleared-state scenarios.
+- Documented the maintainer-facing diagnostics contract in `docs/project-context.md` and `docs/architecture.md`.
+- Validation passed: `npm run lint`, `npm run check-types`, `npm run test:js`, `npm run test:rust`, and `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features`.
+- Review-fix validation passed: `npm run lint`, `npm run check-types`, targeted debugger tests, and the full JS suite.
 
 ### File List
 
 - `_bmad-output/implementation-artifacts/3-1-add-multi-flow-render-and-recalculation-visibility.md`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `docs/architecture.md`
+- `docs/project-context.md`
+- `src-tauri/src/instructions/render_plan.rs`
+- `src/windows/debugger/components/performance-timings.test.tsx`
+- `src/windows/debugger/components/performance-timings.tsx`
+
+## Change Log
+
+- 2026-03-11: Added explicit multi-flow render and recalculation scope diagnostics, surfaced the expanded contract in the debugger timing panel, extended regression coverage, and documented the maintainer-facing instrumentation expectations.
+- 2026-03-11: Simplified the debugger render-scope view into a compact visual summary with color-coded flow boxes and clearer human-facing pass labels.
+- 2026-03-11: Fixed code-review follow-ups by restoring explicit scope lanes and page-box surface visibility inside the visual debugger card without reintroducing the earlier verbose text dump.
+- 2026-03-11: Reworked the debugger render-scope card into a flow-centric layout with per-flow status chips and compact pass-level summary pills.
+
+## Senior Developer Review (AI)
+
+### Review Date
+
+2026-03-11
+
+### Reviewer
+
+GPT-5.4
+
+### Findings
+
+- Fixed: the debugger card had collapsed prepared, composed, and recalculated scope into one visual union, which made the backend-owned scope sets less directly inspectable than the acceptance criteria intended.
+- Fixed: the debugger card had dropped page-box visibility even though `render-timing-surface-details` still emitted that data; the surface map now restores that maintainability aid in a compact diagrammatic form.
+- Note: recalculation scope remains Rust-owned and currently reflects the flows recomputed by the unified render pass. There is no narrower invalidation signal in the backend yet, so the review fix preserved truthful reporting rather than inventing frontend-derived scope.
+
+### Validation
+
+- Passed after fix: `npm run lint`
+- Passed after fix: `npm run check-types`
+- Passed after fix: targeted debugger tests for `src/windows/debugger/components/performance-timings.test.tsx`
+- Passed after fix: full JS suite
+
+### Notes
+
+- Atlassian MCP search was attempted during review but failed with `401 Unauthorized`, so no external Jira/Confluence references were added.

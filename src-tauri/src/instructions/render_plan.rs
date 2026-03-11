@@ -2,6 +2,30 @@ use crate::score::Score;
 use crate::utils::UniqueId;
 use serde::Serialize;
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum FlowRenderMode {
+    SharedSurface,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum FlowRenderScope {
+    NoVisibleFlows,
+    SingleFlow,
+    MultipleFlows,
+}
+
+impl FlowRenderScope {
+    fn from_flow_count(flow_count: usize) -> Self {
+        match flow_count {
+            0 => Self::NoVisibleFlows,
+            1 => Self::SingleFlow,
+            _ => Self::MultipleFlows,
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PreparedFlowRenderInput {
     pub flow_id: UniqueId,
@@ -18,6 +42,10 @@ pub struct FlowRenderPlan {
 }
 
 impl FlowRenderPlan {
+    pub fn render_mode(&self) -> FlowRenderMode {
+        FlowRenderMode::SharedSurface
+    }
+
     pub fn prepared_flow_ids(&self) -> Vec<UniqueId> {
         self.prepared_flows
             .iter()
@@ -29,6 +57,10 @@ impl FlowRenderPlan {
         self.prepared_flows.len()
     }
 
+    pub fn prepared_flow_scope(&self) -> FlowRenderScope {
+        FlowRenderScope::from_flow_count(self.prepared_flow_count())
+    }
+
     pub fn composed_flow_ids(&self) -> Vec<UniqueId> {
         self.prepared_flow_ids()
     }
@@ -36,29 +68,57 @@ impl FlowRenderPlan {
     pub fn composed_flow_count(&self) -> usize {
         self.composed_flow_ids().len()
     }
+
+    pub fn composed_flow_scope(&self) -> FlowRenderScope {
+        FlowRenderScope::from_flow_count(self.composed_flow_count())
+    }
+
+    pub fn recalculated_flow_ids(&self) -> Vec<UniqueId> {
+        self.composed_flow_ids()
+    }
+
+    pub fn recalculated_flow_count(&self) -> usize {
+        self.recalculated_flow_ids().len()
+    }
+
+    pub fn recalculation_scope(&self) -> FlowRenderScope {
+        FlowRenderScope::from_flow_count(self.recalculated_flow_count())
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct FlowRenderPreparationDiagnostics {
+    pub render_mode: FlowRenderMode,
     pub layout_id: UniqueId,
     pub active_flow_id: UniqueId,
     pub active_flow_visible_in_layout: bool,
     pub prepared_flow_ids: Vec<UniqueId>,
     pub prepared_flow_count: usize,
+    pub prepared_flow_scope: FlowRenderScope,
     pub composed_flow_ids: Vec<UniqueId>,
     pub composed_flow_count: usize,
+    pub composed_flow_scope: FlowRenderScope,
+    pub recalculated_flow_ids: Vec<UniqueId>,
+    pub recalculated_flow_count: usize,
+    pub recalculation_scope: FlowRenderScope,
 }
 
 impl From<&FlowRenderPlan> for FlowRenderPreparationDiagnostics {
     fn from(plan: &FlowRenderPlan) -> Self {
         Self {
+            render_mode: plan.render_mode(),
             layout_id: plan.layout_id,
             active_flow_id: plan.active_flow_id,
             active_flow_visible_in_layout: plan.active_flow_visible_in_layout,
             prepared_flow_ids: plan.prepared_flow_ids(),
             prepared_flow_count: plan.prepared_flow_count(),
+            prepared_flow_scope: plan.prepared_flow_scope(),
             composed_flow_ids: plan.composed_flow_ids(),
             composed_flow_count: plan.composed_flow_count(),
+            composed_flow_scope: plan.composed_flow_scope(),
+            recalculated_flow_ids: plan.recalculated_flow_ids(),
+            recalculated_flow_count: plan.recalculated_flow_count(),
+            recalculation_scope: plan.recalculation_scope(),
         }
     }
 }
@@ -183,11 +243,26 @@ mod tests {
         let plan = prepare_flow_render_plan(&score, 0, 30).unwrap();
         let diagnostics = FlowRenderPreparationDiagnostics::from(&plan);
 
+        assert_eq!(diagnostics.render_mode, FlowRenderMode::SharedSurface);
         assert_eq!(diagnostics.layout_id, 0);
         assert_eq!(diagnostics.prepared_flow_ids, vec![10, 30]);
         assert_eq!(diagnostics.prepared_flow_count, 2);
+        assert_eq!(
+            diagnostics.prepared_flow_scope,
+            FlowRenderScope::MultipleFlows
+        );
         assert_eq!(diagnostics.composed_flow_ids, vec![10, 30]);
         assert_eq!(diagnostics.composed_flow_count, 2);
+        assert_eq!(
+            diagnostics.composed_flow_scope,
+            FlowRenderScope::MultipleFlows
+        );
+        assert_eq!(diagnostics.recalculated_flow_ids, vec![10, 30]);
+        assert_eq!(diagnostics.recalculated_flow_count, 2);
+        assert_eq!(
+            diagnostics.recalculation_scope,
+            FlowRenderScope::MultipleFlows
+        );
     }
 
     #[test]
@@ -220,6 +295,48 @@ mod tests {
     }
 
     #[test]
+    fn diagnostics_report_single_flow_scope_for_narrow_passes() {
+        let mut score = build_score();
+        let layout = score.layouts.by_id.get_mut(&0).unwrap();
+        layout.flow_ids.clear();
+        layout.flow_ids.insert(10);
+
+        let plan = prepare_flow_render_plan(&score, 0, 10).unwrap();
+        let diagnostics = FlowRenderPreparationDiagnostics::from(&plan);
+
+        assert_eq!(diagnostics.prepared_flow_scope, FlowRenderScope::SingleFlow);
+        assert_eq!(diagnostics.composed_flow_scope, FlowRenderScope::SingleFlow);
+        assert_eq!(diagnostics.recalculated_flow_ids, vec![10]);
+        assert_eq!(diagnostics.recalculated_flow_count, 1);
+        assert_eq!(diagnostics.recalculation_scope, FlowRenderScope::SingleFlow);
+    }
+
+    #[test]
+    fn diagnostics_report_no_visible_flow_scope_for_empty_passes() {
+        let mut score = build_score();
+        let layout = score.layouts.by_id.get_mut(&0).unwrap();
+        layout.flow_ids.clear();
+
+        let plan = prepare_flow_render_plan(&score, 0, 10).unwrap();
+        let diagnostics = FlowRenderPreparationDiagnostics::from(&plan);
+
+        assert_eq!(diagnostics.prepared_flow_ids, Vec::<UniqueId>::new());
+        assert_eq!(
+            diagnostics.prepared_flow_scope,
+            FlowRenderScope::NoVisibleFlows
+        );
+        assert_eq!(
+            diagnostics.composed_flow_scope,
+            FlowRenderScope::NoVisibleFlows
+        );
+        assert_eq!(diagnostics.recalculated_flow_ids, Vec::<UniqueId>::new());
+        assert_eq!(
+            diagnostics.recalculation_scope,
+            FlowRenderScope::NoVisibleFlows
+        );
+    }
+
+    #[test]
     fn diagnostics_report_all_composed_flow_ids_without_a_two_flow_cap() {
         let mut score = build_score();
         let layout = score.layouts.by_id.get_mut(&0).unwrap();
@@ -231,8 +348,22 @@ mod tests {
 
         assert_eq!(diagnostics.prepared_flow_ids, vec![10, 20, 30, 40]);
         assert_eq!(diagnostics.prepared_flow_count, 4);
+        assert_eq!(
+            diagnostics.prepared_flow_scope,
+            FlowRenderScope::MultipleFlows
+        );
         assert_eq!(diagnostics.composed_flow_ids, vec![10, 20, 30, 40]);
         assert_eq!(diagnostics.composed_flow_count, 4);
+        assert_eq!(
+            diagnostics.composed_flow_scope,
+            FlowRenderScope::MultipleFlows
+        );
+        assert_eq!(diagnostics.recalculated_flow_ids, vec![10, 20, 30, 40]);
+        assert_eq!(diagnostics.recalculated_flow_count, 4);
+        assert_eq!(
+            diagnostics.recalculation_scope,
+            FlowRenderScope::MultipleFlows
+        );
     }
 
     #[test]
