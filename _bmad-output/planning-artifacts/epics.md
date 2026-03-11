@@ -35,27 +35,27 @@ FR12: The product can preserve existing written-notation behavior when multi-flo
 FR13: The product can preserve existing written-duration behavior for musical content rendered in multi-flow contexts.
 FR14: The product can render multi-flow score output without requiring users to rewrite musical input to accommodate the presentation model.
 FR15: The product can preserve score output conforming to the notation behaviors documented in the project's notation reference (Elaine Gould, Behind Bars) when extending presentation beyond a single flow.
-FR17: Composers can scroll through the combined multi-flow score presentation as one continuous reading surface.
-FR18: The product can indicate the user's active flow and position through visible affordances while multiple flows are displayed, without requiring additional navigation steps to identify context.
-FR19: The product can display flow boundaries and flow sequence clearly enough that a user can identify individual flows and their relative order without scrolling or additional navigation.
-FR20: The product can support reading across multiple flows without requiring users to invoke a flow-switching interaction for basic score reading and navigation.
-FR21: The product can update one flow without requiring unrelated flows to be re-derived unnecessarily.
-FR22: The product can preserve isolated recalculation boundaries between flows during editing.
-FR23: The product can render all non-edited flows without visible update artifacts, stutter, or layout shifts while a local edit is processed in another flow.
-FR24: The product can preserve stable interaction behavior while one visible flow is updated.
-FR25: The product can support multi-flow presentation without coupling all visible flows into a single mandatory recalculation unit.
-FR26: macOS users can open score documents through standard desktop file workflows.
-FR27: macOS users can save and reopen score documents through native desktop document flows.
-FR28: The product can participate in desktop file association workflows for supported score documents.
-FR29: The product can use native-style file interaction patterns appropriate to a desktop document application.
-FR30: The product can support core composition and score interaction workflows without requiring network connectivity.
-FR31: Composers can continue using existing playback behavior while multi-flow rendering is introduced.
-FR33: The product can support desktop audio-device-based playback as part of the broader product context without making cross-flow playback a requirement for this MVP.
-FR34: Composers can keep a single active flow for sequencer and piano-roll workflows while multiple flows are visible in score presentation.
-FR38: The product can support future portability of score files, settings, and templates without requiring account-based sync in this MVP.
-FR39: The product can remain usable as a fully offline-first composition environment even as future optional sync capabilities are considered.
-FR40: Maintainers can evolve score presentation architecture without treating notation logic as part of the same capability change.
-FR41: Maintainers can access render-timing output covering multi-flow rendering scenarios to validate correctness and performance during development, extending existing single-flow timing instrumentation where necessary.
+FR16: Composers can scroll through the combined multi-flow score presentation as one continuous reading surface.
+FR17: The product can indicate the user's active flow and position through visible affordances while multiple flows are displayed, without requiring additional navigation steps to identify context.
+FR18: The product can display flow boundaries and flow sequence clearly enough that a user can identify individual flows and their relative order without scrolling or additional navigation.
+FR19: The product can support reading across multiple flows without requiring users to invoke a flow-switching interaction for basic score reading and navigation.
+FR20: The product can update one flow without requiring unrelated flows to be re-derived unnecessarily.
+FR21: The product can preserve isolated recalculation boundaries between flows during editing.
+FR22: The product can render all non-edited flows without visible update artifacts, stutter, or layout shifts while a local edit is processed in another flow.
+FR23: The product can preserve stable interaction behavior while one visible flow is updated.
+FR24: The product can support multi-flow presentation without coupling all visible flows into a single mandatory recalculation unit.
+FR25: macOS users can open score documents through standard desktop file workflows.
+FR26: macOS users can save and reopen score documents through native desktop document flows.
+FR27: The product can participate in desktop file association workflows for supported score documents.
+FR28: The product can use native-style file interaction patterns appropriate to a desktop document application.
+FR29: The product can support core composition and score interaction workflows without requiring network connectivity.
+FR30: Composers can continue using existing playback behavior while multi-flow rendering is introduced.
+FR31: The product can support desktop audio-device-based playback as part of the broader product context without making cross-flow playback a requirement for this MVP.
+FR32: Composers can keep a single active flow for sequencer and piano-roll workflows while multiple flows are visible in score presentation.
+FR33: The product can support future portability of score files, settings, and templates without requiring account-based sync in this MVP.
+FR34: The product can remain usable as a fully offline-first composition environment even as future optional sync capabilities are considered.
+FR35: Maintainers can evolve score presentation architecture without treating notation logic as part of the same capability change.
+FR36: Maintainers can access render-timing output covering multi-flow rendering scenarios to validate correctness and performance during development, extending existing single-flow timing instrumentation where necessary.
 
 ### NonFunctional Requirements
 
@@ -69,11 +69,11 @@ NFR8: Hit targets and popovers must resolve to the correct flow and score elemen
 NFR9: Score presentation, active-flow semantics, and interaction mapping must not expose contradictory states to the user; the visually indicated active flow must always match the flow targeted by editing interactions, and hit targets must always resolve to the flow they are visually within.
 NFR10: The system must fail in ways that preserve score integrity; presentation changes must not corrupt score data, notation state, or document open/save behavior.
 NFR11: Multi-flow rendering must remain within one display frame (<=16ms at 60fps) as score size scales from the single-flow baseline to the three-flow, 60-bar reference case in NFR2, with render time growing proportionally to the number of flows and bars requiring recalculation rather than as a fixed cost applied unconditionally.
-NFR14: Native desktop file workflows must behave consistently with macOS Human Interface Guidelines for document-based applications, including native file open/save dialogs, file association, and document state management.
-NFR15: Existing single-flow audio playback must continue to function correctly after multi-flow rendering is introduced; this feature is not required to enable cross-flow playback, but must not break it.
-NFR16: Offline use must remain first-class; the feature must not introduce any network dependency into core composition, rendering, interaction, or playback workflows.
-NFR17: The product should maintain an accessibility baseline consistent with Apple's macOS Accessibility Programming Guide for core workflows, ensuring keyboard navigation and VoiceOver compatibility are not deliberately degraded by this feature.
-NFR18: Accessibility improvements for this feature must not come at the expense of core notation correctness, interaction clarity, or architectural soundness for the target expert user base.
+NFR11: Native desktop file workflows must behave consistently with macOS Human Interface Guidelines for document-based applications, including native file open/save dialogs, file association, and document state management.
+NFR12: Existing single-flow audio playback must continue to function correctly after multi-flow rendering is introduced; this feature is not required to enable cross-flow playback, but must not break it.
+NFR13: Offline use must remain first-class; the feature must not introduce any network dependency into core composition, rendering, interaction, or playback workflows.
+NFR14: The product should maintain an accessibility baseline consistent with Apple's macOS Accessibility Programming Guide for core workflows, ensuring keyboard navigation and VoiceOver compatibility are not deliberately degraded by this feature.
+NFR15: Accessibility improvements for this feature must not come at the expense of core notation correctness, interaction clarity, or architectural soundness for the target expert user base.
 
 ### Additional Requirements
 
@@ -112,81 +112,81 @@ FR12: Epic 3 - preserve existing written notation behavior
 FR13: Epic 3 - preserve written-duration behavior
 FR14: Epic 3 - no user rewrite of musical input for presentation
 FR15: Epic 3 - preserve notation quality against the project notation standard
-FR17: Epic 1 - continuous scrolling across flows
-FR18: Epic 1 - visible active-flow and position affordances
-FR19: Epic 1 - clear boundaries and ordering
-FR20: Epic 1 - reading and navigation without extra flow-switching
-FR21: Epic 3 - update one flow without unnecessary re-derivation elsewhere
-FR22: Epic 3 - isolated recalculation boundaries
-FR23: Epic 3 - no artifacts or layout shifts during local edits
-FR24: Epic 2 - stable interaction while one flow updates
-FR25: Epic 3 - no mandatory full multi-flow recalculation unit
-FR26: Epic 4 - standard desktop open workflow remains intact
-FR27: Epic 4 - native save and reopen workflow remains intact
-FR28: Epic 4 - file association behavior remains supported
-FR29: Epic 4 - native-style file interactions remain intact
-FR30: Epic 4 - offline-first use remains intact
-FR31: Epic 4 - existing playback behavior continues to work
-FR33: Epic 4 - audio-device playback context remains supported
-FR34: Epic 2 - active-flow continuity for sequencer and piano-roll workflows
-FR38: Epic 4 - future portability remains possible without sync in MVP
-FR39: Epic 4 - offline-first product boundary remains intact
-FR40: Epic 3 - maintainers can evolve presentation without changing notation logic
-FR41: Epic 3 - maintainers have render-timing visibility for multi-flow scenarios
+FR16: Epic 1 - continuous scrolling across flows
+FR17: Epic 1 - visible active-flow and position affordances
+FR18: Epic 1 - clear boundaries and ordering
+FR19: Epic 1 - reading and navigation without extra flow-switching
+FR20: Epic 3 - update one flow without unnecessary re-derivation elsewhere
+FR21: Epic 3 - isolated recalculation boundaries
+FR22: Epic 3 - no artifacts or layout shifts during local edits
+FR23: Epic 2 - stable interaction while one flow updates
+FR24: Epic 3 - no mandatory full multi-flow recalculation unit
+FR25: Epic 4 - standard desktop open workflow remains intact
+FR26: Epic 4 - native save and reopen workflow remains intact
+FR27: Epic 4 - file association behavior remains supported
+FR28: Epic 4 - native-style file interactions remain intact
+FR29: Epic 4 - offline-first use remains intact
+FR30: Epic 4 - existing playback behavior continues to work
+FR31: Epic 4 - audio-device playback context remains supported
+FR32: Epic 2 - active-flow continuity for sequencer and piano-roll workflows
+FR33: Epic 4 - future portability remains possible without sync in MVP
+FR34: Epic 4 - offline-first product boundary remains intact
+FR35: Epic 3 - maintainers can evolve presentation without changing notation logic
+FR36: Epic 3 - maintainers have render-timing visibility for multi-flow scenarios
 
 ## Epic List
 
 ### Epic 1: Read the Score Across Multiple Flows
 
 Composers can view and navigate multiple flows as one continuous score surface, so larger pieces feel like a coherent document instead of isolated rendering islands.
-**FRs covered:** FR1, FR2, FR3, FR4, FR5, FR17, FR18, FR19, FR20
+**FRs covered:** FR1, FR2, FR3, FR4, FR5, FR16, FR17, FR18, FR19
 
 ### Epic 2: Interact Confidently Within Multi-Flow Score View
 
 Composers can select, edit, and use contextual score interactions across visible flows while keeping a clear active-flow model.
-**FRs covered:** FR6, FR7, FR8, FR9, FR10, FR11, FR24, FR34
+**FRs covered:** FR6, FR7, FR8, FR9, FR10, FR11, FR23, FR32
 
 ### Epic 3: Trust Multi-Flow Rendering to Stay Fast and Musically Correct
 
 Composers and maintainers can rely on multi-flow rendering to preserve notation behavior, isolate recalculation, and remain responsive as the score grows through small, careful implementation increments.
-**FRs covered:** FR12, FR13, FR14, FR15, FR21, FR22, FR23, FR25, FR40, FR41
+**FRs covered:** FR12, FR13, FR14, FR15, FR20, FR21, FR22, FR24, FR35, FR36
 
 ### Epic 4: Ship Multi-Flow Without Regressing Core Desktop Workflow
 
 Composers can adopt multi-flow score view without losing expected document, playback, offline, and future-ready product behavior.
-**FRs covered:** FR26, FR27, FR28, FR29, FR30, FR31, FR33, FR38, FR39
+**FRs covered:** FR25, FR26, FR27, FR28, FR29, FR30, FR31, FR33, FR34
 
 ## Epic 1: Read the Score Across Multiple Flows
 
 Composers can view and navigate multiple flows as one continuous score surface, so larger pieces feel like a coherent document instead of isolated rendering islands.
 
-### Story 1.1: Introduce Multi-Flow Score Composition Without Changing Visible Behavior
+### Story 1.1: Expose a Verifiable Flow-Aware Render Path for Multi-Flow Delivery
 
 As a maintainer,
-I want score rendering to compose from flow-aware presentation inputs,
-So that multi-flow score view can be introduced through small, controlled changes without destabilizing the existing score output.
+I want the score renderer to expose a verifiable flow-aware composition path,
+So that I can confirm multi-flow delivery is safe to build and debug before visible layout changes land.
 
 **Acceptance Criteria:**
 
 **Given** the existing score view render pipeline
 **When** rendering runs for a score with one or more flows
 **Then** the renderer builds its presentation from flow-aware composition inputs
-**And** the visible result remains unchanged for current single-flow use
+**And** maintainers can confirm through diagnostics that the flow-aware path was exercised while single-flow output remains unchanged
 
 **Given** a score containing multiple flows
 **When** the updated render pipeline runs
-**Then** it can enumerate and prepare more than one flow for future score composition work
-**And** it does not yet need to display additional flows in the score view
+**Then** it can enumerate and prepare flow-aware composition inputs for more than one flow
+**And** each prepared flow input is available as an explicit, inspectable unit for later score-surface composition work
 
 **Given** the updated flow-aware composition path
 **When** a score renders
 **Then** existing written-duration and notation-derivation behavior remains unchanged
 **And** no persisted score-format or migration change is required
 
-**Given** a developer validating this refactor step
+**Given** a maintainer validates this delivery step in normal debugging tools
 **When** the score render completes
-**Then** the implementation exposes enough internal structure or timing visibility to confirm the new composition path is being exercised
-**And** existing single-flow behavior remains the observable result
+**Then** the implementation exposes enough timing or diagnostic visibility to confirm the new composition path is being exercised
+**And** the render path is ready for visible multi-flow placement work without another hidden backend reshaping step
 
 ### Story 1.2: Render Two Flows in One Score Surface with Fixed Placement
 
@@ -201,6 +201,11 @@ So that multi-flow reading begins as a concrete visible capability without takin
 **Then** the first two flows appear in the same score surface
 **And** each flow is rendered in sequence using a simple deterministic horizontal placement rule
 
+**Given** the first two flows appear in the same score surface
+**When** a composer reads from the end of the first flow toward the start of the second
+**Then** the transition is visually understandable as one continuous score workspace
+**And** the user does not need a separate flow-switching action to continue reading
+
 **Given** the first two flows are rendered in the same score surface
 **When** the score is displayed
 **Then** the second flow is visually distinct from the first
@@ -209,12 +214,12 @@ So that multi-flow reading begins as a concrete visible capability without takin
 **Given** a score with only one flow
 **When** the score view renders through the updated path
 **Then** the score output remains correct and usable
-**And** the introduction of the second-flow layout path does not break single-flow rendering
+**And** the existing single-flow rendering path remains available through the same score-view workflow
 
 **Given** two flows are rendered in the same score surface
 **When** this first visible multi-flow slice is validated
 **Then** written-duration and notation-derivation behavior remains unchanged
-**And** spacing refinement, continuous scrolling, and orientation cues can remain for later stories
+**And** the rendered score shows a fixed visible gap between the two flows that is sufficient to distinguish the boundary at normal working zoom
 
 ### Story 1.3: Scroll Across the Combined Multi-Flow Score Width
 
@@ -232,12 +237,17 @@ So that the first multi-flow score surface can be read as one continuous workspa
 **Given** a score with only one flow
 **When** the score view renders through the updated scrolling path
 **Then** horizontal scrolling remains correct for the existing single-flow case
-**And** the change does not introduce regressions in current score navigation
+**And** the existing score-navigation inputs continue to work through the same score-view path
 
 **Given** a score with two rendered flows
 **When** a user scrolls from the first flow toward the second
 **Then** the movement feels continuous across the shared score surface
-**And** the implementation does not yet require final boundary styling or active-flow indicators
+**And** the horizontal scroll range reaches the full rendered extent of both visible flows without truncating the second flow
+
+**Given** the score view is shown at compact desktop width with secondary panels collapsed
+**When** the combined rendered width exceeds the available viewport
+**Then** both visible flows remain reachable through the same horizontal navigation model
+**And** the shell does not require an alternate navigation pattern to access the second flow
 
 **Given** the combined multi-flow score width is scrollable
 **When** this increment is validated
@@ -270,7 +280,7 @@ So that the multi-flow score view reads like one document instead of stitched-to
 **Given** this visual-coherence increment is implemented
 **When** the output is validated
 **Then** notation-derivation and written-duration behavior remain unchanged
-**And** further orientation cues can remain for the next story
+**And** the boundary treatment provides sufficient visual coherence for readable two-flow score presentation without altering interaction behavior
 
 ### Story 1.5: Add Flow Orientation Cues to Multi-Flow Score View
 
@@ -290,6 +300,16 @@ So that I can stay oriented while reading across multiple visible flows.
 **Then** the UI provides a visible indication of the active or current flow position
 **And** the cue does not require full editing interaction changes to be implemented in this story
 
+**Given** multiple flows are visible at compact desktop width with secondary panels collapsed
+**When** the score view remains the primary work surface
+**Then** flow boundaries and current-flow cues remain visible within the reduced workspace
+**And** the shell preserves the same score-first layout structure without switching to an alternate navigation model
+
+**Given** visible flow-orientation cues are present
+**When** a user relies on contrast or shape rather than color alone
+**Then** the current-flow cue remains distinguishable without depending solely on accent color
+**And** score readability remains intact
+
 **Given** a score with one visible flow
 **When** the score view renders
 **Then** the orientation cue behavior does not degrade the current single-flow experience
@@ -298,7 +318,7 @@ So that I can stay oriented while reading across multiple visible flows.
 **Given** this orientation increment is validated
 **When** the score view is reviewed end to end for Epic 1
 **Then** composers can read across multiple visible flows with clearer spatial understanding
-**And** interaction-specific behavior can remain for Epic 2
+**And** the orientation cues remain useful before later interaction stories add selection and popover behavior across flows
 
 ## Epic 2: Interact Confidently Within Multi-Flow Score View
 
@@ -329,8 +349,8 @@ So that multi-flow score view can support precise interaction without ambiguity.
 
 **Given** the multi-flow hit-target path is implemented
 **When** this increment is validated
-**Then** it does not yet require full selection, popover, or active-flow behavior to be complete
-**And** written-notation behavior remains unchanged
+**Then** repeated hit-tests at the same visible location resolve to the same flow-correct target
+**And** downstream selection or popover logic can consume that target without reinterpreting which flow it belongs to
 
 ### Story 2.2: Select Score Content in Either Visible Flow
 
@@ -357,7 +377,7 @@ So that the multi-flow score surface is usable for direct score work rather than
 
 **Given** selection works across both visible flows
 **When** this increment is validated
-**Then** popovers and active-flow editing semantics may still remain incomplete
+**Then** composers can move a single clear selection between visible flows without losing target clarity
 **And** written-notation behavior remains unchanged
 
 ### Story 2.3: Preserve Stable Selection While One Visible Flow Updates
@@ -383,9 +403,14 @@ So that local edits do not make multi-flow score interaction feel fragile or unp
 **Then** selection recovery follows a defined predictable rule
 **And** the UI does not leave stale selection state behind
 
+**Given** a selected target remains valid after a local update
+**When** the user continues with keyboard-driven editing or navigation
+**Then** focus remains on the surviving score context
+**And** subsequent commands continue to apply to the retained selected target
+
 **Given** this interaction-stability increment is validated
 **When** multi-flow updates are exercised
-**Then** full popover behavior can remain for a later story
+**Then** selection recovery follows the same defined rule across repeated update scenarios
 **And** the implementation preserves existing notation behavior and recalculation boundaries
 
 ### Story 2.4: Open Contextual Popovers Within the Multi-Flow Score Surface
@@ -411,9 +436,14 @@ So that multi-flow score view supports the same local directive and editing work
 **Then** existing single-flow popover behavior remains correct
 **And** current directive workflows remain usable
 
+**Given** a contextual popover is opened from the multi-flow score surface
+**When** the user navigates by keyboard
+**Then** focus moves predictably into the popover and back to the originating score context when the popover closes
+**And** the visible score context remains clear while the popover is open
+
 **Given** this popover increment is validated
 **When** popovers open across the visible multi-flow surface
-**Then** active-flow semantics may still be refined separately
+**Then** composers can complete supported popover-based directive workflows in either visible flow without leaving score context
 **And** notation-derivation and persisted score behavior remain unchanged
 
 ### Story 2.5: Make Active-Flow Editing Context Explicit in Multi-Flow Score View
@@ -437,12 +467,22 @@ So that multi-flow interaction remains precise when more than one flow is on scr
 **Given** the score view shows multiple visible flows
 **When** no active-flow change is intended
 **Then** passive reading or scrolling does not create contradictory active-flow state
-**And** the UI does not imply an edit target different from the actual one
+**And** the currently editable flow remains represented accurately in the UI
+
+**Given** the score view indicates the active editing flow
+**When** the user navigates by keyboard or relies on high-contrast focus cues
+**Then** the active flow remains distinguishable through visible state cues that do not depend on color alone
+**And** the indicated active flow continues to match the actual edit target
+
+**Given** multiple flows are visible at compact desktop width with secondary panels collapsed
+**When** the user changes the active flow through score interaction
+**Then** the active-flow indication remains visible on the score surface
+**And** panel collapse state does not make the current editing target ambiguous
 
 **Given** this active-flow increment is validated
 **When** score interactions are exercised across visible flows
 **Then** the active-flow semantics match editing behavior in score view
-**And** broader sequencer and piano-roll alignment can remain for the next story
+**And** the active-flow indication remains visible and unambiguous as focus moves between visible flows
 
 ### Story 2.6: Preserve Single Active-Flow Behavior Across Score and Sequencer Contexts
 
@@ -671,6 +711,11 @@ So that the application still feels like a reliable native document tool.
 **Then** current native desktop behavior remains correct
 **And** no regression is introduced in established file handling patterns
 
+**Given** the main window is resized into the compact desktop layout tier
+**When** secondary panels collapse or expand around the score view
+**Then** document, playback, and tool workflows remain reachable through the same top-level shell structure
+**And** multi-flow score view remains the primary visible work surface without introducing a different navigation model
+
 **Given** this desktop-workflow increment is validated
 **When** the broader feature is reviewed
 **Then** the score-view enhancement remains compatible with the app's macOS-first document model
@@ -687,22 +732,27 @@ So that multi-flow reading does not break the current listening workflow.
 **Given** multiple flows are visible in the score view
 **When** a user uses the existing playback workflow
 **Then** playback continues to behave according to the current product model
-**And** multi-flow score visibility does not imply new cross-flow playback behavior in this story
+**And** the transport continues to play the current single active flow while other visible flows remain visible for reading
 
 **Given** the app uses a single active flow for current playback-related workflows
 **When** the score view shows multiple visible flows
 **Then** playback remains scoped according to the existing active-flow model
-**And** the UI does not imply playback behavior that the system does not support
+**And** the UI communicates that playback scope clearly enough that the user can predict which flow will sound
 
 **Given** a single-flow score and the existing playback workflow
 **When** playback is exercised after the multi-flow changes
 **Then** current playback behavior remains correct
-**And** no regression is introduced by score-view presentation changes
+**And** the same transport controls and playback cues remain usable in the single-flow case
+
+**Given** focus is on the transport controls while multiple flows are visible
+**When** the user starts or stops playback through the existing keyboard-accessible transport workflow
+**Then** focus remains stable on the transport control surface
+**And** the active playback scope remains clear while the score continues to show multiple flows
 
 **Given** this playback-preservation increment is validated
 **When** multi-flow score view and playback are exercised together
 **Then** the feature remains compatible with current audio-device-based playback expectations
-**And** cross-flow playback can remain future work
+**And** the playback UI continues to communicate the single active playback scope clearly while multiple flows remain visible in score view
 
 ### Story 4.4: Preserve Offline-First and Future Portability Boundaries
 
