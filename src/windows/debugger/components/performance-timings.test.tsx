@@ -320,6 +320,12 @@ describe("PerformanceTimings", () => {
       surface_height_px: 480,
       viewport_width_px: 960,
       viewport_height_px: 420,
+      page_count: 2,
+      inter_flow_gap_px: 20,
+      first_page_x_px: 0,
+      second_page_x_px: 730,
+      first_page_width_px: 710,
+      second_page_width_px: 710,
     });
 
     await user.click(screen.getByRole("button", { name: /Layout Phase/ }));
@@ -328,6 +334,13 @@ describe("PerformanceTimings", () => {
       screen.getByText(/Shared surface: 1440.0px x 480.0px/),
     ).toBeInTheDocument();
     expect(screen.getByText(/Viewport: 960.0px x 420.0px/)).toBeInTheDocument();
+    expect(screen.getByText(/Page count: 2/)).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /Page boxes: page 1 @ 0.0px, width 710.0px \| page 2 @ 730.0px, width 710.0px/,
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Inter-flow gap: 20.0px/)).toBeInTheDocument();
   });
 
   it("clears stale flow-aware preparation diagnostics when the backend resets them", async () => {
@@ -351,6 +364,12 @@ describe("PerformanceTimings", () => {
       surface_height_px: 480,
       viewport_width_px: 960,
       viewport_height_px: 420,
+      page_count: 1,
+      inter_flow_gap_px: 0,
+      first_page_x_px: 0,
+      second_page_x_px: null,
+      first_page_width_px: 1440,
+      second_page_width_px: null,
     });
 
     await user.click(screen.getByRole("button", { name: /Layout Phase/ }));
@@ -359,6 +378,7 @@ describe("PerformanceTimings", () => {
     expect(
       screen.getByText(/Shared surface: 1440.0px x 480.0px/),
     ).toBeInTheDocument();
+    expect(screen.getByText(/Page count: 1/)).toBeInTheDocument();
 
     fireTimingEvent("render-timing-flow-preparation", 0);
     firePayloadEvent("render-timing-flow-preparation-details", null);
@@ -370,6 +390,7 @@ describe("PerformanceTimings", () => {
     expect(
       screen.queryByText(/Shared surface: 1440.0px x 480.0px/),
     ).not.toBeInTheDocument();
+    expect(screen.queryByText(/Page count: 1/)).not.toBeInTheDocument();
   });
 
   it("counts flow preparation in the layout header severity", () => {

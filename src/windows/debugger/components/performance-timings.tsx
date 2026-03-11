@@ -19,6 +19,12 @@ type RenderSurfaceDetails = {
   surface_height_px: number;
   viewport_width_px: number;
   viewport_height_px: number;
+  page_count: number;
+  inter_flow_gap_px: number;
+  first_page_x_px: number;
+  second_page_x_px: number | null;
+  first_page_width_px: number;
+  second_page_width_px: number | null;
 };
 
 export const PerformanceTimings = () => {
@@ -233,6 +239,21 @@ export const PerformanceTimings = () => {
                     {renderSurfaceDetails.surface_width_px.toFixed(1)}px x{" "}
                     {renderSurfaceDetails.surface_height_px.toFixed(1)}px
                   </div>
+                  <div>Page count: {renderSurfaceDetails.page_count}</div>
+                  <div>
+                    Page boxes: page 1 @{" "}
+                    {renderSurfaceDetails.first_page_x_px.toFixed(1)}px, width{" "}
+                    {renderSurfaceDetails.first_page_width_px.toFixed(1)}px
+                    {renderSurfaceDetails.second_page_x_px !== null &&
+                      renderSurfaceDetails.second_page_width_px !== null &&
+                      ` | page 2 @ ${renderSurfaceDetails.second_page_x_px.toFixed(1)}px, width ${renderSurfaceDetails.second_page_width_px.toFixed(1)}px`}
+                  </div>
+                  {renderSurfaceDetails.page_count > 1 && (
+                    <div>
+                      Inter-flow gap:{" "}
+                      {renderSurfaceDetails.inter_flow_gap_px.toFixed(1)}px
+                    </div>
+                  )}
                   <div>
                     Viewport:{" "}
                     {renderSurfaceDetails.viewport_width_px.toFixed(1)}px x{" "}

@@ -101,6 +101,9 @@ struct FlowRenderSegment {
 struct ComposedFlowSurface {
     width: Space,
     height: Space,
+    page_offsets: Vec<Space>,
+    page_widths: Vec<Space>,
+    inter_flow_gap: Space,
     page_backgrounds: Vec<DrawInstruction>,
     instructions: Vec<DrawInstruction>,
     hit_targets: Vec<HitTarget>,
@@ -112,6 +115,12 @@ struct RenderSurfaceDiagnostics {
     surface_height_px: f32,
     viewport_width_px: f32,
     viewport_height_px: f32,
+    page_count: usize,
+    inter_flow_gap_px: f32,
+    first_page_x_px: f32,
+    second_page_x_px: Option<f32>,
+    first_page_width_px: f32,
+    second_page_width_px: Option<f32>,
 }
 
 fn inter_flow_gap_spaces(converter: &Converter) -> Space {
@@ -145,12 +154,16 @@ fn compose_render_segments(
     let mut width: Space = 0.0;
     let mut height: Space = 0.0;
     let mut cursor_x: Space = 0.0;
+    let mut page_offsets = Vec::new();
+    let mut page_widths = Vec::new();
     let mut page_backgrounds = Vec::new();
     let mut instructions = Vec::new();
     let mut hit_targets = Vec::new();
     let segment_count = segments.len();
 
     for (index, segment) in segments.into_iter().enumerate() {
+        page_offsets.push(cursor_x);
+        page_widths.push(segment.width);
         let x_offset_px = converter.spaces_to_px(cursor_x);
 
         page_backgrounds.push(DrawInstruction::Rectangle {
@@ -186,6 +199,9 @@ fn compose_render_segments(
     ComposedFlowSurface {
         width,
         height,
+        page_offsets,
+        page_widths,
+        inter_flow_gap: gap,
         page_backgrounds,
         instructions,
         hit_targets,
@@ -772,6 +788,30 @@ pub fn generate_render_instructions(
             surface_height_px: converter.spaces_to_px(renderer.height),
             viewport_width_px: renderer.bounds.2,
             viewport_height_px: renderer.bounds.3,
+            page_count: composed_surface.page_widths.len(),
+            inter_flow_gap_px: converter.spaces_to_px(composed_surface.inter_flow_gap),
+            first_page_x_px: composed_surface
+                .page_offsets
+                .first()
+                .copied()
+                .map(|offset| converter.spaces_to_px(offset))
+                .unwrap_or(0.0),
+            second_page_x_px: composed_surface
+                .page_offsets
+                .get(1)
+                .copied()
+                .map(|offset| converter.spaces_to_px(offset)),
+            first_page_width_px: composed_surface
+                .page_widths
+                .first()
+                .copied()
+                .map(|width| converter.spaces_to_px(width))
+                .unwrap_or(0.0),
+            second_page_width_px: composed_surface
+                .page_widths
+                .get(1)
+                .copied()
+                .map(|width| converter.spaces_to_px(width)),
         },
     );
 
@@ -877,12 +917,129 @@ fn draw_debug_layer(
 #[cfg(test)]
 mod tests {
     use super::{
-        compose_render_segments, inter_flow_gap_spaces, FlowRenderSegment, RenderPhaseTimings,
+        build_flow_render_segment, compose_render_segments, inter_flow_gap_spaces,
+        FlowRenderSegment, RenderPhaseTimings,
     };
     use crate::renderer::converter::Converter;
     use crate::renderer::{DrawInstruction, HitTarget};
+    use crate::score::components::articulation::Articulations;
+    use crate::score::components::duration::NoteDuration;
+    use crate::score::components::pitch::{Accidental, Pitch};
+    use crate::score::components::velocity::Velocity;
+    use crate::score::entries::tempo::Tempo;
+    use crate::score::entries::time_signature::{TimeSignature, TimeSignatureDrawType};
+    use crate::score::entries::tone::Tone;
+    use crate::score::entries::Entry;
+    use crate::score::flows::Flow;
+    use crate::score::instruments::defs::InstrumentType;
+    use crate::score::instruments::Instrument;
+    use crate::score::players::{Player, PlayerType};
+    use crate::score::tracks::Track;
+    use crate::score::Score;
     use crate::ui::sequencer::Selection;
+    use crate::ui::Ui;
+    use crate::AppContext;
     use skia_safe::Color;
+
+    fn make_test_app_context(flow_ids: &[u64]) -> AppContext {
+        let instrument_id = 1;
+        let player_id = 2;
+        let stave_id = 3;
+
+        let mut score = Score::new();
+        score.players.order.push(player_id);
+        score.players.by_id.insert(
+            player_id,
+            Player {
+                id: player_id,
+                player_type: PlayerType::Solo,
+                instrument_ids: vec![instrument_id],
+            },
+        );
+        score.instruments.by_id.insert(
+            instrument_id,
+            Instrument {
+                id: instrument_id,
+                definition_id: String::from("strings.violin"),
+                instrument_type: InstrumentType::Melodic,
+                long_name: String::from("Violin"),
+                short_name: String::from("Vln."),
+                stave_ids: vec![stave_id],
+                count: None,
+                assigned_plugin_id: None,
+                volume: 100,
+                pan: 64,
+                mute: false,
+                solo: false,
+            },
+        );
+
+        let mut app = AppContext {
+            ui: Ui::new(),
+            score,
+            preferences: serde_json::from_str(r#"{"audition":true}"#).unwrap(),
+            next_id: 100,
+            current_file_path: None,
+        };
+
+        app.assign_player_to_layout(0, player_id);
+
+        for (index, flow_id) in flow_ids.iter().copied().enumerate() {
+            let master_id = app.generate_id();
+            let time_signature_id = app.generate_id();
+            let tempo_id = app.generate_id();
+
+            let mut master = Track::new(master_id);
+            master.insert_entry(Entry::TimeSignature(TimeSignature::new(
+                time_signature_id,
+                0,
+                4,
+                NoteDuration::Quarter,
+                TimeSignatureDrawType::Regular,
+                None,
+            )));
+            master.insert_entry(Entry::Tempo(Tempo::new(
+                tempo_id,
+                0,
+                String::from("Andante"),
+                NoteDuration::Quarter,
+                0,
+                96,
+                false,
+                true,
+                true,
+                false,
+            )));
+            app.score.tracks.by_id.insert(master_id, master);
+            app.score.flows.order.push(flow_id);
+            app.score
+                .flows
+                .by_id
+                .insert(flow_id, Flow::new(flow_id, master_id));
+            app.assign_flow_to_layout(0, flow_id);
+            app.assign_player_to_flow(flow_id, player_id);
+
+            let track_id = app.score.flows.by_id[&flow_id].staves.by_id[&stave_id].track_ids[0];
+            let tone_id = app.generate_id();
+            app.score
+                .tracks
+                .by_id
+                .get_mut(&track_id)
+                .unwrap()
+                .insert_entry(Entry::Tone(Tone::new(
+                    tone_id,
+                    (index as u64) * 32,
+                    32,
+                    Pitch::new(60 + (index as u8 * 2), Accidental::Natural),
+                    Velocity::new(90),
+                    Articulations::new(),
+                )));
+        }
+
+        app.ui.layout_id = Some(0);
+        app.ui.flow_id = flow_ids.first().copied();
+        app
+    }
 
     #[test]
     fn inter_flow_gap_meets_minimum_css_pixel_requirement() {
@@ -953,6 +1110,9 @@ mod tests {
 
         assert_eq!(composed.width, 29.0);
         assert_eq!(composed.height, 6.0);
+        assert_eq!(composed.page_offsets, vec![0.0, 25.0]);
+        assert_eq!(composed.page_widths, vec![5.0, 4.0]);
+        assert_eq!(composed.inter_flow_gap, 20.0);
         assert_eq!(composed.page_backgrounds.len(), 2);
         assert_eq!(
             composed.page_backgrounds[0],
@@ -987,5 +1147,68 @@ mod tests {
         );
         assert_eq!(composed.hit_targets[1].x, 25.5);
         assert_eq!(composed.hit_targets[1].popover_x, 25.5);
+    }
+
+    #[test]
+    fn single_flow_composition_preserves_real_rendered_notation_and_hit_targets() {
+        let app = make_test_app_context(&[10]);
+        let converter = Converter::new(1.0, 1.75);
+
+        let segment = build_flow_render_segment(&app, 0, 10, &converter);
+        assert!(segment.instructions.iter().any(|instruction| {
+            matches!(instruction, DrawInstruction::Text { text, .. } if text == "Violin")
+        }));
+        assert!(!segment.hit_targets.is_empty());
+
+        let original_width = segment.width;
+        let original_height = segment.height;
+        let original_instructions = segment.instructions.clone();
+        let original_hit_targets = segment.hit_targets.clone();
+
+        let composed = compose_render_segments(vec![segment], &converter);
+
+        assert_eq!(composed.width, original_width);
+        assert_eq!(composed.height, original_height);
+        assert_eq!(composed.page_offsets, vec![0.0]);
+        assert_eq!(composed.page_widths, vec![original_width]);
+        assert_eq!(composed.inter_flow_gap, 0.0);
+        assert_eq!(composed.instructions, original_instructions);
+        assert_eq!(composed.hit_targets, original_hit_targets);
+        assert_eq!(composed.page_backgrounds.len(), 1);
+    }
+
+    #[test]
+    fn second_flow_keeps_page_start_chrome_after_composition_offset() {
+        let app = make_test_app_context(&[10, 20]);
+        let converter = Converter::new(1.0, 1.75);
+
+        let first_segment = build_flow_render_segment(&app, 0, 10, &converter);
+        let second_segment = build_flow_render_segment(&app, 0, 20, &converter);
+        let second_name_instruction = second_segment
+            .instructions
+            .iter()
+            .find(|instruction| {
+                matches!(instruction, DrawInstruction::Text { text, .. } if text == "Violin")
+            })
+            .cloned()
+            .expect("second segment should keep its instrument name as page-start chrome");
+        let second_tempo_target = second_segment
+            .hit_targets
+            .iter()
+            .find(|target| matches!(target.entry, Selection::Tempo { flow_id: 20, .. }))
+            .cloned()
+            .expect("second segment should keep its page-start tempo hit target");
+
+        let second_offset_spaces = first_segment.width + inter_flow_gap_spaces(&converter);
+        let second_offset_px = converter.spaces_to_px(second_offset_spaces);
+
+        let composed = compose_render_segments(vec![first_segment, second_segment], &converter);
+
+        assert!(composed
+            .instructions
+            .contains(&second_name_instruction.offset(second_offset_px, 0.0)));
+        assert!(composed
+            .hit_targets
+            .contains(&second_tempo_target.offset(second_offset_spaces, 0.0)));
     }
 }

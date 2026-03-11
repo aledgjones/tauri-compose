@@ -1,6 +1,6 @@
 # Story 1.4: Make Adjacent Flows Read as One Coherent Score
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -42,6 +42,16 @@ so that the multi-flow score view reads like one document instead of stitched-to
   - [x] Validate with `npm run lint`, `npm run check-types`, `npm run test:js`, `npm run test:rust`, and `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features`.
 - [x] Update docs if visual-coherence rules become part of the stable renderer contract
   - [x] Update `docs/architecture.md` and `docs/project-context.md` if adjacent-flow start treatment, boundary rules, or segment-role rendering become expected long-term behavior.
+
+### Review Follow-ups (AI)
+
+- [x] [AI-Review][High] Add seam-level Rust coverage that proves single-flow output remains unchanged and that the second composed flow retains its native page-start chrome; the current Story 1.4 tests only cover gap sizing and second-segment offset math. [src-tauri/src/instructions/mod.rs:917]
+- [x] [AI-Review][Medium] Add targeted regression coverage or equivalent reviewable evidence for AC4's notation-invariance claim; the shared-surface seam tests now exercise the real per-flow parse/draw path before composition so notation-bearing instructions and hit targets are preserved through the page-per-flow compose step. [src-tauri/src/instructions/mod.rs:917]
+- [x] [AI-Review][Medium] Strengthen debugger evidence for compact-width boundary validation; the surface diagnostics now expose page-box count, offsets, widths, and the inter-flow gap so the seam can be verified directly in the debugger panel. [src-tauri/src/instructions/mod.rs:788]
+- [x] [AI-Review][High] Reconcile the Dev Agent Record with reviewable git evidence; the File List and validation record now match the actual Story 1.4 fix set in git. [_bmad-output/implementation-artifacts/1-4-make-adjacent-flows-read-as-one-coherent-score.md:189]
+- [x] [AI-Review][Dismissed] Per-flow page boxes may intentionally have different heights; the current renderer behavior matches the intended layout model, so no full-height normalization change is required for this story. [src-tauri/src/instructions/mod.rs:144]
+- [x] [AI-Review][Dismissed] Additional per-page height debugger diagnostics were judged low value for day-to-day development; the existing seam diagnostics remain sufficient for this story. [src-tauri/src/instructions/mod.rs:112] [src/windows/debugger/components/performance-timings.tsx:235]
+- [x] [AI-Review][Dismissed] Additional seam-level notation regression coverage was deferred to broader notation safety work to avoid over-testing this story in isolation. [src-tauri/src/instructions/mod.rs:944]
 
 ## Dev Notes
 
@@ -181,19 +191,47 @@ GPT-5.4
 - No migration or persisted-data change is expected for this story.
 - Kept the second visible flow's instrument names, grouping braces/brackets, systemic starting barline, and matching left-edge spacing as part of its normal native page-start rendering.
 - Replaced the single composed white surface fill with per-flow white page rectangles in the native Rust composition path so the fixed inter-flow gap exposes the gradient backdrop while `renderer.width`, `renderer.height`, hit-target offsets, and Story 1.3 pan behavior remain authoritative.
-- Added seam-level Rust tests for per-flow page-box composition and start-treatment rules; no React overlay or persisted-data changes were introduced.
-- Updated `docs/architecture.md` and `docs/project-context.md` to record the page-per-flow shared-surface contract and the requirement to preserve native page-start chrome on each visible flow.
+- Added seam-level Rust tests that exercise the real per-flow parse/draw path, prove single-flow composition remains unchanged, and verify the second flow keeps its native page-start chrome after composition.
+- Extended debugger surface diagnostics and tests to expose page-box count, offsets, widths, and the rendered inter-flow gap for compact-width boundary verification.
 - Validation completed: `npm run lint`, `npm run check-types`, `npm run test:js`, `npm run test:rust`, and `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features`.
-- Manual visual verification remains documented in the Debug Log References checklist for one-flow, two-flow, and compact-width confirmation; no additional debugger diagnostics were required for this increment.
+- Manual visual verification remains documented in the Debug Log References checklist for one-flow, two-flow, and compact-width confirmation, and the debugger now provides direct seam/page-box evidence to support that check.
 
 ### File List
 
 - src-tauri/src/instructions/mod.rs
-- docs/architecture.md
-- docs/project-context.md
+- src/windows/debugger/components/performance-timings.tsx
+- src/windows/debugger/components/performance-timings.test.tsx
 - \_bmad-output/implementation-artifacts/1-4-make-adjacent-flows-read-as-one-coherent-score.md
 - \_bmad-output/implementation-artifacts/sprint-status.yaml
+
+## Senior Developer Review (AI)
+
+### Reviewer
+
+GPT-5.4
+
+### Date
+
+2026-03-11
+
+### Outcome
+
+Accepted with no further action; story complete.
+
+### Findings
+
+- Review concerns about unequal page heights were closed after confirming that different flow page heights are intentional in this renderer model.
+- Additional debugger surface details were explicitly deferred because they do not add enough developer value for this story.
+- Additional seam-level notation coverage was also deferred to avoid over-testing behavior that is already protected elsewhere in the notation stack.
+
+### Warnings
+
+- No separate story-context artifact was found for Story 1.4 during the review; this review used the story file, epic breakdown, architecture, UX, and project-context documents instead.
+- 2026-03-11: Final disposition based on product-owner/developer clarification: variable per-flow page heights are expected, extra debugger expansion is not warranted, and broader notation coverage will be handled outside this story.
 
 ### Change Log
 
 - 2026-03-11: Implemented page-per-flow shared-surface rendering for Story 1.4, then corrected a regression by restoring the second flow's native page-start chrome and spacing while keeping per-flow page boxes and seam-level Rust coverage.
+- 2026-03-11: Senior review requested changes after finding incomplete seam-level regression evidence, missing notation-invariance coverage, limited compact-width verification evidence, and a clean-worktree traceability gap versus the story's Dev Agent Record.
+- 2026-03-11: Addressed senior-review follow-ups by adding real parse/draw seam coverage for single-flow preservation and second-flow page-start chrome, exposing page-box/inter-flow-gap diagnostics in the debugger, rerunning validation, and returning the story to review.
+- 2026-03-11: Follow-up review concerns were closed after confirming variable page heights are intentional, additional debugger detail is not worth the cost here, and further notation-specific seam coverage should land with broader notation safety work. Story marked done.
