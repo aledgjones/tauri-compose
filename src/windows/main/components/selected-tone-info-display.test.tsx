@@ -8,10 +8,14 @@ import {
 import { Accidental, PlayerType } from "../../../services/types";
 
 const FLOW_ID = 5;
+const SECOND_FLOW_ID = 6;
 const INSTRUMENT_ID = 10;
 const STAVE_ID = 100;
+const SECOND_STAVE_ID = 101;
 const TRACK_ID = 300;
+const SECOND_TRACK_ID = 301;
 const TONE_ID = 999;
+const SECOND_TONE_ID = 1000;
 
 const buildStateWithTone = () =>
   createAppState({
@@ -120,5 +124,65 @@ describe("SelectedToneInfoDisplay", () => {
       appState: buildStateWithTone(),
     });
     expect(screen.getByText(/voice/)).toBeInTheDocument();
+  });
+
+  it("renders the existing summary fields for a selection in a later visible flow", () => {
+    const appState = buildStateWithTone();
+    appState.score.instruments.by_id[INSTRUMENT_ID].stave_ids = [
+      STAVE_ID,
+      SECOND_STAVE_ID,
+    ];
+    appState.score.flows.order = [FLOW_ID, SECOND_FLOW_ID];
+    appState.score.flows.by_id[SECOND_FLOW_ID] = {
+      id: SECOND_FLOW_ID,
+      title: "Flow 2",
+      player_ids: [1],
+      length: 512,
+      master_id: 201,
+      staves: {
+        by_id: {
+          [SECOND_STAVE_ID]: {
+            id: SECOND_STAVE_ID,
+            lines: [1, 1, 1, 1, 1],
+            master_id: 201,
+            track_ids: [SECOND_TRACK_ID],
+          },
+        },
+      },
+    } as never;
+    appState.score.tracks.by_id[SECOND_TRACK_ID] = {
+      id: SECOND_TRACK_ID,
+      entries: {
+        by_tick: { [96]: [SECOND_TONE_ID] },
+        by_id: {
+          [SECOND_TONE_ID]: {
+            id: SECOND_TONE_ID,
+            tick: 96,
+            type: "Tone",
+            duration: 32,
+            pitch: { int: 62, accidental: Accidental.Natural },
+            velocity: { int: 100 },
+            articulations: [],
+          },
+        },
+      },
+    } as never;
+    appState.ui.sequencer.selection = {
+      type: "Tone",
+      flow_id: SECOND_FLOW_ID,
+      instrument_id: INSTRUMENT_ID,
+      stave_id: SECOND_STAVE_ID,
+      track_id: SECOND_TRACK_ID,
+      tone_id: SECOND_TONE_ID,
+    };
+
+    renderWithProviders(<SelectedToneInfoDisplay />, {
+      appState,
+    });
+
+    expect(screen.getByText(/Piano/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Staff \(B\), Up-stem voice 1/),
+    ).toBeInTheDocument();
   });
 });

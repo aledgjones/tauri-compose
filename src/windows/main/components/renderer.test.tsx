@@ -237,4 +237,25 @@ describe("Renderer", () => {
       expect(actions.ui.renderer.setPan).toHaveBeenCalledWith(32, -12);
     });
   });
+
+  it("clears the prior selection when a pointer down misses and no drag occurs", async () => {
+    vi.mocked(hitTest).mockResolvedValue(null);
+
+    const { container } = render(<Renderer />, {
+      wrapper: createWrapper({ appState: createAppState() }),
+    });
+
+    const overlay = container.querySelector('[data-testid="renderer"] > div');
+    fireEvent.pointerDown(overlay!, { clientX: 25, clientY: 35 });
+
+    await waitFor(() => {
+      expect(hitTest).toHaveBeenCalled();
+    });
+
+    fireEvent.pointerUp(document);
+
+    await waitFor(() => {
+      expect(actions.ui.sequencer.clearSelection).toHaveBeenCalledTimes(1);
+    });
+  });
 });
