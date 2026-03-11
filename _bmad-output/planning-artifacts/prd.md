@@ -81,7 +81,7 @@ Native rendering must remain performant and coherent as multiple flows are displ
 
 Interaction behavior must remain correct across flows. Hit targets and popovers must continue to resolve accurately, and active-flow semantics for editing and playback must remain logical and well-scoped. Existing single-flow workflows must not suffer major regressions.
 
-The most important technical constraint is that this feature must not change or destabilize written-notation logic. In particular, the behavior guarded by `get_written_durations.rs` must remain intact. Multi-flow rendering is a presentation and orchestration change, not a notation rewrite.
+The most important technical constraint is that this feature must not change or destabilize written-notation logic. In particular, the existing written-duration and notation-derivation behavioral contract must remain intact. Multi-flow rendering is a presentation and orchestration change, not a notation rewrite.
 
 ### Measurable Outcomes
 
@@ -177,7 +177,7 @@ This creates an important product requirement: notation behavior cannot be reduc
 
 ### Product-Specific Technical Constraints
 
-The current feature work must preserve existing written-duration logic and the trust it represents. Multi-flow rendering is a rendering and interaction orchestration change, not a rewrite of notation semantics. In particular, behavior protected by get_written_durations.rs must remain unchanged unless a separate, explicitly justified notation initiative is undertaken.
+The current feature work must preserve existing written-duration logic and the trust it represents. Multi-flow rendering is a rendering and interaction orchestration change, not a rewrite of notation semantics. In particular, the existing written-duration behavioral contract must remain unchanged unless a separate, explicitly justified notation initiative is undertaken.
 
 The architecture should continue moving toward a future page-layout and music-frame model. That means solutions should avoid coupling flow rendering too tightly to single-flow assumptions in ways that would block later pagination, frame assignment, or density-aware system layout.
 
@@ -205,9 +205,9 @@ A second innovation area is the product philosophy inherited and refined from Do
 
 ### Market Context & Competitive Landscape
 
-Existing professional notation tools already prove that advanced score software can be built around deeper semantic models rather than raw graphical editing alone. Dorico is the clearest reference point here. Its model is powerful, but your criticism is that the UX and information architecture can feel muddled, especially around settings, engraving rules, and score setup.
+Existing professional notation tools already prove that advanced score software can be built around deeper semantic models rather than raw graphical editing alone. Dorico is the clearest reference point here. Its model is powerful, but its UX and information architecture can feel muddled, especially around settings, engraving rules, and score setup.
 
-That creates a realistic differentiation path. Compose does not need to claim a brand-new conceptual foundation. Instead, it can compete on clarity of expression: making the semantic model easier to navigate, making configuration more discoverable, and making advanced behavior feel inevitable rather than hidden. In that sense, the innovation is a better translation layer between expert musical thinking and software structure.
+That creates a realistic differentiation path. Compose does not need to claim a brand-new conceptual foundation. Instead, it can compete on clarity of expression: making the semantic model easier to navigate, making configuration more discoverable, and making advanced behavior feel inevitable rather than hidden. The innovation is a better translation layer between expert musical thinking and software structure.
 
 ### Validation Approach
 
@@ -351,17 +351,17 @@ This work requires careful ownership of the rendering and interaction architectu
 
 - FR1: Composers can view multiple flows within a single continuous score presentation rendered by the product's native score renderer.
 - FR2: Composers can move through visible flows without using the current single-flow switching pattern for basic score reading.
-- FR3: The product can present flows in sequence while preserving clear visual separation between adjacent flows.
-- FR4: The product can preserve score readability when multiple flows are displayed together.
-- FR5: The product can maintain document-like continuity across rendered flows as a foundation for future page-based presentation.
+- FR3: The product can present flows in sequence separated by a fixed gap of at least 20 pixels, sufficient for flow boundaries to be identifiable at standard zoom level.
+- FR4: The product can render multiple flows simultaneously without overlapping staves, clipped content, or illegible note spacing.
+- FR5: The product can render adjacent flows with consistent staff sizing, clef presentation, and spacing style so they read as a unified score rather than visually independent panels.
 
 ### Interaction Across Flows
 
 - FR6: Composers can select score content within any visible flow in the continuous presentation.
 - FR7: Composers can trigger and use popovers within any visible flow in the continuous presentation.
 - FR8: The product can resolve hit targets correctly across all rendered flows.
-- FR9: Composers can interact with score elements across flow boundaries without the interaction model becoming ambiguous.
-- FR10: The product can preserve coherent active-flow behavior while multiple flows are visible.
+- FR9: Composers can interact with score elements across flow boundaries with each interaction resolving to exactly one well-defined target.
+- FR10: The product can maintain a clearly indicated active flow for editing purposes while multiple flows are visible simultaneously.
 - FR11: The product can support editing interactions within the currently relevant flow while other flows remain visible.
 
 ### Notation Integrity and Musical Correctness
@@ -369,21 +369,20 @@ This work requires careful ownership of the rendering and interaction architectu
 - FR12: The product can preserve existing written-notation behavior when multi-flow rendering is enabled.
 - FR13: The product can preserve existing written-duration behavior for musical content rendered in multi-flow contexts.
 - FR14: The product can render multi-flow score output without requiring users to rewrite musical input to accommodate the presentation model.
-- FR15: The product can preserve musically sensible score output while extending presentation beyond a single flow.
-- FR16: The product can keep notation derivation logically distinct from presentation composition.
+- FR15: The product can preserve score output conforming to the notation behaviors documented in the project's notation reference (Elaine Gould, _Behind Bars_) when extending presentation beyond a single flow.
 
 ### Navigation and Reading Experience
 
 - FR17: Composers can scroll through the combined multi-flow score presentation as one continuous reading surface.
-- FR18: The product can preserve user orientation while moving across multiple visible flows.
-- FR19: The product can make score structure easier to understand at a glance when multiple flows are present.
-- FR20: The product can support expert reading workflows without requiring unnecessary context switching.
+- FR18: The product can indicate the user's active flow and position through visible affordances while multiple flows are displayed, without requiring additional navigation steps to identify context.
+- FR19: The product can display flow boundaries and flow sequence clearly enough that a user can identify individual flows and their relative order without scrolling or additional navigation.
+- FR20: The product can support reading across multiple flows without requiring users to invoke a flow-switching interaction for basic score reading and navigation.
 
 ### Update Isolation and Rendering Behavior
 
 - FR21: The product can update one flow without requiring unrelated flows to be re-derived unnecessarily.
 - FR22: The product can preserve isolated recalculation boundaries between flows during editing.
-- FR23: The product can keep rendered multi-flow output coherent while local edits occur.
+- FR23: The product can render all non-edited flows without visible update artifacts, stutter, or layout shifts while a local edit is processed in another flow.
 - FR24: The product can preserve stable interaction behavior while one visible flow is updated.
 - FR25: The product can support multi-flow presentation without coupling all visible flows into a single mandatory recalculation unit.
 
@@ -398,50 +397,57 @@ This work requires careful ownership of the rendering and interaction architectu
 ### Playback and Audio Boundaries
 
 - FR31: Composers can continue using existing playback behavior while multi-flow rendering is introduced.
-- FR32: The product can preserve logical separation between score presentation behavior and playback behavior.
 - FR33: The product can support desktop audio-device-based playback as part of the broader product context without making cross-flow playback a requirement for this MVP.
 - FR34: Composers can keep a single active flow for sequencer and piano-roll workflows while multiple flows are visible in score presentation.
-- FR35: The product can keep score presentation scope and active-flow sequencing scope logically distinct when both are visible in the same session.
 
 ### Future-Ready Product Boundaries
 
-- FR36: The product can extend the multi-flow presentation model toward future page-layout and music-frame workflows.
-- FR37: The product can preserve clear boundaries between musical data, notation output, playback behavior, and document/layout concerns.
 - FR38: The product can support future portability of score files, settings, and templates without requiring account-based sync in this MVP.
 - FR39: The product can remain usable as a fully offline-first composition environment even as future optional sync capabilities are considered.
 - FR40: Maintainers can evolve score presentation architecture without treating notation logic as part of the same capability change.
+- FR41: Maintainers can access render-timing output covering multi-flow rendering scenarios to validate correctness and performance during development, extending existing single-flow timing instrumentation where necessary.
 
 ## Non-Functional Requirements
 
 ### Performance
 
-- NFR1: In release builds on representative target hardware, unchanged-score render requests should use the existing instruction-cache path and complete the render stage in sub-millisecond time where no score changes require re-derivation.
-- NFR2: In release builds on representative target hardware, interaction updates and local edits in a reasonable-sized score should complete quickly enough to feel immediate in normal use, with the target remaining only a handful of milliseconds for parse-and-render work where recalculation is required.
-- NFR3: Introducing multi-flow score presentation must not materially degrade the current single-flow performance baseline beyond what is necessary to display the additional visible flows.
+- NFR1: In release builds on representative target hardware, unchanged-score render requests should complete the render stage in sub-millisecond time where no score changes require re-derivation.
+- NFR2: In release builds on representative target hardware, interaction updates and local edits in a score of up to three flows with 60 bars each should complete quickly enough to feel immediate in normal use, with parse-and-render work where recalculation is required completing within one display frame at 60 fps (≤16ms).
+- NFR3: The multi-flow architecture changes must not regress single-flow render performance. A single-flow score of 3 instruments and 30 bars, currently rendering in under 1ms, must continue to render in under 1ms after multi-flow support is introduced.
 - NFR4: The system must preserve isolated recalculation so that editing one flow does not trigger unnecessary notation or spacing recomputation for unrelated visible flows.
-- NFR5: Performance optimization should remain evidence-driven; the implementation should avoid premature complexity while preserving headroom for larger scores.
 
 ### Reliability and Correctness
 
 - NFR6: Multi-flow rendering must not introduce regressions in notation output.
 - NFR7: Any change to multi-flow presentation must preserve the existing written-duration behavior and broader notation semantics already relied on by the product.
 - NFR8: Hit targets and popovers must resolve to the correct flow and score element throughout the continuous multi-flow presentation.
-- NFR9: Score presentation, active-flow semantics, and interaction mapping must remain internally consistent so users are not exposed to ambiguous or contradictory behavior.
+- NFR9: Score presentation, active-flow semantics, and interaction mapping must not expose contradictory states to the user — specifically: the visually indicated active flow must always match the flow targeted by editing interactions, and hit targets must always resolve to the flow they are visually within.
 - NFR10: The system must fail in ways that preserve score integrity; presentation changes must not corrupt score data, notation state, or document open/save behavior.
 
 ### Score-Size Scalability
 
-- NFR11: Multi-flow rendering must remain usable and responsive as visible score size grows beyond the small examples used during development.
-- NFR12: The architecture must support further performance work for larger scores without requiring the multi-flow model to be redesigned from scratch.
-- NFR13: The implementation should scale by minimizing unnecessary work rather than by coupling more of the score into shared recalculation paths.
+- NFR11: Multi-flow rendering must remain within one display frame (≤16ms at 60fps) as score size scales from the single-flow baseline to the three-flow, 60-bar reference case in NFR2, with render time growing proportionally to the number of flows and bars requiring recalculation rather than as a fixed cost applied unconditionally.
 
 ### Desktop Integration Quality
 
-- NFR14: Native desktop file workflows must behave consistently with user expectations for a macOS document application.
-- NFR15: Audio-device-backed playback behavior must remain stable and predictable while multi-flow score presentation is introduced, even though cross-flow playback is not part of MVP.
+- NFR14: Native desktop file workflows must behave consistently with macOS Human Interface Guidelines for document-based applications, including native file open/save dialogs, file association, and document state management.
+- NFR15: Existing single-flow audio playback must continue to function correctly after multi-flow rendering is introduced — this feature is not required to enable cross-flow playback, but must not break it.
 - NFR16: Offline use must remain first-class; the feature must not introduce any network dependency into core composition, rendering, interaction, or playback workflows.
 
 ### Accessibility
 
-- NFR17: The product should maintain a basic accessibility baseline appropriate for a professional desktop application, without introducing avoidable barriers in core workflows.
+- NFR17: The product should maintain an accessibility baseline consistent with Apple's macOS Accessibility Programming Guide for core workflows, ensuring keyboard navigation and VoiceOver compatibility are not deliberately degraded by this feature.
 - NFR18: Accessibility improvements for this feature must not come at the expense of core notation correctness, interaction clarity, or architectural soundness for the target expert user base.
+
+## Architecture Constraints
+
+These are implementation principles rather than measurable quality attributes. They provide context for architectural decision-making and should be treated as design guidance during technical planning.
+
+- AC1: Performance optimization should remain evidence-driven; implementation decisions should avoid premature complexity while preserving headroom for larger scores.
+- AC2: The architecture must support further performance work for larger scores without requiring the multi-flow model to be redesigned from scratch.
+- AC3: The implementation should scale by minimizing unnecessary work rather than by coupling more of the score into shared recalculation paths.
+- AC4: Notation derivation must remain logically distinct from presentation composition — changes to how flows are rendered must not require changes to how notation is derived.
+- AC5: Score presentation behavior and playback behavior must remain logically separate — changes to multi-flow rendering must not require changes to the playback pipeline.
+- AC6: Score presentation scope and active-flow sequencing scope must remain logically distinct — the flow active for editing or sequencing need not be the only flow visible in the score presentation.
+- AC7: The multi-flow rendering model must be designed to extend toward future page-layout and music-frame workflows without requiring a redesign of the core composition approach.
+- AC8: Clear boundaries must be maintained between musical data, notation output, playback behavior, and document/layout concerns so that each can evolve independently.
