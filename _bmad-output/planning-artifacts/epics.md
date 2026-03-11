@@ -480,45 +480,7 @@ So that multi-flow score view supports the same local directive and editing work
 **Then** composers can complete supported popover-based directive workflows in either visible flow without leaving score context
 **And** notation-derivation and persisted score behavior remain unchanged
 
-### Story 2.5: Make Active-Flow Editing Context Explicit in Multi-Flow Score View
-
-As a composer,
-I want the score view to show which visible flow is currently active for editing,
-So that multi-flow interaction remains precise when more than one flow is on screen.
-
-**Acceptance Criteria:**
-
-**Given** multiple flows are visible in the score view
-**When** the user selects or edits content in one flow
-**Then** the active-flow context updates to the correct flow
-**And** the UI exposes that state clearly enough to avoid ambiguity
-
-**Given** a visible active-flow indication is present
-**When** the user changes interaction focus to another visible flow
-**Then** the active-flow state updates predictably
-**And** editing interactions target the same flow that the UI indicates as active
-
-**Given** the score view shows multiple visible flows
-**When** no active-flow change is intended
-**Then** passive reading or scrolling does not create contradictory active-flow state
-**And** the currently editable flow remains represented accurately in the UI
-
-**Given** the score view indicates the active editing flow
-**When** the user navigates by keyboard or relies on high-contrast focus cues
-**Then** the active flow remains distinguishable through visible state cues that do not depend on color alone
-**And** the indicated active flow continues to match the actual edit target
-
-**Given** multiple flows are visible at compact desktop width with secondary panels collapsed
-**When** the user changes the active flow through score interaction
-**Then** the active-flow indication remains visible on the score surface
-**And** panel collapse state does not make the current editing target ambiguous
-
-**Given** this active-flow increment is validated
-**When** score interactions are exercised across visible flows
-**Then** the active-flow semantics match editing behavior in score view
-**And** the active-flow indication remains visible and unambiguous as focus moves between visible flows
-
-### Story 2.6: Preserve Single Active-Flow Behavior Across Score and Sequencer Contexts
+### Story 2.5: Preserve Single Active-Flow Behavior Across Score and Sequencer Contexts
 
 As a composer,
 I want score view multi-flow visibility to coexist with a single active flow for sequencer and piano-roll work,

@@ -32,7 +32,7 @@ This story uses two visible flows as the minimum acceptance slice from the epic,
   - [x] Preserve current single-flow behavior and current directive-entry workflows while extending correctness across visible flows.
 - [x] Preserve keyboard-focus and score-context continuity while a popover is open (AC: 4, 5)
   - [x] Ensure focus moves predictably into the popover input when it opens and returns to the originating score interaction context, renderer overlay, or previously focused score-adjacent control when the popover closes.
-  - [x] Keep the visible score context clear while the popover is open without introducing the explicit active-flow affordance reserved for Story 2.5.
+  - [x] Keep the visible score context clear while the popover is open without taking on the later active-flow coherence work.
   - [x] Ensure wheel/pan changes, selection changes, or invalidated selections do not leave orphaned popover state anchored to a stale target.
 - [x] Add focused regression coverage for multi-flow popover correctness and continuity (AC: 1, 2, 3, 4, 5)
   - [x] Add Rust tests around `src-tauri/src/ui/mod.rs` so later-flow selections and boundary-adjacent selections resolve the correct composed coordinates after zoom and pan are applied.
@@ -77,7 +77,7 @@ This story uses two visible flows as the minimum acceptance slice from the epic,
 - Rust remains the source of truth for score state, selection identity, and anchor coordinates. React remains responsible for lightweight popover rendering and input handling only.
 - Preserve `snake_case` fields and commands across the Tauri boundary.
 - Extend the current popover contract instead of introducing a parallel frontend geometry system or a second selection model.
-- Keep contextual popover correctness distinct from active-flow affordance work in Story 2.5 and from broader cross-surface active-flow work in Story 2.6.
+- Keep contextual popover correctness distinct from the later active-flow coherence work.
 
 ### Library / Framework Requirements
 

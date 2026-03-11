@@ -68,7 +68,7 @@ This story uses two visible flows as the minimum acceptance slice from the epic,
 - Ensure updates in another visible flow do not clear or rewrite a valid selection in the non-edited flow.
 - Keep current single-flow selection behavior intact.
 - Preserve notation behavior, written-duration semantics, recalculation boundaries, and `.soloc` semantics; this story should not require migration work.
-- Do not fold active-flow affordances from Story 2.5 or broader cross-surface active-flow behavior from Story 2.6 into this story.
+- Do not fold broader active-flow coherence behavior into this story.
 
 ### Architecture Compliance
 

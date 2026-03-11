@@ -29,7 +29,7 @@ so that the multi-flow score view supports direct score work instead of passive 
   - [x] Ensure every supported selection variant continues to carry enough flow-aware identity for downstream UI and later popover work without reinterpreting which visible flow owns it.
 - [x] Keep score-view selection consumers aligned with the multi-flow contract (AC: 1, 2, 3, 4)
   - [x] Review bottom-bar and properties-panel consumers such as `src/windows/main/components/selected-tone-info-display.tsx`, `src/windows/main/hooks/use-selected-tone-info.ts`, `src/windows/main/hooks/use-selected-tempo.ts`, `src/windows/main/hooks/use-selected-time-signature.ts`, `src/windows/main/hooks/use-selected-key-signature.ts`, `src/windows/main/hooks/use-selected-clef.ts`, and `src/windows/main/screens/write/components/properties-panel.tsx` so a selection from any visible flow resolves the correct flow-backed details.
-  - [x] Extend the selection summary or related UI only as needed so switching selection between visible flows remains clear, without prematurely implementing the explicit active-flow affordance reserved for Story 2.5.
+  - [x] Extend the selection summary or related UI only as needed so switching selection between visible flows remains clear, without prematurely taking on the broader cross-surface active-flow coherence work reserved for the later active-flow story.
   - [x] Keep current single-flow behavior intact and avoid broad write-screen layout or navigation changes.
 - [x] Add focused regression coverage for cross-flow selection replacement and consumer correctness (AC: 1, 2, 3, 4)
   - [x] Extend `src/windows/main/components/renderer.test.tsx` to prove clicks in later visible flows dispatch the correct flow-aware selection actions and that a miss still clears or preserves selection according to existing behavior.
@@ -45,7 +45,7 @@ so that the multi-flow score view supports direct score work instead of passive 
 - Story 2.1 established that hit-testing on the shared native score surface already resolves flow-aware targets correctly and deterministically, with each supported selection payload carrying its originating `flow_id` before it reaches the frontend.
 - Story 2.2 is the first increment that must prove the shared score surface is usable for actual score work. The goal is not multi-select or cross-flow editing semantics; it is one clear, authoritative selection that can move from one visible flow to another without ambiguity.
 - The epic wording uses two visible flows as the minimum acceptance slice, but the implementation must stay correct for any number of visible flows rendered on the shared surface. Do not encode a two-flow ceiling into selection logic, tests, or UI summaries.
-- Story 2.4 popovers and Story 2.5 explicit active-flow affordances both depend on this story preserving a clean contract: selection identifies exactly one target, carries the correct flow context, and updates predictably when the user selects a different visible flow.
+- Story 2.4 popovers and the later active-flow coherence story both depend on this story preserving a clean contract: selection identifies exactly one target, carries the correct flow context, and updates predictably when the user selects a different visible flow.
 
 ### Developer Context Summary
 
@@ -53,7 +53,7 @@ so that the multi-flow score view supports direct score work instead of passive 
 - Backend selection state is owned in `src-tauri/src/ui/sequencer.rs`, where each `ui_sequencer_selection_set_*` command writes a single `state.ui.sequencer.selection`. That is the authoritative place to preserve the one-selection-only rule when the user selects content in another visible flow.
 - The UI already derives downstream context from the current sequencer selection rather than storing separate score-surface selection caches. `src/windows/main/hooks/use-selected-tone-info.ts` and the per-element hooks for tempo, time signature, key signature, and clef all resolve the selected object by following `flow_id` back into score state.
 - `src/windows/main/screens/write/components/properties-panel.tsx` uses those hooks to choose the currently relevant editing panel. If flow-aware selection is wrong or incomplete, the properties panel will surface the wrong flow-backed object even when hit-testing itself was correct.
-- `src/windows/main/components/selected-tone-info-display.tsx` currently presents bottom-bar context only for tone and rest selections. This story may need to make that summary more robust for cross-flow movement, but it should not turn into the explicit active-flow indicator planned for Story 2.5.
+- `src/windows/main/components/selected-tone-info-display.tsx` currently presents bottom-bar context only for tone and rest selections. This story may need to make that summary more robust for cross-flow movement, but it should not turn into broader active-flow UI.
 - The current architecture and project-context documents both require Rust to remain the source of truth for score selection and interaction state, with React acting as an overlay and consumer. Any fix should strengthen that boundary rather than introducing a frontend-owned selection map for visible flows.
 
 ### Technical Requirements
@@ -72,7 +72,7 @@ so that the multi-flow score view supports direct score work instead of passive 
 - Rust remains the source of truth for score state, durable mutations, and sequencer selection state. React remains a renderer overlay plus UI consumer.
 - Preserve `snake_case` fields and command arguments across the Tauri boundary.
 - Extend the existing hit-test-to-selection pipeline instead of introducing parallel score-surface interaction logic.
-- Keep explicit separation between selection correctness in this story and active-flow affordance work in Story 2.5.
+- Keep explicit separation between selection correctness in this story and the later active-flow coherence work.
 
 ### Library / Framework Requirements
 
