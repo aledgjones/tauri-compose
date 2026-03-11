@@ -622,6 +622,29 @@ mod tests {
     }
 
     #[test]
+    fn constrain_pan_reaches_full_right_edge_for_wide_composed_surface() {
+        let mut renderer = make_test_renderer();
+        renderer.bounds = (0.0, 0.0, 500.0, 400.0);
+
+        let (pan_x, pan_y) = renderer.constrain_pan(-1_000.0, 0.0, 900.0, 200.0, 1.0);
+
+        assert_eq!(pan_x, -500.0);
+        assert_eq!(pan_y, 100.0);
+        assert_eq!(pan_x + 900.0, 400.0);
+    }
+
+    #[test]
+    fn constrain_pan_preserves_centering_for_single_flow_widths_that_fit() {
+        let mut renderer = make_test_renderer();
+        renderer.bounds = (0.0, 0.0, 900.0, 400.0);
+
+        let (pan_x, pan_y) = renderer.constrain_pan(-250.0, -100.0, 600.0, 120.0, 1.0);
+
+        assert_eq!(pan_x, 150.0);
+        assert_eq!(pan_y, 140.0);
+    }
+
+    #[test]
     fn update_bounds_sets_bounds_and_scale_without_backend() {
         let mut renderer = make_test_renderer();
 

@@ -69,9 +69,7 @@ impl From<&FlowRenderPlan> for FlowRenderPreparationDiagnostics {
             layout_id: plan.layout_id,
             active_flow_id: plan.active_flow_id,
             active_flow_visible_in_layout: plan.active_flow_visible_in_layout,
-            fallback_draw_flow_id: plan
-                .single_flow_draw_fallback
-                .then_some(plan.drawn_flow_id),
+            fallback_draw_flow_id: plan.single_flow_draw_fallback.then_some(plan.drawn_flow_id),
             prepared_flow_ids: plan.prepared_flow_ids(),
             prepared_flow_count: plan.prepared_flow_count(),
             composed_flow_ids: plan.composed_flow_ids(),

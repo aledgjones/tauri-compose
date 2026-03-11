@@ -108,6 +108,7 @@ The score page is rendered natively by Rust/Skia/Metal — all other UI (panels,
 
 - Draw instructions are cached on `RendererContext` and re-rendered on pan/zoom without recalculation
 - Recalculation only triggered by score mutations (via `emit()` flow)
+- The composed `renderer.width` from the shared surface remains the single authoritative horizontal extent for native pan clamping, while the debugger timing panel can expose shared-surface versus viewport dimensions for multi-flow reachability checks without creating a frontend-owned scroll model.
 - Horizontal spacing slots are for **flow spacing only** — they are not a generic anchoring mechanism for every marking.
 - Prefer reusing an existing slot position when an element should align with current notation but should not push later notation horizontally.
 - As a general rule, avoid adding new slots unless the element genuinely changes left-to-right score flow; tempo markings are the current reference case for this rule.

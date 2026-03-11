@@ -53,6 +53,7 @@ use parse::get_tone_offsets::get_tone_offsets;
 use parse::get_vertical_spacing::get_vertical_spacing;
 use parse::get_vertical_spans::get_vertical_spans;
 use parse::get_written_durations::get_written_durations;
+use serde::Serialize;
 use skia_safe::Color;
 use std::time::{Duration, Instant};
 use tauri::Emitter;
@@ -102,6 +103,14 @@ struct ComposedFlowSurface {
     height: Space,
     instructions: Vec<DrawInstruction>,
     hit_targets: Vec<HitTarget>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Serialize)]
+struct RenderSurfaceDiagnostics {
+    surface_width_px: f32,
+    surface_height_px: f32,
+    viewport_width_px: f32,
+    viewport_height_px: f32,
 }
 
 fn inter_flow_gap_spaces(converter: &Converter) -> Space {
@@ -748,6 +757,16 @@ pub fn generate_render_instructions(
     );
     renderer.instructions.extend(composed_surface.instructions);
     renderer.hit_targets = composed_surface.hit_targets;
+
+    let _ = app.emit(
+        "render-timing-surface-details",
+        RenderSurfaceDiagnostics {
+            surface_width_px: converter.spaces_to_px(renderer.width),
+            surface_height_px: converter.spaces_to_px(renderer.height),
+            viewport_width_px: renderer.bounds.2,
+            viewport_height_px: renderer.bounds.3,
+        },
+    );
 
     let total_duration = total_start.elapsed();
 

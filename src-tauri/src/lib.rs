@@ -185,6 +185,7 @@ impl AppContext {
                         "render-timing-flow-preparation-details",
                         Option::<FlowRenderPreparationDiagnostics>::None,
                     );
+                    let _ = app.emit("render-timing-surface-details", Option::<()>::None);
                     renderer.clear();
                 }
             } else {
@@ -193,6 +194,7 @@ impl AppContext {
                     "render-timing-flow-preparation-details",
                     Option::<FlowRenderPreparationDiagnostics>::None,
                 );
+                let _ = app.emit("render-timing-surface-details", Option::<()>::None);
                 renderer.clear();
             }
         }

@@ -178,6 +178,7 @@ Score Data (Entry variants in FxHashMaps)
 - Recalculation only triggered by score mutations (via the `emit()` flow)
 - Recalculation now enters a flow-preparation seam before parse/draw work: `instructions/render_plan.rs` filters visible flows from `layout.flow_ids`, preserves `score.flows.order`, keeps the active-flow draw target explicit, and emits `render-timing-flow-preparation` plus `render-timing-flow-preparation-details` so the debugger can verify the ordered multi-flow preparation path without moving composition state into React.
 - Story 1.2 extends that seam into a fixed two-flow surface composition step: Rust builds up to the first two visible flow segments independently, offsets the second segment by a deterministic renderer-space gap of at least 20 CSS pixels at normal zoom, and keeps the combined page width authoritative for native pan/zoom constraints.
+- Story 1.3 keeps that combined renderer width as the authoritative horizontal clamp input as well, so wheel and drag navigation traverse the same shared native surface; the debugger timing panel now also reports shared-surface and viewport sizes for reachability checks.
 
 ---
 

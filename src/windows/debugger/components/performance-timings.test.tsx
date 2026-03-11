@@ -299,6 +299,37 @@ describe("PerformanceTimings", () => {
     expect(screen.queryByText(/Fallback draw flow:/)).not.toBeInTheDocument();
   });
 
+  it("shows shared surface and viewport diagnostics when render surface details are emitted", async () => {
+    const user = userEvent.setup();
+    render(<PerformanceTimings />);
+
+    fireTimingEvent("render-timing-flow-preparation", 8_000);
+    firePayloadEvent("render-timing-flow-preparation-details", {
+      layout_id: 4,
+      active_flow_id: 20,
+      active_flow_visible_in_layout: true,
+      fallback_draw_flow_id: null,
+      prepared_flow_ids: [10, 20],
+      prepared_flow_count: 2,
+      composed_flow_ids: [10, 20],
+      composed_flow_count: 2,
+      single_flow_draw_fallback: false,
+    });
+    firePayloadEvent("render-timing-surface-details", {
+      surface_width_px: 1440,
+      surface_height_px: 480,
+      viewport_width_px: 960,
+      viewport_height_px: 420,
+    });
+
+    await user.click(screen.getByRole("button", { name: /Layout Phase/ }));
+
+    expect(
+      screen.getByText(/Shared surface: 1440.0px x 480.0px/),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Viewport: 960.0px x 420.0px/)).toBeInTheDocument();
+  });
+
   it("clears stale flow-aware preparation diagnostics when the backend resets them", async () => {
     const user = userEvent.setup();
     render(<PerformanceTimings />);
@@ -315,16 +346,29 @@ describe("PerformanceTimings", () => {
       composed_flow_count: 1,
       single_flow_draw_fallback: true,
     });
+    firePayloadEvent("render-timing-surface-details", {
+      surface_width_px: 1440,
+      surface_height_px: 480,
+      viewport_width_px: 960,
+      viewport_height_px: 420,
+    });
 
     await user.click(screen.getByRole("button", { name: /Layout Phase/ }));
     expect(screen.getByText(/Prepared flow count: 0/)).toBeInTheDocument();
     expect(screen.getByText(/Fallback draw flow: 20/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Shared surface: 1440.0px x 480.0px/),
+    ).toBeInTheDocument();
 
     fireTimingEvent("render-timing-flow-preparation", 0);
     firePayloadEvent("render-timing-flow-preparation-details", null);
+    firePayloadEvent("render-timing-surface-details", null);
 
     expect(
       screen.queryByText(/Prepared flow count: 0/),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/Shared surface: 1440.0px x 480.0px/),
     ).not.toBeInTheDocument();
   });
 

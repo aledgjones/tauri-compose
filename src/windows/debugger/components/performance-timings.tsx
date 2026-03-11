@@ -14,12 +14,21 @@ type FlowPreparationDetails = {
   single_flow_draw_fallback: boolean;
 };
 
+type RenderSurfaceDetails = {
+  surface_width_px: number;
+  surface_height_px: number;
+  viewport_width_px: number;
+  viewport_height_px: number;
+};
+
 export const PerformanceTimings = () => {
   const [renderTimings, setRenderTimings] = useState<Record<string, number>>(
     {},
   );
   const [flowPreparationDetails, setFlowPreparationDetails] =
     useState<FlowPreparationDetails | null>(null);
+  const [renderSurfaceDetails, setRenderSurfaceDetails] =
+    useState<RenderSurfaceDetails | null>(null);
   const [layoutCollapsed, setLayoutCollapsed] = useState(true);
   const [renderCollapsed, setRenderCollapsed] = useState(true);
   const [gpuCollapsed, setGpuCollapsed] = useState(true);
@@ -58,11 +67,21 @@ export const PerformanceTimings = () => {
       },
     );
 
+    const surfaceDetailsUnlistener = listen(
+      "render-timing-surface-details",
+      (event) => {
+        setRenderSurfaceDetails(
+          (event.payload as RenderSurfaceDetails | null) ?? null,
+        );
+      },
+    );
+
     return () => {
       unlisteners.forEach((unlisten) => {
         unlisten.then((fn) => fn());
       });
       detailsUnlistener.then((fn) => fn());
+      surfaceDetailsUnlistener.then((fn) => fn());
     };
   }, []);
 
@@ -207,6 +226,20 @@ export const PerformanceTimings = () => {
                     {flowPreparationDetails.fallback_draw_flow_id}
                   </div>
                 )}
+              {renderSurfaceDetails && (
+                <>
+                  <div>
+                    Shared surface:{" "}
+                    {renderSurfaceDetails.surface_width_px.toFixed(1)}px x{" "}
+                    {renderSurfaceDetails.surface_height_px.toFixed(1)}px
+                  </div>
+                  <div>
+                    Viewport:{" "}
+                    {renderSurfaceDetails.viewport_width_px.toFixed(1)}px x{" "}
+                    {renderSurfaceDetails.viewport_height_px.toFixed(1)}px
+                  </div>
+                </>
+              )}
             </div>
           )}
           <div className="flex items-center">

@@ -145,4 +145,40 @@ describe("Renderer", () => {
       );
     });
   });
+
+  it("routes wheel scrolling through the shared renderer pan path", async () => {
+    vi.mocked(hitTest).mockResolvedValue(null);
+
+    const { container } = render(<Renderer />, {
+      wrapper: createWrapper({ appState: createAppState() }),
+    });
+
+    const overlay = container.querySelector('[data-testid="renderer"] > div');
+    fireEvent.wheel(overlay!, { deltaX: 24, deltaY: -12 });
+
+    await waitFor(() => {
+      expect(actions.ui.renderer.setPan).toHaveBeenCalledWith(-24, 12);
+    });
+  });
+
+  it("routes pointer-drag panning through the shared renderer pan path", async () => {
+    vi.mocked(hitTest).mockResolvedValue(null);
+
+    const { container } = render(<Renderer />, {
+      wrapper: createWrapper({ appState: createAppState() }),
+    });
+
+    const overlay = container.querySelector('[data-testid="renderer"] > div');
+    fireEvent.pointerDown(overlay!, { clientX: 50, clientY: 70 });
+
+    await waitFor(() => {
+      expect(hitTest).toHaveBeenCalled();
+    });
+
+    fireEvent.pointerMove(document, { clientX: 82, clientY: 58 });
+
+    await waitFor(() => {
+      expect(actions.ui.renderer.setPan).toHaveBeenCalledWith(32, -12);
+    });
+  });
 });
