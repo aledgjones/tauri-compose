@@ -63,11 +63,11 @@ development_status:
   3-3-isolate-recalculation-to-the-affected-flow: done
   3-4-keep-non-edited-flows-visually-stable-during-local-updates: done
   3-5-verify-non-regression-and-performance-scaling-for-multi-flow-rendering: done
-  epic-3-retrospective: optional
+  epic-3-retrospective: done
 
-  epic-4: backlog
-  4-1-preserve-document-open-save-and-reopen-with-multi-flow-score-view: backlog
-  4-2-preserve-native-desktop-document-behavior-around-multi-flow-score-view: backlog
-  4-3-preserve-existing-playback-behavior-with-multi-flow-score-visibility: backlog
-  4-4-preserve-offline-first-and-future-portability-boundaries: backlog
+  epic-4: in-progress
+  4-1-preserve-document-open-save-and-reopen-with-multi-flow-score-view: ready-for-dev
+  4-2-preserve-native-desktop-document-behavior-around-multi-flow-score-view: ready-for-dev
+  4-3-preserve-existing-playback-behavior-with-multi-flow-score-visibility: ready-for-dev
+  4-4-preserve-offline-first-and-future-portability-boundaries: ready-for-dev
   epic-4-retrospective: optional
