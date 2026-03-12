@@ -201,6 +201,132 @@ describe("AppStateProvider", () => {
     });
   });
 
+  it("refreshes idle transport state when the active flow changes between multiple flows", async () => {
+    let generalListener:
+      | ((event: { payload: typeof initialAppState }) => void)
+      | null = null;
+
+    listenMock.mockImplementation(async (eventName, callback) => {
+      if (eventName === "soloc://state/general") {
+        generalListener = callback as (event: {
+          payload: typeof initialAppState;
+        }) => void;
+      }
+
+      return vi.fn();
+    });
+
+    await act(async () => {
+      render(
+        <AppStateProvider>
+          <div>child content</div>
+        </AppStateProvider>,
+      );
+    });
+
+    await waitFor(() => {
+      expect(getStateMock).toHaveBeenCalledTimes(1);
+    });
+
+    const appStateForFlow = (
+      flowId: number,
+      tempoId: number,
+      bpm: number,
+    ): AppState => ({
+      ...initialAppState,
+      ui: {
+        ...initialAppState.ui,
+        flow_id: flowId,
+      },
+      score: {
+        ...initialAppState.score,
+        flows: {
+          order: [1, 2],
+          by_id: {
+            1: {
+              id: 1,
+              title: "Verse",
+              player_ids: [],
+              length: 128,
+              master_id: 10,
+              staves: { by_id: {} },
+            },
+            2: {
+              id: 2,
+              title: "Chorus",
+              player_ids: [],
+              length: 128,
+              master_id: 20,
+              staves: { by_id: {} },
+            },
+          },
+        },
+        tracks: {
+          by_id: {
+            10: {
+              id: 10,
+              entries: {
+                by_tick: { 0: [100] },
+                by_id: {
+                  100: {
+                    id: 100,
+                    tick: 0,
+                    type: "Tempo",
+                    text: "",
+                    beat_type: NoteDuration.Quarter,
+                    dots: 0,
+                    bpm: 96,
+                    hidden: false,
+                    show_text: false,
+                    show_metronome: true,
+                    parenthesized: false,
+                  },
+                },
+              },
+            },
+            20: {
+              id: 20,
+              entries: {
+                by_tick: { 0: [tempoId] },
+                by_id: {
+                  [tempoId]: {
+                    id: tempoId,
+                    tick: 0,
+                    type: "Tempo",
+                    text: "",
+                    beat_type: NoteDuration.Quarter,
+                    dots: 0,
+                    bpm,
+                    hidden: false,
+                    show_text: false,
+                    show_metronome: true,
+                    parenthesized: false,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    await act(async () => {
+      generalListener?.({ payload: appStateForFlow(1, 200, 96) });
+    });
+
+    await waitFor(() => {
+      expect(getStateMock).toHaveBeenCalledTimes(2);
+    });
+
+    await act(async () => {
+      generalListener?.({ payload: appStateForFlow(2, 201, 132) });
+    });
+
+    await waitFor(() => {
+      expect(getStateMock).toHaveBeenCalledTimes(3);
+    });
+  });
+
   it("wires main-window file menu events and refreshes menus after init and recents changes", async () => {
     vi.useFakeTimers();
 
