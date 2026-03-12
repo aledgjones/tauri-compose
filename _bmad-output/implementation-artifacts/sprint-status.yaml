@@ -70,4 +70,4 @@ development_status:
   4-2-preserve-native-desktop-document-behavior-around-multi-flow-score-view: done
   4-3-preserve-existing-playback-behavior-with-multi-flow-score-visibility: done
   4-4-preserve-offline-first-and-future-portability-boundaries: done
-  epic-4-retrospective: optional
+  epic-4-retrospective: done
