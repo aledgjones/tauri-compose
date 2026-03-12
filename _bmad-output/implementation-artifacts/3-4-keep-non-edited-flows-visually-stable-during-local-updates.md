@@ -1,6 +1,6 @@
 # Story 3.4: Keep Non-Edited Flows Visually Stable During Local Updates
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -21,28 +21,28 @@ Story 3.3 narrowed score-mutation recalculation for many flow-local edits, but s
 
 ## Tasks / Subtasks
 
-- [ ] Audit the remaining local update paths that still trigger broad visible-flow recomposition and identify the minimum affected-flow boundary for each one (AC: 1, 2, 3, 4)
-  - [ ] Trace the selection and clear-selection commands in `src-tauri/src/ui/sequencer.rs` that still call `state.emit(&app, &mut renderer, true)` and confirm which of those paths only need flow-local visual updates.
-  - [ ] Verify whether any other local UI-driven update paths still bypass the Story 3.3 recalculation request seam in `src-tauri/src/lib.rs` and broaden to a whole-visible-flow pass without a real shared-surface dependency.
-  - [ ] Separate truly shared presentation changes from edited-flow-only changes so the story narrows visible churn only where the backend can remain truthful.
-- [ ] Extend the backend-owned recalculation and reuse path so local visual updates preserve unaffected flow stability (AC: 1, 2, 3)
-  - [ ] Route flow-local selection and related local update commands through the explicit recalculation request path introduced in Story 3.3 instead of the legacy broad boolean path.
-  - [ ] Preserve truthful `render-timing-flow-preparation-details` diagnostics by recalculating only the flow that actually changed unless the backend can prove a broader shared-surface update is required.
-  - [ ] Reuse cached non-edited flow segments and keep the composed shared surface ordered in `score.flows.order` without introducing a frontend-owned stability model.
-- [ ] Keep shared presentation behavior coherent when only one visible flow updates (AC: 1, 2, 4)
-  - [ ] Preserve hit-target correctness, selection highlight behavior, popover anchor lookup, and `ui.flow_id` semantics when local updates narrow to one flow.
-  - [ ] Define and implement the rule for directly affected shared presentation areas so any required shared redraws stay minimal, deterministic, and backend-owned.
-  - [ ] Avoid changes to notation derivation, written-duration semantics, persistence, or multi-flow page-order rules while stabilizing visual updates.
-- [ ] Add focused regression coverage for visual stability and narrowed update scope (AC: 1, 2, 3, 4)
-  - [ ] Add Rust tests around `src-tauri/src/ui/sequencer.rs`, `src-tauri/src/lib.rs`, `src-tauri/src/instructions/render_plan.rs`, and `src-tauri/src/instructions/mod.rs` proving local selection and related local updates only recalculate the affected visible flow when reuse is available.
-  - [ ] Add or extend tests that prove unaffected flow draw instructions, hit targets, and composed positions remain stable while another visible flow updates.
-  - [ ] Extend debugger-facing frontend tests only if diagnostics payload shape or display rules change materially.
-- [ ] Validate the visual-stability path end to end (AC: 1, 2, 3, 4)
-  - [ ] Run `npm run lint`.
-  - [ ] Run `npm run check-types`.
-  - [ ] Run `npm run test:js`.
-  - [ ] Run `npm run test:rust`.
-  - [ ] Run `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features`.
+- [x] Audit the remaining local update paths that still trigger broad visible-flow recomposition and identify the minimum affected-flow boundary for each one (AC: 1, 2, 3, 4)
+  - [x] Trace the selection and clear-selection commands in `src-tauri/src/ui/sequencer.rs` that still call `state.emit(&app, &mut renderer, true)` and confirm which of those paths only need flow-local visual updates.
+  - [x] Verify whether any other local UI-driven update paths still bypass the Story 3.3 recalculation request seam in `src-tauri/src/lib.rs` and broaden to a whole-visible-flow pass without a real shared-surface dependency.
+  - [x] Separate truly shared presentation changes from edited-flow-only changes so the story narrows visible churn only where the backend can remain truthful.
+- [x] Extend the backend-owned recalculation and reuse path so local visual updates preserve unaffected flow stability (AC: 1, 2, 3)
+  - [x] Route flow-local selection and related local update commands through the explicit recalculation request path introduced in Story 3.3 instead of the legacy broad boolean path.
+  - [x] Preserve truthful `render-timing-flow-preparation-details` diagnostics by recalculating only the flow that actually changed unless the backend can prove a broader shared-surface update is required.
+  - [x] Reuse cached non-edited flow segments and keep the composed shared surface ordered in `score.flows.order` without introducing a frontend-owned stability model.
+- [x] Keep shared presentation behavior coherent when only one visible flow updates (AC: 1, 2, 4)
+  - [x] Preserve hit-target correctness, selection highlight behavior, popover anchor lookup, and `ui.flow_id` semantics when local updates narrow to one flow.
+  - [x] Define and implement the rule for directly affected shared presentation areas so any required shared redraws stay minimal, deterministic, and backend-owned.
+  - [x] Avoid changes to notation derivation, written-duration semantics, persistence, or multi-flow page-order rules while stabilizing visual updates.
+- [x] Add focused regression coverage for visual stability and narrowed update scope (AC: 1, 2, 3, 4)
+  - [x] Add Rust tests around `src-tauri/src/ui/sequencer.rs`, `src-tauri/src/ui/mod.rs`, `src-tauri/src/instructions/render_plan.rs`, and `src-tauri/src/instructions/mod.rs` proving local selection, active-flow handoff, and related local updates only recalculate the affected visible flow set when reuse is available.
+  - [x] Add or extend tests that prove unaffected flow draw instructions, hit targets, and composed offsets remain stable while another visible flow updates.
+  - [x] Extend debugger-facing frontend tests only if diagnostics payload shape or display rules change materially.
+- [x] Validate the visual-stability path end to end (AC: 1, 2, 3, 4)
+  - [x] Run `npm run lint`.
+  - [x] Run `npm run check-types`.
+  - [x] Run `npm run test:js`.
+  - [x] Run `npm run test:rust`.
+  - [x] Run `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features`.
 
 ## Dev Notes
 
@@ -177,8 +177,50 @@ GPT-5.4
 - Story context was grounded in Epic 3 planning, the architecture/planning artifacts, the current Rust render pipeline, Story 2.3 selection-stability rules, Story 2.5 active-flow rules, and the completed Story 3.3 invalidation work.
 - The repository does not contain `_bmad/core/tasks/validate-workflow.xml`, so the workflow validation step could not run through the expected helper and was applied manually while preparing the artifact.
 - No persisted-data migration is expected for this story.
+- Audited the remaining local UI-driven render paths and confirmed the sequencer selection-set, clear-selection, and shared active-flow handoff commands were the lingering broad-pass seams; those paths now narrow to the minimum affected visible flow set instead of falling back to a full visible-flow pass.
+- Added `FlowRenderRecalculationRequest::Flows(...)` plus `AppContext::emit_affected_flows(...)` so local UI handoff can truthfully request one or two affected visible flows without falling back to the legacy full-visible-flow boolean path.
+- Updated `src-tauri/src/ui/sequencer.rs` so tone, rest, tempo, time-signature, key-signature, clef, and clear-selection updates recalculate only the previously selected flow, the newly selected flow, or both when the selection crosses flows, while preserving `ui.flow_id`, selection-driven drawing, and composed hit-target behavior.
+- Updated `src-tauri/src/ui/mod.rs` so direct active-flow changes only recalculate the previously active and newly active visible flows while keeping transport state in sync.
+- Added Rust regression coverage in `src-tauri/src/ui/sequencer.rs`, `src-tauri/src/ui/mod.rs`, `src-tauri/src/instructions/render_plan.rs`, and `src-tauri/src/instructions/mod.rs` covering same-flow narrowing, cross-flow handoff, active-flow handoff, clear-selection scope, flow-ordered multi-flow recalculation requests, cached multi-flow reuse, and unaffected-flow segment/composed-offset reuse.
+- Validation completed successfully with `npm run lint`, `npm run check-types`, `npm run test:js`, `npm run test:rust`, and `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features` after reconciling the review follow-up cleanup.
+
+## Change Log
+
+- 2026-03-12: Narrowed sequencer selection-driven local updates to the minimal affected visible flow set, added ordered multi-flow recalculation requests, and expanded Rust regression coverage for shared-surface reuse and narrowed scope validation.
+- 2026-03-12: Review follow-up reconciled the story record with the implementation, narrowed shared active-flow handoff to the affected visible flows, and added composed-offset stability assertions for unaffected flow reuse.
 
 ### File List
 
 - `_bmad-output/implementation-artifacts/3-4-keep-non-edited-flows-visually-stable-during-local-updates.md`
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `src-tauri/src/score/entries/barline.rs`
+- `src-tauri/src/score/entries/clef.rs`
+- `src-tauri/src/instructions/mod.rs`
+- `src-tauri/src/instructions/render_plan.rs`
+- `src-tauri/src/lib.rs`
+- `src-tauri/src/score/entries/key_signature.rs`
+- `src-tauri/src/score/entries/tempo.rs`
+- `src-tauri/src/score/entries/time_signature.rs`
+- `src-tauri/src/score/entries/tone.rs`
+- `src-tauri/src/ui/mod.rs`
+- `src-tauri/src/ui/sequencer.rs`
+
+## Senior Developer Review (AI)
+
+### Reviewer
+
+Aled
+
+### Date
+
+2026-03-12
+
+### Outcome
+
+Approved
+
+### Summary
+
+- Reconciled the story record with the actual Story 3.4 implementation and expanded the File List to cover the reviewed backend entry updates.
+- Narrowed `ui_flow_id_set` to the previously active and newly active visible flows so local active-flow handoff no longer forces a full visible-flow recomposition.
+- Added the missing composed-offset stability assertions for unaffected flow reuse and aligned the coverage notes with the actual test seams.

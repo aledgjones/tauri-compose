@@ -988,9 +988,9 @@ fn draw_debug_layer(
 #[cfg(test)]
 mod tests {
     use super::{
-        build_flow_render_segment, collect_flow_render_segments, compose_render_segments,
-        inter_flow_gap_spaces, resolve_render_plan_recalculation, FlowRenderRecalculationRequest,
-        FlowRenderSegment, RenderPhaseTimings,
+        build_flow_render_segment, build_render_converter, collect_flow_render_segments,
+        compose_render_segments, inter_flow_gap_spaces, resolve_render_plan_recalculation,
+        FlowRenderRecalculationRequest, FlowRenderSegment, RenderPhaseTimings,
     };
     use crate::renderer::converter::Converter;
     use crate::renderer::RendererContext;
@@ -1544,7 +1544,7 @@ mod tests {
             &app.score,
             0,
             10,
-            FlowRenderRecalculationRequest::Flow(10),
+            FlowRenderRecalculationRequest::Flows(vec![10]),
         )
         .unwrap();
 
@@ -1579,7 +1579,7 @@ mod tests {
             &app.score,
             0,
             30,
-            FlowRenderRecalculationRequest::Flow(30),
+            FlowRenderRecalculationRequest::Flows(vec![30]),
         )
         .unwrap();
 
@@ -1603,9 +1603,13 @@ mod tests {
             pixel_density: 1.0,
             flow_segment_cache: None,
         };
-        let converter = Converter::new(1.0, 1.75);
+        let converter = build_render_converter(&app, &renderer, 0);
         let initial_flow_10 = build_flow_render_segment(&app, 0, 10, &converter);
         let initial_flow_20 = build_flow_render_segment(&app, 0, 20, &converter);
+        let initial_composed = compose_render_segments(
+            vec![initial_flow_10.clone(), initial_flow_20.clone()],
+            &converter,
+        );
 
         renderer.store_flow_segments(
             0,
@@ -1632,18 +1636,74 @@ mod tests {
             &app.score,
             0,
             10,
-            FlowRenderRecalculationRequest::Flow(20),
+            FlowRenderRecalculationRequest::Flows(vec![20]),
         )
         .unwrap();
         let resolved_plan = resolve_render_plan_recalculation(&app, &renderer, &plan);
         let segments =
             collect_flow_render_segments(&app, &mut renderer, &resolved_plan, &converter);
+        let recomposed = compose_render_segments(
+            segments
+                .iter()
+                .map(|(_, segment)| segment.clone())
+                .collect(),
+            &converter,
+        );
 
         assert_eq!(segments[0].0, 10);
         assert_eq!(segments[0].1.instructions, initial_flow_10.instructions);
         assert_eq!(segments[0].1.hit_targets, initial_flow_10.hit_targets);
+        assert_eq!(segments[0].1.width, initial_flow_10.width);
+        assert_eq!(segments[0].1.height, initial_flow_10.height);
         assert_eq!(segments[1].0, 20);
         assert_ne!(segments[1].1.instructions, initial_flow_20.instructions);
         assert_ne!(segments[1].1.hit_targets, initial_flow_20.hit_targets);
+        assert_eq!(recomposed.page_offsets, initial_composed.page_offsets);
+        assert_eq!(recomposed.page_widths[0], initial_composed.page_widths[0]);
+    }
+
+    #[test]
+    fn multi_flow_targeted_render_plan_stays_narrow_when_reuse_cache_is_available() {
+        let app = make_test_app_context(&[10, 20, 30]);
+        let mut renderer = RendererContext {
+            backend: None,
+            converter: Converter::new(1.0, 1.75),
+            px_per_mm: 1.0,
+            instructions: Vec::new(),
+            width: 0.0,
+            height: 0.0,
+            hit_targets: Vec::new(),
+            bounds: (0.0, 0.0, 0.0, 0.0),
+            pixel_density: 1.0,
+            flow_segment_cache: None,
+        };
+        let converter = build_render_converter(&app, &renderer, 0);
+
+        let cached_segments = FxHashMap::from_iter([
+            (10, build_flow_render_segment(&app, 0, 10, &converter)),
+            (20, build_flow_render_segment(&app, 0, 20, &converter)),
+            (30, build_flow_render_segment(&app, 0, 30, &converter)),
+        ]);
+
+        renderer.store_flow_segments(0, &converter, false, cached_segments);
+        let plan = crate::instructions::prepare_flow_render_plan(
+            &app.score,
+            0,
+            10,
+            FlowRenderRecalculationRequest::Flows(vec![20, 30]),
+        )
+        .unwrap();
+
+        assert!(renderer.can_reuse_flow_segments(
+            plan.layout_id,
+            &converter,
+            app.ui.renderer.debug,
+            &plan.composed_flow_ids(),
+        ));
+        assert_eq!(plan.recalculated_flow_ids(), vec![20, 30]);
+        assert_eq!(
+            resolve_render_plan_recalculation(&app, &renderer, &plan).recalculated_flow_ids(),
+            vec![20, 30]
+        );
     }
 }

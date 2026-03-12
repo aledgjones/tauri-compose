@@ -2,22 +2,53 @@ use crate::score::Score;
 use crate::utils::UniqueId;
 use serde::Serialize;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum FlowRenderRecalculationRequest {
     FullVisibleFlows,
-    Flow(UniqueId),
+    Flows(Vec<UniqueId>),
 }
 
 impl FlowRenderRecalculationRequest {
-    fn resolve_flow_ids(self, prepared_flows: &[PreparedFlowRenderInput]) -> Vec<UniqueId> {
-        match self {
-            Self::FullVisibleFlows => prepared_flows.iter().map(|flow| flow.flow_id).collect(),
-            Self::Flow(flow_id) => prepared_flows
-                .iter()
-                .filter(|flow| flow.flow_id == flow_id)
-                .map(|flow| flow.flow_id)
-                .collect(),
+    pub fn full_visible_flows() -> Self {
+        Self::FullVisibleFlows
+    }
+
+    pub fn for_flow_ids(flow_ids: &[UniqueId]) -> Option<Self> {
+        (!flow_ids.is_empty()).then(|| Self::Flows(flow_ids.to_vec()))
+    }
+
+    pub fn for_local_update(
+        previous_flow_id: Option<UniqueId>,
+        next_flow_id: Option<UniqueId>,
+    ) -> Option<Self> {
+        let mut flow_ids = Vec::new();
+
+        if let Some(flow_id) = previous_flow_id {
+            flow_ids.push(flow_id);
         }
+
+        if let Some(flow_id) = next_flow_id {
+            if !flow_ids.contains(&flow_id) {
+                flow_ids.push(flow_id);
+            }
+        }
+
+        Self::for_flow_ids(&flow_ids)
+    }
+
+    fn resolve_flow_ids(self, prepared_flows: &[PreparedFlowRenderInput]) -> Vec<UniqueId> {
+        let requested_flow_ids = match self {
+            Self::FullVisibleFlows => {
+                return prepared_flows.iter().map(|flow| flow.flow_id).collect()
+            }
+            Self::Flows(flow_ids) => flow_ids,
+        };
+
+        prepared_flows
+            .iter()
+            .filter(|flow| requested_flow_ids.contains(&flow.flow_id))
+            .map(|flow| flow.flow_id)
+            .collect()
     }
 }
 
@@ -204,6 +235,38 @@ mod tests {
     use crate::score::layouts::LayoutType;
     use crate::score::tracks::Track;
 
+    #[test]
+    fn local_update_request_keeps_same_flow_requests_narrow() {
+        assert_eq!(
+            FlowRenderRecalculationRequest::for_local_update(Some(11), Some(11)),
+            Some(FlowRenderRecalculationRequest::Flows(vec![11]))
+        );
+    }
+
+    #[test]
+    fn local_update_request_recalculates_previous_and_next_flows_in_order() {
+        assert_eq!(
+            FlowRenderRecalculationRequest::for_local_update(Some(11), Some(22)),
+            Some(FlowRenderRecalculationRequest::Flows(vec![11, 22]))
+        );
+    }
+
+    #[test]
+    fn local_update_request_keeps_clear_requests_to_the_previous_flow() {
+        assert_eq!(
+            FlowRenderRecalculationRequest::for_local_update(Some(11), None),
+            Some(FlowRenderRecalculationRequest::Flows(vec![11]))
+        );
+    }
+
+    #[test]
+    fn local_update_request_returns_none_when_no_flows_change() {
+        assert_eq!(
+            FlowRenderRecalculationRequest::for_local_update(None, None),
+            None
+        );
+    }
+
     fn prepare_plan(
         score: &Score,
         layout_id: UniqueId,
@@ -213,7 +276,7 @@ mod tests {
             score,
             layout_id,
             active_flow_id,
-            FlowRenderRecalculationRequest::FullVisibleFlows,
+            FlowRenderRecalculationRequest::full_visible_flows(),
         )
         .unwrap()
     }
@@ -426,7 +489,7 @@ mod tests {
             &score,
             0,
             999,
-            FlowRenderRecalculationRequest::FullVisibleFlows,
+            FlowRenderRecalculationRequest::full_visible_flows(),
         );
 
         assert!(plan.is_none());
@@ -436,9 +499,13 @@ mod tests {
     fn prepare_flow_render_plan_reports_only_targeted_visible_flow_as_recalculated() {
         let score = build_score();
 
-        let plan =
-            prepare_flow_render_plan(&score, 0, 30, FlowRenderRecalculationRequest::Flow(30))
-                .unwrap();
+        let plan = prepare_flow_render_plan(
+            &score,
+            0,
+            30,
+            FlowRenderRecalculationRequest::Flows(vec![30]),
+        )
+        .unwrap();
 
         assert_eq!(plan.prepared_flow_ids(), vec![10, 30]);
         assert_eq!(plan.composed_flow_ids(), vec![10, 30]);
@@ -454,12 +521,40 @@ mod tests {
         let layout = score.layouts.by_id.get_mut(&0).unwrap();
         layout.flow_ids.remove(&30);
 
-        let plan =
-            prepare_flow_render_plan(&score, 0, 30, FlowRenderRecalculationRequest::Flow(30))
-                .unwrap();
+        let plan = prepare_flow_render_plan(
+            &score,
+            0,
+            30,
+            FlowRenderRecalculationRequest::Flows(vec![30]),
+        )
+        .unwrap();
 
         assert_eq!(plan.prepared_flow_ids(), vec![10]);
         assert!(plan.recalculated_flow_ids().is_empty());
         assert_eq!(plan.recalculation_scope(), FlowRenderScope::NoVisibleFlows);
+    }
+
+    #[test]
+    fn prepare_flow_render_plan_reports_only_requested_visible_flows_for_multi_flow_targets() {
+        let score = build_score();
+
+        let plan = prepare_flow_render_plan(
+            &score,
+            0,
+            30,
+            FlowRenderRecalculationRequest::Flows(vec![30, 10, 999]),
+        )
+        .unwrap();
+
+        assert_eq!(plan.prepared_flow_ids(), vec![10, 30]);
+        assert_eq!(plan.recalculated_flow_ids(), vec![10, 30]);
+        assert_eq!(plan.recalculation_scope(), FlowRenderScope::MultipleFlows);
+        assert!(plan.should_recalculate_flow(10));
+        assert!(plan.should_recalculate_flow(30));
+    }
+
+    #[test]
+    fn for_flow_ids_returns_none_for_empty_requests() {
+        assert_eq!(FlowRenderRecalculationRequest::for_flow_ids(&[]), None);
     }
 }

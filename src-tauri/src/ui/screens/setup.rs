@@ -53,7 +53,7 @@ pub fn ui_setup_selection_set(
 
     state.ui.screens.setup.selection = Some(Selection { id, selection_type });
 
-    state.emit(&app, &mut renderer, false);
+    state.emit_general_state(&app, &mut renderer, None);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -67,7 +67,7 @@ pub fn ui_setup_selection_clear(
 
     state.ui.screens.setup.selection = None;
 
-    state.emit(&app, &mut renderer, false);
+    state.emit_general_state(&app, &mut renderer, None);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -82,7 +82,7 @@ pub fn ui_setup_expanded_insert(
 
     state.ui.screens.setup.expanded.insert(id);
 
-    state.emit(&app, &mut renderer, false);
+    state.emit_general_state(&app, &mut renderer, None);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -97,5 +97,5 @@ pub fn ui_setup_expanded_remove(
 
     state.ui.screens.setup.expanded.remove(&id);
 
-    state.emit(&app, &mut renderer, false);
+    state.emit_general_state(&app, &mut renderer, None);
 }

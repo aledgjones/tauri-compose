@@ -1,3 +1,4 @@
+use crate::instructions::FlowRenderRecalculationRequest;
 use crate::AppContextState;
 use crate::RendererContextState;
 use serde::{Deserialize, Serialize};
@@ -51,7 +52,11 @@ pub fn score_config_auto_count_styles_solo_set(
 
     state.score.config.auto_count_styles.solo = auto_count_style;
     state.score.update_counts();
-    state.emit(&app, &mut renderer, true);
+    state.emit_general_state(
+        &app,
+        &mut renderer,
+        Some(FlowRenderRecalculationRequest::full_visible_flows()),
+    );
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -66,7 +71,11 @@ pub fn score_config_auto_count_styles_section_set(
 
     state.score.config.auto_count_styles.section = auto_count_style;
     state.score.update_counts();
-    state.emit(&app, &mut renderer, true);
+    state.emit_general_state(
+        &app,
+        &mut renderer,
+        Some(FlowRenderRecalculationRequest::full_visible_flows()),
+    );
 }
 
 #[cfg(test)]

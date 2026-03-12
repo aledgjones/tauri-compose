@@ -49,7 +49,7 @@ pub fn ui_sequence_bottom_panel_minimized_toggle(
     state.ui.screens.sequence.bottom_panel_minimized =
         !state.ui.screens.sequence.bottom_panel_minimized;
 
-    state.emit(&app, &mut renderer, false);
+    state.emit_general_state(&app, &mut renderer, None);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -64,7 +64,7 @@ pub fn ui_sequence_bottom_panel_tab_set(
 
     state.ui.screens.sequence.bottom_panel_tab = tab;
 
-    state.emit(&app, &mut renderer, false);
+    state.emit_general_state(&app, &mut renderer, None);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -79,5 +79,5 @@ pub fn ui_sequence_show_active_only_set(
 
     state.ui.screens.sequence.show_active_only = show_active_only;
 
-    state.emit(&app, &mut renderer, false);
+    state.emit_general_state(&app, &mut renderer, None);
 }

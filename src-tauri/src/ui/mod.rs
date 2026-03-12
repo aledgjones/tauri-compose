@@ -2,6 +2,7 @@ pub mod renderer;
 pub mod screens;
 pub mod sequencer;
 
+use crate::instructions::FlowRenderRecalculationRequest;
 use crate::ui::screens::sequence::Sequence;
 use crate::ui::screens::setup::Setup;
 use crate::ui::screens::write::Write;
@@ -102,7 +103,7 @@ pub fn ui_tab_set(
     let mut renderer = renderer_state.lock().unwrap();
 
     state.ui.tab = tab;
-    state.emit(&app, &mut renderer, false);
+    state.emit_general_state(&app, &mut renderer, None);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -117,7 +118,11 @@ pub fn ui_layout_id_set(
 
     state.ui.layout_id = Some(layout_id);
 
-    state.emit(&app, &mut renderer, true);
+    state.emit_general_state(
+        &app,
+        &mut renderer,
+        Some(FlowRenderRecalculationRequest::full_visible_flows()),
+    );
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -134,7 +139,7 @@ pub fn ui_flow_id_set(
     state.ui.flow_id = Some(flow_id);
     sync_transport_to_app_state(transport_shared.inner(), &state, 0);
 
-    state.emit(&app, &mut renderer, true);
+    state.emit_general_state(&app, &mut renderer, None);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -187,8 +192,7 @@ mod tests {
             popover_y: 10.25,
         }]);
 
-        let coordinates =
-            resolve_selection_coordinates(Some(&selection), &ui_renderer, &renderer);
+        let coordinates = resolve_selection_coordinates(Some(&selection), &ui_renderer, &renderer);
 
         assert_eq!(coordinates, Some((81.0, 10.5)));
     }

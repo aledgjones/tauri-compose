@@ -238,20 +238,11 @@ impl AppContext {
         }
     }
 
-    fn render(
-        &mut self,
-        app: &tauri::AppHandle,
-        renderer: &mut RendererContext,
-        recalculate: bool,
-    ) {
-        self.render_with_recalculation(
-            app,
-            renderer,
-            recalculate.then_some(FlowRenderRecalculationRequest::FullVisibleFlows),
-        );
+    pub(crate) fn render_only(&mut self, app: &tauri::AppHandle, renderer: &mut RendererContext) {
+        self.render_with_recalculation(app, renderer, None);
     }
 
-    fn emit_with_recalculation(
+    pub(crate) fn emit_general_state(
         &mut self,
         app: &tauri::AppHandle,
         renderer: &mut RendererContext,
@@ -271,37 +262,33 @@ impl AppContext {
         }
     }
 
-    fn emit(&mut self, app: &tauri::AppHandle, renderer: &mut RendererContext, recalculate: bool) {
-        self.emit_with_recalculation(
-            app,
-            renderer,
-            recalculate.then_some(FlowRenderRecalculationRequest::FullVisibleFlows),
-        );
-    }
-
-    fn emit_affected_flow(
+    pub(crate) fn emit_affected_flows(
         &mut self,
         app: &tauri::AppHandle,
         renderer: &mut RendererContext,
-        flow_id: UniqueId,
+        flow_ids: &[UniqueId],
     ) {
-        self.emit_with_recalculation(
+        self.emit_general_state(
             app,
             renderer,
-            Some(FlowRenderRecalculationRequest::Flow(flow_id)),
+            FlowRenderRecalculationRequest::for_flow_ids(flow_ids),
         );
     }
 
-    fn emit_affected_track(
+    pub(crate) fn emit_affected_track(
         &mut self,
         app: &tauri::AppHandle,
         renderer: &mut RendererContext,
         track_id: UniqueId,
     ) {
         if let Some(flow_id) = self.flow_id_for_track(track_id) {
-            self.emit_affected_flow(app, renderer, flow_id);
+            self.emit_affected_flows(app, renderer, &[flow_id]);
         } else {
-            self.emit(app, renderer, true);
+            self.emit_general_state(
+                app,
+                renderer,
+                Some(FlowRenderRecalculationRequest::full_visible_flows()),
+            );
         }
     }
 
@@ -334,7 +321,11 @@ fn initialize(
     let sampler = sampler_state.lock().unwrap();
 
     sync_transport_to_app_state(transport_shared.inner(), &state, 0);
-    state.emit(&app, &mut renderer, true);
+    state.emit_general_state(
+        &app,
+        &mut renderer,
+        Some(FlowRenderRecalculationRequest::full_visible_flows()),
+    );
     audio.emit(&app);
     sampler.emit(&app);
 }
@@ -362,7 +353,11 @@ fn reset(
 
     renderer.clear();
 
-    state.emit(&app, &mut renderer, true);
+    state.emit_general_state(
+        &app,
+        &mut renderer,
+        Some(FlowRenderRecalculationRequest::full_visible_flows()),
+    );
 
     // Drop state locks before sampler sync
     drop(state);

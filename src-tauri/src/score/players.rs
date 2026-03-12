@@ -1,4 +1,5 @@
 use super::layouts::LayoutType;
+use crate::instructions::FlowRenderRecalculationRequest;
 use crate::playback::sampler::sync_sampler_with_score;
 use crate::utils::UniqueId;
 use crate::{
@@ -88,7 +89,11 @@ pub fn score_players_create(
 
     let player_id = state.create_player(player_type);
 
-    state.emit(&app, &mut renderer, true);
+    state.emit_general_state(
+        &app,
+        &mut renderer,
+        Some(FlowRenderRecalculationRequest::full_visible_flows()),
+    );
 
     player_id
 }
@@ -107,7 +112,11 @@ pub fn score_players_move(
     state.score.players.reorder(from_index, to_index);
 
     state.score.update_counts();
-    state.emit(&app, &mut renderer, true);
+    state.emit_general_state(
+        &app,
+        &mut renderer,
+        Some(FlowRenderRecalculationRequest::full_visible_flows()),
+    );
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -132,7 +141,11 @@ pub fn score_players_assign_instrument(
     }
 
     state.score.update_counts();
-    state.emit(&app, &mut renderer, true);
+    state.emit_general_state(
+        &app,
+        &mut renderer,
+        Some(FlowRenderRecalculationRequest::full_visible_flows()),
+    );
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -168,7 +181,11 @@ pub fn score_players_unassign_instrument(
         "after player instrument unassignment",
     );
 
-    state.emit(&app, &mut renderer, true);
+    state.emit_general_state(
+        &app,
+        &mut renderer,
+        Some(FlowRenderRecalculationRequest::full_visible_flows()),
+    );
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -223,7 +240,11 @@ pub fn score_players_remove(
         "after player removal",
     );
 
-    state.emit(&app, &mut renderer, true);
+    state.emit_general_state(
+        &app,
+        &mut renderer,
+        Some(FlowRenderRecalculationRequest::full_visible_flows()),
+    );
 }
 
 #[cfg(test)]

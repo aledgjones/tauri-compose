@@ -472,7 +472,7 @@ pub fn score_entries_tone_pitch_shift_by_steps(
     let track = state.score.tracks.by_id.get_mut(&track_id).unwrap();
     let new_pitch = track.shift_tone_pitch_by_steps(tone_id, steps, &key_signature);
 
-    state.emit_affected_flow(&app, &mut renderer, flow_id);
+    state.emit_affected_flows(&app, &mut renderer, &[flow_id]);
 
     new_pitch
 }

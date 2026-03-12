@@ -1,4 +1,4 @@
-use crate::{AppContextState, RendererContextState};
+use crate::{instructions::FlowRenderRecalculationRequest, AppContextState, RendererContextState};
 use serde::{Deserialize, Serialize};
 use tauri::{Manager, State};
 
@@ -72,7 +72,7 @@ pub fn ui_renderer_zoom_set(
     state.ui.renderer.pan_x = new_pan_x;
     state.ui.renderer.pan_y = new_pan_y;
 
-    state.emit(&app, &mut renderer, false);
+    state.emit_general_state(&app, &mut renderer, None);
 
     (clamped_zoom, new_pan_x, new_pan_y)
 }
@@ -100,7 +100,7 @@ pub fn ui_renderer_pan_set(
     state.ui.renderer.pan_x = clamped_x;
     state.ui.renderer.pan_y = clamped_y;
 
-    state.render(&app, &mut renderer, false);
+    state.render_only(&app, &mut renderer);
 
     // Return clamped values
     (clamped_x, clamped_y)
@@ -124,7 +124,7 @@ pub fn ui_renderer_bounds_set(
         let _ = renderer.update_bounds(bounds.x, bounds.y, bounds.width, bounds.height, scale);
     }
 
-    state.emit(&app, &mut renderer, false);
+    state.emit_general_state(&app, &mut renderer, None);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -138,5 +138,9 @@ pub fn ui_renderer_debug_toggle(
 
     state.ui.renderer.debug = !state.ui.renderer.debug;
 
-    state.emit(&app, &mut renderer, true);
+    state.emit_general_state(
+        &app,
+        &mut renderer,
+        Some(FlowRenderRecalculationRequest::full_visible_flows()),
+    );
 }

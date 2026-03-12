@@ -62,7 +62,7 @@ pub fn preferences_audition_set(
     state.preferences.audition = audition;
     state.preferences.persist("audition", &audition)?;
 
-    state.emit(&app, &mut renderer, false);
+    state.emit_general_state(&app, &mut renderer, None);
 
     Ok(())
 }

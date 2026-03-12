@@ -3,6 +3,7 @@ use crate::utils::UniqueId;
 use crate::AppContextState;
 use crate::RendererContextState;
 use crate::{
+    instructions::FlowRenderRecalculationRequest,
     playback::transport::{sync_transport_to_app_state, TransportSharedState},
     ui::Ui,
 };
@@ -116,7 +117,7 @@ pub fn ui_sequencer_instrument_set(
 
     state.ui.sequencer.instrument = Some(id);
 
-    state.emit(&app, &mut renderer, false);
+    state.emit_general_state(&app, &mut renderer, None);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -131,7 +132,7 @@ pub fn ui_sequencer_track_set(
 
     state.ui.sequencer.track = Some(id);
 
-    state.emit(&app, &mut renderer, false);
+    state.emit_general_state(&app, &mut renderer, None);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -146,7 +147,7 @@ pub fn ui_sequencer_tool_set(
 
     state.ui.sequencer.tool = tool;
 
-    state.emit(&app, &mut renderer, false);
+    state.emit_general_state(&app, &mut renderer, None);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -161,7 +162,7 @@ pub fn ui_sequencer_snap_set(
 
     state.ui.sequencer.snap = snap;
 
-    state.emit(&app, &mut renderer, false);
+    state.emit_general_state(&app, &mut renderer, None);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -178,7 +179,7 @@ pub fn ui_sequencer_coords_set(
     state.ui.sequencer.x = x;
     state.ui.sequencer.y = y;
 
-    state.emit(&app, &mut renderer, false);
+    state.emit_general_state(&app, &mut renderer, None);
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -196,6 +197,15 @@ pub fn ui_sequencer_selection_set_tone(
 ) {
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
+    let recalculation_request = FlowRenderRecalculationRequest::for_local_update(
+        state
+            .ui
+            .sequencer
+            .selection
+            .as_ref()
+            .map(Selection::flow_id),
+        Some(flow_id),
+    );
 
     apply_selection(
         &mut state.ui,
@@ -209,7 +219,7 @@ pub fn ui_sequencer_selection_set_tone(
     );
     sync_transport_to_app_state(transport_shared.inner(), &state, 0);
 
-    state.emit(&app, &mut renderer, true);
+    state.emit_general_state(&app, &mut renderer, recalculation_request);
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -227,6 +237,15 @@ pub fn ui_sequencer_selection_set_rest(
 ) {
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
+    let recalculation_request = FlowRenderRecalculationRequest::for_local_update(
+        state
+            .ui
+            .sequencer
+            .selection
+            .as_ref()
+            .map(Selection::flow_id),
+        Some(flow_id),
+    );
 
     apply_selection(
         &mut state.ui,
@@ -240,7 +259,7 @@ pub fn ui_sequencer_selection_set_rest(
     );
     sync_transport_to_app_state(transport_shared.inner(), &state, 0);
 
-    state.emit(&app, &mut renderer, true);
+    state.emit_general_state(&app, &mut renderer, recalculation_request);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -255,6 +274,15 @@ pub fn ui_sequencer_selection_set_tempo(
 ) {
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
+    let recalculation_request = FlowRenderRecalculationRequest::for_local_update(
+        state
+            .ui
+            .sequencer
+            .selection
+            .as_ref()
+            .map(Selection::flow_id),
+        Some(flow_id),
+    );
 
     apply_selection(
         &mut state.ui,
@@ -266,7 +294,7 @@ pub fn ui_sequencer_selection_set_tempo(
     );
     sync_transport_to_app_state(transport_shared.inner(), &state, 0);
 
-    state.emit(&app, &mut renderer, true);
+    state.emit_general_state(&app, &mut renderer, recalculation_request);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -281,6 +309,15 @@ pub fn ui_sequencer_selection_set_time_signature(
 ) {
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
+    let recalculation_request = FlowRenderRecalculationRequest::for_local_update(
+        state
+            .ui
+            .sequencer
+            .selection
+            .as_ref()
+            .map(Selection::flow_id),
+        Some(flow_id),
+    );
 
     apply_selection(
         &mut state.ui,
@@ -292,7 +329,7 @@ pub fn ui_sequencer_selection_set_time_signature(
     );
     sync_transport_to_app_state(transport_shared.inner(), &state, 0);
 
-    state.emit(&app, &mut renderer, true);
+    state.emit_general_state(&app, &mut renderer, recalculation_request);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -307,6 +344,15 @@ pub fn ui_sequencer_selection_set_key_signature(
 ) {
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
+    let recalculation_request = FlowRenderRecalculationRequest::for_local_update(
+        state
+            .ui
+            .sequencer
+            .selection
+            .as_ref()
+            .map(Selection::flow_id),
+        Some(flow_id),
+    );
 
     apply_selection(
         &mut state.ui,
@@ -318,7 +364,7 @@ pub fn ui_sequencer_selection_set_key_signature(
     );
     sync_transport_to_app_state(transport_shared.inner(), &state, 0);
 
-    state.emit(&app, &mut renderer, true);
+    state.emit_general_state(&app, &mut renderer, recalculation_request);
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -335,6 +381,15 @@ pub fn ui_sequencer_selection_set_clef(
 ) {
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
+    let recalculation_request = FlowRenderRecalculationRequest::for_local_update(
+        state
+            .ui
+            .sequencer
+            .selection
+            .as_ref()
+            .map(Selection::flow_id),
+        Some(flow_id),
+    );
 
     apply_selection(
         &mut state.ui,
@@ -347,7 +402,7 @@ pub fn ui_sequencer_selection_set_clef(
     );
     sync_transport_to_app_state(transport_shared.inner(), &state, 0);
 
-    state.emit(&app, &mut renderer, true);
+    state.emit_general_state(&app, &mut renderer, recalculation_request);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -358,10 +413,19 @@ pub fn ui_sequencer_selection_clear(
 ) {
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
+    let recalculation_request = FlowRenderRecalculationRequest::for_local_update(
+        state
+            .ui
+            .sequencer
+            .selection
+            .as_ref()
+            .map(Selection::flow_id),
+        None,
+    );
 
     state.ui.sequencer.selection = None;
 
-    state.emit(&app, &mut renderer, true);
+    state.emit_general_state(&app, &mut renderer, recalculation_request);
 }
 
 #[cfg(test)]

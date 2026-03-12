@@ -61,8 +61,8 @@ development_status:
   3-1-add-multi-flow-render-and-recalculation-visibility: done
   3-2-add-regression-protection-for-multi-flow-notation-safety: done
   3-3-isolate-recalculation-to-the-affected-flow: done
-  3-4-keep-non-edited-flows-visually-stable-during-local-updates: ready-for-dev
-  3-5-verify-non-regression-and-performance-scaling-for-multi-flow-rendering: backlog
+  3-4-keep-non-edited-flows-visually-stable-during-local-updates: done
+  3-5-verify-non-regression-and-performance-scaling-for-multi-flow-rendering: ready-for-dev
   epic-3-retrospective: optional
 
   epic-4: backlog

@@ -1,3 +1,4 @@
+use crate::instructions::FlowRenderRecalculationRequest;
 use crate::migrations::{MigrationKind, MIGRATIONS};
 use crate::playback::sampler::sync_sampler_with_score;
 use crate::playback::transport::{
@@ -667,7 +668,11 @@ pub fn load_project_from_file(
     let score = state.score.clone();
 
     // Emit the updated state
-    state.emit(&app, &mut renderer, true);
+    state.emit_general_state(
+        &app,
+        &mut renderer,
+        Some(FlowRenderRecalculationRequest::full_visible_flows()),
+    );
 
     // Drop state locks before potentially slow sampler sync
     drop(state);
