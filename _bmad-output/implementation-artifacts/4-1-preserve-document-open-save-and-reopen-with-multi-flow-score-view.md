@@ -1,6 +1,6 @@
 # Story 4.1: Preserve Document Open, Save, and Reopen with Multi-Flow Score View
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -21,23 +21,23 @@ This story is the document-safety gate for Epic 4. Multi-flow rendering is alrea
 
 ## Tasks / Subtasks
 
-- [ ] Audit the existing load/save pipeline before changing behavior (AC: 1, 2, 3, 4)
-  - [ ] Inspect `src-tauri/src/files.rs`, `src-tauri/src/soloc.rs`, and `src-tauri/src/migrations/` to confirm where project payloads are deserialized, migrated, reapplied to app state, and serialized back to disk.
-  - [ ] Confirm the persisted project DTO remains `{ ui, score, next_id }` and that multi-flow rendering is still derived from existing flow/layout state rather than a separate saved representation.
-  - [ ] Identify any current renderer-reset, sampler-sync, or transport-sync behavior triggered during load so the reopened project lands in a coherent post-load state.
-- [ ] Preserve document round-tripping while multi-flow rendering is active (AC: 1, 2, 3)
-  - [ ] Keep `load_project_from_file` and `save_project_to_file` authoritative for project I/O; do not add a parallel multi-flow-specific save path.
-  - [ ] Ensure the multi-flow-capable render path can rebuild from existing score/layout data immediately after load without storing presentation-only state in the `.soloc` payload.
-  - [ ] Preserve current single-flow round-tripping behavior and error handling for malformed or unsupported files.
-- [ ] Add regression coverage around open/save/reopen with multi-flow-visible data (AC: 1, 2, 3, 4)
-  - [ ] Extend Rust tests near `src-tauri/src/files.rs` and related persistence seams to verify load/save round-trips still preserve the current project model when multiple flows and layouts are present.
-  - [ ] Extend frontend command tests in `src/services/actions.test.ts` for open/save wiring only if command usage changes materially.
-  - [ ] Add manual verification guidance using representative `.soloc` fixtures or sample projects that exercise both single-flow and multi-flow-visible layouts.
-- [ ] Keep migration and persistence scope honest (AC: 2, 4)
-  - [ ] Do not add a migration unless implementation discovery proves that older files would fail to load correctly after the change.
-  - [ ] If a real persisted-data or load/save semantic change becomes unavoidable, add the pending migration in `src-tauri/src/migrations/next.rs` and document the impact explicitly.
-- [ ] Update docs only if the stable file-behavior contract changes (AC: 4)
-  - [ ] Update `docs/architecture.md`, `docs/data-models.md`, `docs/project-overview.md`, and `TESTING.md` if the implementation changes maintainer expectations for load/save verification or `.soloc` semantics.
+- [x] Audit the existing load/save pipeline before changing behavior (AC: 1, 2, 3, 4)
+  - [x] Inspect `src-tauri/src/files.rs`, `src-tauri/src/soloc.rs`, and `src-tauri/src/migrations/` to confirm where project payloads are deserialized, migrated, reapplied to app state, and serialized back to disk.
+  - [x] Confirm the persisted project DTO remains `{ ui, score, next_id }` and that multi-flow rendering is still derived from existing flow/layout state rather than a separate saved representation.
+  - [x] Identify any current renderer-reset, sampler-sync, or transport-sync behavior triggered during load so the reopened project lands in a coherent post-load state.
+- [x] Preserve document round-tripping while multi-flow rendering is active (AC: 1, 2, 3)
+  - [x] Keep `load_project_from_file` and `save_project_to_file` authoritative for project I/O; do not add a parallel multi-flow-specific save path.
+  - [x] Ensure the multi-flow-capable render path can rebuild from existing score/layout data immediately after load without storing presentation-only state in the `.soloc` payload.
+  - [x] Preserve current single-flow round-tripping behavior and error handling for malformed or unsupported files.
+- [x] Add regression coverage around open/save/reopen with multi-flow-visible data (AC: 1, 2, 3, 4)
+  - [x] Extend Rust tests near `src-tauri/src/files.rs` and related persistence seams to verify load/save round-trips still preserve the current project model when multiple flows and layouts are present.
+  - [x] Extend frontend command tests in `src/services/actions.test.ts` for open/save wiring only if command usage changes materially.
+  - [x] Add manual verification guidance using representative `.soloc` fixtures or sample projects that exercise both single-flow and multi-flow-visible layouts.
+- [x] Keep migration and persistence scope honest (AC: 2, 4)
+  - [x] Do not add a migration unless implementation discovery proves that older files would fail to load correctly after the change.
+  - [x] If a real persisted-data or load/save semantic change becomes unavoidable, add the pending migration in `src-tauri/src/migrations/next.rs` and document the impact explicitly.
+- [x] Update docs only if the stable file-behavior contract changes (AC: 4)
+  - [x] Update `docs/architecture.md`, `docs/data-models.md`, `docs/project-overview.md`, and `TESTING.md` if the implementation changes maintainer expectations for load/save verification or `.soloc` semantics.
 
 ## Dev Notes
 
@@ -154,14 +154,33 @@ This story is the document-safety gate for Epic 4. Multi-flow rendering is alrea
 
 GPT-5.4
 
+### Implementation Plan
+
+- Audit the load/save boundary in `src-tauri/src/files.rs`, `src-tauri/src/soloc.rs`, and `src-tauri/src/migrations/` to verify the persisted project shape and post-load rehydration behavior remain unchanged.
+- Add persistence regression tests in `src-tauri/src/files.rs` that round-trip representative single-flow and multi-flow-visible project payloads through the existing `.soloc` container helpers.
+- Prove the reopened multi-flow project still rebuilds its visible-flow render plan from restored `score` and `ui` state alone, without any persisted renderer-owned state or migration changes.
+
 ### Completion Notes List
 
 - Story 4.1 was created directly from Epic 4 planning artifacts and current persistence code seams.
 - The story keeps multi-flow rendering explicitly on the derived presentation path and treats any persistence change as an exception requiring migration review.
 - The repository does not contain `_bmad/core/tasks/validate-workflow.xml`, so the BMAD validator could not be invoked; the create-story checklist was applied manually while preparing this artifact.
 - External web research was not available in this environment; repository docs and source were used as the authoritative baseline.
+- Audited `load_project_from_file` and `save_project_to_file` and confirmed they remain the sole project I/O path; the persisted DTO is still `{ ui, score, next_id }`, the `.soloc` wrapper still lives in `src-tauri/src/soloc.rs`, and load still stops playback, syncs transport, emits a full-visible-flow render recalculation, and then syncs the sampler.
+- Added Rust regression coverage in `src-tauri/src/files.rs` for the authoritative project DTO shape, multi-flow-visible `.soloc` round-tripping, and single-flow round-trip non-regression.
+- No frontend command changes were required because `src/services/actions.ts` already routes open/save through `load_project_from_file` and `save_project_to_file`; the existing command tests remain sufficient for this story.
+- No migration was added because the persisted project model and load/save semantics did not change.
+- Manual verification guidance: open a representative multi-flow-visible `.soloc` project, confirm the visible layout still composes the expected flows, save, reopen, and confirm the same layout and active-flow context render correctly; repeat once with a single-flow project to confirm unchanged behavior.
+- Manual verification completed on 2026-03-12: user confirmed the open/save/reopen workflow behaved correctly.
+- Validation completed with `npm run lint`, `npm run check-types`, `npm run test:js`, `npm run test:rust`, and `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features`.
 
 ### File List
 
 - `_bmad-output/implementation-artifacts/4-1-preserve-document-open-save-and-reopen-with-multi-flow-score-view.md`
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `src-tauri/src/files.rs`
+
+### Change Log
+
+- 2026-03-12: Audited the existing `.soloc` load/save pipeline, confirmed no migration or persistence-shape change was needed for multi-flow score view, and added Rust regression coverage for multi-flow and single-flow round-tripping.
+- 2026-03-12: Story accepted after manual verification; status updated from review to done.

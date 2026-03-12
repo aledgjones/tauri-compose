@@ -66,7 +66,7 @@ development_status:
   epic-3-retrospective: done
 
   epic-4: in-progress
-  4-1-preserve-document-open-save-and-reopen-with-multi-flow-score-view: ready-for-dev
+  4-1-preserve-document-open-save-and-reopen-with-multi-flow-score-view: done
   4-2-preserve-native-desktop-document-behavior-around-multi-flow-score-view: ready-for-dev
   4-3-preserve-existing-playback-behavior-with-multi-flow-score-visibility: ready-for-dev
   4-4-preserve-offline-first-and-future-portability-boundaries: ready-for-dev

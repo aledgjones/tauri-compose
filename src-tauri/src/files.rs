@@ -323,7 +323,13 @@ fn write_file_atomically(destination: &Path, contents: &[u8]) -> Result<(), Stri
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::instructions::{prepare_flow_render_plan, FlowRenderRecalculationRequest};
     use crate::migrations::{MigrationKind, MIGRATIONS};
+    use crate::preferences::Preferences;
+    use crate::score::flows::Flow;
+    use crate::score::layouts::{Layout, LayoutType};
+    use crate::score::tracks::Track;
+    use crate::{score::Score, ui::Ui, AppContext};
     use serde_json::json;
 
     fn test_app_version() -> &'static str {
@@ -365,6 +371,56 @@ mod tests {
         MIGRATIONS
             .iter()
             .any(|migration| matches!(migration.kind(), MigrationKind::PendingNext))
+    }
+
+    fn make_preferences() -> Preferences {
+        serde_json::from_str::<Preferences>(r#"{"audition":true}"#).unwrap()
+    }
+
+    fn build_score_with_visible_flows(
+        flow_order: &[UniqueId],
+        visible_flow_ids: &[UniqueId],
+    ) -> Score {
+        let mut score = Score::new();
+
+        score.flows.order = flow_order.to_vec();
+        score.flows.by_id.clear();
+        score.tracks.by_id.clear();
+
+        for flow_id in flow_order {
+            let track_id = flow_id + 100;
+            score
+                .flows
+                .by_id
+                .insert(*flow_id, Flow::new(*flow_id, track_id));
+            score.tracks.by_id.insert(track_id, Track::new(track_id));
+        }
+
+        let mut layout = Layout::new(0, LayoutType::FullScore);
+        for flow_id in visible_flow_ids {
+            layout.flow_ids.insert(*flow_id);
+        }
+
+        score.layouts.order = vec![0];
+        score.layouts.by_id.clear();
+        score.layouts.by_id.insert(0, layout);
+
+        score
+    }
+
+    fn round_trip_project_file(project_file: &ProjectFile) -> ProjectFile {
+        let json_data = serde_json::to_vec(project_file).unwrap();
+        let compressed_data = compress_project_payload(&json_data).unwrap();
+        let container = build_soloc_container(test_app_version(), &compressed_data).unwrap();
+        let parsed = parse_soloc_container(&container).unwrap();
+        let decompressed =
+            decompress_project_payload(parsed.project_payload, parsed.project_chunk_flags).unwrap();
+        let project_data: Value = serde_json::from_slice(&decompressed).unwrap();
+
+        validate_project_version_match(&parsed.app_version, &project_data).unwrap();
+
+        let migrated = migrate_project_data(project_data, &parsed.app_version).unwrap();
+        serde_json::from_value(migrated).unwrap()
     }
 
     #[test]
@@ -591,6 +647,100 @@ mod tests {
             migrated["score"]["tracks"]["by_id"]["1"]["entries"]["by_id"]["10"]["text"],
             ""
         );
+    }
+
+    #[test]
+    fn build_project_file_keeps_the_authoritative_project_dto_shape() {
+        let mut ui = Ui::new();
+        ui.layout_id = Some(0);
+        ui.flow_id = Some(20);
+
+        let mut score = build_score_with_visible_flows(&[10, 20], &[10, 20]);
+        score.meta.app_version = "0.0.1".to_string();
+
+        let state = AppContext {
+            ui,
+            score,
+            preferences: make_preferences(),
+            next_id: 42,
+            current_file_path: Some("/tmp/example.soloc".to_string()),
+        };
+
+        let value = serde_json::to_value(build_project_file(&state)).unwrap();
+        let object = value.as_object().unwrap();
+
+        assert_eq!(object.len(), 3);
+        assert!(object.contains_key("ui"));
+        assert!(object.contains_key("score"));
+        assert!(object.contains_key("next_id"));
+        assert!(!object.contains_key("preferences"));
+        assert!(!object.contains_key("current_file_path"));
+        assert_eq!(
+            value["score"]["meta"]["app_version"],
+            Value::String(test_app_version().to_string())
+        );
+    }
+
+    #[test]
+    fn soloc_round_trip_preserves_multi_flow_projects_and_rebuilds_visible_flow_rendering() {
+        let mut ui = Ui::new();
+        ui.layout_id = Some(0);
+        ui.flow_id = Some(20);
+
+        let project_file = ProjectFile {
+            ui,
+            score: build_score_with_visible_flows(&[10, 20, 30], &[20, 10]),
+            next_id: 77,
+        };
+
+        let restored = round_trip_project_file(&project_file);
+
+        assert_eq!(
+            serde_json::to_value(&restored).unwrap(),
+            serde_json::to_value(&project_file).unwrap()
+        );
+
+        let render_plan = prepare_flow_render_plan(
+            &restored.score,
+            restored.ui.layout_id.unwrap(),
+            restored.ui.flow_id.unwrap(),
+            FlowRenderRecalculationRequest::full_visible_flows(),
+        )
+        .unwrap();
+
+        assert_eq!(render_plan.prepared_flow_ids(), vec![10, 20]);
+        assert_eq!(render_plan.recalculated_flow_ids(), vec![10, 20]);
+        assert!(render_plan.active_flow_visible_in_layout);
+    }
+
+    #[test]
+    fn soloc_round_trip_preserves_single_flow_projects_without_multi_flow_regressions() {
+        let mut ui = Ui::new();
+        ui.layout_id = Some(0);
+        ui.flow_id = Some(10);
+
+        let project_file = ProjectFile {
+            ui,
+            score: build_score_with_visible_flows(&[10], &[10]),
+            next_id: 12,
+        };
+
+        let restored = round_trip_project_file(&project_file);
+        let render_plan = prepare_flow_render_plan(
+            &restored.score,
+            restored.ui.layout_id.unwrap(),
+            restored.ui.flow_id.unwrap(),
+            FlowRenderRecalculationRequest::full_visible_flows(),
+        )
+        .unwrap();
+
+        assert_eq!(
+            serde_json::to_value(&restored).unwrap(),
+            serde_json::to_value(&project_file).unwrap()
+        );
+        assert_eq!(render_plan.prepared_flow_ids(), vec![10]);
+        assert_eq!(render_plan.recalculated_flow_ids(), vec![10]);
+        assert_eq!(render_plan.prepared_flow_count(), 1);
     }
 }
 
