@@ -31,9 +31,7 @@ fn seconds_per_tick(bpm: f64) -> f64 {
     60.0 / (bpm * TICKS_PER_QUARTER as f64)
 }
 
-fn join_transport_thread(
-    handle: Option<std::thread::JoinHandle<()>>,
-) -> Result<(), String> {
+fn join_transport_thread(handle: Option<std::thread::JoinHandle<()>>) -> Result<(), String> {
     if let Some(handle) = handle {
         handle
             .join()
@@ -685,7 +683,10 @@ pub fn transport_seek(
 ) -> Result<(), String> {
     let (shared, playing) = {
         let ctx = state.lock().unwrap();
-        (ctx.shared.clone(), ctx.shared.playing.load(Ordering::Acquire))
+        (
+            ctx.shared.clone(),
+            ctx.shared.playing.load(Ordering::Acquire),
+        )
     };
 
     shared.current_tick.store(tick, Ordering::Relaxed);
@@ -757,8 +758,7 @@ mod tests {
     }
 
     fn make_preferences() -> crate::preferences::Preferences {
-        serde_json::from_str::<crate::preferences::Preferences>(r#"{"audition":true}"#)
-            .unwrap()
+        serde_json::from_str::<crate::preferences::Preferences>(r#"{"audition":true}"#).unwrap()
     }
 
     fn make_app_context(score: Score, flow_id: Option<UniqueId>) -> AppContext {
