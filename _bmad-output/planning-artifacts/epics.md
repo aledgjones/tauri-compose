@@ -5,790 +5,904 @@ stepsCompleted:
   - step-03-create-stories
   - step-04-final-validation
 inputDocuments:
-  - _bmad-output/planning-artifacts/prd.md
-  - _bmad-output/planning-artifacts/architecture.md
-  - _bmad-output/planning-artifacts/ux-design-specification.md
+  - _bmad-output/planning-artifacts/prd-foundational-tuplet-support.md
+  - _bmad-output/planning-artifacts/architecture-foundational-tuplet-support.md
 ---
 
 # compose - Epic Breakdown
 
 ## Overview
 
-This document provides the complete epic and story breakdown for compose, decomposing the requirements from the PRD, UX Design, and Architecture requirements into implementable stories.
+This document provides the complete epic and story breakdown for compose, decomposing the requirements from the PRD and Architecture requirements into implementable stories for foundational tuplet support.
 
 ## Requirements Inventory
 
 ### Functional Requirements
 
-FR1: Composers can view multiple flows within a single continuous score presentation rendered by the product's native score renderer.
-FR2: Composers can move through visible flows without using the current single-flow switching pattern for basic score reading.
-FR3: The product can present flows in sequence separated by a fixed gap of at least 20 pixels, sufficient for flow boundaries to be identifiable at standard zoom level.
-FR4: The product can render multiple flows simultaneously without overlapping staves, clipped content, or illegible note spacing.
-FR5: The product can render adjacent flows with consistent staff sizing, clef presentation, and spacing style so they read as a unified score rather than visually independent panels.
-FR6: Composers can select score content within any visible flow in the continuous presentation.
-FR7: Composers can trigger and use popovers within any visible flow in the continuous presentation.
-FR8: The product can resolve hit targets correctly across all rendered flows.
-FR9: Composers can interact with score elements across flow boundaries with each interaction resolving to exactly one well-defined target.
-FR10: The product can maintain a clearly indicated active flow for editing purposes while multiple flows are visible simultaneously.
-FR11: The product can support editing interactions within the currently relevant flow while other flows remain visible.
-FR12: The product can preserve existing written-notation behavior when multi-flow rendering is enabled.
-FR13: The product can preserve existing written-duration behavior for musical content rendered in multi-flow contexts.
-FR14: The product can render multi-flow score output without requiring users to rewrite musical input to accommodate the presentation model.
-FR15: The product can preserve score output conforming to the notation behaviors documented in the project's notation reference (Elaine Gould, Behind Bars) when extending presentation beyond a single flow.
-FR16: Composers can scroll through the combined multi-flow score presentation as one continuous reading surface.
-FR17: The product can indicate the user's active flow and position through visible affordances while multiple flows are displayed, without requiring additional navigation steps to identify context.
-FR18: The product can display flow boundaries and flow sequence clearly enough that a user can identify individual flows and their relative order without scrolling or additional navigation.
-FR19: The product can support reading across multiple flows without requiring users to invoke a flow-switching interaction for basic score reading and navigation.
-FR20: The product can update one flow without requiring unrelated flows to be re-derived unnecessarily.
-FR21: The product can preserve isolated recalculation boundaries between flows during editing.
-FR22: The product can render all non-edited flows without visible update artifacts, stutter, or layout shifts while a local edit is processed in another flow.
-FR23: The product can preserve stable interaction behavior while one visible flow is updated.
-FR24: The product can support multi-flow presentation without coupling all visible flows into a single mandatory recalculation unit.
-FR25: macOS users can open score documents through standard desktop file workflows.
-FR26: macOS users can save and reopen score documents through native desktop document flows.
-FR27: The product can participate in desktop file association workflows for supported score documents.
-FR28: The product can use native-style file interaction patterns appropriate to a desktop document application.
-FR29: The product can support core composition and score interaction workflows without requiring network connectivity.
-FR30: Composers can continue using existing playback behavior while multi-flow rendering is introduced.
-FR31: The product can support desktop audio-device-based playback as part of the broader product context without making cross-flow playback a requirement for this MVP.
-FR32: Composers can keep a single active flow for sequencer and piano-roll workflows while multiple flows are visible in score presentation.
-FR33: The product can support future portability of score files, settings, and templates without requiring account-based sync in this MVP.
-FR34: The product can remain usable as a fully offline-first composition environment even as future optional sync capabilities are considered.
-FR35: Maintainers can evolve score presentation architecture without treating notation logic as part of the same capability change.
-FR36: Maintainers can access render-timing output covering unified-renderer flow scope and recalculation scope so correctness and performance can be validated during development.
+FR1: Composers can create triplet-authored passages whose performed timing is stored exactly rather than approximated through binary tick rounding.
+FR2: The product can represent supported triplet groups as first-class score data rather than as renderer-only annotations.
+FR3: The product can associate triplet groups with their member notes and rests while preserving each member's existing flow, track, and selection ownership.
+FR4: The product can persist enough tuplet metadata to round-trip triplet grouping, display intent, and exact rhythmic meaning across save and reopen.
+FR5: The product can support a persisted triplet representation that does not require a second schema reset when broader tuplet ratios are added later, unless architecture review proves that a triplet-specific schema is materially safer.
+FR6: Composers can create supported triplet groups from a focused tuplet popover in the existing workflow without manual approximation of timing values.
+FR7: Composers can select and edit individual triplet members while the product preserves valid triplet grouping where musically possible.
+FR8: Composers can edit pitch, duration, and position of notes inside a triplet without the product silently converting the passage into approximate non-tuplet timing.
+FR9: Composers can insert rests within supported triplet groups and preserve correct triplet duration accounting.
+FR10: Composers can delete or slice triplet members and receive predictable group-preservation, repair, or dissolve behavior according to documented editing rules.
+FR11: The product can expose triplet-aware popover creation and sequencer note-entry affordances that fit the existing primary note-entry workflow instead of introducing a disconnected rhythm-authoring mode.
+FR12: The product can preserve the current authoritative ui.flow_id behavior while tuplets are edited in score and related workflow surfaces.
+FR13: The product can derive written triplet notation from backend-owned rhythmic data without relying on frontend reconstruction.
+FR14: The product can render triplet numbers and brackets where required for readability and can omit unnecessary bracket chrome where notation standards do not require it.
+FR15: The product can beam supported triplet groups in ways that reinforce the tuplet grouping rather than contradict it.
+FR16: The product can render supported triplet rests, ties, and chords with notation semantics consistent with the product's Gould-driven rules.
+FR17: The product can handle triplets that begin or end adjacent to non-tuplet material without breaking surrounding spacing, hit targets, or selection behavior.
+FR18: The product can keep triplet rendering legible within the existing native score surface, including number placement and collision avoidance sufficient for MVP correctness.
+FR19: Composers can play back triplet-authored material and hear exact timing that matches the persisted rhythmic intent.
+FR20: The product can resolve playback timing for tuplets from the same source-of-truth timing model used by notation and persistence.
+FR21: Existing non-tuplet playback behavior remains correct after triplet support is introduced.
+FR22: The product can preserve single-flow playback semantics for MVP even when tuplets exist in the active flow.
+FR23: macOS users can save and reopen projects containing triplets without loss of exact timing, grouping semantics, or visible notation intent.
+FR24: The product can migrate older projects safely if exact triplet support requires a persisted timing-lattice or score-schema change.
+FR25: The product can distinguish between files that require structural upgrade and files that can remain semantically unchanged under the new model.
+FR26: The product can keep .soloc header versioning, score.meta.app_version, and migration registration consistent with the repo's release-flow rules when tuplets alter persisted behavior.
+FR27: Maintainers can implement any required pending migration in src-tauri/src/migrations/next.rs before release preparation, rather than embedding migration logic ad hoc in unrelated load paths.
+FR28: Maintainers can validate supported triplet behavior through explicit parser, renderer, playback, persistence, and migration regression coverage.
+FR29: Maintainers can validate that existing non-tuplet notation behavior remains unchanged unless explicitly revised by a separate notation initiative.
+FR30: The product can document supported triplet scope, editing semantics, persistence impact, and migration expectations in developer-facing docs.
+FR31: The product can update AI-agent and developer instructions when this work establishes durable new project rules for timing representation, persistence, or notation testing.
+FR32: The product can introduce triplet support without moving score-owned rhythmic truth into frontend-only state.
+FR33: The product can keep tuplets compatible with the current parser and renderer pipeline structure rather than requiring a parallel notation system.
+FR34: The product can keep save/load, playback, and notation derivation behavior aligned under one exact timing model.
+FR35: The product can preserve offline-first desktop behavior while tuplets are authored, rendered, saved, and reopened.
 
 ### NonFunctional Requirements
 
-NFR1: In release builds on representative target hardware, unchanged-score render requests should complete the render stage in sub-millisecond time where no score changes require re-derivation.
-NFR2: In release builds on representative target hardware, interaction updates and local edits in a score of up to three flows with 60 bars each should complete quickly enough to feel immediate in normal use, with parse-and-render work where recalculation is required completing within one display frame at 60 fps (<=16ms).
-NFR3: The multi-flow architecture changes must not materially regress single-flow render performance. Use the current release-like `npm run perf:render` 3-instrument, 30-bar single-flow scenario as the active baseline, trigger a regression warning when that representative pass reaches or exceeds 2ms total median time, and reevaluate the baseline and warning threshold as performance-sensitive features land.
-NFR4: The system must preserve isolated recalculation so that editing one flow does not trigger unnecessary notation or spacing recomputation for unrelated visible flows.
-NFR6: Multi-flow rendering must not introduce regressions in notation output.
-NFR7: Any change to multi-flow presentation must preserve the existing written-duration behavior and broader notation semantics already relied on by the product.
-NFR8: Hit targets and popovers must resolve to the correct flow and score element throughout the continuous multi-flow presentation.
-NFR9: Score presentation, active-flow semantics, and interaction mapping must not expose contradictory states to the user; the visually indicated active flow must always match the flow targeted by editing interactions, and hit targets must always resolve to the flow they are visually within.
-NFR10: The system must fail in ways that preserve score integrity; presentation changes must not corrupt score data, notation state, or document open/save behavior.
-NFR11: Multi-flow rendering must remain within one display frame (<=16ms at 60fps) as score size scales from the single-flow baseline to the three-flow, 60-bar reference case in NFR2, with render time growing proportionally to the number of flows and bars requiring recalculation rather than as a fixed cost applied unconditionally.
-NFR11: Native desktop file workflows must behave consistently with macOS Human Interface Guidelines for document-based applications, including native file open/save dialogs, file association, and document state management.
-NFR12: Existing single-flow audio playback must continue to function correctly after multi-flow rendering is introduced; this feature is not required to enable cross-flow playback, but must not break it.
-NFR13: Offline use must remain first-class; the feature must not introduce any network dependency into core composition, rendering, interaction, or playback workflows.
-NFR14: The product should maintain an accessibility baseline consistent with Apple's macOS Accessibility Programming Guide for core workflows, ensuring keyboard navigation and VoiceOver compatibility are not deliberately degraded by this feature.
-NFR15: Accessibility improvements for this feature must not come at the expense of core notation correctness, interaction clarity, or architectural soundness for the target expert user base.
+NFR1: Triplet support must not materially regress normal non-tuplet score editing or unchanged-score rendering performance.
+NFR2: In representative triplet editing scenarios, local score updates should remain fast enough to feel immediate in normal desktop use, with performance characterization added where the timing-model change materially affects parser or playback work.
+NFR3: Any broader timing-resolution change introduced for triplets must remain operationally practical across current project sizes and must not impose disproportionate overhead on non-tuplet projects.
+NFR4: Supported triplet timing must be exact; the system must not depend on lossy rounding or hidden approximation.
+NFR5: Non-tuplet projects must continue to load, save, and render correctly after tuplets ship.
+NFR6: Tuplet save/load behavior must be deterministic and round-trip stable.
+NFR7: Parser, rendering, playback, and persistence layers must not disagree about the rhythmic meaning of the same tuplet passage.
+NFR8: Migration behavior must preserve score integrity and fail explicitly if an unsupported persisted state is encountered.
+NFR9: The implementation must be structured so future non-triplet tuplets can extend the same timing and persisted-model foundation rather than bypass it.
+NFR10: Regression coverage for tuplets must live close to the relevant parser, renderer, playback, and persistence modules rather than in a disconnected test harness that obscures ownership.
+NFR11: Documentation of tuplets, persistence impact, and migration rules must be kept current with the shipped behavior.
+NFR12: Core desktop document workflows for open, save, reopen, and recent-file behavior must remain intact for tuplet-authored files.
+NFR13: Offline use must remain first-class; tuplets must introduce no network dependency into composition, playback, or file workflows.
+NFR14: Tuplet authoring and editing affordances should remain consistent with the product's existing expert-focused UI model and should not require hidden mode knowledge to perform common triplet tasks.
+NFR15: Hit targets, selection cues, and popover anchoring for triplet members and tuplet adornments must remain visually and behaviorally coherent in the native score surface.
 
 ### Additional Requirements
 
-- Starter template constraint: implementation must extend the existing brownfield Tauri + React + Rust foundation rather than introduce a new starter or replatform; this should drive Epic 1 Story 1.
-- Rust remains the single source of truth for score state, durable document mutations, and native score rendering; React remains the orchestration shell.
-- Multi-flow support must be implemented as a derived presentation/composition layer over existing flow data rather than a new persisted score structure.
-- Notation derivation must remain logically distinct from presentation composition; this work cannot become a notation-logic rewrite.
-- Frontend/backend mutation boundaries and snake_case cross-boundary contracts must be preserved.
-- Persistence changes are optional and should be avoided where possible; any required .soloc semantic change must be migration-gated through src-tauri/src/migrations/next.rs.
-- Render orchestration must define explicit invalidation and caching boundaries so local flow edits only recalculate affected work.
-- Existing selection, hit-testing, and popover contracts should be extended rather than replaced with a parallel interaction model.
-- Render timing instrumentation must be extended to cover multi-flow scenarios as part of the feature contract.
-- Regression protection is mandatory around written durations, notation behavior, hit-testing, and interaction continuity.
-- The UX shell remains VS Code-inspired: workflow tabs left, playback centered, tools right, with the score as the dominant work surface.
-- The shared top bar should contain universal tools and information only; flow-specific selectors belong inside the score, sequencer, piano-roll, or other workflow-local surfaces that actually depend on a single active flow.
-- The product remains macOS-first, desktop-first, and offline-first; no network dependency or cloud assumption can enter MVP.
-- The current note-entry model remains sequencer-first for primary input; score interaction remains focused on editing and directive popovers unless explicitly changed later.
-- Popovers and contextual editing should remain local, orientation-preserving interactions instead of large modal flows.
-- Responsive behavior should preserve the desktop shell through panel collapse/expansion rather than alternate navigation models.
-- Accessibility expectations include keyboard navigation, visible focus, strong dark-theme contrast, and no deliberate regression in VoiceOver support for standard UI.
-- Future page-layout and music-frame evolution must remain feasible; multi-flow design choices cannot reinforce single-flow assumptions that block pagination work.
+- Implement foundational tuplet support as a tuplet-container model that supports both child tone entries and continuous cross-boundary tones rather than a global timing-model rewrite.
+- Add a new persisted Entry::Tuplet variant on instrument tracks with wrapper-owned rhythmic context: host tick, governed host span, local printed span, base note value, grouping metadata, and child entries where needed.
+- Keep tuplets backend-owned in Rust and prohibit any frontend-owned parallel tuplet state model.
+- Treat tuplets as host-track entries that govern a local metric window; new same-track note entry starting inside that window goes into the child frame through tuplet-aware entry rules, while continuous cross-boundary tones remain single persisted tones owned by where they start.
+- Reconcile tuplet creation by adding the tuplet container, placing tones into host or child storage according to where they start, and deriving boundary splits only where notation or playback requires them.
+- Treat boundary splitting as a derivation concern by default: crossing a tuplet edge does not itself require rewriting one persisted tone into multiple stored tones.
+- Preserve written note values when structurally valid instead of proactively respelling them during reconciliation or derivation.
+- Keep tuplet-local rests derived from absence of tones in the child frame rather than explicit persisted rest entries.
+- Defer host-level directives inside MVP tuplet spans; tempo, clef, key signature, and time signature remain host-level concerns for this phase.
+- Implement recursive local parse and flattening so parser, renderer, spacing, selection, and playback all project child content through the tuplet wrapper back into host musical time.
+- Keep playback host-time based, projecting tuplet child onsets and durations into host time before scheduling so tempo remains a host-level concern.
+- Extend rendering through the existing parse/draw pipeline rather than ad hoc overlay rendering, including tuplet number and bracket draw instructions, tuplet-local note projection, and tuplet hit targets.
+- Use a widest-needed spacing strategy so tuplet-local layout can either expand host spacing or stretch to ambient host width, depending on context.
+- Preserve tone_id as the authoritative tone identity and use tuplet-aware lookup context such as tuplet_path and local_tick only as selection and anchoring aids.
+- Scope MVP deletion behavior so deleting a tuplet deletes its contained content; dissolve-back-to-host-time behavior is deferred.
+- Add additive migration support in src-tauri/src/migrations/next.rs for tuplet serialization and child-entry support, with legacy non-tuplet files loading unchanged.
+- Cover isolated eighth-note and quarter-note triplets, boundary splitting, hit testing, spacing expansion, playback projection, load/save round-trips, and legacy-file safety with explicit regression tests.
+- Keep nested tuplets data-model-capable if practical, while still treating broader directive attachment, cross-barline support, and generalized child directives as post-MVP work.
 
 ### FR Coverage Map
 
-FR1: Epic 1 - continuous multi-flow score presentation
-FR2: Epic 1 - reading without flow switching
-FR3: Epic 1 - visible flow separation
-FR4: Epic 1 - clean simultaneous multi-flow rendering
-FR5: Epic 1 - visually unified adjacent flows
-FR6: Epic 2 - selection in any visible flow
-FR7: Epic 2 - popovers in any visible flow
-FR8: Epic 2 - correct hit target resolution
-FR9: Epic 2 - unambiguous interaction across flow boundaries
-FR10: Epic 2 - clearly indicated active flow
-FR11: Epic 2 - editing in the relevant flow while other flows remain visible
-FR12: Epic 3 - preserve existing written notation behavior
-FR13: Epic 3 - preserve written-duration behavior
-FR14: Epic 3 - no user rewrite of musical input for presentation
-FR15: Epic 3 - preserve notation quality against the project notation standard
-FR16: Epic 1 - continuous scrolling across flows
-FR17: Epic 1 - visible active-flow and position affordances
-FR18: Epic 1 - clear boundaries and ordering
-FR19: Epic 1 - reading and navigation without extra flow-switching
-FR20: Epic 3 - update one flow without unnecessary re-derivation elsewhere
-FR21: Epic 3 - isolated recalculation boundaries
-FR22: Epic 3 - no artifacts or layout shifts during local edits
-FR23: Epic 2 - stable interaction while one flow updates
-FR24: Epic 3 - no mandatory full multi-flow recalculation unit
-FR25: Epic 4 - standard desktop open workflow remains intact
-FR26: Epic 4 - native save and reopen workflow remains intact
-FR27: Epic 4 - file association behavior remains supported
-FR28: Epic 4 - native-style file interactions remain intact
-FR29: Epic 4 - offline-first use remains intact
-FR30: Epic 4 - existing playback behavior continues to work
-FR31: Epic 4 - audio-device playback context remains supported
-FR32: Epic 2 - active-flow continuity for sequencer and piano-roll workflows
-FR33: Epic 4 - future portability remains possible without sync in MVP
-FR34: Epic 4 - offline-first product boundary remains intact
-FR35: Epic 3 - maintainers can evolve presentation without changing notation logic
-FR36: Epic 3 - maintainers have render-timing visibility for multi-flow scenarios
+FR1: Epic 1 - exact triplet timing stored in score data
+FR2: Epic 1 - triplets as first-class score data
+FR3: Epic 1 - member ownership preserved inside triplet groups
+FR4: Epic 1 - persisted tuplet metadata round-trips
+FR5: Epic 1 - future-aware persisted representation
+FR6: Epic 1 - triplet creation from the write workflow
+FR7: Epic 2 - editable individual triplet members
+FR8: Epic 2 - edits do not silently collapse into approximate timing
+FR9: Epic 2 - rests can be inserted within triplet groups
+FR10: Epic 2 - predictable delete and slice behavior
+FR11: Epic 1 - triplet-aware entry fits the existing workflow
+FR12: Epic 2 - preserve authoritative ui.flow_id behavior during editing
+FR13: Epic 3 - backend-owned notation derivation
+FR14: Epic 3 - render correct tuplet numbers and brackets
+FR15: Epic 3 - beam tuplets coherently
+FR16: Epic 3 - render rests, ties, and chords correctly in tuplets
+FR17: Epic 2 - handle adjacency to non-tuplet material without breaking interaction
+FR18: Epic 3 - keep triplet rendering legible in the score surface
+FR19: Epic 4 - exact playback of triplet-authored material
+FR20: Epic 4 - playback resolves from the same source-of-truth timing model
+FR21: Epic 4 - preserve existing non-tuplet playback behavior
+FR22: Epic 4 - preserve single-flow playback semantics for MVP
+FR23: Epic 1 - save and reopen triplet projects safely
+FR24: Epic 1 - migrate older projects safely if schema changes
+FR25: Epic 1 - distinguish structural-upgrade files from unchanged files
+FR26: Epic 1 - keep .soloc versioning and app-version rules consistent
+FR27: Epic 1 - implement pending migration in src-tauri/src/migrations/next.rs
+FR28: Epic 5 - regression coverage across parser, renderer, playback, persistence, migration
+FR29: Epic 5 - protect existing non-tuplet notation behavior
+FR30: Epic 5 - document tuplet scope, editing semantics, and persistence impact
+FR31: Epic 5 - update AI-agent and developer instructions
+FR32: Epic 1 - preserve backend-owned truth and existing flow ownership model
+FR33: Epic 3 - stay within the current parser and renderer pipeline shape
+FR34: Epic 1 - align save/load, playback, and notation under one exact model
+FR35: Epic 1 - preserve offline-first desktop behavior for tuplet workflows
+
+### NFR Coverage Map
+
+NFR1: Epic 2 and Epic 3 - preserve acceptable editing and rendering performance in tuplet-aware paths
+NFR2: Epic 1 and Epic 2 - keep tuplet entry and edit updates immediate in normal desktop use
+NFR3: Epic 1 and Epic 4 - keep the exact timing approach operationally practical across storage and playback projection
+NFR4: Epic 1, Epic 2, and Epic 4 - preserve exact timing across authoring, editing, and playback
+NFR5: Epic 3, Epic 4, and Epic 5 - protect existing non-tuplet render and playback behavior
+NFR6: Epic 1 - guarantee deterministic tuplet save/load round-trips
+NFR7: Epic 1, Epic 3, Epic 4, and Epic 5 - keep parser, rendering, playback, and persistence aligned
+NFR8: Epic 1 - keep migration behavior explicit and safe
+NFR9: Epic 1 - preserve a future-extensible tuplet foundation
+NFR10: Epic 5 - keep regression coverage near owning modules
+NFR11: Epic 5 - keep documentation and project instructions current with shipped behavior
+NFR12: Epic 1 - preserve desktop open, save, and reopen workflows
+NFR13: Epic 1 - preserve offline-first workflows
+NFR14: Epic 1 and Epic 2 - preserve keyboard-operable, focus-stable, expert-oriented editing affordances
+NFR15: Epic 1, Epic 2, and Epic 3 - preserve coherent hit targets, selection cues, and visual anchoring
 
 ## Epic List
 
-### Epic 1: Read the Score Across Multiple Flows
+### Epic 1: Author and Preserve Exact Triplets
 
-Composers can view and navigate multiple flows as one continuous score surface, so larger pieces feel like a coherent document instead of isolated rendering islands.
-**FRs covered:** FR1, FR2, FR3, FR4, FR5, FR16, FR17, FR18, FR19
+Composers can create triplet passages in the normal write workflow and trust that the underlying score data, save/load behavior, and migration path preserve exact rhythmic meaning.
+**FRs covered:** FR1, FR2, FR3, FR4, FR5, FR6, FR11, FR23, FR24, FR25, FR26, FR27, FR32, FR34, FR35
+**NFRs covered:** NFR2, NFR3, NFR4, NFR6, NFR7, NFR8, NFR9, NFR12, NFR13, NFR14, NFR15
 
-### Epic 2: Interact Confidently Within Multi-Flow Score View
+### Epic 2: Edit Tuplets Without Breaking Musical Intent
 
-Composers can select, edit, and use contextual score interactions across visible flows while keeping a clear active-flow model.
-**FRs covered:** FR6, FR7, FR8, FR9, FR10, FR11, FR23, FR32
+Composers can select, modify, rest-fill, slice, and delete tuplet content predictably while the product preserves valid tuplet semantics and clear interaction ownership.
+**FRs covered:** FR7, FR8, FR9, FR10, FR12, FR17
 
-### Epic 3: Trust Multi-Flow Rendering to Stay Fast and Musically Correct
+### Epic 3: Read Tuplets as Real Notation
 
-Composers and maintainers can rely on multi-flow rendering to preserve notation behavior, isolate recalculation, and remain responsive as the score grows through small, careful implementation increments.
-**FRs covered:** FR12, FR13, FR14, FR15, FR20, FR21, FR22, FR24, FR35, FR36
+Composers can see tuplets rendered as correct musical notation derived from backend-owned rhythmic data.
+**FRs covered:** FR13, FR14, FR15, FR16, FR18, FR33
 
-### Epic 4: Ship Multi-Flow Without Regressing Core Desktop Workflow
+### Epic 4: Hear Tuplets Played Back Correctly
 
-Composers can adopt multi-flow score view without losing expected document, playback, offline, and future-ready product behavior.
-**FRs covered:** FR25, FR26, FR27, FR28, FR29, FR30, FR31, FR33, FR34
+Composers can play tuplet-authored material and hear timing that matches the same exact backend-owned rhythmic intent.
+**FRs covered:** FR19, FR20, FR21, FR22
 
-## Epic 1: Read the Score Across Multiple Flows
+### Epic 5: Ship Tuplet Support Safely in a Brownfield Codebase
 
-Composers can view and navigate multiple flows as one continuous score surface, so larger pieces feel like a coherent document instead of isolated rendering islands.
+Maintainers can harden and document foundational tuplet support with regression protection and architectural guardrails that keep existing notation behavior stable and leave room for future tuplets.
+**FRs covered:** FR28, FR29, FR30, FR31
 
-### Story 1.1: Expose a Verifiable Flow-Aware Render Path for Multi-Flow Delivery
+## Epic 1: Author and Preserve Exact Triplets
+
+Composers can create triplet passages in the normal write workflow and trust that the underlying score data, save/load behavior, and migration path preserve exact rhythmic meaning.
+
+### Story 1.1: Add Persisted Tuplet Container Entries
+
+As a composer,
+I want triplets represented as first-class score entries,
+So that the score model can preserve exact tuplet structure instead of treating it as renderer-only decoration.
+
+**FRs implemented:** FR2, FR4, FR5, FR32
+**NFRs implemented:** NFR3, NFR4, NFR9
+
+**Acceptance Criteria:**
+
+**Given** the existing persisted instrument-track entry model
+**When** foundational tuplet support is introduced
+**Then** the score model supports a persisted Entry::Tuplet-style container entry with its own identity
+**And** the container stores host start tick, governed host duration, local printed duration, base note value, grouping metadata, and child entries where tones start inside the tuplet span
+
+**Given** a persisted tuplet container entry
+**When** it is loaded into Rust-owned score state
+**Then** the backend treats it as authoritative score data
+**And** no frontend-owned parallel tuplet state is required to reconstruct its rhythmic meaning
+
+**Given** future non-triplet tuplets are considered later
+**When** this persisted shape is reviewed
+**Then** the MVP representation is not hard-coded to a dead-end triplet-only schema
+**And** the model retains a viable extension path unless a more general shape is proven materially less safe
+
+### Story 1.2: Create Tuplet Containers Through a Tuplet Popover
+
+As a composer,
+I want to create a triplet from a focused popover in the existing workflow,
+So that I can declare the tuplet structure before entering notes.
+
+**FRs implemented:** FR1, FR3, FR6, FR11
+**NFRs implemented:** NFR4, NFR14
+
+**Implementation slices:**
+
+- Trigger, placement, and backend container-creation handshake
+- Ratio and base-note input behavior, including invalid-input handling
+- Focus entry and focus-return behavior back to the sequencer context
+
+**Acceptance Criteria:**
+
+**Given** a supported note-entry context on an instrument track
+**When** a composer opens the tuplet popover and confirms a supported triplet shape
+**Then** the product creates a tuplet container for the targeted host-track span
+**And** the container is inserted as backend-owned score data rather than a temporary UI annotation
+
+**Given** the composer invokes tuplet creation from the primary note-entry workflow
+**When** the MVP popover opens
+**Then** the hotkey trigger is `;`
+**And** the popover opens at the current selection tick
+
+**Given** the MVP tuplet popover is shown
+**When** the composer configures a supported triplet
+**Then** the ratio is shown explicitly as `3:2`
+**And** the main input is a single text-entry field for the ratio with a small inline base-note selector that defaults to eighth
+
+**Given** the composer enters an invalid popover value
+**When** the popover is submitted
+**Then** the invalid value is ignored using the same pattern as other current popovers
+**And** the product does not introduce a special tuplet-only invalid-input flow for MVP
+
+**Given** the popover is opened from keyboard or score-attached interaction
+**When** it becomes active
+**Then** focus lands on the ratio input first
+**And** closing the popover returns focus to the originating sequencer context or the newly created tuplet region
+
+### Story 1.3: Reveal and Select the Created Tuplet Region in the Sequencer
+
+As a composer,
+I want a newly created triplet to appear immediately as a clear sequencer region,
+So that the handoff from popover creation into note entry feels continuous.
+
+**FRs implemented:** FR6, FR11
+**NFRs implemented:** NFR14, NFR15
+
+**Acceptance Criteria:**
+
+**Given** triplet creation is confirmed from the popover
+**When** the creation flow completes
+**Then** the created tuplet span is immediately revealed as one visibly bounded region in the sequencer on the active track
+**And** the interaction hands off directly into sequencer note entry rather than forcing the user to rediscover the new region manually
+
+**Given** a tuplet has just been created
+**When** the creation flow completes
+**Then** the newly created tuplet container is selected immediately
+**And** the selection behavior matches other existing creation patterns for score entries
+
+**Given** the created tuplet span is revealed in the sequencer
+**When** the user reads the new region
+**Then** it includes a horizontal line spanning the consumed host ticks together with a compact `3:2` tuplet annotation
+**And** the region is visually distinct from ordinary host-track space before any notes are entered
+
+**Given** the tuplet annotation is shown in the sequencer
+**When** the user works within the tuplet region
+**Then** the `3:2` annotation remains centered over the region and sticky at the top of the sequencer view
+**And** it does not use a solid background that obscures tones underneath it
+
+**Given** the created tuplet span is visible in the sequencer
+**When** the user inspects its internal timing structure
+**Then** the vertical tick indicators inside the region appear slightly compressed to show tuplet warping
+**And** the local triplet slots read as narrower than ordinary host-track spacing without destabilizing the broader sequencer layout
+
+**Given** the created tuplet container has no entered notes yet
+**When** it is first shown in the sequencer
+**Then** the grouped tuplet region remains visible and targetable as empty content rather than collapsing away
+**And** the empty local slots remain legible as available tuplet positions
+
+### Story 1.4: Enter Tuplet Notes in the Sequencer
+
+As a composer,
+I want to add notes for a created triplet directly in the sequencer,
+So that tuplets fit the same primary note-entry workflow I already use.
+
+**FRs implemented:** FR1, FR3, FR11, FR12
+**NFRs implemented:** NFR2, NFR4, NFR14
+
+**Acceptance Criteria:**
+
+**Given** a tuplet container has been created on the active track
+**When** the composer enters notes in the sequencer within that tuplet span
+**Then** those notes are written into the tuplet child event stream through the active tuplet multiplier rather than plain host-time entry rules
+**And** their stored timing remains exact while the written value stays musically intelligible inside the tuplet frame
+
+**Given** a sequencer view showing a track with a tuplet container
+**When** the composer targets note entry inside the tuplet span
+**Then** the sequencer exposes a tuplet-aware entry region that maps input to valid child positions
+**And** the user does not need to calculate approximate binary timing values manually
+
+**Given** a composer prepares a note inside the tuplet span
+**When** the entry is committed
+**Then** the system checks the active tuplet multiplier in the same way other contextual directives affect interpretation
+**And** the resulting note is stored with exact backend timing rather than approximate binary rounding
+
+**Given** tuplet notes are entered through the sequencer
+**When** the resulting score state is inspected
+**Then** flow, track, and tone ownership remain unambiguous
+**And** the current authoritative ui.flow_id behavior remains intact
+
+**Given** entered tuplet notes coexist with empty local space in the same region
+**When** the sequencer refreshes after note entry
+**Then** entered notes remain legible as members of the tuplet container
+**And** any remaining empty local slots stay targetable for later entry
+
+### Story 1.5: Create Tuplets Over Existing Material Without Losing Ownership
+
+As a composer,
+I want creating a tuplet over existing notes to preserve valid ownership and written intent,
+So that the new tuplet structure does not scramble already-authored material.
+
+**FRs implemented:** FR3
+**NFRs implemented:** NFR4, NFR7
+
+**Acceptance Criteria:**
+
+**Given** ordinary same-track material exists in the consumed span
+**When** tuplet creation is confirmed through the popover
+**Then** the product records the tuplet span as a bounded rhythmic container over that host window
+**And** any tone whose start lies inside that window is represented in the tuplet child entries while crossing tones remain single persisted tones owned by their start position
+
+**Given** existing notes are structurally valid across or inside the tuplet frame
+**When** reconciliation and tuplet-aware derivation evaluate them
+**Then** their written values are preserved rather than proactively respelled
+**And** only boundary-driven normalization is applied
+
+**Given** notes cross into or sit inside a tuplet-governed span
+**When** the updated score state is inspected
+**Then** tones that start inside the tuplet live in child entries while a crossing tone remains one persisted tone owned by where it starts, with derived rests from absence of tones in local tuplet slots
+**And** tone ownership and lookup remain compatible with existing flow, track, and selection expectations
+
+**Given** a created tuplet contains empty local time after reconciliation or partial sequencer entry
+**When** the score state is inspected after creation
+**Then** the empty span remains represented by absence of tones rather than newly persisted rest entries
+**And** the tuplet model stays consistent with the current event-stream mental model
+
+### Story 1.6: Round-Trip Tuplet Data Through Save, Load, and Migration
+
+As a desktop document user,
+I want triplet-authored scores to save and reopen safely,
+So that exact rhythmic meaning survives normal file workflows and older files remain safe.
+
+**FRs implemented:** FR4, FR23, FR24, FR25, FR27, FR34
+**NFRs implemented:** NFR6, NFR7, NFR8
+
+**Implementation slices:**
+
+- Tuplet serialization and deterministic save/load round-trip behavior
+- Pending migration registration and upgraded load-path behavior
+- Legacy-file pass-through and structural-upgrade differentiation
+
+**Acceptance Criteria:**
+
+**Given** a score containing supported tuplets entered through the popover and sequencer workflow
+**When** the project is saved and reopened
+**Then** the tuplet container, child entries where present, grouping semantics, continuous cross-boundary tones, and exact rhythmic intent round-trip without loss
+**And** visible notation intent remains recoverable from the persisted data
+
+**Given** foundational tuplet support changes persisted score shape or load/save semantics
+**When** implementation lands
+**Then** pending migration support is added in src-tauri/src/migrations/next.rs
+**And** migration handling is not embedded ad hoc in unrelated load paths
+
+**Given** a legacy non-tuplet file
+**When** it is opened under the new model
+**Then** it loads correctly without requiring a semantic tuplet upgrade
+**And** files that truly need structural upgrade are distinguishable from files that can remain unchanged
+
+### Story 1.7: Keep Versioning and Offline Desktop Behavior Intact for Tuplet Files
 
 As a maintainer,
-I want the score renderer to expose a verifiable flow-aware composition path,
-So that I can confirm multi-flow delivery is safe to build and debug before visible layout changes land.
+I want tuplet-enabled files to follow existing versioning and desktop workflow rules,
+So that the feature ships without destabilizing Compose's document and offline guarantees.
+
+**FRs implemented:** FR26, FR34, FR35
+**NFRs implemented:** NFR12, NFR13
 
 **Acceptance Criteria:**
 
-**Given** the existing score view render pipeline
-**When** rendering runs for a score with one or more flows
-**Then** the renderer builds its presentation from flow-aware composition inputs
-**And** maintainers can confirm through diagnostics that the flow-aware path was exercised while single-flow output remains unchanged
+**Given** tuplets alter persisted behavior
+**When** tuplet-authored files are produced
+**Then** .soloc header versioning, score.meta.app_version, and migration registration remain consistent with repo release-flow rules
+**And** the implementation does not bypass the project's documented migration discipline
 
-**Given** a score containing multiple flows
-**When** the updated render pipeline runs
-**Then** it can enumerate and prepare flow-aware composition inputs for more than one flow
-**And** each prepared flow input is available as an explicit, inspectable unit for later score-surface composition work
+**Given** tuplet support is available
+**When** a composer uses standard desktop open, save, and reopen workflows offline
+**Then** the full tuplet authoring path of popover creation plus sequencer note entry works without network dependency
+**And** offline-first desktop behavior remains unchanged for the supported MVP workflow
 
-**Given** the updated flow-aware composition path
-**When** a score renders
-**Then** existing written-duration and notation-derivation behavior remains unchanged
-**And** no persisted score-format or migration change is required
+**Given** this epic is complete
+**When** later editing and rendering epics build on it
+**Then** they rely on one exact backend-owned timing model shared across save/load, notation derivation, and playback
+**And** no separate frontend truth layer is introduced
 
-**Given** a maintainer validates this delivery step in normal debugging tools
-**When** the score render completes
-**Then** the implementation exposes enough timing or diagnostic visibility to confirm the new composition path is being exercised
-**And** the render path is ready for visible multi-flow placement work without another hidden backend reshaping step
+## Epic 2: Edit Tuplets Without Breaking Musical Intent
 
-### Story 1.2: Render Two Flows in One Score Surface with Fixed Placement
+Composers can select, modify, rest-fill, slice, and delete tuplet content predictably while the product preserves valid tuplet semantics and clear interaction ownership.
+
+**NFRs covered:** NFR1, NFR2, NFR4, NFR14, NFR15
+
+### Story 2.1: Target Tuplet Containers and Members Reliably
 
 As a composer,
-I want the score view to show two flows in the same rendered surface,
-So that multi-flow reading begins as a concrete visible capability without taking on final layout behavior too early.
+I want tuplet containers and tuplet notes to resolve to the correct target,
+So that I can edit tuplets without ambiguity about what I selected.
+
+**FRs implemented:** FR7, FR12, FR17
+**NFRs implemented:** NFR14, NFR15
 
 **Acceptance Criteria:**
 
-**Given** a score with at least two flows
-**When** the score view renders after the flow-aware composition work is in place
-**Then** the first two flows appear in the same score surface
-**And** each flow is rendered in sequence using a simple deterministic horizontal placement rule
+**Given** a track containing a tuplet container and one or more tuplet notes
+**When** the composer targets a tuplet note in the sequencer
+**Then** the product selects the correct note inside the tuplet region
+**And** selection does not fall through to surrounding host-track material
 
-**Given** the first two flows appear in the same score surface
-**When** a composer reads from the end of the first flow toward the start of the second
-**Then** the transition is visually understandable as one continuous score workspace
-**And** the user does not need a separate flow-switching action to continue reading
+**Given** a visible tuplet container affordance
+**When** the composer targets the container rather than a note inside the span
+**Then** the product can distinguish container selection from member selection
+**And** the resulting selection state is unambiguous
 
-**Given** the first two flows are rendered in the same score surface
-**When** the score is displayed
-**Then** the second flow is visually distinct from the first
-**And** the placement is sufficient to avoid overlap between the two rendered flows
+**Given** a tuplet region contains both notes and empty slots
+**When** the composer hovers or selects within that region
+**Then** the sequencer visually distinguishes container selection, note selection, and empty-slot targeting
+**And** the user can tell whether they are acting on the tuplet boundary or on content inside it
 
-**Given** a score with only one flow
-**When** the score view renders through the updated path
-**Then** the score output remains correct and usable
-**And** the existing single-flow rendering path remains available through the same score-view workflow
+**Given** the tuplet container itself is selected
+**When** the sequencer updates its visual state
+**Then** the bracket or region-level container treatment is highlighted in blue like other selected entries
+**And** inner notes are not implicitly selected as part of container selection
 
-**Given** two flows are rendered in the same score surface
-**When** this first visible multi-flow slice is validated
-**Then** written-duration and notation-derivation behavior remains unchanged
-**And** the rendered score shows a fixed visible gap between the two flows that is sufficient to distinguish the boundary at normal working zoom
+**Given** a tuplet note is selected
+**When** the sequencer updates its visual state
+**Then** that note is highlighted in blue like any other selected note
+**And** the container remains visually distinct from the note-selection state
 
-### Story 1.3: Scroll Across the Combined Multi-Flow Score Width
+**Given** an empty tuplet slot is targeted as rest content
+**When** the selection state is shown
+**Then** it uses the product's existing rest-selection behavior
+**And** the product does not introduce a separate custom empty-slot selection style for MVP
+
+**Given** container, note, and empty-slot states are shown together
+**When** the sequencer communicates the current target
+**Then** those states remain distinguishable through boundary, placement, or shape cues in addition to color
+**And** the user can identify the active target without relying on blue highlight alone
+
+**Given** tuplet selection changes on the active track
+**When** the edit state updates
+**Then** the authoritative ui.flow_id remains correct
+**And** no separate frontend-owned active-flow state is introduced for tuplets
+
+### Story 2.2: Edit Pitch Inside a Tuplet Without Changing Timing
 
 As a composer,
-I want horizontal scrolling to move across the combined rendered width of visible flows,
-So that the first multi-flow score surface can be read as one continuous workspace instead of separate fixed panels.
+I want to change pitches of notes inside a tuplet,
+So that I can refine musical content without disturbing the tuplet rhythm.
+
+**FRs implemented:** FR7, FR8, FR17
+**NFRs implemented:** NFR4
 
 **Acceptance Criteria:**
 
-**Given** a score where two flows are rendered in the same score surface
-**When** the combined rendered width exceeds the current visible viewport
-**Then** horizontal scrolling moves across the full combined score width
-**And** both flows remain reachable through the existing score-view navigation pattern
+**Given** a valid tuplet with one or more notes
+**When** the composer changes the pitch of a selected tuplet note
+**Then** the note pitch is updated
+**And** its local timing and tuplet membership remain unchanged
 
-**Given** a score with only one flow
-**When** the score view renders through the updated scrolling path
-**Then** horizontal scrolling remains correct for the existing single-flow case
-**And** the existing score-navigation inputs continue to work through the same score-view path
+**Given** adjacent non-tuplet material surrounds the tuplet
+**When** a pitch edit is applied inside the tuplet
+**Then** no surrounding host-track ownership changes occur
+**And** boundary behavior remains stable
 
-**Given** a score with two rendered flows
-**When** a user scrolls from the first flow toward the second
-**Then** the movement feels continuous across the shared score surface
-**And** the horizontal scroll range reaches the full rendered extent of both visible flows without truncating the second flow
-
-**Given** the score view is shown at compact desktop width with secondary panels collapsed
-**When** the combined rendered width exceeds the available viewport
-**Then** both visible flows remain reachable through the same horizontal navigation model
-**And** the shell does not require an alternate navigation pattern to access the second flow
-
-**Given** the combined multi-flow score width is scrollable
-**When** this increment is validated
-**Then** rendering remains stable while scrolling
-**And** written-notation behavior and persisted score semantics remain unchanged
-
-### Story 1.4: Make Adjacent Flows Read as One Coherent Score
+### Story 2.3: Add and Remove Notes Within Tuplet Slots
 
 As a composer,
-I want adjacent rendered flows to feel visually consistent and intentionally separated,
-So that the multi-flow score view reads like one document instead of stitched-together rendering fragments.
+I want to add notes into empty tuplet space and remove notes from occupied tuplet space,
+So that I can shape real triplet patterns inside one rhythmic container.
+
+**FRs implemented:** FR7, FR9, FR10
+**NFRs implemented:** NFR4, NFR15
 
 **Acceptance Criteria:**
 
-**Given** two flows are rendered in the same score surface
-**When** the score view displays them side by side
-**Then** staff sizing, clef presentation, and baseline spacing style remain visually consistent across both flows
-**And** the flow boundary uses a clear fixed separation that distinguishes one flow from the next
+**Given** a valid tuplet container with empty local space
+**When** the composer enters a note into an available tuplet position
+**Then** the note is stored through tuplet-aware exact timing on the authoritative track model
+**And** the tuplet remains structurally valid
 
-**Given** two adjacent flows in the score surface
-**When** a user reads from the end of the first flow to the start of the second
-**Then** the transition is visually understandable without overlap or ambiguous boundary placement
-**And** the score remains legible at normal working zoom levels
+**Given** a tuplet note is removed by the composer
+**When** the removal is applied
+**Then** the sounding content is removed from that local span
+**And** the remaining empty span is represented by absence of tones rather than an explicit persisted rest entry
 
-**Given** a score with one flow or with multi-flow rendering not yet extended beyond two visible flows
-**When** the score view renders
-**Then** existing score presentation remains correct
-**And** this refinement does not require interaction, popover, or active-flow logic changes
+**Given** a tuplet note has been removed from the sequencer
+**When** the region refreshes
+**Then** the vacated local slot remains visibly targetable inside the tuplet region
+**And** the tuplet does not visually collapse into ordinary host-track space
 
-**Given** this visual-coherence increment is implemented
-**When** the output is validated
-**Then** notation-derivation and written-duration behavior remain unchanged
-**And** the boundary treatment provides sufficient visual coherence for readable two-flow score presentation without altering interaction behavior
+**Given** a partially filled tuplet
+**When** the score state is re-evaluated after note removal
+**Then** the container remains intact
+**And** the empty region is available for later note entry
 
-### Story 1.5: Add Flow Labels to Multi-Flow Score View
+### Story 2.4: Reposition or Resize Tuplet Notes Within Supported Bounds
 
 As a composer,
-I want each visible flow to show a small identifying label,
-So that I can tell which flow I am reading without adding more visual noise or changing interaction behavior.
+I want to move or resize tuplet notes within the tuplet frame,
+So that I can refine rhythmic shape without breaking exact tuplet semantics.
+
+**FRs implemented:** FR8, FR10, FR17
+**NFRs implemented:** NFR1, NFR2, NFR4, NFR15
 
 **Acceptance Criteria:**
 
-**Given** two flows are rendered in the same score surface
-**When** the score view is displayed
-**Then** each visible flow page shows a small label at its top-left corner
-**And** the label includes the flow number and flow name
+**Given** a tuplet note is edited for position or duration inside the tuplet
+**When** the requested edit remains within the tuplet's supported local frame rules
+**Then** the change is applied using exact local timing
+**And** the result remains a valid tuplet state
 
-**Given** visible flow labels are shown
-**When** a user reads across the multi-flow score surface
-**Then** the labels help identify visible flows and their order
-**And** no additional boundary treatment is added beyond the existing page box and inter-flow gap
+**Given** a tone duration is dragged across a tuplet boundary in a supported MVP case
+**When** the edit is committed
+**Then** the product preserves one continuous persisted tone and derives the boundary split at render or playback time
+**And** the user-facing gesture remains one continuous duration edit rather than a manual delete-and-recreate workflow
 
-**Given** multiple flows are visible at compact desktop width with secondary panels collapsed
-**When** the score remains the primary work surface
-**Then** each visible flow label remains visible and legible within the reduced workspace
-**And** the shell preserves the same score-first layout structure without introducing a different navigation model
+**Given** a tone's start position is dragged across the tuplet boundary
+**When** the edit is committed
+**Then** ownership moves to the context where the tone now starts
+**And** the tone still remains exactly one stored event
 
-**Given** visible flow labels are present
-**When** the score view is rendered
-**Then** the label styling uses the product accent treatment in a restrained way
-**And** the labels do not interfere with notation readability or obscure score content
+**Given** an edit would create unsupported overlap or otherwise violate MVP rules
+**When** the composer attempts that edit
+**Then** the product rejects the unsupported outcome explicitly
+**And** it does not silently convert the passage into approximate non-tuplet timing
 
-**Given** only one flow is visible
-**When** the score view renders
-**Then** the label treatment does not degrade the single-flow reading experience
-**And** the score remains visually clean
+**Given** the user attempts an unsupported tuplet edit in the sequencer
+**When** the edit is rejected
+**Then** the product follows the existing product rejection behavior without introducing tuplet-specific error messaging
+**And** the tuplet region remains visually stable enough for the user to recover without losing orientation
 
-**Given** a score element is selected
-**When** selection context is shown in the bottom bar
-**Then** the selection display includes the selected flow number and name
-**And** this does not change how selection, active flow, or editing behavior works
+**Given** a tuplet sits next to non-tuplet material
+**When** a supported move or resize occurs near the boundary
+**Then** ownership across the boundary remains explicit
+**And** hit targeting and selection remain stable
 
-### Story 1.6: Render All Visible Flows in One Continuous Score Surface
+**Given** a tone already exists before a tuplet is created and the composer later extends it across the tuplet area
+**When** the resize completes
+**Then** the resulting host and tuplet segments preserve one coherent musical intent across the boundary
+**And** the tuplet's visible inner beats and boundary remain legible during and after the edit
+
+### Story 2.5: Apply Explicit MVP Delete and Slice Rules for Tuplet Members and Containers
 
 As a composer,
-I want score view to render every visible flow in sequence on the shared score surface,
-So that the multi-flow reading model extends from the initial two-flow slice to the full score I chose to display.
+I want delete and slice behavior for tuplets to follow clear rules,
+So that correction workflows are predictable.
+
+**FRs implemented:** FR10
+**NFRs implemented:** NFR4
 
 **Acceptance Criteria:**
 
-**Given** a layout contains more than two visible flows
-**When** the score view renders through the updated multi-flow path
-**Then** all visible flows in the layout are composed into the shared score surface in `score.flows.order`
-**And** no arbitrary two-flow cap truncates the visible reading path
+**Given** the composer deletes a tuplet member
+**When** the action is applied
+**Then** only that note is removed
+**And** the tuplet container remains in place with the vacated span becoming empty local tuplet space
 
-**Given** all visible flows are composed into one score surface
-**When** the combined rendered extent exceeds the current visible viewport
-**Then** the user can continue reading across the full visible-flow sequence through the existing shared navigation model
-**And** the score view does not require any top-bar flow picker for basic score reading
+**Given** the composer deletes the tuplet container
+**When** the action is confirmed
+**Then** the tuplet and all notes authored inside that tuplet span are removed together
+**And** MVP does not attempt dissolve-back-to-host-time behavior
 
-**Given** a layout contains one or two visible flows
-**When** the updated render path runs
-**Then** existing single-flow and two-flow behavior remains correct
-**And** the earlier Epic 1 presentation refinements remain intact
+**Given** the composer slices a tone that is fully inside a tuplet or crosses a tuplet boundary
+**When** the slice action is applied in a supported MVP case
+**Then** the result remains governed by the one-stored-event-per-tone ownership rule for the resulting tones after the edit
+**And** any tuplet-boundary fragment needed for notation or playback remains a derived result rather than an extra persisted split introduced solely by the boundary
 
-**Given** all visible flows are rendered in sequence
-**When** the score view is shown at compact desktop width with secondary panels collapsed
-**Then** the score remains the primary work surface
-**And** the shell does not switch to a different navigation model to reach later visible flows
+**Given** a delete action would otherwise require unsupported repair behavior
+**When** the action is processed
+**Then** the product applies the defined MVP rule above rather than inventing a new structural interpretation
+**And** no overlapping host and child ownership remains afterward
 
-**Given** all-visible-flow rendering is validated
-**When** notation and performance are reviewed end to end
-**Then** notation-derivation and persisted score semantics remain unchanged
-**And** the expanded composed surface remains compatible with the broader multi-flow performance and recalculation guardrails planned in later epics
+## Epic 3: Read Tuplets as Real Notation
 
-## Epic 2: Interact Confidently Within Multi-Flow Score View
+Composers can see tuplets rendered as correct musical notation derived from backend-owned rhythmic data.
 
-Composers can select, edit, and use contextual score interactions across visible flows while keeping a clear active-flow model.
+**NFRs covered:** NFR1, NFR5, NFR7, NFR15
 
-### Story 2.1: Resolve Hit Targets Across Two Visible Flows
+### Story 3.1: Parse Tuplet-Spanned Content Into Backend-Owned Notation
 
 As a composer,
-I want score interactions to resolve the correct target in either visible flow,
-So that multi-flow score view can support precise interaction without ambiguity.
+I want tuplet content to derive notation from the backend model,
+So that the score reads from real rhythmic structure instead of frontend reconstruction.
+
+**FRs implemented:** FR13, FR33
+**NFRs implemented:** NFR5, NFR7
 
 **Acceptance Criteria:**
 
-**Given** two flows are rendered in the same score surface
-**When** a user points to an interactive score element in either visible flow
-**Then** hit-testing resolves the correct score target for that flow
-**And** the result identifies a single unambiguous target
+**Given** a score containing supported tuplets
+**When** notation derivation runs
+**Then** the parser evaluates authoritative track content through the tuplet's local frame
+**And** the resulting notation is produced from backend-owned rhythmic data
 
-**Given** two visible flows with distinct rendered positions
-**When** hit-testing runs near the boundary between flows
-**Then** the resolved target belongs to the visually corresponding flow
-**And** adjacent flow content does not steal the interaction
+**Given** empty spans exist inside a tuplet-governed local frame
+**When** notation is derived
+**Then** rests are inferred from absence of projected sounding content in the governed local tuplet slots, including host-owned crossing tones and tuplet-child tones
+**And** no frontend reconstruction layer is required to invent missing rhythmic structure
 
-**Given** a score with only one visible flow
-**When** hit-testing runs through the updated multi-flow-aware path
-**Then** existing single-flow target resolution remains correct
-**And** current score interactions remain usable
+**Given** tuplets are introduced into the parse path
+**When** existing non-tuplet passages are derived
+**Then** current non-tuplet notation behavior remains unchanged
+**And** the implementation stays within the current parser and renderer pipeline shape
 
-**Given** the multi-flow hit-target path is implemented
-**When** this increment is validated
-**Then** repeated hit-tests at the same visible location resolve to the same flow-correct target
-**And** downstream selection or popover logic can consume that target without reinterpreting which flow it belongs to
+### Story 3.2: Render Tuplet Brackets and Numbers Correctly
 
-### Story 2.2: Select Score Content in Either Visible Flow
+As an engraving-sensitive composer,
+I want tuplets to display the right bracket and number treatment,
+So that the score reads like real notation rather than placeholder annotation.
+
+**FRs implemented:** FR14, FR18
+**NFRs implemented:** NFR7, NFR15
+
+**Acceptance Criteria:**
+
+**Given** a derived tuplet notation result that requires visible tuplet marking
+**When** the score is rendered
+**Then** the tuplet number is drawn in the correct relationship to its grouped content
+**And** bracket visibility follows the supported MVP readability rules
+
+**Given** a supported case where bracket chrome is not required for clarity
+**When** the score is rendered
+**Then** the number remains legible
+**And** unnecessary bracket rendering is omitted according to the product's supported default notation rules
+
+**Given** tuplets are rendered beside surrounding notation
+**When** the score surface refreshes
+**Then** tuplet markings remain visually attached to the correct content
+**And** they do not resolve as unrelated overlay annotations
+
+### Story 3.3: Render Tuplet Notes, Rests, Ties, and Beams Coherently
+
+As an engraving-sensitive composer,
+I want tuplet note grouping to read correctly,
+So that beams, rests, and ties reinforce the tuplet instead of contradicting it.
+
+**FRs implemented:** FR15, FR16
+**NFRs implemented:** NFR7
+
+**Acceptance Criteria:**
+
+**Given** supported tuplet note groupings
+**When** notation is rendered
+**Then** beam decisions reinforce the tuplet grouping
+**And** the rendered result does not contradict the tuplet's rhythmic structure
+
+**Given** tuplets contain rests or partially filled spans
+**When** the score is rendered
+**Then** rests appear in positions consistent with the derived tuplet structure
+**And** the result remains legible within MVP engraving scope
+
+**Given** a created tuplet container has no entered notes yet
+**When** the score is rendered
+**Then** the governed local span reads as empty rest-bearing tuplet content
+**And** the bracket and number treatment remain coherent with the derived tuplet rests
+
+**Given** a tie enters, exits, or passes through supported tuplet content
+**When** the score is rendered
+**Then** tie presentation remains musically coherent
+**And** the rendering does not imply approximate binary timing
+
+**Given** a tone crosses into or out of a tuplet boundary
+**When** notation is rendered
+**Then** the boundary split is represented with the same musical logic Compose uses around barlines and ties
+**And** the tuplet remains readable as one coherent rhythmic unit
+
+### Story 3.4: Lay Out Tuplets Legibly Within the Existing Score Surface
 
 As a composer,
-I want to select score content in either visible flow,
-So that the multi-flow score surface is usable for direct score work rather than passive reading only.
+I want tuplets to fit cleanly into the score layout,
+So that numbers, brackets, and notes stay readable in normal work.
+
+**FRs implemented:** FR18
+**NFRs implemented:** NFR1, NFR15
 
 **Acceptance Criteria:**
 
-**Given** two flows are visible in the same score surface
-**When** a user selects a score element in either flow
-**Then** the correct element becomes selected
-**And** the selection state identifies the correct flow context
+**Given** a score containing supported tuplets
+**When** spacing is calculated
+**Then** tuplet-local layout can claim enough width for readable note spacing, brackets, and numbers
+**And** surrounding score spacing expands when required by the derived notation
 
-**Given** a new selection is made in one visible flow
-**When** an earlier selection exists in the other visible flow
-**Then** the selection updates predictably to the new target
-**And** the UI does not present ambiguous multi-flow selection state unless explicitly supported
+**Given** the ambient score context already provides sufficient width
+**When** the tuplet is laid out
+**Then** local note positions stretch coherently within the available span
+**And** the notation remains aligned with the surrounding score surface
 
-**Given** a score with one visible flow
-**When** selection runs through the updated path
-**Then** existing single-flow selection behavior remains correct
-**And** current score-editing entry points remain usable
+**Given** tuplets begin or end next to non-tuplet material
+**When** layout and hit targets are refreshed
+**Then** number placement, collision avoidance, and targeting remain legible and stable
+**And** the adjacent material remains distinguishable
 
-**Given** selection works across both visible flows
-**When** this increment is validated
-**Then** composers can move a single clear selection between visible flows without losing target clarity
-**And** written-notation behavior remains unchanged
+## Epic 4: Hear Tuplets Played Back Correctly
 
-### Story 2.3: Preserve Stable Selection While One Visible Flow Updates
+Composers can play tuplet-authored material and hear timing that matches the same exact backend-owned rhythmic intent.
+
+**NFRs covered:** NFR3, NFR4, NFR5, NFR7
+
+### Story 4.1: Project Tuplet Timing Into Host Musical Time
 
 As a composer,
-I want score interaction state to remain stable while one visible flow updates,
-So that local edits do not make multi-flow score interaction feel fragile or unpredictable.
+I want tuplet playback timing to come from the same exact model as notation and persistence,
+So that playback reflects the real rhythmic structure I entered.
+
+**FRs implemented:** FR19, FR20
+**NFRs implemented:** NFR3, NFR4, NFR7
 
 **Acceptance Criteria:**
 
-**Given** two visible flows and an active selection in one of them
-**When** a local update occurs in that selected flow
-**Then** the selection remains stable if the target still exists
-**And** unrelated visible flow interaction state does not become invalidated unnecessarily
+**Given** a score containing supported tuplets
+**When** playback scheduling is prepared
+**Then** tuplet child onsets and durations are projected into host musical time from the tuplet container's local frame
+**And** the projection preserves exact timing rather than binary-tick approximation
 
-**Given** two visible flows and an active selection in one flow
-**When** the other visible flow updates
-**Then** the existing selection remains coherent
-**And** the user does not see contradictory selection or target state across flows
+**Given** a tuplet contains multiple notes at different local positions
+**When** their playback timing is resolved
+**Then** each onset and duration is computed from the same backend-owned timing model used by save/load and notation derivation
+**And** no separate playback-only timing interpretation is introduced
 
-**Given** a local update removes or invalidates the selected target
-**When** the update completes
-**Then** selection recovery follows a defined predictable rule
-**And** the UI does not leave stale selection state behind
+**Given** a tone extends into or out of a tuplet across a supported boundary
+**When** playback timing is resolved
+**Then** each owned segment is scheduled in the correct context with preserved continuity across the boundary
+**And** the result remains rhythmically exact relative to surrounding non-tuplet material
 
-**Given** a selected target remains valid after a local update
-**When** the user continues with keyboard-driven editing or navigation
-**Then** focus remains on the surviving score context
-**And** subsequent commands continue to apply to the retained selected target
-
-**Given** this interaction-stability increment is validated
-**When** multi-flow updates are exercised
-**Then** selection recovery follows the same defined rule across repeated update scenarios
-**And** the implementation preserves existing notation behavior and recalculation boundaries
-
-### Story 2.4: Open Contextual Popovers Within the Multi-Flow Score Surface
+### Story 4.2: Schedule Tuplet Playback Correctly Beside Non-Tuplet Material
 
 As a composer,
-I want contextual score popovers to work in either visible flow,
-So that multi-flow score view supports the same local directive and editing workflows as single-flow score view.
+I want tuplets to play in the right relationship to surrounding notes,
+So that mixed passages sound rhythmically correct.
+
+**FRs implemented:** FR19, FR20, FR21
+**NFRs implemented:** NFR4, NFR7
 
 **Acceptance Criteria:**
 
-**Given** two visible flows in the score surface
-**When** a user invokes a contextual popover for a supported score interaction in either flow
-**Then** the correct popover opens for the selected target
-**And** the popover is anchored to the correct visual flow context
+**Given** tuplet material appears before, after, or between ordinary non-tuplet notes
+**When** transport ordering is resolved
+**Then** tuplet events are scheduled in the correct host-time order relative to surrounding material
+**And** adjacent non-tuplet playback remains rhythmically correct
 
-**Given** a target near the boundary between visible flows
-**When** a contextual popover is opened
-**Then** the popover resolves against the correct underlying target
-**And** it does not appear associated with the wrong flow
+**Given** a passage mixes tuplets and non-tuplet material on the same supported playback path
+**When** playback runs
+**Then** the tuplet timing does not drift relative to neighboring events
+**And** the result matches the persisted rhythmic intent
 
-**Given** a score with one visible flow
-**When** contextual popovers run through the updated path
-**Then** existing single-flow popover behavior remains correct
-**And** current directive workflows remain usable
-
-**Given** a contextual popover is opened from the multi-flow score surface
-**When** the user navigates by keyboard
-**Then** focus moves predictably into the popover and back to the originating score context when the popover closes
-**And** the visible score context remains clear while the popover is open
-
-**Given** this popover increment is validated
-**When** popovers open across the visible multi-flow surface
-**Then** composers can complete supported popover-based directive workflows in either visible flow without leaving score context
-**And** notation-derivation and persisted score behavior remain unchanged
-
-### Story 2.5: Preserve Single Active-Flow Behavior Across Score and Sequencer Contexts
+### Story 4.3: Preserve Existing Non-Tuplet Playback Behavior
 
 As a composer,
-I want score view multi-flow visibility to coexist with a single active flow for sequencer and piano-roll work,
-So that the broader editing model stays coherent while the score view becomes more document-like.
+I want existing playback to keep working after tuplets are added,
+So that the new timing support does not regress older scores.
+
+**FRs implemented:** FR21
+**NFRs implemented:** NFR5
 
 **Acceptance Criteria:**
 
-**Given** multiple flows are visible in score view
-**When** one flow is active for sequencer or piano-roll workflows
-**Then** the score view can still display multiple flows
-**And** the shared active-flow concept remains coherent across surfaces
+**Given** a score with no tuplets
+**When** playback runs after foundational tuplet support is introduced
+**Then** existing non-tuplet playback behavior remains correct
+**And** the added tuplet timing path does not alter legacy rhythmic output
 
-**Given** the active flow changes from score interaction or supporting workflow controls
-**When** sequencer or piano-roll context is shown
-**Then** the single active flow remains clearly defined
-**And** multi-flow score visibility does not imply multi-flow sequencer activity
+**Given** tuplets are added to the playback implementation
+**When** the transport handles existing non-tuplet scenarios
+**Then** it continues to use the correct current behavior for those passages
+**And** the feature does not force unrelated playback changes
 
-**Given** multi-flow score view is available while sequencer and piano-roll workflows remain single-flow
-**When** the user needs to change the active flow for those workflows
-**Then** workflow-local controls inside those screens provide an explicit way to switch the single active flow
-**And** score reading does not depend on that control for basic navigation across visible flows
+### Story 4.4: Keep MVP Playback Scoped to the Active Flow
 
-**Given** the application shell is shown across score, sequencer, and other workflows
-**When** multi-flow score view is active
-**Then** the shared top bar remains limited to universal tools and information
-**And** single-flow selectors for sequencer, piano-roll, playback, or related workflows are integrated into the relevant workflow-local surfaces instead of the top bar
+As a composer,
+I want tuplets to play back correctly in the active flow without expanding MVP playback scope,
+So that the feature ships with the right boundaries.
 
-**Given** a user is working in a single-flow score scenario
-**When** score, sequencer, and piano-roll behaviors run through the updated model
-**Then** existing single-flow expectations remain correct
-**And** no regression is introduced in established workflows
+**FRs implemented:** FR22
+**NFRs implemented:** NFR5
 
-**Given** this cross-context coherence increment is validated
-**When** score and sequencer workflows are exercised together
-**Then** multi-flow score view remains compatible with the existing single-active-flow editing model
-**And** notation behavior and persisted score semantics remain unchanged
+**Acceptance Criteria:**
 
-## Epic 3: Trust Multi-Flow Rendering to Stay Fast and Musically Correct
+**Given** MVP playback remains single-flow oriented
+**When** tuplets exist in the active flow
+**Then** playback works correctly for that flow
+**And** the feature does not require broader cross-flow playback changes
 
-Composers and maintainers can rely on multi-flow rendering to preserve notation behavior, isolate recalculation, and remain responsive as the score grows through small, careful implementation increments.
+**Given** tuplets are implemented for active-flow playback
+**When** the playback story is completed
+**Then** the system honors the current single-flow playback boundary
+**And** later playback expansion remains a separate concern
 
-### Story 3.1: Add Multi-Flow Render and Recalculation Visibility
+## Epic 5: Ship Tuplet Support Safely in a Brownfield Codebase
+
+Maintainers can harden and document foundational tuplet support with regression protection and architectural guardrails that keep existing notation behavior stable and leave room for future tuplets.
+
+**NFRs covered:** NFR5, NFR10, NFR11
+
+### Story 5.1: Add Targeted Regression Coverage for Each Tuplet Seam
 
 As a maintainer,
-I want render timing and diagnostic output to show which flows the unified render path processed and how much work each render or recalculation pass performed,
-So that multi-flow rendering can be evolved through small changes with evidence rather than guesswork.
+I want targeted regression coverage across parser, rendering, playback, persistence, and migration seams,
+So that tuplet support is protected where it can actually fail.
+
+**FRs implemented:** FR28
+**NFRs implemented:** NFR10
 
 **Acceptance Criteria:**
 
-**Given** the score view render pipeline supports unified flow composition inputs
-**When** a score render completes
-**Then** timing output shows which flows were prepared and composed
-**And** the output exposes enough detail to understand which part of the render path was exercised
+**Given** the implemented tuplet feature set across earlier epics
+**When** regression coverage is added
+**Then** the suite includes explicit tests for parser, rendering, playback, persistence, and migration behavior relevant to supported tuplets
+**And** the coverage lives close to the owning modules rather than in a disconnected repo-wide framework
 
-**Given** a score with multiple flows
-**When** a local update triggers recalculation
-**Then** the diagnostic output shows whether the work was scoped to one flow or multiple flows
-**And** the instrumentation is sufficient to support later invalidation improvements
+**Given** supported triplet cases and representative boundary cases
+**When** the regression corpus is run
+**Then** it exercises isolated triplets, partially filled tuplets, boundary splitting, projection-driven playback timing, and load/save round-trips
+**And** failures identify the relevant ownership seam clearly enough to debug
 
-**Given** the renderer is provided any valid set of visible flows
-**When** timing output is collected through the updated path
-**Then** existing timing visibility remains available for that pass
-**And** the instrumentation change does not alter score output behavior
-
-**Given** this observability increment is implemented
-**When** it is validated
-**Then** no written-notation, written-duration, or persisted-score behavior changes are required
-**And** later optimization stories can rely on this visibility rather than introducing ad hoc measurement
-
-### Story 3.2: Add Regression Protection for Multi-Flow Notation Safety
+### Story 5.2: Protect Existing Non-Tuplet Behavior From Tuplet Regressions
 
 As a maintainer,
-I want regression coverage that protects notation behavior while multi-flow rendering evolves,
-So that presentation changes do not silently damage written durations or broader notation semantics.
+I want non-tuplet notation and playback behavior protected while tuplets are added,
+So that the new feature does not silently degrade existing musical output.
+
+**FRs implemented:** FR29
+**NFRs implemented:** NFR5
 
 **Acceptance Criteria:**
 
-**Given** the multi-flow score-view work in progress
-**When** regression coverage is added or updated
-**Then** it explicitly protects existing written-duration behavior relevant to multi-flow rendering scenarios
-**And** it confirms that presentation-layer changes do not rewrite notation semantics
+**Given** existing non-tuplet notation behavior relied on by the product
+**When** tuplets are introduced into parser, renderer, and playback paths
+**Then** regression checks cover representative non-tuplet scenarios
+**And** unchanged behavior remains explicitly protected rather than assumed
 
-**Given** existing notation-sensitive fixtures or parser-level tests
-**When** multi-flow-related regression coverage is introduced
-**Then** the coverage extends current test support patterns rather than creating a parallel test framework
-**And** the affected notation behaviors remain locally understandable to maintainers
+**Given** future tuplet work expands beyond MVP
+**When** new changes are made later
+**Then** the regression baseline established here still distinguishes intended tuplet changes from accidental regressions in older notation behavior
+**And** existing non-tuplet correctness remains a protected product contract
 
-**Given** a single-flow scenario already covered by existing behavior
-**When** the regression suite runs after multi-flow-safe changes
-**Then** current notation expectations remain intact
-**And** any new coverage does not weaken the existing baseline
-
-**Given** this regression-protection increment is validated
-**When** future multi-flow stories are implemented
-**Then** maintainers have an explicit safety net for notation correctness
-**And** no persisted score-format changes are required by this story
-
-### Story 3.3: Isolate Recalculation to the Affected Flow
-
-As a composer,
-I want local score edits to avoid unnecessary recalculation in other visible flows,
-So that multi-flow score view stays responsive and predictable as the rendered document grows.
-
-**Acceptance Criteria:**
-
-**Given** multiple flows are visible in score view
-**When** a local edit affects only one flow
-**Then** notation derivation and related recalculation are scoped to the affected flow where possible
-**And** unrelated visible flows do not re-derive unnecessarily
-
-**Given** instrumentation is available for multi-flow recalculation
-**When** a local edit is exercised in one visible flow
-**Then** the diagnostic output shows the recalculation boundary clearly
-**And** maintainers can verify that unrelated flows were not included without cause
-
-**Given** a single-flow score
-**When** the updated recalculation path runs
-**Then** current behavior remains correct
-**And** this change does not introduce regressions in existing render or notation behavior
-
-**Given** this isolation increment is validated
-**When** future multi-flow interactions build on it
-**Then** they inherit a narrower recalculation scope
-**And** no persisted score semantic change is required
-
-### Story 3.4: Keep Non-Edited Flows Visually Stable During Local Updates
-
-As a composer,
-I want visible flows that I am not editing to remain visually stable,
-So that local score changes do not make the broader multi-flow document feel jittery or fragile.
-
-**Acceptance Criteria:**
-
-**Given** multiple flows are visible in score view
-**When** a local update occurs in one visible flow
-**Then** non-edited visible flows remain visually stable
-**And** the user does not see unnecessary layout shifts or redraw artifacts in unaffected flows
-
-**Given** a local update changes the edited flow visibly
-**When** the render completes
-**Then** the visible update is limited to the relevant flow and any directly affected shared presentation areas
-**And** unaffected flows do not appear to flicker or move without cause
-
-**Given** a score with one visible flow
-**When** the same update path runs
-**Then** current single-flow rendering behavior remains intact
-**And** no regression is introduced by multi-flow stabilization logic
-
-**Given** this visual-stability increment is validated
-**When** users perform local edits in multi-flow score view
-**Then** the rendered document feels more dependable
-**And** notation semantics remain unchanged
-
-### Story 3.5: Verify Non-Regression and Performance Scaling for Multi-Flow Rendering
+### Story 5.3: Document Tuplet Scope, Editing Rules, and Persistence Impact
 
 As a maintainer,
-I want evidence that multi-flow rendering preserves current single-flow performance expectations and scales predictably,
-So that the feature can move forward without hidden regressions in responsiveness.
+I want the shipped tuplet behavior documented clearly,
+So that future contributors understand the supported scope and do not reintroduce ambiguity.
+
+**FRs implemented:** FR30
+**NFRs implemented:** NFR11
 
 **Acceptance Criteria:**
 
-**Given** the prior observability and isolation stories are implemented
-**When** representative single-flow and multi-flow scenarios are exercised
-**Then** maintainers can compare current single-flow behavior against the updated multi-flow path
-**And** any regression is visible through established timing output or test evidence
+**Given** foundational tuplet support is implemented
+**When** developer-facing documentation is updated
+**Then** it describes supported tuplet scope, popover-plus-sequencer entry flow, editing rules, notation boundaries, playback boundaries, and persistence impact
+**And** migration expectations are documented wherever persisted behavior changed
 
-**Given** a representative multi-flow scenario
-**When** render and update timings are reviewed
-**Then** the results show whether work scales with the affected flows rather than as unconditional whole-score recalculation
-**And** the outcome is documented clearly enough to guide follow-on optimization work if needed
+**Given** the MVP intentionally excludes some broader tuplet behaviors
+**When** the documentation is reviewed
+**Then** deferred areas such as broader ratios, advanced sequencer manipulation, or other post-MVP concerns are called out clearly
+**And** the docs do not imply support beyond the implemented scope
 
-**Given** the single-flow baseline scenario
-**When** validation is performed after the multi-flow changes
-**Then** current single-flow behavior remains acceptable for the existing product standard
-**And** the project gains explicit evidence rather than assumptions about performance preservation
-
-**Given** this validation increment is completed
-**When** Epic 3 is reviewed as a whole
-**Then** multi-flow rendering has observability, notation safety, recalculation isolation, and basic performance characterization
-**And** no persisted score or migration change is required by this validation story
-
-## Epic 4: Ship Multi-Flow Without Regressing Core Desktop Workflow
-
-Composers can adopt multi-flow score view without losing expected document, playback, offline, and future-ready product behavior.
-
-### Story 4.1: Preserve Document Open, Save, and Reopen with Multi-Flow Score View
-
-As a composer,
-I want scores to open, save, and reopen correctly while multi-flow score view is introduced,
-So that the new score presentation does not put normal document work at risk.
-
-**Acceptance Criteria:**
-
-**Given** a score that can be rendered in multi-flow score view
-**When** the user opens the document through the existing desktop workflow
-**Then** the document loads correctly
-**And** the score can render through the updated multi-flow-capable path without corrupting document state
-
-**Given** a score viewed in the updated score view
-**When** the user saves and later reopens the document
-**Then** the document reopens correctly
-**And** the score remains usable without requiring a new persisted multi-flow document format
-
-**Given** a single-flow score
-**When** the same open, save, and reopen workflow is exercised
-**Then** existing document behavior remains correct
-**And** no regression is introduced by the multi-flow presentation work
-
-**Given** this document-safety increment is validated
-**When** maintainers review the implementation
-**Then** multi-flow rendering remains a presentation-layer capability
-**And** no migration is required for this story
-
-### Story 4.2: Preserve Native Desktop Document Behavior Around Multi-Flow Score View
-
-As a macOS user,
-I want multi-flow score view to coexist with normal desktop document behavior,
-So that the application still feels like a reliable native document tool.
-
-**Acceptance Criteria:**
-
-**Given** the application supports multi-flow score rendering
-**When** a user opens or saves documents through the existing native-style file workflows
-**Then** those workflows remain consistent with current application behavior
-**And** multi-flow score view does not force a different document interaction model
-
-**Given** supported score documents are opened through desktop document workflows
-**When** the app handles them through its existing file entry points
-**Then** file association expectations remain intact
-**And** the multi-flow feature does not break the normal document-opening path
-
-**Given** a single-flow document workflow
-**When** it is exercised after the multi-flow changes
-**Then** current native desktop behavior remains correct
-**And** no regression is introduced in established file handling patterns
-
-**Given** the main window is resized into the compact desktop layout tier
-**When** secondary panels collapse or expand around the score view
-**Then** document, playback, and tool workflows remain reachable through the same top-level shell structure
-**And** multi-flow score view remains the primary visible work surface without introducing a different navigation model
-
-**Given** the shared top bar is visible across all workflows
-**When** the multi-flow feature is exercised across score, sequencer, and playback contexts
-**Then** the top bar continues to present only universal tools and information
-**And** workflow-specific flow selectors do not occupy persistent shared shell chrome
-
-**Given** this desktop-workflow increment is validated
-**When** the broader feature is reviewed
-**Then** the score-view enhancement remains compatible with the app's macOS-first document model
-**And** no network dependency or platform expansion is introduced
-
-### Story 4.3: Preserve Existing Playback Behavior with Multi-Flow Score Visibility
-
-As a composer,
-I want existing playback behavior to keep working while multiple flows are visible in score view,
-So that multi-flow reading does not break the current listening workflow.
-
-**Acceptance Criteria:**
-
-**Given** multiple flows are visible in the score view
-**When** a user uses the existing playback workflow
-**Then** playback continues to behave according to the current product model
-**And** the transport continues to play the current single active flow while other visible flows remain visible for reading
-
-**Given** the app uses a single active flow for current playback-related workflows
-**When** the score view shows multiple visible flows
-**Then** playback remains scoped according to the existing active-flow model
-**And** the UI communicates that playback scope clearly enough that the user can predict which flow will sound
-
-**Given** a single-flow score and the existing playback workflow
-**When** playback is exercised after the multi-flow changes
-**Then** current playback behavior remains correct
-**And** the same transport controls and playback cues remain usable in the single-flow case
-
-**Given** focus is on the transport controls while multiple flows are visible
-**When** the user starts or stops playback through the existing keyboard-accessible transport workflow
-**Then** focus remains stable on the transport control surface
-**And** the active playback scope remains clear while the score continues to show multiple flows
-
-**Given** this playback-preservation increment is validated
-**When** multi-flow score view and playback are exercised together
-**Then** the feature remains compatible with current audio-device-based playback expectations
-**And** the playback UI continues to communicate the single active playback scope clearly while multiple flows remain visible in score view
-
-### Story 4.4: Preserve Offline-First and Future Portability Boundaries
+### Story 5.4: Update Project Guardrails for Future Tuplet Work
 
 As a maintainer,
-I want multi-flow score view to avoid introducing network assumptions or unnecessary persistence coupling,
-So that the feature stays aligned with the project's offline-first and future-portable architecture.
+I want AI-agent and developer instructions updated for the new tuplet architecture,
+So that future work follows the same timing, persistence, and testing rules.
+
+**FRs implemented:** FR31
+**NFRs implemented:** NFR11
 
 **Acceptance Criteria:**
 
-**Given** multi-flow score view is implemented as part of the desktop application
-**When** the feature is reviewed for architecture impact
-**Then** it operates without any network dependency
-**And** core composition, rendering, interaction, and playback workflows remain offline-capable
+**Given** foundational tuplet support establishes durable project rules
+**When** project instructions are updated
+**Then** they reflect the backend-owned timing model, migration discipline, and test-placement expectations introduced by this feature
+**And** future contributors are guided away from frontend-owned parallel state or ad hoc persistence fixes
 
-**Given** the feature introduces new score-view behavior
-**When** maintainers review persistence impact
-**Then** multi-flow rendering remains derived from existing score data rather than requiring account, sync, or cloud assumptions
-**And** future score portability remains possible without introducing new MVP sync behavior
-
-**Given** current persisted score documents
-**When** they are used with the updated score view
-**Then** they remain usable without a forced change to document semantics
-**And** any future persistence work remains separable from this presentation feature
-
-**Given** this boundary-preservation increment is validated
-**When** Epic 4 is reviewed as a whole
-**Then** multi-flow score view remains compatible with the product's offline-first desktop direction
-**And** no unnecessary migration or cloud-related scope has been introduced
+**Given** the repo already has explicit migration and documentation rules
+**When** tuplet-specific guidance is added
+**Then** it extends those rules consistently rather than inventing a conflicting process
+**And** future tuplets work has a clear architectural baseline to build on

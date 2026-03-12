@@ -16,8 +16,9 @@ stepsCompleted:
   - 14
 lastStep: 14
 inputDocuments:
+  - _bmad-output/planning-artifacts/prd-foundational-tuplet-support.md
+  - _bmad-output/planning-artifacts/architecture-foundational-tuplet-support.md
   - _bmad-output/planning-artifacts/prd.md
-  - _bmad-output/planning-artifacts/prd-validation-report.md
   - docs/index.md
   - docs/project-context.md
   - docs/project-overview.md
@@ -253,6 +254,73 @@ flowchart TD
 ```
 
 These flows reflect the current Compose UX: sequencer-first for note input, score for editing, and popovers for directive creation. Future iterations can extend direct note input in the score, but the current system should reinforce the existing split clearly and consistently.
+
+### Tuplet UX Requirements (Foundational Triplet Support)
+
+Foundational triplet support needs explicit sequencer behavior, not just data-model correctness. For MVP, the user creates the tuplet through a focused popover and then completes note entry in the sequencer. That handoff must feel like one continuous interaction rather than two disconnected tools.
+
+#### Tuplet Creation Handoff
+
+- The tuplet popover hotkey trigger for MVP should be `;` so expert users can enter the creation flow directly from the sequencer-first note-entry workflow.
+- For MVP, the popover should open at the current selection tick, matching the product's other entry popovers.
+- Confirming triplet creation from the popover should immediately reveal the created tuplet span in the sequencer on the active track.
+- The sequencer should place focus on the created tuplet region so the next likely action is note entry, not re-navigation.
+- The popover should communicate the supported tuplet shape clearly enough that the user understands what local slots will be available after creation.
+- For MVP, the popover should accept an explicit ratio such as `3:2` together with a base notation value such as eighth so the user can define `3 eighths in the space of 2 eighths` without ambiguity.
+- The ratio should be shown as `3:2` in the UI for clarity rather than collapsing to a bare `3`.
+- The main popover input should be a single text-entry field for the ratio, with a small inline base-note selector beside it.
+- The base notation value should be selected from that inline control, defaulting to eighth for MVP.
+- The popover should present ratio and base notation value as musical inputs rather than implementation-specific timing language.
+- Invalid popover values should be ignored using the same pattern as other current popovers rather than producing a new special-case error flow.
+
+#### Sequencer Tuplet Presentation
+
+- A tuplet should appear in the sequencer as one visibly bounded region spanning the consumed host-track time.
+- The region should include a horizontal line spanning the consumed host ticks together with a compact `3:2` tuplet annotation so the grouped span reads as one musical unit.
+- The `3:2` annotation should be centered over the tuplet region and remain sticky at the top of the sequencer view so it stays legible while the user works in the lane.
+- Repeated tuplets across the sequencer should read like repeated bounded regions on the same track, each with its own centered label, rather than as floating text detached from the governed span.
+- The annotation should not use a solid background that obscures notes underneath it.
+- The region should be visually distinct from ordinary host-track note space through a consistent treatment such as boundary lines, tinted background, or another restrained but unmistakable grouping cue.
+- The region should read like a bounded container on the same track with its own internal beats, not like a second overlapping lane or a remapped track timeline.
+- For supported triplet cases, the sequencer should expose the internal local entry structure clearly enough that users can tell where each tuplet slot begins and ends.
+- The sequencer should distinguish host-track time from tuplet-local positions so users can see the container's internal beats without inferring that host ticks have changed meaning.
+- Vertical tick indicators inside the tuplet region should appear slightly compressed so the local triplet subdivision reads as visually narrower than ordinary host-track spacing.
+- The compressed tick treatment should remain subtle enough that the sequencer stays stable overall, but clear enough that users can see they are editing warped tuplet-local positions rather than ordinary host-time slots.
+- The compressed internal beat lines should stay confined to the tuplet span so the surrounding host grid continues to read as the stable outer timing frame.
+- MVP should use the current sequencer zoom level and current tick-boundary rendering approach; no separate tuplet-specific zoom behavior is required yet.
+
+#### Tuplet Note and Empty-Slot States
+
+- Entered tuplet notes should read as members of the enclosing tuplet region rather than ordinary standalone notes on the host track.
+- When the user prepares note entry inside a tuplet region, the sequencer should apply the active tuplet multiplier automatically rather than asking the user to translate written values into approximate host timing.
+- Tuplet regions should be allowed to contain actual tone entries, not just empty slot affordances or derived overlays.
+- A tone can only be created on the host track if its start tick is not occupied by a tuplet span; otherwise it must be created in the tuplet.
+- Creating a tuplet container with no entered notes should immediately render as empty rest-bearing tuplet content, including the tuplet bracket/number treatment in score view and the empty grouped region in the sequencer.
+- Empty tuplet slots should remain visibly targetable after creation and after deleting a child note.
+- Empty tuplet slots should align with the compressed local tick structure so users can see exactly which tuplet subdivision remains available.
+- The empty-slot treatment should be quieter than a real note, but explicit enough that users understand the tuplet remains incomplete rather than collapsed or removed.
+- Partial occupancy should preserve the visual identity of the tuplet region so users can continue filling or editing it without re-deriving the structure mentally.
+- When a tone extends into or out of a tuplet boundary, the sequencer and score should represent the boundary split coherently rather than treating that case as unsupported in MVP.
+- If a user drags a tone duration across a tuplet area, the gesture should behave like one continuous resize interaction even though the drawn or scheduled result may be derived into separate host and tuplet fragments.
+- The user should not need to think about whether a crossing tone was storage-split; from the interaction perspective it remains one tone that the score and playback present correctly through the tuplet boundary.
+- If a user drags the tone start itself across the tuplet boundary, the owning context should switch to wherever the tone now starts while still preserving the rule that one tone is one stored event.
+
+#### Selection and Editing Feedback
+
+- The sequencer should visually distinguish selection of the tuplet container, a note inside the tuplet region, and an empty tuplet slot.
+- Container selection should target the tuplet bracket/region treatment and highlight it in blue, consistent with other selected entries.
+- Immediately after tuplet creation, the newly created tuplet container should become the active selection so the behavior matches other creation patterns for entries such as tones and tempo.
+- Child-note selection should behave like any other note selection and highlight the selected note in blue.
+- Empty-slot selection should reuse the product's existing rest-selection treatment rather than introducing a new custom selected-empty-slot visual language.
+- Hover, selected, and active-edit states should make it clear whether the user is acting on the container boundary or on content inside it.
+- Tuplet boundaries adjacent to non-tuplet material should remain legible during hover and selection so ownership does not become ambiguous at the seam.
+- Unsupported edits should follow the product's existing rejection behavior and surface local inline feedback at the point of interaction rather than silently snapping or relying on distant global messaging.
+
+#### MVP Scope Boundaries
+
+- MVP requires clear sequencer presentation and note entry inside supported triplet regions.
+- MVP does not require a fully generalized sequencer-native tuplet editing language for arbitrary future tuplets.
+- MVP should optimize for triplet clarity and predictability in the current sequencer-first note-entry model.
 
 ## Component Strategy
 
