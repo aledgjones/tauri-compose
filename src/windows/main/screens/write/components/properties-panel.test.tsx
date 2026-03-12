@@ -123,8 +123,9 @@ const buildTempoState = () =>
 
 describe("PropertiesPanel", () => {
   it("renders the no-selection empty state", () => {
-    renderWithProviders(<PropertiesPanel />);
-    expect(screen.getByTestId("properties-panel-empty")).toBeInTheDocument();
+    const { container } = renderWithProviders(<PropertiesPanel />);
+    expect(screen.queryByText("Common")).not.toBeInTheDocument();
+    expect(container.firstChild).toHaveClass("bg-neutral-900", "flex-1");
   });
 
   it("renders the unsupported-selection empty state", () => {
@@ -143,17 +144,20 @@ describe("PropertiesPanel", () => {
       } as never,
     });
 
-    renderWithProviders(<PropertiesPanel />, { appState });
-    expect(
-      screen.getByTestId("properties-panel-unsupported"),
-    ).toBeInTheDocument();
+    const { container } = renderWithProviders(<PropertiesPanel />, {
+      appState,
+    });
+    expect(screen.queryByText("Common")).not.toBeInTheDocument();
+    expect(container.firstChild).toHaveClass("bg-neutral-900", "flex-1");
   });
 
   it("routes tempo selections to the tempo properties section", () => {
     renderWithProviders(<PropertiesPanel />, { appState: buildTempoState() });
     expect(screen.getByText("Tempo")).toBeInTheDocument();
     expect(screen.getByText("Common")).toBeInTheDocument();
-    expect(screen.getByText("Show metronome")).toBeInTheDocument();
+    expect(
+      screen.getByRole("switch", { name: "Show metronome marking" }),
+    ).toBeInTheDocument();
   });
 
   it("routes time signature selections to the time signature properties section", () => {
@@ -174,7 +178,7 @@ describe("PropertiesPanel", () => {
     renderWithProviders(<PropertiesPanel />, { appState });
     expect(screen.getByText("Time signature")).toBeInTheDocument();
     expect(
-      screen.getByRole("switch", { name: "Symbol form" }),
+      screen.getByRole("switch", { name: "Common/Cut common" }),
     ).toBeInTheDocument();
     expect(screen.getByRole("switch", { name: "Hidden" })).toBeInTheDocument();
   });

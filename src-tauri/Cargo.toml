@@ -28,6 +28,10 @@ name = "build-fixtures"
 path = "src/bin/build_fixtures.rs"
 
 [[bin]]
+name = "performance"
+path = "src/bin/performance.rs"
+
+[[bin]]
 name = "generate-manifest"
 path = "src/bin/generate_manifest.rs"
 

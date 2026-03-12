@@ -15,6 +15,32 @@ This project uses [Vitest](https://vitest.dev) as the test runner for TypeScript
 | `npm run test:js:logs:watch` | Watch mode with verbose logs           |
 | `npm run test:rust`          | Run all Rust tests (from `src-tauri/`) |
 
+## Multi-flow performance characterization
+
+Use the existing Rust-owned debugger diagnostics as the primary evidence path for multi-flow performance work. Do not add ad hoc console logging or frontend-owned benchmark state when validating render scope.
+
+Run `npm run perf:render` for the manual characterization pass. This command runs the dedicated standalone release binary at `src-tauri/src/bin/performance.rs`, exercises the same backend render-plan and shared-surface composition seams as the app, and avoids changing the shipped API surface. It does not replace the debugger-backed event path for end-to-end observability validation. By default it records 5 measured samples after 1 warm-up sample per scenario. Use `npm run perf:render -- --samples 10` to change the measured sample count and `npm run perf:render -- --json` for machine-readable output.
+
+Representative validation scenarios:
+
+1. Single-flow baseline: one visible flow representing the existing product standard of 3 instruments and 30 bars. Treat the current release-like `npm run perf:render` result as the active baseline, trigger a regression warning when the representative total median reaches or exceeds 2ms, and reevaluate that warning threshold as additional performance-sensitive features land.
+2. Multi-flow render: two or three visible flows on the shared surface. Verify the debugger shows multi-flow prepared/composed scope and record the corresponding phase timings.
+3. Multi-flow local edit: mutate one visible flow while reuse is available. Verify `render-timing-flow-preparation-details` reports a multi-flow prepared/composed set but a single-flow `recalculated_flow_ids` set. If reuse is unavailable, record the truthful broad fallback instead of masking it.
+
+Debugger fields to review:
+
+- `render-timing-flow-preparation`
+- `render-timing-flow-preparation-details`
+- `render-timing-surface-details`
+- The existing Layout, Render, and GPU timing rows in the debugger window
+
+Evidence reporting rules:
+
+- Record whether each timing came from the supported dev validation environment or a release-like run.
+- Call out broad fallback, no-op passes, or scaling cliffs explicitly.
+- Keep the current release-like baseline sample in the story or adjacent maintainer-facing docs, and refresh it when material rendering features land.
+- Keep automated tests focused on scope, ordering, and reuse behavior. Do not turn the CI suite into a microbenchmark gate.
+
 ## File Naming
 
 TypeScript test files sit next to the source file they test, using the `.test.ts` or `.test.tsx` extension:

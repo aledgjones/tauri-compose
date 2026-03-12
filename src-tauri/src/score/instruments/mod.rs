@@ -1,6 +1,7 @@
 pub mod defs;
 
 use super::{config::AutoCountStyle, Score};
+use crate::instructions::FlowRenderRecalculationRequest;
 use crate::playback::sampler::sync_sampler_with_score;
 use crate::playback::transport::TransportSharedState;
 use crate::score::players::PlayerType;
@@ -178,7 +179,11 @@ pub fn score_instruments_create(
         .insert(instrument_id, instrument);
 
     let mut renderer = renderer_state.lock().unwrap();
-    state.emit(&app, &mut renderer, true);
+    state.emit_general_state(
+        &app,
+        &mut renderer,
+        Some(FlowRenderRecalculationRequest::full_visible_flows()),
+    );
 
     instrument_id
 }
@@ -231,7 +236,11 @@ pub fn score_instruments_move(
     state.score.update_counts();
 
     let mut renderer = renderer_state.lock().unwrap();
-    state.emit(&app, &mut renderer, true);
+    state.emit_general_state(
+        &app,
+        &mut renderer,
+        Some(FlowRenderRecalculationRequest::full_visible_flows()),
+    );
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -256,7 +265,11 @@ pub fn score_instruments_remove(
     );
 
     let mut renderer = renderer_state.lock().unwrap();
-    state.emit(&app, &mut renderer, true);
+    state.emit_general_state(
+        &app,
+        &mut renderer,
+        Some(FlowRenderRecalculationRequest::full_visible_flows()),
+    );
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -284,7 +297,7 @@ pub fn score_instruments_assign_plugin(
     );
 
     let mut renderer = renderer_state.lock().unwrap();
-    state.emit(&app, &mut renderer, false);
+    state.emit_general_state(&app, &mut renderer, None);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -314,7 +327,7 @@ pub fn score_instruments_set_volume(
     }
 
     let mut renderer = renderer_state.lock().unwrap();
-    state.emit(&app, &mut renderer, false);
+    state.emit_general_state(&app, &mut renderer, None);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -344,7 +357,7 @@ pub fn score_instruments_set_pan(
     }
 
     let mut renderer = renderer_state.lock().unwrap();
-    state.emit(&app, &mut renderer, false);
+    state.emit_general_state(&app, &mut renderer, None);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -370,7 +383,7 @@ pub fn score_instruments_set_mute(
     }
 
     let mut renderer = renderer_state.lock().unwrap();
-    state.emit(&app, &mut renderer, false);
+    state.emit_general_state(&app, &mut renderer, None);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -396,7 +409,7 @@ pub fn score_instruments_set_solo(
     }
 
     let mut renderer = renderer_state.lock().unwrap();
-    state.emit(&app, &mut renderer, false);
+    state.emit_general_state(&app, &mut renderer, None);
 }
 
 #[cfg(test)]
@@ -674,9 +687,22 @@ mod tests {
             ],
         );
 
-        score.instruments.by_id.get_mut(&10).unwrap().assigned_plugin_id = Some(String::from("a"));
-        score.instruments.by_id.get_mut(&12).unwrap().assigned_plugin_id = Some(String::from("b"));
+        score
+            .instruments
+            .by_id
+            .get_mut(&10)
+            .unwrap()
+            .assigned_plugin_id = Some(String::from("a"));
+        score
+            .instruments
+            .by_id
+            .get_mut(&12)
+            .unwrap()
+            .assigned_plugin_id = Some(String::from("b"));
 
-        assert_eq!(score.assigned_plugin_ids(), vec![String::from("a"), String::from("b")]);
+        assert_eq!(
+            score.assigned_plugin_ids(),
+            vec![String::from("a"), String::from("b")]
+        );
     }
 }

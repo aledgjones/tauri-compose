@@ -1,6 +1,9 @@
 import { FC, useMemo } from "react";
 import { useAppState } from "../../../../../services/state";
-import { generateRainbowColors } from "../../../../../services/utils";
+import {
+  generateRainbowColors,
+  getFlowName,
+} from "../../../../../services/utils";
 import { InstrumentOverviewRow } from "./instrument-overview-row";
 import { TickBar } from "../../../components/tick-bar";
 import { useTicks } from "../../../hooks/use-ticks";
@@ -9,14 +12,29 @@ import { MiniaturePianoRoll } from "./miniature-piano-roll";
 import { UniqueId, Instrument } from "../../../../../services/types";
 import { DragScroll } from "../../../../../components/drag-scroll";
 import { PlaybackLine } from "../../../components/playback-line";
+import { Select } from "../../../../../ui/select";
+import { mdiHeatWave } from "@mdi/js";
+import { actions } from "../../../../../services/actions";
 
 type InstrumentWithPlayer = Instrument & { playerId: UniqueId };
 
 export const InstrumentOverview: FC = () => {
   const state = useAppState();
 
-  // Get the selected flow from UI state, or fall back to the first flow
-  const flowId = state.ui.flow_id ?? state.score.flows.order[0] ?? null;
+  const flowId = useMemo(() => {
+    if (state.score.flows.order.length === 0) {
+      return null;
+    }
+
+    const activeFlowId = state.ui.flow_id ?? state.score.flows.order[0] ?? null;
+
+    if (activeFlowId && state.score.flows.by_id[activeFlowId]) {
+      return activeFlowId;
+    }
+
+    return state.score.flows.order[0] ?? null;
+  }, [state.score.flows.by_id, state.score.flows.order, state.ui.flow_id]);
+
   const flow = flowId ? state.score.flows.by_id[flowId] : null;
 
   // Get all instruments in the score with their player information
@@ -52,6 +70,19 @@ export const InstrumentOverview: FC = () => {
     : null;
   const ticks = useTicks(flow, master);
 
+  const flowOptions = useMemo(() => {
+    return state.score.flows.order.flatMap((candidateFlowId, index) => {
+      if (!state.score.flows.by_id[candidateFlowId]) {
+        return [];
+      }
+
+      return {
+        value: candidateFlowId,
+        label: getFlowName(state, index, candidateFlowId),
+      };
+    });
+  }, [state]);
+
   if (!flow) {
     return (
       <div className="flex items-center justify-center w-full h-full bg-neutral-900 text-neutral-700">
@@ -67,8 +98,22 @@ export const InstrumentOverview: FC = () => {
         className="ignore-x sticky left-0 z-20 flex flex-col bg-neutral-950 min-h-full"
         style={{ width: KEYBOARD_WIDTH * 1.5 }}
       >
-        {/* Header space for tick bar */}
-        <div className="sticky top-0 z-30 h-7 bg-neutral-900 w-full mb-0.5" />
+        <div className="sticky top-0 z-30 bg-neutral-950 mb-0.5">
+          <div className="h-9 bg-neutral-900 w-full">
+            {flowId && flowOptions.length > 1 ? (
+              <Select
+                className="w-full"
+                variant="standard"
+                value={flowId}
+                options={flowOptions}
+                onChange={actions.ui.setActiveFlowId}
+                icon={mdiHeatWave}
+              />
+            ) : (
+              <div className="h-full w-full bg-neutral-900" />
+            )}
+          </div>
+        </div>
 
         {/* Scrollable instrument list */}
         <div className="flex-1 overflow-y-auto flex flex-col gap-0.5">
@@ -93,7 +138,8 @@ export const InstrumentOverview: FC = () => {
         {/* Tick bar - sticky at top */}
         <TickBar
           ticks={ticks}
-          className="sticky top-0 z-30 bg-neutral-900 mb-0.5"
+          className="sticky top-0 z-30 bg-neutral-900 mb-0.5 h-9"
+          barNumberClassName="leading-9"
         />
 
         {/* Scrollable piano roll overviews */}

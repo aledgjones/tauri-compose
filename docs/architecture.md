@@ -78,6 +78,13 @@ Four React contexts mirror the backend state:
 
 **Exception:** Transport state uses `requestAnimationFrame` polling during playback to keep the transport thread silent (no `app.emit()` during playback).
 
+### Active-flow ownership
+
+- `ui.flow_id` is the single authoritative active-flow slot across score, Sequence, miniature piano rolls, and transport tempo resolution.
+- Explicit Sequence-local flow switching updates `ui.flow_id` directly; the shared top bar does not own a workflow-specific flow selector.
+- Deliberate score-object selection may hand off `ui.flow_id` to the selected object's flow through the backend selection seam.
+- Passive score interactions such as pan, zoom, hover, and miss-to-clear do not change `ui.flow_id`.
+
 ---
 
 ## Score Render Pipeline
@@ -176,6 +183,12 @@ Score Data (Entry variants in FxHashMaps)
 
 - Draw instructions cached on `RendererContext` — re-rendered on pan/zoom without recalculation
 - Recalculation only triggered by score mutations (via the `emit()` flow)
+- Recalculation now enters a flow-preparation seam before parse/draw work: `instructions/render_plan.rs` filters visible flows from `layout.flow_ids`, preserves `score.flows.order`, keeps the active-flow draw target explicit, and emits `render-timing-flow-preparation` plus `render-timing-flow-preparation-details` so the debugger can verify the ordered multi-flow preparation path without moving composition state into React.
+- That timing contract now also carries explicit render-mode and flow-scope metadata for prepared, composed, and recalculated flow sets. Rust remains the only owner of those diagnostics, and cleared/no-render states continue to propagate as null-safe reset payloads rather than frontend-derived timing state.
+- Story 1.2/1.6 extend that seam into a shared-surface composition step: Rust builds every visible flow segment independently in `score.flows.order`, offsets each later segment by a deterministic renderer-space gap of at least 20 CSS pixels at normal zoom, and keeps the combined page width authoritative for native pan/zoom constraints.
+- Story 1.4 refines that shared-surface step into a page-per-flow composition rule: each composed flow now paints its own white native page box, the gradient backdrop stays visible in the fixed inter-flow gap, and the second visible flow keeps its native page-start chrome so the adjacent page still reads like a real score page rather than a cropped continuation fragment.
+- Story 1.3 keeps that combined renderer width as the authoritative horizontal clamp input as well, so wheel and drag navigation traverse the same shared native surface; the debugger timing panel now also reports shared-surface and viewport sizes for reachability checks.
+- Story 3.5 keeps performance characterization on that same path: maintainers validate a single-flow 3-instrument/30-bar baseline, representative multi-flow renders, and local-edit recalculation passes through the debugger timing panel and Rust-owned flow-preparation diagnostics rather than through a separate benchmark subsystem. The current release-like single-flow result is the working baseline, and a representative total median at or above 2ms now triggers a regression warning until that threshold is reevaluated.
 
 ---
 

@@ -91,11 +91,6 @@ export const parseClefPopover = async (
   stave_id: UniqueId,
 ) => {
   switch (input) {
-    case "clear": {
-      await actions.score.clef.clear(flow_id, tick, stave_id);
-      break;
-    }
-
     case "treble":
     case "g":
     case "G":
@@ -195,11 +190,6 @@ export const parseKeySignaturePopover = async (
   tick: Tick,
 ) => {
   switch (input) {
-    case "clear": {
-      await actions.score.keySignature.clearAtTick(flow_id, tick);
-      break;
-    }
-
     case "C#":
     case "7s":
     case "7#": {
@@ -834,11 +824,6 @@ export const parseTimeSignaturePopover = async (
   }
 
   switch (input) {
-    case "clear": {
-      await actions.score.timeSignature.clearAtTick(flow_id, tick);
-      break;
-    }
-
     case "c": {
       const time_signature_id = await actions.score.timeSignature.create(
         flow_id,
@@ -884,11 +869,6 @@ export const parseTempoPopover = async (
   flow_id: UniqueId,
   tick: Tick,
 ) => {
-  if (input === "clear") {
-    await actions.score.tempo.clearAtTick(flow_id, tick);
-    return;
-  }
-
   const parsed = parseTempo(input);
 
   if (!parsed) {

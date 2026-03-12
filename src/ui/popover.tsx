@@ -30,10 +30,13 @@ const getTickFromSelection = (state: AppState) => {
   }
 
   if (selection.type === "Tone") {
-    const tone =
-      state.score.tracks.by_id[selection.track_id].entries.by_id[
-        selection.tone_id
-      ];
+    const track = state.score.tracks.by_id[selection.track_id];
+    const tone = track?.entries.by_id[selection.tone_id];
+
+    if (!tone || tone.type !== "Tone") {
+      return null;
+    }
+
     return tone.tick;
   } else {
     return selection.tick;
@@ -111,6 +114,11 @@ export const Popover: FC<Props> = ({ popover, setPopover }) => {
   const [value, setValue] = useState("");
   const popoverRef = useRef<HTMLDivElement>(null);
   const state = useAppState();
+
+  const closePopover = () => {
+    setPopover(null);
+    setValue("");
+  };
 
   useEffect(() => {
     const handleKeyDown = async (e: KeyboardEvent) => {
@@ -236,8 +244,7 @@ export const Popover: FC<Props> = ({ popover, setPopover }) => {
             }
           }
 
-          setPopover(null);
-          setValue("");
+          closePopover();
         } catch (error) {
           console.error("Invalid input:", error);
         }
@@ -245,8 +252,7 @@ export const Popover: FC<Props> = ({ popover, setPopover }) => {
         break;
       }
       case "Escape": {
-        setPopover(null);
-        setValue("");
+        closePopover();
         break;
       }
     }
@@ -258,8 +264,7 @@ export const Popover: FC<Props> = ({ popover, setPopover }) => {
   };
 
   const handleBlur = () => {
-    setPopover(null);
-    setValue("");
+    closePopover();
   };
 
   const meta = getMeta(popover.type);

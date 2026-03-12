@@ -39,7 +39,7 @@ describe("TimeSignaturePropertiesSection", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("switch", { name: "Symbol form" }));
+    fireEvent.click(screen.getByRole("switch", { name: "Common/Cut common" }));
 
     await waitFor(() => {
       expect(actions.score.timeSignature.update).toHaveBeenCalledWith(
@@ -67,7 +67,7 @@ describe("TimeSignaturePropertiesSection", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("switch", { name: "Symbol form" }));
+    fireEvent.click(screen.getByRole("switch", { name: "Common/Cut common" }));
 
     await waitFor(() => {
       expect(actions.score.timeSignature.update).toHaveBeenCalledWith(
@@ -95,7 +95,9 @@ describe("TimeSignaturePropertiesSection", () => {
       />,
     );
 
-    const control = screen.getByRole("switch", { name: "Symbol form" });
+    const control = screen.getByRole("switch", {
+      name: "Common/Cut common",
+    });
     expect(control).toBeDisabled();
 
     fireEvent.click(control);
@@ -122,7 +124,9 @@ describe("TimeSignaturePropertiesSection", () => {
       />,
     );
 
-    const control = screen.getByRole("switch", { name: "Symbol form" });
+    const control = screen.getByRole("switch", {
+      name: "Common/Cut common",
+    });
     expect(control).toHaveAttribute("aria-checked", "false");
 
     fireEvent.click(control);

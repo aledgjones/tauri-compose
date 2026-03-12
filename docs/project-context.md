@@ -93,6 +93,8 @@ _This file contains critical rules and patterns that AI agents must follow when 
 - Transport polling uses `requestAnimationFrame` loop — no events during playback to keep transport thread silent
 - Multi-window app: 8 HTML entry points, each mounts its own `AppStateProvider` in `boot.tsx`
 - All mutations go through the `actions` object in `actions.ts` via `invoke()` — never manipulate state directly
+- `ui.flow_id` is the one authoritative active-flow slot for score, Sequence, miniature piano rolls, and transport-derived tempo state; deliberate score-object selection may update it, but pan/zoom/hover/miss-to-clear must not
+- The shared top bar is reserved for universal controls (tabs, layout, transport, tools); workflow-specific single-flow switching belongs inside the owning workflow surface such as Sequence
 - UI styling: Tailwind utility classes + `classnames` — dark theme (neutral-900 base, sky-500 accents, transparent backgrounds)
 
 #### Score Render Pipeline
@@ -100,13 +102,18 @@ _This file contains critical rules and patterns that AI agents must follow when 
 The score page is rendered natively by Rust/Skia/Metal — all other UI (panels, buttons, inputs, toolbars) lives in the React/HTML layer.
 
 1. **Score data** → Tracks of `Entry` variants (Tone, Clef, KeySignature, Tempo, TimeSignature, Barline) stored in dual-index `FxHashMap`s
-2. **Parse phase** (`instructions/parse/`, 19 modules) → converts raw entries to written notation: measures, written durations, vertical/horizontal spacing, beams, stems, accidentals, articulations, shunts, dots — parallelized with `rayon`
-3. **Draw phase** (`instructions/draw/`, 20 modules) → generates `Vec<DrawInstruction>` (Line, Text, Circle, Curve, Shape, Rectangle) + `Vec<HitTarget>` — all coordinates in `Space` units converted to px via `Converter`
-4. **Native render** → `MetalRenderer` paints the score page only via Skia onto a `CAMetalLayer` attached to the native `NSView` — this is not the app UI, just the score sheet
-5. **FE interaction** → a transparent `<div>` overlays the native score surface, reports bounds/resize, handles pan/zoom/click, and delegates hit-testing to Rust via `invoke("renderer_hit_test")`
+2. **Flow preparation phase** (`instructions/render_plan.rs`) → derives ordered visible flow inputs from `layout.flow_ids` while preserving `score.flows.order`; the render path emits `render-timing-flow-preparation` plus `render-timing-flow-preparation-details` diagnostics before parse/draw work begins
+3. **Per-flow parse/draw phase** (`instructions/parse/`, `instructions/draw/`) → each visible flow segment is parsed and drawn independently into `Vec<DrawInstruction>` plus `Vec<HitTarget>` using renderer-space `Space` units and px conversion via `Converter`
+4. **Flow composition phase** (`instructions/mod.rs`) → Rust composes every visible flow segment into one shared page surface in `score.flows.order`, offsets each later segment by a fixed renderer-space gap that guarantees at least 20 CSS pixels at normal zoom, paints a separate white native page box for each composed flow so the gradient backdrop remains visible in the boundary gap, preserves each flow's native page-start chrome, and keeps combined hit targets in shared renderer space
+5. **Native render** → `MetalRenderer` paints the score page only via Skia onto a `CAMetalLayer` attached to the native `NSView` — this is not the app UI, just the score sheet
+6. **FE interaction** → a transparent `<div>` overlays the native score surface, reports bounds/resize, handles pan/zoom/click, and delegates hit-testing to Rust via `invoke("renderer_hit_test")`
 
 - Draw instructions are cached on `RendererContext` and re-rendered on pan/zoom without recalculation
 - Recalculation only triggered by score mutations (via `emit()` flow)
+- The flow-preparation diagnostics contract is maintainer-facing and Rust-owned: valid recalculation passes report `render_mode`, prepared/composed/recalculated flow ids and counts, plus scope labels such as `single_flow`, `multiple_flows`, or `no_visible_flows`; reset paths continue to emit null-safe payloads so the debugger can show cleared/no-render state without inventing a parallel source of truth.
+- Performance characterization for multi-flow work stays on that contract. Use the debugger timing panel plus `render-timing-flow-preparation-details` / `render-timing-surface-details` to compare the 3-instrument, 30-bar single-flow baseline against representative multi-flow render and local-edit passes; do not introduce a separate benchmark-only state model.
+- The current release-like `npm run perf:render` result is the active representative single-flow baseline. Trigger a regression warning when that baseline scenario reaches or exceeds 2ms total median time, and reevaluate that threshold as performance-sensitive features land.
+- The composed `renderer.width` from the shared surface remains the single authoritative horizontal extent for native pan clamping, while the debugger timing panel can expose shared-surface versus viewport dimensions plus per-page box offsets for multi-flow reachability checks without creating a frontend-owned scroll model.
 - Horizontal spacing slots are for **flow spacing only** — they are not a generic anchoring mechanism for every marking.
 - Prefer reusing an existing slot position when an element should align with current notation but should not push later notation horizontally.
 - As a general rule, avoid adding new slots unless the element genuinely changes left-to-right score flow; tempo markings are the current reference case for this rule.

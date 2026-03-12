@@ -26,7 +26,10 @@ use files::{
     load_project_from_file, refresh_menus, save_project_to_file, set_current_file_path,
     update_recent_files_menu,
 };
-use instructions::generate_render_instructions;
+use instructions::{
+    generate_render_instructions, prepare_flow_render_plan, resolve_render_plan_recalculation,
+    FlowRenderPreparationDiagnostics, FlowRenderRecalculationRequest,
+};
 use preferences::{preferences_audition_set, Preferences};
 use renderer::hit_test::renderer_hit_test;
 use renderer::RendererContext;
@@ -94,6 +97,7 @@ use score::players::{
 use score::Score;
 use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
+use std::time::Instant;
 use tauri::menu::{AboutMetadata, Menu, MenuItem, PredefinedMenuItem, Submenu};
 use tauri::{AppHandle, Emitter, Manager, State};
 use ui::renderer::{
@@ -146,13 +150,29 @@ impl AppContext {
         })
     }
 
-    fn render(
+    pub(crate) fn flow_id_for_track(&self, track_id: UniqueId) -> Option<UniqueId> {
+        self.score.flows.by_id.values().find_map(|flow| {
+            if flow.master_id == track_id {
+                return Some(flow.id);
+            }
+
+            flow.staves.by_id.values().find_map(|stave| {
+                if stave.master_id == track_id || stave.track_ids.contains(&track_id) {
+                    Some(flow.id)
+                } else {
+                    None
+                }
+            })
+        })
+    }
+
+    fn render_with_recalculation(
         &mut self,
         app: &tauri::AppHandle,
         renderer: &mut RendererContext,
-        recalculate: bool,
+        recalculation_request: Option<FlowRenderRecalculationRequest>,
     ) {
-        if recalculate {
+        if let Some(recalculation_request) = recalculation_request {
             let layout_id = self
                 .ui
                 .layout_id
@@ -163,8 +183,38 @@ impl AppContext {
                 .or_else(|| self.score.flows.order.first().copied());
 
             if let (Some(layout_id), Some(flow_id)) = (layout_id, flow_id) {
-                generate_render_instructions(app, self, renderer, layout_id, flow_id);
+                let preparation_start = Instant::now();
+                if let Some(render_plan) =
+                    prepare_flow_render_plan(&self.score, layout_id, flow_id, recalculation_request)
+                {
+                    let render_plan =
+                        resolve_render_plan_recalculation(self, renderer, &render_plan);
+                    let preparation_duration = preparation_start.elapsed();
+                    let diagnostics = FlowRenderPreparationDiagnostics::from(&render_plan);
+
+                    let _ = app.emit(
+                        "render-timing-flow-preparation",
+                        preparation_duration.as_micros() as u64,
+                    );
+                    let _ = app.emit("render-timing-flow-preparation-details", diagnostics);
+
+                    generate_render_instructions(app, self, renderer, &render_plan);
+                } else {
+                    let _ = app.emit("render-timing-flow-preparation", 0_u64);
+                    let _ = app.emit(
+                        "render-timing-flow-preparation-details",
+                        Option::<FlowRenderPreparationDiagnostics>::None,
+                    );
+                    let _ = app.emit("render-timing-surface-details", Option::<()>::None);
+                    renderer.clear();
+                }
             } else {
+                let _ = app.emit("render-timing-flow-preparation", 0_u64);
+                let _ = app.emit(
+                    "render-timing-flow-preparation-details",
+                    Option::<FlowRenderPreparationDiagnostics>::None,
+                );
+                let _ = app.emit("render-timing-surface-details", Option::<()>::None);
                 renderer.clear();
             }
         }
@@ -183,14 +233,22 @@ impl AppContext {
             self.ui.renderer.pan_y,
             self.ui.renderer.zoom as f32 / 100.0,
         ) {
-            // Update stored pan values to constrained values
             self.ui.renderer.pan_x = constrained_x;
             self.ui.renderer.pan_y = constrained_y;
         }
     }
 
-    fn emit(&mut self, app: &tauri::AppHandle, renderer: &mut RendererContext, recalculate: bool) {
-        self.render(app, renderer, recalculate);
+    pub(crate) fn render_only(&mut self, app: &tauri::AppHandle, renderer: &mut RendererContext) {
+        self.render_with_recalculation(app, renderer, None);
+    }
+
+    pub(crate) fn emit_general_state(
+        &mut self,
+        app: &tauri::AppHandle,
+        renderer: &mut RendererContext,
+        recalculation_request: Option<FlowRenderRecalculationRequest>,
+    ) {
+        self.render_with_recalculation(app, renderer, recalculation_request);
 
         let general_state = AppStateGeneral {
             ui: self.ui.clone(),
@@ -201,6 +259,36 @@ impl AppContext {
 
         if let Err(e) = app.emit("soloc://state/general", &general_state) {
             eprintln!("Failed to emit general state: {:?}", e);
+        }
+    }
+
+    pub(crate) fn emit_affected_flows(
+        &mut self,
+        app: &tauri::AppHandle,
+        renderer: &mut RendererContext,
+        flow_ids: &[UniqueId],
+    ) {
+        self.emit_general_state(
+            app,
+            renderer,
+            FlowRenderRecalculationRequest::for_flow_ids(flow_ids),
+        );
+    }
+
+    pub(crate) fn emit_affected_track(
+        &mut self,
+        app: &tauri::AppHandle,
+        renderer: &mut RendererContext,
+        track_id: UniqueId,
+    ) {
+        if let Some(flow_id) = self.flow_id_for_track(track_id) {
+            self.emit_affected_flows(app, renderer, &[flow_id]);
+        } else {
+            self.emit_general_state(
+                app,
+                renderer,
+                Some(FlowRenderRecalculationRequest::full_visible_flows()),
+            );
         }
     }
 
@@ -233,7 +321,11 @@ fn initialize(
     let sampler = sampler_state.lock().unwrap();
 
     sync_transport_to_app_state(transport_shared.inner(), &state, 0);
-    state.emit(&app, &mut renderer, true);
+    state.emit_general_state(
+        &app,
+        &mut renderer,
+        Some(FlowRenderRecalculationRequest::full_visible_flows()),
+    );
     audio.emit(&app);
     sampler.emit(&app);
 }
@@ -261,7 +353,11 @@ fn reset(
 
     renderer.clear();
 
-    state.emit(&app, &mut renderer, true);
+    state.emit_general_state(
+        &app,
+        &mut renderer,
+        Some(FlowRenderRecalculationRequest::full_visible_flows()),
+    );
 
     // Drop state locks before sampler sync
     drop(state);

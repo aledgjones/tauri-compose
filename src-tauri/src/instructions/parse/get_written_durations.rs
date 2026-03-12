@@ -4112,6 +4112,42 @@ mod tests {
     }
 
     #[test]
+    fn equivalent_three_four_and_six_eight_material_keeps_meter_specific_spelling() {
+        let q = NoteDuration::Quarter.to_ticks();
+        let three_four = make_time_signature_for_test(0, 3, NoteDuration::Quarter);
+        let six_eight = make_time_signature_for_test(0, 6, NoteDuration::Eighth);
+
+        let scenarios = vec![
+            Scenario {
+                name: "3/4 three straight quarter notes stay unsplit for the single-flow baseline",
+                time_signature: three_four.clone(),
+                flow_length: three_four.ticks_per_bar(),
+                tone_specs: vec![(1, 0, q, 60), (2, q, q, 62), (3, q * 2, q, 64)],
+                expectations: vec![
+                    notation_expectation(0, q, false, vec![1], vec![]),
+                    notation_expectation(q, q, false, vec![2], vec![]),
+                    notation_expectation(q * 2, q, false, vec![3], vec![]),
+                ],
+            },
+            Scenario {
+                name:
+                    "6/8 equivalent performed material still rewrites at the compound beat boundary",
+                time_signature: six_eight.clone(),
+                flow_length: six_eight.ticks_per_bar(),
+                tone_specs: vec![(1, 0, q, 60), (2, q, q, 62), (3, q * 2, q, 64)],
+                expectations: vec![
+                    notation_expectation(0, q, false, vec![1], vec![]),
+                    notation_expectation(q, q / 2, false, vec![2], vec![2]),
+                    notation_expectation(q + (q / 2), q / 2, false, vec![2], vec![]),
+                    notation_expectation(q * 2, q, false, vec![3], vec![]),
+                ],
+            },
+        ];
+
+        assert_written_duration_scenarios(scenarios);
+    }
+
+    #[test]
     fn get_written_durations_characterizes_six_eight_variants_of_basic_three_four_patterns() {
         let q = NoteDuration::Quarter.to_ticks();
         let e = NoteDuration::Eighth.to_ticks();

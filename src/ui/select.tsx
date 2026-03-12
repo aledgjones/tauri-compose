@@ -80,7 +80,7 @@ export const Select = <T extends Key>({
         disabled={disabled}
         onClick={() => setIsOpen((prev) => !prev)}
         className={classNames(
-          "h-9 flex items-center w-full text-left text-white text-sm px-3 border-2",
+          "h-9 flex items-center w-full min-w-0 text-left text-white text-sm px-3 border-2",
           {
             "bg-neutral-900 hover:bg-neutral-800 border-transparent":
               !isOpen && isStandard,
@@ -97,14 +97,16 @@ export const Select = <T extends Key>({
           </div>
         )}
         <span
-          className={classNames("flex-1 whitespace-nowrap", {
+          className={classNames("flex-1 min-w-0 whitespace-nowrap", {
             "text-white": !disabled,
             "text-neutral-500 italic": disabled,
           })}
         >
-          <TokenizedText>
-            {selection?.label || placeholder || "Select"}
-          </TokenizedText>
+          <span className="block overflow-hidden text-ellipsis whitespace-nowrap">
+            <TokenizedText>
+              {selection?.label || placeholder || "Select"}
+            </TokenizedText>
+          </span>
         </span>
 
         <div className="flex items-center pointer-events-none pl-3">

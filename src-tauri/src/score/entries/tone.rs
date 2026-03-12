@@ -302,7 +302,7 @@ pub fn score_entries_tone_create(
         articulations,
     );
 
-    state.emit(&app, &mut renderer, true);
+    state.emit_affected_track(&app, &mut renderer, track_id);
 
     tone_id
 }
@@ -322,7 +322,7 @@ pub fn score_entries_tone_duration_set(
     let track = state.score.tracks.by_id.get_mut(&track_id).unwrap();
     track.set_tone_duration(tone_id, duration);
 
-    state.emit(&app, &mut renderer, true);
+    state.emit_affected_track(&app, &mut renderer, track_id);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -342,7 +342,7 @@ pub fn score_entries_tone_slice(
     let result = track.slice_tone(tone_id, new_tone_id, slice_tick);
 
     if result.is_some() {
-        state.emit(&app, &mut renderer, true);
+        state.emit_affected_track(&app, &mut renderer, track_id);
     }
 
     result
@@ -365,7 +365,7 @@ pub fn score_entries_tone_pitch_set(
     let track = state.score.tracks.by_id.get_mut(&track_id).unwrap();
     track.set_tone_pitch(tone_id, pitch_int, accidental);
 
-    state.emit(&app, &mut renderer, true);
+    state.emit_affected_track(&app, &mut renderer, track_id);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -382,7 +382,9 @@ pub fn score_entries_tone_duration_remove(
     let track = state.score.tracks.by_id.get_mut(&track_id).unwrap();
     track.remove_entry(tone_id);
 
-    state.emit(&app, &mut renderer, true);
+    state.ui.sequencer.selection = None;
+
+    state.emit_affected_track(&app, &mut renderer, track_id);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -401,7 +403,7 @@ pub fn score_entries_tone_set_position_and_duration(
     let track = state.score.tracks.by_id.get_mut(&track_id).unwrap();
     track.set_tone_position_and_duration(tone_id, tick, duration);
 
-    state.emit(&app, &mut renderer, true);
+    state.emit_affected_track(&app, &mut renderer, track_id);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -420,7 +422,7 @@ pub fn score_entries_tone_shift(
 
     track.shift_entry(entry_id, new_tick);
 
-    state.emit(&app, &mut renderer, true);
+    state.emit_affected_track(&app, &mut renderer, track_id);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -437,7 +439,7 @@ pub fn score_entries_tone_unify_articulations(
     let track = state.score.tracks.by_id.get_mut(&track_id).unwrap();
     track.unify_articulations_at_entry(entry_id);
 
-    state.emit(&app, &mut renderer, true);
+    state.emit_affected_track(&app, &mut renderer, track_id);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -445,7 +447,6 @@ pub fn score_entries_tone_pitch_shift_by_steps(
     app: tauri::AppHandle,
     state: State<'_, AppContextState>,
     renderer_state: State<'_, RendererContextState>,
-    flow_id: UniqueId,
     track_id: UniqueId,
     tone_id: UniqueId,
     steps: i8,
@@ -453,6 +454,7 @@ pub fn score_entries_tone_pitch_shift_by_steps(
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
 
+    let flow_id = state.flow_id_for_track(track_id)?;
     let flow = state.score.flows.by_id.get(&flow_id)?;
     let master_track = state.score.tracks.by_id.get(&flow.master_id).unwrap();
     let track = state.score.tracks.by_id.get(&track_id).unwrap();
@@ -470,7 +472,7 @@ pub fn score_entries_tone_pitch_shift_by_steps(
     let track = state.score.tracks.by_id.get_mut(&track_id).unwrap();
     let new_pitch = track.shift_tone_pitch_by_steps(tone_id, steps, &key_signature);
 
-    state.emit(&app, &mut renderer, true);
+    state.emit_affected_flows(&app, &mut renderer, &[flow_id]);
 
     new_pitch
 }
@@ -490,7 +492,7 @@ pub fn score_entries_tone_pitch_shift_by_octaves(
     let track = state.score.tracks.by_id.get_mut(&track_id).unwrap();
     let new_pitch = track.shift_tone_pitch_by_octaves(tone_id, octaves);
 
-    state.emit(&app, &mut renderer, true);
+    state.emit_affected_track(&app, &mut renderer, track_id);
     new_pitch
 }
 
@@ -509,7 +511,7 @@ pub fn score_entries_tone_accidental_set(
     let track = state.score.tracks.by_id.get_mut(&track_id).unwrap();
     let new_pitch = track.set_tone_accidental(tone_id, accidental);
 
-    state.emit(&app, &mut renderer, true);
+    state.emit_affected_track(&app, &mut renderer, track_id);
 
     new_pitch
 }
@@ -529,7 +531,7 @@ pub fn score_entries_tone_articulation_set(
     let track = state.score.tracks.by_id.get_mut(&track_id).unwrap();
     track.toggle_articulation_at_tone(tone_id, articulation);
 
-    state.emit(&app, &mut renderer, true);
+    state.emit_affected_track(&app, &mut renderer, track_id);
 }
 
 #[cfg(test)]

@@ -51,7 +51,9 @@ const FLOW_ID = 5;
 const INSTRUMENT_ID = 10;
 const STAVE_ID = 100;
 const TRACK_ID = 300;
+const SECOND_TRACK_ID = 301;
 const TONE_ID = 999;
+const SECOND_TONE_ID = 1000;
 
 const buildStateWithToneSelection = () => {
   return createAppState({
@@ -115,6 +117,74 @@ const buildStateWithToneSelection = () => {
           stave_id: STAVE_ID,
           track_id: TRACK_ID,
           tone_id: TONE_ID,
+        },
+      },
+    } as never,
+  });
+};
+
+const buildStateWithLaterFlowToneSelection = () => {
+  return createAppState({
+    score: {
+      players: {
+        order: [1],
+        by_id: {
+          1: {
+            id: 1,
+            player_type: PlayerType.Solo,
+            instrument_ids: [INSTRUMENT_ID],
+          },
+        },
+      },
+      instruments: {
+        by_id: {
+          [INSTRUMENT_ID]: {
+            id: INSTRUMENT_ID,
+            definition_id: "piano",
+            instrument_type: 0,
+            long_name: "Piano",
+            short_name: "Pno.",
+            stave_ids: [STAVE_ID, 101],
+            count: null,
+            assigned_plugin_id: null,
+            volume: 100,
+            pan: 0,
+            mute: false,
+            solo: false,
+          },
+        },
+      },
+      tracks: {
+        by_id: {
+          [SECOND_TRACK_ID]: {
+            id: SECOND_TRACK_ID,
+            entries: {
+              by_tick: { [96]: [SECOND_TONE_ID] },
+              by_id: {
+                [SECOND_TONE_ID]: {
+                  id: SECOND_TONE_ID,
+                  tick: 96,
+                  type: "Tone" as const,
+                  duration: 32,
+                  pitch: { int: 67, accidental: Accidental.Natural },
+                  velocity: { int: 100 },
+                  articulations: [],
+                },
+              },
+            },
+          },
+        },
+      },
+    } as never,
+    ui: {
+      sequencer: {
+        selection: {
+          type: "Tone",
+          flow_id: FLOW_ID + 1,
+          instrument_id: INSTRUMENT_ID,
+          stave_id: 101,
+          track_id: SECOND_TRACK_ID,
+          tone_id: SECOND_TONE_ID,
         },
       },
     } as never,
@@ -257,7 +327,6 @@ describe("useKeyboardShortcuts", () => {
     });
 
     expect(actions.score.tone.shiftPitchByStep).toHaveBeenCalledWith(
-      FLOW_ID,
       TRACK_ID,
       TONE_ID,
       1,
@@ -276,7 +345,6 @@ describe("useKeyboardShortcuts", () => {
     });
 
     expect(actions.score.tone.shiftPitchByStep).toHaveBeenCalledWith(
-      FLOW_ID,
       TRACK_ID,
       TONE_ID,
       -1,
@@ -315,6 +383,50 @@ describe("useKeyboardShortcuts", () => {
     });
 
     expect(actions.score.tone.remove).toHaveBeenCalledWith(TRACK_ID, TONE_ID);
+  });
+
+  it("continues to target a surviving later-flow tone selection", async () => {
+    renderHook(() => useKeyboardShortcuts(), {
+      wrapper: createWrapper({
+        appState: buildStateWithLaterFlowToneSelection(),
+      }),
+    });
+
+    await act(async () => {
+      window.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "ArrowUp", altKey: true }),
+      );
+    });
+
+    expect(actions.score.tone.shiftPitchByStep).toHaveBeenCalledWith(
+      SECOND_TRACK_ID,
+      SECOND_TONE_ID,
+      1,
+    );
+  });
+
+  it("does not dispatch edit or delete actions once selection has been cleared", async () => {
+    renderHook(() => useKeyboardShortcuts(), {
+      wrapper: createWrapper({
+        appState: createAppState({
+          ui: {
+            sequencer: {
+              selection: null,
+            },
+          } as never,
+        }),
+      }),
+    });
+
+    await act(async () => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Backspace" }));
+      window.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "ArrowUp", altKey: true }),
+      );
+    });
+
+    expect(actions.score.tone.remove).not.toHaveBeenCalled();
+    expect(actions.score.tone.shiftPitchByStep).not.toHaveBeenCalled();
   });
 
   it("ignores delete shortcuts from text inputs", async () => {
@@ -476,7 +588,7 @@ describe("useKeyboardShortcuts", () => {
     });
 
     expect(actions.score.tempo.clearAtTick).toHaveBeenCalledWith(FLOW_ID, 64);
-    expect(actions.ui.sequencer.clearSelection).toHaveBeenCalledOnce();
+    expect(actions.ui.sequencer.clearSelection).not.toHaveBeenCalled();
   });
 
   it("clears selection when deleting the opening tempo", async () => {
@@ -502,7 +614,7 @@ describe("useKeyboardShortcuts", () => {
     });
 
     expect(actions.score.tempo.clearAtTick).toHaveBeenCalledWith(FLOW_ID, 0);
-    expect(actions.ui.sequencer.clearSelection).toHaveBeenCalledOnce();
+    expect(actions.ui.sequencer.clearSelection).not.toHaveBeenCalled();
   });
 
   it("deletes selected time signature and clears selection away from tick 0", async () => {
@@ -531,10 +643,10 @@ describe("useKeyboardShortcuts", () => {
       FLOW_ID,
       64,
     );
-    expect(actions.ui.sequencer.clearSelection).toHaveBeenCalledOnce();
+    expect(actions.ui.sequencer.clearSelection).not.toHaveBeenCalled();
   });
 
-  it("keeps selection when deleting the opening time signature", async () => {
+  it("leaves opening time signature delete cleanup to the backend", async () => {
     const state = createAppState({
       ui: {
         sequencer: {
@@ -589,7 +701,7 @@ describe("useKeyboardShortcuts", () => {
       FLOW_ID,
       64,
     );
-    expect(actions.ui.sequencer.clearSelection).toHaveBeenCalledOnce();
+    expect(actions.ui.sequencer.clearSelection).not.toHaveBeenCalled();
   });
 
   it("clears selection when deleting the opening key signature", async () => {
@@ -618,7 +730,7 @@ describe("useKeyboardShortcuts", () => {
       FLOW_ID,
       0,
     );
-    expect(actions.ui.sequencer.clearSelection).toHaveBeenCalledOnce();
+    expect(actions.ui.sequencer.clearSelection).not.toHaveBeenCalled();
   });
 
   it("deletes selected clef and clears selection away from tick 0", async () => {
@@ -649,7 +761,7 @@ describe("useKeyboardShortcuts", () => {
       64,
       STAVE_ID,
     );
-    expect(actions.ui.sequencer.clearSelection).toHaveBeenCalledOnce();
+    expect(actions.ui.sequencer.clearSelection).not.toHaveBeenCalled();
   });
 
   it("does not dispatch tone-only edit shortcuts for a selected clef", async () => {

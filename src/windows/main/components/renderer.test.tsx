@@ -72,6 +72,62 @@ describe("Renderer", () => {
     });
   });
 
+  it("dispatches tone selection when hit testing resolves a tone target in another visible flow", async () => {
+    vi.mocked(hitTest).mockResolvedValueOnce({
+      type: "Tone",
+      flow_id: 20,
+      track_id: 7,
+      stave_id: 8,
+      instrument_id: 9,
+      tone_id: 10,
+    });
+
+    const { container } = render(<Renderer />, {
+      wrapper: createWrapper({ appState: createAppState() }),
+    });
+
+    const overlay = container.querySelector('[data-testid="renderer"] > div');
+    fireEvent.pointerDown(overlay!, { clientX: 10, clientY: 10 });
+
+    await waitFor(() => {
+      expect(actions.ui.sequencer.selectTone).toHaveBeenCalledWith(
+        10,
+        7,
+        8,
+        20,
+        9,
+      );
+    });
+  });
+
+  it("dispatches rest selection when hit testing resolves a rest target in another visible flow", async () => {
+    vi.mocked(hitTest).mockResolvedValueOnce({
+      type: "Rest",
+      flow_id: 30,
+      track_id: 11,
+      stave_id: 12,
+      instrument_id: 13,
+      tick: 96,
+    });
+
+    const { container } = render(<Renderer />, {
+      wrapper: createWrapper({ appState: createAppState() }),
+    });
+
+    const overlay = container.querySelector('[data-testid="renderer"] > div');
+    fireEvent.pointerDown(overlay!, { clientX: 10, clientY: 10 });
+
+    await waitFor(() => {
+      expect(actions.ui.sequencer.selectRest).toHaveBeenCalledWith(
+        96,
+        11,
+        12,
+        30,
+        13,
+      );
+    });
+  });
+
   it("dispatches time signature selection when hit testing resolves a time signature target", async () => {
     vi.mocked(hitTest).mockResolvedValueOnce({
       type: "TimeSignature",
@@ -143,6 +199,63 @@ describe("Renderer", () => {
         10,
         64,
       );
+    });
+  });
+
+  it("routes wheel scrolling through the shared renderer pan path", async () => {
+    vi.mocked(hitTest).mockResolvedValue(null);
+
+    const { container } = render(<Renderer />, {
+      wrapper: createWrapper({ appState: createAppState() }),
+    });
+
+    const overlay = container.querySelector('[data-testid="renderer"] > div');
+    fireEvent.wheel(overlay!, { deltaX: 24, deltaY: -12 });
+
+    await waitFor(() => {
+      expect(actions.ui.renderer.setPan).toHaveBeenCalledWith(-24, 12);
+    });
+  });
+
+  it("routes pointer-drag panning through the shared renderer pan path", async () => {
+    vi.mocked(hitTest).mockResolvedValue(null);
+
+    const { container } = render(<Renderer />, {
+      wrapper: createWrapper({ appState: createAppState() }),
+    });
+
+    const overlay = container.querySelector('[data-testid="renderer"] > div');
+    fireEvent.pointerDown(overlay!, { clientX: 50, clientY: 70 });
+
+    await waitFor(() => {
+      expect(hitTest).toHaveBeenCalled();
+    });
+
+    fireEvent.pointerMove(document, { clientX: 82, clientY: 58 });
+
+    await waitFor(() => {
+      expect(actions.ui.renderer.setPan).toHaveBeenCalledWith(32, -12);
+    });
+  });
+
+  it("clears the prior selection when a pointer down misses and no drag occurs", async () => {
+    vi.mocked(hitTest).mockResolvedValue(null);
+
+    const { container } = render(<Renderer />, {
+      wrapper: createWrapper({ appState: createAppState() }),
+    });
+
+    const overlay = container.querySelector('[data-testid="renderer"] > div');
+    fireEvent.pointerDown(overlay!, { clientX: 25, clientY: 35 });
+
+    await waitFor(() => {
+      expect(hitTest).toHaveBeenCalled();
+    });
+
+    fireEvent.pointerUp(document);
+
+    await waitFor(() => {
+      expect(actions.ui.sequencer.clearSelection).toHaveBeenCalledTimes(1);
     });
   });
 });

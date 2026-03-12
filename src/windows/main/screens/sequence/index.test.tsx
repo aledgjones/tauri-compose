@@ -9,6 +9,7 @@ import { Sequence } from "./index";
 vi.mock("../../../../services/actions", () => ({
   actions: {
     ui: {
+      setActiveFlowId: vi.fn(),
       screens: {
         sequence: {
           bottomPanel: {
@@ -55,6 +56,40 @@ import { actions } from "../../../../services/actions";
 describe("Sequence screen", () => {
   beforeEach(() => vi.clearAllMocks());
 
+  const buildMultiFlowState = () =>
+    createAppState({
+      ui: { flow_id: 6 } as never,
+      score: {
+        flows: {
+          order: [5, 6],
+          by_id: {
+            5: {
+              id: 5,
+              title: "Flow A",
+              player_ids: [],
+              length: 512,
+              master_id: 15,
+              staves: { by_id: {} },
+            },
+            6: {
+              id: 6,
+              title: "Flow B",
+              player_ids: [],
+              length: 512,
+              master_id: 16,
+              staves: { by_id: {} },
+            },
+          },
+        },
+        tracks: {
+          by_id: {
+            15: { id: 15, entries: { by_tick: {}, by_id: {} } },
+            16: { id: 16, entries: { by_tick: {}, by_id: {} } },
+          },
+        },
+      } as never,
+    });
+
   it("renders without crashing (default state — no flow selected)", () => {
     const { container } = renderWithProviders(<Sequence />);
     expect(container).toBeInTheDocument();
@@ -99,5 +134,22 @@ describe("Sequence screen", () => {
     const { container } = renderWithProviders(<Sequence />, { appState });
     const grid = container.querySelector(".grid") as HTMLElement;
     expect(grid.style.gridTemplateRows).toBe("3fr 2fr");
+  });
+
+  it("renders the flow picker within the Sequence overview when multiple flows exist", () => {
+    renderWithProviders(<Sequence />, { appState: buildMultiFlowState() });
+
+    expect(
+      screen.getByRole("button", { name: "2. Flow B" }),
+    ).toBeInTheDocument();
+  });
+
+  it("changes the active flow from the persistent Sequence header", () => {
+    renderWithProviders(<Sequence />, { appState: buildMultiFlowState() });
+
+    fireEvent.click(screen.getByRole("button", { name: "2. Flow B" }));
+    fireEvent.click(screen.getByRole("option", { name: "1. Flow A" }));
+
+    expect(actions.ui.setActiveFlowId).toHaveBeenCalledWith(5);
   });
 });

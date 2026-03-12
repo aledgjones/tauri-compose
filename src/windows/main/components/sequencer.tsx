@@ -12,13 +12,22 @@ import { PlaybackLine } from "./playback-line";
 import { generateRainbowColors } from "../../../services/utils";
 import { Instrument } from "../../../services/types";
 import { IconButton } from "../../../ui/buttons/icon-button";
-import { mdiBoxCutter, mdiCursorDefault, mdiEraser, mdiPen } from "@mdi/js";
+import {
+  mdiBoxCutter,
+  mdiCursorDefault,
+  mdiEraser,
+  mdiHeatWave,
+  mdiPen,
+} from "@mdi/js";
 import { actions } from "../../../services/actions";
 import { SnapPicker } from "../../../components/snap-picker";
 import { Select, SelectOption } from "../../../ui/select";
 
 interface SequencerToolbarProps {
   tool: Tool;
+  flowId: UniqueId | null;
+  flowOptions: SelectOption<UniqueId>[];
+  showFlowPicker?: boolean;
   instrumentId: UniqueId | null;
   instruments: SelectOption<UniqueId>[];
   trackId: UniqueId | null;
@@ -28,6 +37,9 @@ interface SequencerToolbarProps {
 
 export const SequencerToolbar: FC<SequencerToolbarProps> = ({
   tool,
+  flowId,
+  flowOptions,
+  showFlowPicker = true,
   instrumentId,
   instruments,
   trackId,
@@ -69,6 +81,15 @@ export const SequencerToolbar: FC<SequencerToolbarProps> = ({
     </div>
     <div className="flex flex-1 justify-center gap-0.5">
       <div className="bg-neutral-900 flex-1 h-9" />
+      {showFlowPicker && flowId && flowOptions.length > 1 && (
+        <Select
+          variant="standard"
+          value={flowId}
+          options={flowOptions}
+          onChange={actions.ui.setActiveFlowId}
+          icon={mdiHeatWave}
+        />
+      )}
       {instrumentId && instruments.length > 0 && (
         <Select
           variant="standard"
@@ -85,9 +106,9 @@ export const SequencerToolbar: FC<SequencerToolbarProps> = ({
           onChange={actions.ui.sequencer.setTrack}
         />
       )}
-      {Boolean(instrumentId || trackId) && (
-        <div className="bg-neutral-900 flex-1 h-9" />
-      )}
+      {Boolean(
+        (showFlowPicker && flowOptions.length > 1) || instrumentId || trackId,
+      ) && <div className="bg-neutral-900 flex-1 h-9" />}
     </div>
   </>
 );

@@ -31,9 +31,7 @@ fn seconds_per_tick(bpm: f64) -> f64 {
     60.0 / (bpm * TICKS_PER_QUARTER as f64)
 }
 
-fn join_transport_thread(
-    handle: Option<std::thread::JoinHandle<()>>,
-) -> Result<(), String> {
+fn join_transport_thread(handle: Option<std::thread::JoinHandle<()>>) -> Result<(), String> {
     if let Some(handle) = handle {
         handle
             .join()
@@ -685,7 +683,10 @@ pub fn transport_seek(
 ) -> Result<(), String> {
     let (shared, playing) = {
         let ctx = state.lock().unwrap();
-        (ctx.shared.clone(), ctx.shared.playing.load(Ordering::Acquire))
+        (
+            ctx.shared.clone(),
+            ctx.shared.playing.load(Ordering::Acquire),
+        )
     };
 
     shared.current_tick.store(tick, Ordering::Relaxed);
@@ -754,6 +755,48 @@ mod tests {
             true,
             false,
         )
+    }
+
+    fn make_preferences() -> crate::preferences::Preferences {
+        serde_json::from_str::<crate::preferences::Preferences>(r#"{"audition":true}"#).unwrap()
+    }
+
+    fn make_app_context(score: Score, flow_id: Option<UniqueId>) -> AppContext {
+        let mut ui = crate::ui::Ui::new();
+        ui.flow_id = flow_id;
+
+        AppContext {
+            ui,
+            score,
+            preferences: make_preferences(),
+            next_id: 1,
+            current_file_path: None,
+        }
+    }
+
+    fn add_flow_with_tempos(
+        score: &mut Score,
+        flow_id: UniqueId,
+        master_id: UniqueId,
+        length: Tick,
+        tempos: &[(Tick, u16)],
+    ) {
+        let mut flow = Flow::new(flow_id, master_id);
+        let mut master_track = Track::new(master_id);
+        flow.length = length;
+
+        for (index, (tick, bpm)) in tempos.iter().enumerate() {
+            master_track.insert_entry(Entry::Tempo(make_tempo(
+                100 + flow_id * 10 + index as UniqueId,
+                *tick,
+                *bpm,
+            )));
+            flow.length = flow.length.max(*tick + 1);
+        }
+
+        score.flows.order.push(flow_id);
+        score.flows.by_id.insert(flow_id, flow);
+        score.tracks.by_id.insert(master_id, master_track);
     }
 
     fn make_score_with_tempos(tempos: &[(Tick, u16)]) -> (Score, UniqueId) {
@@ -880,5 +923,37 @@ mod tests {
     fn clamp_tick_to_score_flow_clamps_tick_to_last_playable_position() {
         let (score, flow_id) = make_score_with_tempos(&[(0, 90), (96, 132)]);
         assert_eq!(clamp_tick_to_score_flow(&score, Some(flow_id), 9_999), 96);
+    }
+
+    #[test]
+    fn sync_transport_to_app_state_uses_the_current_active_flow_when_multiple_flows_exist() {
+        let shared = Arc::new(make_transport_shared());
+        let mut score = Score::new();
+
+        add_flow_with_tempos(&mut score, 1, 11, 32, &[(0, 90)]);
+        add_flow_with_tempos(&mut score, 2, 22, 128, &[(0, 144)]);
+
+        let app_ctx = make_app_context(score, Some(2));
+        let bpm = sync_transport_to_app_state(&shared, &app_ctx, 96);
+
+        assert_eq!(bpm, 144.0);
+        assert_eq!(shared.current_tick.load(Ordering::Relaxed), 96);
+        assert_eq!(shared.get_tempo(), 144.0);
+    }
+
+    #[test]
+    fn sync_transport_to_app_state_falls_back_to_the_first_flow_when_none_is_active() {
+        let shared = Arc::new(make_transport_shared());
+        let mut score = Score::new();
+
+        add_flow_with_tempos(&mut score, 1, 11, 32, &[(0, 90)]);
+        add_flow_with_tempos(&mut score, 2, 22, 128, &[(0, 144)]);
+
+        let app_ctx = make_app_context(score, None);
+        let bpm = sync_transport_to_app_state(&shared, &app_ctx, 96);
+
+        assert_eq!(bpm, 90.0);
+        assert_eq!(shared.current_tick.load(Ordering::Relaxed), 31);
+        assert_eq!(shared.get_tempo(), 90.0);
     }
 }

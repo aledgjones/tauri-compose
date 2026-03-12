@@ -117,7 +117,9 @@ describe("TempoPropertiesSection", () => {
   it("toggles metronome visibility and parenthesized state immediately", () => {
     render(<TempoPropertiesSection flowId={5} tempo={tempo} />);
 
-    fireEvent.click(screen.getByRole("switch", { name: "Show metronome" }));
+    fireEvent.click(
+      screen.getByRole("switch", { name: "Show metronome marking" }),
+    );
     fireEvent.click(screen.getByRole("switch", { name: "Parenthesized" }));
 
     expect(actions.score.tempo.update).toHaveBeenNthCalledWith(

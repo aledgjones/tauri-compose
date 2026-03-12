@@ -388,7 +388,7 @@ pub fn score_entries_tempo_create(
         .load(std::sync::atomic::Ordering::Relaxed);
     sync_transport_to_app_state(transport_shared.inner(), &state, current_tick);
 
-    state.emit(&app, &mut renderer, true);
+    state.emit_affected_flows(&app, &mut renderer, &[flow_id]);
 
     tempo_id
 }
@@ -456,7 +456,7 @@ pub fn score_entries_tempo_update(
         .load(std::sync::atomic::Ordering::Relaxed);
     sync_transport_to_app_state(transport_shared.inner(), &state, current_tick);
 
-    state.emit(&app, &mut renderer, true);
+    state.emit_affected_flows(&app, &mut renderer, &[flow_id]);
 
     Ok(())
 }
@@ -480,13 +480,14 @@ pub fn score_entries_tempo_clear(
     if let Some(old) = master.get_tempo_at_tick(&tick) {
         master.remove_entry(old.id);
     }
+    state.ui.sequencer.selection = None;
 
     let current_tick = transport_shared
         .current_tick
         .load(std::sync::atomic::Ordering::Relaxed);
     sync_transport_to_app_state(transport_shared.inner(), &state, current_tick);
 
-    state.emit(&app, &mut renderer, true);
+    state.emit_affected_flows(&app, &mut renderer, &[flow_id]);
 }
 
 #[cfg(test)]

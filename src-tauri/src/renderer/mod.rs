@@ -5,13 +5,16 @@ pub mod fonts;
 pub mod hit_test;
 pub mod text_measurer;
 
+use crate::instructions::FlowRenderSegment;
 use crate::renderer::backend::RenderBackend;
 use crate::renderer::backends::metal::MetalRenderer;
 use crate::score::components::measurements::{CurvePoint, Point};
 use crate::score::components::text::{Align, Font, FontFamily, Justify};
 use crate::ui::sequencer::Selection;
+use crate::utils::UniqueId;
 use crate::RendererContextState;
 use converter::{Converter, Space};
+use rustc_hash::FxHashMap;
 use skia_safe::Color;
 use std::sync::Mutex;
 
@@ -69,6 +72,89 @@ pub enum DrawInstruction {
     },
 }
 
+impl DrawInstruction {
+    pub fn offset(self, x_offset: f32, y_offset: f32) -> Self {
+        match self {
+            Self::Line {
+                width,
+                color,
+                points,
+            } => Self::Line {
+                width,
+                color,
+                points: points
+                    .into_iter()
+                    .map(|(x, y)| (x + x_offset, y + y_offset))
+                    .collect(),
+            },
+            Self::DashedLine {
+                width,
+                color,
+                points,
+                interval,
+            } => Self::DashedLine {
+                width,
+                color,
+                points: points
+                    .into_iter()
+                    .map(|(x, y)| (x + x_offset, y + y_offset))
+                    .collect(),
+                interval,
+            },
+            Self::Text {
+                text,
+                font_size,
+                font_family,
+                justify,
+                align,
+                point,
+                color,
+            } => Self::Text {
+                text,
+                font_size,
+                font_family,
+                justify,
+                align,
+                point: (point.0 + x_offset, point.1 + y_offset),
+                color,
+            },
+            Self::Circle {
+                radius,
+                color,
+                origin,
+            } => Self::Circle {
+                radius,
+                color,
+                origin: (origin.0 + x_offset, origin.1 + y_offset),
+            },
+            Self::Curve { color, points } => Self::Curve {
+                color,
+                points: points.map(|(x, y, thickness)| (x + x_offset, y + y_offset, thickness)),
+            },
+            Self::Shape { color, points } => Self::Shape {
+                color,
+                points: points
+                    .into_iter()
+                    .map(|(x, y)| (x + x_offset, y + y_offset))
+                    .collect(),
+            },
+            Self::Rectangle {
+                x,
+                y,
+                width,
+                height,
+                color,
+            } => Self::Rectangle {
+                x: x + x_offset,
+                y: y + y_offset,
+                width,
+                height,
+                color,
+            },
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct HitTarget {
     pub entry: Selection,
@@ -78,6 +164,28 @@ pub struct HitTarget {
     pub height: f32,
     pub popover_x: f32,
     pub popover_y: f32,
+}
+
+impl HitTarget {
+    pub fn offset(self, x_offset: Space, y_offset: Space) -> Self {
+        Self {
+            entry: self.entry,
+            x: self.x + x_offset,
+            y: self.y + y_offset,
+            width: self.width,
+            height: self.height,
+            popover_x: self.popover_x + x_offset,
+            popover_y: self.popover_y + y_offset,
+        }
+    }
+}
+
+#[derive(Clone)]
+pub(crate) struct FlowSegmentCache {
+    layout_id: UniqueId,
+    debug: bool,
+    converter: Converter,
+    segments_by_flow_id: FxHashMap<UniqueId, FlowRenderSegment>,
 }
 
 pub struct RendererContext {
@@ -90,6 +198,7 @@ pub struct RendererContext {
     pub hit_targets: Vec<HitTarget>,
     pub bounds: (f32, f32, f32, f32),
     pub pixel_density: f64,
+    pub(crate) flow_segment_cache: Option<FlowSegmentCache>,
 }
 
 impl RendererContext {
@@ -104,12 +213,55 @@ impl RendererContext {
             hit_targets: Vec::new(),
             bounds: (0.0, 0.0, 0.0, 0.0),
             pixel_density: 1.0,
+            flow_segment_cache: None,
         })
     }
 
     pub fn clear(&mut self) {
         self.instructions.clear();
         self.hit_targets.clear();
+        self.flow_segment_cache = None;
+    }
+
+    pub fn can_reuse_flow_segments(
+        &self,
+        layout_id: UniqueId,
+        converter: &Converter,
+        debug: bool,
+        flow_ids: &[UniqueId],
+    ) -> bool {
+        let Some(cache) = &self.flow_segment_cache else {
+            return false;
+        };
+
+        cache.layout_id == layout_id
+            && cache.debug == debug
+            && (cache.converter.px_per_mm - converter.px_per_mm).abs() < f32::EPSILON
+            && (cache.converter.mm_per_space - converter.mm_per_space).abs() < f32::EPSILON
+            && flow_ids
+                .iter()
+                .all(|flow_id| cache.segments_by_flow_id.contains_key(flow_id))
+    }
+
+    pub(crate) fn get_cached_flow_segment(&self, flow_id: UniqueId) -> Option<FlowRenderSegment> {
+        self.flow_segment_cache
+            .as_ref()
+            .and_then(|cache| cache.segments_by_flow_id.get(&flow_id).cloned())
+    }
+
+    pub(crate) fn store_flow_segments(
+        &mut self,
+        layout_id: UniqueId,
+        converter: &Converter,
+        debug: bool,
+        segments_by_flow_id: FxHashMap<UniqueId, FlowRenderSegment>,
+    ) {
+        self.flow_segment_cache = Some(FlowSegmentCache {
+            layout_id,
+            debug,
+            converter: converter.clone(),
+            segments_by_flow_id,
+        });
     }
 
     pub fn constrain_pan(
@@ -323,6 +475,7 @@ pub mod test_helpers {
             hit_targets: Vec::new(),
             bounds: (0.0, 0.0, 0.0, 0.0),
             pixel_density: 1.0,
+            flow_segment_cache: None,
         }
     }
 }
@@ -525,6 +678,29 @@ mod tests {
     }
 
     #[test]
+    fn constrain_pan_reaches_full_right_edge_for_wide_composed_surface() {
+        let mut renderer = make_test_renderer();
+        renderer.bounds = (0.0, 0.0, 500.0, 400.0);
+
+        let (pan_x, pan_y) = renderer.constrain_pan(-1_000.0, 0.0, 900.0, 200.0, 1.0);
+
+        assert_eq!(pan_x, -500.0);
+        assert_eq!(pan_y, 100.0);
+        assert_eq!(pan_x + 900.0, 400.0);
+    }
+
+    #[test]
+    fn constrain_pan_preserves_centering_for_single_flow_widths_that_fit() {
+        let mut renderer = make_test_renderer();
+        renderer.bounds = (0.0, 0.0, 900.0, 400.0);
+
+        let (pan_x, pan_y) = renderer.constrain_pan(-250.0, -100.0, 600.0, 120.0, 1.0);
+
+        assert_eq!(pan_x, 150.0);
+        assert_eq!(pan_y, 140.0);
+    }
+
+    #[test]
     fn update_bounds_sets_bounds_and_scale_without_backend() {
         let mut renderer = make_test_renderer();
 
@@ -534,5 +710,53 @@ mod tests {
 
         assert_eq!(renderer.bounds, (10.0, 20.0, 300.0, 200.0));
         assert_eq!(renderer.pixel_density, 2.0);
+    }
+
+    #[test]
+    fn draw_instruction_offset_translates_rectangle_coordinates() {
+        let instruction = DrawInstruction::Rectangle {
+            x: 2.0,
+            y: 3.0,
+            width: 4.0,
+            height: 5.0,
+            color: Color::BLACK,
+        };
+
+        let offset = instruction.offset(10.0, 20.0);
+
+        assert_eq!(
+            offset,
+            DrawInstruction::Rectangle {
+                x: 12.0,
+                y: 23.0,
+                width: 4.0,
+                height: 5.0,
+                color: Color::BLACK,
+            }
+        );
+    }
+
+    #[test]
+    fn hit_target_offset_translates_bounds_and_popover_coordinates() {
+        let target = HitTarget {
+            entry: Selection::Tempo {
+                flow_id: 1,
+                tempo_id: 2,
+                tick: 3,
+            },
+            x: 1.0,
+            y: 2.0,
+            width: 3.0,
+            height: 4.0,
+            popover_x: 5.0,
+            popover_y: 6.0,
+        };
+
+        let offset = target.offset(10.0, 20.0);
+
+        assert_eq!(offset.x, 11.0);
+        assert_eq!(offset.y, 22.0);
+        assert_eq!(offset.popover_x, 15.0);
+        assert_eq!(offset.popover_y, 26.0);
     }
 }

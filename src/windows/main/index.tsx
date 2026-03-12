@@ -11,7 +11,7 @@ import { Select } from "../../ui/select";
 import { Tab } from "../../services/types";
 import { actions } from "../../services/actions";
 import { useMemo } from "react";
-import { getLayoutName, getFlowName } from "../../services/utils";
+import { getLayoutName } from "../../services/utils";
 import { Write } from "./screens/write";
 import { Sequence } from "./screens/sequence";
 
@@ -32,17 +32,6 @@ export const Main = () => {
 
       return {
         value: layoutId,
-        label: name,
-      };
-    });
-  }, [state]);
-
-  const flows = useMemo(() => {
-    return state.score.flows.order.map((flowId, index) => {
-      const name = getFlowName(state, index, flowId);
-
-      return {
-        value: flowId,
         label: name,
       };
     });
@@ -75,29 +64,19 @@ export const Main = () => {
             disabled={layouts.length === 0}
           />
 
-          <Select
-            variant="standard"
-            className="mr-0.5 inline-block"
-            value={state.ui.flow_id ?? state.score.flows.order[0] ?? null}
-            onChange={actions.ui.setActiveFlowId}
-            options={flows}
-            placeholder="No flows yet..."
-            disabled={flows.length === 0}
-          />
-
           <Transport className="mr-0.5" />
 
           <IconButton
             className="mr-0.5 text-white"
             variant="interactive"
-            onClick={() => { }}
+            onClick={() => {}}
             path={mdiTuneVertical}
             isDisabled
           />
           <IconButton
             className="text-white"
             variant="interactive"
-            onClick={() => { }}
+            onClick={() => {}}
             path={mdiMovieRoll}
             isDisabled
           />

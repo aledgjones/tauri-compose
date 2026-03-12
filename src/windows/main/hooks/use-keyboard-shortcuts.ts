@@ -89,7 +89,6 @@ export const useKeyboardShortcuts = () => {
         }
 
         return {
-          clearSelectionAfterDelete: true,
           deleteSelection: () =>
             actions.score.tone.remove(
               toneSelectionInfo.trackId,
@@ -99,14 +98,12 @@ export const useKeyboardShortcuts = () => {
       }
       case "Tempo": {
         return {
-          clearSelectionAfterDelete: true,
           deleteSelection: () =>
             actions.score.tempo.clearAtTick(selection.flow_id, selection.tick),
         };
       }
       case "TimeSignature": {
         return {
-          clearSelectionAfterDelete: selection.tick !== 0,
           deleteSelection: () =>
             actions.score.timeSignature.clearAtTick(
               selection.flow_id,
@@ -116,7 +113,6 @@ export const useKeyboardShortcuts = () => {
       }
       case "KeySignature": {
         return {
-          clearSelectionAfterDelete: true,
           deleteSelection: () =>
             actions.score.keySignature.clearAtTick(
               selection.flow_id,
@@ -126,7 +122,6 @@ export const useKeyboardShortcuts = () => {
       }
       case "Clef": {
         return {
-          clearSelectionAfterDelete: selection.tick !== 0,
           deleteSelection: () =>
             actions.score.clef.clear(
               selection.flow_id,
@@ -177,7 +172,6 @@ export const useKeyboardShortcuts = () => {
             modifiers: { command: false, control: false, option: true },
             action: () =>
               actions.score.tone.shiftPitchByStep(
-                activeToneSelectionInfo.flowId,
                 activeToneSelectionInfo.trackId,
                 activeToneSelectionInfo.toneId,
                 1,
@@ -200,7 +194,6 @@ export const useKeyboardShortcuts = () => {
             modifiers: { command: false, control: false, option: true },
             action: () =>
               actions.score.tone.shiftPitchByStep(
-                activeToneSelectionInfo.flowId,
                 activeToneSelectionInfo.trackId,
                 activeToneSelectionInfo.toneId,
                 -1,
@@ -363,10 +356,6 @@ export const useKeyboardShortcuts = () => {
       ) {
         e.preventDefault();
         await deletionInfo.deleteSelection();
-
-        if (deletionInfo.clearSelectionAfterDelete) {
-          await actions.ui.sequencer.clearSelection();
-        }
 
         return;
       }

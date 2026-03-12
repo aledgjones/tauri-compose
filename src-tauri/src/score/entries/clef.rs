@@ -188,7 +188,7 @@ pub fn score_entries_clef_create(
     new.hidden = hidden;
     master.insert_entry(Entry::Clef(new));
 
-    state.emit(&app, &mut renderer, true);
+    state.emit_affected_flows(&app, &mut renderer, &[flow_id]);
 
     clef_id
 }
@@ -218,8 +218,9 @@ pub fn score_entries_clef_clear(
     let master = state.score.tracks.by_id.get_mut(&master_id).unwrap();
 
     clear_clef_at_tick(master, tick, default_clef.as_ref());
+    state.ui.sequencer.selection = None;
 
-    state.emit(&app, &mut renderer, true);
+    state.emit_affected_flows(&app, &mut renderer, &[flow_id]);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -267,7 +268,7 @@ pub fn score_entries_clef_update(
 
     clef.hidden = hidden;
 
-    state.emit(&app, &mut renderer, true);
+    state.emit_affected_flows(&app, &mut renderer, &[flow_id]);
 
     Ok(())
 }

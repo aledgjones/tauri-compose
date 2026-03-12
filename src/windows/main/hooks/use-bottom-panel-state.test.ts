@@ -84,6 +84,78 @@ describe("useBottomPanelState", () => {
     expect(result.current.flowId).toBe(5);
   });
 
+  it("returns labeled flow options for the Sequence-local switcher", () => {
+    const state = createAppState({
+      score: {
+        flows: {
+          order: [5, 6],
+          by_id: {
+            5: {
+              id: 5,
+              title: "Flow 1",
+              player_ids: [1],
+              length: 512,
+              master_id: 200,
+              staves: { by_id: {} },
+            },
+            6: {
+              id: 6,
+              title: "Flow 2",
+              player_ids: [1],
+              length: 512,
+              master_id: 201,
+              staves: { by_id: {} },
+            },
+          },
+        },
+      } as never,
+    });
+
+    const { result } = renderHook(() => useBottomPanelState(), {
+      wrapper: createWrapper({ appState: state }),
+    });
+
+    expect(result.current.flowOptions).toEqual([
+      { value: 5, label: "1. Flow 1" },
+      { value: 6, label: "2. Flow 2" },
+    ]);
+  });
+
+  it("keeps the explicitly-selected flow when it exists", () => {
+    const state = createAppState({
+      ui: { flow_id: 6 } as never,
+      score: {
+        flows: {
+          order: [5, 6],
+          by_id: {
+            5: {
+              id: 5,
+              title: "Flow 1",
+              player_ids: [1],
+              length: 512,
+              master_id: 200,
+              staves: { by_id: {} },
+            },
+            6: {
+              id: 6,
+              title: "Flow 2",
+              player_ids: [1],
+              length: 512,
+              master_id: 201,
+              staves: { by_id: {} },
+            },
+          },
+        },
+      } as never,
+    });
+
+    const { result } = renderHook(() => useBottomPanelState(), {
+      wrapper: createWrapper({ appState: state }),
+    });
+
+    expect(result.current.flowId).toBe(6);
+  });
+
   it("returns first instrumentId when none is selected", () => {
     const { result } = renderHook(() => useBottomPanelState(), {
       wrapper: createWrapper({ appState: buildState() }),

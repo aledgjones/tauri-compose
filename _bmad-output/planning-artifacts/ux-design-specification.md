@@ -266,6 +266,7 @@ Compose should continue with a custom component system built around the patterns
 - Sequencer panel for main note entry and transport-adjacent interaction
 - Collapsible side and bottom panels for properties, tools, and supporting detail
 - Top bar with workflow tabs on the left, playback in the center, and active tools on the right
+- Workflow-local flow selectors inside screens such as sequencer or piano-roll when those workflows need a single active flow context
 - Popover directive editors for time signatures, clefs, barlines, and similar score objects
 - Contextual editing surfaces for local score changes
 - Playback and review controls integrated into the persistent shell
@@ -296,6 +297,8 @@ Validation should be immediate for constrained inputs and descriptive when the u
 ### Navigation Patterns
 
 Navigation should continue following the existing shell: workflow tabs at the top left, playback centered, and task-specific controls at the top right. Secondary navigation should live inside panels, tabs, and section headers. Users should always be able to tell what area is active, what object is selected, and which panel currently owns focus.
+
+The shared top bar should contain universal tools and information only. Controls that only matter inside a single workflow, such as selecting the active flow for sequencer-, piano-roll-, or playback-scoped work, should live inside the relevant workflow surface rather than in persistent shared shell chrome.
 
 ### Modal and Overlay Patterns
 
@@ -339,6 +342,8 @@ Recommended layout tiers:
 - Expanded desktop: above roughly 1600px width, allow richer inspector, panel, and review layouts without compromising score clarity.
 
 The top bar structure should remain stable across these tiers. The main responsive behavior should come from panel orchestration, not wholesale layout reinvention.
+
+That stable top bar should also remain semantically stable: it should not accumulate workflow-local selectors that only apply to one screen or one editing mode.
 
 ### Accessibility Strategy
 

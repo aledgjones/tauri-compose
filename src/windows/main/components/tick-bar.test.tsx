@@ -58,9 +58,17 @@ describe("TickBar", () => {
     expect(container.firstChild).toHaveClass("tick-bar-custom");
   });
 
-  it("always applies the h-7 class to the wrapper", () => {
+  it("always applies the default h-7 class to the wrapper", () => {
     const { container } = render(<TickBar ticks={emptyConfig} />);
     expect(container.firstChild).toHaveClass("h-7");
+  });
+
+  it("allows callers to override the outer height through className", () => {
+    const { container } = render(
+      <TickBar ticks={emptyConfig} className="h-9" />,
+    );
+
+    expect(container.firstChild).toHaveClass("h-9");
   });
 
   it("renders a bar-number label for entries with barNumber", () => {
@@ -139,5 +147,17 @@ describe("TickBar", () => {
     expect(barDivs).toHaveLength(2);
     expect(beatDivs).toHaveLength(3);
     expect(subDivs).toHaveLength(1);
+  });
+
+  it("applies a generic custom bar-number class when provided", () => {
+    render(
+      <TickBar
+        ticks={barOnlyConfig}
+        barNumberClassName="leading-9 text-sky-500"
+      />,
+    );
+
+    expect(screen.getByText("1")).toHaveClass("leading-9");
+    expect(screen.getByText("1")).toHaveClass("text-sky-500");
   });
 });

@@ -10,6 +10,7 @@ import { BottomPanelTab } from "../../../../../services/types";
 vi.mock("../../../../../services/actions", () => ({
   actions: {
     ui: {
+      setActiveFlowId: vi.fn(),
       screens: {
         sequence: {
           bottomPanel: {
@@ -122,5 +123,49 @@ describe("Sequence BottomPanel", () => {
     // SequencerToolbar renders tool buttons
     const buttons = screen.getAllByRole("button");
     expect(buttons.length).toBeGreaterThanOrEqual(4);
+  });
+
+  it("does not render a local flow selector inside the Sequence bottom panel", () => {
+    const appState = createAppState({
+      ui: {
+        flow_id: 6,
+        screens: {
+          sequence: { bottom_panel_tab: BottomPanelTab.Sequencer } as never,
+        },
+      } as never,
+      score: {
+        flows: {
+          order: [5, 6],
+          by_id: {
+            5: {
+              id: 5,
+              title: "Flow A",
+              player_ids: [],
+              length: 512,
+              master_id: 15,
+              staves: { by_id: {} },
+            },
+            6: {
+              id: 6,
+              title: "Flow B",
+              player_ids: [],
+              length: 512,
+              master_id: 16,
+              staves: { by_id: {} },
+            },
+          },
+        },
+        tracks: {
+          by_id: {
+            15: { id: 15, entries: { by_tick: {}, by_id: {} } },
+            16: { id: 16, entries: { by_tick: {}, by_id: {} } },
+          },
+        },
+      } as never,
+    });
+
+    renderWithProviders(<BottomPanel />, { appState });
+
+    expect(screen.queryByText("Flow")).toBeNull();
   });
 });

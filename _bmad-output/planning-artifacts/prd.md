@@ -25,6 +25,9 @@ inputDocuments:
   - docs/source-tree-analysis.md
   - _bmad-output/planning-artifacts/research/technical-testing-and-tooling-research-2026-03-04.md
 workflowType: "prd"
+workflow: "edit"
+status: "complete"
+completedAt: "2026-03-11"
 documentCounts:
   productBriefs: 0
   research: 1
@@ -35,6 +38,10 @@ classification:
   domain: general
   complexity: medium
   projectContext: brownfield
+lastEdited: "2026-03-11"
+editHistory:
+  - date: "2026-03-11"
+    changes: "Normalized FR/NFR identifiers to remove numbering gaps and added editorial traceability note."
 ---
 
 # Product Requirements Document - compose
@@ -347,6 +354,8 @@ This work requires careful ownership of the rendering and interaction architectu
 
 ## Functional Requirements
 
+Requirement identifiers in the Functional Requirements and Non-Functional Requirements sections were normalized on 2026-03-11 to remove editorial numbering gaps and improve downstream traceability without changing requirement intent.
+
 ### Score Presentation and Flow Continuity
 
 - FR1: Composers can view multiple flows within a single continuous score presentation rendered by the product's native score renderer.
@@ -373,39 +382,39 @@ This work requires careful ownership of the rendering and interaction architectu
 
 ### Navigation and Reading Experience
 
-- FR17: Composers can scroll through the combined multi-flow score presentation as one continuous reading surface.
-- FR18: The product can indicate the user's active flow and position through visible affordances while multiple flows are displayed, without requiring additional navigation steps to identify context.
-- FR19: The product can display flow boundaries and flow sequence clearly enough that a user can identify individual flows and their relative order without scrolling or additional navigation.
-- FR20: The product can support reading across multiple flows without requiring users to invoke a flow-switching interaction for basic score reading and navigation.
+- FR16: Composers can scroll through the combined multi-flow score presentation as one continuous reading surface.
+- FR17: The product can indicate the user's active flow and position through visible affordances while multiple flows are displayed, without requiring additional navigation steps to identify context.
+- FR18: The product can display flow boundaries and flow sequence clearly enough that a user can identify individual flows and their relative order without scrolling or additional navigation.
+- FR19: The product can support reading across multiple flows without requiring users to invoke a flow-switching interaction for basic score reading and navigation.
 
 ### Update Isolation and Rendering Behavior
 
-- FR21: The product can update one flow without requiring unrelated flows to be re-derived unnecessarily.
-- FR22: The product can preserve isolated recalculation boundaries between flows during editing.
-- FR23: The product can render all non-edited flows without visible update artifacts, stutter, or layout shifts while a local edit is processed in another flow.
-- FR24: The product can preserve stable interaction behavior while one visible flow is updated.
-- FR25: The product can support multi-flow presentation without coupling all visible flows into a single mandatory recalculation unit.
+- FR20: The product can update one flow without requiring unrelated flows to be re-derived unnecessarily.
+- FR21: The product can preserve isolated recalculation boundaries between flows during editing.
+- FR22: The product can render all non-edited flows without visible update artifacts, stutter, or layout shifts while a local edit is processed in another flow.
+- FR23: The product can preserve stable interaction behavior while one visible flow is updated.
+- FR24: The product can support multi-flow presentation without coupling all visible flows into a single mandatory recalculation unit.
 
 ### Desktop Document Workflow
 
-- FR26: macOS users can open score documents through standard desktop file workflows.
-- FR27: macOS users can save and reopen score documents through native desktop document flows.
-- FR28: The product can participate in desktop file association workflows for supported score documents.
-- FR29: The product can use native-style file interaction patterns appropriate to a desktop document application.
-- FR30: The product can support core composition and score interaction workflows without requiring network connectivity.
+- FR25: macOS users can open score documents through standard desktop file workflows.
+- FR26: macOS users can save and reopen score documents through native desktop document flows.
+- FR27: The product can participate in desktop file association workflows for supported score documents.
+- FR28: The product can use native-style file interaction patterns appropriate to a desktop document application.
+- FR29: The product can support core composition and score interaction workflows without requiring network connectivity.
 
 ### Playback and Audio Boundaries
 
-- FR31: Composers can continue using existing playback behavior while multi-flow rendering is introduced.
-- FR33: The product can support desktop audio-device-based playback as part of the broader product context without making cross-flow playback a requirement for this MVP.
-- FR34: Composers can keep a single active flow for sequencer and piano-roll workflows while multiple flows are visible in score presentation.
+- FR30: Composers can continue using existing playback behavior while multi-flow rendering is introduced.
+- FR31: The product can support desktop audio-device-based playback as part of the broader product context without making cross-flow playback a requirement for this MVP.
+- FR32: Composers can keep a single active flow for sequencer and piano-roll workflows while multiple flows are visible in score presentation.
 
 ### Future-Ready Product Boundaries
 
-- FR38: The product can support future portability of score files, settings, and templates without requiring account-based sync in this MVP.
-- FR39: The product can remain usable as a fully offline-first composition environment even as future optional sync capabilities are considered.
-- FR40: Maintainers can evolve score presentation architecture without treating notation logic as part of the same capability change.
-- FR41: Maintainers can access render-timing output covering multi-flow rendering scenarios to validate correctness and performance during development, extending existing single-flow timing instrumentation where necessary.
+- FR33: The product can support future portability of score files, settings, and templates without requiring account-based sync in this MVP.
+- FR34: The product can remain usable as a fully offline-first composition environment even as future optional sync capabilities are considered.
+- FR35: Maintainers can evolve score presentation architecture without treating notation logic as part of the same capability change.
+- FR36: Maintainers can access render-timing output covering unified-renderer flow scope and recalculation scope so correctness and performance can be validated during development.
 
 ## Non-Functional Requirements
 
@@ -413,31 +422,31 @@ This work requires careful ownership of the rendering and interaction architectu
 
 - NFR1: In release builds on representative target hardware, unchanged-score render requests should complete the render stage in sub-millisecond time where no score changes require re-derivation.
 - NFR2: In release builds on representative target hardware, interaction updates and local edits in a score of up to three flows with 60 bars each should complete quickly enough to feel immediate in normal use, with parse-and-render work where recalculation is required completing within one display frame at 60 fps (≤16ms).
-- NFR3: The multi-flow architecture changes must not regress single-flow render performance. A single-flow score of 3 instruments and 30 bars, currently rendering in under 1ms, must continue to render in under 1ms after multi-flow support is introduced.
+- NFR3: The multi-flow architecture changes must not materially regress single-flow render performance. Use the current release-like `npm run perf:render` 3-instrument, 30-bar single-flow scenario as the active baseline, trigger a regression warning when that representative pass reaches or exceeds 2ms total median time, and reevaluate the baseline and warning threshold as performance-sensitive features land.
 - NFR4: The system must preserve isolated recalculation so that editing one flow does not trigger unnecessary notation or spacing recomputation for unrelated visible flows.
 
 ### Reliability and Correctness
 
-- NFR6: Multi-flow rendering must not introduce regressions in notation output.
-- NFR7: Any change to multi-flow presentation must preserve the existing written-duration behavior and broader notation semantics already relied on by the product.
-- NFR8: Hit targets and popovers must resolve to the correct flow and score element throughout the continuous multi-flow presentation.
-- NFR9: Score presentation, active-flow semantics, and interaction mapping must not expose contradictory states to the user — specifically: the visually indicated active flow must always match the flow targeted by editing interactions, and hit targets must always resolve to the flow they are visually within.
-- NFR10: The system must fail in ways that preserve score integrity; presentation changes must not corrupt score data, notation state, or document open/save behavior.
+- NFR5: Multi-flow rendering must not introduce regressions in notation output.
+- NFR6: Any change to multi-flow presentation must preserve the existing written-duration behavior and broader notation semantics already relied on by the product.
+- NFR7: Hit targets and popovers must resolve to the correct flow and score element throughout the continuous multi-flow presentation.
+- NFR8: Score presentation, active-flow semantics, and interaction mapping must not expose contradictory states to the user — specifically: the visually indicated active flow must always match the flow targeted by editing interactions, and hit targets must always resolve to the flow they are visually within.
+- NFR9: The system must fail in ways that preserve score integrity; presentation changes must not corrupt score data, notation state, or document open/save behavior.
 
 ### Score-Size Scalability
 
-- NFR11: Multi-flow rendering must remain within one display frame (≤16ms at 60fps) as score size scales from the single-flow baseline to the three-flow, 60-bar reference case in NFR2, with render time growing proportionally to the number of flows and bars requiring recalculation rather than as a fixed cost applied unconditionally.
+- NFR10: Multi-flow rendering must remain within one display frame (≤16ms at 60fps) as score size scales from the single-flow baseline to the three-flow, 60-bar reference case in NFR2, with render time growing proportionally to the number of flows and bars requiring recalculation rather than as a fixed cost applied unconditionally.
 
 ### Desktop Integration Quality
 
-- NFR14: Native desktop file workflows must behave consistently with macOS Human Interface Guidelines for document-based applications, including native file open/save dialogs, file association, and document state management.
-- NFR15: Existing single-flow audio playback must continue to function correctly after multi-flow rendering is introduced — this feature is not required to enable cross-flow playback, but must not break it.
-- NFR16: Offline use must remain first-class; the feature must not introduce any network dependency into core composition, rendering, interaction, or playback workflows.
+- NFR11: Native desktop file workflows must behave consistently with macOS Human Interface Guidelines for document-based applications, including native file open/save dialogs, file association, and document state management.
+- NFR12: Existing single-flow audio playback must continue to function correctly after multi-flow rendering is introduced — this feature is not required to enable cross-flow playback, but must not break it.
+- NFR13: Offline use must remain first-class; the feature must not introduce any network dependency into core composition, rendering, interaction, or playback workflows.
 
 ### Accessibility
 
-- NFR17: The product should maintain an accessibility baseline consistent with Apple's macOS Accessibility Programming Guide for core workflows, ensuring keyboard navigation and VoiceOver compatibility are not deliberately degraded by this feature.
-- NFR18: Accessibility improvements for this feature must not come at the expense of core notation correctness, interaction clarity, or architectural soundness for the target expert user base.
+- NFR14: The product should maintain an accessibility baseline consistent with Apple's macOS Accessibility Programming Guide for core workflows, ensuring keyboard navigation and VoiceOver compatibility are not deliberately degraded by this feature.
+- NFR15: Accessibility improvements for this feature must not come at the expense of core notation correctness, interaction clarity, or architectural soundness for the target expert user base.
 
 ## Architecture Constraints
 

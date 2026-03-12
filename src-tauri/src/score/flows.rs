@@ -7,6 +7,7 @@ use super::entries::{
 use super::instruments::defs::get_instrument_definition;
 use super::staves::{Stave, Staves};
 use super::tracks::Track;
+use crate::instructions::FlowRenderRecalculationRequest;
 use crate::{utils::UniqueId, AppContext, AppContextState, RendererContextState};
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
@@ -62,12 +63,19 @@ impl Flow {
 
 impl AppContext {
     pub fn get_default_clef_for_stave(&self, stave_id: UniqueId) -> Option<Clef> {
-        self.score.instruments.by_id.values().find_map(|instrument| {
-            let stave_index = instrument.stave_ids.iter().position(|id| *id == stave_id)?;
-            let definition = get_instrument_definition(&instrument.definition_id)?;
+        self.score
+            .instruments
+            .by_id
+            .values()
+            .find_map(|instrument| {
+                let stave_index = instrument.stave_ids.iter().position(|id| *id == stave_id)?;
+                let definition = get_instrument_definition(&instrument.definition_id)?;
 
-            definition.staves.get(stave_index).map(|stave| stave.clef.clone())
-        })
+                definition
+                    .staves
+                    .get(stave_index)
+                    .map(|stave| stave.clef.clone())
+            })
     }
 
     pub fn assign_player_to_flow(&mut self, flow_id: UniqueId, player_id: UniqueId) {
@@ -185,7 +193,11 @@ pub fn score_flows_create(
         state.assign_flow_to_layout(layout_id, flow_id);
     }
 
-    state.emit(&app, &mut renderer, true);
+    state.emit_general_state(
+        &app,
+        &mut renderer,
+        Some(FlowRenderRecalculationRequest::full_visible_flows()),
+    );
 
     flow_id
 }
@@ -203,7 +215,11 @@ pub fn score_flows_rename(
 
     state.score.flows.rename(flow_id, title);
 
-    state.emit(&app, &mut renderer, true);
+    state.emit_general_state(
+        &app,
+        &mut renderer,
+        Some(FlowRenderRecalculationRequest::full_visible_flows()),
+    );
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -219,7 +235,11 @@ pub fn score_flows_move(
 
     state.score.flows.reorder(from_index, to_index);
 
-    state.emit(&app, &mut renderer, true);
+    state.emit_general_state(
+        &app,
+        &mut renderer,
+        Some(FlowRenderRecalculationRequest::full_visible_flows()),
+    );
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -235,7 +255,11 @@ pub fn score_flows_assign_player(
 
     state.assign_player_to_flow(flow_id, player_id);
 
-    state.emit(&app, &mut renderer, true);
+    state.emit_general_state(
+        &app,
+        &mut renderer,
+        Some(FlowRenderRecalculationRequest::full_visible_flows()),
+    );
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -251,7 +275,11 @@ pub fn score_flows_unassign_player(
 
     state.unassign_player_from_flow(flow_id, player_id);
 
-    state.emit(&app, &mut renderer, true);
+    state.emit_general_state(
+        &app,
+        &mut renderer,
+        Some(FlowRenderRecalculationRequest::full_visible_flows()),
+    );
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -283,7 +311,11 @@ pub fn score_flows_remove(
         state.unassign_flow_from_layout(layout_id, flow_id);
     }
 
-    state.emit(&app, &mut renderer, true);
+    state.emit_general_state(
+        &app,
+        &mut renderer,
+        Some(FlowRenderRecalculationRequest::full_visible_flows()),
+    );
 }
 
 #[cfg(test)]
