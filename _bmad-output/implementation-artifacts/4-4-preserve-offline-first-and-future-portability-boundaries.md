@@ -1,6 +1,6 @@
 # Story 4.4: Preserve Offline-First and Future Portability Boundaries
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -21,24 +21,24 @@ This story closes Epic 4 by turning the architectural boundaries into explicit i
 
 ## Tasks / Subtasks
 
-- [ ] Audit current architectural boundaries that this story must preserve (AC: 1, 2, 3, 4)
-  - [ ] Inspect `docs/project-context.md`, `docs/architecture.md`, `docs/project-overview.md`, `docs/data-models.md`, and the planning artifacts to confirm the current offline-first, persistence, and migration rules.
-  - [ ] Inspect `src-tauri/src/files.rs`, `src-tauri/src/soloc.rs`, `src-tauri/src/migrations/`, and relevant multi-flow render seams to confirm where presentation ends and persistence begins.
-  - [ ] Audit any new dependencies or service usage introduced by the multi-flow feature to confirm no network assumptions have leaked into core workflows.
-- [ ] Keep multi-flow rendering derived and local (AC: 1, 2, 3)
-  - [ ] Preserve multi-flow score view as a render/composition concern derived from existing `score` and `ui` state rather than a new persisted document model.
-  - [ ] Do not add account, sync, cloud-storage, or remote API requirements to make multi-flow score view function.
-  - [ ] Preserve current `.soloc` document semantics unless a real persisted-data need is discovered and explicitly migration-gated.
-- [ ] Make portability and migration boundaries explicit in implementation and docs (AC: 2, 3, 4)
-  - [ ] Document any persistence-impact review performed as part of the implementation so it is clear why no migration is needed, or what migration is required if discovery proves otherwise.
-  - [ ] If a persisted-data change becomes necessary, add the pending migration in `src-tauri/src/migrations/next.rs` and update the relevant docs in the same change.
-  - [ ] Keep any future portability discussion framed as a separate follow-on capability rather than silently coupling it to this presentation feature.
-- [ ] Add regression coverage or audits that guard the boundary honestly (AC: 1, 2, 3, 4)
-  - [ ] Add or update tests only where implementation touches persistence or load/save semantics.
-  - [ ] If no code changes are needed beyond documentation or audits, record the explicit validation evidence rather than inventing low-value code churn.
-  - [ ] Add maintainer-facing verification guidance for dependency review, offline exercise, and migration-impact review.
-- [ ] Update docs and agent instructions if this story changes stable project rules (AC: 4)
-  - [ ] Update `docs/project-context.md`, `docs/architecture.md`, `docs/project-overview.md`, `docs/data-models.md`, and `.github/copilot-instructions.md` if implementation clarifies or strengthens stable offline-first, portability, or migration expectations.
+- [x] Audit current architectural boundaries that this story must preserve (AC: 1, 2, 3, 4)
+  - [x] Inspect `docs/project-context.md`, `docs/architecture.md`, `docs/project-overview.md`, `docs/data-models.md`, and the planning artifacts to confirm the current offline-first, persistence, and migration rules.
+  - [x] Inspect `src-tauri/src/files.rs`, `src-tauri/src/soloc.rs`, `src-tauri/src/migrations/`, and relevant multi-flow render seams to confirm where presentation ends and persistence begins.
+  - [x] Audit any new dependencies or service usage introduced by the multi-flow feature to confirm no network assumptions have leaked into core workflows.
+- [x] Keep multi-flow rendering derived and local (AC: 1, 2, 3)
+  - [x] Preserve multi-flow score view as a render/composition concern derived from existing `score` and `ui` state rather than a new persisted document model.
+  - [x] Do not add account, sync, cloud-storage, or remote API requirements to make multi-flow score view function.
+  - [x] Preserve current `.soloc` document semantics unless a real persisted-data need is discovered and explicitly migration-gated.
+- [x] Make portability and migration boundaries explicit in implementation and docs (AC: 2, 3, 4)
+  - [x] Document any persistence-impact review performed as part of the implementation so it is clear why no migration is needed, or what migration is required if discovery proves otherwise.
+  - [x] If a persisted-data change becomes necessary, add the pending migration in `src-tauri/src/migrations/next.rs` and update the relevant docs in the same change.
+  - [x] Keep any future portability discussion framed as a separate follow-on capability rather than silently coupling it to this presentation feature.
+- [x] Add regression coverage or audits that guard the boundary honestly (AC: 1, 2, 3, 4)
+  - [x] Add or update tests only where implementation touches persistence or load/save semantics.
+  - [x] If no code changes are needed beyond documentation or audits, record the explicit validation evidence rather than inventing low-value code churn.
+  - [x] Add maintainer-facing verification guidance for dependency review, offline exercise, and migration-impact review.
+- [x] Update docs and agent instructions if this story changes stable project rules (AC: 4)
+  - [x] Update `docs/project-context.md`, `docs/architecture.md`, `docs/project-overview.md`, `docs/data-models.md`, and `.github/copilot-instructions.md` if implementation clarifies or strengthens stable offline-first, portability, or migration expectations.
 
 ## Dev Notes
 
@@ -154,14 +154,33 @@ This story closes Epic 4 by turning the architectural boundaries into explicit i
 
 GPT-5.4
 
+### Implementation Plan
+
+- Audit the existing documentation, persistence seams, migration chain, and multi-flow render-plan path to confirm Story 4.4 closes as a boundary-preservation review rather than a new implementation slice.
+- Verify that no network clients, sync assumptions, or feature-specific persisted state were introduced while shipping Epic 4.
+- Prefer explicit audit evidence and maintainer notes over speculative code or test churn if the current architecture already satisfies the story.
+
 ### Completion Notes List
 
 - Story 4.4 was created as the architectural closeout story for Epic 4, consolidating the project's existing offline-first and persistence-boundary rules into explicit implementation guardrails.
 - The story intentionally prefers validation and documentation over speculative code churn when the correct outcome is to preserve already-correct boundaries.
 - The repository does not contain `_bmad/core/tasks/validate-workflow.xml`, so the BMAD validator could not be invoked; the create-story checklist was applied manually while preparing this artifact.
 - External web research was not available in this environment; repository docs and source were used as the authoritative baseline.
+- Audited `docs/project-context.md`, `docs/architecture.md`, `docs/project-overview.md`, `docs/data-models.md`, and `.github/copilot-instructions.md` and confirmed the repo already states the required offline-first, migration-gated, `.soloc`-centric architectural rules clearly.
+- Audited `src-tauri/src/files.rs`, `src-tauri/src/soloc.rs`, `src-tauri/src/migrations/mod.rs`, and `src-tauri/src/migrations/next.rs` and confirmed persisted project semantics remain the authoritative `{ ui, score, next_id }` payload, the migration chain remains version-gated, and there is no pending migration needed for Epic 4 multi-flow work.
+- Audited `src-tauri/src/instructions/render_plan.rs` and the main renderer seam and confirmed multi-flow score view still resolves as a derived local render/composition concern from existing score/layout/UI state instead of a separate persisted view model.
+- Audited `package.json` and `src-tauri/Cargo.toml` for new dependency drift and found no application network client or cloud SDK requirement added for Epic 4; the current dependency set remains aligned with a local desktop app using Tauri file/dialog/opener capabilities and embedded storage.
+- No product code, persistence code, migrations, tests, docs, or agent-instruction changes were required because the current implementation already preserves the intended offline-first and future-portable boundaries for multi-flow score view.
+- Maintainer verification guidance: continue treating any future sync, account, portability, or cloud-storage capability as a follow-on project; if a future score-view enhancement changes `.soloc` semantics or load/save behavior, that work must remain migration-gated and documented separately rather than being folded silently into presentation work.
+- No additional validation commands were run because this story closed through architectural audit only and intentionally avoided low-value code churn.
+- Story accepted on 2026-03-12 after review confirmed Epic 4 introduced no hidden network dependency, persistence coupling, or migration work beyond the existing documented project boundaries.
 
 ### File List
 
 - `_bmad-output/implementation-artifacts/4-4-preserve-offline-first-and-future-portability-boundaries.md`
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
+
+### Change Log
+
+- 2026-03-12: Audited offline-first, persistence, migration, and dependency boundaries for Epic 4 and confirmed the multi-flow feature remains a local derived presentation capability with no extra persistence or network scope.
+- 2026-03-12: Story accepted and status updated from review to done.
