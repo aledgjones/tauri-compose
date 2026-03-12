@@ -2,6 +2,25 @@ use crate::score::Score;
 use crate::utils::UniqueId;
 use serde::Serialize;
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FlowRenderRecalculationRequest {
+    FullVisibleFlows,
+    Flow(UniqueId),
+}
+
+impl FlowRenderRecalculationRequest {
+    fn resolve_flow_ids(self, prepared_flows: &[PreparedFlowRenderInput]) -> Vec<UniqueId> {
+        match self {
+            Self::FullVisibleFlows => prepared_flows.iter().map(|flow| flow.flow_id).collect(),
+            Self::Flow(flow_id) => prepared_flows
+                .iter()
+                .filter(|flow| flow.flow_id == flow_id)
+                .map(|flow| flow.flow_id)
+                .collect(),
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum FlowRenderMode {
@@ -39,6 +58,7 @@ pub struct FlowRenderPlan {
     pub active_flow_id: UniqueId,
     pub active_flow_visible_in_layout: bool,
     pub prepared_flows: Vec<PreparedFlowRenderInput>,
+    pub recalculated_flow_ids: Vec<UniqueId>,
 }
 
 impl FlowRenderPlan {
@@ -74,7 +94,7 @@ impl FlowRenderPlan {
     }
 
     pub fn recalculated_flow_ids(&self) -> Vec<UniqueId> {
-        self.composed_flow_ids()
+        self.recalculated_flow_ids.clone()
     }
 
     pub fn recalculated_flow_count(&self) -> usize {
@@ -83,6 +103,20 @@ impl FlowRenderPlan {
 
     pub fn recalculation_scope(&self) -> FlowRenderScope {
         FlowRenderScope::from_flow_count(self.recalculated_flow_count())
+    }
+
+    pub fn should_recalculate_flow(&self, flow_id: UniqueId) -> bool {
+        self.recalculated_flow_ids.contains(&flow_id)
+    }
+
+    pub fn with_recalculated_flow_ids(&self, recalculated_flow_ids: Vec<UniqueId>) -> Self {
+        let mut updated = self.clone();
+        updated.recalculated_flow_ids = recalculated_flow_ids;
+        updated
+    }
+
+    pub fn with_all_prepared_flows_recalculated(&self) -> Self {
+        self.with_recalculated_flow_ids(self.prepared_flow_ids())
     }
 }
 
@@ -127,6 +161,7 @@ pub fn prepare_flow_render_plan(
     score: &Score,
     layout_id: UniqueId,
     active_flow_id: UniqueId,
+    recalculation_request: FlowRenderRecalculationRequest,
 ) -> Option<FlowRenderPlan> {
     let layout = score.layouts.by_id.get(&layout_id)?;
     score.flows.by_id.get(&active_flow_id)?;
@@ -151,11 +186,14 @@ pub fn prepare_flow_render_plan(
         })
         .collect::<Vec<_>>();
 
+    let recalculated_flow_ids = recalculation_request.resolve_flow_ids(&prepared_flows);
+
     Some(FlowRenderPlan {
         layout_id,
         active_flow_id,
         active_flow_visible_in_layout,
         prepared_flows,
+        recalculated_flow_ids,
     })
 }
 
@@ -165,6 +203,20 @@ mod tests {
     use crate::score::flows::Flow;
     use crate::score::layouts::LayoutType;
     use crate::score::tracks::Track;
+
+    fn prepare_plan(
+        score: &Score,
+        layout_id: UniqueId,
+        active_flow_id: UniqueId,
+    ) -> FlowRenderPlan {
+        prepare_flow_render_plan(
+            score,
+            layout_id,
+            active_flow_id,
+            FlowRenderRecalculationRequest::FullVisibleFlows,
+        )
+        .unwrap()
+    }
 
     fn build_score() -> Score {
         let mut score = Score::new();
@@ -191,7 +243,7 @@ mod tests {
     fn prepare_flow_render_plan_preserves_score_flow_order_for_visible_flows() {
         let score = build_score();
 
-        let plan = prepare_flow_render_plan(&score, 0, 30).unwrap();
+        let plan = prepare_plan(&score, 0, 30);
 
         assert_eq!(plan.prepared_flow_ids(), vec![10, 30]);
         assert_eq!(plan.composed_flow_ids(), vec![10, 30]);
@@ -201,7 +253,7 @@ mod tests {
     fn prepare_flow_render_plan_marks_active_flow_without_reordering_it_to_front() {
         let score = build_score();
 
-        let plan = prepare_flow_render_plan(&score, 0, 30).unwrap();
+        let plan = prepare_plan(&score, 0, 30);
 
         assert!(plan.active_flow_visible_in_layout);
         assert_eq!(plan.prepared_flows[0].flow_id, 10);
@@ -216,7 +268,7 @@ mod tests {
         let layout = score.layouts.by_id.get_mut(&0).unwrap();
         layout.flow_ids.remove(&30);
 
-        let plan = prepare_flow_render_plan(&score, 0, 30).unwrap();
+        let plan = prepare_plan(&score, 0, 30);
 
         assert!(!plan.active_flow_visible_in_layout);
         assert_eq!(plan.prepared_flow_ids(), vec![10]);
@@ -229,7 +281,7 @@ mod tests {
         let layout = score.layouts.by_id.get_mut(&0).unwrap();
         layout.flow_ids.clear();
 
-        let plan = prepare_flow_render_plan(&score, 0, 10).unwrap();
+        let plan = prepare_plan(&score, 0, 10);
 
         assert!(!plan.active_flow_visible_in_layout);
         assert!(plan.prepared_flows.is_empty());
@@ -240,7 +292,7 @@ mod tests {
     fn diagnostics_report_prepared_and_composed_flow_ids() {
         let score = build_score();
 
-        let plan = prepare_flow_render_plan(&score, 0, 30).unwrap();
+        let plan = prepare_plan(&score, 0, 30);
         let diagnostics = FlowRenderPreparationDiagnostics::from(&plan);
 
         assert_eq!(diagnostics.render_mode, FlowRenderMode::SharedSurface);
@@ -272,7 +324,7 @@ mod tests {
         layout.flow_ids.insert(20);
         layout.flow_ids.insert(40);
 
-        let plan = prepare_flow_render_plan(&score, 0, 30).unwrap();
+        let plan = prepare_plan(&score, 0, 30);
 
         assert_eq!(plan.prepared_flow_ids(), vec![10, 20, 30, 40]);
         assert_eq!(plan.composed_flow_ids(), vec![10, 20, 30, 40]);
@@ -287,7 +339,7 @@ mod tests {
         layout.flow_ids.clear();
         layout.flow_ids.insert(10);
 
-        let plan = prepare_flow_render_plan(&score, 0, 10).unwrap();
+        let plan = prepare_plan(&score, 0, 10);
 
         assert!(plan.active_flow_visible_in_layout);
         assert_eq!(plan.prepared_flow_ids(), vec![10]);
@@ -301,7 +353,7 @@ mod tests {
         layout.flow_ids.clear();
         layout.flow_ids.insert(10);
 
-        let plan = prepare_flow_render_plan(&score, 0, 10).unwrap();
+        let plan = prepare_plan(&score, 0, 10);
         let diagnostics = FlowRenderPreparationDiagnostics::from(&plan);
 
         assert_eq!(diagnostics.prepared_flow_scope, FlowRenderScope::SingleFlow);
@@ -317,7 +369,7 @@ mod tests {
         let layout = score.layouts.by_id.get_mut(&0).unwrap();
         layout.flow_ids.clear();
 
-        let plan = prepare_flow_render_plan(&score, 0, 10).unwrap();
+        let plan = prepare_plan(&score, 0, 10);
         let diagnostics = FlowRenderPreparationDiagnostics::from(&plan);
 
         assert_eq!(diagnostics.prepared_flow_ids, Vec::<UniqueId>::new());
@@ -343,7 +395,7 @@ mod tests {
         layout.flow_ids.insert(20);
         layout.flow_ids.insert(40);
 
-        let plan = prepare_flow_render_plan(&score, 0, 30).unwrap();
+        let plan = prepare_plan(&score, 0, 30);
         let diagnostics = FlowRenderPreparationDiagnostics::from(&plan);
 
         assert_eq!(diagnostics.prepared_flow_ids, vec![10, 20, 30, 40]);
@@ -370,8 +422,44 @@ mod tests {
     fn prepare_flow_render_plan_returns_none_when_active_flow_is_missing() {
         let score = build_score();
 
-        let plan = prepare_flow_render_plan(&score, 0, 999);
+        let plan = prepare_flow_render_plan(
+            &score,
+            0,
+            999,
+            FlowRenderRecalculationRequest::FullVisibleFlows,
+        );
 
         assert!(plan.is_none());
+    }
+
+    #[test]
+    fn prepare_flow_render_plan_reports_only_targeted_visible_flow_as_recalculated() {
+        let score = build_score();
+
+        let plan =
+            prepare_flow_render_plan(&score, 0, 30, FlowRenderRecalculationRequest::Flow(30))
+                .unwrap();
+
+        assert_eq!(plan.prepared_flow_ids(), vec![10, 30]);
+        assert_eq!(plan.composed_flow_ids(), vec![10, 30]);
+        assert_eq!(plan.recalculated_flow_ids(), vec![30]);
+        assert_eq!(plan.recalculation_scope(), FlowRenderScope::SingleFlow);
+        assert!(plan.should_recalculate_flow(30));
+        assert!(!plan.should_recalculate_flow(10));
+    }
+
+    #[test]
+    fn prepare_flow_render_plan_reports_no_recalculated_visible_flows_for_hidden_target() {
+        let mut score = build_score();
+        let layout = score.layouts.by_id.get_mut(&0).unwrap();
+        layout.flow_ids.remove(&30);
+
+        let plan =
+            prepare_flow_render_plan(&score, 0, 30, FlowRenderRecalculationRequest::Flow(30))
+                .unwrap();
+
+        assert_eq!(plan.prepared_flow_ids(), vec![10]);
+        assert!(plan.recalculated_flow_ids().is_empty());
+        assert_eq!(plan.recalculation_scope(), FlowRenderScope::NoVisibleFlows);
     }
 }

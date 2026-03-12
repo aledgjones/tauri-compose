@@ -369,7 +369,7 @@ pub fn score_entries_time_signature_create(
         }
     }
 
-    state.emit(&app, &mut renderer, true);
+    state.emit_affected_flow(&app, &mut renderer, flow_id);
 
     Some(time_signature_id)
 }
@@ -392,7 +392,7 @@ pub fn score_entries_time_signature_clear(
     clear_time_signature_at_tick(master, tick);
     state.ui.sequencer.selection = None;
 
-    state.emit(&app, &mut renderer, true);
+    state.emit_affected_flow(&app, &mut renderer, flow_id);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -414,7 +414,7 @@ pub fn score_entries_time_signature_update(
 
     update_time_signature_draw_type(master, time_signature_id, draw_type, hidden)?;
 
-    state.emit(&app, &mut renderer, true);
+    state.emit_affected_flow(&app, &mut renderer, flow_id);
 
     Ok(())
 }

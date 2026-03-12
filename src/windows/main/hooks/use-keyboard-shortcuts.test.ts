@@ -327,7 +327,6 @@ describe("useKeyboardShortcuts", () => {
     });
 
     expect(actions.score.tone.shiftPitchByStep).toHaveBeenCalledWith(
-      FLOW_ID,
       TRACK_ID,
       TONE_ID,
       1,
@@ -346,7 +345,6 @@ describe("useKeyboardShortcuts", () => {
     });
 
     expect(actions.score.tone.shiftPitchByStep).toHaveBeenCalledWith(
-      FLOW_ID,
       TRACK_ID,
       TONE_ID,
       -1,
@@ -401,7 +399,6 @@ describe("useKeyboardShortcuts", () => {
     });
 
     expect(actions.score.tone.shiftPitchByStep).toHaveBeenCalledWith(
-      FLOW_ID + 1,
       SECOND_TRACK_ID,
       SECOND_TONE_ID,
       1,

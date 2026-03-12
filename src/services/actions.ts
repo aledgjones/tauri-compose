@@ -875,7 +875,6 @@ export const actions = {
         });
       },
       shiftPitchByStep: (
-        flow_id: UniqueId,
         track_id: UniqueId,
         tone_id: UniqueId,
         steps: number,
@@ -883,7 +882,6 @@ export const actions = {
         return invoke<number | null>(
           "score_entries_tone_pitch_shift_by_steps",
           {
-            flow_id,
             track_id,
             tone_id,
             steps,

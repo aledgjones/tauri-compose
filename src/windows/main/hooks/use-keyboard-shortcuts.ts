@@ -172,7 +172,6 @@ export const useKeyboardShortcuts = () => {
             modifiers: { command: false, control: false, option: true },
             action: () =>
               actions.score.tone.shiftPitchByStep(
-                activeToneSelectionInfo.flowId,
                 activeToneSelectionInfo.trackId,
                 activeToneSelectionInfo.toneId,
                 1,
@@ -195,7 +194,6 @@ export const useKeyboardShortcuts = () => {
             modifiers: { command: false, control: false, option: true },
             action: () =>
               actions.score.tone.shiftPitchByStep(
-                activeToneSelectionInfo.flowId,
                 activeToneSelectionInfo.trackId,
                 activeToneSelectionInfo.toneId,
                 -1,

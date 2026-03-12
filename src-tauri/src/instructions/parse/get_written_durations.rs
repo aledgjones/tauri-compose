@@ -4130,7 +4130,8 @@ mod tests {
                 ],
             },
             Scenario {
-                name: "6/8 equivalent performed material still rewrites at the compound beat boundary",
+                name:
+                    "6/8 equivalent performed material still rewrites at the compound beat boundary",
                 time_signature: six_eight.clone(),
                 flow_length: six_eight.ticks_per_bar(),
                 tone_specs: vec![(1, 0, q, 60), (2, q, q, 62), (3, q * 2, q, 64)],

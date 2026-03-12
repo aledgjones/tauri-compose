@@ -2,7 +2,10 @@ mod draw;
 mod parse;
 mod render_plan;
 
-pub use render_plan::{prepare_flow_render_plan, FlowRenderPlan, FlowRenderPreparationDiagnostics};
+pub use render_plan::{
+    prepare_flow_render_plan, FlowRenderPlan, FlowRenderPreparationDiagnostics,
+    FlowRenderRecalculationRequest,
+};
 
 use crate::instructions::parse::get_horizontal_spacing::HorizontalSpacing;
 use crate::renderer::converter::{Converter, Space};
@@ -53,6 +56,7 @@ use parse::get_tone_offsets::get_tone_offsets;
 use parse::get_vertical_spacing::get_vertical_spacing;
 use parse::get_vertical_spans::get_vertical_spans;
 use parse::get_written_durations::get_written_durations;
+use rustc_hash::FxHashMap;
 use serde::Serialize;
 use skia_safe::Color;
 use std::time::{Duration, Instant};
@@ -90,7 +94,7 @@ impl RenderPhaseTimings {
 }
 
 #[derive(Clone)]
-struct FlowRenderSegment {
+pub(crate) struct FlowRenderSegment {
     width: Space,
     height: Space,
     instructions: Vec<DrawInstruction>,
@@ -142,6 +146,7 @@ fn make_segment_renderer(converter: &Converter) -> RendererContext {
         hit_targets: Vec::new(),
         bounds: (0.0, 0.0, 0.0, 0.0),
         pixel_density: 1.0,
+        flow_segment_cache: None,
     }
 }
 
@@ -754,6 +759,77 @@ fn build_flow_render_segment(
     }
 }
 
+fn build_render_converter(
+    state: &AppContext,
+    renderer: &RendererContext,
+    layout_id: crate::utils::UniqueId,
+) -> Converter {
+    let layout = &state.score.layouts.by_id[&layout_id];
+    let engrave = &state.score.engraves.by_layout_type[&layout.layout_type];
+    Converter::new(renderer.px_per_mm, engrave.space)
+}
+
+pub(crate) fn resolve_render_plan_recalculation(
+    state: &AppContext,
+    renderer: &RendererContext,
+    render_plan: &FlowRenderPlan,
+) -> FlowRenderPlan {
+    let converter = build_render_converter(state, renderer, render_plan.layout_id);
+    let composed_flow_ids = render_plan.composed_flow_ids();
+    let recalculated_flow_count = render_plan.recalculated_flow_count();
+
+    if recalculated_flow_count == 0 {
+        return render_plan.clone();
+    }
+
+    if recalculated_flow_count < render_plan.composed_flow_count()
+        && !renderer.can_reuse_flow_segments(
+            render_plan.layout_id,
+            &converter,
+            state.ui.renderer.debug,
+            &composed_flow_ids,
+        )
+    {
+        return render_plan.with_all_prepared_flows_recalculated();
+    }
+
+    render_plan.clone()
+}
+
+fn collect_flow_render_segments(
+    state: &AppContext,
+    renderer: &mut RendererContext,
+    render_plan: &FlowRenderPlan,
+    converter: &Converter,
+) -> Vec<(crate::utils::UniqueId, FlowRenderSegment)> {
+    let mut segments_by_flow_id = FxHashMap::default();
+    let mut ordered_segments = Vec::new();
+
+    for flow_id in render_plan.composed_flow_ids() {
+        let segment = if render_plan.should_recalculate_flow(flow_id) {
+            build_flow_render_segment(state, render_plan.layout_id, flow_id, converter)
+        } else {
+            renderer
+                .get_cached_flow_segment(flow_id)
+                .unwrap_or_else(|| {
+                    build_flow_render_segment(state, render_plan.layout_id, flow_id, converter)
+                })
+        };
+
+        segments_by_flow_id.insert(flow_id, segment.clone());
+        ordered_segments.push((flow_id, segment));
+    }
+
+    renderer.store_flow_segments(
+        render_plan.layout_id,
+        converter,
+        state.ui.renderer.debug,
+        segments_by_flow_id,
+    );
+
+    ordered_segments
+}
+
 pub fn generate_render_instructions(
     app: &tauri::AppHandle,
     state: &AppContext,
@@ -761,16 +837,15 @@ pub fn generate_render_instructions(
     render_plan: &FlowRenderPlan,
 ) {
     let total_start = Instant::now();
-    let layout = &state.score.layouts.by_id[&render_plan.layout_id];
-    let engrave = &state.score.engraves.by_layout_type[&layout.layout_type];
-    let converter = Converter::new(renderer.px_per_mm, engrave.space);
+    let converter = build_render_converter(state, renderer, render_plan.layout_id);
 
     let mut timings = RenderPhaseTimings::default();
-    let composed_flow_ids = render_plan.composed_flow_ids();
-    let segments = composed_flow_ids
+    let segments = collect_flow_render_segments(state, renderer, render_plan, &converter)
         .into_iter()
-        .map(|flow_id| build_flow_render_segment(state, render_plan.layout_id, flow_id, &converter))
-        .inspect(|segment| timings.add_assign(segment.timings))
+        .map(|(_, segment)| {
+            timings.add_assign(segment.timings);
+            segment
+        })
         .collect::<Vec<_>>();
     let composed_surface = compose_render_segments(segments, &converter);
 
@@ -913,10 +988,12 @@ fn draw_debug_layer(
 #[cfg(test)]
 mod tests {
     use super::{
-        build_flow_render_segment, compose_render_segments, inter_flow_gap_spaces,
+        build_flow_render_segment, collect_flow_render_segments, compose_render_segments,
+        inter_flow_gap_spaces, resolve_render_plan_recalculation, FlowRenderRecalculationRequest,
         FlowRenderSegment, RenderPhaseTimings,
     };
     use crate::renderer::converter::Converter;
+    use crate::renderer::RendererContext;
     use crate::renderer::{DrawInstruction, HitTarget};
     use crate::score::components::articulation::Articulations;
     use crate::score::components::duration::NoteDuration;
@@ -935,6 +1012,7 @@ mod tests {
     use crate::ui::sequencer::Selection;
     use crate::ui::Ui;
     use crate::AppContext;
+    use rustc_hash::FxHashMap;
     use skia_safe::Color;
 
     fn make_test_app_context(flow_ids: &[u64]) -> AppContext {
@@ -1445,5 +1523,127 @@ mod tests {
         assert_eq!(composed.hit_targets[0].x, 1.0);
         assert_eq!(composed.hit_targets[1].x, 25.5);
         assert_eq!(composed.hit_targets[2].x, 49.25);
+    }
+
+    #[test]
+    fn targeted_render_plan_broadens_when_reuse_cache_is_unavailable() {
+        let app = make_test_app_context(&[10, 20]);
+        let renderer = RendererContext {
+            backend: None,
+            converter: Converter::new(1.0, 1.75),
+            px_per_mm: 1.0,
+            instructions: Vec::new(),
+            width: 0.0,
+            height: 0.0,
+            hit_targets: Vec::new(),
+            bounds: (0.0, 0.0, 0.0, 0.0),
+            pixel_density: 1.0,
+            flow_segment_cache: None,
+        };
+        let plan = crate::instructions::prepare_flow_render_plan(
+            &app.score,
+            0,
+            10,
+            FlowRenderRecalculationRequest::Flow(10),
+        )
+        .unwrap();
+
+        let resolved = resolve_render_plan_recalculation(&app, &renderer, &plan);
+
+        assert_eq!(resolved.recalculated_flow_ids(), vec![10, 20]);
+    }
+
+    #[test]
+    fn hidden_target_render_plan_remains_a_noop_when_reuse_cache_is_unavailable() {
+        let mut app = make_test_app_context(&[10, 20, 30]);
+        let renderer = RendererContext {
+            backend: None,
+            converter: Converter::new(1.0, 1.75),
+            px_per_mm: 1.0,
+            instructions: Vec::new(),
+            width: 0.0,
+            height: 0.0,
+            hit_targets: Vec::new(),
+            bounds: (0.0, 0.0, 0.0, 0.0),
+            pixel_density: 1.0,
+            flow_segment_cache: None,
+        };
+        app.score
+            .layouts
+            .by_id
+            .get_mut(&0)
+            .unwrap()
+            .flow_ids
+            .remove(&30);
+        let plan = crate::instructions::prepare_flow_render_plan(
+            &app.score,
+            0,
+            30,
+            FlowRenderRecalculationRequest::Flow(30),
+        )
+        .unwrap();
+
+        let resolved = resolve_render_plan_recalculation(&app, &renderer, &plan);
+
+        assert!(resolved.recalculated_flow_ids().is_empty());
+    }
+
+    #[test]
+    fn unaffected_flow_segments_are_reused_during_targeted_recalculation() {
+        let mut app = make_test_app_context(&[10, 20]);
+        let mut renderer = RendererContext {
+            backend: None,
+            converter: Converter::new(1.0, 1.75),
+            px_per_mm: 1.0,
+            instructions: Vec::new(),
+            width: 0.0,
+            height: 0.0,
+            hit_targets: Vec::new(),
+            bounds: (0.0, 0.0, 0.0, 0.0),
+            pixel_density: 1.0,
+            flow_segment_cache: None,
+        };
+        let converter = Converter::new(1.0, 1.75);
+        let initial_flow_10 = build_flow_render_segment(&app, 0, 10, &converter);
+        let initial_flow_20 = build_flow_render_segment(&app, 0, 20, &converter);
+
+        renderer.store_flow_segments(
+            0,
+            &converter,
+            false,
+            FxHashMap::from_iter([(10, initial_flow_10.clone()), (20, initial_flow_20.clone())]),
+        );
+
+        let flow_20_track_id = app.score.flows.by_id[&20].staves.by_id[&3].track_ids[0];
+        let replacement_tone_id = app.generate_id();
+        let flow_20_track = app.score.tracks.by_id.get_mut(&flow_20_track_id).unwrap();
+        flow_20_track.entries.by_id.clear();
+        flow_20_track.entries.by_tick.clear();
+        flow_20_track.insert_entry(Entry::Tone(Tone::new(
+            replacement_tone_id,
+            64,
+            32,
+            Pitch::new(72, Accidental::Natural),
+            Velocity::new(90),
+            Articulations::new(),
+        )));
+
+        let plan = crate::instructions::prepare_flow_render_plan(
+            &app.score,
+            0,
+            10,
+            FlowRenderRecalculationRequest::Flow(20),
+        )
+        .unwrap();
+        let resolved_plan = resolve_render_plan_recalculation(&app, &renderer, &plan);
+        let segments =
+            collect_flow_render_segments(&app, &mut renderer, &resolved_plan, &converter);
+
+        assert_eq!(segments[0].0, 10);
+        assert_eq!(segments[0].1.instructions, initial_flow_10.instructions);
+        assert_eq!(segments[0].1.hit_targets, initial_flow_10.hit_targets);
+        assert_eq!(segments[1].0, 20);
+        assert_ne!(segments[1].1.instructions, initial_flow_20.instructions);
+        assert_ne!(segments[1].1.hit_targets, initial_flow_20.hit_targets);
     }
 }

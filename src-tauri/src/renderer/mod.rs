@@ -5,13 +5,16 @@ pub mod fonts;
 pub mod hit_test;
 pub mod text_measurer;
 
+use crate::instructions::FlowRenderSegment;
 use crate::renderer::backend::RenderBackend;
 use crate::renderer::backends::metal::MetalRenderer;
 use crate::score::components::measurements::{CurvePoint, Point};
 use crate::score::components::text::{Align, Font, FontFamily, Justify};
 use crate::ui::sequencer::Selection;
+use crate::utils::UniqueId;
 use crate::RendererContextState;
 use converter::{Converter, Space};
+use rustc_hash::FxHashMap;
 use skia_safe::Color;
 use std::sync::Mutex;
 
@@ -177,6 +180,14 @@ impl HitTarget {
     }
 }
 
+#[derive(Clone)]
+pub(crate) struct FlowSegmentCache {
+    layout_id: UniqueId,
+    debug: bool,
+    converter: Converter,
+    segments_by_flow_id: FxHashMap<UniqueId, FlowRenderSegment>,
+}
+
 pub struct RendererContext {
     pub backend: Option<MetalRenderer>,
     pub converter: Converter,
@@ -187,6 +198,7 @@ pub struct RendererContext {
     pub hit_targets: Vec<HitTarget>,
     pub bounds: (f32, f32, f32, f32),
     pub pixel_density: f64,
+    pub(crate) flow_segment_cache: Option<FlowSegmentCache>,
 }
 
 impl RendererContext {
@@ -201,12 +213,55 @@ impl RendererContext {
             hit_targets: Vec::new(),
             bounds: (0.0, 0.0, 0.0, 0.0),
             pixel_density: 1.0,
+            flow_segment_cache: None,
         })
     }
 
     pub fn clear(&mut self) {
         self.instructions.clear();
         self.hit_targets.clear();
+        self.flow_segment_cache = None;
+    }
+
+    pub fn can_reuse_flow_segments(
+        &self,
+        layout_id: UniqueId,
+        converter: &Converter,
+        debug: bool,
+        flow_ids: &[UniqueId],
+    ) -> bool {
+        let Some(cache) = &self.flow_segment_cache else {
+            return false;
+        };
+
+        cache.layout_id == layout_id
+            && cache.debug == debug
+            && (cache.converter.px_per_mm - converter.px_per_mm).abs() < f32::EPSILON
+            && (cache.converter.mm_per_space - converter.mm_per_space).abs() < f32::EPSILON
+            && flow_ids
+                .iter()
+                .all(|flow_id| cache.segments_by_flow_id.contains_key(flow_id))
+    }
+
+    pub fn get_cached_flow_segment(&self, flow_id: UniqueId) -> Option<FlowRenderSegment> {
+        self.flow_segment_cache
+            .as_ref()
+            .and_then(|cache| cache.segments_by_flow_id.get(&flow_id).cloned())
+    }
+
+    pub fn store_flow_segments(
+        &mut self,
+        layout_id: UniqueId,
+        converter: &Converter,
+        debug: bool,
+        segments_by_flow_id: FxHashMap<UniqueId, FlowRenderSegment>,
+    ) {
+        self.flow_segment_cache = Some(FlowSegmentCache {
+            layout_id,
+            debug,
+            converter: converter.clone(),
+            segments_by_flow_id,
+        });
     }
 
     pub fn constrain_pan(
@@ -420,6 +475,7 @@ pub mod test_helpers {
             hit_targets: Vec::new(),
             bounds: (0.0, 0.0, 0.0, 0.0),
             pixel_density: 1.0,
+            flow_segment_cache: None,
         }
     }
 }

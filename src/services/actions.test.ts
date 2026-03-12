@@ -1146,10 +1146,10 @@ describe("actions.score.tone", () => {
   });
 
   it("shiftPitchByStep calls invoke correctly", async () => {
-    await actions.score.tone.shiftPitchByStep(1, 10, 200, 2);
+    await actions.score.tone.shiftPitchByStep(10, 200, 2);
     expect(mockInvoke).toHaveBeenCalledWith(
       "score_entries_tone_pitch_shift_by_steps",
-      { flow_id: 1, track_id: 10, tone_id: 200, steps: 2 },
+      { track_id: 10, tone_id: 200, steps: 2 },
     );
   });
 

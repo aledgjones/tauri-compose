@@ -276,7 +276,7 @@ pub fn score_entries_key_signature_create(
     new.hidden = hidden;
     master.insert_entry(Entry::KeySignature(new));
 
-    state.emit(&app, &mut renderer, true);
+    state.emit_affected_flow(&app, &mut renderer, flow_id);
 
     key_signature_id
 }
@@ -299,7 +299,7 @@ pub fn score_entries_key_signature_clear(
     clear_key_signature_at_tick(master, tick);
     state.ui.sequencer.selection = None;
 
-    state.emit(&app, &mut renderer, true);
+    state.emit_affected_flow(&app, &mut renderer, flow_id);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -339,7 +339,7 @@ pub fn score_entries_key_signature_update(
 
     key_signature.hidden = hidden;
 
-    state.emit(&app, &mut renderer, true);
+    state.emit_affected_flow(&app, &mut renderer, flow_id);
 
     Ok(())
 }

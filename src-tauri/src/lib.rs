@@ -27,7 +27,8 @@ use files::{
     update_recent_files_menu,
 };
 use instructions::{
-    generate_render_instructions, prepare_flow_render_plan, FlowRenderPreparationDiagnostics,
+    generate_render_instructions, prepare_flow_render_plan, resolve_render_plan_recalculation,
+    FlowRenderPreparationDiagnostics, FlowRenderRecalculationRequest,
 };
 use preferences::{preferences_audition_set, Preferences};
 use renderer::hit_test::renderer_hit_test;
@@ -149,13 +150,29 @@ impl AppContext {
         })
     }
 
-    fn render(
+    pub(crate) fn flow_id_for_track(&self, track_id: UniqueId) -> Option<UniqueId> {
+        self.score.flows.by_id.values().find_map(|flow| {
+            if flow.master_id == track_id {
+                return Some(flow.id);
+            }
+
+            flow.staves.by_id.values().find_map(|stave| {
+                if stave.master_id == track_id || stave.track_ids.contains(&track_id) {
+                    Some(flow.id)
+                } else {
+                    None
+                }
+            })
+        })
+    }
+
+    fn render_with_recalculation(
         &mut self,
         app: &tauri::AppHandle,
         renderer: &mut RendererContext,
-        recalculate: bool,
+        recalculation_request: Option<FlowRenderRecalculationRequest>,
     ) {
-        if recalculate {
+        if let Some(recalculation_request) = recalculation_request {
             let layout_id = self
                 .ui
                 .layout_id
@@ -167,8 +184,11 @@ impl AppContext {
 
             if let (Some(layout_id), Some(flow_id)) = (layout_id, flow_id) {
                 let preparation_start = Instant::now();
-                if let Some(render_plan) = prepare_flow_render_plan(&self.score, layout_id, flow_id)
+                if let Some(render_plan) =
+                    prepare_flow_render_plan(&self.score, layout_id, flow_id, recalculation_request)
                 {
+                    let render_plan =
+                        resolve_render_plan_recalculation(self, renderer, &render_plan);
                     let preparation_duration = preparation_start.elapsed();
                     let diagnostics = FlowRenderPreparationDiagnostics::from(&render_plan);
 
@@ -213,14 +233,31 @@ impl AppContext {
             self.ui.renderer.pan_y,
             self.ui.renderer.zoom as f32 / 100.0,
         ) {
-            // Update stored pan values to constrained values
             self.ui.renderer.pan_x = constrained_x;
             self.ui.renderer.pan_y = constrained_y;
         }
     }
 
-    fn emit(&mut self, app: &tauri::AppHandle, renderer: &mut RendererContext, recalculate: bool) {
-        self.render(app, renderer, recalculate);
+    fn render(
+        &mut self,
+        app: &tauri::AppHandle,
+        renderer: &mut RendererContext,
+        recalculate: bool,
+    ) {
+        self.render_with_recalculation(
+            app,
+            renderer,
+            recalculate.then_some(FlowRenderRecalculationRequest::FullVisibleFlows),
+        );
+    }
+
+    fn emit_with_recalculation(
+        &mut self,
+        app: &tauri::AppHandle,
+        renderer: &mut RendererContext,
+        recalculation_request: Option<FlowRenderRecalculationRequest>,
+    ) {
+        self.render_with_recalculation(app, renderer, recalculation_request);
 
         let general_state = AppStateGeneral {
             ui: self.ui.clone(),
@@ -231,6 +268,40 @@ impl AppContext {
 
         if let Err(e) = app.emit("soloc://state/general", &general_state) {
             eprintln!("Failed to emit general state: {:?}", e);
+        }
+    }
+
+    fn emit(&mut self, app: &tauri::AppHandle, renderer: &mut RendererContext, recalculate: bool) {
+        self.emit_with_recalculation(
+            app,
+            renderer,
+            recalculate.then_some(FlowRenderRecalculationRequest::FullVisibleFlows),
+        );
+    }
+
+    fn emit_affected_flow(
+        &mut self,
+        app: &tauri::AppHandle,
+        renderer: &mut RendererContext,
+        flow_id: UniqueId,
+    ) {
+        self.emit_with_recalculation(
+            app,
+            renderer,
+            Some(FlowRenderRecalculationRequest::Flow(flow_id)),
+        );
+    }
+
+    fn emit_affected_track(
+        &mut self,
+        app: &tauri::AppHandle,
+        renderer: &mut RendererContext,
+        track_id: UniqueId,
+    ) {
+        if let Some(flow_id) = self.flow_id_for_track(track_id) {
+            self.emit_affected_flow(app, renderer, flow_id);
+        } else {
+            self.emit(app, renderer, true);
         }
     }
 
