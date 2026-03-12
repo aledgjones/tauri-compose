@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { screen } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import { renderWithProviders, createAppState } from "../../services/test-utils";
 import { Main } from "./index";
 import { Tab } from "../../services/types";
@@ -152,5 +152,71 @@ describe("Main Window", () => {
     expect(screen.getAllByRole("button", { name: "2. Flow B" })).toHaveLength(
       1,
     );
+  });
+
+  it("keeps workflow-specific flow switching out of the shared top bar", () => {
+    const appState = createAppState({
+      ui: { tab: Tab.Write, flow_id: 6 } as never,
+      score: {
+        layouts: {
+          order: [1],
+          by_id: {
+            1: {
+              id: 1,
+              title: "Full Score",
+              layout_type: 0,
+              player_ids: [],
+              flow_ids: [5, 6],
+            },
+          },
+        },
+        flows: {
+          order: [5, 6],
+          by_id: {
+            5: {
+              id: 5,
+              title: "Flow A",
+              player_ids: [],
+              length: 512,
+              master_id: 15,
+              staves: { by_id: {} },
+            },
+            6: {
+              id: 6,
+              title: "Flow B",
+              player_ids: [],
+              length: 512,
+              master_id: 16,
+              staves: { by_id: {} },
+            },
+          },
+        },
+        tracks: {
+          by_id: {
+            15: { id: 15, entries: { by_tick: {}, by_id: {} } },
+            16: { id: 16, entries: { by_tick: {}, by_id: {} } },
+          },
+        },
+      } as never,
+    });
+
+    const { container } = renderWithProviders(<Main />, { appState });
+
+    const topBar = container.querySelector(
+      ".flex.items-center.p-2.bg-neutral-900",
+    );
+
+    expect(screen.getByRole("button", { name: "Write" })).toBeInTheDocument();
+    expect(topBar).toBeInTheDocument();
+    expect(
+      within(topBar as HTMLElement).queryByRole("button", {
+        name: "1. Flow A",
+      }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(topBar as HTMLElement).queryByRole("button", {
+        name: "2. Flow B",
+      }),
+    ).not.toBeInTheDocument();
   });
 });

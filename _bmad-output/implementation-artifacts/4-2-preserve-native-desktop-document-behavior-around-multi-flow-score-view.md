@@ -1,6 +1,6 @@
 # Story 4.2: Preserve Native Desktop Document Behavior Around Multi-Flow Score View
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -23,24 +23,24 @@ This story is about desktop behavior around the score, not just file serializati
 
 ## Tasks / Subtasks
 
-- [ ] Audit current native document entry points and shell behavior (AC: 1, 2, 3, 4, 5, 6)
-  - [ ] Inspect `src-tauri/src/lib.rs`, `src-tauri/src/files.rs`, and `src/services/state/provider.tsx` to confirm how File menu actions, open-recent events, current-file-path updates, and menu refresh behavior currently work.
-  - [ ] Inspect `src/windows/main/index.tsx` and related shell components to confirm the current shared top-bar contract and compact-layout behavior around the score surface.
-  - [ ] Identify whether any desktop file-association behavior is currently configured in packaging or handled only through existing open entry points, and preserve current expectations rather than inventing new platform-specific scope.
-- [ ] Preserve native-style document workflows while multi-flow score view is active (AC: 1, 2, 3)
-  - [ ] Keep the existing File menu actions, open/save/open-recent flows, and current-file-path state coherent when multi-flow rendering is present.
-  - [ ] Ensure opening a project through existing app entry points still lands the user in the normal main-window workflow with the score surface as the primary workspace.
-  - [ ] Preserve single-flow document behavior exactly; multi-flow support must not alter baseline desktop workflows for projects that never show multiple flows.
-- [ ] Preserve the shared shell contract in compact and normal layouts (AC: 4, 5)
-  - [ ] Keep the shared top bar limited to universal controls such as tabs, layout selection, transport, and tools.
-  - [ ] Ensure workflow-specific flow selectors remain local to their owning workflow surfaces instead of reappearing in persistent shared chrome.
-  - [ ] Verify panel collapse/expand behavior still leaves document, playback, and tool workflows reachable without introducing an alternate navigation model.
-- [ ] Add focused regression coverage and manual desktop verification (AC: 1, 2, 3, 4, 5, 6)
-  - [ ] Extend frontend tests around provider menu listeners, shell layout, and any top-bar control placement that this story touches.
-  - [ ] Add or extend backend tests only if menu-event or file-entry wiring changes materially in `src-tauri/src/lib.rs` or `src-tauri/src/files.rs`.
-  - [ ] Add manual macOS verification notes for open, save, open recent, compact-window resizing, and any supported Finder/document-entry workflow currently expected by the app.
-- [ ] Update docs if this story formalizes stable desktop-shell rules (AC: 5, 6)
-  - [ ] Update `docs/project-context.md`, `docs/architecture.md`, and `docs/project-overview.md` if implementation changes or formalizes maintainer expectations about shared shell chrome, menu behavior, or native desktop document handling.
+- [x] Audit current native document entry points and shell behavior (AC: 1, 2, 3, 4, 5, 6)
+  - [x] Inspect `src-tauri/src/lib.rs`, `src-tauri/src/files.rs`, and `src/services/state/provider.tsx` to confirm how File menu actions, open-recent events, current-file-path updates, and menu refresh behavior currently work.
+  - [x] Inspect `src/windows/main/index.tsx` and related shell components to confirm the current shared top-bar contract and compact-layout behavior around the score surface.
+  - [x] Identify whether any desktop file-association behavior is currently configured in packaging or handled only through existing open entry points, and preserve current expectations rather than inventing new platform-specific scope.
+- [x] Preserve native-style document workflows while multi-flow score view is active (AC: 1, 2, 3)
+  - [x] Keep the existing File menu actions, open/save/open-recent flows, and current-file-path state coherent when multi-flow rendering is present.
+  - [x] Ensure opening a project through existing app entry points still lands the user in the normal main-window workflow with the score surface as the primary workspace.
+  - [x] Preserve single-flow document behavior exactly; multi-flow support must not alter baseline desktop workflows for projects that never show multiple flows.
+- [x] Preserve the shared shell contract in compact and normal layouts (AC: 4, 5)
+  - [x] Keep the shared top bar limited to universal controls such as tabs, layout selection, transport, and tools.
+  - [x] Ensure workflow-specific flow selectors remain local to their owning workflow surfaces instead of reappearing in persistent shared chrome.
+  - [x] Verify panel collapse/expand behavior still leaves document, playback, and tool workflows reachable without introducing an alternate navigation model.
+- [x] Add focused regression coverage and manual desktop verification (AC: 1, 2, 3, 4, 5, 6)
+  - [x] Extend frontend tests around provider menu listeners, shell layout, and any top-bar control placement that this story touches.
+  - [x] Add or extend backend tests only if menu-event or file-entry wiring changes materially in `src-tauri/src/lib.rs` or `src-tauri/src/files.rs`.
+  - [x] Add manual macOS verification notes for open, save, open recent, compact-window resizing, and any supported Finder/document-entry workflow currently expected by the app.
+- [x] Update docs if this story formalizes stable desktop-shell rules (AC: 5, 6)
+  - [x] Update `docs/project-context.md`, `docs/architecture.md`, and `docs/project-overview.md` if implementation changes or formalizes maintainer expectations about shared shell chrome, menu behavior, or native desktop document handling.
 
 ## Dev Notes
 
@@ -152,14 +152,37 @@ This story is about desktop behavior around the score, not just file serializati
 
 GPT-5.4
 
+### Implementation Plan
+
+- Audit the existing Tauri File menu, provider event listeners, current-file-path refresh path, and shared main-window shell to confirm the story can preserve behavior by strengthening guardrails rather than adding new desktop workflow code.
+- Add frontend regression coverage that locks in the main-window menu listener wiring and refresh behavior in `src/services/state/provider.tsx`.
+- Add main-shell regression coverage that proves workflow-local flow selection does not leak back into the shared top bar while compact and normal workflow surfaces keep their existing local controls.
+
 ### Completion Notes List
 
 - Story 4.2 was created from the Epic 4 desktop-workflow acceptance criteria, current Tauri menu wiring, and the repo's existing shell/UX rules.
 - The story treats file associations conservatively: preserve current behavior and only touch packaging/document-entry seams if implementation discovery proves they are the active path.
 - The repository does not contain `_bmad/core/tasks/validate-workflow.xml`, so the BMAD validator could not be invoked; the create-story checklist was applied manually while preparing this artifact.
 - External web research was not available in this environment; repository docs and source were used as the authoritative baseline.
+- Audited `src-tauri/src/lib.rs`, `src-tauri/src/files.rs`, and `src/services/state/provider.tsx` and confirmed the existing native-style file workflow already flows through the same File menu events, open-recent events, current-file-path updates, and `refresh_menus` path regardless of multi-flow rendering.
+- Audited `src/windows/main/index.tsx`, `src/windows/main/screens/write/index.tsx`, and `src/windows/main/screens/sequence/index.tsx` and confirmed the shared top bar remains limited to universal controls while workflow-local flow switching stays in local workflow surfaces.
+- Confirmed `src-tauri/tauri.conf.json` does not define a new explicit file-association block; the story preserves the current packaging/document-entry scope rather than expanding platform behavior.
+- Added frontend regression coverage in `src/services/state/provider.test.tsx` for main-window menu listener registration, open/save/open-recent routing, secondary-window listener exclusions, and menu refresh behavior.
+- Added main-shell regression coverage in `src/windows/main/index.test.tsx` to keep workflow-specific flow switching out of the shared top bar while allowing local workflow surfaces to manage their own flow selection.
+- No backend code changes or migrations were required because the desktop workflow and file entry paths already satisfied the story constraints.
+- No docs changes were required because the existing project context and story notes already describe the stable shared-shell and desktop-workflow rules that this implementation now enforces with tests.
+- Manual macOS verification notes: verify File > Open, File > Save, File > Open Recent, and current-file-path title updates from the main window; resize the window through compact panel states in Write and Sequence and confirm score, playback, and tool workflows remain reachable; verify any currently supported Finder or document-entry path still lands in the normal main window without alternate navigation.
+- Story accepted on 2026-03-12 and marked done.
+- Validation completed with `npm run lint`, `npm run check-types`, `npm run test:js`, `npm run test:rust`, and `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features`.
 
 ### File List
 
 - `_bmad-output/implementation-artifacts/4-2-preserve-native-desktop-document-behavior-around-multi-flow-score-view.md`
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `src/services/state/provider.test.tsx`
+- `src/windows/main/index.test.tsx`
+
+### Change Log
+
+- 2026-03-12: Audited the desktop menu and shell seams for multi-flow compatibility and added frontend regression coverage for main-window menu wiring, menu refresh behavior, and shared-top-bar flow-switcher boundaries.
+- 2026-03-12: Story accepted and status updated from review to done.
