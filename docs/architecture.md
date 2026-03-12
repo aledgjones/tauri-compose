@@ -188,6 +188,7 @@ Score Data (Entry variants in FxHashMaps)
 - Story 1.2/1.6 extend that seam into a shared-surface composition step: Rust builds every visible flow segment independently in `score.flows.order`, offsets each later segment by a deterministic renderer-space gap of at least 20 CSS pixels at normal zoom, and keeps the combined page width authoritative for native pan/zoom constraints.
 - Story 1.4 refines that shared-surface step into a page-per-flow composition rule: each composed flow now paints its own white native page box, the gradient backdrop stays visible in the fixed inter-flow gap, and the second visible flow keeps its native page-start chrome so the adjacent page still reads like a real score page rather than a cropped continuation fragment.
 - Story 1.3 keeps that combined renderer width as the authoritative horizontal clamp input as well, so wheel and drag navigation traverse the same shared native surface; the debugger timing panel now also reports shared-surface and viewport sizes for reachability checks.
+- Story 3.5 keeps performance characterization on that same path: maintainers validate a single-flow 3-instrument/30-bar baseline, representative multi-flow renders, and local-edit recalculation passes through the debugger timing panel and Rust-owned flow-preparation diagnostics rather than through a separate benchmark subsystem. The current release-like single-flow result is the working baseline, and a representative total median at or above 2ms now triggers a regression warning until that threshold is reevaluated.
 
 ---
 

@@ -243,13 +243,13 @@ impl RendererContext {
                 .all(|flow_id| cache.segments_by_flow_id.contains_key(flow_id))
     }
 
-    pub fn get_cached_flow_segment(&self, flow_id: UniqueId) -> Option<FlowRenderSegment> {
+    pub(crate) fn get_cached_flow_segment(&self, flow_id: UniqueId) -> Option<FlowRenderSegment> {
         self.flow_segment_cache
             .as_ref()
             .and_then(|cache| cache.segments_by_flow_id.get(&flow_id).cloned())
     }
 
-    pub fn store_flow_segments(
+    pub(crate) fn store_flow_segments(
         &mut self,
         layout_id: UniqueId,
         converter: &Converter,

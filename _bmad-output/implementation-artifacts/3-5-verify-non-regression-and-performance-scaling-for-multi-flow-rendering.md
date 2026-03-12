@@ -1,6 +1,6 @@
 # Story 3.5: Verify Non-Regression and Performance Scaling for Multi-Flow Rendering
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -21,28 +21,28 @@ Epic 3 has already established the core guardrails this story depends on: Story 
 
 ## Tasks / Subtasks
 
-- [ ] Define the representative validation scenarios and acceptance evidence before changing instrumentation (AC: 1, 2, 3, 4)
-  - [ ] Capture a single-flow baseline scenario aligned with the current product standard, including the existing three-instrument, 30-bar expectation called out in the planning artifacts and project requirements.
-  - [ ] Capture at least one representative multi-flow render scenario and one representative local-edit scenario that exercise the unified shared-surface path with two or three visible flows and make recalculation scope observable.
-  - [ ] Decide whether existing fixture scores already cover these scenarios or whether focused representative fixtures are needed under `tests/fixtures/source/`; if fixtures change, rebuild them with `npm run build:fixtures` and keep fixture metadata aligned with the current app version.
-- [ ] Reuse and, only if necessary, extend the existing Rust-owned diagnostics path to gather comparable evidence (AC: 1, 2, 3)
-  - [ ] Audit `src-tauri/src/lib.rs`, `src-tauri/src/instructions/render_plan.rs`, `src-tauri/src/instructions/mod.rs`, and `src/windows/debugger/components/performance-timings.tsx` to confirm the current `render-timing-*`, `render-timing-flow-preparation-details`, and `render-timing-surface-details` contracts expose enough data to compare baseline, multi-flow, and local-edit passes.
-  - [ ] If the current payloads are insufficient, extend them incrementally in Rust-owned `snake_case` structures rather than introducing console-only logging, ad hoc scripts, or frontend-derived benchmark state.
-  - [ ] Preserve the existing debugger timing rows and severity behavior so maintainers can compare performance evidence before and after the validation work without learning a second observability surface.
-- [ ] Add automated non-regression and scaling guardrails around the validation scenarios (AC: 1, 2, 3, 4)
-  - [ ] Add Rust tests around the render-plan and shared-surface composition seams that prove single-flow baseline passes still report the expected narrow scope and that representative multi-flow local edits report only the affected recalculated flow set when reuse is available.
-  - [ ] Add or extend Rust tests around shared-surface composition and reuse so unaffected visible flows remain composed in `score.flows.order` and broad fallback only occurs when the backend can prove reuse is not safe.
-  - [ ] Extend debugger-facing Vitest coverage only if the diagnostics payload shape or maintainer-facing summary changes materially.
-- [ ] Document the evidence and its limits in a way that guides follow-on work honestly (AC: 2, 3, 4)
-  - [ ] Record the measured single-flow baseline and representative multi-flow results in the story completion notes or adjacent maintainer-facing docs, including whether each measurement came from the current supported validation environment versus a release-like run.
-  - [ ] Call out any regressions, broad-fallback cases, or scaling cliffs explicitly instead of masking them behind averaged totals.
-  - [ ] Update `docs/project-context.md`, `docs/architecture.md`, and `TESTING.md` if this story changes the stable diagnostics contract, introduces a repeatable performance-validation workflow, or adds fixture-based validation expectations maintainers must follow.
-- [ ] Validate the performance-characterization path end to end (AC: 1, 2, 3, 4)
-  - [ ] Run `npm run lint`.
-  - [ ] Run `npm run check-types`.
-  - [ ] Run `npm run test:js`.
-  - [ ] Run `npm run test:rust`.
-  - [ ] Run `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features`.
+- [x] Define the representative validation scenarios and acceptance evidence before changing instrumentation (AC: 1, 2, 3, 4)
+  - [x] Capture a single-flow baseline scenario aligned with the current product standard, including the existing three-instrument, 30-bar expectation called out in the planning artifacts and project requirements.
+  - [x] Capture at least one representative multi-flow render scenario and one representative local-edit scenario that exercise the unified shared-surface path with two or three visible flows and make recalculation scope observable.
+  - [x] Decide whether existing fixture scores already cover these scenarios or whether focused representative fixtures are needed under `tests/fixtures/source/`; if fixtures change, rebuild them with `npm run build:fixtures` and keep fixture metadata aligned with the current app version.
+- [x] Reuse and, only if necessary, extend the existing Rust-owned diagnostics path to gather comparable evidence (AC: 1, 2, 3)
+  - [x] Audit `src-tauri/src/lib.rs`, `src-tauri/src/instructions/render_plan.rs`, `src-tauri/src/instructions/mod.rs`, and `src/windows/debugger/components/performance-timings.tsx` to confirm the current `render-timing-*`, `render-timing-flow-preparation-details`, and `render-timing-surface-details` contracts expose enough data to compare baseline, multi-flow, and local-edit passes.
+  - [x] If the current payloads are insufficient, extend them incrementally in Rust-owned `snake_case` structures rather than introducing console-only logging, ad hoc scripts, or frontend-derived benchmark state.
+  - [x] Preserve the existing debugger timing rows and severity behavior so maintainers can compare performance evidence before and after the validation work without learning a second observability surface.
+- [x] Add automated non-regression and scaling guardrails around the validation scenarios (AC: 1, 2, 3, 4)
+  - [x] Add Rust tests around the render-plan and shared-surface composition seams that prove single-flow baseline passes still report the expected narrow scope and that representative multi-flow local edits report only the affected recalculated flow set when reuse is available.
+  - [x] Add or extend Rust tests around shared-surface composition and reuse so unaffected visible flows remain composed in `score.flows.order` and broad fallback only occurs when the backend can prove reuse is not safe.
+  - [x] Extend debugger-facing Vitest coverage only if the diagnostics payload shape or maintainer-facing summary changes materially.
+- [x] Document the evidence and its limits in a way that guides follow-on work honestly (AC: 2, 3, 4)
+  - [x] Record the measured single-flow baseline and representative multi-flow results in the story completion notes or adjacent maintainer-facing docs, including whether each measurement came from the current supported validation environment versus a release-like run.
+  - [x] Call out any regressions, broad-fallback cases, or scaling cliffs explicitly instead of masking them behind averaged totals.
+  - [x] Update `docs/project-context.md`, `docs/architecture.md`, and `TESTING.md` if this story changes the stable diagnostics contract, introduces a repeatable performance-validation workflow, or adds fixture-based validation expectations maintainers must follow.
+- [x] Validate the performance-characterization path end to end (AC: 1, 2, 3, 4)
+  - [x] Run `npm run lint`.
+  - [x] Run `npm run check-types`.
+  - [x] Run `npm run test:js`.
+  - [x] Run `npm run test:rust`.
+  - [x] Run `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features`.
 
 ## Dev Notes
 
@@ -64,7 +64,7 @@ Epic 3 has already established the core guardrails this story depends on: Story 
 
 - Use the existing Epic 3 diagnostics family as the primary evidence path. Prefer extending `render-timing-flow-preparation-details` or adjacent Rust-owned payloads over adding standalone logging or custom measurement scripts.
 - Keep performance evidence truthful. If a representative local edit broadens back to multiple visible flows because reuse is unavailable or a shared dependency requires it, surface that outcome explicitly rather than claiming isolated scaling.
-- Preserve the single-flow baseline contract while validating multi-flow behavior. This story should prove whether the baseline remains acceptable; it should not silently weaken the standard or redefine success around the slower path.
+- Preserve and periodically reevaluate the single-flow baseline contract while validating multi-flow behavior. The current release-like `npm run perf:render` single-flow result is the active reference point, and a representative total median at or above 2ms should trigger a regression warning and follow-up review.
 - Distinguish between no-op/shared-surface rerender cost, full visible-flow recalculation cost, and affected-flow-only recalculation cost where the current diagnostics can do so without ambiguity.
 - Preserve written-duration behavior, notation semantics, hit-target correctness, selection continuity, active-flow semantics, and current document behavior while gathering performance evidence.
 - No persistence, migration, or `.soloc` semantic change is expected. Do not touch `src-tauri/src/migrations/next.rs` unless implementation discovery proves older files would break, which would contradict the planned story boundary.
@@ -117,7 +117,7 @@ Epic 3 has already established the core guardrails this story depends on: Story 
 ### Testing Requirements
 
 - Add Rust tests that compare representative single-flow and multi-flow scenarios using the existing render-plan and shared-surface seams, with assertions that make recalculation scope and fallback behavior explicit.
-- Keep single-flow baseline assertions in place so Epic 3 does not trade away the existing product standard while validating multi-flow behavior.
+- Keep single-flow baseline assertions in place so Epic 3 does not trade away the existing product standard while validating multi-flow behavior, and refresh the recorded baseline when material rendering features land.
 - Extend debugger UI tests only if the displayed diagnostics contract or maintainer-facing summaries change.
 - If fixture-based representative scenarios are added or updated, rebuild them with `npm run build:fixtures` before running validation.
 - Validate with:
@@ -180,8 +180,63 @@ GPT-5.4
 - The repository does not contain `_bmad/core/tasks/validate-workflow.xml`, so the BMAD validator task could not be invoked and the create-story checklist was applied manually while preparing this artifact.
 - External web research was not available in this environment; repository documentation and source were used as the authoritative baseline.
 - No persisted-data migration is expected for this story.
+- The diagnostics audit confirmed that the existing `render-timing-flow-preparation-details` and `render-timing-surface-details` payloads already distinguish prepared, composed, and recalculated scopes well enough to compare the baseline, shared multi-flow render, and local-edit reuse paths. No payload expansion or debugger UI change was required.
+- No fixture JSON changes were needed. The validation scenarios are now documented in `TESTING.md`, and the Rust test seam synthesizes representative scenarios locally without introducing a repo-wide benchmark framework.
+- Added Rust guardrails in `src-tauri/src/instructions/render_plan.rs` and `src-tauri/src/instructions/mod.rs` to prove that multi-flow local edits can remain single-flow recalculations when reuse is available and that broad fallback expands truthfully to all visible flows only when reuse is unavailable. These automated checks cover scope/reuse truthfulness; the timing threshold remains a manual characterization step.
+- Measured warm-pass debug characterization evidence during development from the temporary characterization harness before the final standalone workflow was isolated into `src-tauri/src/bin/performance.rs`:
+  - `baseline_single_flow` (3 instruments, 30 bars): `prepared_us=4`, `segment_us=8640`, `compose_us=76`, `composed_flows=1`, `recalculated_flows=1`.
+  - `shared_two_flow`: `prepared_us=6`, `segment_us=17924`, `compose_us=163`, `composed_flows=2`, `recalculated_flows=2`.
+  - `local_edit_three_flow`: `prepared_us=5`, `segment_us=8911`, `compose_us=235`, `composed_flows=3`, `recalculated_flows=1`.
+- Refreshed current release-like characterization evidence from the standalone `performance` binary workflow on 2026-03-12 via `npm run perf:render -- --json`:
+  - `baseline_single_flow` (3 instruments, 30 bars): `prepared_us median=0`, `segment_us median=1189`, `compose_us median=13`, `total_us median=1201`, `composed_flows=1`, `recalculated_flows=1`.
+  - `shared_two_flow`: `prepared_us median=0`, `segment_us median=1887`, `compose_us median=26`, `total_us median=1916`, `composed_flows=2`, `recalculated_flows=2`.
+  - `local_edit_three_flow`: `prepared_us median=0`, `segment_us median=1028`, `compose_us median=37`, `total_us median=1071`, `composed_flows=3`, `recalculated_flows=1`.
+- The refreshed release-like baseline establishes the current representative reference point at `1201us` total median for the single-flow scenario. That remains below the newly adopted `2ms` regression-warning threshold, while the three-flow local-edit pass stays close to the single-flow cost and preserves a one-flow recalculation set. The shared two-flow full render remains predictably broader without evidence of hidden whole-surface fallback during the representative local-edit scenario.
+- The standalone `performance` binary validates the backend render-plan and shared-surface composition seams directly, but it does not exercise the full Tauri event-emission and debugger subscription path end to end. Maintainers should continue using the debugger timing panel when validating the shipped observability contract.
+- `npm run test:js` passed after the change set. The suite still emits pre-existing stderr noise from `plugins.test.tsx`, `write/index.test.tsx`, and `sequencer-track.test.tsx`, but those messages are warnings/logged errors rather than test failures.
+
+### Review Fixes Applied
+
+- Reconciled the story record and planning artifacts with the refreshed current-state baseline and the adopted `2ms` regression-warning threshold.
+- Clarified that the added automated guardrails cover recalculation scope and reuse behavior, while timing validation remains a manual characterization workflow.
+- Corrected the maintainer documentation so `npm run perf:render` is described as a backend characterization tool rather than a full debugger/event-path replacement, and documented the need to reevaluate the baseline as features land.
 
 ### File List
 
 - `_bmad-output/implementation-artifacts/3-5-verify-non-regression-and-performance-scaling-for-multi-flow-rendering.md`
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `TESTING.md`
+- `docs/architecture.md`
+- `docs/project-context.md`
+- `package.json`
+- `src-tauri/Cargo.toml`
+- `src-tauri/src/bin/performance.rs`
+- `src-tauri/src/instructions/mod.rs`
+- `src-tauri/src/instructions/render_plan.rs`
+- `src-tauri/src/renderer/mod.rs`
+
+## Senior Developer Review (AI)
+
+### Reviewer
+
+Aled
+
+### Date
+
+2026-03-12
+
+### Outcome
+
+Approved
+
+### Summary
+
+- Updated the planning and maintainer docs to use the refreshed current-state single-flow measurement as the active baseline and to treat `2ms` total median as the current regression-warning trigger.
+- Kept the automated guardrails scoped to flow-scope and reuse truthfulness while documenting that timing characterization remains manual and must be reevaluated as performance-sensitive features land.
+- Reconciled the Story 3.5 record, File List, and sprint status with the approved threshold decision and refreshed performance samples.
+
+### Change Log
+
+- 2026-03-12: Added representative render-plan and shared-surface reuse guardrails, documented the multi-flow performance-validation workflow, and recorded debug plus release-like characterization samples for the 3-instrument/30-bar baseline and representative multi-flow scenarios.
+- 2026-03-12: Finalized the manual characterization workflow as a standalone release binary in `src-tauri/src/bin/performance.rs` so performance validation stays isolated from both the shipped app API surface and the normal Rust test flow.
+- 2026-03-12: Adopted the refreshed current-state release-like single-flow sample as the active baseline, set `2ms` total median as the regression-warning threshold, and aligned the story and docs with the new characterization policy.

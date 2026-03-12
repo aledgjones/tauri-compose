@@ -554,6 +554,39 @@ mod tests {
     }
 
     #[test]
+    fn diagnostics_distinguish_single_flow_local_updates_inside_multi_flow_layouts() {
+        let mut score = build_score();
+        let layout = score.layouts.by_id.get_mut(&0).unwrap();
+        layout.flow_ids.insert(20);
+        layout.flow_ids.insert(40);
+
+        let plan = prepare_flow_render_plan(
+            &score,
+            0,
+            30,
+            FlowRenderRecalculationRequest::Flows(vec![20]),
+        )
+        .unwrap();
+        let diagnostics = FlowRenderPreparationDiagnostics::from(&plan);
+
+        assert_eq!(diagnostics.prepared_flow_ids, vec![10, 20, 30, 40]);
+        assert_eq!(diagnostics.prepared_flow_count, 4);
+        assert_eq!(
+            diagnostics.prepared_flow_scope,
+            FlowRenderScope::MultipleFlows
+        );
+        assert_eq!(diagnostics.composed_flow_ids, vec![10, 20, 30, 40]);
+        assert_eq!(diagnostics.composed_flow_count, 4);
+        assert_eq!(
+            diagnostics.composed_flow_scope,
+            FlowRenderScope::MultipleFlows
+        );
+        assert_eq!(diagnostics.recalculated_flow_ids, vec![20]);
+        assert_eq!(diagnostics.recalculated_flow_count, 1);
+        assert_eq!(diagnostics.recalculation_scope, FlowRenderScope::SingleFlow);
+    }
+
+    #[test]
     fn for_flow_ids_returns_none_for_empty_requests() {
         assert_eq!(FlowRenderRecalculationRequest::for_flow_ids(&[]), None);
     }

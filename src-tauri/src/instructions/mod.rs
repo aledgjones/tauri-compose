@@ -1554,6 +1554,34 @@ mod tests {
     }
 
     #[test]
+    fn three_flow_targeted_render_plan_broadens_when_reuse_cache_is_unavailable() {
+        let app = make_test_app_context(&[10, 20, 30]);
+        let renderer = RendererContext {
+            backend: None,
+            converter: Converter::new(1.0, 1.75),
+            px_per_mm: 1.0,
+            instructions: Vec::new(),
+            width: 0.0,
+            height: 0.0,
+            hit_targets: Vec::new(),
+            bounds: (0.0, 0.0, 0.0, 0.0),
+            pixel_density: 1.0,
+            flow_segment_cache: None,
+        };
+        let plan = crate::instructions::prepare_flow_render_plan(
+            &app.score,
+            0,
+            10,
+            FlowRenderRecalculationRequest::Flows(vec![20]),
+        )
+        .unwrap();
+
+        let resolved = resolve_render_plan_recalculation(&app, &renderer, &plan);
+
+        assert_eq!(resolved.recalculated_flow_ids(), vec![10, 20, 30]);
+    }
+
+    #[test]
     fn hidden_target_render_plan_remains_a_noop_when_reuse_cache_is_unavailable() {
         let mut app = make_test_app_context(&[10, 20, 30]);
         let renderer = RendererContext {
@@ -1704,6 +1732,51 @@ mod tests {
         assert_eq!(
             resolve_render_plan_recalculation(&app, &renderer, &plan).recalculated_flow_ids(),
             vec![20, 30]
+        );
+    }
+
+    #[test]
+    fn single_affected_flow_stays_narrow_in_three_flow_layout_when_reuse_cache_is_available() {
+        let app = make_test_app_context(&[10, 20, 30]);
+        let mut renderer = RendererContext {
+            backend: None,
+            converter: Converter::new(1.0, 1.75),
+            px_per_mm: 1.0,
+            instructions: Vec::new(),
+            width: 0.0,
+            height: 0.0,
+            hit_targets: Vec::new(),
+            bounds: (0.0, 0.0, 0.0, 0.0),
+            pixel_density: 1.0,
+            flow_segment_cache: None,
+        };
+        let converter = build_render_converter(&app, &renderer, 0);
+
+        let cached_segments = FxHashMap::from_iter([
+            (10, build_flow_render_segment(&app, 0, 10, &converter)),
+            (20, build_flow_render_segment(&app, 0, 20, &converter)),
+            (30, build_flow_render_segment(&app, 0, 30, &converter)),
+        ]);
+
+        renderer.store_flow_segments(0, &converter, false, cached_segments);
+        let plan = crate::instructions::prepare_flow_render_plan(
+            &app.score,
+            0,
+            10,
+            FlowRenderRecalculationRequest::Flows(vec![20]),
+        )
+        .unwrap();
+
+        assert!(renderer.can_reuse_flow_segments(
+            plan.layout_id,
+            &converter,
+            app.ui.renderer.debug,
+            &plan.composed_flow_ids(),
+        ));
+        assert_eq!(plan.recalculated_flow_ids(), vec![20]);
+        assert_eq!(
+            resolve_render_plan_recalculation(&app, &renderer, &plan).recalculated_flow_ids(),
+            vec![20]
         );
     }
 }

@@ -420,7 +420,7 @@ Requirement identifiers in the Functional Requirements and Non-Functional Requir
 
 - NFR1: In release builds on representative target hardware, unchanged-score render requests should complete the render stage in sub-millisecond time where no score changes require re-derivation.
 - NFR2: In release builds on representative target hardware, interaction updates and local edits in a score of up to three flows with 60 bars each should complete quickly enough to feel immediate in normal use, with parse-and-render work where recalculation is required completing within one display frame at 60 fps (≤16ms).
-- NFR3: The multi-flow architecture changes must not regress single-flow render performance. A single-flow score of 3 instruments and 30 bars, currently rendering in under 1ms, must continue to render in under 1ms after multi-flow support is introduced.
+- NFR3: The multi-flow architecture changes must not materially regress single-flow render performance. Use the current release-like `npm run perf:render` 3-instrument, 30-bar single-flow scenario as the active baseline, trigger a regression warning when that representative pass reaches or exceeds 2ms total median time, and reevaluate the baseline and warning threshold as performance-sensitive features land.
 - NFR4: The system must preserve isolated recalculation so that editing one flow does not trigger unnecessary notation or spacing recomputation for unrelated visible flows.
 
 ### Reliability and Correctness

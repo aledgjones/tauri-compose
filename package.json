@@ -83,6 +83,7 @@
     "prepare-release:minor": "./scripts/release prepare minor",
     "prepare-release:patch": "./scripts/release prepare patch",
     "preview": "vite preview",
+    "perf:render": "cd src-tauri && cargo run --release --bin performance --",
     "release:build": "cd src-tauri && cargo build --release --bin release && cp target/release/release ../scripts/release",
     "start:dev": "tauri dev",
     "start:release": "tauri build",
