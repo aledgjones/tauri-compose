@@ -5,8 +5,8 @@ stepsCompleted:
   - step-03-create-stories
   - step-04-final-validation
 inputDocuments:
-  - _bmad-output/planning-artifacts/prd-foundational-tuplet-support.md
-  - _bmad-output/planning-artifacts/architecture-foundational-tuplet-support.md
+  - _bmad-output/planning-artifacts/prd.md
+  - _bmad-output/planning-artifacts/architecture.md
 ---
 
 # compose - Epic Breakdown

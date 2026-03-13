@@ -1,5 +1,5 @@
 ---
-validationTarget: "_bmad-output/planning-artifacts/prd.md"
+validationTarget: "_bmad-output/planning-artifacts/archive/2026-03-multi-flow-score/prd.md"
 validationDate: "2026-03-10"
 inputDocuments:
   - docs/index.md
@@ -31,7 +31,7 @@ overallStatus: Warning
 
 # PRD Validation Report
 
-**PRD Being Validated:** `_bmad-output/planning-artifacts/prd.md`
+**PRD Being Validated:** `_bmad-output/planning-artifacts/archive/2026-03-multi-flow-score/prd.md`
 **Validation Date:** 2026-03-10
 
 ## Input Documents

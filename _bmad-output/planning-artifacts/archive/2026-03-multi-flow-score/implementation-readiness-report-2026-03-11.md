@@ -12,10 +12,10 @@ stepsCompleted:
 includedFiles:
   prd:
     primary:
-      - _bmad-output/planning-artifacts/prd.md
+      - _bmad-output/planning-artifacts/archive/2026-03-multi-flow-score/prd.md
   architecture:
     primary:
-      - _bmad-output/planning-artifacts/architecture.md
+      - _bmad-output/planning-artifacts/archive/2026-03-multi-flow-score/architecture.md
   epics:
     primary:
       - _bmad-output/planning-artifacts/epics.md
@@ -33,8 +33,8 @@ includedFiles:
 
 ### Selected Documents
 
-- PRD primary: \_bmad-output/planning-artifacts/prd.md
-- Architecture primary: \_bmad-output/planning-artifacts/architecture.md
+- PRD primary: \_bmad-output/planning-artifacts/archive/2026-03-multi-flow-score/prd.md
+- Architecture primary: \_bmad-output/planning-artifacts/archive/2026-03-multi-flow-score/architecture.md
 - Epics primary: \_bmad-output/planning-artifacts/epics.md
 - UX primary: \_bmad-output/planning-artifacts/ux-design-specification.md
 
@@ -42,7 +42,7 @@ includedFiles:
 
 - No sharded document sets were found for PRD, Architecture, Epics, or UX.
 - No whole-versus-sharded duplicate formats were found.
-- \_bmad-output/planning-artifacts/prd-validation-report.md matches the PRD search pattern but is a supporting artifact, not the canonical PRD source, and was excluded from the assessment set.
+- \_bmad-output/planning-artifacts/archive/2026-03-multi-flow-score/prd-validation-report.md matches the PRD search pattern but is a supporting artifact, not the canonical PRD source, and was excluded from the assessment set.
 
 ## PRD Analysis
 

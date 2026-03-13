@@ -1,767 +1,852 @@
 ---
 stepsCompleted:
-  - 1
-  - 2
-  - 3
-  - 4
-  - 5
-  - 6
-  - 7
-  - 8
+  - step-01-context
+  - step-02-brownfield-analysis
+  - step-03-core-model
+  - step-04-boundaries
+  - step-05-migration
+  - step-06-regression
 inputDocuments:
   - _bmad-output/planning-artifacts/prd.md
-  - _bmad-output/planning-artifacts/prd-validation-report.md
-  - _bmad-output/planning-artifacts/ux-design-specification.md
-  - _bmad-output/planning-artifacts/research/technical-testing-and-tooling-research-2026-03-04.md
-  - docs/index.md
+  - _bmad-output/planning-artifacts/archive/2026-03-multi-flow-score/prd.md
   - docs/architecture.md
-  - docs/component-inventory.md
   - docs/data-models.md
   - docs/development-guide.md
-  - docs/project-overview.md
-  - docs/source-tree-analysis.md
   - docs/project-context.md
+  - _bmad-output/implementation-artifacts/archive/2026-03-multi-flow-score/tech-spec-compound-meter-written-duration-and-beaming-support.md
+  - _bmad-output/implementation-artifacts/archive/2026-03-multi-flow-score/notation-edge-cases-written-durations.md
+  - src-tauri/src/score/components/duration.rs
+  - src-tauri/src/score/entries/mod.rs
+  - src-tauri/src/score/entries/tone.rs
+  - src-tauri/src/score/entries/time_signature.rs
+  - src-tauri/src/score/entries/tempo.rs
+  - src-tauri/src/score/tracks.rs
+  - src-tauri/src/files.rs
+  - src-tauri/src/soloc.rs
+  - src-tauri/src/playback/transport.rs
+  - src-tauri/src/ui/sequencer.rs
+  - src-tauri/src/instructions/parse/get_written_durations.rs
+  - src-tauri/src/instructions/parse/get_beams.rs
+  - src-tauri/src/instructions/parse/get_horizontal_spacing.rs
 workflowType: "architecture"
 project_name: "compose"
 user_name: "Aled"
-date: "2026-03-11"
-lastStep: 8
-status: "complete"
-completedAt: "2026-03-11"
+date: "2026-03-12"
+status: "draft"
+classification:
+  projectType: desktop_app
+  domain: music_notation
+  complexity: high
+  projectContext: brownfield
+lastEdited: "2026-03-12"
 ---
 
-# Architecture Decision Document
+# Architecture Decision Document - Foundational Tuplet Support
 
-_This document builds collaboratively through step-by-step discovery. Sections are appended as we work through each architectural decision together._
+`_bmad-output/planning-artifacts/prd.md` is the active requirements source for this document. `_bmad-output/planning-artifacts/archive/2026-03-multi-flow-score/prd.md` remains completed background context only.
 
-## Project Context Analysis
+## Executive Summary
 
-### Requirements Overview
+The recommended architecture for foundational tuplet support uses a track-local container model.
 
-**Functional Requirements:**
-The current requirement set describes a focused but technically demanding enhancement to an existing desktop notation application. The core functional scope is continuous multi-flow score presentation, with users able to read, navigate, select, and edit across multiple visible flows without falling back to the current single-flow switching model for basic work. Architecturally, the functional requirements cluster into eight areas: score presentation and continuity, cross-flow interaction, notation integrity, navigation and reading, update isolation, desktop document workflows, playback boundaries, and future-ready extensibility.
+A tuplet is a first-class entry on an instrument track that consumes a host-track span and contains a local child track-like event stream. Child content keeps normal written values. The tuplet wrapper retains the musical context that makes those written values meaningful inside warped time:
 
-The most important functional implication is that this is not a notation-logic rewrite. Multi-flow support is a presentation and orchestration capability layered onto an existing notation engine whose behavioral contract must remain intact. The architecture therefore needs clear separation between notation derivation, flow composition, interaction mapping, and any active-flow editing semantics. The desktop workflow requirements also confirm that document open/save behavior, native file interactions, and offline use remain first-class and cannot become secondary concerns while rendering evolves.
+- consumed host duration
+- local printed duration
+- base written unit
+- grouping metadata
 
-**Non-Functional Requirements:**
-The non-functional requirements are dominated by performance and correctness. The architecture must preserve native-feeling responsiveness, avoid regressing current single-flow performance, and keep recalculation isolated so local edits do not force unnecessary work in unrelated flows. Correctness requirements are equally strict: multi-flow rendering must not introduce notation regressions, hit targets and popovers must remain accurate, and presentation changes must never compromise score integrity or persistence behavior.
+This preserves the current Compose mental model of tracks as streams of events, keeps Rust as the source of truth, avoids frontend-owned rhythmic state, and limits exact fractional math to projection seams instead of forcing every persisted note in the score to adopt a new global duration primitive.
 
-The UX and supporting documentation add further non-functional direction. The product must remain macOS-first, offline-first, and accessible at a practical desktop baseline. Interaction precision matters more than visual novelty. The system also needs development-time visibility through timing instrumentation, targeted regression coverage, and debugging support so the rendering pipeline can evolve safely inside a brownfield architecture.
+## Brownfield Problem Statement
 
-**Scale & Complexity:**
-This is a medium-complexity brownfield project with concentrated technical depth rather than broad platform sprawl. The functional scope is narrower than a greenfield application, but the consequences of change are high because the work touches rendering composition, interaction resolution, performance isolation, and the contract between native score rendering and React-based controls.
+Compose currently assumes one flat tick space with `32 ticks per quarter` and uses that same timing lattice for:
 
-- Primary domain: native desktop music composition and notation software
-- Complexity level: medium
-- Estimated architectural components: 8 major concern areas
+- persisted tone positions and durations
+- parser derivation of written durations
+- spacing calculations
+- hit-testing references
+- playback stepping
 
-The eight major concern areas are:
+That is sufficient for binary notation and unsafe for exact triplets. Foundational tuplet support must solve exact musical timing without turning tuplets into visual decoration or approximate playback hacks.
 
-1. Score derivation and notation preservation
-2. Multi-flow presentation composition
-3. Hit-testing and interaction mapping
-4. Active-flow and editing-state semantics
-5. React shell and panel orchestration
-6. Playback boundary management
-7. Persistence and migration compatibility
-8. Testing, profiling, and regression tooling
+The agreed direction is to keep the underlying data model tick-based while introducing a clean tuplet-span structure that expresses tuplets as bounded local metric containers inside a host track while still owning child tone entries.
 
-### Technical Constraints & Dependencies
+## Agreed Model Invariants
 
-The project is constrained by an existing brownfield architecture in which Rust owns application state, React acts as the UI shell, and the score surface is rendered natively rather than in HTML. This means architectural decisions must respect the existing backend/frontend boundary rather than blur it. State mutation continues to flow through backend commands, and score interaction remains dependent on accurate mapping between native-rendered elements and frontend-driven controls such as popovers and properties panels.
+These are the core rules the architecture now depends on.
 
-Notation behavior is an explicit protected boundary. Existing written-duration and broader notation semantics must remain unchanged unless a separate notation initiative is undertaken. The architecture must also remain compatible with the existing persistence and migration model, because `.soloc` behavior and versioned migrations are already treated as strategic product infrastructure. The product is macOS-first, offline-first, and document-oriented, so native file workflows, local reliability, and non-network-dependent operation remain baseline constraints rather than optional qualities.
+## Non-Negotiable Rules
 
-A further dependency is the current UX shell and information architecture direction. The product already favors VS Code-like structure, collapsible panels, contextual editing, and score-first hierarchy. Architectural decisions should support that shell rather than introduce interaction models that fight it.
+- One tone is always represented by exactly one stored event.
+- A tone is owned by where it starts.
+- If a tone starts inside a tuplet span, it is stored in that tuplet's child `entries`.
+- If a tone starts outside a tuplet span, it is stored on the host track, even if it extends into the tuplet.
+- A host-track tone may not start at a tick already occupied by a tuplet span.
+- Crossing a tuplet boundary never by itself forces a storage split.
+- Boundary splits are introduced only by notation, rendering, or playback derivation.
+- If a tone's start position moves across the tuplet boundary, ownership moves with that start position, but the tone still remains one stored event.
 
-### Cross-Cutting Concerns Identified
+## Ownership Decision Table
 
-The first major cross-cutting concern is notation trust. Any architectural change that weakens written output quality, visual coherence, or editing precision would damage the product's core value. This concern touches rendering, interaction, testing, and release safety.
+| Case                                               | Where tone starts                          | Where it is stored                                                  | What derivation does                                                                |
+| -------------------------------------------------- | ------------------------------------------ | ------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| Tone fully outside tuplet                          | Host track                                 | Host track                                                          | Draws normally; no tuplet split needed                                              |
+| Tone starts outside and extends into tuplet        | Host track                                 | Host track                                                          | Splits only in derived notation/playback at the tuplet boundary                     |
+| Tone starts inside tuplet and stays inside         | Tuplet child `entries`                     | Tuplet child `entries`                                              | Draws normally inside the tuplet                                                    |
+| Tone starts inside tuplet and extends out          | Tuplet child `entries`                     | Tuplet child `entries`                                              | Splits only in derived notation/playback at the tuplet boundary                     |
+| Tone start is moved across the boundary by editing | Whichever side now owns the new start tick | Ownership changes to the new start side, but still one stored event | Derivation follows the new ownership and still introduces any needed boundary split |
 
-The second is performance isolation. Multi-flow rendering must scale by minimizing unnecessary work, which means boundaries between derivation, layout, rendering, and local edit invalidation need to stay explicit. This concern affects score parsing, render orchestration, UI responsiveness, and profiling.
+Plain-language summary:
 
-The third is interaction consistency across system boundaries. The product depends on a native-rendered score surface paired with React controls, so selection, hit targets, popovers, and active-flow behavior must remain logically unified even though implementation responsibilities are split across layers.
+- Start position decides ownership.
+- Duration crossing a tuplet boundary leaves ownership unchanged.
+- Drawing and scheduling introduce boundary-aware fragments from a single stored tone.
 
-The fourth is future layout extensibility. Multi-flow rendering is intended as a step toward more document-like score layout, including frame-based and paginated presentation. Architectural choices made now should therefore avoid reinforcing single-flow assumptions that would later require redesign.
+### 1. Tuplet Governs A Host-Track Window As A Container
 
-The fifth is delivery safety in a brownfield environment. Regression coverage, fixture-driven validation, timing instrumentation, migration awareness, and debugging support are all architectural enablers, not just team process details, because they determine whether this system can evolve without destabilizing hard-won behavior.
+A tuplet is a first-class container entry that marks a host-time window and owns child content inside that window. Host ticks keep their ordinary global meaning throughout the track, including inside the tuplet span.
 
-## Starter Template Evaluation
+Implications:
 
-### Primary Technology Domain
+- A tuplet entry governs a host-track time interval.
+- Host ticks retain the same meaning inside and outside the tuplet, and the track keeps one global length model.
+- Tuplets contain child tone entries for tones whose start position lies inside the governed interval.
+- Ordinary same-track note entry may not start on the host track at a tick occupied by a tuplet span; if the tone starts there, it must be created in the tuplet child frame.
+- Notes may extend into or out of the interval, with boundary splitting and tie continuity handled the same way tones are split across barlines.
+- Creating a tuplet over existing material establishes the tuplet span first; ownership of every tone entry is then determined by the tick where that tone starts, while any needed boundary split is deferred to derivation.
 
-Desktop application architecture based on a native Tauri shell, Rust-owned application state, and a React/TypeScript UI layer.
+### 1a. Storage Rule For Boundary-Crossing Tones
 
-This classification is driven by the current product architecture and by the project requirement to evolve an existing macOS-first notation application rather than create a new greenfield product.
+This rule should be explicit because it is easy to describe imprecisely.
 
-### Starter Options Considered
+- Each tone is represented by exactly one stored event.
+- A tone is owned by the context where it starts.
+- If a tone starts inside the tuplet, it belongs in the tuplet child `entries`, even if its duration extends out of the tuplet.
+- If a tone starts outside the tuplet, it remains a host-track tone, even if its duration extends into the tuplet.
+- Crossing the tuplet boundary never by itself forces a storage split.
+- The split is introduced only when notation, rendering, or playback derives boundary-aware fragments from that persisted tone.
 
-For this project, a conventional greenfield starter template is not the right architectural foundation because the product already has a working and opinionated runtime stack. The relevant options are therefore not "which new starter should we adopt?" but rather "should we preserve the current foundation or replace it with a different one?"
+This keeps the track model simple while still allowing the score and transport to respect the tuplet boundary musically.
 
-The practical foundation options considered are:
+### 2. Tuplet Containers Behave Like Local Metric Frames
 
-1. Preserve the existing Tauri + React + Rust architecture
-2. Replatform to Electron-based desktop architecture
-3. Replatform to a web-first stack and reintroduce native concerns later
-4. Introduce a new frontend or full-stack boilerplate on top of the existing app
+The tuplet container should feel like a small local metric frame for derivation purposes:
 
-Options 2 through 4 are poor fits for the current project scope. They would introduce architectural churn without helping the actual feature goal, which is multi-flow score presentation inside an existing native notation system. They would also increase regression risk in rendering, interaction mapping, persistence, and performance.
+- it has a local tick space
+- it has a local printed length
+- it stores child tone entries in a track-like event stream
+- it defines local grouping rules over that child content
+- rests remain derived from absence of tones inside the governed local slots
 
-### Selected Starter: Existing Brownfield Foundation
+This keeps the model familiar while still letting tuplets own the notes that musically belong inside them.
 
-**Rationale for Selection:**
-The correct architectural foundation is the existing project stack rather than a new external starter. Compose already has the critical decisions in place that matter for this feature: Rust owns state, the score surface is rendered natively, React serves as the UI shell, persistence and migrations already exist, and the application is optimized for offline-first macOS desktop use.
+### 3. Written Values Stay Written Values
 
-The current initiative is a brownfield architectural extension, not a greenfield application bootstrap. Replacing the foundation would distract from the actual problem and create unnecessary implementation risk. The architecture work should therefore treat the current repository as the starter baseline and document how to evolve it safely.
+A note value follows the same literal tick-to-written-duration mapping on both sides of a tuplet boundary.
 
-**Initialization Command:**
+Examples:
 
-```bash
-No new starter initialization command applies.
-Use the existing repository and current application architecture as the implementation baseline.
+- a written eighth inside a triplet remains a written eighth
+- a written quarter inside a triplet remains a written quarter
+
+Literal mapping rule:
+
+- `16` ticks is always an eighth-note worth of written duration
+- `32` ticks is always a quarter-note worth of written duration
+- the tuplet changes how those ticks project through musical time, not how those tick counts map to written note values
+
+Refinement:
+
+- existing written values are preserved unchanged when structurally valid inside the child frame
+- if a note crosses a tuplet boundary, it must still be split at that boundary
+- the in-tuplet segment is represented as normal notation inside the child frame and the out-of-tuplet segment remains in its owning context
+
+This preserves both simplicity and musical correctness.
+
+### 4. Tuplet Must Retain Musical Context Explicitly
+
+Tuplets retain musical intent and provide the local metric context needed for derivation.
+
+The wrapper must retain enough information to answer:
+
+- what span it consumes in host time
+- what printed span it represents locally
+- what the base written unit is
+- how the local grouping should behave
+
+### 5. `tone_id` Remains Authoritative For Tones
+
+Tone selection and mutation authority remains tone-id based. Local tick and other nested location data are lookup aids, not identity.
+
+### 6. Host-Level Directives Stay Out Of MVP Tuplet Spans
+
+For MVP:
+
+- tempo, clef, key-signature, and time-signature entries remain host-level concerns
+- host-level directive support at inner tuplet positions is deferred
+- this is a refinement problem for later work, not a model-breaking flaw
+
+### 7. Barlines Are Parse-Time Structure, Not Storage Structure
+
+Tracks remain event streams. Cross-barline tuplets are therefore not a storage-model contradiction. They are a future parse and notation problem.
+
+## Recommended Persisted Data Model
+
+## Tuplet As A New Track Entry Variant
+
+Add a new persisted entry variant on instrument tracks:
+
+```rust
+Entry::Tuplet(Tuplet)
 ```
 
-**Architectural Decisions Provided by Starter:**
+Recommended persisted shape:
 
-**Language & Runtime:**
-The foundation already standardizes on Rust for core state, rendering, playback, and persistence logic, with TypeScript and React for the control surface and supporting UI.
+```rust
+pub struct Tuplet {
+    pub id: UniqueId,
+    pub tick: Tick,
+    pub consumed_ticks: Ticks,
+    pub local_length_ticks: Ticks,
+    pub base_note_value: NoteDuration,
+    pub groupings: Vec<u8>,
+  pub entries: Entries,
+}
+```
 
-**Styling Solution:**
-The project already uses Tailwind CSS and an existing custom UI layer, which aligns with the current UX direction and should remain the basis for incremental UI evolution.
+Where:
 
-**Build Tooling:**
-The foundation already uses Vite for the frontend and Tauri for native packaging, with Rust build optimization configured for performance-sensitive runtime behavior.
+- `tick` is the host-track start position
+- `consumed_ticks` is the host-track duration the tuplet governs as a local rhythmic window
+- `local_length_ticks` is the printed local duration inside that tuplet frame
+- `base_note_value` retains the musical unit the tuplet is built from
+- `groupings` expresses the local metric grouping, with sensible defaults
+- `entries` stores the child tone stream for tones whose start position lies inside the tuplet span
 
-**Testing Framework:**
-The project has an evolving testing story rather than a mature starter-provided one. Architectural planning should treat testing and profiling as first-class support capabilities to be strengthened alongside feature delivery.
+Authoritative note entries remain in their owning context: host track for tones that start outside tuplets and child `entries` for tones that start inside tuplets. A tone may cross a tuplet boundary without being storage-split. The tuplet entry supplies the local rhythmic context used when preparing note entry, deriving notation fragments, hit targets, ties, and playback timing.
 
-**Code Organization:**
-The current repository already establishes the key architectural partitions: Rust score/data/render/audio domains, React UI primitives and window-specific code, and a strict frontend/backend mutation boundary via invoke commands.
+### Example: Eighth-Note Triplet
 
-**Development Experience:**
-The existing setup already provides the relevant workflow foundation for this project: hot-reload-oriented frontend development, typed frontend/backend contracts, native desktop execution, fixture-based validation, and migration-aware persistence work.
+For an eighth-note triplet in the time of two eighths:
 
-**Note:** For this project, implementation should begin from the current repository state. The first implementation stories should extend the existing architecture rather than initialize a new codebase.
+- `tick = 32` if it starts on beat 2 in `2/4`
+- `consumed_ticks = 32`
+- `local_length_ticks = 48`
+- `base_note_value = Eighth`
+- `groupings = [3]`
 
-## Core Architectural Decisions
+This means the tuplet frame contains `48` local ticks of printed notation that map into `32` host ticks of performed time.
 
-### Decision Priority Analysis
+## Why This Model Fits Compose
 
-**Critical Decisions (Block Implementation):**
+This model preserves several existing Compose strengths:
 
-- Preserve the existing Rust-owned score model as the single source of truth for multi-flow work
-- Implement multi-flow presentation as a derived composition layer rather than a new persisted score structure
-- Preserve the existing frontend-to-backend command boundary and typed state propagation model
-- Define explicit invalidation and caching boundaries so local flow edits do not trigger unnecessary recalculation elsewhere
-- Treat regression coverage, fixture validation, and render timing instrumentation as mandatory architectural support capabilities
+- tracks remain streams of entries
+- rests remain derived from absence of tones
+- notation stays derived from musical structure
+- score truth remains backend-owned
+- tuplets become first-class structural entries rather than renderer annotations
 
-**Important Decisions (Shape Architecture):**
+It also avoids a repo-wide rewrite of all persisted note timing into global rational durations.
 
-- Keep React responsible for UI orchestration and ephemeral interaction state only
-- Keep active-flow semantics distinct from visible-flow presentation
-- Extend existing selection, hit-testing, and popover contracts rather than introducing a parallel interaction model
-- Keep persistence changes minimal and migration-gated only when document semantics truly change
+## Child Track Shape
 
-**Deferred Decisions (Post-MVP):**
+The child should mirror the current track mental model closely enough that parser logic can recurse into it without needing a totally separate notation worldview.
 
-- Cross-flow playback behavior
-- External automation or API surfaces
-- Cloud-connected services or sync
-- Broader deployment and operational monitoring concerns beyond local development and test instrumentation
+Recommended MVP child-content scope:
 
-### Data Architecture
+- tones
+- nested tuplets
+- anything naturally attached to tones such as articulations through the tone itself
 
-The data architecture remains centered on the current Rust-owned in-memory document model. Multi-flow support should not introduce a second source of truth or a parallel presentation datastore. Existing score, flow, stave, and track structures remain authoritative.
+Deferred from MVP child content:
 
-Multi-flow presentation should be implemented as a derived orchestration layer over existing flow data. The architecture should compose multiple flows into one visible score surface without duplicating notation state or denormalizing written output into a separate long-lived representation.
+- clefs
+- key signatures
+- tempo entries
+- time signatures
 
-Caching should remain computation-oriented rather than persistence-oriented. The important caching boundary is render and derivation reuse, especially at the flow level or the smallest practical invalidation unit. Editing one flow should only invalidate the derivation and presentation artifacts that actually depend on that flow.
+This keeps MVP simple while preserving a path to nested tuplets.
 
-Persistence should remain on the existing `.soloc` and migration path. If the feature can be implemented without changing persisted score semantics, that is preferred. If persisted structure must change, migration work must be explicit and versioned through the established release flow.
+## Projection Model
 
-### Authentication & Security
+Tuplets do not remove fractional calculations completely. They localize them.
 
-This feature does not require an application-level authentication architecture. There is no user-account, tenancy, or session-management requirement in scope for the current product direction.
+Inside the child:
 
-Security for this feature is primarily local-system and data-integrity oriented. The architecture should preserve strict command boundaries between frontend and backend, maintain safe file loading and migration behavior, and avoid introducing presentation-layer changes that could corrupt score data or document state.
+- all timing is ordinary local tick timing
+- parser logic can think in written values and local spacing
 
-If future external control or automation surfaces are added, authentication and authorization should be introduced as a separate architectural concern rather than folded prematurely into this feature.
+At the boundary:
 
-### API & Communication Patterns
+- child local positions are projected into consumed host time
 
-The frontend-to-backend interaction model should remain command-oriented. All durable score mutations should continue to flow through explicit backend commands rather than frontend-owned state mutation.
+Projection formula:
 
-State propagation should continue using the current event-based and polling-based mechanisms already established by the application architecture. This feature should not introduce a competing communication paradigm.
+$$
+projected\_host\_tick = tuplet.tick + local\_tick \times \frac{consumed\_ticks}{local\_length\_ticks}
+$$
 
-For this initiative, the most important API surface is internal rather than public. The architecture should define and preserve explicit contracts between notation derivation, multi-flow presentation composition, hit-testing, selection mapping, and UI-facing interaction state.
+For the eighth-note triplet example:
 
-Error handling should remain boundary-oriented: invalid commands, unsupported state transitions, migration failures, and renderer inconsistencies should fail clearly without compromising document integrity.
+$$
+projected\_host\_tick = tuplet.tick + local\_tick \times \frac{32}{48} = tuplet.tick + local\_tick \times \frac{2}{3}
+$$
 
-### Frontend Architecture
+This means the system stays tick-based in storage, but exact arithmetic is still required when flattening tuplet internals into host musical time for playback and certain parser decisions.
 
-The frontend remains a React orchestration shell rather than the owner of score truth. It should continue to manage view state, panel state, ephemeral interaction state, and command dispatch, while backend state remains authoritative for score content, selection payloads, and rendered interaction targets.
+## Creation And Reconciliation Rules
 
-Multi-flow UI should preserve score-first boundaries. The renderer overlay, properties editing surfaces, popovers, and active-flow indicators should all coordinate around backend-derived score and selection state.
+## Tuplet Creation Adds A Container And Assigns Ownership By Start Position
 
-Active-flow semantics must remain logically distinct from visible-flow presentation. Multiple flows may be visible simultaneously while editing scope, playback scope, or other task-specific semantics remain attached to a single active flow.
+Creating a tuplet over existing same-track material adds the tuplet span and assigns storage ownership by tone start position.
 
-The architecture should avoid introducing heavyweight new frontend state machinery unless concrete limitations appear in the current context-based model. Complexity should be added only where it resolves a real orchestration problem.
+Agreed MVP behavior:
 
-### Infrastructure & Deployment
+- tuplets govern host-track material in their span
+- notes whose start position lies inside the tuplet are stored in the child frame
+- existing written values are preserved unchanged when possible
+- content beyond the tuplet span remains outside unchanged
+- new note entry inside the span prepares onsets and durations through the active tuplet multiplier, similar to how tempo context affects later projection without changing the musical intent of the prepared note
+- user-facing duration edits may pass across the tuplet boundary as one continuous drag gesture, with the system reconciling ownership under the hood
 
-The deployment architecture remains the current native desktop packaging model. No new hosting or cloud platform decision is required for this feature.
+Ownership rule for MVP:
 
-Operational architecture for this feature should focus on local development safety: render timing instrumentation, targeted regression testing, fixture coverage, and debugger support. These concerns are part of the implementation architecture because they determine whether the brownfield system can evolve safely.
+- each tone remains one stored event
+- the owning context is chosen by the tone's start position
+- derivation introduces any needed boundary-aware fragments
 
-Environment management, packaging, and platform targeting should remain aligned with the current macOS-first Tauri application structure.
+### Cross-Boundary Notes
 
-### Decision Impact Analysis
+If a note crosses the tuplet boundary, the authoritative persisted tone remains one continuous tone with one duration. The split happens when notation, rendering, or playback derives the tone through the tuplet boundary, preserving continuity through ties and projection.
 
-**Implementation Sequence:**
+Agreed example:
 
-1. Define the multi-flow composition boundary relative to existing flow and render structures
-2. Define invalidation and caching rules for local versus cross-flow edits
-3. Extend selection, hit-testing, and popover contracts for multi-flow visibility
-4. Extend React shell orchestration for active-flow and panel behavior without moving score truth into the frontend
-5. Add regression, fixture, and timing instrumentation to validate architectural safety
+- in `2/4`, a half note beginning at bar start and a triplet created on beat 2
+- keep the tone persisted as one continuous host-track tone
+- derive one fragment before the tuplet and one fragment inside the tuplet when drawing or scheduling
+- let the remaining local tuplet space derive to rest(s)
 
-**Cross-Component Dependencies:**
-These decisions tightly couple render orchestration, selection mapping, and frontend shell behavior. Data-architecture choices affect caching and invalidation. Interaction-contract choices affect renderer hit targets, frontend popovers, and properties editing. Persistence decisions affect migration requirements and release safety. Testing and instrumentation support every layer because they are required to verify that architectural boundaries remain intact during implementation.
+Symmetric rule:
 
-## Implementation Patterns & Consistency Rules
+- if a tone starts inside the tuplet and extends outward, it remains one child entry inside the tuplet
+- derivation then creates the in-tuplet and out-of-tuplet fragments from that single child entry
 
-### Pattern Categories Defined
+The parser, renderer, and playback projection perform the same kind of boundary-aware split Compose already uses around barlines and ties, with tuplet spans acting as another local metric boundary. A user can drag a tone duration across the tuplet area as one interaction while persisted storage remains one continuous tone.
 
-**Critical Conflict Points Identified:**
-The highest-risk conflict areas for AI-agent implementation are:
+The important implementation consequence is:
 
-1. Frontend/backend ownership boundaries
-2. Multi-flow composition and invalidation boundaries
-3. Selection, hit-testing, and popover contracts
-4. Persistence and migration handling
-5. File and symbol naming consistency
-6. Test placement and regression coverage style
-7. Error-handling and recovery behavior
-8. Performance instrumentation and verification
+- track storage answers "what tone exists and how long is it?"
+- storage ownership answers "where does this tone start?"
+- derivation answers "how should that tone be shown or scheduled when it crosses a tuplet boundary?"
 
-These are the areas where different agents could make locally reasonable but globally incompatible choices if the patterns are not explicit.
+### Derivation Rules
 
-### Naming Patterns
+- derivation preserves visible written values for any segment that already fits its owning context
+- derivation introduces splits at metric boundaries such as tuplet edges and barlines
+- boundary splitting changes which derived fragment belongs to which context
+- prepared written durations keep the same musical meaning inside and outside the tuplet
+- tuplet context changes projection through time, while tick counts keep the same written-duration mapping
 
-**Database Naming Conventions:**
-This project does not introduce a traditional application database for the feature. Persisted score data remains part of the `.soloc` document model and supporting local metadata flows. If future persisted fields are added, serialized field names must follow the existing Rust and TypeScript cross-boundary convention of `snake_case`.
+Concrete implication:
 
-Examples:
+- if a crossing tone leaves `16` ticks of remainder inside the tuplet, that remainder is drawn as an eighth
 
-- Good: `flow_id`, `time_signature_id`, `show_metronome`
-- Avoid: `flowId`, `timeSignatureId`, `showMetronome`
+Edit-time storage rule:
 
-**API Naming Conventions:**
-Internal command and payload naming must remain aligned with the current Tauri command boundary. Frontend-to-backend parameters use `snake_case`, and backend commands remain explicit rather than generic mutation channels.
+- edit commit preserves one stored event per tone
+- ownership changes only when the tone's start position crosses the tuplet boundary
 
-Examples:
+## Sequencer UX Contract
 
-- Good: `renderer_hit_test`, `transport_get_state`, payload fields such as `flow_id`
-- Avoid: `rendererHitTest`, `getTransportState`, mixed camelCase payloads
+Tuplet creation is not complete at the container-creation seam alone. The backend and sequencer must together provide a deterministic handoff from popover confirmation into sequencer-local editing.
 
-**Code Naming Conventions:**
-File naming should follow the repository’s established conventions:
+Required sequencer contract for MVP:
 
-- TypeScript and TSX files: `kebab-case`
-- Rust files: `snake_case`
-- React component exports: `PascalCase`
-- Cross-boundary data fields: `snake_case`
+- confirming tuplet creation reveals the governed region immediately on the active track
+- the created tuplet container becomes the active selection on completion
+- the visible region stays bounded and legible before any child notes are entered
+- the region includes a centered `3:2` annotation, anchored to the governed span and allowed to remain sticky at the top of the sequencer viewport while that span is in view
+- the annotation must not rely on a solid occluding background that hides notes underneath it
+- the sequencer shows slightly compressed internal tick markers inside the governed span so tuplet-local slot structure is visible without changing the meaning of surrounding host ticks
+- empty local slots remain targetable and visually quieter than real notes, but they must not collapse away after creation or after deleting a child tone
 
-Examples:
+These are product obligations, not optional polish. They define how the tuplet container becomes actionable in the current sequencer-first workflow.
 
-- Good: `use-selected-tempo.ts`, `time_signature.rs`, `Renderer`
-- Avoid: `useSelectedTempo.ts`, `TimeSignature.rs`, `renderer_component.tsx`
+## Focus, Feedback, And Accessibility Contract
 
-### Structure Patterns
+Rust remains authoritative for score truth and edit validation, but some tuplet UX requirements are intentionally frontend-local and ephemeral.
 
-**Project Organization:**
-Agents must preserve the existing separation of concerns:
+Required interaction contract for MVP:
 
-- Rust score model changes go under the current score, instructions, renderer, playback, UI-state, or migration modules as appropriate
-- React window and screen behavior stays under the current window/screen/component/hook layout
-- Shared UI primitives belong in the existing UI layer, not inside feature-specific screens
-- Shared parser test support belongs under `src-tauri/src/instructions/parse/test_support/` when it truly supports multiple parser scenarios
+- popover focus lands on the ratio field when the tuplet popover opens
+- popover close or confirm returns focus to the originating sequencer context or the newly created tuplet region
+- unsupported tuplet edits follow the product's existing rejection behavior and surface local inline feedback at the interaction point; MVP does not require a tuplet-specific global error flow
+- sequencer selection states for tuplet container, child note, and empty slot must remain distinguishable through boundary or placement treatment in addition to color so the active target is still understandable under accessibility tooling and reduced-color perception
 
-Tests should follow current project practice:
+This keeps backend ownership intact while making the UX contract explicit enough that implementation does not drift into hidden focus jumps or color-only state communication.
 
-- TypeScript tests colocated with the source they verify
-- Parser behavior tests kept close to the parser modules they protect
-- Visual-regression fixture sources under `tests/fixtures/source/`
+## Worked Example: `2/4` Half Note Crossing A Beat-2 Triplet
 
-**File Structure Patterns:**
-Agents should extend existing modules before creating new top-level organizational patterns. New files should appear only when the current module boundaries are no longer coherent.
+This example pressure-tests the agreed model with a concrete case.
 
-Examples:
+### Musical Setup
 
-- Good: extending existing selection hooks, renderer modules, draw/parse modules, or write-screen properties components
-- Avoid: creating parallel feature folders that duplicate existing domain structure
+- bar context: `2/4`
+- host tick lattice: `32 ticks per quarter`
+- user creates an eighth-note triplet on beat 2
+- user intent includes a half note beginning at bar start
 
-### Format Patterns
+The key agreed UX rule for this case is:
 
-**API Response Formats:**
-For this feature, the relevant API surface is the internal command boundary and event/state contract rather than a web JSON API. Commands should return focused, typed results and fail clearly at the boundary. Agents must not introduce ad hoc wrapper formats unless a boundary already expects them.
+- split at the tuplet boundary during derivation
+- preserve written values inside the tuplet when structurally valid
+- let the tuplet container context provide the musical meaning of the derived local content
 
-**Data Exchange Formats:**
-Cross-boundary serialized structures must preserve:
+Related example:
 
-- `snake_case` field naming
-- existing enum/value synchronization rules between Rust and TypeScript
-- explicit optional/null semantics rather than loosely inferred absence
-- migration-aware evolution when persisted data changes
+- if a quarter note is moved right by an eighth so only `16` ticks remain before the tuplet boundary and `16` ticks continue inside the tuplet
+- the derived notation should read as an eighth rest, then an eighth note tied to a triplet eighth note, then two triplet eighth rests
+- this follows the literal tick-mapping rule
 
-Examples:
+### State Before Tuplet Creation
 
-- Good: add matching Rust and TypeScript fields together, preserve enum ordering/representation rules, add migration steps when older files would otherwise break
-- Avoid: frontend-only field additions that silently diverge from backend shape, changing persisted semantics without migration review
-
-### Communication Patterns
-
-**Event System Patterns:**
-Agents must preserve the current communication model:
-
-- durable mutations go through backend commands
-- pushed state continues through existing event channels
-- transport behavior continues using the existing polling strategy where already established
-- no parallel communication model should be introduced for convenience
-
-Selection, hit-target, and popover coordination should use explicit typed payloads rather than inferred DOM state.
-
-**State Management Patterns:**
-Frontend state should remain limited to view orchestration and ephemeral interaction state. Backend state remains authoritative for score content, selection identity, and render-derived interaction targets.
-
-Rules:
-
-- Do not duplicate score truth in React state
-- Do not introduce derived score caches in the frontend when the backend already owns the source model
-- Keep active-flow semantics explicit and separate from visible-flow presentation state
-- Prefer extending existing context and hook patterns before adding new global state layers
-
-### Process Patterns
-
-**Error Handling Patterns:**
-Errors must fail at the correct boundary and preserve document integrity.
-
-- Backend command failures should surface as clear operation failures
-- Renderer inconsistencies should not silently mutate score state
-- Migration and persistence failures should remain explicit
-- User-facing errors should be concise and local where possible; internal debugging detail belongs in logs or developer tooling
-
-**Loading State Patterns:**
-Loading and busy-state handling should remain local and task-oriented.
-
-- Use local loading indicators for command-driven UI work
-- Avoid introducing broad global loading state for score interactions unless the whole application is genuinely blocked
-- Keep layout stable while local panels, popovers, or controls update
-- Do not fake optimistic score-state mutations on the frontend for backend-owned actions
-
-### Enforcement Guidelines
-
-**All AI Agents MUST:**
-
-- Preserve Rust as the single source of truth for score state and durable document mutations
-- Preserve the native-rendered score surface as the sole rendering path for score notation
-- Preserve `snake_case` for all frontend/backend boundary fields and commands
-- Preserve migration review for any persisted-data or `.soloc` behavior change
-- Extend existing module boundaries before creating parallel architectural structures
-- Add or update regression coverage when notation, selection, hit-testing, or render behavior changes
-- Treat performance instrumentation as part of the feature contract when rendering behavior is affected
-
-**Pattern Enforcement:**
-Patterns should be verified through code review, type alignment between Rust and TypeScript, targeted regression tests, fixture coverage where relevant, and validation against documented project-context rules. Pattern violations should be corrected in the implementation before follow-on work builds on them.
-
-### Pattern Examples
-
-**Good Examples:**
-
-- Adding a new persisted field to a Rust struct, updating the matching TypeScript type, and adding a pending migration if old files need transformation
-- Extending existing renderer hit-target payloads rather than creating frontend-only coordinate approximations
-- Keeping multi-flow presentation state derived from existing flow structures rather than creating duplicated presentation models
-- Adding parser-level regression tests in the local parser area when notation behavior could be affected
-
-**Anti-Patterns:**
-
-- Storing score-authoritative multi-flow state in React for convenience
-- Rendering score notation in HTML/React to avoid backend work
-- Introducing camelCase fields across the Rust/TypeScript boundary
-- Changing `.soloc` semantics without migration impact analysis
-- Creating a second selection or popover model that competes with the renderer-owned interaction contract
-- Adding new top-level organizational structures when existing domain modules already define the correct home
-
-## Project Structure & Boundaries
-
-### Complete Project Directory Structure
+Host track entries:
 
 ```text
-compose/
-├── package.json
-├── vite.config.ts
-├── tsconfig.json
-├── eslint.config.js
-├── TESTING.md
-├── docs/
-│   ├── index.md
-│   ├── architecture.md
-│   ├── component-inventory.md
-│   ├── data-models.md
-│   ├── development-guide.md
-│   ├── project-context.md
-│   ├── project-overview.md
-│   └── source-tree-analysis.md
-├── src/
-│   ├── services/
-│   │   ├── actions.ts
-│   │   ├── types.ts
-│   │   ├── hit-test.ts
-│   │   ├── popovers.ts
-│   │   ├── sequencer-utils.ts
-│   │   └── state/
-│   ├── ui/
-│   ├── components/
-│   ├── windows/
-│   │   ├── main/
-│   │   │   ├── boot.tsx
-│   │   │   ├── index.tsx
-│   │   │   ├── components/
-│   │   │   │   ├── renderer.tsx
-│   │   │   │   ├── transport.tsx
-│   │   │   │   ├── tools.tsx
-│   │   │   │   ├── sequencer.tsx
-│   │   │   │   ├── mixer.tsx
-│   │   │   │   └── ...
-│   │   │   ├── hooks/
-│   │   │   ├── screens/
-│   │   │   │   ├── setup/
-│   │   │   │   ├── write/
-│   │   │   │   │   ├── index.tsx
-│   │   │   │   │   └── components/
-│   │   │   │   └── sequence/
-│   │   │   └── utils/
-│   │   └── ...
-│   ├── utils/
-│   └── test-setup.ts
-├── src-tauri/
-│   ├── Cargo.toml
-│   ├── src/
-│   │   ├── lib.rs
-│   │   ├── files.rs
-│   │   ├── soloc.rs
-│   │   ├── migrations/
-│   │   │   ├── mod.rs
-│   │   │   └── next.rs
-│   │   ├── score/
-│   │   │   ├── mod.rs
-│   │   │   ├── flows.rs
-│   │   │   ├── tracks.rs
-│   │   │   ├── staves.rs
-│   │   │   ├── layouts.rs
-│   │   │   ├── entries/
-│   │   │   ├── instruments/
-│   │   │   └── components/
-│   │   ├── instructions/
-│   │   │   ├── mod.rs
-│   │   │   ├── parse/
-│   │   │   │   ├── mod.rs
-│   │   │   │   ├── get_horizontal_spacing.rs
-│   │   │   │   ├── get_vertical_spacing.rs
-│   │   │   │   ├── get_written_durations.rs
-│   │   │   │   ├── get_beams.rs
-│   │   │   │   └── test_support/
-│   │   │   └── draw/
-│   │   │       ├── mod.rs
-│   │   │       ├── draw_staves.rs
-│   │   │       ├── draw_time_signature.rs
-│   │   │       ├── draw_key_signature.rs
-│   │   │       ├── draw_clef.rs
-│   │   │       └── ...
-│   │   ├── renderer/
-│   │   │   ├── mod.rs
-│   │   │   ├── hit_test.rs
-│   │   │   ├── converter.rs
-│   │   │   └── backends/
-│   │   ├── playback/
-│   │   ├── ui/
-│   │   │   ├── mod.rs
-│   │   │   ├── renderer.rs
-│   │   │   ├── sequencer.rs
-│   │   │   └── screens/
-│   │   └── bin/
-├── tests/
-│   └── fixtures/
-│       ├── source/
-│       └── built/
-└── _bmad-output/
-    └── planning-artifacts/
-        └── architecture.md
+Tone 101
+- tick: 0
+- duration: 64
+- meaning: written half note from bar start
 ```
 
-This feature should extend that structure through the following bounded areas rather than by creating new top-level subsystems:
-
-- Multi-flow derivation and layout logic in `src-tauri/src/instructions/parse/`
-- Multi-flow draw orchestration in `src-tauri/src/instructions/draw/` and `src-tauri/src/instructions/mod.rs`
-- Render interaction and hit-target updates in `src-tauri/src/renderer/`
-- Backend UI-state extensions in `src-tauri/src/ui/`
-- Frontend renderer orchestration and write-screen behavior in `src/windows/main/`
-- Shared frontend contracts in `src/services/`
-- Regression and fixture support in `src-tauri/src/instructions/parse/test_support/`, parser-local tests, and `tests/fixtures/source/`
-
-### Architectural Boundaries
-
-**API Boundaries:**
-There is no separate public web API boundary for this feature. The primary application boundary is the Tauri command interface between the React frontend and Rust backend. Durable mutations belong to backend commands, and typed state flows back through the existing event and polling mechanisms.
-
-**Component Boundaries:**
-The score surface remains a native-rendered backend responsibility. React components handle orchestration, panels, controls, local interaction state, and command dispatch. Score notation, hit-target truth, and selection identity must not be reimplemented in frontend components.
-
-**Service Boundaries:**
-Frontend shared services in `src/services/` define contracts, invoke calls, shared types, and interaction helpers. Backend service-like boundaries remain distributed across score, instruction-generation, renderer, playback, persistence, and UI-state modules. Multi-flow work should respect those domains rather than introduce a new cross-cutting god module.
+At this point there is no tuplet entry. The track is a normal flat event stream.
 
-**Data Boundaries:**
-Authoritative musical and document state remains in Rust score and UI models. Multi-flow presentation data is derived from existing flow structures rather than stored as a second authoritative representation. Persisted-data boundaries remain governed by `.soloc` plus migration rules.
+### User Action
 
-### Requirements to Structure Mapping
+Create an eighth-note triplet at beat 2.
 
-**Feature Mapping:**
+Tuplet definition:
 
-- Score presentation and flow continuity
-  - `src-tauri/src/instructions/mod.rs`
-  - `src-tauri/src/instructions/parse/`
-  - `src-tauri/src/instructions/draw/`
-  - `src-tauri/src/renderer/`
-  - `src/windows/main/components/renderer.tsx`
+- host `tick = 32`
+- `consumed_ticks = 32`
+- `local_length_ticks = 48`
+- `base_note_value = Eighth`
+- `groupings = [3]`
 
-- Interaction across flows
-  - `src-tauri/src/renderer/hit_test.rs`
-  - `src-tauri/src/ui/`
-  - `src/services/hit-test.ts`
-  - `src/services/popovers.ts`
-  - `src/windows/main/screens/write/`
-  - `src/windows/main/hooks/`
+This means:
 
-- Notation integrity and musical correctness
-  - `src-tauri/src/instructions/parse/get_written_durations.rs`
-  - `src-tauri/src/instructions/parse/get_beams.rs`
-  - adjacent parser modules and their tests
-  - `tests/fixtures/source/`
+- the tuplet consumes the second quarter of the bar in host time
+- the child behaves like a local printed span of three eighths
 
-- Navigation and reading experience
-  - `src-tauri/src/ui/renderer.rs`
-  - `src/windows/main/components/renderer.tsx`
-  - `src/windows/main/index.tsx`
-  - write-screen components and hooks
+### Reconciliation Rule Applied
 
-- Update isolation and rendering behavior
-  - `src-tauri/src/instructions/mod.rs`
-  - parse/draw orchestration modules
-  - renderer caching and invalidation code
-  - render timing instrumentation points
+The original half note crosses the tuplet boundary at host tick `32`, so derivation must split it at that boundary even though persisted track state keeps one continuous tone.
 
-- Desktop document workflow
-  - `src-tauri/src/files.rs`
-  - `src-tauri/src/soloc.rs`
-  - `src-tauri/src/migrations/`
+Persisted state:
 
-- Playback boundary preservation
-  - `src-tauri/src/playback/`
-  - `src/services/actions.ts`
-  - transport-related frontend components
+```text
+Host track
+- Tone 101: tick 0, duration 64
+- Tuplet 201: tick 32, consumed_ticks 32, local_length_ticks 48,
+  base_note_value Eighth, groupings [3]
+```
 
-**Cross-Cutting Concerns:**
+Notes:
 
-- Persistence and migration safety
-  - `src-tauri/src/files.rs`
-  - `src-tauri/src/soloc.rs`
-  - `src-tauri/src/migrations/mod.rs`
-  - `src-tauri/src/migrations/next.rs`
+- persisted track state contains one half-note tone with one duration
+- derivation produces a quarter-note fragment before the tuplet and a quarter-note fragment inside the tuplet frame
+- the final local eighth of the tuplet frame is empty and therefore derives to rest during parsing
 
-- Shared type alignment
-  - `src/services/types.ts`
-  - matching Rust structs and enums across `src-tauri/src/score/` and `src-tauri/src/ui/`
+Derived result facts:
 
-- Testing and regression support
-  - colocated TS tests
-  - parser-local Rust tests
-  - `src-tauri/src/instructions/parse/test_support/`
-  - `tests/fixtures/source/`
+- storage remains one tone across the boundary
+- the tuplet-side note value is a quarter
+- the tuplet-side rest is derived from absence of tone content
 
-### Integration Points
+### Derived Notation Result
 
-**Internal Communication:**
-Frontend controls communicate with backend state through `actions.ts` and the Tauri command layer. Backend state updates propagate through existing event channels, while transport state continues to use the established polling path. Selection, hit-testing, and popover positioning must remain coordinated through typed shared contracts.
+The resulting notation should read as:
 
-**External Integrations:**
-This feature does not require new third-party service integrations. The relevant external boundaries remain local file workflows, native rendering, and audio-device integration.
+```text
+beat 1: quarter note
+beat 2 tuplet: quarter note tied from beat 1, then eighth rest
+```
 
-**Data Flow:**
-User interaction begins in React controls or the renderer overlay, flows through typed frontend service calls into backend commands, updates authoritative Rust state, triggers recalculation only where needed, regenerates draw instructions and hit targets, and returns visible state through the existing application update channels.
+Inside the tuplet frame:
 
-### File Organization Patterns
+- the derived written quarter occupies the first two local eighth slots
+- the final local eighth slot is empty and therefore renders as rest
+- the tuplet bracket/number expresses that these three local eighth slots occupy one host quarter beat
 
-**Configuration Files:**
-Root-level configuration remains where it already exists: package/tooling config in the repository root, native configuration under `src-tauri/`, and workflow-specific documentation under `docs/` and `_bmad-output/`.
+### Parser Interpretation
 
-**Source Organization:**
-Source remains split by responsibility:
+The parser handles this in two layers.
 
-- shared frontend logic in `src/services/`, `src/ui/`, and `src/components/`
-- window-specific behavior in `src/windows/`
-- authoritative backend domains in `src-tauri/src/score/`, `instructions/`, `renderer/`, `playback/`, `ui/`, `files.rs`, and `migrations/`
+Host layer:
 
-**Test Organization:**
-Tests stay close to the behavior they verify:
+- sees a half note beginning at bar start
+- sees a tuplet container beginning at host tick `32`
 
-- TypeScript tests colocated with source files
-- Rust parser and renderer tests near the owning modules
-- shared parser harness utilities in `src-tauri/src/instructions/parse/test_support/`
-- manual visual fixtures under `tests/fixtures/source/`
+Tuplet-aware derivation layer:
 
-**Asset Organization:**
-Frontend assets remain under `src/assets/`, instrument content remains under `instruments/`, and test fixtures remain in the existing fixture directories.
+- evaluates the continuous tone against the tuplet boundary
+- derives a written quarter from the tone portion that projects through local duration `0..32`
+- derives a final local eighth rest from the empty tail span `32..48`
 
-### Development Workflow Integration
+The parser derives two notation fragments from one stored tone because the tuplet boundary requires that reading.
 
-**Development Server Structure:**
-The structure supports parallel frontend and native development through the existing Vite plus Tauri workflow. Frontend changes remain isolated to the React shell and supporting services, while backend changes remain in the Rust domains that own state, rendering, and persistence.
+Flattened result:
 
-**Build Process Structure:**
-The build process continues to compile the frontend bundle through Vite and the native application through Tauri and Cargo. The structure keeps frontend assets, backend domains, and fixture tooling separate enough for targeted validation.
+- host quarter notation before the tuplet
+- tuplet-side quarter notation plus tuplet-side rest notation inside the tuplet frame
+- tie continuity preserved across the host-to-tuplet boundary as a parser result over one persisted tone and two derived fragments
 
-**Deployment Structure:**
-The existing structure supports the current macOS-first native packaging model. No reorganization is needed for deployment; the main concern is preserving clean module boundaries so the feature can ship without destabilizing the current desktop application packaging and migration flow.
+### Spacing Interpretation
 
-## Architecture Validation Results
+Ambient host spacing provides width for the consumed second beat.
 
-### Coherence Validation ✅
+Tuplet-local spacing then computes child requirements for:
 
-**Decision Compatibility:**
-The architecture is internally coherent. The core decisions reinforce one another: Rust remains the single source of truth, the score surface remains natively rendered, React remains the orchestration layer, and persistence remains governed through the existing `.soloc` plus migration model. These choices are well aligned with the brownfield nature of the product and with the multi-flow feature boundary defined in the PRD.
+- one written quarter occupying two child eighth slots
+- one derived child eighth rest in the final slot
+- tuplet bracket and number
 
-**Pattern Consistency:**
-The implementation patterns support the architectural decisions effectively. Naming rules, cross-boundary serialization expectations, ownership boundaries, and test-placement rules all match the chosen stack and repository conventions. The document is especially strong where AI agents are most likely to drift: frontend/backend ownership, selection contracts, persistence changes, and module placement.
+The final width rule is:
 
-**Structure Alignment:**
-The project structure section aligns with the architecture. It extends the existing repository shape rather than inventing a parallel feature hierarchy, and it maps the multi-flow work into the backend rendering, parser, renderer, UI-state, and frontend orchestration areas that actually own the relevant behavior.
+- if the child notation plus bracket needs more width than the ambient consumed host span, host spacing expands
+- if surrounding host spacing is already wider, the child local x positions stretch to fill the available width
 
-### Requirements Coverage Validation ✅
+This is the same widest-needed-spacing principle already used in the host score.
 
-**Epic/Feature Coverage:**
-The architecture fully supports the current feature scope as expressed through the PRD requirement clusters. Score presentation, interaction continuity, notation preservation, update isolation, desktop document behavior, and playback boundaries all have clear architectural homes and boundaries.
+### Selection Interpretation
 
-**Functional Requirements Coverage:**
-All major functional requirement categories are architecturally supported:
+Selection stays authority-first.
 
-- multi-flow score presentation maps to parse, draw, renderer, and frontend renderer orchestration
-- interaction across flows maps to hit-testing, selection, popovers, and UI state
-- notation integrity maps to parser-local protections and regression coverage
-- navigation and reading map to renderer/view orchestration and active-flow handling
-- update isolation maps to invalidation and caching boundaries
-- desktop workflow maps to files, `.soloc`, and migration modules
-- playback preservation maps to keeping playback architecture separate from presentation changes
+Host-side fragment:
 
-**Non-Functional Requirements Coverage:**
-The architecture addresses the important non-functional requirements:
+- authoritative identity: `tone_id = 101`
 
-- performance through isolated recalculation, caching boundaries, and instrumentation expectations
-- correctness through notation-preservation rules, explicit interaction contracts, and regression testing
-- offline-first and macOS-native operation through the unchanged desktop-first foundation
-- persistence safety through migration-aware change control
-- maintainability through explicit module boundaries and consistency rules
+Tuplet-side fragment:
 
-### Implementation Readiness Validation ✅
+- authoritative identity: `tone_id = 101`
+- lookup context: `track_id`, `tuplet_path = [201]`, `local_tick = 0`, fragment boundary at host tick `32`
 
-**Decision Completeness:**
-The critical architectural decisions are sufficiently documented for implementation. The document makes clear what must remain stable, what can evolve, and what is intentionally deferred.
+Derived child rest:
 
-**Structure Completeness:**
-The project structure guidance is concrete enough for implementation. It identifies the relevant repository areas, maps requirements to them, and defines where cross-cutting concerns belong.
+- no persisted tone id
+- lookup context only: `track_id`, `tuplet_path = [201]`, `local_tick = 32`
 
-**Pattern Completeness:**
-The implementation patterns cover the major conflict areas that would otherwise produce inconsistent AI-agent output. This is especially true for naming, ownership, persistence, communication, and testing boundaries.
+Tuplet container:
 
-### Gap Analysis Results
+- authoritative identity: `tuplet_id = 201`
 
-**Critical Gaps:**
-No critical architectural gaps were identified.
+### Playback Interpretation
 
-**Important Gaps:**
+Playback remains host-time based, but note preparation and projection are tuplet-aware.
 
-- The exact invalidation contract for multi-flow recalculation is not yet specified at a lower-level design granularity
-- Render-timing instrumentation expectations are defined directionally rather than at specific hook points
-- Some PRD requirements remain partly qualitative, so implementation stories should sharpen acceptance criteria as work is broken down
+Projection formula:
 
-**Nice-to-Have Gaps:**
+$$
+projected\_host\_tick = 32 + local\_tick \times \frac{32}{48}
+$$
 
-- A later implementation spec could define concrete invalidation scenarios and example flow-update cases
-- A supplemental testing matrix could make parser, renderer, fixture, and interaction coverage expectations even more explicit
+For the derived tuplet-side quarter-note fragment:
 
-### Validation Issues Addressed
+- onset: local tick `0` projects to host tick `32`
+- duration: local duration `32` projects to host duration $32 \times \frac{32}{48} = \frac{64}{3}$ host ticks
 
-The main architectural risk identified during validation was the possibility of feature work introducing parallel ownership models or duplicated score state in the frontend. This has already been addressed in the architectural decisions and implementation patterns by explicitly preserving Rust ownership, native rendering, and typed interaction contracts.
+For the derived tuplet-side rest:
 
-A second risk was persistence drift. This has also been addressed by making migration review and `.soloc` compatibility part of the architectural rules rather than treating them as optional implementation details.
+- onset: local tick `32` projects to host tick $32 + \frac{64}{3}$
+- duration: local duration `16` projects to host duration $16 \times \frac{32}{48} = \frac{32}{3}$ host ticks
 
-### Architecture Completeness Checklist
+So playback sees the second beat as:
 
-**✅ Requirements Analysis**
+- sounded continuation over the first two triplet eighths
+- silence over the final triplet eighth
 
-- [x] Project context thoroughly analyzed
-- [x] Scale and complexity assessed
-- [x] Technical constraints identified
-- [x] Cross-cutting concerns mapped
+This demonstrates the main architectural point:
 
-**✅ Architectural Decisions**
+- derived notation can stay in ordinary written values
+- exact fractional math is still required when projecting tuplet-governed fragments back into host musical time
 
-- [x] Critical decisions documented
-- [x] Technology stack fully specified
-- [x] Integration patterns defined
-- [x] Performance considerations addressed
+### Why This Example Matters
 
-**✅ Implementation Patterns**
+This example validates that the agreed model can express all of the following without changing the core rules:
 
-- [x] Naming conventions established
-- [x] Structure patterns defined
-- [x] Communication patterns specified
-- [x] Process patterns documented
+- tuplets govern host-track space through a bounded local metric container
+- tuplet-local derivation stays track-like
+- written values are preserved when possible
+- rests remain derived from absence of tones
+- selection remains tone-id authoritative
+- spacing can either expand or fit ambient width
+- playback remains exact by projection rather than by flattening the entire data model into global rational storage
 
-**✅ Project Structure**
+## Deletion Rule
 
-- [x] Complete directory structure defined
-- [x] Component boundaries established
-- [x] Integration points mapped
-- [x] Requirements to structure mapping complete
+Agreed MVP deletion behavior:
 
-### Architecture Readiness Assessment
+- deleting the tuplet deletes everything inside it
 
-**Overall Status:** READY FOR IMPLEMENTATION
+No dissolve-back-to-host-time behavior is required for MVP.
 
-**Confidence Level:** High
+## Parser Architecture
 
-**Key Strengths:**
+## Recursive Local Parse, Then Flatten
 
-- Strong alignment with the existing brownfield architecture
-- Clear ownership boundaries between Rust and React
-- Explicit protection of notation behavior and persistence safety
-- Good implementation guidance for multi-agent consistency
-- Practical mapping from requirements to concrete repository areas
+The parser should treat tuplets as recursive local notation frames.
 
-**Areas for Future Enhancement:**
+Recommended flow:
 
-- Lower-level invalidation design for multi-flow recalculation
-- More explicit instrumentation points for render-performance verification
-- Story-level acceptance criteria refinement for the PRD’s more qualitative requirements
+1. Parse the host track as an event stream.
+2. When a `Tuplet` entry is encountered, parse its child `Entries` inside the local frame defined by:
+   - `local_length_ticks`
+   - `base_note_value`
+   - `groupings`
+3. Produce normal local notations from that child event stream.
+4. Flatten the result back into host ordering with tuplet context and projected timing.
 
-### Implementation Handoff
+This avoids a special-case “triplet parser” while still preserving the existing notation pipeline shape.
 
-**AI Agent Guidelines:**
+## Local Metric Frame
 
-- Follow all architectural decisions exactly as documented
-- Use implementation patterns consistently across all touched modules
-- Respect Rust/React ownership boundaries and existing repository structure
-- Treat persistence, migrations, notation correctness, and regression coverage as first-class architectural concerns
+Tuplets should conceptually behave like small isolated bars for notation purposes, but not literally embed full flow-level time-signature semantics.
 
-**First Implementation Priority:**
-Define the multi-flow composition and invalidation boundary inside the existing Rust render pipeline before extending frontend orchestration.
+Recommended local-frame semantics for MVP:
+
+- local length
+- local grouping boundaries
+- base written unit
+
+This is enough to support:
+
+- written-duration interpretation
+- beaming decisions
+- spacing layout
+- future nested tuplets
+
+## Rests
+
+Rests remain derived from absence of tones inside the child frame, exactly as they do on host tracks.
+
+That means no explicit rest entries are required in tuplet storage.
+
+## Rendering Architecture
+
+## Tuplet Rendering
+
+Rendering should continue to be fully backend-owned.
+
+Recommended render behavior:
+
+- derive child notation and child local spacing normally
+- map child local x positions into the consumed host span
+- draw tuplet number and bracket from wrapper metadata
+- preserve current note/chord rendering semantics inside the child frame
+
+Tuplets are therefore not a separate visual layer. They are normal notation rendered inside a warped container.
+
+## Spacing Strategy
+
+The current host spacing model already behaves like a widest-needed-spacing system. Tuplets can fit that model.
+
+Recommended spacing flow:
+
+1. Build a local spacing grid for the child frame using child notation.
+2. Compute the child’s total required width.
+3. Compare that width to the ambient host width across the consumed span.
+4. If child width exceeds host width, expand host spacing.
+5. If host width is already wider, stretch the child layout to fit.
+
+This matches the agreed requirement that a triplet may either:
+
+- demand more width than the default host span
+- or fit naturally inside already-wide ambient spacing
+
+## Selection And Hit Testing
+
+## Tone Selection
+
+Tone identity remains `tone_id`.
+
+Recommended tone selection payload shape for future tuplets:
+
+- `track_id`
+- `tuplet_path`
+- `tone_id`
+- optional `local_tick` for lookup and anchoring
+
+Where:
+
+- `tuplet_path` expresses nested containment when needed
+- `local_tick` is not authoritative identity
+
+## Tuplet Selection
+
+Tuplets themselves should be selectable by `tuplet_id`.
+
+Recommended container selection payload:
+
+- `track_id`
+- `tuplet_path`
+- `tuplet_id`
+
+This supports native hit-testing for brackets and numbers without replacing tone-id-based authority.
+
+## Playback Architecture
+
+## MVP Playback Direction
+
+Playback should continue to think in host musical time, but tuplet child note events must be projected into host time before scheduling.
+
+Recommended MVP playback seam:
+
+- collect child note events from tuplets together with host note events outside tuplets
+- project their local onsets and durations into host time using the tuplet warp
+- order them alongside host events by projected host position
+
+This keeps tempo handling naturally host-level.
+
+## Tempo And Future Ramps
+
+Tempo remains pinned to host timeline positions.
+
+This is the correct separation of concerns:
+
+- tuplets map local notation time into host musical time
+- tempo maps host musical time into wall-clock time
+
+That architecture is compatible with future first-class ritardando and accelerando work because tempo curves remain a host-time concern rather than something owned by tuplet-local notation frames.
+
+## Host-Level Directives Beyond MVP
+
+The agreed direction is:
+
+- do not solve nested attachment of host-level directives in MVP
+- do not treat that as a model failure
+- revisit it later as a refinement problem
+
+Important future example:
+
+- clef changes remain host-level in effect because they apply across instrument tracks and voices
+- later, a clef may need to attach at an inner tuplet beat even though it remains host-level in scope
+
+This future problem should be deferred. The current tuplet container model does not block it.
+
+## Migration Impact Analysis
+
+Migration is still required, but the scope is narrower than a repo-wide exact-duration rewrite.
+
+Required persisted changes for MVP:
+
+- add `Entry::Tuplet`
+- add `Tuplet` serialization
+- add child `Entries` serialization for notes authored wholly inside tuplets
+- update load/save behavior to support tuplet metadata plus continuous cross-boundary tones
+
+The intended persisted invariant is:
+
+- child `entries` are for tones whose start position lies inside the tuplet
+- host track entries are for tones whose start position lies outside the tuplet
+- every tone remains one stored event
+- load/save must not force a crossing tone into multiple stored tones merely because a tuplet boundary intersects it
+
+Not required for MVP:
+
+- rewriting every persisted host tone duration into a new global rational type
+- redesigning host-level directive locations
+
+Recommended `src-tauri/src/migrations/next.rs` work during implementation:
+
+- additive schema support for tuplet entries
+- no-op migration for legacy files that do not contain tuplets
+- validation that recursive child `Entries` deserialize safely
+- validation that cross-boundary continuous tones remain intact through load/save
+
+## Regression Strategy
+
+Regression coverage must protect both new tuplet behavior and existing non-tuplet behavior.
+
+## Parser Regressions
+
+Add explicit parser scenarios for:
+
+- isolated eighth-note triplets
+- isolated quarter-note triplets
+- host-note consumption into triplet child space
+- boundary splitting where a host note crosses into a tuplet
+- nested tuplets in parser-only coverage if the data model permits them
+- unchanged current simple-meter and compound-meter behavior outside tuplets
+
+## Spacing Regressions
+
+Add spacing tests that prove:
+
+- tuplet-local width can expand host spacing when required
+- tuplet-local layout can stretch to ambient host width when host spacing is already larger
+
+## Rendering Regressions
+
+Add renderer and hit-test coverage for:
+
+- tuplet bracket and number draw instructions
+- note positions projected correctly within the tuplet-governed host span
+- `Tuplet` hit targets
+- tone hit targets still authoritative by `tone_id`
+
+## Playback Regressions
+
+Add transport coverage for:
+
+- triplet onsets projected exactly into host musical time
+- triplet durations scheduled correctly under host tempos
+- no drift relative to surrounding host notes
+
+## Persistence Regressions
+
+Add load/save coverage for:
+
+- tuplet entries round-tripping through `.soloc`
+- tuplet span metadata and child entries deserializing correctly
+- cross-boundary continuous tones round-tripping without forced storage splits
+- legacy non-tuplet files loading unchanged
+
+## MVP Boundaries
+
+In scope for MVP:
+
+- track-local tuplets on instrument tracks
+- tuplet-container creation behavior
+- self-contained triplets
+- nested tuplet-capable data model
+- tone-owned properties inside tuplets
+- rendering, spacing, hit-testing, and playback support for tuplet-governed notation and timing
+
+Out of scope for MVP:
+
+- host-level directives at inner tuplet positions
+- cross-barline tuplets as a fully supported notation behavior
+- delete-and-dissolve behavior
+- generalized inner-span directive ecosystem inside tuplets
+
+## Final Recommendation
+
+Proceed with foundational tuplet support using a tuplet-container entry model.
+
+The authoritative architectural statement is:
+
+- tuplets are host-track entries that govern host time through a bounded local metric container and may own child tone entries
+- authoritative tone events are always stored as single entries, with ownership determined by where they start
+- boundary splitting changes derived ownership at the tuplet edge, not the written meaning of equal-duration segments on either side of that edge
+- the wrapper retains musical context through governed span, local span, base notation, and grouping metadata
+- parser, renderer, spacing, selection, and playback all operate by deriving tuplet-local fragments from persisted tones and child content, then projecting them back into host musical time
+
+The simplest statement of the rule is:
+
+- the track stores tones
+- tuplets store container context plus child content for tones that start inside them
+- drawing and scheduling are where crossing tones get split into boundary-aware fragments
+
+This matches the agreed UX direction, preserves Compose’s event-stream model, and avoids a technical dead end without over-solving future directive-location work today.

@@ -16,9 +16,8 @@ stepsCompleted:
   - 14
 lastStep: 14
 inputDocuments:
-  - _bmad-output/planning-artifacts/prd-foundational-tuplet-support.md
-  - _bmad-output/planning-artifacts/architecture-foundational-tuplet-support.md
   - _bmad-output/planning-artifacts/prd.md
+  - _bmad-output/planning-artifacts/architecture.md
   - docs/index.md
   - docs/project-context.md
   - docs/project-overview.md

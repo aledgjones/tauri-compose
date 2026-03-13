@@ -7,10 +7,10 @@ stepsCompleted:
   - step-05-epic-quality-review
   - step-06-final-assessment
 includedFiles:
-  prd: /Users/aledjones/compose/_bmad-output/planning-artifacts/prd-foundational-tuplet-support.md
+  prd: /Users/aledjones/compose/_bmad-output/planning-artifacts/prd.md
   epics: /Users/aledjones/compose/_bmad-output/planning-artifacts/epics.md
   ux: /Users/aledjones/compose/_bmad-output/planning-artifacts/ux-design-specification.md
-  architecture: /Users/aledjones/compose/_bmad-output/planning-artifacts/architecture-foundational-tuplet-support.md
+  architecture: /Users/aledjones/compose/_bmad-output/planning-artifacts/architecture.md
 assessor: GitHub Copilot
 date: 2026-03-12
 ---
@@ -24,16 +24,17 @@ date: 2026-03-12
 
 ### Files Selected For Assessment
 
-- PRD: /Users/aledjones/compose/\_bmad-output/planning-artifacts/prd-foundational-tuplet-support.md
+- PRD: /Users/aledjones/compose/\_bmad-output/planning-artifacts/prd.md
 - Epics: /Users/aledjones/compose/\_bmad-output/planning-artifacts/epics.md
 - UX: /Users/aledjones/compose/\_bmad-output/planning-artifacts/ux-design-specification.md
-- Architecture: /Users/aledjones/compose/\_bmad-output/planning-artifacts/architecture-foundational-tuplet-support.md
+- Architecture: /Users/aledjones/compose/\_bmad-output/planning-artifacts/architecture.md
 
 ### Discovery Notes
 
 - No sharded PRD, architecture, epic, or UX document sets were found.
-- Baseline whole documents exist alongside the feature-specific PRD and Architecture documents.
-- The readiness assessment scope uses the feature-specific PRD and Architecture documents, the shared epics document, and the shared UX specification.
+- The canonical root-level PRD and Architecture documents represent the active initiative.
+- Archived multi-flow planning context remains available under `_bmad-output/planning-artifacts/archive/2026-03-multi-flow-score/`.
+- The readiness assessment scope uses the canonical PRD and Architecture documents, the shared epics document, and the shared UX specification.
 - The PRD validation report was explicitly excluded from assessment scope.
 
 ## PRD Analysis
