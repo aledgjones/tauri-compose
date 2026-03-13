@@ -227,17 +227,24 @@ mod tests {
     use crate::instructions::parse::get_shunts::Shunts;
     use crate::instructions::parse::get_tone_offset_info::ToneOffsetInfo;
     use crate::instructions::parse::get_written_durations::Notation;
-    use crate::renderer::{DrawInstruction, test_helpers::make_test_renderer};
+    use crate::renderer::{test_helpers::make_test_renderer, DrawInstruction};
     use crate::score::components::measurements::Point;
     use rustc_hash::FxHashMap;
 
     fn empty_shunts() -> Shunts {
-        Shunts { by_id: FxHashMap::default(), by_offset: FxHashMap::default() }
+        Shunts {
+            by_id: FxHashMap::default(),
+            by_offset: FxHashMap::default(),
+        }
     }
 
     fn notation_with_info(highest: i8, lowest: i8) -> Notation {
         let mut n = Notation::new(0, 32);
-        n.info = Some(ToneOffsetInfo { highest, lowest, furthest: 0 });
+        n.info = Some(ToneOffsetInfo {
+            highest,
+            lowest,
+            furthest: 0,
+        });
         n
     }
 
@@ -273,7 +280,9 @@ mod tests {
             &FxHashMap::default(),
             &mut r,
         );
-        let lines = r.instructions.iter()
+        let lines = r
+            .instructions
+            .iter()
             .filter(|i| matches!(i, DrawInstruction::Line { .. }))
             .count();
         assert_eq!(lines, 1);
@@ -294,7 +303,9 @@ mod tests {
             &FxHashMap::default(),
             &mut r,
         );
-        let lines = r.instructions.iter()
+        let lines = r
+            .instructions
+            .iter()
             .filter(|i| matches!(i, DrawInstruction::Line { .. }))
             .count();
         assert_eq!(lines, 1);
@@ -315,7 +326,9 @@ mod tests {
             &FxHashMap::default(),
             &mut r,
         );
-        let lines = r.instructions.iter()
+        let lines = r
+            .instructions
+            .iter()
             .filter(|i| matches!(i, DrawInstruction::Line { .. }))
             .count();
         assert_eq!(lines, 2);

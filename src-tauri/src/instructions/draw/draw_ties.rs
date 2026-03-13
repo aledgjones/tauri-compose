@@ -309,7 +309,7 @@ mod tests {
     use crate::instructions::parse::get_horizontal_spacing::HorizontalSpacing;
     use crate::instructions::parse::get_shunts::Shunts;
     use crate::instructions::parse::get_written_durations::Notation;
-    use crate::renderer::{DrawInstruction, test_helpers::make_test_renderer};
+    use crate::renderer::{test_helpers::make_test_renderer, DrawInstruction};
     use crate::score::components::articulation::Articulations;
     use crate::score::components::duration::Direction;
     use crate::score::components::measurements::Point;
@@ -319,7 +319,10 @@ mod tests {
     use rustc_hash::FxHashMap;
 
     fn empty_shunts() -> Shunts {
-        Shunts { by_id: FxHashMap::default(), by_offset: FxHashMap::default() }
+        Shunts {
+            by_id: FxHashMap::default(),
+            by_offset: FxHashMap::default(),
+        }
     }
 
     fn make_single_tone_notation(tick: u64, duration: u64, tone_id: u64) -> Notation {
@@ -360,7 +363,8 @@ mod tests {
             &mut r,
         );
         assert_eq!(
-            r.instructions.iter()
+            r.instructions
+                .iter()
                 .filter(|i| matches!(i, DrawInstruction::Curve { .. }))
                 .count(),
             1
@@ -391,7 +395,8 @@ mod tests {
             &mut r,
         );
         assert_eq!(
-            r.instructions.iter()
+            r.instructions
+                .iter()
                 .filter(|i| matches!(i, DrawInstruction::Curve { .. }))
                 .count(),
             1

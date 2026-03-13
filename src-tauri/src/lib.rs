@@ -1,3 +1,4 @@
+pub mod automation;
 mod files;
 mod instructions;
 mod migrations;
@@ -299,12 +300,24 @@ impl AppContext {
     }
 }
 
-type AppContextState = Mutex<AppContext>;
-type AudioContextState = Mutex<AudioContext>;
-type RendererContextState = Mutex<RendererContext>;
-type SamplerContextState = Mutex<SamplerContext>;
+pub(crate) type AppContextState = Mutex<AppContext>;
+pub(crate) type AudioContextState = Mutex<AudioContext>;
+pub(crate) type RendererContextState = Mutex<RendererContext>;
+pub(crate) type SamplerContextState = Mutex<SamplerContext>;
 
 const APP_NAME: &str = "Solo Compose";
+
+#[tauri::command(rename_all = "snake_case")]
+fn get_general_state(state: State<'_, AppContextState>) -> AppStateGeneral {
+    let state = state.lock().unwrap();
+
+    AppStateGeneral {
+        ui: state.ui.clone(),
+        score: state.score.clone(),
+        preferences: state.preferences.clone(),
+        current_file_path: state.current_file_path.clone(),
+    }
+}
 
 #[tauri::command(rename_all = "snake_case")]
 fn initialize(
@@ -377,6 +390,28 @@ fn reset(
     Ok(())
 }
 
+pub(crate) fn get_general_state_snapshot(state: State<'_, AppContextState>) -> AppStateGeneral {
+    get_general_state(state)
+}
+
+pub(crate) fn reset_app_state(
+    app: AppHandle,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
+    sampler_state: State<'_, SamplerContextState>,
+    audio_state: State<'_, AudioContextState>,
+    transport_state: State<'_, Mutex<TransportContext>>,
+) -> Result<(), String> {
+    reset(
+        app,
+        state,
+        renderer_state,
+        sampler_state,
+        audio_state,
+        transport_state,
+    )
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     #[cfg(debug_assertions)]
@@ -400,6 +435,8 @@ pub fn run() {
             let (transport_ctx, transport_shared) = TransportContext::new();
             app.manage(transport_ctx);
             app.manage(transport_shared);
+
+            automation::start_server(app.handle().clone());
 
             // MENU INITIALIZATION
             let separator = PredefinedMenuItem::separator(app)?;
@@ -665,7 +702,8 @@ pub fn run() {
             ui_write_bottom_panel_tab_set,
             ui_sequence_bottom_panel_minimized_toggle,
             ui_sequence_bottom_panel_tab_set,
-            ui_sequence_show_active_only_set
+            ui_sequence_show_active_only_set,
+            get_general_state
         ])
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())

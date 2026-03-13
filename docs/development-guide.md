@@ -29,6 +29,46 @@ npm install
 | `npm run format:fix`    | Prettier auto-format                                                              |
 | `npm run preview`       | Preview production build locally                                                  |
 
+## MCP Actions POC
+
+The app exposes MCP directly over streamable HTTP on localhost.
+
+Example VS Code MCP config:
+
+```json
+{
+  "servers": {
+    "soloc": {
+      "type": "http",
+      "url": "http://127.0.0.1:4767/mcp"
+    }
+  }
+}
+```
+
+1. Add the `soloc` server to your VS Code MCP config
+2. Start the app with `npm run start:dev`
+
+The app hosts a localhost-only MCP endpoint at `http://127.0.0.1:4767/mcp` and also exposes a local automation API at `http://127.0.0.1:4767/api/v1/automation`.
+The MCP endpoint exposes:
+
+- `compose_get_started` as the first-call onboarding guide
+- `compose_list_actions` to inspect available dotted action paths
+- `compose_describe_model` to inspect the score graph, id semantics, and core entity relationships
+- `compose_call_action` to invoke an action with positional JSON arguments
+
+`compose_get_started` should be the first tool call for score-construction work from MCP-only clients. It returns the recommended call order plus the minimal id, tick, and wiring guidance needed before listing or invoking actions.
+
+`compose_list_actions` returns only explicitly wrapped MCP actions. Each listed action includes its annotated argument names, required flags, optional examples, and, where provided, the prerequisite ids, entity effects, and returned ids that an agent needs to sequence calls safely.
+
+`compose_describe_model` returns curated context for clients that do not have repository access, including how players, instruments, flows, staves, tracks, and entries relate to each other, where runtime numeric ids come from, and how note values and bar lengths map onto ticks.
+
+`compose_call_action` validates required positional arguments against the action metadata before forwarding the call to the automation layer.
+
+This is intentionally a developer-facing automation surface. It is localhost-only and app-hosted.
+
+For release packaging, no extra MCP sidecar binary is required because the app itself hosts the MCP endpoint.
+
 ## Validation Before Commit
 
 ```bash

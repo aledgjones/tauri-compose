@@ -109,10 +109,7 @@ fn get_dots_at_tick(entry: &Notation, tone_offsets: &ToneVerticalOffsets) -> Dot
     output
 }
 
-fn get_dots_in_track(
-    notation: &NotationTrack,
-    tone_offsets: &ToneVerticalOffsets,
-) -> Dots {
+fn get_dots_in_track(notation: &NotationTrack, tone_offsets: &ToneVerticalOffsets) -> Dots {
     let mut output: Dots = FxHashMap::default();
 
     for (tick, entry) in &notation.track {
@@ -267,7 +264,7 @@ mod tests {
         let mut offsets: ToneVerticalOffsets = FxHashMap::default();
         let quarter = NoteDuration::Quarter.to_ticks();
         let dotted_quarter = quarter + quarter / 2; // 3 * 16 = 48 ticks
-        // tone at space offset 1 (odd)
+                                                    // tone at space offset 1 (odd)
         let entry = make_dotted_notation(0, dotted_quarter, vec![(1, 1)], &mut offsets);
         track.track.insert(0, entry);
         let result = get_dots_in_track(&track, &offsets);

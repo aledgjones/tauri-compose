@@ -143,10 +143,10 @@ pub fn draw_brackets(
 mod tests {
     use super::draw_brackets;
     use crate::instructions::draw::test_helpers::{make_bracket_spans, make_vertical_spacing};
-    use crate::renderer::{DrawInstruction, test_helpers::make_test_renderer};
+    use crate::renderer::{test_helpers::make_test_renderer, DrawInstruction};
     use crate::score::components::measurements::{PaddingMm, Point};
     use crate::score::components::text::{Align, Font, FontFamily, Justify};
-    use crate::score::engraves::{BracketingApproach, BracketStyle, Engrave};
+    use crate::score::engraves::{BracketStyle, BracketingApproach, Engrave};
 
     const INST_ID: u64 = 1;
     const STAVE_ID: u64 = 2;
@@ -186,7 +186,9 @@ mod tests {
         let engrave = make_engrave(BracketStyle::None);
         let mut r = make_test_renderer();
         draw_brackets(&ORIGIN, &spans, &vs, &engrave, &mut r);
-        let lines = r.instructions.iter()
+        let lines = r
+            .instructions
+            .iter()
             .filter(|i| matches!(i, DrawInstruction::Line { .. }))
             .count();
         assert_eq!(lines, 1);
@@ -199,7 +201,9 @@ mod tests {
         let engrave = make_engrave(BracketStyle::Line);
         let mut r = make_test_renderer();
         draw_brackets(&ORIGIN, &spans, &vs, &engrave, &mut r);
-        let lines = r.instructions.iter()
+        let lines = r
+            .instructions
+            .iter()
             .filter(|i| matches!(i, DrawInstruction::Line { .. }))
             .count();
         assert_eq!(lines, 3);
@@ -212,10 +216,14 @@ mod tests {
         let engrave = make_engrave(BracketStyle::Wing);
         let mut r = make_test_renderer();
         draw_brackets(&ORIGIN, &spans, &vs, &engrave, &mut r);
-        let lines = r.instructions.iter()
+        let lines = r
+            .instructions
+            .iter()
             .filter(|i| matches!(i, DrawInstruction::Line { .. }))
             .count();
-        let texts = r.instructions.iter()
+        let texts = r
+            .instructions
+            .iter()
             .filter(|i| matches!(i, DrawInstruction::Text { .. }))
             .count();
         assert_eq!(lines, 1);

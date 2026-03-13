@@ -43,7 +43,10 @@ mod tests {
         draw_stem(&origin, &def, &mut renderer);
 
         assert_eq!(renderer.instructions.len(), 1);
-        assert!(matches!(renderer.instructions[0], DrawInstruction::Line { .. }));
+        assert!(matches!(
+            renderer.instructions[0],
+            DrawInstruction::Line { .. }
+        ));
     }
 
     #[test]

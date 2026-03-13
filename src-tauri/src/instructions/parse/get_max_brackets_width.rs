@@ -89,7 +89,7 @@ mod tests {
         // FullScore uses bracket_single_staves = false
         let mut spans = empty_spans();
         spans.brackets.push(VerticalSpan { start: 1, stop: 1 }); // same = single stave
-        // bracket_single_staves is false by default → max stays 0
+                                                                 // bracket_single_staves is false by default → max stays 0
         let result = get_max_brackets_width(&empty_spacing(), &spans, engrave);
         assert_eq!(result, 0.0);
     }
@@ -109,11 +109,26 @@ mod tests {
         let engraves = Engraves::new();
         let engrave = &engraves.by_layout_type[&LayoutType::FullScore];
         let mut spans = empty_spans();
-        spans.braces.push(VerticalSpan { start: 10, stop: 11 });
+        spans.braces.push(VerticalSpan {
+            start: 10,
+            stop: 11,
+        });
 
         let mut spacing = empty_spacing();
-        spacing.staves.insert(10, VerticalPosition { y: 0.0, height: 5.0 });
-        spacing.staves.insert(11, VerticalPosition { y: 15.0, height: 5.0 });
+        spacing.staves.insert(
+            10,
+            VerticalPosition {
+                y: 0.0,
+                height: 5.0,
+            },
+        );
+        spacing.staves.insert(
+            11,
+            VerticalPosition {
+                y: 15.0,
+                height: 5.0,
+            },
+        );
 
         // height = (15.0 + 5.0) - 0.0 = 20.0, width = 20.0 * 0.1 = 2.0
         let result = get_max_brackets_width(&spacing, &spans, engrave);

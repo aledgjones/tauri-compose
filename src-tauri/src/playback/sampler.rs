@@ -266,12 +266,7 @@ impl SamplerContext {
                 });
             }
 
-            articulations.insert(
-                art.id.clone(),
-                CacheArticulation {
-                    zones,
-                },
-            );
+            articulations.insert(art.id.clone(), CacheArticulation { zones });
         }
 
         Ok(Cache {

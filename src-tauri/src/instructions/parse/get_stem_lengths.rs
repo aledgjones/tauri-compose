@@ -297,8 +297,8 @@ mod tests {
     use crate::score::components::duration::{Direction, NoteDuration};
     use crate::score::components::pitch::{Accidental, Pitch};
     use crate::score::components::velocity::Velocity;
-    use crate::score::entries::tone::Tone;
     use crate::score::engraves::Engraves;
+    use crate::score::entries::tone::Tone;
     use crate::score::layouts::LayoutType;
     use rustc_hash::FxHashMap;
 
@@ -312,7 +312,11 @@ mod tests {
             Velocity::new(100),
             Articulations::new(),
         ));
-        n.info = Some(ToneOffsetInfo { highest, lowest, furthest: highest });
+        n.info = Some(ToneOffsetInfo {
+            highest,
+            lowest,
+            furthest: highest,
+        });
         n
     }
 
@@ -435,8 +439,8 @@ mod tests {
         // → 6 > 2 → BeamSlant::Up
         let eighth = NoteDuration::Eighth.to_ticks();
         let mut track = NotationTrack::new(512);
-        let note1 = make_note_with_info(0, eighth, 1, 6, 6);       // highest=6
-        let note2 = make_note_with_info(eighth, eighth, 2, 2, 2);  // highest=2
+        let note1 = make_note_with_info(0, eighth, 1, 6, 6); // highest=6
+        let note2 = make_note_with_info(eighth, eighth, 2, 2, 2); // highest=2
         track.track.insert(0, note1);
         track.track.insert(eighth, note2);
 
@@ -461,8 +465,8 @@ mod tests {
         // Direction::Up uses highest; stop_guide > start_guide → BeamSlant::Down
         let eighth = NoteDuration::Eighth.to_ticks();
         let mut track = NotationTrack::new(512);
-        let note1 = make_note_with_info(0, eighth, 1, 2, 2);        // highest=2
-        let note2 = make_note_with_info(eighth, eighth, 2, 6, 6);  // highest=6
+        let note1 = make_note_with_info(0, eighth, 1, 2, 2); // highest=2
+        let note2 = make_note_with_info(eighth, eighth, 2, 6, 6); // highest=6
         track.track.insert(0, note1);
         track.track.insert(eighth, note2);
 
@@ -488,7 +492,7 @@ mod tests {
         let eighth = NoteDuration::Eighth.to_ticks();
         let mut track = NotationTrack::new(512);
         let note1 = make_note_with_info(0, eighth, 1, 2, 2);
-        let note2 = make_note_with_info(eighth, eighth, 2, 0, 0);   // below both start and stop
+        let note2 = make_note_with_info(eighth, eighth, 2, 0, 0); // below both start and stop
         let note3 = make_note_with_info(eighth * 2, eighth, 3, 6, 6);
         track.track.insert(0, note1);
         track.track.insert(eighth, note2);

@@ -228,7 +228,7 @@ pub fn draw_beam(
 mod tests {
     use super::{compute_beam_angle, compute_stem_length_tweak, draw_beam};
     use crate::instructions::draw::test_helpers::make_two_note_beam;
-    use crate::renderer::{DrawInstruction, test_helpers::make_test_renderer};
+    use crate::renderer::{test_helpers::make_test_renderer, DrawInstruction};
     use crate::score::components::duration::Direction;
     use crate::score::components::measurements::Point;
 
@@ -283,17 +283,23 @@ mod tests {
         let origin = Point { x: 0.0, y: 0.0 };
         let mut r = make_test_renderer();
         draw_beam(&origin, &beam, &stem_lengths, &stem_directions, &mut r);
-        let shapes = r.instructions.iter()
+        let shapes = r
+            .instructions
+            .iter()
             .filter(|i| matches!(i, DrawInstruction::Shape { .. }))
             .count();
-        assert!(shapes >= 1, "expected at least 1 Shape instruction, got {}", shapes);
+        assert!(
+            shapes >= 1,
+            "expected at least 1 Shape instruction, got {}",
+            shapes
+        );
     }
 
     #[test]
     fn down_stem_beam_produces_shape() {
         use crate::instructions::draw::test_helpers::{make_stem_def, make_two_note_beam};
-        use rustc_hash::FxHashMap;
         use crate::score::components::duration::Direction;
+        use rustc_hash::FxHashMap;
         let (beam, mut stem_lengths, _) = make_two_note_beam();
         // Flip stems to down direction (tails below heads)
         stem_lengths.insert(beam.start, make_stem_def(0.0, 3.5));
@@ -304,7 +310,9 @@ mod tests {
         let origin = Point { x: 0.0, y: 0.0 };
         let mut r = make_test_renderer();
         draw_beam(&origin, &beam, &stem_lengths, &stem_directions, &mut r);
-        let shapes = r.instructions.iter()
+        let shapes = r
+            .instructions
+            .iter()
             .filter(|i| matches!(i, DrawInstruction::Shape { .. }))
             .count();
         assert!(shapes >= 1);
