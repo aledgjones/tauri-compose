@@ -39,7 +39,7 @@ The current tuplet planning set has strong requirement coverage but is not fully
 
 - [epics.md](/Users/aledjones/compose/_bmad-output/planning-artifacts/epics.md) required direct restructuring.
 - [architecture.md](/Users/aledjones/compose/_bmad-output/planning-artifacts/architecture.md) required explicit UX-contract additions for sequencer presentation, inline rejection feedback, and focus/accessibility behavior.
-- [sprint-status.yaml](/Users/aledjones/compose/_bmad-output/implementation-artifacts/archive/2026-03-pre-new-epics-context/sprint-status.yaml) required realignment to the current tuplet epic/story set because it still tracked the completed multi-flow plan.
+- [sprint-status.yaml](/Users/aledjones/compose/_bmad-output/implementation-artifacts/archive/2026-03-multi-flow-score/sprint-status.yaml) required realignment to the current tuplet epic/story set because it still tracked the completed multi-flow plan.
 - No mandatory PRD text change was applied in this objective pass.
 
 ### Technical Impact
