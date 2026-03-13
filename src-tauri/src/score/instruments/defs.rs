@@ -819,7 +819,11 @@ mod tests {
     #[test]
     fn all_definitions_have_at_least_one_stave() {
         for def in INSTRUMENT_DEFINITIONS.iter() {
-            assert!(!def.staves.is_empty(), "Instrument {} has no staves", def.id);
+            assert!(
+                !def.staves.is_empty(),
+                "Instrument {} has no staves",
+                def.id
+            );
         }
     }
 

@@ -55,9 +55,25 @@ mod tests {
 
     fn make_spacing(start: UniqueId, stop: UniqueId) -> VerticalSpacing {
         let mut staves = FxHashMap::default();
-        staves.insert(start, VerticalPosition { y: 0.0, height: 4.0 });
-        staves.insert(stop, VerticalPosition { y: 6.0, height: 4.0 });
-        VerticalSpacing { height: 10.0, instruments: FxHashMap::default(), staves }
+        staves.insert(
+            start,
+            VerticalPosition {
+                y: 0.0,
+                height: 4.0,
+            },
+        );
+        staves.insert(
+            stop,
+            VerticalPosition {
+                y: 6.0,
+                height: 4.0,
+            },
+        );
+        VerticalSpacing {
+            height: 10.0,
+            instruments: FxHashMap::default(),
+            staves,
+        }
     }
 
     #[test]
@@ -69,13 +85,21 @@ mod tests {
         draw_braces(&Point { x: 5.0, y: 0.0 }, &spans, &spacing, &mut renderer);
 
         assert_eq!(renderer.instructions.len(), 1);
-        assert!(matches!(renderer.instructions[0], DrawInstruction::Text { .. }));
+        assert!(matches!(
+            renderer.instructions[0],
+            DrawInstruction::Text { .. }
+        ));
     }
 
     #[test]
     fn draw_braces_with_no_braces_produces_no_instructions() {
         let mut renderer = make_test_renderer();
-        let spans = VerticalSpans { brackets: vec![], sub_brackets: vec![], braces: vec![], barlines: vec![] };
+        let spans = VerticalSpans {
+            brackets: vec![],
+            sub_brackets: vec![],
+            braces: vec![],
+            barlines: vec![],
+        };
         let spacing = make_spacing(1, 2);
 
         draw_braces(&Point { x: 0.0, y: 0.0 }, &spans, &spacing, &mut renderer);
@@ -96,11 +120,39 @@ mod tests {
             barlines: vec![],
         };
         let mut staves = FxHashMap::default();
-        staves.insert(1u64, VerticalPosition { y: 0.0, height: 4.0 });
-        staves.insert(2u64, VerticalPosition { y: 4.0, height: 4.0 });
-        staves.insert(3u64, VerticalPosition { y: 10.0, height: 4.0 });
-        staves.insert(4u64, VerticalPosition { y: 14.0, height: 4.0 });
-        let spacing = VerticalSpacing { height: 18.0, instruments: FxHashMap::default(), staves };
+        staves.insert(
+            1u64,
+            VerticalPosition {
+                y: 0.0,
+                height: 4.0,
+            },
+        );
+        staves.insert(
+            2u64,
+            VerticalPosition {
+                y: 4.0,
+                height: 4.0,
+            },
+        );
+        staves.insert(
+            3u64,
+            VerticalPosition {
+                y: 10.0,
+                height: 4.0,
+            },
+        );
+        staves.insert(
+            4u64,
+            VerticalPosition {
+                y: 14.0,
+                height: 4.0,
+            },
+        );
+        let spacing = VerticalSpacing {
+            height: 18.0,
+            instruments: FxHashMap::default(),
+            staves,
+        };
 
         draw_braces(&Point { x: 0.0, y: 0.0 }, &spans, &spacing, &mut renderer);
 

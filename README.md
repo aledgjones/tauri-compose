@@ -63,7 +63,7 @@ Before you begin, make sure you have the following installed:
 
 ### Development Commands
 
-```bash
+````bash
 # Start development mode with hot reload
 npm run start:dev
 
@@ -82,7 +82,45 @@ npm run lint:fix
 
 # Preview production build
 npm run preview
-```
+
+### MCP Actions POC
+
+Compose now exposes MCP directly from the app over streamable HTTP on localhost.
+
+Example VS Code MCP config:
+
+```json
+{
+  "servers": {
+    "soloc": {
+      "type": "http",
+      "url": "http://127.0.0.1:4767/mcp"
+    }
+  }
+}
+````
+
+1. Add the `soloc` server to your VS Code MCP config
+2. Start the app with `npm run start:dev`
+
+When the app is running, VS Code can connect directly to the app's MCP endpoint at `http://127.0.0.1:4767/mcp`. The app binds only to localhost and exposes four MCP tools:
+
+- `compose_get_started`
+- `compose_list_actions`
+- `compose_describe_model`
+- `compose_call_action`
+
+`compose_get_started` is the onboarding entrypoint. It returns the recommended call order, runtime id guidance, tick rules, and common action patterns for MCP-only clients.
+
+`compose_list_actions` now returns only explicitly wrapped MCP actions, including dotted action names, descriptions when available, required positional arguments, curated examples, and agent-oriented metadata about prerequisites, entity effects, and returned ids where annotated.
+
+`compose_describe_model` returns a curated overview of the score data model, runtime id semantics, tick and duration rules, key entity relationships, and lifecycle behaviors such as how players, instruments, flows, staves, and tracks are wired together.
+
+`compose_call_action` validates required positional arguments against the annotated action metadata before dispatching to the running app.
+
+`compose_call_action` accepts a dotted action path such as `ui.setTab` and positional JSON arguments that are forwarded to the app-hosted automation layer.
+
+The same app process also exposes a local automation API at `http://127.0.0.1:4767/api/v1/automation` for non-MCP localhost consumers.
 
 ---
 

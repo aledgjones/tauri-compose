@@ -44,20 +44,49 @@ mod tests {
     use rustc_hash::FxHashMap;
 
     fn make_engrave() -> crate::score::engraves::Engrave {
-        Engraves::new().by_layout_type.remove(&LayoutType::FullScore).unwrap()
+        Engraves::new()
+            .by_layout_type
+            .remove(&LayoutType::FullScore)
+            .unwrap()
     }
 
     fn make_spacing_multi() -> VerticalSpacing {
         let mut staves = FxHashMap::default();
-        staves.insert(1u64, VerticalPosition { y: 0.0, height: 4.0 });
-        staves.insert(2u64, VerticalPosition { y: 8.0, height: 4.0 });
-        VerticalSpacing { height: 12.0, instruments: FxHashMap::default(), staves }
+        staves.insert(
+            1u64,
+            VerticalPosition {
+                y: 0.0,
+                height: 4.0,
+            },
+        );
+        staves.insert(
+            2u64,
+            VerticalPosition {
+                y: 8.0,
+                height: 4.0,
+            },
+        );
+        VerticalSpacing {
+            height: 12.0,
+            instruments: FxHashMap::default(),
+            staves,
+        }
     }
 
     fn make_spacing_single() -> VerticalSpacing {
         let mut staves = FxHashMap::default();
-        staves.insert(1u64, VerticalPosition { y: 0.0, height: 4.0 });
-        VerticalSpacing { height: 4.0, instruments: FxHashMap::default(), staves }
+        staves.insert(
+            1u64,
+            VerticalPosition {
+                y: 0.0,
+                height: 4.0,
+            },
+        );
+        VerticalSpacing {
+            height: 4.0,
+            instruments: FxHashMap::default(),
+            staves,
+        }
     }
 
     #[test]
@@ -70,7 +99,10 @@ mod tests {
         draw_systemic_barline(&Point { x: 0.0, y: 0.0 }, &spacing, &engrave, &mut renderer);
 
         assert_eq!(renderer.instructions.len(), 1);
-        assert!(matches!(renderer.instructions[0], DrawInstruction::Line { .. }));
+        assert!(matches!(
+            renderer.instructions[0],
+            DrawInstruction::Line { .. }
+        ));
     }
 
     #[test]
@@ -83,7 +115,10 @@ mod tests {
         draw_systemic_barline(&Point { x: 0.0, y: 0.0 }, &spacing, &engrave, &mut renderer);
 
         assert_eq!(renderer.instructions.len(), 1);
-        assert!(matches!(renderer.instructions[0], DrawInstruction::Line { .. }));
+        assert!(matches!(
+            renderer.instructions[0],
+            DrawInstruction::Line { .. }
+        ));
     }
 
     #[test]

@@ -62,7 +62,10 @@ mod tests {
         draw_flag(&origin, &notation, &Direction::Up, &stem, &mut renderer);
 
         assert_eq!(renderer.instructions.len(), 1);
-        assert!(matches!(renderer.instructions[0], DrawInstruction::Text { .. }));
+        assert!(matches!(
+            renderer.instructions[0],
+            DrawInstruction::Text { .. }
+        ));
     }
 
     #[test]
@@ -71,10 +74,19 @@ mod tests {
         let notation = make_eighth_notation();
         let stem = make_stem();
 
-        draw_flag(&Point { x: 0.0, y: 0.0 }, &notation, &Direction::Down, &stem, &mut renderer);
+        draw_flag(
+            &Point { x: 0.0, y: 0.0 },
+            &notation,
+            &Direction::Down,
+            &stem,
+            &mut renderer,
+        );
 
         assert_eq!(renderer.instructions.len(), 1);
-        assert!(matches!(renderer.instructions[0], DrawInstruction::Text { .. }));
+        assert!(matches!(
+            renderer.instructions[0],
+            DrawInstruction::Text { .. }
+        ));
     }
 
     #[test]
@@ -89,8 +101,12 @@ mod tests {
         let mut r_down = make_test_renderer();
         draw_flag(&origin, &notation, &Direction::Down, &stem, &mut r_down);
 
-        if let (DrawInstruction::Text { text: up_text, .. }, DrawInstruction::Text { text: down_text, .. }) =
-            (&r_up.instructions[0], &r_down.instructions[0])
+        if let (
+            DrawInstruction::Text { text: up_text, .. },
+            DrawInstruction::Text {
+                text: down_text, ..
+            },
+        ) = (&r_up.instructions[0], &r_down.instructions[0])
         {
             assert_ne!(up_text, down_text);
         } else {

@@ -87,7 +87,13 @@ mod tests {
 
         let def = StaveDefinition {
             lines: vec![1, 1, 1],
-            clef: Clef::new(1, 0, Pitch::new(67, Accidental::Natural), 2, ClefDrawType::G),
+            clef: Clef::new(
+                1,
+                0,
+                Pitch::new(67, Accidental::Natural),
+                2,
+                ClefDrawType::G,
+            ),
         };
         let s = Stave::new(5, &def, 10);
         assert_eq!(s.lines, vec![1u8, 1, 1]);

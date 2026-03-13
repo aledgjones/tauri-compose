@@ -166,12 +166,16 @@ mod tests {
 
     #[test]
     fn is_empty_false_after_toggle() {
-        assert!(!Articulations::new().toggle(Articulation::Staccato).is_empty());
+        assert!(!Articulations::new()
+            .toggle(Articulation::Staccato)
+            .is_empty());
     }
 
     #[test]
     fn iter_yields_all_articulations() {
-        let arts = Articulations::new().toggle(Articulation::Staccato).toggle(Articulation::Accent);
+        let arts = Articulations::new()
+            .toggle(Articulation::Staccato)
+            .toggle(Articulation::Accent);
         let collected: Vec<_> = arts.iter().collect();
         assert_eq!(collected.len(), 2);
     }

@@ -286,12 +286,17 @@ pub fn score_entries_tone_create(
     accidental: Option<Accidental>,
     velocity: u8,
     articulations: Articulations,
-) -> UniqueId {
+) -> Result<UniqueId, String> {
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
 
     let tone_id = state.generate_id();
-    let track = state.score.tracks.by_id.get_mut(&track_id).unwrap();
+    let track = state
+        .score
+        .tracks
+        .by_id
+        .get_mut(&track_id)
+        .ok_or_else(|| format!("Track {} not found", track_id))?;
     track.create_tone(
         tone_id,
         tick,
@@ -304,7 +309,7 @@ pub fn score_entries_tone_create(
 
     state.emit_affected_track(&app, &mut renderer, track_id);
 
-    tone_id
+    Ok(tone_id)
 }
 
 #[tauri::command(rename_all = "snake_case")]

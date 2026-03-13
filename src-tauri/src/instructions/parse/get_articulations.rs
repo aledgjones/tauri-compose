@@ -55,8 +55,8 @@ mod tests {
     use crate::instructions::parse::get_written_durations::{Notation, NotationTrack};
     use crate::score::components::articulation::{Articulation, Articulations};
     use crate::score::components::duration::NoteDuration;
+    use crate::score::components::pitch::{Accidental, Pitch};
     use crate::score::entries::tone::Tone;
-    use crate::score::components::pitch::{Pitch, Accidental};
 
     fn make_tone_with_articulation(id: u64, art: Articulation) -> Tone {
         use crate::score::components::velocity::Velocity;
@@ -103,7 +103,9 @@ mod tests {
     fn tone_with_articulation_is_recorded() {
         let mut track = NotationTrack::new(128);
         let mut entry = Notation::new(0, NoteDuration::Quarter.to_ticks());
-        entry.tones.push(make_tone_with_articulation(1, Articulation::Staccato));
+        entry
+            .tones
+            .push(make_tone_with_articulation(1, Articulation::Staccato));
         track.track.insert(0, entry);
         let result = get_articulations_in_track(&track);
         assert!(result.contains_key(&0));
@@ -124,8 +126,12 @@ mod tests {
     fn multiple_tones_same_tick_merge_articulations() {
         let mut track = NotationTrack::new(128);
         let mut entry = Notation::new(0, NoteDuration::Quarter.to_ticks());
-        entry.tones.push(make_tone_with_articulation(1, Articulation::Staccato));
-        entry.tones.push(make_tone_with_articulation(2, Articulation::Accent));
+        entry
+            .tones
+            .push(make_tone_with_articulation(1, Articulation::Staccato));
+        entry
+            .tones
+            .push(make_tone_with_articulation(2, Articulation::Accent));
         track.track.insert(0, entry);
         let result = get_articulations_in_track(&track);
         assert_eq!(result.len(), 1);
@@ -138,9 +144,11 @@ mod tests {
     fn articulations_at_multiple_ticks() {
         let mut track = NotationTrack::new(256);
         let mut e1 = Notation::new(0, NoteDuration::Quarter.to_ticks());
-        e1.tones.push(make_tone_with_articulation(1, Articulation::Tenuto));
+        e1.tones
+            .push(make_tone_with_articulation(1, Articulation::Tenuto));
         let mut e2 = Notation::new(128, NoteDuration::Quarter.to_ticks());
-        e2.tones.push(make_tone_with_articulation(2, Articulation::Marcato));
+        e2.tones
+            .push(make_tone_with_articulation(2, Articulation::Marcato));
         track.track.insert(0, e1);
         track.track.insert(128, e2);
         let result = get_articulations_in_track(&track);
@@ -153,7 +161,9 @@ mod tests {
     fn split_note_fragments_keep_articulations_at_each_written_tick() {
         let mut track = NotationTrack::new(96);
         let mut first = Notation::new(0, 32);
-        first.tones.push(make_tone_with_articulation(1, Articulation::Staccato));
+        first
+            .tones
+            .push(make_tone_with_articulation(1, Articulation::Staccato));
         let mut second = Notation::new(32, 16);
         second
             .tones

@@ -412,12 +412,18 @@ mod tests {
     fn make_notation_with_tone() -> Notation {
         let mut n = Notation::new(0, 32);
         n.tones.push(Tone::new(
-            1, 0, 32,
+            1,
+            0,
+            32,
             Pitch::new(60, Accidental::Natural),
             Velocity::new(80),
             crate::score::components::articulation::Articulations::new(),
         ));
-        n.info = Some(ToneOffsetInfo { highest: 0, lowest: 0, furthest: 0 });
+        n.info = Some(ToneOffsetInfo {
+            highest: 0,
+            lowest: 0,
+            furthest: 0,
+        });
         n
     }
 
@@ -427,8 +433,13 @@ mod tests {
         let notation = Notation::new(0, 32); // tones empty
         let arts: FxHashSet<Articulation> = [Articulation::Staccato].into_iter().collect();
         draw_articulations(
-            &Point { x: 0.0, y: 0.0 }, &arts, &notation,
-            1.0, Some(&Direction::Down), None, &mut renderer,
+            &Point { x: 0.0, y: 0.0 },
+            &arts,
+            &notation,
+            1.0,
+            Some(&Direction::Down),
+            None,
+            &mut renderer,
         );
         assert!(renderer.instructions.is_empty());
     }
@@ -438,7 +449,9 @@ mod tests {
         let mut renderer = make_test_renderer();
         let mut notation = Notation::new(0, 32);
         notation.tones.push(Tone::new(
-            1, 0, 32,
+            1,
+            0,
+            32,
             Pitch::new(60, Accidental::Natural),
             Velocity::new(80),
             crate::score::components::articulation::Articulations::new(),
@@ -446,8 +459,13 @@ mod tests {
         // info remains None
         let arts: FxHashSet<Articulation> = [Articulation::Staccato].into_iter().collect();
         draw_articulations(
-            &Point { x: 0.0, y: 0.0 }, &arts, &notation,
-            1.0, Some(&Direction::Down), None, &mut renderer,
+            &Point { x: 0.0, y: 0.0 },
+            &arts,
+            &notation,
+            1.0,
+            Some(&Direction::Down),
+            None,
+            &mut renderer,
         );
         assert!(renderer.instructions.is_empty());
     }
@@ -458,11 +476,19 @@ mod tests {
         let notation = make_notation_with_tone();
         let arts: FxHashSet<Articulation> = [Articulation::Staccato].into_iter().collect();
         draw_articulations(
-            &Point { x: 0.0, y: 0.0 }, &arts, &notation,
-            1.0, Some(&Direction::Down), None, &mut renderer,
+            &Point { x: 0.0, y: 0.0 },
+            &arts,
+            &notation,
+            1.0,
+            Some(&Direction::Down),
+            None,
+            &mut renderer,
         );
         assert_eq!(renderer.instructions.len(), 1);
-        assert!(matches!(renderer.instructions[0], DrawInstruction::Text { .. }));
+        assert!(matches!(
+            renderer.instructions[0],
+            DrawInstruction::Text { .. }
+        ));
     }
 
     #[test]
@@ -472,17 +498,28 @@ mod tests {
         let notation = make_notation_with_tone();
         let arts: FxHashSet<Articulation> = [Articulation::Staccato].into_iter().collect();
         draw_articulations(
-            &Point { x: 0.0, y: 0.0 }, &arts, &notation,
-            1.0, Some(&Direction::Down), None, &mut renderer_down,
+            &Point { x: 0.0, y: 0.0 },
+            &arts,
+            &notation,
+            1.0,
+            Some(&Direction::Down),
+            None,
+            &mut renderer_down,
         );
         draw_articulations(
-            &Point { x: 0.0, y: 0.0 }, &arts, &notation,
-            1.0, Some(&Direction::Up), None, &mut renderer_up,
+            &Point { x: 0.0, y: 0.0 },
+            &arts,
+            &notation,
+            1.0,
+            Some(&Direction::Up),
+            None,
+            &mut renderer_up,
         );
         if let (
             DrawInstruction::Text { text: t_down, .. },
             DrawInstruction::Text { text: t_up, .. },
-        ) = (&renderer_down.instructions[0], &renderer_up.instructions[0]) {
+        ) = (&renderer_down.instructions[0], &renderer_up.instructions[0])
+        {
             assert_ne!(t_down, t_up);
         } else {
             panic!("expected Text instructions");
@@ -495,10 +532,18 @@ mod tests {
         let notation = make_notation_with_tone();
         let arts: FxHashSet<Articulation> = [Articulation::Tenuto].into_iter().collect();
         draw_articulations(
-            &Point { x: 0.0, y: 0.0 }, &arts, &notation,
-            1.0, Some(&Direction::Down), None, &mut renderer,
+            &Point { x: 0.0, y: 0.0 },
+            &arts,
+            &notation,
+            1.0,
+            Some(&Direction::Down),
+            None,
+            &mut renderer,
         );
         assert_eq!(renderer.instructions.len(), 1);
-        assert!(matches!(renderer.instructions[0], DrawInstruction::Text { .. }));
+        assert!(matches!(
+            renderer.instructions[0],
+            DrawInstruction::Text { .. }
+        ));
     }
 }

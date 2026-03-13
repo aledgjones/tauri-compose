@@ -124,7 +124,10 @@ mod tests {
         use crate::renderer::DrawInstruction;
         let mut renderer = make_test_renderer();
         let tone = make_sharp_tone(1);
-        let an = AccidentalNotation { tone_id: 1, slot: 1 };
+        let an = AccidentalNotation {
+            tone_id: 1,
+            slot: 1,
+        };
 
         draw_accidental(
             &Point { x: 5.0, y: 0.0 },
@@ -137,7 +140,10 @@ mod tests {
         );
 
         assert_eq!(renderer.instructions.len(), 1);
-        assert!(matches!(renderer.instructions[0], DrawInstruction::Text { .. }));
+        assert!(matches!(
+            renderer.instructions[0],
+            DrawInstruction::Text { .. }
+        ));
     }
 
     #[test]
@@ -147,7 +153,10 @@ mod tests {
         use skia_safe::Color;
         let mut renderer = make_test_renderer();
         let tone = make_sharp_tone(1);
-        let an = AccidentalNotation { tone_id: 1, slot: 1 };
+        let an = AccidentalNotation {
+            tone_id: 1,
+            slot: 1,
+        };
 
         draw_accidental(
             &Point { x: 5.0, y: 0.0 },
@@ -174,7 +183,10 @@ mod tests {
         use skia_safe::Color;
         let mut renderer = make_test_renderer();
         let tone = make_sharp_tone(42);
-        let an = AccidentalNotation { tone_id: 42, slot: 1 };
+        let an = AccidentalNotation {
+            tone_id: 42,
+            slot: 1,
+        };
         let selection = Selection::Tone {
             flow_id: 1,
             instrument_id: 1,
@@ -208,7 +220,10 @@ mod tests {
         use skia_safe::Color;
         let mut renderer = make_test_renderer();
         let tone = make_sharp_tone(1);
-        let an = AccidentalNotation { tone_id: 1, slot: 1 };
+        let an = AccidentalNotation {
+            tone_id: 1,
+            slot: 1,
+        };
         // Selection points at a DIFFERENT tone
         let selection = Selection::Tone {
             flow_id: 1,

@@ -86,7 +86,7 @@ impl AppContext {
         let player = &self.score.players.by_id[&player_id];
         let instruments = player.instrument_ids.clone();
         for instrument_id in instruments {
-            self.assign_instrument_to_flow(flow_id, instrument_id)
+            self.assign_instrument_to_flow(flow_id, instrument_id);
         }
     }
 

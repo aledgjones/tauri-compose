@@ -90,8 +90,18 @@ mod tests {
 
     fn make_spacing(stave_id: UniqueId) -> VerticalSpacing {
         let mut staves = FxHashMap::default();
-        staves.insert(stave_id, VerticalPosition { y: 2.0, height: 4.0 });
-        VerticalSpacing { height: 4.0, instruments: FxHashMap::default(), staves }
+        staves.insert(
+            stave_id,
+            VerticalPosition {
+                y: 2.0,
+                height: 4.0,
+            },
+        );
+        VerticalSpacing {
+            height: 4.0,
+            instruments: FxHashMap::default(),
+            staves,
+        }
     }
 
     #[test]
@@ -102,7 +112,14 @@ mod tests {
         let flow = make_flow_with_stave(stave_id);
         let spacing = make_spacing(stave_id);
 
-        draw_staves(&Point { x: 0.0, y: 0.0 }, 20.0, &flow, &vec![&instr], &spacing, &mut renderer);
+        draw_staves(
+            &Point { x: 0.0, y: 0.0 },
+            20.0,
+            &flow,
+            &vec![&instr],
+            &spacing,
+            &mut renderer,
+        );
 
         assert_eq!(renderer.instructions.len(), 5);
         for instr in &renderer.instructions {
@@ -117,15 +134,25 @@ mod tests {
         let instr = make_instrument_with_stave(1, stave_id);
         let mut flow = Flow::new(1, 0);
         // lines with value 0 = hidden
-        flow.staves.by_id.insert(stave_id, Stave {
-            id: stave_id,
-            lines: vec![0, 1, 0, 1, 0],
-            master_id: 0,
-            track_ids: vec![],
-        });
+        flow.staves.by_id.insert(
+            stave_id,
+            Stave {
+                id: stave_id,
+                lines: vec![0, 1, 0, 1, 0],
+                master_id: 0,
+                track_ids: vec![],
+            },
+        );
         let spacing = make_spacing(stave_id);
 
-        draw_staves(&Point { x: 0.0, y: 0.0 }, 20.0, &flow, &vec![&instr], &spacing, &mut renderer);
+        draw_staves(
+            &Point { x: 0.0, y: 0.0 },
+            20.0,
+            &flow,
+            &vec![&instr],
+            &spacing,
+            &mut renderer,
+        );
 
         assert_eq!(renderer.instructions.len(), 2);
     }
@@ -140,7 +167,14 @@ mod tests {
             staves: FxHashMap::default(),
         };
 
-        draw_staves(&Point { x: 0.0, y: 0.0 }, 20.0, &flow, &vec![], &spacing, &mut renderer);
+        draw_staves(
+            &Point { x: 0.0, y: 0.0 },
+            20.0,
+            &flow,
+            &vec![],
+            &spacing,
+            &mut renderer,
+        );
 
         assert!(renderer.instructions.is_empty());
     }
@@ -154,7 +188,14 @@ mod tests {
         let spacing = make_spacing(stave_id);
         let width = 30.0;
 
-        draw_staves(&Point { x: 5.0, y: 0.0 }, width, &flow, &vec![&instr], &spacing, &mut renderer);
+        draw_staves(
+            &Point { x: 5.0, y: 0.0 },
+            width,
+            &flow,
+            &vec![&instr],
+            &spacing,
+            &mut renderer,
+        );
 
         if let DrawInstruction::Line { points, .. } = &renderer.instructions[0] {
             assert!((points[0].0 - 5.0).abs() < 1e-5); // starts at origin.x
