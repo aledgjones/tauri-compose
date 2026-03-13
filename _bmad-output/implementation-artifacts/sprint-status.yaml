@@ -1,0 +1,80 @@
+# generated: 2026-03-13
+# project: compose
+# project_key: NOKEY
+# tracking_system: file-system
+# story_location: /Users/aledjones/compose/_bmad-output/implementation-artifacts
+
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic not yet started
+#   - in-progress: Epic actively being worked on
+#   - done: All stories in epic completed
+#
+# Epic Status Transitions:
+#   - backlog -> in-progress: Automatically when first story is created (via create-story)
+#   - in-progress -> done: Manually when all stories reach 'done' status
+#
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - ready-for-dev: Story file created in stories folder
+#   - in-progress: Developer actively working on implementation
+#   - review: Ready for code review (via Dev's code-review workflow)
+#   - done: Story completed
+#
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - done: Retrospective has been completed
+#
+# WORKFLOW NOTES:
+# ===============
+# - Epic transitions to 'in-progress' automatically when first story is created
+# - Stories can be worked in parallel if team capacity allows
+# - SM typically creates next story after previous one is 'done' to incorporate learnings
+# - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
+
+generated: 2026-03-13
+project: compose
+project_key: NOKEY
+tracking_system: file-system
+story_location: /Users/aledjones/compose/_bmad-output/implementation-artifacts
+
+development_status:
+  epic-1: backlog
+  1-1-add-persisted-tuplet-container-entries: backlog
+  1-2-create-tuplet-containers-through-a-tuplet-popover: backlog
+  1-3-reveal-and-select-the-created-tuplet-region-in-the-sequencer: backlog
+  1-4-enter-tuplet-notes-in-the-sequencer: backlog
+  1-5-create-tuplets-over-existing-material-without-losing-ownership: backlog
+  1-6-round-trip-tuplet-data-through-save-load-and-migration: backlog
+  1-7-keep-versioning-and-offline-desktop-behavior-intact-for-tuplet-files: backlog
+  epic-1-retrospective: optional
+
+  epic-2: backlog
+  2-1-target-tuplet-containers-and-members-reliably: backlog
+  2-2-edit-pitch-inside-a-tuplet-without-changing-timing: backlog
+  2-3-add-and-remove-notes-within-tuplet-slots: backlog
+  2-4-reposition-or-resize-tuplet-notes-within-supported-bounds: backlog
+  2-5-apply-explicit-mvp-delete-and-slice-rules-for-tuplet-members-and-containers: backlog
+  epic-2-retrospective: optional
+
+  epic-3: backlog
+  3-1-parse-tuplet-spanned-content-into-backend-owned-notation: backlog
+  3-2-render-tuplet-brackets-and-numbers-correctly: backlog
+  3-3-render-tuplet-notes-rests-ties-and-beams-coherently: backlog
+  3-4-lay-out-tuplets-legibly-within-the-existing-score-surface: backlog
+  epic-3-retrospective: optional
+
+  epic-4: backlog
+  4-1-project-tuplet-timing-into-host-musical-time: backlog
+  4-2-schedule-tuplet-playback-correctly-beside-non-tuplet-material: backlog
+  4-3-preserve-existing-non-tuplet-playback-behavior: backlog
+  4-4-keep-mvp-playback-scoped-to-the-active-flow: backlog
+  epic-4-retrospective: optional
+
+  epic-5: backlog
+  5-1-add-targeted-regression-coverage-for-each-tuplet-seam: backlog
+  5-2-protect-existing-non-tuplet-behavior-from-tuplet-regressions: backlog
+  5-3-document-tuplet-scope-editing-rules-and-persistence-impact: backlog
+  5-4-update-project-guardrails-for-future-tuplet-work: backlog
+  epic-5-retrospective: optional
