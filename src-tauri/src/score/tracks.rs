@@ -80,7 +80,11 @@ mod tests {
         pitch::{Accidental, Pitch},
         velocity::Velocity,
     };
-    use crate::score::entries::{tone::Tone, tuplet::Tuplet, Entries, Entry};
+    use crate::score::entries::{
+        tone::Tone,
+        tuplet::{Tuplet, TupletEntries, TupletEntry},
+        Entry,
+    };
 
     fn make_tone(id: UniqueId, tick: Tick) -> Entry {
         Entry::Tone(Tone::new(
@@ -94,10 +98,15 @@ mod tests {
     }
 
     fn make_tuplet(id: UniqueId, tick: Tick) -> Entry {
-        let mut entries = Entries::new();
-        let child = make_tone(id + 100, 16);
-        entries.by_tick.insert(child.tick(), vec![child.id()]);
-        entries.by_id.insert(child.id(), child);
+        let mut entries = TupletEntries::new();
+        entries.insert_entry(TupletEntry::Tone(Tone::new(
+            id + 100,
+            16,
+            32,
+            Pitch::new(60, Accidental::Natural),
+            Velocity::new(90),
+            Articulations::new(),
+        )));
 
         Entry::Tuplet(Box::new(Tuplet {
             id,

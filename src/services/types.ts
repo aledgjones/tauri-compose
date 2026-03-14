@@ -238,6 +238,13 @@ export type Tone = {
   articulations: Articulation[];
 };
 
+export type Entries<T> = {
+  by_tick: Record<Tick, UniqueId[]>;
+  by_id: Record<UniqueId, T>;
+};
+
+export type TupletEntry = Tone;
+
 export type Tuplet = {
   id: UniqueId;
   tick: Tick;
@@ -246,12 +253,7 @@ export type Tuplet = {
   in_space_of: number;
   base_note_value: NoteDuration;
   groupings: number[];
-  entries: Entries;
-};
-
-export type Entries = {
-  by_tick: Record<Tick, UniqueId[]>;
-  by_id: Record<UniqueId, Entry>;
+  entries: Entries<TupletEntry>;
 };
 
 export type Entry =
@@ -265,7 +267,7 @@ export type Entry =
 
 export type Track = {
   id: UniqueId;
-  entries: Entries;
+  entries: Entries<Entry>;
 };
 
 export type Tracks = {

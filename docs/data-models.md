@@ -176,17 +176,17 @@ Unreleased directive visibility work also adds `hidden: bool` to clef, key-signa
 
 Tuplets are persisted as first-class container entries on the host track. The container owns the exact rhythmic context for notes that start inside the tuplet span, while keeping the existing dual-index storage model both at the host track and inside the tuplet.
 
-| Field             | Type           | Description                                                    |
-| ----------------- | -------------- | -------------------------------------------------------------- |
-| `id`              | `UniqueId`     | Unique identifier for the container                            |
-| `tick`            | `Tick`         | Host-track start tick                                          |
-| `note_count`      | `u8`           | Number of base-note units written inside the tuplet            |
-| `in_space_of`     | `u8`           | Number of base-note units the tuplet occupies in host time     |
-| `base_note_value` | `NoteDuration` | Base printed note value for the tuplet grouping                |
-| `groupings`       | `Vec<u8>`      | Generic grouping metadata for current and future tuplet shapes |
-| `entries`         | `Entries`      | Nested child entries whose tones start inside the tuplet span  |
+| Field             | Type            | Description                                                    |
+| ----------------- | --------------- | -------------------------------------------------------------- |
+| `id`              | `UniqueId`      | Unique identifier for the container                            |
+| `tick`            | `Tick`          | Host-track start tick                                          |
+| `note_count`      | `u8`            | Number of base-note units written inside the tuplet            |
+| `in_space_of`     | `u8`            | Number of base-note units the tuplet occupies in host time     |
+| `base_note_value` | `NoteDuration`  | Base printed note value for the tuplet grouping                |
+| `groupings`       | `Vec<u8>`       | Generic grouping metadata for current and future tuplet shapes |
+| `entries`         | `TupletEntries` | MVP child entries whose tones start inside the tuplet span     |
 
-The Rust enum stores the variant as `Tuplet(Box<Tuplet>)` to keep the recursive `Entry -> Tuplet -> Entries -> Entry` model sized safely in memory. The persisted JSON remains the same tagged-enum shape and does not gain a second wrapper field.
+The Rust enum stores the variant as `Tuplet(Box<Tuplet>)` to keep the top-level `Entry` model sized safely in memory. MVP tuplet child storage now uses a dedicated backend wrapper that keeps the persisted JSON field shape stable while rejecting nested `Entry::Tuplet` values. Nested tuplets are therefore not part of supported MVP structure.
 
 Host and local tick spans are derived rather than stored twice:
 
@@ -212,7 +212,7 @@ Ownership rules:
 - Tone ownership is determined by where the tone starts.
 - Tones that start inside a tuplet live in the tuplet's child `entries`.
 - Tones that start outside remain on the host track even if their duration crosses the tuplet span.
-- MVP tuplets currently persist only nested musical content; inner clef, key-signature, time-signature, and tempo directives remain deferred.
+- MVP tuplets are explicitly single-level. Child `entries` cannot contain nested tuplets, and inner clef, key-signature, time-signature, and tempo directives remain deferred.
 
 ### Sequencer Selection (UI-only)
 
@@ -353,7 +353,7 @@ Each stave has:
 - A **stave master track** — contains clef entries
 - One or more **user tracks** — contain tones and barlines
 
-User tracks can now also contain `Tuplet` entries. A tuplet container participates in the same `entries.by_tick` and `entries.by_id` indices as any other first-class entry, and its child `entries` recurse through that same structure.
+User tracks can now also contain `Tuplet` entries. A tuplet container participates in the same `entries.by_tick` and `entries.by_id` indices as any other first-class entry, while its child `entries` use an MVP-safe wrapper with the same persisted JSON shape but no nested `Tuplet` children.
 
 ### Layout
 
@@ -416,7 +416,7 @@ Engraves
 5. All struct field names use `snake_case` — TypeScript types must match exactly
 6. `UniqueId = number`, `Tick = number`, `Ticks = number` in TypeScript
 
-Adding `Entry::Tuplet` is an additive persisted-schema change. Legacy `.soloc` files remain loadable without a backfill migration because older files simply omit the new tagged variant; newly saved files may include it once tuplet authoring lands.
+Adding `Entry::Tuplet` was an additive persisted-schema change. Legacy `.soloc` files remain loadable because older files simply omit the new tagged variant. Nested tuplet child content remains unsupported MVP data and is rejected during deserialization rather than preserved as active structure.
 
 ---
 

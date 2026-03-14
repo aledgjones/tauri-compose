@@ -80,7 +80,7 @@ _This file contains critical rules and patterns that AI agents must follow when 
 - `AppContext` behind `Mutex` — lock, mutate, call `emit()` to push state to all FE windows
 - Score uses `Space` unit system (staff spaces) — pixel conversion via `Converter::spaces_to_px()`
 - `Entry` is a tagged enum (`#[serde(tag = "type")]`) with 7 variants: Barline, Clef, KeySignature, Tempo, TimeSignature, Tone, Tuplet
-- `Tuplet` persists ratio metadata as `note_count`, `in_space_of`, `base_note_value`, `groupings`, and child `entries`; host/local tick spans are derived from that ratio rather than stored twice
+- `Tuplet` persists ratio metadata as `note_count`, `in_space_of`, `base_note_value`, `groupings`, and child `entries`; MVP child content is intentionally single-level, so nested tuplets are rejected by the owning backend type
 - Dual-index storage pattern: `by_tick: FxHashMap<Tick, Vec<UniqueId>>` + `by_id: FxHashMap<UniqueId, Entry>`
 
 ### Framework-Specific Rules

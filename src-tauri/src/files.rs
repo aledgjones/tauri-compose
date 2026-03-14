@@ -332,7 +332,11 @@ mod tests {
         pitch::{Accidental, Pitch},
         velocity::Velocity,
     };
-    use crate::score::entries::{tone::Tone, tuplet::Tuplet, Entries, Entry};
+    use crate::score::entries::{
+        tone::Tone,
+        tuplet::{Tuplet, TupletEntries, TupletEntry},
+        Entry,
+    };
     use crate::score::flows::Flow;
     use crate::score::layouts::{Layout, LayoutType};
     use crate::score::tracks::Track;
@@ -384,22 +388,16 @@ mod tests {
         serde_json::from_str::<Preferences>(r#"{"audition":true}"#).unwrap()
     }
 
-    fn make_tone_entry(id: UniqueId, tick: u64) -> Entry {
-        Entry::Tone(Tone::new(
-            id,
-            tick,
+    fn make_tuplet_entry(id: UniqueId, tick: u64) -> Entry {
+        let mut entries = TupletEntries::new();
+        entries.insert_entry(TupletEntry::Tone(Tone::new(
+            id + 1,
+            16,
             8,
             Pitch::new(60, Accidental::Natural),
             Velocity::new(90),
             Articulations::new(),
-        ))
-    }
-
-    fn make_tuplet_entry(id: UniqueId, tick: u64) -> Entry {
-        let mut entries = Entries::new();
-        let child = make_tone_entry(id + 1, 16);
-        entries.by_tick.insert(child.tick(), vec![child.id()]);
-        entries.by_id.insert(child.id(), child);
+        )));
 
         Entry::Tuplet(Box::new(Tuplet {
             id,
@@ -858,6 +856,69 @@ mod tests {
             migrated["score"]["meta"]["app_version"],
             Value::String(test_app_version().to_string())
         );
+    }
+
+    #[test]
+    fn persisted_nested_tuplet_child_entries_are_rejected() {
+        let result = serde_json::from_value::<ProjectFile>(json!({
+            "score": {
+                "meta": {
+                    "app_version": test_app_version()
+                },
+                "tracks": {
+                    "by_id": {
+                        "1": {
+                            "id": 1,
+                            "entries": {
+                                "by_tick": {
+                                    "64": [10]
+                                },
+                                "by_id": {
+                                    "10": {
+                                        "type": "Tuplet",
+                                        "id": 10,
+                                        "tick": 64,
+                                        "note_count": 3,
+                                        "in_space_of": 2,
+                                        "base_note_value": 8,
+                                        "groupings": [3],
+                                        "entries": {
+                                            "by_tick": {
+                                                "16": [12]
+                                            },
+                                            "by_id": {
+                                                "12": {
+                                                    "type": "Tuplet",
+                                                    "id": 12,
+                                                    "tick": 16,
+                                                    "note_count": 3,
+                                                    "in_space_of": 2,
+                                                    "base_note_value": 8,
+                                                    "groupings": [3],
+                                                    "entries": {
+                                                        "by_tick": {},
+                                                        "by_id": {}
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "ui": {},
+            "next_id": 13
+        }));
+
+        let error = match result {
+            Ok(_) => panic!("expected nested tuplet child entries to be rejected"),
+            Err(error) => error,
+        };
+
+        assert!(!error.to_string().is_empty());
     }
 }
 

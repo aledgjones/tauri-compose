@@ -44,7 +44,7 @@ development_status:
   1-1-add-persisted-tuplet-container-entries: done
   1-2-create-tuplet-containers-through-a-tuplet-popover: done
   1-3-reveal-and-select-the-created-tuplet-region-in-the-sequencer: done
-  1-3a-simplify-tuplet-child-content-for-non-nestable-mvp: backlog
+  1-3a-simplify-tuplet-child-content-for-non-nestable-mvp: done
   1-4-enter-tuplet-notes-in-the-sequencer: backlog
   1-5-create-tuplets-over-existing-material-without-losing-ownership: backlog
   1-6-round-trip-tuplet-data-through-save-load-and-migration: backlog

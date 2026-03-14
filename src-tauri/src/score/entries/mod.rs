@@ -12,23 +12,19 @@ use barline::Barline;
 use clef::Clef;
 use key_signature::KeySignature;
 use rustc_hash::FxHashMap;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
+use serde_with::{serde_as, DisplayFromStr};
 use tempo::Tempo;
 use time_signature::TimeSignature;
 use tone::Tone;
 use tuplet::Tuplet;
 
+#[serde_as]
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Entries {
-    #[serde(
-        serialize_with = "serialize_tick_map",
-        deserialize_with = "deserialize_tick_map"
-    )]
+    #[serde_as(as = "FxHashMap<DisplayFromStr, _>")]
     pub by_tick: FxHashMap<Tick, Vec<UniqueId>>,
-    #[serde(
-        serialize_with = "serialize_entry_map",
-        deserialize_with = "deserialize_entry_map"
-    )]
+    #[serde_as(as = "FxHashMap<DisplayFromStr, _>")]
     pub by_id: FxHashMap<UniqueId, Entry>,
 }
 
@@ -97,66 +93,6 @@ impl Entry {
     }
 }
 
-fn serialize_tick_map<S>(
-    map: &FxHashMap<Tick, Vec<UniqueId>>,
-    serializer: S,
-) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    let string_map: FxHashMap<String, &Vec<UniqueId>> = map
-        .iter()
-        .map(|(tick, ids)| (tick.to_string(), ids))
-        .collect();
-
-    string_map.serialize(serializer)
-}
-
-fn deserialize_tick_map<'de, D>(deserializer: D) -> Result<FxHashMap<Tick, Vec<UniqueId>>, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let string_map = FxHashMap::<String, Vec<UniqueId>>::deserialize(deserializer)?;
-    let mut parsed = FxHashMap::default();
-
-    for (tick, ids) in string_map {
-        let tick = tick.parse::<Tick>().map_err(serde::de::Error::custom)?;
-        parsed.insert(tick, ids);
-    }
-
-    Ok(parsed)
-}
-
-fn serialize_entry_map<S>(
-    map: &FxHashMap<UniqueId, Entry>,
-    serializer: S,
-) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    let string_map: FxHashMap<String, &Entry> = map
-        .iter()
-        .map(|(id, entry)| (id.to_string(), entry))
-        .collect();
-
-    string_map.serialize(serializer)
-}
-
-fn deserialize_entry_map<'de, D>(deserializer: D) -> Result<FxHashMap<UniqueId, Entry>, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let string_map = FxHashMap::<String, Entry>::deserialize(deserializer)?;
-    let mut parsed = FxHashMap::default();
-
-    for (id, entry) in string_map {
-        let id = id.parse::<UniqueId>().map_err(serde::de::Error::custom)?;
-        parsed.insert(id, entry);
-    }
-
-    Ok(parsed)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -172,7 +108,7 @@ mod tests {
     use tempo::Tempo;
     use time_signature::{TimeSignature, TimeSignatureDrawType};
     use tone::Tone;
-    use tuplet::Tuplet;
+    use tuplet::{Tuplet, TupletEntries, TupletEntry};
 
     fn make_barline(id: UniqueId, tick: Tick) -> Entry {
         Entry::Barline(Barline {
@@ -234,10 +170,15 @@ mod tests {
     }
 
     fn make_tuplet(id: UniqueId, tick: Tick) -> Entry {
-        let mut entries = Entries::new();
-        let child = make_tone(id + 100, 16);
-        entries.by_tick.insert(child.tick(), vec![child.id()]);
-        entries.by_id.insert(child.id(), child);
+        let mut entries = TupletEntries::new();
+        entries.insert_entry(TupletEntry::Tone(Tone::new(
+            id + 100,
+            16,
+            32,
+            Pitch::new(60, Accidental::Natural),
+            Velocity::new(90),
+            Articulations::new(),
+        )));
 
         Entry::Tuplet(Box::new(Tuplet {
             id,
@@ -399,7 +340,7 @@ mod tests {
     }
 
     #[test]
-    fn serde_round_trip_preserves_nested_tuplet_entries() {
+    fn serde_round_trip_preserves_supported_tuplet_child_entries() {
         let entry = make_tuplet(17, 64);
         let value = serde_json::to_value(&entry).unwrap();
         let restored: Entry = serde_json::from_value(value).unwrap();
@@ -408,10 +349,50 @@ mod tests {
             panic!("expected tuplet entry");
         };
 
-        assert_eq!(tuplet.entries.by_id.len(), 1);
+        assert_eq!(tuplet.entries.len(), 1);
         assert!(matches!(
-            tuplet.entries.by_id.get(&117),
-            Some(Entry::Tone(_))
+            tuplet.entries.get(&117),
+            Some(TupletEntry::Tone(_))
         ));
+    }
+
+    #[test]
+    fn serde_rejects_nested_tuplet_child_entries() {
+        let result = serde_json::from_value::<Entry>(serde_json::json!({
+            "type": "Tuplet",
+            "id": 17,
+            "tick": 64,
+            "note_count": 3,
+            "in_space_of": 2,
+            "base_note_value": 8,
+            "groupings": [3],
+            "entries": {
+                "by_tick": {
+                    "16": [118]
+                },
+                "by_id": {
+                    "118": {
+                        "type": "Tuplet",
+                        "id": 118,
+                        "tick": 16,
+                        "note_count": 3,
+                        "in_space_of": 2,
+                        "base_note_value": 8,
+                        "groupings": [3],
+                        "entries": {
+                            "by_tick": {},
+                            "by_id": {}
+                        }
+                    }
+                }
+            }
+        }));
+
+        let error = match result {
+            Ok(_) => panic!("expected nested tuplet child entries to be rejected"),
+            Err(error) => error,
+        };
+
+        assert!(error.to_string().contains("Tuplet"));
     }
 }

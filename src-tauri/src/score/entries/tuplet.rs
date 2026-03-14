@@ -1,10 +1,59 @@
-use super::{Entries, Entry};
+use super::{tone::Tone, Entry};
 use crate::score::components::duration::{NoteDuration, Tick, Ticks};
 use crate::score::tracks::Track;
 use crate::utils::UniqueId;
 use crate::{AppContextState, RendererContextState};
+use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
+use serde_with::{serde_as, DisplayFromStr};
 use tauri::State;
+
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(tag = "type")]
+pub enum TupletEntry {
+    Tone(Tone),
+}
+
+#[serde_as]
+#[derive(Clone, Serialize, Deserialize)]
+pub struct TupletEntries {
+    #[serde_as(as = "FxHashMap<DisplayFromStr, _>")]
+    pub by_tick: FxHashMap<Tick, Vec<UniqueId>>,
+    #[serde_as(as = "FxHashMap<DisplayFromStr, _>")]
+    pub by_id: FxHashMap<UniqueId, TupletEntry>,
+}
+
+#[allow(dead_code)]
+impl TupletEntries {
+    pub fn new() -> Self {
+        Self {
+            by_tick: FxHashMap::default(),
+            by_id: FxHashMap::default(),
+        }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.by_id.is_empty()
+    }
+
+    pub fn get(&self, entry_id: &UniqueId) -> Option<&TupletEntry> {
+        self.by_id.get(entry_id)
+    }
+
+    pub fn len(&self) -> usize {
+        self.by_id.len()
+    }
+
+    pub fn insert_entry(&mut self, entry: TupletEntry) {
+        let (entry_id, tick) = match &entry {
+            TupletEntry::Tone(tone) => (tone.id, tone.tick),
+        };
+
+        let tick_entries = self.by_tick.entry(tick).or_default();
+        tick_entries.push(entry_id);
+        self.by_id.insert(entry_id, entry);
+    }
+}
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Tuplet {
@@ -14,7 +63,7 @@ pub struct Tuplet {
     pub in_space_of: u8,
     pub base_note_value: NoteDuration,
     pub groupings: Vec<u8>,
-    pub entries: Entries,
+    pub entries: TupletEntries,
 }
 
 #[allow(dead_code)]
@@ -34,7 +83,7 @@ impl Tuplet {
             in_space_of,
             base_note_value,
             groupings,
-            entries: Entries::new(),
+            entries: TupletEntries::new(),
         }
     }
 
@@ -115,6 +164,7 @@ mod tests {
         velocity::Velocity,
     };
     use crate::score::entries::tone::Tone;
+
     #[test]
     fn triplet_ratio_derives_expected_tick_spans() {
         let tuplet = Tuplet::new(1, 64, 3, 2, NoteDuration::Eighth, vec![3]);
@@ -153,7 +203,7 @@ mod tests {
         assert_eq!(tuplet.in_space_of, 2);
         assert!(matches!(tuplet.base_note_value, NoteDuration::Eighth));
         assert_eq!(tuplet.groupings, vec![3]);
-        assert!(tuplet.entries.by_id.is_empty());
+        assert!(tuplet.entries.is_empty());
         assert!(matches!(track.entries.by_id.get(&22), Some(Entry::Tone(_))));
     }
 
@@ -175,5 +225,23 @@ mod tests {
         };
 
         assert_eq!(tuplet.groupings, vec![2]);
+    }
+
+    #[test]
+    fn tuplet_child_entries_store_tones_only() {
+        let mut child_entries = TupletEntries::new();
+        let tone = Tone::new(
+            11,
+            16,
+            16,
+            Pitch::new(60, Accidental::Natural),
+            Velocity::new(90),
+            Articulations::new(),
+        );
+
+        child_entries.insert_entry(TupletEntry::Tone(tone));
+
+        assert_eq!(child_entries.by_id.len(), 1);
+        assert!(matches!(child_entries.by_id.get(&11), Some(TupletEntry::Tone(_))));
     }
 }
