@@ -326,6 +326,13 @@ mod tests {
     use crate::instructions::{prepare_flow_render_plan, FlowRenderRecalculationRequest};
     use crate::migrations::{MigrationKind, MIGRATIONS};
     use crate::preferences::Preferences;
+    use crate::score::components::{
+        articulation::Articulations,
+        duration::NoteDuration,
+        pitch::{Accidental, Pitch},
+        velocity::Velocity,
+    };
+    use crate::score::entries::{tone::Tone, tuplet::Tuplet, Entries, Entry};
     use crate::score::flows::Flow;
     use crate::score::layouts::{Layout, LayoutType};
     use crate::score::tracks::Track;
@@ -375,6 +382,34 @@ mod tests {
 
     fn make_preferences() -> Preferences {
         serde_json::from_str::<Preferences>(r#"{"audition":true}"#).unwrap()
+    }
+
+    fn make_tone_entry(id: UniqueId, tick: u64) -> Entry {
+        Entry::Tone(Tone::new(
+            id,
+            tick,
+            8,
+            Pitch::new(60, Accidental::Natural),
+            Velocity::new(90),
+            Articulations::new(),
+        ))
+    }
+
+    fn make_tuplet_entry(id: UniqueId, tick: u64) -> Entry {
+        let mut entries = Entries::new();
+        let child = make_tone_entry(id + 1, 16);
+        entries.by_tick.insert(child.tick(), vec![child.id()]);
+        entries.by_id.insert(child.id(), child);
+
+        Entry::Tuplet(Box::new(Tuplet {
+            id,
+            tick,
+            note_count: 3,
+            in_space_of: 2,
+            base_note_value: NoteDuration::Eighth,
+            groupings: vec![3],
+            entries,
+        }))
     }
 
     fn build_score_with_visible_flows(
@@ -741,6 +776,88 @@ mod tests {
         assert_eq!(render_plan.prepared_flow_ids(), vec![10]);
         assert_eq!(render_plan.recalculated_flow_ids(), vec![10]);
         assert_eq!(render_plan.prepared_flow_count(), 1);
+    }
+
+    #[test]
+    fn soloc_round_trip_preserves_tuplet_entries() {
+        let mut ui = Ui::new();
+        ui.layout_id = Some(0);
+        ui.flow_id = Some(10);
+
+        let mut project_file = ProjectFile {
+            ui,
+            score: build_score_with_visible_flows(&[10], &[10]),
+            next_id: 150,
+        };
+
+        project_file
+            .score
+            .tracks
+            .by_id
+            .get_mut(&110)
+            .unwrap()
+            .insert_entry(make_tuplet_entry(99, 64));
+
+        let restored = round_trip_project_file(&project_file);
+
+        assert_eq!(
+            serde_json::to_value(&restored).unwrap(),
+            serde_json::to_value(&project_file).unwrap()
+        );
+    }
+
+    #[test]
+    fn migrate_project_data_keeps_legacy_non_tuplet_entries_loadable() {
+        let migrated = migrate_project_data(
+            json!({
+                "score": {
+                    "meta": {
+                        "app_version": test_app_version()
+                    },
+                    "tracks": {
+                        "by_id": {
+                            "1": {
+                                "id": 1,
+                                "entries": {
+                                    "by_tick": {
+                                        "0": [10]
+                                    },
+                                    "by_id": {
+                                        "10": {
+                                            "type": "Tone",
+                                            "id": 10,
+                                            "tick": 0,
+                                            "duration": 8,
+                                            "pitch": {
+                                                "int": 60,
+                                                "accidental": 0
+                                            },
+                                            "velocity": {
+                                                "int": 90
+                                            },
+                                            "articulations": []
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "ui": {},
+                "next_id": 11
+            }),
+            test_app_version(),
+        )
+        .unwrap();
+
+        assert_eq!(
+            migrated["score"]["tracks"]["by_id"]["1"]["entries"]["by_id"]["10"]["type"],
+            Value::String(String::from("Tone"))
+        );
+        assert_eq!(
+            migrated["score"]["meta"]["app_version"],
+            Value::String(test_app_version().to_string())
+        );
     }
 }
 

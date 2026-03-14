@@ -76,10 +76,11 @@ mod tests {
     use super::*;
     use crate::score::components::{
         articulation::Articulations,
+        duration::NoteDuration,
         pitch::{Accidental, Pitch},
         velocity::Velocity,
     };
-    use crate::score::entries::{tone::Tone, Entry};
+    use crate::score::entries::{tone::Tone, tuplet::Tuplet, Entries, Entry};
 
     fn make_tone(id: UniqueId, tick: Tick) -> Entry {
         Entry::Tone(Tone::new(
@@ -90,6 +91,23 @@ mod tests {
             Velocity::new(90),
             Articulations::new(),
         ))
+    }
+
+    fn make_tuplet(id: UniqueId, tick: Tick) -> Entry {
+        let mut entries = Entries::new();
+        let child = make_tone(id + 100, 16);
+        entries.by_tick.insert(child.tick(), vec![child.id()]);
+        entries.by_id.insert(child.id(), child);
+
+        Entry::Tuplet(Box::new(Tuplet {
+            id,
+            tick,
+            note_count: 3,
+            in_space_of: 2,
+            base_note_value: NoteDuration::Eighth,
+            groupings: vec![3],
+            entries,
+        }))
     }
 
     #[test]
@@ -150,5 +168,42 @@ mod tests {
         let mut track = Track::new(1);
         let removed = track.remove_entry(999);
         assert!(removed.is_none());
+    }
+
+    #[test]
+    fn insert_tuplet_adds_to_both_indices() {
+        let mut track = Track::new(1);
+        track.insert_entry(make_tuplet(20, 96));
+
+        assert!(track.entries.by_id.contains_key(&20));
+        let ids = track.entries.by_tick.get(&96).unwrap();
+        assert!(ids.contains(&20));
+    }
+
+    #[test]
+    fn shift_tuplet_moves_to_new_tick() {
+        let mut track = Track::new(1);
+        track.insert_entry(make_tuplet(21, 96));
+
+        track.shift_entry(21, 160);
+
+        let at_96 = track.entries.by_tick.get(&96).unwrap();
+        assert!(!at_96.contains(&21));
+        let at_160 = track.entries.by_tick.get(&160).unwrap();
+        assert!(at_160.contains(&21));
+        assert_eq!(track.entries.by_id.get(&21).unwrap().tick(), 160);
+    }
+
+    #[test]
+    fn remove_tuplet_removes_from_both_indices() {
+        let mut track = Track::new(1);
+        track.insert_entry(make_tuplet(22, 192));
+
+        let removed = track.remove_entry(22);
+
+        assert!(removed.is_some());
+        assert!(!track.entries.by_id.contains_key(&22));
+        let at_192 = track.entries.by_tick.get(&192).unwrap();
+        assert!(!at_192.contains(&22));
     }
 }

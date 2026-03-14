@@ -23,7 +23,7 @@ Score
 ├── Tracks            — Collection of all Tracks (by_id only)
 │   └── Track         — Contains Entries (the actual musical content)
 │       └── Entries   — Dual-indexed: by_tick + by_id
-│           └── Entry — Tagged enum: Tone | Barline | Clef | KeySignature | Tempo | TimeSignature
+│           └── Entry — Tagged enum: Tone | Barline | Clef | KeySignature | Tempo | TimeSignature | Tuplet
 ├── Layouts           — Ordered collection of score layouts
 │   └── Layout        — Type (FullScore/Part), player and flow assignments
 └── Engraves          — Engraving settings per layout type
@@ -72,6 +72,7 @@ pub enum Entry {
     Tempo(Tempo),
     TimeSignature(TimeSignature),
     Tone(Tone),
+    Tuplet(Box<Tuplet>),
 }
 ```
 
@@ -170,6 +171,37 @@ Tempo entries drive both score rendering and transport tempo resolution, and sel
 This schema changed in `1.25.0`; older `.soloc` payloads that still contain `text: null` are normalized during load by migration `1.25.0`.
 
 Unreleased directive visibility work also adds `hidden: bool` to clef, key-signature, and time-signature entries, and migrates legacy time signatures that previously encoded hidden state as `draw_type: 0` into `hidden: true` plus `draw_type: Regular` in `src-tauri/src/migrations/next.rs`.
+
+#### Tuplet
+
+Tuplets are persisted as first-class container entries on the host track. The container owns the exact rhythmic context for notes that start inside the tuplet span, while keeping the existing dual-index storage model both at the host track and inside the tuplet.
+
+| Field             | Type           | Description                                                    |
+| ----------------- | -------------- | -------------------------------------------------------------- |
+| `id`              | `UniqueId`     | Unique identifier for the container                            |
+| `tick`            | `Tick`         | Host-track start tick                                          |
+| `note_count`      | `u8`           | Number of base-note units written inside the tuplet            |
+| `in_space_of`     | `u8`           | Number of base-note units the tuplet occupies in host time     |
+| `base_note_value` | `NoteDuration` | Base printed note value for the tuplet grouping                |
+| `groupings`       | `Vec<u8>`      | Generic grouping metadata for current and future tuplet shapes |
+| `entries`         | `Entries`      | Nested child entries whose tones start inside the tuplet span  |
+
+The Rust enum stores the variant as `Tuplet(Box<Tuplet>)` to keep the recursive `Entry -> Tuplet -> Entries -> Entry` model sized safely in memory. The persisted JSON remains the same tagged-enum shape and does not gain a second wrapper field.
+
+Host and local tick spans are derived rather than stored twice:
+
+- `consumed_ticks = in_space_of * base_note_value.to_ticks()`
+- `local_length_ticks = note_count * base_note_value.to_ticks()`
+
+For an eighth-note triplet, that means `note_count = 3`, `in_space_of = 2`, and `base_note_value = Eighth`, which derives the same `48` local ticks projected into `32` host ticks.
+
+Ownership rules:
+
+- A tone is stored exactly once.
+- Tone ownership is determined by where the tone starts.
+- Tones that start inside a tuplet live in the tuplet's child `entries`.
+- Tones that start outside remain on the host track even if their duration crosses the tuplet span.
+- MVP tuplets currently persist only nested musical content; inner clef, key-signature, time-signature, and tempo directives remain deferred.
 
 ### Sequencer Selection (UI-only)
 
@@ -307,6 +339,8 @@ Each stave has:
 - A **stave master track** — contains clef entries
 - One or more **user tracks** — contain tones and barlines
 
+User tracks can now also contain `Tuplet` entries. A tuplet container participates in the same `entries.by_tick` and `entries.by_id` indices as any other first-class entry, and its child `entries` recurse through that same structure.
+
 ### Layout
 
 ```rust
@@ -367,6 +401,8 @@ Engraves
 4. `FxHashSet<K>` appears as arrays in serialized JSON but is a set in Rust
 5. All struct field names use `snake_case` — TypeScript types must match exactly
 6. `UniqueId = number`, `Tick = number`, `Ticks = number` in TypeScript
+
+Adding `Entry::Tuplet` is an additive persisted-schema change. Legacy `.soloc` files remain loadable without a backfill migration because older files simply omit the new tagged variant; newly saved files may include it once tuplet authoring lands.
 
 ---
 

@@ -4,6 +4,7 @@ pub mod key_signature;
 pub mod tempo;
 pub mod time_signature;
 pub mod tone;
+pub mod tuplet;
 
 use super::components::duration::Tick;
 use crate::utils::UniqueId;
@@ -11,14 +12,23 @@ use barline::Barline;
 use clef::Clef;
 use key_signature::KeySignature;
 use rustc_hash::FxHashMap;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use tempo::Tempo;
 use time_signature::TimeSignature;
 use tone::Tone;
+use tuplet::Tuplet;
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Entries {
+    #[serde(
+        serialize_with = "serialize_tick_map",
+        deserialize_with = "deserialize_tick_map"
+    )]
     pub by_tick: FxHashMap<Tick, Vec<UniqueId>>,
+    #[serde(
+        serialize_with = "serialize_entry_map",
+        deserialize_with = "deserialize_entry_map"
+    )]
     pub by_id: FxHashMap<UniqueId, Entry>,
 }
 
@@ -40,6 +50,7 @@ pub enum Entry {
     Tempo(Tempo),
     TimeSignature(TimeSignature),
     Tone(Tone),
+    Tuplet(Box<Tuplet>),
 }
 
 impl Entry {
@@ -52,6 +63,7 @@ impl Entry {
             Entry::Tempo(tempo) => tempo.id,
             Entry::TimeSignature(time_signature) => time_signature.id,
             Entry::Tone(tone) => tone.id,
+            Entry::Tuplet(tuplet) => tuplet.id,
         }
     }
 
@@ -64,6 +76,7 @@ impl Entry {
             Entry::Tempo(tempo) => tempo.tick,
             Entry::TimeSignature(time_signature) => time_signature.tick,
             Entry::Tone(tone) => tone.tick,
+            Entry::Tuplet(tuplet) => tuplet.tick,
         }
     }
 
@@ -79,8 +92,69 @@ impl Entry {
             Entry::Tempo(tempo) => tempo.tick = tick,
             Entry::TimeSignature(time_signature) => time_signature.tick = tick,
             Entry::Tone(tone) => tone.tick = tick,
+            Entry::Tuplet(tuplet) => tuplet.tick = tick,
         }
     }
+}
+
+fn serialize_tick_map<S>(
+    map: &FxHashMap<Tick, Vec<UniqueId>>,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    let string_map: FxHashMap<String, &Vec<UniqueId>> = map
+        .iter()
+        .map(|(tick, ids)| (tick.to_string(), ids))
+        .collect();
+
+    string_map.serialize(serializer)
+}
+
+fn deserialize_tick_map<'de, D>(deserializer: D) -> Result<FxHashMap<Tick, Vec<UniqueId>>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let string_map = FxHashMap::<String, Vec<UniqueId>>::deserialize(deserializer)?;
+    let mut parsed = FxHashMap::default();
+
+    for (tick, ids) in string_map {
+        let tick = tick.parse::<Tick>().map_err(serde::de::Error::custom)?;
+        parsed.insert(tick, ids);
+    }
+
+    Ok(parsed)
+}
+
+fn serialize_entry_map<S>(
+    map: &FxHashMap<UniqueId, Entry>,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    let string_map: FxHashMap<String, &Entry> = map
+        .iter()
+        .map(|(id, entry)| (id.to_string(), entry))
+        .collect();
+
+    string_map.serialize(serializer)
+}
+
+fn deserialize_entry_map<'de, D>(deserializer: D) -> Result<FxHashMap<UniqueId, Entry>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let string_map = FxHashMap::<String, Entry>::deserialize(deserializer)?;
+    let mut parsed = FxHashMap::default();
+
+    for (id, entry) in string_map {
+        let id = id.parse::<UniqueId>().map_err(serde::de::Error::custom)?;
+        parsed.insert(id, entry);
+    }
+
+    Ok(parsed)
 }
 
 #[cfg(test)]
@@ -98,6 +172,7 @@ mod tests {
     use tempo::Tempo;
     use time_signature::{TimeSignature, TimeSignatureDrawType};
     use tone::Tone;
+    use tuplet::Tuplet;
 
     fn make_barline(id: UniqueId, tick: Tick) -> Entry {
         Entry::Barline(Barline {
@@ -158,6 +233,23 @@ mod tests {
         ))
     }
 
+    fn make_tuplet(id: UniqueId, tick: Tick) -> Entry {
+        let mut entries = Entries::new();
+        let child = make_tone(id + 100, 16);
+        entries.by_tick.insert(child.tick(), vec![child.id()]);
+        entries.by_id.insert(child.id(), child);
+
+        Entry::Tuplet(Box::new(Tuplet {
+            id,
+            tick,
+            note_count: 3,
+            in_space_of: 2,
+            base_note_value: NoteDuration::Eighth,
+            groupings: vec![3],
+            entries,
+        }))
+    }
+
     // --- Entries::new() ---
 
     #[test]
@@ -205,6 +297,12 @@ mod tests {
         assert_eq!(entry.id(), 6);
     }
 
+    #[test]
+    fn tuplet_id_returns_correct_value() {
+        let entry = make_tuplet(7, 0);
+        assert_eq!(entry.id(), 7);
+    }
+
     // --- Entry::tick() ---
 
     #[test]
@@ -241,6 +339,12 @@ mod tests {
     fn tempo_tick_returns_correct_value() {
         let entry = make_tempo(6, 96);
         assert_eq!(entry.tick(), 96);
+    }
+
+    #[test]
+    fn tuplet_tick_returns_correct_value() {
+        let entry = make_tuplet(7, 144);
+        assert_eq!(entry.tick(), 144);
     }
 
     // --- Entry::set_tick() ---
@@ -285,5 +389,29 @@ mod tests {
         let mut entry = make_tempo(15, 0);
         entry.set_tick(48);
         assert_eq!(entry.tick(), 48);
+    }
+
+    #[test]
+    fn set_tick_updates_tuplet() {
+        let mut entry = make_tuplet(16, 0);
+        entry.set_tick(72);
+        assert_eq!(entry.tick(), 72);
+    }
+
+    #[test]
+    fn serde_round_trip_preserves_nested_tuplet_entries() {
+        let entry = make_tuplet(17, 64);
+        let value = serde_json::to_value(&entry).unwrap();
+        let restored: Entry = serde_json::from_value(value).unwrap();
+
+        let Entry::Tuplet(tuplet) = restored else {
+            panic!("expected tuplet entry");
+        };
+
+        assert_eq!(tuplet.entries.by_id.len(), 1);
+        assert!(matches!(
+            tuplet.entries.by_id.get(&117),
+            Some(Entry::Tone(_))
+        ));
     }
 }

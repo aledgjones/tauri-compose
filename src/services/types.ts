@@ -238,20 +238,34 @@ export type Tone = {
   articulations: Articulation[];
 };
 
+export type Tuplet = {
+  id: UniqueId;
+  tick: Tick;
+  type: "Tuplet";
+  note_count: number;
+  in_space_of: number;
+  base_note_value: NoteDuration;
+  groupings: number[];
+  entries: Entries;
+};
+
+export type Entries = {
+  by_tick: Record<Tick, UniqueId[]>;
+  by_id: Record<UniqueId, Entry>;
+};
+
 export type Entry =
   | Barline
   | Clef
   | TimeSignature
   | KeySignature
   | Tone
-  | Tempo;
+  | Tempo
+  | Tuplet;
 
 export type Track = {
   id: UniqueId;
-  entries: {
-    by_tick: Record<UniqueId, UniqueId[]>;
-    by_id: Record<UniqueId, Entry>;
-  };
+  entries: Entries;
 };
 
 export type Tracks = {

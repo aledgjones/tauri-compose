@@ -79,7 +79,8 @@ _This file contains critical rules and patterns that AI agents must follow when 
 - All Tauri commands: `#[tauri::command(rename_all = "snake_case")]`
 - `AppContext` behind `Mutex` — lock, mutate, call `emit()` to push state to all FE windows
 - Score uses `Space` unit system (staff spaces) — pixel conversion via `Converter::spaces_to_px()`
-- `Entry` is a tagged enum (`#[serde(tag = "type")]`) with 6 variants: Barline, Clef, KeySignature, Tempo, TimeSignature, Tone
+- `Entry` is a tagged enum (`#[serde(tag = "type")]`) with 7 variants: Barline, Clef, KeySignature, Tempo, TimeSignature, Tone, Tuplet
+- `Tuplet` persists ratio metadata as `note_count`, `in_space_of`, `base_note_value`, `groupings`, and child `entries`; host/local tick spans are derived from that ratio rather than stored twice
 - Dual-index storage pattern: `by_tick: FxHashMap<Tick, Vec<UniqueId>>` + `by_id: FxHashMap<UniqueId, Entry>`
 
 ### Framework-Specific Rules
@@ -101,7 +102,7 @@ _This file contains critical rules and patterns that AI agents must follow when 
 
 The score page is rendered natively by Rust/Skia/Metal — all other UI (panels, buttons, inputs, toolbars) lives in the React/HTML layer.
 
-1. **Score data** → Tracks of `Entry` variants (Tone, Clef, KeySignature, Tempo, TimeSignature, Barline) stored in dual-index `FxHashMap`s
+1. **Score data** → Tracks of `Entry` variants (Tone, Clef, KeySignature, Tempo, TimeSignature, Barline, Tuplet) stored in dual-index `FxHashMap`s
 2. **Flow preparation phase** (`instructions/render_plan.rs`) → derives ordered visible flow inputs from `layout.flow_ids` while preserving `score.flows.order`; the render path emits `render-timing-flow-preparation` plus `render-timing-flow-preparation-details` diagnostics before parse/draw work begins
 3. **Per-flow parse/draw phase** (`instructions/parse/`, `instructions/draw/`) → each visible flow segment is parsed and drawn independently into `Vec<DrawInstruction>` plus `Vec<HitTarget>` using renderer-space `Space` units and px conversion via `Converter`
 4. **Flow composition phase** (`instructions/mod.rs`) → Rust composes every visible flow segment into one shared page surface in `score.flows.order`, offsets each later segment by a fixed renderer-space gap that guarantees at least 20 CSS pixels at normal zoom, paints a separate white native page box for each composed flow so the gradient backdrop remains visible in the boundary gap, preserves each flow's native page-start chrome, and keeps combined hit targets in shared renderer space
@@ -176,7 +177,7 @@ The score page is rendered natively by Rust/Skia/Metal — all other UI (panels,
 #### Serialization Gotchas
 
 - Enums are serialized as integers via `serde_repr` — when adding a new enum variant, it MUST be added at the same position in both Rust and TypeScript with matching integer values
-- `Entry` uses `#[serde(tag = "type")]` — the `type` field discriminates variants. Always handle all 6 variants when pattern-matching
+- `Entry` uses `#[serde(tag = "type")]` — the `type` field discriminates variants. Always handle all 7 variants when pattern-matching
 - Adding a new field to a Rust struct that serializes to FE requires updating the corresponding TypeScript type in `types.ts` — they must stay in sync manually
 
 #### Render Pipeline Gotchas
