@@ -110,6 +110,12 @@ const getInstrumentIdFromSelection = (state: AppState) => {
   return selection.instrument_id;
 };
 
+const canOpenTupletPopover = (state: AppState) => {
+  const selection = state.ui.sequencer.selection;
+
+  return selection?.type === "Tone" || selection?.type === "Rest";
+};
+
 const isEditableTarget = (target: EventTarget | null) => {
   if (!(target instanceof HTMLElement)) {
     return false;
@@ -244,6 +250,7 @@ export const Popover: FC<Props> = ({ popover, setPopover }) => {
         !e.metaKey &&
         !e.ctrlKey &&
         !e.altKey &&
+        canOpenTupletPopover(state) &&
         e.key === ";"
       ) {
         e.preventDefault();
@@ -254,7 +261,7 @@ export const Popover: FC<Props> = ({ popover, setPopover }) => {
     document.addEventListener("keydown", handleKeyDown);
 
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [openPopoverAtSelection, popover, setPopover]);
+  }, [openPopoverAtSelection, popover, setPopover, state]);
 
   // stop the popover from closing when clicking inside it
   useEffect(() => {
@@ -317,11 +324,7 @@ export const Popover: FC<Props> = ({ popover, setPopover }) => {
               break;
             }
             case PopoverType.Tuplet: {
-              const selection = state.ui.sequencer.selection;
-              const isTone = selection && selection.type === "Tone";
-              const isRest = selection && selection.type === "Rest";
-
-              if (!Boolean(isTone || isRest)) {
+              if (!canOpenTupletPopover(state)) {
                 return;
               }
 

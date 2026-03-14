@@ -520,7 +520,7 @@ describe("Popover", () => {
     });
   });
 
-  it("still opens the tuplet popover from non-track selections that provide a tick", async () => {
+  it("does not open the tuplet popover from non-tone, non-rest selections", async () => {
     const tempoSelectionState = createAppState({
       ui: {
         sequencer: {
@@ -540,13 +540,8 @@ describe("Popover", () => {
 
     fireEvent.keyDown(document, { key: ";" });
 
-    await waitFor(() => {
-      expect(setPopover).toHaveBeenCalledWith({
-        x: 100,
-        y: 200,
-        type: PopoverType.Tuplet,
-      });
-    });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(setPopover).not.toHaveBeenCalled();
   });
 
   it("does not trigger tuplet hotkeys from inside text inputs", async () => {
