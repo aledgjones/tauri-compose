@@ -35,6 +35,17 @@ describe("getSequencerClickTarget", () => {
     expect(result).toEqual({ type: "Tone", id: 7 });
   });
 
+  it("returns a tuplet target when element is inside a data-tuplet-id region", () => {
+    const parent = document.createElement("div");
+    parent.setAttribute("data-tuplet-id", "17");
+    const child = document.createElement("span");
+    parent.appendChild(child);
+    container.appendChild(parent);
+
+    const result = getSequencerClickTarget(child);
+    expect(result).toEqual({ type: "Tuplet", id: 17 });
+  });
+
   it("returns correct target for deeply nested child", () => {
     const ancestor = document.createElement("div");
     ancestor.setAttribute("data-tone-id", "99");

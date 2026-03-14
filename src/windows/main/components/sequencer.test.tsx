@@ -247,4 +247,89 @@ describe("Sequencer", () => {
       screen.getByText("This instrument is not included in this flow..."),
     ).toBeInTheDocument();
   });
+
+  it("renders a sticky tuplet label inside the sequencer view", () => {
+    const tuplet = {
+      id: 12,
+      tick: 48,
+      type: "Tuplet",
+      note_count: 3,
+      in_space_of: 2,
+      base_note_value: NoteDuration.Eighth,
+      groupings: [3],
+      entries: { by_tick: {}, by_id: {} },
+    } as const;
+
+    const flow = {
+      id: 1,
+      title: "Flow 1",
+      player_ids: [],
+      length: 1024,
+      master_id: 10,
+      staves: {
+        by_id: {
+          20: {
+            id: 20,
+            lines: [1, 1, 1, 1, 1],
+            master_id: 10,
+            track_ids: [5],
+          },
+        },
+      },
+    };
+
+    const appState = createAppState({
+      score: {
+        flows: { order: [1], by_id: { 1: flow } },
+        tracks: {
+          by_id: {
+            5: {
+              id: 5,
+              entries: { by_tick: {}, by_id: { 12: tuplet } },
+            },
+            10: {
+              id: 10,
+              entries: { by_tick: {}, by_id: {} },
+            },
+          },
+        },
+        instruments: {
+          by_id: {
+            5: {
+              id: 5,
+              definition_id: "piano",
+              instrument_type: 0,
+              long_name: "Piano",
+              short_name: "Pno.",
+              stave_ids: [20],
+              count: null,
+              assigned_plugin_id: null,
+              volume: 0,
+              pan: 0,
+              mute: false,
+              solo: false,
+            },
+          },
+        },
+      } as never,
+    });
+
+    renderWithProviders(
+      <Sequencer
+        flowId={1}
+        instrumentId={5}
+        trackId={5}
+        octaves={10}
+        instruments={[]}
+      />,
+      { appState },
+    );
+
+    const label = screen.getByTestId("sequencer-tuplet-label-12");
+    const tickBar = screen.getByTestId("sequencer-tick-bar");
+    const annotation = screen.getByTestId("sequencer-tick-bar-tuplet-12");
+
+    expect(tickBar).toContainElement(label);
+    expect(annotation.className).toContain("bottom-0");
+  });
 });

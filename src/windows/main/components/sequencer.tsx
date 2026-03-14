@@ -2,7 +2,7 @@ import { FC, useMemo } from "react";
 import { KEYBOARD_WIDTH } from "../config";
 import { DragScroll } from "../../../components/drag-scroll";
 import { Keyboard } from "./keyboard";
-import { Tool, UniqueId, NoteDuration } from "../../../services/types";
+import { Tool, UniqueId, NoteDuration, Tuplet } from "../../../services/types";
 import { useSlotPattern } from "../hooks/use-slots";
 import { useTicks } from "../hooks/use-ticks";
 import { useAppState } from "../../../services/state";
@@ -145,12 +145,22 @@ export const Sequencer: FC<Props> = ({
   const color = useMemo(() => {
     const index = instruments.findIndex((inst) => inst.id === instrumentId);
 
-    return instrumentColors[index];
+    return instrumentColors[index] ?? "#4A90D9";
   }, [instruments, instrumentId, instrumentColors]);
 
   const instrument = instrumentId
     ? state.score.instruments.by_id[instrumentId]
     : null;
+
+  const tuplets = useMemo(() => {
+    if (!track) {
+      return [];
+    }
+
+    return Object.values(track.entries.by_id).filter(
+      (entry) => entry.type === "Tuplet",
+    ) as Tuplet[];
+  }, [track]);
 
   if (!flowId || !flow) {
     return (
@@ -194,7 +204,12 @@ export const Sequencer: FC<Props> = ({
         style={{ paddingLeft: KEYBOARD_WIDTH }}
         className="ignore-y absolute top-0 z-10 min-w-full"
       >
-        <TickBar ticks={ticks} className="sticky top-0 z-30 bg-neutral-900" />
+        <TickBar
+          ticks={ticks}
+          tuplets={tuplets}
+          annotationColor={color}
+          className="sticky top-0 z-30 bg-neutral-900"
+        />
         <div className="relative">
           <SequencerTrack
             flow={flow}

@@ -8,14 +8,30 @@ import {
   Tool,
   Tone,
   Track,
+  Tuplet,
   UniqueId,
 } from "../../../services/types";
 import { actions } from "../../../services/actions";
 import { SequencerTrackTone } from "./sequencer-track-tone";
+import { SequencerTrackTuplet } from "./sequencer-track-tuplet";
 import {
   getSequencerClickTarget,
   ClickTarget,
 } from "../../../services/sequencer-utils";
+import {
+  getTupletRegion,
+  isTickInsideTupletRegion,
+} from "./sequencer-tuplet-utils";
+
+const getStaveIdForTrack = (flow: Flow, trackId: UniqueId) => {
+  for (const stave of Object.values(flow.staves.by_id)) {
+    if (stave.track_ids.includes(trackId)) {
+      return stave.id;
+    }
+  }
+
+  return null;
+};
 
 const getSnappedXPosition = (
   x: number,
@@ -195,6 +211,10 @@ const handleSliceTool = async (
     return;
   }
 
+  if (clickTarget.type !== "Tone") {
+    return;
+  }
+
   const box = sequencerRef.current?.getBoundingClientRect();
   if (!box) {
     return;
@@ -234,6 +254,10 @@ const handleEraseTool = async (
   const clickTarget = getSequencerClickTarget(e.target as HTMLElement);
 
   if (clickTarget === null) {
+    return;
+  }
+
+  if (clickTarget.type !== "Tone") {
     return;
   }
 
@@ -439,17 +463,27 @@ const handleSelectTool = async (
     return;
   }
 
-  // Find the stave that contains this track
-  let stave_id: UniqueId | null = null;
-  for (const stave of Object.values(flow.staves.by_id)) {
-    if (stave.track_ids.includes(track.id)) {
-      stave_id = stave.id;
-      break;
-    }
-  }
+  const stave_id = getStaveIdForTrack(flow, track.id);
 
   if (!stave_id) {
     console.error("Could not find stave for track", track.id);
+    return;
+  }
+
+  if (clickTarget.type === "Tuplet") {
+    const originalEntry = track.entries.by_id[clickTarget.id];
+    if (!originalEntry || originalEntry.type !== "Tuplet") {
+      return;
+    }
+
+    await actions.ui.sequencer.selectTuplet(
+      flow.id,
+      instrumentId,
+      stave_id,
+      track.id,
+      originalEntry.id,
+      originalEntry.tick,
+    );
     return;
   }
 
@@ -603,8 +637,26 @@ export const SequencerTrack: FC<SequencerTrackProps> = ({
   const tones = useMemo(() => {
     return Object.values(track.entries.by_id).filter(
       (entry) => entry.type === "Tone",
-    );
+    ) as Tone[];
   }, [track.entries.by_id]);
+
+  const tuplets = useMemo(() => {
+    return Object.values(track.entries.by_id).filter(
+      (entry) => entry.type === "Tuplet",
+    ) as Tuplet[];
+  }, [track.entries.by_id]);
+
+  const tupletRegions = useMemo(() => {
+    return tuplets.map(getTupletRegion);
+  }, [tuplets]);
+
+  const barTicks = useMemo(() => {
+    return new Set(
+      ticks.entries
+        .filter((entry) => entry.type === "bar")
+        .map((entry) => entry.x / ticks.tickWidth),
+    );
+  }, [ticks.entries, ticks.tickWidth]);
 
   return (
     <div
@@ -633,18 +685,41 @@ export const SequencerTrack: FC<SequencerTrackProps> = ({
           return null;
         }
 
+        const tickPosition = entry.x / ticks.tickWidth;
+        const isInsideTuplet = tupletRegions.some((tupletRegion) =>
+          isTickInsideTupletRegion(tickPosition, tupletRegion),
+        );
+
+        if (entry.type !== "bar" && isInsideTuplet) {
+          return null;
+        }
+
         return (
           <div
             key={tick}
             className={classNames("absolute top-0 left-0", {
               "bg-neutral-500": entry.type === "bar",
-              "bg-neutral-800": entry.type === "beat",
+              "bg-neutral-700": entry.type === "beat",
             })}
+            data-sequencer-tick-line={entry.type}
             style={{
               height: slots.height,
               width: 1,
               translate: `${entry.x}px`,
             }}
+          />
+        );
+      })}
+
+      {tuplets.map((tuplet) => {
+        return (
+          <SequencerTrackTuplet
+            key={tuplet.id}
+            tuplet={tuplet}
+            tickWidth={ticks.tickWidth}
+            height={slots.height}
+            color={color}
+            barTicks={barTicks}
           />
         );
       })}

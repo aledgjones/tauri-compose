@@ -228,6 +228,8 @@ Sequencer selection state is mirrored between Rust and TypeScript and is **not**
 
 These directive-selection payloads exist only in UI state so the native renderer can round-trip hit targets, highlight state, keyboard deletion, and popover anchoring. `Tuplet` selection also lets creation hand selection back through the existing `apply_selection` path, which keeps `ui.flow_id` as the single authoritative active-flow slot. None of these UI-only payloads change persisted project JSON or require a migration.
 
+For sequencer presentation, tuplets now render directly from the host-track `Tuplet` entry rather than from a frontend-owned draft region. The visible host span is derived from `in_space_of * noteDurationToTicks(base_note_value)`, the track body renders only the faint region tint plus the compressed local slot markers, and the `3:2` annotation lives in the tick bar as a bottom-anchored ruler annotation rather than as floating text inside the lane. The current sequencer UI does not depend on a dedicated tuplet-selection interaction or an auto-reveal scroll handoff; the shared `Tuplet` selection payload remains part of the broader UI contract, but the visible sequencer treatment is driven from track data.
+
 ---
 
 ## Component Types
