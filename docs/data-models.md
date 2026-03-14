@@ -195,6 +195,15 @@ Host and local tick spans are derived rather than stored twice:
 
 For an eighth-note triplet, that means `note_count = 3`, `in_space_of = 2`, and `base_note_value = Eighth`, which derives the same `48` local ticks projected into `32` host ticks.
 
+In the current MVP authoring flow, the existing popover system creates tuplets as backend-owned host-track containers. The frontend only collects transient popover input in an explicit learned syntax such as `3e/2` (`3` eighths in the space of `2`) and dispatches a create command; it does not keep a parallel draft tuplet timing model.
+
+Supported MVP tuplet suffixes are:
+
+- `q` for quarter-note triplets (`3q/2`)
+- `e` for eighth-note triplets (`3e/2`)
+- `s` for sixteenth-note triplets (`3s/2`)
+- `t` for thirty-second-note triplets (`3t/2`)
+
 Ownership rules:
 
 - A tone is stored exactly once.
@@ -213,8 +222,9 @@ Sequencer selection state is mirrored between Rust and TypeScript and is **not**
 - `TimeSignature { flow_id, time_signature_id, tick }`
 - `KeySignature { flow_id, key_signature_id, tick }`
 - `Clef { flow_id, stave_id, clef_id, tick }`
+- `Tuplet { flow_id, instrument_id, stave_id, track_id, tuplet_id, tick }`
 
-These directive-selection payloads exist only in UI state so the native renderer can round-trip hit targets, highlight state, keyboard deletion, and popover anchoring. They do not change persisted project JSON or require a migration.
+These directive-selection payloads exist only in UI state so the native renderer can round-trip hit targets, highlight state, keyboard deletion, and popover anchoring. `Tuplet` selection also lets creation hand focus back through the existing `apply_selection` path, which keeps `ui.flow_id` as the single authoritative active-flow slot. None of these UI-only payloads change persisted project JSON or require a migration.
 
 ---
 

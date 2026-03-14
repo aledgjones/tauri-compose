@@ -432,13 +432,24 @@ type ClefSelection = {
   tick: Tick;
 };
 
+type TupletSelection = {
+  type: "Tuplet";
+  flow_id: UniqueId;
+  instrument_id: UniqueId;
+  stave_id: UniqueId;
+  track_id: UniqueId;
+  tuplet_id: UniqueId;
+  tick: Tick;
+};
+
 export type Selection =
   | ToneSelection
   | RestSelection
   | TempoSelection
   | TimeSignatureSelection
   | KeySignatureSelection
-  | ClefSelection;
+  | ClefSelection
+  | TupletSelection;
 
 export type AppState = {
   ui: {

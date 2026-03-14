@@ -232,6 +232,23 @@ export const actions = {
           tick,
         });
       },
+      selectTuplet: (
+        flow_id: number,
+        instrument_id: number,
+        stave_id: number,
+        track_id: number,
+        tuplet_id: number,
+        tick: number,
+      ) => {
+        return invoke("ui_sequencer_selection_set_tuplet", {
+          flow_id,
+          instrument_id,
+          stave_id,
+          track_id,
+          tuplet_id,
+          tick,
+        });
+      },
       clearSelection: () => {
         return invoke<void>("ui_sequencer_selection_clear");
       },
@@ -922,6 +939,25 @@ export const actions = {
           track_id,
           tone_id,
           articulation,
+        });
+      },
+    },
+    tuplet: {
+      create: (
+        track_id: UniqueId,
+        tick: Tick,
+        note_count: number,
+        in_space_of: number,
+        base_note_value: NoteDuration,
+        groupings: number[],
+      ) => {
+        return invoke<UniqueId>("score_entries_tuplet_create", {
+          track_id,
+          tick,
+          note_count,
+          in_space_of,
+          base_note_value,
+          groupings,
         });
       },
     },

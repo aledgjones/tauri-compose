@@ -1,9 +1,18 @@
 /* eslint-disable jsx-a11y/no-autofocus */
 
-import { ChangeEvent, FC, useEffect, useRef, useState } from "react";
+import {
+  ChangeEvent,
+  FC,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import { actions } from "../services/actions";
 import { useAppState } from "../services/state";
 import {
+  parseTupletPopover,
   parseBarlinePopover,
   parseClefPopover,
   parseKeySignaturePopover,
@@ -18,6 +27,7 @@ import {
   mdiAlphaKBoxOutline,
   mdiAlphaMBoxOutline,
   mdiMetronome,
+  mdiNumeric3BoxOutline,
 } from "@mdi/js";
 import { AppState } from "../services/types";
 
@@ -68,6 +78,38 @@ const getStaveIdFromSelection = (state: AppState) => {
   return selection.stave_id;
 };
 
+const getTrackIdFromSelection = (state: AppState) => {
+  const selection = state.ui.sequencer.selection;
+
+  if (
+    !selection ||
+    selection.type === "Tempo" ||
+    selection.type === "TimeSignature" ||
+    selection.type === "KeySignature" ||
+    selection.type === "Clef"
+  ) {
+    return null;
+  }
+
+  return selection.track_id;
+};
+
+const getInstrumentIdFromSelection = (state: AppState) => {
+  const selection = state.ui.sequencer.selection;
+
+  if (
+    !selection ||
+    selection.type === "Tempo" ||
+    selection.type === "TimeSignature" ||
+    selection.type === "KeySignature" ||
+    selection.type === "Clef"
+  ) {
+    return null;
+  }
+
+  return selection.instrument_id;
+};
+
 const getMeta = (type: PopoverType) => {
   switch (type) {
     case PopoverType.Barline: {
@@ -100,6 +142,12 @@ const getMeta = (type: PopoverType) => {
         icon: mdiMetronome,
       };
     }
+    case PopoverType.Tuplet: {
+      return {
+        label: "Tuplet",
+        icon: mdiNumeric3BoxOutline,
+      };
+    }
     default:
       return { label: "", icon: mdiAlphaKBoxOutline };
   }
@@ -120,6 +168,19 @@ export const Popover: FC<Props> = ({ popover, setPopover }) => {
     setValue("");
   };
 
+  const openPopoverAtSelection = useCallback(
+    async (type: PopoverType) => {
+      const coords = await actions.ui.renderer.getSelectionCoordinates();
+      if (!coords) {
+        return;
+      }
+
+      const [x, y] = coords;
+      setPopover({ x, y, type });
+    },
+    [setPopover],
+  );
+
   useEffect(() => {
     const handleKeyDown = async (e: KeyboardEvent) => {
       if (popover) {
@@ -128,59 +189,45 @@ export const Popover: FC<Props> = ({ popover, setPopover }) => {
 
       if (e.shiftKey && e.key === "B") {
         e.preventDefault();
-
-        const coords = await actions.ui.renderer.getSelectionCoordinates();
-        if (coords) {
-          const [x, y] = coords;
-          setPopover({ x, y, type: PopoverType.Barline });
-        }
+        await openPopoverAtSelection(PopoverType.Barline);
       }
 
       if (e.shiftKey && e.key === "C") {
         e.preventDefault();
-
-        const coords = await actions.ui.renderer.getSelectionCoordinates();
-        if (coords) {
-          const [x, y] = coords;
-          setPopover({ x, y, type: PopoverType.Clef });
-        }
+        await openPopoverAtSelection(PopoverType.Clef);
       }
 
       if (e.shiftKey && e.key === "K") {
         e.preventDefault();
-
-        const coords = await actions.ui.renderer.getSelectionCoordinates();
-        if (coords) {
-          const [x, y] = coords;
-          setPopover({ x, y, type: PopoverType.KeySignature });
-        }
+        await openPopoverAtSelection(PopoverType.KeySignature);
       }
 
       if (e.shiftKey && e.key === "M") {
         e.preventDefault();
-
-        const coords = await actions.ui.renderer.getSelectionCoordinates();
-        if (coords) {
-          const [x, y] = coords;
-          setPopover({ x, y, type: PopoverType.TimeSignature });
-        }
+        await openPopoverAtSelection(PopoverType.TimeSignature);
       }
 
       if (e.shiftKey && e.key === "T") {
         e.preventDefault();
+        await openPopoverAtSelection(PopoverType.Tempo);
+      }
 
-        const coords = await actions.ui.renderer.getSelectionCoordinates();
-        if (coords) {
-          const [x, y] = coords;
-          setPopover({ x, y, type: PopoverType.Tempo });
-        }
+      if (
+        !e.shiftKey &&
+        !e.metaKey &&
+        !e.ctrlKey &&
+        !e.altKey &&
+        e.key === ";"
+      ) {
+        e.preventDefault();
+        await openPopoverAtSelection(PopoverType.Tuplet);
       }
     };
 
     document.addEventListener("keydown", handleKeyDown);
 
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [popover, setPopover]);
+  }, [openPopoverAtSelection, popover, setPopover]);
 
   // stop the popover from closing when clicking inside it
   useEffect(() => {
@@ -201,12 +248,12 @@ export const Popover: FC<Props> = ({ popover, setPopover }) => {
     return null;
   }
 
-  const handleKeyDown = async (e: React.KeyboardEvent) => {
+  const handleKeyDown = async (e: ReactKeyboardEvent<HTMLInputElement>) => {
     e.stopPropagation();
 
     switch (e.key) {
       case "Enter": {
-        const term = value.trim();
+        const term = value?.trim() ?? "";
         const tick = getTickFromSelection(state);
         const flow_id = getFlowIdFromSelection(state);
 
@@ -240,6 +287,29 @@ export const Popover: FC<Props> = ({ popover, setPopover }) => {
             }
             case PopoverType.Tempo: {
               await parseTempoPopover(term, flow_id, tick);
+              break;
+            }
+            case PopoverType.Tuplet: {
+              const instrument_id = getInstrumentIdFromSelection(state);
+              const stave_id = getStaveIdFromSelection(state);
+              const track_id = getTrackIdFromSelection(state);
+
+              if (
+                instrument_id === null ||
+                stave_id === null ||
+                track_id === null
+              ) {
+                return;
+              }
+
+              await parseTupletPopover(
+                term,
+                flow_id,
+                tick,
+                instrument_id,
+                stave_id,
+                track_id,
+              );
               break;
             }
           }

@@ -69,6 +69,7 @@ use score::entries::tone::{
     score_entries_tone_pitch_shift_by_steps, score_entries_tone_set_position_and_duration,
     score_entries_tone_shift, score_entries_tone_slice, score_entries_tone_unify_articulations,
 };
+use score::entries::tuplet::score_entries_tuplet_create;
 use score::flows::{
     score_flows_assign_player, score_flows_create, score_flows_move, score_flows_remove,
     score_flows_rename, score_flows_unassign_player,
@@ -118,6 +119,7 @@ use ui::sequencer::{
     ui_sequencer_selection_set_clef, ui_sequencer_selection_set_key_signature,
     ui_sequencer_selection_set_rest, ui_sequencer_selection_set_tempo,
     ui_sequencer_selection_set_time_signature, ui_sequencer_selection_set_tone,
+    ui_sequencer_selection_set_tuplet,
     ui_sequencer_snap_set, ui_sequencer_tool_set, ui_sequencer_track_set,
 };
 use ui::{ui_flow_id_set, ui_get_selection_coordinates, ui_layout_id_set, ui_tab_set, Ui};
@@ -630,6 +632,7 @@ pub fn run() {
             score_entries_tone_unify_articulations,
             score_entries_tone_slice,
             score_entries_tone_duration_remove,
+            score_entries_tuplet_create,
             score_flows_create,
             score_flows_rename,
             score_flows_move,
@@ -689,6 +692,7 @@ pub fn run() {
             ui_sequencer_selection_set_tempo,
             ui_sequencer_selection_set_time_signature,
             ui_sequencer_selection_set_tone,
+            ui_sequencer_selection_set_tuplet,
             ui_sequencer_snap_set,
             ui_sequencer_tool_set,
             ui_sequencer_track_set,

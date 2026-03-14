@@ -152,6 +152,17 @@ export const Renderer: FC<Props> = ({ className }) => {
             );
             return;
           }
+          case "Tuplet": {
+            await actions.ui.sequencer.selectTuplet(
+              hitResult.flow_id,
+              hitResult.instrument_id,
+              hitResult.stave_id,
+              hitResult.track_id,
+              hitResult.tuplet_id,
+              hitResult.tick,
+            );
+            return;
+          }
         }
       }
 

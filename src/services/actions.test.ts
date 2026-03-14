@@ -319,6 +319,21 @@ describe("actions.ui", () => {
       );
     });
 
+    it("selectTuplet calls invoke with the tuplet selection payload", async () => {
+      await actions.ui.sequencer.selectTuplet(4, 5, 3, 2, 10, 64);
+      expect(mockInvoke).toHaveBeenCalledWith(
+        "ui_sequencer_selection_set_tuplet",
+        {
+          flow_id: 4,
+          instrument_id: 5,
+          stave_id: 3,
+          track_id: 2,
+          tuplet_id: 10,
+          tick: 64,
+        },
+      );
+    });
+
     it("clearSelection calls invoke correctly", async () => {
       await actions.ui.sequencer.clearSelection();
       expect(mockInvoke).toHaveBeenCalledWith("ui_sequencer_selection_clear");
@@ -1175,6 +1190,31 @@ describe("actions.score.tone", () => {
       "score_entries_tone_articulation_set",
       { track_id: 10, tone_id: 200, articulation: Articulation.Tenuto },
     );
+  });
+});
+
+describe("actions.score.tuplet", () => {
+  it("create calls invoke and returns id", async () => {
+    mockInvoke.mockResolvedValueOnce(300);
+
+    const id = await actions.score.tuplet.create(
+      10,
+      32,
+      3,
+      2,
+      NoteDuration.Eighth,
+      [3],
+    );
+
+    expect(mockInvoke).toHaveBeenCalledWith("score_entries_tuplet_create", {
+      track_id: 10,
+      tick: 32,
+      note_count: 3,
+      in_space_of: 2,
+      base_note_value: NoteDuration.Eighth,
+      groupings: [3],
+    });
+    expect(id).toBe(300);
   });
 });
 

@@ -130,6 +130,7 @@ export const useKeyboardShortcuts = () => {
             ),
         };
       }
+      case "Tuplet":
       case "Rest":
         return null;
     }

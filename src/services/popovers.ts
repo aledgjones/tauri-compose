@@ -16,7 +16,58 @@ export enum PopoverType {
   KeySignature,
   TimeSignature,
   Tempo,
+  Tuplet,
 }
+
+const TUPLET_BASE_NOTE_BY_SUFFIX: Record<string, NoteDuration> = {
+  q: NoteDuration.Quarter,
+  e: NoteDuration.Eighth,
+  s: NoteDuration.Sixteenth,
+  t: NoteDuration.ThirtySecond,
+};
+
+export const parseTupletPopover = async (
+  input: string,
+  flow_id: UniqueId,
+  tick: Tick,
+  instrument_id: UniqueId,
+  stave_id: UniqueId,
+  track_id: UniqueId,
+) => {
+  const match = input.match(/^(\d+)([qest])\/(\d+)$/i);
+
+  if (!match) {
+    throw new Error(`Unknown input: ${input}`);
+  }
+
+  const [, noteCountText, durationSuffix, inSpaceOfText] = match;
+  const note_count = Number(noteCountText);
+  const in_space_of = Number(inSpaceOfText);
+  const base_note_value =
+    TUPLET_BASE_NOTE_BY_SUFFIX[durationSuffix.toLowerCase()];
+
+  if (note_count !== 3 || in_space_of !== 2 || base_note_value === undefined) {
+    throw new Error(`Unknown input: ${input}`);
+  }
+
+  const tuplet_id = await actions.score.tuplet.create(
+    track_id,
+    tick,
+    note_count,
+    in_space_of,
+    base_note_value,
+    [3],
+  );
+
+  await actions.ui.sequencer.selectTuplet(
+    flow_id,
+    instrument_id,
+    stave_id,
+    track_id,
+    tuplet_id,
+    tick,
+  );
+};
 
 export const parseBarlinePopover = (
   input: string,

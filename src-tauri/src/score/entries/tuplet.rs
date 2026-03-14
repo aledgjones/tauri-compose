@@ -1,7 +1,10 @@
-use super::Entries;
+use super::{Entries, Entry};
 use crate::score::components::duration::{NoteDuration, Tick, Ticks};
+use crate::score::tracks::Track;
 use crate::utils::UniqueId;
+use crate::{AppContextState, RendererContextState};
 use serde::{Deserialize, Serialize};
+use tauri::State;
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Tuplet {
@@ -16,6 +19,25 @@ pub struct Tuplet {
 
 #[allow(dead_code)]
 impl Tuplet {
+    pub fn new(
+        id: UniqueId,
+        tick: Tick,
+        note_count: u8,
+        in_space_of: u8,
+        base_note_value: NoteDuration,
+        groupings: Vec<u8>,
+    ) -> Self {
+        Self {
+            id,
+            tick,
+            note_count,
+            in_space_of,
+            base_note_value,
+            groupings,
+            entries: Entries::new(),
+        }
+    }
+
     pub fn consumed_ticks(&self) -> Ticks {
         u64::from(self.in_space_of) * self.base_note_value.to_ticks()
     }
@@ -25,23 +47,133 @@ impl Tuplet {
     }
 }
 
+impl Track {
+    pub fn create_tuplet(
+        &mut self,
+        tuplet_id: UniqueId,
+        tick: Tick,
+        note_count: u8,
+        in_space_of: u8,
+        base_note_value: NoteDuration,
+        groupings: Vec<u8>,
+    ) {
+        self.insert_entry(Entry::Tuplet(Box::new(Tuplet::new(
+            tuplet_id,
+            tick,
+            note_count,
+            in_space_of,
+            base_note_value,
+            groupings,
+        ))));
+    }
+}
+
+#[tauri::command(rename_all = "snake_case")]
+#[allow(clippy::too_many_arguments)]
+pub fn score_entries_tuplet_create(
+    app: tauri::AppHandle,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
+    track_id: UniqueId,
+    tick: Tick,
+    note_count: u8,
+    in_space_of: u8,
+    base_note_value: NoteDuration,
+    groupings: Vec<u8>,
+) -> Result<UniqueId, String> {
+    let mut state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
+
+    let tuplet_id = state.generate_id();
+    let track = state
+        .score
+        .tracks
+        .by_id
+        .get_mut(&track_id)
+        .ok_or_else(|| format!("Track {track_id} not found"))?;
+
+    track.create_tuplet(
+        tuplet_id,
+        tick,
+        note_count,
+        in_space_of,
+        base_note_value,
+        groupings,
+    );
+
+    state.emit_affected_track(&app, &mut renderer, track_id);
+
+    Ok(tuplet_id)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-
+    use crate::score::components::{
+        articulation::Articulations,
+        pitch::{Accidental, Pitch},
+        velocity::Velocity,
+    };
+    use crate::score::entries::tone::Tone;
     #[test]
     fn triplet_ratio_derives_expected_tick_spans() {
-        let tuplet = Tuplet {
-            id: 1,
-            tick: 64,
-            note_count: 3,
-            in_space_of: 2,
-            base_note_value: NoteDuration::Eighth,
-            groupings: vec![3],
-            entries: Entries::new(),
-        };
+        let tuplet = Tuplet::new(1, 64, 3, 2, NoteDuration::Eighth, vec![3]);
 
         assert_eq!(tuplet.local_length_ticks(), 48);
         assert_eq!(tuplet.consumed_ticks(), 32);
+    }
+
+    #[test]
+    fn create_tuplet_inserts_entry_with_expected_ratio_metadata() {
+        let mut track = Track::new(9);
+        track.insert_entry(Entry::Tone(Tone::new(
+            22,
+            16,
+            16,
+            Pitch::new(60, Accidental::Natural),
+            Velocity::new(90),
+            Articulations::new(),
+        )));
+
+        track.create_tuplet(
+            99,
+            64,
+            3,
+            2,
+            NoteDuration::Eighth,
+            vec![3],
+        );
+
+        let Entry::Tuplet(tuplet) = track.entries.by_id.get(&99).unwrap() else {
+            panic!("expected tuplet entry");
+        };
+
+        assert_eq!(tuplet.tick, 64);
+        assert_eq!(tuplet.note_count, 3);
+        assert_eq!(tuplet.in_space_of, 2);
+        assert!(matches!(tuplet.base_note_value, NoteDuration::Eighth));
+        assert_eq!(tuplet.groupings, vec![3]);
+        assert!(tuplet.entries.by_id.is_empty());
+        assert!(matches!(track.entries.by_id.get(&22), Some(Entry::Tone(_))));
+    }
+
+    #[test]
+    fn create_tuplet_preserves_provided_groupings() {
+        let mut track = Track::new(9);
+
+        track.create_tuplet(
+            99,
+            64,
+            3,
+            2,
+            NoteDuration::Eighth,
+            vec![2],
+        );
+
+        let Entry::Tuplet(tuplet) = track.entries.by_id.get(&99).unwrap() else {
+            panic!("expected tuplet entry");
+        };
+
+        assert_eq!(tuplet.groupings, vec![2]);
     }
 }
