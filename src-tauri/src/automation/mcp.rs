@@ -190,22 +190,10 @@ fn jsonrpc_error(id: Value, code: i64, message: &str) -> Value {
 
 const GET_STARTED_TOOL_NAME: &str = "compose_get_started";
 const DESCRIBE_MODEL_TOOL_NAME: &str = "compose_describe_model";
-const LIST_ACTIONS_TOOL_NAME: &str = "compose_list_actions";
-const CALL_ACTION_TOOL_NAME: &str = "compose_call_action";
+const ACTION_TOOL_PREFIX: &str = "compose_action_";
 
 fn tool_definitions() -> Vec<Value> {
-    vec![
-        json!({
-            "name": LIST_ACTIONS_TOOL_NAME,
-            "description": format!(
-                "List the dotted automation actions currently exposed by the running Compose app. Call {GET_STARTED_TOOL_NAME} first when you need id semantics, tick rules, and track lookup guidance."
-            ),
-            "inputSchema": {
-                "type": "object",
-                "properties": {},
-                "additionalProperties": false
-            }
-        }),
+    let mut tools = vec![
         json!({
             "name": DESCRIBE_MODEL_TOOL_NAME,
             "description": format!(
@@ -220,7 +208,7 @@ fn tool_definitions() -> Vec<Value> {
         json!({
             "name": GET_STARTED_TOOL_NAME,
             "description": format!(
-                "Get the recommended first-step guide for Compose MCP usage. This is the onboarding entrypoint before {CALL_ACTION_TOOL_NAME} when you need ids, tick rules, track lookup guidance, and safe action ordering."
+                "Get the recommended first-step guide for Compose MCP usage. This is the onboarding entrypoint before calling generated action tools when you need ids, tick rules, track lookup guidance, and safe action ordering."
             ),
             "inputSchema": {
                 "type": "object",
@@ -228,35 +216,102 @@ fn tool_definitions() -> Vec<Value> {
                 "additionalProperties": false
             }
         }),
-        json!({
-            "name": CALL_ACTION_TOOL_NAME,
-            "description": format!(
-                "Call a Compose automation action by dotted path using positional JSON arguments. Call {GET_STARTED_TOOL_NAME} first for score-editing tasks so you know which ids, tick rules, and track lookups to use."
-            ),
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "name": {
-                        "type": "string",
-                        "description": "Dotted action path, for example ui.setTab"
-                    },
-                    "args": {
-                        "type": "array",
-                        "description": "Positional arguments to pass to the action",
-                        "items": {},
-                        "default": []
-                    },
-                    "timeout_ms": {
-                        "type": "integer",
-                        "minimum": 1,
-                        "description": "Optional action timeout in milliseconds"
-                    }
-                },
-                "required": ["name"],
-                "additionalProperties": false
-            }
-        }),
-    ]
+    ];
+
+    tools.extend(action_tool_definitions());
+    tools
+}
+
+fn action_tool_definitions() -> Vec<Value> {
+    serialized_action_definitions()
+        .into_iter()
+        .map(|action_definition| {
+            let action_name = action_definition
+                .get("name")
+                .and_then(Value::as_str)
+                .expect("Compose action definitions should always include a name");
+            let description = action_definition
+                .get("description")
+                .and_then(Value::as_str)
+                .expect("Compose action definitions should always include a description");
+            let arg_definitions = action_definition
+                .get("args")
+                .and_then(Value::as_array)
+                .expect("Compose action definitions should always include args");
+
+            let properties = arg_definitions
+                .iter()
+                .filter_map(|argument| {
+                    let arg_name = argument.get("name").and_then(Value::as_str)?;
+                    let arg_description = argument.get("description").and_then(Value::as_str)?;
+
+                    Some((
+                        arg_name.to_string(),
+                        json!({
+                            "description": arg_description
+                        }),
+                    ))
+                })
+                .collect::<serde_json::Map<String, Value>>();
+
+            let required = arg_definitions
+                .iter()
+                .filter(|argument| argument.get("required").and_then(Value::as_bool) == Some(true))
+                .filter_map(|argument| argument.get("name"))
+                .cloned()
+                .collect::<Vec<_>>();
+
+            json!({
+                "name": action_tool_name(action_name),
+                "description": format!(
+                    "Invoke Compose action {action_name}. {description}"
+                ),
+                "inputSchema": {
+                    "type": "object",
+                    "properties": properties,
+                    "required": required,
+                    "additionalProperties": false
+                }
+            })
+        })
+        .collect()
+}
+
+fn serialized_action_definitions() -> Vec<Value> {
+    registry::action_definitions()
+        .into_iter()
+        .map(|action_definition| {
+            serde_json::to_value(action_definition)
+                .expect("Compose action definitions should always serialize")
+        })
+        .collect()
+}
+
+fn action_tool_name(action_name: &str) -> String {
+    format!(
+        "{ACTION_TOOL_PREFIX}{}",
+        action_name
+            .chars()
+            .map(|character| {
+                if character.is_ascii_alphanumeric() {
+                    character
+                } else {
+                    '_'
+                }
+            })
+            .collect::<String>()
+    )
+}
+
+fn find_action_definition_by_tool_name(tool_name: &str) -> Option<Value> {
+    serialized_action_definitions()
+        .into_iter()
+        .find(|action_definition| {
+            action_definition
+                .get("name")
+                .and_then(Value::as_str)
+                .is_some_and(|action_name| action_tool_name(action_name) == tool_name)
+        })
 }
 
 async fn handle_tool_call(
@@ -265,64 +320,73 @@ async fn handle_tool_call(
     state: &AutomationApiState,
 ) -> Result<Value, String> {
     match tool_name {
-        LIST_ACTIONS_TOOL_NAME => Ok(text_result(json!(registry::action_definitions()))),
         DESCRIBE_MODEL_TOOL_NAME => Ok(text_result(compose_domain_model())),
         GET_STARTED_TOOL_NAME => Ok(text_result(compose_getting_started_guide())),
-        CALL_ACTION_TOOL_NAME => call_action(arguments, state).await,
-        _ => Err(format!("Unknown tool: {tool_name}")),
+        _ => {
+            if let Some(action_definition) = find_action_definition_by_tool_name(tool_name) {
+                call_named_action_tool(arguments, &action_definition, state).await
+            } else {
+                Err(format!("Unknown tool: {tool_name}"))
+            }
+        }
     }
 }
 
-async fn call_action(
+async fn call_named_action_tool(
     arguments: Option<&serde_json::Map<String, Value>>,
+    action_definition: &Value,
     state: &AutomationApiState,
 ) -> Result<Value, String> {
-    let arguments = arguments.ok_or_else(|| "Missing arguments object".to_string())?;
-    let name = arguments
+    let action_name = action_definition
         .get("name")
         .and_then(Value::as_str)
-        .ok_or_else(|| "Missing action name".to_string())?;
-    let args = arguments
-        .get("args")
-        .and_then(Value::as_array)
-        .cloned()
-        .unwrap_or_default();
-
-    let action_definitions = registry::action_definitions();
-    let action_definition = action_definitions
-        .iter()
-        .map(|candidate| {
-            serde_json::to_value(candidate)
-                .expect("Compose action definitions should always serialize")
-        })
-        .find(|candidate| candidate.get("name").and_then(Value::as_str) == Some(name))
-        .ok_or_else(|| format!("Unknown MCP action: {name}"))?;
-
+        .ok_or_else(|| "Action metadata is missing a name".to_string())?;
     let arg_definitions = action_definition
         .get("args")
         .and_then(Value::as_array)
-        .ok_or_else(|| format!("Action metadata for {name} is missing args"))?;
+        .ok_or_else(|| format!("Action metadata for {action_name} is missing args"))?;
+    let arguments = arguments.ok_or_else(|| {
+        format!(
+            "Generated MCP tool {} requires an arguments object",
+            action_tool_name(action_name)
+        )
+    })?;
 
-    let required_args = arg_definitions
+    let allowed_arg_names = arg_definitions
         .iter()
-        .filter(|argument| argument.get("required").and_then(Value::as_bool) == Some(true))
-        .count();
+        .filter_map(|argument| argument.get("name").and_then(Value::as_str))
+        .collect::<Vec<_>>();
 
-    if args.len() < required_args {
-        let missing_args = arg_definitions
-            .iter()
-            .filter(|argument| argument.get("required").and_then(Value::as_bool) == Some(true))
-            .skip(args.len())
-            .filter_map(|argument| argument.get("name").and_then(Value::as_str))
-            .collect::<Vec<_>>()
-            .join(", ");
-
+    if let Some(unknown_argument) = arguments
+        .keys()
+        .find(|argument_name| !allowed_arg_names.contains(&argument_name.as_str()))
+    {
         return Err(format!(
-            "Action {name} requires {required_args} arguments. Missing: {missing_args}"
+            "Action {action_name} does not accept argument {unknown_argument}"
         ));
     }
 
-    let result = registry::execute_action(&state.app_handle, name, &args).await?;
+    let mut ordered_args = Vec::with_capacity(arg_definitions.len());
+    for argument_definition in arg_definitions {
+        let arg_name = argument_definition
+            .get("name")
+            .and_then(Value::as_str)
+            .ok_or_else(|| format!("Action metadata for {action_name} is missing arg names"))?;
+        let required = argument_definition
+            .get("required")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+
+        match arguments.get(arg_name) {
+            Some(value) => ordered_args.push(value.clone()),
+            None if required => {
+                return Err(format!("Action {action_name} requires argument {arg_name}"));
+            }
+            None => ordered_args.push(Value::Null),
+        }
+    }
+
+    let result = registry::execute_action(&state.app_handle, action_name, &ordered_args).await?;
     Ok(text_result(result))
 }
 
@@ -342,7 +406,7 @@ fn compose_domain_model() -> Value {
     json!({
         "summary": "Compose stores musical state in a normalized score graph. Most mutations target one entity collection by numeric id, while ordering is usually tracked separately from by-id lookup maps.",
         "recommendedFirstSteps": [
-            format!("Call {GET_STARTED_TOOL_NAME} before {LIST_ACTIONS_TOOL_NAME} or {CALL_ACTION_TOOL_NAME} when you need to create or edit score content."),
+            format!("Call {GET_STARTED_TOOL_NAME} before any {ACTION_TOOL_PREFIX}* tool when you need to create or edit score content."),
             "Use score.lookup.getInstrumentTracks to resolve playable user track_ids before calling score.tone.create.",
             "Use score.lookup.getScoreSlice when you need current runtime ids and structural relationships without mutating the score."
         ],
@@ -386,13 +450,11 @@ fn compose_getting_started_guide() -> Value {
         "summary": "Start here when you are using Compose only through MCP and need enough context to build or edit score content safely.",
         "recommendedOrder": [
             GET_STARTED_TOOL_NAME,
-            LIST_ACTIONS_TOOL_NAME,
-            CALL_ACTION_TOOL_NAME
+            format!("{ACTION_TOOL_PREFIX}<action-name>")
         ],
         "nextTools": {
-            "listActions": LIST_ACTIONS_TOOL_NAME,
             "describeModel": DESCRIBE_MODEL_TOOL_NAME,
-            "callAction": CALL_ACTION_TOOL_NAME
+            "actionToolPrefix": ACTION_TOOL_PREFIX
         },
         "recommendedFirstSteps": domain_model["recommendedFirstSteps"].clone(),
         "ids": domain_model["ids"].clone(),
