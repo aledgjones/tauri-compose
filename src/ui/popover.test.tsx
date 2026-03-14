@@ -303,6 +303,35 @@ describe("Popover", () => {
     );
   });
 
+  it("Enter for Tuplet does nothing when the selection is not a tone or rest", async () => {
+    const user = userEvent.setup();
+    const tempoSelectionState = createAppState({
+      ui: {
+        sequencer: {
+          selection: {
+            type: "Tempo",
+            flow_id: FLOW_ID,
+            tempo_id: 99,
+            tick: TICK,
+          },
+        },
+      } as never,
+    });
+
+    renderWithProviders(
+      <Popover
+        popover={{ x: 0, y: 0, type: PopoverType.Tuplet }}
+        setPopover={setPopover}
+      />,
+      { appState: tempoSelectionState },
+    );
+
+    await user.type(screen.getByRole("textbox"), "3e/2{Enter}");
+
+    expect(parseTupletPopover).not.toHaveBeenCalled();
+    expect(setPopover).not.toHaveBeenCalled();
+  });
+
   // -------------------------------------------------------------------------
   // Enter — invalid input should not close
   // -------------------------------------------------------------------------
@@ -489,6 +518,67 @@ describe("Popover", () => {
         type: PopoverType.Tuplet,
       });
     });
+  });
+
+  it("still opens the tuplet popover from non-track selections that provide a tick", async () => {
+    const tempoSelectionState = createAppState({
+      ui: {
+        sequencer: {
+          selection: {
+            type: "Tempo",
+            flow_id: FLOW_ID,
+            tempo_id: 99,
+            tick: TICK,
+          },
+        },
+      } as never,
+    });
+
+    renderWithProviders(<Popover popover={null} setPopover={setPopover} />, {
+      appState: tempoSelectionState,
+    });
+
+    fireEvent.keyDown(document, { key: ";" });
+
+    await waitFor(() => {
+      expect(setPopover).toHaveBeenCalledWith({
+        x: 100,
+        y: 200,
+        type: PopoverType.Tuplet,
+      });
+    });
+  });
+
+  it("does not trigger tuplet hotkeys from inside text inputs", async () => {
+    renderPopover(null);
+
+    const input = document.createElement("input");
+    input.type = "text";
+    document.body.appendChild(input);
+
+    try {
+      fireEvent.keyDown(input, { key: ";" });
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(setPopover).not.toHaveBeenCalled();
+    } finally {
+      input.remove();
+    }
+  });
+
+  it("does not trigger directive hotkeys from inside text inputs", async () => {
+    renderPopover(null);
+
+    const input = document.createElement("input");
+    input.type = "text";
+    document.body.appendChild(input);
+
+    try {
+      fireEvent.keyDown(input, { key: "T", shiftKey: true });
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(setPopover).not.toHaveBeenCalled();
+    } finally {
+      input.remove();
+    }
   });
 
   it("keyboard shortcuts are skipped when popover is already open", async () => {

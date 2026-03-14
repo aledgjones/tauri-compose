@@ -526,7 +526,7 @@ describe("parseTupletPopover", () => {
     vi.clearAllMocks();
   });
 
-  it("creates a default eighth-note triplet and selects it", async () => {
+  it("creates an eighth-note triplet and selects it", async () => {
     await parseTupletPopover(
       "3e/2",
       FLOW_ID,

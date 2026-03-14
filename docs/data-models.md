@@ -195,7 +195,7 @@ Host and local tick spans are derived rather than stored twice:
 
 For an eighth-note triplet, that means `note_count = 3`, `in_space_of = 2`, and `base_note_value = Eighth`, which derives the same `48` local ticks projected into `32` host ticks.
 
-In the current MVP authoring flow, the existing popover system creates tuplets as backend-owned host-track containers. The frontend only collects transient popover input in an explicit learned syntax such as `3e/2` (`3` eighths in the space of `2`) and dispatches a create command; it does not keep a parallel draft tuplet timing model.
+In the current MVP authoring flow, the existing popover system creates tuplets as backend-owned host-track containers. The popover opens with an empty text field at the current selection tick, but confirmation only succeeds when the active selection is a tone or rest that already carries instrument-track ownership data. The frontend collects transient learned syntax such as `3e/2` (`3` eighths in the space of `2`); it does not keep a parallel draft tuplet timing model.
 
 Supported MVP tuplet suffixes are:
 
@@ -203,6 +203,8 @@ Supported MVP tuplet suffixes are:
 - `e` for eighth-note triplets (`3e/2`)
 - `s` for sixteenth-note triplets (`3s/2`)
 - `t` for thirty-second-note triplets (`3t/2`)
+
+Supported triplet enforcement currently lives in the popover parser path. This matches the existing creation-command pattern in the codebase: frontend creation flows validate product-specific input, and the lower-level Rust create commands validate target existence plus state mutation only.
 
 Ownership rules:
 
@@ -224,7 +226,7 @@ Sequencer selection state is mirrored between Rust and TypeScript and is **not**
 - `Clef { flow_id, stave_id, clef_id, tick }`
 - `Tuplet { flow_id, instrument_id, stave_id, track_id, tuplet_id, tick }`
 
-These directive-selection payloads exist only in UI state so the native renderer can round-trip hit targets, highlight state, keyboard deletion, and popover anchoring. `Tuplet` selection also lets creation hand focus back through the existing `apply_selection` path, which keeps `ui.flow_id` as the single authoritative active-flow slot. None of these UI-only payloads change persisted project JSON or require a migration.
+These directive-selection payloads exist only in UI state so the native renderer can round-trip hit targets, highlight state, keyboard deletion, and popover anchoring. `Tuplet` selection also lets creation hand selection back through the existing `apply_selection` path, which keeps `ui.flow_id` as the single authoritative active-flow slot. None of these UI-only payloads change persisted project JSON or require a migration.
 
 ---
 

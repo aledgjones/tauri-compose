@@ -110,6 +110,29 @@ const getInstrumentIdFromSelection = (state: AppState) => {
   return selection.instrument_id;
 };
 
+const isEditableTarget = (target: EventTarget | null) => {
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+
+  if (target.isContentEditable || target.closest('[contenteditable="true"]')) {
+    return true;
+  }
+
+  if (target instanceof HTMLTextAreaElement) {
+    return true;
+  }
+
+  if (target instanceof HTMLInputElement) {
+    return target.type !== "button";
+  }
+
+  return (
+    target.getAttribute("role") === "textbox" ||
+    target.closest('[role="textbox"]') !== null
+  );
+};
+
 const getMeta = (type: PopoverType) => {
   switch (type) {
     case PopoverType.Barline: {
@@ -184,6 +207,10 @@ export const Popover: FC<Props> = ({ popover, setPopover }) => {
   useEffect(() => {
     const handleKeyDown = async (e: KeyboardEvent) => {
       if (popover) {
+        return;
+      }
+
+      if (e.defaultPrevented || isEditableTarget(e.target)) {
         return;
       }
 
@@ -290,15 +317,19 @@ export const Popover: FC<Props> = ({ popover, setPopover }) => {
               break;
             }
             case PopoverType.Tuplet: {
+              const selection = state.ui.sequencer.selection;
+              const isTone = selection && selection.type === "Tone";
+              const isRest = selection && selection.type === "Rest";
+
+              if (!Boolean(isTone || isRest)) {
+                return;
+              }
+
               const instrument_id = getInstrumentIdFromSelection(state);
               const stave_id = getStaveIdFromSelection(state);
               const track_id = getTrackIdFromSelection(state);
 
-              if (
-                instrument_id === null ||
-                stave_id === null ||
-                track_id === null
-              ) {
+              if (!stave_id || !track_id || !instrument_id) {
                 return;
               }
 

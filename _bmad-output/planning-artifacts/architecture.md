@@ -381,7 +381,7 @@ Rust remains authoritative for score truth and edit validation, but some tuplet 
 Required interaction contract for MVP:
 
 - popover focus lands on the ratio field when the tuplet popover opens
-- popover close or confirm returns focus to the originating sequencer context or the newly created tuplet region
+- the popover closes cleanly on accepted input, blur, or Escape
 - unsupported tuplet edits follow the product's existing rejection behavior and surface local inline feedback at the interaction point; MVP does not require a tuplet-specific global error flow
 - sequencer selection states for tuplet container, child note, and empty slot must remain distinguishable through boundary or placement treatment in addition to color so the active target is still understandable under accessibility tooling and reduced-color perception
 

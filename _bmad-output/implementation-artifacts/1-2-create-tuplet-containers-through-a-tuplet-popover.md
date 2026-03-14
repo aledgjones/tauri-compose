@@ -1,6 +1,6 @@
 # Story 1.2: Create Tuplet Containers Through a Tuplet Popover
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -16,7 +16,8 @@ so that I can declare the tuplet structure before entering notes.
 2. Given the composer invokes tuplet creation from the primary note-entry workflow, when the MVP popover opens, then the hotkey trigger is `;`, and the popover opens at the current selection tick.
 3. Given the MVP tuplet popover is shown, when the composer configures a supported triplet, then the main input uses an explicit learned syntax such as `3e/2` to encode both the triplet ratio and the written base note in one text field.
 4. Given the composer enters an invalid popover value, when the popover is submitted, then the invalid value is ignored using the same pattern as other current popovers, and the product does not introduce a special tuplet-only invalid-input flow for MVP.
-5. Given the popover is opened from keyboard or score-attached interaction, when it becomes active, then focus lands on the ratio input first, and closing the popover returns focus to the originating sequencer context or the newly created tuplet region.
+5. Given the popover is opened from keyboard or score-attached interaction, when it becomes active, then focus lands on the ratio input first, and the popover closes cleanly on accepted input, blur, or Escape.
+6. Given the composer invokes tuplet creation from the primary note-entry workflow, when the current selection is not a tone or rest with direct instrument-track ownership data, then tuplet confirmation does not create a container, and the product does not guess a fallback target from unrelated UI context.
 
 ## Tasks / Subtasks
 
@@ -32,13 +33,13 @@ so that I can declare the tuplet structure before entering notes.
   - [x] Introduce a `score.tuplet.create(...)` action in `src/services/actions.ts` and corresponding tests in `src/services/actions.test.ts`.
   - [x] Extend the Rust Tauri command surface in `src-tauri/src/lib.rs` and the owning score mutation seam to create an `Entry::Tuplet` on the targeted track using the persisted ratio metadata added in Story 1.1.
   - [x] Resolve the target flow, instrument, track, tick, and host span from existing sequencer state and selection rather than inventing a parallel frontend tuplet draft model.
-- [x] Add selection and focus plumbing needed for popover handoff without pulling Story 1.3 work forward unnecessarily (AC: 1, 5)
+- [x] Add selection-state plumbing needed for popover handoff without pulling Story 1.3 work forward unnecessarily (AC: 1, 5)
   - [x] Extend the sequencer selection types in `src/services/types.ts` and `src-tauri/src/ui/sequencer.rs` to support selecting a tuplet container directly.
-  - [x] Add `actions.ui.sequencer.selectTuplet(...)` and the matching Rust command so the creation flow can hand focus back to a concrete score/sequencer target after creation.
+  - [x] Add `actions.ui.sequencer.selectTuplet(...)` and the matching Rust command so the creation flow can hand selection back to a concrete score/sequencer target after creation.
   - [x] Keep `ui.flow_id` as the authoritative active-flow slot by following the existing `apply_selection` pattern in `src-tauri/src/ui/sequencer.rs`.
-- [x] Cover the new behavior with focused frontend and Rust tests close to the owning code (AC: 1, 2, 3, 4, 5)
-  - [x] Add parser tests in `src/services/popovers.test.ts` for valid triplet input, invalid input, and default base-note behavior.
-  - [x] Add popover interaction tests in `src/ui/popover.test.tsx` for the `;` shortcut, autofocus, submit behavior, and close/focus-return behavior.
+- [x] Cover the new behavior with focused frontend and Rust tests close to the owning code (AC: 1, 2, 3, 4, 5, 6)
+  - [x] Add parser tests in `src/services/popovers.test.ts` for valid triplet input, invalid input, and explicit suffix behavior.
+  - [x] Add popover interaction tests in `src/ui/popover.test.tsx` for the `;` shortcut, autofocus, submit behavior, tone/rest-only tuplet confirmation, hotkey suppression inside text inputs, and close behavior.
   - [x] Add action/selection command tests in `src/services/actions.test.ts` and `src-tauri/src/ui/sequencer.rs` covering tuplet selection and flow handoff.
   - [x] Add Rust creation tests near the tuplet mutation seam proving container creation inserts `Entry::Tuplet` into the correct track with the expected ratio metadata and unchanged non-tuplet behavior.
 - [x] Update docs and agent guidance touched by the new creation workflow (AC: 1, 5)
@@ -58,6 +59,7 @@ so that I can declare the tuplet structure before entering notes.
 - Keep all authoritative tuplet data in Rust. The frontend may hold ephemeral popover UI state only; it must not own a second tuplet timing or container model.
 - Reuse the persisted ratio-driven `Tuplet` shape from Story 1.1: `note_count`, `in_space_of`, `base_note_value`, `groupings`, and child `entries`. Do not reintroduce duplicate persisted host/local span fields in the UI layer.
 - Resolve the creation target from the existing active flow, selected tick, sequencer instrument, and sequencer track. If the current context is insufficient, reject creation locally rather than guessing.
+- Use the current selection tick as the tuplet start position, but only allow tuplet confirmation when the active selection is a tone or rest that already includes instrument, stave, and track ownership data.
 - Preserve the current invalid-input pattern used by other popovers: parser rejects unknown input, `Popover` catches and logs the error, and the app does not enter a special tuplet-only validation flow.
 - Keep `ui.flow_id` authoritative. Tuplet creation and selection may update it through the existing selection path, but this story must not add separate frontend-owned active-flow state.
 
@@ -94,8 +96,8 @@ so that I can declare the tuplet structure before entering notes.
 
 ### Testing Requirements
 
-- Add frontend coverage for the new popover parser and keyboard trigger.
-- Add React interaction coverage for focus entry, submit, invalid-input no-op behavior, and focus-return / close behavior.
+- Add frontend coverage for the new popover parser, keyboard trigger, and tone/rest-only tuplet confirmation behavior.
+- Add React interaction coverage for focus entry, submit, invalid-input no-op behavior, text-input hotkey suppression, and close behavior.
 - Add Rust coverage for tuplet creation and tuplet selection commands, including `ui.flow_id` updates and unchanged behavior for existing selection variants.
 - Validate with the existing repo checks that are relevant to touched code:
   - `npm run lint`
@@ -152,7 +154,7 @@ GPT-5.4
 
 - Add a tuplet popover path to the existing score popover system, triggered by `;`, with one explicit tuplet text input using learned syntax such as `3e/2`.
 - Wire the parser to a new `score.tuplet.create(...)` action and matching Rust command so confirmation creates a real `Entry::Tuplet` on the targeted track.
-- Extend sequencer selection state for tuplets so creation can hand focus back to a concrete backend-owned target without adding parallel UI state.
+- Extend sequencer selection state for tuplets so creation can hand selection state back to a concrete backend-owned target without adding parallel UI state.
 - Add focused frontend and Rust tests for the shortcut, parser, selection plumbing, and container creation path.
 
 ### Debug Log References
@@ -165,11 +167,27 @@ GPT-5.4
 
 ### Completion Notes List
 
-- Added a tuplet branch to the existing popover flow with a `;` keyboard trigger, default `3e/2` input, and the same invalid-input logging/no-op behavior used by the other popovers.
+- Added a tuplet branch to the existing popover flow with a `;` keyboard trigger, an empty text input for explicit learned syntax such as `3e/2`, and the same invalid-input logging/no-op behavior used by the other popovers.
 - Added `score.tuplet.create(...)` plus a Rust `score_entries_tuplet_create` command that inserts backend-owned `Entry::Tuplet` containers on the selected host track without introducing frontend rhythmic draft state.
-- Extended sequencer selection with a `Tuplet` payload and matching frontend/Rust selection commands so tuplet creation hands control back through `apply_selection` and keeps `ui.flow_id` authoritative.
-- Added focused JS and Rust coverage for the parser, popover shortcut and submit flow, action payloads, selection serialization, and tuplet track insertion semantics.
+- Extended sequencer selection with a `Tuplet` payload and matching frontend/Rust selection commands so tuplet creation hands selection state back through `apply_selection` and keeps `ui.flow_id` authoritative.
+- Added focused JS and Rust coverage for the parser, popover shortcut and submit flow, tone/rest-only tuplet confirmation behavior, text-input hotkey suppression, action payloads, selection serialization, and tuplet track insertion semantics.
 - Updated `docs/data-models.md` to document MVP tuplet creation semantics and the new UI-only tuplet selection payload.
+
+## Senior Developer Review (AI)
+
+### Reviewer
+
+GPT-5.4 on 2026-03-14
+
+### Outcome
+
+Approved after follow-up fixes
+
+### Notes
+
+- Follow-up fixes now suppress popover hotkeys inside text inputs and require tone/rest selection data for tuplet confirmation instead of falling back to unrelated sequencer context.
+- The product specification and story record now describe the shipped single-field tuplet syntax instead of the discarded ratio-plus-picker concept.
+- The low-level Rust creation seam remains aligned with the current creation-command pattern: frontend flows own product-specific input validation while Rust validates target existence and mutates score state.
 
 ### File List
 
@@ -193,3 +211,5 @@ GPT-5.4
 ## Change Log
 
 - 2026-03-14: Added backend-owned tuplet popover creation, tuplet selection handoff, focused frontend and Rust coverage, and data-model documentation updates.
+- 2026-03-14: Code review pass corrected story/docs claims to match current behavior, added a backend-validation-boundary test, and moved the story back to in-progress.
+- 2026-03-14: Fixed tuplet popover gating so it only opens from note/rest selections, suppressed popover hotkeys inside text inputs, expanded frontend coverage for those paths, and aligned the active specs with the shipped single-field UX.

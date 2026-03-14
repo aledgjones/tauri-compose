@@ -221,7 +221,7 @@ So that I can declare the tuplet structure before entering notes.
 
 - Trigger, placement, and backend container-creation handshake
 - Ratio and base-note input behavior, including invalid-input handling
-- Focus entry and focus-return behavior back to the sequencer context
+- Focus entry and close behavior for the popover interaction
 
 **Acceptance Criteria:**
 
@@ -237,18 +237,22 @@ So that I can declare the tuplet structure before entering notes.
 
 **Given** the MVP tuplet popover is shown
 **When** the composer configures a supported triplet
-**Then** the ratio is shown explicitly as `3:2`
-**And** the main input is a single text-entry field for the ratio with a small inline base-note selector that defaults to eighth
+**Then** the main input uses an explicit learned syntax such as `3e/2` to encode both the triplet ratio and the written base note in one text field
 
 **Given** the composer enters an invalid popover value
 **When** the popover is submitted
 **Then** the invalid value is ignored using the same pattern as other current popovers
 **And** the product does not introduce a special tuplet-only invalid-input flow for MVP
 
+**Given** the composer invokes tuplet creation from the primary note-entry workflow
+**When** the current selection is not a tone or rest with direct instrument-track ownership data
+**Then** tuplet confirmation does not create a container
+**And** the product does not guess a fallback target from unrelated UI context
+
 **Given** the popover is opened from keyboard or score-attached interaction
 **When** it becomes active
 **Then** focus lands on the ratio input first
-**And** closing the popover returns focus to the originating sequencer context or the newly created tuplet region
+**And** the popover closes cleanly on accepted input, blur, or Escape
 
 ### Story 1.3: Reveal and Select the Created Tuplet Region in the Sequencer
 

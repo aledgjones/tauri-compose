@@ -265,10 +265,9 @@ Foundational triplet support needs explicit sequencer behavior, not just data-mo
 - Confirming triplet creation from the popover should immediately reveal the created tuplet span in the sequencer on the active track.
 - The sequencer should place focus on the created tuplet region so the next likely action is note entry, not re-navigation.
 - The popover should communicate the supported tuplet shape clearly enough that the user understands what local slots will be available after creation.
-- For MVP, the popover should accept an explicit ratio such as `3:2` together with a base notation value such as eighth so the user can define `3 eighths in the space of 2 eighths` without ambiguity.
-- The ratio should be shown as `3:2` in the UI for clarity rather than collapsing to a bare `3`.
-- The main popover input should be a single text-entry field for the ratio, with a small inline base-note selector beside it.
-- The base notation value should be selected from that inline control, defaulting to eighth for MVP.
+- For MVP, the popover should accept one explicit learned syntax such as `3e/2` so the ratio and written base note are entered together without a second control.
+- The tuplet popover should open with an empty text field rather than a prefilled default value.
+- Tuplet creation should open from the current selection tick, and confirmation should only succeed when the active selection is a tone or rest with direct instrument-track ownership data.
 - The popover should present ratio and base notation value as musical inputs rather than implementation-specific timing language.
 - Invalid popover values should be ignored using the same pattern as other current popovers rather than producing a new special-case error flow.
 
