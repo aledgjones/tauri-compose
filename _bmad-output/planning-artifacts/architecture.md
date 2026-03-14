@@ -257,7 +257,6 @@ The child should mirror the current track mental model closely enough that parse
 Recommended MVP child-content scope:
 
 - tones
-- nested tuplets
 - anything naturally attached to tones such as articulations through the tone itself
 
 Deferred from MVP child content:
@@ -267,7 +266,7 @@ Deferred from MVP child content:
 - tempo entries
 - time signatures
 
-This keeps MVP simple while preserving a path to nested tuplets.
+For MVP, tuplet-owned child content is intentionally single-level: nested `Tuplet` entries are not part of the supported structure. This keeps MVP simple and removes avoidable defensive branching from note-entry, parsing, and validation work.
 
 ## Projection Model
 
@@ -594,9 +593,9 @@ No dissolve-back-to-host-time behavior is required for MVP.
 
 ## Parser Architecture
 
-## Recursive Local Parse, Then Flatten
+## Local Parse, Then Flatten
 
-The parser should treat tuplets as recursive local notation frames.
+The parser should treat MVP tuplets as local notation frames without requiring nested tuplet recursion.
 
 Recommended flow:
 
@@ -625,7 +624,7 @@ This is enough to support:
 - written-duration interpretation
 - beaming decisions
 - spacing layout
-- future nested tuplets
+- single-level MVP tuplets cleanly
 
 ## Rests
 
@@ -671,7 +670,7 @@ This matches the agreed requirement that a triplet may either:
 
 Tone identity remains `tone_id`.
 
-Recommended tone selection payload shape for future tuplets:
+Recommended tone selection payload shape for MVP tuplets:
 
 - `track_id`
 - `tuplet_path`
@@ -680,7 +679,7 @@ Recommended tone selection payload shape for future tuplets:
 
 Where:
 
-- `tuplet_path` expresses nested containment when needed
+- `tuplet_path` is a lookup aid only if retained by the implementation
 - `local_tick` is not authoritative identity
 
 ## Tuplet Selection
@@ -762,7 +761,7 @@ Recommended `src-tauri/src/migrations/next.rs` work during implementation:
 
 - additive schema support for tuplet entries
 - no-op migration for legacy files that do not contain tuplets
-- validation that recursive child `Entries` deserialize safely
+- validation that tuplet child content deserializes under the MVP single-level invariant
 - validation that cross-boundary continuous tones remain intact through load/save
 
 ## Regression Strategy
@@ -777,7 +776,6 @@ Add explicit parser scenarios for:
 - isolated quarter-note triplets
 - host-note consumption into triplet child space
 - boundary splitting where a host note crosses into a tuplet
-- nested tuplets in parser-only coverage if the data model permits them
 - unchanged current simple-meter and compound-meter behavior outside tuplets
 
 ## Spacing Regressions
@@ -820,12 +818,13 @@ In scope for MVP:
 - track-local tuplets on instrument tracks
 - tuplet-container creation behavior
 - self-contained triplets
-- nested tuplet-capable data model
+- single-level tuplet child content
 - tone-owned properties inside tuplets
 - rendering, spacing, hit-testing, and playback support for tuplet-governed notation and timing
 
 Out of scope for MVP:
 
+- nested tuplet behavior and nested `Tuplet` child content
 - host-level directives at inner tuplet positions
 - cross-barline tuplets as a fully supported notation behavior
 - delete-and-dissolve behavior

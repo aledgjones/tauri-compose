@@ -105,6 +105,8 @@ Deliver **foundational triplet support** across the Rust-owned score model, pars
 
 The MVP is intentionally triplet-first, but the underlying persisted model must not hard-code a dead-end “triplets only” shape if a more general tuplet representation is practical without major extra complexity.
 
+For MVP, tuplets are explicitly non-nestable. Tuplet creation, note entry, editing, parsing, rendering, playback, and validation only need to support single-level tuplets, and the implementation should enforce that boundary directly rather than relying on nested-capable structures plus repeated rejection logic.
+
 ### Growth Features (Post-MVP)
 
 Extend the same foundation to non-triplet tuplets such as quintuplets and septuplets, add nested tuplets where musically justified, support richer display overrides for bracket and number presentation, and broaden advanced tuplet authoring and manipulation workflows in the sequencer or other editing surfaces beyond the MVP triplet-entry path.
@@ -182,6 +184,8 @@ This project must explicitly assess whether the new persisted structure should b
 ### Editing Semantics
 
 Tuplet editing rules must be explicit. A triplet group should behave as one rhythmic container with individually editable members. When a user changes notes inside the group, the system must either preserve a valid tuplet state or resolve the invalidity in a predictable, documented way. Silent drift into approximate non-tuplet timing is unacceptable.
+
+For MVP, tuplets are non-nestable as a product rule. If an interaction would require creating or preserving a tuplet inside another tuplet, the product should reject or defer that path rather than invent nested behavior.
 
 Tuplet entry and editing must also be context-aware. When the user prepares a note inside a tuplet span, the system must apply the active tuplet multiplier the same way other contextual musical directives, such as tempo, affect downstream interpretation. Users should choose written values musically; Compose should handle the tuplet-aware mapping to exact backend timing.
 
@@ -273,7 +277,7 @@ This project should deliver the smallest feature set that still solves tuplets c
 **Explicitly Out of Scope for MVP:**
 
 - Arbitrary non-triplet ratios such as quintuplets and septuplets
-- Nested tuplets
+- Nested tuplets, including any authoring, editing, parsing, rendering, playback, or validation behavior that depends on nested tuplet support
 - MusicXML tuplets import/export
 - User-facing custom bracket/number engraving overrides beyond what is necessary for correct default notation
 - A brand-new repo-wide notation test framework when parser-local support remains sufficient

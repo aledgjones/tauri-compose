@@ -291,6 +291,7 @@ Foundational triplet support needs explicit sequencer behavior, not just data-mo
 
 - Entered tuplet notes should read as members of the enclosing tuplet region rather than ordinary standalone notes on the host track.
 - When the user prepares note entry inside a tuplet region, the sequencer should apply the active tuplet multiplier automatically rather than asking the user to translate written values into approximate host timing.
+- MVP tuplets are explicitly non-nestable, and setup work before note-entry implementation should enforce that structurally rather than relying on repeated nested-tuplet rejection checks.
 - Tuplet regions should be allowed to contain actual tone entries, not just empty slot affordances or derived overlays.
 - A tone can only be created on the host track if its start tick is not occupied by a tuplet span; otherwise it must be created in the tuplet.
 - Creating a tuplet container with no entered notes should immediately render as empty rest-bearing tuplet content, including the tuplet bracket/number treatment in score view and the empty grouped region in the sequencer.
@@ -317,6 +318,8 @@ Foundational triplet support needs explicit sequencer behavior, not just data-mo
 #### MVP Scope Boundaries
 
 - MVP requires clear sequencer presentation and note entry inside supported triplet regions.
+- MVP tuplets are explicitly non-nestable.
+- No nested-tuplet creation affordance, targeting model, editing expectation, or validation requirement belongs in MVP UX scope.
 - MVP does not require a fully generalized sequencer-native tuplet editing language for arbitrary future tuplets.
 - MVP should optimize for triplet clarity and predictability in the current sequencer-first note-entry model.
 

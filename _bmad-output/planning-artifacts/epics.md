@@ -84,7 +84,7 @@ NFR15: Hit targets, selection cues, and popover anchoring for triplet members an
 - Preserve written note values when structurally valid instead of proactively respelling them during reconciliation or derivation.
 - Keep tuplet-local rests derived from absence of tones in the child frame rather than explicit persisted rest entries.
 - Defer host-level directives inside MVP tuplet spans; tempo, clef, key signature, and time signature remain host-level concerns for this phase.
-- Implement recursive local parse and flattening so parser, renderer, spacing, selection, and playback all project child content through the tuplet wrapper back into host musical time.
+- Implement tuplet-local parse and flattening so parser, renderer, spacing, selection, and playback all project child content through the tuplet wrapper back into host musical time without requiring nested tuplet support in MVP.
 - Keep playback host-time based, projecting tuplet child onsets and durations into host time before scheduling so tempo remains a host-level concern.
 - Extend rendering through the existing parse/draw pipeline rather than ad hoc overlay rendering, including tuplet number and bracket draw instructions, tuplet-local note projection, and tuplet hit targets.
 - Use a widest-needed spacing strategy so tuplet-local layout can either expand host spacing or stretch to ambient host width, depending on context.
@@ -92,7 +92,7 @@ NFR15: Hit targets, selection cues, and popover anchoring for triplet members an
 - Scope MVP deletion behavior so deleting a tuplet deletes its contained content; dissolve-back-to-host-time behavior is deferred.
 - Add additive migration support in src-tauri/src/migrations/next.rs for tuplet serialization and child-entry support, with legacy non-tuplet files loading unchanged.
 - Cover isolated eighth-note and quarter-note triplets, boundary splitting, hit testing, spacing expansion, playback projection, load/save round-trips, and legacy-file safety with explicit regression tests.
-- Keep nested tuplets data-model-capable if practical, while still treating broader directive attachment, cross-barline support, and generalized child directives as post-MVP work.
+- Simplify MVP tuplet child content so tuplet-owned content cannot contain nested `Tuplet` entries, while still treating broader directive attachment, cross-barline support, and generalized child directives as post-MVP work.
 
 ### FR Coverage Map
 
@@ -295,6 +295,32 @@ So that the handoff from popover creation into note entry feels continuous.
 **Then** the grouped tuplet region remains visible and targetable as empty content rather than collapsing away
 **And** the empty local slots remain legible as available tuplet positions
 
+### Story 1.3A: Simplify Tuplet Child Content for Non-Nestable MVP
+
+As a maintainer,
+I want MVP tuplet child content constrained to one structural level,
+So that upcoming tuplet note-entry work does not accumulate defensive nested-tuplet checks.
+
+**FRs implemented:** FR3, FR11, FR32
+**NFRs implemented:** NFR2, NFR4, NFR9
+
+**Acceptance Criteria:**
+
+**Given** the existing backend-owned tuplet container model
+**When** MVP tuplets are prepared for note-entry and editing work
+**Then** tuplet-owned child content cannot contain nested `Tuplet` entries
+**And** the active implementation model exposes a single-level tuplet invariant for MVP paths
+
+**Given** a tuplet-related action would otherwise require creating or persisting a nested tuplet
+**When** that action is evaluated in MVP code paths
+**Then** the product rejects or defers the nested outcome
+**And** it does not preserve nested tuplet structure internally as an active MVP behavior
+
+**Given** Story 1.4 and later tuplet stories build on the model
+**When** they implement note entry, reconciliation, parsing, and validation behavior
+**Then** they can rely on the non-nestable child-content rule
+**And** they do not need repeated defensive "not at this level" checks for nested tuplets
+
 ### Story 1.4: Enter Tuplet Notes in the Sequencer
 
 As a composer,
@@ -331,6 +357,11 @@ So that tuplets fit the same primary note-entry workflow I already use.
 **Then** entered notes remain legible as members of the tuplet container
 **And** any remaining empty local slots stay targetable for later entry
 
+**Given** the composer is already working inside an MVP tuplet span
+**When** an action would require creating another tuplet inside that governed local frame
+**Then** the product rejects or defers that action
+**And** MVP does not create nested tuplets
+
 ### Story 1.5: Create Tuplets Over Existing Material Without Losing Ownership
 
 As a composer,
@@ -361,6 +392,11 @@ So that the new tuplet structure does not scramble already-authored material.
 **When** the score state is inspected after creation
 **Then** the empty span remains represented by absence of tones rather than newly persisted rest entries
 **And** the tuplet model stays consistent with the current event-stream mental model
+
+**Given** the target span already falls inside an existing tuplet-governed region or would require nested tuplet structure
+**When** tuplet creation or reconciliation is attempted
+**Then** MVP does not create the new tuplet
+**And** tuplet-owned child content remains single-level
 
 ### Story 1.6: Round-Trip Tuplet Data Through Save, Load, and Migration
 
@@ -477,6 +513,11 @@ So that I can edit tuplets without ambiguity about what I selected.
 **Then** the authoritative ui.flow_id remains correct
 **And** no separate frontend-owned active-flow state is introduced for tuplets
 
+**Given** MVP tuplets are explicitly non-nestable
+**When** selection behavior is implemented for tuplet content
+**Then** targeting only needs to distinguish one container depth plus its members and empty slots
+**And** MVP does not require nested container-selection semantics
+
 ### Story 2.2: Edit Pitch Inside a Tuplet Without Changing Timing
 
 As a composer,
@@ -529,6 +570,11 @@ So that I can shape real triplet patterns inside one rhythmic container.
 **Then** the container remains intact
 **And** the empty region is available for later note entry
 
+**Given** an add or remove action would require nested tuplet insertion or repair
+**When** the action is evaluated
+**Then** MVP rejects or defers that outcome
+**And** slot operations remain limited to single-level tuplet content
+
 ### Story 2.4: Reposition or Resize Tuplet Notes Within Supported Bounds
 
 As a composer,
@@ -575,6 +621,10 @@ So that I can refine rhythmic shape without breaking exact tuplet semantics.
 **Then** the resulting host and tuplet segments preserve one coherent musical intent across the boundary
 **And** the tuplet's visible inner beats and boundary remain legible during and after the edit
 
+**Given** an edit would require nested tuplet structure to remain musically valid
+**When** the composer attempts that edit
+**Then** MVP rejects or defers the edit rather than creating nested tuplets implicitly
+
 ### Story 2.5: Apply Explicit MVP Delete and Slice Rules for Tuplet Members and Containers
 
 As a composer,
@@ -605,6 +655,11 @@ So that correction workflows are predictable.
 **When** the action is processed
 **Then** the product applies the defined MVP rule above rather than inventing a new structural interpretation
 **And** no overlapping host and child ownership remains afterward
+
+**Given** a delete or slice path would require nested tuplet repair behavior
+**When** the action is evaluated
+**Then** MVP does not create or preserve nested tuplet structure as part of the repair
+**And** the single-level tuplet invariant remains intact
 
 ## Epic 3: Read Tuplets as Real Notation
 
@@ -637,6 +692,11 @@ So that the score reads from real rhythmic structure instead of frontend reconst
 **When** existing non-tuplet passages are derived
 **Then** current non-tuplet notation behavior remains unchanged
 **And** the implementation stays within the current parser and renderer pipeline shape
+
+**Given** MVP tuplets are structurally non-nestable
+**When** parser support is implemented
+**Then** the notation path only needs to cover single-level tuplets
+**And** nested tuplet parser behavior is not part of MVP scope
 
 ### Story 3.2: Render Tuplet Brackets and Numbers Correctly
 
@@ -700,6 +760,11 @@ So that beams, rests, and ties reinforce the tuplet instead of contradicting it.
 **Then** the boundary split is represented with the same musical logic Compose uses around barlines and ties
 **And** the tuplet remains readable as one coherent rhythmic unit
 
+**Given** MVP tuplets are non-nestable
+**When** rendering support is implemented
+**Then** rendering only needs to cover single-level tuplet content
+**And** nested tuplet rendering behavior is deferred
+
 ### Story 3.4: Lay Out Tuplets Legibly Within the Existing Score Surface
 
 As a composer,
@@ -757,6 +822,11 @@ So that playback reflects the real rhythmic structure I entered.
 **When** playback timing is resolved
 **Then** each owned segment is scheduled in the correct context with preserved continuity across the boundary
 **And** the result remains rhythmically exact relative to surrounding non-tuplet material
+
+**Given** MVP tuplets are structurally non-nestable
+**When** playback projection is implemented
+**Then** host-time projection only needs to support single-level tuplet content
+**And** nested tuplet timing projection is deferred
 
 ### Story 4.2: Schedule Tuplet Playback Correctly Beside Non-Tuplet Material
 
@@ -848,6 +918,11 @@ So that tuplet support is protected where it can actually fail.
 **Then** it exercises isolated triplets, partially filled tuplets, boundary splitting, projection-driven playback timing, and load/save round-trips
 **And** failures identify the relevant ownership seam clearly enough to debug
 
+**Given** MVP tuplets are non-nestable
+**When** the regression corpus is defined
+**Then** nested tuplet coverage is excluded from MVP expectations
+**And** tests assume the single-level child-content invariant
+
 ### Story 5.2: Protect Existing Non-Tuplet Behavior From Tuplet Regressions
 
 As a maintainer,
@@ -890,6 +965,11 @@ So that future contributors understand the supported scope and do not reintroduc
 **Then** deferred areas such as broader ratios, advanced sequencer manipulation, or other post-MVP concerns are called out clearly
 **And** the docs do not imply support beyond the implemented scope
 
+**Given** nested tuplets are explicitly out of scope for MVP
+**When** documentation is updated
+**Then** it states that tuplets are non-nestable in shipped MVP behavior
+**And** it does not present recursive child-content support as active user-facing capability
+
 ### Story 5.4: Update Project Guardrails for Future Tuplet Work
 
 As a maintainer,
@@ -910,3 +990,8 @@ So that future work follows the same timing, persistence, and testing rules.
 **When** tuplet-specific guidance is added
 **Then** it extends those rules consistently rather than inventing a conflicting process
 **And** future tuplets work has a clear architectural baseline to build on
+
+**Given** the MVP implementation simplifies tuplet-owned child content to one level
+**When** project guardrails are updated
+**Then** they state that nested `Tuplet` child entries are intentionally disallowed in MVP
+**And** any future reintroduction would require explicit post-MVP planning
