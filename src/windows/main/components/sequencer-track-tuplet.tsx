@@ -21,7 +21,7 @@ export const SequencerTrackTuplet: FC<Props> = ({
   const width = getTupletHostTicks(tuplet) * tickWidth;
   const slotWidth = width / tuplet.note_count;
   const hostTicks = getTupletHostTicks(tuplet);
-  const fillColor = hexToRgba(color, 0.05);
+  const fillColor = hexToRgba(color, 0.04);
 
   return (
     <div
