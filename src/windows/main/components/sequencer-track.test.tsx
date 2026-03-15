@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { fireEvent } from "@testing-library/react";
+import { fireEvent, waitFor } from "@testing-library/react";
 import {
   renderWithProviders,
   createAppState,
@@ -96,6 +96,16 @@ const makeTuplet = (overrides: Partial<Tuplet> = {}): Tuplet => ({
   ...overrides,
 });
 
+const makeTupletTone = (id: number, tick: number, duration = 16) => ({
+  id,
+  tick,
+  type: "Tone" as const,
+  duration,
+  pitch: { int: 72, accidental: Accidental.Natural },
+  velocity: { int: 100 },
+  articulations: [] as Articulation[],
+});
+
 const makeTrackWithTuplet = (tuplet: Tuplet): Track =>
   ({
     id: 5,
@@ -190,6 +200,131 @@ describe("SequencerTrack", () => {
     );
     const div = container.firstChild as HTMLElement;
     fireEvent.pointerDown(div, { clientX: 100, clientY: 200 });
+  });
+
+  it("writes tuplet tones through the track-level action seam with local timing context", async () => {
+    const tuplet = makeTuplet({ tick: 96 });
+    const { container } = renderWithProviders(
+      <SequencerTrack
+        {...defaultProps}
+        tool={Tool.Write}
+        track={makeTrackWithTuplet(tuplet)}
+      />,
+    );
+
+    const target = container.querySelector(
+      '[data-tuplet-id="11"]',
+    ) as HTMLElement;
+    fireEvent.pointerDown(target, { clientX: 440, clientY: 200 });
+
+    await waitFor(() => {
+      expect(actions.score.tone.create).toHaveBeenCalledWith(
+        5,
+        16,
+        16,
+        111,
+        null,
+        100,
+        [],
+        11,
+      );
+    });
+
+    expect(actions.ui.sequencer.selectTone).toHaveBeenCalledWith(
+      1,
+      5,
+      20,
+      1,
+      1,
+      11,
+    );
+  });
+
+  it("renders child tones inside a tuplet while keeping slot markers visible", () => {
+    const tuplet = makeTuplet({
+      tick: 96,
+      entries: {
+        by_tick: { 16: [101] },
+        by_id: { 101: makeTupletTone(101, 16) },
+      },
+    });
+
+    const { container } = renderWithProviders(
+      <SequencerTrack {...defaultProps} track={makeTrackWithTuplet(tuplet)} />,
+    );
+
+    expect(container.querySelector('[data-tone-id="101"]')).toBeInTheDocument();
+    expect(
+      container.querySelectorAll('[data-tuplet-slot-marker="11"]'),
+    ).toHaveLength(4);
+  });
+
+  it("selects a child tuplet tone when the tone itself is clicked", async () => {
+    const tuplet = makeTuplet({
+      tick: 96,
+      entries: {
+        by_tick: { 16: [101] },
+        by_id: { 101: makeTupletTone(101, 16) },
+      },
+    });
+
+    const { container } = renderWithProviders(
+      <SequencerTrack {...defaultProps} track={makeTrackWithTuplet(tuplet)} />,
+    );
+
+    const target = container.querySelector(
+      '[data-tone-id="101"]',
+    ) as HTMLElement;
+    fireEvent.pointerDown(target, { clientX: 452, clientY: 200 });
+
+    await waitFor(() => {
+      expect(actions.ui.sequencer.selectTone).toHaveBeenCalledWith(
+        101,
+        5,
+        20,
+        1,
+        1,
+        11,
+      );
+    });
+
+    expect(actions.ui.sequencer.selectTuplet).not.toHaveBeenCalled();
+  });
+
+  it("writes through tuplet context when clicking an existing child tone", async () => {
+    const tuplet = makeTuplet({
+      tick: 96,
+      entries: {
+        by_tick: { 16: [101] },
+        by_id: { 101: makeTupletTone(101, 16) },
+      },
+    });
+
+    const { container } = renderWithProviders(
+      <SequencerTrack
+        {...defaultProps}
+        tool={Tool.Write}
+        track={makeTrackWithTuplet(tuplet)}
+      />,
+    );
+
+    const target = container.querySelector(
+      '[data-tone-id="101"]',
+    ) as HTMLElement;
+    fireEvent.pointerDown(target, { clientX: 452, clientY: 200 });
+
+    await waitFor(() => {
+      expect(actions.score.tone.create).toHaveBeenCalledWith(
+        5,
+        16,
+        16,
+        111,
+        null,
+        100,
+        [],
+        11,
+      );
+    });
   });
 
   it("handles pointerDown with Select tool without crashing", () => {

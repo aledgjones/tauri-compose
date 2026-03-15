@@ -394,6 +394,7 @@ type ToneSelection = {
   stave_id: UniqueId;
   track_id: UniqueId;
   tone_id: UniqueId;
+  tuplet_id?: UniqueId | null;
 };
 
 type RestSelection = {

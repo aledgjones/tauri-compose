@@ -3,6 +3,7 @@ import { UniqueId } from "./types";
 export interface ClickTarget {
   type: "Tone" | "Tuplet" | null;
   id: UniqueId;
+  tuplet_id?: UniqueId;
 }
 
 /**
@@ -13,6 +14,25 @@ export interface ClickTarget {
 export const getSequencerClickTarget = (
   target: HTMLElement,
 ): ClickTarget | null => {
+  const toneElement = target.closest("[data-tone-id]");
+
+  if (toneElement) {
+    const toneIdString = toneElement.getAttribute("data-tone-id");
+    const tupletIdString = toneElement
+      .closest("[data-tuplet-id]")
+      ?.getAttribute("data-tuplet-id");
+
+    if (toneIdString) {
+      return {
+        type: "Tone",
+        id: parseInt(toneIdString, 10) as UniqueId,
+        ...(tupletIdString
+          ? { tuplet_id: parseInt(tupletIdString, 10) as UniqueId }
+          : {}),
+      };
+    }
+  }
+
   const tupletElement = target.closest("[data-tuplet-id]");
 
   if (tupletElement) {
@@ -22,19 +42,6 @@ export const getSequencerClickTarget = (
       return {
         type: "Tuplet",
         id: parseInt(tupletIdString, 10) as UniqueId,
-      };
-    }
-  }
-
-  const toneElement = target.closest("[data-tone-id]");
-
-  if (toneElement) {
-    const toneIdString = toneElement.getAttribute("data-tone-id");
-
-    if (toneIdString) {
-      return {
-        type: "Tone",
-        id: parseInt(toneIdString, 10) as UniqueId,
       };
     }
   }

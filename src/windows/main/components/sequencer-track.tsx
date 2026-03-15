@@ -12,6 +12,7 @@ import {
   UniqueId,
 } from "../../../services/types";
 import { actions } from "../../../services/actions";
+import { noteDurationToTicks } from "../../../services/utils";
 import { SequencerTrackTone } from "./sequencer-track-tone";
 import { SequencerTrackTuplet } from "./sequencer-track-tuplet";
 import {
@@ -20,6 +21,8 @@ import {
 } from "../../../services/sequencer-utils";
 import {
   getTupletRegion,
+  getTupletHostTicks,
+  getTupletLocalTickFromClientX,
   isTickInsideTupletRegion,
 } from "./sequencer-tuplet-utils";
 
@@ -76,6 +79,51 @@ const getPitchFromYPosition = (y: number, slotHeight: number) => {
   return int;
 };
 
+const getToneEntryFromClickTarget = (
+  track: Track,
+  clickTarget: ClickTarget,
+) => {
+  if (clickTarget.type !== "Tone") {
+    return null;
+  }
+
+  if (clickTarget.tuplet_id !== undefined) {
+    const tupletEntry = track.entries.by_id[clickTarget.tuplet_id];
+
+    if (!tupletEntry || tupletEntry.type !== "Tuplet") {
+      return null;
+    }
+
+    return tupletEntry.entries.by_id[clickTarget.id] ?? null;
+  }
+
+  return track.entries.by_id[clickTarget.id] ?? null;
+};
+
+const getTargetTupletFromClickTarget = (
+  track: Track,
+  clickTarget: ClickTarget | null,
+) => {
+  if (!clickTarget) {
+    return null;
+  }
+
+  const tupletId =
+    clickTarget.type === "Tuplet" ? clickTarget.id : clickTarget.tuplet_id;
+
+  if (tupletId === undefined) {
+    return null;
+  }
+
+  const tupletEntry = track.entries.by_id[tupletId];
+
+  if (!tupletEntry || tupletEntry.type !== "Tuplet") {
+    return null;
+  }
+
+  return tupletEntry;
+};
+
 type SequencerTrackProps = {
   flow: Flow;
   track: Track;
@@ -116,18 +164,24 @@ const handleWriteTool = async (
   let duration = ticksPerSnap;
 
   const pitch = getPitchFromYPosition(y, slots.slotHeight);
-  const startTick = getSnappedXPosition(
-    x,
-    ticks.tickWidth,
-    ticksPerSnap,
-    "down",
-  );
-
-  // Ensure the tone doesn't start beyond flow bounds
-  const clampedStart = Math.max(
-    0,
-    Math.min(flow.length - ticksPerSnap, startTick),
-  );
+  const clickTarget = getSequencerClickTarget(e.target as HTMLElement);
+  const targetTuplet = getTargetTupletFromClickTarget(track, clickTarget);
+  const clampedStart = targetTuplet
+    ? getTupletLocalTickFromClientX(
+        x,
+        targetTuplet,
+        ticks.tickWidth,
+        ticksPerSnap,
+        getSnappedXPosition,
+      )
+    : Math.max(
+        0,
+        Math.min(
+          flow.length - ticksPerSnap,
+          getSnappedXPosition(x, ticks.tickWidth, ticksPerSnap, "down"),
+        ),
+      );
+  const startTick = clampedStart;
 
   const tone_id = await actions.score.tone.create(
     track.id,
@@ -137,6 +191,7 @@ const handleWriteTool = async (
     null,
     100,
     [],
+    targetTuplet?.id,
   );
 
   // Audition the created note
@@ -165,7 +220,12 @@ const handleWriteTool = async (
     stave_id,
     flow.id,
     instrumentId,
+    targetTuplet?.id,
   );
+
+  if (targetTuplet) {
+    return;
+  }
 
   const handlePointerMove = async (e: PointerEvent) => {
     const x = e.clientX - box.left;
@@ -493,7 +553,12 @@ const handleSelectTool = async (
     stave_id,
     flow.id,
     instrumentId,
+    clickTarget.tuplet_id,
   );
+
+  if (clickTarget.tuplet_id !== undefined) {
+    return;
+  }
 
   const box = sequencerRef.current?.getBoundingClientRect();
   if (!box) {
@@ -508,8 +573,8 @@ const handleSelectTool = async (
   const ticksPerSnap = (subdivisions * 4) / snapDuration;
 
   // Get the original tone data
-  const originalEntry = track.entries.by_id[clickTarget.id];
-  if (originalEntry.type !== "Tone") {
+  const originalEntry = getToneEntryFromClickTarget(track, clickTarget);
+  if (!originalEntry || originalEntry.type !== "Tone") {
     return;
   }
 
@@ -650,6 +715,21 @@ export const SequencerTrack: FC<SequencerTrackProps> = ({
     return tuplets.map(getTupletRegion);
   }, [tuplets]);
 
+  const tupletTones = useMemo(() => {
+    return tuplets.flatMap((tuplet) => {
+      const localLengthTicks =
+        tuplet.note_count * noteDurationToTicks(tuplet.base_note_value);
+      const tickScale = getTupletHostTicks(tuplet) / localLengthTicks;
+
+      return Object.values(tuplet.entries.by_id).map((tone) => ({
+        tone,
+        tupletId: tuplet.id,
+        originTick: tuplet.tick,
+        tickScale,
+      }));
+    });
+  }, [tuplets]);
+
   const barTicks = useMemo(() => {
     return new Set(
       ticks.entries
@@ -732,6 +812,21 @@ export const SequencerTrack: FC<SequencerTrackProps> = ({
             tickWidth={ticks.tickWidth}
             tone={tone}
             color={color}
+          />
+        );
+      })}
+
+      {tupletTones.map(({ tone, tupletId, originTick, tickScale }) => {
+        return (
+          <SequencerTrackTone
+            key={`${tupletId}-${tone.id}`}
+            slotHeight={slots.slotHeight}
+            tickWidth={ticks.tickWidth}
+            tone={tone}
+            color={color}
+            originTick={originTick}
+            tickScale={tickScale}
+            tupletId={tupletId}
           />
         );
       })}

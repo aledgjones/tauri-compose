@@ -20,6 +20,7 @@ pub enum Selection {
         stave_id: UniqueId,
         track_id: UniqueId,
         tone_id: UniqueId,
+        tuplet_id: Option<UniqueId>,
     },
     Rest {
         flow_id: UniqueId,
@@ -203,6 +204,7 @@ pub fn ui_sequencer_selection_set_tone(
     stave_id: UniqueId,
     track_id: UniqueId,
     tone_id: UniqueId,
+    tuplet_id: Option<UniqueId>,
 ) {
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
@@ -224,6 +226,7 @@ pub fn ui_sequencer_selection_set_tone(
             stave_id,
             track_id,
             tone_id,
+            tuplet_id,
         },
     );
     sync_transport_to_app_state(transport_shared.inner(), &state, 0);

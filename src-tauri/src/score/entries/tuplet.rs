@@ -1,4 +1,5 @@
 use super::{tone::Tone, Entry};
+use crate::score::components::articulation::Articulations;
 use crate::score::components::duration::{NoteDuration, Tick, Ticks};
 use crate::score::tracks::Track;
 use crate::utils::UniqueId;
@@ -53,6 +54,37 @@ impl TupletEntries {
         tick_entries.push(entry_id);
         self.by_id.insert(entry_id, entry);
     }
+
+    pub fn first_articulations_at_tick(
+        &self,
+        tick: &Tick,
+    ) -> Option<Articulations> {
+        if let Some(tone_ids) = self.by_tick.get(tick) {
+            for tone_id in tone_ids {
+                if let Some(TupletEntry::Tone(tone)) = self.by_id.get(tone_id) {
+                    if !tone.articulations.is_empty() {
+                        return Some(tone.articulations.clone());
+                    }
+                }
+            }
+        }
+
+        None
+    }
+
+    pub fn apply_articulations_to_tick(
+        &mut self,
+        tick: Tick,
+        articulations: &Articulations,
+    ) {
+        if let Some(tone_ids) = self.by_tick.get(&tick).cloned() {
+            for tone_id in tone_ids {
+                if let Some(TupletEntry::Tone(tone)) = self.by_id.get_mut(&tone_id) {
+                    tone.articulations = articulations.clone();
+                }
+            }
+        }
+    }
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -97,6 +129,19 @@ impl Tuplet {
 }
 
 impl Track {
+    fn has_overlapping_tuplet_span(&self, start_tick: Tick, end_tick: Tick) -> bool {
+        self.entries.by_id.values().any(|entry| {
+            let Entry::Tuplet(tuplet) = entry else {
+                return false;
+            };
+
+            let tuplet_start = tuplet.tick;
+            let tuplet_end = tuplet.tick + tuplet.consumed_ticks();
+
+            start_tick < tuplet_end && end_tick > tuplet_start
+        })
+    }
+
     pub fn create_tuplet(
         &mut self,
         tuplet_id: UniqueId,
@@ -105,7 +150,17 @@ impl Track {
         in_space_of: u8,
         base_note_value: NoteDuration,
         groupings: Vec<u8>,
-    ) {
+    ) -> Result<UniqueId, String> {
+        let consumed_ticks = u64::from(in_space_of) * base_note_value.to_ticks();
+        let end_tick = tick + consumed_ticks;
+
+        if self.has_overlapping_tuplet_span(tick, end_tick) {
+            return Err(format!(
+                "Tuplet creation at tick {tick} overlaps an existing tuplet on track {}",
+                self.id
+            ));
+        }
+
         self.insert_entry(Entry::Tuplet(Box::new(Tuplet::new(
             tuplet_id,
             tick,
@@ -114,6 +169,8 @@ impl Track {
             base_note_value,
             groupings,
         ))));
+
+        Ok(tuplet_id)
     }
 }
 
@@ -148,7 +205,7 @@ pub fn score_entries_tuplet_create(
         in_space_of,
         base_note_value,
         groupings,
-    );
+    )?;
 
     state.emit_affected_track(&app, &mut renderer, track_id);
 
@@ -185,14 +242,16 @@ mod tests {
             Articulations::new(),
         )));
 
-        track.create_tuplet(
+        track
+            .create_tuplet(
             99,
             64,
             3,
             2,
             NoteDuration::Eighth,
             vec![3],
-        );
+            )
+            .unwrap();
 
         let Entry::Tuplet(tuplet) = track.entries.by_id.get(&99).unwrap() else {
             panic!("expected tuplet entry");
@@ -211,14 +270,16 @@ mod tests {
     fn create_tuplet_preserves_provided_groupings() {
         let mut track = Track::new(9);
 
-        track.create_tuplet(
+        track
+            .create_tuplet(
             99,
             64,
             3,
             2,
             NoteDuration::Eighth,
             vec![2],
-        );
+            )
+            .unwrap();
 
         let Entry::Tuplet(tuplet) = track.entries.by_id.get(&99).unwrap() else {
             panic!("expected tuplet entry");
@@ -243,5 +304,23 @@ mod tests {
 
         assert_eq!(child_entries.by_id.len(), 1);
         assert!(matches!(child_entries.by_id.get(&11), Some(TupletEntry::Tone(_))));
+    }
+
+    #[test]
+    fn create_tuplet_rejects_overlapping_existing_tuplet_spans() {
+        let mut track = Track::new(9);
+
+        assert_eq!(
+            track.create_tuplet(99, 64, 3, 2, NoteDuration::Eighth, vec![3]),
+            Ok(99)
+        );
+
+        let result = track.create_tuplet(100, 80, 3, 2, NoteDuration::Eighth, vec![3]);
+
+        assert_eq!(
+            result,
+            Err("Tuplet creation at tick 80 overlaps an existing tuplet on track 9".to_string())
+        );
+        assert!(!track.entries.by_id.contains_key(&100));
     }
 }

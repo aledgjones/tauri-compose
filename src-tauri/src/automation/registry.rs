@@ -4,6 +4,7 @@ use serde::Serialize;
 use serde_json::{json, Value};
 use tauri::{AppHandle, Manager};
 
+use crate::utils::UniqueId;
 use crate::files::load_project_from_file;
 use crate::playback::transport::TransportSharedState;
 use crate::score::components::articulation::{Articulation, Articulations};
@@ -502,6 +503,7 @@ pub fn action_definitions() -> Vec<ActionDefinition> {
                 arg("accidental", "Accidental enum value or null. Use -2=DoubleFlat, -1=Flat, 0=Natural, 1=Sharp, 2=DoubleSharp."),
                 arg("velocity", "Velocity from 0-127."),
                 arg("articulations", "Array of Articulation enum values. Use 0=Staccato, 1=Tenuto, 2=Staccatissimo, 3=StaccatoTenuto, 4=Accent, 5=Marcato, 6=Stressed, 7=Unstressed."),
+                optional_arg("tuplet_id", "Optional tuplet id for child insertion on the owning track."),
             ],
         ),
         action("score.tone.setDuration", "Set the duration of an existing tone.", vec![arg("track_id", "Numeric track id."), arg("tone_id", "Numeric tone id."), arg("duration", "Tone duration in ticks.")]),
@@ -1298,6 +1300,7 @@ pub async fn execute_action(app: &AppHandle, name: &str, args: &[Value]) -> Resu
             arg_optional_enum::<Accidental>(args, 4)?,
             arg_u8(args, 5, "velocity")?,
             arg_articulations(args, 6)?,
+            arg_optional_id(args, 7)?,
         )?)),
         "score.tone.setDuration" => {
             score_entries_tone_duration_set(
@@ -1727,6 +1730,17 @@ fn arg_optional_string(args: &[Value], index: usize) -> Result<Option<String>, S
             .as_str()
             .map(|value| Some(value.to_string()))
             .ok_or_else(|| format!("Argument at position {index} must be a string or null")),
+    }
+}
+
+fn arg_optional_id(args: &[Value], index: usize) -> Result<Option<UniqueId>, String> {
+    match args.get(index) {
+        Some(Value::Number(number)) => number
+            .as_u64()
+            .map(Some)
+            .ok_or_else(|| format!("arg {index} must be a positive integer")),
+        Some(Value::Null) | None => Ok(None),
+        Some(_) => Err(format!("arg {index} must be a positive integer or null")),
     }
 }
 

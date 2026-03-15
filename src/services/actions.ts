@@ -166,6 +166,7 @@ export const actions = {
         stave_id: number,
         flow_id: number,
         instrument_id: number,
+        tuplet_id?: number,
       ) => {
         return invoke("ui_sequencer_selection_set_tone", {
           tone_id,
@@ -173,6 +174,7 @@ export const actions = {
           stave_id,
           flow_id,
           instrument_id,
+          tuplet_id: tuplet_id ?? null,
         });
       },
       selectRest: (
@@ -821,6 +823,7 @@ export const actions = {
         accidental: Accidental | null,
         velocity: number,
         articulations: Articulation[],
+        tuplet_id?: UniqueId,
       ) => {
         return invoke<UniqueId>("score_entries_tone_create", {
           track_id,
@@ -830,6 +833,7 @@ export const actions = {
           accidental,
           velocity,
           articulations,
+          tuplet_id: tuplet_id ?? null,
         });
       },
       shift: (track_id: UniqueId, entry_id: UniqueId, new_tick: Tick) => {

@@ -420,6 +420,7 @@ mod tests {
                 stave_id: 2,
                 instrument_id: 3,
                 tone_id: 15,
+                tuplet_id: None,
             },
             x: 8.0,
             y: 4.0,
@@ -439,6 +440,7 @@ mod tests {
                 stave_id: 2,
                 instrument_id: 3,
                 tone_id: 15,
+                tuplet_id: None,
             })
         );
     }

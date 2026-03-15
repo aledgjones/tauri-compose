@@ -1,5 +1,5 @@
 use super::key_signature::KeySignature;
-use super::Entry;
+use super::{tuplet::TupletEntry, Entry};
 use crate::score::components::articulation::{Articulation, Articulations};
 use crate::score::components::duration::{Tick, Ticks};
 use crate::score::components::pitch::{Accidental, Pitch};
@@ -155,6 +155,31 @@ impl Track {
         }
     }
 
+    fn resolve_tuplet_pitch_tick(
+        &self,
+        local_tick: Tick,
+        tuplet_id: UniqueId,
+    ) -> Result<Tick, String> {
+        let track_id = self.id;
+        let tuplet = self
+            .entries
+            .by_id
+            .get(&tuplet_id)
+            .ok_or_else(|| format!("Tuplet {tuplet_id} not found on track {track_id}"))?;
+
+        let Entry::Tuplet(tuplet) = tuplet else {
+            return Err(format!("Tuplet {tuplet_id} not found on track {track_id}"));
+        };
+
+        let local_length = tuplet.local_length_ticks();
+
+        if local_length == 0 {
+            return Ok(tuplet.tick);
+        }
+
+        Ok(tuplet.tick + ((local_tick * tuplet.consumed_ticks()) / local_length))
+    }
+
     /// Create a tone with pitch resolution and articulation inheritance, then insert it.
     #[allow(clippy::too_many_arguments)]
     pub fn create_tone(
@@ -166,25 +191,74 @@ impl Track {
         accidental: Option<Accidental>,
         velocity: u8,
         articulations: Articulations,
-    ) -> UniqueId {
-        let pitch = self.resolve_pitch(tick, pitch_int, accidental);
-        let effective_articulations = if !articulations.is_empty() {
-            articulations.clone()
-        } else {
-            self.first_articulations_at_tick(&tick).unwrap_or_default()
+        tuplet_id: Option<UniqueId>,
+    ) -> Result<UniqueId, String> {
+        let track_id = self.id;
+        let pitch_tick = match tuplet_id {
+            Some(tuplet_id) => self.resolve_tuplet_pitch_tick(tick, tuplet_id)?,
+            None => tick,
         };
-        self.insert_entry(Entry::Tone(Tone::new(
-            tone_id,
-            tick,
-            duration,
-            pitch,
-            Velocity::new(velocity),
-            effective_articulations,
-        )));
-        if !articulations.is_empty() {
-            self.apply_articulations_to_tick(tick, &articulations);
+        let pitch = self.resolve_pitch(pitch_tick, pitch_int, accidental);
+
+        match tuplet_id {
+            Some(tuplet_id) => {
+                let tuplet = self
+                    .entries
+                    .by_id
+                    .get_mut(&tuplet_id)
+                    .ok_or_else(|| format!("Tuplet {tuplet_id} not found on track {track_id}"))?;
+
+                let Entry::Tuplet(tuplet) = tuplet else {
+                    return Err(format!("Tuplet {tuplet_id} not found on track {track_id}"));
+                };
+
+                let effective_articulations = if !articulations.is_empty() {
+                    articulations.clone()
+                } else {
+                    tuplet
+                        .entries
+                        .first_articulations_at_tick(&tick)
+                        .unwrap_or_default()
+                };
+
+                tuplet.entries.insert_entry(TupletEntry::Tone(Tone::new(
+                    tone_id,
+                    tick,
+                    duration,
+                    pitch,
+                    Velocity::new(velocity),
+                    effective_articulations,
+                )));
+
+                if !articulations.is_empty() {
+                    tuplet.entries.apply_articulations_to_tick(tick, &articulations);
+                }
+
+                Ok(tone_id)
+            }
+            None => {
+                let effective_articulations = if !articulations.is_empty() {
+                    articulations.clone()
+                } else {
+                    self.first_articulations_at_tick(&tick).unwrap_or_default()
+                };
+
+                self.insert_entry(Entry::Tone(Tone::new(
+                    tone_id,
+                    tick,
+                    duration,
+                    pitch,
+                    Velocity::new(velocity),
+                    effective_articulations,
+                )));
+
+                if !articulations.is_empty() {
+                    self.apply_articulations_to_tick(tick, &articulations);
+                }
+
+                Ok(tone_id)
+            }
         }
-        tone_id
     }
 
     /// Slice a tone at `slice_tick`, inserting a tail tone with `new_tone_id`.
@@ -286,6 +360,7 @@ pub fn score_entries_tone_create(
     accidental: Option<Accidental>,
     velocity: u8,
     articulations: Articulations,
+    tuplet_id: Option<UniqueId>,
 ) -> Result<UniqueId, String> {
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
@@ -305,7 +380,8 @@ pub fn score_entries_tone_create(
         accidental,
         velocity,
         articulations,
-    );
+        tuplet_id,
+    )?;
 
     state.emit_affected_track(&app, &mut renderer, track_id);
 
@@ -544,6 +620,7 @@ mod tests {
     use super::*;
     use crate::score::components::{
         articulation::Articulations,
+        duration::NoteDuration,
         pitch::{Accidental, Pitch},
         velocity::Velocity,
     };
@@ -898,15 +975,18 @@ mod tests {
         use crate::score::entries::Entry;
         use crate::score::tracks::Track;
         let mut track = Track::new(1);
-        track.create_tone(
-            1,
-            0,
-            32,
-            62,
-            Some(Accidental::Sharp),
-            80,
-            Articulations::new(),
-        );
+        track
+            .create_tone(
+                1,
+                0,
+                32,
+                62,
+                Some(Accidental::Sharp),
+                80,
+                Articulations::new(),
+                None,
+            )
+            .unwrap();
         if let Some(Entry::Tone(tone)) = track.entries.by_id.get(&1) {
             assert_eq!(tone.pitch.int, 62);
             assert_eq!(tone.pitch.accidental, Accidental::Sharp);
@@ -925,15 +1005,18 @@ mod tests {
             t.articulations = Articulations::new().toggle(Articulation::Staccato);
         }
         // Create a new tone at same tick with empty articulations → should inherit
-        track.create_tone(
-            2,
-            0,
-            32,
-            64,
-            Some(Accidental::Natural),
-            80,
-            Articulations::new(),
-        );
+        track
+            .create_tone(
+                2,
+                0,
+                32,
+                64,
+                Some(Accidental::Natural),
+                80,
+                Articulations::new(),
+                None,
+            )
+            .unwrap();
         if let Some(Entry::Tone(tone)) = track.entries.by_id.get(&2) {
             assert!(tone.articulations.contains(&Articulation::Staccato));
         } else {
@@ -947,13 +1030,166 @@ mod tests {
         use crate::score::entries::Entry;
         let mut track = make_track_with_tone(1, 0, 60, Accidental::Natural);
         let arts = Articulations::new().toggle(Articulation::Tenuto);
-        track.create_tone(2, 0, 32, 64, Some(Accidental::Natural), 80, arts);
+        track.create_tone(2, 0, 32, 64, Some(Accidental::Natural), 80, arts, None)
+            .unwrap();
         // Both tones at tick 0 should have Tenuto
         if let Some(Entry::Tone(t)) = track.entries.by_id.get(&1) {
             assert!(t.articulations.contains(&Articulation::Tenuto));
         } else {
             panic!("tone 1 not found");
         }
+    }
+
+    #[test]
+    fn create_tone_without_tuplet_context_still_inserts_into_track_entries() {
+        use crate::score::entries::Entry;
+        use crate::score::tracks::Track;
+
+        let mut track = Track::new(1);
+
+        let result = track.create_tone(
+            10,
+            32,
+            16,
+            64,
+            Some(Accidental::Natural),
+            90,
+            Articulations::new(),
+            None,
+        );
+
+        assert_eq!(result, Ok(10));
+        assert!(matches!(track.entries.by_id.get(&10), Some(Entry::Tone(_))));
+    }
+
+    #[test]
+    fn create_tone_with_tuplet_context_inserts_into_tuplet_entries() {
+        use crate::score::entries::Entry;
+        use crate::score::tracks::Track;
+
+        let mut track = Track::new(1);
+        track
+            .create_tuplet(20, 64, 3, 2, NoteDuration::Eighth, vec![3])
+            .unwrap();
+
+        let result = track.create_tone(
+            30,
+            16,
+            16,
+            67,
+            Some(Accidental::Natural),
+            80,
+            Articulations::new(),
+            Some(20),
+        );
+
+        assert_eq!(result, Ok(30));
+        assert!(!track.entries.by_id.contains_key(&30));
+
+        let Some(Entry::Tuplet(tuplet)) = track.entries.by_id.get(&20) else {
+            panic!("expected tuplet entry");
+        };
+
+        assert!(tuplet.entries.by_tick.get(&16).is_some_and(|ids| ids == &vec![30]));
+        assert!(matches!(tuplet.entries.by_id.get(&30), Some(crate::score::entries::tuplet::TupletEntry::Tone(_))));
+    }
+
+    #[test]
+    fn create_tone_allows_multiple_tuplet_tones_at_same_local_tick() {
+        use crate::score::entries::Entry;
+        use crate::score::tracks::Track;
+
+        let mut track = Track::new(1);
+        track
+            .create_tuplet(20, 64, 3, 2, NoteDuration::Eighth, vec![3])
+            .unwrap();
+
+        assert_eq!(
+            track.create_tone(
+                30,
+                16,
+                16,
+                67,
+                Some(Accidental::Natural),
+                80,
+                Articulations::new(),
+                Some(20),
+            ),
+            Ok(30)
+        );
+        assert_eq!(
+            track.create_tone(
+                31,
+                16,
+                16,
+                71,
+                Some(Accidental::Natural),
+                80,
+                Articulations::new(),
+                Some(20),
+            ),
+            Ok(31)
+        );
+
+        let Some(Entry::Tuplet(tuplet)) = track.entries.by_id.get(&20) else {
+            panic!("expected tuplet entry");
+        };
+
+        assert_eq!(tuplet.entries.by_tick.get(&16), Some(&vec![30, 31]));
+    }
+
+    #[test]
+    fn create_tone_rejects_invalid_tuplet_context() {
+        use crate::score::tracks::Track;
+
+        let mut track = Track::new(1);
+
+        let result = track.create_tone(
+            30,
+            16,
+            16,
+            67,
+            Some(Accidental::Natural),
+            80,
+            Articulations::new(),
+            Some(999),
+        );
+
+        assert_eq!(result, Err("Tuplet 999 not found on track 1".to_string()));
+        assert!(!track.entries.by_id.contains_key(&30));
+        assert!(!track.entries.by_tick.contains_key(&16));
+    }
+
+    #[test]
+    fn create_tone_inside_tuplet_resolves_pitch_from_projected_host_tick() {
+        use crate::score::components::pitch::Accidental;
+        use crate::score::entries::key_signature::{KeySignature, KeySignatureMode};
+        use crate::score::entries::Entry;
+        use crate::score::tracks::Track;
+
+        let mut track = Track::new(1);
+        track.insert_entry(Entry::KeySignature(KeySignature::new(
+            10,
+            48,
+            KeySignatureMode::Major,
+            1,
+        )));
+        track
+            .create_tuplet(20, 64, 3, 2, NoteDuration::Eighth, vec![3])
+            .unwrap();
+
+        let result = track.create_tone(30, 16, 16, 66, None, 80, Articulations::new(), Some(20));
+
+        assert_eq!(result, Ok(30));
+
+        let Some(Entry::Tuplet(tuplet)) = track.entries.by_id.get(&20) else {
+            panic!("expected tuplet entry");
+        };
+        let Some(crate::score::entries::tuplet::TupletEntry::Tone(tone)) = tuplet.entries.by_id.get(&30) else {
+            panic!("expected tuplet tone");
+        };
+
+        assert_eq!(tone.pitch.accidental, Accidental::Sharp);
     }
 
     // --- Track::slice_tone ---

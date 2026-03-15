@@ -214,11 +214,19 @@ Ownership rules:
 - Tones that start outside remain on the host track even if their duration crosses the tuplet span.
 - MVP tuplets are explicitly single-level. Child `entries` cannot contain nested tuplets, and inner clef, key-signature, time-signature, and tempo directives remain deferred.
 
+Tuplet note insertion still extends the existing track-level tone mutation seam rather than introducing a parallel tuplet-note API:
+
+- frontend: `actions.score.tone.create(track_id, tick, duration, pitch_int, accidental, velocity, articulations, tuplet_id?)`
+- backend command: `score_entries_tone_create(..., tuplet_id: Option<UniqueId>)`
+- score mutation: `Track::create_tone(..., tuplet_id: Option<UniqueId>)`
+
+The addressing model remains explicit as `track_id -> optional tuplet_id -> tone_id`. Host-track tones keep track-relative ticks and durations. Tuplet child tones keep tuplet-local ticks and durations. Insertion does not translate child timing into host ticks or persist explicit rest entries for unused local space.
+
 ### Sequencer Selection (UI-only)
 
 Sequencer selection state is mirrored between Rust and TypeScript and is **not** persisted into `.soloc` files. The selection union now includes:
 
-- `Tone { flow_id, instrument_id, stave_id, track_id, tone_id }`
+- `Tone { flow_id, instrument_id, stave_id, track_id, tone_id, tuplet_id? }`
 - `Rest { flow_id, instrument_id, stave_id, track_id, tick }`
 - `Tempo { flow_id, tempo_id, tick }`
 - `TimeSignature { flow_id, time_signature_id, tick }`
@@ -226,9 +234,9 @@ Sequencer selection state is mirrored between Rust and TypeScript and is **not**
 - `Clef { flow_id, stave_id, clef_id, tick }`
 - `Tuplet { flow_id, instrument_id, stave_id, track_id, tuplet_id, tick }`
 
-These directive-selection payloads exist only in UI state so the native renderer can round-trip hit targets, highlight state, keyboard deletion, and popover anchoring. `Tuplet` selection also lets creation hand selection back through the existing `apply_selection` path, which keeps `ui.flow_id` as the single authoritative active-flow slot. None of these UI-only payloads change persisted project JSON or require a migration.
+These directive-selection payloads exist only in UI state so the native renderer can round-trip hit targets, highlight state, keyboard deletion, and popover anchoring. `Tone.tuplet_id` is optional and carries only the minimal child-context handoff needed when a newly inserted tuplet tone is selected. `Tuplet` selection also lets creation hand selection back through the existing `apply_selection` path, which keeps `ui.flow_id` as the single authoritative active-flow slot. None of these UI-only payloads change persisted project JSON or require a migration.
 
-For sequencer presentation, tuplets now render directly from the host-track `Tuplet` entry rather than from a frontend-owned draft region. The visible host span is derived from `in_space_of * noteDurationToTicks(base_note_value)`, the track body renders only the faint region tint plus the compressed local slot markers, and the `3:2` annotation lives in the tick bar as a bottom-anchored ruler annotation rather than as floating text inside the lane. The current sequencer UI does not depend on a dedicated tuplet-selection interaction or an auto-reveal scroll handoff; the shared `Tuplet` selection payload remains part of the broader UI contract, but the visible sequencer treatment is driven from track data.
+For sequencer presentation, tuplets now render directly from the host-track `Tuplet` entry rather than from a frontend-owned draft region. The visible host span is derived from `in_space_of * noteDurationToTicks(base_note_value)`, the track body renders the faint region tint plus the compressed local slot markers, and child tones render inside that same region using tuplet-local ticks projected through the tuplet's local slot geometry. The `3:2` annotation lives in the tick bar as a bottom-anchored ruler annotation rather than as floating text inside the lane. The current sequencer UI does not depend on a dedicated tuplet-selection interaction or an auto-reveal scroll handoff; the shared `Tuplet` selection payload remains part of the broader UI contract, but the visible sequencer treatment is driven from track data.
 
 ---
 

@@ -498,6 +498,11 @@ So that I can edit tuplets without ambiguity about what I selected.
 **Then** that note is highlighted in blue like any other selected note
 **And** the container remains visually distinct from the note-selection state
 
+**Given** a tuplet note is selected
+**When** selection metadata is shown in the bottom bar or equivalent selection-summary surface
+**Then** the product shows the selected tone's pitch, instrument, and stave/voice context using the same descriptive contract as host-track tone selection
+**And** tuplet membership does not cause the selection summary to fall back to "No selection" or omit note identity details
+
 **Given** an empty tuplet slot is targeted as rest content
 **When** the selection state is shown
 **Then** it uses the product's existing rest-selection behavior

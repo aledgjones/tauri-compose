@@ -60,6 +60,7 @@ pub fn draw_notehead(
             stave_id,
             flow_id,
             instrument_id,
+            tuplet_id: None,
         },
         x: left,
         y: origin.y - 0.5,
@@ -227,6 +228,7 @@ mod tests {
             stave_id: 1,
             flow_id: 1,
             instrument_id: 1,
+            tuplet_id: None,
         };
         draw_notehead(
             &Point { x: 0.0, y: 0.0 },

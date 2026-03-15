@@ -252,6 +252,7 @@ describe("actions.ui", () => {
           stave_id: 3,
           flow_id: 4,
           instrument_id: 5,
+          tuplet_id: null,
         },
       );
     });
@@ -1095,8 +1096,36 @@ describe("actions.score.tone", () => {
       accidental: Accidental.Natural,
       velocity: 100,
       articulations: [Articulation.Staccato],
+      tuplet_id: null,
     });
     expect(id).toBe(200);
+  });
+
+  it("create forwards optional tuplet context through the existing seam", async () => {
+    mockInvoke.mockResolvedValueOnce(201);
+
+    const id = await actions.score.tone.create(
+      10,
+      16,
+      16,
+      67,
+      Accidental.Natural,
+      90,
+      [Articulation.Accent],
+      44,
+    );
+
+    expect(mockInvoke).toHaveBeenCalledWith("score_entries_tone_create", {
+      track_id: 10,
+      tick: 16,
+      duration: 16,
+      pitch_int: 67,
+      accidental: Accidental.Natural,
+      velocity: 90,
+      articulations: [Articulation.Accent],
+      tuplet_id: 44,
+    });
+    expect(id).toBe(201);
   });
 
   it("shift calls invoke correctly", async () => {

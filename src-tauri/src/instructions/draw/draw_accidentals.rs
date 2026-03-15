@@ -193,6 +193,7 @@ mod tests {
             stave_id: 1,
             track_id: 1,
             tone_id: 42,
+            tuplet_id: None,
         };
 
         draw_accidental(
@@ -231,6 +232,7 @@ mod tests {
             stave_id: 1,
             track_id: 1,
             tone_id: 999,
+            tuplet_id: None,
         };
 
         draw_accidental(

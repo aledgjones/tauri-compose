@@ -1437,6 +1437,7 @@ mod tests {
                         stave_id: 1000,
                         instrument_id: 10000,
                         tone_id: 1,
+                        tuplet_id: None,
                     },
                     x: 1.0,
                     y: 1.0,
@@ -1500,6 +1501,7 @@ mod tests {
                 stave_id: 1000,
                 instrument_id: 10000,
                 tone_id: 1,
+                tuplet_id: None,
             }
         );
         assert_eq!(
