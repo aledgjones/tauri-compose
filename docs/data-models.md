@@ -214,6 +214,8 @@ Ownership rules:
 - Tones that start outside remain on the host track even if their duration crosses the tuplet span.
 - MVP tuplets are explicitly single-level. Child `entries` cannot contain nested tuplets, and inner clef, key-signature, time-signature, and tempo directives remain deferred.
 
+Tuplet creation over existing host material follows the same ownership rule. When the backend creates a tuplet, it inspects the consumed host span and moves only the tones whose starts fall inside that span into `Tuplet.entries`. Those carried tones keep their stored durations unchanged and keep their timing as literal copied local offsets relative to the tuplet start; creation does not respell written values, approximate binary replacements, or split crossing tones. Any unfilled local tuplet time remains derived absence of tones rather than a persisted rest payload.
+
 Tuplet note insertion still extends the existing track-level tone mutation seam rather than introducing a parallel tuplet-note API:
 
 - frontend: `actions.score.tone.create(track_id, tick, duration, pitch_int, accidental, velocity, articulations, tuplet_id?)`
@@ -221,6 +223,8 @@ Tuplet note insertion still extends the existing track-level tone mutation seam 
 - score mutation: `Track::create_tone(..., tuplet_id: Option<UniqueId>)`
 
 The addressing model remains explicit as `track_id -> optional tuplet_id -> tone_id`. Host-track tones keep track-relative ticks and durations. Tuplet child tones keep tuplet-local ticks and durations. Insertion does not translate child timing into host ticks or persist explicit rest entries for unused local space.
+
+Story 1.5 stops at ownership reconciliation and persisted timing carry-over. Parser derivation, engraving, playback projection, and broader editing consequences remain intentionally deferred to the later tuplet stories that own those seams.
 
 ### Sequencer Selection (UI-only)
 

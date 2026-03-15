@@ -142,6 +142,19 @@ impl Track {
         })
     }
 
+    fn tone_ids_starting_in_span(&self, start_tick: Tick, end_tick: Tick) -> Vec<UniqueId> {
+        self.entries
+            .by_id
+            .values()
+            .filter_map(|entry| match entry {
+                Entry::Tone(tone) if tone.tick >= start_tick && tone.tick < end_tick => {
+                    Some(tone.id)
+                }
+                _ => None,
+            })
+            .collect()
+    }
+
     pub fn create_tuplet(
         &mut self,
         tuplet_id: UniqueId,
@@ -161,14 +174,26 @@ impl Track {
             ));
         }
 
-        self.insert_entry(Entry::Tuplet(Box::new(Tuplet::new(
+        let tone_ids_to_move = self.tone_ids_starting_in_span(tick, end_tick);
+        let mut tuplet = Tuplet::new(
             tuplet_id,
             tick,
             note_count,
             in_space_of,
             base_note_value,
             groupings,
-        ))));
+        );
+
+        for tone_id in tone_ids_to_move {
+            let Some(Entry::Tone(mut tone)) = self.remove_entry(tone_id) else {
+                continue;
+            };
+
+            tone.tick -= tick;
+            tuplet.entries.insert_entry(TupletEntry::Tone(tone));
+        }
+
+        self.insert_entry(Entry::Tuplet(Box::new(tuplet)));
 
         Ok(tuplet_id)
     }
@@ -289,6 +314,87 @@ mod tests {
     }
 
     #[test]
+    fn create_tuplet_moves_tones_starting_inside_consumed_span_into_child_entries() {
+        let mut track = Track::new(9);
+        track.insert_entry(Entry::Tone(Tone::new(
+            22,
+            32,
+            16,
+            Pitch::new(60, Accidental::Natural),
+            Velocity::new(90),
+            Articulations::new(),
+        )));
+        track.insert_entry(Entry::Tone(Tone::new(
+            23,
+            48,
+            16,
+            Pitch::new(62, Accidental::Natural),
+            Velocity::new(90),
+            Articulations::new(),
+        )));
+
+        track
+            .create_tuplet(99, 32, 3, 2, NoteDuration::Eighth, vec![3])
+            .unwrap();
+
+        let Entry::Tuplet(tuplet) = track.entries.by_id.get(&99).unwrap() else {
+            panic!("expected tuplet entry");
+        };
+        let Some(TupletEntry::Tone(first)) = tuplet.entries.by_id.get(&22) else {
+            panic!("expected first carried tone");
+        };
+        let Some(TupletEntry::Tone(second)) = tuplet.entries.by_id.get(&23) else {
+            panic!("expected second carried tone");
+        };
+
+        assert_eq!(first.tick, 0);
+        assert_eq!(first.duration, 16);
+        assert_eq!(second.tick, 16);
+        assert_eq!(second.duration, 16);
+        assert_eq!(tuplet.entries.len(), 2);
+        assert!(!track.entries.by_id.contains_key(&22));
+        assert!(!track.entries.by_id.contains_key(&23));
+    }
+
+    #[test]
+    fn create_tuplet_leaves_crossing_host_owned_tones_on_track() {
+        let mut track = Track::new(9);
+        track.insert_entry(Entry::Tone(Tone::new(
+            21,
+            16,
+            32,
+            Pitch::new(58, Accidental::Natural),
+            Velocity::new(90),
+            Articulations::new(),
+        )));
+        track.insert_entry(Entry::Tone(Tone::new(
+            22,
+            48,
+            32,
+            Pitch::new(60, Accidental::Natural),
+            Velocity::new(90),
+            Articulations::new(),
+        )));
+
+        track
+            .create_tuplet(99, 32, 3, 2, NoteDuration::Eighth, vec![3])
+            .unwrap();
+
+        let Entry::Tuplet(tuplet) = track.entries.by_id.get(&99).unwrap() else {
+            panic!("expected tuplet entry");
+        };
+        let Some(TupletEntry::Tone(carried)) = tuplet.entries.by_id.get(&22) else {
+            panic!("expected carried tone");
+        };
+
+        assert_eq!(carried.tick, 16);
+        assert_eq!(carried.duration, 32);
+        assert!(matches!(track.entries.by_id.get(&21), Some(Entry::Tone(_))));
+        assert_eq!(track.entries.by_id.len(), 2);
+        assert_eq!(tuplet.entries.len(), 1);
+    }
+
+    #[test]
     fn tuplet_child_entries_store_tones_only() {
         let mut child_entries = TupletEntries::new();
         let tone = Tone::new(
@@ -321,6 +427,34 @@ mod tests {
             result,
             Err("Tuplet creation at tick 80 overlaps an existing tuplet on track 9".to_string())
         );
+        assert!(!track.entries.by_id.contains_key(&100));
+    }
+
+    #[test]
+    fn create_tuplet_rejection_leaves_existing_host_ownership_unchanged() {
+        let mut track = Track::new(9);
+        track.insert_entry(Entry::Tone(Tone::new(
+            21,
+            80,
+            16,
+            Pitch::new(60, Accidental::Natural),
+            Velocity::new(90),
+            Articulations::new(),
+        )));
+        track
+            .create_tuplet(99, 64, 3, 2, NoteDuration::Eighth, vec![3])
+            .unwrap();
+
+        let result = track.create_tuplet(100, 80, 3, 2, NoteDuration::Eighth, vec![3]);
+
+        assert_eq!(
+            result,
+            Err("Tuplet creation at tick 80 overlaps an existing tuplet on track 9".to_string())
+        );
+        let Some(Entry::Tuplet(tuplet)) = track.entries.by_id.get(&99) else {
+            panic!("expected original tuplet entry");
+        };
+        assert!(matches!(tuplet.entries.by_id.get(&21), Some(TupletEntry::Tone(_))));
         assert!(!track.entries.by_id.contains_key(&100));
     }
 }

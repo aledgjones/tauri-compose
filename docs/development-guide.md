@@ -195,6 +195,7 @@ For **visual regression testing** (manual, human-driven), see [tests/fixtures/RE
 ## Tuplet Authoring Guardrails
 
 - Keep tone creation track-owned end to end. Extend `actions.score.tone.create(...)`, `score_entries_tone_create(...)`, and `Track::create_tone(...)` with optional tuplet context instead of introducing a parallel tuplet-note mutation API.
+- Keep tuplet creation on that same backend-owned seam. Reconcile existing material by moving only start-owned host tones into `Tuplet.entries` with unchanged durations and tuplet-local offsets; do not perform notation, rendering, playback, or resize semantics early in the creation path.
 - Treat ticks and durations as relative to their immediate parent. Host tones use track-relative timing; tuplet child tones use tuplet-local timing.
 - When writing inside a tuplet from the sequencer, derive local insertion positions directly from the tuplet region geometry. Do not compute a host tick first and then translate it back into tuplet-local time.
 - Preserve `ui.flow_id` as the authoritative active-flow slot. If a tuplet child tone needs selection handoff, carry only the minimal optional `tuplet_id` needed for direct lookup.
