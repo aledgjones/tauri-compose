@@ -188,6 +188,8 @@ Tuplets are persisted as first-class container entries on the host track. The co
 
 The Rust enum stores the variant as `Tuplet(Box<Tuplet>)` to keep the top-level `Entry` model sized safely in memory. MVP tuplet child storage now uses a dedicated backend wrapper that keeps the persisted JSON field shape stable while rejecting nested `Entry::Tuplet` values. Nested tuplets are therefore not part of supported MVP structure.
 
+Tuplet-bearing projects save and reopen through the same typed `ProjectFile` payload and `.soloc` container path used by non-tuplet projects. The persistence seam does not split crossing tones at load time, rewrite durations just because a tuplet boundary exists, or rebuild tuplet ownership in a frontend-specific pass. Host-owned tones that start before the tuplet remain on the host track, child-owned tones that start inside the tuplet remain in `Tuplet.entries`, and repeated save/load cycles are expected to keep the persisted structure deterministic.
+
 Host and local tick spans are derived rather than stored twice:
 
 - `consumed_ticks = in_space_of * base_note_value.to_ticks()`
@@ -215,6 +217,8 @@ Ownership rules:
 - MVP tuplets are explicitly single-level. Child `entries` cannot contain nested tuplets, and inner clef, key-signature, time-signature, and tempo directives remain deferred.
 
 Tuplet creation over existing host material follows the same ownership rule. When the backend creates a tuplet, it inspects the consumed host span and moves only the tones whose starts fall inside that span into `Tuplet.entries`. Those carried tones keep their stored durations unchanged and keep their timing as literal copied local offsets relative to the tuplet start; creation does not respell written values, approximate binary replacements, or split crossing tones. Any unfilled local tuplet time remains derived absence of tones rather than a persisted rest payload.
+
+No tuplet-specific migration is required in the current development cycle. Files created before tuplet support do not contain persisted tuplet payloads, so legacy non-tuplet projects continue through the existing version-validation and migration flow unchanged. Future migration work is only needed if a released older payload can no longer represent the persisted tuplet contract correctly.
 
 Tuplet note insertion still extends the existing track-level tone mutation seam rather than introducing a parallel tuplet-note API:
 

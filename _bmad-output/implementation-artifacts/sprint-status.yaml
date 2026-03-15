@@ -47,7 +47,7 @@ development_status:
   1-3a-simplify-tuplet-child-content-for-non-nestable-mvp: done
   1-4-enter-tuplet-notes-in-the-sequencer: done
   1-5-create-tuplets-over-existing-material-without-losing-ownership: done
-  1-6-round-trip-tuplet-data-through-save-load-and-migration: backlog
+  1-6-round-trip-tuplet-data-through-save-load-and-migration: done
   1-7-keep-versioning-and-offline-desktop-behavior-intact-for-tuplet-files: backlog
   epic-1-retrospective: optional
 

@@ -325,6 +325,7 @@ mod tests {
     use super::*;
     use crate::instructions::{prepare_flow_render_plan, FlowRenderRecalculationRequest};
     use crate::migrations::{MigrationKind, MIGRATIONS};
+    use crate::playback::transport::{sync_transport_to_app_state, TransportContext};
     use crate::preferences::Preferences;
     use crate::score::components::{
         articulation::Articulations,
@@ -445,15 +446,115 @@ mod tests {
         let json_data = serde_json::to_vec(project_file).unwrap();
         let compressed_data = compress_project_payload(&json_data).unwrap();
         let container = build_soloc_container(test_app_version(), &compressed_data).unwrap();
-        let parsed = parse_soloc_container(&container).unwrap();
+        project_file_from_container_bytes(&container).unwrap()
+    }
+
+    fn build_soloc_payload_for_project(project_file: &ProjectFile) -> Vec<u8> {
+        let json_data = serde_json::to_vec(project_file).unwrap();
+        let compressed_data = compress_project_payload(&json_data).unwrap();
+
+        build_soloc_container(test_app_version(), &compressed_data).unwrap()
+    }
+
+    fn project_json_from_container(container: &[u8]) -> (String, Vec<u8>, Value) {
+        let parsed = parse_soloc_container(container).unwrap();
         let decompressed =
             decompress_project_payload(parsed.project_payload, parsed.project_chunk_flags).unwrap();
         let project_data: Value = serde_json::from_slice(&decompressed).unwrap();
 
-        validate_project_version_match(&parsed.app_version, &project_data).unwrap();
+        (parsed.app_version, decompressed, project_data)
+    }
 
-        let migrated = migrate_project_data(project_data, &parsed.app_version).unwrap();
-        serde_json::from_value(migrated).unwrap()
+    fn project_file_from_container_bytes(file_data: &[u8]) -> Result<ProjectFile, String> {
+        let parsed_container = parse_soloc_container(file_data)?;
+        let json_data = decompress_project_payload(
+            parsed_container.project_payload,
+            parsed_container.project_chunk_flags,
+        )?;
+        let project_data: Value = serde_json::from_slice(&json_data)
+            .map_err(|e| format!("Failed to parse project JSON: {}", e))?;
+        validate_project_version_match(&parsed_container.app_version, &project_data)?;
+
+        let project_data = migrate_project_data(project_data, &parsed_container.app_version)
+            .map_err(|e| format!("Failed to migrate project data: {}", e))?;
+        let mut project_file: ProjectFile = serde_json::from_value(project_data)
+            .map_err(|e| format!("Failed to deserialize project file: {}", e))?;
+        project_file.score.meta.app_version = CURRENT_APP_VERSION.to_string();
+
+        Ok(project_file)
+    }
+
+    fn restore_loaded_project_for_test(
+        state: &mut AppContext,
+        transport_context: &std::sync::Arc<crate::playback::transport::TransportShared>,
+        project_file: ProjectFile,
+        file_path: String,
+    ) {
+        state.ui = project_file.ui;
+        state.ui.sequencer.tool = Tool::Select;
+        state.ui.screens.setup.selection = None;
+        state.ui.sequencer.selection = None;
+
+        state.score = project_file.score;
+        state.next_id = project_file.next_id;
+        state.current_file_path = Some(file_path);
+        sync_transport_to_app_state(transport_context, state, 0);
+    }
+
+    fn legacy_non_tuplet_fixture_payload() -> Value {
+        let mut fixture = serde_json::from_str::<Value>(include_str!(
+            "../../tests/fixtures/source/tempo/tempo.json"
+        ))
+        .unwrap();
+
+        fixture["score"]["tracks"]["by_id"]["6"]["entries"]["by_id"]["70"]["text"] =
+            Value::Null;
+
+        fixture
+    }
+
+    fn make_round_trip_tuplet_project() -> ProjectFile {
+        let mut ui = Ui::new();
+        ui.layout_id = Some(0);
+        ui.flow_id = Some(10);
+
+        let mut project_file = ProjectFile {
+            ui,
+            score: build_score_with_visible_flows(&[10], &[10]),
+            next_id: 250,
+        };
+
+        let track = project_file.score.tracks.by_id.get_mut(&110).unwrap();
+        track.insert_entry(Entry::Tone(Tone::new(
+            41,
+            48,
+            48,
+            Pitch::new(58, Accidental::Natural),
+            Velocity::new(88),
+            Articulations::new(),
+        )));
+
+        let mut child_entries = TupletEntries::new();
+        child_entries.insert_entry(TupletEntry::Tone(Tone::new(
+            42,
+            16,
+            32,
+            Pitch::new(62, Accidental::Sharp),
+            Velocity::new(91),
+            Articulations::new(),
+        )));
+
+        track.insert_entry(Entry::Tuplet(Box::new(Tuplet {
+            id: 99,
+            tick: 64,
+            note_count: 3,
+            in_space_of: 2,
+            base_note_value: NoteDuration::Eighth,
+            groupings: vec![1, 2],
+            entries: child_entries,
+        })));
+
+        project_file
     }
 
     #[test]
@@ -805,6 +906,66 @@ mod tests {
     }
 
     #[test]
+    fn soloc_round_trip_preserves_tuplet_ownership_and_groupings() {
+        let project_file = make_round_trip_tuplet_project();
+
+        let restored = round_trip_project_file(&project_file);
+        let restored_track = restored.score.tracks.by_id.get(&110).unwrap();
+
+        let Some(Entry::Tone(host_tone)) = restored_track.entries.by_id.get(&41) else {
+            panic!("expected crossing host-owned tone to remain on the track");
+        };
+        let Some(Entry::Tuplet(tuplet)) = restored_track.entries.by_id.get(&99) else {
+            panic!("expected persisted tuplet container");
+        };
+        let Some(TupletEntry::Tone(child_tone)) = tuplet.entries.by_id.get(&42) else {
+            panic!("expected child-owned tone to remain inside the tuplet");
+        };
+
+        assert_eq!(host_tone.tick, 48);
+        assert_eq!(host_tone.duration, 48);
+        assert_eq!(restored_track.entries.by_tick.get(&48), Some(&vec![41]));
+        assert_eq!(tuplet.tick, 64);
+        assert_eq!(tuplet.groupings, vec![1, 2]);
+        assert_eq!(tuplet.entries.by_tick.get(&16), Some(&vec![42]));
+        assert_eq!(child_tone.tick, 16);
+        assert_eq!(child_tone.duration, 32);
+        assert!(!restored_track.entries.by_id.contains_key(&42));
+    }
+
+    #[test]
+    fn repeated_tuplet_round_trips_remain_structurally_deterministic() {
+        let project_file = make_round_trip_tuplet_project();
+
+        let first_container = build_soloc_payload_for_project(&project_file);
+        let (first_header_version, first_project_json_bytes, first_project_json) =
+            project_json_from_container(&first_container);
+        let first_round_trip = round_trip_project_file(&project_file);
+
+        let second_container = build_soloc_payload_for_project(&first_round_trip);
+        let (second_header_version, second_project_json_bytes, second_project_json) =
+            project_json_from_container(&second_container);
+        let second_round_trip = round_trip_project_file(&first_round_trip);
+
+        assert_eq!(first_header_version, test_app_version());
+        assert_eq!(second_header_version, test_app_version());
+        assert_eq!(
+            first_project_json["score"]["meta"]["app_version"],
+            Value::String(test_app_version().to_string())
+        );
+        assert_eq!(
+            second_project_json["score"]["meta"]["app_version"],
+            Value::String(test_app_version().to_string())
+        );
+        assert_eq!(first_project_json_bytes, second_project_json_bytes);
+        assert_eq!(first_project_json, second_project_json);
+        assert_eq!(
+            serde_json::to_value(&first_round_trip).unwrap(),
+            serde_json::to_value(&second_round_trip).unwrap()
+        );
+    }
+
+    #[test]
     fn migrate_project_data_keeps_legacy_non_tuplet_entries_loadable() {
         let migrated = migrate_project_data(
             json!({
@@ -856,6 +1017,92 @@ mod tests {
             migrated["score"]["meta"]["app_version"],
             Value::String(test_app_version().to_string())
         );
+    }
+
+    #[test]
+    fn legacy_non_tuplet_soloc_payloads_still_follow_the_existing_load_path() {
+        let legacy_version = legacy_non_tuplet_fixture_payload()["score"]["meta"]["app_version"]
+            .as_str()
+            .unwrap()
+            .to_string();
+        let legacy_project = legacy_non_tuplet_fixture_payload();
+
+        let compressed_payload =
+            compress_project_payload(&serde_json::to_vec(&legacy_project).unwrap()).unwrap();
+        let container = build_soloc_container(legacy_version.as_str(), &compressed_payload).unwrap();
+        let restored = project_file_from_container_bytes(&container).unwrap();
+
+        assert_eq!(restored.score.meta.app_version, test_app_version());
+        assert_eq!(restored.score.flows.order, vec![5, 14, 23, 32]);
+        assert!(!restored
+            .score
+            .tracks
+            .by_id
+            .values()
+            .flat_map(|track| track.entries.by_id.values())
+            .any(|entry| matches!(entry, Entry::Tuplet(_))));
+        assert!(matches!(
+            restored
+                .score
+                .tracks
+                .by_id
+                .get(&6)
+                .and_then(|track| track.entries.by_id.get(&70)),
+            Some(Entry::Tempo(tempo)) if tempo.text.is_empty()
+        ));
+    }
+
+    #[test]
+    fn applying_loaded_tuplet_project_resets_ephemeral_state_and_updates_transport() {
+        let (_transport_state, transport_shared) = TransportContext::new();
+        let mut state = AppContext {
+            ui: Ui::new(),
+            score: build_score_with_visible_flows(&[30], &[30]),
+            preferences: make_preferences(),
+            next_id: 5,
+            current_file_path: None,
+        };
+        state.ui.sequencer.tool = Tool::Write;
+        state.ui.sequencer.selection = Some(crate::ui::sequencer::Selection::Rest {
+            flow_id: 30,
+            instrument_id: 130,
+            stave_id: 131,
+            track_id: 130,
+            tick: 32,
+        });
+        state.ui.screens.setup.selection = Some(
+            serde_json::from_value(json!({
+                "id": 1,
+                "selection_type": 0
+            }))
+            .unwrap(),
+        );
+
+        restore_loaded_project_for_test(
+            &mut state,
+            &transport_shared,
+            make_round_trip_tuplet_project(),
+            "/tmp/tuplets.soloc".to_string(),
+        );
+
+        assert!(matches!(state.ui.sequencer.tool, Tool::Select));
+        assert_eq!(state.ui.sequencer.selection, None);
+        assert!(state.ui.screens.setup.selection.is_none());
+        assert_eq!(state.current_file_path.as_deref(), Some("/tmp/tuplets.soloc"));
+        assert!(matches!(
+            state
+                .score
+                .tracks
+                .by_id
+                .get(&110)
+                .and_then(|track| track.entries.by_id.get(&99)),
+            Some(Entry::Tuplet(_))
+        ));
+        assert_eq!(
+            transport_shared.current_tick.load(std::sync::atomic::Ordering::Relaxed),
+            0
+        );
+        assert!(transport_shared.get_tempo() > 0.0);
     }
 
     #[test]
