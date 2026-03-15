@@ -22,7 +22,6 @@ A specification is considered "Ready for Development" ONLY if it meets the follo
 - **Testable**: All ACs follow Given/When/Then and cover happy path and edge cases.
 - **Complete**: All investigation results from Step 2 are inlined; no placeholders or "TBD".
 - **Self-Contained**: A fresh agent can implement the feature without reading the workflow history.
-- **Documented**: The spec explicitly covers required documentation updates and, when project rules change, AI-agent instruction updates.
 
 ---
 

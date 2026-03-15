@@ -72,8 +72,7 @@ a) **If user requests changes:**
 
 b) **If the spec does NOT meet the "Ready for Development" standard:**
 
-- Point out the missing/weak sections (e.g., non-actionable tasks, missing ACs).
-- Treat missing documentation impact or missing doc-update tasks as a readiness failure.
+- Point out the missing/weak sections (e.g., non-actionable tasks, missing ACs)
 - Propose specific improvements to reach the standard.
 - Make the edits once the user agrees.
 
@@ -192,7 +191,6 @@ Ship it!"
 - MUST update status to 'ready-for-dev'.
 - MUST rename file to `tech-spec-{slug}.md`.
 - MUST provide clear next-step guidance and recommend fresh context for dev.
-- MUST ensure documentation impact is explicitly addressed before finalizing.
 
 ## VERIFICATION CHECKLIST:
 

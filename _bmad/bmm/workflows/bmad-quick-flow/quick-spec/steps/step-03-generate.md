@@ -70,17 +70,8 @@ Each AC should follow Given/When/Then format:
 - Error handling
 - Edge cases (if relevant)
 - Integration points (if relevant)
-- Documentation updates required by the change
 
-### 4. Generate Documentation Impact
-
-**Document required documentation follow-through:**
-
-- Identify docs, READMEs, architecture notes, developer guidance, or AI-agent instructions that must be updated
-- Include explicit documentation update tasks whenever the feature changes behavior, architecture, persistence, workflows, user-visible behavior, or team/agent expectations
-- If no documentation updates are needed, state why explicitly rather than omitting the section
-
-### 5. Complete Additional Context
+### 4. Complete Additional Context
 
 **Fill in remaining sections:**
 
@@ -102,7 +93,7 @@ c) **Notes**
 - Known limitations
 - Future considerations (out of scope but worth noting)
 
-### 6. Write Complete Spec
+### 5. Write Complete Spec
 
 a) **Update `{wipFile}` with all generated content:**
 
@@ -110,7 +101,6 @@ a) **Update `{wipFile}` with all generated content:**
 - No placeholder text remaining
 - All frontmatter values current
 - Update status to 'review' (NOT 'ready-for-dev' - that happens after user review in Step 4)
-- Ensure the spec includes a concrete Documentation Impact section
 
 b) **Update frontmatter:**
 
@@ -128,7 +118,6 @@ c) **Read fully and follow: `{project-root}/_bmad/bmm/workflows/bmad-quick-flow/
 
 - Tasks MUST be specific, actionable, ordered logically, with files to modify.
 - ACs MUST be testable, using Given/When/Then format.
-- Documentation updates MUST be explicitly captured in the spec.
 - Status MUST be updated to 'review'.
 
 ## VERIFICATION CHECKLIST:

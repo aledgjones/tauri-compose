@@ -59,10 +59,6 @@ test_patterns: []
 
 {acceptance_criteria}
 
-### Documentation Impact
-
-{documentation_impact}
-
 ## Additional Context
 
 ### Dependencies
