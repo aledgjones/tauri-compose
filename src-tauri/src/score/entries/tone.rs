@@ -1272,6 +1272,59 @@ mod tests {
         assert!(tuplet.entries.by_tick.get(&16).is_none());
     }
 
+    #[test]
+    fn remove_tone_keeps_tuplet_container_and_remaining_indexes_stable() {
+        use crate::score::entries::Entry;
+        use crate::score::entries::tuplet::TupletEntry;
+        use crate::score::tracks::Track;
+
+        let mut track = Track::new(1);
+        track
+            .create_tuplet(20, 64, 3, 2, NoteDuration::Eighth, vec![3])
+            .unwrap();
+        track
+            .create_tone(
+                30,
+                16,
+                16,
+                60,
+                Some(Accidental::Natural),
+                80,
+                Articulations::new(),
+                Some(20),
+            )
+            .unwrap();
+        track
+            .create_tone(
+                31,
+                32,
+                16,
+                64,
+                Some(Accidental::Natural),
+                80,
+                Articulations::new(),
+                Some(20),
+            )
+            .unwrap();
+
+        assert!(track.remove_tone(30, Some(20)));
+
+        let Some(Entry::Tuplet(tuplet)) = track.entries.by_id.get(&20) else {
+            panic!("expected tuplet entry");
+        };
+
+        assert!(!tuplet.entries.by_id.contains_key(&30));
+        assert!(tuplet.entries.by_tick.get(&16).is_none());
+        assert_eq!(tuplet.entries.by_tick.get(&32), Some(&vec![31]));
+
+        let Some(TupletEntry::Tone(remaining_tone)) = tuplet.entries.by_id.get(&31) else {
+            panic!("expected remaining tuplet-owned tone");
+        };
+
+        assert_eq!(remaining_tone.tick, 32);
+        assert_eq!(remaining_tone.duration, 16);
+    }
+
     // --- Track::create_tone ---
 
     #[test]

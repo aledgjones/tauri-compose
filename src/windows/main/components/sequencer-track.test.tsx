@@ -328,6 +328,77 @@ describe("SequencerTrack", () => {
     });
   });
 
+  it("removes tuplet-owned tones through the shared erase seam", async () => {
+    const tuplet = makeTuplet({
+      tick: 96,
+      entries: {
+        by_tick: { 16: [101] },
+        by_id: { 101: makeTupletTone(101, 16) },
+      },
+    });
+
+    const { container } = renderWithProviders(
+      <SequencerTrack
+        {...defaultProps}
+        tool={Tool.Erase}
+        track={makeTrackWithTuplet(tuplet)}
+      />,
+    );
+
+    const target = container.querySelector(
+      '[data-tone-id="101"]',
+    ) as HTMLElement;
+    fireEvent.pointerDown(target, { clientX: 452, clientY: 200 });
+
+    await waitFor(() => {
+      expect(actions.score.tone.remove).toHaveBeenCalledWith(5, 11, 101);
+    });
+
+    expect(actions.ui.sequencer.clearSelection).toHaveBeenCalled();
+  });
+
+  it("keeps empty tuplet slot markers visible after a child note is removed", async () => {
+    const occupiedTuplet = makeTuplet({
+      tick: 96,
+      entries: {
+        by_tick: { 16: [101] },
+        by_id: { 101: makeTupletTone(101, 16) },
+      },
+    });
+
+    const { container, rerender } = renderWithProviders(
+      <SequencerTrack
+        {...defaultProps}
+        tool={Tool.Erase}
+        track={makeTrackWithTuplet(occupiedTuplet)}
+      />,
+    );
+
+    const target = container.querySelector(
+      '[data-tone-id="101"]',
+    ) as HTMLElement;
+    fireEvent.pointerDown(target, { clientX: 452, clientY: 200 });
+
+    await waitFor(() => {
+      expect(actions.score.tone.remove).toHaveBeenCalledWith(5, 11, 101);
+    });
+
+    rerender(
+      <SequencerTrack
+        {...defaultProps}
+        tool={Tool.Erase}
+        track={makeTrackWithTuplet(makeTuplet({ tick: 96 }))}
+      />,
+    );
+
+    expect(
+      container.querySelector('[data-tone-id="101"]'),
+    ).not.toBeInTheDocument();
+    expect(
+      container.querySelectorAll('[data-tuplet-slot-marker="11"]'),
+    ).toHaveLength(4);
+  });
+
   it("handles pointerDown with Select tool without crashing", () => {
     const { container } = renderWithProviders(
       <SequencerTrack {...defaultProps} tool={Tool.Select} />,

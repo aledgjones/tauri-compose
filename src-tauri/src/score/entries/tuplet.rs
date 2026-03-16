@@ -430,6 +430,48 @@ mod tests {
     }
 
     #[test]
+    fn remove_entry_updates_shared_tick_index_without_collapsing_other_members() {
+        let mut child_entries = TupletEntries::new();
+        let first_tone = Tone::new(
+            11,
+            16,
+            16,
+            Pitch::new(60, Accidental::Natural),
+            Velocity::new(90),
+            Articulations::new(),
+        );
+        let second_tone = Tone::new(
+            12,
+            16,
+            16,
+            Pitch::new(64, Accidental::Natural),
+            Velocity::new(90),
+            Articulations::new(),
+        );
+        let third_tone = Tone::new(
+            13,
+            32,
+            16,
+            Pitch::new(67, Accidental::Natural),
+            Velocity::new(90),
+            Articulations::new(),
+        );
+
+        child_entries.insert_entry(TupletEntry::Tone(first_tone));
+        child_entries.insert_entry(TupletEntry::Tone(second_tone));
+        child_entries.insert_entry(TupletEntry::Tone(third_tone));
+
+        let removed = child_entries.remove_entry(11);
+
+        assert!(matches!(removed, Some(TupletEntry::Tone(_))));
+        assert_eq!(child_entries.by_tick.get(&16), Some(&vec![12]));
+        assert_eq!(child_entries.by_tick.get(&32), Some(&vec![13]));
+        assert!(!child_entries.by_id.contains_key(&11));
+        assert!(child_entries.by_id.contains_key(&12));
+        assert!(child_entries.by_id.contains_key(&13));
+    }
+
+    #[test]
     fn create_tuplet_rejects_overlapping_existing_tuplet_spans() {
         let mut track = Track::new(9);
 
