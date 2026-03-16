@@ -54,6 +54,7 @@ const TRACK_ID = 300;
 const SECOND_TRACK_ID = 301;
 const TONE_ID = 999;
 const SECOND_TONE_ID = 1000;
+const TUPLET_ID = 2000;
 
 const buildStateWithToneSelection = () => {
   return createAppState({
@@ -185,6 +186,89 @@ const buildStateWithLaterFlowToneSelection = () => {
           stave_id: 101,
           track_id: SECOND_TRACK_ID,
           tone_id: SECOND_TONE_ID,
+        },
+      },
+    } as never,
+  });
+};
+
+const buildStateWithTupletToneSelection = () => {
+  return createAppState({
+    score: {
+      players: {
+        order: [1],
+        by_id: {
+          1: {
+            id: 1,
+            player_type: PlayerType.Solo,
+            instrument_ids: [INSTRUMENT_ID],
+          },
+        },
+      },
+      instruments: {
+        by_id: {
+          [INSTRUMENT_ID]: {
+            id: INSTRUMENT_ID,
+            definition_id: "piano",
+            instrument_type: 0,
+            long_name: "Piano",
+            short_name: "Pno.",
+            stave_ids: [STAVE_ID],
+            count: null,
+            assigned_plugin_id: null,
+            volume: 100,
+            pan: 0,
+            mute: false,
+            solo: false,
+          },
+        },
+      },
+      tracks: {
+        by_id: {
+          [TRACK_ID]: {
+            id: TRACK_ID,
+            entries: {
+              by_tick: { 64: [TUPLET_ID] },
+              by_id: {
+                [TUPLET_ID]: {
+                  id: TUPLET_ID,
+                  tick: 64,
+                  type: "Tuplet" as const,
+                  note_count: 3,
+                  in_space_of: 2,
+                  base_note_value: 8,
+                  groupings: [3],
+                  entries: {
+                    by_tick: { 0: [TONE_ID] },
+                    by_id: {
+                      [TONE_ID]: {
+                        id: TONE_ID,
+                        tick: 0,
+                        type: "Tone" as const,
+                        duration: 16,
+                        pitch: { int: 60, accidental: Accidental.Natural },
+                        velocity: { int: 100 },
+                        articulations: [],
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    } as never,
+    ui: {
+      sequencer: {
+        selection: {
+          type: "Tone",
+          flow_id: FLOW_ID,
+          instrument_id: INSTRUMENT_ID,
+          stave_id: STAVE_ID,
+          track_id: TRACK_ID,
+          tone_id: TONE_ID,
+          tuplet_id: TUPLET_ID,
         },
       },
     } as never,
@@ -328,6 +412,7 @@ describe("useKeyboardShortcuts", () => {
 
     expect(actions.score.tone.shiftPitchByStep).toHaveBeenCalledWith(
       TRACK_ID,
+      null,
       TONE_ID,
       1,
     );
@@ -346,6 +431,7 @@ describe("useKeyboardShortcuts", () => {
 
     expect(actions.score.tone.shiftPitchByStep).toHaveBeenCalledWith(
       TRACK_ID,
+      null,
       TONE_ID,
       -1,
     );
@@ -368,6 +454,7 @@ describe("useKeyboardShortcuts", () => {
 
     expect(actions.score.tone.shiftPitchByOctave).toHaveBeenCalledWith(
       TRACK_ID,
+      null,
       TONE_ID,
       1,
     );
@@ -382,7 +469,11 @@ describe("useKeyboardShortcuts", () => {
       window.dispatchEvent(new KeyboardEvent("keydown", { key: "Backspace" }));
     });
 
-    expect(actions.score.tone.remove).toHaveBeenCalledWith(TRACK_ID, TONE_ID);
+    expect(actions.score.tone.remove).toHaveBeenCalledWith(
+      TRACK_ID,
+      null,
+      TONE_ID,
+    );
   });
 
   it("continues to target a surviving later-flow tone selection", async () => {
@@ -400,7 +491,29 @@ describe("useKeyboardShortcuts", () => {
 
     expect(actions.score.tone.shiftPitchByStep).toHaveBeenCalledWith(
       SECOND_TRACK_ID,
+      null,
       SECOND_TONE_ID,
+      1,
+    );
+  });
+
+  it("dispatches pitch shortcuts for a selected tuplet-owned tone", async () => {
+    renderHook(() => useKeyboardShortcuts(), {
+      wrapper: createWrapper({
+        appState: buildStateWithTupletToneSelection(),
+      }),
+    });
+
+    await act(async () => {
+      window.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "ArrowUp", altKey: true }),
+      );
+    });
+
+    expect(actions.score.tone.shiftPitchByStep).toHaveBeenCalledWith(
+      TRACK_ID,
+      TUPLET_ID,
+      TONE_ID,
       1,
     );
   });
@@ -486,6 +599,7 @@ describe("useKeyboardShortcuts", () => {
 
     expect(actions.score.tone.setArticulation).toHaveBeenCalledWith(
       TRACK_ID,
+      null,
       TONE_ID,
       Articulation.Staccato,
     );
@@ -508,6 +622,7 @@ describe("useKeyboardShortcuts", () => {
 
     expect(actions.score.tone.shiftPitchByOctave).toHaveBeenCalledWith(
       TRACK_ID,
+      null,
       TONE_ID,
       -1,
     );
@@ -522,6 +637,7 @@ describe("useKeyboardShortcuts", () => {
     });
     expect(actions.score.tone.setAccidental).toHaveBeenCalledWith(
       TRACK_ID,
+      null,
       TONE_ID,
       Accidental.Sharp,
     );
@@ -536,6 +652,7 @@ describe("useKeyboardShortcuts", () => {
     });
     expect(actions.score.tone.setAccidental).toHaveBeenCalledWith(
       TRACK_ID,
+      null,
       TONE_ID,
       Accidental.Flat,
     );
@@ -550,6 +667,7 @@ describe("useKeyboardShortcuts", () => {
     });
     expect(actions.score.tone.setAccidental).toHaveBeenCalledWith(
       TRACK_ID,
+      null,
       TONE_ID,
       Accidental.Natural,
     );
@@ -562,7 +680,11 @@ describe("useKeyboardShortcuts", () => {
     await act(async () => {
       window.dispatchEvent(new KeyboardEvent("keydown", { key: "Delete" }));
     });
-    expect(actions.score.tone.remove).toHaveBeenCalledWith(TRACK_ID, TONE_ID);
+    expect(actions.score.tone.remove).toHaveBeenCalledWith(
+      TRACK_ID,
+      null,
+      TONE_ID,
+    );
   });
 
   it("deletes selected tempo and clears selection", async () => {
@@ -801,6 +923,7 @@ describe("useKeyboardShortcuts", () => {
     });
     expect(actions.score.tone.setArticulation).toHaveBeenCalledWith(
       TRACK_ID,
+      null,
       TONE_ID,
       Articulation.Tenuto,
     );
@@ -815,6 +938,7 @@ describe("useKeyboardShortcuts", () => {
     });
     expect(actions.score.tone.setArticulation).toHaveBeenCalledWith(
       TRACK_ID,
+      null,
       TONE_ID,
       Articulation.Staccatissimo,
     );
@@ -829,6 +953,7 @@ describe("useKeyboardShortcuts", () => {
     });
     expect(actions.score.tone.setArticulation).toHaveBeenCalledWith(
       TRACK_ID,
+      null,
       TONE_ID,
       Articulation.StaccatoTenuto,
     );
@@ -843,6 +968,7 @@ describe("useKeyboardShortcuts", () => {
     });
     expect(actions.score.tone.setArticulation).toHaveBeenCalledWith(
       TRACK_ID,
+      null,
       TONE_ID,
       Articulation.Accent,
     );
@@ -857,6 +983,7 @@ describe("useKeyboardShortcuts", () => {
     });
     expect(actions.score.tone.setArticulation).toHaveBeenCalledWith(
       TRACK_ID,
+      null,
       TONE_ID,
       Articulation.Marcato,
     );
@@ -871,6 +998,7 @@ describe("useKeyboardShortcuts", () => {
     });
     expect(actions.score.tone.setArticulation).toHaveBeenCalledWith(
       TRACK_ID,
+      null,
       TONE_ID,
       Articulation.Stressed,
     );
@@ -885,8 +1013,65 @@ describe("useKeyboardShortcuts", () => {
     });
     expect(actions.score.tone.setArticulation).toHaveBeenCalledWith(
       TRACK_ID,
+      null,
       TONE_ID,
       Articulation.Unstressed,
+    );
+  });
+
+  it("dispatches remove for a selected tuplet-owned tone", async () => {
+    renderHook(() => useKeyboardShortcuts(), {
+      wrapper: createWrapper({
+        appState: buildStateWithTupletToneSelection(),
+      }),
+    });
+
+    await act(async () => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Delete" }));
+    });
+
+    expect(actions.score.tone.remove).toHaveBeenCalledWith(
+      TRACK_ID,
+      TUPLET_ID,
+      TONE_ID,
+    );
+  });
+
+  it("dispatches accidental shortcuts for a selected tuplet-owned tone", async () => {
+    renderHook(() => useKeyboardShortcuts(), {
+      wrapper: createWrapper({
+        appState: buildStateWithTupletToneSelection(),
+      }),
+    });
+
+    await act(async () => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "=" }));
+    });
+
+    expect(actions.score.tone.setAccidental).toHaveBeenCalledWith(
+      TRACK_ID,
+      TUPLET_ID,
+      TONE_ID,
+      Accidental.Sharp,
+    );
+  });
+
+  it("dispatches articulation shortcuts for a selected tuplet-owned tone", async () => {
+    renderHook(() => useKeyboardShortcuts(), {
+      wrapper: createWrapper({
+        appState: buildStateWithTupletToneSelection(),
+      }),
+    });
+
+    await act(async () => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "]" }));
+    });
+
+    expect(actions.score.tone.setArticulation).toHaveBeenCalledWith(
+      TRACK_ID,
+      TUPLET_ID,
+      TONE_ID,
+      Articulation.Staccato,
     );
   });
 

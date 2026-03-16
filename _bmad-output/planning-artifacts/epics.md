@@ -582,11 +582,11 @@ So that I can shape real triplet patterns inside one rhythmic container.
 **Then** MVP rejects or defers that outcome
 **And** slot operations remain limited to single-level tuplet content
 
-### Story 2.4: Reposition or Resize Tuplet Notes Within Supported Bounds
+### Story 2.4: Reposition, Re-pitch, or Resize Tuplet Notes Within Supported Bounds
 
 As a composer,
-I want to move or resize tuplet notes within the tuplet frame,
-So that I can refine rhythmic shape without breaking exact tuplet semantics.
+I want to drag tuplet notes to move, re-pitch, or resize them within the tuplet frame,
+So that I can refine melodic and rhythmic shape without breaking exact tuplet semantics.
 
 **FRs implemented:** FR8, FR10, FR17
 **NFRs implemented:** NFR1, NFR2, NFR4, NFR15
@@ -597,6 +597,16 @@ So that I can refine rhythmic shape without breaking exact tuplet semantics.
 **When** the requested edit remains within the tuplet's supported local frame rules
 **Then** the change is applied using exact local timing
 **And** the result remains a valid tuplet state
+
+**Given** a tuplet note is dragged vertically using an existing pitch-drag gesture
+**When** the requested edit stays within supported MVP bounds
+**Then** the product updates pitch using the same pitch-targeting rules used for ordinary track tones
+**And** tuplet membership remains an implementation detail rather than a separate drag behavior model
+
+**Given** a drag gesture changes pitch together with position or duration in a supported MVP case
+**When** the edit is committed
+**Then** the product preserves the same user-facing drag semantics expected outside tuplets while applying the correct tuplet-local timing and ownership rules underneath
+**And** the gesture is not limited to timewise movement only
 
 **Given** a tone duration is dragged across a tuplet boundary in a supported MVP case
 **When** the edit is committed

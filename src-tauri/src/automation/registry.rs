@@ -508,15 +508,15 @@ pub fn action_definitions() -> Vec<ActionDefinition> {
         ),
         action("score.tone.setDuration", "Set the duration of an existing tone.", vec![arg("track_id", "Numeric track id."), arg("tone_id", "Numeric tone id."), arg("duration", "Tone duration in ticks.")]),
         action("score.tone.slice", "Split a tone at a specific tick and return the new tone id when successful.", vec![arg("track_id", "Numeric track id."), arg("tone_id", "Numeric tone id."), arg("slice_tick", "Tick position where the tone should be sliced.")]),
-        action("score.tone.setPitch", "Set the pitch of an existing tone.", vec![arg("track_id", "Numeric track id."), arg("tone_id", "Numeric tone id."), arg("pitch_int", "Chromatic pitch integer."), arg("accidental", "Accidental enum value or null. Use -2=DoubleFlat, -1=Flat, 0=Natural, 1=Sharp, 2=DoubleSharp.")]),
-        action("score.tone.remove", "Remove an existing tone entry.", vec![arg("track_id", "Numeric track id."), arg("tone_id", "Numeric tone id.")]),
+        action("score.tone.setPitch", "Set the pitch of an existing tone.", vec![arg("track_id", "Numeric track id."), arg("tone_id", "Numeric tone id."), arg("pitch_int", "Chromatic pitch integer."), arg("accidental", "Accidental enum value or null. Use -2=DoubleFlat, -1=Flat, 0=Natural, 1=Sharp, 2=DoubleSharp."), optional_arg("tuplet_id", "Optional tuplet id used to address a nested tone directly on the owning track.")]),
+        action("score.tone.remove", "Remove an existing tone entry.", vec![arg("track_id", "Numeric track id."), arg("tone_id", "Numeric tone id."), optional_arg("tuplet_id", "Optional tuplet id used to address a nested tone directly on the owning track.")]),
         action("score.tone.setPositionAndDuration", "Set the position and duration of an existing tone.", vec![arg("track_id", "Numeric track id."), arg("tone_id", "Numeric tone id."), arg("tick", "New tick position."), arg("duration", "New duration in ticks.")]),
         action("score.tone.shift", "Shift an existing tone entry to a new tick.", vec![arg("track_id", "Numeric track id."), arg("tone_id", "Numeric tone id."), arg("new_tick", "New tick position.")]),
         action("score.tone.unifyArticulations", "Apply the articulation set from one tone to all tones at the same tick.", vec![arg("track_id", "Numeric track id."), arg("tone_id", "Numeric tone id.")]),
-        action("score.tone.shiftPitchBySteps", "Shift a tone pitch diatonically by a number of steps.", vec![arg("track_id", "Numeric track id."), arg("tone_id", "Numeric tone id."), arg("steps", "Signed number of steps to shift.")]),
-        action("score.tone.shiftPitchByOctaves", "Shift a tone pitch by a number of octaves.", vec![arg("track_id", "Numeric track id."), arg("tone_id", "Numeric tone id."), arg("octaves", "Signed number of octaves to shift.")]),
-        action("score.tone.setAccidental", "Set the accidental on a tone.", vec![arg("track_id", "Numeric track id."), arg("tone_id", "Numeric tone id."), arg("accidental", "Accidental enum value. Use -2=DoubleFlat, -1=Flat, 0=Natural, 1=Sharp, 2=DoubleSharp.")]),
-        action("score.tone.toggleArticulation", "Toggle an articulation on a tone and apply the resulting articulation set across the tick.", vec![arg("track_id", "Numeric track id."), arg("tone_id", "Numeric tone id."), arg("articulation", "Numeric Articulation enum value. Use 0=Staccato, 1=Tenuto, 2=Staccatissimo, 3=StaccatoTenuto, 4=Accent, 5=Marcato, 6=Stressed, 7=Unstressed.")]),
+        action("score.tone.shiftPitchBySteps", "Shift a tone pitch diatonically by a number of steps.", vec![arg("track_id", "Numeric track id."), arg("tone_id", "Numeric tone id."), arg("steps", "Signed number of steps to shift."), optional_arg("tuplet_id", "Optional tuplet id used to address a nested tone directly on the owning track.")]),
+        action("score.tone.shiftPitchByOctaves", "Shift a tone pitch by a number of octaves.", vec![arg("track_id", "Numeric track id."), arg("tone_id", "Numeric tone id."), arg("octaves", "Signed number of octaves to shift."), optional_arg("tuplet_id", "Optional tuplet id used to address a nested tone directly on the owning track.")]),
+        action("score.tone.setAccidental", "Set the accidental on a tone.", vec![arg("track_id", "Numeric track id."), arg("tone_id", "Numeric tone id."), arg("accidental", "Accidental enum value. Use -2=DoubleFlat, -1=Flat, 0=Natural, 1=Sharp, 2=DoubleSharp."), optional_arg("tuplet_id", "Optional tuplet id used to address a nested tone directly on the owning track.")]),
+        action("score.tone.toggleArticulation", "Toggle an articulation on a tone and apply the resulting articulation set across the tick.", vec![arg("track_id", "Numeric track id."), arg("tone_id", "Numeric tone id."), arg("articulation", "Numeric Articulation enum value. Use 0=Staccato, 1=Tenuto, 2=Staccatissimo, 3=StaccatoTenuto, 4=Accent, 5=Marcato, 6=Stressed, 7=Unstressed."), optional_arg("tuplet_id", "Optional tuplet id used to address a nested tone directly on the owning track.")]),
         action(
             "score.lookup.getInstrumentTracks",
             "Resolve the flow-local stave master ids and user track ids for an instrument in a specific flow.",
@@ -1330,6 +1330,7 @@ pub async fn execute_action(app: &AppHandle, name: &str, args: &[Value]) -> Resu
                 arg_id(args, 1, "tone_id")?,
                 arg_u8(args, 2, "pitch_int")?,
                 arg_optional_enum::<Accidental>(args, 3)?,
+                arg_optional_id(args, 4)?,
             );
             Ok(Value::Null)
         }
@@ -1340,6 +1341,7 @@ pub async fn execute_action(app: &AppHandle, name: &str, args: &[Value]) -> Resu
                 app.state::<RendererContextState>(),
                 arg_id(args, 0, "track_id")?,
                 arg_id(args, 1, "tone_id")?,
+                arg_optional_id(args, 2)?,
             );
             Ok(Value::Null)
         }
@@ -1383,6 +1385,7 @@ pub async fn execute_action(app: &AppHandle, name: &str, args: &[Value]) -> Resu
             arg_id(args, 0, "track_id")?,
             arg_id(args, 1, "tone_id")?,
             arg_i8(args, 2, "steps")?,
+            arg_optional_id(args, 3)?,
         ))),
         "score.tone.shiftPitchByOctaves" => Ok(json!(score_entries_tone_pitch_shift_by_octaves(
             app.clone(),
@@ -1391,6 +1394,7 @@ pub async fn execute_action(app: &AppHandle, name: &str, args: &[Value]) -> Resu
             arg_id(args, 0, "track_id")?,
             arg_id(args, 1, "tone_id")?,
             arg_i8(args, 2, "octaves")?,
+            arg_optional_id(args, 3)?,
         ))),
         "score.tone.setAccidental" => Ok(json!(score_entries_tone_accidental_set(
             app.clone(),
@@ -1399,6 +1403,7 @@ pub async fn execute_action(app: &AppHandle, name: &str, args: &[Value]) -> Resu
             arg_id(args, 0, "track_id")?,
             arg_id(args, 1, "tone_id")?,
             arg_enum::<Accidental>(args, 2, "accidental")?,
+            arg_optional_id(args, 3)?,
         ))),
         "score.tone.toggleArticulation" => {
             score_entries_tone_articulation_set(
@@ -1408,6 +1413,7 @@ pub async fn execute_action(app: &AppHandle, name: &str, args: &[Value]) -> Resu
                 arg_id(args, 0, "track_id")?,
                 arg_id(args, 1, "tone_id")?,
                 arg_enum::<Articulation>(args, 2, "articulation")?,
+                arg_optional_id(args, 3)?,
             );
             Ok(Value::Null)
         }

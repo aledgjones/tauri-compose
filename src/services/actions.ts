@@ -873,20 +873,27 @@ export const actions = {
       },
       setPitch: (
         track_id: UniqueId,
+        tuplet_id: UniqueId | null,
         tone_id: UniqueId,
         pitch_int: number,
         accidental?: Accidental | null,
       ) => {
         return invoke("score_entries_tone_pitch_set", {
           track_id,
+          tuplet_id: tuplet_id ?? null,
           tone_id,
           pitch_int,
           accidental,
         });
       },
-      remove: (track_id: UniqueId, tone_id: UniqueId) => {
+      remove: (
+        track_id: UniqueId,
+        tuplet_id: UniqueId | null,
+        tone_id: UniqueId,
+      ) => {
         return invoke<void>("score_entries_tone_duration_remove", {
           track_id,
+          tuplet_id: tuplet_id ?? null,
           tone_id,
         });
       },
@@ -899,6 +906,7 @@ export const actions = {
       },
       shiftPitchByStep: (
         track_id: UniqueId,
+        tuplet_id: UniqueId | null,
         tone_id: UniqueId,
         steps: number,
       ) => {
@@ -906,6 +914,7 @@ export const actions = {
           "score_entries_tone_pitch_shift_by_steps",
           {
             track_id,
+            tuplet_id: tuplet_id ?? null,
             tone_id,
             steps,
           },
@@ -913,6 +922,7 @@ export const actions = {
       },
       shiftPitchByOctave: (
         track_id: UniqueId,
+        tuplet_id: UniqueId | null,
         tone_id: UniqueId,
         octaves: number,
       ) => {
@@ -920,6 +930,7 @@ export const actions = {
           "score_entries_tone_pitch_shift_by_octaves",
           {
             track_id,
+            tuplet_id: tuplet_id ?? null,
             tone_id,
             octaves,
           },
@@ -927,22 +938,26 @@ export const actions = {
       },
       setAccidental: (
         track_id: UniqueId,
+        tuplet_id: UniqueId | null,
         tone_id: UniqueId,
         accidental: Accidental,
       ) => {
         return invoke<number | null>("score_entries_tone_accidental_set", {
           track_id,
+          tuplet_id: tuplet_id ?? null,
           tone_id,
           accidental,
         });
       },
       setArticulation: (
         track_id: UniqueId,
+        tuplet_id: UniqueId | null,
         tone_id: UniqueId,
         articulation: Articulation,
       ) => {
         return invoke<void>("score_entries_tone_articulation_set", {
           track_id,
+          tuplet_id: tuplet_id ?? null,
           tone_id,
           articulation,
         });

@@ -321,7 +321,11 @@ const handleEraseTool = async (
     return;
   }
 
-  await actions.score.tone.remove(track.id, clickTarget.id);
+  await actions.score.tone.remove(
+    track.id,
+    clickTarget.tuplet_id ?? null,
+    clickTarget.id,
+  );
   await actions.ui.sequencer.clearSelection();
 };
 
@@ -448,6 +452,8 @@ const handlePositionDragging = async (
 ) => {
   let lastPitch = originalTone.pitch.int;
   let lastTick = originalTone.tick;
+  const tupletId =
+    clickTarget.type === "Tone" ? (clickTarget.tuplet_id ?? null) : null;
 
   // Calculate initial position for relative movement
   const initialX = e.clientX - box.left;
@@ -479,7 +485,13 @@ const handlePositionDragging = async (
 
     // Update pitch if it changed
     if (newPitch !== lastPitch) {
-      await actions.score.tone.setPitch(track.id, clickTarget.id, newPitch);
+      await actions.score.tone.setPitch(
+        track.id,
+        tupletId,
+        clickTarget.id,
+        newPitch,
+        null,
+      );
       if (audition && pluginId) {
         actions.sampler.audition(pluginId, newPitch);
       }

@@ -108,6 +108,42 @@ impl Track {
         }
     }
 
+    fn get_tone_mut(&mut self, tone_id: UniqueId, tuplet_id: Option<UniqueId>) -> Option<&mut Tone> {
+        match tuplet_id {
+            Some(tuplet_id) => match self.entries.by_id.get_mut(&tuplet_id)? {
+                Entry::Tuplet(tuplet) => match tuplet.entries.by_id.get_mut(&tone_id)? {
+                    TupletEntry::Tone(tone) => Some(tone),
+                },
+                _ => None,
+            },
+            None => match self.entries.by_id.get_mut(&tone_id)? {
+                Entry::Tone(tone) => Some(tone),
+                _ => None,
+            },
+        }
+    }
+
+    fn resolve_tone_pitch_tick(
+        &self,
+        tone_id: UniqueId,
+        tuplet_id: Option<UniqueId>,
+    ) -> Option<Tick> {
+        match tuplet_id {
+            Some(tuplet_id) => match self.entries.by_id.get(&tuplet_id)? {
+                Entry::Tuplet(tuplet) => match tuplet.entries.by_id.get(&tone_id)? {
+                    TupletEntry::Tone(tone) => {
+                        self.resolve_tuplet_pitch_tick(tone.tick, tuplet_id).ok()
+                    }
+                },
+                _ => None,
+            },
+            None => match self.entries.by_id.get(&tone_id)? {
+                Entry::Tone(tone) => Some(tone.tick),
+                _ => None,
+            },
+        }
+    }
+
     /// Set the duration of the tone identified by `tone_id`.
     pub fn set_tone_duration(&mut self, tone_id: UniqueId, duration: Ticks) {
         if let Some(Entry::Tone(tone)) = self.entries.by_id.get_mut(&tone_id) {
@@ -121,21 +157,25 @@ impl Track {
         tone_id: UniqueId,
         pitch_int: u8,
         accidental: Option<Accidental>,
+        tuplet_id: Option<UniqueId>,
     ) {
-        let tick = if let Some(Entry::Tone(tone)) = self.entries.by_id.get(&tone_id) {
-            tone.tick
-        } else {
+        let Some(tick) = self.resolve_tone_pitch_tick(tone_id, tuplet_id) else {
             return;
         };
         let pitch = self.resolve_pitch(tick, pitch_int, accidental);
-        if let Some(Entry::Tone(tone)) = self.entries.by_id.get_mut(&tone_id) {
+        if let Some(tone) = self.get_tone_mut(tone_id, tuplet_id) {
             tone.pitch = pitch;
         }
     }
 
     /// Shift the pitch of `tone_id` by a number of octaves. Returns new MIDI int if found.
-    pub fn shift_tone_pitch_by_octaves(&mut self, tone_id: UniqueId, octaves: i8) -> Option<u8> {
-        if let Some(Entry::Tone(tone)) = self.entries.by_id.get_mut(&tone_id) {
+    pub fn shift_tone_pitch_by_octaves(
+        &mut self,
+        tone_id: UniqueId,
+        octaves: i8,
+        tuplet_id: Option<UniqueId>,
+    ) -> Option<u8> {
+        if let Some(tone) = self.get_tone_mut(tone_id, tuplet_id) {
             tone.pitch = tone.pitch.shift_by_octaves(octaves);
             Some(tone.pitch.int)
         } else {
@@ -144,14 +184,29 @@ impl Track {
     }
 
     /// Set the accidental on `tone_id`, recomputing pitch from base + accidental offset. Returns new MIDI int if found.
-    pub fn set_tone_accidental(&mut self, tone_id: UniqueId, accidental: Accidental) -> Option<u8> {
-        if let Some(Entry::Tone(tone)) = self.entries.by_id.get_mut(&tone_id) {
+    pub fn set_tone_accidental(
+        &mut self,
+        tone_id: UniqueId,
+        accidental: Accidental,
+        tuplet_id: Option<UniqueId>,
+    ) -> Option<u8> {
+        if let Some(tone) = self.get_tone_mut(tone_id, tuplet_id) {
             let base_pitch = tone.pitch.base();
             let new_pitch_int = (base_pitch as i8 + accidental as i8) as u8;
             tone.pitch = Pitch::new(new_pitch_int, accidental);
             Some(tone.pitch.int)
         } else {
             None
+        }
+    }
+
+    pub fn remove_tone(&mut self, tone_id: UniqueId, tuplet_id: Option<UniqueId>) -> bool {
+        match tuplet_id {
+            Some(tuplet_id) => match self.entries.by_id.get_mut(&tuplet_id) {
+                Some(Entry::Tuplet(tuplet)) => tuplet.entries.remove_entry(tone_id).is_some(),
+                _ => false,
+            },
+            None => self.remove_entry(tone_id).is_some(),
         }
     }
 
@@ -325,8 +380,9 @@ impl Track {
         tone_id: UniqueId,
         steps: i8,
         key_signature: &KeySignature,
+        tuplet_id: Option<UniqueId>,
     ) -> Option<u8> {
-        if let Some(Entry::Tone(tone)) = self.entries.by_id.get_mut(&tone_id) {
+        if let Some(tone) = self.get_tone_mut(tone_id, tuplet_id) {
             tone.pitch = tone.pitch.shift_by_steps(steps, key_signature);
             Some(tone.pitch.int)
         } else {
@@ -335,15 +391,39 @@ impl Track {
     }
 
     /// Toggle an articulation on `tone_id` and apply the resulting set to all tones at that tick.
-    pub fn toggle_articulation_at_tone(&mut self, tone_id: UniqueId, articulation: Articulation) {
-        let (tick, resulting_set) = match self.entries.by_id.get(&tone_id) {
-            Some(Entry::Tone(tone)) => {
-                let set = tone.articulations.clone().toggle(articulation);
-                (tone.tick, set)
+    pub fn toggle_articulation_at_tone(
+        &mut self,
+        tone_id: UniqueId,
+        articulation: Articulation,
+        tuplet_id: Option<UniqueId>,
+    ) {
+        match tuplet_id {
+            Some(tuplet_id) => {
+                let Some(Entry::Tuplet(tuplet)) = self.entries.by_id.get_mut(&tuplet_id) else {
+                    return;
+                };
+
+                let (tick, resulting_set) = match tuplet.entries.by_id.get(&tone_id) {
+                    Some(TupletEntry::Tone(tone)) => {
+                        let set = tone.articulations.clone().toggle(articulation);
+                        (tone.tick, set)
+                    }
+                    _ => return,
+                };
+
+                tuplet.entries.apply_articulations_to_tick(tick, &resulting_set);
             }
-            _ => return,
-        };
-        self.apply_articulations_to_tick(tick, &resulting_set);
+            None => {
+                let (tick, resulting_set) = match self.entries.by_id.get(&tone_id) {
+                    Some(Entry::Tone(tone)) => {
+                        let set = tone.articulations.clone().toggle(articulation);
+                        (tone.tick, set)
+                    }
+                    _ => return,
+                };
+                self.apply_articulations_to_tick(tick, &resulting_set);
+            }
+        }
     }
 }
 
@@ -439,12 +519,13 @@ pub fn score_entries_tone_pitch_set(
     tone_id: UniqueId,
     pitch_int: u8,
     accidental: Option<Accidental>,
+    tuplet_id: Option<UniqueId>,
 ) {
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
 
     let track = state.score.tracks.by_id.get_mut(&track_id).unwrap();
-    track.set_tone_pitch(tone_id, pitch_int, accidental);
+    track.set_tone_pitch(tone_id, pitch_int, accidental, tuplet_id);
 
     state.emit_affected_track(&app, &mut renderer, track_id);
 }
@@ -456,12 +537,13 @@ pub fn score_entries_tone_duration_remove(
     renderer_state: State<'_, RendererContextState>,
     track_id: UniqueId,
     tone_id: UniqueId,
+    tuplet_id: Option<UniqueId>,
 ) {
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
 
     let track = state.score.tracks.by_id.get_mut(&track_id).unwrap();
-    track.remove_entry(tone_id);
+    track.remove_tone(tone_id, tuplet_id);
 
     state.ui.sequencer.selection = None;
 
@@ -531,6 +613,7 @@ pub fn score_entries_tone_pitch_shift_by_steps(
     track_id: UniqueId,
     tone_id: UniqueId,
     steps: i8,
+    tuplet_id: Option<UniqueId>,
 ) -> Option<u8> {
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
@@ -540,10 +623,7 @@ pub fn score_entries_tone_pitch_shift_by_steps(
     let master_track = state.score.tracks.by_id.get(&flow.master_id).unwrap();
     let track = state.score.tracks.by_id.get(&track_id).unwrap();
 
-    let tone_tick = match track.entries.by_id.get(&tone_id) {
-        Some(Entry::Tone(tone)) => tone.tick,
-        _ => return None,
-    };
+    let tone_tick = track.resolve_tone_pitch_tick(tone_id, tuplet_id)?;
 
     let key_signature = match master_track.get_key_signature_before_tick_inclusive(tone_tick) {
         Some(key_sig) => key_sig.clone(),
@@ -551,7 +631,7 @@ pub fn score_entries_tone_pitch_shift_by_steps(
     };
 
     let track = state.score.tracks.by_id.get_mut(&track_id).unwrap();
-    let new_pitch = track.shift_tone_pitch_by_steps(tone_id, steps, &key_signature);
+    let new_pitch = track.shift_tone_pitch_by_steps(tone_id, steps, &key_signature, tuplet_id);
 
     state.emit_affected_flows(&app, &mut renderer, &[flow_id]);
 
@@ -566,12 +646,13 @@ pub fn score_entries_tone_pitch_shift_by_octaves(
     track_id: UniqueId,
     tone_id: UniqueId,
     octaves: i8,
+    tuplet_id: Option<UniqueId>,
 ) -> Option<u8> {
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
 
     let track = state.score.tracks.by_id.get_mut(&track_id).unwrap();
-    let new_pitch = track.shift_tone_pitch_by_octaves(tone_id, octaves);
+    let new_pitch = track.shift_tone_pitch_by_octaves(tone_id, octaves, tuplet_id);
 
     state.emit_affected_track(&app, &mut renderer, track_id);
     new_pitch
@@ -585,12 +666,13 @@ pub fn score_entries_tone_accidental_set(
     track_id: UniqueId,
     tone_id: UniqueId,
     accidental: Accidental,
+    tuplet_id: Option<UniqueId>,
 ) -> Option<u8> {
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
 
     let track = state.score.tracks.by_id.get_mut(&track_id).unwrap();
-    let new_pitch = track.set_tone_accidental(tone_id, accidental);
+    let new_pitch = track.set_tone_accidental(tone_id, accidental, tuplet_id);
 
     state.emit_affected_track(&app, &mut renderer, track_id);
 
@@ -605,12 +687,13 @@ pub fn score_entries_tone_articulation_set(
     track_id: UniqueId,
     tone_id: UniqueId,
     articulation: Articulation,
+    tuplet_id: Option<UniqueId>,
 ) {
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
 
     let track = state.score.tracks.by_id.get_mut(&track_id).unwrap();
-    track.toggle_articulation_at_tone(tone_id, articulation);
+    track.toggle_articulation_at_tone(tone_id, articulation, tuplet_id);
 
     state.emit_affected_track(&app, &mut renderer, track_id);
 }
@@ -888,7 +971,7 @@ mod tests {
     fn set_tone_pitch_with_explicit_accidental() {
         use crate::score::entries::Entry;
         let mut track = make_track_with_tone(1, 0, 60, Accidental::Natural);
-        track.set_tone_pitch(1, 62, Some(Accidental::Sharp));
+        track.set_tone_pitch(1, 62, Some(Accidental::Sharp), None);
         if let Some(Entry::Tone(tone)) = track.entries.by_id.get(&1) {
             assert_eq!(tone.pitch.int, 62);
             assert_eq!(tone.pitch.accidental, Accidental::Sharp);
@@ -906,12 +989,123 @@ mod tests {
         let key_sig = KS::new(99, 0, KeySignatureMode::Major, 1);
         track.insert_entry(Entry::KeySignature(key_sig));
         // Set pitch to F# (66) without explicit accidental — should become F#
-        track.set_tone_pitch(1, 66, None);
+        track.set_tone_pitch(1, 66, None, None);
         if let Some(Entry::Tone(tone)) = track.entries.by_id.get(&1) {
             assert_eq!(tone.pitch.accidental, Accidental::Sharp);
         } else {
             panic!("tone not found");
         }
+    }
+
+    #[test]
+    fn set_tone_pitch_updates_tuplet_owned_tone_without_changing_identity_or_timing() {
+        use crate::score::entries::tuplet::TupletEntry;
+        use crate::score::entries::Entry;
+        use crate::score::tracks::Track;
+
+        let mut track = Track::new(1);
+        track
+            .create_tuplet(20, 64, 3, 2, NoteDuration::Eighth, vec![3])
+            .unwrap();
+        track
+            .create_tone(
+                30,
+                16,
+                80,
+                67,
+                Some(Accidental::Natural),
+                80,
+                Articulations::new(),
+                Some(20),
+            )
+            .unwrap();
+
+        track.set_tone_pitch(30, 69, None, Some(20));
+
+        assert!(!track.entries.by_id.contains_key(&30));
+
+        let Some(Entry::Tuplet(tuplet)) = track.entries.by_id.get(&20) else {
+            panic!("expected tuplet entry");
+        };
+        let Some(TupletEntry::Tone(tone)) = tuplet.entries.by_id.get(&30) else {
+            panic!("expected tuplet-owned tone");
+        };
+
+        assert_eq!(tone.id, 30);
+        assert_eq!(tone.tick, 16);
+        assert_eq!(tone.duration, 80);
+        assert_eq!(tone.pitch.int, 69);
+    }
+
+    #[test]
+    fn set_tone_pitch_infers_accidental_from_key_sig_for_tuplet_owned_tone() {
+        use crate::score::entries::key_signature::{KeySignature as KS, KeySignatureMode};
+        use crate::score::entries::tuplet::TupletEntry;
+        use crate::score::entries::Entry;
+        use crate::score::tracks::Track;
+
+        let mut track = Track::new(1);
+        track.insert_entry(Entry::KeySignature(KS::new(
+            99,
+            48,
+            KeySignatureMode::Major,
+            1,
+        )));
+        track
+            .create_tuplet(20, 64, 3, 2, NoteDuration::Eighth, vec![3])
+            .unwrap();
+        track
+            .create_tone(30, 16, 16, 66, None, 80, Articulations::new(), Some(20))
+            .unwrap();
+
+        let Some(Entry::Tuplet(tuplet)) = track.entries.by_id.get(&20) else {
+            panic!("expected tuplet entry");
+        };
+        let Some(TupletEntry::Tone(initial_tone)) = tuplet.entries.by_id.get(&30) else {
+            panic!("expected tuplet-owned tone");
+        };
+        assert_eq!(initial_tone.pitch.accidental, Accidental::Sharp);
+
+        track.set_tone_pitch(30, 66, None, Some(20));
+
+        let Some(Entry::Tuplet(tuplet)) = track.entries.by_id.get(&20) else {
+            panic!("expected tuplet entry");
+        };
+        let Some(TupletEntry::Tone(tone)) = tuplet.entries.by_id.get(&30) else {
+            panic!("expected tuplet-owned tone");
+        };
+
+        assert_eq!(tone.pitch.accidental, Accidental::Sharp);
+    }
+
+    #[test]
+    fn set_tone_pitch_preserves_host_owned_boundary_crossing_tone() {
+        use crate::score::entries::Entry;
+        use crate::score::tracks::Track;
+
+        let mut track = Track::new(1);
+        track.insert_entry(Entry::Tone(Tone::new(
+            1,
+            48,
+            96,
+            Pitch::new(60, Accidental::Natural),
+            Velocity::new(80),
+            Articulations::new(),
+        )));
+        track
+            .create_tuplet(20, 64, 3, 2, NoteDuration::Eighth, vec![3])
+            .unwrap();
+
+        track.set_tone_pitch(1, 62, None, None);
+
+        let Some(Entry::Tone(tone)) = track.entries.by_id.get(&1) else {
+            panic!("expected host-owned tone");
+        };
+
+        assert_eq!(tone.id, 1);
+        assert_eq!(tone.tick, 48);
+        assert_eq!(tone.duration, 96);
+        assert_eq!(tone.pitch.int, 62);
     }
 
     // --- Track::shift_tone_pitch_by_octaves ---
@@ -921,7 +1115,7 @@ mod tests {
         use crate::score::entries::Entry;
         // C4 = 60; up 1 octave = 72
         let mut track = make_track_with_tone(1, 0, 60, Accidental::Natural);
-        let result = track.shift_tone_pitch_by_octaves(1, 1);
+        let result = track.shift_tone_pitch_by_octaves(1, 1, None);
         assert_eq!(result, Some(72));
         if let Some(Entry::Tone(tone)) = track.entries.by_id.get(&1) {
             assert_eq!(tone.pitch.int, 72);
@@ -934,15 +1128,54 @@ mod tests {
     fn shift_tone_pitch_by_octaves_down_one() {
         // C5 = 72; down 1 octave = 60
         let mut track = make_track_with_tone(1, 0, 72, Accidental::Natural);
-        let result = track.shift_tone_pitch_by_octaves(1, -1);
+        let result = track.shift_tone_pitch_by_octaves(1, -1, None);
         assert_eq!(result, Some(60));
     }
 
     #[test]
     fn shift_tone_pitch_by_octaves_returns_none_for_missing_tone() {
         let mut track = make_track_with_tone(1, 0, 60, Accidental::Natural);
-        let result = track.shift_tone_pitch_by_octaves(999, 1);
+        let result = track.shift_tone_pitch_by_octaves(999, 1, None);
         assert_eq!(result, None);
+    }
+
+    #[test]
+    fn shift_tone_pitch_by_octaves_updates_tuplet_owned_tone() {
+        use crate::score::entries::tuplet::TupletEntry;
+        use crate::score::entries::Entry;
+        use crate::score::tracks::Track;
+
+        let mut track = Track::new(1);
+        track
+            .create_tuplet(20, 64, 3, 2, NoteDuration::Eighth, vec![3])
+            .unwrap();
+        track
+            .create_tone(
+                30,
+                16,
+                16,
+                60,
+                Some(Accidental::Natural),
+                80,
+                Articulations::new(),
+                Some(20),
+            )
+            .unwrap();
+
+        let result = track.shift_tone_pitch_by_octaves(30, 1, Some(20));
+
+        assert_eq!(result, Some(72));
+
+        let Some(Entry::Tuplet(tuplet)) = track.entries.by_id.get(&20) else {
+            panic!("expected tuplet entry");
+        };
+        let Some(TupletEntry::Tone(tone)) = tuplet.entries.by_id.get(&30) else {
+            panic!("expected tuplet-owned tone");
+        };
+
+        assert_eq!(tone.pitch.int, 72);
+        assert_eq!(tone.tick, 16);
+        assert_eq!(tone.duration, 16);
     }
 
     // --- Track::set_tone_accidental ---
@@ -952,7 +1185,7 @@ mod tests {
         use crate::score::entries::Entry;
         // C natural (int=60, accidental=Natural, base=60) + Sharp(+1) = 61
         let mut track = make_track_with_tone(1, 0, 60, Accidental::Natural);
-        let result = track.set_tone_accidental(1, Accidental::Sharp);
+        let result = track.set_tone_accidental(1, Accidental::Sharp, None);
         assert_eq!(result, Some(61));
         if let Some(Entry::Tone(tone)) = track.entries.by_id.get(&1) {
             assert_eq!(tone.pitch.accidental, Accidental::Sharp);
@@ -964,8 +1197,79 @@ mod tests {
     #[test]
     fn set_tone_accidental_returns_none_for_missing_tone() {
         let mut track = make_track_with_tone(1, 0, 60, Accidental::Natural);
-        let result = track.set_tone_accidental(999, Accidental::Sharp);
+        let result = track.set_tone_accidental(999, Accidental::Sharp, None);
         assert_eq!(result, None);
+    }
+
+    #[test]
+    fn set_tone_accidental_updates_tuplet_owned_tone() {
+        use crate::score::entries::tuplet::TupletEntry;
+        use crate::score::entries::Entry;
+        use crate::score::tracks::Track;
+
+        let mut track = Track::new(1);
+        track
+            .create_tuplet(20, 64, 3, 2, NoteDuration::Eighth, vec![3])
+            .unwrap();
+        track
+            .create_tone(
+                30,
+                16,
+                16,
+                60,
+                Some(Accidental::Natural),
+                80,
+                Articulations::new(),
+                Some(20),
+            )
+            .unwrap();
+
+        let result = track.set_tone_accidental(30, Accidental::Sharp, Some(20));
+
+        assert_eq!(result, Some(61));
+
+        let Some(Entry::Tuplet(tuplet)) = track.entries.by_id.get(&20) else {
+            panic!("expected tuplet entry");
+        };
+        let Some(TupletEntry::Tone(tone)) = tuplet.entries.by_id.get(&30) else {
+            panic!("expected tuplet-owned tone");
+        };
+
+        assert_eq!(tone.pitch.int, 61);
+        assert_eq!(tone.pitch.accidental, Accidental::Sharp);
+    }
+
+    #[test]
+    fn remove_tone_removes_tuplet_owned_tone() {
+        use crate::score::entries::Entry;
+        use crate::score::tracks::Track;
+
+        let mut track = Track::new(1);
+        track
+            .create_tuplet(20, 64, 3, 2, NoteDuration::Eighth, vec![3])
+            .unwrap();
+        track
+            .create_tone(
+                30,
+                16,
+                16,
+                60,
+                Some(Accidental::Natural),
+                80,
+                Articulations::new(),
+                Some(20),
+            )
+            .unwrap();
+
+        assert!(track.remove_tone(30, Some(20)));
+        assert!(!track.entries.by_id.contains_key(&30));
+
+        let Some(Entry::Tuplet(tuplet)) = track.entries.by_id.get(&20) else {
+            panic!("expected tuplet entry");
+        };
+
+        assert!(!tuplet.entries.by_id.contains_key(&30));
+        assert!(tuplet.entries.by_tick.get(&16).is_none());
     }
 
     // --- Track::create_tone ---
@@ -1304,7 +1608,7 @@ mod tests {
         // C natural (60) up 1 step = D (62)
         let mut track = make_track_with_tone(1, 0, 60, Accidental::Natural);
         let key_sig = KeySignature::default();
-        let result = track.shift_tone_pitch_by_steps(1, 1, &key_sig);
+        let result = track.shift_tone_pitch_by_steps(1, 1, &key_sig, None);
         assert_eq!(result, Some(62));
     }
 
@@ -1312,7 +1616,46 @@ mod tests {
     fn shift_tone_pitch_by_steps_returns_none_for_missing_tone() {
         let mut track = make_track_with_tone(1, 0, 60, Accidental::Natural);
         let key_sig = KeySignature::default();
-        assert_eq!(track.shift_tone_pitch_by_steps(999, 1, &key_sig), None);
+        assert_eq!(track.shift_tone_pitch_by_steps(999, 1, &key_sig, None), None);
+    }
+
+    #[test]
+    fn shift_tone_pitch_by_steps_updates_tuplet_owned_tone() {
+        use crate::score::entries::tuplet::TupletEntry;
+        use crate::score::entries::Entry;
+        use crate::score::tracks::Track;
+
+        let mut track = Track::new(1);
+        track
+            .create_tuplet(20, 64, 3, 2, NoteDuration::Eighth, vec![3])
+            .unwrap();
+        track
+            .create_tone(
+                30,
+                16,
+                16,
+                60,
+                Some(Accidental::Natural),
+                80,
+                Articulations::new(),
+                Some(20),
+            )
+            .unwrap();
+
+        let result = track.shift_tone_pitch_by_steps(30, 1, &KeySignature::default(), Some(20));
+
+        assert_eq!(result, Some(62));
+
+        let Some(Entry::Tuplet(tuplet)) = track.entries.by_id.get(&20) else {
+            panic!("expected tuplet entry");
+        };
+        let Some(TupletEntry::Tone(tone)) = tuplet.entries.by_id.get(&30) else {
+            panic!("expected tuplet-owned tone");
+        };
+
+        assert_eq!(tone.pitch.int, 62);
+        assert_eq!(tone.tick, 16);
+        assert_eq!(tone.duration, 16);
     }
 
     // --- Track::toggle_articulation_at_tone ---
@@ -1322,7 +1665,7 @@ mod tests {
         use crate::score::components::articulation::Articulation;
         use crate::score::entries::Entry;
         let mut track = make_track_with_tone(1, 0, 60, Accidental::Natural);
-        track.toggle_articulation_at_tone(1, Articulation::Staccato);
+        track.toggle_articulation_at_tone(1, Articulation::Staccato, None);
         if let Some(Entry::Tone(tone)) = track.entries.by_id.get(&1) {
             assert!(tone.articulations.contains(&Articulation::Staccato));
         } else {
@@ -1346,7 +1689,7 @@ mod tests {
             arts,
         );
         track.insert_entry(Entry::Tone(tone));
-        track.toggle_articulation_at_tone(1, Articulation::Tenuto);
+        track.toggle_articulation_at_tone(1, Articulation::Tenuto, None);
         if let Some(Entry::Tone(t)) = track.entries.by_id.get(&1) {
             assert!(!t.articulations.contains(&Articulation::Tenuto));
         } else {
@@ -1378,11 +1721,59 @@ mod tests {
         );
         track.insert_entry(Entry::Tone(tone1));
         track.insert_entry(Entry::Tone(tone2));
-        track.toggle_articulation_at_tone(1, Articulation::Staccato);
+        track.toggle_articulation_at_tone(1, Articulation::Staccato, None);
         if let Some(Entry::Tone(t)) = track.entries.by_id.get(&2) {
             assert!(t.articulations.contains(&Articulation::Staccato));
         } else {
             panic!("tone 2 not found");
         }
+    }
+
+    #[test]
+    fn toggle_articulation_propagates_within_tuplet_tick() {
+        use crate::score::components::articulation::Articulation;
+        use crate::score::entries::tuplet::TupletEntry;
+        use crate::score::entries::Entry;
+        use crate::score::tracks::Track;
+
+        let mut track = Track::new(1);
+        track
+            .create_tuplet(20, 64, 3, 2, NoteDuration::Eighth, vec![3])
+            .unwrap();
+        track
+            .create_tone(
+                30,
+                16,
+                16,
+                60,
+                Some(Accidental::Natural),
+                80,
+                Articulations::new(),
+                Some(20),
+            )
+            .unwrap();
+        track
+            .create_tone(
+                31,
+                16,
+                16,
+                64,
+                Some(Accidental::Natural),
+                80,
+                Articulations::new(),
+                Some(20),
+            )
+            .unwrap();
+
+        track.toggle_articulation_at_tone(30, Articulation::Staccato, Some(20));
+
+        let Some(Entry::Tuplet(tuplet)) = track.entries.by_id.get(&20) else {
+            panic!("expected tuplet entry");
+        };
+        let Some(TupletEntry::Tone(tone)) = tuplet.entries.by_id.get(&31) else {
+            panic!("expected tuplet-owned tone");
+        };
+
+        assert!(tone.articulations.contains(&Articulation::Staccato));
     }
 }

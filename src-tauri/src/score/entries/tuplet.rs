@@ -55,6 +55,23 @@ impl TupletEntries {
         self.by_id.insert(entry_id, entry);
     }
 
+    pub fn remove_entry(&mut self, entry_id: UniqueId) -> Option<TupletEntry> {
+        let entry = self.by_id.get(&entry_id)?;
+
+        let tick = match entry {
+            TupletEntry::Tone(tone) => tone.tick,
+        };
+
+        if let Some(ids) = self.by_tick.get_mut(&tick) {
+            ids.retain(|item_id| *item_id != entry_id);
+            if ids.is_empty() {
+                self.by_tick.remove(&tick);
+            }
+        }
+
+        self.by_id.remove(&entry_id)
+    }
+
     pub fn first_articulations_at_tick(
         &self,
         tick: &Tick,

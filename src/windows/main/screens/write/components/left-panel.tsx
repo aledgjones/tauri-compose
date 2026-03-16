@@ -210,6 +210,7 @@ export const LeftPanel: FC<LeftPanelProps> = ({ spanRow }) => {
               if (selection?.type !== "Tone" || !tone) return;
               actions.score.tone.setAccidental(
                 selection.track_id,
+                selection.tuplet_id ?? null,
                 selection.tone_id,
                 a.accidental,
               );
@@ -233,6 +234,7 @@ export const LeftPanel: FC<LeftPanelProps> = ({ spanRow }) => {
               if (selection?.type !== "Tone" || !tone) return;
               actions.score.tone.setArticulation(
                 selection.track_id,
+                selection.tuplet_id ?? null,
                 selection.tone_id,
                 s.articulation,
               );
@@ -257,6 +259,7 @@ export const LeftPanel: FC<LeftPanelProps> = ({ spanRow }) => {
                   if (selection?.type !== "Tone" || !tone) return;
                   actions.score.tone.setArticulation(
                     selection.track_id,
+                    selection.tuplet_id ?? null,
                     selection.tone_id,
                     s.articulation,
                   );
@@ -279,6 +282,7 @@ export const LeftPanel: FC<LeftPanelProps> = ({ spanRow }) => {
                   if (selection?.type !== "Tone" || !tone) return;
                   actions.score.tone.setArticulation(
                     selection.track_id,
+                    selection.tuplet_id ?? null,
                     selection.tone_id,
                     s.articulation,
                   );

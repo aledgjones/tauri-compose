@@ -54,7 +54,7 @@ development_status:
 
   epic-2: in-progress
   2-1-target-tuplet-containers-and-members-reliably: done
-  2-2-edit-pitch-inside-a-tuplet-without-changing-timing: backlog
+  2-2-edit-pitch-inside-a-tuplet-without-changing-timing: done
   2-3-add-and-remove-notes-within-tuplet-slots: backlog
   2-4-reposition-or-resize-tuplet-notes-within-supported-bounds: backlog
   2-5-apply-explicit-mvp-delete-and-slice-rules-for-tuplet-members-and-containers: backlog
