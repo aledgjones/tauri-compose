@@ -38,7 +38,7 @@ project: compose
 project_key: NOKEY
 tracking_system: file-system
 story_location: /Users/aledjones/compose/_bmad-output/implementation-artifacts
-last_updated: 2026-03-15
+last_updated: 2026-03-16
 
 development_status:
   epic-1: done
@@ -52,8 +52,8 @@ development_status:
   1-7-keep-versioning-and-offline-desktop-behavior-intact-for-tuplet-files: done
   epic-1-retrospective: done
 
-  epic-2: backlog
-  2-1-target-tuplet-containers-and-members-reliably: backlog
+  epic-2: in-progress
+  2-1-target-tuplet-containers-and-members-reliably: done
   2-2-edit-pitch-inside-a-tuplet-without-changing-timing: backlog
   2-3-add-and-remove-notes-within-tuplet-slots: backlog
   2-4-reposition-or-resize-tuplet-notes-within-supported-bounds: backlog

@@ -183,6 +183,7 @@ export const actions = {
         stave_id: number,
         flow_id: number,
         instrument_id: number,
+        tuplet_id?: number,
       ) => {
         return invoke("ui_sequencer_selection_set_rest", {
           tick,
@@ -190,6 +191,7 @@ export const actions = {
           stave_id,
           flow_id,
           instrument_id,
+          tuplet_id: tuplet_id ?? null,
         });
       },
       selectTempo: (tempo_id: number, flow_id: number, tick: number) => {

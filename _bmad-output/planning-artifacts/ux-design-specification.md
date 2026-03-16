@@ -306,12 +306,12 @@ Foundational triplet support needs explicit sequencer behavior, not just data-mo
 
 #### Selection and Editing Feedback
 
-- The sequencer should visually distinguish selection of the tuplet container, a note inside the tuplet region, and an empty tuplet slot.
-- Container selection should target the tuplet bracket/region treatment and highlight it in blue, consistent with other selected entries.
+- In the sequencer, tuplet regions are visual-only context. The sequencer should select tones inside the region, not the tuplet container or empty tuplet space.
 - Immediately after tuplet creation, the newly created tuplet container should become the active selection so the behavior matches other creation patterns for entries such as tones and tempo.
 - Child-note selection should behave like any other note selection and highlight the selected note in blue.
-- Empty-slot selection should reuse the product's existing rest-selection treatment rather than introducing a new custom selected-empty-slot visual language.
-- Hover, selected, and active-edit states should make it clear whether the user is acting on the container boundary or on content inside it.
+- Empty tuplet space in the sequencer should behave like ordinary non-note background rather than a selectable rest or tuplet target.
+- Selection-driven UI outside the lane should still treat tuplet child tones like ordinary tones for read-only feedback. In particular, write-screen note-value controls should highlight the selected tuplet child's literal stored duration the same way they do for host-track tones.
+- This incremental step should not add a special disabled-state treatment in the left panel for tuplet child tones. Whether those controls fully mutate tuplet-child duration correctly remains later edit-story scope.
 - Tuplet boundaries adjacent to non-tuplet material should remain legible during hover and selection so ownership does not become ambiguous at the seam.
 - Unsupported edits should follow the product's existing rejection behavior and surface local inline feedback at the point of interaction rather than silently snapping or relying on distant global messaging.
 

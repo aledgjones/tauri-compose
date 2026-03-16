@@ -11,6 +11,7 @@ import {
 import { BravuraIconButton } from "../../../../../ui/buttons/bravura-icon-button";
 import { SMuFL } from "../../../../../ui/buttons/smufl";
 import { noteDurationToTicks } from "../../../../../services/utils";
+import { getSelectedTone } from "../../../hooks/use-selected-tone-info";
 
 type LeftPanelProps = { spanRow: boolean };
 
@@ -20,30 +21,30 @@ const ARTICULATIONS: {
   title: string;
   offset?: number;
 }[] = [
-    {
-      articulation: Articulation.Staccatissimo,
-      glyph: SMuFL.Staccatissimo,
-      title: "Staccatissimo",
-      offset: 3,
-    },
-    {
-      articulation: Articulation.Staccato,
-      glyph: SMuFL.Staccato,
-      title: "Staccato",
-    },
-    {
-      articulation: Articulation.StaccatoTenuto,
-      glyph: SMuFL.StaccatoTenuto,
-      title: "Staccato Tenuto",
-      offset: 3,
-    },
-    {
-      articulation: Articulation.Tenuto,
-      glyph: SMuFL.Tenuto,
-      title: "Tenuto",
-      offset: -1,
-    },
-  ];
+  {
+    articulation: Articulation.Staccatissimo,
+    glyph: SMuFL.Staccatissimo,
+    title: "Staccatissimo",
+    offset: 3,
+  },
+  {
+    articulation: Articulation.Staccato,
+    glyph: SMuFL.Staccato,
+    title: "Staccato",
+  },
+  {
+    articulation: Articulation.StaccatoTenuto,
+    glyph: SMuFL.StaccatoTenuto,
+    title: "Staccato Tenuto",
+    offset: 3,
+  },
+  {
+    articulation: Articulation.Tenuto,
+    glyph: SMuFL.Tenuto,
+    title: "Tenuto",
+    offset: -1,
+  },
+];
 
 const ACCENTUATIONS: {
   articulation: Articulation;
@@ -51,19 +52,19 @@ const ACCENTUATIONS: {
   title: string;
   offset?: number;
 }[] = [
-    {
-      articulation: Articulation.Accent,
-      glyph: SMuFL.Accent,
-      title: "Accent",
-      offset: 3,
-    },
-    {
-      articulation: Articulation.Marcato,
-      glyph: SMuFL.Marcato,
-      title: "Marcato",
-      offset: 3,
-    },
-  ];
+  {
+    articulation: Articulation.Accent,
+    glyph: SMuFL.Accent,
+    title: "Accent",
+    offset: 3,
+  },
+  {
+    articulation: Articulation.Marcato,
+    glyph: SMuFL.Marcato,
+    title: "Marcato",
+    offset: 3,
+  },
+];
 
 const STRESSES: {
   articulation: Articulation;
@@ -71,19 +72,19 @@ const STRESSES: {
   title: string;
   offset?: number;
 }[] = [
-    {
-      articulation: Articulation.Stressed,
-      glyph: SMuFL.Stressed,
-      title: "Stressed",
-      offset: 3,
-    },
-    {
-      articulation: Articulation.Unstressed,
-      glyph: SMuFL.Unstressed,
-      title: "Unstressed",
-      offset: 3,
-    },
-  ];
+  {
+    articulation: Articulation.Stressed,
+    glyph: SMuFL.Stressed,
+    title: "Stressed",
+    offset: 3,
+  },
+  {
+    articulation: Articulation.Unstressed,
+    glyph: SMuFL.Unstressed,
+    title: "Unstressed",
+    offset: 3,
+  },
+];
 
 const ACCIDENTALS: {
   accidental: Accidental;
@@ -91,20 +92,20 @@ const ACCIDENTALS: {
   title: string;
   offset?: number;
 }[] = [
-    {
-      accidental: Accidental.Natural,
-      glyph: SMuFL.Natural,
-      title: "Natural",
-      offset: -2,
-    },
-    { accidental: Accidental.Flat, glyph: SMuFL.Flat, title: "Flat", offset: 3 },
-    {
-      accidental: Accidental.Sharp,
-      glyph: SMuFL.Sharp,
-      title: "Sharp",
-      offset: -2,
-    },
-  ];
+  {
+    accidental: Accidental.Natural,
+    glyph: SMuFL.Natural,
+    title: "Natural",
+    offset: -2,
+  },
+  { accidental: Accidental.Flat, glyph: SMuFL.Flat, title: "Flat", offset: 3 },
+  {
+    accidental: Accidental.Sharp,
+    glyph: SMuFL.Sharp,
+    title: "Sharp",
+    offset: -2,
+  },
+];
 
 const DURATIONS: {
   duration: number;
@@ -112,43 +113,43 @@ const DURATIONS: {
   title: string;
   offset?: number;
 }[] = [
-    {
-      duration: noteDurationToTicks(NoteDuration.Whole),
-      glyph: SMuFL.WholeNote,
-      title: "Whole",
-      offset: -1,
-    },
-    {
-      duration: noteDurationToTicks(NoteDuration.Half),
-      glyph: SMuFL.HalfNote,
-      title: "Half",
-      offset: 9,
-    },
-    {
-      duration: noteDurationToTicks(NoteDuration.Quarter),
-      glyph: SMuFL.QuarterNote,
-      title: "Quarter",
-      offset: 9,
-    },
-    {
-      duration: noteDurationToTicks(NoteDuration.Eighth),
-      glyph: SMuFL.EighthNote,
-      title: "Eighth",
-      offset: 9,
-    },
-    {
-      duration: noteDurationToTicks(NoteDuration.Sixteenth),
-      glyph: SMuFL.SixteenthNote,
-      title: "Sixteenth",
-      offset: 9,
-    },
-    {
-      duration: noteDurationToTicks(NoteDuration.ThirtySecond),
-      glyph: SMuFL.ThirtySecondNote,
-      title: "Thirty-Second",
-      offset: 11,
-    },
-  ];
+  {
+    duration: noteDurationToTicks(NoteDuration.Whole),
+    glyph: SMuFL.WholeNote,
+    title: "Whole",
+    offset: -1,
+  },
+  {
+    duration: noteDurationToTicks(NoteDuration.Half),
+    glyph: SMuFL.HalfNote,
+    title: "Half",
+    offset: 9,
+  },
+  {
+    duration: noteDurationToTicks(NoteDuration.Quarter),
+    glyph: SMuFL.QuarterNote,
+    title: "Quarter",
+    offset: 9,
+  },
+  {
+    duration: noteDurationToTicks(NoteDuration.Eighth),
+    glyph: SMuFL.EighthNote,
+    title: "Eighth",
+    offset: 9,
+  },
+  {
+    duration: noteDurationToTicks(NoteDuration.Sixteenth),
+    glyph: SMuFL.SixteenthNote,
+    title: "Sixteenth",
+    offset: 9,
+  },
+  {
+    duration: noteDurationToTicks(NoteDuration.ThirtySecond),
+    glyph: SMuFL.ThirtySecondNote,
+    title: "Thirty-Second",
+    offset: 11,
+  },
+];
 
 export const LeftPanel: FC<LeftPanelProps> = ({ spanRow }) => {
   const state = useAppState();
@@ -165,12 +166,7 @@ export const LeftPanel: FC<LeftPanelProps> = ({ spanRow }) => {
       return null;
     }
 
-    const entry = track.entries.by_id[selection.tone_id];
-    if (!entry || entry.type !== "Tone") {
-      return null;
-    }
-
-    return entry as Tone;
+    return getSelectedTone(track, selection.tone_id, selection.tuplet_id);
   }, [selection, state.score.tracks.by_id]);
 
   return (

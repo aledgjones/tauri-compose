@@ -1069,6 +1069,7 @@ mod tests {
             stave_id: 131,
             track_id: 130,
             tick: 32,
+            tuplet_id: None,
         });
         state.ui.screens.setup.selection = Some(
             serde_json::from_value(json!({

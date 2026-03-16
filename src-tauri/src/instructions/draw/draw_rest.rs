@@ -57,6 +57,7 @@ pub fn draw_rest(
                 stave_id,
                 track_id,
                 tick,
+                tuplet_id: None,
             },
             x: left,
             y: top - 0.25,
@@ -129,6 +130,7 @@ pub fn draw_rest(
                 stave_id,
                 track_id,
                 tick,
+                tuplet_id: None,
             },
             x: left,
             y: top - hit_top_offset,
@@ -239,6 +241,7 @@ mod tests {
             stave_id: 1,
             flow_id: 1,
             instrument_id: 1,
+            tuplet_id: None,
         };
         draw_rest(
             &Point { x: 0.0, y: 0.0 },

@@ -1,10 +1,17 @@
 import { UniqueId } from "./types";
 
-export interface ClickTarget {
-  type: "Tone" | "Tuplet" | null;
+type ToneClickTarget = {
+  type: "Tone";
   id: UniqueId;
   tuplet_id?: UniqueId;
-}
+};
+
+type TupletClickTarget = {
+  type: "Tuplet";
+  id: UniqueId;
+};
+
+export type ClickTarget = ToneClickTarget | TupletClickTarget;
 
 /**
  * Determines what was clicked in the sequencer based on a pointer event

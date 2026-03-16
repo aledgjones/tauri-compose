@@ -28,6 +28,7 @@ pub enum Selection {
         stave_id: UniqueId,
         track_id: UniqueId,
         tick: u64,
+        tuplet_id: Option<UniqueId>,
     },
     Tempo {
         flow_id: UniqueId,
@@ -246,6 +247,7 @@ pub fn ui_sequencer_selection_set_rest(
     stave_id: UniqueId,
     track_id: UniqueId,
     tick: u64,
+    tuplet_id: Option<UniqueId>,
 ) {
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
@@ -267,6 +269,7 @@ pub fn ui_sequencer_selection_set_rest(
             stave_id,
             track_id,
             tick,
+            tuplet_id,
         },
     );
     sync_transport_to_app_state(transport_shared.inner(), &state, 0);

@@ -205,6 +205,7 @@ mod tests {
             stave_id: 3,
             track_id: 4,
             tick: 64,
+            tuplet_id: None,
         };
         let ui_renderer = renderer::Renderer {
             zoom: 150,
@@ -220,6 +221,7 @@ mod tests {
                     stave_id: 3,
                     track_id: 4,
                     tick: 64,
+                    tuplet_id: None,
                 },
                 x: 24.8,
                 y: 6.0,

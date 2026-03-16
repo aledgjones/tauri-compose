@@ -41,7 +41,27 @@ const getTickFromSelection = (state: AppState) => {
 
   if (selection.type === "Tone") {
     const track = state.score.tracks.by_id[selection.track_id];
-    const tone = track?.entries.by_id[selection.tone_id];
+    if (!track) {
+      return null;
+    }
+
+    if (selection.tuplet_id !== undefined && selection.tuplet_id !== null) {
+      const tuplet = track.entries.by_id[selection.tuplet_id];
+
+      if (!tuplet || tuplet.type !== "Tuplet") {
+        return null;
+      }
+
+      const tone = tuplet.entries.by_id[selection.tone_id];
+
+      if (!tone || tone.type !== "Tone") {
+        return null;
+      }
+
+      return tone.tick;
+    }
+
+    const tone = track.entries.by_id[selection.tone_id];
 
     if (!tone || tone.type !== "Tone") {
       return null;

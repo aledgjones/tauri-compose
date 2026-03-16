@@ -71,6 +71,18 @@ describe("getSequencerClickTarget", () => {
     expect(result).toEqual({ type: "Tone", id: 99, tuplet_id: 17 });
   });
 
+  it("keeps tone precedence over tuplet container ancestry", () => {
+    const tuplet = document.createElement("div");
+    tuplet.setAttribute("data-tuplet-id", "17");
+    const tone = document.createElement("div");
+    tone.setAttribute("data-tone-id", "99");
+    tuplet.appendChild(tone);
+    container.appendChild(tuplet);
+
+    const result = getSequencerClickTarget(tone);
+    expect(result).toEqual({ type: "Tone", id: 99, tuplet_id: 17 });
+  });
+
   it("id is parsed as a number", () => {
     const el = document.createElement("div");
     el.setAttribute("data-tone-id", "123");

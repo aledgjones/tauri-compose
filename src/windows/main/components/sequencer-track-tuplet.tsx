@@ -1,6 +1,7 @@
 import { FC } from "react";
 import classNames from "classnames";
 import { Tuplet } from "../../../services/types";
+import { useAppState } from "../../../services/state";
 import { getTupletHostTicks, hexToRgba } from "./sequencer-tuplet-utils";
 
 type Props = {
@@ -18,10 +19,16 @@ export const SequencerTrackTuplet: FC<Props> = ({
   color,
   barTicks,
 }) => {
+  const selection = useAppState().ui.sequencer.selection;
   const width = getTupletHostTicks(tuplet) * tickWidth;
   const slotWidth = width / tuplet.note_count;
   const hostTicks = getTupletHostTicks(tuplet);
   const fillColor = hexToRgba(color, 0.04);
+  const hasSelectedTone =
+    selection !== null &&
+    selection.type === "Tone" &&
+    selection.tuplet_id === tuplet.id;
+  const selectedState = hasSelectedTone ? "tone" : "none";
 
   return (
     <div
@@ -32,10 +39,23 @@ export const SequencerTrackTuplet: FC<Props> = ({
         height,
       }}
       data-tuplet-id={tuplet.id}
+      data-selected-state={selectedState}
     >
       <div
-        className={classNames("absolute inset-0 rounded-md")}
+        className={classNames("absolute inset-0 rounded-md border", {
+          "border-neutral-500": hasSelectedTone,
+          "border-neutral-700": !hasSelectedTone,
+        })}
         style={{ backgroundColor: fillColor }}
+      />
+      <div
+        className={classNames(
+          "absolute left-1 right-1 top-1 h-1 rounded-full",
+          {
+            "bg-neutral-500": hasSelectedTone,
+            "bg-neutral-700": !hasSelectedTone,
+          },
+        )}
       />
       {Array.from({ length: tuplet.note_count + 1 }, (_, index) => {
         const left = slotWidth * index;

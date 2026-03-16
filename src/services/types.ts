@@ -404,6 +404,7 @@ type RestSelection = {
   stave_id: UniqueId;
   track_id: UniqueId;
   tick: number;
+  tuplet_id?: UniqueId | null;
 };
 
 type TempoSelection = {

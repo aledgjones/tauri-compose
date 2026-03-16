@@ -300,6 +300,74 @@ describe("useSelectedToneInfo", () => {
     expect(result.current).toBeNull();
   });
 
+  it("resolves tuplet-owned tones through the shared summary contract", () => {
+    const tupletId = 444;
+    const tupletToneId = 445;
+    const state = createAppState({
+      score: {
+        ...buildBaseScore(),
+        tracks: {
+          by_id: {
+            [TRACK_ID]: {
+              id: TRACK_ID,
+              entries: {
+                by_tick: {
+                  [64]: [tupletId],
+                },
+                by_id: {
+                  [tupletId]: {
+                    id: tupletId,
+                    tick: 64,
+                    type: "Tuplet",
+                    note_count: 3,
+                    in_space_of: 2,
+                    base_note_value: 8,
+                    groupings: [3],
+                    entries: {
+                      by_tick: { 0: [tupletToneId] },
+                      by_id: {
+                        [tupletToneId]: {
+                          id: tupletToneId,
+                          tick: 0,
+                          type: "Tone",
+                          duration: 16,
+                          pitch: { int: 67, accidental: Accidental.Natural },
+                          velocity: { int: 100 },
+                          articulations: [],
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      } as never,
+      ui: {
+        sequencer: {
+          selection: {
+            type: "Tone",
+            flow_id: FLOW_ID,
+            instrument_id: INSTRUMENT_ID,
+            stave_id: STAVE_ID,
+            track_id: TRACK_ID,
+            tone_id: tupletToneId,
+            tuplet_id: tupletId,
+          },
+        },
+      } as never,
+    });
+
+    const { result } = renderHook(() => useSelectedToneInfo(), {
+      wrapper: createWrapper({ appState: state }),
+    });
+
+    expect(result.current?.instrumentName).toBe("Piano");
+    expect(result.current?.noteName).toBeDefined();
+    expect(result.current?.trackLabel).toContain("voice");
+  });
+
   it('returns { noteName: "Rest", instrumentName, trackLabel } for Rest selection', () => {
     const score = buildBaseScore();
     const state = createAppState({

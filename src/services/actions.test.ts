@@ -267,6 +267,7 @@ describe("actions.ui", () => {
           stave_id: 3,
           flow_id: 4,
           instrument_id: 5,
+          tuplet_id: null,
         },
       );
     });

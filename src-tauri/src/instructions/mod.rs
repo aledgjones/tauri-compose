@@ -1459,6 +1459,7 @@ mod tests {
                         stave_id: 2000,
                         instrument_id: 20000,
                         tick: 32,
+                        tuplet_id: None,
                     },
                     x: 0.5,
                     y: 1.0,
@@ -1512,6 +1513,7 @@ mod tests {
                 stave_id: 2000,
                 instrument_id: 20000,
                 tick: 32,
+                tuplet_id: None,
             }
         );
         assert_eq!(

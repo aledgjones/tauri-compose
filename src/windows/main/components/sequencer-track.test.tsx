@@ -34,6 +34,7 @@ vi.mock("../../../services/actions", () => ({
     ui: {
       sequencer: {
         selectTone: vi.fn().mockResolvedValue(undefined),
+        selectRest: vi.fn().mockResolvedValue(undefined),
         selectTuplet: vi.fn().mockResolvedValue(undefined),
         clearSelection: vi.fn().mockResolvedValue(undefined),
       },
@@ -477,7 +478,7 @@ describe("SequencerTrack", () => {
     ).toHaveLength(1);
   });
 
-  it("selects a tuplet container when its region is clicked", () => {
+  it("clears selection when empty tuplet region space is clicked with the select tool", () => {
     const tuplet = makeTuplet();
     const { container } = renderWithProviders(
       <SequencerTrack {...defaultProps} track={makeTrackWithTuplet(tuplet)} />,
@@ -488,13 +489,66 @@ describe("SequencerTrack", () => {
     ) as HTMLElement;
     fireEvent.pointerDown(target, { clientX: 390, clientY: 120 });
 
-    expect(actions.ui.sequencer.selectTuplet).toHaveBeenCalledWith(
-      1,
-      1,
-      20,
-      5,
-      11,
-      96,
+    expect(actions.ui.sequencer.clearSelection).toHaveBeenCalled();
+    expect(actions.ui.sequencer.selectTuplet).not.toHaveBeenCalled();
+    expect(actions.ui.sequencer.selectTone).not.toHaveBeenCalled();
+  });
+
+  it("only reflects tone-owned selection state on the tuplet region", () => {
+    const tuplet = makeTuplet({
+      entries: {
+        by_tick: { 16: [101] },
+        by_id: { 101: makeTupletTone(101, 16) },
+      },
+    });
+
+    const toneState = createAppState({
+      ui: {
+        sequencer: {
+          selection: {
+            type: "Tone",
+            flow_id: 1,
+            instrument_id: 1,
+            stave_id: 20,
+            track_id: 5,
+            tone_id: 101,
+            tuplet_id: 11,
+          },
+        },
+      } as never,
+    });
+    const restState = createAppState({
+      ui: {
+        sequencer: {
+          selection: {
+            type: "Rest",
+            flow_id: 1,
+            instrument_id: 1,
+            stave_id: 20,
+            track_id: 5,
+            tick: 0,
+            tuplet_id: 11,
+          },
+        },
+      } as never,
+    });
+
+    const { container: toneSelected } = renderWithProviders(
+      <SequencerTrack {...defaultProps} track={makeTrackWithTuplet(tuplet)} />,
+      { appState: toneState },
+    );
+    const { container: restSelected } = renderWithProviders(
+      <SequencerTrack {...defaultProps} track={makeTrackWithTuplet(tuplet)} />,
+      { appState: restState },
+    );
+
+    expect(toneSelected.querySelector('[data-tuplet-id="11"]')).toHaveAttribute(
+      "data-selected-state",
+      "tone",
+    );
+    expect(restSelected.querySelector('[data-tuplet-id="11"]')).toHaveAttribute(
+      "data-selected-state",
+      "none",
     );
   });
 

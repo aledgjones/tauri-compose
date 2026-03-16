@@ -502,6 +502,8 @@ So that I can edit tuplets without ambiguity about what I selected.
 **When** selection metadata is shown in the bottom bar or equivalent selection-summary surface
 **Then** the product shows the selected tone's pitch, instrument, and stave/voice context using the same descriptive contract as host-track tone selection
 **And** tuplet membership does not cause the selection summary to fall back to "No selection" or omit note identity details
+**And** write-screen note-value controls such as the left-panel duration buttons reflect the selected tuplet child's literal stored duration the same way they do for host-track tones
+**And** actually mutating tuplet-child duration through those controls remains later edit-story scope rather than part of this selection-hardening story
 
 **Given** an empty tuplet slot is targeted as rest content
 **When** the selection state is shown

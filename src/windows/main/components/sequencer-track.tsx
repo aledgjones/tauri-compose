@@ -518,7 +518,7 @@ const handleSelectTool = async (
 ) => {
   const clickTarget = getSequencerClickTarget(e.target as HTMLElement);
 
-  if (clickTarget === null) {
+  if (clickTarget === null || clickTarget.type === "Tuplet") {
     await actions.ui.sequencer.clearSelection();
     return;
   }
@@ -527,23 +527,6 @@ const handleSelectTool = async (
 
   if (!stave_id) {
     console.error("Could not find stave for track", track.id);
-    return;
-  }
-
-  if (clickTarget.type === "Tuplet") {
-    const originalEntry = track.entries.by_id[clickTarget.id];
-    if (!originalEntry || originalEntry.type !== "Tuplet") {
-      return;
-    }
-
-    await actions.ui.sequencer.selectTuplet(
-      flow.id,
-      instrumentId,
-      stave_id,
-      track.id,
-      originalEntry.id,
-      originalEntry.tick,
-    );
     return;
   }
 
