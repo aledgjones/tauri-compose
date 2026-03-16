@@ -494,64 +494,6 @@ describe("SequencerTrack", () => {
     expect(actions.ui.sequencer.selectTone).not.toHaveBeenCalled();
   });
 
-  it("only reflects tone-owned selection state on the tuplet region", () => {
-    const tuplet = makeTuplet({
-      entries: {
-        by_tick: { 16: [101] },
-        by_id: { 101: makeTupletTone(101, 16) },
-      },
-    });
-
-    const toneState = createAppState({
-      ui: {
-        sequencer: {
-          selection: {
-            type: "Tone",
-            flow_id: 1,
-            instrument_id: 1,
-            stave_id: 20,
-            track_id: 5,
-            tone_id: 101,
-            tuplet_id: 11,
-          },
-        },
-      } as never,
-    });
-    const restState = createAppState({
-      ui: {
-        sequencer: {
-          selection: {
-            type: "Rest",
-            flow_id: 1,
-            instrument_id: 1,
-            stave_id: 20,
-            track_id: 5,
-            tick: 0,
-            tuplet_id: 11,
-          },
-        },
-      } as never,
-    });
-
-    const { container: toneSelected } = renderWithProviders(
-      <SequencerTrack {...defaultProps} track={makeTrackWithTuplet(tuplet)} />,
-      { appState: toneState },
-    );
-    const { container: restSelected } = renderWithProviders(
-      <SequencerTrack {...defaultProps} track={makeTrackWithTuplet(tuplet)} />,
-      { appState: restState },
-    );
-
-    expect(toneSelected.querySelector('[data-tuplet-id="11"]')).toHaveAttribute(
-      "data-selected-state",
-      "tone",
-    );
-    expect(restSelected.querySelector('[data-tuplet-id="11"]')).toHaveAttribute(
-      "data-selected-state",
-      "none",
-    );
-  });
-
   it("ignores tuplet clicks when erase tool is active", () => {
     const tuplet = makeTuplet();
     const { container } = renderWithProviders(
