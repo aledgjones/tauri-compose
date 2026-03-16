@@ -38,6 +38,7 @@ project: compose
 project_key: NOKEY
 tracking_system: file-system
 story_location: /Users/aledjones/compose/_bmad-output/implementation-artifacts
+last_updated: 2026-03-15
 
 development_status:
   epic-1: done
@@ -49,7 +50,7 @@ development_status:
   1-5-create-tuplets-over-existing-material-without-losing-ownership: done
   1-6-round-trip-tuplet-data-through-save-load-and-migration: done
   1-7-keep-versioning-and-offline-desktop-behavior-intact-for-tuplet-files: done
-  epic-1-retrospective: optional
+  epic-1-retrospective: done
 
   epic-2: backlog
   2-1-target-tuplet-containers-and-members-reliably: backlog

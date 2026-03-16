@@ -43,3 +43,11 @@ When connected to atlassian-rovo-mcp:
 - **MUST** ensure shipped release states contain only concrete versioned migrations; `src-tauri/src/migrations/next.rs` is development-only and must be promoted/reseeded by the human prepare/finalize flow
 - **MUST** update relevant docs whenever `.soloc` file-format behavior, persistence architecture, or migration rules change
 - **MUST NOT** merge persisted-data changes that break older files without the required migration update and explicit migration-impact note
+
+## Story And Review Discipline
+
+- **MUST** continue to surface real bugs, missing requirements, and architectural risks during review, even when related future work exists
+- **MUST** cross-reference planned future stories or explicitly deferred scope before classifying a concern as a defect in the current story; do not treat already-accounted-for future work as missing implementation in a stepping-stone story
+- **MUST** distinguish between “current-story defect” and “valid concern owned by future work” in review output so scope is enforced without hiding real problems
+- **MUST** ask clarifying questions before starting implementation when a story contains ambiguous or subjective decisions about behavior, UX, architecture, or quality expectations
+- **MUST** prefer extending and refining existing APIs and seams over introducing parallel or duplicate flows unless the spec explicitly requires a new surface
