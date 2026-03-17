@@ -1,6 +1,6 @@
 # Story 2.5: Apply Explicit MVP Delete and Slice Rules for Tuplet Members and Containers
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 

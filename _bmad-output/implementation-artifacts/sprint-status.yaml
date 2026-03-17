@@ -57,7 +57,7 @@ development_status:
   2-2-edit-pitch-inside-a-tuplet-without-changing-timing: done
   2-3-add-and-remove-notes-within-tuplet-slots: done
   2-4-reposition-or-resize-tuplet-notes-within-supported-bounds: done
-  2-5-apply-explicit-mvp-delete-and-slice-rules-for-tuplet-members-and-containers: review
+  2-5-apply-explicit-mvp-delete-and-slice-rules-for-tuplet-members-and-containers: done
   epic-2-retrospective: optional
 
   epic-3: backlog
