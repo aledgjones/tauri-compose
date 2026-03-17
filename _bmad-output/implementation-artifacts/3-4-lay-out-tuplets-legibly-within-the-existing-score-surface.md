@@ -14,6 +14,9 @@ so that numbers, brackets, and notes stay readable in normal work.
 
 - This story owns spacing and layout behavior for tuplets inside the existing native score surface after Stories 3.1 through 3.3 have established parser output, bracket/number chrome, and coherent note/rest/tie/beam rendering.
 - Tuplets should fit the existing score spacing model, not create a parallel tuplet-only layout system.
+- Story 3.4 assumes the parser and renderer contract already distinguishes written duration from projected host occupancy, and that the isolated anchored local `NotationTrack` from Story 3.1 contains the stable local notation structure needed for spacing to perform the local spacing pass here without redesigning the parser contract.
+- Story 3.4 also inherits the tuplet carry-forward invariants via Story 3.1; spacing should consume that established boundary/projection model rather than invent a separate layout-time interpretation.
+- Story 3.4 resolves tuplet width by comparing two widths for the governed span: the ambient host spacing already implied by surrounding score layout across that span, and the width required by the tuplet's local content. The implementation should then widen the host span if the tuplet needs more room, or stretch the tuplet-local positions to fill the ambient span if the ambient span is already wider.
 - Reuse the existing slot patterns and spread them across the tuplet-governed span rather than adding new tuplet-specific spacing slots unless absolutely necessary.
 - New spacing slots are a last resort here. The current project rule is that horizontal spacing slots are for flow spacing only and slot additions should be rare. Story 3.4 should assume tuplets normally do not need new slots.
 - This story may widen ambient host spacing when the derived tuplet unit needs more room, or stretch child-local positions when ambient spacing is already sufficient.
@@ -21,32 +24,37 @@ so that numbers, brackets, and notes stay readable in normal work.
 
 ## Acceptance Criteria
 
-1. Given a score containing supported tuplets, when spacing is calculated, then tuplet-local layout can claim enough width for readable note spacing, brackets, and numbers and surrounding score spacing expands when required by the derived notation.
+1. Given a score containing supported tuplets, when spacing is calculated, then the implementation compares the ambient host spacing already implied across the governed span against the width required by the tuplet's local content and chooses the wider of the two as the rendered span width.
 2. Given tuplets are laid out inside the existing score spacing system, when spacing slots are assigned, then the implementation reuses the existing slot patterns and spreads them across the tuplet-governed span rather than adding new tuplet-specific slots unless absolutely necessary and any new slot requires explicit justification because tuplets should normally fit the current slot model.
-3. Given the ambient score context already provides sufficient width, when the tuplet is laid out, then local note positions stretch coherently within the available span and the notation remains aligned with the surrounding score surface.
-4. Given tuplets begin or end next to non-tuplet material, when layout and hit targets are refreshed, then number placement, collision avoidance, and targeting remain legible and stable and the adjacent material remains distinguishable.
+3. Given the tuplet-required local width is greater than the ambient host spacing across the governed span, when the tuplet is laid out, then the difference is added back into the host span by distributing the extra width evenly across the governed host ticks so surrounding tracks and adjacent notation stay aligned.
+4. Given the ambient host spacing across the governed span is already wider than the tuplet-required local width, when the tuplet is laid out, then the excess width is distributed evenly across the tuplet-local ticks so child notation stretches coherently within the available span and remains aligned with the surrounding score surface.
+5. Given tuplets begin or end next to non-tuplet material, when layout and hit targets are refreshed, then number placement, collision avoidance, and targeting remain legible and stable and the adjacent material remains distinguishable.
 
 ## Tasks / Subtasks
 
-- [ ] Fit tuplet spacing into the existing horizontal-spacing model rather than adding a tuplet-only layout path (AC: 1, 2, 3, 4)
+- [ ] Fit tuplet spacing into the existing horizontal-spacing model rather than adding a tuplet-only layout path (AC: 1, 2, 3, 4, 5)
   - [ ] Review and extend `src-tauri/src/instructions/parse/get_horizontal_spacing.rs` so tuplet-derived content participates in the current widest-needed-spacing calculation.
+  - [ ] Calculate the ambient host width already implied across the governed span from the existing spacing model before deciding whether the tuplet needs to widen that span.
+  - [ ] Run the local spacing pass here against the stable anchored `NotationTrack` exposed by the tuplet contract when comparing tuplet-required width against ambient host width.
   - [ ] Preserve the current `HorizontalSpacing` and `Slot` model as the default. Do not add tuplet-specific slots unless implementation proves an existing slot cannot support a required readable outcome.
   - [ ] If a new slot turns out to be unavoidable, document why existing slots could not carry the requirement and keep the addition as narrow as possible.
-- [ ] Reuse existing slot positions and spread them through the tuplet-governed span (AC: 1, 2, 3)
+- [ ] Reuse existing slot positions and spread them through the tuplet-governed span (AC: 1, 2, 3, 4)
   - [ ] Reuse `Slot::NoteSpacing` and other existing slot positions where tuplets need horizontal room, rather than treating tuplet markings as justification for generic new anchors.
-  - [ ] Map or stretch local tuplet positions coherently through the consumed host span so the child notation remains aligned with the surrounding score.
+  - [ ] When the tuplet-required width exceeds the ambient host span width, distribute the extra width evenly across the governed host ticks so the widened base spacing remains shared by aligned tracks.
+  - [ ] When the ambient host span width already exceeds the tuplet-required width, distribute the excess evenly across the tuplet-local ticks so child notation stretches coherently within the available span.
   - [ ] Keep tuplet layout attached to the isolated tuplet unit already established in Stories 3.1 through 3.3.
-- [ ] Preserve ambient-width expansion and in-span stretching behavior for tuplets (AC: 1, 3, 4)
-  - [ ] Expand surrounding host spacing when the child notation plus bracket/number needs more width than the consumed host span provides.
-  - [ ] Stretch local tuplet positions to fill the available span when ambient spacing is already wide enough.
+- [ ] Preserve ambient-width expansion and in-span stretching behavior for tuplets (AC: 1, 3, 4, 5)
+  - [ ] Expand surrounding host spacing when the child notation plus bracket/number needs more width than the ambient governed host span provides.
+  - [ ] Stretch local tuplet positions to fill the available span when ambient host spacing is already wide enough.
   - [ ] Keep adjacent non-tuplet material distinguishable and stable when tuplet width changes ripple through the layout.
-- [ ] Keep hit targets and layout refresh behavior stable around tuplet boundaries (AC: 4)
+- [ ] Keep hit targets and layout refresh behavior stable around tuplet boundaries (AC: 5)
   - [ ] Ensure tuplet-related hit targets remain aligned after spacing recalculation and shared-surface composition refreshes.
   - [ ] Preserve readable number placement and collision stability near adjacent non-tuplet material.
   - [ ] Avoid introducing frontend-owned geometry repair logic; layout remains backend-owned.
-- [ ] Add focused spacing and layout regressions for tuplets in the native score surface (AC: 1, 2, 3, 4)
-  - [ ] Add tests proving tuplets can expand ambient spacing when their derived content needs more width.
-  - [ ] Add tests proving tuplets stretch coherently inside already-wide ambient spacing.
+- [ ] Add focused spacing and layout regressions for tuplets in the native score surface (AC: 1, 2, 3, 4, 5)
+  - [ ] Add tests proving the implementation compares ambient host span width against tuplet-required local width and selects the wider result.
+  - [ ] Add tests proving tuplets can expand ambient host spacing by distributing the extra width across the governed host ticks when their derived content needs more width.
+  - [ ] Add tests proving tuplets stretch coherently inside already-wide ambient spacing by distributing the excess across tuplet-local ticks.
   - [ ] Add tests proving the implementation reuses existing slots and does not add unnecessary tuplet-specific spacing slots.
   - [ ] Add a boundary-adjacent case proving nearby non-tuplet material remains distinguishable and hit targets stay aligned after spacing refresh.
 - [ ] Validate the touched parser and renderer seams with the standard Rust checks
@@ -64,19 +72,37 @@ so that numbers, brackets, and notes stay readable in normal work.
 
 - Epic 3 now forms a continuous chain: 3.1 derives an isolated tuplet unit, 3.2 renders bracket/number chrome around it, 3.3 makes notes/rests/ties/beams cohere, and 3.4 makes that same unit fit legibly into the score surface.
 - Your added note belongs here directly: tuplets should not introduce new spacing slots unless absolutely needed. The expected implementation direction is to reuse the current slot model and spread that model over tuplet spacing.
+- The width rule is comparative rather than absolute: first determine the ambient host span width already implied by the broader layout, then compare it with the tuplet-local required width, widening the host span only when the tuplet needs more room and otherwise stretching the tuplet content to fill the existing span.
 - Story 3.4 should therefore finish the Epic 3 renderer track without opening a second spacing architecture.
 
 ### Technical Requirements
 
 - The architecture already defines the spacing rule: if child notation plus bracket needs more width than the ambient consumed host span, host spacing expands; if surrounding host spacing is already wider, child local x positions stretch to fill the available width.
+- The implementation should calculate the ambient host width for the governed span from the existing cross-track spacing result, calculate the width required by the tuplet's local content, and then choose the wider span.
+- If the tuplet-required width is wider, the added width should be spread evenly across the governed host ticks so the widened base spacing remains shared by aligned tracks.
+- If the ambient host width is already wider, the excess should be spread evenly across the tuplet-local ticks so the child notation fills the span coherently without changing the surrounding base spacing.
 - The current host spacing model already behaves like a widest-needed-spacing system, and tuplets are expected to fit that model.
+- Spacing must consume projected host occupancy explicitly. Story 3.4 must not size tuplet material by treating local written duration as if it were the occupied host width.
 - Horizontal spacing slots are for flow spacing only; they are not a generic anchoring mechanism for every marking.
 - Prefer reusing an existing slot position when an element should align with current notation but should not push later notation horizontally.
 - Story 3.4 should therefore default to existing slots such as `Slot::NoteSpacing`, `Slot::PreNote`, `Slot::Accidentals`, and the current barline/directive slots where relevant, rather than inventing a `Tuplet*` slot family.
 
+### Story 3.1 Contract Dependency
+
+Story 3.4 assumes Story 3.1 exposes a stable anchored local `NotationTrack` that can be passed through a later spacing pass without redesigning parser output.
+
+Story 3.4 therefore owns:
+
+- running the spacing pass against that local `NotationTrack`
+- comparing tuplet-required width against ambient host width
+- mapping the spaced local unit back into the governed host span
+
+Story 3.4 does not require Story 3.1 to precompute spacing; it only requires Story 3.1 to preserve the local `NotationTrack` and host-span anchor needed to do so later.
+
 ### Architecture Compliance
 
 - The architecture's spacing interpretation already describes tuplets as child-local spacing mapped into the consumed host span under the same widest-needed-spacing principle used elsewhere in the score.
+- Story 2.4's address-span projection rule is the direct precedent here: layout should project from the local semantic unit into the consumed host span, not recover width from host-tick approximations after flattening.
 - Project context explicitly says slot additions should be rare, slots are for elements that consume horizontal flow space, and existing slots should be reused whenever a marking can align without pushing later notation.
 - Story 3.4 must keep layout backend-owned in Rust and preserve shared-surface composition plus hit-target stability.
 - This story should not overturn the earlier renderer assumption that tuplets are normal notation rendered inside a warped container rather than a separate visual layer.
@@ -105,8 +131,9 @@ so that numbers, brackets, and notes stay readable in normal work.
 
 - Add focused Rust tests near `get_horizontal_spacing.rs` and any immediate render consumers changed by the spacing work.
 - Cover at least these cases:
-  - a tuplet whose derived content forces the ambient host span to expand
-  - a tuplet laid out inside already-wide ambient spacing, where local positions stretch coherently
+  - a tuplet whose derived content forces the ambient host span to expand by distributing extra width across the governed host ticks
+  - a tuplet laid out inside already-wide ambient spacing, where excess width is distributed coherently across the tuplet-local ticks
+  - a case proving the implementation compares ambient host width and tuplet-required width before choosing the rendered span width
   - a case proving existing slots are reused rather than a new slot being added casually
   - a boundary-adjacent case proving nearby non-tuplet material remains legible and hit targets stay aligned
 - Keep Story 3.4 validation close to spacing and renderer seams rather than deferring it to broad fixture-only checks.
@@ -185,3 +212,4 @@ GPT-5.4
 
 - 2026-03-17: Added an Epic 3.4 acceptance criterion requiring tuplets to reuse existing slot patterns rather than introduce new tuplet-specific spacing slots unless absolutely necessary.
 - 2026-03-17: Created Story 3.4 implementation artifact and moved Story 3.4 to ready-for-dev.
+- 2026-03-17: Clarified the Story 3.4 width rule so tuplets compare ambient host span width against tuplet-required local width, widening host spacing only when needed and otherwise stretching local tuplet spacing across the available span.

@@ -179,6 +179,38 @@ Score Data (Entry variants in FxHashMaps)
 - As a general rule, new markings should **not** get new slots unless they truly change notation flow. Tempo markings are the reference example: they align to existing slots instead of creating their own.
 - If an element is visually anchored to an existing horizontal position and does not need to push later notation, prefer drawing it relative to an existing slot rather than adding another one.
 
+### Tuplet notation contract
+
+- Persisted `Tuplet` entries are not themselves printed-score notation output. The parse phase derives notation from the authoritative host-track container and its child `entries`.
+- The local derived unit should remain a normal `NotationTrack`, not a second tuplet-only notation structure. This preserves existing parser helpers and keeps downstream consumers working against the same base notation type.
+- The only extra contract around that local `NotationTrack` is a thin anchor carrying the host-span projection metadata needed to place the local unit back into the surrounding flow.
+- Conceptually, the parser output for a bounded notation region follows this shape:
+
+```rust
+type SemanticAddress = {
+    owner_id: Option<UniqueId>,
+    tick: Tick,
+};
+
+type HostSpan = {
+    start_tick: Tick,
+    end_tick: Tick,
+};
+
+type AnchoredNotationTrack = {
+    owner_id: UniqueId,
+    host_span: HostSpan,
+    notation: NotationTrack,
+};
+```
+
+- `owner_id` is intentionally generic in the architecture contract. For tuplets it is the tuplet container id, but the same anchored-region pattern can be reused later for other bounded notation units with minimal structural change.
+- The contract must preserve three separate meanings: local semantic address, written duration used for notation decisions inside the local frame, and projected host occupancy used by spacing and draw consumers.
+- The parse architecture is therefore: treat the governed host span as an implicit placeholder, derive the tuplet as an isolated local `NotationTrack`, then project that local unit back into host ordering through explicit host-span metadata rather than through host-only `tick + duration` arithmetic.
+- Boundary-crossing tones remain one stored tone. Derivation may produce multiple local notations or host-side companions at the boundary, but continuity still follows stored tone identity.
+- A completely empty triplet is a special readability case and should derive one base-note rest per local slot. Outside that case, tuplets reuse the existing local split-unit logic for note and rest spelling.
+- Later renderer and spacing work should consume this anchored local `NotationTrack` directly. They should not reconstruct tuplet meaning from flattened host ticks, and they should not introduce a parallel frontend-owned notation model.
+
 ### Caching
 
 - Draw instructions cached on `RendererContext` — re-rendered on pan/zoom without recalculation

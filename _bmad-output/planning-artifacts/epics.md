@@ -76,6 +76,7 @@ NFR15: Hit targets, selection cues, and popover anchoring for triplet members an
 ### Additional Requirements
 
 - Implement foundational tuplet support as a tuplet-container model that supports both child tone entries and continuous cross-boundary tones rather than a global timing-model rewrite.
+- Carry the Story 2.4 and Story 2.5 boundary/projection rules forward into notation, rendering, spacing, and playback as the `tuplet carry-forward invariants` rather than restating or reinterpreting them separately in each later story.
 - Add a new persisted Entry::Tuplet variant on instrument tracks with wrapper-owned rhythmic context: host tick, governed host span, local printed span, base note value, grouping metadata, and child entries where needed.
 - Keep tuplets backend-owned in Rust and prohibit any frontend-owned parallel tuplet state model.
 - Treat tuplets as host-track entries that govern a local metric window; new same-track note entry starting inside that window goes into the child frame through tuplet-aware entry rules, while continuous cross-boundary tones remain single persisted tones owned by where they start.
@@ -84,10 +85,11 @@ NFR15: Hit targets, selection cues, and popover anchoring for triplet members an
 - Preserve written note values when structurally valid instead of proactively respelling them during reconciliation or derivation.
 - Keep tuplet-local rests derived from absence of tones in the child frame rather than explicit persisted rest entries.
 - Defer host-level directives inside MVP tuplet spans; tempo, clef, key signature, and time signature remain host-level concerns for this phase.
-- Implement tuplet-local parse and flattening so parser, renderer, spacing, selection, and playback all project child content through the tuplet wrapper back into host musical time without requiring nested tuplet support in MVP.
+- Implement tuplet-local parse and projection so parser, renderer, spacing, selection, and playback all consume child content through the tuplet wrapper without collapsing local semantic address, written duration, and projected host occupancy into one host-only tick model.
+- Treat the tuplet frame as the local writable-notation context: empty or partially filled tuplets derive base-note-value rests in their governed local slots rather than host-projected binary rest values.
 - Keep playback host-time based, projecting tuplet child onsets and durations into host time before scheduling so tempo remains a host-level concern.
 - Extend rendering through the existing parse/draw pipeline rather than ad hoc overlay rendering, including tuplet number and bracket draw instructions, tuplet-local note projection, and tuplet hit targets.
-- Use a widest-needed spacing strategy so tuplet-local layout can either expand host spacing or stretch to ambient host width, depending on context.
+- Use a widest-needed spacing strategy that first compares the ambient host span width against the tuplet-required local width, then either expands the governed host ticks evenly or stretches the tuplet-local ticks evenly depending on which side is wider.
 - Preserve tone_id as the authoritative tone identity and use tuplet-aware lookup context such as tuplet_path and local_tick only as selection and anchoring aids.
 - Scope MVP deletion behavior so deleting a tuplet deletes its contained content; dissolve-back-to-host-time behavior is deferred.
 - Add additive migration support in src-tauri/src/migrations/next.rs for tuplet serialization and child-entry support, with legacy non-tuplet files loading unchanged.
@@ -700,14 +702,25 @@ So that the score reads from real rhythmic structure instead of frontend reconst
 **Then** the parser evaluates authoritative track content through the tuplet's local frame
 **And** the resulting notation is produced from backend-owned rhythmic data in a form the existing parser and renderer pipeline can consume without a frontend reconstruction layer
 
+**Given** notation is derived inside a tuplet-governed local frame
+**When** the parser emits tuplet-aware output
+**Then** the contract preserves local semantic address, written duration, and projected host-space occupancy as distinct concepts
+**And** downstream renderer and spacing consumers do not have to recover tuplet meaning from one overloaded host-tick-plus-duration pair
+
+**Given** a supported tuplet is derived as notation
+**When** the parser emits its tuplet-aware result
+**Then** the result remains an isolated anchored local `NotationTrack` with a host-span anchor
+**And** later renderer and spacing stories can consume that block without redesigning the parser contract
+
 **Given** empty spans exist inside a tuplet-governed local frame
 **When** notation is derived
 **Then** rests are inferred from absence of projected sounding content in the governed local tuplet slots, including host-owned crossing tones and tuplet-child tones
 **And** no frontend reconstruction layer is required to invent missing rhythmic structure
+**And** those empty local spans normalize to base-note-value rest spelling for the tuplet frame
 
 **Given** supported tuplet derivation scenarios are exercised in automated tests
 **When** the parser-local notation suite runs
-**Then** the expected derived notation output is asserted directly for grouped tuplet content, inferred rests, and boundary-crossing fragments
+**Then** the expected derived notation output is asserted directly for grouped tuplet content, inferred rests, empty-tuplet rest spelling, and boundary-crossing fragments
 **And** Story 3.1 can be validated without relying on score-surface rendering
 
 **Given** tuplets are introduced into the parse path
@@ -735,6 +748,7 @@ So that the score reads like real notation rather than placeholder annotation.
 **When** the score is rendered
 **Then** the tuplet number is drawn in the correct relationship to its grouped content
 **And** bracket visibility follows the supported MVP readability rules while consuming the derived parser output rather than recomputing tuplet structure in a parallel renderer-only path
+**And** bracket anchoring is resolved from the parser's local tuplet unit and host-span projection rather than from host `tick + duration` arithmetic alone
 
 **Given** a supported case where bracket chrome is not required for clarity
 **When** the score is rendered
@@ -771,6 +785,7 @@ So that beams, rests, and ties reinforce the tuplet instead of contradicting it.
 **When** the score is rendered
 **Then** rests appear in positions consistent with the derived tuplet structure
 **And** the result remains legible within MVP engraving scope
+**And** empty governed slots read as base-note-value rests in the local tuplet frame
 
 **Given** a created tuplet container has no entered notes yet
 **When** the score is rendered
@@ -781,6 +796,7 @@ So that beams, rests, and ties reinforce the tuplet instead of contradicting it.
 **When** the score is rendered
 **Then** tie presentation remains musically coherent
 **And** the rendering does not imply approximate binary timing
+**And** tie continuity follows parser-derived fragment adjacency rather than assuming the continuation lies at host `tick + duration`
 
 **Given** a tone crosses into or out of a tuplet boundary
 **When** notation is rendered
@@ -810,17 +826,22 @@ So that numbers, brackets, and notes stay readable in normal work.
 
 **Given** a score containing supported tuplets
 **When** spacing is calculated
-**Then** tuplet-local layout can claim enough width for readable note spacing, brackets, and numbers
-**And** surrounding score spacing expands when required by the derived notation
+**Then** the implementation compares the ambient host spacing already implied across the governed span against the width required by the tuplet's local content
+**And** the wider of those two widths becomes the rendered span width
 
 **Given** tuplets are laid out inside the existing score spacing system
 **When** spacing slots are assigned
 **Then** the implementation reuses the existing slot patterns and spreads them across the tuplet-governed span rather than adding new tuplet-specific slots unless absolutely necessary
 **And** any new slot requires explicit justification because tuplets should normally fit the current slot model
 
-**Given** the ambient score context already provides sufficient width
+**Given** the tuplet-required local width is greater than the ambient host spacing across the governed span
 **When** the tuplet is laid out
-**Then** local note positions stretch coherently within the available span
+**Then** the extra width is distributed evenly across the governed host ticks
+**And** surrounding tracks remain aligned through that widened base spacing
+
+**Given** the ambient host spacing across the governed span is already wider than the tuplet-required local width
+**When** the tuplet is laid out
+**Then** the excess width is distributed evenly across the tuplet-local ticks
 **And** the notation remains aligned with the surrounding score surface
 
 **Given** tuplets begin or end next to non-tuplet material

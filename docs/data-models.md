@@ -232,7 +232,55 @@ Deletion and slicing follow that same ownership model. Removing a tuplet-owned t
 
 Tone slicing also stays on the shared tone mutation seam. The slice request now carries both the current owning context and the target owner for the new tail start. Rust resolves both addresses against the same continuous tuplet/host lattice used by sequencer editing, shortens the original tone to the head duration, and inserts exactly one new stored tail tone in the ownership context determined by the tail start. Crossing a tuplet boundary therefore does not create any extra persisted fragments beyond the intentional two-tone slice result.
 
-Story 1.5 stops at ownership reconciliation and persisted timing carry-over. Parser derivation, engraving, playback projection, and broader editing consequences remain intentionally deferred to the later tuplet stories that own those seams.
+Story 1.5 stops at ownership reconciliation and persisted timing carry-over. Epic 3 now defines the parser-side tuplet notation contract that later renderer and spacing stories consume, while visible engraving chrome and spacing resolution remain separate downstream concerns.
+
+### Tuplet Notation Derivation Contract
+
+The persisted tuplet container is not itself the printed-score notation result. Parser derivation must materialize a separate notation-layer contract that preserves tuplet-local meaning without mutating persisted ownership.
+
+That derived contract keeps three concepts distinct:
+
+- `semantic address` — the logical position of a notation entry in its owning context, either host or tuplet-local
+- `written duration` — the duration used for notation spelling, rest splitting, beaming, dots, and related written-value decisions inside the local frame
+- `host occupancy` — the start/end span that the anchored local notation region occupies in surrounding host time, together with the projection rule used to map local ticks back into host space
+
+For supported MVP tuplets, the intended parser output is a thin anchored-region model:
+
+- the tuplet remains an isolated local `NotationTrack`
+- that anchored region also carries the host-span anchor needed to place the local unit back into the main flow
+
+Conceptually, a derived tuplet region has this shape:
+
+```rust
+type SemanticAddress = {
+    owner_id: Option<UniqueId>,
+    tick: Tick,
+};
+
+type HostSpan = {
+    start_tick: Tick,
+    end_tick: Tick,
+};
+
+type AnchoredNotationTrack = {
+    owner_id: UniqueId,
+    host_span: HostSpan,
+    notation: NotationTrack,
+};
+```
+
+These names are illustrative rather than prescriptive Rust types. The important rule is that downstream consumers must not have to recover tuplet-local semantics from a single overloaded host `tick + duration` pair. The local unit should stay a normal `NotationTrack` so existing helpers and manipulation patterns continue to apply. `owner_id` is intentionally generic in this derived-contract sketch: for tuplets it is the tuplet container id, but the anchored-region shape is written so it can be reused later for other bounded notation units with minimal structural change.
+
+Derivation rules for this contract:
+
+- The host track treats the governed tuplet span as an implicit placeholder rather than as ordinary host notation content.
+- The tuplet is derived as its own local metric frame, then anchored back into host ordering through host-span metadata.
+- Tuplet-local rest and note spelling reuse the existing split-unit logic against the equivalent local frame instead of inventing a separate tuplet-only spelling system.
+- A completely empty triplet is a special readability case and derives one base-note rest per local slot.
+- Boundary-crossing tones remain one stored tone. Derivation may emit multiple local notations or host-side companions at host/tuplet boundaries, but continuity still follows stored tone identity.
+- Adjacent tuplets remain separate isolated units even when their host spans touch exactly.
+
+This contract is intentionally parse-layer only. It does not change persisted `.soloc` ownership rules, does not add persisted rest entries for empty local slots, and does not move renderer spacing or bracket-drawing decisions into the persistence model.
 
 ### Sequencer Selection (UI-only)
 
@@ -377,7 +425,7 @@ Each stave has:
 - A **stave master track** — contains clef entries
 - One or more **user tracks** — contain tones and barlines
 
-User tracks can now also contain `Tuplet` entries. A tuplet container participates in the same `entries.by_tick` and `entries.by_id` indices as any other first-class entry, while its child `entries` use an MVP-safe wrapper with the same persisted JSON shape but no nested `Tuplet` children.
+User tracks can now also contain `Tuplet` entries. A tuplet container participates in the same `entries.by_tick` and `entries.by_id` indices as any other first-class entry, while its child `entries` use an MVP-safe wrapper with the same persisted JSON shape but no nested `Tuplet` children. Printed-score tuplet notation is derived later from that persisted structure; it is not stored directly in `Track.entries`.
 
 ### Layout
 

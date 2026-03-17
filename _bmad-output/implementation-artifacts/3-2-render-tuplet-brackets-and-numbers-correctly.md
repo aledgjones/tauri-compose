@@ -14,6 +14,8 @@ so that the score reads like real notation rather than placeholder annotation.
 
 - This story is renderer-first. It owns visible tuplet number and bracket treatment after Story 3.1 has made tuplet notation derivation backend-owned and directly testable.
 - Story 3.2 must consume the derived parser output. It must not recompute tuplet structure in a parallel renderer-only path or rebuild missing tuplet grouping from frontend state.
+- Story 3.2 assumes the Story 3.1 parser contract preserves local semantic address, written duration, host-span projection, and an anchored local `NotationTrack` distinctly enough that the renderer can place tuplet chrome without recovering meaning from host tick arithmetic.
+- Story 3.2 also carries forward the tuplet carry-forward invariants established in Story 2.4 and Story 2.5 through the Story 3.1 parser contract; it should not restate or reinterpret those rules in a renderer-only way.
 - Treat tuplet start and end boundaries like metric split points, the same way Compose already treats barlines during notation derivation. By the time 3.2 renders a tuplet, the notation should already be split at those boundaries so the renderer can treat the tuplet as one isolated grouped unit.
 - This story covers bracket visibility, number placement, and tuplet-specific hit targets or selection anchors needed for those adornments.
 - This story does not own beam grouping, rest-shape coherence, tie shaping, or broader spacing refinement. Those remain Story 3.3 and Story 3.4 scope.
@@ -29,7 +31,7 @@ so that the score reads like real notation rather than placeholder annotation.
 ## Tasks / Subtasks
 
 - [ ] Render tuplets from backend-owned wrapper metadata rather than overlay reconstruction (AC: 1, 3, 4)
-  - [ ] Extend the score render pipeline so tuplet number and bracket draw instructions are emitted from parser-derived tuplet context carried through the existing instructions pipeline.
+  - [ ] Extend the score render pipeline so tuplet number and bracket draw instructions are emitted from parser-derived tuplet wrapper metadata carried through the existing instructions pipeline.
   - [ ] Keep rendering fully backend-owned in Rust; do not add React or overlay-layer rendering for tuplet chrome.
   - [ ] Reuse the existing composed-surface flow so tuplet markings stay attached to the notation they govern in shared renderer space.
 - [ ] Implement MVP bracket-visibility and number-placement rules (AC: 1, 2, 4)
@@ -64,15 +66,27 @@ so that the score reads like real notation rather than placeholder annotation.
 
 ### Technical Requirements
 
-- Rendering should remain fully backend-owned: derive child notation and child local spacing normally, map child local x positions into the consumed host span, then draw the tuplet number and bracket from wrapper metadata.
+- Rendering should remain fully backend-owned: consume the isolated anchored local `NotationTrack` from Story 3.1, map its local x positions into the consumed host span, then draw the tuplet number and bracket from the tuplet anchor metadata.
+- The renderer must consume a parser contract that distinguishes local written value from projected host occupancy. Story 3.2 must not infer bracket anchoring or tuplet extent from `tick + duration` host arithmetic alone.
 - Consume parser-derived notation that is already split at tuplet boundaries. Renderer logic should not decide where a boundary split belongs; it should place chrome around the isolated tuplet unit produced by the parse layer.
 - Tuplets are not a separate visual layer. They are normal notation rendered inside a warped container, with number and bracket draw instructions attached to that same unit.
 - Keep tuplet-specific interaction native to the Rust renderer via hit targets rather than HTML overlay reconstruction.
 - Preserve tone-id authority for notes while allowing tuplet container selection by `tuplet_id` for bracket/number hit-testing.
 
+### Story 3.1 Contract Dependency
+
+Story 3.2 assumes Story 3.1 exposes a stable anchored local `NotationTrack` containing:
+
+- local tuplet notation in the same `NotationTrack` form used elsewhere in the parser pipeline
+- host-span anchoring metadata
+- enough semantic address and written-duration information to place tuplet chrome without reconstructing tuplet meaning from host ticks alone
+
+Story 3.2 should consume that anchored track directly rather than flattening tuplet-local notation back into host-only draw inputs.
+
 ### Architecture Compliance
 
 - The architecture explicitly recommends backend-owned tuplet rendering: derive child notation, map child local x positions into the consumed host span, and draw the tuplet number and bracket from wrapper metadata.
+- Story 2.4's address-lattice rule still applies conceptually here: the tuplet is a first-class replacement region whose child content is mapped through the consumed host span. Renderer chrome should align to that warped local unit rather than to a reconstructed host-only approximation.
 - The same architecture states parser, renderer, and playback projection should perform boundary-aware splits the way Compose already uses barlines and ties, with tuplet spans acting as another local metric boundary. Treat that as a hard prerequisite for 3.2 rather than re-solving the split in the renderer.
 - Tuplets themselves should be selectable by `tuplet_id`; this supports native hit-testing for brackets and numbers without replacing tone-id-based authority.
 - Shared-surface composition is already authoritative for combined draw instructions and hit targets across flows. Tuplet adornment hit targets must compose through that existing path.

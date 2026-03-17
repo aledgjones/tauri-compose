@@ -14,6 +14,8 @@ so that beams, rests, and ties reinforce the tuplet instead of contradicting it.
 
 - This story owns the renderer and parser-consumer work needed for tuplet noteheads, derived rests, ties, and beam groups to read as one musically coherent tuplet passage.
 - Story 3.3 assumes Story 3.1 already derives parser-owned tuplet notation and Story 3.2 already renders tuplet bracket/number chrome from that derived unit.
+- Story 3.3 assumes the Story 3.1 contract carries local semantic address, written duration, host occupancy, and the isolated anchored local `NotationTrack` distinctly enough that beam, tie, and rest consumers do not reconstruct tuplet behavior from host tick arithmetic.
+- Story 3.3 should continue the tuplet carry-forward invariants already refined in Story 2.4 and Story 2.5 via the Story 3.1 parser contract rather than restating those rules from scratch.
 - Treat tuplet start and end boundaries like barline-style metric split points here as well. By the time 3.3 makes beaming, rest, and tie decisions visible, the passage should already be split at tuplet boundaries so the tuplet can be treated as an isolated rhythmic unit.
 - This story may refine parser-consumer logic and rendering behavior for beams, rests, and ties, but it must not reintroduce a continuous unsplit host-only view of the passage.
 - This story does not own final spacing and collision polish across the whole score surface. That remains Story 3.4 scope.
@@ -23,7 +25,7 @@ so that beams, rests, and ties reinforce the tuplet instead of contradicting it.
 
 1. Given supported tuplet note groupings, when notation is rendered, then beam decisions reinforce the tuplet grouping and the rendered result does not contradict the tuplet's rhythmic structure.
 2. Given tuplets contain rests or partially filled spans, when the score is rendered, then rests appear in positions consistent with the derived tuplet structure and the result remains legible within MVP engraving scope.
-3. Given a created tuplet container has no entered notes yet, when the score is rendered, then the governed local span reads as empty rest-bearing tuplet content and the bracket and number treatment remain coherent with the derived tuplet rests.
+3. Given a created tuplet container has no entered notes yet, when the score is rendered, then the governed local span reads as empty rest-bearing tuplet content using base-note-value rests for the tuplet frame and the bracket and number treatment remain coherent with those derived rests.
 4. Given a tie enters, exits, or passes through supported tuplet content, when the score is rendered, then tie presentation remains musically coherent and the rendering does not imply approximate binary timing.
 5. Given a tone crosses into or out of a tuplet boundary, when notation is rendered, then the boundary split is represented with the same musical logic Compose uses around barlines and ties and the tuplet remains readable as one coherent rhythmic unit.
 6. Given tuplet notes, rests, ties, and beams are rendered after derivation, when the renderer consumes the passage, then tuplet start and end boundaries are treated as isolated metric split points in the same way barlines constrain grouping decisions and beaming, rest placement, and tie continuity are resolved from that isolated tuplet unit rather than from a continuous unsplit host view.
@@ -73,16 +75,30 @@ so that beams, rests, and ties reinforce the tuplet instead of contradicting it.
 ### Technical Requirements
 
 - Rests remain derived from absence of tones inside the child frame, exactly as they do on host tracks. No explicit rest entries are required in tuplet storage.
+- A completely empty triplet should read in the local tuplet metric frame using one base-note rest per local slot. Outside that special empty-triplet case, partially filled tuplets should follow the existing local split-unit behavior for the equivalent local metric frame.
 - A tone crossing a tuplet boundary remains one stored event. The split happens when notation, rendering, or playback derives the tone through the tuplet boundary, preserving continuity through ties and projection.
 - Beaming, rest placement, and tie behavior must consume the isolated tuplet unit produced by derivation rather than reconstructing grouping from host time alone.
+- Tie continuity should continue to rely on tone identity as the continuity mechanism while consuming parser-derived fragment adjacency and semantic span information rather than assuming the continuation lies at host `tick + duration`.
 - Preserve current note/chord rendering semantics inside the child frame except where tuplet-local grouping requires a targeted change.
 - Do not change persisted-data semantics in this story.
+
+### Story 3.1 Contract Dependency
+
+Story 3.3 assumes Story 3.1 exposes an isolated anchored local `NotationTrack` whose local notations already encode:
+
+- local semantic position through local ticks
+- written duration through ordinary `Notation.duration`
+- host occupancy through the enclosing tuplet anchor and projection helpers
+- tone identity continuity across boundary-derived notation
+
+Story 3.3 should consume that anchored track for beaming, rest placement, and tie continuity rather than translating the passage back into one continuous host-only notation stream.
 
 ### Architecture Compliance
 
 - The architecture says tuplets supply the local rhythmic context used when deriving notation fragments, hit targets, ties, and playback timing.
 - It also says parser, renderer, and playback projection perform the same kind of boundary-aware split Compose already uses around barlines and ties, with tuplet spans acting as another local metric boundary.
 - The architecture explicitly states rests remain derived from absence of tones inside the child frame, and the child frame is enough to support written-duration interpretation, beaming decisions, and spacing layout.
+- Story 2.4's address/projection split remains relevant here too: consumers should resolve coherence from the parser's local semantic contract plus host mapping, not by flattening tuplets back into one host-only time scale.
 - Story 3.3 must keep those statements true end-to-end for renderer-visible results.
 
 ### Library / Framework Requirements
