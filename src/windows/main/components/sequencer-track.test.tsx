@@ -363,6 +363,41 @@ describe("SequencerTrack", () => {
     });
   });
 
+  it("lets an off-grid tuplet note extend exactly to the tuplet end boundary before the next host snap", async () => {
+    const tuplet = makeTuplet({ tick: 8 });
+    const { container } = renderWithProviders(
+      <SequencerTrack
+        {...defaultProps}
+        tool={Tool.Write}
+        track={makeTrackWithTuplet(tuplet)}
+      />,
+    );
+
+    const target = container.querySelector(
+      '[data-tuplet-id="11"]',
+    ) as HTMLElement;
+    fireEvent.pointerDown(target, { clientX: 35, clientY: 200 });
+
+    await waitFor(() => {
+      expect(actions.score.tone.create).toHaveBeenCalledWith(
+        5,
+        0,
+        16,
+        111,
+        null,
+        100,
+        [],
+        11,
+      );
+    });
+
+    fireEvent.pointerMove(document, { clientX: 159, clientY: 200 });
+
+    await waitFor(() => {
+      expect(actions.score.tone.setDuration).toHaveBeenCalledWith(5, 1, 48, 11);
+    });
+  });
+
   it("removes tuplet-owned tones through the shared erase seam", async () => {
     const tuplet = makeTuplet({
       tick: 96,

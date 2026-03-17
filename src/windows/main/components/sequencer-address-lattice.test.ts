@@ -66,4 +66,18 @@ describe("sequencer-address-lattice", () => {
     expect(snapped).not.toBeNull();
     expect(addressKey(snapped!)).toBe("tuplet:11:16");
   });
+
+  it("keeps the tuplet exit boundary addressable before the next host snap point", () => {
+    const lattice = buildSequencerAddressLattice(128, 4, [
+      makeTuplet({ tick: 8 }),
+    ]);
+    const overlay = buildSnapOverlay(lattice, 16);
+
+    expect(addressKey(findSnappedAddressForX(overlay, 159, "nearest")!)).toBe(
+      "host:40",
+    );
+    expect(addressKey(findSnappedAddressForX(overlay, 181, "nearest")!)).toBe(
+      "host:48",
+    );
+  });
 });

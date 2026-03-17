@@ -261,7 +261,17 @@ export const buildSnapOverlay = (
   const normalizedTicksPerSnap = Math.max(1, ticksPerSnap);
   const points = lattice.continuous
     .map((point, continuousIndex) => ({ point, continuousIndex }))
-    .filter(({ point }) => point.address.tick % normalizedTicksPerSnap === 0)
+    .filter(({ point, continuousIndex }) => {
+      const isSnapAligned = point.address.tick % normalizedTicksPerSnap === 0;
+
+      if (isSnapAligned || continuousIndex === 0) {
+        return true;
+      }
+
+      const previousAddress = lattice.continuous[continuousIndex - 1]?.address;
+
+      return previousAddress?.tuplet_id !== point.address.tuplet_id;
+    })
     .map(({ point, continuousIndex }) => ({
       continuousIndex,
       address: point.address,
