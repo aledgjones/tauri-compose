@@ -165,7 +165,11 @@ mod tests {
         track.insert(0u64, notation_with_info(3)); // furthest=3 → Up
         track.insert(32u64, notation_with_info(2)); // furthest=2 → Up
 
-        let notation_track = NotationTrack { length: 64, track };
+        let notation_track = NotationTrack {
+            length: 64,
+            track,
+            anchored_tracks: Vec::new(),
+        };
         let direction = get_span_stem_direction(&beam, &notation_track);
         assert!(direction == Direction::Up);
     }
@@ -193,7 +197,11 @@ mod tests {
         track.insert(32u64, notation_with_info(-3)); // Down
         track.insert(64u64, notation_with_info(1)); // Up
 
-        let notation_track = NotationTrack { length: 96, track };
+        let notation_track = NotationTrack {
+            length: 96,
+            track,
+            anchored_tracks: Vec::new(),
+        };
         let direction = get_span_stem_direction(&beam, &notation_track);
         assert!(direction == Direction::Down);
     }
@@ -220,7 +228,11 @@ mod tests {
         track.insert(0u64, notation_with_info(1)); // Up
         track.insert(32u64, notation_with_info(-2)); // Down
 
-        let notation_track = NotationTrack { length: 64, track };
+        let notation_track = NotationTrack {
+            length: 64,
+            track,
+            anchored_tracks: Vec::new(),
+        };
         let direction = get_span_stem_direction(&beam, &notation_track);
         // furthest absolute is -2 (abs=2 > abs=1), so max=-2 and max<0 → Down
         assert!(direction == Direction::Down);
@@ -259,6 +271,7 @@ mod tests {
         let notation_track = NotationTrack {
             length: 128,
             track: track_map,
+            anchored_tracks: Vec::new(),
         };
         let beams = vec![];
         let result = get_stem_directions_in_track(&notation_track, &beams);
@@ -309,6 +322,7 @@ mod tests {
         let notation_track = NotationTrack {
             length: 64,
             track: track_map,
+            anchored_tracks: Vec::new(),
         };
         let result = get_stem_directions_in_track(&notation_track, &vec![beam]);
         // Span direction should be Down (furthest = -3 wins)
@@ -349,6 +363,7 @@ mod tests {
         let notation_track = NotationTrack {
             length: 96,
             track: track_map,
+            anchored_tracks: Vec::new(),
         };
         let result = get_stem_directions_in_track(&notation_track, &vec![]);
 

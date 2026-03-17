@@ -61,7 +61,7 @@ development_status:
   epic-2-retrospective: done
 
   epic-3: in-progress
-  3-1-parse-tuplet-spanned-content-into-backend-owned-notation: ready-for-dev
+  3-1-parse-tuplet-spanned-content-into-backend-owned-notation: done
   3-2-render-tuplet-brackets-and-numbers-correctly: ready-for-dev
   3-3-render-tuplet-notes-rests-ties-and-beams-coherently: ready-for-dev
   3-4-lay-out-tuplets-legibly-within-the-existing-score-surface: ready-for-dev

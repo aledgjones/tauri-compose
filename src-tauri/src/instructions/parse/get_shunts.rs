@@ -329,6 +329,7 @@ mod tests {
             crate::instructions::parse::get_written_durations::NotationTrack {
                 length: 96,
                 track: notation_track,
+                anchored_tracks: Vec::new(),
             },
         );
 

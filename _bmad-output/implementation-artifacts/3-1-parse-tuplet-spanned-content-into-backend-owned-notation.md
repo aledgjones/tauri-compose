@@ -1,6 +1,6 @@
 # Story 3.1: Parse Tuplet-Spanned Content Into Backend-Owned Notation
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -36,40 +36,40 @@ so that the score reads from real rhythmic structure instead of frontend reconst
 
 ## Tasks / Subtasks
 
-- [ ] Amend the shared parser-side notation contract so tuplet-derived output preserves semantic address, written duration, and projected host occupancy separately (AC: 1, 2, 3, 6, 7)
-  - [ ] Rework `src-tauri/src/instructions/parse/get_written_durations.rs` so the parser enters a tuplet-local frame, derives local notation there, and emits an anchored local `NotationTrack` plus host-span anchoring metadata.
-  - [ ] Ensure that anchored-track shape is stable enough for later stories to add spacing and width comparison without redesigning the parser contract.
-  - [ ] Do not treat flattening as permission to erase tuplet-local semantics into host-only tick arithmetic; downstream spacing, tie, and draw consumers should not need to infer tuplet behavior from `tick + duration` alone.
-  - [ ] Reuse the Story 2.4 address-lattice reasoning: tuplets replace the covered host span semantically, and projection back to host space is a separate concern from local notation identity.
-- [ ] Normalize writable notation inside the tuplet-local frame before renderer stories consume it (AC: 1, 4, 5, 7)
-  - [ ] Treat the tuplet as a local metric frame for written-duration splitting and reuse the existing split-unit code against that local frame rather than inventing new tuplet-only splitting rules.
-  - [ ] For a completely empty triplet, emit one base-note rest per local slot as a special readability rule.
-  - [ ] Outside that special empty-triplet case, let partially filled tuplets follow the existing local split-unit behavior for the equivalent local metric frame.
-  - [ ] Preserve tie identity and tone-id authority across derived fragments where the same stored tone reads through multiple local and host contexts.
-- [ ] Add parser-local proof that the amended contract holds for tuplet and non-tuplet material (AC: 2, 3, 5, 6, 7)
-  - [ ] Extend `src-tauri/src/instructions/parse/test_support/get_written_durations_test_harness.rs` rather than creating a repo-wide notation test framework.
-  - [ ] Add focused tests covering empty tuplets, partially filled tuplets, boundary-crossing tones, the anchored local-`NotationTrack` contract, and the distinction between local semantic position, written duration, and host occupancy.
-  - [ ] Add regression cases for the currently characterized fragile non-tuplet written-duration paths rather than only straight happy-path material.
-- [ ] Extend backend notation derivation from authoritative tuplets instead of frontend reconstruction (AC: 1, 2, 5, 6)
-  - [ ] Rework `src-tauri/src/instructions/parse/get_written_durations.rs` so the parser can enter a tuplet-local frame, derive local notation there, and project the result into the later renderer-facing contract without losing local semantics.
-  - [ ] Keep the derivation authoritative to persisted host-track `Tuplet` entries and child `entries`; do not add a frontend-owned tuplet notation cache or renderer-side reconstruction layer.
-  - [ ] Preserve the current event-stream mental model: rests remain derived from absence of tones, tuplets are bounded local metric containers, and ownership stays determined by where stored tones start.
-- [ ] Introduce only the shared parser-side notation context needed for later renderer consumption (AC: 1, 2, 5, 6)
-  - [ ] Extend shared notation structs or parser contracts only as far as needed to carry tuplet grouping context, local semantic position, and host projection metadata through the existing parse pipeline.
-  - [ ] Update parser consumers under `src-tauri/src/instructions/parse/` if the shared notation contract changes, while keeping Story 3.1 scoped away from renderer chrome decisions.
-  - [ ] Avoid introducing a parallel "triplet parser" or isolated notation subsystem detached from the current parse flow.
-- [ ] Infer empty-span notation inside tuplet local frames, including crossing-tone cases (AC: 3, 4)
-  - [ ] Ensure absence of sounding content in tuplet-local slots derives rests without persisting new rest entries.
-  - [ ] Cover host-owned tones that cross into a tuplet and tuplet-owned tones that interact with host context so boundary-crossing notation fragments remain parser-owned results.
-  - [ ] Preserve tie identity and tone-id authority across derived fragments where the same stored tone reads through multiple contexts.
-- [ ] Validate the touched parser seams with the standard Rust checks (AC: 4, 5, 6)
-  - [ ] Run focused Rust tests for written-duration parsing and any directly impacted parse modules.
-  - [ ] Run `cargo test --manifest-path src-tauri/Cargo.toml` after parser changes.
-  - [ ] Run `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features` because clippy-clean is a repo rule when Rust files change.
-- [ ] Review documentation impact before closing the story
-  - [ ] Confirm whether the shipped parser-owned tuplet notation contract changes developer-facing documentation or guardrails.
-  - [ ] Update the relevant docs and agent instructions in the same change if the durable contract changes materially.
-  - [ ] If no docs change is needed, record that decision explicitly in the completion notes.
+- [x] Amend the shared parser-side notation contract so tuplet-derived output preserves semantic address, written duration, and projected host occupancy separately (AC: 1, 2, 3, 6, 7)
+  - [x] Rework `src-tauri/src/instructions/parse/get_written_durations.rs` so the parser enters a tuplet-local frame, derives local notation there, and emits an anchored local `NotationTrack` plus host-span anchoring metadata.
+  - [x] Ensure that anchored-track shape is stable enough for later stories to add spacing and width comparison without redesigning the parser contract.
+  - [x] Do not treat flattening as permission to erase tuplet-local semantics into host-only tick arithmetic; downstream spacing, tie, and draw consumers should not need to infer tuplet behavior from `tick + duration` alone.
+  - [x] Reuse the Story 2.4 address-lattice reasoning: tuplets replace the covered host span semantically, and projection back to host space is a separate concern from local notation identity.
+- [x] Normalize writable notation inside the tuplet-local frame before renderer stories consume it (AC: 1, 4, 5, 7)
+  - [x] Treat the tuplet as a local metric frame for written-duration splitting and reuse the existing split-unit code against that local frame rather than inventing new tuplet-only splitting rules.
+  - [x] For a completely empty triplet, emit one base-note rest per local slot as a special readability rule.
+  - [x] Outside that special empty-triplet case, let partially filled tuplets follow the existing local split-unit behavior for the equivalent local metric frame.
+  - [x] Preserve tie identity and tone-id authority across derived fragments where the same stored tone reads through multiple local and host contexts.
+- [x] Add parser-local proof that the amended contract holds for tuplet and non-tuplet material (AC: 2, 3, 5, 6, 7)
+  - [x] Extend `src-tauri/src/instructions/parse/test_support/get_written_durations_test_harness.rs` rather than creating a repo-wide notation test framework.
+  - [x] Add focused tests covering empty tuplets, partially filled tuplets, boundary-crossing tones, the anchored local-`NotationTrack` contract, and the distinction between local semantic position, written duration, and host occupancy.
+  - [x] Add regression cases for the currently characterized fragile non-tuplet written-duration paths rather than only straight happy-path material.
+- [x] Extend backend notation derivation from authoritative tuplets instead of frontend reconstruction (AC: 1, 2, 5, 6)
+  - [x] Rework `src-tauri/src/instructions/parse/get_written_durations.rs` so the parser can enter a tuplet-local frame, derive local notation there, and project the result into the later renderer-facing contract without losing local semantics.
+  - [x] Keep the derivation authoritative to persisted host-track `Tuplet` entries and child `entries`; do not add a frontend-owned tuplet notation cache or renderer-side reconstruction layer.
+  - [x] Preserve the current event-stream mental model: rests remain derived from absence of tones, tuplets are bounded local metric containers, and ownership stays determined by where stored tones start.
+- [x] Introduce only the shared parser-side notation context needed for later renderer consumption (AC: 1, 2, 5, 6)
+  - [x] Extend shared notation structs or parser contracts only as far as needed to carry tuplet grouping context, local semantic position, and host projection metadata through the existing parse pipeline.
+  - [x] Update parser consumers under `src-tauri/src/instructions/parse/` if the shared notation contract changes, while keeping Story 3.1 scoped away from renderer chrome decisions.
+  - [x] Avoid introducing a parallel "triplet parser" or isolated notation subsystem detached from the current parse flow.
+- [x] Infer empty-span notation inside tuplet local frames, including crossing-tone cases (AC: 3, 4)
+  - [x] Ensure absence of sounding content in tuplet-local slots derives rests without persisting new rest entries.
+  - [x] Cover host-owned tones that cross into a tuplet and tuplet-owned tones that interact with host context so boundary-crossing notation fragments remain parser-owned results.
+  - [x] Preserve tie identity and tone-id authority across derived fragments where the same stored tone reads through multiple contexts.
+- [x] Validate the touched parser seams with the standard Rust checks (AC: 4, 5, 6)
+  - [x] Run focused Rust tests for written-duration parsing and any directly impacted parse modules.
+  - [x] Run `cargo test --manifest-path src-tauri/Cargo.toml` after parser changes.
+  - [x] Run `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features` because clippy-clean is a repo rule when Rust files change.
+- [x] Review documentation impact before closing the story
+  - [x] Confirm whether the shipped parser-owned tuplet notation contract changes developer-facing documentation or guardrails.
+  - [x] Update the relevant docs and agent instructions in the same change if the durable contract changes materially.
+  - [x] If no docs change is needed, record that decision explicitly in the completion notes.
 
 ## Dev Notes
 
@@ -272,16 +272,36 @@ GPT-5.4
 - Reviewed tuplet UX notes in `_bmad-output/planning-artifacts/ux-design-specification.md` to keep score-visible behavior scoped correctly between parser and renderer stories.
 - Reviewed `docs/data-models.md`, `docs/project-context.md`, and repository memory around Story 2.4/2.5 to align the notation contract with the existing sequencer address/projection model.
 - Reset stale completion state after the earlier implementation was reverted so the story reflects the current ready-for-dev contract rather than historical code that is no longer present.
+- Implemented anchored local tuplet notation derivation plus host placeholder stripping in `src-tauri/src/instructions/parse/get_written_durations.rs`.
+- Extended that parser contract so tuplet-owned tones that cross out of the tuplet emit host-track continuation notation instead of stopping at the local anchored track boundary.
+- Extended `src-tauri/src/instructions/parse/get_tone_offsets.rs` so tuplet child tones receive parser offset info under the containing host clef.
+- Extended parser-local harness coverage in `src-tauri/src/instructions/parse/test_support/get_written_durations_test_harness.rs` and added Story 3.1 contract tests in `src-tauri/src/instructions/parse/get_written_durations.rs`.
+- Ran `cargo test --manifest-path src-tauri/Cargo.toml --lib`, `cargo test --manifest-path src-tauri/Cargo.toml`, and `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features`.
+- Re-ran focused validation with `cargo test --manifest-path src-tauri/Cargo.toml get_written_durations_ --lib` and `cargo test --manifest-path src-tauri/Cargo.toml score::entries::tone::tests --lib` after fixing the missing tuplet-owned-to-host projection path.
+- Fixed the post-review regressions by restoring explicit barline-driven written-duration splits, projecting carried tones into adjacent tuplets on the continuous timeline, and honoring persisted tuplet grouping metadata in local derivation.
+- Re-ran focused validation with `cargo test --manifest-path src-tauri/Cargo.toml get_written_durations_splits_tones_at_explicit_barlines --lib`, `cargo test --manifest-path src-tauri/Cargo.toml get_written_durations_projects_crossing_tone_into_adjacent_tuplet_tracks --lib`, `cargo test --manifest-path src-tauri/Cargo.toml get_written_durations_honors_tuplet_groupings_when_deriving_local_notation --lib`, `cargo test --manifest-path src-tauri/Cargo.toml get_written_durations_ --lib`, `cargo test --manifest-path src-tauri/Cargo.toml`, and `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features`.
 
 ### Completion Notes List
 
-- Story 3.1 is back in a pre-implementation state after the prior code attempt was reverted.
-- The current story now captures the refined contract: tuplets are isolated local metric units, local semantic address/written duration/projected host occupancy remain distinct, and empty tuplets derive base-note-value rests inside the local frame.
-- Reimplementation should reuse the existing split-unit logic inside the local tuplet frame rather than inventing new tuplet-only written-duration rules.
+- Added an anchored local-tuples parser contract: host notation now strips governed tuplet placeholders while each tuplet exposes an isolated local `NotationTrack` plus host-span anchoring metadata.
+- Derived local tuplet notation from authoritative child entries plus host-owned crossing tones, and normalized completely empty triplets to one base-note rest per local slot.
+- Added the missing symmetric boundary projection so tuplet-owned tones that extend past the tuplet end now render a host-track continuation fragment as part of the same parser-owned result.
+- Added parser-local proof for full triplet occupancy, empty-triplet rests, host boundary crossings, tuplet-owned boundary crossings back into host space, and retained the existing non-tuplet written-duration regression corpus.
+- Updated developer-facing docs and agent instructions to make the tuplet timing invariant explicit: host geometry stays compressed to the denominator span while crossing duration remains literal on the expanded timeline.
+- Closed the review defects by restoring explicit barline splits, preserving carried tones across adjacent tuplets, and deriving local tuplet notation with persisted grouping boundaries.
 
 ### File List
 
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
 - `_bmad-output/implementation-artifacts/3-1-parse-tuplet-spanned-content-into-backend-owned-notation.md`
+- `.github/copilot-instructions.md`
+- `docs/data-models.md`
+- `docs/development-guide.md`
+- `src-tauri/src/instructions/parse/get_shunts.rs`
+- `src-tauri/src/instructions/parse/get_stem_directions.rs`
+- `src-tauri/src/instructions/parse/get_tone_offsets.rs`
+- `src-tauri/src/instructions/parse/get_written_durations.rs`
+- `src-tauri/src/instructions/parse/test_support/get_written_durations_test_harness.rs`
 
 ### Change Log
 
@@ -290,3 +310,6 @@ GPT-5.4
 - 2026-03-17: Created Story 3.1 implementation artifact and moved Epic 3 / Story 3.1 to in-progress / ready-for-dev.
 - 2026-03-17: Clarified that Story 3.1 must preserve semantic address, written duration, and host occupancy as distinct concepts, derive base-note-value rests inside the local tuplet frame, and carry Story 2.4's projection rules into the notation contract.
 - 2026-03-17: Reset stale completion records after the earlier code implementation was reverted and aligned the story with the refined reimplementation plan.
+- 2026-03-17: Implemented anchored local tuplet notation derivation, empty-triplet local-slot rest normalization, tuplet child tone offset support, and parser-local contract coverage for Story 3.1.
+- 2026-03-17: Fixed the missing tuplet-owned-to-host boundary projection so tones that start inside tuplets and extend out now emit host-track continuation notation, and documented the shared tuplet timing invariant in the developer guide and agent instructions.
+- 2026-03-17: Fixed review findings by restoring explicit barline split boundaries, preserving adjacent-tuplet carried tone projection, and honoring persisted tuplet groupings in local derivation; reran focused and full Rust validation.
