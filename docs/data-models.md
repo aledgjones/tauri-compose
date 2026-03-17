@@ -275,6 +275,7 @@ Derivation rules for this contract:
 
 - The host track treats the governed tuplet span as an implicit placeholder rather than as ordinary host notation content.
 - The tuplet is derived as its own local metric frame, then anchored back into host ordering through host-span metadata.
+- Tuplet span and crossing-duration consumption are separate concerns: the container still occupies the denominator-sized host span, but a host-owned tone crossing that boundary consumes its full literal duration on the canonical expanded timeline rather than being shortened to the compressed host geometry.
 - Tuplet-local rest and note spelling reuse the existing split-unit logic against the equivalent local frame instead of inventing a separate tuplet-only spelling system.
 - A completely empty triplet is a special readability case and derives one base-note rest per local slot.
 - Boundary-crossing tones remain one stored tone. Derivation may emit multiple local notations or host-side companions at host/tuplet boundaries, but continuity still follows stored tone identity.

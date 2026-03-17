@@ -31,6 +31,7 @@ When connected to atlassian-rovo-mcp:
 - **MUST** identify which docs should be updated whenever a spec changes behavior, architecture, persistence, workflows, user-visible features, or developer expectations
 - **MUST** include explicit documentation update tasks and acceptance criteria in specs; docs are not a follow-up nice-to-have
 - **MUST** update AI-agent instructions as part of the work when project rules or required implementation practices change
+- **MUST** preserve the tuplet timing invariant across parser, sequencer, and editing work: tuplet container geometry stays compressed to the denominator span on the host track, but crossing tone duration remains literal on the canonical expanded timeline and must not be compressed to the denominator span
 - **MUST** treat the current release-like `npm run perf:render` 3-instrument, 30-bar single-flow scenario as the active performance characterization baseline; trigger a regression warning when that representative pass reaches or exceeds 2ms total median time, and reevaluate the baseline and warning threshold as performance-sensitive features land
 - **MUST** preserve `ui.flow_id` as the only authoritative active-flow slot across score, Sequence, miniature piano rolls, and transport-facing consumers; do not introduce parallel frontend-owned active-flow state
 - **MUST** keep the shared main-window top bar limited to universal controls; workflow-specific single-flow selectors belong inside the owning workflow surface such as Sequence
