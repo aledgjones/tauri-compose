@@ -1310,6 +1310,7 @@ pub async fn execute_action(app: &AppHandle, name: &str, args: &[Value]) -> Resu
                 arg_id(args, 0, "track_id")?,
                 arg_id(args, 1, "tone_id")?,
                 arg_u64(args, 2, "duration")?,
+                arg_optional_id(args, 3)?,
             );
             Ok(Value::Null)
         }
@@ -1354,6 +1355,8 @@ pub async fn execute_action(app: &AppHandle, name: &str, args: &[Value]) -> Resu
                 arg_id(args, 1, "tone_id")?,
                 arg_u64(args, 2, "tick")?,
                 arg_u64(args, 3, "duration")?,
+                arg_optional_id(args, 4)?,
+                arg_optional_id(args, 5)?,
             );
             Ok(Value::Null)
         }
@@ -1365,6 +1368,8 @@ pub async fn execute_action(app: &AppHandle, name: &str, args: &[Value]) -> Resu
                 arg_id(args, 0, "track_id")?,
                 arg_id(args, 1, "tone_id")?,
                 arg_u64(args, 2, "new_tick")?,
+                arg_optional_id(args, 3)?,
+                arg_optional_id(args, 4)?,
             );
             Ok(Value::Null)
         }
@@ -1375,6 +1380,7 @@ pub async fn execute_action(app: &AppHandle, name: &str, args: &[Value]) -> Resu
                 app.state::<RendererContextState>(),
                 arg_id(args, 0, "track_id")?,
                 arg_id(args, 1, "tone_id")?,
+                arg_optional_id(args, 2)?,
             );
             Ok(Value::Null)
         }

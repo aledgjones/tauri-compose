@@ -29,6 +29,8 @@ type Props = {
   tickWidth: number;
   tone: Tone;
   color: string;
+  startX?: number;
+  widthPx?: number;
   originTick?: number;
   tickScale?: number;
   tupletId?: number;
@@ -39,6 +41,8 @@ export const SequencerTrackTone: FC<Props> = ({
   tickWidth,
   tone,
   color,
+  startX,
+  widthPx,
   originTick = 0,
   tickScale = 1,
   tupletId,
@@ -51,11 +55,12 @@ export const SequencerTrackTone: FC<Props> = ({
     selection.tone_id === tone.id &&
     (selection.tuplet_id ?? null) === (tupletId ?? null);
   const scaledTickWidth = tickWidth * tickScale;
-  const width = tone.duration * scaledTickWidth;
+  const width = widthPx ?? tone.duration * scaledTickWidth;
   const name = getPitchName(tone.pitch);
   const showPitchName = getShowPitchName(width, name, isSelected);
   const showHandles = getShowHandles(width, isSelected);
   const backgroundColor = isSelected ? lightenColor(color, 0.5) : color;
+  const left = startX ?? tickWidth * originTick + scaledTickWidth * tone.tick;
 
   return (
     <div
@@ -64,7 +69,7 @@ export const SequencerTrackTone: FC<Props> = ({
         backgroundColor,
         bottom: slotHeight * (tone.pitch.int - 12),
         height: slotHeight - 1,
-        left: tickWidth * originTick + scaledTickWidth * tone.tick + 1,
+        left: left + 1,
         width: width - 1,
       }}
       data-tone-id={tone.id}

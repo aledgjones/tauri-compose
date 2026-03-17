@@ -1135,6 +1135,8 @@ describe("actions.score.tone", () => {
       track_id: 10,
       entry_id: 200,
       new_tick: 64,
+      current_tuplet_id: null,
+      target_tuplet_id: null,
     });
   });
 
@@ -1142,7 +1144,7 @@ describe("actions.score.tone", () => {
     await actions.score.tone.unifyArticulations(10, 200);
     expect(mockInvoke).toHaveBeenCalledWith(
       "score_entries_tone_unify_articulations",
-      { track_id: 10, entry_id: 200 },
+      { track_id: 10, entry_id: 200, tuplet_id: null },
     );
   });
 
@@ -1152,6 +1154,7 @@ describe("actions.score.tone", () => {
       track_id: 10,
       tone_id: 200,
       duration: 32,
+      tuplet_id: null,
     });
   });
 
@@ -1159,7 +1162,14 @@ describe("actions.score.tone", () => {
     await actions.score.tone.setPositionAndDuration(10, 200, 64, 16);
     expect(mockInvoke).toHaveBeenCalledWith(
       "score_entries_tone_set_position_and_duration",
-      { track_id: 10, tone_id: 200, tick: 64, duration: 16 },
+      {
+        track_id: 10,
+        tone_id: 200,
+        tick: 64,
+        duration: 16,
+        current_tuplet_id: null,
+        target_tuplet_id: null,
+      },
     );
   });
 

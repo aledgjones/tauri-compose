@@ -189,6 +189,7 @@ export const LeftPanel: FC<LeftPanelProps> = ({ spanRow }) => {
                 selection.track_id,
                 selection.tone_id,
                 duration,
+                selection.tuplet_id ?? undefined,
               );
             }}
             isDisabled={!tone}

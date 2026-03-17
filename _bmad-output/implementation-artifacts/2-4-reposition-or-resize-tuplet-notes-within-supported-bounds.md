@@ -1,6 +1,6 @@
 # Story 2.4: Reposition or Resize Tuplet Notes Within Supported Bounds
 
-Status: in-progress
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -55,46 +55,46 @@ so that I can refine melodic and rhythmic shape without breaking exact tuplet se
 
 ## Tasks / Subtasks
 
-- [ ] Replace the wrong-path frontend projection model with an authoritative sequencer address lattice (AC: 1, 4, 5, 8, 9, 12, 13)
-  - [ ] Build a shared sequencer address structure whose canonical ordered array represents semantic edit boundaries across the full track, including tuplet-local regions.
-  - [ ] Ensure a tuplet span replaces the host span inside its covered interval in the canonical array. Do not maintain parallel host and tuplet address tracks for the same horizontal region.
-  - [ ] Introduce stable address keys such as `host:96` or `tuplet:11:16` for direct address lookup. Do not rely on object identity for address maps.
-  - [ ] Keep the top tick bar visual-only. It remains a host-track ruler and must not become the snapping authority for gesture math.
-  - [ ] Keep the tuplet container rendering as the visual cue for morphed local spacing; do not redesign it into a second ruler.
-- [ ] Rework shared sequencer drag handling to consume the address lattice for projection and hit-testing (AC: 1, 2, 3, 4, 5, 8, 12)
-  - [ ] Update `src/windows/main/components/sequencer-track.tsx` so tone rendering, move, right-edge resize, and left-edge resize all resolve through address lookups and address-span projection rather than width multiplication.
-  - [ ] Preserve shared gesture semantics for host-owned and tuplet-owned tones rather than creating a tuplet-only drag stack.
-  - [ ] Keep all gesture handling single-tone only; do not introduce grouped selection or multi-tone drag logic.
-  - [ ] Keep pitch drag on the existing shared pitch-edit path; only the horizontal projection, hit-testing, and snap resolution model should change.
-- [ ] Keep the canonical geometry independent of active snap while allowing derived snap indexes (AC: 1, 4, 8, 12)
-  - [ ] Ensure rendering and hit-testing use the full canonical address lattice rather than a snap-filtered subset.
-  - [ ] Allow a derived sparse snap index or overlay keyed off the canonical lattice if needed for performance, but do not let snap duration define the stored geometry.
-  - [ ] Ensure existing note edges remain addressable even when the current snap duration is coarser than the stored note boundaries.
-- [ ] Preserve backend-owned validity and ownership transfer rules at commit time (AC: 1, 4, 5, 6, 10, 12)
-  - [ ] Re-evaluate the current Rust and action seam changes against the corrected address-lattice design and keep only the parts still required for ownership transfer and backend validation.
-  - [ ] Preserve the rule that crossing the tuplet boundary does not force a storage split; one persisted tone remains authoritative and boundary splitting stays derived.
-  - [ ] Implement ownership transfer in both directions when the committed start position crosses the tuplet boundary: child-to-host when the start leaves the tuplet, host-to-child when the start enters it.
-  - [ ] Keep snapping literal across the boundary so a single snap choice maps to host durations outside tuplets and equivalent tuplet-local durations inside them.
-- [ ] Keep sequencer interaction and visual recovery stable for accepted and rejected edits (AC: 6, 7, 8, 9)
-  - [ ] Ensure rejected edits leave the tuplet region, slot markers, boundary lines, and tone selection stable enough that the user can continue working without losing orientation.
-  - [ ] Keep empty tuplet space as interaction context, not a selectable synthetic rest or separate edit target.
-  - [ ] Keep tuplets themselves non-resizable; all resize work in this story applies only to tones.
-- [ ] Add focused regression coverage for the corrected address-lattice behavior (AC: 1, 2, 3, 4, 5, 6, 8, 9, 10, 12)
-  - [ ] Cover host-owned and tuplet-owned tone rendering against the same canonical address projection model.
-  - [ ] Cover move, left resize, and right resize across host-only, tuplet-only, and boundary-crossing cases.
-  - [ ] Cover canonical address lookup, span projection, and nearest-snap resolution independently of React rendering.
-  - [ ] Cover rejection when an edit would require unsupported nested-tuplet repair or other invalid local-frame outcomes.
-  - [ ] Extend backend tests only for the final committed seam behavior that survives the architectural reset.
-- [ ] Validate the touched seams with the standard repo checks
-  - [ ] Run the relevant frontend tests covering sequencer tuplet drag and resize behavior.
-  - [ ] Run the relevant Rust tests covering tuplet-aware tone movement and duration updates.
-  - [ ] Run `npm run lint` and `npm run check-types` after implementation.
-  - [ ] Run `cargo test --manifest-path src-tauri/Cargo.toml` if Rust tone or track mutation seams change.
-  - [ ] Run `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features` if Rust files change, because clippy-clean is a repo rule.
-- [ ] Review documentation impact before closing the story (AC: 11)
-  - [ ] Confirm whether the shipped drag and resize rules change documented tuplet editing semantics, rejection boundaries, or developer guardrails.
-  - [ ] Update the relevant docs and agent instructions in the same change if the contract changed materially.
-  - [ ] If no docs change is needed, record that explicit decision in the completion notes.
+- [x] Replace the wrong-path frontend projection model with an authoritative sequencer address lattice (AC: 1, 4, 5, 8, 9, 12, 13)
+  - [x] Build a shared sequencer address structure whose canonical ordered array represents semantic edit boundaries across the full track, including tuplet-local regions.
+  - [x] Ensure a tuplet span replaces the host span inside its covered interval in the canonical array. Do not maintain parallel host and tuplet address tracks for the same horizontal region.
+  - [x] Introduce stable address keys such as `host:96` or `tuplet:11:16` for direct address lookup. Do not rely on object identity for address maps.
+  - [x] Keep the top tick bar visual-only. It remains a host-track ruler and must not become the snapping authority for gesture math.
+  - [x] Keep the tuplet container rendering as the visual cue for morphed local spacing; do not redesign it into a second ruler.
+- [x] Rework shared sequencer drag handling to consume the address lattice for projection and hit-testing (AC: 1, 2, 3, 4, 5, 8, 12)
+  - [x] Update `src/windows/main/components/sequencer-track.tsx` so tone rendering, move, right-edge resize, and left-edge resize all resolve through address lookups and address-span projection rather than width multiplication.
+  - [x] Preserve shared gesture semantics for host-owned and tuplet-owned tones rather than creating a tuplet-only drag stack.
+  - [x] Keep all gesture handling single-tone only; do not introduce grouped selection or multi-tone drag logic.
+  - [x] Keep pitch drag on the existing shared pitch-edit path; only the horizontal projection, hit-testing, and snap resolution model should change.
+- [x] Keep the canonical geometry independent of active snap while allowing derived snap indexes (AC: 1, 4, 8, 12)
+  - [x] Ensure rendering and hit-testing use the full canonical address lattice rather than a snap-filtered subset.
+  - [x] Allow a derived sparse snap index or overlay keyed off the canonical lattice if needed for performance, but do not let snap duration define the stored geometry.
+  - [x] Ensure existing note edges remain addressable even when the current snap duration is coarser than the stored note boundaries.
+- [x] Preserve backend-owned validity and ownership transfer rules at commit time (AC: 1, 4, 5, 6, 10, 12)
+  - [x] Re-evaluate the current Rust and action seam changes against the corrected address-lattice design and keep only the parts still required for ownership transfer and backend validation.
+  - [x] Preserve the rule that crossing the tuplet boundary does not force a storage split; one persisted tone remains authoritative and boundary splitting stays derived.
+  - [x] Implement ownership transfer in both directions when the committed start position crosses the tuplet boundary: child-to-host when the start leaves the tuplet, host-to-child when the start enters it.
+  - [x] Keep snapping literal across the boundary so a single snap choice maps to host durations outside tuplets and equivalent tuplet-local durations inside them.
+- [x] Keep sequencer interaction and visual recovery stable for accepted and rejected edits (AC: 6, 7, 8, 9)
+  - [x] Ensure rejected edits leave the tuplet region, slot markers, boundary lines, and tone selection stable enough that the user can continue working without losing orientation.
+  - [x] Keep empty tuplet space as interaction context, not a selectable synthetic rest or separate edit target.
+  - [x] Keep tuplets themselves non-resizable; all resize work in this story applies only to tones.
+- [x] Add focused regression coverage for the corrected address-lattice behavior (AC: 1, 2, 3, 4, 5, 6, 8, 9, 10, 12)
+  - [x] Cover host-owned and tuplet-owned tone rendering against the same canonical address projection model.
+  - [x] Cover move, left resize, and right resize across host-only, tuplet-only, and boundary-crossing cases.
+  - [x] Cover canonical address lookup, span projection, and nearest-snap resolution independently of React rendering.
+  - [x] Cover rejection when an edit would require unsupported nested-tuplet repair or other invalid local-frame outcomes.
+  - [x] Extend backend tests only for the final committed seam behavior that survives the architectural reset.
+- [x] Validate the touched seams with the standard repo checks
+  - [x] Run the relevant frontend tests covering sequencer tuplet drag and resize behavior.
+  - [x] Run the relevant Rust tests covering tuplet-aware tone movement and duration updates.
+  - [x] Run `npm run lint` and `npm run check-types` after implementation.
+  - [x] Run `cargo test --manifest-path src-tauri/Cargo.toml` if Rust tone or track mutation seams change.
+  - [x] Run `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features` if Rust files change, because clippy-clean is a repo rule.
+- [x] Review documentation impact before closing the story (AC: 11)
+  - [x] Confirm whether the shipped drag and resize rules change documented tuplet editing semantics, rejection boundaries, or developer guardrails.
+  - [x] Update the relevant docs and agent instructions in the same change if the contract changed materially.
+  - [x] If no docs change is needed, record that explicit decision in the completion notes.
 
 ## Dev Notes
 
@@ -494,20 +494,32 @@ GPT-5.4
 - Reviewed recent git history to align the story with the current incremental tuplet implementation pattern.
 - Captured and then resolved product decisions around ownership transfer, literal snap duration, non-resizable tuplets, single-tone-only editing, and the intended visual result for boundary-crossing durations.
 
-### Current Reset Notes
+### Completion Notes
 
-- Story 2.4 remains intentionally scoped to single-tone drag editing inside the existing sequencer-first workflow.
-- Story 2.5 retains explicit delete and slice policy work.
-- 2026-03-17 correct-course update: the first implementation path is being discarded because boundary-fix cursor translation is not the right architectural center for tuplet-aware gesture editing.
-- The corrected Story 2.4 direction is an authoritative sequencer address lattice shared by tone rendering, gesture hit-testing, and snap lookup, while the host tick bar remains visual-only and the tuplet overlay remains the cue for morphed local spacing.
-- Prior completion notes and file lists reflected reverted exploratory work and should not be treated as shipped implementation.
+- Replaced the width-multiplied host-tick projection with a canonical sequencer address lattice and sparse snap overlay so rendering, hit-testing, and snapping resolve from the same address model.
+- Updated sequencer tone rendering and select-tool drag/resize handling to use address spans for host-owned, tuplet-owned, and boundary-crossing tones while keeping pitch drag on the existing shared path and preserving single-tone scope.
+- Extended the shared action and Rust mutation seams with optional tuplet ownership context so duration edits, start-position edits, articulation cleanup, and ownership transfer work for host and tuplet tones through one API family.
+- Added focused JS and Rust regression coverage for address lookup, piecewise tone projection, off-grid tuplet snap phasing, tuplet tone creation drag growth, tuplet drag behavior, and host↔tuplet ownership transfer.
+- Documentation impact review: no project docs or agent-instruction files changed because the shipped behavior still matches the accepted story contract; this change implemented the corrected internal architecture, not a new external rule set.
 
 ### File List
 
-- `_bmad-output/implementation-artifacts/2-4-reposition-or-resize-tuplet-notes-within-supported-bounds.md` — re-baselined the story around the address-lattice model after reverting the obsolete implementation direction
+- `_bmad-output/implementation-artifacts/2-4-reposition-or-resize-tuplet-notes-within-supported-bounds.md`
+- `src/services/actions.test.ts`
+- `src/services/actions.ts`
+- `src/windows/main/components/sequencer-address-lattice.test.ts`
+- `src/windows/main/components/sequencer-address-lattice.ts`
+- `src/windows/main/components/sequencer-track.test.tsx`
+- `src/windows/main/components/sequencer-track-tone.tsx`
+- `src/windows/main/components/sequencer-track.tsx`
+- `src/windows/main/components/sequencer-tuplet-utils.test.ts`
+- `src/windows/main/screens/write/components/left-panel.tsx`
+- `src-tauri/src/automation/registry.rs`
+- `src-tauri/src/score/entries/tone.rs`
 
 ### Change Log
 
 - 2026-03-16: Created Story 2.4 implementation artifact with scope boundaries, shared-seam guidance, backend validation requirements, testing expectations, documentation impact tasks, and surfaced open questions.
 - 2026-03-17: Corrected Story 2.4 implementation direction after the first implementation path proved architecturally unsound for tuplet-aware projection and hit-testing. Story status returned to in-progress and guidance first moved to an axis-map approach.
 - 2026-03-17: Re-based the technical direction again after validating that width-centric axis-map math still treated tuplets as an exception layer. Story guidance now requires an authoritative sequencer address lattice whose canonical geometry is independent of active snap.
+- 2026-03-17: Implemented the address-lattice sequencer projection, wired host↔tuplet ownership transfer through the shared action and Rust seams, added focused regression coverage, fixed off-grid tuplet snap phasing and tuplet write-drag duration growth, and verified the touched checks before closing the story.

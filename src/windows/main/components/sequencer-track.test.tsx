@@ -328,6 +328,41 @@ describe("SequencerTrack", () => {
     });
   });
 
+  it("extends a newly created tuplet-owned tone while dragging", async () => {
+    const tuplet = makeTuplet({ tick: 96 });
+    const { container } = renderWithProviders(
+      <SequencerTrack
+        {...defaultProps}
+        tool={Tool.Write}
+        track={makeTrackWithTuplet(tuplet)}
+      />,
+    );
+
+    const target = container.querySelector(
+      '[data-tuplet-id="11"]',
+    ) as HTMLElement;
+    fireEvent.pointerDown(target, { clientX: 440, clientY: 200 });
+
+    await waitFor(() => {
+      expect(actions.score.tone.create).toHaveBeenCalledWith(
+        5,
+        16,
+        16,
+        111,
+        null,
+        100,
+        [],
+        11,
+      );
+    });
+
+    fireEvent.pointerMove(document, { clientX: 500, clientY: 200 });
+
+    await waitFor(() => {
+      expect(actions.score.tone.setDuration).toHaveBeenCalledWith(5, 1, 32, 11);
+    });
+  });
+
   it("removes tuplet-owned tones through the shared erase seam", async () => {
     const tuplet = makeTuplet({
       tick: 96,
@@ -582,5 +617,66 @@ describe("SequencerTrack", () => {
 
     expect(actions.score.tone.remove).not.toHaveBeenCalled();
     expect(actions.ui.sequencer.clearSelection).not.toHaveBeenCalled();
+  });
+
+  it("renders a host-owned tone with piecewise width when it crosses a tuplet boundary", () => {
+    const tuplet = makeTuplet({ tick: 32 });
+    const track = makeTrackWithTuplet(tuplet);
+
+    track.entries.by_id[301] = {
+      id: 301,
+      tick: 16,
+      type: "Tone",
+      duration: 32,
+      pitch: { int: 60, accidental: Accidental.Natural },
+      velocity: { int: 100 },
+      articulations: [] as Articulation[],
+    };
+
+    const { container } = renderWithProviders(
+      <SequencerTrack {...defaultProps} track={track} />,
+    );
+
+    const tone = container.querySelector('[data-tone-id="301"]') as HTMLElement;
+
+    expect(tone).toBeInTheDocument();
+    expect(parseFloat(tone.style.left)).toBeCloseTo(65, 5);
+    expect(parseFloat(tone.style.width)).toBeCloseTo(105.6666667, 5);
+  });
+
+  it("drags a tuplet-owned tone through the shared shift seam with tuplet context", async () => {
+    const tuplet = makeTuplet({
+      tick: 96,
+      entries: {
+        by_tick: { 16: [101] },
+        by_id: { 101: makeTupletTone(101, 16) },
+      },
+    });
+
+    const { container } = renderWithProviders(
+      <SequencerTrack {...defaultProps} track={makeTrackWithTuplet(tuplet)} />,
+    );
+
+    const target = container.querySelector(
+      '[data-tone-id="101"]',
+    ) as HTMLElement;
+    fireEvent.pointerDown(target, { clientX: 452, clientY: 200 });
+
+    await waitFor(() => {
+      expect(actions.ui.sequencer.selectTone).toHaveBeenCalledWith(
+        101,
+        5,
+        20,
+        1,
+        1,
+        11,
+      );
+    });
+
+    fireEvent.pointerMove(document, { clientX: 474, clientY: 200 });
+
+    await waitFor(() => {
+      expect(actions.score.tone.shift).toHaveBeenCalledWith(5, 101, 32, 11, 11);
+    });
   });
 });

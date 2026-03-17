@@ -144,10 +144,125 @@ impl Track {
         }
     }
 
+    fn get_tuplet(&self, tuplet_id: UniqueId) -> Option<&super::tuplet::Tuplet> {
+        match self.entries.by_id.get(&tuplet_id)? {
+            Entry::Tuplet(tuplet) => Some(tuplet),
+            _ => None,
+        }
+    }
+
+    fn validate_owned_tone_tick(
+        &self,
+        tick: Tick,
+        tuplet_id: Option<UniqueId>,
+    ) -> Result<(), String> {
+        let Some(tuplet_id) = tuplet_id else {
+            return Ok(());
+        };
+
+        let track_id = self.id;
+        let tuplet = self
+            .get_tuplet(tuplet_id)
+            .ok_or_else(|| format!("Tuplet {tuplet_id} not found on track {track_id}"))?;
+
+        if tick >= tuplet.local_length_ticks() {
+            return Err(format!(
+                "Tick {tick} is outside tuplet {tuplet_id} local bounds on track {track_id}"
+            ));
+        }
+
+        Ok(())
+    }
+
+    fn remove_owned_tone(
+        &mut self,
+        tone_id: UniqueId,
+        tuplet_id: Option<UniqueId>,
+    ) -> Option<Tone> {
+        match tuplet_id {
+            Some(tuplet_id) => {
+                let Entry::Tuplet(tuplet) = self.entries.by_id.get_mut(&tuplet_id)? else {
+                    return None;
+                };
+
+                match tuplet.entries.remove_entry(tone_id)? {
+                    TupletEntry::Tone(tone) => Some(tone),
+                }
+            }
+            None => match self.remove_entry(tone_id)? {
+                Entry::Tone(tone) => Some(tone),
+                _ => None,
+            },
+        }
+    }
+
+    fn insert_owned_tone(
+        &mut self,
+        tone: Tone,
+        tuplet_id: Option<UniqueId>,
+    ) -> Result<(), String> {
+        match tuplet_id {
+            Some(tuplet_id) => {
+                let track_id = self.id;
+                let tuplet = self
+                    .entries
+                    .by_id
+                    .get_mut(&tuplet_id)
+                    .ok_or_else(|| format!("Tuplet {tuplet_id} not found on track {track_id}"))?;
+
+                let Entry::Tuplet(tuplet) = tuplet else {
+                    return Err(format!("Tuplet {tuplet_id} not found on track {track_id}"));
+                };
+
+                tuplet.entries.insert_entry(TupletEntry::Tone(tone));
+                Ok(())
+            }
+            None => {
+                self.insert_entry(Entry::Tone(tone));
+                Ok(())
+            }
+        }
+    }
+
     /// Set the duration of the tone identified by `tone_id`.
-    pub fn set_tone_duration(&mut self, tone_id: UniqueId, duration: Ticks) {
-        if let Some(Entry::Tone(tone)) = self.entries.by_id.get_mut(&tone_id) {
-            tone.duration = duration;
+    pub fn set_tone_duration(
+        &mut self,
+        tone_id: UniqueId,
+        duration: Ticks,
+        tuplet_id: Option<UniqueId>,
+    ) -> Result<(), String> {
+        if duration == 0 {
+            return Err("Tone duration must be greater than zero".to_string());
+        }
+
+        match tuplet_id {
+            Some(tuplet_id) => {
+                let track_id = self.id;
+                let tuplet = self
+                    .entries
+                    .by_id
+                    .get_mut(&tuplet_id)
+                    .ok_or_else(|| format!("Tuplet {tuplet_id} not found on track {track_id}"))?;
+
+                let Entry::Tuplet(tuplet) = tuplet else {
+                    return Err(format!("Tuplet {tuplet_id} not found on track {track_id}"));
+                };
+
+                let Some(TupletEntry::Tone(tone)) = tuplet.entries.by_id.get_mut(&tone_id) else {
+                    return Err(format!("Tone {tone_id} not found in tuplet {tuplet_id}"));
+                };
+
+                tone.duration = duration;
+                Ok(())
+            }
+            None => {
+                let Some(Entry::Tone(tone)) = self.entries.by_id.get_mut(&tone_id) else {
+                    return Err(format!("Tone {tone_id} not found on track {}", self.id));
+                };
+
+                tone.duration = duration;
+                Ok(())
+            }
         }
     }
 
@@ -348,28 +463,96 @@ impl Track {
         Some(new_tone_id)
     }
 
-    /// Move a tone to `tick` and update its `duration`, keeping the `by_tick` index consistent.
+    pub fn shift_tone(
+        &mut self,
+        tone_id: UniqueId,
+        new_tick: Tick,
+        current_tuplet_id: Option<UniqueId>,
+        target_tuplet_id: Option<UniqueId>,
+    ) -> Result<(), String> {
+        self.validate_owned_tone_tick(new_tick, target_tuplet_id)?;
+
+        let Some(mut tone) = self.remove_owned_tone(tone_id, current_tuplet_id) else {
+            return Err(format!("Tone {tone_id} not found on track {}", self.id));
+        };
+
+        tone.tick = new_tick;
+        self.insert_owned_tone(tone, target_tuplet_id)
+    }
+
+    /// Move a tone to `tick` and update its `duration`, keeping the owning index consistent.
     pub fn set_tone_position_and_duration(
         &mut self,
         tone_id: UniqueId,
         tick: Tick,
         duration: Ticks,
-    ) {
-        self.shift_entry(tone_id, tick);
-        self.set_tone_duration(tone_id, duration);
+        current_tuplet_id: Option<UniqueId>,
+        target_tuplet_id: Option<UniqueId>,
+    ) -> Result<(), String> {
+        if current_tuplet_id.is_none() && target_tuplet_id.is_none() {
+            if !matches!(self.entries.by_id.get(&tone_id), Some(Entry::Tone(_))) {
+                return Err(format!("Tone {tone_id} not found on track {}", self.id));
+            }
+
+            self.shift_entry(tone_id, tick);
+            self.set_tone_duration(tone_id, duration, None)?;
+            return Ok(());
+        }
+
+        if duration == 0 {
+            return Err("Tone duration must be greater than zero".to_string());
+        }
+
+        self.validate_owned_tone_tick(tick, target_tuplet_id)?;
+
+        let Some(mut tone) = self.remove_owned_tone(tone_id, current_tuplet_id) else {
+            return Err(format!("Tone {tone_id} not found on track {}", self.id));
+        };
+
+        tone.tick = tick;
+        tone.duration = duration;
+        self.insert_owned_tone(tone, target_tuplet_id)
     }
 
     /// Reconcile articulations at the moved entry's tick:
     /// if the entry has articulations, propagate them; else inherit from existing tones at that tick.
-    pub fn unify_articulations_at_entry(&mut self, entry_id: UniqueId) {
-        let (moved_articulations, moved_tick) = match self.entries.by_id.get(&entry_id) {
-            Some(Entry::Tone(tone)) => (tone.articulations.clone(), tone.tick),
-            _ => return,
-        };
-        if !moved_articulations.is_empty() {
-            self.apply_articulations_to_tick(moved_tick, &moved_articulations);
-        } else if let Some(found_set) = self.first_articulations_at_tick(&moved_tick) {
-            self.apply_articulations_to_tick(moved_tick, &found_set);
+    pub fn unify_articulations_at_entry(
+        &mut self,
+        entry_id: UniqueId,
+        tuplet_id: Option<UniqueId>,
+    ) {
+        match tuplet_id {
+            Some(tuplet_id) => {
+                let Some(Entry::Tuplet(tuplet)) = self.entries.by_id.get_mut(&tuplet_id) else {
+                    return;
+                };
+
+                let (moved_articulations, moved_tick) = match tuplet.entries.by_id.get(&entry_id) {
+                    Some(TupletEntry::Tone(tone)) => (tone.articulations.clone(), tone.tick),
+                    _ => return,
+                };
+
+                if !moved_articulations.is_empty() {
+                    tuplet
+                        .entries
+                        .apply_articulations_to_tick(moved_tick, &moved_articulations);
+                } else if let Some(found_set) = tuplet.entries.first_articulations_at_tick(&moved_tick)
+                {
+                    tuplet.entries.apply_articulations_to_tick(moved_tick, &found_set);
+                }
+            }
+            None => {
+                let (moved_articulations, moved_tick) = match self.entries.by_id.get(&entry_id) {
+                    Some(Entry::Tone(tone)) => (tone.articulations.clone(), tone.tick),
+                    _ => return,
+                };
+
+                if !moved_articulations.is_empty() {
+                    self.apply_articulations_to_tick(moved_tick, &moved_articulations);
+                } else if let Some(found_set) = self.first_articulations_at_tick(&moved_tick) {
+                    self.apply_articulations_to_tick(moved_tick, &found_set);
+                }
+            }
         }
     }
 
@@ -476,12 +659,15 @@ pub fn score_entries_tone_duration_set(
     track_id: UniqueId,
     tone_id: UniqueId,
     duration: Ticks,
+    tuplet_id: Option<UniqueId>,
 ) {
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
 
     let track = state.score.tracks.by_id.get_mut(&track_id).unwrap();
-    track.set_tone_duration(tone_id, duration);
+    if track.set_tone_duration(tone_id, duration, tuplet_id).is_err() {
+        return;
+    }
 
     state.emit_affected_track(&app, &mut renderer, track_id);
 }
@@ -551,6 +737,7 @@ pub fn score_entries_tone_duration_remove(
 }
 
 #[tauri::command(rename_all = "snake_case")]
+#[allow(clippy::too_many_arguments)]
 pub fn score_entries_tone_set_position_and_duration(
     app: tauri::AppHandle,
     state: State<'_, AppContextState>,
@@ -559,17 +746,31 @@ pub fn score_entries_tone_set_position_and_duration(
     tone_id: UniqueId,
     tick: Tick,
     duration: Ticks,
+    current_tuplet_id: Option<UniqueId>,
+    target_tuplet_id: Option<UniqueId>,
 ) {
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
 
     let track = state.score.tracks.by_id.get_mut(&track_id).unwrap();
-    track.set_tone_position_and_duration(tone_id, tick, duration);
+    if track
+        .set_tone_position_and_duration(
+            tone_id,
+            tick,
+            duration,
+            current_tuplet_id,
+            target_tuplet_id,
+        )
+        .is_err()
+    {
+        return;
+    }
 
     state.emit_affected_track(&app, &mut renderer, track_id);
 }
 
 #[tauri::command(rename_all = "snake_case")]
+#[allow(clippy::too_many_arguments)]
 pub fn score_entries_tone_shift(
     app: tauri::AppHandle,
     state: State<'_, AppContextState>,
@@ -577,13 +778,20 @@ pub fn score_entries_tone_shift(
     track_id: UniqueId,
     entry_id: UniqueId,
     new_tick: Tick,
+    current_tuplet_id: Option<UniqueId>,
+    target_tuplet_id: Option<UniqueId>,
 ) {
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
 
     let track = state.score.tracks.by_id.get_mut(&track_id).unwrap();
 
-    track.shift_entry(entry_id, new_tick);
+    if track
+        .shift_tone(entry_id, new_tick, current_tuplet_id, target_tuplet_id)
+        .is_err()
+    {
+        return;
+    }
 
     state.emit_affected_track(&app, &mut renderer, track_id);
 }
@@ -595,12 +803,13 @@ pub fn score_entries_tone_unify_articulations(
     renderer_state: State<'_, RendererContextState>,
     track_id: UniqueId,
     entry_id: UniqueId,
+    tuplet_id: Option<UniqueId>,
 ) {
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
 
     let track = state.score.tracks.by_id.get_mut(&track_id).unwrap();
-    track.unify_articulations_at_entry(entry_id);
+    track.unify_articulations_at_entry(entry_id, tuplet_id);
 
     state.emit_affected_track(&app, &mut renderer, track_id);
 }
@@ -950,7 +1159,7 @@ mod tests {
     fn set_tone_duration_updates_duration() {
         use crate::score::entries::Entry;
         let mut track = make_track_with_tone(1, 0, 60, Accidental::Natural);
-        track.set_tone_duration(1, 64);
+        assert_eq!(track.set_tone_duration(1, 64, None), Ok(()));
         if let Some(Entry::Tone(tone)) = track.entries.by_id.get(&1) {
             assert_eq!(tone.duration, 64);
         } else {
@@ -962,7 +1171,7 @@ mod tests {
     fn set_tone_duration_noop_for_missing_tone() {
         let mut track = make_track_with_tone(1, 0, 60, Accidental::Natural);
         // Should not panic when tone_id doesn't exist
-        track.set_tone_duration(999, 64);
+        assert!(track.set_tone_duration(999, 64, None).is_err());
     }
 
     // --- Track::set_tone_pitch ---
@@ -1269,7 +1478,7 @@ mod tests {
         };
 
         assert!(!tuplet.entries.by_id.contains_key(&30));
-        assert!(tuplet.entries.by_tick.get(&16).is_none());
+        assert!(!tuplet.entries.by_tick.contains_key(&16));
     }
 
     #[test]
@@ -1314,7 +1523,7 @@ mod tests {
         };
 
         assert!(!tuplet.entries.by_id.contains_key(&30));
-        assert!(tuplet.entries.by_tick.get(&16).is_none());
+        assert!(!tuplet.entries.by_tick.contains_key(&16));
         assert_eq!(tuplet.entries.by_tick.get(&32), Some(&vec![31]));
 
         let Some(TupletEntry::Tone(remaining_tone)) = tuplet.entries.by_id.get(&31) else {
@@ -1595,7 +1804,7 @@ mod tests {
     fn set_tone_position_and_duration_updates_tick_and_duration() {
         use crate::score::entries::Entry;
         let mut track = make_track_with_tone(1, 0, 32, Accidental::Natural);
-        track.set_tone_position_and_duration(1, 64, 48);
+        assert_eq!(track.set_tone_position_and_duration(1, 64, 48, None, None), Ok(()));
         if let Some(Entry::Tone(tone)) = track.entries.by_id.get(&1) {
             assert_eq!(tone.tick, 64);
             assert_eq!(tone.duration, 48);
@@ -1615,6 +1824,113 @@ mod tests {
             .get(&64)
             .map(|v| v.contains(&1))
             .unwrap_or(false));
+    }
+
+    #[test]
+    fn set_tone_duration_updates_tuplet_child_duration() {
+        use crate::score::entries::Entry;
+        use crate::score::tracks::Track;
+
+        let mut track = Track::new(1);
+        track
+            .create_tuplet(20, 64, 3, 2, NoteDuration::Eighth, vec![3])
+            .unwrap();
+        track
+            .create_tone(
+                30,
+                16,
+                16,
+                67,
+                Some(Accidental::Natural),
+                80,
+                Articulations::new(),
+                Some(20),
+            )
+            .unwrap();
+
+        assert_eq!(track.set_tone_duration(30, 24, Some(20)), Ok(()));
+
+        let Some(Entry::Tuplet(tuplet)) = track.entries.by_id.get(&20) else {
+            panic!("expected tuplet entry");
+        };
+        let Some(TupletEntry::Tone(tone)) = tuplet.entries.by_id.get(&30) else {
+            panic!("expected tuplet tone");
+        };
+
+        assert_eq!(tone.duration, 24);
+    }
+
+    #[test]
+    fn shift_tone_moves_host_tone_into_tuplet_entries() {
+        use crate::score::entries::Entry;
+        use crate::score::tracks::Track;
+
+        let mut track = Track::new(1);
+        track.insert_entry(Entry::Tone(Tone::new(
+            7,
+            16,
+            16,
+            Pitch::new(60, Accidental::Natural),
+            Velocity::new(80),
+            Articulations::new(),
+        )));
+        track
+            .create_tuplet(20, 64, 3, 2, NoteDuration::Eighth, vec![3])
+            .unwrap();
+
+        assert_eq!(track.shift_tone(7, 16, None, Some(20)), Ok(()));
+
+        assert!(!track.entries.by_id.contains_key(&7));
+
+        let Some(Entry::Tuplet(tuplet)) = track.entries.by_id.get(&20) else {
+            panic!("expected tuplet entry");
+        };
+        let Some(TupletEntry::Tone(tone)) = tuplet.entries.by_id.get(&7) else {
+            panic!("expected moved tuplet tone");
+        };
+
+        assert_eq!(tone.tick, 16);
+    }
+
+    #[test]
+    fn set_tone_position_and_duration_moves_tuplet_child_to_host_entries() {
+        use crate::score::entries::Entry;
+        use crate::score::tracks::Track;
+
+        let mut track = Track::new(1);
+        track
+            .create_tuplet(20, 64, 3, 2, NoteDuration::Eighth, vec![3])
+            .unwrap();
+        track
+            .create_tone(
+                30,
+                16,
+                16,
+                67,
+                Some(Accidental::Natural),
+                80,
+                Articulations::new(),
+                Some(20),
+            )
+            .unwrap();
+
+        assert_eq!(
+            track.set_tone_position_and_duration(30, 96, 24, Some(20), None),
+            Ok(())
+        );
+
+        let Some(Entry::Tone(tone)) = track.entries.by_id.get(&30) else {
+            panic!("expected host tone");
+        };
+
+        assert_eq!(tone.tick, 96);
+        assert_eq!(tone.duration, 24);
+
+        let Some(Entry::Tuplet(tuplet)) = track.entries.by_id.get(&20) else {
+            panic!("expected tuplet entry");
+        };
+
+        assert!(!tuplet.entries.by_id.contains_key(&30));
     }
 
     // --- Track::unify_articulations_at_entry ---
@@ -1645,7 +1961,7 @@ mod tests {
         );
         track.insert_entry(Entry::Tone(tone1));
         track.insert_entry(Entry::Tone(tone2));
-        track.unify_articulations_at_entry(1);
+        track.unify_articulations_at_entry(1, None);
         // Both tones should now have Accent
         if let Some(Entry::Tone(t)) = track.entries.by_id.get(&2) {
             assert!(t.articulations.contains(&Articulation::Accent));

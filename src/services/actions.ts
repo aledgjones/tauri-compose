@@ -838,24 +838,43 @@ export const actions = {
           tuplet_id: tuplet_id ?? null,
         });
       },
-      shift: (track_id: UniqueId, entry_id: UniqueId, new_tick: Tick) => {
+      shift: (
+        track_id: UniqueId,
+        entry_id: UniqueId,
+        new_tick: Tick,
+        current_tuplet_id?: UniqueId,
+        target_tuplet_id?: UniqueId,
+      ) => {
         return invoke("score_entries_tone_shift", {
           track_id,
           entry_id,
           new_tick,
+          current_tuplet_id: current_tuplet_id ?? null,
+          target_tuplet_id: target_tuplet_id ?? null,
         });
       },
-      unifyArticulations: (track_id: UniqueId, entry_id: UniqueId) => {
+      unifyArticulations: (
+        track_id: UniqueId,
+        entry_id: UniqueId,
+        tuplet_id?: UniqueId,
+      ) => {
         return invoke<void>("score_entries_tone_unify_articulations", {
           track_id,
           entry_id,
+          tuplet_id: tuplet_id ?? null,
         });
       },
-      setDuration: (track_id: UniqueId, tone_id: UniqueId, duration: Ticks) => {
+      setDuration: (
+        track_id: UniqueId,
+        tone_id: UniqueId,
+        duration: Ticks,
+        tuplet_id?: UniqueId,
+      ) => {
         return invoke("score_entries_tone_duration_set", {
           track_id,
           tone_id,
           duration,
+          tuplet_id: tuplet_id ?? null,
         });
       },
       setPositionAndDuration: (
@@ -863,12 +882,16 @@ export const actions = {
         tone_id: UniqueId,
         tick: Tick,
         duration: Ticks,
+        current_tuplet_id?: UniqueId,
+        target_tuplet_id?: UniqueId,
       ) => {
         return invoke("score_entries_tone_set_position_and_duration", {
           track_id,
           tone_id,
           tick,
           duration,
+          current_tuplet_id: current_tuplet_id ?? null,
+          target_tuplet_id: target_tuplet_id ?? null,
         });
       },
       setPitch: (
