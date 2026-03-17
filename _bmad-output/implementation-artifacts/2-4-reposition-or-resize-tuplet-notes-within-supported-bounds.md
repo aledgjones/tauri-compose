@@ -1,6 +1,6 @@
 # Story 2.4: Reposition or Resize Tuplet Notes Within Supported Bounds
 
-Status: ready-for-dev
+Status: in-progress
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -23,6 +23,19 @@ so that I can refine melodic and rhythmic shape without breaking exact tuplet se
 - All editing remains single-tone only. Multi-tone editing is not in the app yet and must not be introduced by this story.
 - This story must not introduce frontend-owned tuplet edit state, nested tuplets, dissolve-to-host-time behavior, or a tuplet-only drag model separate from ordinary tone gestures.
 
+## Correct Course Update 2026-03-17
+
+- The previous Story 2.4 implementation path over-invested in boundary-specific cursor translation and pixel-to-tick repair logic. That path is no longer considered the correct architectural direction for this story.
+- The corrected direction is to introduce one authoritative sequencer address lattice for rendering, hit-testing, and snapping. This lattice must model the sequencer as an ordered continuous address space whose entries are semantic edit boundaries rather than host-tick pixels with tuplet exceptions layered on top.
+- Tuplet-covered spans replace the host-track span inside their covered interval. The canonical frontend projection model must not translate tuplet-local ticks into host ticks or approximate boundary math with float repair logic.
+- Each canonical address is a pair of local context and local tick, for example `{ tuplet_id: null, tick: 96 }` or `{ tuplet_id: 11, tick: 16 }`. The address stays local to its owning context.
+- The canonical lattice should be represented as an ordered continuous array of boundary points plus fast lookup helpers keyed by address. String-encoded address keys are preferred over object-identity map keys.
+- The active snap duration must not define canonical geometry. A snap-specific sparse index or derived overlay is acceptable for performance, but rendering and hit-testing must still derive from the canonical address lattice.
+- The top tick bar remains a host-track ruler only. It continues to display ordinary track ticks, beats, and bars without tuplet-local scaling.
+- The tuplet container rendering remains the visual cue for local subdivision differences. Its tinted region, annotation, and inner beat presentation already communicate where spacing is morphed.
+- The sequencer interaction layer must stop treating the host tick ruler as the implicit snapping authority with tuplet exceptions layered on top. Rendering, hit-testing, and snap resolution should all derive from the same canonical address model.
+- This is a controlled reset of the implementation approach, not a change to the product intent. The acceptance criteria remain valid, but the implementation notes and tasks below supersede the previous wrong-path assumptions.
+
 ## Acceptance Criteria
 
 1. Given a tuplet note is edited for position or duration inside the tuplet, when the requested edit remains within the tuplet's supported local frame rules, then the change is applied using exact local timing and the result remains a valid tuplet state.
@@ -42,32 +55,36 @@ so that I can refine melodic and rhythmic shape without breaking exact tuplet se
 
 ## Tasks / Subtasks
 
-- [ ] Reuse the existing select-tool drag seams for tuplet-owned tones instead of inventing a tuplet-only gesture stack (AC: 1, 2, 3, 8, 10)
+- [ ] Replace the wrong-path frontend projection model with an authoritative sequencer address lattice (AC: 1, 4, 5, 8, 9, 12, 13)
+  - [ ] Build a shared sequencer address structure whose canonical ordered array represents semantic edit boundaries across the full track, including tuplet-local regions.
+  - [ ] Ensure a tuplet span replaces the host span inside its covered interval in the canonical array. Do not maintain parallel host and tuplet address tracks for the same horizontal region.
+  - [ ] Introduce stable address keys such as `host:96` or `tuplet:11:16` for direct address lookup. Do not rely on object identity for address maps.
+  - [ ] Keep the top tick bar visual-only. It remains a host-track ruler and must not become the snapping authority for gesture math.
+  - [ ] Keep the tuplet container rendering as the visual cue for morphed local spacing; do not redesign it into a second ruler.
+- [ ] Rework shared sequencer drag handling to consume the address lattice for projection and hit-testing (AC: 1, 2, 3, 4, 5, 8, 12)
+  - [ ] Update `src/windows/main/components/sequencer-track.tsx` so tone rendering, move, right-edge resize, and left-edge resize all resolve through address lookups and address-span projection rather than width multiplication.
+  - [ ] Preserve shared gesture semantics for host-owned and tuplet-owned tones rather than creating a tuplet-only drag stack.
   - [ ] Keep all gesture handling single-tone only; do not introduce grouped selection or multi-tone drag logic.
-  - [ ] Extend `src/windows/main/components/sequencer-track.tsx` so `handleSelectTool(...)` no longer exits early for `clickTarget.tuplet_id !== undefined` and tuplet-owned tones can enter the same drag pipeline as host-track tones.
-  - [ ] Reuse `handlePositionDragging(...)`, `handleDurationAdjustment(...)`, and `handleLeftSideAdjustment(...)` for tuplet-owned tones, threading the known `tuplet_id` and owning `Tuplet` context into bounds and commit logic rather than branching to a separate tuplet drag implementation.
-  - [ ] Reuse `getToneEntryFromClickTarget(...)` and `getTargetTupletFromClickTarget(...)` to resolve tuplet-owned tones and their container context from existing DOM click targets.
-- [ ] Add tuplet-local bounds enforcement to shared movement and resize operations (AC: 1, 4, 5, 6, 8, 9, 10, 12, 13)
-  - [ ] Reuse `src/windows/main/components/sequencer-tuplet-utils.ts` helpers such as `getTupletLocalTickFromClientX(...)` and `getTupletHostTicks(...)` to derive snapped tuplet-local positions and visible host-span limits during drag.
-  - [ ] Update the shared frontend drag math so tuplet-owned tones clamp against the owning tuplet's local frame instead of only `flow.length`, while still allowing supported cross-boundary outcomes when the tone start moves into the other owning context.
-  - [ ] Extend the Rust-owned mutation path in `src-tauri/src/score/entries/tone.rs` and any required shared track helpers in `src-tauri/src/score/tracks.rs` so move and resize commits reject invalid tuplet-local outcomes at the backend boundary instead of trusting the frontend to stay in bounds.
-  - [ ] Preserve the rule that crossing the tuplet boundary does not force a storage split; resize and start-position edits may cross the boundary while still yielding one stored tone owned by where it starts.
+  - [ ] Keep pitch drag on the existing shared pitch-edit path; only the horizontal projection, hit-testing, and snap resolution model should change.
+- [ ] Keep the canonical geometry independent of active snap while allowing derived snap indexes (AC: 1, 4, 8, 12)
+  - [ ] Ensure rendering and hit-testing use the full canonical address lattice rather than a snap-filtered subset.
+  - [ ] Allow a derived sparse snap index or overlay keyed off the canonical lattice if needed for performance, but do not let snap duration define the stored geometry.
+  - [ ] Ensure existing note edges remain addressable even when the current snap duration is coarser than the stored note boundaries.
+- [ ] Preserve backend-owned validity and ownership transfer rules at commit time (AC: 1, 4, 5, 6, 10, 12)
+  - [ ] Re-evaluate the current Rust and action seam changes against the corrected address-lattice design and keep only the parts still required for ownership transfer and backend validation.
+  - [ ] Preserve the rule that crossing the tuplet boundary does not force a storage split; one persisted tone remains authoritative and boundary splitting stays derived.
   - [ ] Implement ownership transfer in both directions when the committed start position crosses the tuplet boundary: child-to-host when the start leaves the tuplet, host-to-child when the start enters it.
-  - [ ] Keep snapping literal across the boundary so a single snap choice maps to track durations outside tuplets and the equivalent tuplet-local durations inside them.
-- [ ] Preserve ordinary drag semantics while keeping tuplet membership backend-owned (AC: 2, 3, 4, 5, 6)
-  - [ ] Keep pitch drag behavior on the existing `actions.score.tone.setPitch(...)` path with `tuplet_id` context, using the same pitch-targeting rules and optional audition behavior as ordinary tones.
-  - [ ] Extend `actions.score.tone.shift(...)`, `actions.score.tone.setDuration(...)`, and `actions.score.tone.setPositionAndDuration(...)` or their backend command contracts only as much as necessary to carry tuplet-aware validation; do not add a parallel tuplet-only action family if the shared seams can be refined.
-  - [ ] Preserve `tone_id` as the authoritative tone identity and `ui.flow_id` as the only authoritative active-flow slot; do not introduce parallel frontend-owned active-tuplet or active-flow drag state.
-  - [ ] Keep tuplets themselves non-resizable; all resize work in this story applies only to tones.
-- [ ] Keep sequencer interaction and visual recovery stable for accepted and rejected tuplet edits (AC: 6, 7, 8, 9)
+  - [ ] Keep snapping literal across the boundary so a single snap choice maps to host durations outside tuplets and equivalent tuplet-local durations inside them.
+- [ ] Keep sequencer interaction and visual recovery stable for accepted and rejected edits (AC: 6, 7, 8, 9)
   - [ ] Ensure rejected edits leave the tuplet region, slot markers, boundary lines, and tone selection stable enough that the user can continue working without losing orientation.
-  - [ ] Preserve the existing bounded-region rendering in `src/windows/main/components/sequencer-track-tuplet.tsx`; any visual work here should support boundary legibility during drag, not redesign the tuplet presentation model.
   - [ ] Keep empty tuplet space as interaction context, not a selectable synthetic rest or separate edit target.
-- [ ] Add focused regression coverage for tuplet move, re-pitch, and resize behavior (AC: 1, 2, 3, 4, 5, 6, 8, 9, 10)
-  - [ ] Extend `src/windows/main/components/sequencer-track.test.tsx` to cover dragging a tuplet-owned tone horizontally within bounds, re-pitching it during drag, right-edge resize inside bounds, left-edge resize inside bounds, and rejection when a drag would violate supported MVP bounds.
-  - [ ] Extend `src/services/sequencer-utils.test.ts` only if click-target or tuplet-context extraction changes.
-  - [ ] Extend backend tests in `src-tauri/src/score/entries/tone.rs` and `src-tauri/src/score/tracks.rs` to cover tuplet-owned `shift`, `setDuration`, and `setPositionAndDuration` validation, by-tick consistency, cross-boundary ownership changes, and rejection of unsupported local-frame outcomes.
-  - [ ] Add or update focused fixtures under `tests/fixtures/source/` only if score/notation rendering regressions need representative drag or resize scenarios; if fixture JSON changes, run `npm run build:fixtures`.
+  - [ ] Keep tuplets themselves non-resizable; all resize work in this story applies only to tones.
+- [ ] Add focused regression coverage for the corrected address-lattice behavior (AC: 1, 2, 3, 4, 5, 6, 8, 9, 10, 12)
+  - [ ] Cover host-owned and tuplet-owned tone rendering against the same canonical address projection model.
+  - [ ] Cover move, left resize, and right resize across host-only, tuplet-only, and boundary-crossing cases.
+  - [ ] Cover canonical address lookup, span projection, and nearest-snap resolution independently of React rendering.
+  - [ ] Cover rejection when an edit would require unsupported nested-tuplet repair or other invalid local-frame outcomes.
+  - [ ] Extend backend tests only for the final committed seam behavior that survives the architectural reset.
 - [ ] Validate the touched seams with the standard repo checks
   - [ ] Run the relevant frontend tests covering sequencer tuplet drag and resize behavior.
   - [ ] Run the relevant Rust tests covering tuplet-aware tone movement and duration updates.
@@ -96,11 +113,16 @@ so that I can refine melodic and rhythmic shape without breaking exact tuplet se
   - `handleDurationAdjustment(...)`
   - `handleLeftSideAdjustment(...)`
   - `handleSelectTool(...)`
-- Reuse the existing tuplet helpers in `src/windows/main/components/sequencer-tuplet-utils.ts`:
-  - `getTupletLocalTickFromClientX(...)`
-  - `getTupletHostTicks(...)`
-  - `getTupletRegion(...)`
-  - `isTickInsideTupletRegion(...)`
+- Introduce a shared sequencer address-lattice seam for Story 2.4. This seam should become the authoritative source for:
+  - semantic-address to pixel projection
+  - pixel to nearest valid semantic address resolution
+  - cross-boundary hit-testing for move and resize gestures
+  - tone start and end geometry across host and tuplet regions
+- The canonical frontend model should be an ordered continuous array of semantic boundary points. Each point represents an address such as `{ tuplet_id: null, tick: 96 }` or `{ tuplet_id: 11, tick: 16 }` paired with its x position in the sequencer.
+- Tuplet-covered spans replace host spacing within their covered interval rather than creating a second parallel hit-test track. The canonical model must not translate tuplet-local ticks into host ticks or rely on float repair logic to recover boundaries.
+- Direct address lookup should use stable encoded keys rather than object-identity map keys.
+- If performance requires it, a sparse snap index may be derived from the canonical lattice for the current snap duration. That sparse snap index is an optimization only; it must not replace canonical geometry.
+- The tick bar remains host-track visual reference only. It must not be reused as the true snapping authority when tuplets are present.
 - Reuse the existing frontend action wrappers in `src/services/actions.ts`:
   - `actions.score.tone.shift(track_id, entry_id, new_tick)`
   - `actions.score.tone.setDuration(track_id, tone_id, duration)`
@@ -116,16 +138,223 @@ so that I can refine melodic and rhythmic shape without breaking exact tuplet se
 - Reuse shared track indexing logic in `src-tauri/src/score/tracks.rs`, but add backend validation where tuplet-owned movement would otherwise escape or invalidate the local frame.
 - Preserve exact timing and one-stored-event-per-tone ownership. A drag may cross a tuplet boundary, but the committed result must still be one stored tone whose ownership is determined by where it starts.
 - Preserve literal duration semantics across the boundary. An eighth-note snap remains an eighth-note choice whether the edited segment is inside or outside the tuplet; only the projection into performed host time changes.
+- Rendering a duration must be address-span based rather than width-multiplication based. A tone that crosses a boundary may consume multiple local spacing regimes while remaining one stored event.
 - Preserve MVP non-nestable rules. Any drag result that would require nested tuplets or nested repair must be rejected or deferred.
+
+### Expected Data Structures
+
+- The canonical frontend coordinate model for this story should be built around an address type, not around host-tick projection with tuplet exceptions. Expected shape:
+
+```ts
+type AxisAddress = {
+  tuplet_id: UniqueId | null;
+  tick: number;
+};
+```
+
+- The canonical ordered lattice should store boundary points, not arbitrary sampled pixels. Expected shape:
+
+```ts
+type AxisPoint = {
+  address: AxisAddress;
+  x: number;
+};
+```
+
+- The canonical lattice should be represented as one ordered continuous array covering the full editable horizontal space. Expected shape:
+
+```ts
+type SequencerAddressLattice = {
+  continuous: AxisPoint[];
+  byAddressKey: Map<string, number>;
+};
+```
+
+- `continuous[i]` represents the x position of a valid semantic boundary in the sequencer. Advancing from index `i` to `i + 1` means advancing by one semantic tick in the local owning context of that boundary.
+- Tuplets replace the covered host span in `continuous`. The canonical array must not contain overlapping host and tuplet entries for the same horizontal region.
+- The canonical lattice must be built at the persisted semantic tick resolution so that existing note starts and ends remain addressable regardless of the currently selected snap duration.
+- `byAddressKey` must use stable encoded keys rather than object identity. Expected encoding examples:
+
+```ts
+const hostKey = "host:96";
+const tupletKey = "tuplet:11:16";
+```
+
+- Do not use a `Map` keyed directly by `AxisAddress` objects. JavaScript object identity would make that lookup unstable for equivalent addresses.
+- Do not rely on a `Map` keyed directly by floating-point x values for canonical lookup. X-based lookup should use the ordered `continuous` array with nearest/floor/ceiling binary-search helpers.
+
+- A derived snap overlay is allowed, but it must be downstream of the canonical lattice. Expected shape:
+
+```ts
+type SnapPoint = {
+  continuousIndex: number;
+  address: AxisAddress;
+  x: number;
+};
+
+type SequencerSnapOverlay = {
+  ticksPerSnap: number;
+  points: SnapPoint[];
+};
+```
+
+- The snap overlay exists for nearest-snap queries only. It must not define note rendering, note edge lookup, or canonical hit-testing geometry.
+- Duration rendering should be implemented as address-span projection using lattice indices, not by multiplying one width value. The intended model is:
+
+```ts
+const startIndex = lattice.byAddressKey.get(addressKey(startAddress));
+const endIndex = startIndex + duration;
+const startX = lattice.continuous[startIndex].x;
+const endX = lattice.continuous[endIndex].x;
+const width = endX - startX;
+```
+
+- The exact helper API names may vary, but the story expects this capability set:
+  - address to stable key
+  - address to continuous index
+  - continuous index to address
+  - address to x
+  - x to nearest valid address or nearest snapped address
+  - start address plus duration to end address or end index
+  - start address plus duration to `{ startX, endX, width }`
+
+- The story intentionally treats tuplets as first-class replacement regions in the projection model. Any implementation that flattens tuplet-local ticks into host-tick floats, or that treats tuplets as a workaround layered over a host-only lattice, does not satisfy this technical direction.
+
+### Expected Helper API Surface
+
+- The exact names may vary, but the implementation is expected to expose a helper surface close to the following:
+
+```ts
+type AddressKey = string;
+
+type PixelSpan = {
+  startX: number;
+  endX: number;
+  width: number;
+};
+
+type AddressLookupDirection = "nearest" | "floor" | "ceil";
+
+type SequencerAddressLattice = {
+  continuous: AxisPoint[];
+  byAddressKey: Map<AddressKey, number>;
+};
+
+type SequencerSnapOverlay = {
+  ticksPerSnap: number;
+  points: SnapPoint[];
+};
+
+function addressKey(address: AxisAddress): AddressKey;
+function getIndexForAddress(
+  lattice: SequencerAddressLattice,
+  address: AxisAddress,
+): number | null;
+function getAddressAtIndex(
+  lattice: SequencerAddressLattice,
+  index: number,
+): AxisAddress | null;
+function getXForAddress(
+  lattice: SequencerAddressLattice,
+  address: AxisAddress,
+): number | null;
+function findContinuousIndexForX(
+  lattice: SequencerAddressLattice,
+  x: number,
+  direction: AddressLookupDirection,
+): number | null;
+function findAddressForX(
+  lattice: SequencerAddressLattice,
+  x: number,
+  direction: AddressLookupDirection,
+): AxisAddress | null;
+function advanceIndex(
+  lattice: SequencerAddressLattice,
+  startIndex: number,
+  duration: number,
+): number | null;
+function getSpanForAddressDuration(
+  lattice: SequencerAddressLattice,
+  start: AxisAddress,
+  duration: number,
+): PixelSpan | null;
+function buildSnapOverlay(
+  lattice: SequencerAddressLattice,
+  ticksPerSnap: number,
+): SequencerSnapOverlay;
+function findSnappedAddressForX(
+  overlay: SequencerSnapOverlay,
+  x: number,
+  direction: AddressLookupDirection,
+): AxisAddress | null;
+```
+
+- The implementation does not need to expose exactly these exported function names, but it must support these operations without forcing calling code back into width multiplication or host-tick translation.
+- `getSpanForAddressDuration(...)` is the critical primitive for rendering and resize handles. The track UI should ask for a span from a start address and duration rather than calculating width from a single tick width.
+- `findAddressForX(...)` and `findSnappedAddressForX(...)` are distinct on purpose:
+  - canonical address lookup answers “what boundary is at or nearest this x?”
+  - snapped lookup answers “what valid snapped boundary should this gesture commit to?”
+- `advanceIndex(...)` or its equivalent must move through the canonical continuous lattice one semantic tick at a time in the local owning context. It must not convert through host ticks or float ratios.
+
+### Implementation Invariants
+
+- `continuous` must be strictly ordered by increasing x.
+- Every address key in `byAddressKey` must resolve to exactly one canonical index.
+- No canonical index may represent both a host address and a tuplet address at the same horizontal slot.
+- Entering a tuplet region in the canonical lattice means subsequent indices represent tuplet-local addresses until the tuplet region ends.
+- Leaving a tuplet region in the canonical lattice means subsequent indices resume host-owned addresses after the replaced host span.
+- A tone that crosses a boundary must be rendered from one start address and one duration against the canonical lattice. It must not be rendered as if the full tone used one uniform local width.
+- The active snap overlay may be rebuilt when tool state changes. The canonical lattice must not be rebuilt solely because snap duration changed.
+- Rendering, hit-testing, and gesture snapping must all be able to trace their result back to the same canonical lattice, even if snapping uses a derived sparse overlay.
+
+### Illustrative Lattice Construction Example
+
+- The following example is illustrative, not prescriptive. It exists to clarify the intended shape of the canonical lattice, not to require a specific loop structure, storage strategy, or exact helper decomposition.
+
+```ts
+const continuous: AxisPoint[] = [];
+
+for (const region of orderedRegions) {
+  if (region.type === "host") {
+    for (let tick = region.startTick; tick <= region.endTick; tick += 1) {
+      continuous.push({
+        address: { tuplet_id: null, tick },
+        x: region.startX + (tick - region.startTick) * region.tickWidth,
+      });
+    }
+    continue;
+  }
+
+  for (let tick = 0; tick <= region.localLengthTicks; tick += 1) {
+    continuous.push({
+      address: { tuplet_id: region.tupletId, tick },
+      x: region.startX + tick * region.localTickWidth,
+    });
+  }
+}
+
+const byAddressKey = new Map(
+  continuous.map((point, index) => [addressKey(point.address), index]),
+);
+```
+
+- The key intent is the ordering, not the exact code shape:
+  - host boundaries appear before the tuplet starts
+  - the tuplet region contributes only tuplet-local addresses while it replaces that span
+  - host boundaries resume after the replaced span ends
+- A production implementation may build the same result via region iterators, generators, precomputed segments, or another equivalent approach.
+- If performance requires a more compact internal representation, that is acceptable as long as the exposed semantics still behave exactly like this canonical ordered boundary lattice.
 
 ### Architecture Compliance
 
 - Rust remains the source of truth for accepted tone edits. Frontend drag math may preview or clamp, but final validity must be enforced in backend-owned mutation code.
 - Tuplets are local metric frames with child event streams. Validation must respect the tuplet's local frame rules rather than flattening everything to host-only heuristics.
 - `tone_id` remains authoritative identity. `tuplet_id` is lookup and validation context, not a second identity model.
+- The canonical frontend coordinate model is an address lattice, not a host-tick ruler with tuplet exceptions. Tuplets must behave like first-class replacement regions in the projection model.
 - Crossing a tuplet boundary does not itself force storage splitting. Rendering and playback remain responsible for derived boundary fragments.
 - Host-track tones remain owned by where they start, even when a resize extends them through a tuplet span. Tuplet-owned tones remain child entries while their start stays inside the tuplet. When the start crosses the boundary, ownership must move to the new owning context without splitting the tone into multiple stored events.
 - Snap duration is literal rather than context-specific in meaning. The same chosen written duration must project through either host or tuplet timing depending on where the segment is being edited.
+- Active snap duration must not define canonical geometry. It may define a derived snapping overlay only.
 - `ui.flow_id` remains the one authoritative active-flow slot across score, Sequence, miniature piano rolls, and transport-facing consumers.
 
 ### Worked Example
@@ -169,6 +398,8 @@ so that I can refine melodic and rhythmic shape without breaking exact tuplet se
 - Verify crossing-boundary resize preserves one stored tone and leaves boundary splitting to derived render/playback behavior.
 - Verify dragging a tone's start across the tuplet boundary moves ownership to the new start context in both directions while preserving one stored event.
 - Verify literal snap duration remains stable across the boundary, using tuplet-local values inside the tuplet and track values outside it.
+- Verify canonical address projection and duration-span projection remain correct when a rendered tone crosses between host and tuplet regions.
+- Verify the current snap duration does not alter canonical note rendering or existing note edge lookup.
 - Verify unsupported overlap, invalid local-frame outcomes, and nested-tuplet-requiring edits are rejected without approximate timing fallbacks.
 - Verify the tuplet region, slot markers, hit targeting, and selection remain stable after rejected edits.
 - Verify by-tick and by-id indexes remain consistent after accepted tuplet drag and resize operations.
@@ -183,6 +414,7 @@ so that I can refine melodic and rhythmic shape without breaking exact tuplet se
 - Keep validation in Rust even if the frontend also clamps obvious invalid drags.
 - Keep the visual tuplet region component focused on presentation and stability. Do not shift score truth or gesture state into the UI layer.
 - Keep Story 2.4 tightly scoped to single-tone drag editing. Do not pull container delete, slice policy, tuplet-container resizing, or generalized multi-note editing into this story unless the epic source is revised.
+- Do not continue extending a boundary-fix cursor-translation model as the primary solution. The corrected solution is a single authoritative address lattice shared by rendering, hit-testing, and snap lookup.
 
 ### Previous Story Intelligence
 
@@ -214,24 +446,26 @@ so that I can refine melodic and rhythmic shape without breaking exact tuplet se
 
 ### Project Structure Notes
 
-- The current `handleSelectTool(...)` implementation in `src/windows/main/components/sequencer-track.tsx` selects tuplet-owned tones but returns before entering drag logic. Story 2.4 should remove that limitation without regressing ordinary tone interactions.
-- Current shared movement commands (`shift`, `setDuration`, `setPositionAndDuration`) do not carry explicit tuplet-aware validation. Backend refinement is the root-cause seam for safe tuplet drag support.
+- The prior in-progress implementation added cursor-based projection helpers and debugging to compensate for the current host-tick-based snap model. That work is now considered exploratory and should not constrain the corrected implementation.
 - `SequencerTrackTuplet` already renders a bounded region with slot markers using `data-tuplet-id`; that existing structure should remain the hit-target and orientation foundation during drag work.
 - Main implementation risks:
-  - allowing tuplet-owned tones to escape their local frame due to host-track-only clamping
+  - allowing rendering and hit-testing to diverge because they query different address or snap views
+  - retaining host-ruler pixel math as the true snapping authority and then layering tuplet exceptions on top
+  - letting current snap duration leak into canonical geometry rather than a derived snap overlay
   - corrupting ownership or indexes when a start drag crosses the tuplet boundary
-  - introducing a second tuplet-only drag API instead of refining the shared seams
   - accidentally broadening scope into multi-note moves or Story 2.5 delete/slice rules
 
 ### Open Questions / Assumptions
 
 - Clarified: ownership transfer is required in both directions when a tone start crosses the tuplet boundary.
 - Clarified: snap duration is literal across the boundary. Inside the tuplet, snapping uses tuplet-local equivalents of the active snap value; outside it uses track timing with the same written duration meaning.
+- Clarified: canonical sequencer geometry is independent of current snap duration. If a sparse snap view is introduced, it is derived from the canonical address lattice rather than replacing it.
 - Clarified: Story 2.4 is single-tone only. No grouped movement or resize behavior should be added.
 - Clarified: tuplets themselves are not resizable.
 - Assumption retained: pitch drag should behave identically to ordinary tones because Story 2.2 already established pitch-parity through shared seams.
 - Assumption retained: unsupported edits should reuse the current local rejection behavior with no new tuplet-specific message chrome.
 - Clarified: the intended visual result for tones whose duration extends in or out of a tuplet is the existing architecture rule of one stored tone plus derived boundary split in render/playback, with the tuplet boundary and inner beats remaining legible while the tone reads as continuous.
+- Assumption retained: the current story artifact completion notes and prior implementation file list were based on a reverted implementation and should not be treated as shipped work.
 
 ### References
 
@@ -260,17 +494,20 @@ GPT-5.4
 - Reviewed recent git history to align the story with the current incremental tuplet implementation pattern.
 - Captured and then resolved product decisions around ownership transfer, literal snap duration, non-resizable tuplets, single-tone-only editing, and the intended visual result for boundary-crossing durations.
 
-### Completion Notes List
+### Current Reset Notes
 
-- Story 2.4 is intentionally scoped to single-tone drag editing inside the existing sequencer-first workflow.
+- Story 2.4 remains intentionally scoped to single-tone drag editing inside the existing sequencer-first workflow.
 - Story 2.5 retains explicit delete and slice policy work.
-- The current codebase already contains most shared gesture and tone-mutation seams required for Story 2.4, but tuplet-owned drag entry is currently blocked in the frontend and bounds validation is still insufficient at the backend mutation layer.
-- Documentation impact review is required before the story can be closed.
+- 2026-03-17 correct-course update: the first implementation path is being discarded because boundary-fix cursor translation is not the right architectural center for tuplet-aware gesture editing.
+- The corrected Story 2.4 direction is an authoritative sequencer address lattice shared by tone rendering, gesture hit-testing, and snap lookup, while the host tick bar remains visual-only and the tuplet overlay remains the cue for morphed local spacing.
+- Prior completion notes and file lists reflected reverted exploratory work and should not be treated as shipped implementation.
 
 ### File List
 
-- `_bmad-output/implementation-artifacts/2-4-reposition-or-resize-tuplet-notes-within-supported-bounds.md`
+- `_bmad-output/implementation-artifacts/2-4-reposition-or-resize-tuplet-notes-within-supported-bounds.md` — re-baselined the story around the address-lattice model after reverting the obsolete implementation direction
 
 ### Change Log
 
 - 2026-03-16: Created Story 2.4 implementation artifact with scope boundaries, shared-seam guidance, backend validation requirements, testing expectations, documentation impact tasks, and surfaced open questions.
+- 2026-03-17: Corrected Story 2.4 implementation direction after the first implementation path proved architecturally unsound for tuplet-aware projection and hit-testing. Story status returned to in-progress and guidance first moved to an axis-map approach.
+- 2026-03-17: Re-based the technical direction again after validating that width-centric axis-map math still treated tuplets as an exception layer. Story guidance now requires an authoritative sequencer address lattice whose canonical geometry is independent of active snap.
