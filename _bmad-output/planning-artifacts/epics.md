@@ -698,12 +698,17 @@ So that the score reads from real rhythmic structure instead of frontend reconst
 **Given** a score containing supported tuplets
 **When** notation derivation runs
 **Then** the parser evaluates authoritative track content through the tuplet's local frame
-**And** the resulting notation is produced from backend-owned rhythmic data
+**And** the resulting notation is produced from backend-owned rhythmic data in a form the existing parser and renderer pipeline can consume without a frontend reconstruction layer
 
 **Given** empty spans exist inside a tuplet-governed local frame
 **When** notation is derived
 **Then** rests are inferred from absence of projected sounding content in the governed local tuplet slots, including host-owned crossing tones and tuplet-child tones
 **And** no frontend reconstruction layer is required to invent missing rhythmic structure
+
+**Given** supported tuplet derivation scenarios are exercised in automated tests
+**When** the parser-local notation suite runs
+**Then** the expected derived notation output is asserted directly for grouped tuplet content, inferred rests, and boundary-crossing fragments
+**And** Story 3.1 can be validated without relying on score-surface rendering
 
 **Given** tuplets are introduced into the parse path
 **When** existing non-tuplet passages are derived
@@ -729,7 +734,7 @@ So that the score reads like real notation rather than placeholder annotation.
 **Given** a derived tuplet notation result that requires visible tuplet marking
 **When** the score is rendered
 **Then** the tuplet number is drawn in the correct relationship to its grouped content
-**And** bracket visibility follows the supported MVP readability rules
+**And** bracket visibility follows the supported MVP readability rules while consuming the derived parser output rather than recomputing tuplet structure in a parallel renderer-only path
 
 **Given** a supported case where bracket chrome is not required for clarity
 **When** the score is rendered
@@ -740,6 +745,11 @@ So that the score reads like real notation rather than placeholder annotation.
 **When** the score surface refreshes
 **Then** tuplet markings remain visually attached to the correct content
 **And** they do not resolve as unrelated overlay annotations
+
+**Given** a derived passage crosses a tuplet start or end boundary
+**When** tuplet markings are rendered
+**Then** the renderer consumes notation already split at the tuplet boundary using the same metric-boundary discipline Compose applies at barlines
+**And** the tuplet span is treated as one isolated grouped unit for bracket and number placement
 
 ### Story 3.3: Render Tuplet Notes, Rests, Ties, and Beams Coherently
 
@@ -777,6 +787,11 @@ So that beams, rests, and ties reinforce the tuplet instead of contradicting it.
 **Then** the boundary split is represented with the same musical logic Compose uses around barlines and ties
 **And** the tuplet remains readable as one coherent rhythmic unit
 
+**Given** tuplet notes, rests, ties, and beams are rendered after derivation
+**When** the renderer consumes the passage
+**Then** tuplet start and end boundaries are treated as isolated metric split points in the same way barlines constrain grouping decisions
+**And** beaming, rest placement, and tie continuity are resolved from that isolated tuplet unit rather than from a continuous unsplit host view
+
 **Given** MVP tuplets are non-nestable
 **When** rendering support is implemented
 **Then** rendering only needs to cover single-level tuplet content
@@ -797,6 +812,11 @@ So that numbers, brackets, and notes stay readable in normal work.
 **When** spacing is calculated
 **Then** tuplet-local layout can claim enough width for readable note spacing, brackets, and numbers
 **And** surrounding score spacing expands when required by the derived notation
+
+**Given** tuplets are laid out inside the existing score spacing system
+**When** spacing slots are assigned
+**Then** the implementation reuses the existing slot patterns and spreads them across the tuplet-governed span rather than adding new tuplet-specific slots unless absolutely necessary
+**And** any new slot requires explicit justification because tuplets should normally fit the current slot model
 
 **Given** the ambient score context already provides sufficient width
 **When** the tuplet is laid out

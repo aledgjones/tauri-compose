@@ -60,11 +60,11 @@ development_status:
   2-5-apply-explicit-mvp-delete-and-slice-rules-for-tuplet-members-and-containers: done
   epic-2-retrospective: done
 
-  epic-3: backlog
-  3-1-parse-tuplet-spanned-content-into-backend-owned-notation: backlog
-  3-2-render-tuplet-brackets-and-numbers-correctly: backlog
-  3-3-render-tuplet-notes-rests-ties-and-beams-coherently: backlog
-  3-4-lay-out-tuplets-legibly-within-the-existing-score-surface: backlog
+  epic-3: in-progress
+  3-1-parse-tuplet-spanned-content-into-backend-owned-notation: ready-for-dev
+  3-2-render-tuplet-brackets-and-numbers-correctly: ready-for-dev
+  3-3-render-tuplet-notes-rests-ties-and-beams-coherently: ready-for-dev
+  3-4-lay-out-tuplets-legibly-within-the-existing-score-surface: ready-for-dev
   epic-3-retrospective: optional
 
   epic-4: backlog
