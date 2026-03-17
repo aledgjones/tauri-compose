@@ -123,6 +123,21 @@ impl Track {
         }
     }
 
+    fn get_tone(&self, tone_id: UniqueId, tuplet_id: Option<UniqueId>) -> Option<&Tone> {
+        match tuplet_id {
+            Some(tuplet_id) => match self.entries.by_id.get(&tuplet_id)? {
+                Entry::Tuplet(tuplet) => match tuplet.entries.by_id.get(&tone_id)? {
+                    TupletEntry::Tone(tone) => Some(tone),
+                },
+                _ => None,
+            },
+            None => match self.entries.by_id.get(&tone_id)? {
+                Entry::Tone(tone) => Some(tone),
+                _ => None,
+            },
+        }
+    }
+
     fn resolve_tone_pitch_tick(
         &self,
         tone_id: UniqueId,
@@ -148,6 +163,80 @@ impl Track {
         match self.entries.by_id.get(&tuplet_id)? {
             Entry::Tuplet(tuplet) => Some(tuplet),
             _ => None,
+        }
+    }
+
+    fn ordered_tuplets(&self) -> Vec<&super::tuplet::Tuplet> {
+        let mut tuplets: Vec<&super::tuplet::Tuplet> = self
+            .entries
+            .by_id
+            .values()
+            .filter_map(|entry| match entry {
+                Entry::Tuplet(tuplet) => Some(tuplet.as_ref()),
+                _ => None,
+            })
+            .collect();
+
+        tuplets.sort_by_key(|tuplet| tuplet.tick);
+        tuplets
+    }
+
+    fn find_tuplet_covering_host_tick(&self, tick: Tick) -> Option<&super::tuplet::Tuplet> {
+        self.ordered_tuplets().into_iter().find(|tuplet| {
+            let tuplet_end = tuplet.tick + tuplet.consumed_ticks();
+            tick >= tuplet.tick && tick < tuplet_end
+        })
+    }
+
+    fn continuous_offset_for_address(
+        &self,
+        tick: Tick,
+        tuplet_id: Option<UniqueId>,
+    ) -> Result<Tick, String> {
+        let ordered_tuplets = self.ordered_tuplets();
+        let mut expansion = 0;
+
+        match tuplet_id {
+            Some(tuplet_id) => {
+                let tuplet = self
+                    .get_tuplet(tuplet_id)
+                    .ok_or_else(|| format!("Tuplet {tuplet_id} not found on track {}", self.id))?;
+
+                if tick >= tuplet.local_length_ticks() {
+                    return Err(format!(
+                        "Slice target tick {tick} is outside tuplet {tuplet_id} local bounds on track {}",
+                        self.id
+                    ));
+                }
+
+                for candidate in ordered_tuplets {
+                    if candidate.id == tuplet_id {
+                        break;
+                    }
+
+                    expansion += candidate.local_length_ticks() - candidate.consumed_ticks();
+                }
+
+                Ok(tuplet.tick + expansion + tick)
+            }
+            None => {
+                if let Some(tuplet) = self.find_tuplet_covering_host_tick(tick) {
+                    return Err(format!(
+                        "Host tick {tick} lies inside tuplet {} span on track {}",
+                        tuplet.id, self.id
+                    ));
+                }
+
+                for tuplet in ordered_tuplets {
+                    let tuplet_end = tuplet.tick + tuplet.consumed_ticks();
+
+                    if tuplet_end <= tick {
+                        expansion += tuplet.local_length_ticks() - tuplet.consumed_ticks();
+                    }
+                }
+
+                Ok(tick + expansion)
+            }
         }
     }
 
@@ -432,35 +521,44 @@ impl Track {
     }
 
     /// Slice a tone at `slice_tick`, inserting a tail tone with `new_tone_id`.
-    /// Returns `Some(new_tone_id)` on success, `None` if `slice_tick` is outside the tone's range.
+    /// Returns `Ok(Some(new_tone_id))` on success, `Ok(None)` if the split point falls outside the tone,
+    /// and `Err` when the requested ownership context is invalid.
     pub fn slice_tone(
         &mut self,
         tone_id: UniqueId,
         new_tone_id: UniqueId,
         slice_tick: Tick,
-    ) -> Option<UniqueId> {
-        let original = match self.entries.by_id.get(&tone_id) {
-            Some(Entry::Tone(tone)) => tone.clone(),
-            _ => return None,
+        current_tuplet_id: Option<UniqueId>,
+        target_tuplet_id: Option<UniqueId>,
+    ) -> Result<Option<UniqueId>, String> {
+        let Some(original) = self.get_tone(tone_id, current_tuplet_id).cloned() else {
+            return Ok(None);
         };
-        let tone_start = original.tick;
-        let tone_end = original.tick + original.duration;
-        if slice_tick <= tone_start || slice_tick >= tone_end {
-            return None;
+
+        let tone_start = self.continuous_offset_for_address(original.tick, current_tuplet_id)?;
+        let tone_end = tone_start + original.duration;
+        let slice_offset = self.continuous_offset_for_address(slice_tick, target_tuplet_id)?;
+
+        if slice_offset <= tone_start || slice_offset >= tone_end {
+            return Ok(None);
         }
-        if let Some(Entry::Tone(tone)) = self.entries.by_id.get_mut(&tone_id) {
-            tone.duration = slice_tick - tone_start;
-        }
+
+        let head_duration = slice_offset - tone_start;
+        let tail_duration = tone_end - slice_offset;
+
+        self.set_tone_duration(tone_id, head_duration, current_tuplet_id)?;
+
         let new_tone = Tone::new(
             new_tone_id,
             slice_tick,
-            tone_end - slice_tick,
+            tail_duration,
             original.pitch,
             original.velocity,
             original.articulations.clone(),
         );
-        self.insert_entry(Entry::Tone(new_tone));
-        Some(new_tone_id)
+        self.insert_owned_tone(new_tone, target_tuplet_id)?;
+
+        Ok(Some(new_tone_id))
     }
 
     pub fn shift_tone(
@@ -673,6 +771,7 @@ pub fn score_entries_tone_duration_set(
 }
 
 #[tauri::command(rename_all = "snake_case")]
+#[allow(clippy::too_many_arguments)]
 pub fn score_entries_tone_slice(
     app: tauri::AppHandle,
     state: State<'_, AppContextState>,
@@ -680,19 +779,27 @@ pub fn score_entries_tone_slice(
     track_id: UniqueId,
     tone_id: UniqueId,
     slice_tick: Tick,
-) -> Option<UniqueId> {
+    current_tuplet_id: Option<UniqueId>,
+    target_tuplet_id: Option<UniqueId>,
+) -> Result<Option<UniqueId>, String> {
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
 
     let new_tone_id = state.generate_id();
     let track = state.score.tracks.by_id.get_mut(&track_id).unwrap();
-    let result = track.slice_tone(tone_id, new_tone_id, slice_tick);
+    let result = track.slice_tone(
+        tone_id,
+        new_tone_id,
+        slice_tick,
+        current_tuplet_id,
+        target_tuplet_id,
+    )?;
 
     if result.is_some() {
         state.emit_affected_track(&app, &mut renderer, track_id);
     }
 
-    result
+    Ok(result)
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -1765,8 +1872,8 @@ mod tests {
         use crate::score::entries::Entry;
         // make_track_with_tone gives duration=32; slice in the middle at tick 16
         let mut track = make_track_with_tone(1, 0, 60, Accidental::Natural);
-        let result = track.slice_tone(1, 99, 16);
-        assert_eq!(result, Some(99));
+        let result = track.slice_tone(1, 99, 16, None, None);
+        assert_eq!(result, Ok(Some(99)));
         // Original shortened to 16
         if let Some(Entry::Tone(orig)) = track.entries.by_id.get(&1) {
             assert_eq!(orig.duration, 16);
@@ -1783,19 +1890,169 @@ mod tests {
     #[test]
     fn slice_tone_returns_none_at_start() {
         let mut track = make_track_with_tone(1, 0, 64, Accidental::Natural);
-        assert_eq!(track.slice_tone(1, 99, 0), None);
+        assert_eq!(track.slice_tone(1, 99, 0, None, None), Ok(None));
     }
 
     #[test]
     fn slice_tone_returns_none_at_end() {
         let mut track = make_track_with_tone(1, 0, 64, Accidental::Natural);
-        assert_eq!(track.slice_tone(1, 99, 64), None);
+        assert_eq!(track.slice_tone(1, 99, 64, None, None), Ok(None));
     }
 
     #[test]
     fn slice_tone_returns_none_outside_range() {
         let mut track = make_track_with_tone(1, 0, 64, Accidental::Natural);
-        assert_eq!(track.slice_tone(1, 99, 100), None);
+        assert_eq!(track.slice_tone(1, 99, 100, None, None), Ok(None));
+    }
+
+    #[test]
+    fn slice_tone_inside_tuplet_keeps_both_results_tuplet_owned() {
+        use crate::score::entries::Entry;
+        use crate::score::tracks::Track;
+
+        let mut track = Track::new(1);
+        track
+            .create_tuplet(20, 64, 3, 2, NoteDuration::Eighth, vec![3])
+            .unwrap();
+        track
+            .create_tone(
+                30,
+                16,
+                24,
+                67,
+                Some(Accidental::Natural),
+                80,
+                Articulations::new(),
+                Some(20),
+            )
+            .unwrap();
+
+        let result = track.slice_tone(30, 99, 24, Some(20), Some(20));
+
+        assert_eq!(result, Ok(Some(99)));
+
+        let Some(Entry::Tuplet(tuplet)) = track.entries.by_id.get(&20) else {
+            panic!("expected tuplet entry");
+        };
+        let Some(TupletEntry::Tone(head)) = tuplet.entries.by_id.get(&30) else {
+            panic!("expected head tone");
+        };
+        let Some(TupletEntry::Tone(tail)) = tuplet.entries.by_id.get(&99) else {
+            panic!("expected tail tone");
+        };
+
+        assert_eq!(head.tick, 16);
+        assert_eq!(head.duration, 8);
+        assert_eq!(tail.tick, 24);
+        assert_eq!(tail.duration, 16);
+    }
+
+    #[test]
+    fn slice_tone_moves_tuplet_owned_tail_to_host_when_split_crosses_boundary() {
+        use crate::score::entries::Entry;
+        use crate::score::tracks::Track;
+
+        let mut track = Track::new(1);
+        track
+            .create_tuplet(20, 64, 3, 2, NoteDuration::Eighth, vec![3])
+            .unwrap();
+        track
+            .create_tone(
+                30,
+                16,
+                40,
+                67,
+                Some(Accidental::Natural),
+                80,
+                Articulations::new(),
+                Some(20),
+            )
+            .unwrap();
+
+        let result = track.slice_tone(30, 99, 96, Some(20), None);
+
+        assert_eq!(result, Ok(Some(99)));
+
+        let Some(Entry::Tuplet(tuplet)) = track.entries.by_id.get(&20) else {
+            panic!("expected tuplet entry");
+        };
+        let Some(TupletEntry::Tone(head)) = tuplet.entries.by_id.get(&30) else {
+            panic!("expected tuplet-owned head tone");
+        };
+        let Some(Entry::Tone(tail)) = track.entries.by_id.get(&99) else {
+            panic!("expected host-owned tail tone");
+        };
+
+        assert_eq!(head.duration, 32);
+        assert_eq!(tail.tick, 96);
+        assert_eq!(tail.duration, 8);
+    }
+
+    #[test]
+    fn slice_tone_moves_host_owned_tail_into_tuplet_when_split_starts_inside_tuplet() {
+        use crate::score::entries::Entry;
+        use crate::score::tracks::Track;
+
+        let mut track = Track::new(1);
+        track.insert_entry(Entry::Tone(Tone::new(
+            30,
+            48,
+            48,
+            Pitch::new(60, Accidental::Natural),
+            Velocity::new(80),
+            Articulations::new(),
+        )));
+        track
+            .create_tuplet(20, 64, 3, 2, NoteDuration::Eighth, vec![3])
+            .unwrap();
+
+        let result = track.slice_tone(30, 99, 16, None, Some(20));
+
+        assert_eq!(result, Ok(Some(99)));
+
+        let Some(Entry::Tone(head)) = track.entries.by_id.get(&30) else {
+            panic!("expected host-owned head tone");
+        };
+        let Some(Entry::Tuplet(tuplet)) = track.entries.by_id.get(&20) else {
+            panic!("expected tuplet entry");
+        };
+        let Some(TupletEntry::Tone(tail)) = tuplet.entries.by_id.get(&99) else {
+            panic!("expected tuplet-owned tail tone");
+        };
+
+        assert_eq!(head.tick, 48);
+        assert_eq!(head.duration, 32);
+        assert_eq!(tail.tick, 16);
+        assert_eq!(tail.duration, 16);
+    }
+
+    #[test]
+    fn slice_tone_rejects_invalid_cross_owner_target() {
+        use crate::score::tracks::Track;
+
+        let mut track = Track::new(1);
+        track
+            .create_tuplet(20, 64, 3, 2, NoteDuration::Eighth, vec![3])
+            .unwrap();
+        track
+            .create_tone(
+                30,
+                16,
+                24,
+                67,
+                Some(Accidental::Natural),
+                80,
+                Articulations::new(),
+                Some(20),
+            )
+            .unwrap();
+
+        let result = track.slice_tone(30, 99, 96, Some(20), Some(20));
+
+        assert_eq!(
+            result,
+            Err("Slice target tick 96 is outside tuplet 20 local bounds on track 1".to_string())
+        );
     }
 
     // --- Track::set_tone_position_and_duration ---

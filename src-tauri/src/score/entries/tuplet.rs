@@ -214,6 +214,13 @@ impl Track {
 
         Ok(tuplet_id)
     }
+
+    pub fn remove_tuplet(&mut self, tuplet_id: UniqueId) -> Result<(), String> {
+        match self.remove_entry(tuplet_id) {
+            Some(Entry::Tuplet(_)) => Ok(()),
+            Some(_) | None => Err(format!("Tuplet {tuplet_id} not found on track {}", self.id)),
+        }
+    }
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -252,6 +259,32 @@ pub fn score_entries_tuplet_create(
     state.emit_affected_track(&app, &mut renderer, track_id);
 
     Ok(tuplet_id)
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn score_entries_tuplet_remove(
+    app: tauri::AppHandle,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
+    track_id: UniqueId,
+    tuplet_id: UniqueId,
+) -> Result<(), String> {
+    let mut state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
+
+    let track = state
+        .score
+        .tracks
+        .by_id
+        .get_mut(&track_id)
+        .ok_or_else(|| format!("Track {track_id} not found"))?;
+
+    track.remove_tuplet(tuplet_id)?;
+
+    state.ui.sequencer.selection = None;
+    state.emit_affected_track(&app, &mut renderer, track_id);
+
+    Ok(())
 }
 
 #[cfg(test)]
@@ -515,5 +548,54 @@ mod tests {
         };
         assert!(matches!(tuplet.entries.by_id.get(&21), Some(TupletEntry::Tone(_))));
         assert!(!track.entries.by_id.contains_key(&100));
+    }
+
+    #[test]
+    fn remove_tuplet_removes_container_and_child_entries_together() {
+        let mut track = Track::new(9);
+        track
+            .create_tuplet(99, 64, 3, 2, NoteDuration::Eighth, vec![3])
+            .unwrap();
+
+        let Entry::Tuplet(tuplet) = track.entries.by_id.get_mut(&99).unwrap() else {
+            panic!("expected tuplet entry");
+        };
+        tuplet.entries.insert_entry(TupletEntry::Tone(Tone::new(
+            120,
+            16,
+            24,
+            Pitch::new(60, Accidental::Natural),
+            Velocity::new(90),
+            Articulations::new(),
+        )));
+
+        assert_eq!(track.remove_tuplet(99), Ok(()));
+        assert!(!track.entries.by_id.contains_key(&99));
+        assert!(track
+            .entries
+            .by_tick
+            .get(&64)
+            .is_none_or(|ids| !ids.contains(&99)));
+        assert!(!track.entries.by_id.contains_key(&120));
+    }
+
+    #[test]
+    fn remove_tuplet_keeps_other_track_entries_intact() {
+        let mut track = Track::new(9);
+        track.insert_entry(Entry::Tone(Tone::new(
+            21,
+            16,
+            16,
+            Pitch::new(58, Accidental::Natural),
+            Velocity::new(90),
+            Articulations::new(),
+        )));
+        track
+            .create_tuplet(99, 64, 3, 2, NoteDuration::Eighth, vec![3])
+            .unwrap();
+
+        assert_eq!(track.remove_tuplet(99), Ok(()));
+        assert!(matches!(track.entries.by_id.get(&21), Some(Entry::Tone(_))));
+        assert_eq!(track.entries.by_tick.get(&16), Some(&vec![21]));
     }
 }

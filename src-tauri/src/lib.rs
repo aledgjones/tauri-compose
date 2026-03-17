@@ -69,7 +69,7 @@ use score::entries::tone::{
     score_entries_tone_pitch_shift_by_steps, score_entries_tone_set_position_and_duration,
     score_entries_tone_shift, score_entries_tone_slice, score_entries_tone_unify_articulations,
 };
-use score::entries::tuplet::score_entries_tuplet_create;
+use score::entries::tuplet::{score_entries_tuplet_create, score_entries_tuplet_remove};
 use score::flows::{
     score_flows_assign_player, score_flows_create, score_flows_move, score_flows_remove,
     score_flows_rename, score_flows_unassign_player,
@@ -633,6 +633,7 @@ pub fn run() {
             score_entries_tone_slice,
             score_entries_tone_duration_remove,
             score_entries_tuplet_create,
+            score_entries_tuplet_remove,
             score_flows_create,
             score_flows_rename,
             score_flows_move,

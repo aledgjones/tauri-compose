@@ -48,6 +48,7 @@ use crate::score::entries::tone::{
     score_entries_tone_pitch_shift_by_steps, score_entries_tone_set_position_and_duration,
     score_entries_tone_shift, score_entries_tone_slice, score_entries_tone_unify_articulations,
 };
+use crate::score::entries::tuplet::score_entries_tuplet_remove;
 use crate::score::flows::{
     score_flows_assign_player, score_flows_create, score_flows_move, score_flows_remove,
     score_flows_rename, score_flows_unassign_player,
@@ -507,7 +508,7 @@ pub fn action_definitions() -> Vec<ActionDefinition> {
             ],
         ),
         action("score.tone.setDuration", "Set the duration of an existing tone.", vec![arg("track_id", "Numeric track id."), arg("tone_id", "Numeric tone id."), arg("duration", "Tone duration in ticks.")]),
-        action("score.tone.slice", "Split a tone at a specific tick and return the new tone id when successful.", vec![arg("track_id", "Numeric track id."), arg("tone_id", "Numeric tone id."), arg("slice_tick", "Tick position where the tone should be sliced.")]),
+        action("score.tone.slice", "Split a tone at a specific tick and return the new tone id when successful.", vec![arg("track_id", "Numeric track id."), arg("tone_id", "Numeric tone id."), arg("slice_tick", "Tick position where the tone should be sliced in the target ownership context."), optional_arg("current_tuplet_id", "Optional tuplet id for the original owning context when slicing a tuplet-owned tone."), optional_arg("target_tuplet_id", "Optional tuplet id for the resulting tail tone when the split lands inside a tuplet context.")]),
         action("score.tone.setPitch", "Set the pitch of an existing tone.", vec![arg("track_id", "Numeric track id."), arg("tone_id", "Numeric tone id."), arg("pitch_int", "Chromatic pitch integer."), arg("accidental", "Accidental enum value or null. Use -2=DoubleFlat, -1=Flat, 0=Natural, 1=Sharp, 2=DoubleSharp."), optional_arg("tuplet_id", "Optional tuplet id used to address a nested tone directly on the owning track.")]),
         action("score.tone.remove", "Remove an existing tone entry.", vec![arg("track_id", "Numeric track id."), arg("tone_id", "Numeric tone id."), optional_arg("tuplet_id", "Optional tuplet id used to address a nested tone directly on the owning track.")]),
         action("score.tone.setPositionAndDuration", "Set the position and duration of an existing tone.", vec![arg("track_id", "Numeric track id."), arg("tone_id", "Numeric tone id."), arg("tick", "New tick position."), arg("duration", "New duration in ticks.")]),
@@ -517,6 +518,7 @@ pub fn action_definitions() -> Vec<ActionDefinition> {
         action("score.tone.shiftPitchByOctaves", "Shift a tone pitch by a number of octaves.", vec![arg("track_id", "Numeric track id."), arg("tone_id", "Numeric tone id."), arg("octaves", "Signed number of octaves to shift."), optional_arg("tuplet_id", "Optional tuplet id used to address a nested tone directly on the owning track.")]),
         action("score.tone.setAccidental", "Set the accidental on a tone.", vec![arg("track_id", "Numeric track id."), arg("tone_id", "Numeric tone id."), arg("accidental", "Accidental enum value. Use -2=DoubleFlat, -1=Flat, 0=Natural, 1=Sharp, 2=DoubleSharp."), optional_arg("tuplet_id", "Optional tuplet id used to address a nested tone directly on the owning track.")]),
         action("score.tone.toggleArticulation", "Toggle an articulation on a tone and apply the resulting articulation set across the tick.", vec![arg("track_id", "Numeric track id."), arg("tone_id", "Numeric tone id."), arg("articulation", "Numeric Articulation enum value. Use 0=Staccato, 1=Tenuto, 2=Staccatissimo, 3=StaccatoTenuto, 4=Accent, 5=Marcato, 6=Stressed, 7=Unstressed."), optional_arg("tuplet_id", "Optional tuplet id used to address a nested tone directly on the owning track.")]),
+        action("score.tuplet.remove", "Remove a tuplet container and all of its child tones.", vec![arg("track_id", "Numeric track id."), arg("tuplet_id", "Numeric tuplet id.")]),
         action(
             "score.lookup.getInstrumentTracks",
             "Resolve the flow-local stave master ids and user track ids for an instrument in a specific flow.",
@@ -1321,7 +1323,9 @@ pub async fn execute_action(app: &AppHandle, name: &str, args: &[Value]) -> Resu
             arg_id(args, 0, "track_id")?,
             arg_id(args, 1, "tone_id")?,
             arg_u64(args, 2, "slice_tick")?,
-        ))),
+            arg_optional_id(args, 3)?,
+            arg_optional_id(args, 4)?,
+        )?)),
         "score.tone.setPitch" => {
             score_entries_tone_pitch_set(
                 app.clone(),
@@ -1344,6 +1348,16 @@ pub async fn execute_action(app: &AppHandle, name: &str, args: &[Value]) -> Resu
                 arg_id(args, 1, "tone_id")?,
                 arg_optional_id(args, 2)?,
             );
+            Ok(Value::Null)
+        }
+        "score.tuplet.remove" => {
+            score_entries_tuplet_remove(
+                app.clone(),
+                app.state::<AppContextState>(),
+                app.state::<RendererContextState>(),
+                arg_id(args, 0, "track_id")?,
+                arg_id(args, 1, "tuplet_id")?,
+            )?;
             Ok(Value::Null)
         }
         "score.tone.setPositionAndDuration" => {

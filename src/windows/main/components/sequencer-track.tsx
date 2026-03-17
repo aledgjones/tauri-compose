@@ -363,8 +363,8 @@ const handleSliceTool = async (
   e: React.PointerEvent<HTMLDivElement>,
   sequencerRef: React.RefObject<HTMLDivElement | null>,
   track: Track,
-  ticks: TickConfig,
-  snapDuration: NoteDuration,
+  lattice: SequencerAddressLattice,
+  overlay: SequencerSnapOverlay,
 ) => {
   const clickTarget = getSequencerClickTarget(e.target as HTMLElement);
 
@@ -381,24 +381,33 @@ const handleSliceTool = async (
     return;
   }
 
+  const toneEntry = getToneEntryFromClickTarget(track, clickTarget);
+
+  if (!toneEntry || toneEntry.type !== "Tone") {
+    return;
+  }
+
   e.stopPropagation();
   e.preventDefault();
-
-  const subdivisions = 32;
-  const ticksPerSnap = (subdivisions * 4) / snapDuration;
   const x = e.clientX - box.left;
+  const sliceAddress = getSnappedAddress(overlay, x);
 
-  const sliceTick = getSnappedXPosition(
-    x,
-    ticks.tickWidth,
-    ticksPerSnap,
-    "nearest",
-  );
+  if (!sliceAddress) {
+    return;
+  }
+
+  const toneAddress = getToneAddress(toneEntry, clickTarget.tuplet_id ?? null);
+
+  if (getIndexForAddress(lattice, toneAddress) === null) {
+    return;
+  }
 
   const newToneId = await actions.score.tone.slice(
     track.id,
     clickTarget.id,
-    sliceTick,
+    sliceAddress.tick,
+    clickTarget.tuplet_id ?? null,
+    sliceAddress.tuplet_id ?? null,
   );
 
   if (!newToneId) {
@@ -938,7 +947,13 @@ export const SequencerTrack: FC<SequencerTrackProps> = ({
           return;
 
         case Tool.Slice:
-          await handleSliceTool(e, sequencerRef, track, ticks, snapDuration);
+          await handleSliceTool(
+            e,
+            sequencerRef,
+            track,
+            addressLattice,
+            snapOverlay,
+          );
           return;
       }
     },
@@ -951,7 +966,6 @@ export const SequencerTrack: FC<SequencerTrackProps> = ({
       track,
       instrumentId,
       ticks,
-      snapDuration,
       audition,
       pluginId,
     ],

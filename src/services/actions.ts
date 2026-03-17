@@ -920,11 +920,19 @@ export const actions = {
           tone_id,
         });
       },
-      slice: (track_id: UniqueId, tone_id: UniqueId, slice_tick: Tick) => {
+      slice: (
+        track_id: UniqueId,
+        tone_id: UniqueId,
+        slice_tick: Tick,
+        current_tuplet_id?: UniqueId | null,
+        target_tuplet_id?: UniqueId | null,
+      ) => {
         return invoke<UniqueId | null>("score_entries_tone_slice", {
           track_id,
           tone_id,
           slice_tick,
+          current_tuplet_id: current_tuplet_id ?? null,
+          target_tuplet_id: target_tuplet_id ?? null,
         });
       },
       shiftPitchByStep: (
@@ -1002,6 +1010,12 @@ export const actions = {
           in_space_of,
           base_note_value,
           groupings,
+        });
+      },
+      remove: (track_id: UniqueId, tuplet_id: UniqueId) => {
+        return invoke<void>("score_entries_tuplet_remove", {
+          track_id,
+          tuplet_id,
         });
       },
     },

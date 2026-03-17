@@ -228,6 +228,10 @@ Tuplet note insertion still extends the existing track-level tone mutation seam 
 
 The addressing model remains explicit as `track_id -> optional tuplet_id -> tone_id`. Host-track tones keep track-relative ticks and durations. Tuplet child tones keep tuplet-local ticks and durations. Insertion does not translate child timing into host ticks or persist explicit rest entries for unused local space.
 
+Deletion and slicing follow that same ownership model. Removing a tuplet-owned tone removes only that child entry and leaves the vacated local span as derived empty tuplet space. Removing a tuplet container removes the host-track `Tuplet` entry and its child `entries` together; MVP does not dissolve child tones back onto the host track or synthesize rests.
+
+Tone slicing also stays on the shared tone mutation seam. The slice request now carries both the current owning context and the target owner for the new tail start. Rust resolves both addresses against the same continuous tuplet/host lattice used by sequencer editing, shortens the original tone to the head duration, and inserts exactly one new stored tail tone in the ownership context determined by the tail start. Crossing a tuplet boundary therefore does not create any extra persisted fragments beyond the intentional two-tone slice result.
+
 Story 1.5 stops at ownership reconciliation and persisted timing carry-over. Parser derivation, engraving, playback projection, and broader editing consequences remain intentionally deferred to the later tuplet stories that own those seams.
 
 ### Sequencer Selection (UI-only)

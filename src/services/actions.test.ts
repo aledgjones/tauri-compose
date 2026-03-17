@@ -1212,11 +1212,35 @@ describe("actions.score.tone", () => {
   });
 
   it("slice calls invoke correctly", async () => {
-    await actions.score.tone.slice(10, 200, 48);
+    await actions.score.tone.slice(10, 200, 48, null, null);
     expect(mockInvoke).toHaveBeenCalledWith("score_entries_tone_slice", {
       track_id: 10,
       tone_id: 200,
       slice_tick: 48,
+      current_tuplet_id: null,
+      target_tuplet_id: null,
+    });
+  });
+
+  it("slice passes ownership context when provided", async () => {
+    await actions.score.tone.slice(10, 200, 16, 44, 44);
+    expect(mockInvoke).toHaveBeenCalledWith("score_entries_tone_slice", {
+      track_id: 10,
+      tone_id: 200,
+      slice_tick: 16,
+      current_tuplet_id: 44,
+      target_tuplet_id: 44,
+    });
+  });
+
+  it("slice supports cross-owner split context", async () => {
+    await actions.score.tone.slice(10, 200, 96, 44, null);
+    expect(mockInvoke).toHaveBeenCalledWith("score_entries_tone_slice", {
+      track_id: 10,
+      tone_id: 200,
+      slice_tick: 96,
+      current_tuplet_id: 44,
+      target_tuplet_id: null,
     });
   });
 
@@ -1332,6 +1356,15 @@ describe("actions.score.tuplet", () => {
       groupings: [3],
     });
     expect(id).toBe(300);
+  });
+
+  it("remove calls invoke correctly", async () => {
+    await actions.score.tuplet.remove(10, 300);
+
+    expect(mockInvoke).toHaveBeenCalledWith("score_entries_tuplet_remove", {
+      track_id: 10,
+      tuplet_id: 300,
+    });
   });
 });
 
