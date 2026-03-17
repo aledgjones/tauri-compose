@@ -52,13 +52,13 @@ development_status:
   1-7-keep-versioning-and-offline-desktop-behavior-intact-for-tuplet-files: done
   epic-1-retrospective: done
 
-  epic-2: in-progress
+  epic-2: done
   2-1-target-tuplet-containers-and-members-reliably: done
   2-2-edit-pitch-inside-a-tuplet-without-changing-timing: done
   2-3-add-and-remove-notes-within-tuplet-slots: done
   2-4-reposition-or-resize-tuplet-notes-within-supported-bounds: done
   2-5-apply-explicit-mvp-delete-and-slice-rules-for-tuplet-members-and-containers: done
-  epic-2-retrospective: optional
+  epic-2-retrospective: done
 
   epic-3: backlog
   3-1-parse-tuplet-spanned-content-into-backend-owned-notation: backlog
