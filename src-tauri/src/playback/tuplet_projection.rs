@@ -416,4 +416,42 @@ mod tests {
             ]
         );
     }
+
+    #[test]
+    fn collect_track_playback_events_keeps_host_only_passages_integer_timed() {
+        let mut track = Track::new(1);
+        track.insert_entry(Entry::Tone(make_tone(1, 32, 16, 60)));
+        track.insert_entry(Entry::Tone(make_tone(2, 80, 24, 64)));
+        track.insert_entry(Entry::Tone(make_tone(3, 111, 16, 67)));
+
+        let events = collect_track_playback_events(&track);
+
+        assert_eq!(
+            events,
+            vec![
+                PlaybackToneEvent {
+                    start: PlaybackTick::from_tick(32),
+                    duration: PlaybackTick::from_tick(16),
+                    pitch: 60,
+                    velocity: 96,
+                },
+                PlaybackToneEvent {
+                    start: PlaybackTick::from_tick(80),
+                    duration: PlaybackTick::from_tick(24),
+                    pitch: 64,
+                    velocity: 96,
+                },
+                PlaybackToneEvent {
+                    start: PlaybackTick::from_tick(111),
+                    duration: PlaybackTick::from_tick(16),
+                    pitch: 67,
+                    velocity: 96,
+                },
+            ]
+        );
+
+        assert!(events.iter().all(|event| {
+            event.start.denominator == 1 && event.duration.denominator == 1
+        }));
+    }
 }
