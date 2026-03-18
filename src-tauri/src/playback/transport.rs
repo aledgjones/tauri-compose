@@ -10,6 +10,7 @@ use crate::{AppContext, AppContextState, AudioContextState, SamplerContextState}
 use rand::RngExt;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
+use std::cmp::Ordering as CmpOrdering;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, RwLock};
 use tauri::State;
@@ -350,6 +351,19 @@ struct ScheduledNote {
     instrument_id: UniqueId,
 }
 
+/// Keep transport ordering aligned to projected host musical time. When notes share an exact
+/// onset, fall back to stable metadata so simultaneous events stay deterministic without asking
+/// transport to reinterpret tuplet semantics locally.
+fn compare_scheduled_notes(left: &ScheduledNote, right: &ScheduledNote) -> CmpOrdering {
+    left.start
+        .cmp(&right.start)
+        .then(left.pitch.cmp(&right.pitch))
+        .then(left.instrument_id.cmp(&right.instrument_id))
+        .then(left.velocity.cmp(&right.velocity))
+        .then(left.duration.cmp(&right.duration))
+        .then(left.plugin_id.cmp(&right.plugin_id))
+}
+
 /// Collect all notes in the active flow, projected into exact host musical time and bucketed by
 /// the integer host tick that owns each onset.
 fn collect_scheduled_notes(
@@ -414,12 +428,7 @@ fn collect_scheduled_notes(
     }
 
     for notes in notes_by_tick.values_mut() {
-        notes.sort_by(|left, right| {
-            left.start
-                .cmp(&right.start)
-                .then(left.pitch.cmp(&right.pitch))
-                .then(left.instrument_id.cmp(&right.instrument_id))
-        });
+        notes.sort_by(compare_scheduled_notes);
     }
 
     notes_by_tick
@@ -956,6 +965,23 @@ mod tests {
         (score, flow_id)
     }
 
+    fn flatten_scheduled_starts(
+        scheduled: &FxHashMap<Tick, Vec<ScheduledNote>>,
+    ) -> Vec<PlaybackTick> {
+        let mut ticks: Vec<_> = scheduled.keys().copied().collect();
+        ticks.sort_unstable();
+
+        ticks
+            .into_iter()
+            .flat_map(|tick| {
+                scheduled
+                    .get(&tick)
+                    .into_iter()
+                    .flat_map(|notes| notes.iter().map(|note| note.start.clone()))
+            })
+            .collect()
+    }
+
     #[test]
     fn resolve_score_tempo_bpm_uses_fallback_when_flow_has_no_tempos() {
         let (score, flow_id) = make_score_with_tempos(&[]);
@@ -1139,5 +1165,108 @@ mod tests {
         assert_eq!(scheduled.get(&96).map(Vec::len), Some(1));
         assert_eq!(scheduled.get(&106).map(Vec::len), Some(1));
         assert_eq!(scheduled.get(&117).map(Vec::len), Some(1));
+    }
+
+    #[test]
+    fn collect_scheduled_notes_keeps_host_only_passages_in_tick_order() {
+        let mut track = Track::new(50);
+        track
+            .create_tone(79, 80, 16, 55, None, 96, Default::default(), None)
+            .unwrap();
+        track
+            .create_tone(80, 96, 16, 60, None, 96, Default::default(), None)
+            .unwrap();
+        track
+            .create_tone(81, 111, 16, 58, None, 96, Default::default(), None)
+            .unwrap();
+        track
+            .create_tone(82, 128, 16, 67, None, 96, Default::default(), None)
+            .unwrap();
+
+        let (score, flow_id) = make_flow_score_with_track(track);
+        let scheduled = collect_scheduled_notes(&score, flow_id);
+
+        assert_eq!(
+            flatten_scheduled_starts(&scheduled),
+            vec![
+                PlaybackTick::from_tick(80),
+                PlaybackTick::from_tick(96),
+                PlaybackTick::from_tick(111),
+                PlaybackTick::from_tick(128),
+            ]
+        );
+    }
+
+    #[test]
+    fn collect_scheduled_notes_orders_host_and_tuplet_events_within_a_shared_tick_bucket() {
+        let mut track = Track::new(50);
+        track
+            .create_tuplet(70, 96, 3, 2, NoteDuration::Eighth, vec![3])
+            .unwrap();
+        track
+            .create_tone(80, 0, 16, 60, None, 96, Default::default(), Some(70))
+            .unwrap();
+        track
+            .create_tone(81, 16, 16, 62, None, 96, Default::default(), Some(70))
+            .unwrap();
+        track
+            .create_tone(82, 32, 16, 64, None, 96, Default::default(), Some(70))
+            .unwrap();
+        track
+            .create_tone(83, 111, 16, 58, None, 96, Default::default(), None)
+            .unwrap();
+
+        let (score, flow_id) = make_flow_score_with_track(track);
+        let scheduled = collect_scheduled_notes(&score, flow_id);
+        let bucket = scheduled
+            .get(&106)
+            .expect("expected mixed shared bucket at tick 106");
+
+        assert_eq!(bucket.len(), 2);
+        assert_eq!(bucket[0].start, PlaybackTick::from_tick(106));
+        assert_eq!(bucket[0].pitch, 58);
+        assert_eq!(bucket[1].start, PlaybackTick::new(320, 3));
+        assert_eq!(bucket[1].pitch, 62);
+    }
+
+    #[test]
+    fn collect_scheduled_notes_keeps_before_between_and_after_mixed_passages_in_host_order() {
+        let mut track = Track::new(50);
+        track
+            .create_tone(79, 80, 16, 55, None, 96, Default::default(), None)
+            .unwrap();
+        track
+            .create_tuplet(70, 96, 3, 2, NoteDuration::Eighth, vec![3])
+            .unwrap();
+        track
+            .create_tone(80, 0, 16, 60, None, 96, Default::default(), Some(70))
+            .unwrap();
+        track
+            .create_tone(81, 16, 16, 62, None, 96, Default::default(), Some(70))
+            .unwrap();
+        track
+            .create_tone(82, 32, 16, 64, None, 96, Default::default(), Some(70))
+            .unwrap();
+        track
+            .create_tone(83, 111, 16, 58, None, 96, Default::default(), None)
+            .unwrap();
+        track
+            .create_tone(84, 128, 16, 67, None, 96, Default::default(), None)
+            .unwrap();
+
+        let (score, flow_id) = make_flow_score_with_track(track);
+        let scheduled = collect_scheduled_notes(&score, flow_id);
+
+        assert_eq!(
+            flatten_scheduled_starts(&scheduled),
+            vec![
+                PlaybackTick::from_tick(80),
+                PlaybackTick::from_tick(96),
+                PlaybackTick::from_tick(106),
+                PlaybackTick::new(320, 3),
+                PlaybackTick::new(352, 3),
+                PlaybackTick::from_tick(128),
+            ]
+        );
     }
 }
