@@ -97,7 +97,7 @@ describe("Renderer", () => {
         8,
         20,
         9,
-        null,
+        undefined,
       );
     });
   });
@@ -156,7 +156,7 @@ describe("Renderer", () => {
         12,
         30,
         13,
-        null,
+        undefined,
       );
     });
   });

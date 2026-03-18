@@ -6,6 +6,10 @@ import {
 } from "../../../../services/test-utils";
 import { Sequence } from "./index";
 
+vi.mock("../../hooks/use-keyboard-shortcuts", () => ({
+  useKeyboardShortcuts: vi.fn(),
+}));
+
 vi.mock("../../../../services/actions", () => ({
   actions: {
     ui: {
@@ -52,6 +56,7 @@ vi.mock("@tauri-apps/api/webviewWindow", () => ({
 }));
 
 import { actions } from "../../../../services/actions";
+import { useKeyboardShortcuts } from "../../hooks/use-keyboard-shortcuts";
 
 describe("Sequence screen", () => {
   beforeEach(() => vi.clearAllMocks());
@@ -93,6 +98,11 @@ describe("Sequence screen", () => {
   it("renders without crashing (default state — no flow selected)", () => {
     const { container } = renderWithProviders(<Sequence />);
     expect(container).toBeInTheDocument();
+  });
+
+  it("hosts keyboard shortcuts at the screen level", () => {
+    renderWithProviders(<Sequence />);
+    expect(useKeyboardShortcuts).toHaveBeenCalledOnce();
   });
 
   it("renders a toggle button for the bottom panel", () => {

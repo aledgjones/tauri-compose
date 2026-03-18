@@ -1,6 +1,7 @@
 use crate::playback::mixer::MixerHandle;
 use crate::playback::sampler::{Cache, CacheArticulation};
 use crate::playback::streamer::{self, StreamBuffer, StreamRequest};
+use crate::playback::tuplet_projection::{collect_track_playback_events, PlaybackTick};
 use crate::score::components::duration::Tick;
 use crate::score::entries::tempo::{EffectiveTempoResolver, DEFAULT_TEMPO_BPM};
 use crate::score::Score;
@@ -195,6 +196,7 @@ impl TransportContext {
 
 pub(crate) fn stop_transport_playback(
     state: &Mutex<TransportContext>,
+    audio_state: &AudioContextState,
 ) -> Result<TransportSharedState, String> {
     let (shared, handle) = {
         let mut ctx = state.lock().unwrap();
@@ -206,9 +208,15 @@ pub(crate) fn stop_transport_playback(
     };
 
     join_transport_thread(handle)?;
+    flush_active_audio(audio_state);
     shared.stop_signal.store(false, Ordering::Release);
 
     Ok(shared)
+}
+
+fn flush_active_audio(audio_state: &AudioContextState) {
+    let audio = audio_state.lock().unwrap();
+    audio.get_mixer_handle().stop_all();
 }
 
 pub(crate) fn sync_transport_to_app_state(
@@ -332,18 +340,24 @@ fn render_note(
     mixer_handle.play(stream_buffer, channels);
 }
 
-/// Collect all notes at a given tick from all instrument tracks in the active flow.
-/// Returns (plugin_id, articulation, pitch, velocity, duration_ticks, instrument_id) tuples.
-fn collect_notes_at_tick(
-    score: &Score,
-    flow_id: UniqueId,
-    tick: Tick,
-) -> Vec<(String, u8, u8, u64, UniqueId)> {
-    let mut notes = Vec::new();
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct ScheduledNote {
+    start: PlaybackTick,
+    duration: PlaybackTick,
+    plugin_id: String,
+    pitch: u8,
+    velocity: u8,
+    instrument_id: UniqueId,
+}
+
+/// Collect all notes in the active flow, projected into exact host musical time and bucketed by
+/// the integer host tick that owns each onset.
+fn collect_scheduled_notes(score: &Score, flow_id: UniqueId) -> FxHashMap<Tick, Vec<ScheduledNote>> {
+    let mut notes_by_tick: FxHashMap<Tick, Vec<ScheduledNote>> = FxHashMap::default();
 
     let flow = match score.flows.by_id.get(&flow_id) {
         Some(f) => f,
-        None => return notes,
+        None => return notes_by_tick,
     };
 
     // Walk all players assigned to this flow
@@ -378,23 +392,34 @@ fn collect_notes_at_tick(
                         None => continue,
                     };
 
-                    // Get tones at this tick
-                    let tones = track.get_tones_at_tick(&tick);
-                    for tone in tones {
-                        notes.push((
-                            plugin_id.clone(),
-                            tone.pitch.int,
-                            tone.velocity.int(),
-                            tone.duration,
-                            *instrument_id,
-                        ));
+                    for tone in collect_track_playback_events(track) {
+                        notes_by_tick
+                            .entry(tone.start.floor())
+                            .or_default()
+                            .push(ScheduledNote {
+                                start: tone.start,
+                                duration: tone.duration,
+                                plugin_id: plugin_id.clone(),
+                                pitch: tone.pitch,
+                                velocity: tone.velocity,
+                                instrument_id: *instrument_id,
+                            });
                     }
                 }
             }
         }
     }
 
-    notes
+    for notes in notes_by_tick.values_mut() {
+        notes.sort_by(|left, right| {
+            left.start
+                .cmp(&right.start)
+                .then(left.pitch.cmp(&right.pitch))
+                .then(left.instrument_id.cmp(&right.instrument_id))
+        });
+    }
+
+    notes_by_tick
 }
 
 /// Get volume and pan for an instrument. Volume is 0-127 mapped to 0.0-1.0 gain.
@@ -417,10 +442,44 @@ fn instrument_gain_and_pan(volume: u8, pan: u8) -> (f32, f32, f32) {
 struct PlaybackSnapshot {
     score: Score,
     sampler_cache: FxHashMap<String, Cache>,
-    flow_id: UniqueId,
+    scheduled_notes: FxHashMap<Tick, Vec<ScheduledNote>>,
     flow_length: u64,
     sample_rate: u32,
     tempo_resolver: EffectiveTempoResolver,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct TickScheduleState {
+    next_tick_offset: std::time::Duration,
+    expected_tick: Option<Tick>,
+}
+
+impl TickScheduleState {
+    fn new() -> Self {
+        Self {
+            next_tick_offset: std::time::Duration::ZERO,
+            expected_tick: None,
+        }
+    }
+
+    fn align_for_tick(&mut self, current_tick: Tick) -> bool {
+        let rebased = self.expected_tick != Some(current_tick);
+
+        if rebased {
+            self.next_tick_offset = std::time::Duration::ZERO;
+        }
+
+        rebased
+    }
+
+    fn clear_expected_tick(&mut self) {
+        self.expected_tick = None;
+    }
+
+    fn advance(&mut self, current_tick: Tick, bpm: f64) {
+        self.expected_tick = Some(current_tick + 1);
+        self.next_tick_offset = accumulate_tick_deadline(self.next_tick_offset, bpm);
+    }
 }
 
 fn transport_thread(
@@ -428,8 +487,8 @@ fn transport_thread(
     snapshot: PlaybackSnapshot,
     mixer_handle: crate::playback::mixer::MixerHandle,
 ) {
-    let start = std::time::Instant::now();
-    let mut next_tick_offset = std::time::Duration::ZERO;
+    let mut tick_origin = std::time::Instant::now();
+    let mut schedule_state = TickScheduleState::new();
 
     loop {
         // Check stop signal
@@ -444,6 +503,10 @@ fn transport_thread(
             break;
         }
 
+        if schedule_state.align_for_tick(current_tick) {
+            tick_origin = std::time::Instant::now();
+        }
+
         let bpm = publish_resolved_tempo(&shared, &snapshot.tempo_resolver, current_tick);
         let spt = seconds_per_tick(bpm);
 
@@ -455,13 +518,33 @@ fn transport_thread(
             (mix.clone(), has_solo)
         };
 
-        // Collect notes at this tick from the snapshot (no mutex needed)
-        let raw_notes = collect_notes_at_tick(&snapshot.score, snapshot.flow_id, current_tick);
+        let tick_start_deadline = tick_origin + schedule_state.next_tick_offset;
+        let raw_notes = snapshot
+            .scheduled_notes
+            .get(&current_tick)
+            .cloned()
+            .unwrap_or_default();
 
         // Render and submit each note
-        for (plugin_id, pitch, velocity, duration_ticks, instrument_id) in raw_notes {
+        for note in raw_notes {
+            let note_deadline = tick_start_deadline
+                + std::time::Duration::from_secs_f64(
+                    note.start.fractional_within_tick().to_f64() * spt,
+                );
+            let now = std::time::Instant::now();
+
+            if note_deadline > now {
+                std::thread::sleep(note_deadline - now);
+            }
+
+            if shared.stop_signal.load(Ordering::Acquire)
+                || shared.current_tick.load(Ordering::Relaxed) != current_tick
+            {
+                break;
+            }
+
             // Get live mix params for this instrument
-            let params = match local_mix.get(&instrument_id) {
+            let params = match local_mix.get(&note.instrument_id) {
                 Some(p) => p,
                 None => continue,
             };
@@ -476,10 +559,10 @@ fn transport_thread(
                 continue;
             }
 
-            let duration_seconds = duration_ticks as f64 * spt;
+            let duration_seconds = note.duration.to_f64() * spt;
 
             // Look up the sampler cache from the snapshot
-            let cache = match snapshot.sampler_cache.get(&plugin_id) {
+            let cache = match snapshot.sampler_cache.get(&note.plugin_id) {
                 Some(c) => c,
                 None => continue,
             };
@@ -492,8 +575,8 @@ fn transport_thread(
             render_note(
                 cache,
                 &art_id,
-                pitch,
-                velocity,
+                note.pitch,
+                note.velocity,
                 duration_seconds,
                 snapshot.sample_rate,
                 &mixer_handle,
@@ -502,13 +585,22 @@ fn transport_thread(
             );
         }
 
+        if shared.stop_signal.load(Ordering::Acquire) {
+            break;
+        }
+
+        if shared.current_tick.load(Ordering::Relaxed) != current_tick {
+            schedule_state.clear_expected_tick();
+            continue;
+        }
+
         // Advance tick
         shared
             .current_tick
             .store(current_tick + 1, Ordering::Relaxed);
+        schedule_state.advance(current_tick, bpm);
 
-        next_tick_offset = accumulate_tick_deadline(next_tick_offset, bpm);
-        let next_tick_deadline = start + next_tick_offset;
+        let next_tick_deadline = tick_origin + schedule_state.next_tick_offset;
 
         // Sleep until the next tick deadline — accounts for time spent rendering
         let now = std::time::Instant::now();
@@ -517,8 +609,7 @@ fn transport_thread(
         }
     }
 
-    // Playback ended — mark as not playing via atomic
-    // (transport_stop already set playing=false if externally stopped)
+    // Playback ended — mark as not playing unless an external shutdown path did so already.
     if !shared.stop_signal.load(Ordering::Acquire) {
         shared.playing.store(false, Ordering::Release);
     }
@@ -582,7 +673,7 @@ pub fn transport_play(
         let snapshot = PlaybackSnapshot {
             score: app_ctx.score.clone(),
             sampler_cache,
-            flow_id,
+            scheduled_notes: collect_scheduled_notes(&app_ctx.score, flow_id),
             flow_length: flow.length,
             sample_rate,
             tempo_resolver,
@@ -629,6 +720,7 @@ pub fn transport_play(
 pub fn transport_pause(
     state: State<'_, Mutex<TransportContext>>,
     app_state: State<'_, AppContextState>,
+    audio_state: State<'_, AudioContextState>,
 ) -> Result<(), String> {
     let (shared, handle, was_playing) = {
         let mut ctx = state.lock().unwrap();
@@ -646,31 +738,11 @@ pub fn transport_pause(
         join_transport_thread(handle)?;
     }
 
+    flush_active_audio(audio_state.inner());
+
     let current_tick = shared.current_tick.load(Ordering::Relaxed);
     let app_ctx = app_state.lock().unwrap();
     publish_app_tempo(&shared, &app_ctx, current_tick);
-
-    Ok(())
-}
-
-#[tauri::command(rename_all = "snake_case")]
-pub fn transport_stop(
-    state: State<'_, Mutex<TransportContext>>,
-    app_state: State<'_, AppContextState>,
-) -> Result<(), String> {
-    let (shared, handle) = {
-        let mut ctx = state.lock().unwrap();
-
-        ctx.shared.stop_signal.store(true, Ordering::Release);
-        ctx.shared.playing.store(false, Ordering::Release);
-
-        (ctx.shared.clone(), ctx.thread_handle.take())
-    };
-
-    join_transport_thread(handle)?;
-
-    let app_ctx = app_state.lock().unwrap();
-    publish_app_tempo(&shared, &app_ctx, 0);
 
     Ok(())
 }
@@ -728,9 +800,13 @@ pub fn transport_get_state(
 mod tests {
     use super::*;
     use crate::score::components::duration::NoteDuration;
+    use crate::score::instruments::{defs::InstrumentType, Instrument};
     use crate::score::entries::{tempo::Tempo, Entry};
     use crate::score::flows::Flow;
+    use crate::score::players::{Player, PlayerType};
+    use crate::score::staves::Stave;
     use crate::score::tracks::Track;
+    use rustc_hash::FxHashSet;
 
     fn make_transport_shared() -> TransportShared {
         TransportShared {
@@ -823,6 +899,62 @@ mod tests {
         (score, flow_id)
     }
 
+    fn make_instrument(id: UniqueId, stave_id: UniqueId, plugin_id: &str) -> Instrument {
+        Instrument {
+            id,
+            definition_id: String::from("test.instrument"),
+            instrument_type: InstrumentType::Melodic,
+            long_name: String::from("Test"),
+            short_name: String::from("T."),
+            stave_ids: vec![stave_id],
+            count: None,
+            assigned_plugin_id: Some(plugin_id.to_string()),
+            volume: 100,
+            pan: 64,
+            mute: false,
+            solo: false,
+        }
+    }
+
+    fn make_flow_score_with_track(track: Track) -> (Score, UniqueId) {
+        let flow_id = 1;
+        let master_id = 2;
+        let player_id = 3;
+        let instrument_id = 4;
+        let stave_id = 5;
+        let track_id = track.id;
+        let mut score = Score::new();
+        let mut flow = Flow::new(flow_id, master_id);
+        flow.length = 160;
+        flow.player_ids = FxHashSet::from_iter([player_id]);
+        flow.staves.by_id.insert(
+            stave_id,
+            Stave {
+                id: stave_id,
+                lines: vec![1, 1, 1, 1, 1],
+                master_id,
+                track_ids: vec![track_id],
+            },
+        );
+
+        score.flows.order.push(flow_id);
+        score.flows.by_id.insert(flow_id, flow);
+        score.tracks.by_id.insert(master_id, Track::new(master_id));
+        score.tracks.by_id.insert(track_id, track);
+        score.players.order.push(player_id);
+        score
+            .players
+            .by_id
+            .insert(player_id, Player::new(player_id, PlayerType::Solo));
+        score.players.by_id.get_mut(&player_id).unwrap().instrument_ids = vec![instrument_id];
+        score
+            .instruments
+            .by_id
+            .insert(instrument_id, make_instrument(instrument_id, stave_id, "plugin-a"));
+
+        (score, flow_id)
+    }
+
     #[test]
     fn resolve_score_tempo_bpm_uses_fallback_when_flow_has_no_tempos() {
         let (score, flow_id) = make_score_with_tempos(&[]);
@@ -905,6 +1037,33 @@ mod tests {
     }
 
     #[test]
+    fn tick_schedule_state_rebases_when_seek_jumps_to_a_new_tick() {
+        let mut state = TickScheduleState::new();
+
+        assert!(state.align_for_tick(96));
+        state.advance(96, 120.0);
+
+        let pre_seek_offset = state.next_tick_offset;
+        assert!(pre_seek_offset > std::time::Duration::ZERO);
+        assert_eq!(state.expected_tick, Some(97));
+
+        assert!(state.align_for_tick(120));
+        assert_eq!(state.next_tick_offset, std::time::Duration::ZERO);
+        assert_eq!(state.expected_tick, Some(97));
+
+        state.clear_expected_tick();
+        assert!(state.align_for_tick(120));
+        assert_eq!(state.next_tick_offset, std::time::Duration::ZERO);
+
+        state.advance(120, 90.0);
+        assert_eq!(state.expected_tick, Some(121));
+        assert_eq!(
+            state.next_tick_offset,
+            std::time::Duration::from_secs_f64(seconds_per_tick(90.0))
+        );
+    }
+
+    #[test]
     #[should_panic(expected = "Tempo BPM 12 out of range at tick 64")]
     fn resolve_score_tempo_bpm_fails_hard_for_malformed_tempo_data() {
         let (score, flow_id) = make_score_with_tempos(&[(64, 12)]);
@@ -955,5 +1114,25 @@ mod tests {
         assert_eq!(bpm, 90.0);
         assert_eq!(shared.current_tick.load(Ordering::Relaxed), 31);
         assert_eq!(shared.get_tempo(), 90.0);
+    }
+
+    #[test]
+    fn collect_scheduled_notes_groups_projected_tuplet_events_by_exact_host_tick() {
+        let mut track = Track::new(50);
+        track.create_tuplet(70, 96, 3, 2, NoteDuration::Eighth, vec![3])
+            .unwrap();
+        track.create_tone(80, 0, 16, 60, None, 96, Default::default(), Some(70))
+            .unwrap();
+        track.create_tone(81, 16, 16, 62, None, 96, Default::default(), Some(70))
+            .unwrap();
+        track.create_tone(82, 32, 16, 64, None, 96, Default::default(), Some(70))
+            .unwrap();
+
+        let (score, flow_id) = make_flow_score_with_track(track);
+        let scheduled = collect_scheduled_notes(&score, flow_id);
+
+        assert_eq!(scheduled.get(&96).map(Vec::len), Some(1));
+        assert_eq!(scheduled.get(&106).map(Vec::len), Some(1));
+        assert_eq!(scheduled.get(&117).map(Vec::len), Some(1));
     }
 }

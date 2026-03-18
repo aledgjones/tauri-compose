@@ -1382,11 +1382,6 @@ describe("actions.transport", () => {
     expect(mockInvoke).toHaveBeenCalledWith("transport_pause");
   });
 
-  it("stop calls invoke('transport_stop')", async () => {
-    await actions.transport.stop();
-    expect(mockInvoke).toHaveBeenCalledWith("transport_stop");
-  });
-
   it("seek calls invoke with tick", async () => {
     await actions.transport.seek(128);
     expect(mockInvoke).toHaveBeenCalledWith("transport_seek", { tick: 128 });

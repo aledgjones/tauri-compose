@@ -1114,7 +1114,6 @@ export const actions = {
   transport: {
     play: () => invoke("transport_play"),
     pause: () => invoke("transport_pause"),
-    stop: () => invoke("transport_stop"),
     seek: (tick: number) => invoke("transport_seek", { tick }),
     getState: () => invoke<TransportState>("transport_get_state"),
   },

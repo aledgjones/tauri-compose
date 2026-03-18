@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from "react";
-import { useAppState } from "../../../services/state";
+import { useAppState, useTransportState } from "../../../services/state";
 import { Accidental, Articulation } from "../../../services/types";
 import { actions } from "../../../services/actions";
 import { getSelectedTone } from "./use-selected-tone-info";
@@ -52,7 +52,60 @@ const isEditableTarget = (target: EventTarget | null) => {
 
 export const useKeyboardShortcuts = () => {
   const state = useAppState();
+  const transport = useTransportState();
   const selection = state.ui.sequencer.selection;
+  const selectionFlowId = selection?.flow_id ?? null;
+
+  const selectionTick = useMemo(() => {
+    if (selection === null) {
+      return null;
+    }
+
+    const resolveTupletHostTick = (
+      trackId: number,
+      tupletId: number | null | undefined,
+      localTick: number,
+    ) => {
+      if (tupletId === null || tupletId === undefined) {
+        return localTick;
+      }
+
+      const track = state.score.tracks.by_id[trackId];
+      const tupletEntry = track?.entries.by_id[tupletId];
+      if (tupletEntry?.type !== "Tuplet") {
+        return null;
+      }
+
+      return tupletEntry.tick + localTick;
+    };
+
+    if (selection.type === "Tone") {
+      const track = state.score.tracks.by_id[selection.track_id];
+      const tone = track
+        ? getSelectedTone(track, selection.tone_id, selection.tuplet_id)
+        : null;
+
+      if (!tone) {
+        return null;
+      }
+
+      return resolveTupletHostTick(
+        selection.track_id,
+        selection.tuplet_id,
+        tone.tick,
+      );
+    }
+
+    if (selection.type === "Rest") {
+      return resolveTupletHostTick(
+        selection.track_id,
+        selection.tuplet_id,
+        selection.tick,
+      );
+    }
+
+    return selection.tick;
+  }, [selection, state.score.tracks.by_id]);
 
   const toneSelectionInfo = useMemo(() => {
     if (selection === null || selection.type !== "Tone") {
@@ -148,10 +201,6 @@ export const useKeyboardShortcuts = () => {
   }, [selection, toneSelectionInfo]);
 
   useEffect(() => {
-    if (!selection) {
-      return;
-    }
-
     const activeToneSelectionInfo = toneSelectionInfo;
 
     const auditionTone = (pitch: number) => {
@@ -296,6 +345,48 @@ export const useKeyboardShortcuts = () => {
       }
 
       if (
+        e.key === " " &&
+        matchesModifiers(e, { command: false, control: false, option: false })
+      ) {
+        e.preventDefault();
+
+        if (transport.playing) {
+          await actions.transport.pause();
+        } else {
+          await actions.transport.play();
+        }
+
+        return;
+      }
+
+      if (
+        (e.key === "p" || e.key === "P") &&
+        matchesModifiers(e, { command: false, control: false, option: false })
+      ) {
+        e.preventDefault();
+
+        if (selectionTick !== null) {
+          if (
+            selectionFlowId !== null &&
+            state.ui.flow_id !== selectionFlowId
+          ) {
+            await actions.ui.setActiveFlowId(selectionFlowId);
+          }
+          await actions.transport.seek(selectionTick);
+          await actions.transport.play();
+          return;
+        }
+
+        if (transport.playing) {
+          await actions.transport.pause();
+        } else {
+          await actions.transport.play();
+        }
+
+        return;
+      }
+
+      if (
         e.key === "Escape" &&
         matchesModifiers(e, { command: false, control: false, option: false })
       ) {
@@ -340,8 +431,12 @@ export const useKeyboardShortcuts = () => {
   }, [
     deletionInfo,
     selection,
+    selectionFlowId,
+    selectionTick,
     state.preferences.audition,
+    state.ui.flow_id,
     state.score.instruments.by_id,
     toneSelectionInfo,
+    transport.playing,
   ]);
 };

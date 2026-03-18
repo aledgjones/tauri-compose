@@ -87,6 +87,22 @@ impl MixerHandle {
         );
         false
     }
+
+    /// Drop all active voices immediately so no already-started notes continue sounding.
+    pub fn stop_all(&self) {
+        for slot in self.voices.slots.iter() {
+            if !slot.active.swap(false, Ordering::AcqRel) {
+                continue;
+            }
+
+            let mut guard = slot.voice.lock().unwrap();
+            if let Some(voice) = guard.as_ref() {
+                voice.stream.cancel();
+                voice.finished.store(true, Ordering::Relaxed);
+            }
+            *guard = None;
+        }
+    }
 }
 
 impl MixerReader {
@@ -158,5 +174,26 @@ impl MixerReader {
         for sample in output.iter_mut() {
             *sample = sample.clamp(-1.0, 1.0);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn stop_all_clears_active_voices_immediately() {
+        let (handle, reader) = create_mixer();
+        let stream = Arc::new(StreamBuffer::new());
+        stream.push(&[0.5, 0.5, 0.25, 0.25]);
+
+        assert!(handle.play(stream, 2));
+
+        handle.stop_all();
+
+        let mut output = [0.0_f32; 4];
+        reader.fill_buffer(&mut output, 2);
+
+        assert_eq!(output, [0.0, 0.0, 0.0, 0.0]);
     }
 }

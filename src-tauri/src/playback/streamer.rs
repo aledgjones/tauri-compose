@@ -47,6 +47,8 @@ pub struct StreamBuffer {
     buffer: Mutex<VecDeque<f32>>,
     /// Set when the streamer has pushed all remaining audio
     finished: AtomicBool,
+    /// Set when playback has been canceled and the streamer should exit early.
+    canceled: AtomicBool,
 }
 
 impl StreamBuffer {
@@ -55,11 +57,16 @@ impl StreamBuffer {
         StreamBuffer {
             buffer: Mutex::new(VecDeque::with_capacity(48000 * 2)),
             finished: AtomicBool::new(false),
+            canceled: AtomicBool::new(false),
         }
     }
 
     /// Push decoded interleaved samples (called by streamer thread).
     pub fn push(&self, samples: &[f32]) {
+        if self.canceled.load(Ordering::Acquire) {
+            return;
+        }
+
         let mut buf = self.buffer.lock().unwrap();
         buf.extend(samples);
     }
@@ -80,6 +87,17 @@ impl StreamBuffer {
     /// Signal that the streamer has finished producing audio.
     pub fn mark_finished(&self) {
         self.finished.store(true, Ordering::Release);
+    }
+
+    /// Cancel playback and clear any buffered audio so the streamer and mixer stop immediately.
+    pub fn cancel(&self) {
+        self.canceled.store(true, Ordering::Release);
+        self.finished.store(true, Ordering::Release);
+        self.buffer.lock().unwrap().clear();
+    }
+
+    pub fn is_canceled(&self) -> bool {
+        self.canceled.load(Ordering::Acquire)
     }
 
     /// True when the streamer is done AND the buffer is empty.
@@ -271,6 +289,10 @@ fn run_stream(req: StreamRequest) -> Result<(), Box<dyn std::error::Error>> {
     // immediately. The mixer gets audio within <1ms of thread start.
 
     loop {
+        if req.stream_buffer.is_canceled() {
+            break;
+        }
+
         if output_frame >= max_output {
             break;
         }
@@ -373,6 +395,10 @@ fn run_stream(req: StreamRequest) -> Result<(), Box<dyn std::error::Error>> {
         let available = resampled_frames;
 
         loop {
+            if req.stream_buffer.is_canceled() {
+                break;
+            }
+
             if output_frame >= max_output {
                 break;
             }
@@ -382,6 +408,11 @@ fn run_stream(req: StreamRequest) -> Result<(), Box<dyn std::error::Error>> {
             let mut need_more = false;
 
             for _ in 0..frames_this_chunk {
+                if req.stream_buffer.is_canceled() {
+                    need_more = true;
+                    break;
+                }
+
                 let read_pos = src_pos * pitch_ratio;
                 let idx = read_pos.floor() as usize;
                 let frac = (read_pos - idx as f64) as f32;
@@ -444,4 +475,24 @@ fn run_stream(req: StreamRequest) -> Result<(), Box<dyn std::error::Error>> {
 
     req.stream_buffer.mark_finished();
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cancel_clears_buffer_and_rejects_future_pushes() {
+        let stream = StreamBuffer::new();
+        let mut output = [0.0_f32; 4];
+
+        stream.push(&[0.5, 0.5, 0.25, 0.25]);
+        stream.cancel();
+        stream.push(&[1.0, 1.0]);
+
+        assert!(stream.is_canceled());
+        assert!(stream.is_exhausted());
+        assert_eq!(stream.drain_mix(&mut output), 0);
+        assert_eq!(output, [0.0, 0.0, 0.0, 0.0]);
+    }
 }

@@ -1,4 +1,4 @@
-import { mdiPause, mdiPlay, mdiSkipPrevious, mdiStop } from "@mdi/js";
+import { mdiPause, mdiPlay, mdiSkipPrevious } from "@mdi/js";
 import { IconButton } from "../../../ui/buttons/icon-button";
 import classNames from "classnames";
 import { FC, useMemo } from "react";
@@ -47,10 +47,6 @@ export const Transport: FC<Props> = ({ className }) => {
     }
   };
 
-  const handleStop = () => {
-    actions.transport.stop();
-  };
-
   const handleSkipPrevious = () => {
     actions.transport.seek(0);
   };
@@ -68,12 +64,6 @@ export const Transport: FC<Props> = ({ className }) => {
         color={isPlaying ? "#ff0" : "#0f0"}
         onClick={handlePlayPause}
         path={isPlaying ? mdiPause : mdiPlay}
-      />
-      <IconButton
-        variant="interactive"
-        color="#f00"
-        onClick={handleStop}
-        path={mdiStop}
       />
       <p className="text-white font-mono text-sm bg-neutral-900 px-3 py-2">
         {position}

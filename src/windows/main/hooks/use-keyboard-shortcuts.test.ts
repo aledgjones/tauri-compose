@@ -35,12 +35,18 @@ vi.mock("../../../services/actions", () => ({
       },
     },
     ui: {
+      setActiveFlowId: vi.fn().mockResolvedValue(undefined),
       sequencer: {
         clearSelection: vi.fn().mockResolvedValue(undefined),
       },
     },
     sampler: {
       audition: vi.fn(),
+    },
+    transport: {
+      play: vi.fn().mockResolvedValue(undefined),
+      pause: vi.fn().mockResolvedValue(undefined),
+      seek: vi.fn().mockResolvedValue(undefined),
     },
   },
 }));
@@ -361,6 +367,79 @@ const buildStateWithTupletSelection = () => {
   });
 };
 
+const buildStateWithTupletRestSelection = () => {
+  return createAppState({
+    score: {
+      players: {
+        order: [1],
+        by_id: {
+          1: {
+            id: 1,
+            player_type: PlayerType.Solo,
+            instrument_ids: [INSTRUMENT_ID],
+          },
+        },
+      },
+      instruments: {
+        by_id: {
+          [INSTRUMENT_ID]: {
+            id: INSTRUMENT_ID,
+            definition_id: "piano",
+            instrument_type: 0,
+            long_name: "Piano",
+            short_name: "Pno.",
+            stave_ids: [STAVE_ID],
+            count: null,
+            assigned_plugin_id: null,
+            volume: 100,
+            pan: 0,
+            mute: false,
+            solo: false,
+          },
+        },
+      },
+      tracks: {
+        by_id: {
+          [TRACK_ID]: {
+            id: TRACK_ID,
+            entries: {
+              by_tick: { 64: [TUPLET_ID] },
+              by_id: {
+                [TUPLET_ID]: {
+                  id: TUPLET_ID,
+                  tick: 64,
+                  type: "Tuplet" as const,
+                  note_count: 3,
+                  in_space_of: 2,
+                  base_note_value: 8,
+                  groupings: [3],
+                  entries: {
+                    by_tick: {},
+                    by_id: {},
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    } as never,
+    ui: {
+      sequencer: {
+        selection: {
+          type: "Rest",
+          flow_id: FLOW_ID,
+          instrument_id: INSTRUMENT_ID,
+          stave_id: STAVE_ID,
+          track_id: TRACK_ID,
+          tick: 0,
+          tuplet_id: TUPLET_ID,
+        },
+      },
+    } as never,
+  });
+};
+
 const dispatchKey = (key: string, options?: KeyboardEventInit) => {
   act(() => {
     window.dispatchEvent(new KeyboardEvent("keydown", { key, ...options }));
@@ -394,6 +473,199 @@ describe("useKeyboardShortcuts", () => {
         wrapper: createWrapper({ appState: createAppState() }),
       });
     }).not.toThrow();
+  });
+
+  it("toggles pause on Space when transport is already playing", async () => {
+    renderHook(() => useKeyboardShortcuts(), {
+      wrapper: createWrapper({
+        appState: buildStateWithToneSelection(),
+        transportState: { playing: true, current_tick: 64 },
+      }),
+    });
+
+    await act(async () => {
+      dispatchKey(" ");
+    });
+
+    expect(actions.transport.pause).toHaveBeenCalledOnce();
+    expect(actions.transport.play).not.toHaveBeenCalled();
+  });
+
+  it("toggles play on Space when transport is stopped", async () => {
+    renderHook(() => useKeyboardShortcuts(), {
+      wrapper: createWrapper({
+        appState: buildStateWithToneSelection(),
+        transportState: { playing: false, current_tick: 64 },
+      }),
+    });
+
+    await act(async () => {
+      dispatchKey(" ");
+    });
+
+    expect(actions.transport.play).toHaveBeenCalledOnce();
+    expect(actions.transport.pause).not.toHaveBeenCalled();
+  });
+
+  it("seeks to a selected rest tick and plays on P", async () => {
+    const state = createAppState({
+      ui: {
+        sequencer: {
+          selection: {
+            type: "Rest",
+            flow_id: FLOW_ID,
+            instrument_id: INSTRUMENT_ID,
+            stave_id: STAVE_ID,
+            track_id: TRACK_ID,
+            tick: 128,
+          },
+        },
+      } as never,
+    });
+
+    renderHook(() => useKeyboardShortcuts(), {
+      wrapper: createWrapper({
+        appState: state,
+        transportState: { playing: false, current_tick: 64 },
+      }),
+    });
+
+    await act(async () => {
+      dispatchKey("p");
+    });
+
+    expect(actions.transport.seek).toHaveBeenCalledWith(128);
+    expect(actions.transport.play).toHaveBeenCalledOnce();
+  });
+
+  it("switches to the selected flow before playing from selection on P", async () => {
+    renderHook(() => useKeyboardShortcuts(), {
+      wrapper: createWrapper({
+        appState: buildStateWithLaterFlowToneSelection(),
+        transportState: { playing: false, current_tick: 0 },
+      }),
+    });
+
+    await act(async () => {
+      dispatchKey("p");
+    });
+
+    expect(actions.ui.setActiveFlowId).toHaveBeenCalledWith(FLOW_ID + 1);
+    expect(actions.transport.seek).toHaveBeenCalledWith(96);
+    expect(actions.transport.play).toHaveBeenCalledOnce();
+  });
+
+  it("switches to the selected flow before playing from a selected rest on P", async () => {
+    const state = createAppState({
+      ui: {
+        flow_id: FLOW_ID,
+        sequencer: {
+          selection: {
+            type: "Rest",
+            flow_id: FLOW_ID + 1,
+            instrument_id: INSTRUMENT_ID,
+            stave_id: STAVE_ID,
+            track_id: TRACK_ID,
+            tick: 224,
+          },
+        },
+      },
+    } as never);
+
+    renderHook(() => useKeyboardShortcuts(), {
+      wrapper: createWrapper({
+        appState: state,
+        transportState: { playing: false, current_tick: 0 },
+      }),
+    });
+
+    await act(async () => {
+      dispatchKey("p");
+    });
+
+    expect(actions.ui.setActiveFlowId).toHaveBeenCalledWith(FLOW_ID + 1);
+    expect(actions.transport.seek).toHaveBeenCalledWith(224);
+    expect(actions.transport.play).toHaveBeenCalledOnce();
+  });
+
+  it("seeks to a selected host tone tick and plays on P", async () => {
+    renderHook(() => useKeyboardShortcuts(), {
+      wrapper: createWrapper({
+        appState: buildStateWithToneSelection(),
+        transportState: { playing: false, current_tick: 0 },
+      }),
+    });
+
+    await act(async () => {
+      dispatchKey("p");
+    });
+
+    expect(actions.transport.seek).toHaveBeenCalledWith(64);
+    expect(actions.transport.play).toHaveBeenCalledOnce();
+  });
+
+  it("seeks to the host tuplet tick plus local tone offset and plays on P", async () => {
+    renderHook(() => useKeyboardShortcuts(), {
+      wrapper: createWrapper({
+        appState: buildStateWithTupletToneSelection(),
+        transportState: { playing: false, current_tick: 0 },
+      }),
+    });
+
+    await act(async () => {
+      dispatchKey("p");
+    });
+
+    expect(actions.transport.seek).toHaveBeenCalledWith(64);
+    expect(actions.transport.play).toHaveBeenCalledOnce();
+  });
+
+  it("seeks to the tuplet host tick when a selected tuplet rest starts at local tick zero", async () => {
+    renderHook(() => useKeyboardShortcuts(), {
+      wrapper: createWrapper({
+        appState: buildStateWithTupletRestSelection(),
+        transportState: { playing: false, current_tick: 0 },
+      }),
+    });
+
+    await act(async () => {
+      dispatchKey("p");
+    });
+
+    expect(actions.transport.seek).toHaveBeenCalledWith(64);
+    expect(actions.transport.play).toHaveBeenCalledOnce();
+  });
+
+  it("falls back to pause on P when there is no selection and transport is playing", async () => {
+    renderHook(() => useKeyboardShortcuts(), {
+      wrapper: createWrapper({
+        appState: createAppState(),
+        transportState: { playing: true, current_tick: 64 },
+      }),
+    });
+
+    await act(async () => {
+      dispatchKey("p");
+    });
+
+    expect(actions.transport.pause).toHaveBeenCalledOnce();
+    expect(actions.transport.seek).not.toHaveBeenCalled();
+  });
+
+  it("falls back to play on P when there is no selection and transport is stopped", async () => {
+    renderHook(() => useKeyboardShortcuts(), {
+      wrapper: createWrapper({
+        appState: createAppState(),
+        transportState: { playing: false, current_tick: 64 },
+      }),
+    });
+
+    await act(async () => {
+      dispatchKey("p");
+    });
+
+    expect(actions.transport.play).toHaveBeenCalledOnce();
+    expect(actions.transport.seek).not.toHaveBeenCalled();
   });
 
   it("does not dispatch tone shortcuts when a tempo selection is active", async () => {

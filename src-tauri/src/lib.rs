@@ -19,7 +19,7 @@ use crate::playback::sampler::{
 };
 use crate::playback::transport::{
     stop_transport_playback, sync_transport_to_app_state, transport_get_state, transport_pause,
-    transport_play, transport_seek, transport_stop, TransportContext, TransportSharedState,
+    transport_play, transport_seek, TransportContext, TransportSharedState,
 };
 use crate::renderer::backends::metal::MetalRenderer;
 use files::{
@@ -354,7 +354,7 @@ fn reset(
     audio_state: State<'_, AudioContextState>,
     transport_state: State<'_, Mutex<TransportContext>>,
 ) -> Result<(), String> {
-    let transport_shared = stop_transport_playback(transport_state.inner())?;
+    let transport_shared = stop_transport_playback(transport_state.inner(), audio_state.inner())?;
 
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
@@ -585,7 +585,6 @@ pub fn run() {
             sampler_audition,
             transport_play,
             transport_pause,
-            transport_stop,
             transport_seek,
             transport_get_state,
             preferences_audition_set,

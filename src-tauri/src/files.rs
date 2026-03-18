@@ -1211,7 +1211,7 @@ pub fn load_project_from_file(
     transport_state: State<'_, Mutex<TransportContext>>,
     file_path: String,
 ) -> Result<(), String> {
-    let transport_shared = stop_transport_playback(transport_state.inner())?;
+    let transport_shared = stop_transport_playback(transport_state.inner(), audio_state.inner())?;
 
     let file_data = fs::read(&file_path).map_err(|e| format!("Failed to read file: {}", e))?;
     let parsed_container = parse_soloc_container(&file_data)?;
