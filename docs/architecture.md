@@ -181,6 +181,8 @@ Score Data (Entry variants in FxHashMaps)
 
 ### Tuplet notation contract
 
+- Shipped MVP tuplets are created through the existing popover flow, then edited through the sequencer's existing tone and container seams. The durable contract is popover-first container creation plus backend-owned sequencer editing, not a separate freeform tuplet construction model.
+- Supported shipped ratios are currently triplet-first (`3q/2`, `3e/2`, `3s/2`, `3t/2`). Broader arbitrary ratios remain deferred and should not be implied by architecture prose.
 - Persisted `Tuplet` entries are not themselves printed-score notation output. The parse phase derives notation from the authoritative host-track container and its child `entries`.
 - The local derived unit should remain a normal `NotationTrack`, not a second tuplet-only notation structure. This preserves existing parser helpers and keeps downstream consumers working against the same base notation type.
 - The only extra contract around that local `NotationTrack` is a thin anchor carrying the host-span projection metadata needed to place the local unit back into the surrounding flow.
@@ -210,6 +212,8 @@ type AnchoredNotationTrack = {
 - Boundary-crossing tones remain one stored tone. Derivation may produce multiple local notations or host-side companions at the boundary, but continuity still follows stored tone identity.
 - A completely empty triplet is a special readability case and should derive one base-note rest per local slot. Outside that case, tuplets reuse the existing local split-unit logic for note and rest spelling.
 - Later renderer and spacing work should consume this anchored local `NotationTrack` directly. They should not reconstruct tuplet meaning from flattened host ticks, and they should not introduce a parallel frontend-owned notation model.
+- Sequencer interactions remain tone-focused in MVP: empty tuplet space is derived rather than persisted, blank tuplet space is non-selectable there, and delete/slice/selection continue to flow through the existing shared tone and container seams.
+- Nested tuplets, generalized sequencer-native tuplet tooling beyond the shipped seams, and any cross-flow expansion of tuplet playback remain explicit post-MVP work.
 
 ### Caching
 
@@ -263,6 +267,7 @@ type AnchoredNotationTrack = {
 - `transport_get_state()` reports truthful stopped-state tempo for the current tick as well, so stopped seek and stop-to-tick-0 transitions show the effective score tempo instead of stale playback tempo.
 - Pause/resume behaves like a fresh playback start from the current tick: pause retires the old thread, and resume re-snapshots score tempo data so edits made while paused are reflected.
 - Live edits during active playback still do not affect the in-flight run; a fresh play/resume cycle is required because transport playback uses a play-start score snapshot.
+- Tuplet playback consumes the same shared tuplet model used by persistence and notation, and shipped MVP playback remains scoped to the active flow selected through `ui.flow_id`; tuplets do not widen playback to inactive flows.
 - Tempo property editing also changes persisted tempo load/save semantics: `Tempo.text` is now stored as a required string, and migration `1.25.0` normalizes older `text: null` payloads to `""` during project load.
 
 ---

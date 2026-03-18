@@ -194,6 +194,8 @@ For **visual regression testing** (manual, human-driven), see [tests/fixtures/RE
 
 ## Tuplet Authoring Guardrails
 
+- Treat the shipped authoring path as popover-first container creation plus sequencer editing of owned tones inside the resulting region. Do not imply a second freeform tuplet-construction workflow in the sequencer.
+- Limit contributor-facing scope claims to the shipped triplet-first parser suffixes (`3q/2`, `3e/2`, `3s/2`, `3t/2`) unless a later story expands both UI and backend support together.
 - Keep tone creation track-owned end to end. Extend `actions.score.tone.create(...)`, `score_entries_tone_create(...)`, and `Track::create_tone(...)` with optional tuplet context instead of introducing a parallel tuplet-note mutation API.
 - Treat tuplets as one shared semantic model across persistence, parsing, rendering, and playback. Later consumers may adapt the model to their own outputs, but they must not locally reinvent tuplet ownership, boundary meaning, projection, or continuity.
 - Keep tuplet creation on that same backend-owned seam. Container creation lives on `actions.score.tuplet.create(...)` / `score_entries_tuplet_create(...)`, where the backend reconciles existing material by moving only start-owned host tones into `Tuplet.entries` with unchanged durations and tuplet-local offsets; do not perform notation, rendering, playback, or resize semantics early in the creation path.
@@ -207,6 +209,12 @@ For **visual regression testing** (manual, human-driven), see [tests/fixtures/RE
 - Preserve `ui.flow_id` as the authoritative active-flow slot. If a tuplet child tone needs selection handoff, carry only the minimal optional `tuplet_id` needed for direct lookup.
 - Apply that same rule to renderer-owned rest selection when tuplet context is present: `tick` stays the single positional source of truth, while optional `tuplet_id` tells consumers whether the tick lives on the host track or inside a tuplet-local timeline. Do not introduce separate slot-index or alternate selection-position fields for tuplet UI state.
 - In the sequencer, rests remain absence-of-note model state rather than a selectable or highlighted rendered object. Empty tuplet space is likewise non-selectable there; preserve only the tuplet-region metadata needed for local write-tool timing, not a selectable container or extra empty-slot hit boxes. Visible rest and tuplet selection belong to the printed-score renderer once notation interactions are materialized.
+- Playback remains scoped to the active flow in MVP. Tuplet work must not use playback as a pretext to widen transport scope or introduce parallel flow-selection state.
+- No dedicated tuplet migration is currently needed for legacy non-tuplet files because pre-tuplet releases produced no tuplet-bearing payloads. Reevaluate that only when a released older persisted format truly needs transformation.
+- Nested tuplets, broader arbitrary ratios, and richer sequencer-native tuplet manipulation remain deferred post-MVP work. Do not smuggle those claims into implementation or docs as if they were already shipped.
+- Keep tuplet regression coverage near the owning seam whenever existing local tests are sufficient. Prefer extending parser, renderer, playback, persistence, or editing tests in place over building a new cross-cutting tuplet test framework.
+- Preserve the MVP single-level child-content rule in both code and tests. Reintroducing nested tuplets requires explicit post-MVP planning rather than incremental opportunistic support.
+- Do not add frontend-owned parallel tuplet state or ad hoc load-time repair logic. If a seam exposes a gap, extend the shared backend-owned model or add the required migration instead of papering over it locally.
 
 ## Rhythm Rules
 

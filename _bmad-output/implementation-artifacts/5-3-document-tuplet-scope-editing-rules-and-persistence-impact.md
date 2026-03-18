@@ -1,6 +1,6 @@
 # Story 5.3: Document Tuplet Scope, Editing Rules, and Persistence Impact
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -36,24 +36,24 @@ so that future contributors understand the supported scope and do not reintroduc
 
 ## Tasks / Subtasks
 
-- [ ] Audit the current tuplets documentation set against the shipped behavior (AC: 1, 2, 3)
-  - [ ] Review `docs/architecture.md`, `docs/data-models.md`, `docs/development-guide.md`, and `docs/project-context.md` for current tuplets guidance.
-  - [ ] Identify any gaps or contradictions around entry flow, editing rules, notation behavior, playback scope, persistence, or migration impact.
-  - [ ] Identify any wording that implies broader-than-MVP tuplets support.
-- [ ] Document the shipped tuplets authoring and editing scope explicitly (AC: 1, 2, 3)
-  - [ ] Describe the popover-plus-sequencer entry flow as the supported MVP authoring path.
-  - [ ] Document the ownership and editing rules that matter to contributors: tones live where they start, tuplet child timing is local, container geometry is separate from crossing-duration consumption, and empty local space is derived rather than persisted.
-  - [ ] Document the current delete, slice, selection, and non-selectable-empty-space expectations where they affect contributor understanding.
-- [ ] Document notation, playback, persistence, and migration boundaries clearly (AC: 1, 2)
-  - [ ] Explain that notation is derived from persisted tuplet containers rather than stored as printed-score output.
-  - [ ] Explain that playback consumes the shared tuplet model and remains scoped to the active flow for MVP.
-  - [ ] Explain the current persistence impact: tuplets are additive persisted data, legacy non-tuplet files remain loadable, and no tuplet-specific migration is currently required because pre-tuplet releases did not produce tuplet-bearing payloads.
-- [ ] Call out deferred and unsupported areas explicitly (AC: 2, 3)
-  - [ ] State that broader ratios, nested tuplets, richer sequencer-native tuplet manipulation, and other post-MVP concerns remain deferred.
-  - [ ] Ensure docs do not imply recursive child entries, generalized arbitrary tuplets editing UX, or cross-flow playback behavior.
-- [ ] Validate documentation impact and consistency before closing the story
-  - [ ] Check that the same core contract appears consistently across the durable docs set.
-  - [ ] Update adjacent docs if a tuplets rule is referenced there and would otherwise become stale.
+- [x] Audit the current tuplets documentation set against the shipped behavior (AC: 1, 2, 3)
+  - [x] Review `docs/architecture.md`, `docs/data-models.md`, `docs/development-guide.md`, and `docs/project-context.md` for current tuplets guidance.
+  - [x] Identify any gaps or contradictions around entry flow, editing rules, notation behavior, playback scope, persistence, or migration impact.
+  - [x] Identify any wording that implies broader-than-MVP tuplets support.
+- [x] Document the shipped tuplets authoring and editing scope explicitly (AC: 1, 2, 3)
+  - [x] Describe the popover-plus-sequencer entry flow as the supported MVP authoring path.
+  - [x] Document the ownership and editing rules that matter to contributors: tones live where they start, tuplet child timing is local, container geometry is separate from crossing-duration consumption, and empty local space is derived rather than persisted.
+  - [x] Document the current delete, slice, selection, and non-selectable-empty-space expectations where they affect contributor understanding.
+- [x] Document notation, playback, persistence, and migration boundaries clearly (AC: 1, 2)
+  - [x] Explain that notation is derived from persisted tuplet containers rather than stored as printed-score output.
+  - [x] Explain that playback consumes the shared tuplet model and remains scoped to the active flow for MVP.
+  - [x] Explain the current persistence impact: tuplets are additive persisted data, legacy non-tuplet files remain loadable, and no tuplet-specific migration is currently required because pre-tuplet releases did not produce tuplet-bearing payloads.
+- [x] Call out deferred and unsupported areas explicitly (AC: 2, 3)
+  - [x] State that broader ratios, nested tuplets, richer sequencer-native tuplet manipulation, and other post-MVP concerns remain deferred.
+  - [x] Ensure docs do not imply recursive child entries, generalized arbitrary tuplets editing UX, or cross-flow playback behavior.
+- [x] Validate documentation impact and consistency before closing the story
+  - [x] Check that the same core contract appears consistently across the durable docs set.
+  - [x] Update adjacent docs if a tuplets rule is referenced there and would otherwise become stale.
 
 ## Dev Notes
 
@@ -153,3 +153,28 @@ GPT-5.4
 - Reconcile the durable docs set against the shipped tuplet behavior and eliminate any contradictory or over-broad statements.
 - Present the supported tuplet MVP as one coherent maintainer contract covering authoring, editing, notation, playback, persistence, and migration.
 - Make deferred areas explicit so contributors can tell what is intentionally unsupported versus accidentally undocumented.
+
+### Debug Log
+
+- Audited the existing tuplets narrative across `docs/architecture.md`, `docs/data-models.md`, `docs/development-guide.md`, and `docs/project-context.md` against the shipped MVP behavior and story history.
+- The durable docs already covered most persistence and ownership details, but the cross-doc narrative still needed explicit scope language for the popover-first authoring path, active-flow playback boundary, and deferred broader-ratio / richer-editing areas.
+
+### Completion Notes
+
+- Updated `docs/architecture.md` to state the shipped popover-plus-sequencer authoring path, keep sequencer editing tone-focused, and pin MVP playback to the active flow selected through `ui.flow_id`.
+- Updated `docs/data-models.md` to clarify the supported triplet-first parser suffixes, the intentionally narrow sequencer editing surface, and the active-flow playback boundary for tuplet scheduling.
+- Updated `docs/development-guide.md` to align contributor-facing tuplets scope claims with the shipped MVP, including no-current-migration language for legacy non-tuplet files and explicit deferred areas.
+- Validated the updated docs set for consistent phrasing around ownership, derived empty local space, non-selectable blank tuplet space, derived notation, playback scope, and migration stance.
+- Validation passed with `npm run lint`, `npm run check-types`, `cargo test --manifest-path src-tauri/Cargo.toml`, and `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features`.
+
+### File List
+
+- docs/architecture.md
+- docs/data-models.md
+- docs/development-guide.md
+- \_bmad-output/implementation-artifacts/5-3-document-tuplet-scope-editing-rules-and-persistence-impact.md
+- \_bmad-output/implementation-artifacts/sprint-status.yaml
+
+### Change Log
+
+- 2026-03-18: Clarified the shipped tuplets MVP documentation contract across architecture, data model, and development guide docs, then validated the repo with lint, typecheck, cargo test, and clippy.

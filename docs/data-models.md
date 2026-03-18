@@ -206,6 +206,8 @@ Supported MVP tuplet suffixes are:
 - `s` for sixteenth-note triplets (`3s/2`)
 - `t` for thirty-second-note triplets (`3t/2`)
 
+Broader arbitrary ratios remain deferred in the shipped MVP. Durable docs should describe only the supported triplet-first entry path above unless a later post-MVP story expands the parser and UI together.
+
 Supported triplet enforcement currently lives in the popover parser path. This matches the existing creation-command pattern in the codebase: frontend creation flows validate product-specific input, and the lower-level Rust create commands validate target existence plus state mutation only.
 
 Ownership rules:
@@ -233,6 +235,8 @@ The addressing model remains explicit as `track_id -> optional tuplet_id -> tone
 Deletion and slicing follow that same ownership model. Removing a tuplet-owned tone removes only that child entry and leaves the vacated local span as derived empty tuplet space. Removing a tuplet container removes the host-track `Tuplet` entry and its child `entries` together; MVP does not dissolve child tones back onto the host track or synthesize rests.
 
 Tone slicing also stays on the shared tone mutation seam. The slice request now carries both the current owning context and the target owner for the new tail start. Rust resolves both addresses against the same continuous tuplet/host lattice used by sequencer editing, shortens the original tone to the head duration, and inserts exactly one new stored tail tone in the ownership context determined by the tail start. Crossing a tuplet boundary therefore does not create any extra persisted fragments beyond the intentional two-tone slice result.
+
+The shipped sequencer editing surface remains intentionally narrow: after popover creation, contributors should expect tone-focused selection, insertion, reposition/resize within the supported ownership lattice, deletion, and slicing on the shared seams above. Empty tuplet slots remain derived absence of tones rather than selectable stored objects, and MVP does not expose generalized arbitrary tuplet reshaping or nested-container editing UX.
 
 Story 1.5 stops at ownership reconciliation and persisted timing carry-over. Epic 3 now defines the parser-side tuplet notation contract that later renderer and spacing stories consume, while visible engraving chrome and spacing resolution remain separate downstream concerns.
 
@@ -304,6 +308,8 @@ This is intentional abstraction rather than a temporary workaround. Sequencer se
 That selection model does not imply sequencer-level rest rendering, rest selection, or tuplet-container selection. In the sequencer, empty tuplet space remains absence of child tones, and clicks on that blank space behave like other non-note background interactions rather than creating rest or tuplet targets. Derived rest glyphs and visible notation-object selection belong to the printed-score renderer, where notation is materialized explicitly.
 
 For sequencer presentation, tuplets now render directly from the host-track `Tuplet` entry rather than from a frontend-owned draft region. The visible host span is derived from `in_space_of * noteDurationToTicks(base_note_value)`, the track body renders the faint region tint plus the compressed local slot markers, and child tones render inside that same region using tuplet-local ticks projected through the tuplet's local slot geometry. The `3:2` annotation lives in the tick bar as a bottom-anchored ruler annotation rather than as floating text inside the lane. The current sequencer UI does not depend on dedicated tuplet selection or empty-slot hit geometry; the shared `Tuplet` selection payload remains part of the broader UI contract for renderer-driven notation interactions, while the sequencer itself stays tone-focused.
+
+Playback is a separate consumer of this same persisted model. For shipped MVP behavior, transport scheduling reads tuplets from the active flow only, using `ui.flow_id` as the authoritative playback scope boundary rather than synthesizing cross-flow tuplet state.
 
 ---
 

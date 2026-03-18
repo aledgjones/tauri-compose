@@ -1,6 +1,6 @@
 # Story 5.4: Update Project Guardrails for Future Tuplet Work
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -36,23 +36,23 @@ so that future work follows the same timing, persistence, and testing rules.
 
 ## Tasks / Subtasks
 
-- [ ] Audit the current guardrail surfaces that future contributors rely on (AC: 1, 2, 3)
-  - [ ] Review `.github/copilot-instructions.md` for current tuplet rules, migration discipline, and documentation expectations.
-  - [ ] Review `docs/project-context.md` and `docs/development-guide.md` for contributor-facing implementation guardrails.
-  - [ ] Identify any tuplet architectural rule that is still only implicit in code or prior story artifacts.
-- [ ] Update AI-agent and contributor instructions with the durable tuplet rules (AC: 1, 2, 3)
-  - [ ] Reinforce the backend-owned shared semantic-model rule across persistence, parsing, rendering, playback, and editing.
-  - [ ] Reinforce the timing invariant that container geometry is compressed while crossing duration remains literal.
-  - [ ] Reinforce the rule that `ui.flow_id` remains the authoritative active-flow slot and that future work must not add frontend-owned parallel flow or tuplet truth.
-  - [ ] Reinforce migration discipline and the current no-new-migration stance unless a released older payload actually requires transformation.
-  - [ ] Reinforce test-placement expectations so seam-owned regressions stay close to the owning module.
-  - [ ] Reinforce the MVP single-level child-content rule and explicitly defer nested tuplets to post-MVP planning.
-- [ ] Align guardrails across all maintained instruction surfaces (AC: 1, 2)
-  - [ ] Ensure the same tuplet rules appear consistently wherever future agents or developers are likely to read them.
-  - [ ] Avoid contradictory phrasing between `.github/copilot-instructions.md`, `docs/project-context.md`, and `docs/development-guide.md`.
-- [ ] Validate that the resulting guidance prevents the known tuplet failure modes
-  - [ ] Check that the instructions explicitly push contributors away from frontend-owned state duplication, local subsystem-specific tuplet reinterpretation, and ad hoc persistence repair logic.
-  - [ ] Check that the instructions explicitly preserve docs-update discipline for any future persisted-data or workflow changes.
+- [x] Audit the current guardrail surfaces that future contributors rely on (AC: 1, 2, 3)
+  - [x] Review `.github/copilot-instructions.md` for current tuplet rules, migration discipline, and documentation expectations.
+  - [x] Review `docs/project-context.md` and `docs/development-guide.md` for contributor-facing implementation guardrails.
+  - [x] Identify any tuplet architectural rule that is still only implicit in code or prior story artifacts.
+- [x] Update AI-agent and contributor instructions with the durable tuplet rules (AC: 1, 2, 3)
+  - [x] Reinforce the backend-owned shared semantic-model rule across persistence, parsing, rendering, playback, and editing.
+  - [x] Reinforce the timing invariant that container geometry is compressed while crossing duration remains literal.
+  - [x] Reinforce the rule that `ui.flow_id` remains the authoritative active-flow slot and that future work must not add frontend-owned parallel flow or tuplet truth.
+  - [x] Reinforce migration discipline and the current no-new-migration stance unless a released older payload actually requires transformation.
+  - [x] Reinforce test-placement expectations so seam-owned regressions stay close to the owning module.
+  - [x] Reinforce the MVP single-level child-content rule and explicitly defer nested tuplets to post-MVP planning.
+- [x] Align guardrails across all maintained instruction surfaces (AC: 1, 2)
+  - [x] Ensure the same tuplet rules appear consistently wherever future agents or developers are likely to read them.
+  - [x] Avoid contradictory phrasing between `.github/copilot-instructions.md`, `docs/project-context.md`, and `docs/development-guide.md`.
+- [x] Validate that the resulting guidance prevents the known tuplet failure modes
+  - [x] Check that the instructions explicitly push contributors away from frontend-owned state duplication, local subsystem-specific tuplet reinterpretation, and ad hoc persistence repair logic.
+  - [x] Check that the instructions explicitly preserve docs-update discipline for any future persisted-data or workflow changes.
 
 ## Dev Notes
 
@@ -147,3 +147,28 @@ GPT-5.4
 - Audit the current guardrail surfaces for tuplet rules that are missing, duplicated inconsistently, or still only implied by story history.
 - Update the repo's instruction surfaces so future contributors start from the correct tuplets invariants, migration rules, and seam-owned testing expectations.
 - Keep the result concise and authoritative enough that future work does not need to reconstruct tuplet architecture from past epics.
+
+### Debug Log
+
+- Audited the repo's highest-signal instruction surfaces and compared them against the now-shipped tuplet MVP behavior and previous story learnings.
+- The main remaining gaps were explicit seam-local test placement guidance, the current no-dedicated-tuplet-migration stance, and a stronger top-level statement that MVP tuplets remain single-level and backend-owned.
+
+### Completion Notes
+
+- Updated `.github/copilot-instructions.md` with durable tuplet rules for seam-owned regressions, the shipped single-level child-content limit, the no-broader-ratios-without-story-expansion rule, and the current no-dedicated-tuplet-migration stance.
+- Updated `docs/project-context.md` so AI-oriented project rules now carry the shared-model rule, timing invariant, popover-first/triplet-first MVP scope, seam-local regression placement expectation, and the current migration stance.
+- Updated `docs/development-guide.md` to align contributor-facing tuplets guardrails around seam-owned regression coverage, the single-level child-content boundary, and the prohibition on frontend-owned parallel tuplet state or ad hoc load-time repair logic.
+- Rechecked the maintained instruction surfaces for consistent phrasing around backend-owned truth, active-flow scope, migration review, and deferred post-MVP areas.
+- Validation passed with `npm run lint`, `npm run check-types`, `cargo test --manifest-path src-tauri/Cargo.toml`, and `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features`.
+
+### File List
+
+- .github/copilot-instructions.md
+- docs/project-context.md
+- docs/development-guide.md
+- \_bmad-output/implementation-artifacts/5-4-update-project-guardrails-for-future-tuplet-work.md
+- \_bmad-output/implementation-artifacts/sprint-status.yaml
+
+### Change Log
+
+- 2026-03-18: Added durable tuplet guardrails across Copilot instructions, project context, and development guide docs; validated with lint, typecheck, cargo test, and clippy.
