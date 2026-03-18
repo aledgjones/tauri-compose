@@ -43,6 +43,8 @@ fn join_transport_thread(handle: Option<std::thread::JoinHandle<()>>) -> Result<
     Ok(())
 }
 
+/// Playback is always scoped to exactly one flow: the explicit active flow when present,
+/// otherwise the first ordered flow as a narrow fallback. Transport must never merge flows.
 fn active_flow_id(app_ctx: &AppContext) -> Option<UniqueId> {
     app_ctx
         .ui
@@ -1228,6 +1230,22 @@ mod tests {
     }
 
     #[test]
+    fn sync_transport_to_app_state_clamps_and_publishes_using_only_the_active_flow() {
+        let shared = Arc::new(make_transport_shared());
+        let mut score = Score::new();
+
+        add_flow_with_tempos(&mut score, 1, 11, 128, &[(0, 90)]);
+        add_flow_with_tempos(&mut score, 2, 22, 32, &[(0, 144)]);
+
+        let app_ctx = make_app_context(score, Some(2));
+        let bpm = sync_transport_to_app_state(&shared, &app_ctx, 96);
+
+        assert_eq!(bpm, 144.0);
+        assert_eq!(shared.current_tick.load(Ordering::Relaxed), 31);
+        assert_eq!(shared.get_tempo(), 144.0);
+    }
+
+    #[test]
     fn sync_transport_to_app_state_falls_back_to_the_first_flow_when_none_is_active() {
         let shared = Arc::new(make_transport_shared());
         let mut score = Score::new();
@@ -1241,6 +1259,189 @@ mod tests {
         assert_eq!(bpm, 90.0);
         assert_eq!(shared.current_tick.load(Ordering::Relaxed), 31);
         assert_eq!(shared.get_tempo(), 90.0);
+    }
+
+    #[test]
+    fn collect_scheduled_notes_only_schedules_the_selected_active_flow() {
+        let mut active_track = Track::new(50);
+        active_track
+            .create_tuplet(70, 96, 3, 2, NoteDuration::Eighth, vec![3])
+            .unwrap();
+        active_track
+            .create_tone(80, 0, 16, 60, None, 96, Default::default(), Some(70))
+            .unwrap();
+        active_track
+            .create_tone(81, 16, 16, 62, None, 96, Default::default(), Some(70))
+            .unwrap();
+        active_track
+            .create_tone(82, 32, 16, 64, None, 96, Default::default(), Some(70))
+            .unwrap();
+
+        let (mut score, selected_flow_id) = make_flow_score_with_track(active_track);
+
+        let sibling_flow_id = 101;
+        let sibling_master_id = 102;
+        let sibling_player_id = 103;
+        let sibling_instrument_id = 104;
+        let sibling_stave_id = 105;
+        let sibling_track_id = 106;
+        let mut sibling_flow = Flow::new(sibling_flow_id, sibling_master_id);
+        sibling_flow.length = 160;
+        sibling_flow.player_ids = FxHashSet::from_iter([sibling_player_id]);
+        sibling_flow.staves.by_id.insert(
+            sibling_stave_id,
+            Stave {
+                id: sibling_stave_id,
+                lines: vec![1, 1, 1, 1, 1],
+                master_id: sibling_master_id,
+                track_ids: vec![sibling_track_id],
+            },
+        );
+
+        let mut sibling_track = Track::new(sibling_track_id);
+        sibling_track
+            .create_tone(180, 32, 16, 72, None, 96, Default::default(), None)
+            .unwrap();
+        sibling_track
+            .create_tuplet(170, 96, 3, 2, NoteDuration::Eighth, vec![3])
+            .unwrap();
+        sibling_track
+            .create_tone(181, 0, 16, 74, None, 96, Default::default(), Some(170))
+            .unwrap();
+        sibling_track
+            .create_tone(182, 16, 16, 76, None, 96, Default::default(), Some(170))
+            .unwrap();
+        sibling_track
+            .create_tone(183, 32, 16, 77, None, 96, Default::default(), Some(170))
+            .unwrap();
+
+        score.flows.order.push(sibling_flow_id);
+        score.flows.by_id.insert(sibling_flow_id, sibling_flow);
+        score
+            .tracks
+            .by_id
+            .insert(sibling_master_id, Track::new(sibling_master_id));
+        score.tracks.by_id.insert(sibling_track_id, sibling_track);
+        score.players.order.push(sibling_player_id);
+        score.players.by_id.insert(
+            sibling_player_id,
+            Player::new(sibling_player_id, PlayerType::Solo),
+        );
+        score
+            .players
+            .by_id
+            .get_mut(&sibling_player_id)
+            .unwrap()
+            .instrument_ids = vec![sibling_instrument_id];
+        score.instruments.by_id.insert(
+            sibling_instrument_id,
+            make_instrument(sibling_instrument_id, sibling_stave_id, "plugin-b"),
+        );
+
+        let app_ctx = make_app_context(score, Some(selected_flow_id));
+        let scheduled = collect_scheduled_notes(
+            &app_ctx.score,
+            active_flow_id(&app_ctx).expect("expected active flow"),
+        );
+
+        assert_eq!(
+            flatten_scheduled_starts(&scheduled),
+            vec![
+                PlaybackTick::from_tick(96),
+                PlaybackTick::new(320, 3),
+                PlaybackTick::new(352, 3),
+            ]
+        );
+        let mut pitches = scheduled
+            .values()
+            .flatten()
+            .map(|note| note.pitch)
+            .collect::<Vec<_>>();
+        pitches.sort_unstable();
+        assert_eq!(
+            pitches,
+            vec![60, 62, 64]
+        );
+    }
+
+    #[test]
+    fn collect_scheduled_notes_fallback_uses_only_the_first_ordered_flow() {
+        let mut first_track = Track::new(50);
+        first_track
+            .create_tone(80, 32, 16, 60, None, 96, Default::default(), None)
+            .unwrap();
+        first_track
+            .create_tone(81, 96, 16, 62, None, 96, Default::default(), None)
+            .unwrap();
+
+        let (mut score, first_flow_id) = make_flow_score_with_track(first_track);
+
+        let second_flow_id = 101;
+        let second_master_id = 102;
+        let second_player_id = 103;
+        let second_instrument_id = 104;
+        let second_stave_id = 105;
+        let second_track_id = 106;
+        let mut second_flow = Flow::new(second_flow_id, second_master_id);
+        second_flow.length = 160;
+        second_flow.player_ids = FxHashSet::from_iter([second_player_id]);
+        second_flow.staves.by_id.insert(
+            second_stave_id,
+            Stave {
+                id: second_stave_id,
+                lines: vec![1, 1, 1, 1, 1],
+                master_id: second_master_id,
+                track_ids: vec![second_track_id],
+            },
+        );
+
+        let mut second_track = Track::new(second_track_id);
+        second_track
+            .create_tone(180, 48, 16, 72, None, 96, Default::default(), None)
+            .unwrap();
+
+        score.flows.order.push(second_flow_id);
+        score.flows.by_id.insert(second_flow_id, second_flow);
+        score
+            .tracks
+            .by_id
+            .insert(second_master_id, Track::new(second_master_id));
+        score.tracks.by_id.insert(second_track_id, second_track);
+        score.players.order.push(second_player_id);
+        score.players.by_id.insert(
+            second_player_id,
+            Player::new(second_player_id, PlayerType::Solo),
+        );
+        score
+            .players
+            .by_id
+            .get_mut(&second_player_id)
+            .unwrap()
+            .instrument_ids = vec![second_instrument_id];
+        score.instruments.by_id.insert(
+            second_instrument_id,
+            make_instrument(second_instrument_id, second_stave_id, "plugin-b"),
+        );
+
+        let app_ctx = make_app_context(score, None);
+        let selected_flow_id = active_flow_id(&app_ctx).expect("expected fallback flow");
+        let scheduled = collect_scheduled_notes(&app_ctx.score, selected_flow_id);
+
+        assert_eq!(selected_flow_id, first_flow_id);
+        assert_eq!(
+            flatten_scheduled_starts(&scheduled),
+            vec![PlaybackTick::from_tick(32), PlaybackTick::from_tick(96)]
+        );
+        let mut pitches = scheduled
+            .values()
+            .flatten()
+            .map(|note| note.pitch)
+            .collect::<Vec<_>>();
+        pitches.sort_unstable();
+        assert_eq!(
+            pitches,
+            vec![60, 62]
+        );
     }
 
     #[test]

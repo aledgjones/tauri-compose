@@ -71,7 +71,7 @@ development_status:
   4-1-project-tuplet-timing-into-host-musical-time: done
   4-2-schedule-tuplet-playback-correctly-beside-non-tuplet-material: done
   4-3-preserve-existing-non-tuplet-playback-behavior: done
-  4-4-keep-mvp-playback-scoped-to-the-active-flow: backlog
+  4-4-keep-mvp-playback-scoped-to-the-active-flow: done
   epic-4-retrospective: optional
 
   epic-5: backlog
