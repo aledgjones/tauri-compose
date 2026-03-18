@@ -67,12 +67,12 @@ development_status:
   3-4-lay-out-tuplets-legibly-within-the-existing-score-surface: done
   epic-3-retrospective: done
 
-  epic-4: in-progress
+  epic-4: done
   4-1-project-tuplet-timing-into-host-musical-time: done
   4-2-schedule-tuplet-playback-correctly-beside-non-tuplet-material: done
   4-3-preserve-existing-non-tuplet-playback-behavior: done
   4-4-keep-mvp-playback-scoped-to-the-active-flow: done
-  epic-4-retrospective: optional
+  epic-4-retrospective: done
 
   epic-5: backlog
   5-1-add-targeted-regression-coverage-for-each-tuplet-seam: backlog
