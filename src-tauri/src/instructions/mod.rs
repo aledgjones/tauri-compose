@@ -17,6 +17,7 @@ use crate::score::components::measurements::Point;
 use crate::score::entries::barline::BarlineDrawType;
 use crate::score::entries::clef::Clef;
 use crate::score::entries::tempo::TEMPO_STAVE_OFFSET;
+use crate::score::entries::tuplet::Tuplet;
 use crate::AppContext;
 use draw::draw_accidentals::draw_accidental;
 use draw::draw_articulations::draw_articulations;
@@ -37,28 +38,38 @@ use draw::draw_stem::draw_stem;
 use draw::draw_sub_brackets::draw_sub_brackets;
 use draw::draw_systemic_barline::draw_systemic_barline;
 use draw::draw_tempo::draw_tempo;
-use draw::draw_ties::draw_ties;
+use draw::draw_ties::{draw_tie_between_contexts, draw_ties, get_tie_directions};
 use draw::draw_time_signature::draw_time_signature;
-use parse::get_accidentals::get_accidentals;
+use draw::draw_tuplet::draw_tuplet;
+use parse::get_accidentals::get_accidentals_with_anchored_tracks;
+use parse::get_accidentals::Accidentals;
 use parse::get_articulations::get_articulations;
+use parse::get_articulations::Articulations as TrackArticulations;
 use parse::get_barlines::get_barlines;
-use parse::get_beams::get_beams;
-use parse::get_dots::get_dots;
-use parse::get_horizontal_spacing::{get_horizontal_spacing, Slot};
+use parse::get_beams::{get_beams, Beams};
+use parse::get_dots::{get_dots, Dots};
+use parse::get_horizontal_spacing::{
+    get_horizontal_spacing_with_anchored_layouts, stretch_spacing_to_width, AnchoredTrackLayout,
+    Slot,
+};
 use parse::get_key_signatures::get_key_signatures;
 use parse::get_max_brackets_width::get_max_brackets_width;
 use parse::get_max_instrument_name_width::get_max_instrument_name_width;
-use parse::get_measures::get_measures;
-use parse::get_shunts::get_note_shunts;
-use parse::get_stem_directions::get_stem_directions;
-use parse::get_stem_lengths::get_stem_lengths;
+use parse::get_measures::{get_measures, Measures};
+use parse::get_shunts::{get_note_shunts, Shunts};
+use parse::get_stem_directions::{get_stem_directions, StemDirections};
+use parse::get_stem_lengths::{get_stem_lengths, get_stem_lengths_in_track, StemLengths};
 use parse::get_tone_offsets::get_tone_offsets;
+use parse::get_tone_offsets::ToneVerticalOffsets;
 use parse::get_vertical_spacing::get_vertical_spacing;
 use parse::get_vertical_spans::get_vertical_spans;
-use parse::get_written_durations::get_written_durations;
+use parse::get_written_durations::{
+    get_written_durations, AnchoredNotationTrack, Notation, NotationTrack,
+};
 use rustc_hash::FxHashMap;
 use serde::Serialize;
 use skia_safe::Color;
+use std::cmp::Ordering;
 use std::time::{Duration, Instant};
 use tauri::Emitter;
 
@@ -111,6 +122,48 @@ struct ComposedFlowSurface {
     page_backgrounds: Vec<DrawInstruction>,
     instructions: Vec<DrawInstruction>,
     hit_targets: Vec<HitTarget>,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum ProjectedTrackKind {
+    Host,
+    Anchored(crate::utils::UniqueId),
+}
+
+struct ProjectedTrackTieContext<'a> {
+    kind: ProjectedTrackKind,
+    origin: Point,
+    notation: &'a NotationTrack,
+    horizontal_spacing: &'a HorizontalSpacing,
+    shunts: &'a Shunts,
+    stem_directions: &'a StemDirections,
+    host_start_tick: u64,
+    host_end_tick: u64,
+}
+
+struct AnchoredTrackRenderContext<'a> {
+    tuplet: &'a Tuplet,
+    anchored_track: &'a AnchoredNotationTrack,
+    tuplet_id: crate::utils::UniqueId,
+    host_left: Space,
+    host_right: Space,
+    origin: Point,
+    measures: Measures,
+    horizontal_spacing: HorizontalSpacing,
+    beams: Beams,
+    stem_directions: StemDirections,
+    stem_lengths: StemLengths,
+    shunts: Shunts,
+    accidentals: Accidentals,
+    dots: Dots,
+    articulations: TrackArticulations,
+}
+
+struct TieFragment<'a> {
+    tone_id: crate::utils::UniqueId,
+    order_key: f32,
+    context: &'a ProjectedTrackTieContext<'a>,
+    entry: &'a Notation,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize)]
@@ -217,6 +270,298 @@ fn compose_render_segments(
     }
 }
 
+struct AnchoredTrackHostLayout {
+    left: Space,
+    right: Space,
+    stave_top: Space,
+}
+
+fn build_anchored_track_render_context<'a>(
+    tuplet: &'a Tuplet,
+    anchored_track: &'a AnchoredNotationTrack,
+    layout: &AnchoredTrackLayout,
+    engrave: &crate::score::engraves::Engrave,
+    host_layout: AnchoredTrackHostLayout,
+) -> AnchoredTrackRenderContext<'a> {
+    let mut horizontal_spacing = layout.horizontal_spacing.clone();
+    stretch_spacing_to_width(
+        &mut horizontal_spacing,
+        host_layout.right - host_layout.left,
+    );
+    let stem_lengths = get_stem_lengths_in_track(
+        &anchored_track.notation,
+        &layout.stem_directions,
+        &layout.beams,
+        engrave,
+        &horizontal_spacing,
+    );
+
+    AnchoredTrackRenderContext {
+        tuplet,
+        anchored_track,
+        tuplet_id: anchored_track.owner_id,
+        host_left: host_layout.left,
+        host_right: host_layout.right,
+        origin: Point {
+            x: host_layout.left,
+            y: host_layout.stave_top,
+        },
+        measures: layout.measures.clone(),
+        horizontal_spacing,
+        beams: layout.beams.clone(),
+        stem_directions: layout.stem_directions.clone(),
+        stem_lengths,
+        shunts: layout.shunts.clone(),
+        accidentals: layout.accidentals.clone(),
+        dots: layout.dots.clone(),
+        articulations: layout.articulations.clone(),
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn draw_notation_symbols(
+    origin: &Point,
+    notation_track: &NotationTrack,
+    measures: &Measures,
+    horizontal_spacing: &HorizontalSpacing,
+    shunts: &Shunts,
+    accidentals: &Accidentals,
+    stem_lengths: &StemLengths,
+    stem_directions: &StemDirections,
+    beams: &Beams,
+    dots: &Dots,
+    articulations: &TrackArticulations,
+    tone_offsets: &ToneVerticalOffsets,
+    selection: Option<&crate::ui::sequencer::Selection>,
+    track_id: crate::utils::UniqueId,
+    stave_id: crate::utils::UniqueId,
+    flow_id: crate::utils::UniqueId,
+    instrument_id: crate::utils::UniqueId,
+    tuplet_id: Option<crate::utils::UniqueId>,
+    stave_top: Space,
+    renderer: &mut RendererContext,
+) {
+    for beam in beams {
+        draw_beam(origin, beam, stem_lengths, stem_directions, renderer);
+    }
+
+    for (tick, notation) in &notation_track.track {
+        let glyph = notation.glyph();
+        let metrics = notation.glyph_metrics();
+        let glyph_width = metrics.total_width();
+        let has_post_shunt = notation.has_post_shunt(shunts);
+
+        if notation.is_rest() {
+            let is_full_bar = measures.contains_key(tick)
+                && (measures.contains_key(&(tick + notation.duration))
+                    || tick + notation.duration == notation_track.length);
+
+            draw_rest(
+                origin,
+                *tick,
+                glyph,
+                notation,
+                is_full_bar,
+                horizontal_spacing,
+                selection,
+                track_id,
+                stave_id,
+                flow_id,
+                instrument_id,
+                tuplet_id,
+                stave_top,
+                renderer,
+            );
+
+            continue;
+        }
+
+        let x = horizontal_spacing.get(*tick, Slot::NoteSpacing).x;
+        let stem_length = stem_lengths.get(tick);
+        let stem_direction = stem_directions.get(tick);
+
+        if let Some(def) = stem_length {
+            draw_stem(origin, def, renderer);
+        }
+
+        let mut has_up_stem_flag = false;
+        if notation.is_flagged(beams) {
+            if let (Some(stem_dir), Some(stem_len)) = (stem_direction, stem_length) {
+                has_up_stem_flag = *stem_dir == Direction::Up;
+
+                draw_flag(origin, notation, stem_dir, stem_len, renderer);
+            }
+        }
+
+        if let Some(tick_dots) = dots.get(tick) {
+            draw_dots(
+                &Point {
+                    x: origin.x + x,
+                    y: origin.y,
+                },
+                tick_dots,
+                glyph_width,
+                has_post_shunt,
+                has_up_stem_flag,
+                renderer,
+            );
+        }
+
+        if !notation.tones.is_empty() {
+            draw_ledger_lines(
+                &Point {
+                    x: origin.x + x,
+                    y: origin.y,
+                },
+                tick,
+                notation,
+                glyph_width,
+                shunts,
+                accidentals,
+                tone_offsets,
+                renderer,
+            );
+        }
+
+        for tone in &notation.tones {
+            let vertical_offset = tone_offsets[&tone.id];
+
+            draw_notehead(
+                &Point {
+                    x: origin.x + x,
+                    y: origin.y + (vertical_offset as f32 / 2.0),
+                },
+                *tick,
+                tone,
+                glyph,
+                glyph_width,
+                shunts,
+                selection,
+                track_id,
+                stave_id,
+                flow_id,
+                instrument_id,
+                tuplet_id,
+                stave_top,
+                renderer,
+            );
+
+            if let Some(accidental) = accidentals.by_id.get(&(*tick, tone.id)) {
+                let has_pre_shunt = notation.has_pre_shunt(shunts);
+
+                draw_accidental(
+                    &Point {
+                        x: origin.x + x,
+                        y: origin.y + (vertical_offset as f32 / 2.0),
+                    },
+                    accidental,
+                    tone,
+                    glyph_width,
+                    has_pre_shunt,
+                    selection,
+                    renderer,
+                );
+            }
+        }
+
+        if let Some(articulation_set) = articulations.get(tick) {
+            draw_articulations(
+                &Point {
+                    x: origin.x + x,
+                    y: origin.y,
+                },
+                articulation_set,
+                notation,
+                glyph_width,
+                stem_direction,
+                stem_length,
+                renderer,
+            );
+        }
+    }
+}
+
+fn fragment_order_key(context: &ProjectedTrackTieContext<'_>, entry: &Notation) -> f32 {
+    match context.kind {
+        ProjectedTrackKind::Host => entry.tick as f32,
+        ProjectedTrackKind::Anchored(_) => {
+            let host_span = context
+                .host_end_tick
+                .saturating_sub(context.host_start_tick)
+                .max(1);
+            let local_length = context.notation.length.max(1);
+            context.host_start_tick as f32
+                + (entry.tick as f32 / local_length as f32) * host_span as f32
+        }
+    }
+}
+
+fn draw_cross_context_ties(
+    contexts: &[ProjectedTrackTieContext<'_>],
+    tone_offsets: &ToneVerticalOffsets,
+    renderer: &mut RendererContext,
+) {
+    let mut by_tone: FxHashMap<crate::utils::UniqueId, Vec<TieFragment<'_>>> = FxHashMap::default();
+
+    for context in contexts {
+        for entry in context.notation.track.values() {
+            for tone in &entry.tones {
+                by_tone.entry(tone.id).or_default().push(TieFragment {
+                    tone_id: tone.id,
+                    order_key: fragment_order_key(context, entry),
+                    context,
+                    entry,
+                });
+            }
+        }
+    }
+
+    for fragments in by_tone.values_mut() {
+        fragments.sort_by(|left, right| {
+            left.order_key
+                .partial_cmp(&right.order_key)
+                .unwrap_or(Ordering::Equal)
+        });
+
+        for pair in fragments.windows(2) {
+            let [start, stop] = pair else {
+                continue;
+            };
+
+            if start.context.kind == stop.context.kind {
+                continue;
+            }
+
+            let Some(stem_direction) = start.context.stem_directions.get(&start.entry.tick) else {
+                continue;
+            };
+
+            let mut start_for_tie = start.entry.clone();
+            start_for_tie.ties.insert(start.tone_id);
+            let tie_directions = get_tie_directions(&start_for_tie, stem_direction, tone_offsets);
+            let Some(tie_direction) = tie_directions.get(&start.tone_id) else {
+                continue;
+            };
+
+            draw_tie_between_contexts(
+                &start.context.origin,
+                &start.tone_id,
+                start.entry,
+                start.context.horizontal_spacing,
+                start.context.shunts,
+                &stop.context.origin,
+                stop.entry,
+                stop.context.horizontal_spacing,
+                stop.context.shunts,
+                tie_direction,
+                stem_direction,
+                tone_offsets,
+                renderer,
+            );
+        }
+    }
+}
+
 fn build_flow_render_segment(
     state: &AppContext,
     layout_id: crate::utils::UniqueId,
@@ -270,29 +615,33 @@ fn build_flow_render_segment(
         get_note_shunts(&notation_by_track, &tone_offsets, &stem_directions_by_track);
     let dots_by_track = get_dots(flow, &notation_by_track, &tone_offsets);
     let articulations_by_track = get_articulations(&notation_by_track);
-    let accidentals_by_track = get_accidentals(
-        flow,
-        &state.score.tracks,
-        &notation_by_track,
-        &barlines,
-        &tone_offsets,
-        &shunts_by_track,
-    );
+    let (accidentals_by_track, anchored_accidentals_by_track) =
+        get_accidentals_with_anchored_tracks(
+            flow,
+            &state.score.tracks,
+            &notation_by_track,
+            &barlines,
+            &tone_offsets,
+            &shunts_by_track,
+        );
     timings.elements = elements_start.elapsed();
 
     let spacing_start = Instant::now();
-    let horizontal_spacing = get_horizontal_spacing(
-        flow,
-        &instruments,
-        &state.score.tracks,
-        &measures,
-        &notation_by_track,
-        &barlines,
-        &shunts_by_track,
-        &beams_by_track,
-        &accidentals_by_track,
-        engrave,
-    );
+    let (horizontal_spacing, anchored_layouts_by_track) =
+        get_horizontal_spacing_with_anchored_layouts(
+            flow,
+            &instruments,
+            &state.score.tracks,
+            &measures,
+            &notation_by_track,
+            &barlines,
+            &shunts_by_track,
+            &beams_by_track,
+            &accidentals_by_track,
+            &anchored_accidentals_by_track,
+            &tone_offsets,
+            engrave,
+        );
     timings.spacing = spacing_start.elapsed();
 
     let stems_start = Instant::now();
@@ -546,6 +895,7 @@ fn build_flow_render_segment(
             }
 
             for track_id in &stave.track_ids {
+                let track_master = &state.score.tracks.by_id[track_id];
                 let notation = &notation_by_track[track_id];
                 let accidentals = &accidentals_by_track[track_id];
                 let shunts = &shunts_by_track[track_id];
@@ -553,6 +903,71 @@ fn build_flow_render_segment(
                 let stem_directions = &stem_directions_by_track[track_id];
                 let beams = &beams_by_track[track_id];
                 let dots = &dots_by_track[track_id];
+                let empty_articulations = TrackArticulations::default();
+                let track_articulations = articulations_by_track
+                    .get(track_id)
+                    .unwrap_or(&empty_articulations);
+
+                let anchored_render_contexts = notation
+                    .anchored_tracks
+                    .iter()
+                    .filter_map(|anchored_track| {
+                        let Some(crate::score::entries::Entry::Tuplet(tuplet)) =
+                            track_master.entries.by_id.get(&anchored_track.owner_id)
+                        else {
+                            return None;
+                        };
+
+                        let host_start = horizontal_spacing
+                            .get(anchored_track.host_span.start_tick, Slot::NoteSpacing);
+                        let host_end_tick = anchored_track.host_span.end_tick.saturating_sub(1);
+                        let host_end = horizontal_spacing.get(host_end_tick, Slot::NoteSpacing);
+                        let host_left = stave_left + host_start.x;
+                        let host_right = stave_left + host_end.x + host_end.width;
+                        let layout = anchored_layouts_by_track
+                            .get(track_id)
+                            .and_then(|layouts| layouts.get(&anchored_track.owner_id))?;
+
+                        Some(build_anchored_track_render_context(
+                            tuplet,
+                            anchored_track,
+                            layout,
+                            engrave,
+                            AnchoredTrackHostLayout {
+                                left: host_left,
+                                right: host_right,
+                                stave_top,
+                            },
+                        ))
+                    })
+                    .collect::<Vec<_>>();
+
+                let mut tie_contexts = vec![ProjectedTrackTieContext {
+                    kind: ProjectedTrackKind::Host,
+                    origin: Point {
+                        x: stave_left,
+                        y: stave_top,
+                    },
+                    notation,
+                    horizontal_spacing: &horizontal_spacing,
+                    shunts,
+                    stem_directions,
+                    host_start_tick: 0,
+                    host_end_tick: notation.length,
+                }];
+
+                for anchored in &anchored_render_contexts {
+                    tie_contexts.push(ProjectedTrackTieContext {
+                        kind: ProjectedTrackKind::Anchored(anchored.anchored_track.owner_id),
+                        origin: anchored.origin,
+                        notation: &anchored.anchored_track.notation,
+                        horizontal_spacing: &anchored.horizontal_spacing,
+                        shunts: &anchored.shunts,
+                        stem_directions: &anchored.stem_directions,
+                        host_start_tick: anchored.anchored_track.host_span.start_tick,
+                        host_end_tick: anchored.anchored_track.host_span.end_tick,
+                    });
+                }
 
                 draw_ties(
                     &Point {
@@ -567,171 +982,89 @@ fn build_flow_render_segment(
                     &mut segment_renderer,
                 );
 
-                for beam in beams {
-                    draw_beam(
-                        &Point {
-                            x: stave_left,
-                            y: stave_top,
-                        },
-                        beam,
-                        stem_lengths,
-                        stem_directions,
+                for anchored in &anchored_render_contexts {
+                    draw_ties(
+                        &anchored.origin,
+                        &anchored.anchored_track.notation,
+                        &anchored.stem_directions,
+                        &anchored.horizontal_spacing,
+                        &anchored.shunts,
+                        &tone_offsets,
                         &mut segment_renderer,
                     );
                 }
 
-                for (tick, notation) in &notation.track {
-                    let glyph = notation.glyph();
-                    let metrics = notation.glyph_metrics();
-                    let glyph_width = metrics.total_width();
-                    let has_post_shunt = notation.has_post_shunt(shunts);
+                draw_cross_context_ties(&tie_contexts, &tone_offsets, &mut segment_renderer);
 
-                    if notation.is_rest() {
-                        let is_full_bar = measures.contains_key(tick)
-                            && (measures.contains_key(&(tick + notation.duration))
-                                || tick + notation.duration == flow.length);
+                draw_notation_symbols(
+                    &Point {
+                        x: stave_left,
+                        y: stave_top,
+                    },
+                    notation,
+                    &measures,
+                    &horizontal_spacing,
+                    shunts,
+                    accidentals,
+                    stem_lengths,
+                    stem_directions,
+                    beams,
+                    dots,
+                    track_articulations,
+                    &tone_offsets,
+                    state.ui.sequencer.selection.as_ref(),
+                    *track_id,
+                    *stave_id,
+                    flow_id,
+                    instrument.id,
+                    None,
+                    stave_top,
+                    &mut segment_renderer,
+                );
 
-                        draw_rest(
-                            &Point {
-                                x: stave_left,
-                                y: stave_top,
-                            },
-                            *tick,
-                            glyph,
-                            notation,
-                            is_full_bar,
-                            &horizontal_spacing,
-                            state.ui.sequencer.selection.as_ref(),
-                            *track_id,
-                            *stave_id,
-                            flow_id,
-                            instrument.id,
-                            stave_top,
-                            &mut segment_renderer,
-                        );
+                for anchored in &anchored_render_contexts {
+                    draw_notation_symbols(
+                        &anchored.origin,
+                        &anchored.anchored_track.notation,
+                        &anchored.measures,
+                        &anchored.horizontal_spacing,
+                        &anchored.shunts,
+                        &anchored.accidentals,
+                        &anchored.stem_lengths,
+                        &anchored.stem_directions,
+                        &anchored.beams,
+                        &anchored.dots,
+                        &anchored.articulations,
+                        &tone_offsets,
+                        state.ui.sequencer.selection.as_ref(),
+                        *track_id,
+                        *stave_id,
+                        flow_id,
+                        instrument.id,
+                        Some(anchored.tuplet_id),
+                        stave_top,
+                        &mut segment_renderer,
+                    );
 
-                        continue;
-                    }
-
-                    let x = horizontal_spacing.get(*tick, Slot::NoteSpacing).x;
-                    let stem_length = stem_lengths.get(tick);
-                    let stem_direction = stem_directions.get(tick);
-
-                    if let Some(def) = stem_length {
-                        draw_stem(
-                            &Point {
-                                x: stave_left,
-                                y: stave_top,
-                            },
-                            def,
-                            &mut segment_renderer,
-                        );
-                    }
-
-                    let mut has_up_stem_flag = false;
-                    if notation.is_flagged(beams) {
-                        if let (Some(stem_dir), Some(stem_len)) = (stem_direction, stem_length) {
-                            has_up_stem_flag = *stem_dir == Direction::Up;
-
-                            draw_flag(
-                                &Point {
-                                    x: stave_left,
-                                    y: stave_top,
-                                },
-                                notation,
-                                stem_dir,
-                                stem_len,
-                                &mut segment_renderer,
-                            );
-                        }
-                    }
-
-                    if let Some(tick_dots) = dots.get(tick) {
-                        draw_dots(
-                            &Point {
-                                x: stave_left + x,
-                                y: stave_top,
-                            },
-                            tick_dots,
-                            glyph_width,
-                            has_post_shunt,
-                            has_up_stem_flag,
-                            &mut segment_renderer,
-                        );
-                    }
-
-                    if !notation.tones.is_empty() {
-                        draw_ledger_lines(
-                            &Point {
-                                x: stave_left + x,
-                                y: stave_top,
-                            },
-                            tick,
-                            notation,
-                            glyph_width,
-                            shunts,
-                            accidentals,
-                            &tone_offsets,
-                            &mut segment_renderer,
-                        );
-                    }
-
-                    for tone in &notation.tones {
-                        let vertical_offset = tone_offsets[&tone.id];
-
-                        draw_notehead(
-                            &Point {
-                                x: stave_left + x,
-                                y: stave_top + (vertical_offset as f32 / 2.0),
-                            },
-                            *tick,
-                            tone,
-                            glyph,
-                            glyph_width,
-                            shunts,
-                            state.ui.sequencer.selection.as_ref(),
-                            *track_id,
-                            *stave_id,
-                            flow_id,
-                            instrument.id,
-                            stave_top,
-                            &mut segment_renderer,
-                        );
-
-                        if let Some(accidental) = accidentals.by_id.get(&(*tick, tone.id)) {
-                            let has_pre_shunt = notation.has_pre_shunt(shunts);
-
-                            draw_accidental(
-                                &Point {
-                                    x: stave_left + x,
-                                    y: stave_top + (vertical_offset as f32 / 2.0),
-                                },
-                                accidental,
-                                tone,
-                                glyph_width,
-                                has_pre_shunt,
-                                state.ui.sequencer.selection.as_ref(),
-                                &mut segment_renderer,
-                            );
-                        }
-                    }
-
-                    if let Some(track_artics) = articulations_by_track.get(track_id) {
-                        if let Some(articulation_set) = track_artics.get(tick) {
-                            draw_articulations(
-                                &Point {
-                                    x: stave_left + x,
-                                    y: stave_top,
-                                },
-                                articulation_set,
-                                notation,
-                                glyph_width,
-                                stem_directions.get(tick),
-                                stem_length,
-                                &mut segment_renderer,
-                            );
-                        }
-                    }
+                    draw_tuplet(
+                        anchored.tuplet,
+                        anchored.anchored_track,
+                        &anchored.articulations,
+                        &anchored.beams,
+                        &anchored.stem_directions,
+                        &anchored.stem_lengths,
+                        &anchored.horizontal_spacing,
+                        anchored.host_left,
+                        anchored.host_right,
+                        &text_measurer,
+                        state.ui.sequencer.selection.as_ref(),
+                        flow_id,
+                        instrument.id,
+                        *stave_id,
+                        *track_id,
+                        stave_top,
+                        &mut segment_renderer,
+                    );
                 }
             }
         }
@@ -988,10 +1321,22 @@ fn draw_debug_layer(
 #[cfg(test)]
 mod tests {
     use super::{
-        build_flow_render_segment, build_render_converter, collect_flow_render_segments,
-        compose_render_segments, inter_flow_gap_spaces, resolve_render_plan_recalculation,
-        FlowRenderRecalculationRequest, FlowRenderSegment, RenderPhaseTimings,
+        build_anchored_track_render_context, build_flow_render_segment, build_render_converter,
+        collect_flow_render_segments, compose_render_segments, inter_flow_gap_spaces,
+        resolve_render_plan_recalculation, AnchoredTrackHostLayout, FlowRenderRecalculationRequest,
+        FlowRenderSegment, RenderPhaseTimings,
     };
+    use crate::instructions::parse::get_accidentals::get_accidentals_with_anchored_tracks;
+    use crate::instructions::parse::get_barlines::get_barlines;
+    use crate::instructions::parse::get_beams::get_beams;
+    use crate::instructions::parse::get_horizontal_spacing::{
+        get_horizontal_spacing_with_anchored_layouts, Slot,
+    };
+    use crate::instructions::parse::get_measures::get_measures;
+    use crate::instructions::parse::get_shunts::get_note_shunts;
+    use crate::instructions::parse::get_stem_directions::get_stem_directions;
+    use crate::instructions::parse::get_tone_offsets::get_tone_offsets;
+    use crate::instructions::parse::get_written_durations::get_written_durations;
     use crate::renderer::converter::Converter;
     use crate::renderer::RendererContext;
     use crate::renderer::{DrawInstruction, HitTarget};
@@ -1002,6 +1347,7 @@ mod tests {
     use crate::score::entries::tempo::Tempo;
     use crate::score::entries::time_signature::{TimeSignature, TimeSignatureDrawType};
     use crate::score::entries::tone::Tone;
+    use crate::score::entries::tuplet::{Tuplet, TupletEntry};
     use crate::score::entries::Entry;
     use crate::score::flows::Flow;
     use crate::score::instruments::defs::InstrumentType;
@@ -1113,6 +1459,133 @@ mod tests {
         app.ui.layout_id = Some(0);
         app.ui.flow_id = flow_ids.first().copied();
         app
+    }
+
+    fn flow_track_id(app: &AppContext, flow_id: u64) -> u64 {
+        app.score.flows.by_id[&flow_id].staves.by_id[&3].track_ids[0]
+    }
+
+    fn build_flow_spacing(
+        app: &AppContext,
+        flow_id: u64,
+    ) -> crate::instructions::parse::get_horizontal_spacing::HorizontalSpacing {
+        let flow = &app.score.flows.by_id[&flow_id];
+        let layout = &app.score.layouts.by_id[&0];
+        let engrave = &app.score.engraves.by_layout_type[&layout.layout_type];
+        let instruments = app.get_instruments(layout, flow);
+        let measures = get_measures(flow, &app.score.tracks);
+        let barlines = get_barlines(flow, &app.score.tracks, &measures);
+        let tone_offsets = get_tone_offsets(flow, &instruments, &app.score.tracks);
+        let notation_by_track = get_written_durations(
+            flow,
+            &instruments,
+            &app.score.tracks,
+            &measures,
+            &tone_offsets,
+        );
+        let beams_by_track = get_beams(flow, &notation_by_track, &measures);
+        let stem_directions_by_track = get_stem_directions(&notation_by_track, &beams_by_track);
+        let shunts_by_track =
+            get_note_shunts(&notation_by_track, &tone_offsets, &stem_directions_by_track);
+        let (accidentals_by_track, anchored_accidentals_by_track) =
+            get_accidentals_with_anchored_tracks(
+                flow,
+                &app.score.tracks,
+                &notation_by_track,
+                &barlines,
+                &tone_offsets,
+                &shunts_by_track,
+            );
+
+        get_horizontal_spacing_with_anchored_layouts(
+            flow,
+            &instruments,
+            &app.score.tracks,
+            &measures,
+            &notation_by_track,
+            &barlines,
+            &shunts_by_track,
+            &beams_by_track,
+            &accidentals_by_track,
+            &anchored_accidentals_by_track,
+            &tone_offsets,
+            engrave,
+        )
+        .0
+    }
+
+    fn insert_host_tone(app: &mut AppContext, flow_id: u64, tick: u64, duration: u64) -> u64 {
+        let track_id = flow_track_id(app, flow_id);
+        let tone_id = app.generate_id();
+        app.score
+            .tracks
+            .by_id
+            .get_mut(&track_id)
+            .unwrap()
+            .insert_entry(Entry::Tone(Tone::new(
+                tone_id,
+                tick,
+                duration,
+                Pitch::new(64, Accidental::Natural),
+                Velocity::new(90),
+                Articulations::new(),
+            )));
+        tone_id
+    }
+
+    fn insert_triplet(app: &mut AppContext, flow_id: u64, tick: u64, local_ticks: &[u64]) -> u64 {
+        let track_id = flow_track_id(app, flow_id);
+        let tuplet_id = app.generate_id();
+        let mut tuplet = Tuplet::new(tuplet_id, tick, 3, 2, NoteDuration::Eighth, vec![3]);
+
+        for local_tick in local_ticks {
+            let tone_id = app.generate_id();
+            tuplet.entries.insert_entry(TupletEntry::Tone(Tone::new(
+                tone_id,
+                *local_tick,
+                NoteDuration::Eighth.to_ticks(),
+                Pitch::new(60, Accidental::Natural),
+                Velocity::new(90),
+                Articulations::new(),
+            )));
+        }
+
+        app.score
+            .tracks
+            .by_id
+            .get_mut(&track_id)
+            .unwrap()
+            .insert_entry(Entry::Tuplet(Box::new(tuplet)));
+
+        tuplet_id
+    }
+
+    fn set_first_tuplet_tone_pitch(
+        app: &mut AppContext,
+        flow_id: u64,
+        tuplet_id: u64,
+        pitch: Pitch,
+    ) {
+        let track_id = flow_track_id(app, flow_id);
+        let Entry::Tuplet(tuplet) = app
+            .score
+            .tracks
+            .by_id
+            .get_mut(&track_id)
+            .unwrap()
+            .entries
+            .by_id
+            .get_mut(&tuplet_id)
+            .unwrap()
+        else {
+            panic!("expected tuplet entry")
+        };
+
+        let Some(TupletEntry::Tone(tone)) = tuplet.entries.by_id.values_mut().next() else {
+            panic!("expected first tuplet tone")
+        };
+
+        tone.pitch = pitch;
     }
 
     #[test]
@@ -1527,6 +2000,443 @@ mod tests {
         assert_eq!(composed.hit_targets[0].x, 1.0);
         assert_eq!(composed.hit_targets[1].x, 25.5);
         assert_eq!(composed.hit_targets[2].x, 49.25);
+    }
+
+    #[test]
+    fn build_flow_render_segment_emits_tuplet_number_and_native_hit_target() {
+        let mut app = make_test_app_context(&[10]);
+        let tuplet_id = insert_triplet(&mut app, 10, 32, &[0, 16, 32]);
+        let converter = Converter::new(1.0, 1.75);
+
+        let segment = build_flow_render_segment(&app, 0, 10, &converter);
+
+        assert!(segment.instructions.iter().any(|instruction| {
+            matches!(instruction, DrawInstruction::Text { text, .. } if text == "3")
+        }));
+        assert!(segment.hit_targets.iter().any(|target| {
+            matches!(
+                target.entry,
+                Selection::Tuplet {
+                    flow_id: 10,
+                    track_id,
+                    stave_id: 3,
+                    instrument_id: 1,
+                    tuplet_id: selected_tuplet_id,
+                    tick: 32,
+                } if track_id == flow_track_id(&app, 10) && selected_tuplet_id == tuplet_id
+            )
+        }));
+    }
+
+    #[test]
+    fn build_flow_render_segment_keeps_boundary_tuplet_hit_target_between_surrounding_notation() {
+        let mut app = make_test_app_context(&[10]);
+        insert_triplet(&mut app, 10, 32, &[]);
+        insert_host_tone(&mut app, 10, 64, 32);
+        let converter = Converter::new(1.0, 1.75);
+
+        let segment = build_flow_render_segment(&app, 0, 10, &converter);
+
+        let tuplet_target = segment
+            .hit_targets
+            .iter()
+            .find(|target| matches!(target.entry, Selection::Tuplet { flow_id: 10, .. }))
+            .expect("tuplet hit target should be emitted");
+        let tone_xs = segment
+            .hit_targets
+            .iter()
+            .filter_map(|target| match target.entry {
+                Selection::Tone { flow_id: 10, .. } => Some(target.x),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+
+        assert!(tone_xs.len() >= 2);
+        let left_tone_x = tone_xs.iter().copied().fold(f32::INFINITY, f32::min);
+        let right_tone_x = tone_xs.iter().copied().fold(f32::NEG_INFINITY, f32::max);
+
+        assert!(tuplet_target.x > left_tone_x);
+        assert!(tuplet_target.x < right_tone_x);
+    }
+
+    #[test]
+    fn build_flow_render_segment_emits_tuplet_local_rest_hit_targets_for_empty_triplet() {
+        let mut app = make_test_app_context(&[10]);
+        let tuplet_id = insert_triplet(&mut app, 10, 32, &[]);
+        let converter = Converter::new(1.0, 1.75);
+
+        let segment = build_flow_render_segment(&app, 0, 10, &converter);
+
+        let local_rests = segment
+            .hit_targets
+            .iter()
+            .filter(|target| {
+                matches!(
+                    target.entry,
+                    Selection::Rest {
+                        flow_id: 10,
+                        tuplet_id: Some(selected_tuplet_id),
+                        ..
+                    } if selected_tuplet_id == tuplet_id
+                )
+            })
+            .count();
+
+        assert!(local_rests >= 3);
+    }
+
+    #[test]
+    fn build_flow_render_segment_emits_tuplet_local_notes_and_beam_shapes() {
+        let mut app = make_test_app_context(&[10]);
+        let tuplet_id = insert_triplet(&mut app, 10, 32, &[0, 16, 32]);
+        let converter = Converter::new(1.0, 1.75);
+
+        let segment = build_flow_render_segment(&app, 0, 10, &converter);
+
+        let local_tones = segment
+            .hit_targets
+            .iter()
+            .filter(|target| {
+                matches!(
+                    target.entry,
+                    Selection::Tone {
+                        flow_id: 10,
+                        tuplet_id: Some(selected_tuplet_id),
+                        ..
+                    } if selected_tuplet_id == tuplet_id
+                )
+            })
+            .count();
+        let beam_shapes = segment
+            .instructions
+            .iter()
+            .filter(|instruction| matches!(instruction, DrawInstruction::Shape { .. }))
+            .count();
+
+        assert!(local_tones >= 3);
+        assert!(beam_shapes >= 1);
+    }
+
+    #[test]
+    fn build_flow_render_segment_draws_accidental_for_tuplet_local_tone() {
+        let mut app = make_test_app_context(&[10]);
+        let tuplet_id = insert_triplet(&mut app, 10, 32, &[0]);
+        set_first_tuplet_tone_pitch(&mut app, 10, tuplet_id, Pitch::new(61, Accidental::Sharp));
+        let converter = Converter::new(1.0, 1.75);
+
+        let segment = build_flow_render_segment(&app, 0, 10, &converter);
+        let sharp = Accidental::Sharp.to_glyph();
+
+        assert!(segment.instructions.iter().any(|instruction| {
+            matches!(instruction, DrawInstruction::Text { text, .. } if text == &sharp)
+        }));
+    }
+
+    #[test]
+    fn build_anchored_track_render_context_keeps_origin_pinned_for_starting_accidental() {
+        let mut app = make_test_app_context(&[10]);
+        let tuplet_id = insert_triplet(&mut app, 10, 32, &[0]);
+        set_first_tuplet_tone_pitch(&mut app, 10, tuplet_id, Pitch::new(61, Accidental::Sharp));
+        let flow = &app.score.flows.by_id[&10];
+        let layout = &app.score.layouts.by_id[&0];
+        let engrave = &app.score.engraves.by_layout_type[&layout.layout_type];
+        let instruments = app.get_instruments(layout, flow);
+        let measures = get_measures(flow, &app.score.tracks);
+        let barlines = get_barlines(flow, &app.score.tracks, &measures);
+        let tone_offsets = get_tone_offsets(flow, &instruments, &app.score.tracks);
+        let notation_by_track = get_written_durations(
+            flow,
+            &instruments,
+            &app.score.tracks,
+            &measures,
+            &tone_offsets,
+        );
+        let beams_by_track = get_beams(flow, &notation_by_track, &measures);
+        let stem_directions_by_track = get_stem_directions(&notation_by_track, &beams_by_track);
+        let shunts_by_track =
+            get_note_shunts(&notation_by_track, &tone_offsets, &stem_directions_by_track);
+        let (accidentals_by_track, anchored_accidentals_by_track) =
+            get_accidentals_with_anchored_tracks(
+                flow,
+                &app.score.tracks,
+                &notation_by_track,
+                &barlines,
+                &tone_offsets,
+                &shunts_by_track,
+            );
+        let (horizontal_spacing, anchored_layouts_by_track) =
+            get_horizontal_spacing_with_anchored_layouts(
+                flow,
+                &instruments,
+                &app.score.tracks,
+                &measures,
+                &notation_by_track,
+                &barlines,
+                &shunts_by_track,
+                &beams_by_track,
+                &accidentals_by_track,
+                &anchored_accidentals_by_track,
+                &tone_offsets,
+                engrave,
+            );
+
+        let track_id = flow_track_id(&app, 10);
+        let track_master = &app.score.tracks.by_id[&track_id];
+        let notation = &notation_by_track[&track_id];
+        let anchored_track = notation
+            .anchored_tracks
+            .iter()
+            .find(|anchored| anchored.owner_id == tuplet_id)
+            .expect("tuplet anchored track should exist");
+
+        let host_start =
+            horizontal_spacing.get(anchored_track.host_span.start_tick, Slot::NoteSpacing);
+        let host_end_tick = anchored_track.host_span.end_tick.saturating_sub(1);
+        let host_end = horizontal_spacing.get(host_end_tick, Slot::NoteSpacing);
+        let layout = anchored_layouts_by_track[&track_id]
+            .get(&tuplet_id)
+            .expect("anchored layout should exist");
+        let render_context = build_anchored_track_render_context(
+            track_master
+                .entries
+                .by_id
+                .get(&tuplet_id)
+                .and_then(|entry| match entry {
+                    Entry::Tuplet(tuplet) => Some(tuplet.as_ref()),
+                    _ => None,
+                })
+                .expect("tuplet entry should exist"),
+            anchored_track,
+            layout,
+            engrave,
+            AnchoredTrackHostLayout {
+                left: host_start.x,
+                right: host_end.x + host_end.width,
+                stave_top: 0.0,
+            },
+        );
+
+        assert!(
+            (render_context.origin.x - host_start.x).abs() < 1e-6,
+            "expected the anchored tuplet origin to stay pinned to the host start"
+        );
+        assert!(
+            render_context.horizontal_spacing.get(0, Slot::NoteSpacing).x.abs() < 1e-6,
+            "expected the first tuplet notehead to start at the local origin once host spacing owns the lead-in"
+        );
+    }
+
+    #[test]
+    fn build_flow_spacing_keeps_previous_host_spacing_when_natural_space_is_enough() {
+        let mut base = make_test_app_context(&[10]);
+        insert_triplet(&mut base, 10, 32, &[0]);
+
+        let mut with_accidental = make_test_app_context(&[10]);
+        let tuplet_id = insert_triplet(&mut with_accidental, 10, 32, &[0]);
+        set_first_tuplet_tone_pitch(
+            &mut with_accidental,
+            10,
+            tuplet_id,
+            Pitch::new(61, Accidental::Sharp),
+        );
+
+        let base_spacing = build_flow_spacing(&base, 10);
+        let accidental_spacing = build_flow_spacing(&with_accidental, 10);
+
+        assert!(
+            (accidental_spacing.get(31, Slot::NoteSpacing).width
+                - base_spacing.get(31, Slot::NoteSpacing).width)
+                .abs()
+                < 1e-6,
+            "expected the preceding host note spacing to stay unchanged when its natural space already covers the tuplet lead-in"
+        );
+    }
+
+    #[test]
+    fn build_flow_spacing_grows_previous_host_spacing_when_tuples_lead_in_exceeds_natural_space() {
+        let mut base = make_test_app_context(&[10]);
+        let track_id = flow_track_id(&base, 10);
+        let initial_ids = base.score.tracks.by_id[&track_id]
+            .entries
+            .by_tick
+            .get(&0)
+            .cloned()
+            .unwrap_or_default();
+        for entry_id in initial_ids {
+            base.score
+                .tracks
+                .by_id
+                .get_mut(&track_id)
+                .expect("flow track should exist")
+                .remove_entry(entry_id);
+        }
+        insert_host_tone(&mut base, 10, 16, 16);
+        insert_triplet(&mut base, 10, 32, &[0]);
+
+        let mut with_accidental = base.clone();
+        let tuplet_id = with_accidental.score.tracks.by_id[&track_id]
+            .entries
+            .by_tick
+            .get(&32)
+            .and_then(|ids| ids.first().copied())
+            .expect("triplet should be inserted at tick 32");
+        set_first_tuplet_tone_pitch(
+            &mut with_accidental,
+            10,
+            tuplet_id,
+            Pitch::new(61, Accidental::Sharp),
+        );
+
+        let base_spacing = build_flow_spacing(&base, 10);
+        let accidental_spacing = build_flow_spacing(&with_accidental, 10);
+
+        assert!(
+            accidental_spacing.get(31, Slot::NoteSpacing).width
+                > base_spacing.get(31, Slot::NoteSpacing).width,
+            "expected the preceding shorter host note spacing to grow when the tuplet lead-in exceeds its natural space"
+        );
+    }
+
+    #[test]
+    fn build_flow_spacing_matches_continuous_next_notation_floor_for_tuplet_start_accidental() {
+        let mut continuous = make_test_app_context(&[10]);
+        let track_id = flow_track_id(&continuous, 10);
+        let initial_ids = continuous.score.tracks.by_id[&track_id]
+            .entries
+            .by_tick
+            .get(&0)
+            .cloned()
+            .unwrap_or_default();
+        for entry_id in initial_ids {
+            continuous
+                .score
+                .tracks
+                .by_id
+                .get_mut(&track_id)
+                .expect("flow track should exist")
+                .remove_entry(entry_id);
+        }
+        insert_host_tone(&mut continuous, 10, 16, 16);
+        let next_tone_id = insert_host_tone(&mut continuous, 10, 32, 16);
+        if let Some(Entry::Tone(tone)) = continuous
+            .score
+            .tracks
+            .by_id
+            .get_mut(&track_id)
+            .and_then(|track| track.entries.by_id.get_mut(&next_tone_id))
+        {
+            tone.pitch = Pitch::new(61, Accidental::Sharp);
+        } else {
+            panic!("expected host tone at tick 32");
+        }
+
+        let mut tuplet_case = make_test_app_context(&[10]);
+        let tuplet_track_id = flow_track_id(&tuplet_case, 10);
+        let tuplet_initial_ids = tuplet_case.score.tracks.by_id[&tuplet_track_id]
+            .entries
+            .by_tick
+            .get(&0)
+            .cloned()
+            .unwrap_or_default();
+        for entry_id in tuplet_initial_ids {
+            tuplet_case
+                .score
+                .tracks
+                .by_id
+                .get_mut(&tuplet_track_id)
+                .expect("flow track should exist")
+                .remove_entry(entry_id);
+        }
+        insert_host_tone(&mut tuplet_case, 10, 16, 16);
+        let tuplet_id = insert_triplet(&mut tuplet_case, 10, 32, &[0]);
+        set_first_tuplet_tone_pitch(
+            &mut tuplet_case,
+            10,
+            tuplet_id,
+            Pitch::new(61, Accidental::Sharp),
+        );
+
+        let continuous_spacing = build_flow_spacing(&continuous, 10);
+        let tuplet_spacing = build_flow_spacing(&tuplet_case, 10);
+
+        assert!(
+            (continuous_spacing.get(31, Slot::NoteSpacing).width
+                - tuplet_spacing.get(31, Slot::NoteSpacing).width)
+                .abs()
+                < 1e-6,
+            "expected tuplet-start accidental spacing to match the continuous next-notation floor"
+        );
+    }
+
+    #[test]
+    fn build_flow_spacing_uses_host_accidental_slot_for_opening_tuplet_accidental() {
+        let mut app = make_test_app_context(&[10]);
+        let track_id = flow_track_id(&app, 10);
+        let initial_ids = app.score.tracks.by_id[&track_id]
+            .entries
+            .by_tick
+            .get(&0)
+            .cloned()
+            .unwrap_or_default();
+
+        for entry_id in initial_ids {
+            app.score
+                .tracks
+                .by_id
+                .get_mut(&track_id)
+                .expect("flow track should exist")
+                .remove_entry(entry_id);
+        }
+
+        let tuplet_id = insert_triplet(&mut app, 10, 0, &[0]);
+        set_first_tuplet_tone_pitch(&mut app, 10, tuplet_id, Pitch::new(61, Accidental::Sharp));
+
+        let spacing = build_flow_spacing(&app, 10);
+
+        assert!(
+            spacing.get(0, Slot::Accidentals).width > 0.0,
+            "expected an opening tuplet accidental to reserve the shared host accidental slot"
+        );
+    }
+
+    #[test]
+    fn build_flow_render_segment_draws_curve_for_host_to_tuplet_tie() {
+        let mut app = make_test_app_context(&[10]);
+        insert_triplet(&mut app, 10, 32, &[]);
+        insert_host_tone(&mut app, 10, 16, 48);
+        let converter = Converter::new(1.0, 1.75);
+
+        let segment = build_flow_render_segment(&app, 0, 10, &converter);
+        let curve_count = segment
+            .instructions
+            .iter()
+            .filter(|instruction| matches!(instruction, DrawInstruction::Curve { .. }))
+            .count();
+
+        assert!(curve_count >= 1);
+    }
+
+    #[test]
+    fn compose_render_segments_offsets_tuplet_hit_targets_with_shared_surface_gap() {
+        let mut app = make_test_app_context(&[10, 20]);
+        insert_triplet(&mut app, 20, 64, &[0, 16, 32]);
+        let converter = Converter::new(1.0, 1.75);
+
+        let first_segment = build_flow_render_segment(&app, 0, 10, &converter);
+        let second_segment = build_flow_render_segment(&app, 0, 20, &converter);
+        let tuplet_target = second_segment
+            .hit_targets
+            .iter()
+            .find(|target| matches!(target.entry, Selection::Tuplet { flow_id: 20, .. }))
+            .cloned()
+            .expect("second segment should keep its tuplet hit target");
+        let second_offset_spaces = first_segment.width + inter_flow_gap_spaces(&converter);
+
+        let composed = compose_render_segments(vec![first_segment, second_segment], &converter);
+
+        assert!(composed
+            .hit_targets
+            .contains(&tuplet_target.offset(second_offset_spaces, 0.0)));
     }
 
     #[test]

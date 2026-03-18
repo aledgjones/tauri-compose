@@ -21,10 +21,11 @@ pub fn draw_rest(
     stave_id: UniqueId,
     flow_id: UniqueId,
     instrument_id: UniqueId,
+    tuplet_id: Option<UniqueId>,
     stave_top: f32,
     renderer: &mut RendererContext,
 ) {
-    let color = if matches!(selection, Some(Selection::Rest { tick: selected_tick, track_id: selected_track_id, .. }) if *selected_tick == tick && *selected_track_id == track_id)
+    let color = if matches!(selection, Some(Selection::Rest { tick: selected_tick, track_id: selected_track_id, tuplet_id: selected_tuplet_id, .. }) if *selected_tick == tick && *selected_track_id == track_id && *selected_tuplet_id == tuplet_id)
     {
         Color::from_rgb(14, 165, 233)
     } else {
@@ -57,7 +58,7 @@ pub fn draw_rest(
                 stave_id,
                 track_id,
                 tick,
-                tuplet_id: None,
+                tuplet_id,
             },
             x: left,
             y: top - 0.25,
@@ -130,7 +131,7 @@ pub fn draw_rest(
                 stave_id,
                 track_id,
                 tick,
-                tuplet_id: None,
+                tuplet_id,
             },
             x: left,
             y: top - hit_top_offset,
@@ -191,6 +192,7 @@ mod tests {
             1,
             1,
             1,
+            None,
             5.0,
             &mut renderer,
         );
@@ -219,6 +221,7 @@ mod tests {
             1,
             1,
             1,
+            None,
             5.0,
             &mut renderer,
         );
@@ -255,6 +258,7 @@ mod tests {
             1,
             1,
             1,
+            None,
             0.0,
             &mut renderer,
         );
@@ -282,6 +286,7 @@ mod tests {
             1,
             1,
             1,
+            None,
             0.0,
             &mut renderer,
         );
@@ -310,6 +315,7 @@ mod tests {
             1,
             1,
             1,
+            None,
             0.0,
             &mut renderer,
         );
@@ -337,6 +343,7 @@ mod tests {
             1,
             1,
             1,
+            None,
             0.0,
             &mut renderer,
         );

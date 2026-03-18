@@ -166,7 +166,7 @@ export const actions = {
         stave_id: number,
         flow_id: number,
         instrument_id: number,
-        tuplet_id?: number,
+        tuplet_id?: number | null,
       ) => {
         return invoke("ui_sequencer_selection_set_tone", {
           tone_id,
@@ -183,7 +183,7 @@ export const actions = {
         stave_id: number,
         flow_id: number,
         instrument_id: number,
-        tuplet_id?: number,
+        tuplet_id?: number | null,
       ) => {
         return invoke("ui_sequencer_selection_set_rest", {
           tick,

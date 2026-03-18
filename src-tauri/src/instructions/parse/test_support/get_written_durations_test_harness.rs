@@ -139,7 +139,10 @@ pub(crate) fn assert_anchored_notation_track_matches(
     anchored_track: &AnchoredNotationTrack,
     expectation: AnchoredNotationExpectation,
 ) {
-    assert_eq!(normalize_anchored_notation_track(anchored_track), expectation);
+    assert_eq!(
+        normalize_anchored_notation_track(anchored_track),
+        expectation
+    );
 }
 
 pub(crate) fn make_time_signature_for_test(
@@ -381,7 +384,10 @@ pub(crate) fn run_written_duration_scenario_with_tuplets(
     flow_length: Ticks,
     tone_specs: &[ToneSpec],
     tuplet_specs: &[TupletSpec],
-) -> (crate::instructions::parse::get_written_durations::NotationByTrack, u64) {
+) -> (
+    crate::instructions::parse::get_written_durations::NotationByTrack,
+    u64,
+) {
     let ParserFixture {
         flow,
         instrument,
@@ -407,7 +413,10 @@ pub(crate) fn run_written_duration_scenario_with_tuplets_and_barlines(
     tone_specs: &[ToneSpec],
     tuplet_specs: &[TupletSpec],
     barline_ticks: &[Tick],
-) -> (crate::instructions::parse::get_written_durations::NotationByTrack, u64) {
+) -> (
+    crate::instructions::parse::get_written_durations::NotationByTrack,
+    u64,
+) {
     let ParserFixture {
         flow,
         instrument,

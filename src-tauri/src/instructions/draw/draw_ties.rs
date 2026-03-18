@@ -169,50 +169,59 @@ fn stop_x(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn tie_points_x(
-    x: f32,
+fn tie_points_x_across_contexts(
+    start_origin_x: f32,
     start: &Notation,
+    start_horizontal_spacing: &HorizontalSpacing,
+    start_shunts: &Shunts,
+    stop_origin_x: f32,
     stop: &Notation,
-    horizontal_spacing: &HorizontalSpacing,
-    shunts: &Shunts,
+    stop_horizontal_spacing: &HorizontalSpacing,
+    stop_shunts: &Shunts,
     tie_direction: &Direction,
     stem_direction: &Direction,
     offset: i8,
 ) -> [f32; 3] {
-    let (start_x, stop_x) = match start.is_chord() {
-        true => (
-            x + start_x(
+    let start_x = if start.is_chord() {
+        start_origin_x
+            + start_x(
                 start,
-                horizontal_spacing,
-                shunts,
+                start_horizontal_spacing,
+                start_shunts,
                 tie_direction,
                 stem_direction,
                 offset,
-            ),
-            x + stop_x(
+            )
+    } else {
+        let metrics = start.glyph_metrics();
+        let glyph_width = metrics.total_width();
+
+        start_origin_x
+            + start_horizontal_spacing
+                .get(start.tick, Slot::NoteSpacing)
+                .x
+            + (glyph_width / 2.0)
+            + 0.1
+    };
+
+    let stop_x = if stop.is_chord() {
+        stop_origin_x
+            + stop_x(
                 stop,
-                horizontal_spacing,
-                shunts,
+                stop_horizontal_spacing,
+                stop_shunts,
                 tie_direction,
                 stem_direction,
                 offset,
-            ),
-        ),
-        false => {
-            let metrics = start.glyph_metrics();
-            let glyph_width = metrics.total_width();
+            )
+    } else {
+        let metrics = stop.glyph_metrics();
+        let glyph_width = metrics.total_width();
 
-            let start_x = x
-                + horizontal_spacing.get(start.tick, Slot::NoteSpacing).x
-                + (glyph_width / 2.0)
-                + 0.1;
-
-            let stop_x =
-                x + horizontal_spacing.get(stop.tick, Slot::NoteSpacing).x + (glyph_width / 2.0)
-                    - 0.1;
-
-            (start_x, stop_x)
-        }
+        stop_origin_x
+            + stop_horizontal_spacing.get(stop.tick, Slot::NoteSpacing).x
+            + (glyph_width / 2.0)
+            - 0.1
     };
 
     let middle_x = start_x + ((stop_x - start_x) / 2.0);
@@ -235,9 +244,12 @@ pub fn draw_tie(
 ) {
     let offset = *tone_offsets.get(tone_id).unwrap();
 
-    let [start_x, middle_x, stop_x] = tie_points_x(
+    let [start_x, middle_x, stop_x] = tie_points_x_across_contexts(
         origin.x,
         start,
+        horizontal_spacing,
+        shunts,
+        origin.x,
         stop,
         horizontal_spacing,
         shunts,
@@ -247,6 +259,67 @@ pub fn draw_tie(
     );
     let [start_y, middle_y, stop_y] =
         tie_points_y(origin.y, start, tie_direction, stop_x - start_x, offset);
+
+    renderer.curve(
+        Color::BLACK,
+        [
+            CurvePoint {
+                x: start_x,
+                y: start_y,
+                thickness: 0.125,
+            },
+            CurvePoint {
+                x: middle_x,
+                y: middle_y,
+                thickness: 0.25,
+            },
+            CurvePoint {
+                x: stop_x,
+                y: stop_y,
+                thickness: 0.125,
+            },
+        ],
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn draw_tie_between_contexts(
+    start_origin: &Point,
+    tone_id: &UniqueId,
+    start: &Notation,
+    start_horizontal_spacing: &HorizontalSpacing,
+    start_shunts: &Shunts,
+    stop_origin: &Point,
+    stop: &Notation,
+    stop_horizontal_spacing: &HorizontalSpacing,
+    stop_shunts: &Shunts,
+    tie_direction: &Direction,
+    stem_direction: &Direction,
+    tone_offsets: &ToneVerticalOffsets,
+    renderer: &mut RendererContext,
+) {
+    let offset = *tone_offsets.get(tone_id).unwrap();
+
+    let [start_x, middle_x, stop_x] = tie_points_x_across_contexts(
+        start_origin.x,
+        start,
+        start_horizontal_spacing,
+        start_shunts,
+        stop_origin.x,
+        stop,
+        stop_horizontal_spacing,
+        stop_shunts,
+        tie_direction,
+        stem_direction,
+        offset,
+    );
+    let [start_y, middle_y, stop_y] = tie_points_y(
+        start_origin.y,
+        start,
+        tie_direction,
+        stop_x - start_x,
+        offset,
+    );
 
     renderer.curve(
         Color::BLACK,
@@ -286,11 +359,15 @@ pub fn draw_ties(
             let tie_directions = get_tie_directions(entry, stem_direction, tone_offsets);
 
             for (tone_id, tie_direction) in tie_directions {
+                let Some(stop) = notation.track.get(&(tick + entry.duration)) else {
+                    continue;
+                };
+
                 draw_tie(
                     origin,
                     &tone_id,
                     entry,
-                    notation.track.get(&(tick + entry.duration)).unwrap(),
+                    stop,
                     &tie_direction,
                     stem_direction,
                     horizontal_spacing,

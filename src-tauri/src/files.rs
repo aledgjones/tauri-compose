@@ -507,8 +507,7 @@ mod tests {
         ))
         .unwrap();
 
-        fixture["score"]["tracks"]["by_id"]["6"]["entries"]["by_id"]["70"]["text"] =
-            Value::Null;
+        fixture["score"]["tracks"]["by_id"]["6"]["entries"]["by_id"]["70"]["text"] = Value::Null;
 
         fixture
     }
@@ -1029,7 +1028,8 @@ mod tests {
 
         let compressed_payload =
             compress_project_payload(&serde_json::to_vec(&legacy_project).unwrap()).unwrap();
-        let container = build_soloc_container(legacy_version.as_str(), &compressed_payload).unwrap();
+        let container =
+            build_soloc_container(legacy_version.as_str(), &compressed_payload).unwrap();
         let restored = project_file_from_container_bytes(&container).unwrap();
 
         assert_eq!(restored.score.meta.app_version, test_app_version());
@@ -1089,7 +1089,10 @@ mod tests {
         assert!(matches!(state.ui.sequencer.tool, Tool::Select));
         assert_eq!(state.ui.sequencer.selection, None);
         assert!(state.ui.screens.setup.selection.is_none());
-        assert_eq!(state.current_file_path.as_deref(), Some("/tmp/tuplets.soloc"));
+        assert_eq!(
+            state.current_file_path.as_deref(),
+            Some("/tmp/tuplets.soloc")
+        );
         assert!(matches!(
             state
                 .score
@@ -1100,7 +1103,9 @@ mod tests {
             Some(Entry::Tuplet(_))
         ));
         assert_eq!(
-            transport_shared.current_tick.load(std::sync::atomic::Ordering::Relaxed),
+            transport_shared
+                .current_tick
+                .load(std::sync::atomic::Ordering::Relaxed),
             0
         );
         assert!(transport_shared.get_tempo() > 0.0);

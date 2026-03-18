@@ -133,7 +133,15 @@ export const useKeyboardShortcuts = () => {
             ),
         };
       }
-      case "Tuplet":
+      case "Tuplet": {
+        return {
+          deleteSelection: () =>
+            actions.score.tuplet.remove(
+              selection.track_id,
+              selection.tuplet_id,
+            ),
+        };
+      }
       case "Rest":
         return null;
     }

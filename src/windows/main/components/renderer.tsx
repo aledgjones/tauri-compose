@@ -106,6 +106,7 @@ export const Renderer: FC<Props> = ({ className }) => {
               hitResult.stave_id,
               hitResult.flow_id,
               hitResult.instrument_id,
+              hitResult.tuplet_id,
             );
             return;
           }
@@ -116,6 +117,7 @@ export const Renderer: FC<Props> = ({ className }) => {
               hitResult.stave_id,
               hitResult.flow_id,
               hitResult.instrument_id,
+              hitResult.tuplet_id,
             );
             return;
           }

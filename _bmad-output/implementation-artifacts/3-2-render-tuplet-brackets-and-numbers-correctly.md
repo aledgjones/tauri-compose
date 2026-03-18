@@ -1,6 +1,6 @@
 # Story 3.2: Render Tuplet Brackets and Numbers Correctly
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -30,31 +30,31 @@ so that the score reads like real notation rather than placeholder annotation.
 
 ## Tasks / Subtasks
 
-- [ ] Render tuplets from backend-owned wrapper metadata rather than overlay reconstruction (AC: 1, 3, 4)
-  - [ ] Extend the score render pipeline so tuplet number and bracket draw instructions are emitted from parser-derived tuplet wrapper metadata carried through the existing instructions pipeline.
-  - [ ] Keep rendering fully backend-owned in Rust; do not add React or overlay-layer rendering for tuplet chrome.
-  - [ ] Reuse the existing composed-surface flow so tuplet markings stay attached to the notation they govern in shared renderer space.
-- [ ] Implement MVP bracket-visibility and number-placement rules (AC: 1, 2, 4)
-  - [ ] Draw the tuplet number in the correct relationship to the isolated tuplet unit produced by parser splitting at tuplet boundaries.
-  - [ ] Omit bracket chrome in supported cases where the grouped content remains legible without it.
-  - [ ] Preserve the product's default notation behavior only; do not add user-facing overrides or advanced engraving-option plumbing.
-- [ ] Add tuplet adornment hit targets and selection plumbing needed for native score interaction (AC: 3)
-  - [ ] Introduce native hit targets for tuplet brackets and/or numbers so score interaction can resolve the tuplet container without replacing tone-id authority for notes.
-  - [ ] Ensure hit targets survive shared-surface composition and `renderer_hit_test` resolution the same way other native score objects do.
-  - [ ] Keep selection authority backend-owned and aligned with the existing `Tuplet` selection payload contract.
-- [ ] Add focused renderer and hit-test regressions for tuplet bracket/number behavior (AC: 1, 2, 3, 4)
-  - [ ] Add draw-level tests for tuplet number and bracket instructions, including a case where bracket chrome is omitted.
-  - [ ] Add composition or hit-test coverage proving tuplet adornments remain attached to the correct rendered content in shared renderer space.
-  - [ ] Add a boundary case where a passage is split at a tuplet start or end and the resulting tuplet marking still renders as one isolated grouped unit rather than as detached annotation.
-  - [ ] Keep visual bracket/number tests close to the Rust renderer seams; do not defer Story 3.2 proof to later end-to-end fixture work.
-- [ ] Validate the touched renderer seams with the standard repo checks
-  - [ ] Run focused Rust tests for draw, hit-test, and composed-surface behavior that cover the changed tuplet rendering paths.
-  - [ ] Run `cargo test --manifest-path src-tauri/Cargo.toml` after renderer changes.
-  - [ ] Run `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features` because clippy-clean is a repo rule when Rust files change.
-- [ ] Review documentation impact before closing the story
-  - [ ] Confirm whether tuplet bracket/number rendering or tuplet hit-target behavior changes developer-facing docs or guardrails.
-  - [ ] Update the relevant docs and agent instructions in the same change if the durable contract changes materially.
-  - [ ] If no docs change is needed, record that decision explicitly in the completion notes.
+- [x] Render tuplets from backend-owned wrapper metadata rather than overlay reconstruction (AC: 1, 3, 4)
+  - [x] Extend the score render pipeline so tuplet number and bracket draw instructions are emitted from parser-derived tuplet wrapper metadata carried through the existing instructions pipeline.
+  - [x] Keep rendering fully backend-owned in Rust; do not add React or overlay-layer rendering for tuplet chrome.
+  - [x] Reuse the existing composed-surface flow so tuplet markings stay attached to the notation they govern in shared renderer space.
+- [x] Implement MVP bracket-visibility and number-placement rules (AC: 1, 2, 4)
+  - [x] Draw the tuplet number in the correct relationship to the isolated tuplet unit produced by parser splitting at tuplet boundaries.
+  - [x] Omit bracket chrome in supported cases where the grouped content remains legible without it.
+  - [x] Preserve the product's default notation behavior only; do not add user-facing overrides or advanced engraving-option plumbing.
+- [x] Add tuplet adornment hit targets and selection plumbing needed for native score interaction (AC: 3)
+  - [x] Introduce native hit targets for tuplet brackets and/or numbers so score interaction can resolve the tuplet container without replacing tone-id authority for notes.
+  - [x] Ensure hit targets survive shared-surface composition and `renderer_hit_test` resolution the same way other native score objects do.
+  - [x] Keep selection authority backend-owned and aligned with the existing `Tuplet` selection payload contract.
+- [x] Add focused renderer and hit-test regressions for tuplet bracket/number behavior (AC: 1, 2, 3, 4)
+  - [x] Add draw-level tests for tuplet number and bracket instructions, including a case where bracket chrome is omitted.
+  - [x] Add composition or hit-test coverage proving tuplet adornments remain attached to the correct rendered content in shared renderer space.
+  - [x] Add a boundary case where a passage is split at a tuplet start or end and the resulting tuplet marking still renders as one isolated grouped unit rather than as detached annotation.
+  - [x] Keep visual bracket/number tests close to the Rust renderer seams; do not defer Story 3.2 proof to later end-to-end fixture work.
+- [x] Validate the touched renderer seams with the standard repo checks
+  - [x] Run focused Rust tests for draw, hit-test, and composed-surface behavior that cover the changed tuplet rendering paths.
+  - [x] Run `cargo test --manifest-path src-tauri/Cargo.toml` after renderer changes.
+  - [x] Run `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features` because clippy-clean is a repo rule when Rust files change.
+- [x] Review documentation impact before closing the story
+  - [x] Confirm whether tuplet bracket/number rendering or tuplet hit-target behavior changes developer-facing docs or guardrails.
+  - [x] Update the relevant docs and agent instructions in the same change if the durable contract changes materially.
+  - [x] If no docs change is needed, record that decision explicitly in the completion notes.
 
 ## Dev Notes
 
@@ -181,18 +181,34 @@ GPT-5.4
 - Reviewed PRD notation requirements and MVP scope constraints for bracket and number treatment.
 - Reviewed architecture sections covering boundary-aware splitting, wrapper-metadata rendering, spacing strategy, and tuplet hit targets.
 - Inspected current renderer, hit-test, and draw-module seams to anchor Story 3.2 in the existing Rust-native rendering path.
+- Implemented backend-owned tuplet chrome rendering in `src-tauri/src/instructions/draw/draw_tuplet.rs` and wired it through `src-tauri/src/instructions/mod.rs` using parser-owned anchored tracks plus host-span projection.
+- Added renderer-local regressions for simple no-bracket triplets, rest-bearing bracketed tuplets, native tuplet hit targets, shared-surface composition offsets, and `renderer_hit_test` tuplet selection resolution.
+- Validated the change with focused `cargo test` selectors, full `cargo test --manifest-path src-tauri/Cargo.toml`, and `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features`.
 
 ### Completion Notes List
 
 - Story 3.2 created with explicit renderer-only scope and an added planning note that tuplet boundaries should be treated like barline-style parse split points so rendering can handle the tuplet as an isolated unit.
+- Added a native Rust tuplet draw helper that emits number text, conditional bracket lines, and `Selection::Tuplet` hit targets directly from Story 3.1 anchored wrapper metadata.
+- Extended the main score render pipeline to project anchored tuplet-local bounds into the consumed host span and keep tuplet chrome attached through shared-surface composition without any overlay reconstruction.
+- Added focused draw, hit-test, and flow-composition coverage for omitted brackets, bracketed rest-bearing tuplets, shared-surface offsets, and boundary-contained placement.
+- No documentation or agent-instruction update was required because the shipped behavior matched the existing architecture, data-model, and project-context guidance for backend-owned tuplet chrome and native hit targets.
+- Adjusted tuplet chrome geometry after visual review so bracket lines and numbers sit fully above the stave, the bracket spans read as one clean over-span, and the number stays centered inside the bracket gap.
 
 ### File List
 
-- `_bmad-output/planning-artifacts/epics.md`
 - `_bmad-output/implementation-artifacts/3-2-render-tuplet-brackets-and-numbers-correctly.md`
+- `_bmad-output/planning-artifacts/epics.md`
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `src-tauri/src/instructions/draw/mod.rs`
+- `src-tauri/src/instructions/draw/draw_tuplet.rs`
+- `src-tauri/src/instructions/mod.rs`
+- `src-tauri/src/renderer/hit_test.rs`
 
 ### Change Log
 
 - 2026-03-17: Added an Epic 3.2 acceptance criterion that treats tuplet boundaries like barline-style metric split points for renderer consumption.
 - 2026-03-17: Created Story 3.2 implementation artifact and moved Story 3.2 to ready-for-dev.
+- 2026-03-17: Implemented backend-owned tuplet number and bracket rendering from anchored wrapper metadata and added native `Selection::Tuplet` hit targets.
+- 2026-03-17: Added renderer-local regression coverage for tuplet chrome draw rules, hit-testing, boundary placement, and shared-surface composition.
+- 2026-03-17: Tightened tuplet bracket geometry so bracket chrome always renders above the stave with the number centered in the bracket gap.
+- 2026-03-18: Closed review and marked Story 3.2 done; no additional project-documentation update was required beyond the recorded completion notes.

@@ -6,6 +6,12 @@ use rustc_hash::FxHashMap;
 
 pub type Measures = FxHashMap<Tick, TimeSignature>;
 
+pub fn measures_from_single_time_signature(time_signature: TimeSignature) -> Measures {
+    let mut measures = Measures::default();
+    measures.insert(0, time_signature);
+    measures
+}
+
 pub fn get_measures(flow: &Flow, tracks: &Tracks) -> Measures {
     let mut output = Measures::default();
     let mut current_tick = 0;
@@ -114,5 +120,24 @@ mod tests {
         assert!(measures.contains_key(&128), "4/4 bar 2 at tick 128");
         assert!(measures.contains_key(&256), "3/4 bar 1 at tick 256");
         assert!(measures.contains_key(&352), "3/4 bar 2 at tick 352");
+    }
+
+    #[test]
+    fn single_time_signature_helper_starts_at_zero() {
+        let time_signature = TimeSignature::new(
+            1,
+            24,
+            5,
+            NoteDuration::Eighth,
+            TimeSignatureDrawType::Regular,
+            Some(vec![3, 2]),
+        );
+
+        let measures = measures_from_single_time_signature(time_signature.clone());
+
+        assert_eq!(measures.len(), 1);
+        assert!(measures.get(&0).unwrap().beats == time_signature.beats);
+        assert!(measures.get(&0).unwrap().beat_type == time_signature.beat_type);
+        assert!(measures.get(&0).unwrap().groupings == time_signature.groupings);
     }
 }

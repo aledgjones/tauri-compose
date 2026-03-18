@@ -108,7 +108,11 @@ impl Track {
         }
     }
 
-    fn get_tone_mut(&mut self, tone_id: UniqueId, tuplet_id: Option<UniqueId>) -> Option<&mut Tone> {
+    fn get_tone_mut(
+        &mut self,
+        tone_id: UniqueId,
+        tuplet_id: Option<UniqueId>,
+    ) -> Option<&mut Tone> {
         match tuplet_id {
             Some(tuplet_id) => match self.entries.by_id.get_mut(&tuplet_id)? {
                 Entry::Tuplet(tuplet) => match tuplet.entries.by_id.get_mut(&tone_id)? {
@@ -285,19 +289,14 @@ impl Track {
         }
     }
 
-    fn insert_owned_tone(
-        &mut self,
-        tone: Tone,
-        tuplet_id: Option<UniqueId>,
-    ) -> Result<(), String> {
+    fn insert_owned_tone(&mut self, tone: Tone, tuplet_id: Option<UniqueId>) -> Result<(), String> {
         match tuplet_id {
             Some(tuplet_id) => {
                 let track_id = self.id;
-                let tuplet = self
-                    .entries
-                    .by_id
-                    .get_mut(&tuplet_id)
-                    .ok_or_else(|| format!("Tuplet {tuplet_id} not found on track {track_id}"))?;
+                let tuplet =
+                    self.entries.by_id.get_mut(&tuplet_id).ok_or_else(|| {
+                        format!("Tuplet {tuplet_id} not found on track {track_id}")
+                    })?;
 
                 let Entry::Tuplet(tuplet) = tuplet else {
                     return Err(format!("Tuplet {tuplet_id} not found on track {track_id}"));
@@ -327,11 +326,10 @@ impl Track {
         match tuplet_id {
             Some(tuplet_id) => {
                 let track_id = self.id;
-                let tuplet = self
-                    .entries
-                    .by_id
-                    .get_mut(&tuplet_id)
-                    .ok_or_else(|| format!("Tuplet {tuplet_id} not found on track {track_id}"))?;
+                let tuplet =
+                    self.entries.by_id.get_mut(&tuplet_id).ok_or_else(|| {
+                        format!("Tuplet {tuplet_id} not found on track {track_id}")
+                    })?;
 
                 let Entry::Tuplet(tuplet) = tuplet else {
                     return Err(format!("Tuplet {tuplet_id} not found on track {track_id}"));
@@ -461,11 +459,10 @@ impl Track {
 
         match tuplet_id {
             Some(tuplet_id) => {
-                let tuplet = self
-                    .entries
-                    .by_id
-                    .get_mut(&tuplet_id)
-                    .ok_or_else(|| format!("Tuplet {tuplet_id} not found on track {track_id}"))?;
+                let tuplet =
+                    self.entries.by_id.get_mut(&tuplet_id).ok_or_else(|| {
+                        format!("Tuplet {tuplet_id} not found on track {track_id}")
+                    })?;
 
                 let Entry::Tuplet(tuplet) = tuplet else {
                     return Err(format!("Tuplet {tuplet_id} not found on track {track_id}"));
@@ -490,7 +487,9 @@ impl Track {
                 )));
 
                 if !articulations.is_empty() {
-                    tuplet.entries.apply_articulations_to_tick(tick, &articulations);
+                    tuplet
+                        .entries
+                        .apply_articulations_to_tick(tick, &articulations);
                 }
 
                 Ok(tone_id)
@@ -634,9 +633,12 @@ impl Track {
                     tuplet
                         .entries
                         .apply_articulations_to_tick(moved_tick, &moved_articulations);
-                } else if let Some(found_set) = tuplet.entries.first_articulations_at_tick(&moved_tick)
+                } else if let Some(found_set) =
+                    tuplet.entries.first_articulations_at_tick(&moved_tick)
                 {
-                    tuplet.entries.apply_articulations_to_tick(moved_tick, &found_set);
+                    tuplet
+                        .entries
+                        .apply_articulations_to_tick(moved_tick, &found_set);
                 }
             }
             None => {
@@ -692,7 +694,9 @@ impl Track {
                     _ => return,
                 };
 
-                tuplet.entries.apply_articulations_to_tick(tick, &resulting_set);
+                tuplet
+                    .entries
+                    .apply_articulations_to_tick(tick, &resulting_set);
             }
             None => {
                 let (tick, resulting_set) = match self.entries.by_id.get(&tone_id) {
@@ -763,7 +767,10 @@ pub fn score_entries_tone_duration_set(
     let mut renderer = renderer_state.lock().unwrap();
 
     let track = state.score.tracks.by_id.get_mut(&track_id).unwrap();
-    if track.set_tone_duration(tone_id, duration, tuplet_id).is_err() {
+    if track
+        .set_tone_duration(tone_id, duration, tuplet_id)
+        .is_err()
+    {
         return;
     }
 
@@ -1590,8 +1597,8 @@ mod tests {
 
     #[test]
     fn remove_tone_keeps_tuplet_container_and_remaining_indexes_stable() {
-        use crate::score::entries::Entry;
         use crate::score::entries::tuplet::TupletEntry;
+        use crate::score::entries::Entry;
         use crate::score::tracks::Track;
 
         let mut track = Track::new(1);
@@ -1703,7 +1710,8 @@ mod tests {
         use crate::score::entries::Entry;
         let mut track = make_track_with_tone(1, 0, 60, Accidental::Natural);
         let arts = Articulations::new().toggle(Articulation::Tenuto);
-        track.create_tone(2, 0, 32, 64, Some(Accidental::Natural), 80, arts, None)
+        track
+            .create_tone(2, 0, 32, 64, Some(Accidental::Natural), 80, arts, None)
             .unwrap();
         // Both tones at tick 0 should have Tenuto
         if let Some(Entry::Tone(t)) = track.entries.by_id.get(&1) {
@@ -1763,8 +1771,15 @@ mod tests {
             panic!("expected tuplet entry");
         };
 
-        assert!(tuplet.entries.by_tick.get(&16).is_some_and(|ids| ids == &vec![30]));
-        assert!(matches!(tuplet.entries.by_id.get(&30), Some(crate::score::entries::tuplet::TupletEntry::Tone(_))));
+        assert!(tuplet
+            .entries
+            .by_tick
+            .get(&16)
+            .is_some_and(|ids| ids == &vec![30]));
+        assert!(matches!(
+            tuplet.entries.by_id.get(&30),
+            Some(crate::score::entries::tuplet::TupletEntry::Tone(_))
+        ));
     }
 
     #[test]
@@ -1858,7 +1873,9 @@ mod tests {
         let Some(Entry::Tuplet(tuplet)) = track.entries.by_id.get(&20) else {
             panic!("expected tuplet entry");
         };
-        let Some(crate::score::entries::tuplet::TupletEntry::Tone(tone)) = tuplet.entries.by_id.get(&30) else {
+        let Some(crate::score::entries::tuplet::TupletEntry::Tone(tone)) =
+            tuplet.entries.by_id.get(&30)
+        else {
             panic!("expected tuplet tone");
         };
 
@@ -2061,7 +2078,10 @@ mod tests {
     fn set_tone_position_and_duration_updates_tick_and_duration() {
         use crate::score::entries::Entry;
         let mut track = make_track_with_tone(1, 0, 32, Accidental::Natural);
-        assert_eq!(track.set_tone_position_and_duration(1, 64, 48, None, None), Ok(()));
+        assert_eq!(
+            track.set_tone_position_and_duration(1, 64, 48, None, None),
+            Ok(())
+        );
         if let Some(Entry::Tone(tone)) = track.entries.by_id.get(&1) {
             assert_eq!(tone.tick, 64);
             assert_eq!(tone.duration, 48);
@@ -2242,7 +2262,10 @@ mod tests {
     fn shift_tone_pitch_by_steps_returns_none_for_missing_tone() {
         let mut track = make_track_with_tone(1, 0, 60, Accidental::Natural);
         let key_sig = KeySignature::default();
-        assert_eq!(track.shift_tone_pitch_by_steps(999, 1, &key_sig, None), None);
+        assert_eq!(
+            track.shift_tone_pitch_by_steps(999, 1, &key_sig, None),
+            None
+        );
     }
 
     #[test]

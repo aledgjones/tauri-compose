@@ -1,20 +1,27 @@
-use super::get_accidentals::AccidentalsByTrack;
+use super::get_accidentals::{Accidentals, AccidentalsByTrack, AnchoredAccidentalsByTrack};
+use super::get_articulations::{get_articulations_in_track, Articulations};
 use super::get_barlines::Barlines;
-use super::get_beams::BeamsByTrack;
-use super::get_measures::Measures;
-use super::get_shunts::ShuntsByTrack;
-use super::get_written_durations::NotationByTrack;
+use super::get_beams::{get_beams_in_track, Beams, BeamsByTrack};
+use super::get_dots::{get_dots_in_track, Dots};
+use super::get_measures::{measures_from_single_time_signature, Measures};
+use super::get_shunts::{get_note_shunts_in_track, Shunts, ShuntsByTrack};
+use super::get_stem_directions::{get_stem_directions_in_track, StemDirections};
+use super::get_tone_offsets::ToneVerticalOffsets;
+use super::get_written_durations::{AnchoredNotationTrack, NotationByTrack, NotationTrack};
 use crate::renderer::converter::Space;
 use crate::score::components::duration::{NoteDuration, Tick, Ticks};
 use crate::score::components::measurements::BoundingBox;
 use crate::score::engraves::Engrave;
 use crate::score::entries::barline::BarlineDrawType;
 use crate::score::entries::time_signature::TimeSignature;
+use crate::score::entries::tuplet::Tuplet;
 use crate::score::entries::Entry;
 use crate::score::flows::Flow;
 use crate::score::instruments::Instrument;
 use crate::score::tracks::Tracks;
+use crate::utils::UniqueId;
 use rayon::prelude::*;
+use rustc_hash::FxHashMap;
 
 const EMPTY_MEASURE_BASE_WIDTH_MULTIPLIER: f32 = 2.0;
 const EMPTY_MEASURE_WIDTH_EXPONENT: f32 = 0.3;
@@ -53,6 +60,7 @@ impl HorizontalSpacingSpan {
     }
 }
 
+#[derive(Clone)]
 pub struct HorizontalSpacing {
     pub widths: Vec<HorizontalSpacingSpan>,
     pub width: Space,
@@ -76,6 +84,11 @@ impl HorizontalSpacing {
         let index = (tick as usize * Slot::count()) + slot as usize;
         self.widths[index].width = width;
     }
+
+    pub fn add_width(&mut self, tick: Tick, slot: Slot, width: Space) {
+        let index = (tick as usize * Slot::count()) + slot as usize;
+        self.widths[index].width += width;
+    }
 }
 
 fn empty_measure_width(time_signature: &TimeSignature, engrave: &Engrave) -> Space {
@@ -87,8 +100,331 @@ fn empty_measure_width(time_signature: &TimeSignature, engrave: &Engrave) -> Spa
     engrave.base_note_space * EMPTY_MEASURE_BASE_WIDTH_MULTIPLIER * blended_width
 }
 
+fn recompute_spacing_positions(spacing: &mut HorizontalSpacing, include_final_barline: bool) {
+    let mut x: Space = 0.0;
+    for span in &mut spacing.widths {
+        span.x = x;
+        x += span.width;
+    }
+
+    spacing.width = if include_final_barline {
+        x + BarlineDrawType::Final.metrics().total_width()
+    } else {
+        x
+    };
+}
+
+fn collect_notation_spacing_updates(
+    notation: &NotationTrack,
+    barlines: &Barlines,
+    shunts: &Shunts,
+    beams: &Beams,
+    accidentals: &Accidentals,
+    engrave: &Engrave,
+) -> Vec<(Tick, Slot, Space)> {
+    let mut updates: Vec<(Tick, Slot, Space)> = Vec::new();
+
+    for (tick, entry) in &notation.track {
+        let mut spacing = entry.metrics(shunts, engrave, beams).width;
+
+        if *tick == 0 || barlines.contains_key(tick) {
+            let metrics = entry.glyph_metrics();
+            let glyph_width = metrics.total_width();
+            let has_pre_shunt = entry.has_pre_shunt(shunts);
+
+            if has_pre_shunt {
+                updates.push((*tick, Slot::PreNote, glyph_width));
+            }
+
+            if let Some(slots) = accidentals.slots_by_tick.get(tick) {
+                let width = if has_pre_shunt {
+                    ((*slots as f32 - 1.0) * 1.1) + 0.25
+                } else {
+                    (*slots as f32 * 1.1) + 0.25
+                };
+                updates.push((*tick, Slot::Accidentals, width));
+            };
+        }
+
+        if let Some((next_tick, next_entry)) = notation.get_next_notation(*tick) {
+            if !barlines.contains_key(&next_tick) {
+                let next_metrics = next_entry.glyph_metrics();
+                let next_glyph_width = next_metrics.total_width();
+                let next_has_pre_shunt = next_entry.has_pre_shunt(shunts);
+                let accidentals_width = accidental_spacing_width(
+                    accidentals
+                        .slots_by_tick
+                        .get(&next_tick)
+                        .copied()
+                        .unwrap_or(0),
+                    next_has_pre_shunt,
+                );
+
+                spacing = required_spacing_with_next_notation(
+                    entry,
+                    spacing,
+                    shunts,
+                    engrave,
+                    beams,
+                    accidentals_width,
+                    next_glyph_width,
+                    next_has_pre_shunt,
+                );
+            }
+        };
+
+        let note_spacing_per_tick = spacing / entry.duration as f32;
+        let end = tick + entry.duration;
+        for i in *tick..end {
+            updates.push((i, Slot::NoteSpacing, note_spacing_per_tick));
+        }
+    }
+
+    updates
+}
+
+fn accidental_spacing_width(slot_count: u8, next_has_pre_shunt: bool) -> Space {
+    if slot_count == 0 {
+        0.0
+    } else if next_has_pre_shunt {
+        ((slot_count as f32 - 1.0) * 1.1) + 0.25
+    } else {
+        (slot_count as f32 * 1.1) + 0.25
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
-pub fn get_horizontal_spacing(
+fn required_spacing_with_next_notation(
+    entry: &super::get_written_durations::Notation,
+    base_spacing: Space,
+    shunts: &Shunts,
+    engrave: &Engrave,
+    beams: &Beams,
+    next_accidentals_width: Space,
+    next_glyph_width: Space,
+    next_has_pre_shunt: bool,
+) -> Space {
+    let min = entry.min_spacing(shunts, engrave, beams);
+    let pre_shunt_width = if next_has_pre_shunt {
+        next_glyph_width
+    } else {
+        0.0
+    };
+    let ledger_line_width = match &entry.info {
+        Some(info) if info.highest < -5 || info.lowest > 5 => 0.4,
+        _ => 0.0,
+    };
+
+    let avoid_collisions_spacing =
+        next_accidentals_width + pre_shunt_width + min.width + ledger_line_width + 0.2;
+    let min_natural_spacing = min.total_width() + pre_shunt_width;
+
+    base_spacing
+        .max(min_natural_spacing)
+        .max(avoid_collisions_spacing)
+}
+
+fn apply_spacing_updates(spacing: &mut HorizontalSpacing, updates: Vec<(Tick, Slot, Space)>) {
+    for (tick, slot, width) in updates {
+        let current = spacing.get(tick, slot);
+        if width > current.width {
+            spacing.set_width(tick, slot, width);
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct AnchoredTrackLayout {
+    pub measures: Measures,
+    pub horizontal_spacing: HorizontalSpacing,
+    pub lead_in: InitialNoteLeadIn,
+    pub beams: Beams,
+    pub stem_directions: StemDirections,
+    pub shunts: Shunts,
+    pub accidentals: Accidentals,
+    pub dots: Dots,
+    pub articulations: Articulations,
+}
+
+pub type AnchoredTrackLayouts = FxHashMap<UniqueId, AnchoredTrackLayout>;
+pub type AnchoredTrackLayoutsByTrack = FxHashMap<UniqueId, AnchoredTrackLayouts>;
+
+pub fn build_anchored_track_layout(
+    tuplet: &Tuplet,
+    anchored_track: &AnchoredNotationTrack,
+    accidentals: Accidentals,
+    tone_offsets: &ToneVerticalOffsets,
+    engrave: &Engrave,
+) -> AnchoredTrackLayout {
+    let measures = measures_from_single_time_signature(tuplet.local_time_signature());
+    let barlines = Barlines::default();
+    let beams = get_beams_in_track(&anchored_track.notation, &measures);
+    let stem_directions = get_stem_directions_in_track(&anchored_track.notation, &beams);
+    let shunts = get_note_shunts_in_track(&anchored_track.notation, tone_offsets, &stem_directions);
+    let dots = get_dots_in_track(&anchored_track.notation, tone_offsets);
+    let articulations = get_articulations_in_track(&anchored_track.notation);
+    let mut horizontal_spacing = HorizontalSpacing::new(anchored_track.notation.length.max(1));
+    let updates = collect_notation_spacing_updates(
+        &anchored_track.notation,
+        &barlines,
+        &shunts,
+        &beams,
+        &accidentals,
+        engrave,
+    );
+    apply_spacing_updates(&mut horizontal_spacing, updates);
+    recompute_spacing_positions(&mut horizontal_spacing, false);
+    let lead_in = take_initial_note_lead_in(&mut horizontal_spacing);
+
+    AnchoredTrackLayout {
+        measures,
+        horizontal_spacing,
+        lead_in,
+        beams,
+        stem_directions,
+        shunts,
+        accidentals,
+        dots,
+        articulations,
+    }
+}
+
+fn governed_note_spacing_width(
+    spacing: &HorizontalSpacing,
+    start_tick: Tick,
+    end_tick: Tick,
+) -> Space {
+    (start_tick..end_tick)
+        .map(|tick| spacing.get(tick, Slot::NoteSpacing).width)
+        .sum()
+}
+
+fn widen_governed_host_span_evenly(
+    spacing: &mut HorizontalSpacing,
+    anchored_track: &AnchoredNotationTrack,
+    required_width: Space,
+) {
+    let host_tick_count = anchored_track
+        .host_span
+        .end_tick
+        .saturating_sub(anchored_track.host_span.start_tick);
+    if host_tick_count == 0 {
+        return;
+    }
+
+    let ambient_width = governed_note_spacing_width(
+        spacing,
+        anchored_track.host_span.start_tick,
+        anchored_track.host_span.end_tick,
+    );
+    if required_width <= ambient_width {
+        return;
+    }
+
+    let extra_per_tick = (required_width - ambient_width) / host_tick_count as f32;
+    for tick in anchored_track.host_span.start_tick..anchored_track.host_span.end_tick {
+        spacing.add_width(tick, Slot::NoteSpacing, extra_per_tick);
+    }
+}
+
+pub fn stretch_spacing_to_width(spacing: &mut HorizontalSpacing, target_width: Space) {
+    let local_tick_count = (spacing.widths.len() / Slot::count()).saturating_sub(1);
+    if local_tick_count == 0 || target_width <= spacing.width {
+        return;
+    }
+
+    let extra_per_tick = (target_width - spacing.width) / local_tick_count as f32;
+    for tick in 0..local_tick_count as Tick {
+        spacing.add_width(tick, Slot::NoteSpacing, extra_per_tick);
+    }
+
+    recompute_spacing_positions(spacing, false);
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct InitialNoteLeadIn {
+    pub accidentals_width: Space,
+    pub pre_note_width: Space,
+    pub total_width: Space,
+}
+
+pub fn take_initial_note_lead_in(spacing: &mut HorizontalSpacing) -> InitialNoteLeadIn {
+    let lead_in = InitialNoteLeadIn {
+        accidentals_width: spacing.get(0, Slot::Accidentals).width,
+        pre_note_width: spacing.get(0, Slot::PreNote).width,
+        total_width: spacing.get(0, Slot::NoteSpacing).x,
+    };
+
+    if lead_in.accidentals_width > 0.0 {
+        spacing.set_width(0, Slot::Accidentals, 0.0);
+    }
+
+    if lead_in.pre_note_width > 0.0 {
+        spacing.set_width(0, Slot::PreNote, 0.0);
+    }
+
+    if lead_in.accidentals_width > 0.0 || lead_in.pre_note_width > 0.0 {
+        recompute_spacing_positions(spacing, false);
+    }
+
+    lead_in
+}
+
+fn collect_anchored_track_boundary_spacing_updates(
+    notation: &NotationTrack,
+    barlines: &Barlines,
+    shunts: &Shunts,
+    beams: &Beams,
+    anchored_track: &AnchoredNotationTrack,
+    lead_in: InitialNoteLeadIn,
+    engrave: &Engrave,
+) -> Vec<(Tick, Slot, Space)> {
+    let mut updates = Vec::new();
+
+    if lead_in.total_width <= 0.0 {
+        return updates;
+    }
+
+    let start_tick = anchored_track.host_span.start_tick;
+
+    if start_tick == 0 || barlines.contains_key(&start_tick) {
+        if lead_in.accidentals_width > 0.0 {
+            updates.push((start_tick, Slot::Accidentals, lead_in.accidentals_width));
+        }
+
+        if lead_in.pre_note_width > 0.0 {
+            updates.push((start_tick, Slot::PreNote, lead_in.pre_note_width));
+        }
+
+        return updates;
+    }
+
+    let Some((previous_tick, previous_entry)) = notation.get_previous_notation(start_tick) else {
+        return updates;
+    };
+
+    let spacing = required_spacing_with_next_notation(
+        previous_entry,
+        previous_entry.metrics(shunts, engrave, beams).width,
+        shunts,
+        engrave,
+        beams,
+        lead_in.accidentals_width,
+        lead_in.pre_note_width,
+        lead_in.pre_note_width > 0.0,
+    );
+
+    let note_spacing_per_tick = spacing / previous_entry.duration as f32;
+    let end_tick = previous_tick + previous_entry.duration;
+    for tick in previous_tick..end_tick {
+        updates.push((tick, Slot::NoteSpacing, note_spacing_per_tick));
+    }
+
+    updates
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn get_horizontal_spacing_with_anchored_layouts(
     flow: &Flow,
     instruments: &Vec<&Instrument>,
     tracks: &Tracks,
@@ -98,10 +434,13 @@ pub fn get_horizontal_spacing(
     shunts_by_track: &ShuntsByTrack,
     beams_by_track: &BeamsByTrack,
     accidentals_by_track: &AccidentalsByTrack,
+    anchored_accidentals_by_track: &AnchoredAccidentalsByTrack,
+    tone_offsets: &ToneVerticalOffsets,
     engrave: &Engrave,
-) -> HorizontalSpacing {
+) -> (HorizontalSpacing, AnchoredTrackLayoutsByTrack) {
     let mut spacings = HorizontalSpacing::new(flow.length);
     let flow_master = &tracks.by_id[&flow.master_id];
+    let mut anchored_layouts_by_track = AnchoredTrackLayoutsByTrack::default();
 
     spacings.set_width(0, Slot::PaddingStart, 0.75);
     spacings.set_width(0, Slot::BarPadding, 0.5);
@@ -219,115 +558,93 @@ pub fn get_horizontal_spacing(
         }
     }
 
-    let spacing_updates: Vec<(Tick, Slot, Space)> = notations_by_track
+    let mut spacing_updates: Vec<(Tick, Slot, Space)> = notations_by_track
         .par_iter()
         .flat_map(|(track_key, notation)| {
             let shunts = &shunts_by_track[track_key];
             let accidentals = &accidentals_by_track[track_key];
             let beams = &beams_by_track[track_key];
-            let mut updates: Vec<(Tick, Slot, Space)> = Vec::new();
-
-            for (tick, entry) in &notation.track {
-                let mut spacing = entry.metrics(shunts, engrave, beams).width;
-
-                // if the tick is at the start of a barline or the start of
-                // the piece we add explicit space for accidentals and pre-shunts
-                if *tick == 0 || barlines.contains_key(tick) {
-                    let metrics = entry.glyph_metrics();
-                    let glyph_width = metrics.total_width();
-                    let has_pre_shunt = entry.has_pre_shunt(shunts);
-
-                    if has_pre_shunt {
-                        updates.push((*tick, Slot::PreNote, glyph_width));
-                    }
-
-                    // start of bars has no previous spacing to extend so we use the accidentals slot
-                    if let Some(slots) = accidentals.slots_by_tick.get(tick) {
-                        let width = if has_pre_shunt {
-                            ((*slots as f32 - 1.0) * 1.1) + 0.25
-                        } else {
-                            (*slots as f32 * 1.1) + 0.25
-                        };
-                        updates.push((*tick, Slot::Accidentals, width));
-                    };
-                }
-
-                // extend spacing to accomodate accidentals + pre shunts that are part of the next note (if needed)
-                if let Some((next_tick, next_entry)) = notation.get_next_notation(*tick) {
-                    if !barlines.contains_key(&next_tick) {
-                        let min = entry.min_spacing(shunts, engrave, beams);
-                        let next_metrics = next_entry.glyph_metrics();
-                        let next_glyph_width = next_metrics.total_width();
-                        let next_has_pre_shunt = next_entry.has_pre_shunt(shunts);
-
-                        let accidentals_width = match accidentals.slots_by_tick.get(&next_tick) {
-                            Some(slots) if *slots > 0 => {
-                                if next_has_pre_shunt {
-                                    ((*slots as f32 - 1.0) * 1.1) + 0.25
-                                } else {
-                                    (*slots as f32 * 1.1) + 0.25
-                                }
-                            }
-                            _ => 0.0,
-                        };
-
-                        let pre_shunt_width = if next_has_pre_shunt {
-                            next_glyph_width
-                        } else {
-                            0.0
-                        };
-
-                        let ledger_line_width = match &entry.info {
-                            Some(info) if info.highest < -5 || info.lowest > 5 => 0.4,
-                            _ => 0.0,
-                        };
-
-                        let avoid_collisions_spacing = accidentals_width
-                            + pre_shunt_width
-                            + min.width
-                            + ledger_line_width
-                            + 0.2;
-
-                        let min_natural_spacing = min.total_width() + pre_shunt_width;
-                        if min_natural_spacing > spacing {
-                            spacing = min_natural_spacing;
-                        }
-
-                        if avoid_collisions_spacing > spacing {
-                            spacing = avoid_collisions_spacing;
-                        }
-                    }
-                };
-
-                let note_spacing_per_tick = spacing / entry.duration as f32;
-                let end = tick + entry.duration;
-                for i in *tick..end {
-                    updates.push((i, Slot::NoteSpacing, note_spacing_per_tick));
-                }
-            }
-
-            updates
+            collect_notation_spacing_updates(
+                notation,
+                barlines,
+                shunts,
+                beams,
+                accidentals,
+                engrave,
+            )
         })
         .collect();
 
-    // Apply all updates sequentially
-    for (tick, slot, width) in spacing_updates {
-        let current = spacings.get(tick, slot);
-        if width > current.width {
-            spacings.set_width(tick, slot, width);
+    for (track_id, notation) in notations_by_track {
+        let shunts = &shunts_by_track[track_id];
+        let beams = &beams_by_track[track_id];
+        let mut anchored_layouts = AnchoredTrackLayouts::default();
+        let anchored_accidentals = anchored_accidentals_by_track.get(track_id);
+
+        for anchored_track in &notation.anchored_tracks {
+            let Some(Entry::Tuplet(tuplet)) = tracks.by_id[track_id]
+                .entries
+                .by_id
+                .get(&anchored_track.owner_id)
+            else {
+                continue;
+            };
+            let Some(accidentals) = anchored_accidentals
+                .and_then(|by_owner| by_owner.get(&anchored_track.owner_id))
+                .cloned()
+            else {
+                continue;
+            };
+
+            let layout = build_anchored_track_layout(
+                tuplet,
+                anchored_track,
+                accidentals,
+                tone_offsets,
+                engrave,
+            );
+
+            spacing_updates.extend(collect_anchored_track_boundary_spacing_updates(
+                notation,
+                barlines,
+                shunts,
+                beams,
+                anchored_track,
+                layout.lead_in,
+                engrave,
+            ));
+
+            anchored_layouts.insert(anchored_track.owner_id, layout);
+        }
+
+        if !anchored_layouts.is_empty() {
+            anchored_layouts_by_track.insert(*track_id, anchored_layouts);
         }
     }
 
-    let mut x: Space = 0.0;
-    for span in &mut spacings.widths {
-        span.x = x;
-        x += span.width;
+    apply_spacing_updates(&mut spacings, spacing_updates);
+
+    for (track_id, notation) in notations_by_track {
+        let Some(anchored_layouts) = anchored_layouts_by_track.get(track_id) else {
+            continue;
+        };
+
+        for anchored_track in &notation.anchored_tracks {
+            let Some(layout) = anchored_layouts.get(&anchored_track.owner_id) else {
+                continue;
+            };
+
+            widen_governed_host_span_evenly(
+                &mut spacings,
+                anchored_track,
+                layout.horizontal_spacing.width,
+            );
+        }
     }
 
-    let metrics = BarlineDrawType::Final.metrics();
-    spacings.width = x + metrics.total_width();
+    recompute_spacing_positions(&mut spacings, true);
 
-    spacings
+    (spacings, anchored_layouts_by_track)
 }
 
 #[cfg(test)]
@@ -510,7 +827,7 @@ mod tests {
         let engraves = Engraves::new();
         let engrave = engraves.by_layout_type.get(&LayoutType::FullScore).unwrap();
 
-        let spacing = get_horizontal_spacing(
+        let spacing = get_horizontal_spacing_with_anchored_layouts(
             &flow,
             &vec![&instrument],
             &tracks,
@@ -520,8 +837,11 @@ mod tests {
             &ShuntsByTrack::default(),
             &BeamsByTrack::default(),
             &AccidentalsByTrack::default(),
+            &AnchoredAccidentalsByTrack::default(),
+            &ToneVerticalOffsets::default(),
             engrave,
-        );
+        )
+        .0;
 
         assert_eq!(spacing.get(64, Slot::KeySignature).width, 0.0);
     }
@@ -608,7 +928,7 @@ mod tests {
         let engraves = Engraves::new();
         let engrave = engraves.by_layout_type.get(&LayoutType::FullScore).unwrap();
 
-        let spacing = get_horizontal_spacing(
+        let spacing = get_horizontal_spacing_with_anchored_layouts(
             &flow,
             &vec![&instrument],
             &tracks,
@@ -618,8 +938,11 @@ mod tests {
             &ShuntsByTrack::default(),
             &BeamsByTrack::default(),
             &AccidentalsByTrack::default(),
+            &AnchoredAccidentalsByTrack::default(),
+            &ToneVerticalOffsets::default(),
             engrave,
-        );
+        )
+        .0;
 
         assert!(spacing.get(64, Slot::KeySignature).width > 0.0);
     }
@@ -742,7 +1065,7 @@ mod tests {
             let engrave = engraves.by_layout_type.get(&LayoutType::FullScore).unwrap();
             let measures = get_measures(&flow, &tracks);
 
-            get_horizontal_spacing(
+            get_horizontal_spacing_with_anchored_layouts(
                 &flow,
                 &vec![&instrument],
                 &tracks,
@@ -752,8 +1075,11 @@ mod tests {
                 &ShuntsByTrack::default(),
                 &BeamsByTrack::default(),
                 &AccidentalsByTrack::default(),
+                &AnchoredAccidentalsByTrack::default(),
+                &ToneVerticalOffsets::default(),
                 engrave,
             )
+            .0
         }
 
         let six_eight_spacing = make_empty_spacing(TimeSignature::new(
@@ -774,5 +1100,45 @@ mod tests {
         ));
 
         assert!(nine_eight_spacing.width > six_eight_spacing.width);
+    }
+
+    #[test]
+    fn stretch_spacing_to_width_distributes_excess_evenly_across_local_ticks() {
+        let mut spacing = HorizontalSpacing::new(3);
+        spacing.set_width(0, Slot::NoteSpacing, 1.0);
+        spacing.set_width(1, Slot::NoteSpacing, 1.0);
+        spacing.set_width(2, Slot::NoteSpacing, 1.0);
+        recompute_spacing_positions(&mut spacing, false);
+
+        stretch_spacing_to_width(&mut spacing, 6.0);
+
+        assert!((spacing.get(0, Slot::NoteSpacing).width - 2.0).abs() < f32::EPSILON);
+        assert!((spacing.get(1, Slot::NoteSpacing).width - 2.0).abs() < f32::EPSILON);
+        assert!((spacing.get(2, Slot::NoteSpacing).width - 2.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn widen_governed_host_span_evenly_adds_extra_width_to_each_host_tick() {
+        let mut spacing = HorizontalSpacing::new(4);
+        for tick in 0..4 {
+            spacing.set_width(tick, Slot::NoteSpacing, 1.0);
+        }
+        recompute_spacing_positions(&mut spacing, true);
+
+        let anchored_track = AnchoredNotationTrack {
+            owner_id: 1,
+            host_span: crate::instructions::parse::get_written_durations::HostSpan {
+                start_tick: 1,
+                end_tick: 3,
+            },
+            notation: NotationTrack::new(3),
+        };
+
+        widen_governed_host_span_evenly(&mut spacing, &anchored_track, 4.0);
+
+        assert!((spacing.get(1, Slot::NoteSpacing).width - 2.0).abs() < f32::EPSILON);
+        assert!((spacing.get(2, Slot::NoteSpacing).width - 2.0).abs() < f32::EPSILON);
+        assert!((spacing.get(0, Slot::NoteSpacing).width - 1.0).abs() < f32::EPSILON);
+        assert!((spacing.get(3, Slot::NoteSpacing).width - 1.0).abs() < f32::EPSILON);
     }
 }

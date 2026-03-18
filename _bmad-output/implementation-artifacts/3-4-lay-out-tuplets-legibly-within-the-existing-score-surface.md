@@ -1,6 +1,6 @@
 # Story 3.4: Lay Out Tuplets Legibly Within the Existing Score Surface
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -32,39 +32,39 @@ so that numbers, brackets, and notes stay readable in normal work.
 
 ## Tasks / Subtasks
 
-- [ ] Fit tuplet spacing into the existing horizontal-spacing model rather than adding a tuplet-only layout path (AC: 1, 2, 3, 4, 5)
-  - [ ] Review and extend `src-tauri/src/instructions/parse/get_horizontal_spacing.rs` so tuplet-derived content participates in the current widest-needed-spacing calculation.
-  - [ ] Calculate the ambient host width already implied across the governed span from the existing spacing model before deciding whether the tuplet needs to widen that span.
-  - [ ] Run the local spacing pass here against the stable anchored `NotationTrack` exposed by the tuplet contract when comparing tuplet-required width against ambient host width.
-  - [ ] Preserve the current `HorizontalSpacing` and `Slot` model as the default. Do not add tuplet-specific slots unless implementation proves an existing slot cannot support a required readable outcome.
-  - [ ] If a new slot turns out to be unavoidable, document why existing slots could not carry the requirement and keep the addition as narrow as possible.
-- [ ] Reuse existing slot positions and spread them through the tuplet-governed span (AC: 1, 2, 3, 4)
-  - [ ] Reuse `Slot::NoteSpacing` and other existing slot positions where tuplets need horizontal room, rather than treating tuplet markings as justification for generic new anchors.
-  - [ ] When the tuplet-required width exceeds the ambient host span width, distribute the extra width evenly across the governed host ticks so the widened base spacing remains shared by aligned tracks.
-  - [ ] When the ambient host span width already exceeds the tuplet-required width, distribute the excess evenly across the tuplet-local ticks so child notation stretches coherently within the available span.
-  - [ ] Keep tuplet layout attached to the isolated tuplet unit already established in Stories 3.1 through 3.3.
-- [ ] Preserve ambient-width expansion and in-span stretching behavior for tuplets (AC: 1, 3, 4, 5)
-  - [ ] Expand surrounding host spacing when the child notation plus bracket/number needs more width than the ambient governed host span provides.
-  - [ ] Stretch local tuplet positions to fill the available span when ambient host spacing is already wide enough.
-  - [ ] Keep adjacent non-tuplet material distinguishable and stable when tuplet width changes ripple through the layout.
-- [ ] Keep hit targets and layout refresh behavior stable around tuplet boundaries (AC: 5)
-  - [ ] Ensure tuplet-related hit targets remain aligned after spacing recalculation and shared-surface composition refreshes.
-  - [ ] Preserve readable number placement and collision stability near adjacent non-tuplet material.
-  - [ ] Avoid introducing frontend-owned geometry repair logic; layout remains backend-owned.
-- [ ] Add focused spacing and layout regressions for tuplets in the native score surface (AC: 1, 2, 3, 4, 5)
-  - [ ] Add tests proving the implementation compares ambient host span width against tuplet-required local width and selects the wider result.
-  - [ ] Add tests proving tuplets can expand ambient host spacing by distributing the extra width across the governed host ticks when their derived content needs more width.
-  - [ ] Add tests proving tuplets stretch coherently inside already-wide ambient spacing by distributing the excess across tuplet-local ticks.
-  - [ ] Add tests proving the implementation reuses existing slots and does not add unnecessary tuplet-specific spacing slots.
-  - [ ] Add a boundary-adjacent case proving nearby non-tuplet material remains distinguishable and hit targets stay aligned after spacing refresh.
-- [ ] Validate the touched parser and renderer seams with the standard Rust checks
-  - [ ] Run focused Rust tests for horizontal spacing, render orchestration, and any hit-target alignment paths affected by the layout change.
-  - [ ] Run `cargo test --manifest-path src-tauri/Cargo.toml` after implementation.
-  - [ ] Run `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features` because clippy-clean is a repo rule when Rust files change.
-- [ ] Review documentation impact before closing the story
-  - [ ] Confirm whether the shipped tuplet spacing/layout rules change developer-facing docs or guardrails.
-  - [ ] Update the relevant docs and agent instructions in the same change if the durable contract changes materially.
-  - [ ] If no docs change is needed, record that decision explicitly in the completion notes.
+- [x] Fit tuplet spacing into the existing horizontal-spacing model rather than adding a tuplet-only layout path (AC: 1, 2, 3, 4, 5)
+  - [x] Review and extend `src-tauri/src/instructions/parse/get_horizontal_spacing.rs` so tuplet-derived content participates in the current widest-needed-spacing calculation.
+  - [x] Calculate the ambient host width already implied across the governed span from the existing spacing model before deciding whether the tuplet needs to widen that span.
+  - [x] Run the local spacing pass here against the stable anchored `NotationTrack` exposed by the tuplet contract when comparing tuplet-required width against ambient host width.
+  - [x] Preserve the current `HorizontalSpacing` and `Slot` model as the default. Do not add tuplet-specific slots unless implementation proves an existing slot cannot support a required readable outcome.
+  - [x] If a new slot turns out to be unavoidable, document why existing slots could not carry the requirement and keep the addition as narrow as possible.
+- [x] Reuse existing slot positions and spread them through the tuplet-governed span (AC: 1, 2, 3, 4)
+  - [x] Reuse `Slot::NoteSpacing` and other existing slot positions where tuplets need horizontal room, rather than treating tuplet markings as justification for generic new anchors.
+  - [x] When the tuplet-required width exceeds the ambient host span width, distribute the extra width evenly across the governed host ticks so the widened base spacing remains shared by aligned tracks.
+  - [x] When the ambient host span width already exceeds the tuplet-required width, distribute the excess evenly across the tuplet-local ticks so child notation stretches coherently within the available span.
+  - [x] Keep tuplet layout attached to the isolated tuplet unit already established in Stories 3.1 through 3.3.
+- [x] Preserve ambient-width expansion and in-span stretching behavior for tuplets (AC: 1, 3, 4, 5)
+  - [x] Expand surrounding host spacing when the child notation plus bracket/number needs more width than the ambient governed host span provides.
+  - [x] Stretch local tuplet positions to fill the available span when ambient host spacing is already wide enough.
+  - [x] Keep adjacent non-tuplet material distinguishable and stable when tuplet width changes ripple through the layout.
+- [x] Keep hit targets and layout refresh behavior stable around tuplet boundaries (AC: 5)
+  - [x] Ensure tuplet-related hit targets remain aligned after spacing recalculation and shared-surface composition refreshes.
+  - [x] Preserve readable number placement and collision stability near adjacent non-tuplet material.
+  - [x] Avoid introducing frontend-owned geometry repair logic; layout remains backend-owned.
+- [x] Add focused spacing and layout regressions for tuplets in the native score surface (AC: 1, 2, 3, 4, 5)
+  - [x] Add tests proving the implementation compares ambient host span width against tuplet-required local width and selects the wider result.
+  - [x] Add tests proving tuplets can expand ambient host spacing by distributing the extra width across the governed host ticks when their derived content needs more width.
+  - [x] Add tests proving tuplets stretch coherently inside already-wide ambient spacing by distributing the excess across tuplet-local ticks.
+  - [x] Add tests proving the implementation reuses existing slots and does not add unnecessary tuplet-specific spacing slots.
+  - [x] Add a boundary-adjacent case proving nearby non-tuplet material remains distinguishable and hit targets stay aligned after spacing refresh.
+- [x] Validate the touched parser and renderer seams with the standard Rust checks
+  - [x] Run focused Rust tests for horizontal spacing, render orchestration, and any hit-target alignment paths affected by the layout change.
+  - [x] Run `cargo test --manifest-path src-tauri/Cargo.toml` after implementation.
+  - [x] Run `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features` because clippy-clean is a repo rule when Rust files change.
+- [x] Review documentation impact before closing the story
+  - [x] Confirm whether the shipped tuplet spacing/layout rules change developer-facing docs or guardrails.
+  - [x] Update the relevant docs and agent instructions in the same change if the durable contract changes materially.
+  - [x] If no docs change is needed, record that decision explicitly in the completion notes.
 
 ## Dev Notes
 
@@ -197,19 +197,30 @@ GPT-5.4
 - Reviewed architecture spacing guidance for widest-needed-spacing and local-to-host span mapping.
 - Reviewed project-context rules for spacing slots and confirmed slot additions are intended to be rare.
 - Inspected current `Slot` and `HorizontalSpacing` seams plus the main instruction orchestration to anchor Story 3.4 in the existing spacing model.
+- Extended the shared horizontal-spacing pass so anchored tuplet notation computes a local spacing width and widens only the governed host span when local demand exceeds ambient host width.
+- Replaced uniform anchored-track projection with resolved local spacing plus even in-span stretch, and aligned tuplet brackets/hit targets to that resolved spacing map.
+- Added focused spacing and tuplet-layout regressions, then ran focused `cargo test` filters, full `cargo test --manifest-path src-tauri/Cargo.toml`, and `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features`.
 
 ### Completion Notes List
 
 - Story 3.4 created with an explicit rule that tuplets should reuse existing spacing slots and only add a new slot if absolutely necessary and justified.
+- Implemented ambient-vs-local tuplet width comparison in the shared spacing pass and reused existing `Slot` values only; no tuplet-specific slot family was added.
+- Updated anchored tuplet rendering so local note/bracket geometry uses the resolved spacing map, with excess ambient width distributed evenly across local tuplet ticks.
+- Added focused regressions for even host-span widening, even local stretching, resolved bracket alignment, and boundary-adjacent tuplet hit-target stability.
+- Documentation review completed: no durable docs or agent-instruction update was required because the implementation fulfilled the existing spacing contract rather than changing it.
 
 ### File List
 
-- `_bmad-output/planning-artifacts/epics.md`
 - `_bmad-output/implementation-artifacts/3-4-lay-out-tuplets-legibly-within-the-existing-score-surface.md`
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `src-tauri/src/instructions/draw/draw_tuplet.rs`
+- `src-tauri/src/instructions/mod.rs`
+- `src-tauri/src/instructions/parse/get_horizontal_spacing.rs`
 
 ### Change Log
 
 - 2026-03-17: Added an Epic 3.4 acceptance criterion requiring tuplets to reuse existing slot patterns rather than introduce new tuplet-specific spacing slots unless absolutely necessary.
 - 2026-03-17: Created Story 3.4 implementation artifact and moved Story 3.4 to ready-for-dev.
 - 2026-03-17: Clarified the Story 3.4 width rule so tuplets compare ambient host span width against tuplet-required local width, widening host spacing only when needed and otherwise stretching local tuplet spacing across the available span.
+- 2026-03-17: Implemented tuplet-aware shared horizontal spacing, replaced uniform anchored projection with resolved local spacing, added focused regressions, and validated with Rust tests plus clippy.
+- 2026-03-18: Closed review and marked Story 3.4 done; no additional project docs or agent instructions needed updating beyond the recorded documentation review outcome.

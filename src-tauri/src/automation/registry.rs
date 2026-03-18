@@ -4,7 +4,6 @@ use serde::Serialize;
 use serde_json::{json, Value};
 use tauri::{AppHandle, Manager};
 
-use crate::utils::UniqueId;
 use crate::files::load_project_from_file;
 use crate::playback::transport::TransportSharedState;
 use crate::score::components::articulation::{Articulation, Articulations};
@@ -75,6 +74,7 @@ use crate::score::players::{
     score_players_assign_instrument, score_players_create, score_players_move,
     score_players_remove, score_players_unassign_instrument, PlayerType,
 };
+use crate::utils::UniqueId;
 use crate::{
     get_general_state_snapshot, reset_app_state, AppContextState, AudioContextState,
     RendererContextState, SamplerContextState,

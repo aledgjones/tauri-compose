@@ -9,7 +9,7 @@ pub type ArticulationSet = FxHashSet<Articulation>;
 pub type Articulations = FxHashMap<Tick, ArticulationSet>;
 pub type ArticulationsByTrack = FxHashMap<UniqueId, Articulations>;
 
-fn get_articulations_in_track(notation: &NotationTrack) -> Articulations {
+pub(crate) fn get_articulations_in_track(notation: &NotationTrack) -> Articulations {
     let mut output: Articulations = FxHashMap::default();
 
     for (tick, entry) in &notation.track {

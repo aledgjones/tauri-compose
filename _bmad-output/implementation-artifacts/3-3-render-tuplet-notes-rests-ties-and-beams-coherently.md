@@ -1,6 +1,6 @@
 # Story 3.3: Render Tuplet Notes, Rests, Ties, and Beams Coherently
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -33,36 +33,37 @@ so that beams, rests, and ties reinforce the tuplet instead of contradicting it.
 
 ## Tasks / Subtasks
 
-- [ ] Make parser-consumer beaming decisions tuplet-aware without breaking existing non-tuplet grouping (AC: 1, 5, 6, 7)
-  - [ ] Extend `src-tauri/src/instructions/parse/get_beams.rs` and any immediate beam consumers so tuplet-local note groupings are resolved from the isolated tuplet unit produced by parser boundary splitting.
-  - [ ] Preserve existing non-tuplet beam behavior outside tuplets and across unaffected passages.
-  - [ ] Keep MVP scope single-level only; do not introduce nested beaming logic for tuplets.
-- [ ] Render derived tuplet rests from absence-of-tone content coherently inside the tuplet unit (AC: 2, 3, 5, 6)
-  - [ ] Reuse the existing rest rendering path so derived tuplet rests remain backend-owned and not persisted as explicit rest entries.
-  - [ ] Ensure partially filled tuplets and empty tuplet containers render rest-bearing content that aligns with the derived tuplet unit rather than with unsplit host spacing assumptions.
-  - [ ] Keep rest placement coherent with the bracket/number treatment established in Story 3.2.
-- [ ] Preserve tie continuity across tuplet boundaries and through derived fragments (AC: 4, 5, 6)
-  - [ ] Reuse existing tie-drawing and tie-identity patterns so tones crossing tuplet boundaries remain one stored event while rendering as coherent tied fragments.
-  - [ ] Ensure the score output does not imply approximate binary timing when a tie enters, exits, or spans a tuplet context.
-  - [ ] Keep boundary-aware tie behavior derived from parser splits, not from renderer-only reconstruction.
-- [ ] Keep the main Rust draw pipeline coherent when combining tuplet notes, rests, ties, and beams (AC: 1, 2, 3, 4, 5, 6)
-  - [ ] Review the orchestration in `src-tauri/src/instructions/mod.rs` so `get_beams`, `draw_rest`, `draw_ties`, and `draw_beam` consume the tuplet-aware notation track consistently.
-  - [ ] Preserve current notehead, accidental, articulation, and stem-direction semantics except where tuplet-aware grouping requires a targeted change.
-  - [ ] Do not fold broad spacing or collision-polish work into this story.
-- [ ] Add focused regression coverage for tuplet notes, rests, ties, and beams (AC: 1, 2, 3, 4, 5, 6, 7)
-  - [ ] Add parser-consumer or parse-layer tests for tuplet-local beam grouping decisions where that seam owns the rule.
-  - [ ] Add draw-level tests covering tuplet rests and tie rendering through supported boundary-crossing cases.
-  - [ ] Add at least one empty-tuplet and one partially filled-tuplet case proving derived rests remain coherent with tuplet grouping.
-  - [ ] Add at least one boundary case proving the isolated tuplet unit rule affects beam/rest/tie behavior the same way metric boundaries affect ordinary notation around barlines.
-  - [ ] Add a representative non-tuplet regression so current note, rest, tie, and beam behavior outside tuplets remains unchanged.
-- [ ] Validate the touched parser and renderer seams with the standard Rust checks
-  - [ ] Run focused Rust tests for the changed parse and draw modules.
-  - [ ] Run `cargo test --manifest-path src-tauri/Cargo.toml` after implementation.
-  - [ ] Run `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features` because clippy-clean is a repo rule when Rust files change.
-- [ ] Review documentation impact before closing the story
-  - [ ] Confirm whether tuplet beam/rest/tie semantics change developer-facing docs or guardrails.
-  - [ ] Update the relevant docs and agent instructions in the same change if the durable contract changes materially.
-  - [ ] If no docs change is needed, record that decision explicitly in the completion notes.
+[x] Make parser-consumer beaming decisions tuplet-aware without breaking existing non-tuplet grouping (AC: 1, 5, 6, 7)
+
+- [x] Extend `src-tauri/src/instructions/parse/get_beams.rs` and any immediate beam consumers so tuplet-local note groupings are resolved from the isolated tuplet unit produced by parser boundary splitting.
+- [x] Preserve existing non-tuplet beam behavior outside tuplets and across unaffected passages.
+- [x] Keep MVP scope single-level only; do not introduce nested beaming logic for tuplets.
+      [x] Render derived tuplet rests from absence-of-tone content coherently inside the tuplet unit (AC: 2, 3, 5, 6)
+- [x] Reuse the existing rest rendering path so derived tuplet rests remain backend-owned and not persisted as explicit rest entries.
+- [x] Ensure partially filled tuplets and empty tuplet containers render rest-bearing content that aligns with the derived tuplet unit rather than with unsplit host spacing assumptions.
+- [x] Keep rest placement coherent with the bracket/number treatment established in Story 3.2.
+      [x] Preserve tie continuity across tuplet boundaries and through derived fragments (AC: 4, 5, 6)
+- [x] Reuse existing tie-drawing and tie-identity patterns so tones crossing tuplet boundaries remain one stored event while rendering as coherent tied fragments.
+- [x] Ensure the score output does not imply approximate binary timing when a tie enters, exits, or spans a tuplet context.
+- [x] Keep boundary-aware tie behavior derived from parser splits, not from renderer-only reconstruction.
+      [x] Keep the main Rust draw pipeline coherent when combining tuplet notes, rests, ties, and beams (AC: 1, 2, 3, 4, 5, 6)
+- [x] Review the orchestration in `src-tauri/src/instructions/mod.rs` so `get_beams`, `draw_rest`, `draw_ties`, and `draw_beam` consume the tuplet-aware notation track consistently.
+- [x] Preserve current notehead, accidental, articulation, and stem-direction semantics except where tuplet-aware grouping requires a targeted change.
+- [x] Do not fold broad spacing or collision-polish work into this story.
+      [x] Add focused regression coverage for tuplet notes, rests, ties, and beams (AC: 1, 2, 3, 4, 5, 6, 7)
+- [x] Add parser-consumer or parse-layer tests for tuplet-local beam grouping decisions where that seam owns the rule.
+- [x] Add draw-level tests covering tuplet rests and tie rendering through supported boundary-crossing cases.
+- [x] Add at least one empty-tuplet and one partially filled-tuplet case proving derived rests remain coherent with tuplet grouping.
+- [x] Add at least one boundary case proving the isolated tuplet unit rule affects beam/rest/tie behavior the same way metric boundaries affect ordinary notation around barlines.
+- [x] Add a representative non-tuplet regression so current note, rest, tie, and beam behavior outside tuplets remains unchanged.
+      [x] Validate the touched parser and renderer seams with the standard Rust checks
+- [x] Run focused Rust tests for the changed parse and draw modules.
+- [x] Run `cargo test --manifest-path src-tauri/Cargo.toml` after implementation.
+- [x] Run `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features` because clippy-clean is a repo rule when Rust files change.
+      [x] Review documentation impact before closing the story
+- [x] Confirm whether tuplet beam/rest/tie semantics change developer-facing docs or guardrails.
+- [x] Update the relevant docs and agent instructions in the same change if the durable contract changes materially.
+- [x] If no docs change is needed, record that decision explicitly in the completion notes.
 
 ## Dev Notes
 
@@ -197,18 +198,33 @@ GPT-5.4
 - Reviewed Story 3.2 and Epic 3 boundaries so Story 3.3 continues the same isolated-tuplet-unit rule.
 - Reviewed architecture guidance for boundary-aware splitting, rests-from-absence, tie continuity, and beaming support.
 - Inspected current parse and draw seams around `get_beams`, `draw_beam`, `draw_rest`, `draw_ties`, and the main instruction orchestration.
+- Implemented projected tuplet-local render contexts in `src-tauri/src/instructions/mod.rs` so anchored notation now reuses the main draw path for rests, beams, stems, dots, noteheads, articulations, and tuplet chrome.
+- Extended `src-tauri/src/instructions/draw/draw_ties.rs` so same-track ties no longer assume continuation always exists at `tick + duration`, and added cross-context tie drawing for host-to-tuplet continuity.
+- Added focused parse and draw regressions for tuplet-local beam grouping, empty tuplet rests, projected tuplet noteheads/beams, and host-to-tuplet tie curves.
+- Ran focused Rust tests, `cargo test --manifest-path src-tauri/Cargo.toml`, and `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features`.
 
 ### Completion Notes List
 
 - Story 3.3 created with the same barline-style boundary rule carried into beams, rests, and ties so Epic 3 remains a continuous implementation thread across 3.1, 3.2, and 3.3.
+- Tuplet-local notation now renders through projected child-track spacing instead of bracket-only chrome, so empty and partially filled tuplets emit real rest-bearing and note-bearing score content inside the governed host span.
+- Tie rendering now bridges host and anchored tuplet fragments by tone identity and projected fragment order, which preserves boundary continuity without assuming the continuation lives at host `tick + duration`.
+- Documentation review completed. No doc or agent-instruction update was required because the shipped behavior matches the existing Story 3.1/3.2 architecture contract rather than changing it materially.
 
 ### File List
 
 - `_bmad-output/planning-artifacts/epics.md`
 - `_bmad-output/implementation-artifacts/3-3-render-tuplet-notes-rests-ties-and-beams-coherently.md`
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `src-tauri/src/instructions/mod.rs`
+- `src-tauri/src/instructions/draw/draw_ties.rs`
+- `src-tauri/src/instructions/parse/get_beams.rs`
+- `src-tauri/src/instructions/parse/get_dots.rs`
+- `src-tauri/src/instructions/parse/get_articulations.rs`
 
 ### Change Log
 
 - 2026-03-17: Added an Epic 3.3 acceptance criterion making tuplet boundaries explicit grouping split points for beam, rest, and tie behavior.
 - 2026-03-17: Created Story 3.3 implementation artifact and moved Story 3.3 to ready-for-dev.
+- 2026-03-17: Rendered anchored tuplet notation through projected local spacing so tuplets now emit notes, rests, beams, stems, dots, articulations, and bracket chrome as one coherent unit.
+- 2026-03-17: Added cross-context tie drawing between host and tuplet fragments and added focused parser/draw regressions plus full Rust validation.
+- 2026-03-18: Closed review and marked Story 3.3 done; the documentation review outcome remains that no additional durable doc update was required.

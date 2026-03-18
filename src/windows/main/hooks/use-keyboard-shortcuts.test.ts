@@ -19,6 +19,9 @@ vi.mock("../../../services/actions", () => ({
       tempo: {
         clearAtTick: vi.fn().mockResolvedValue(undefined),
       },
+      tuplet: {
+        remove: vi.fn().mockResolvedValue(undefined),
+      },
       timeSignature: {
         clearAtTick: vi.fn().mockResolvedValue(undefined),
         update: vi.fn().mockResolvedValue(undefined),
@@ -269,6 +272,89 @@ const buildStateWithTupletToneSelection = () => {
           track_id: TRACK_ID,
           tone_id: TONE_ID,
           tuplet_id: TUPLET_ID,
+        },
+      },
+    } as never,
+  });
+};
+
+const buildStateWithTupletSelection = () => {
+  return createAppState({
+    score: {
+      players: {
+        order: [1],
+        by_id: {
+          1: {
+            id: 1,
+            player_type: PlayerType.Solo,
+            instrument_ids: [INSTRUMENT_ID],
+          },
+        },
+      },
+      instruments: {
+        by_id: {
+          [INSTRUMENT_ID]: {
+            id: INSTRUMENT_ID,
+            definition_id: "piano",
+            instrument_type: 0,
+            long_name: "Piano",
+            short_name: "Pno.",
+            stave_ids: [STAVE_ID],
+            count: null,
+            assigned_plugin_id: null,
+            volume: 100,
+            pan: 0,
+            mute: false,
+            solo: false,
+          },
+        },
+      },
+      tracks: {
+        by_id: {
+          [TRACK_ID]: {
+            id: TRACK_ID,
+            entries: {
+              by_tick: { 64: [TUPLET_ID] },
+              by_id: {
+                [TUPLET_ID]: {
+                  id: TUPLET_ID,
+                  tick: 64,
+                  type: "Tuplet" as const,
+                  note_count: 3,
+                  in_space_of: 2,
+                  base_note_value: 8,
+                  groupings: [3],
+                  entries: {
+                    by_tick: { 0: [TONE_ID] },
+                    by_id: {
+                      [TONE_ID]: {
+                        id: TONE_ID,
+                        tick: 0,
+                        type: "Tone" as const,
+                        duration: 16,
+                        pitch: { int: 60, accidental: Accidental.Natural },
+                        velocity: { int: 100 },
+                        articulations: [],
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    } as never,
+    ui: {
+      sequencer: {
+        selection: {
+          type: "Tuplet",
+          flow_id: FLOW_ID,
+          instrument_id: INSTRUMENT_ID,
+          stave_id: STAVE_ID,
+          track_id: TRACK_ID,
+          tuplet_id: TUPLET_ID,
+          tick: 64,
         },
       },
     } as never,
@@ -1034,6 +1120,23 @@ describe("useKeyboardShortcuts", () => {
       TRACK_ID,
       TUPLET_ID,
       TONE_ID,
+    );
+  });
+
+  it("dispatches tuplet remove for a selected tuplet container", async () => {
+    renderHook(() => useKeyboardShortcuts(), {
+      wrapper: createWrapper({
+        appState: buildStateWithTupletSelection(),
+      }),
+    });
+
+    await act(async () => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Delete" }));
+    });
+
+    expect(actions.score.tuplet.remove).toHaveBeenCalledWith(
+      TRACK_ID,
+      TUPLET_ID,
     );
   });
 

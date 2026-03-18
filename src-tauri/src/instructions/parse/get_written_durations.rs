@@ -1,5 +1,5 @@
 use super::get_beams::Beams;
-use super::get_measures::Measures;
+use super::get_measures::{measures_from_single_time_signature, Measures};
 use super::get_shunts::Shunt;
 use super::get_shunts::Shunts;
 use super::get_tone_offset_info::get_tone_offset_info;
@@ -36,7 +36,6 @@ pub struct HostSpan {
     pub end_tick: Tick,
 }
 
-#[allow(dead_code)]
 #[derive(Clone)]
 pub struct AnchoredNotationTrack {
     pub owner_id: UniqueId,
@@ -1405,24 +1404,8 @@ fn remove_tuplet_placeholder_entries(notation: &mut NotationTrack, tuplets: &[&T
     });
 }
 
-fn local_measures_for_tuplet(tuplet: &Tuplet) -> Measures {
-    let mut measures = Measures::default();
-    measures.insert(
-        0,
-        TimeSignature::new(
-            0,
-            0,
-            tuplet.note_count,
-            tuplet.base_note_value.clone(),
-            TimeSignatureDrawType::Regular,
-            Some(tuplet.groupings.clone()),
-        ),
-    );
-    measures
-}
-
 fn local_grouping_split_points(tuplet: &Tuplet) -> Vec<Tick> {
-    let measures = local_measures_for_tuplet(tuplet);
+    let measures = measures_from_single_time_signature(tuplet.local_time_signature());
     let Some(time_signature) = measures.get(&0) else {
         return Vec::new();
     };
@@ -1496,14 +1479,19 @@ pub fn get_written_durations(
                             notation.anchored_tracks = tuplets
                                 .iter()
                                 .map(|tuplet| {
-                                    let local_tones =
-                                        build_tuplet_local_tones(tuplet, &continuous_tones, &timing_spans);
+                                    let local_tones = build_tuplet_local_tones(
+                                        tuplet,
+                                        &continuous_tones,
+                                        &timing_spans,
+                                    );
                                     let local_notation = if local_tones.is_empty()
                                         && tuplet.note_count == 3
                                     {
                                         make_empty_triplet_rest_track(&tuplet.base_note_value)
                                     } else {
-                                        let local_measures = local_measures_for_tuplet(tuplet);
+                                        let local_measures = measures_from_single_time_signature(
+                                            tuplet.local_time_signature(),
+                                        );
                                         let local_grouping_split_points =
                                             local_grouping_split_points(tuplet);
                                         derive_notation_track_from_tones(
@@ -4917,16 +4905,19 @@ mod tests {
         );
 
         let host_track = &notation_by_track[&track_id];
-        assert!(host_track.track.values().any(|entry| {
-            entry.tick == e * 4 && entry.tones.iter().any(|tone| tone.id == 301)
-        }));
+        assert!(host_track
+            .track
+            .values()
+            .any(|entry| { entry.tick == e * 4 && entry.tones.iter().any(|tone| tone.id == 301) }));
 
         let anchored_track = &host_track.anchored_tracks[0];
         assert_eq!(anchored_track.host_span.start_tick, e * 2);
         assert_eq!(anchored_track.host_span.end_tick, e * 4);
-        assert!(anchored_track.notation.track.values().any(|entry| {
-            entry.tones.iter().any(|tone| tone.id == 301)
-        }));
+        assert!(anchored_track
+            .notation
+            .track
+            .values()
+            .any(|entry| { entry.tones.iter().any(|tone| tone.id == 301) }));
     }
 
     #[test]

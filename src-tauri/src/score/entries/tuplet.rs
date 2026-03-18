@@ -1,6 +1,7 @@
 use super::{tone::Tone, Entry};
 use crate::score::components::articulation::Articulations;
 use crate::score::components::duration::{NoteDuration, Tick, Ticks};
+use crate::score::entries::time_signature::{TimeSignature, TimeSignatureDrawType};
 use crate::score::tracks::Track;
 use crate::utils::UniqueId;
 use crate::{AppContextState, RendererContextState};
@@ -24,25 +25,12 @@ pub struct TupletEntries {
     pub by_id: FxHashMap<UniqueId, TupletEntry>,
 }
 
-#[allow(dead_code)]
 impl TupletEntries {
     pub fn new() -> Self {
         Self {
             by_tick: FxHashMap::default(),
             by_id: FxHashMap::default(),
         }
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.by_id.is_empty()
-    }
-
-    pub fn get(&self, entry_id: &UniqueId) -> Option<&TupletEntry> {
-        self.by_id.get(entry_id)
-    }
-
-    pub fn len(&self) -> usize {
-        self.by_id.len()
     }
 
     pub fn insert_entry(&mut self, entry: TupletEntry) {
@@ -72,10 +60,7 @@ impl TupletEntries {
         self.by_id.remove(&entry_id)
     }
 
-    pub fn first_articulations_at_tick(
-        &self,
-        tick: &Tick,
-    ) -> Option<Articulations> {
+    pub fn first_articulations_at_tick(&self, tick: &Tick) -> Option<Articulations> {
         if let Some(tone_ids) = self.by_tick.get(tick) {
             for tone_id in tone_ids {
                 if let Some(TupletEntry::Tone(tone)) = self.by_id.get(tone_id) {
@@ -89,11 +74,7 @@ impl TupletEntries {
         None
     }
 
-    pub fn apply_articulations_to_tick(
-        &mut self,
-        tick: Tick,
-        articulations: &Articulations,
-    ) {
+    pub fn apply_articulations_to_tick(&mut self, tick: Tick, articulations: &Articulations) {
         if let Some(tone_ids) = self.by_tick.get(&tick).cloned() {
             for tone_id in tone_ids {
                 if let Some(TupletEntry::Tone(tone)) = self.by_id.get_mut(&tone_id) {
@@ -101,6 +82,21 @@ impl TupletEntries {
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+impl TupletEntries {
+    pub fn is_empty(&self) -> bool {
+        self.by_id.is_empty()
+    }
+
+    pub fn get(&self, entry_id: &UniqueId) -> Option<&TupletEntry> {
+        self.by_id.get(entry_id)
+    }
+
+    pub fn len(&self) -> usize {
+        self.by_id.len()
     }
 }
 
@@ -115,7 +111,6 @@ pub struct Tuplet {
     pub entries: TupletEntries,
 }
 
-#[allow(dead_code)]
 impl Tuplet {
     pub fn new(
         id: UniqueId,
@@ -142,6 +137,17 @@ impl Tuplet {
 
     pub fn local_length_ticks(&self) -> Ticks {
         u64::from(self.note_count) * self.base_note_value.to_ticks()
+    }
+
+    pub fn local_time_signature(&self) -> TimeSignature {
+        TimeSignature::new(
+            0,
+            0,
+            self.note_count,
+            self.base_note_value.clone(),
+            TimeSignatureDrawType::Regular,
+            Some(self.groupings.clone()),
+        )
     }
 }
 
@@ -318,14 +324,7 @@ mod tests {
         )));
 
         track
-            .create_tuplet(
-            99,
-            64,
-            3,
-            2,
-            NoteDuration::Eighth,
-            vec![3],
-            )
+            .create_tuplet(99, 64, 3, 2, NoteDuration::Eighth, vec![3])
             .unwrap();
 
         let Entry::Tuplet(tuplet) = track.entries.by_id.get(&99).unwrap() else {
@@ -346,14 +345,7 @@ mod tests {
         let mut track = Track::new(9);
 
         track
-            .create_tuplet(
-            99,
-            64,
-            3,
-            2,
-            NoteDuration::Eighth,
-            vec![2],
-            )
+            .create_tuplet(99, 64, 3, 2, NoteDuration::Eighth, vec![2])
             .unwrap();
 
         let Entry::Tuplet(tuplet) = track.entries.by_id.get(&99).unwrap() else {
@@ -459,7 +451,10 @@ mod tests {
         child_entries.insert_entry(TupletEntry::Tone(tone));
 
         assert_eq!(child_entries.by_id.len(), 1);
-        assert!(matches!(child_entries.by_id.get(&11), Some(TupletEntry::Tone(_))));
+        assert!(matches!(
+            child_entries.by_id.get(&11),
+            Some(TupletEntry::Tone(_))
+        ));
     }
 
     #[test]
@@ -546,7 +541,10 @@ mod tests {
         let Some(Entry::Tuplet(tuplet)) = track.entries.by_id.get(&99) else {
             panic!("expected original tuplet entry");
         };
-        assert!(matches!(tuplet.entries.by_id.get(&21), Some(TupletEntry::Tone(_))));
+        assert!(matches!(
+            tuplet.entries.by_id.get(&21),
+            Some(TupletEntry::Tone(_))
+        ));
         assert!(!track.entries.by_id.contains_key(&100));
     }
 

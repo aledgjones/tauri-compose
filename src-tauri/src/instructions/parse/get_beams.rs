@@ -789,6 +789,66 @@ mod tests {
     }
 
     #[test]
+    fn get_beams_triplet_local_eighths_form_single_beam_group() {
+        let eighth = NoteDuration::Eighth.to_ticks();
+        let mut track = NotationTrack::new(eighth * 3);
+        let mut measures = FxHashMap::default();
+        measures.insert(
+            0_u64,
+            TimeSignature::new(
+                1,
+                0,
+                3,
+                NoteDuration::Eighth,
+                TimeSignatureDrawType::Regular,
+                Some(vec![3]),
+            ),
+        );
+
+        for i in 0..3_u64 {
+            track
+                .track
+                .insert(i * eighth, make_note_at(i * eighth, i + 1, eighth));
+        }
+
+        let result = get_beams_in_track(&track, &measures);
+
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].start, 0);
+        assert_eq!(result[0].stop, eighth * 2);
+    }
+
+    #[test]
+    fn get_beams_triplet_local_grouping_breaks_at_tuplet_boundary() {
+        let eighth = NoteDuration::Eighth.to_ticks();
+        let mut track = NotationTrack::new(eighth * 3);
+        let mut measures = FxHashMap::default();
+        measures.insert(
+            0_u64,
+            TimeSignature::new(
+                1,
+                0,
+                3,
+                NoteDuration::Eighth,
+                TimeSignatureDrawType::Regular,
+                Some(vec![1, 2]),
+            ),
+        );
+
+        for i in 0..3_u64 {
+            track
+                .track
+                .insert(i * eighth, make_note_at(i * eighth, i + 1, eighth));
+        }
+
+        let result = get_beams_in_track(&track, &measures);
+
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].start, eighth);
+        assert_eq!(result[0].stop, eighth * 2);
+    }
+
+    #[test]
     fn get_beams_compound_syncopation_breaks_at_big_beat_boundary() {
         let eighth = NoteDuration::Eighth.to_ticks();
         let mut track = NotationTrack::new(1024);
