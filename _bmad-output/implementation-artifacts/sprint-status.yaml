@@ -79,4 +79,4 @@ development_status:
   5-2-protect-existing-non-tuplet-behavior-from-tuplet-regressions: done
   5-3-document-tuplet-scope-editing-rules-and-persistence-impact: done
   5-4-update-project-guardrails-for-future-tuplet-work: done
-  epic-5-retrospective: optional
+  epic-5-retrospective: done
