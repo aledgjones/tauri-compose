@@ -47,7 +47,7 @@ use crate::score::entries::tone::{
     score_entries_tone_pitch_shift_by_steps, score_entries_tone_set_position_and_duration,
     score_entries_tone_shift, score_entries_tone_slice, score_entries_tone_unify_articulations,
 };
-use crate::score::entries::tuplet::score_entries_tuplet_remove;
+use crate::score::entries::tuplet::{score_entries_tuplet_create, score_entries_tuplet_remove};
 use crate::score::flows::{
     score_flows_assign_player, score_flows_create, score_flows_move, score_flows_remove,
     score_flows_rename, score_flows_unassign_player,
@@ -507,17 +507,18 @@ pub fn action_definitions() -> Vec<ActionDefinition> {
                 optional_arg("tuplet_id", "Optional tuplet id for child insertion on the owning track."),
             ],
         ),
-        action("score.tone.setDuration", "Set the duration of an existing tone.", vec![arg("track_id", "Numeric track id."), arg("tone_id", "Numeric tone id."), arg("duration", "Tone duration in ticks.")]),
+        action("score.tone.setDuration", "Set the duration of an existing tone.", vec![arg("track_id", "Numeric track id."), arg("tone_id", "Numeric tone id."), arg("duration", "Tone duration in ticks."), optional_arg("tuplet_id", "Optional tuplet id used to address a nested tone directly on the owning track.")]),
         action("score.tone.slice", "Split a tone at a specific tick and return the new tone id when successful.", vec![arg("track_id", "Numeric track id."), arg("tone_id", "Numeric tone id."), arg("slice_tick", "Tick position where the tone should be sliced in the target ownership context."), optional_arg("current_tuplet_id", "Optional tuplet id for the original owning context when slicing a tuplet-owned tone."), optional_arg("target_tuplet_id", "Optional tuplet id for the resulting tail tone when the split lands inside a tuplet context.")]),
         action("score.tone.setPitch", "Set the pitch of an existing tone.", vec![arg("track_id", "Numeric track id."), arg("tone_id", "Numeric tone id."), arg("pitch_int", "Chromatic pitch integer."), arg("accidental", "Accidental enum value or null. Use -2=DoubleFlat, -1=Flat, 0=Natural, 1=Sharp, 2=DoubleSharp."), optional_arg("tuplet_id", "Optional tuplet id used to address a nested tone directly on the owning track.")]),
         action("score.tone.remove", "Remove an existing tone entry.", vec![arg("track_id", "Numeric track id."), arg("tone_id", "Numeric tone id."), optional_arg("tuplet_id", "Optional tuplet id used to address a nested tone directly on the owning track.")]),
-        action("score.tone.setPositionAndDuration", "Set the position and duration of an existing tone.", vec![arg("track_id", "Numeric track id."), arg("tone_id", "Numeric tone id."), arg("tick", "New tick position."), arg("duration", "New duration in ticks.")]),
-        action("score.tone.shift", "Shift an existing tone entry to a new tick.", vec![arg("track_id", "Numeric track id."), arg("tone_id", "Numeric tone id."), arg("new_tick", "New tick position.")]),
-        action("score.tone.unifyArticulations", "Apply the articulation set from one tone to all tones at the same tick.", vec![arg("track_id", "Numeric track id."), arg("tone_id", "Numeric tone id.")]),
+        action("score.tone.setPositionAndDuration", "Set the position and duration of an existing tone.", vec![arg("track_id", "Numeric track id."), arg("tone_id", "Numeric tone id."), arg("tick", "New tick position."), arg("duration", "New duration in ticks."), optional_arg("current_tuplet_id", "Optional tuplet id for the original owning context when moving a tuplet-owned tone."), optional_arg("target_tuplet_id", "Optional tuplet id for the resulting owning context when the moved tone lands inside a tuplet.")]),
+        action("score.tone.shift", "Shift an existing tone entry to a new tick.", vec![arg("track_id", "Numeric track id."), arg("tone_id", "Numeric tone id."), arg("new_tick", "New tick position."), optional_arg("current_tuplet_id", "Optional tuplet id for the original owning context when shifting a tuplet-owned tone."), optional_arg("target_tuplet_id", "Optional tuplet id for the resulting owning context when the shifted tone lands inside a tuplet.")]),
+        action("score.tone.unifyArticulations", "Apply the articulation set from one tone to all tones at the same tick.", vec![arg("track_id", "Numeric track id."), arg("tone_id", "Numeric tone id."), optional_arg("tuplet_id", "Optional tuplet id used to address a nested tone directly on the owning track.")]),
         action("score.tone.shiftPitchBySteps", "Shift a tone pitch diatonically by a number of steps.", vec![arg("track_id", "Numeric track id."), arg("tone_id", "Numeric tone id."), arg("steps", "Signed number of steps to shift."), optional_arg("tuplet_id", "Optional tuplet id used to address a nested tone directly on the owning track.")]),
         action("score.tone.shiftPitchByOctaves", "Shift a tone pitch by a number of octaves.", vec![arg("track_id", "Numeric track id."), arg("tone_id", "Numeric tone id."), arg("octaves", "Signed number of octaves to shift."), optional_arg("tuplet_id", "Optional tuplet id used to address a nested tone directly on the owning track.")]),
         action("score.tone.setAccidental", "Set the accidental on a tone.", vec![arg("track_id", "Numeric track id."), arg("tone_id", "Numeric tone id."), arg("accidental", "Accidental enum value. Use -2=DoubleFlat, -1=Flat, 0=Natural, 1=Sharp, 2=DoubleSharp."), optional_arg("tuplet_id", "Optional tuplet id used to address a nested tone directly on the owning track.")]),
         action("score.tone.toggleArticulation", "Toggle an articulation on a tone and apply the resulting articulation set across the tick.", vec![arg("track_id", "Numeric track id."), arg("tone_id", "Numeric tone id."), arg("articulation", "Numeric Articulation enum value. Use 0=Staccato, 1=Tenuto, 2=Staccatissimo, 3=StaccatoTenuto, 4=Accent, 5=Marcato, 6=Stressed, 7=Unstressed."), optional_arg("tuplet_id", "Optional tuplet id used to address a nested tone directly on the owning track.")]),
+        action("score.tuplet.create", "Create a tuplet container on a track.", vec![arg("track_id", "Numeric track id."), arg("tick", "Tick position."), arg("note_count", "Number of notes in the tuplet group."), arg("in_space_of", "How many base notes the tuplet fits into."), arg("base_note_value", "Numeric NoteDuration enum value for the tuplet base note. Common values are 1=Whole, 2=Half, 4=Quarter, 8=Eighth, 16=Sixteenth, 32=ThirtySecond, 64=SixtyFourth, 128=HundredTwentyEighth."), arg("groupings", "Array of positive integer grouping sizes, such as [3] for a simple triplet.")]),
         action("score.tuplet.remove", "Remove a tuplet container and all of its child tones.", vec![arg("track_id", "Numeric track id."), arg("tuplet_id", "Numeric tuplet id.")]),
         action(
             "score.lookup.getInstrumentTracks",
@@ -1437,6 +1438,17 @@ pub async fn execute_action(app: &AppHandle, name: &str, args: &[Value]) -> Resu
             );
             Ok(Value::Null)
         }
+        "score.tuplet.create" => Ok(json!(score_entries_tuplet_create(
+            app.clone(),
+            app.state::<AppContextState>(),
+            app.state::<RendererContextState>(),
+            arg_id(args, 0, "track_id")?,
+            arg_u64(args, 1, "tick")?,
+            arg_u8(args, 2, "note_count")?,
+            arg_u8(args, 3, "in_space_of")?,
+            arg_enum::<NoteDuration>(args, 4, "base_note_value")?,
+            arg_u8_vec(args, 5, "groupings")?,
+        )?)),
         "score.lookup.getInstrumentTracks" => Ok(json!(derive_instrument_tracks(
             app,
             arg_id(args, 0, "flow_id")?,
@@ -1794,4 +1806,40 @@ where
 fn arg_articulations(args: &[Value], index: usize) -> Result<Articulations, String> {
     serde_json::from_value(arg_value(args, index, "articulations")?.clone())
         .map_err(|error| format!("Argument articulations could not be parsed: {error}"))
+}
+
+fn arg_u8_vec(args: &[Value], index: usize, name: &str) -> Result<Vec<u8>, String> {
+    serde_json::from_value(arg_value(args, index, name)?.clone())
+        .map_err(|error| format!("Argument {name} could not be parsed: {error}"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::action_definitions;
+
+    #[test]
+    fn action_definitions_include_tuplet_create() {
+        let definition = action_definitions()
+            .into_iter()
+            .find(|definition| definition.name == "score.tuplet.create")
+            .expect("expected score.tuplet.create action definition");
+
+        let arg_names = definition
+            .args
+            .into_iter()
+            .map(|arg| arg.name)
+            .collect::<Vec<_>>();
+
+        assert_eq!(
+            arg_names,
+            vec![
+                "track_id",
+                "tick",
+                "note_count",
+                "in_space_of",
+                "base_note_value",
+                "groupings",
+            ]
+        );
+    }
 }

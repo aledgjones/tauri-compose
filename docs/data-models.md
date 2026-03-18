@@ -222,6 +222,8 @@ No tuplet-specific migration is required in the current development cycle. Files
 
 Tuplet note insertion still extends the existing track-level tone mutation seam rather than introducing a parallel tuplet-note API:
 
+- frontend: `actions.score.tuplet.create(track_id, tick, note_count, in_space_of, base_note_value, groupings)`
+- backend command: `score_entries_tuplet_create(track_id, tick, note_count, in_space_of, base_note_value, groupings)`
 - frontend: `actions.score.tone.create(track_id, tick, duration, pitch_int, accidental, velocity, articulations, tuplet_id?)`
 - backend command: `score_entries_tone_create(..., tuplet_id: Option<UniqueId>)`
 - score mutation: `Track::create_tone(..., tuplet_id: Option<UniqueId>)`

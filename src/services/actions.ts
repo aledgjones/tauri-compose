@@ -450,16 +450,16 @@ export const actions = {
           player_id,
         });
       },
-      assignFlow: (layout_id: UniqueId, player_id: UniqueId) => {
+      assignFlow: (layout_id: UniqueId, flow_id: UniqueId) => {
         return invoke<void>("score_layouts_assign_flow", {
           layout_id,
-          player_id,
+          flow_id,
         });
       },
-      unassignFlow: (layout_id: UniqueId, player_id: UniqueId) => {
+      unassignFlow: (layout_id: UniqueId, flow_id: UniqueId) => {
         return invoke<void>("score_layouts_unassign_flow", {
           layout_id,
-          player_id,
+          flow_id,
         });
       },
       move: (from_index: number, to_index: number) => {
