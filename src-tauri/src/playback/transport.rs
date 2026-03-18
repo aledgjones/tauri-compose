@@ -352,7 +352,10 @@ struct ScheduledNote {
 
 /// Collect all notes in the active flow, projected into exact host musical time and bucketed by
 /// the integer host tick that owns each onset.
-fn collect_scheduled_notes(score: &Score, flow_id: UniqueId) -> FxHashMap<Tick, Vec<ScheduledNote>> {
+fn collect_scheduled_notes(
+    score: &Score,
+    flow_id: UniqueId,
+) -> FxHashMap<Tick, Vec<ScheduledNote>> {
     let mut notes_by_tick: FxHashMap<Tick, Vec<ScheduledNote>> = FxHashMap::default();
 
     let flow = match score.flows.by_id.get(&flow_id) {
@@ -774,20 +777,13 @@ pub fn transport_seek(
 /// Lightweight poll command — reads atomics directly, no mutex lock needed.
 /// Frontend calls this via requestAnimationFrame during playback.
 #[tauri::command(rename_all = "snake_case")]
-pub fn transport_get_state(
-    state: State<'_, TransportSharedState>,
-    app_state: State<'_, AppContextState>,
-) -> TransportState {
+pub fn transport_get_state(state: State<'_, TransportSharedState>) -> TransportState {
     let playing = state.playing.load(Ordering::Relaxed);
     let current_tick = state.current_tick.load(Ordering::Relaxed);
-    let tempo = if playing {
-        state.get_tempo()
-    } else {
-        let app_ctx = app_state.lock().unwrap();
-        let tempo = resolve_app_tempo_bpm(&app_ctx, current_tick);
-        state.set_tempo(tempo);
-        tempo
-    };
+    // Keep the transport poll path lock-free. Shared tempo is synchronized when
+    // the score, active flow, or transport position changes, so polling should
+    // never need to acquire AppContextState from the main thread.
+    let tempo = state.get_tempo();
 
     TransportState {
         playing,
@@ -800,9 +796,9 @@ pub fn transport_get_state(
 mod tests {
     use super::*;
     use crate::score::components::duration::NoteDuration;
-    use crate::score::instruments::{defs::InstrumentType, Instrument};
     use crate::score::entries::{tempo::Tempo, Entry};
     use crate::score::flows::Flow;
+    use crate::score::instruments::{defs::InstrumentType, Instrument};
     use crate::score::players::{Player, PlayerType};
     use crate::score::staves::Stave;
     use crate::score::tracks::Track;
@@ -946,11 +942,16 @@ mod tests {
             .players
             .by_id
             .insert(player_id, Player::new(player_id, PlayerType::Solo));
-        score.players.by_id.get_mut(&player_id).unwrap().instrument_ids = vec![instrument_id];
         score
-            .instruments
+            .players
             .by_id
-            .insert(instrument_id, make_instrument(instrument_id, stave_id, "plugin-a"));
+            .get_mut(&player_id)
+            .unwrap()
+            .instrument_ids = vec![instrument_id];
+        score.instruments.by_id.insert(
+            instrument_id,
+            make_instrument(instrument_id, stave_id, "plugin-a"),
+        );
 
         (score, flow_id)
     }
@@ -1119,13 +1120,17 @@ mod tests {
     #[test]
     fn collect_scheduled_notes_groups_projected_tuplet_events_by_exact_host_tick() {
         let mut track = Track::new(50);
-        track.create_tuplet(70, 96, 3, 2, NoteDuration::Eighth, vec![3])
+        track
+            .create_tuplet(70, 96, 3, 2, NoteDuration::Eighth, vec![3])
             .unwrap();
-        track.create_tone(80, 0, 16, 60, None, 96, Default::default(), Some(70))
+        track
+            .create_tone(80, 0, 16, 60, None, 96, Default::default(), Some(70))
             .unwrap();
-        track.create_tone(81, 16, 16, 62, None, 96, Default::default(), Some(70))
+        track
+            .create_tone(81, 16, 16, 62, None, 96, Default::default(), Some(70))
             .unwrap();
-        track.create_tone(82, 32, 16, 64, None, 96, Default::default(), Some(70))
+        track
+            .create_tone(82, 32, 16, 64, None, 96, Default::default(), Some(70))
             .unwrap();
 
         let (score, flow_id) = make_flow_score_with_track(track);

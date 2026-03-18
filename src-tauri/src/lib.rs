@@ -416,12 +416,11 @@ pub(crate) fn reset_app_state(
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    #[cfg(debug_assertions)]
-    let devtools = tauri_plugin_devtools::init();
     let mut builder = tauri::Builder::default();
 
     #[cfg(debug_assertions)]
     {
+        let devtools = tauri_plugin_devtools::init();
         builder = builder.plugin(devtools);
     }
 
