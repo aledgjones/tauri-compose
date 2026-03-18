@@ -4725,6 +4725,26 @@ mod tests {
     }
 
     #[test]
+    fn get_written_durations_keeps_host_only_six_eight_dotted_quarter_beats_without_tuplets() {
+        let e = NoteDuration::Eighth.to_ticks();
+        let q = NoteDuration::Quarter.to_ticks();
+        let dotted_quarter = q + e;
+
+        assert_written_duration_scenario(
+            "6/8 dotted-quarter beats stay unsplit without tuplets",
+            make_time_signature_for_test(0, 6, NoteDuration::Eighth),
+            &[
+                (1, 0, dotted_quarter, 60),
+                (2, dotted_quarter, dotted_quarter, 64),
+            ],
+            vec![
+                notation_expectation(0, dotted_quarter, false, vec![1], vec![]),
+                notation_expectation(dotted_quarter, dotted_quarter, false, vec![2], vec![]),
+            ],
+        );
+    }
+
+    #[test]
     fn get_written_durations_preserves_anchored_local_triplet_contract() {
         let four_four = make_time_signature_for_test(0, 4, NoteDuration::Quarter);
         let e = NoteDuration::Eighth.to_ticks();
@@ -4796,6 +4816,41 @@ mod tests {
                     notation_expectation(0, e, true, vec![], vec![]),
                     notation_expectation(e, e, true, vec![], vec![]),
                     notation_expectation(e * 2, e, true, vec![], vec![]),
+                ],
+            ),
+        );
+    }
+
+    #[test]
+    fn get_written_durations_preserves_partially_filled_triplet_with_derived_middle_rest() {
+        let four_four = make_time_signature_for_test(0, 4, NoteDuration::Quarter);
+        let e = NoteDuration::Eighth.to_ticks();
+        let (notation_by_track, track_id) = run_written_duration_scenario_with_tuplets(
+            four_four.clone(),
+            four_four.ticks_per_bar(),
+            &[],
+            &[TupletSpec {
+                id: 99,
+                tick: 32,
+                note_count: 3,
+                in_space_of: 2,
+                base_note_value: NoteDuration::Eighth,
+                groupings: vec![3],
+                tone_specs: vec![(201, 0, e, 60), (203, e * 2, e, 64)],
+            }],
+        );
+
+        assert_anchored_notation_track_matches(
+            &notation_by_track[&track_id].anchored_tracks[0],
+            anchored_notation_expectation(
+                99,
+                32,
+                64,
+                e * 3,
+                vec![
+                    notation_expectation(0, e, false, vec![201], vec![]),
+                    notation_expectation(e, e, true, vec![], vec![]),
+                    notation_expectation(e * 2, e, false, vec![203], vec![]),
                 ],
             ),
         );

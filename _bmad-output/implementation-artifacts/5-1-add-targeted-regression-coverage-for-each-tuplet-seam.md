@@ -1,6 +1,6 @@
 # Story 5.1: Add Targeted Regression Coverage for Each Tuplet Seam
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -36,31 +36,31 @@ so that tuplet support is protected where it can actually fail.
 
 ## Tasks / Subtasks
 
-- [ ] Audit the current tuplet regression footprint seam by seam before adding new tests (AC: 1, 2, 3)
-  - [ ] Inventory the existing parser coverage around tuplet notation derivation, especially `src-tauri/src/instructions/parse/get_written_durations.rs` and nearby parser-local helpers.
-  - [ ] Inventory rendering coverage for tuplet bracket, number, rest, tie, beam, and hit-target behavior across `src-tauri/src/instructions/draw/` and `src-tauri/src/renderer/`.
-  - [ ] Inventory playback coverage in `src-tauri/src/playback/tuplet_projection.rs` and `src-tauri/src/playback/transport.rs`.
-  - [ ] Inventory persistence and migration coverage in `src-tauri/src/files.rs`, `src-tauri/src/soloc.rs`, and `src-tauri/src/migrations/`.
-- [ ] Add or extend parser-local tuplets regressions close to the owning seam (AC: 1, 2, 3)
-  - [ ] Reuse `src-tauri/src/instructions/parse/test_support/get_written_durations_test_harness.rs` before adding any new helper surface.
-  - [ ] Cover isolated tuplets, partially filled tuplets, and host/tuplet boundary-crossing material without introducing nested tuplets.
-  - [ ] Keep parser assertions scenario-driven and musically named so failures identify the exact notation seam.
-- [ ] Add or extend rendering regressions for supported tuplets behavior (AC: 1, 2)
-  - [ ] Protect `draw_tuplet.rs` behavior for bracket and number presentation under supported triplet cases.
-  - [ ] Extend nearby renderer tests only where needed to keep selection, hit targets, and drawn tuplet artifacts aligned with the shipped notation contract.
-  - [ ] Avoid introducing screenshot-only or disconnected end-to-end rendering coverage when unit or parser-adjacent assertions can prove the seam more directly.
-- [ ] Add or extend playback regressions for projection-driven tuplets timing (AC: 1, 2)
-  - [ ] Reuse the existing exact-timing tests in `src-tauri/src/playback/tuplet_projection.rs` and the scheduled-note tests in `src-tauri/src/playback/transport.rs`.
-  - [ ] Cover representative mixed host-plus-tuplet timing and boundary-crossing continuity without re-deriving tuplet semantics inside transport-local helpers.
-- [ ] Add or extend persistence and migration regressions in the owning file workflow (AC: 1, 2, 3)
-  - [ ] Keep save/load, deterministic round-trip, legacy non-tuplet load, and nested-child rejection coverage in `src-tauri/src/files.rs` and related persistence seams.
-  - [ ] Confirm migration coverage continues to express the current stance clearly: legacy non-tuplet files remain loadable and no speculative tuplet migration is added unless compatibility actually requires it.
-- [ ] Validate the resulting seam-owned regression corpus with standard repo checks
-  - [ ] Run focused Rust tests for touched parser, draw, playback, and file-workflow seams.
-  - [ ] Run `cargo test --manifest-path src-tauri/Cargo.toml`.
-  - [ ] Run `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features`.
-  - [ ] Run `npm run lint` and `npm run check-types` if any frontend or docs-facing typed seams are touched.
-  - [ ] Run `npm run build:fixtures` if any fixture JSON under `tests/fixtures/source/` changes.
+- [x] Audit the current tuplet regression footprint seam by seam before adding new tests (AC: 1, 2, 3)
+  - [x] Inventory the existing parser coverage around tuplet notation derivation, especially `src-tauri/src/instructions/parse/get_written_durations.rs` and nearby parser-local helpers.
+  - [x] Inventory rendering coverage for tuplet bracket, number, rest, tie, beam, and hit-target behavior across `src-tauri/src/instructions/draw/` and `src-tauri/src/renderer/`.
+  - [x] Inventory playback coverage in `src-tauri/src/playback/tuplet_projection.rs` and `src-tauri/src/playback/transport.rs`.
+  - [x] Inventory persistence and migration coverage in `src-tauri/src/files.rs`, `src-tauri/src/soloc.rs`, and `src-tauri/src/migrations/`.
+- [x] Add or extend parser-local tuplets regressions close to the owning seam (AC: 1, 2, 3)
+  - [x] Reuse `src-tauri/src/instructions/parse/test_support/get_written_durations_test_harness.rs` before adding any new helper surface.
+  - [x] Cover isolated tuplets, partially filled tuplets, and host/tuplet boundary-crossing material without introducing nested tuplets.
+  - [x] Keep parser assertions scenario-driven and musically named so failures identify the exact notation seam.
+- [x] Add or extend rendering regressions for supported tuplets behavior (AC: 1, 2)
+  - [x] Protect `draw_tuplet.rs` behavior for bracket and number presentation under supported triplet cases.
+  - [x] Extend nearby renderer tests only where needed to keep selection, hit targets, and drawn tuplet artifacts aligned with the shipped notation contract.
+  - [x] Avoid introducing screenshot-only or disconnected end-to-end rendering coverage when unit or parser-adjacent assertions can prove the seam more directly.
+- [x] Add or extend playback regressions for projection-driven tuplets timing (AC: 1, 2)
+  - [x] Reuse the existing exact-timing tests in `src-tauri/src/playback/tuplet_projection.rs` and the scheduled-note tests in `src-tauri/src/playback/transport.rs`.
+  - [x] Cover representative mixed host-plus-tuplet timing and boundary-crossing continuity without re-deriving tuplet semantics inside transport-local helpers.
+- [x] Add or extend persistence and migration regressions in the owning file workflow (AC: 1, 2, 3)
+  - [x] Keep save/load, deterministic round-trip, legacy non-tuplet load, and nested-child rejection coverage in `src-tauri/src/files.rs` and related persistence seams.
+  - [x] Confirm migration coverage continues to express the current stance clearly: legacy non-tuplet files remain loadable and no speculative tuplet migration is added unless compatibility actually requires it.
+- [x] Validate the resulting seam-owned regression corpus with standard repo checks
+  - [x] Run focused Rust tests for touched parser, draw, playback, and file-workflow seams.
+  - [x] Run `cargo test --manifest-path src-tauri/Cargo.toml`.
+  - [x] Run `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features`.
+  - [x] Run `npm run lint` and `npm run check-types` if any frontend or docs-facing typed seams are touched.
+  - [x] Run `npm run build:fixtures` if any fixture JSON under `tests/fixtures/source/` changes.
 
 ## Dev Notes
 
@@ -179,3 +179,32 @@ GPT-5.4
 - Build a seam-by-seam regression matrix first so new tests close real gaps instead of duplicating existing coverage.
 - Extend the owning Rust test modules and parser-local helpers before creating any new harnesses or fixtures.
 - Validate that every new failure message points maintainers back to the owning seam with clear scenario names and stable assertions.
+
+### Debug Log
+
+- Audited existing parser, draw, playback, and file-workflow regression ownership before adding tests; parser/playback/file seams were already strong, while draw cross-context ties and explicit partial-triplet/non-tuplet baselines were the main gaps.
+- Added seam-local regressions in the owning Rust modules only; no fixtures, docs, migrations, or new harness layers were required.
+
+### Completion Notes
+
+- Added parser regressions for a partially filled triplet with a derived middle rest and for a host-only 6/8 dotted-quarter baseline.
+- Added rendering regressions for tuplet-owned rest selection payloads and tie drawing across ownership contexts.
+- Added playback regressions for partially filled triplet projection and active-flow host-only scheduling when sibling flows contain tuplets.
+- Added file-workflow regression proof that current non-tuplet round-trips do not synthesize tuplets; existing legacy load, deterministic tuplet round-trip, and nested-child rejection coverage remained sufficient.
+- Validated with focused Rust tests, `cargo test --manifest-path src-tauri/Cargo.toml`, and `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features`.
+- No docs or fixture updates were required because the change tightened seam-local proof without changing documented behavior or workflow rules.
+
+### File List
+
+- src-tauri/src/files.rs
+- src-tauri/src/instructions/draw/draw_rest.rs
+- src-tauri/src/instructions/draw/draw_ties.rs
+- src-tauri/src/instructions/parse/get_written_durations.rs
+- src-tauri/src/playback/transport.rs
+- src-tauri/src/playback/tuplet_projection.rs
+- \_bmad-output/implementation-artifacts/5-1-add-targeted-regression-coverage-for-each-tuplet-seam.md
+- \_bmad-output/implementation-artifacts/sprint-status.yaml
+
+### Change Log
+
+- 2026-03-18: Added seam-local parser, draw, playback, and file-workflow regression coverage for supported tuplet MVP cases; validated full Rust suite and clippy.

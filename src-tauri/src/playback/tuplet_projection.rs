@@ -319,6 +319,32 @@ mod tests {
     }
 
     #[test]
+    fn projects_partially_filled_triplet_without_inventing_middle_events() {
+        let mut track = Track::new(1);
+        track.insert_entry(make_triplet(96, &[(10, 0, 16, 60), (12, 32, 16, 64)]));
+
+        let events = collect_track_playback_events(&track);
+
+        assert_eq!(
+            events,
+            vec![
+                PlaybackToneEvent {
+                    start: PlaybackTick::from_tick(96),
+                    duration: PlaybackTick::new(32, 3),
+                    pitch: 60,
+                    velocity: 96,
+                },
+                PlaybackToneEvent {
+                    start: PlaybackTick::new(352, 3),
+                    duration: PlaybackTick::new(32, 3),
+                    pitch: 64,
+                    velocity: 96,
+                },
+            ]
+        );
+    }
+
+    #[test]
     fn keeps_host_owned_tone_continuous_when_it_enters_a_tuplet() {
         let mut track = Track::new(1);
         track.insert_entry(Entry::Tone(make_tone(1, 80, 64, 60)));

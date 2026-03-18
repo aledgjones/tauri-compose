@@ -1,6 +1,6 @@
 # Story 5.2: Protect Existing Non-Tuplet Behavior From Tuplet Regressions
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -31,30 +31,30 @@ so that the new feature does not silently degrade existing musical output.
 
 ## Tasks / Subtasks
 
-- [ ] Define the non-tuplet regression baseline across the seams tuplets already changed (AC: 1, 2)
-  - [ ] Identify representative parser scenarios that must remain unchanged for non-tuplet notation, including ordinary simple-meter and supported compound-meter patterns.
-  - [ ] Identify representative renderer behavior that must remain unchanged when no tuplets are present.
-  - [ ] Identify representative playback behavior that must remain unchanged for host-only material.
-  - [ ] Identify representative file-workflow behavior that must remain unchanged for legacy and current non-tuplet projects.
-- [ ] Add or extend parser regressions for non-tuplet behavior in local ownership seams (AC: 1, 2)
-  - [ ] Reuse the current scenario tables in `src-tauri/src/instructions/parse/get_written_durations.rs` and parser-local helpers rather than inventing a new notation harness.
-  - [ ] Keep compound-meter coverage aligned with existing supported behavior and avoid introducing unsupported complex signatures in fixtures or tests.
-  - [ ] Prefer musically named scenarios that make it obvious which older behavior failed.
-- [ ] Add or extend rendering and hit-testing regressions proving non-tuplet behavior still reads the same without tuplets present (AC: 1)
-  - [ ] Protect the existing draw and selection seams against accidental tuplets-specific assumptions leaking into host-only rendering paths.
-  - [ ] Confirm non-tuplet scores do not require tuplet placeholders, selection payloads, or special-case layout behavior to render correctly.
-- [ ] Add or extend playback regressions for host-only scheduling and flow behavior (AC: 1, 2)
-  - [ ] Reuse Story 4.3 and 4.4 transport coverage patterns to prove host-only playback remains stable when tuplets-related scheduling logic exists in the codebase.
-  - [ ] Keep non-tuplet playback proof in the existing transport tests rather than in a new transport harness.
-- [ ] Add or extend persistence regressions proving non-tuplet files remain unchanged in the existing load path (AC: 1)
-  - [ ] Preserve the explicit legacy non-tuplet load path coverage in `src-tauri/src/files.rs`.
-  - [ ] Confirm no tuplet-specific migration or load-time repair logic alters non-tuplet payloads.
-- [ ] Validate the protected baseline with standard repo checks
-  - [ ] Run focused Rust tests for touched parser, draw, playback, and file-workflow seams.
-  - [ ] Run `cargo test --manifest-path src-tauri/Cargo.toml`.
-  - [ ] Run `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features`.
-  - [ ] Run `npm run lint` and `npm run check-types` if any frontend-facing seams or fixtures are touched.
-  - [ ] Run `npm run build:fixtures` if fixture JSON changes.
+- [x] Define the non-tuplet regression baseline across the seams tuplets already changed (AC: 1, 2)
+  - [x] Identify representative parser scenarios that must remain unchanged for non-tuplet notation, including ordinary simple-meter and supported compound-meter patterns.
+  - [x] Identify representative renderer behavior that must remain unchanged when no tuplets are present.
+  - [x] Identify representative playback behavior that must remain unchanged for host-only material.
+  - [x] Identify representative file-workflow behavior that must remain unchanged for legacy and current non-tuplet projects.
+- [x] Add or extend parser regressions for non-tuplet behavior in local ownership seams (AC: 1, 2)
+  - [x] Reuse the current scenario tables in `src-tauri/src/instructions/parse/get_written_durations.rs` and parser-local helpers rather than inventing a new notation harness.
+  - [x] Keep compound-meter coverage aligned with existing supported behavior and avoid introducing unsupported complex signatures in fixtures or tests.
+  - [x] Prefer musically named scenarios that make it obvious which older behavior failed.
+- [x] Add or extend rendering and hit-testing regressions proving non-tuplet behavior still reads the same without tuplets present (AC: 1)
+  - [x] Protect the existing draw and selection seams against accidental tuplets-specific assumptions leaking into host-only rendering paths.
+  - [x] Confirm non-tuplet scores do not require tuplet placeholders, selection payloads, or special-case layout behavior to render correctly.
+- [x] Add or extend playback regressions for host-only scheduling and flow behavior (AC: 1, 2)
+  - [x] Reuse Story 4.3 and 4.4 transport coverage patterns to prove host-only playback remains stable when tuplets-related scheduling logic exists in the codebase.
+  - [x] Keep non-tuplet playback proof in the existing transport tests rather than in a new transport harness.
+- [x] Add or extend persistence regressions proving non-tuplet files remain unchanged in the existing load path (AC: 1)
+  - [x] Preserve the explicit legacy non-tuplet load path coverage in `src-tauri/src/files.rs`.
+  - [x] Confirm no tuplet-specific migration or load-time repair logic alters non-tuplet payloads.
+- [x] Validate the protected baseline with standard repo checks
+  - [x] Run focused Rust tests for touched parser, draw, playback, and file-workflow seams.
+  - [x] Run `cargo test --manifest-path src-tauri/Cargo.toml`.
+  - [x] Run `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features`.
+  - [x] Run `npm run lint` and `npm run check-types` if any frontend-facing seams or fixtures are touched.
+  - [x] Run `npm run build:fixtures` if fixture JSON changes.
 
 ## Dev Notes
 
@@ -156,3 +156,31 @@ GPT-5.4
 - Turn existing known-good non-tuplet behavior into explicit regression proof at each seam tuplets touched.
 - Prefer extending local scenario tables, transport tests, and file-workflow regressions over building new generalized coverage infrastructure.
 - Keep the baseline readable enough that later tuplet work can tell what broke and where.
+
+### Debug Log
+
+- Audited the non-tuplet baseline across parser, draw, playback, and file seams touched by the tuplet work; existing compound/simple parser corpora and host-only transport/file tests were already substantial, but explicit current-story baselines were still missing.
+- Added only seam-local regressions in existing Rust test modules; no fixtures, migrations, or frontend paths were changed.
+
+### Completion Notes
+
+- Added a host-only 6/8 dotted-quarter parser regression to keep supported compound-meter spelling explicit in the non-tuplet baseline.
+- Extended renderer-side proof with a tuplet-aware rest selection payload test and cross-context tie rendering regression so host-only draw paths remain distinct from tuplet-specific ownership handling.
+- Added host-only playback regression proof that the selected active flow stays integer-timed even when sibling flows contain tuplets.
+- Added a current non-tuplet round-trip regression proving the load/save path does not invent tuplet entries; existing legacy non-tuplet load coverage remained in place.
+- Validated with focused Rust tests, `cargo test --manifest-path src-tauri/Cargo.toml`, and `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features`.
+- No docs or fixture updates were required because supported non-tuplet behavior did not change; the work only made that baseline more explicit in seam-local tests.
+
+### File List
+
+- src-tauri/src/files.rs
+- src-tauri/src/instructions/draw/draw_rest.rs
+- src-tauri/src/instructions/draw/draw_ties.rs
+- src-tauri/src/instructions/parse/get_written_durations.rs
+- src-tauri/src/playback/transport.rs
+- \_bmad-output/implementation-artifacts/5-2-protect-existing-non-tuplet-behavior-from-tuplet-regressions.md
+- \_bmad-output/implementation-artifacts/sprint-status.yaml
+
+### Change Log
+
+- 2026-03-18: Added parser, rendering, playback, and file-workflow regressions that preserve supported non-tuplet behavior alongside the tuplet MVP baseline; validated full Rust suite and clippy.

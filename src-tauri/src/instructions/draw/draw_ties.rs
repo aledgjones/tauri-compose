@@ -382,7 +382,7 @@ pub fn draw_ties(
 
 #[cfg(test)]
 mod tests {
-    use super::draw_tie;
+    use super::{draw_tie, draw_tie_between_contexts};
     use crate::instructions::parse::get_horizontal_spacing::HorizontalSpacing;
     use crate::instructions::parse::get_shunts::Shunts;
     use crate::instructions::parse::get_written_durations::Notation;
@@ -478,5 +478,50 @@ mod tests {
                 .count(),
             1
         );
+    }
+
+    #[test]
+    fn draw_tie_between_contexts_uses_each_context_origin() {
+        let tone_id = 3u64;
+        let start = make_single_tone_notation(0, 32, tone_id);
+        let stop = make_single_tone_notation(0, 32, tone_id);
+        let mut tone_offsets = FxHashMap::default();
+        tone_offsets.insert(tone_id, 0i8);
+        let start_spacing = HorizontalSpacing::new(32);
+        let stop_spacing = HorizontalSpacing::new(32);
+        let shunts = empty_shunts();
+        let start_origin = Point { x: 2.0, y: 0.0 };
+        let stop_origin = Point { x: 20.0, y: 0.0 };
+        let mut renderer = make_test_renderer();
+
+        draw_tie_between_contexts(
+            &start_origin,
+            &tone_id,
+            &start,
+            &start_spacing,
+            &shunts,
+            &stop_origin,
+            &stop,
+            &stop_spacing,
+            &shunts,
+            &Direction::Up,
+            &Direction::Up,
+            &tone_offsets,
+            &mut renderer,
+        );
+
+        let curve = renderer
+            .instructions
+            .iter()
+            .find_map(|instruction| match instruction {
+                DrawInstruction::Curve { points, .. } => Some(points),
+                _ => None,
+            })
+            .expect("expected tie curve");
+
+        assert!(curve[0].0 >= start_origin.x);
+        assert!(curve[2].0 >= stop_origin.x);
+        assert!(curve[0].0 < curve[1].0);
+        assert!(curve[1].0 < curve[2].0);
     }
 }

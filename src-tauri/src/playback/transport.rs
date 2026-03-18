@@ -1358,10 +1358,99 @@ mod tests {
             .map(|note| note.pitch)
             .collect::<Vec<_>>();
         pitches.sort_unstable();
-        assert_eq!(
-            pitches,
-            vec![60, 62, 64]
+        assert_eq!(pitches, vec![60, 62, 64]);
+    }
+
+    #[test]
+    fn collect_scheduled_notes_keeps_selected_host_only_flow_integer_timed_when_siblings_have_tuplets(
+    ) {
+        let mut active_track = Track::new(50);
+        active_track
+            .create_tone(80, 32, 16, 60, None, 96, Default::default(), None)
+            .unwrap();
+        active_track
+            .create_tone(81, 96, 16, 62, None, 96, Default::default(), None)
+            .unwrap();
+
+        let (mut score, selected_flow_id) = make_flow_score_with_track(active_track);
+
+        let sibling_flow_id = 101;
+        let sibling_master_id = 102;
+        let sibling_player_id = 103;
+        let sibling_instrument_id = 104;
+        let sibling_stave_id = 105;
+        let sibling_track_id = 106;
+        let mut sibling_flow = Flow::new(sibling_flow_id, sibling_master_id);
+        sibling_flow.length = 160;
+        sibling_flow.player_ids = FxHashSet::from_iter([sibling_player_id]);
+        sibling_flow.staves.by_id.insert(
+            sibling_stave_id,
+            Stave {
+                id: sibling_stave_id,
+                lines: vec![1, 1, 1, 1, 1],
+                master_id: sibling_master_id,
+                track_ids: vec![sibling_track_id],
+            },
         );
+
+        let mut sibling_track = Track::new(sibling_track_id);
+        sibling_track
+            .create_tuplet(170, 96, 3, 2, NoteDuration::Eighth, vec![3])
+            .unwrap();
+        sibling_track
+            .create_tone(181, 0, 16, 74, None, 96, Default::default(), Some(170))
+            .unwrap();
+        sibling_track
+            .create_tone(182, 16, 16, 76, None, 96, Default::default(), Some(170))
+            .unwrap();
+        sibling_track
+            .create_tone(183, 32, 16, 77, None, 96, Default::default(), Some(170))
+            .unwrap();
+
+        score.flows.order.push(sibling_flow_id);
+        score.flows.by_id.insert(sibling_flow_id, sibling_flow);
+        score
+            .tracks
+            .by_id
+            .insert(sibling_master_id, Track::new(sibling_master_id));
+        score.tracks.by_id.insert(sibling_track_id, sibling_track);
+        score.players.order.push(sibling_player_id);
+        score.players.by_id.insert(
+            sibling_player_id,
+            Player::new(sibling_player_id, PlayerType::Solo),
+        );
+        score
+            .players
+            .by_id
+            .get_mut(&sibling_player_id)
+            .unwrap()
+            .instrument_ids = vec![sibling_instrument_id];
+        score.instruments.by_id.insert(
+            sibling_instrument_id,
+            make_instrument(sibling_instrument_id, sibling_stave_id, "plugin-b"),
+        );
+
+        let app_ctx = make_app_context(score, Some(selected_flow_id));
+        let scheduled = collect_scheduled_notes(
+            &app_ctx.score,
+            active_flow_id(&app_ctx).expect("expected active flow"),
+        );
+
+        assert_eq!(
+            flatten_scheduled_starts(&scheduled),
+            vec![PlaybackTick::from_tick(32), PlaybackTick::from_tick(96)]
+        );
+        assert!(scheduled
+            .values()
+            .flatten()
+            .all(|note| note.start.denominator == 1 && note.duration.denominator == 1));
+        let mut pitches = scheduled
+            .values()
+            .flatten()
+            .map(|note| note.pitch)
+            .collect::<Vec<_>>();
+        pitches.sort_unstable();
+        assert_eq!(pitches, vec![60, 62]);
     }
 
     #[test]
@@ -1438,10 +1527,7 @@ mod tests {
             .map(|note| note.pitch)
             .collect::<Vec<_>>();
         pitches.sort_unstable();
-        assert_eq!(
-            pitches,
-            vec![60, 62]
-        );
+        assert_eq!(pitches, vec![60, 62]);
     }
 
     #[test]

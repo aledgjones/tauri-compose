@@ -877,6 +877,33 @@ mod tests {
     }
 
     #[test]
+    fn current_non_tuplet_round_trip_does_not_invent_tuplet_entries() {
+        let mut ui = Ui::new();
+        ui.layout_id = Some(0);
+        ui.flow_id = Some(10);
+
+        let project_file = ProjectFile {
+            ui,
+            score: build_score_with_visible_flows(&[10], &[10]),
+            next_id: 12,
+        };
+
+        let restored = round_trip_project_file(&project_file);
+
+        assert!(restored
+            .score
+            .tracks
+            .by_id
+            .values()
+            .flat_map(|track| track.entries.by_id.values())
+            .all(|entry| !matches!(entry, Entry::Tuplet(_))));
+        assert_eq!(
+            serde_json::to_value(&restored).unwrap(),
+            serde_json::to_value(&project_file).unwrap()
+        );
+    }
+
+    #[test]
     fn soloc_round_trip_preserves_tuplet_entries() {
         let mut ui = Ui::new();
         ui.layout_id = Some(0);

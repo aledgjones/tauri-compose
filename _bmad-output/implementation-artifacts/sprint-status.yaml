@@ -75,8 +75,8 @@ development_status:
   epic-4-retrospective: done
 
   epic-5: in-progress
-  5-1-add-targeted-regression-coverage-for-each-tuplet-seam: ready-for-dev
-  5-2-protect-existing-non-tuplet-behavior-from-tuplet-regressions: ready-for-dev
+  5-1-add-targeted-regression-coverage-for-each-tuplet-seam: done
+  5-2-protect-existing-non-tuplet-behavior-from-tuplet-regressions: done
   5-3-document-tuplet-scope-editing-rules-and-persistence-impact: ready-for-dev
   5-4-update-project-guardrails-for-future-tuplet-work: ready-for-dev
   epic-5-retrospective: optional

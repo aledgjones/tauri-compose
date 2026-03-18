@@ -270,6 +270,54 @@ mod tests {
     }
 
     #[test]
+    fn tuplet_owned_rest_preserves_tuplet_selection_payload() {
+        let mut renderer = make_test_renderer();
+        let entry = make_notation(32);
+        let spacing = make_spacing(32);
+        let selection = Selection::Rest {
+            tick: 16,
+            track_id: 42,
+            stave_id: 1,
+            flow_id: 1,
+            instrument_id: 1,
+            tuplet_id: Some(77),
+        };
+
+        draw_rest(
+            &Point { x: 0.0, y: 0.0 },
+            16,
+            "\u{E4E7}",
+            &entry,
+            false,
+            &spacing,
+            Some(&selection),
+            42,
+            1,
+            1,
+            1,
+            Some(77),
+            0.0,
+            &mut renderer,
+        );
+
+        if let DrawInstruction::Text { color, .. } = &renderer.instructions[0] {
+            assert_eq!(*color, skia_safe::Color::from_rgb(14, 165, 233));
+        } else {
+            panic!("expected Text");
+        }
+
+        assert!(matches!(
+            renderer.hit_targets[0].entry,
+            Selection::Rest {
+                tick: 16,
+                track_id: 42,
+                tuplet_id: Some(77),
+                ..
+            }
+        ));
+    }
+
+    #[test]
     fn unselected_rest_uses_black_color() {
         let mut renderer = make_test_renderer();
         let entry = make_notation(32);
