@@ -369,7 +369,8 @@ fn filter_audible_scheduled_notes<'a>(
     local_mix: &'a FxHashMap<UniqueId, InstrumentMixParams>,
     has_solo: bool,
 ) -> Vec<(&'a ScheduledNote, &'a InstrumentMixParams)> {
-    notes.iter()
+    notes
+        .iter()
         .filter_map(|note| {
             let params = local_mix.get(&note.instrument_id)?;
 
@@ -1385,9 +1386,10 @@ mod tests {
         let (score, flow_id) = make_flow_score_with_track(track);
         let scheduled = collect_scheduled_notes(&score, flow_id);
 
-        assert!(scheduled.values().flatten().all(|note| {
-            note.start.denominator == 1 && note.duration.denominator == 1
-        }));
+        assert!(scheduled
+            .values()
+            .flatten()
+            .all(|note| { note.start.denominator == 1 && note.duration.denominator == 1 }));
     }
 
     #[test]
@@ -1406,14 +1408,19 @@ mod tests {
             (second_track, "plugin-b", false, false),
         ]);
         let scheduled = collect_scheduled_notes(&score, flow_id);
-        let bucket = scheduled.get(&96).expect("expected host-only shared bucket");
+        let bucket = scheduled
+            .get(&96)
+            .expect("expected host-only shared bucket");
 
         assert_eq!(bucket.len(), 2);
         assert!(bucket
             .iter()
             .all(|note| note.start == PlaybackTick::from_tick(96)));
         assert_eq!(
-            bucket.iter().map(|note| note.instrument_id).collect::<Vec<_>>(),
+            bucket
+                .iter()
+                .map(|note| note.instrument_id)
+                .collect::<Vec<_>>(),
             instrument_ids
         );
     }
@@ -1428,8 +1435,7 @@ mod tests {
             .create_tone(80, 96, 16, 60, None, 96, Default::default(), None)
             .unwrap();
 
-        let (score, flow_id) =
-            make_flow_score_with_track_and_tempos(track, &[(0, 84), (64, 132)]);
+        let (score, flow_id) = make_flow_score_with_track_and_tempos(track, &[(0, 84), (64, 132)]);
         let scheduled = collect_scheduled_notes(&score, flow_id);
         let starts = flatten_scheduled_starts(&scheduled);
 
@@ -1467,7 +1473,9 @@ mod tests {
             (solo_track, "plugin-c", false, true),
         ]);
         let scheduled = collect_scheduled_notes(&score, flow_id);
-        let bucket = scheduled.get(&32).expect("expected shared host-only bucket");
+        let bucket = scheduled
+            .get(&32)
+            .expect("expected shared host-only bucket");
         let local_mix = score
             .instruments
             .by_id

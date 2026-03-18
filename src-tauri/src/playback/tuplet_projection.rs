@@ -268,12 +268,8 @@ mod tests {
         let mut tuplet_entries = TupletEntries::new();
 
         for (id, tick, duration, pitch) in entries {
-            tuplet_entries.insert_entry(TupletEntry::Tone(make_tone(
-                *id,
-                *tick,
-                *duration,
-                *pitch,
-            )));
+            tuplet_entries
+                .insert_entry(TupletEntry::Tone(make_tone(*id, *tick, *duration, *pitch)));
         }
 
         Entry::Tuplet(Box::new(Tuplet {
@@ -332,14 +328,12 @@ mod tests {
 
         assert_eq!(
             events,
-            vec![
-                PlaybackToneEvent {
-                    start: PlaybackTick::from_tick(80),
-                    duration: PlaybackTick::from_tick(48),
-                    pitch: 60,
-                    velocity: 96,
-                },
-            ]
+            vec![PlaybackToneEvent {
+                start: PlaybackTick::from_tick(80),
+                duration: PlaybackTick::from_tick(48),
+                pitch: 60,
+                velocity: 96,
+            },]
         );
     }
 
@@ -352,14 +346,12 @@ mod tests {
 
         assert_eq!(
             events,
-            vec![
-                PlaybackToneEvent {
-                    start: PlaybackTick::new(352, 3),
-                    duration: PlaybackTick::new(80, 3),
-                    pitch: 60,
-                    velocity: 96,
-                },
-            ]
+            vec![PlaybackToneEvent {
+                start: PlaybackTick::new(352, 3),
+                duration: PlaybackTick::new(80, 3),
+                pitch: 60,
+                velocity: 96,
+            },]
         );
     }
 
@@ -450,8 +442,8 @@ mod tests {
             ]
         );
 
-        assert!(events.iter().all(|event| {
-            event.start.denominator == 1 && event.duration.denominator == 1
-        }));
+        assert!(events
+            .iter()
+            .all(|event| { event.start.denominator == 1 && event.duration.denominator == 1 }));
     }
 }
