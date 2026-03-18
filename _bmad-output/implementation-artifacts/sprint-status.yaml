@@ -65,7 +65,7 @@ development_status:
   3-2-render-tuplet-brackets-and-numbers-correctly: done
   3-3-render-tuplet-notes-rests-ties-and-beams-coherently: done
   3-4-lay-out-tuplets-legibly-within-the-existing-score-surface: done
-  epic-3-retrospective: optional
+  epic-3-retrospective: done
 
   epic-4: backlog
   4-1-project-tuplet-timing-into-host-musical-time: backlog

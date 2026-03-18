@@ -198,6 +198,7 @@ The score page is rendered natively by Rust/Skia/Metal — all other UI (panels,
 #### Audio Gotchas
 
 - Transport state uses RAF polling during playback — never add event-based transport state updates, it will cause the transport thread to emit during playback
+- Playback is another consumer of the shared tuplet model, not a second semantics engine. Transport code may implement scheduling mechanics, but it must not locally infer tuplet ownership, boundary meaning, projection, or continuity; if playback exposes a gap, extend the shared semantic seam instead of patching transport in isolation
 - Custom binary instrument format (SCVI) — instruments are compressed/inspected via dedicated Rust CLI binaries, not runtime code
 
 ---
@@ -217,4 +218,4 @@ The score page is rendered natively by Rust/Skia/Metal — all other UI (panels,
 - Update when technology stack or conventions change
 - Review periodically — remove rules that become obvious over time
 
-Last Updated: 2026-03-04
+Last Updated: 2026-03-18
