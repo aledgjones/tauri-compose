@@ -1,3 +1,13 @@
+## Release Notes for v2.1.0
+
+### 🔧 Chores
+
+- chore: clean up unused func
+
+### 📝 Other
+
+- Merge pull request #5 from aledgjones/feat/triplets
+
 ## Release Notes for v2.0.0
 
 ### 🏗️ Features
