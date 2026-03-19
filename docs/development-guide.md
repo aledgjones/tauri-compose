@@ -63,12 +63,18 @@ In addition, the app now generates one MCP tool per automation action using the 
 
 Generated `compose_action_*` tools are the action surface. They are discoverable through standard MCP `tools/list`, publish named-parameter schemas, and dispatch through the existing automation registry.
 
+For pitch entry, `pitch_int` uses MIDI note numbers. The main reference points are `C0 = 12` and `C4 = 60`. The `accidental` field controls or overrides enharmonic spelling, and when `accidental` is `null` the backend can infer spelling from the active key signature.
+
 For note entry, keep the score wiring order explicit:
 
 1. Create flows, instruments, and players.
 2. Assign instruments to players and players to flows/layouts.
 3. Call `compose_action_score_lookup_getInstrumentTracks` to resolve the playable `track_id` values for the target flow and instrument.
 4. Write tones only to user track ids returned by that lookup. Do not write tones to flow master tracks or stave master tracks.
+
+If the lookup returns multiple staves for one instrument, write notes to the separate staff track ids it returns. Piano is the common case: right-hand material belongs on the upper-staff track id and left-hand material belongs on the lower-staff track id.
+
+Ordinary empty spans do not require explicit rest objects from MCP clients. In normal score construction, gaps are persisted as absence of tones and later materialize as derived rests in notation consumers.
 
 Tuplet authoring through MCP follows the same rule. Create the tuplet container on the owning user track, then create child tones on that same track with `tuplet_id` set to the returned container id.
 
@@ -100,6 +106,20 @@ Ownership also stays explicit when tuplets overlap existing material:
 - tones that start inside the tuplet belong in the tuplet child `entries`
 - tones that start before the tuplet remain host-owned even if their durations cross the tuplet span
 - host-owned crossing tones keep their literal durations; only the container geometry is compressed on the host track
+
+The same start-position ownership rule applies outside tuplets as well. When a tone crosses a structural boundary, its owner is determined by where it starts, not by the furthest point its duration reaches.
+
+Two minimal MCP-only authoring examples are worth keeping in mind:
+
+1. Single-staff note entry
+   - create and assign the score entities
+   - resolve the playable `track_id`
+   - create a quarter-note `C4` at tick `0` with `compose_action_score_tone_create(track_id, 0, 32, 60, null, velocity, articulations)`
+
+2. Piano note entry
+   - resolve the piano lookup
+   - use the upper-staff `track_id` for right hand and the lower-staff `track_id` for left hand
+   - do not merge both hands onto one note track just because piano is one instrument
 
 When in doubt, use this pattern for MCP-only score construction: `compose_get_started` -> create and assign score entities -> `compose_action_score_lookup_getInstrumentTracks` -> `compose_action_score_tuplet_create` -> `compose_action_score_tone_create(..., tuplet_id)`.
 

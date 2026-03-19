@@ -407,6 +407,7 @@ fn compose_domain_model() -> Value {
         "summary": "Compose stores musical state in a normalized score graph. Most mutations target one entity collection by numeric id, while ordering is usually tracked separately from by-id lookup maps.",
         "recommendedFirstSteps": [
             format!("Call {GET_STARTED_TOOL_NAME} before any {ACTION_TOOL_PREFIX}* tool when you need to create or edit score content."),
+            "Create flows, instruments, and players first, then assign instruments to players and players to flows/layouts before resolving playable track ids.",
             "Use score.lookup.getInstrumentTracks to resolve playable user track_ids before calling score.tone.create.",
             "For tuplets, create the container on the playable user track first, then create child tones on that same track with tuplet-local ticks and a tuplet_id.",
             "Use score.lookup.getScoreSlice when you need current runtime ids and structural relationships without mutating the score."
@@ -425,8 +426,44 @@ fn compose_domain_model() -> Value {
             "Flow-level tempo, time signature, and key signature entries live on the flow master track.",
             "Clef entries live on the stave master track for each stave in a flow.",
             "Tone entries live on user track_ids inside a stave, not on the master track.",
-            "An instrument can exist globally before it produces any flow staves or tracks."
+            "An instrument can exist globally before it produces any flow staves or tracks.",
+            "Keyboard-style instruments may expose multiple staves; write notes to the separate user track_ids returned for each stave rather than assuming one instrument maps to one note track."
         ],
+        "scoreConstruction": {
+            "summary": "MCP-only clients should wire score entities before attempting note entry.",
+            "recipe": [
+                "Create the flow or flows.",
+                "Create instruments.",
+                "Create players.",
+                "Assign instruments to players.",
+                "Assign players to flows.",
+                "Assign the flow and players to a layout when you want score output.",
+                "Call score.lookup.getInstrumentTracks for each target flow/instrument pair.",
+                "Write tones only to the returned user track_ids."
+            ],
+            "multiStaffNote": "If an instrument returns multiple staves, each stave has its own playable track_ids. For piano, write right-hand and left-hand material to the separate staff track ids returned by the lookup rather than merging everything onto one track."
+        },
+        "pitchEncoding": {
+            "summary": "pitch_int uses MIDI note numbers.",
+            "rules": [
+                "C0 = 12 and C4 = 60.",
+                "pitch_int is the chromatic pitch number; accidental controls or overrides enharmonic spelling.",
+                "When accidental is null, spelling can be inferred from the active key signature."
+            ],
+            "examples": [
+                { "label": "C4", "pitchInt": 60 },
+                { "label": "D4", "pitchInt": 62 },
+                { "label": "F#4/Gb4 chromatic pitch", "pitchInt": 66 }
+            ]
+        },
+        "restsAndOwnership": {
+            "summary": "Empty musical time is usually represented as absence of tones, not persisted rest entries.",
+            "rules": [
+                "Leaving a gap in a track produces derived rest notation later; clients do not need to insert explicit rest objects for ordinary empty spans.",
+                "Tone ownership is determined by where the tone starts.",
+                "Crossing tones keep their literal durations unless a specific edit operation intentionally slices them."
+            ]
+        },
         "tuplets": {
             "summary": "Tuplet containers live on the host user track, while tuplet child tones use tuplet-local timing on that same track with a tuplet_id.",
             "authoringOrder": [
@@ -452,6 +489,18 @@ fn compose_domain_model() -> Value {
                 "localChildTicks": [0, 16, 32],
                 "localChildDurations": [16, 16, 16]
             }
+        },
+        "examples": {
+            "singleStaffNoteEntry": [
+                "Create and assign the score entities.",
+                "Resolve the playable user track_id with score.lookup.getInstrumentTracks.",
+                "Create a quarter-note C4 at tick 0 with score.tone.create(track_id, 0, 32, 60, null, velocity, articulations)."
+            ],
+            "pianoNoteEntry": [
+                "Resolve the piano lookup and use the separate upper-staff and lower-staff track ids it returns.",
+                "Write right-hand notes to the upper-staff track id and left-hand notes to the lower-staff track id.",
+                "Do not assume piano is a single playable note track just because it is one instrument."
+            ]
         },
         "tickSystem": {
             "summary": "Ticks are the timeline unit used for both absolute positions and durations.",
@@ -486,7 +535,11 @@ fn compose_getting_started_guide() -> Value {
         "recommendedFirstSteps": domain_model["recommendedFirstSteps"].clone(),
         "ids": domain_model["ids"].clone(),
         "whereThingsLive": domain_model["whereThingsLive"].clone(),
+        "scoreConstruction": domain_model["scoreConstruction"].clone(),
+        "pitchEncoding": domain_model["pitchEncoding"].clone(),
+        "restsAndOwnership": domain_model["restsAndOwnership"].clone(),
         "tuplets": domain_model["tuplets"].clone(),
+        "examples": domain_model["examples"].clone(),
         "tickSystem": domain_model["tickSystem"].clone()
     })
 }

@@ -324,6 +324,10 @@ pub struct Pitch {
 }
 ```
 
+MCP `score.tone.create` and `score.tone.setPitch` use this same `Pitch.int` contract for `pitch_int`. For MCP-only clients, the practical reference points are `C0 = 12` and `C4 = 60`. Passing `accidental = null` allows the backend to infer enharmonic spelling from the active key signature; passing an explicit accidental forces the stored spelling.
+
+For MCP-only score construction, gaps usually remain persisted absence of tones rather than explicit rest entries, and multi-staff instruments such as piano expose separate playable track ids per stave through `score.lookup.getInstrumentTracks`.
+
 Pitch-to-accidental mapping uses a precomputed `ACCIDENTAL_MAP: FxHashMap<(i8, KeySignatureMode), [Accidental; 12]>` covering all 15 key signatures in both major and minor modes.
 
 ### Duration & Tick System
