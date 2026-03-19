@@ -378,18 +378,18 @@ pub fn draw_tuplet(
             TupletSide::Above => anchor_y + TUPLET_BRACKET_HOOK_HEIGHT,
             TupletSide::Below => anchor_y - TUPLET_BRACKET_HOOK_HEIGHT,
         };
-        (number_y - TUPLET_NUMBER_FONT_SIZE).min(anchor_y.min(hook_end_y))
+        (number_y - TUPLET_NUMBER_FONT_SIZE).min(anchor_y.min(hook_end_y)) + 0.6
     } else {
-        number_y - TUPLET_NUMBER_FONT_SIZE
+        number_y - TUPLET_NUMBER_FONT_SIZE + 0.6
     };
     let hit_bottom = if draw_bracket {
         let hook_end_y = match side {
             TupletSide::Above => anchor_y + TUPLET_BRACKET_HOOK_HEIGHT,
             TupletSide::Below => anchor_y - TUPLET_BRACKET_HOOK_HEIGHT,
         };
-        (number_y + 0.25).max(anchor_y.max(hook_end_y))
+        (number_y + 0.25).max(anchor_y.max(hook_end_y)) + 0.25
     } else {
-        number_y + 0.25
+        number_y + 0.5
     };
     let hit_left = if draw_bracket {
         bracket_left - (TUPLET_LINE_WIDTH / 2.0)
