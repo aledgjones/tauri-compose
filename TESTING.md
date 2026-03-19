@@ -21,6 +21,8 @@ Use the existing Rust-owned debugger diagnostics as the primary evidence path fo
 
 Run `npm run perf:render` for the manual characterization pass. This command runs the dedicated standalone release binary at `src-tauri/src/bin/performance.rs`, exercises the same backend render-plan and shared-surface composition seams as the app, and avoids changing the shipped API surface. It does not replace the debugger-backed event path for end-to-end observability validation. By default it records 5 measured samples after 1 warm-up sample per scenario. Use `npm run perf:render -- --samples 10` to change the measured sample count and `npm run perf:render -- --json` for machine-readable output.
 
+For durable branch or historical comparisons, prefer `npm run perf:render -- --samples 15 --json` and record the resulting medians in [docs/performance-baselines.md](./docs/performance-baselines.md). Keep the historical run log in that report append-only so benchmark snapshots remain comparable over time while the top-level trend summary stays current.
+
 Representative validation scenarios:
 
 1. Single-flow baseline: one visible flow representing the existing product standard of 3 instruments and 30 bars. Treat the current release-like `npm run perf:render` result as the active baseline, trigger a regression warning when the representative total median reaches or exceeds 2ms, and reevaluate that warning threshold as additional performance-sensitive features land.
@@ -39,6 +41,7 @@ Evidence reporting rules:
 - Record whether each timing came from the supported dev validation environment or a release-like run.
 - Call out broad fallback, no-op passes, or scaling cliffs explicitly.
 - Keep the current release-like baseline sample in the story or adjacent maintainer-facing docs, and refresh it when material rendering features land.
+- When a result is important enough to compare later, add a dated entry to [docs/performance-baselines.md](./docs/performance-baselines.md) with the commit, sample count, and scenario medians.
 - Keep automated tests focused on scope, ordering, and reuse behavior. Do not turn the CI suite into a microbenchmark gate.
 
 ## File Naming
