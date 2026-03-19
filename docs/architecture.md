@@ -55,6 +55,7 @@ The score itself is rendered natively by Rust/Skia/Metal — all other UI (panel
 - **`AudioContext`** — Behind `Mutex`, holds `cpal` host/device/stream, `MixerHandle`
 - **`SamplerContext`** — Behind `Mutex`, holds plugin metadata, `Cache` (decoded instrument data)
 - **`TransportContext`** — Behind `Mutex` + `TransportShared` (Arc with atomics for lock-free polling)
+- **Sample attack alignment path** — SCVI SIDX metadata -> `SampleIndex` -> sampler `CacheSample` -> transport `StreamRequest` -> streamer trim-before-resample
 
 ### Frontend Side (Display Layer)
 
@@ -84,6 +85,13 @@ Four React contexts mirror the backend state:
 - Explicit Sequence-local flow switching updates `ui.flow_id` directly; the shared top bar does not own a workflow-specific flow selector.
 - Deliberate score-object selection may hand off `ui.flow_id` to the selected object's flow through the backend selection seam.
 - Passive score interactions such as pan, zoom, hover, and miss-to-clear do not change `ui.flow_id`.
+
+### Sample attack alignment
+
+- Per-sample playback alignment is backend-owned metadata, not a transport scheduling hack and not frontend timing state.
+- `scvi_compress.rs` derives `attack_offset_frames` during SCVI builds with a build-time onset detector that uses a short-window RMS envelope plus a local baseline estimate, then stores the first meaningful RMS crossing as the onset so slow blooms and bow noise are kept at the start of the audible bloom instead of trimmed to a later high-energy point.
+- `ScviContainer::open()` loads that offset into `SampleIndex`, the sampler cache carries it through `CacheSample`, transport threads it into `StreamRequest`, and `streamer.rs` discards those leading source frames before resampling or pitch work.
+- Older SCVI containers remain readable because a zero-filled offset decodes to `attack_offset_frames = 0`; rebuilt SCVI assets are required to benefit from alignment.
 
 ---
 

@@ -205,6 +205,7 @@ The score page is rendered natively by Rust/Skia/Metal — all other UI (panels,
 
 - Transport state uses RAF polling during playback — never add event-based transport state updates, it will cause the transport thread to emit during playback
 - Playback is another consumer of the shared tuplet model, not a second semantics engine. Transport code may implement scheduling mechanics, but it must not locally infer tuplet ownership, boundary meaning, projection, or continuity; if playback exposes a gap, extend the shared semantic seam instead of patching transport in isolation
+- Sample attack alignment is backend-owned playback metadata. Derive and persist `attack_offset_frames` in SCVI/sample seams, thread it through sampler and transport requests, and trim in the streamer before resample/pitch processing instead of inventing frontend timing offsets or per-instrument transport hacks
 - Nested tuplets, broader arbitrary ratios, and generalized sequencer-native tuplet editing remain explicit post-MVP work. Do not normalize them into current rules or documentation.
 - Custom binary instrument format (SCVI) — instruments are compressed/inspected via dedicated Rust CLI binaries, not runtime code
 

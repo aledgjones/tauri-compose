@@ -19,17 +19,31 @@
 /// ```
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
+use std::collections::VecDeque;
 use std::env;
 use std::fs::{self, File};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use symphonia::core::audio::SampleBuffer;
+use symphonia::core::codecs::DecoderOptions;
+use symphonia::core::formats::FormatOptions;
+use symphonia::core::io::MediaSourceStream;
+use symphonia::core::meta::MetadataOptions;
+use symphonia::core::probe::Hint;
+use symphonia::default::get_probe;
 
 // ── Constants ──────────────────────────────────────────────────────────
 
 const MAGIC: &[u8; 4] = b"SCVI";
 const CONTAINER_VERSION: u16 = 1;
 const HEADER_SIZE: u64 = 64;
+const ATTACK_THRESHOLD_AMPLITUDE: f32 = 0.005;
+const MAX_ATTACK_OFFSET_MS: f64 = 750.0;
+const ATTACK_ANALYSIS_WINDOW_MS: u32 = 5;
+const ATTACK_BASELINE_WINDOW_MS: u32 = 50;
+const ATTACK_ABSOLUTE_RMS_FLOOR: f32 = ATTACK_THRESHOLD_AMPLITUDE * 0.35;
+const ATTACK_BASELINE_MULTIPLIER: f32 = 3.0;
 
 // ── Source manifest structures (read from instrument JSON) ─────────────
 
@@ -147,8 +161,10 @@ struct SampleIndexEntry {
     sample_rate: u32,
     /// Number of channels (1 = mono, 2 = stereo)
     channels: u8,
+    /// Leading source-rate frames to discard before playback so audible attacks align.
+    attack_offset_frames: u32,
     /// Reserved padding bytes
-    _reserved: [u8; 7],
+    _reserved: [u8; 3],
 }
 
 const SIDX_ENTRY_SIZE: usize = std::mem::size_of::<SampleIndexEntry>();
@@ -251,6 +267,244 @@ fn probe_audio(path: &Path) -> Result<(u32, u8), Box<dyn std::error::Error>> {
     Ok((sample_rate, channels))
 }
 
+fn window_frames(sample_rate: u32, window_ms: u32) -> usize {
+    ((sample_rate as u64 * window_ms as u64).div_ceil(1000)).max(1) as usize
+}
+
+fn build_rms_envelope(frame_energies: &[f32], window_frames: usize) -> Vec<f32> {
+    if frame_energies.is_empty() {
+        return Vec::new();
+    }
+
+    let mut envelope = Vec::with_capacity(frame_energies.len());
+    let mut rolling = VecDeque::with_capacity(window_frames);
+    let mut rolling_sum = 0.0_f32;
+
+    for &energy in frame_energies {
+        rolling.push_back(energy);
+        rolling_sum += energy;
+
+        if rolling.len() > window_frames {
+            rolling_sum -= rolling.pop_front().unwrap_or(0.0);
+        }
+
+        let mean = rolling_sum / rolling.len() as f32;
+        envelope.push(mean.sqrt());
+    }
+
+    envelope
+}
+
+fn estimate_baseline_rms(rms_envelope: &[f32], sample_rate: u32) -> f32 {
+    if rms_envelope.is_empty() {
+        return 0.0;
+    }
+
+    let baseline_frames =
+        window_frames(sample_rate, ATTACK_BASELINE_WINDOW_MS).min(rms_envelope.len());
+    let mut baseline = rms_envelope[..baseline_frames].to_vec();
+    baseline.sort_by(|left, right| left.partial_cmp(right).unwrap_or(std::cmp::Ordering::Equal));
+
+    let quiet_count = ((baseline.len() as f32) * 0.5).ceil() as usize;
+    let quiet_count = quiet_count.max(1).min(baseline.len());
+
+    baseline[..quiet_count].iter().copied().sum::<f32>() / quiet_count as f32
+}
+
+fn detect_attack_offset_from_rms_envelope(frame_energies: &[f32], sample_rate: u32) -> u32 {
+    if frame_energies.is_empty() || sample_rate == 0 {
+        return 0;
+    }
+
+    let analysis_window_frames = window_frames(sample_rate, ATTACK_ANALYSIS_WINDOW_MS);
+    let rms_envelope = build_rms_envelope(frame_energies, analysis_window_frames);
+    let baseline_rms = estimate_baseline_rms(&rms_envelope, sample_rate);
+    let relative_floor = baseline_rms * ATTACK_BASELINE_MULTIPLIER;
+    let activation_floor = ATTACK_ABSOLUTE_RMS_FLOOR.max(relative_floor);
+
+    for (index, &rms) in rms_envelope.iter().enumerate() {
+        if rms >= activation_floor {
+            return index as u32;
+        }
+    }
+
+    0
+}
+
+fn detect_attack_offset_frames(flac_path: &Path) -> Result<u32, Box<dyn std::error::Error>> {
+    let file = File::open(flac_path)?;
+    let mss = MediaSourceStream::new(Box::new(file), Default::default());
+    let mut hint = Hint::new();
+    hint.with_extension("flac");
+
+    let probed = get_probe().format(
+        &hint,
+        mss,
+        &FormatOptions::default(),
+        &MetadataOptions::default(),
+    )?;
+
+    let mut format = probed.format;
+    let track = format
+        .tracks()
+        .iter()
+        .find(|track| track.codec_params.codec != symphonia::core::codecs::CODEC_TYPE_NULL)
+        .ok_or("No audio track found")?;
+
+    let sample_rate = track
+        .codec_params
+        .sample_rate
+        .ok_or("Missing sample rate while analyzing attack offset")?;
+    let channels = track
+        .codec_params
+        .channels
+        .map(|channels| channels.count())
+        .ok_or("Missing channel count while analyzing attack offset")?;
+    let mut decoder =
+        symphonia::default::get_codecs().make(&track.codec_params, &DecoderOptions::default())?;
+    let track_id = track.id;
+    let mut sample_buf: Option<SampleBuffer<f32>> = None;
+    let mut frame_energies: Vec<f32> = Vec::new();
+
+    loop {
+        let packet = match format.next_packet() {
+            Ok(packet) => packet,
+            Err(symphonia::core::errors::Error::IoError(_)) => break,
+            Err(symphonia::core::errors::Error::ResetRequired) => continue,
+            Err(error) => return Err(error.into()),
+        };
+
+        if packet.track_id() != track_id {
+            continue;
+        }
+
+        let decoded = match decoder.decode(&packet) {
+            Ok(decoded) => decoded,
+            Err(symphonia::core::errors::Error::IoError(_)) => break,
+            Err(symphonia::core::errors::Error::ResetRequired) => continue,
+            Err(error) => return Err(error.into()),
+        };
+
+        if sample_buf.is_none() {
+            sample_buf = Some(SampleBuffer::<f32>::new(
+                decoded.capacity() as u64,
+                *decoded.spec(),
+            ));
+        }
+
+        let buf = sample_buf.as_mut().unwrap();
+        buf.copy_interleaved_ref(decoded);
+        let samples = buf.samples();
+
+        for frame in samples.chunks_exact(channels) {
+            let mean_square = frame
+                .iter()
+                .fold(0.0_f32, |sum, sample| sum + sample * sample)
+                / channels as f32;
+            frame_energies.push(mean_square);
+        }
+    }
+
+    Ok(detect_attack_offset_from_rms_envelope(
+        &frame_energies,
+        sample_rate,
+    ))
+}
+
+fn attack_offset_ms(attack_offset_frames: u32, sample_rate: u32) -> f64 {
+    if sample_rate == 0 {
+        0.0
+    } else {
+        attack_offset_frames as f64 * 1000.0 / sample_rate as f64
+    }
+}
+
+fn sanitize_attack_offset_frames(attack_offset_frames: u32, sample_rate: u32) -> (u32, bool) {
+    if attack_offset_ms(attack_offset_frames, sample_rate) > MAX_ATTACK_OFFSET_MS {
+        (0, true)
+    } else {
+        (attack_offset_frames, false)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn build_energy_signal(prefix: usize, plateau: usize, level: f32) -> Vec<f32> {
+        let mut signal = vec![0.0; prefix];
+        signal.extend(std::iter::repeat_n(level * level, plateau));
+        signal
+    }
+
+    #[test]
+    fn sanitize_attack_offset_keeps_plausible_offsets() {
+        let (frames, rejected) = sanitize_attack_offset_frames(26_000, 44_100);
+
+        assert_eq!(frames, 26_000);
+        assert!(!rejected);
+    }
+
+    #[test]
+    fn sanitize_attack_offset_rejects_implausible_offsets() {
+        let (frames, rejected) = sanitize_attack_offset_frames(40_000, 44_100);
+
+        assert_eq!(frames, 0);
+        assert!(rejected);
+    }
+
+    #[test]
+    fn rms_detector_finds_clear_attack_after_quiet_prefix() {
+        let sample_rate = 48_000;
+        let prefix = window_frames(sample_rate, 60);
+        let plateau = window_frames(sample_rate, 30);
+        let frame_energies = build_energy_signal(prefix, plateau, 0.05);
+
+        let attack = detect_attack_offset_from_rms_envelope(&frame_energies, sample_rate);
+
+        assert!(attack >= prefix.saturating_sub(window_frames(sample_rate, 5)) as u32);
+        assert!(attack <= prefix as u32 + 1);
+    }
+
+    #[test]
+    fn rms_detector_ignores_low_noise_floor() {
+        let sample_rate = 48_000;
+        let frame_energies = vec![0.000_000_5; window_frames(sample_rate, 200)];
+
+        let attack = detect_attack_offset_from_rms_envelope(&frame_energies, sample_rate);
+
+        assert_eq!(attack, 0);
+    }
+
+    #[test]
+    fn rms_detector_handles_immediate_attack() {
+        let sample_rate = 48_000;
+        let frame_energies = build_energy_signal(0, window_frames(sample_rate, 40), 0.05);
+
+        let attack = detect_attack_offset_from_rms_envelope(&frame_energies, sample_rate);
+
+        assert!(attack <= window_frames(sample_rate, 5) as u32);
+    }
+
+    #[test]
+    fn rms_detector_triggers_at_start_of_slow_bloom() {
+        let sample_rate = 48_000;
+        let prefix = window_frames(sample_rate, 20);
+        let bloom = window_frames(sample_rate, 40);
+        let mut frame_energies = vec![0.0; prefix];
+
+        for step in 0..bloom {
+            let amplitude = 0.002 + (step as f32 / bloom as f32) * 0.02;
+            frame_energies.push(amplitude * amplitude);
+        }
+
+        let attack = detect_attack_offset_from_rms_envelope(&frame_energies, sample_rate);
+
+        assert!(attack >= prefix.saturating_sub(window_frames(sample_rate, 5)) as u32);
+        assert!(attack <= prefix as u32 + window_frames(sample_rate, 5) as u32);
+    }
+}
+
 // ── Integrity check ────────────────────────────────────────────────────
 
 fn integrity_check(instrument_dir: &Path, manifest: &SourceManifest) -> Result<(), Vec<String>> {
@@ -334,8 +588,9 @@ fn compile_instrument(
     // Maps source path → (blake3 hash)
     // Maps blake3 hash → (sample_id, flac_path, sample_rate, channels)
     let mut path_to_hash: BTreeMap<String, String> = BTreeMap::new();
-    let mut hash_to_sample: BTreeMap<String, (u32, PathBuf, u32, u8)> = BTreeMap::new();
+    let mut hash_to_sample: BTreeMap<String, (u32, PathBuf, u32, u8, u32)> = BTreeMap::new();
     let mut next_sample_id: u32 = 0;
+    let mut rejected_attack_offsets = 0usize;
 
     // Collect samples in manifest order, zones sorted by pitch within each articulation
     for articulation in &manifest.articulations {
@@ -367,9 +622,30 @@ fn compile_instrument(
                     let stem = format!("{}_{}", manifest.meta.id, next_sample_id);
                     let flac_path = encode_to_flac(&abs_path, temp_dir, &stem)?;
 
+                    let detected_attack_offset_frames = detect_attack_offset_frames(&flac_path)?;
+                    let (attack_offset_frames, rejected) =
+                        sanitize_attack_offset_frames(detected_attack_offset_frames, sample_rate);
+
+                    if rejected {
+                        rejected_attack_offsets += 1;
+                        eprintln!(
+                            "    ⚠ Rejected implausible attack offset for {}: {} frames ({:.2} ms) exceeds {:.0} ms",
+                            sample.path,
+                            detected_attack_offset_frames,
+                            attack_offset_ms(detected_attack_offset_frames, sample_rate),
+                            MAX_ATTACK_OFFSET_MS
+                        );
+                    }
+
                     hash_to_sample.insert(
                         hash.clone(),
-                        (next_sample_id, flac_path, sample_rate, channels),
+                        (
+                            next_sample_id,
+                            flac_path,
+                            sample_rate,
+                            channels,
+                            attack_offset_frames,
+                        ),
                     );
                     next_sample_id += 1;
                 }
@@ -392,7 +668,7 @@ fn compile_instrument(
     let path_to_id: BTreeMap<String, u32> = path_to_hash
         .iter()
         .map(|(path, hash)| {
-            let (id, _, _, _) = &hash_to_sample[hash];
+            let (id, _, _, _, _) = &hash_to_sample[hash];
             (path.clone(), *id)
         })
         .collect();
@@ -452,17 +728,19 @@ fn compile_instrument(
     // ── Phase 3: Build SIDX and SDAT ───────────────────────────────────
 
     // Sort samples by ID for deterministic output
-    let mut sorted_samples: Vec<(u32, &PathBuf, u32, u8)> = hash_to_sample
+    let mut sorted_samples: Vec<(u32, &PathBuf, u32, u8, u32)> = hash_to_sample
         .values()
-        .map(|(id, path, sr, ch)| (*id, path, *sr, *ch))
+        .map(|(id, path, sr, ch, attack_offset_frames)| {
+            (*id, path, *sr, *ch, *attack_offset_frames)
+        })
         .collect();
-    sorted_samples.sort_by_key(|(id, _, _, _)| *id);
+    sorted_samples.sort_by_key(|(id, _, _, _, _)| *id);
 
     // Read all FLAC data and build index entries
     let mut sdat_buffer: Vec<u8> = Vec::new();
     let mut sidx_entries: Vec<SampleIndexEntry> = Vec::new();
 
-    for (sample_id, flac_path, sample_rate, channels) in &sorted_samples {
+    for (sample_id, flac_path, sample_rate, channels, attack_offset_frames) in &sorted_samples {
         let flac_data = fs::read(flac_path)?;
         let offset = sdat_buffer.len() as u64;
         let length = flac_data.len() as u64;
@@ -475,15 +753,42 @@ fn compile_instrument(
             length,
             sample_rate: *sample_rate,
             channels: *channels,
-            _reserved: [0u8; 7],
+            attack_offset_frames: *attack_offset_frames,
+            _reserved: [0u8; 3],
         });
     }
+
+    let analyzed_samples = sorted_samples.len();
+    let non_zero_offsets = sorted_samples
+        .iter()
+        .filter(|(_, _, _, _, attack_offset_frames)| *attack_offset_frames > 0)
+        .count();
+    let max_attack_offset = sorted_samples
+        .iter()
+        .map(|(_, _, sample_rate, _, attack_offset_frames)| {
+            (
+                *attack_offset_frames,
+                attack_offset_ms(*attack_offset_frames, *sample_rate),
+            )
+        })
+        .max_by(|left, right| left.0.cmp(&right.0))
+        .unwrap_or((0, 0.0));
 
     println!(
         "    ✓ SDAT chunk: {} bytes ({} samples)",
         sdat_buffer.len(),
         sidx_entries.len()
     );
+    println!(
+        "    ✓ Attack offsets: {}/{} non-zero, max {} frames ({:.2} ms)",
+        non_zero_offsets, analyzed_samples, max_attack_offset.0, max_attack_offset.1
+    );
+    if rejected_attack_offsets > 0 {
+        println!(
+            "    ⚠ Rejected {} implausible offsets above {:.0} ms",
+            rejected_attack_offsets, MAX_ATTACK_OFFSET_MS
+        );
+    }
 
     // ── Phase 4: Read optional cover image ─────────────────────────────
 

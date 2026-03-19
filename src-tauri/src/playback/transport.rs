@@ -312,15 +312,32 @@ fn render_note(
     };
 
     let sample = &velocity_layer.samples[sample_index].sample;
-    let channels = sample.channels as usize;
+    let (request, stream_buffer, channels) = build_stream_request(
+        sample,
+        pitch_offset,
+        duration_seconds,
+        sample_rate,
+        volume,
+        pan,
+    );
 
-    // Duration and envelope
+    streamer::start_stream(request);
+    mixer_handle.play(stream_buffer, channels);
+}
+
+fn build_stream_request(
+    sample: &crate::playback::sampler::CacheSample,
+    pitch_offset: i32,
+    duration_seconds: f64,
+    sample_rate: u32,
+    volume: u8,
+    pan: u8,
+) -> (StreamRequest, Arc<StreamBuffer>, usize) {
+    let channels = sample.channels as usize;
     let duration_frames = (duration_seconds * sample_rate as f64).ceil() as usize;
     let release_frames = (sample_rate as f64 * 0.15).ceil() as usize;
     let max_frames = duration_frames + release_frames;
-
     let (vol_gain, pan_left, pan_right) = instrument_gain_and_pan(volume, pan);
-
     let stream_buffer = Arc::new(StreamBuffer::new());
 
     let request = StreamRequest {
@@ -330,6 +347,7 @@ fn render_note(
         source_sample_rate: sample.source_sample_rate,
         target_sample_rate: sample_rate,
         channels,
+        attack_offset_frames: sample.attack_offset_frames,
         pitch_offset,
         max_output_frames: max_frames,
         fade_start_frame: duration_frames,
@@ -339,8 +357,7 @@ fn render_note(
         stream_buffer: stream_buffer.clone(),
     };
 
-    streamer::start_stream(request);
-    mixer_handle.play(stream_buffer, channels);
+    (request, stream_buffer, channels)
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -818,6 +835,7 @@ mod tests {
     use crate::score::staves::Stave;
     use crate::score::tracks::Track;
     use rustc_hash::FxHashSet;
+    use std::path::PathBuf;
 
     fn make_transport_shared() -> TransportShared {
         TransportShared {
@@ -1082,6 +1100,27 @@ mod tests {
                     .flat_map(|notes| notes.iter().map(|note| note.start.clone()))
             })
             .collect()
+    }
+
+    #[test]
+    fn build_stream_request_threads_attack_offsets_into_playback_requests() {
+        let sample = crate::playback::sampler::CacheSample {
+            channels: 2,
+            container_path: PathBuf::from("/tmp/test.scvi"),
+            source_sample_rate: 44_100,
+            flac_offset: 512,
+            flac_length: 2_048,
+            attack_offset_frames: 321,
+        };
+
+        let (request, _buffer, channels) = build_stream_request(&sample, 0, 0.5, 48_000, 100, 64);
+
+        assert_eq!(channels, 2);
+        assert_eq!(request.attack_offset_frames, 321);
+        assert_eq!(request.source_sample_rate, 44_100);
+        assert_eq!(request.flac_offset, 512);
+        assert_eq!(request.max_output_frames, 31_200);
+        assert_eq!(request.fade_start_frame, 24_000);
     }
 
     #[test]

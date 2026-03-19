@@ -38,7 +38,8 @@ struct RawSampleIndexEntry {
     length: u64,
     sample_rate: u32,
     channels: u8,
-    _reserved: [u8; 7],
+    attack_offset_frames: u32,
+    _reserved: [u8; 3],
 }
 
 const SIDX_ENTRY_SIZE: usize = std::mem::size_of::<RawSampleIndexEntry>();
@@ -105,6 +106,33 @@ pub struct SampleIndex {
     pub length: u64,
     pub sample_rate: u32,
     pub channels: u8,
+    pub attack_offset_frames: u32,
+}
+
+fn parse_sample_index_entries(
+    sidx_buf: &[u8],
+    entry_count: usize,
+    sdat_offset: u64,
+) -> Vec<SampleIndex> {
+    let mut samples = Vec::with_capacity(entry_count);
+
+    for i in 0..entry_count {
+        let offset = i * SIDX_ENTRY_SIZE;
+        let entry: RawSampleIndexEntry = unsafe {
+            std::ptr::read_unaligned(sidx_buf[offset..].as_ptr() as *const RawSampleIndexEntry)
+        };
+
+        samples.push(SampleIndex {
+            sample_id: entry.sample_id,
+            file_offset: sdat_offset + entry.offset,
+            length: entry.length,
+            sample_rate: entry.sample_rate,
+            channels: entry.channels,
+            attack_offset_frames: entry.attack_offset_frames,
+        });
+    }
+
+    samples
 }
 
 // ── Container handle ───────────────────────────────────────────────────
@@ -158,21 +186,7 @@ impl ScviContainer {
         let mut sidx_buf = vec![0u8; header.sidx_size as usize];
         file.read_exact(&mut sidx_buf)?;
 
-        let mut samples = Vec::with_capacity(entry_count);
-        for i in 0..entry_count {
-            let offset = i * SIDX_ENTRY_SIZE;
-            let entry: RawSampleIndexEntry = unsafe {
-                std::ptr::read_unaligned(sidx_buf[offset..].as_ptr() as *const RawSampleIndexEntry)
-            };
-
-            samples.push(SampleIndex {
-                sample_id: entry.sample_id,
-                file_offset: header.sdat_offset + entry.offset,
-                length: entry.length,
-                sample_rate: entry.sample_rate,
-                channels: entry.channels,
-            });
-        }
+        let samples = parse_sample_index_entries(&sidx_buf, entry_count, header.sdat_offset);
 
         // ── Detect COVER region ────────────────────────────────────────
         let sdat_end = header.sdat_offset + header.sdat_size;
@@ -209,5 +223,77 @@ impl ScviContainer {
             }
             None => Ok(None),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn entry_bytes(entry: RawSampleIndexEntry) -> [u8; SIDX_ENTRY_SIZE] {
+        let mut bytes = [0u8; SIDX_ENTRY_SIZE];
+
+        unsafe {
+            std::ptr::copy_nonoverlapping(
+                &entry as *const RawSampleIndexEntry as *const u8,
+                bytes.as_mut_ptr(),
+                SIDX_ENTRY_SIZE,
+            );
+        }
+
+        bytes
+    }
+
+    #[test]
+    fn parse_sample_index_entries_defaults_zero_attack_offsets() {
+        let entry = RawSampleIndexEntry {
+            sample_id: 7,
+            offset: 128,
+            length: 512,
+            sample_rate: 44_100,
+            channels: 2,
+            attack_offset_frames: 0,
+            _reserved: [0; 3],
+        };
+
+        let bytes = entry_bytes(entry);
+        let samples = parse_sample_index_entries(&bytes, 1, 4_096);
+
+        assert_eq!(samples.len(), 1);
+        assert_eq!(samples[0].sample_id, 7);
+        assert_eq!(samples[0].file_offset, 4_224);
+        assert_eq!(samples[0].attack_offset_frames, 0);
+    }
+
+    #[test]
+    fn parse_sample_index_entries_reads_non_zero_attack_offsets() {
+        let first = RawSampleIndexEntry {
+            sample_id: 1,
+            offset: 64,
+            length: 256,
+            sample_rate: 48_000,
+            channels: 1,
+            attack_offset_frames: 240,
+            _reserved: [0; 3],
+        };
+        let second = RawSampleIndexEntry {
+            sample_id: 2,
+            offset: 320,
+            length: 1_024,
+            sample_rate: 48_000,
+            channels: 2,
+            attack_offset_frames: 1_024,
+            _reserved: [0; 3],
+        };
+
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(&entry_bytes(first));
+        bytes.extend_from_slice(&entry_bytes(second));
+
+        let samples = parse_sample_index_entries(&bytes, 2, 8_192);
+
+        assert_eq!(samples[0].attack_offset_frames, 240);
+        assert_eq!(samples[1].attack_offset_frames, 1_024);
+        assert_eq!(samples[1].file_offset, 8_512);
     }
 }
