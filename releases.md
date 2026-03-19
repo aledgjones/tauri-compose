@@ -1,3 +1,139 @@
+## Release Notes for v2.0.0
+
+### 🏗️ Features
+
+- feat: performance baselines
+- feat: unify stem directions inside tuplets
+- feat: cleanup mcp onboarding
+- feat(SC-175): draw tuplets on mini piano roll
+- feat: gould style spacing across rhythms
+- feat(4.4): keep MVP playback scoped to active flow
+- feat(4.3): preserve host-only playback behavior
+- feat(4.2): finalize tuplet playback ordering
+- feat(4.1): tuple playback
+- feat(3.2, 3.3, 3.4): triplet notation
+- feat(3.2): splttiing
+- feat(2.5): tuplet aware slice and delete
+- feat(2.3): basic tone editing
+- feat(2.2): finish tuplet pitch editing parity
+- feat(2.1): tuple tone selection info
+- feat: epic 1 retro
+- feat(1.7): validate tuplet file workflow contract
+- feat: upgrade bmad prep
+- feat(1.6): tuplet file loading regression tests
+- feat(1.5): reconcile tuplets over existing material
+- feat(1.4): add tuplet note entry in sequencer
+- feat(1.3a): tuplet entries structures non-recursive
+- feat: course correct
+- feat(1.3): description
+- feat(1.2): description
+- feat(1.2): add tuplet popover creation flow
+- feat(1.1): init tuplets
+- feat(3.5): set current performance baseline warning
+- feat(3.3): isolate recalculation to affected flow
+- feat(2.1): flow rendering debug info
+- feat(2.5): preserve active flow across score and sequence
+- feat(2.4): verify multi-flow popover anchors
+- feat(2.3): simplify selection clearing for deletes
+- feat(2.1): hit tet validation
+- feat(1.6): render all visible flows on one surface
+- feat(1.4): refine adjacent flow score coherence
+- feat(1.4): add per-flow page backgrounds
+- feat(1.3): renderer scrolling
+- feat: render two flows on a shared score surface
+- feat(bmad): PRD
+- feat: leading quarter rest in compound
+- feat: ensure writtable full bar notes
+- feat(SC-171): compound time signature initial dumb pass
+- feat: tighten glyph rendering, and debug
+- feat: auto select newly created entries
+
+### 🐞 Fixes
+
+- fix: tighten tuplet hit targets
+- fix: sample trimming
+- fix: mcp documentation
+- fix: tuplet model description in mcp server
+- fix: formatting
+- fix: app hang due to state access.
+- fix: mcp alignment
+- fix: tuplet timings encoded in agent instructions
+- fix: snap expectations.
+- fix: no tuple highlights
+- fix: tweak tuple background colour
+- fix: tuple popover trigger
+- fix: epic cleanup
+- fix: more deterministic empty bar spacing
+- fix: 6/8 test cases
+- fix: only apply some rules at eigth resolution
+- fix: unify test script names
+- fix: sync with main
+- fix: 3/4 split correct when quarter offbeat.
+- fix: small labeling tweak
+- fix: tempo styling
+- fix: tempo offset
+- fix: better empty states
+- fix: disable hotkeys responding when inside a text input
+- fix: update c/cutc text
+- fix: tweak tempo standard vetical offset
+- fix(release): revert migrations next to template
+
+### 🔧 Chores
+
+- chore: epic 5 retro
+- chore: epic 5 stories
+- chore: epic 4 retro
+- chore: epic 3 retro
+- chore: update stories to be more procise
+- chore: prep epic 3
+- chore: epic 2 retro
+- chore(2.5): mark story done
+- chore: update story to follow arch guidlines
+- chore(2.4): story
+- chore: upgrade bmad
+- chore: planning
+- chore: remove accidental reapply of file
+- chore: formatting
+- chore: archive stale docs
+- chore: tuplet prep
+- chore: complete prd
+- chore: cleanup
+- chore: cleanup sprint status
+- chore: epic 4 retro
+- chore: epic 4 prep
+- chore: refactor render trigger API
+- chore(3.1): prep
+- chore: epic 2 retro
+- chore: epic 1 retro
+- chore(story): close rejected flow label direction
+- chore(plan): align multi-flow roadmap and story scope
+- chore: sprint prep
+- chore: epics docs
+- chore: architecture docs
+- chore: ux docs setup
+- chore: PRD review
+- chore: fix formatting
+- chore: refactor tests into unified scenario structure
+
+### 📝 Other
+
+- Refine forward tuplet spacing successor logic
+- docs(epic-5): finalize tuplet docs and guardrails
+- test(epic-5): harden tuplet regression coverage
+- Complete Story 2.4 tuplet drag and snap work
+- Merge branch 'main' into feat/triplets
+- Expose Compose automation as generated MCP tools
+- Merge branch 'main' into feat/triplets
+- Add app-hosted MCP automation server
+- Merge pull request #4 from aledgjones/feat/multi-flow-rendering
+- docs(4.4): record offline-first boundary audit
+- test(4.3): preserve active-flow playback behavior
+- test(4.2): guard desktop workflow shell behavior
+- test(4.1): guard document round-trip behavior
+- test(3.2): add multi-flow notation safety regressions
+- test(2.2): cover multi-flow selection consumers
+- Merge pull request #3 from aledgjones/feat/SC-171-compound-time-signatures
+
 ## Release Notes for v1.25.2
 
 ### 🏗️ Features

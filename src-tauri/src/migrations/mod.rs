@@ -1,6 +1,4 @@
 // BEGIN GENERATED MIGRATIONS
-#[path = "next.rs"]
-mod next;
 #[path = "1.25.0.rs"]
 mod v1_25_0;
 #[path = "1.25.2.rs"]
@@ -55,7 +53,6 @@ lazy_static! {
     pub static ref MIGRATIONS: Vec<MigrationDescriptor> = vec![
         MigrationDescriptor::shipped("1.25.0", v1_25_0::migrate),
         MigrationDescriptor::shipped("1.25.2", v1_25_2::migrate),
-        MigrationDescriptor::pending_next(next::migrate),
     ];
 }
 
