@@ -189,34 +189,20 @@ fn jsonrpc_error(id: Value, code: i64, message: &str) -> Value {
 }
 
 const GET_STARTED_TOOL_NAME: &str = "compose_get_started";
-const DESCRIBE_MODEL_TOOL_NAME: &str = "compose_describe_model";
 const ACTION_TOOL_PREFIX: &str = "compose_action_";
 
 fn tool_definitions() -> Vec<Value> {
-    let mut tools = vec![
-        json!({
-            "name": DESCRIBE_MODEL_TOOL_NAME,
-            "description": format!(
-                "Describe the Compose score data model, id semantics, and structural relationships used by the MCP actions. Use {GET_STARTED_TOOL_NAME} for the recommended first-step workflow and {DESCRIBE_MODEL_TOOL_NAME} when you want the full reference model."
-            ),
-            "inputSchema": {
-                "type": "object",
-                "properties": {},
-                "additionalProperties": false
-            }
-        }),
-        json!({
-            "name": GET_STARTED_TOOL_NAME,
-            "description": format!(
-                "Get the recommended first-step guide for Compose MCP usage. This is the onboarding entrypoint before calling generated action tools when you need ids, tick rules, track lookup guidance, and safe action ordering."
-            ),
-            "inputSchema": {
-                "type": "object",
-                "properties": {},
-                "additionalProperties": false
-            }
-        }),
-    ];
+    let mut tools = vec![json!({
+        "name": GET_STARTED_TOOL_NAME,
+        "description": format!(
+            "Get the comprehensive first-step guide for Compose MCP usage. This is the onboarding entrypoint before calling generated action tools when you need action ordering, ids, tick rules, track lookup guidance, and the score data model in one payload."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": false
+        }
+    })];
 
     tools.extend(action_tool_definitions());
     tools
@@ -320,7 +306,6 @@ async fn handle_tool_call(
     state: &AutomationApiState,
 ) -> Result<Value, String> {
     match tool_name {
-        DESCRIBE_MODEL_TOOL_NAME => Ok(text_result(compose_domain_model())),
         GET_STARTED_TOOL_NAME => Ok(text_result(compose_getting_started_guide())),
         _ => {
             if let Some(action_definition) = find_action_definition_by_tool_name(tool_name) {
@@ -402,125 +387,123 @@ fn text_result(payload: Value) -> Value {
     })
 }
 
-fn compose_domain_model() -> Value {
-    json!({
+fn compose_getting_started_guide() -> Value {
+    let recommended_first_steps = json!([
+        format!("Call {GET_STARTED_TOOL_NAME} before any {ACTION_TOOL_PREFIX}* tool when you need to create or edit score content."),
+        "Create flows, instruments, and players first, then assign instruments to players and players to flows/layouts before resolving playable track ids.",
+        "Use score.lookup.getInstrumentTracks to resolve playable user track_ids before calling score.tone.create.",
+        "For tuplets, create the container on the playable user track first, then create child tones on that same track with tuplet-local ticks and a tuplet_id.",
+        "Use score.lookup.getScoreSlice when you need current runtime ids and structural relationships without mutating the score."
+    ]);
+    let domain_model = json!({
         "summary": "Compose stores musical state in a normalized score graph. Most mutations target one entity collection by numeric id, while ordering is usually tracked separately from by-id lookup maps.",
-        "recommendedFirstSteps": [
-            format!("Call {GET_STARTED_TOOL_NAME} before any {ACTION_TOOL_PREFIX}* tool when you need to create or edit score content."),
-            "Create flows, instruments, and players first, then assign instruments to players and players to flows/layouts before resolving playable track ids.",
-            "Use score.lookup.getInstrumentTracks to resolve playable user track_ids before calling score.tone.create.",
-            "For tuplets, create the container on the playable user track first, then create child tones on that same track with tuplet-local ticks and a tuplet_id.",
-            "Use score.lookup.getScoreSlice when you need current runtime ids and structural relationships without mutating the score."
-        ],
-        "ids": {
-            "type": "UniqueId",
-            "runtimeType": "number",
-            "description": "Entity ids are numeric runtime-generated identifiers. They are meaningful only within the currently loaded score state and should be treated as opaque references rather than stable semantic names.",
-            "notes": [
-                "Different entity kinds share the same numeric id space.",
-                "Ids are safe to pass back into later MCP calls after creation.",
-                "Ids should not be inferred from labels like instrument long_name or flow title."
-            ]
-        },
-        "whereThingsLive": [
-            "Flow-level tempo, time signature, and key signature entries live on the flow master track.",
-            "Clef entries live on the stave master track for each stave in a flow.",
-            "Tone entries live on user track_ids inside a stave, not on the master track.",
-            "An instrument can exist globally before it produces any flow staves or tracks.",
-            "Keyboard-style instruments may expose multiple staves; write notes to the separate user track_ids returned for each stave rather than assuming one instrument maps to one note track."
-        ],
-        "scoreConstruction": {
-            "summary": "MCP-only clients should wire score entities before attempting note entry.",
-            "recipe": [
-                "Create the flow or flows.",
-                "Create instruments.",
-                "Create players.",
-                "Assign instruments to players.",
-                "Assign players to flows.",
-                "Assign the flow and players to a layout when you want score output.",
-                "Call score.lookup.getInstrumentTracks for each target flow/instrument pair.",
-                "Write tones only to the returned user track_ids."
+        "sections": {
+            "ids": {
+                "type": "UniqueId",
+                "runtimeType": "number",
+                "description": "Entity ids are numeric runtime-generated identifiers. They are meaningful only within the currently loaded score state and should be treated as opaque references rather than stable semantic names.",
+                "notes": [
+                    "Different entity kinds share the same numeric id space.",
+                    "Ids are safe to pass back into later MCP calls after creation.",
+                    "Ids should not be inferred from labels like instrument long_name or flow title."
+                ]
+            },
+            "whereThingsLive": [
+                "Flow-level tempo, time signature, and key signature entries live on the flow master track.",
+                "Clef entries live on the stave master track for each stave in a flow.",
+                "Tone entries live on user track_ids inside a stave, not on the master track.",
+                "An instrument can exist globally before it produces any flow staves or tracks.",
+                "Keyboard-style instruments may expose multiple staves; write notes to the separate user track_ids returned for each stave rather than assuming one instrument maps to one note track."
             ],
-            "multiStaffNote": "If an instrument returns multiple staves, each stave has its own playable track_ids. For piano, write right-hand and left-hand material to the separate staff track ids returned by the lookup rather than merging everything onto one track."
-        },
-        "pitchEncoding": {
-            "summary": "pitch_int uses MIDI note numbers.",
-            "rules": [
-                "C0 = 12 and C4 = 60.",
-                "pitch_int is the chromatic pitch number; accidental controls or overrides enharmonic spelling.",
-                "When accidental is null, spelling can be inferred from the active key signature."
-            ],
-            "examples": [
-                { "label": "C4", "pitchInt": 60 },
-                { "label": "D4", "pitchInt": 62 },
-                { "label": "F#4/Gb4 chromatic pitch", "pitchInt": 66 }
-            ]
-        },
-        "restsAndOwnership": {
-            "summary": "Empty musical time is usually represented as absence of tones, not persisted rest entries.",
-            "rules": [
-                "Leaving a gap in a track produces derived rest notation later; clients do not need to insert explicit rest objects for ordinary empty spans.",
-                "Tone ownership is determined by where the tone starts.",
-                "Crossing tones keep their literal durations unless a specific edit operation intentionally slices them."
-            ]
-        },
-        "tuplets": {
-            "summary": "Tuplet containers live on the host user track, while tuplet child tones use tuplet-local timing on that same track with a tuplet_id.",
-            "authoringOrder": [
-                "Resolve the playable user track_id with score.lookup.getInstrumentTracks before creating tuplets or tones.",
-                "Create the tuplet container on that user track with score.tuplet.create.",
-                "Create child tones on the same track with score.tone.create and pass the tuplet_id returned by the container creation call."
-            ],
-            "timingRules": [
-                "The tuplet container tick is a host-track tick.",
-                "Tuplet child ticks are local to the tuplet, not absolute host ticks.",
-                "Tuplet child durations stay literal in the tuplet-local frame; do not pre-compress them to the host span.",
-                "For a 3:2 eighth-note triplet, the host span is 32 ticks while the local child timeline is 48 ticks with child ticks 0, 16, and 32."
-            ],
-            "ownershipRules": [
-                "Tones that start inside the tuplet belong in the tuplet child entries.",
-                "Tones that start before the tuplet remain host-owned even if their durations cross the tuplet span.",
-                "Crossing host-owned tones keep their literal durations; only the container geometry is compressed on the host track."
-            ],
-            "example": {
-                "label": "3:2 eighth-note triplet in 4/4 starting on beat 2",
-                "hostStartTick": 32,
-                "hostSpanTicks": 32,
-                "localChildTicks": [0, 16, 32],
-                "localChildDurations": [16, 16, 16]
-            }
-        },
-        "examples": {
-            "singleStaffNoteEntry": [
-                "Create and assign the score entities.",
-                "Resolve the playable user track_id with score.lookup.getInstrumentTracks.",
-                "Create a quarter-note C4 at tick 0 with score.tone.create(track_id, 0, 32, 60, null, velocity, articulations)."
-            ],
-            "pianoNoteEntry": [
-                "Resolve the piano lookup and use the separate upper-staff and lower-staff track ids it returns.",
-                "Write right-hand notes to the upper-staff track id and left-hand notes to the lower-staff track id.",
-                "Do not assume piano is a single playable note track just because it is one instrument."
-            ]
-        },
-        "tickSystem": {
-            "summary": "Ticks are the timeline unit used for both absolute positions and durations.",
-            "baseRule": "A quarter note is 32 ticks.",
-            "noteValueTicks": {
-                "whole": 128,
-                "half": 64,
-                "quarter": 32,
-                "eighth": 16,
-                "sixteenth": 8,
-                "thirtySecond": 4,
-                "sixtyFourth": 2,
-                "hundredTwentyEighth": 1
+            "scoreConstruction": {
+                "summary": "MCP-only clients should wire score entities before attempting note entry.",
+                "recipe": [
+                    "Create the flow or flows.",
+                    "Create instruments.",
+                    "Create players.",
+                    "Assign instruments to players.",
+                    "Assign players to flows.",
+                    "Assign the flow and players to a layout when you want score output.",
+                    "Call score.lookup.getInstrumentTracks for each target flow/instrument pair.",
+                    "Write tones only to the returned user track_ids."
+                ],
+                "multiStaffNote": "If an instrument returns multiple staves, each stave has its own playable track_ids. For piano, write right-hand and left-hand material to the separate staff track ids returned by the lookup rather than merging everything onto one track."
+            },
+            "pitchEncoding": {
+                "summary": "pitch_int uses MIDI note numbers.",
+                "rules": [
+                    "C0 = 12 and C4 = 60.",
+                    "pitch_int is the chromatic pitch number; accidental controls or overrides enharmonic spelling.",
+                    "When accidental is null, spelling can be inferred from the active key signature."
+                ],
+                "examples": [
+                    { "label": "C4", "pitchInt": 60 },
+                    { "label": "D4", "pitchInt": 62 },
+                    { "label": "F#4/Gb4 chromatic pitch", "pitchInt": 66 }
+                ]
+            },
+            "restsAndOwnership": {
+                "summary": "Empty musical time is usually represented as absence of tones, not persisted rest entries.",
+                "rules": [
+                    "Leaving a gap in a track produces derived rest notation later; clients do not need to insert explicit rest objects for ordinary empty spans.",
+                    "Tone ownership is determined by where the tone starts.",
+                    "Crossing tones keep their literal durations unless a specific edit operation intentionally slices them."
+                ]
+            },
+            "tuplets": {
+                "summary": "Tuplet containers live on the host user track, while tuplet child tones use tuplet-local timing on that same track with a tuplet_id.",
+                "authoringOrder": [
+                    "Resolve the playable user track_id with score.lookup.getInstrumentTracks before creating tuplets or tones.",
+                    "Create the tuplet container on that user track with score.tuplet.create.",
+                    "Create child tones on the same track with score.tone.create and pass the tuplet_id returned by the container creation call."
+                ],
+                "timingRules": [
+                    "The tuplet container tick is a host-track tick.",
+                    "Tuplet child ticks are local to the tuplet, not absolute host ticks.",
+                    "Tuplet child durations stay literal in the tuplet-local frame; do not pre-compress them to the host span.",
+                    "For a 3:2 eighth-note triplet, the host span is 32 ticks while the local child timeline is 48 ticks with child ticks 0, 16, and 32."
+                ],
+                "ownershipRules": [
+                    "Tones that start inside the tuplet belong in the tuplet child entries.",
+                    "Tones that start before the tuplet remain host-owned even if their durations cross the tuplet span.",
+                    "Crossing host-owned tones keep their literal durations; only the container geometry is compressed on the host track."
+                ],
+                "example": {
+                    "label": "3:2 eighth-note triplet in 4/4 starting on beat 2",
+                    "hostStartTick": 32,
+                    "hostSpanTicks": 32,
+                    "localChildTicks": [0, 16, 32],
+                    "localChildDurations": [16, 16, 16]
+                }
+            },
+            "examples": {
+                "singleStaffNoteEntry": [
+                    "Create and assign the score entities.",
+                    "Resolve the playable user track_id with score.lookup.getInstrumentTracks.",
+                    "Create a quarter-note C4 at tick 0 with score.tone.create(track_id, 0, 32, 60, null, velocity, articulations)."
+                ],
+                "pianoNoteEntry": [
+                    "Resolve the piano lookup and use the separate upper-staff and lower-staff track ids it returns.",
+                    "Write right-hand notes to the upper-staff track id and left-hand notes to the lower-staff track id.",
+                    "Do not assume piano is a single playable note track just because it is one instrument."
+                ]
+            },
+            "tickSystem": {
+                "summary": "Ticks are the timeline unit used for both absolute positions and durations.",
+                "baseRule": "A quarter note is 32 ticks.",
+                "noteValueTicks": {
+                    "whole": 128,
+                    "half": 64,
+                    "quarter": 32,
+                    "eighth": 16,
+                    "sixteenth": 8,
+                    "thirtySecond": 4,
+                    "sixtyFourth": 2,
+                    "hundredTwentyEighth": 1
+                }
             }
         }
-    })
-}
-
-fn compose_getting_started_guide() -> Value {
-    let domain_model = compose_domain_model();
+    });
 
     json!({
         "summary": "Start here when you are using Compose only through MCP and need enough context to build or edit score content safely.",
@@ -528,18 +511,7 @@ fn compose_getting_started_guide() -> Value {
             GET_STARTED_TOOL_NAME,
             format!("{ACTION_TOOL_PREFIX}<action-name>")
         ],
-        "nextTools": {
-            "describeModel": DESCRIBE_MODEL_TOOL_NAME,
-            "actionToolPrefix": ACTION_TOOL_PREFIX
-        },
-        "recommendedFirstSteps": domain_model["recommendedFirstSteps"].clone(),
-        "ids": domain_model["ids"].clone(),
-        "whereThingsLive": domain_model["whereThingsLive"].clone(),
-        "scoreConstruction": domain_model["scoreConstruction"].clone(),
-        "pitchEncoding": domain_model["pitchEncoding"].clone(),
-        "restsAndOwnership": domain_model["restsAndOwnership"].clone(),
-        "tuplets": domain_model["tuplets"].clone(),
-        "examples": domain_model["examples"].clone(),
-        "tickSystem": domain_model["tickSystem"].clone()
+        "recommendedFirstSteps": recommended_first_steps,
+        "domainModel": domain_model
     })
 }

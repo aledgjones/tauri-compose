@@ -53,13 +53,10 @@ The app hosts a localhost-only MCP endpoint at `http://127.0.0.1:4767/mcp` and a
 The MCP endpoint exposes:
 
 - `compose_get_started` as the first-call onboarding guide
-- `compose_describe_model` to inspect the score graph, id semantics, and core entity relationships
 
 In addition, the app now generates one MCP tool per automation action using the `compose_action_` prefix. For example, `score.flow.create` is exposed as `compose_action_score_flow_create`, and tuplet container creation is exposed as `compose_action_score_tuplet_create`.
 
-`compose_get_started` should be the first tool call for score-construction work from MCP-only clients. It returns the recommended call order plus the minimal id, tick, and wiring guidance needed before listing or invoking actions.
-
-`compose_describe_model` returns curated context for clients that do not have repository access, including how players, instruments, flows, staves, tracks, and entries relate to each other, where runtime numeric ids come from, and how note values and bar lengths map onto ticks.
+`compose_get_started` should be the first tool call for score-construction work from MCP-only clients. It returns the recommended call order plus the onboarding guidance needed before listing or invoking actions, including a nested `domainModel` section that covers ids, wiring, ticks, and score graph relationships.
 
 Generated `compose_action_*` tools are the action surface. They are discoverable through standard MCP `tools/list`, publish named-parameter schemas, and dispatch through the existing automation registry.
 
