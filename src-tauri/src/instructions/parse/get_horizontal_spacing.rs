@@ -20,7 +20,6 @@ use crate::score::flows::Flow;
 use crate::score::instruments::Instrument;
 use crate::score::tracks::Tracks;
 use crate::utils::UniqueId;
-use rayon::prelude::*;
 use rustc_hash::FxHashMap;
 
 const EMPTY_MEASURE_BASE_WIDTH_MULTIPLIER: f32 = 2.0;
@@ -116,6 +115,8 @@ fn recompute_spacing_positions(spacing: &mut HorizontalSpacing, include_final_ba
 
 fn collect_notation_spacing_updates(
     notation: &NotationTrack,
+    anchored_tracks: &[AnchoredNotationTrack],
+    anchored_lead_ins: &FxHashMap<UniqueId, InitialNoteLeadIn>,
     barlines: &Barlines,
     shunts: &Shunts,
     beams: &Beams,
@@ -146,29 +147,47 @@ fn collect_notation_spacing_updates(
             };
         }
 
-        if let Some((next_tick, next_entry)) = notation.get_next_notation(*tick) {
-            if !barlines.contains_key(&next_tick) {
-                let next_metrics = next_entry.glyph_metrics();
-                let next_glyph_width = next_metrics.total_width();
-                let next_has_pre_shunt = next_entry.has_pre_shunt(shunts);
-                let accidentals_width = accidental_spacing_width(
-                    accidentals
-                        .slots_by_tick
-                        .get(&next_tick)
-                        .copied()
-                        .unwrap_or(0),
-                    next_has_pre_shunt,
-                );
+        if let Some(next_visible) =
+            get_next_visible_notation_at_or_after(notation, anchored_tracks, *tick + 1)
+        {
+            let next_preamble = match next_visible {
+                NextVisibleNotation::Host {
+                    tick: next_tick,
+                    entry,
+                } => {
+                    if barlines.contains_key(&next_tick) {
+                        None
+                    } else {
+                        Some(host_notation_preamble(
+                            next_tick,
+                            entry,
+                            shunts,
+                            accidentals,
+                        ))
+                    }
+                }
+                NextVisibleNotation::Anchored { track } => {
+                    if barlines.contains_key(&track.host_span.start_tick) {
+                        None
+                    } else {
+                        anchored_lead_ins
+                            .get(&track.owner_id)
+                            .copied()
+                            .and_then(lead_in_preamble)
+                    }
+                }
+            };
 
+            if let Some(next_preamble) = next_preamble {
                 spacing = required_spacing_with_next_notation(
                     entry,
                     spacing,
                     shunts,
                     engrave,
                     beams,
-                    accidentals_width,
-                    next_glyph_width,
-                    next_has_pre_shunt,
+                    next_preamble.accidentals_width,
+                    next_preamble.glyph_width,
+                    next_preamble.has_pre_shunt,
                 );
             }
         };
@@ -191,6 +210,110 @@ fn accidental_spacing_width(slot_count: u8, next_has_pre_shunt: bool) -> Space {
     } else {
         (slot_count as f32 * 1.1) + 0.25
     }
+}
+
+#[derive(Clone, Copy)]
+struct NextNotationPreamble {
+    accidentals_width: Space,
+    glyph_width: Space,
+    has_pre_shunt: bool,
+}
+
+enum NextVisibleNotation<'a> {
+    Host {
+        tick: Tick,
+        entry: &'a super::get_written_durations::Notation,
+    },
+    Anchored {
+        track: &'a AnchoredNotationTrack,
+    },
+}
+
+fn get_next_notation_at_or_after(
+    notation: &NotationTrack,
+    tick: Tick,
+) -> Option<(Tick, &super::get_written_durations::Notation)> {
+    for current_tick in tick..notation.length {
+        if let Some(entry) = notation.track.get(&current_tick) {
+            return Some((current_tick, entry));
+        }
+    }
+
+    None
+}
+
+fn get_next_anchored_track_at_or_after(
+    anchored_tracks: &[AnchoredNotationTrack],
+    tick: Tick,
+) -> Option<&AnchoredNotationTrack> {
+    anchored_tracks
+        .iter()
+        .filter(|track| track.host_span.start_tick >= tick)
+        .min_by_key(|track| track.host_span.start_tick)
+}
+
+fn get_next_visible_notation_at_or_after<'a>(
+    notation: &'a NotationTrack,
+    anchored_tracks: &'a [AnchoredNotationTrack],
+    tick: Tick,
+) -> Option<NextVisibleNotation<'a>> {
+    let next_host = get_next_notation_at_or_after(notation, tick);
+    let next_anchored = get_next_anchored_track_at_or_after(anchored_tracks, tick);
+
+    match (next_host, next_anchored) {
+        (Some((host_tick, entry)), Some(anchored_track)) => {
+            if anchored_track.host_span.start_tick < host_tick {
+                Some(NextVisibleNotation::Anchored {
+                    track: anchored_track,
+                })
+            } else {
+                Some(NextVisibleNotation::Host {
+                    tick: host_tick,
+                    entry,
+                })
+            }
+        }
+        (Some((host_tick, entry)), None) => Some(NextVisibleNotation::Host {
+            tick: host_tick,
+            entry,
+        }),
+        (None, Some(anchored_track)) => Some(NextVisibleNotation::Anchored {
+            track: anchored_track,
+        }),
+        (None, None) => None,
+    }
+}
+
+fn host_notation_preamble(
+    tick: Tick,
+    entry: &super::get_written_durations::Notation,
+    shunts: &Shunts,
+    accidentals: &Accidentals,
+) -> NextNotationPreamble {
+    let glyph_width = entry.glyph_metrics().total_width();
+    let has_pre_shunt = entry.has_pre_shunt(shunts);
+    let accidentals_width = accidental_spacing_width(
+        accidentals.slots_by_tick.get(&tick).copied().unwrap_or(0),
+        has_pre_shunt,
+    );
+
+    NextNotationPreamble {
+        accidentals_width,
+        glyph_width,
+        has_pre_shunt,
+    }
+}
+
+fn lead_in_preamble(lead_in: InitialNoteLeadIn) -> Option<NextNotationPreamble> {
+    if lead_in.total_width <= 0.0 {
+        return None;
+    }
+
+    Some(NextNotationPreamble {
+        accidentals_width: lead_in.accidentals_width,
+        glyph_width: lead_in.pre_note_width,
+        has_pre_shunt: lead_in.pre_note_width > 0.0,
+    })
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -233,6 +356,26 @@ fn apply_spacing_updates(spacing: &mut HorizontalSpacing, updates: Vec<(Tick, Sl
     }
 }
 
+fn apply_note_spacing_to_range(
+    spacing: &mut HorizontalSpacing,
+    start_tick: Tick,
+    duration: Tick,
+    required_spacing: Space,
+) {
+    if duration == 0 {
+        return;
+    }
+
+    let note_spacing_per_tick = required_spacing / duration as f32;
+    let end_tick = start_tick + duration;
+    for tick in start_tick..end_tick {
+        let current = spacing.get(tick, Slot::NoteSpacing).width;
+        if note_spacing_per_tick > current {
+            spacing.set_width(tick, Slot::NoteSpacing, note_spacing_per_tick);
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct AnchoredTrackLayout {
     pub measures: Measures,
@@ -266,6 +409,8 @@ pub fn build_anchored_track_layout(
     let mut horizontal_spacing = HorizontalSpacing::new(anchored_track.notation.length.max(1));
     let updates = collect_notation_spacing_updates(
         &anchored_track.notation,
+        &[],
+        &FxHashMap::default(),
         &barlines,
         &shunts,
         &beams,
@@ -370,14 +515,10 @@ pub fn take_initial_note_lead_in(spacing: &mut HorizontalSpacing) -> InitialNote
     lead_in
 }
 
-fn collect_anchored_track_boundary_spacing_updates(
-    notation: &NotationTrack,
+fn collect_anchored_track_opening_spacing_updates(
     barlines: &Barlines,
-    shunts: &Shunts,
-    beams: &Beams,
     anchored_track: &AnchoredNotationTrack,
     lead_in: InitialNoteLeadIn,
-    engrave: &Engrave,
 ) -> Vec<(Tick, Slot, Space)> {
     let mut updates = Vec::new();
 
@@ -399,28 +540,85 @@ fn collect_anchored_track_boundary_spacing_updates(
         return updates;
     }
 
-    let Some((previous_tick, previous_entry)) = notation.get_previous_notation(start_tick) else {
-        return updates;
+    updates
+}
+
+fn extend_anchored_layout_tail_spacing(
+    anchored_layout: &mut AnchoredTrackLayout,
+    anchored_track: &AnchoredNotationTrack,
+    notation: &NotationTrack,
+    anchored_tracks: &[AnchoredNotationTrack],
+    anchored_lead_ins: &FxHashMap<UniqueId, InitialNoteLeadIn>,
+    host_shunts: &Shunts,
+    host_accidentals: &Accidentals,
+    barlines: &Barlines,
+    engrave: &Engrave,
+) -> bool {
+    if anchored_track.notation.length == 0 {
+        return false;
+    }
+
+    let last_search_tick = anchored_track.notation.length.saturating_sub(1);
+    let Some((previous_tick, previous_entry)) = anchored_track
+        .notation
+        .get_previous_notation(last_search_tick)
+    else {
+        return false;
+    };
+
+    let Some(next_visible) = get_next_visible_notation_at_or_after(
+        notation,
+        anchored_tracks,
+        anchored_track.host_span.end_tick,
+    ) else {
+        return false;
+    };
+
+    let next_preamble = match next_visible {
+        NextVisibleNotation::Host { tick, entry } => {
+            if barlines.contains_key(&tick) {
+                return false;
+            }
+
+            host_notation_preamble(tick, entry, host_shunts, host_accidentals)
+        }
+        NextVisibleNotation::Anchored { track } => {
+            if barlines.contains_key(&track.host_span.start_tick) {
+                return false;
+            }
+
+            let Some(lead_in) = anchored_lead_ins.get(&track.owner_id).copied() else {
+                return false;
+            };
+            let Some(next_preamble) = lead_in_preamble(lead_in) else {
+                return false;
+            };
+            next_preamble
+        }
     };
 
     let spacing = required_spacing_with_next_notation(
         previous_entry,
-        previous_entry.metrics(shunts, engrave, beams).width,
-        shunts,
+        previous_entry
+            .metrics(&anchored_layout.shunts, engrave, &anchored_layout.beams)
+            .width,
+        &anchored_layout.shunts,
         engrave,
-        beams,
-        lead_in.accidentals_width,
-        lead_in.pre_note_width,
-        lead_in.pre_note_width > 0.0,
+        &anchored_layout.beams,
+        next_preamble.accidentals_width,
+        next_preamble.glyph_width,
+        next_preamble.has_pre_shunt,
     );
 
-    let note_spacing_per_tick = spacing / previous_entry.duration as f32;
-    let end_tick = previous_tick + previous_entry.duration;
-    for tick in previous_tick..end_tick {
-        updates.push((tick, Slot::NoteSpacing, note_spacing_per_tick));
-    }
+    apply_note_spacing_to_range(
+        &mut anchored_layout.horizontal_spacing,
+        previous_tick,
+        previous_entry.duration,
+        spacing,
+    );
+    recompute_spacing_positions(&mut anchored_layout.horizontal_spacing, false);
 
-    updates
+    true
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -558,26 +756,12 @@ pub fn get_horizontal_spacing_with_anchored_layouts(
         }
     }
 
-    let mut spacing_updates: Vec<(Tick, Slot, Space)> = notations_by_track
-        .par_iter()
-        .flat_map(|(track_key, notation)| {
-            let shunts = &shunts_by_track[track_key];
-            let accidentals = &accidentals_by_track[track_key];
-            let beams = &beams_by_track[track_key];
-            collect_notation_spacing_updates(
-                notation,
-                barlines,
-                shunts,
-                beams,
-                accidentals,
-                engrave,
-            )
-        })
-        .collect();
+    let mut spacing_updates: Vec<(Tick, Slot, Space)> = Vec::new();
 
     for (track_id, notation) in notations_by_track {
         let shunts = &shunts_by_track[track_id];
         let beams = &beams_by_track[track_id];
+        let accidentals = &accidentals_by_track[track_id];
         let mut anchored_layouts = AnchoredTrackLayouts::default();
         let anchored_accidentals = anchored_accidentals_by_track.get(track_id);
 
@@ -604,17 +788,47 @@ pub fn get_horizontal_spacing_with_anchored_layouts(
                 engrave,
             );
 
-            spacing_updates.extend(collect_anchored_track_boundary_spacing_updates(
-                notation,
+            spacing_updates.extend(collect_anchored_track_opening_spacing_updates(
                 barlines,
-                shunts,
-                beams,
                 anchored_track,
                 layout.lead_in,
-                engrave,
             ));
 
             anchored_layouts.insert(anchored_track.owner_id, layout);
+        }
+
+        let anchored_lead_ins = anchored_layouts
+            .iter()
+            .map(|(owner_id, layout)| (*owner_id, layout.lead_in))
+            .collect::<FxHashMap<_, _>>();
+
+        spacing_updates.extend(collect_notation_spacing_updates(
+            notation,
+            &notation.anchored_tracks,
+            &anchored_lead_ins,
+            barlines,
+            shunts,
+            beams,
+            accidentals,
+            engrave,
+        ));
+
+        for anchored_track in &notation.anchored_tracks {
+            let Some(layout) = anchored_layouts.get_mut(&anchored_track.owner_id) else {
+                continue;
+            };
+
+            extend_anchored_layout_tail_spacing(
+                layout,
+                anchored_track,
+                notation,
+                &notation.anchored_tracks,
+                &anchored_lead_ins,
+                shunts,
+                accidentals,
+                barlines,
+                engrave,
+            );
         }
 
         if !anchored_layouts.is_empty() {
@@ -1140,5 +1354,227 @@ mod tests {
         assert!((spacing.get(2, Slot::NoteSpacing).width - 2.0).abs() < f32::EPSILON);
         assert!((spacing.get(0, Slot::NoteSpacing).width - 1.0).abs() < f32::EPSILON);
         assert!((spacing.get(3, Slot::NoteSpacing).width - 1.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn consecutive_tuplets_use_next_tuplet_opening_as_forward_successor() {
+        use crate::instructions::parse::get_tone_offset_info::ToneOffsetInfo;
+        use crate::score::components::duration::NoteDuration;
+        use crate::score::components::pitch::{Accidental, Pitch};
+        use crate::score::components::velocity::Velocity;
+        use crate::score::engraves::Engraves;
+        use crate::score::entries::time_signature::{TimeSignature, TimeSignatureDrawType};
+        use crate::score::entries::tone::Tone;
+        use crate::score::entries::tuplet::Tuplet;
+        use crate::score::entries::Entry;
+        use crate::score::flows::Flow;
+        use crate::score::instruments::defs::InstrumentType;
+        use crate::score::instruments::Instrument;
+        use crate::score::layouts::LayoutType;
+        use crate::score::staves::Stave;
+        use crate::score::tracks::{Track, Tracks};
+        use rustc_hash::{FxHashMap, FxHashSet};
+
+        fn make_layouts(second_tuplet_has_opening_accidental: bool) -> AnchoredTrackLayoutsByTrack {
+            let e = NoteDuration::Eighth.to_ticks();
+            let first_tuplet_id = 401;
+            let second_tuplet_id = 402;
+            let first_tone_id = 501;
+            let second_tone_id = 502;
+
+            let mut flow = Flow::new(1, 100);
+            flow.player_ids = FxHashSet::default();
+            flow.length = e * 4;
+            flow.staves.by_id.insert(
+                10,
+                Stave {
+                    id: 10,
+                    lines: vec![1, 1, 1, 1, 1],
+                    master_id: 200,
+                    track_ids: vec![300],
+                },
+            );
+
+            let instrument = Instrument {
+                id: 20,
+                definition_id: String::from("strings.violin"),
+                instrument_type: InstrumentType::Melodic,
+                long_name: String::from("Violin"),
+                short_name: String::from("Vln."),
+                stave_ids: vec![10],
+                count: None,
+                assigned_plugin_id: None,
+                volume: 100,
+                pan: 64,
+                mute: false,
+                solo: false,
+            };
+
+            let mut flow_master = Track::new(100);
+            flow_master.insert_entry(Entry::TimeSignature(TimeSignature::new(
+                1,
+                0,
+                4,
+                NoteDuration::Quarter,
+                TimeSignatureDrawType::Regular,
+                None,
+            )));
+
+            let mut track_master = Track::new(300);
+            track_master.insert_entry(Entry::Tuplet(Box::new(Tuplet::new(
+                first_tuplet_id,
+                0,
+                3,
+                2,
+                NoteDuration::Eighth,
+                vec![3],
+            ))));
+            track_master.insert_entry(Entry::Tuplet(Box::new(Tuplet::new(
+                second_tuplet_id,
+                e * 2,
+                3,
+                2,
+                NoteDuration::Eighth,
+                vec![3],
+            ))));
+
+            let mut tracks = Tracks::new();
+            tracks.by_id = FxHashMap::default();
+            tracks.by_id.insert(100, flow_master);
+            tracks.by_id.insert(200, Track::new(200));
+            tracks.by_id.insert(300, track_master);
+
+            let mut first_local_track = NotationTrack::new(e * 3);
+            let mut first_entry =
+                crate::instructions::parse::get_written_durations::Notation::new(e * 2, e);
+            first_entry.tones.push(Tone::new(
+                first_tone_id,
+                e * 2,
+                e,
+                Pitch::new(60, Accidental::Natural),
+                Velocity::new(90),
+                Default::default(),
+            ));
+            first_entry.info = Some(ToneOffsetInfo {
+                highest: 0,
+                lowest: 0,
+                furthest: 0,
+            });
+            first_local_track.track.insert(e * 2, first_entry);
+
+            let mut second_local_track = NotationTrack::new(e * 3);
+            let mut second_entry =
+                crate::instructions::parse::get_written_durations::Notation::new(0, e);
+            second_entry.tones.push(Tone::new(
+                second_tone_id,
+                0,
+                e,
+                Pitch::new(61, Accidental::Sharp),
+                Velocity::new(90),
+                Default::default(),
+            ));
+            second_entry.info = Some(ToneOffsetInfo {
+                highest: 0,
+                lowest: 0,
+                furthest: 0,
+            });
+            second_local_track.track.insert(0, second_entry);
+
+            let notation = NotationTrack {
+                length: flow.length,
+                track: FxHashMap::default(),
+                anchored_tracks: vec![
+                    AnchoredNotationTrack {
+                        owner_id: first_tuplet_id,
+                        host_span: crate::instructions::parse::get_written_durations::HostSpan {
+                            start_tick: 0,
+                            end_tick: e * 2,
+                        },
+                        notation: first_local_track,
+                    },
+                    AnchoredNotationTrack {
+                        owner_id: second_tuplet_id,
+                        host_span: crate::instructions::parse::get_written_durations::HostSpan {
+                            start_tick: e * 2,
+                            end_tick: e * 4,
+                        },
+                        notation: second_local_track,
+                    },
+                ],
+            };
+
+            let mut notations_by_track = NotationByTrack::default();
+            notations_by_track.insert(300, notation);
+
+            let mut shunts_by_track = ShuntsByTrack::default();
+            shunts_by_track.insert(
+                300,
+                Shunts {
+                    by_id: FxHashMap::default(),
+                    by_offset: FxHashMap::default(),
+                },
+            );
+
+            let mut beams_by_track = BeamsByTrack::default();
+            beams_by_track.insert(300, Vec::new());
+
+            let mut accidentals_by_track = AccidentalsByTrack::default();
+            accidentals_by_track.insert(300, Accidentals::new());
+
+            let mut second_anchored_accidentals = Accidentals::new();
+            if second_tuplet_has_opening_accidental {
+                second_anchored_accidentals.slots_by_tick.insert(0, 1);
+            }
+
+            let mut anchored_accidentals =
+                crate::instructions::parse::get_accidentals::AnchoredAccidentals::default();
+            anchored_accidentals.insert(first_tuplet_id, Accidentals::new());
+            anchored_accidentals.insert(second_tuplet_id, second_anchored_accidentals);
+
+            let mut anchored_accidentals_by_track = AnchoredAccidentalsByTrack::default();
+            anchored_accidentals_by_track.insert(300, anchored_accidentals);
+
+            let mut tone_offsets = ToneVerticalOffsets::default();
+            tone_offsets.insert(first_tone_id, 0);
+            tone_offsets.insert(second_tone_id, 0);
+
+            let engraves = Engraves::new();
+            let engrave = engraves.by_layout_type.get(&LayoutType::FullScore).unwrap();
+            let measures = get_measures(&flow, &tracks);
+
+            get_horizontal_spacing_with_anchored_layouts(
+                &flow,
+                &vec![&instrument],
+                &tracks,
+                &measures,
+                &notations_by_track,
+                &Barlines::default(),
+                &shunts_by_track,
+                &beams_by_track,
+                &accidentals_by_track,
+                &anchored_accidentals_by_track,
+                &tone_offsets,
+                engrave,
+            )
+            .1
+        }
+
+        let base_layouts = make_layouts(false);
+        let accidental_layouts = make_layouts(true);
+
+        let e = NoteDuration::Eighth.to_ticks();
+        let base_width = base_layouts[&300][&401]
+            .horizontal_spacing
+            .get(e * 2, Slot::NoteSpacing)
+            .width;
+        let accidental_width = accidental_layouts[&300][&401]
+            .horizontal_spacing
+            .get(e * 2, Slot::NoteSpacing)
+            .width;
+
+        assert!(
+            accidental_width > base_width,
+            "expected the first tuplet tail to use the second tuplet opening as its forward spacing successor"
+        );
     }
 }
