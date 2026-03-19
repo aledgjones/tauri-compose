@@ -434,41 +434,331 @@ pub fn build_anchored_track_layout(
     }
 }
 
-fn governed_note_spacing_width(
-    spacing: &HorizontalSpacing,
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct AnchoredSpacingParticipant {
+    track_id: UniqueId,
+    owner_id: UniqueId,
     start_tick: Tick,
     end_tick: Tick,
-) -> Space {
-    (start_tick..end_tick)
-        .map(|tick| spacing.get(tick, Slot::NoteSpacing).width)
-        .sum()
 }
 
-fn widen_governed_host_span_evenly(
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct AnchoredSpacingRegion {
+    start_tick: Tick,
+    end_tick: Tick,
+    members: Vec<AnchoredSpacingParticipant>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+struct SharedRhythmGrid {
+    resolution: Tick,
+    slot_widths: Vec<Space>,
+    width: Space,
+}
+
+impl SharedRhythmGrid {
+    fn from_local_spacings(
+        host_tick_count: Tick,
+        local_spacings: &[&HorizontalSpacing],
+    ) -> Option<Self> {
+        if host_tick_count == 0 || local_spacings.is_empty() {
+            return None;
+        }
+
+        let mut resolution = host_tick_count;
+        let mut local_tick_counts = Vec::with_capacity(local_spacings.len());
+
+        for spacing in local_spacings {
+            let tick_count = (spacing.widths.len() / Slot::count()).saturating_sub(1) as Tick;
+            if tick_count == 0 {
+                return None;
+            }
+
+            resolution = lcm_tick(resolution, tick_count);
+            local_tick_counts.push(tick_count);
+        }
+
+        if resolution == 0 {
+            return None;
+        }
+
+        let mut slot_widths = vec![0.0; resolution as usize];
+        for (spacing, local_tick_count) in local_spacings.iter().zip(local_tick_counts.into_iter())
+        {
+            let slots_per_tick = (resolution / local_tick_count) as usize;
+
+            for tick in 0..local_tick_count {
+                let source_width = spacing.get(tick, Slot::NoteSpacing).width.max(0.0);
+                let projected_width = source_width / slots_per_tick as f32;
+                let start = tick as usize * slots_per_tick;
+                let end = start + slots_per_tick;
+
+                for slot_width in &mut slot_widths[start..end] {
+                    if projected_width > *slot_width {
+                        *slot_width = projected_width;
+                    }
+                }
+            }
+        }
+
+        let width = slot_widths.iter().sum::<Space>();
+        if width <= 0.0 {
+            return None;
+        }
+
+        Some(Self {
+            resolution,
+            slot_widths,
+            width,
+        })
+    }
+
+    fn project_widths(&self, target_tick_count: Tick, target_width: Space) -> Vec<Space> {
+        if target_tick_count == 0 || self.resolution == 0 {
+            return Vec::new();
+        }
+
+        let slots_per_tick = (self.resolution / target_tick_count) as usize;
+        let scale = if self.width > 0.0 {
+            target_width / self.width
+        } else {
+            1.0
+        };
+
+        let mut widths = Vec::with_capacity(target_tick_count as usize);
+        for tick in 0..target_tick_count as usize {
+            let start = tick * slots_per_tick;
+            let end = start + slots_per_tick;
+            widths.push(self.slot_widths[start..end].iter().sum::<Space>() * scale);
+        }
+
+        widths
+    }
+
+    fn project_widths_in_range(
+        &self,
+        start_unit: Tick,
+        unit_count: Tick,
+        target_tick_count: Tick,
+    ) -> Vec<Space> {
+        if target_tick_count == 0 || unit_count == 0 {
+            return Vec::new();
+        }
+
+        let units_per_tick = unit_count / target_tick_count;
+        let mut widths = Vec::with_capacity(target_tick_count as usize);
+
+        for tick in 0..target_tick_count as usize {
+            let start = start_unit as usize + (tick * units_per_tick as usize);
+            let end = start + units_per_tick as usize;
+            widths.push(self.slot_widths[start..end].iter().sum::<Space>());
+        }
+
+        widths
+    }
+}
+
+fn gcd_tick(mut left: Tick, mut right: Tick) -> Tick {
+    while right != 0 {
+        let remainder = left % right;
+        left = right;
+        right = remainder;
+    }
+
+    left.max(1)
+}
+
+fn lcm_tick(left: Tick, right: Tick) -> Tick {
+    if left == 0 || right == 0 {
+        0
+    } else {
+        left / gcd_tick(left, right) * right
+    }
+}
+
+fn rewrite_note_spacing_from_widths(spacing: &mut HorizontalSpacing, widths: &[Space]) {
+    for (tick, width) in widths.iter().enumerate() {
+        spacing.set_width(tick as Tick, Slot::NoteSpacing, *width);
+    }
+
+    recompute_spacing_positions(spacing, false);
+}
+
+fn collect_anchored_spacing_regions(
+    notations_by_track: &NotationByTrack,
+    anchored_layouts_by_track: &AnchoredTrackLayoutsByTrack,
+) -> Vec<AnchoredSpacingRegion> {
+    let mut participants = Vec::new();
+
+    for (track_id, notation) in notations_by_track {
+        let Some(layouts) = anchored_layouts_by_track.get(track_id) else {
+            continue;
+        };
+
+        for anchored_track in &notation.anchored_tracks {
+            if !layouts.contains_key(&anchored_track.owner_id) {
+                continue;
+            }
+
+            participants.push(AnchoredSpacingParticipant {
+                track_id: *track_id,
+                owner_id: anchored_track.owner_id,
+                start_tick: anchored_track.host_span.start_tick,
+                end_tick: anchored_track.host_span.end_tick,
+            });
+        }
+    }
+
+    participants.sort_by_key(|participant| (participant.start_tick, participant.end_tick));
+
+    let mut regions = Vec::new();
+    for participant in participants {
+        let should_merge = regions
+            .last()
+            .is_some_and(|region: &AnchoredSpacingRegion| participant.start_tick < region.end_tick);
+
+        if should_merge {
+            let region = regions.last_mut().expect("checked above");
+            region.end_tick = region.end_tick.max(participant.end_tick);
+            region.members.push(participant);
+        } else {
+            regions.push(AnchoredSpacingRegion {
+                start_tick: participant.start_tick,
+                end_tick: participant.end_tick,
+                members: vec![participant],
+            });
+        }
+    }
+
+    regions
+}
+
+fn build_shared_region_grid(
+    spacing: &HorizontalSpacing,
+    region: &AnchoredSpacingRegion,
+    anchored_layouts_by_track: &AnchoredTrackLayoutsByTrack,
+) -> Option<(SharedRhythmGrid, Tick)> {
+    let region_length = region.end_tick.saturating_sub(region.start_tick);
+    if region_length == 0 {
+        return None;
+    }
+
+    let mut units_per_host_tick = 1;
+    for participant in &region.members {
+        let layout = anchored_layouts_by_track
+            .get(&participant.track_id)
+            .and_then(|layouts| layouts.get(&participant.owner_id))?;
+        let local_tick_count =
+            (layout.horizontal_spacing.widths.len() / Slot::count()).saturating_sub(1) as Tick;
+        let host_length = participant.end_tick.saturating_sub(participant.start_tick);
+        if local_tick_count == 0 || host_length == 0 {
+            return None;
+        }
+
+        let required_units = local_tick_count / gcd_tick(local_tick_count, host_length);
+        units_per_host_tick = lcm_tick(units_per_host_tick, required_units);
+    }
+
+    let resolution = region_length * units_per_host_tick;
+    if resolution == 0 {
+        return None;
+    }
+
+    let mut slot_widths = vec![0.0; resolution as usize];
+
+    for host_tick in 0..region_length {
+        let width = spacing
+            .get(region.start_tick + host_tick, Slot::NoteSpacing)
+            .width;
+        let projected_width = width / units_per_host_tick as f32;
+        let start = host_tick as usize * units_per_host_tick as usize;
+        let end = start + units_per_host_tick as usize;
+        for slot_width in &mut slot_widths[start..end] {
+            if projected_width > *slot_width {
+                *slot_width = projected_width;
+            }
+        }
+    }
+
+    for participant in &region.members {
+        let layout = anchored_layouts_by_track
+            .get(&participant.track_id)
+            .and_then(|layouts| layouts.get(&participant.owner_id))?;
+        let local_tick_count =
+            (layout.horizontal_spacing.widths.len() / Slot::count()).saturating_sub(1) as Tick;
+        let host_length = participant.end_tick.saturating_sub(participant.start_tick);
+        let units_in_span = host_length * units_per_host_tick;
+        let units_per_local_tick = units_in_span / local_tick_count;
+        let start_unit = (participant.start_tick - region.start_tick) * units_per_host_tick;
+
+        for local_tick in 0..local_tick_count {
+            let width = layout
+                .horizontal_spacing
+                .get(local_tick, Slot::NoteSpacing)
+                .width;
+            let projected_width = width / units_per_local_tick as f32;
+            let start = (start_unit + (local_tick * units_per_local_tick)) as usize;
+            let end = start + units_per_local_tick as usize;
+            for slot_width in &mut slot_widths[start..end] {
+                if projected_width > *slot_width {
+                    *slot_width = projected_width;
+                }
+            }
+        }
+    }
+
+    let width = slot_widths.iter().sum::<Space>();
+    Some((
+        SharedRhythmGrid {
+            resolution,
+            slot_widths,
+            width,
+        },
+        units_per_host_tick,
+    ))
+}
+
+fn finalize_shared_anchored_layouts(
     spacing: &mut HorizontalSpacing,
-    anchored_track: &AnchoredNotationTrack,
-    required_width: Space,
+    notations_by_track: &NotationByTrack,
+    anchored_layouts_by_track: &mut AnchoredTrackLayoutsByTrack,
 ) {
-    let host_tick_count = anchored_track
-        .host_span
-        .end_tick
-        .saturating_sub(anchored_track.host_span.start_tick);
-    if host_tick_count == 0 {
-        return;
-    }
+    let regions = collect_anchored_spacing_regions(notations_by_track, anchored_layouts_by_track);
 
-    let ambient_width = governed_note_spacing_width(
-        spacing,
-        anchored_track.host_span.start_tick,
-        anchored_track.host_span.end_tick,
-    );
-    if required_width <= ambient_width {
-        return;
-    }
+    for region in regions {
+        let region_length = region.end_tick.saturating_sub(region.start_tick);
+        if region_length == 0 {
+            continue;
+        }
 
-    let extra_per_tick = (required_width - ambient_width) / host_tick_count as f32;
-    for tick in anchored_track.host_span.start_tick..anchored_track.host_span.end_tick {
-        spacing.add_width(tick, Slot::NoteSpacing, extra_per_tick);
+        let Some((shared_grid, units_per_host_tick)) =
+            build_shared_region_grid(spacing, &region, anchored_layouts_by_track)
+        else {
+            continue;
+        };
+
+        let host_widths =
+            shared_grid.project_widths_in_range(0, shared_grid.resolution, region_length);
+        for (offset, width) in host_widths.into_iter().enumerate() {
+            spacing.set_width(region.start_tick + offset as Tick, Slot::NoteSpacing, width);
+        }
+
+        for participant in region.members {
+            let Some(layout) = anchored_layouts_by_track
+                .get_mut(&participant.track_id)
+                .and_then(|layouts| layouts.get_mut(&participant.owner_id))
+            else {
+                continue;
+            };
+
+            let local_tick_count =
+                (layout.horizontal_spacing.widths.len() / Slot::count()).saturating_sub(1) as Tick;
+            let start_unit = (participant.start_tick - region.start_tick) * units_per_host_tick;
+            let unit_count = (participant.end_tick - participant.start_tick) * units_per_host_tick;
+            let widths =
+                shared_grid.project_widths_in_range(start_unit, unit_count, local_tick_count);
+            rewrite_note_spacing_from_widths(&mut layout.horizontal_spacing, &widths);
+        }
     }
 }
 
@@ -484,6 +774,29 @@ pub fn stretch_spacing_to_width(spacing: &mut HorizontalSpacing, target_width: S
     }
 
     recompute_spacing_positions(spacing, false);
+}
+
+pub fn stretch_spacing_to_width_using_local_spacing(
+    spacing: &mut HorizontalSpacing,
+    target_width: Space,
+) {
+    let local_tick_count = (spacing.widths.len() / Slot::count()).saturating_sub(1) as Tick;
+    if local_tick_count == 0 {
+        return;
+    }
+
+    let Some(shared_grid) = SharedRhythmGrid::from_local_spacings(local_tick_count, &[spacing])
+    else {
+        stretch_spacing_to_width(spacing, target_width);
+        return;
+    };
+
+    if target_width <= spacing.width {
+        return;
+    }
+
+    let widths = shared_grid.project_widths(local_tick_count, target_width);
+    rewrite_note_spacing_from_widths(spacing, &widths);
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -838,23 +1151,11 @@ pub fn get_horizontal_spacing_with_anchored_layouts(
 
     apply_spacing_updates(&mut spacings, spacing_updates);
 
-    for (track_id, notation) in notations_by_track {
-        let Some(anchored_layouts) = anchored_layouts_by_track.get(track_id) else {
-            continue;
-        };
-
-        for anchored_track in &notation.anchored_tracks {
-            let Some(layout) = anchored_layouts.get(&anchored_track.owner_id) else {
-                continue;
-            };
-
-            widen_governed_host_span_evenly(
-                &mut spacings,
-                anchored_track,
-                layout.horizontal_spacing.width,
-            );
-        }
-    }
+    finalize_shared_anchored_layouts(
+        &mut spacings,
+        notations_by_track,
+        &mut anchored_layouts_by_track,
+    );
 
     recompute_spacing_positions(&mut spacings, true);
 
@@ -1317,14 +1618,59 @@ mod tests {
     }
 
     #[test]
-    fn stretch_spacing_to_width_distributes_excess_evenly_across_local_ticks() {
+    fn shared_rhythm_grid_preserves_single_spacing_widths() {
+        let mut spacing = HorizontalSpacing::new(3);
+        spacing.set_width(0, Slot::NoteSpacing, 3.0);
+        spacing.set_width(1, Slot::NoteSpacing, 1.0);
+        spacing.set_width(2, Slot::NoteSpacing, 1.0);
+
+        let grid = SharedRhythmGrid::from_local_spacings(3, &[&spacing])
+            .expect("resolved note spacing should produce a shared rhythm grid");
+
+        assert_eq!(grid.resolution, 3);
+        assert!((grid.width - 5.0).abs() < 1e-6);
+        assert_eq!(grid.project_widths(3, grid.width), vec![3.0, 1.0, 1.0]);
+    }
+
+    #[test]
+    fn shared_rhythm_grid_ignores_non_note_spacing_slots() {
+        let mut spacing = HorizontalSpacing::new(2);
+        spacing.set_width(0, Slot::NoteSpacing, 2.0);
+        spacing.set_width(1, Slot::NoteSpacing, 1.0);
+        spacing.set_width(0, Slot::Accidentals, 5.0);
+        spacing.set_width(0, Slot::PreNote, 4.0);
+
+        let grid = SharedRhythmGrid::from_local_spacings(2, &[&spacing])
+            .expect("resolved note spacing should produce a shared rhythm grid");
+
+        assert_eq!(grid.resolution, 2);
+        assert_eq!(grid.project_widths(2, grid.width), vec![2.0, 1.0]);
+    }
+
+    #[test]
+    fn stretch_spacing_to_width_using_local_spacing_uses_resolved_proportions() {
+        let mut spacing = HorizontalSpacing::new(3);
+        spacing.set_width(0, Slot::NoteSpacing, 3.0);
+        spacing.set_width(1, Slot::NoteSpacing, 1.0);
+        spacing.set_width(2, Slot::NoteSpacing, 1.0);
+        recompute_spacing_positions(&mut spacing, false);
+
+        stretch_spacing_to_width_using_local_spacing(&mut spacing, 8.0);
+
+        assert!((spacing.get(0, Slot::NoteSpacing).width - 4.8).abs() < 1e-6);
+        assert!((spacing.get(1, Slot::NoteSpacing).width - 1.6).abs() < 1e-6);
+        assert!((spacing.get(2, Slot::NoteSpacing).width - 1.6).abs() < 1e-6);
+    }
+
+    #[test]
+    fn stretch_spacing_to_width_using_local_spacing_preserves_uniform_behavior_for_equal_widths() {
         let mut spacing = HorizontalSpacing::new(3);
         spacing.set_width(0, Slot::NoteSpacing, 1.0);
         spacing.set_width(1, Slot::NoteSpacing, 1.0);
         spacing.set_width(2, Slot::NoteSpacing, 1.0);
         recompute_spacing_positions(&mut spacing, false);
 
-        stretch_spacing_to_width(&mut spacing, 6.0);
+        stretch_spacing_to_width_using_local_spacing(&mut spacing, 6.0);
 
         assert!((spacing.get(0, Slot::NoteSpacing).width - 2.0).abs() < f32::EPSILON);
         assert!((spacing.get(1, Slot::NoteSpacing).width - 2.0).abs() < f32::EPSILON);
@@ -1332,28 +1678,251 @@ mod tests {
     }
 
     #[test]
-    fn widen_governed_host_span_evenly_adds_extra_width_to_each_host_tick() {
-        let mut spacing = HorizontalSpacing::new(4);
-        for tick in 0..4 {
-            spacing.set_width(tick, Slot::NoteSpacing, 1.0);
-        }
-        recompute_spacing_positions(&mut spacing, true);
+    fn shared_rhythm_grid_uses_lcm_resolution_for_different_local_lengths() {
+        let mut triplet_spacing = HorizontalSpacing::new(3);
+        triplet_spacing.set_width(0, Slot::NoteSpacing, 3.0);
+        triplet_spacing.set_width(1, Slot::NoteSpacing, 1.0);
+        triplet_spacing.set_width(2, Slot::NoteSpacing, 1.0);
 
-        let anchored_track = AnchoredNotationTrack {
-            owner_id: 1,
-            host_span: crate::instructions::parse::get_written_durations::HostSpan {
-                start_tick: 1,
-                end_tick: 3,
-            },
-            notation: NotationTrack::new(3),
+        let mut duplet_spacing = HorizontalSpacing::new(2);
+        duplet_spacing.set_width(0, Slot::NoteSpacing, 1.0);
+        duplet_spacing.set_width(1, Slot::NoteSpacing, 3.0);
+
+        let grid = SharedRhythmGrid::from_local_spacings(2, &[&triplet_spacing, &duplet_spacing])
+            .expect("mixed local lengths should produce a shared rhythm grid");
+
+        assert_eq!(grid.resolution, 6);
+        assert!((grid.width - 6.5).abs() < 1e-6);
+        assert_eq!(grid.project_widths(2, grid.width), vec![3.5, 3.0]);
+        assert_eq!(grid.project_widths(3, grid.width), vec![3.0, 1.5, 2.0]);
+    }
+
+    #[test]
+    fn finalize_shared_anchored_layouts_aligns_tuplets_across_tracks_with_shared_host_span() {
+        let mut host_spacing = HorizontalSpacing::new(2);
+        host_spacing.set_width(0, Slot::NoteSpacing, 1.0);
+        host_spacing.set_width(1, Slot::NoteSpacing, 1.0);
+
+        let mut triplet_spacing = HorizontalSpacing::new(3);
+        triplet_spacing.set_width(0, Slot::NoteSpacing, 3.0);
+        triplet_spacing.set_width(1, Slot::NoteSpacing, 1.0);
+        triplet_spacing.set_width(2, Slot::NoteSpacing, 1.0);
+        recompute_spacing_positions(&mut triplet_spacing, false);
+
+        let mut duplet_spacing = HorizontalSpacing::new(2);
+        duplet_spacing.set_width(0, Slot::NoteSpacing, 1.0);
+        duplet_spacing.set_width(1, Slot::NoteSpacing, 3.0);
+        recompute_spacing_positions(&mut duplet_spacing, false);
+
+        let mut anchored_layouts_by_track = AnchoredTrackLayoutsByTrack::default();
+        anchored_layouts_by_track.insert(
+            300,
+            [(
+                401,
+                AnchoredTrackLayout {
+                    measures: Measures::default(),
+                    horizontal_spacing: triplet_spacing,
+                    lead_in: InitialNoteLeadIn::default(),
+                    beams: Vec::new(),
+                    stem_directions: FxHashMap::default(),
+                    shunts: Shunts {
+                        by_id: FxHashMap::default(),
+                        by_offset: FxHashMap::default(),
+                    },
+                    accidentals: Accidentals::new(),
+                    dots: FxHashMap::default(),
+                    articulations: FxHashMap::default(),
+                },
+            )]
+            .into_iter()
+            .collect(),
+        );
+        anchored_layouts_by_track.insert(
+            301,
+            [(
+                402,
+                AnchoredTrackLayout {
+                    measures: Measures::default(),
+                    horizontal_spacing: duplet_spacing,
+                    lead_in: InitialNoteLeadIn::default(),
+                    beams: Vec::new(),
+                    stem_directions: FxHashMap::default(),
+                    shunts: Shunts {
+                        by_id: FxHashMap::default(),
+                        by_offset: FxHashMap::default(),
+                    },
+                    accidentals: Accidentals::new(),
+                    dots: FxHashMap::default(),
+                    articulations: FxHashMap::default(),
+                },
+            )]
+            .into_iter()
+            .collect(),
+        );
+
+        let shared_host_span = crate::instructions::parse::get_written_durations::HostSpan {
+            start_tick: 0,
+            end_tick: 2,
         };
+        let mut notations_by_track = NotationByTrack::default();
+        notations_by_track.insert(
+            300,
+            NotationTrack {
+                length: 2,
+                track: FxHashMap::default(),
+                anchored_tracks: vec![AnchoredNotationTrack {
+                    owner_id: 401,
+                    host_span: shared_host_span.clone(),
+                    notation: NotationTrack::new(3),
+                }],
+            },
+        );
+        notations_by_track.insert(
+            301,
+            NotationTrack {
+                length: 2,
+                track: FxHashMap::default(),
+                anchored_tracks: vec![AnchoredNotationTrack {
+                    owner_id: 402,
+                    host_span: shared_host_span,
+                    notation: NotationTrack::new(2),
+                }],
+            },
+        );
 
-        widen_governed_host_span_evenly(&mut spacing, &anchored_track, 4.0);
+        finalize_shared_anchored_layouts(
+            &mut host_spacing,
+            &notations_by_track,
+            &mut anchored_layouts_by_track,
+        );
 
-        assert!((spacing.get(1, Slot::NoteSpacing).width - 2.0).abs() < f32::EPSILON);
-        assert!((spacing.get(2, Slot::NoteSpacing).width - 2.0).abs() < f32::EPSILON);
-        assert!((spacing.get(0, Slot::NoteSpacing).width - 1.0).abs() < f32::EPSILON);
-        assert!((spacing.get(3, Slot::NoteSpacing).width - 1.0).abs() < f32::EPSILON);
+        assert!((host_spacing.get(0, Slot::NoteSpacing).width - 3.5).abs() < 1e-6);
+        assert!((host_spacing.get(1, Slot::NoteSpacing).width - 3.0).abs() < 1e-6);
+
+        let first_layout = &anchored_layouts_by_track[&300][&401].horizontal_spacing;
+        assert!((first_layout.get(0, Slot::NoteSpacing).width - 3.0).abs() < 1e-6);
+        assert!((first_layout.get(1, Slot::NoteSpacing).width - 1.5).abs() < 1e-6);
+        assert!((first_layout.get(2, Slot::NoteSpacing).width - 2.0).abs() < 1e-6);
+
+        let second_layout = &anchored_layouts_by_track[&301][&402].horizontal_spacing;
+        assert!((second_layout.get(0, Slot::NoteSpacing).width - 3.5).abs() < 1e-6);
+        assert!((second_layout.get(1, Slot::NoteSpacing).width - 3.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn finalize_shared_anchored_layouts_merges_partially_overlapping_spans() {
+        let mut host_spacing = HorizontalSpacing::new(3);
+        host_spacing.set_width(0, Slot::NoteSpacing, 1.0);
+        host_spacing.set_width(1, Slot::NoteSpacing, 1.0);
+        host_spacing.set_width(2, Slot::NoteSpacing, 1.0);
+
+        let mut triplet_spacing = HorizontalSpacing::new(3);
+        triplet_spacing.set_width(0, Slot::NoteSpacing, 3.0);
+        triplet_spacing.set_width(1, Slot::NoteSpacing, 1.0);
+        triplet_spacing.set_width(2, Slot::NoteSpacing, 1.0);
+        recompute_spacing_positions(&mut triplet_spacing, false);
+
+        let mut duplet_spacing = HorizontalSpacing::new(2);
+        duplet_spacing.set_width(0, Slot::NoteSpacing, 1.0);
+        duplet_spacing.set_width(1, Slot::NoteSpacing, 3.0);
+        recompute_spacing_positions(&mut duplet_spacing, false);
+
+        let mut anchored_layouts_by_track = AnchoredTrackLayoutsByTrack::default();
+        anchored_layouts_by_track.insert(
+            300,
+            [(
+                401,
+                AnchoredTrackLayout {
+                    measures: Measures::default(),
+                    horizontal_spacing: triplet_spacing,
+                    lead_in: InitialNoteLeadIn::default(),
+                    beams: Vec::new(),
+                    stem_directions: FxHashMap::default(),
+                    shunts: Shunts {
+                        by_id: FxHashMap::default(),
+                        by_offset: FxHashMap::default(),
+                    },
+                    accidentals: Accidentals::new(),
+                    dots: FxHashMap::default(),
+                    articulations: FxHashMap::default(),
+                },
+            )]
+            .into_iter()
+            .collect(),
+        );
+        anchored_layouts_by_track.insert(
+            301,
+            [(
+                402,
+                AnchoredTrackLayout {
+                    measures: Measures::default(),
+                    horizontal_spacing: duplet_spacing,
+                    lead_in: InitialNoteLeadIn::default(),
+                    beams: Vec::new(),
+                    stem_directions: FxHashMap::default(),
+                    shunts: Shunts {
+                        by_id: FxHashMap::default(),
+                        by_offset: FxHashMap::default(),
+                    },
+                    accidentals: Accidentals::new(),
+                    dots: FxHashMap::default(),
+                    articulations: FxHashMap::default(),
+                },
+            )]
+            .into_iter()
+            .collect(),
+        );
+
+        let mut notations_by_track = NotationByTrack::default();
+        notations_by_track.insert(
+            300,
+            NotationTrack {
+                length: 3,
+                track: FxHashMap::default(),
+                anchored_tracks: vec![AnchoredNotationTrack {
+                    owner_id: 401,
+                    host_span: crate::instructions::parse::get_written_durations::HostSpan {
+                        start_tick: 0,
+                        end_tick: 2,
+                    },
+                    notation: NotationTrack::new(3),
+                }],
+            },
+        );
+        notations_by_track.insert(
+            301,
+            NotationTrack {
+                length: 3,
+                track: FxHashMap::default(),
+                anchored_tracks: vec![AnchoredNotationTrack {
+                    owner_id: 402,
+                    host_span: crate::instructions::parse::get_written_durations::HostSpan {
+                        start_tick: 1,
+                        end_tick: 3,
+                    },
+                    notation: NotationTrack::new(2),
+                }],
+            },
+        );
+
+        finalize_shared_anchored_layouts(
+            &mut host_spacing,
+            &notations_by_track,
+            &mut anchored_layouts_by_track,
+        );
+
+        assert!((host_spacing.get(0, Slot::NoteSpacing).width - 3.5).abs() < 1e-6);
+        assert!((host_spacing.get(1, Slot::NoteSpacing).width - 1.5).abs() < 1e-6);
+        assert!((host_spacing.get(2, Slot::NoteSpacing).width - 3.0).abs() < 1e-6);
+
+        let first_layout = &anchored_layouts_by_track[&300][&401].horizontal_spacing;
+        assert!((first_layout.get(0, Slot::NoteSpacing).width - 3.0).abs() < 1e-6);
+        assert!((first_layout.get(1, Slot::NoteSpacing).width - 1.0).abs() < 1e-6);
+        assert!((first_layout.get(2, Slot::NoteSpacing).width - 1.0).abs() < 1e-6);
+
+        let second_layout = &anchored_layouts_by_track[&301][&402].horizontal_spacing;
+        assert!((second_layout.get(0, Slot::NoteSpacing).width - 1.5).abs() < 1e-6);
+        assert!((second_layout.get(1, Slot::NoteSpacing).width - 3.0).abs() < 1e-6);
     }
 
     #[test]

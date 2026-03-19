@@ -2,6 +2,8 @@
 
 Status: done
 
+Supersession note 2026-03-19: the original Story 3.4 implementation and acceptance text describe even distribution of tuplet-only extra width across host and local ticks. That historical delivery remains recorded below, but the live contract is now the Gould/LCM proportional distribution defined in the follow-up tech spec `tech-spec-gould-based-tuplet-spacing-distribution.md` and enforced in the Rust spacing seam.
+
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
 ## Story
@@ -224,3 +226,4 @@ GPT-5.4
 - 2026-03-17: Clarified the Story 3.4 width rule so tuplets compare ambient host span width against tuplet-required local width, widening host spacing only when needed and otherwise stretching local tuplet spacing across the available span.
 - 2026-03-17: Implemented tuplet-aware shared horizontal spacing, replaced uniform anchored projection with resolved local spacing, added focused regressions, and validated with Rust tests plus clippy.
 - 2026-03-18: Closed review and marked Story 3.4 done; no additional project docs or agent instructions needed updating beyond the recorded documentation review outcome.
+- 2026-03-19: Annotated Story 3.4 as historically superseded on tuplet extra-width distribution; the live rule is now Gould/LCM proportional spacing shared across host widening and anchored local stretch.

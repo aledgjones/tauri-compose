@@ -49,8 +49,8 @@ use parse::get_barlines::get_barlines;
 use parse::get_beams::{get_beams, Beams};
 use parse::get_dots::{get_dots, Dots};
 use parse::get_horizontal_spacing::{
-    get_horizontal_spacing_with_anchored_layouts, stretch_spacing_to_width, AnchoredTrackLayout,
-    Slot,
+    get_horizontal_spacing_with_anchored_layouts, stretch_spacing_to_width_using_local_spacing,
+    AnchoredTrackLayout, Slot,
 };
 use parse::get_key_signatures::get_key_signatures;
 use parse::get_max_brackets_width::get_max_brackets_width;
@@ -284,7 +284,7 @@ fn build_anchored_track_render_context<'a>(
     host_layout: AnchoredTrackHostLayout,
 ) -> AnchoredTrackRenderContext<'a> {
     let mut horizontal_spacing = layout.horizontal_spacing.clone();
-    stretch_spacing_to_width(
+    stretch_spacing_to_width_using_local_spacing(
         &mut horizontal_spacing,
         host_layout.right - host_layout.left,
     );

@@ -83,6 +83,7 @@ _This file contains critical rules and patterns that AI agents must follow when 
 - `Tuplet` persists ratio metadata as `note_count`, `in_space_of`, `base_note_value`, `groupings`, and child `entries`; MVP child content is intentionally single-level, so nested tuplets are rejected by the owning backend type
 - Tuplets follow one backend-owned semantic model across persistence, parsing, rendering, playback, and editing; do not add frontend-owned parallel tuplet truth or subsystem-local reinterpretations of ownership, boundaries, or continuity
 - Preserve the tuplet timing invariant: host geometry stays compressed to the denominator span, but any crossing tone still consumes its full literal duration on the canonical expanded timeline
+- Tuplet spacing is backend-owned and shared: collect overlapping anchored spans into one governed region, build one temporary rhythmic grid there at an LCM-derived resolution across the region and participating local lengths, include the ambient host-owned note-spacing slice in that same grid, aggregate all note-spacing demand there, then collapse the unified result back into both host spacing and anchored local spacing so simultaneous rhythms align instead of stretching independently
 - Dual-index storage pattern: `by_tick: FxHashMap<Tick, Vec<UniqueId>>` + `by_id: FxHashMap<UniqueId, Entry>`
 
 ### Framework-Specific Rules

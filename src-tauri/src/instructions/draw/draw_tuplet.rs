@@ -429,7 +429,9 @@ mod tests {
     use super::*;
     use crate::instructions::parse::get_articulations::Articulations as TrackArticulations;
     use crate::instructions::parse::get_beams::{Beam, BeamSegments, BeamTicks, FractionalBeams};
-    use crate::instructions::parse::get_horizontal_spacing::stretch_spacing_to_width;
+    use crate::instructions::parse::get_horizontal_spacing::{
+        stretch_spacing_to_width, stretch_spacing_to_width_using_local_spacing,
+    };
     use crate::instructions::parse::get_stem_directions::StemDirections;
     use crate::instructions::parse::get_stem_lengths::{StemDef, StemLengths};
     use crate::instructions::parse::get_tone_offset_info::ToneOffsetInfo;
@@ -513,6 +515,16 @@ mod tests {
             spacing.set_width(tick, Slot::NoteSpacing, per_tick);
         }
         stretch_spacing_to_width(&mut spacing, width);
+        spacing
+    }
+
+    fn make_proportional_spacing(track: &AnchoredNotationTrack, width: f32) -> HorizontalSpacing {
+        let mut spacing = HorizontalSpacing::new(track.notation.length.max(1));
+        let per_tick = width / track.notation.length.max(1) as f32;
+        for tick in 0..track.notation.length.max(1) {
+            spacing.set_width(tick, Slot::NoteSpacing, per_tick);
+        }
+        stretch_spacing_to_width_using_local_spacing(&mut spacing, width);
         spacing
     }
 
@@ -774,15 +786,8 @@ mod tests {
         let mut renderer = make_test_renderer();
         let triplet = make_triplet();
         let anchored_track =
-            make_anchored_track(&[(0, 16, false), (16, 16, false), (32, 16, false)]);
-        let mut horizontal_spacing = HorizontalSpacing::new(anchored_track.notation.length);
-        horizontal_spacing.set_width(0, Slot::NoteSpacing, 1.0);
-        horizontal_spacing.set_width(1, Slot::NoteSpacing, 1.0);
-        horizontal_spacing.set_width(2, Slot::NoteSpacing, 1.0);
-        horizontal_spacing.set_width(3, Slot::NoteSpacing, 1.0);
-        horizontal_spacing.set_width(4, Slot::NoteSpacing, 8.0);
-        horizontal_spacing.set_width(5, Slot::NoteSpacing, 8.0);
-        stretch_spacing_to_width(&mut horizontal_spacing, 20.0);
+            make_anchored_track(&[(0, 16, false), (16, 16, false), (32, 32, false)]);
+        let horizontal_spacing = make_proportional_spacing(&anchored_track, 20.0);
 
         let converter = renderer.converter.clone();
         let text_measurer = TextMeasurer::new(&converter);
@@ -813,6 +818,7 @@ mod tests {
             .expect("tuplet hit target should exist");
         assert!(tuplet_target.width > 10.0);
         assert!(tuplet_target.x > 9.5);
+        assert!(tuplet_target.width < 20.5);
     }
 
     #[test]
