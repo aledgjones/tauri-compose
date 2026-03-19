@@ -408,6 +408,7 @@ fn compose_domain_model() -> Value {
         "recommendedFirstSteps": [
             format!("Call {GET_STARTED_TOOL_NAME} before any {ACTION_TOOL_PREFIX}* tool when you need to create or edit score content."),
             "Use score.lookup.getInstrumentTracks to resolve playable user track_ids before calling score.tone.create.",
+            "For tuplets, create the container on the playable user track first, then create child tones on that same track with tuplet-local ticks and a tuplet_id.",
             "Use score.lookup.getScoreSlice when you need current runtime ids and structural relationships without mutating the score."
         ],
         "ids": {
@@ -426,6 +427,32 @@ fn compose_domain_model() -> Value {
             "Tone entries live on user track_ids inside a stave, not on the master track.",
             "An instrument can exist globally before it produces any flow staves or tracks."
         ],
+        "tuplets": {
+            "summary": "Tuplet containers live on the host user track, while tuplet child tones use tuplet-local timing on that same track with a tuplet_id.",
+            "authoringOrder": [
+                "Resolve the playable user track_id with score.lookup.getInstrumentTracks before creating tuplets or tones.",
+                "Create the tuplet container on that user track with score.tuplet.create.",
+                "Create child tones on the same track with score.tone.create and pass the tuplet_id returned by the container creation call."
+            ],
+            "timingRules": [
+                "The tuplet container tick is a host-track tick.",
+                "Tuplet child ticks are local to the tuplet, not absolute host ticks.",
+                "Tuplet child durations stay literal in the tuplet-local frame; do not pre-compress them to the host span.",
+                "For a 3:2 eighth-note triplet, the host span is 32 ticks while the local child timeline is 48 ticks with child ticks 0, 16, and 32."
+            ],
+            "ownershipRules": [
+                "Tones that start inside the tuplet belong in the tuplet child entries.",
+                "Tones that start before the tuplet remain host-owned even if their durations cross the tuplet span.",
+                "Crossing host-owned tones keep their literal durations; only the container geometry is compressed on the host track."
+            ],
+            "example": {
+                "label": "3:2 eighth-note triplet in 4/4 starting on beat 2",
+                "hostStartTick": 32,
+                "hostSpanTicks": 32,
+                "localChildTicks": [0, 16, 32],
+                "localChildDurations": [16, 16, 16]
+            }
+        },
         "tickSystem": {
             "summary": "Ticks are the timeline unit used for both absolute positions and durations.",
             "baseRule": "A quarter note is 32 ticks.",
@@ -459,6 +486,7 @@ fn compose_getting_started_guide() -> Value {
         "recommendedFirstSteps": domain_model["recommendedFirstSteps"].clone(),
         "ids": domain_model["ids"].clone(),
         "whereThingsLive": domain_model["whereThingsLive"].clone(),
+        "tuplets": domain_model["tuplets"].clone(),
         "tickSystem": domain_model["tickSystem"].clone()
     })
 }

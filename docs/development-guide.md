@@ -63,6 +63,46 @@ In addition, the app now generates one MCP tool per automation action using the 
 
 Generated `compose_action_*` tools are the action surface. They are discoverable through standard MCP `tools/list`, publish named-parameter schemas, and dispatch through the existing automation registry.
 
+For note entry, keep the score wiring order explicit:
+
+1. Create flows, instruments, and players.
+2. Assign instruments to players and players to flows/layouts.
+3. Call `compose_action_score_lookup_getInstrumentTracks` to resolve the playable `track_id` values for the target flow and instrument.
+4. Write tones only to user track ids returned by that lookup. Do not write tones to flow master tracks or stave master tracks.
+
+Tuplet authoring through MCP follows the same rule. Create the tuplet container on the owning user track, then create child tones on that same track with `tuplet_id` set to the returned container id.
+
+The important timing rule is that tuplet containers and tuplet child tones use different coordinate frames:
+
+- the tuplet container `tick` is a host-track tick
+- the tuplet container occupies the compressed host span implied by `note_count`, `in_space_of`, and `base_note_value`
+- child tones inside the tuplet use tuplet-local ticks, not absolute host ticks
+- child tone durations remain literal in the tuplet-local frame; they are not rewritten to the compressed host span
+
+For example, a 3:2 eighth-note triplet in 4/4 starting on beat 2 uses quarter = 32 ticks and eighth = 16 ticks:
+
+- host start tick: `32`
+- host span: `32` ticks total, because 3 eighths fit in the space of 2 eighths
+- local tuplet length: `48` ticks total, because the child timeline still contains 3 literal eighth notes
+- child note ticks: `0`, `16`, `32`
+- child note durations: `16`, `16`, `16`
+
+In MCP terms, that sequence looks like this:
+
+1. Create the container with `compose_action_score_tuplet_create(track_id, 32, 3, 2, 8, [3])`.
+2. Create the first tuplet tone with `compose_action_score_tone_create(track_id, 0, 16, pitch, accidental, velocity, articulations, tuplet_id)`.
+3. Create the second and third tones at local ticks `16` and `32` with the same literal eighth duration `16`.
+
+This means MCP-only clients should not pre-compress child ticks to the host span. For the example above, child ticks `0, 16, 32` are correct; host ticks `32, 42.66..., 53.33...` are not.
+
+Ownership also stays explicit when tuplets overlap existing material:
+
+- tones that start inside the tuplet belong in the tuplet child `entries`
+- tones that start before the tuplet remain host-owned even if their durations cross the tuplet span
+- host-owned crossing tones keep their literal durations; only the container geometry is compressed on the host track
+
+When in doubt, use this pattern for MCP-only score construction: `compose_get_started` -> create and assign score entities -> `compose_action_score_lookup_getInstrumentTracks` -> `compose_action_score_tuplet_create` -> `compose_action_score_tone_create(..., tuplet_id)`.
+
 This is intentionally a developer-facing automation surface. It is localhost-only and app-hosted.
 
 For release packaging, no extra MCP sidecar binary is required because the app itself hosts the MCP endpoint.
