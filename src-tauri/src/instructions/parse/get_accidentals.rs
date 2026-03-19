@@ -2,7 +2,7 @@ use super::get_barlines::Barlines;
 use super::get_beams::get_beams_in_track;
 use super::get_measures::measures_from_single_time_signature;
 use super::get_shunts::{get_note_shunts_in_track, Shunt, Shunts, ShuntsByTrack};
-use super::get_stem_directions::get_stem_directions_in_track;
+use super::get_stem_directions::get_tuplet_stem_directions_in_track;
 use super::get_tone_offsets::ToneVerticalOffsets;
 use super::get_written_durations::{
     AnchoredNotationTrack, Notation, NotationByTrack, NotationTrack,
@@ -275,7 +275,7 @@ fn get_accidentals_in_track_with_anchored_tracks(
 
         let measures = measures_from_single_time_signature(tuplet.local_time_signature());
         let beams = get_beams_in_track(&anchored_track.notation, &measures);
-        let stem_directions = get_stem_directions_in_track(&anchored_track.notation, &beams);
+        let stem_directions = get_tuplet_stem_directions_in_track(&anchored_track.notation, &beams);
         let shunts =
             get_note_shunts_in_track(&anchored_track.notation, tone_offsets, &stem_directions);
 

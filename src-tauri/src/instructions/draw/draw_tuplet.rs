@@ -23,6 +23,7 @@ const TUPLET_BRACKET_HOOK_HEIGHT: f32 = 0.45;
 const TUPLET_BRACKET_GAP_PADDING: f32 = 0.18;
 const TUPLET_LINE_WIDTH: f32 = 0.1;
 const TUPLET_MIN_HIT_HEIGHT: f32 = 1.2;
+const TUPLET_STAVE_OFFSET: f32 = 1.5;
 
 #[derive(Clone, Copy)]
 enum TupletSide {
@@ -125,6 +126,13 @@ fn default_anchor_y(stave_top: f32, stem_direction: &Direction, number_only: boo
         (true, Direction::Down) => stave_top + 3.5,
         (false, Direction::Up) => stave_top + 2.0,
         (false, Direction::Down) => stave_top - 1.45,
+    }
+}
+
+fn clamp_anchor_y_clear_of_stave(anchor_y: f32, side: TupletSide, stave_top: f32) -> f32 {
+    match side {
+        TupletSide::Above => anchor_y.min(stave_top - TUPLET_STAVE_OFFSET - TUPLET_SIDE_GAP),
+        TupletSide::Below => anchor_y.max(stave_top + TUPLET_STAVE_OFFSET + TUPLET_SIDE_GAP),
     }
 }
 
@@ -291,6 +299,7 @@ pub fn draw_tuplet(
         beam_side_anchor_y(beams, stem_lengths, host_left, center_x, stave_top)
             .unwrap_or_else(|| default_anchor_y(stave_top, &stem_direction, true))
     };
+    let anchor_y = clamp_anchor_y_clear_of_stave(anchor_y, side, stave_top);
     let number_y = number_y_from_anchor(anchor_y, side, draw_bracket);
 
     renderer.text(
@@ -902,6 +911,45 @@ mod tests {
     }
 
     #[test]
+    fn keeps_bracketed_tuplet_clear_of_stave_when_placed_below() {
+        let mut renderer = make_test_renderer();
+        let triplet = make_triplet();
+        let mut anchored_track = make_anchored_track(&[(0, 32, false), (32, 16, true)]);
+        anchored_track.notation.track.get_mut(&0).unwrap().info = Some(ToneOffsetInfo {
+            highest: -2,
+            lowest: 1,
+            furthest: 1,
+        });
+        let horizontal_spacing = make_uniform_spacing(anchored_track.notation.length, 18.0);
+        let converter = renderer.converter.clone();
+        let text_measurer = TextMeasurer::new(&converter);
+        let stem_directions = make_stem_directions(Direction::Up, &[0]);
+
+        draw_tuplet(
+            &triplet,
+            &anchored_track,
+            &TrackArticulations::default(),
+            &vec![],
+            &stem_directions,
+            &StemLengths::default(),
+            &horizontal_spacing,
+            6.0,
+            24.0,
+            &text_measurer,
+            None,
+            1,
+            2,
+            3,
+            4,
+            8.0,
+            &mut renderer,
+        );
+
+        assert!(tuplet_number_y(&renderer) > 11.0);
+        assert!(renderer.hit_targets[0].y > 10.0);
+    }
+
+    #[test]
     fn extends_bracket_horizontals_to_outer_edge_of_hooks() {
         let mut renderer = make_test_renderer();
         let triplet = make_triplet();
@@ -1000,7 +1048,7 @@ mod tests {
         let articulated_number_y = tuplet_number_y(&articulated_renderer);
 
         assert!(articulated_number_y < baseline_number_y);
-        assert!(((baseline_number_y - articulated_number_y) - 1.5).abs() < 1e-6);
+        assert!(((baseline_number_y - articulated_number_y) - 1.0).abs() < 1e-6);
     }
 
     #[test]
@@ -1061,7 +1109,7 @@ mod tests {
         let articulated_number_y = tuplet_number_y(&articulated_renderer);
 
         assert!(articulated_number_y < baseline_number_y);
-        assert!(((baseline_number_y - articulated_number_y) - 1.25).abs() < 1e-6);
+        assert!(((baseline_number_y - articulated_number_y) - 0.75).abs() < 1e-6);
     }
 
     #[test]
@@ -1127,7 +1175,7 @@ mod tests {
         let articulated_number_y = tuplet_number_y(&articulated_renderer);
 
         assert!(articulated_number_y < baseline_number_y);
-        assert!(((baseline_number_y - articulated_number_y) - 1.5).abs() < 1e-6);
+        assert!(((baseline_number_y - articulated_number_y) - 1.0).abs() < 1e-6);
     }
 
     #[test]
@@ -1193,6 +1241,6 @@ mod tests {
         let articulated_number_y = tuplet_number_y(&articulated_renderer);
 
         assert!(articulated_number_y < baseline_number_y);
-        assert!(((baseline_number_y - articulated_number_y) - 2.0).abs() < 1e-6);
+        assert!(((baseline_number_y - articulated_number_y) - 1.5).abs() < 1e-6);
     }
 }

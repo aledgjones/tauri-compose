@@ -5,7 +5,7 @@ use super::get_beams::{get_beams_in_track, Beams, BeamsByTrack};
 use super::get_dots::{get_dots_in_track, Dots};
 use super::get_measures::{measures_from_single_time_signature, Measures};
 use super::get_shunts::{get_note_shunts_in_track, Shunts, ShuntsByTrack};
-use super::get_stem_directions::{get_stem_directions_in_track, StemDirections};
+use super::get_stem_directions::{get_tuplet_stem_directions_in_track, StemDirections};
 use super::get_tone_offsets::ToneVerticalOffsets;
 use super::get_written_durations::{AnchoredNotationTrack, NotationByTrack, NotationTrack};
 use crate::renderer::converter::Space;
@@ -402,7 +402,7 @@ pub fn build_anchored_track_layout(
     let measures = measures_from_single_time_signature(tuplet.local_time_signature());
     let barlines = Barlines::default();
     let beams = get_beams_in_track(&anchored_track.notation, &measures);
-    let stem_directions = get_stem_directions_in_track(&anchored_track.notation, &beams);
+    let stem_directions = get_tuplet_stem_directions_in_track(&anchored_track.notation, &beams);
     let shunts = get_note_shunts_in_track(&anchored_track.notation, tone_offsets, &stem_directions);
     let dots = get_dots_in_track(&anchored_track.notation, tone_offsets);
     let articulations = get_articulations_in_track(&anchored_track.notation);
@@ -1675,6 +1675,87 @@ mod tests {
         assert!((spacing.get(0, Slot::NoteSpacing).width - 2.0).abs() < f32::EPSILON);
         assert!((spacing.get(1, Slot::NoteSpacing).width - 2.0).abs() < f32::EPSILON);
         assert!((spacing.get(2, Slot::NoteSpacing).width - 2.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn build_anchored_track_layout_unifies_tuplet_stem_directions() {
+        use crate::instructions::parse::get_tone_offset_info::ToneOffsetInfo;
+        use crate::instructions::parse::get_tone_offsets::ToneVerticalOffsets;
+        use crate::instructions::parse::get_written_durations::Notation;
+        use crate::score::components::articulation::Articulations;
+        use crate::score::components::duration::{Direction, NoteDuration};
+        use crate::score::components::pitch::{Accidental, Pitch};
+        use crate::score::components::velocity::Velocity;
+        use crate::score::engraves::Engraves;
+        use crate::score::entries::tone::Tone;
+        use crate::score::layouts::LayoutType;
+
+        let eighth = NoteDuration::Eighth.to_ticks();
+        let mut local_track = NotationTrack::new(NoteDuration::Quarter.to_ticks() + eighth);
+
+        let mut first = Notation::new(0, eighth);
+        first.tones.push(Tone::new(
+            1,
+            0,
+            eighth,
+            Pitch::new(60, Accidental::Natural),
+            Velocity::new(90),
+            Articulations::new(),
+        ));
+        first.info = Some(ToneOffsetInfo {
+            highest: 1,
+            lowest: 1,
+            furthest: 1,
+        });
+
+        let mut second = Notation::new(eighth, eighth);
+        second.tones.push(Tone::new(
+            2,
+            eighth,
+            eighth,
+            Pitch::new(60, Accidental::Natural),
+            Velocity::new(90),
+            Articulations::new(),
+        ));
+        second.info = Some(ToneOffsetInfo {
+            highest: -3,
+            lowest: -3,
+            furthest: -3,
+        });
+
+        local_track.track.insert(0, first);
+        local_track
+            .track
+            .insert(eighth / 2, Notation::new(eighth / 2, eighth / 2));
+        local_track.track.insert(eighth, second);
+
+        let anchored_track = AnchoredNotationTrack {
+            owner_id: 77,
+            host_span: crate::instructions::parse::get_written_durations::HostSpan {
+                start_tick: 0,
+                end_tick: eighth * 2,
+            },
+            notation: local_track,
+        };
+
+        let tuplet = Tuplet::new(77, 0, 3, 2, NoteDuration::Eighth, vec![3]);
+        let engraves = Engraves::new();
+        let engrave = engraves.by_layout_type.get(&LayoutType::FullScore).unwrap();
+        let mut tone_offsets = ToneVerticalOffsets::default();
+        tone_offsets.insert(1, 1);
+        tone_offsets.insert(2, -3);
+
+        let layout = build_anchored_track_layout(
+            &tuplet,
+            &anchored_track,
+            Accidentals::new(),
+            &tone_offsets,
+            engrave,
+        );
+
+        assert!(matches!(layout.stem_directions[&0], Direction::Down));
+        assert!(matches!(layout.stem_directions[&eighth], Direction::Down));
+        assert!(!layout.stem_directions.contains_key(&(eighth / 2)));
     }
 
     #[test]

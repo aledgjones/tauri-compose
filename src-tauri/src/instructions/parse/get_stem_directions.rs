@@ -15,13 +15,15 @@ use std::cmp::Ordering;
 pub type StemDirections = FxHashMap<Tick, Direction>;
 pub type StemDirectionsByTrack = FxHashMap<UniqueId, StemDirections>;
 
-pub fn get_span_stem_direction(span: &Beam, notation: &NotationTrack) -> Direction {
+fn get_consensus_stem_direction<'a, I>(entries: I) -> Option<Direction>
+where
+    I: IntoIterator<Item = &'a Notation>,
+{
     let mut up_count = 0;
     let mut down_count = 0;
     let mut furthests: Vec<i8> = Vec::new();
 
-    for tick in span.ticks.keys() {
-        let entry = &notation.track[tick];
+    for entry in entries {
         let direction = entry.get_stem_direction();
 
         match direction {
@@ -34,8 +36,9 @@ pub fn get_span_stem_direction(span: &Beam, notation: &NotationTrack) -> Directi
     }
 
     match up_count.cmp(&down_count) {
-        Ordering::Greater => Direction::Up,
-        Ordering::Less => Direction::Down,
+        Ordering::Greater => Some(Direction::Up),
+        Ordering::Less => Some(Direction::Down),
+        Ordering::Equal if furthests.is_empty() => None,
         Ordering::Equal => {
             let mut max: i8 = 0;
             for furthest in furthests {
@@ -45,12 +48,17 @@ pub fn get_span_stem_direction(span: &Beam, notation: &NotationTrack) -> Directi
             }
 
             if max > 0 {
-                Direction::Up
+                Some(Direction::Up)
             } else {
-                Direction::Down
+                Some(Direction::Down)
             }
         }
     }
+}
+
+pub fn get_span_stem_direction(span: &Beam, notation: &NotationTrack) -> Direction {
+    get_consensus_stem_direction(span.ticks.keys().map(|tick| &notation.track[tick]))
+        .expect("beam spans should contain at least one notation entry")
 }
 
 pub fn get_stem_directions_in_track(notation: &NotationTrack, beams: &Beams) -> StemDirections {
@@ -67,6 +75,26 @@ pub fn get_stem_directions_in_track(notation: &NotationTrack, beams: &Beams) -> 
     for span in beams {
         let direction = get_span_stem_direction(span, notation);
         for tick in span.ticks.keys() {
+            output.insert(*tick, direction);
+        }
+    }
+
+    output
+}
+
+pub fn get_tuplet_stem_directions_in_track(
+    notation: &NotationTrack,
+    beams: &Beams,
+) -> StemDirections {
+    let mut output = get_stem_directions_in_track(notation, beams);
+    let Some(direction) =
+        get_consensus_stem_direction(notation.track.values().filter(|entry| !entry.is_rest()))
+    else {
+        return output;
+    };
+
+    for (tick, entry) in &notation.track {
+        if !entry.is_rest() {
             output.insert(*tick, direction);
         }
     }
@@ -369,5 +397,50 @@ mod tests {
 
         assert!(matches!(result[&0], Direction::Up));
         assert!(matches!(result[&48], Direction::Up));
+    }
+
+    #[test]
+    fn get_tuplet_stem_directions_in_track_unifies_direction_across_notes() {
+        use crate::score::components::articulation::Articulations;
+        use crate::score::components::pitch::{Accidental, Pitch};
+        use crate::score::components::velocity::Velocity;
+        use crate::score::entries::tone::Tone;
+
+        let mut first = notation_with_info(1);
+        first.tones.push(Tone::new(
+            1,
+            0,
+            16,
+            Pitch::new(60, Accidental::Natural),
+            Velocity::new(100),
+            Articulations::new(),
+        ));
+
+        let mut second = notation_with_info(-3);
+        second.tones.push(Tone::new(
+            2,
+            32,
+            16,
+            Pitch::new(60, Accidental::Natural),
+            Velocity::new(100),
+            Articulations::new(),
+        ));
+
+        let mut track_map = FxHashMap::default();
+        track_map.insert(0_u64, first);
+        track_map.insert(16_u64, Notation::new(16, 16));
+        track_map.insert(32_u64, second);
+
+        let notation_track = NotationTrack {
+            length: 48,
+            track: track_map,
+            anchored_tracks: Vec::new(),
+        };
+
+        let result = get_tuplet_stem_directions_in_track(&notation_track, &vec![]);
+
+        assert!(matches!(result[&0], Direction::Down));
+        assert!(matches!(result[&32], Direction::Down));
+        assert!(!result.contains_key(&16));
     }
 }
