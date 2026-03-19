@@ -375,17 +375,6 @@ impl NotationTrack {
         None
     }
 
-    pub fn get_next_notation(&self, at: Tick) -> Option<(Tick, &Notation)> {
-        for tick in at + 1..self.length {
-            match self.track.get(&tick) {
-                Some(notation) => return Some((tick, notation)),
-                None => continue,
-            }
-        }
-
-        None
-    }
-
     pub fn split(&mut self, split_at: Tick) {
         if let Some((event_at, notation)) = self.get_previous_notation(split_at) {
             // only split if:
@@ -1910,7 +1899,7 @@ mod tests {
         assert!(n.has_tie());
     }
 
-    // --- NotationTrack::get_previous_notation / get_next_notation ---
+    // --- NotationTrack::get_previous_notation ---
 
     #[test]
     fn get_previous_notation_returns_none_on_empty() {
@@ -1934,29 +1923,6 @@ mod tests {
         let found = nt.get_previous_notation(32);
         assert!(found.is_some());
         assert_eq!(found.unwrap().0, 16);
-    }
-
-    #[test]
-    fn get_next_notation_returns_none_on_empty() {
-        let nt = NotationTrack::new(128);
-        assert!(nt.get_next_notation(32).is_none());
-    }
-
-    #[test]
-    fn get_next_notation_finds_later_notation() {
-        let mut nt = NotationTrack::new(128);
-        nt.track.insert(64, Notation::new(64, 32));
-        let found = nt.get_next_notation(32);
-        assert!(found.is_some());
-        assert_eq!(found.unwrap().0, 64);
-    }
-
-    #[test]
-    fn get_next_notation_returns_none_if_only_earlier() {
-        let mut nt = NotationTrack::new(128);
-        nt.track.insert(16, Notation::new(16, 16));
-        // Only notation is at 16, looking after 32 → None
-        assert!(nt.get_next_notation(32).is_none());
     }
 
     // --- NotationTrack::split ---
@@ -3026,33 +2992,6 @@ mod tests {
         assert!(result.is_some());
         let (tick, _) = result.unwrap();
         assert_eq!(tick, 0);
-    }
-
-    #[test]
-    fn get_next_notation_returns_none_on_empty_track() {
-        let track = NotationTrack::new(128);
-        assert!(track.get_next_notation(0).is_none());
-    }
-
-    #[test]
-    fn get_next_notation_returns_next_event() {
-        let q = NoteDuration::Quarter.to_ticks();
-        let mut track = NotationTrack::new(q * 4);
-        track.track.insert(q, make_note_at(q, q, 1));
-        let result = track.get_next_notation(0);
-        assert!(result.is_some());
-        let (tick, _) = result.unwrap();
-        assert_eq!(tick, q);
-    }
-
-    #[test]
-    fn get_next_notation_returns_none_past_last_event() {
-        let q = NoteDuration::Quarter.to_ticks();
-        let mut track = NotationTrack::new(q * 4);
-        track.track.insert(0, make_note_at(0, q, 1));
-        // looking from q should find nothing (length=q*4 but nothing after 0)
-        let result = track.get_next_notation(q);
-        assert!(result.is_none());
     }
 
     // --- Notation::base_to_note_duration ---
