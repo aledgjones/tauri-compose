@@ -5,9 +5,11 @@ import {
 } from "../../../../../services/test-utils";
 import { MiniaturePianoRoll } from "./miniature-piano-roll";
 import {
+  Accidental,
   Flow,
   Instrument,
   InstrumentType,
+  NoteDuration,
 } from "../../../../../services/types";
 
 const makeFlow = (overrides = {}): Flow => ({
@@ -228,5 +230,78 @@ describe("MiniaturePianoRoll", () => {
     // Merged into 1 background highlight
     const bgHighlights = container.querySelectorAll(".opacity-20");
     expect(bgHighlights.length).toBe(1);
+  });
+
+  it("renders tuplet-owned tones in the overview track without showing tuplet regions", () => {
+    const staveId = 20;
+    const trackId = 30;
+    const flow = makeFlow({
+      staves: {
+        by_id: {
+          [staveId]: { id: staveId, track_ids: [trackId] },
+        },
+      },
+    });
+    const instrument = makeInstrument({ stave_ids: [staveId] });
+    const appState = createAppState({
+      score: {
+        tracks: {
+          by_id: {
+            [trackId]: {
+              id: trackId,
+              entries: {
+                by_tick: {},
+                by_id: {
+                  11: {
+                    id: 11,
+                    tick: 64,
+                    type: "Tuplet",
+                    note_count: 3,
+                    in_space_of: 2,
+                    base_note_value: NoteDuration.Eighth,
+                    groupings: [3],
+                    entries: {
+                      by_tick: { 16: [101] },
+                      by_id: {
+                        101: {
+                          id: 101,
+                          tick: 16,
+                          type: "Tone",
+                          duration: 16,
+                          pitch: {
+                            int: 72,
+                            accidental: Accidental.Natural,
+                          },
+                          velocity: { int: 100 },
+                          articulations: [],
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      } as never,
+    });
+
+    const { container } = renderWithProviders(
+      <MiniaturePianoRoll
+        instrument={instrument}
+        flow={flow}
+        ticks={baseTicks}
+        color="#FF0000"
+        isDisabled={false}
+      />,
+      { appState },
+    );
+
+    expect(
+      container.querySelector('[data-tone-id="101"][data-tuplet-id="11"]'),
+    ).toBeInTheDocument();
+    expect(
+      container.querySelector('[data-tuplet-slot-marker="11"]'),
+    ).not.toBeInTheDocument();
   });
 });

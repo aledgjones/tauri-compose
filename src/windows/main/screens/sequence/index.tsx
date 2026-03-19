@@ -5,11 +5,14 @@ import { mdiChevronDown, mdiChevronUp } from "@mdi/js";
 import MdiIcon from "@mdi/react";
 import { SelectedToneInfoDisplay } from "../../components/selected-tone-info-display";
 import { InstrumentOverview } from "./components/instrument-overview";
+import { useKeyboardShortcuts } from "../../hooks/use-keyboard-shortcuts";
 
 export const Sequence = () => {
   const state = useAppState();
   const minimized = state.ui.screens.sequence.bottom_panel_minimized;
   const gridTemplateRows = minimized ? "1fr" : "3fr 2fr";
+
+  useKeyboardShortcuts();
 
   return (
     <>

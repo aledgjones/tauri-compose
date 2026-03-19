@@ -1,5 +1,7 @@
 use crate::score::components::pitch::Pitch;
 use crate::score::entries::clef::Clef;
+use crate::score::entries::tuplet::TupletEntry;
+use crate::score::entries::Entry;
 use crate::score::flows::Flow;
 use crate::score::instruments::Instrument;
 use crate::score::tracks::Tracks;
@@ -41,6 +43,24 @@ pub fn get_tone_offsets(
                                 for tone in track.get_tones_at_tick(&tick) {
                                     let offset = Pitch::steps_between(&tone.pitch, &clef.pitch)
                                         + clef.offset;
+                                    offsets.push((tone.id, offset));
+                                }
+                            }
+
+                            for entry in track.entries.by_id.values() {
+                                let Entry::Tuplet(tuplet) = entry else {
+                                    continue;
+                                };
+
+                                let tuplet_clef = master
+                                    .get_clef_before_tick_inclusive(tuplet.tick)
+                                    .unwrap_or(clef);
+
+                                for child_entry in tuplet.entries.by_id.values() {
+                                    let TupletEntry::Tone(tone) = child_entry;
+                                    let offset =
+                                        Pitch::steps_between(&tone.pitch, &tuplet_clef.pitch)
+                                            + tuplet_clef.offset;
                                     offsets.push((tone.id, offset));
                                 }
                             }

@@ -53,17 +53,72 @@ The app hosts a localhost-only MCP endpoint at `http://127.0.0.1:4767/mcp` and a
 The MCP endpoint exposes:
 
 - `compose_get_started` as the first-call onboarding guide
-- `compose_list_actions` to inspect available dotted action paths
-- `compose_describe_model` to inspect the score graph, id semantics, and core entity relationships
-- `compose_call_action` to invoke an action with positional JSON arguments
 
-`compose_get_started` should be the first tool call for score-construction work from MCP-only clients. It returns the recommended call order plus the minimal id, tick, and wiring guidance needed before listing or invoking actions.
+In addition, the app now generates one MCP tool per automation action using the `compose_action_` prefix. For example, `score.flow.create` is exposed as `compose_action_score_flow_create`, and tuplet container creation is exposed as `compose_action_score_tuplet_create`.
 
-`compose_list_actions` returns only explicitly wrapped MCP actions. Each listed action includes its annotated argument names, required flags, optional examples, and, where provided, the prerequisite ids, entity effects, and returned ids that an agent needs to sequence calls safely.
+`compose_get_started` should be the first tool call for score-construction work from MCP-only clients. It returns the recommended call order plus the onboarding guidance needed before listing or invoking actions, including a nested `domainModel` section that covers ids, wiring, ticks, and score graph relationships.
 
-`compose_describe_model` returns curated context for clients that do not have repository access, including how players, instruments, flows, staves, tracks, and entries relate to each other, where runtime numeric ids come from, and how note values and bar lengths map onto ticks.
+Generated `compose_action_*` tools are the action surface. They are discoverable through standard MCP `tools/list`, publish named-parameter schemas, and dispatch through the existing automation registry.
 
-`compose_call_action` validates required positional arguments against the action metadata before forwarding the call to the automation layer.
+For pitch entry, `pitch_int` uses MIDI note numbers. The main reference points are `C0 = 12` and `C4 = 60`. The `accidental` field controls or overrides enharmonic spelling, and when `accidental` is `null` the backend can infer spelling from the active key signature.
+
+For note entry, keep the score wiring order explicit:
+
+1. Create flows, instruments, and players.
+2. Assign instruments to players and players to flows/layouts.
+3. Call `compose_action_score_lookup_getInstrumentTracks` to resolve the playable `track_id` values for the target flow and instrument.
+4. Write tones only to user track ids returned by that lookup. Do not write tones to flow master tracks or stave master tracks.
+
+If the lookup returns multiple staves for one instrument, write notes to the separate staff track ids it returns. Piano is the common case: right-hand material belongs on the upper-staff track id and left-hand material belongs on the lower-staff track id.
+
+Ordinary empty spans do not require explicit rest objects from MCP clients. In normal score construction, gaps are persisted as absence of tones and later materialize as derived rests in notation consumers.
+
+Tuplet authoring through MCP follows the same rule. Create the tuplet container on the owning user track, then create child tones on that same track with `tuplet_id` set to the returned container id.
+
+The important timing rule is that tuplet containers and tuplet child tones use different coordinate frames:
+
+- the tuplet container `tick` is a host-track tick
+- the tuplet container occupies the compressed host span implied by `note_count`, `in_space_of`, and `base_note_value`
+- child tones inside the tuplet use tuplet-local ticks, not absolute host ticks
+- child tone durations remain literal in the tuplet-local frame; they are not rewritten to the compressed host span
+
+For example, a 3:2 eighth-note triplet in 4/4 starting on beat 2 uses quarter = 32 ticks and eighth = 16 ticks:
+
+- host start tick: `32`
+- host span: `32` ticks total, because 3 eighths fit in the space of 2 eighths
+- local tuplet length: `48` ticks total, because the child timeline still contains 3 literal eighth notes
+- child note ticks: `0`, `16`, `32`
+- child note durations: `16`, `16`, `16`
+
+In MCP terms, that sequence looks like this:
+
+1. Create the container with `compose_action_score_tuplet_create(track_id, 32, 3, 2, 8, [3])`.
+2. Create the first tuplet tone with `compose_action_score_tone_create(track_id, 0, 16, pitch, accidental, velocity, articulations, tuplet_id)`.
+3. Create the second and third tones at local ticks `16` and `32` with the same literal eighth duration `16`.
+
+This means MCP-only clients should not pre-compress child ticks to the host span. For the example above, child ticks `0, 16, 32` are correct; host ticks `32, 42.66..., 53.33...` are not.
+
+Ownership also stays explicit when tuplets overlap existing material:
+
+- tones that start inside the tuplet belong in the tuplet child `entries`
+- tones that start before the tuplet remain host-owned even if their durations cross the tuplet span
+- host-owned crossing tones keep their literal durations; only the container geometry is compressed on the host track
+
+The same start-position ownership rule applies outside tuplets as well. When a tone crosses a structural boundary, its owner is determined by where it starts, not by the furthest point its duration reaches.
+
+Two minimal MCP-only authoring examples are worth keeping in mind:
+
+1. Single-staff note entry
+   - create and assign the score entities
+   - resolve the playable `track_id`
+   - create a quarter-note `C4` at tick `0` with `compose_action_score_tone_create(track_id, 0, 32, 60, null, velocity, articulations)`
+
+2. Piano note entry
+   - resolve the piano lookup
+   - use the upper-staff `track_id` for right hand and the lower-staff `track_id` for left hand
+   - do not merge both hands onto one note track just because piano is one instrument
+
+When in doubt, use this pattern for MCP-only score construction: `compose_get_started` -> create and assign score entities -> `compose_action_score_lookup_getInstrumentTracks` -> `compose_action_score_tuplet_create` -> `compose_action_score_tone_create(..., tuplet_id)`.
 
 This is intentionally a developer-facing automation surface. It is localhost-only and app-hosted.
 
@@ -126,6 +181,16 @@ Avoid manually editing synced version files just to reserve a migration target.
 | `npm run generate-scvi:build`     | Compile the SCVI compressor                               |
 | `npm run inspect-scvi`            | Inspect SCVI container contents                           |
 | `npm run inspect-scvi:build`      | Compile the SCVI inspector                                |
+
+### Sample attack alignment workflow
+
+- SCVI builds now derive per-sample `attack_offset_frames` during compression and persist that metadata in the container sample index.
+- The current detector is fully build-time and backend-owned: it analyzes a short-window RMS envelope, estimates a local baseline, and stores the first meaningful RMS crossing as the onset so gradual attacks keep the beginning of the bloom instead of waiting for a later peak.
+- Rebuild an instrument container after sample-library changes with `npm run generate-scvi -- <instrument-folder-name>` or rebuild all containers with `npm run generate-scvi`.
+- Inspect stored offsets with `npm run inspect-scvi -- /Library/Audio/Plug-Ins/SCVI/<instrument>.scvi`.
+- The inspector prints both frames and milliseconds, which is the maintainer-facing proof path for comparing velocity layers such as piano `ppp` versus `ff`.
+- If an onset still lands beyond the build-time plausibility cap, the compressor stores `0` for that sample and reports the rejection in the build output so suspicious articulations can be inspected explicitly.
+- Runtime playback trims those leading source-rate frames in the Rust streamer before resampling, so alignment fixes stay backend-owned and do not alter transport timestamps.
 
 ## Visual Regression Fixtures
 
@@ -194,9 +259,34 @@ Test files are colocated next to the source files they test (e.g. `utils.ts` →
 
 For **visual regression testing** (manual, human-driven), see [tests/fixtures/README.md](../tests/fixtures/README.md).
 
+## Tuplet Authoring Guardrails
+
+- Treat the shipped authoring path as popover-first container creation plus sequencer editing of owned tones inside the resulting region. Do not imply a second freeform tuplet-construction workflow in the sequencer.
+- Limit contributor-facing scope claims to the shipped triplet-first parser suffixes (`3q/2`, `3e/2`, `3s/2`, `3t/2`) unless a later story expands both UI and backend support together.
+- Keep tone creation track-owned end to end. Extend `actions.score.tone.create(...)`, `score_entries_tone_create(...)`, and `Track::create_tone(...)` with optional tuplet context instead of introducing a parallel tuplet-note mutation API.
+- Treat tuplets as one shared semantic model across persistence, parsing, rendering, and playback. Later consumers may adapt the model to their own outputs, but they must not locally reinvent tuplet ownership, boundary meaning, projection, or continuity.
+- Keep tuplet creation on that same backend-owned seam. Container creation lives on `actions.score.tuplet.create(...)` / `score_entries_tuplet_create(...)`, where the backend reconciles existing material by moving only start-owned host tones into `Tuplet.entries` with unchanged durations and tuplet-local offsets; do not perform notation, rendering, playback, or resize semantics early in the creation path.
+- Keep tone deletion and slicing on the shared backend-owned seams as well. Member deletion stays on `actions.score.tone.remove(...)` / `score_entries_tone_duration_remove(...)` with optional tuplet context, and container deletion lives on `actions.score.tuplet.remove(...)` / `score_entries_tuplet_remove(...)` rather than on UI-only stopgaps.
+- Treat ticks and durations as relative to their immediate parent. Host tones use track-relative timing; tuplet child tones use tuplet-local timing.
+- Keep tuplet container span separate from tone-duration consumption. A `3:2` eighth-note triplet still covers `2` host eighths as container geometry, but a crossing tone's duration is consumed literally on the canonical expanded timeline rather than being compressed to the denominator span.
+- Phrase the invariant this way when handing work to humans or agents: "Tuplet geometry is compressed on the host track, but crossing duration is literal across tuplet boundaries." Use that rule for parser logic, sequencer geometry, slicing, and notation derivation.
+- Phrase the playback carry-forward rule this way when handing work to humans or agents: "Playback is a consumer of the shared tuplet model, not a second semantics engine." Use that rule to keep transport scheduling logic from re-deriving tuplet semantics in local code.
+- When writing inside a tuplet from the sequencer, derive local insertion positions directly from the tuplet region geometry. Do not compute a host tick first and then translate it back into tuplet-local time.
+- Apply that same ownership-aware addressing rule to slicing: derive the split point from the canonical sequencer address lattice, pass the current owner plus the target owner context into the backend slice seam, and let Rust decide the persisted head/tail ownership by start tick.
+- Preserve `ui.flow_id` as the authoritative active-flow slot. If a tuplet child tone needs selection handoff, carry only the minimal optional `tuplet_id` needed for direct lookup.
+- Apply that same rule to renderer-owned rest selection when tuplet context is present: `tick` stays the single positional source of truth, while optional `tuplet_id` tells consumers whether the tick lives on the host track or inside a tuplet-local timeline. Do not introduce separate slot-index or alternate selection-position fields for tuplet UI state.
+- In the sequencer, rests remain absence-of-note model state rather than a selectable or highlighted rendered object. Empty tuplet space is likewise non-selectable there; preserve only the tuplet-region metadata needed for local write-tool timing, not a selectable container or extra empty-slot hit boxes. Visible rest and tuplet selection belong to the printed-score renderer once notation interactions are materialized.
+- Playback remains scoped to the active flow in MVP. Tuplet work must not use playback as a pretext to widen transport scope or introduce parallel flow-selection state.
+- No dedicated tuplet migration is currently needed for legacy non-tuplet files because pre-tuplet releases produced no tuplet-bearing payloads. Reevaluate that only when a released older persisted format truly needs transformation.
+- Nested tuplets, broader arbitrary ratios, and richer sequencer-native tuplet manipulation remain deferred post-MVP work. Do not smuggle those claims into implementation or docs as if they were already shipped.
+- Keep tuplet regression coverage near the owning seam whenever existing local tests are sufficient. Prefer extending parser, renderer, playback, persistence, or editing tests in place over building a new cross-cutting tuplet test framework.
+- Preserve the MVP single-level child-content rule in both code and tests. Reintroducing nested tuplets requires explicit post-MVP planning rather than incremental opportunistic support.
+- Do not add frontend-owned parallel tuplet state or ad hoc load-time repair logic. If a seam exposes a gap, extend the shared backend-owned model or add the required migration instead of papering over it locally.
+
 ## Rhythm Rules
 
 - Treat Elaine Gould as the notation authority when adding or changing written-duration behavior.
+- Tuplet timing has a hard invariant: the container keeps its normal host span, while crossing tones consume duration literally through the tuplet's expanded local frame. Do not rewrite a crossing tone's total duration just because part of it passes through a compressed tuplet region.
 - Supported compound-meter written-duration work is currently limited to eighth-based compound signatures such as `6/8`, `9/8`, `12/8`, and larger `x/8` signatures where `x` is a multiple of three greater than three.
 - In supported compound meters, the visible big beat is a dotted quarter. Notes or chords that exactly occupy one big beat should stay unsplit unless a barline forces a split.
 - Notes and chords that cross a compound big-beat boundary must split at that boundary so the big-beat structure stays visible. Sounding material must preserve tie continuity and full chord membership across the split.

@@ -79,7 +79,11 @@ _This file contains critical rules and patterns that AI agents must follow when 
 - All Tauri commands: `#[tauri::command(rename_all = "snake_case")]`
 - `AppContext` behind `Mutex` — lock, mutate, call `emit()` to push state to all FE windows
 - Score uses `Space` unit system (staff spaces) — pixel conversion via `Converter::spaces_to_px()`
-- `Entry` is a tagged enum (`#[serde(tag = "type")]`) with 6 variants: Barline, Clef, KeySignature, Tempo, TimeSignature, Tone
+- `Entry` is a tagged enum (`#[serde(tag = "type")]`) with 7 variants: Barline, Clef, KeySignature, Tempo, TimeSignature, Tone, Tuplet
+- `Tuplet` persists ratio metadata as `note_count`, `in_space_of`, `base_note_value`, `groupings`, and child `entries`; MVP child content is intentionally single-level, so nested tuplets are rejected by the owning backend type
+- Tuplets follow one backend-owned semantic model across persistence, parsing, rendering, playback, and editing; do not add frontend-owned parallel tuplet truth or subsystem-local reinterpretations of ownership, boundaries, or continuity
+- Preserve the tuplet timing invariant: host geometry stays compressed to the denominator span, but any crossing tone still consumes its full literal duration on the canonical expanded timeline
+- Tuplet spacing is backend-owned and shared: collect overlapping anchored spans into one governed region, build one temporary rhythmic grid there at an LCM-derived resolution across the region and participating local lengths, include the ambient host-owned note-spacing slice in that same grid, aggregate all note-spacing demand there, then collapse the unified result back into both host spacing and anchored local spacing so simultaneous rhythms align instead of stretching independently
 - Dual-index storage pattern: `by_tick: FxHashMap<Tick, Vec<UniqueId>>` + `by_id: FxHashMap<UniqueId, Entry>`
 
 ### Framework-Specific Rules
@@ -94,6 +98,7 @@ _This file contains critical rules and patterns that AI agents must follow when 
 - Multi-window app: 8 HTML entry points, each mounts its own `AppStateProvider` in `boot.tsx`
 - All mutations go through the `actions` object in `actions.ts` via `invoke()` — never manipulate state directly
 - `ui.flow_id` is the one authoritative active-flow slot for score, Sequence, miniature piano rolls, and transport-derived tempo state; deliberate score-object selection may update it, but pan/zoom/hover/miss-to-clear must not
+- Shipped MVP tuplets remain triplet-first and popover-first: create the container through the existing popover flow, then edit owned tones through the shared backend seams rather than inventing a second tuplet-construction workflow in React
 - The shared top bar is reserved for universal controls (tabs, layout, transport, tools); workflow-specific single-flow switching belongs inside the owning workflow surface such as Sequence
 - UI styling: Tailwind utility classes + `classnames` — dark theme (neutral-900 base, sky-500 accents, transparent backgrounds)
 
@@ -101,7 +106,7 @@ _This file contains critical rules and patterns that AI agents must follow when 
 
 The score page is rendered natively by Rust/Skia/Metal — all other UI (panels, buttons, inputs, toolbars) lives in the React/HTML layer.
 
-1. **Score data** → Tracks of `Entry` variants (Tone, Clef, KeySignature, Tempo, TimeSignature, Barline) stored in dual-index `FxHashMap`s
+1. **Score data** → Tracks of `Entry` variants (Tone, Clef, KeySignature, Tempo, TimeSignature, Barline, Tuplet) stored in dual-index `FxHashMap`s
 2. **Flow preparation phase** (`instructions/render_plan.rs`) → derives ordered visible flow inputs from `layout.flow_ids` while preserving `score.flows.order`; the render path emits `render-timing-flow-preparation` plus `render-timing-flow-preparation-details` diagnostics before parse/draw work begins
 3. **Per-flow parse/draw phase** (`instructions/parse/`, `instructions/draw/`) → each visible flow segment is parsed and drawn independently into `Vec<DrawInstruction>` plus `Vec<HitTarget>` using renderer-space `Space` units and px conversion via `Converter`
 4. **Flow composition phase** (`instructions/mod.rs`) → Rust composes every visible flow segment into one shared page surface in `score.flows.order`, offsets each later segment by a fixed renderer-space gap that guarantees at least 20 CSS pixels at normal zoom, paints a separate white native page box for each composed flow so the gradient backdrop remains visible in the boundary gap, preserves each flow's native page-start chrome, and keeps combined hit targets in shared renderer space
@@ -162,6 +167,8 @@ The score page is rendered natively by Rust/Skia/Metal — all other UI (panels,
 - Validate before committing: `npm run lint` + `npm run check-types` + `cargo clippy`
 - The app saves user projects as `.soloc` files — this is the application's native save format, not a source code or config format
 - Persisted-data migrations are authored in `src-tauri/src/migrations/next.rs` during development, promoted to a concrete version during `prepare-release:*`, and reseeded after `finalize-release`
+- Current tuplet migration stance: older non-tuplet releases do not need a dedicated tuplet migration because they produced no tuplet-bearing payloads; add one only if a released older format genuinely needs transformation
+- Tuplet regressions should stay close to the owning seam when local tests are enough: parser scenarios near parser logic, renderer regressions near draw/hit-test code, playback regressions near transport, and persistence regressions near file/load-save seams
 
 ### Critical Don't-Miss Rules
 
@@ -176,7 +183,7 @@ The score page is rendered natively by Rust/Skia/Metal — all other UI (panels,
 #### Serialization Gotchas
 
 - Enums are serialized as integers via `serde_repr` — when adding a new enum variant, it MUST be added at the same position in both Rust and TypeScript with matching integer values
-- `Entry` uses `#[serde(tag = "type")]` — the `type` field discriminates variants. Always handle all 6 variants when pattern-matching
+- `Entry` uses `#[serde(tag = "type")]` — the `type` field discriminates variants. Always handle all 7 variants when pattern-matching
 - Adding a new field to a Rust struct that serializes to FE requires updating the corresponding TypeScript type in `types.ts` — they must stay in sync manually
 
 #### Render Pipeline Gotchas
@@ -197,6 +204,9 @@ The score page is rendered natively by Rust/Skia/Metal — all other UI (panels,
 #### Audio Gotchas
 
 - Transport state uses RAF polling during playback — never add event-based transport state updates, it will cause the transport thread to emit during playback
+- Playback is another consumer of the shared tuplet model, not a second semantics engine. Transport code may implement scheduling mechanics, but it must not locally infer tuplet ownership, boundary meaning, projection, or continuity; if playback exposes a gap, extend the shared semantic seam instead of patching transport in isolation
+- Sample attack alignment is backend-owned playback metadata. Derive and persist `attack_offset_frames` in SCVI/sample seams, thread it through sampler and transport requests, and trim in the streamer before resample/pitch processing instead of inventing frontend timing offsets or per-instrument transport hacks
+- Nested tuplets, broader arbitrary ratios, and generalized sequencer-native tuplet editing remain explicit post-MVP work. Do not normalize them into current rules or documentation.
 - Custom binary instrument format (SCVI) — instruments are compressed/inspected via dedicated Rust CLI binaries, not runtime code
 
 ---
@@ -216,4 +226,4 @@ The score page is rendered natively by Rust/Skia/Metal — all other UI (panels,
 - Update when technology stack or conventions change
 - Review periodically — remove rules that become obvious over time
 
-Last Updated: 2026-03-04
+Last Updated: 2026-03-18

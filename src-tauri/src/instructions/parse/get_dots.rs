@@ -109,7 +109,10 @@ fn get_dots_at_tick(entry: &Notation, tone_offsets: &ToneVerticalOffsets) -> Dot
     output
 }
 
-fn get_dots_in_track(notation: &NotationTrack, tone_offsets: &ToneVerticalOffsets) -> Dots {
+pub(crate) fn get_dots_in_track(
+    notation: &NotationTrack,
+    tone_offsets: &ToneVerticalOffsets,
+) -> Dots {
     let mut output: Dots = FxHashMap::default();
 
     for (tick, entry) in &notation.track {

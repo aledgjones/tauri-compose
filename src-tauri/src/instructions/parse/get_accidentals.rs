@@ -1,9 +1,15 @@
 use super::get_barlines::Barlines;
-use super::get_shunts::{Shunt, Shunts, ShuntsByTrack};
+use super::get_beams::get_beams_in_track;
+use super::get_measures::measures_from_single_time_signature;
+use super::get_shunts::{get_note_shunts_in_track, Shunt, Shunts, ShuntsByTrack};
+use super::get_stem_directions::get_tuplet_stem_directions_in_track;
 use super::get_tone_offsets::ToneVerticalOffsets;
-use super::get_written_durations::{Notation, NotationByTrack, NotationTrack};
+use super::get_written_durations::{
+    AnchoredNotationTrack, Notation, NotationByTrack, NotationTrack,
+};
 use crate::score::components::duration::Tick;
 use crate::score::components::pitch::Accidental;
+use crate::score::entries::Entry;
 use crate::score::entries::{key_signature::KeySignature, tone::Tone};
 use crate::score::flows::Flow;
 use crate::score::tracks::{Track, Tracks};
@@ -13,11 +19,13 @@ use rustc_hash::{FxHashMap, FxHashSet};
 
 type SlotsByTick = FxHashMap<Tick, u8>;
 
+#[derive(Clone)]
 pub struct AccidentalNotation {
     pub tone_id: UniqueId,
     pub slot: u8,
 }
 
+#[derive(Clone)]
 pub struct Accidentals {
     pub by_id: FxHashMap<(Tick, UniqueId), AccidentalNotation>,
     pub slots_by_tick: SlotsByTick,
@@ -39,6 +47,69 @@ impl Default for Accidentals {
 }
 
 pub type AccidentalsByTrack = FxHashMap<UniqueId, Accidentals>;
+pub type AnchoredAccidentals = FxHashMap<UniqueId, Accidentals>;
+pub type AnchoredAccidentalsByTrack = FxHashMap<UniqueId, AnchoredAccidentals>;
+
+#[allow(clippy::too_many_arguments)]
+fn apply_entry_accidentals(
+    tick: Tick,
+    entry: &Notation,
+    output: &mut Accidentals,
+    previous_tones: &mut FxHashSet<UniqueId>,
+    altered_base_pitches: &mut FxHashMap<u8, Accidental>,
+    key_signature: &KeySignature,
+    tone_offsets: &ToneVerticalOffsets,
+    shunts: &Shunts,
+) {
+    let accidentals =
+        get_tones_needing_accidentals(entry, previous_tones, altered_base_pitches, key_signature);
+
+    if accidentals.is_empty() {
+        return;
+    }
+
+    let mut slots: Vec<AccidentalNotation> = Vec::new();
+    for tone_id in sort_accidentals_alternate(&accidentals) {
+        let slot = find_slot(tick, tone_id, &slots, tone_offsets, shunts);
+        slots.push(AccidentalNotation { tone_id, slot });
+    }
+
+    let mut max_slot = 0;
+    for entry in slots {
+        if entry.slot > max_slot {
+            max_slot = entry.slot;
+        }
+        output.by_id.insert((tick, entry.tone_id), entry);
+    }
+    output.slots_by_tick.insert(tick, max_slot);
+}
+
+fn apply_track_accidentals(
+    notation: &NotationTrack,
+    output: &mut Accidentals,
+    previous_tones: &mut FxHashSet<UniqueId>,
+    altered_base_pitches: &mut FxHashMap<u8, Accidental>,
+    key_signature: &KeySignature,
+    tone_offsets: &ToneVerticalOffsets,
+    shunts: &Shunts,
+) {
+    for tick in 0..notation.length {
+        let Some(entry) = notation.track.get(&tick) else {
+            continue;
+        };
+
+        apply_entry_accidentals(
+            tick,
+            entry,
+            output,
+            previous_tones,
+            altered_base_pitches,
+            key_signature,
+            tone_offsets,
+            shunts,
+        );
+    }
+}
 
 pub fn fits_in_slot(
     tick: Tick,
@@ -177,22 +248,46 @@ pub fn get_tones_needing_accidentals(
     output
 }
 
-pub fn get_accidentals_in_track(
+fn get_accidentals_in_track_with_anchored_tracks(
     notation: &NotationTrack,
-    master: &Track,
+    flow_master: &Track,
+    track_master: &Track,
     barlines: &Barlines,
     tone_offsets: &ToneVerticalOffsets,
     shunts: &Shunts,
-) -> Accidentals {
+) -> (Accidentals, AnchoredAccidentals) {
     let mut output = Accidentals::new();
+    let mut anchored_output = AnchoredAccidentals::default();
 
     let mut key_signature = &KeySignature::default();
     let mut altered_base_pitches: FxHashMap<u8, Accidental> = FxHashMap::default();
     let mut previous_tones: FxHashSet<UniqueId> = FxHashSet::default();
 
+    let mut anchored_tracks_by_start: FxHashMap<Tick, Vec<&AnchoredNotationTrack>> =
+        FxHashMap::default();
+    let mut anchored_shunts_by_owner: FxHashMap<UniqueId, Shunts> = FxHashMap::default();
+
+    for anchored_track in &notation.anchored_tracks {
+        let Some(Entry::Tuplet(tuplet)) = track_master.entries.by_id.get(&anchored_track.owner_id)
+        else {
+            continue;
+        };
+
+        let measures = measures_from_single_time_signature(tuplet.local_time_signature());
+        let beams = get_beams_in_track(&anchored_track.notation, &measures);
+        let stem_directions = get_tuplet_stem_directions_in_track(&anchored_track.notation, &beams);
+        let shunts =
+            get_note_shunts_in_track(&anchored_track.notation, tone_offsets, &stem_directions);
+
+        anchored_tracks_by_start
+            .entry(anchored_track.host_span.start_tick)
+            .or_default()
+            .push(anchored_track);
+        anchored_shunts_by_owner.insert(anchored_track.owner_id, shunts);
+    }
+
     for tick in 0..notation.length {
-        // look for a key signature at this tick
-        let found = match master.get_key_signature_at_tick(&tick) {
+        let found = match flow_master.get_key_signature_at_tick(&tick) {
             Some(entry) => {
                 key_signature = entry;
                 true
@@ -200,81 +295,196 @@ pub fn get_accidentals_in_track(
             None => false,
         };
 
-        // clear alterations at barlines and key changes
         if found || barlines.contains_key(&tick) {
             altered_base_pitches.clear();
         }
 
-        let entry = match notation.track.get(&tick) {
-            Some(entry) => entry,
-            None => {
-                continue;
+        if let Some(entry) = notation.track.get(&tick) {
+            apply_entry_accidentals(
+                tick,
+                entry,
+                &mut output,
+                &mut previous_tones,
+                &mut altered_base_pitches,
+                key_signature,
+                tone_offsets,
+                shunts,
+            );
+        }
+
+        if let Some(anchored_tracks) = anchored_tracks_by_start.get(&tick) {
+            for anchored_track in anchored_tracks {
+                let Some(anchored_shunts) = anchored_shunts_by_owner.get(&anchored_track.owner_id)
+                else {
+                    continue;
+                };
+
+                let anchored_accidentals = anchored_output
+                    .entry(anchored_track.owner_id)
+                    .or_insert_with(Accidentals::new);
+                apply_track_accidentals(
+                    &anchored_track.notation,
+                    anchored_accidentals,
+                    &mut previous_tones,
+                    &mut altered_base_pitches,
+                    key_signature,
+                    tone_offsets,
+                    anchored_shunts,
+                );
             }
-        };
-
-        let accidentals = get_tones_needing_accidentals(
-            entry,
-            &mut previous_tones,
-            &mut altered_base_pitches,
-            key_signature,
-        );
-
-        if accidentals.is_empty() {
-            continue;
         }
-
-        let mut slots: Vec<AccidentalNotation> = Vec::new();
-        for tone_id in sort_accidentals_alternate(&accidentals) {
-            let slot = find_slot(tick, tone_id, &slots, tone_offsets, shunts);
-            slots.push(AccidentalNotation { tone_id, slot });
-        }
-
-        let mut max_slot = 0;
-        for entry in slots {
-            if entry.slot > max_slot {
-                max_slot = entry.slot;
-            }
-            output.by_id.insert((tick, entry.tone_id), entry);
-        }
-        output.slots_by_tick.insert(tick, max_slot);
     }
 
-    output
+    (output, anchored_output)
 }
 
-pub fn get_accidentals(
+pub fn get_accidentals_with_anchored_tracks(
     flow: &Flow,
     tracks: &Tracks,
     notation_by_track: &NotationByTrack,
     bars: &Barlines,
     tone_offsets: &ToneVerticalOffsets,
     shunts_by_track: &ShuntsByTrack,
-) -> AccidentalsByTrack {
-    let master = &tracks.by_id[&flow.master_id];
+) -> (AccidentalsByTrack, AnchoredAccidentalsByTrack) {
+    let flow_master = &tracks.by_id[&flow.master_id];
 
-    let results: Vec<(UniqueId, _)> = notation_by_track
+    let results: Vec<(UniqueId, Accidentals, AnchoredAccidentals)> = notation_by_track
         .par_iter()
         .map(|(track_id, notation)| {
+            let track_master = &tracks.by_id[track_id];
             let shunts = &shunts_by_track[track_id];
-            let accidentals =
-                get_accidentals_in_track(notation, master, bars, tone_offsets, shunts);
-            (*track_id, accidentals)
+            let (accidentals, anchored_accidentals) = get_accidentals_in_track_with_anchored_tracks(
+                notation,
+                flow_master,
+                track_master,
+                bars,
+                tone_offsets,
+                shunts,
+            );
+            (*track_id, accidentals, anchored_accidentals)
         })
         .collect();
 
     let mut output: AccidentalsByTrack = FxHashMap::default();
-    for (track_id, accidentals) in results {
+    let mut anchored_output: AnchoredAccidentalsByTrack = FxHashMap::default();
+    for (track_id, accidentals, anchored_accidentals) in results {
         output.insert(track_id, accidentals);
+        if !anchored_accidentals.is_empty() {
+            anchored_output.insert(track_id, anchored_accidentals);
+        }
     }
 
-    output
+    (output, anchored_output)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::instructions::parse::get_tone_offset_info::get_tone_offset_info;
+    use crate::instructions::parse::get_written_durations::HostSpan;
+    use crate::score::components::duration::NoteDuration;
     use crate::score::components::pitch::Pitch;
     use crate::score::entries::key_signature::KeySignatureMode;
+    use crate::score::entries::tuplet::Tuplet;
+    use crate::score::entries::Entry;
+    use crate::score::flows::Flow;
+    use crate::score::tracks::Tracks;
+
+    fn get_accidentals_in_track_with_seeded_key_signature(
+        notation: &NotationTrack,
+        initial_key_signature: &KeySignature,
+        barlines: &Barlines,
+        tone_offsets: &ToneVerticalOffsets,
+        shunts: &Shunts,
+    ) -> Accidentals {
+        let mut output = Accidentals::new();
+        let mut altered_base_pitches: FxHashMap<u8, Accidental> = FxHashMap::default();
+        let mut previous_tones: FxHashSet<UniqueId> = FxHashSet::default();
+
+        for tick in 0..notation.length {
+            if barlines.contains_key(&tick) {
+                altered_base_pitches.clear();
+            }
+
+            let Some(entry) = notation.track.get(&tick) else {
+                continue;
+            };
+
+            apply_entry_accidentals(
+                tick,
+                entry,
+                &mut output,
+                &mut previous_tones,
+                &mut altered_base_pitches,
+                initial_key_signature,
+                tone_offsets,
+                shunts,
+            );
+        }
+
+        output
+    }
+
+    fn get_accidentals_in_track(
+        notation: &NotationTrack,
+        master: &Track,
+        barlines: &Barlines,
+        tone_offsets: &ToneVerticalOffsets,
+        shunts: &Shunts,
+    ) -> Accidentals {
+        let mut output = Accidentals::new();
+
+        let mut key_signature = &KeySignature::default();
+        let mut altered_base_pitches: FxHashMap<u8, Accidental> = FxHashMap::default();
+        let mut previous_tones: FxHashSet<UniqueId> = FxHashSet::default();
+
+        for tick in 0..notation.length {
+            let found = match master.get_key_signature_at_tick(&tick) {
+                Some(entry) => {
+                    key_signature = entry;
+                    true
+                }
+                None => false,
+            };
+
+            if found || barlines.contains_key(&tick) {
+                altered_base_pitches.clear();
+            }
+
+            let Some(entry) = notation.track.get(&tick) else {
+                continue;
+            };
+
+            apply_entry_accidentals(
+                tick,
+                entry,
+                &mut output,
+                &mut previous_tones,
+                &mut altered_base_pitches,
+                key_signature,
+                tone_offsets,
+                shunts,
+            );
+        }
+
+        output
+    }
+
+    fn get_accidentals_in_track_with_initial_key_signature(
+        notation: &NotationTrack,
+        initial_key_signature: &KeySignature,
+        barlines: &Barlines,
+        tone_offsets: &ToneVerticalOffsets,
+        shunts: &Shunts,
+    ) -> Accidentals {
+        get_accidentals_in_track_with_seeded_key_signature(
+            notation,
+            initial_key_signature,
+            barlines,
+            tone_offsets,
+            shunts,
+        )
+    }
 
     #[test]
     fn accidentals_new_is_empty() {
@@ -367,6 +577,32 @@ mod tests {
     }
 
     #[test]
+    fn seeded_key_signature_requires_cancellation_inside_local_track() {
+        let mut notation = NotationTrack::new(32);
+        let mut entry = Notation::new(0, 32);
+        entry.tones.push(make_test_tone(1, 65, Accidental::Natural));
+        notation.track.insert(0, entry);
+
+        let key_sig = KeySignature::new(10, 0, KeySignatureMode::Major, 1);
+        let mut tone_offsets = ToneVerticalOffsets::default();
+        tone_offsets.insert(1, 0);
+        let shunts = Shunts {
+            by_id: FxHashMap::default(),
+            by_offset: FxHashMap::default(),
+        };
+
+        let result = get_accidentals_in_track_with_initial_key_signature(
+            &notation,
+            &key_sig,
+            &Barlines::default(),
+            &tone_offsets,
+            &shunts,
+        );
+
+        assert!(result.by_id.contains_key(&(0, 1)));
+    }
+
+    #[test]
     fn sort_accidentals_alternate_single_element() {
         let ids = vec![99u64];
         let result = sort_accidentals_alternate(&ids);
@@ -384,6 +620,104 @@ mod tests {
             Pitch::new(pitch_int, accidental),
             Velocity::new(80),
             Articulations::new(),
+        )
+    }
+
+    fn make_test_notation_entry(
+        tone_id: u64,
+        tick: Tick,
+        duration: Tick,
+        pitch_int: u8,
+        accidental: Accidental,
+    ) -> Notation {
+        let mut entry = Notation::new(tick, duration);
+        entry
+            .tones
+            .push(make_test_tone(tone_id, pitch_int, accidental));
+        entry
+    }
+
+    fn make_empty_shunts_for_track(track_id: UniqueId) -> ShuntsByTrack {
+        let mut shunts_by_track = ShuntsByTrack::default();
+        shunts_by_track.insert(track_id, make_empty_shunts());
+        shunts_by_track
+    }
+
+    fn build_tuplet_accidental_test_context(
+        anchored_entry: Notation,
+        host_entry: Option<Notation>,
+    ) -> (
+        Flow,
+        Tracks,
+        NotationByTrack,
+        ToneVerticalOffsets,
+        ShuntsByTrack,
+    ) {
+        let flow_id = 10;
+        let flow_master_id = 11;
+        let track_id = 12;
+        let tuplet_id = 13;
+
+        let mut flow = Flow::new(flow_id, flow_master_id);
+        flow.length = 64;
+
+        let mut flow_master = Track::new(flow_master_id);
+        flow_master.insert_entry(Entry::KeySignature(KeySignature::new(
+            20,
+            0,
+            KeySignatureMode::Major,
+            1,
+        )));
+
+        let mut track_master = Track::new(track_id);
+        track_master.insert_entry(Entry::Tuplet(Box::new(Tuplet::new(
+            tuplet_id,
+            0,
+            3,
+            2,
+            NoteDuration::Eighth,
+            vec![3],
+        ))));
+
+        let mut tone_offsets = ToneVerticalOffsets::default();
+        tone_offsets.insert(anchored_entry.tones[0].id, 0);
+        if let Some(entry) = host_entry.as_ref() {
+            tone_offsets.insert(entry.tones[0].id, 0);
+        }
+
+        let mut local_notation = NotationTrack::new(48);
+        local_notation
+            .track
+            .insert(anchored_entry.tick, anchored_entry.clone());
+        get_tone_offset_info(&mut local_notation, &tone_offsets);
+
+        let mut notation = NotationTrack::new(64);
+        notation.anchored_tracks.push(AnchoredNotationTrack {
+            owner_id: tuplet_id,
+            host_span: HostSpan {
+                start_tick: 0,
+                end_tick: 32,
+            },
+            notation: local_notation,
+        });
+        if let Some(entry) = host_entry {
+            notation.track.insert(entry.tick, entry);
+        }
+        get_tone_offset_info(&mut notation, &tone_offsets);
+
+        let mut notation_by_track = NotationByTrack::default();
+        notation_by_track.insert(track_id, notation);
+
+        let mut tracks = Tracks::new();
+        tracks.by_id.insert(flow_master_id, flow_master);
+        tracks.by_id.insert(track_id, track_master);
+
+        (
+            flow,
+            tracks,
+            notation_by_track,
+            tone_offsets,
+            make_empty_shunts_for_track(track_id),
         )
     }
 
@@ -500,6 +834,45 @@ mod tests {
         let mut altered: FxHashMap<u8, Accidental> = FxHashMap::default();
         let result = get_tones_needing_accidentals(&entry, &mut previous, &mut altered, &key_sig);
         assert!(result.is_empty());
+    }
+
+    #[test]
+    fn anchored_track_uses_flow_key_signature_when_accidental_is_in_key() {
+        let anchored_entry = make_test_notation_entry(1, 0, 16, 66, Accidental::Sharp);
+        let (flow, tracks, notation_by_track, tone_offsets, shunts_by_track) =
+            build_tuplet_accidental_test_context(anchored_entry, None);
+
+        let (_host, anchored) = get_accidentals_with_anchored_tracks(
+            &flow,
+            &tracks,
+            &notation_by_track,
+            &Barlines::default(),
+            &tone_offsets,
+            &shunts_by_track,
+        );
+
+        let anchored_track = &anchored[&12][&13];
+        assert!(anchored_track.by_id.is_empty());
+    }
+
+    #[test]
+    fn anchored_track_accidental_updates_later_host_accidentals_in_same_bar() {
+        let anchored_entry = make_test_notation_entry(1, 0, 16, 65, Accidental::Natural);
+        let host_entry = make_test_notation_entry(2, 32, 16, 66, Accidental::Sharp);
+        let (flow, tracks, notation_by_track, tone_offsets, shunts_by_track) =
+            build_tuplet_accidental_test_context(anchored_entry, Some(host_entry));
+
+        let (host, anchored) = get_accidentals_with_anchored_tracks(
+            &flow,
+            &tracks,
+            &notation_by_track,
+            &Barlines::default(),
+            &tone_offsets,
+            &shunts_by_track,
+        );
+
+        assert!(anchored[&12][&13].by_id.contains_key(&(0, 1)));
+        assert!(host[&12].by_id.contains_key(&(32, 2)));
     }
 
     // --- fits_in_slot ---

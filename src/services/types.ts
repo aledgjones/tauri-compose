@@ -238,20 +238,36 @@ export type Tone = {
   articulations: Articulation[];
 };
 
+export type Entries<T> = {
+  by_tick: Record<Tick, UniqueId[]>;
+  by_id: Record<UniqueId, T>;
+};
+
+export type TupletEntry = Tone;
+
+export type Tuplet = {
+  id: UniqueId;
+  tick: Tick;
+  type: "Tuplet";
+  note_count: number;
+  in_space_of: number;
+  base_note_value: NoteDuration;
+  groupings: number[];
+  entries: Entries<TupletEntry>;
+};
+
 export type Entry =
   | Barline
   | Clef
   | TimeSignature
   | KeySignature
   | Tone
-  | Tempo;
+  | Tempo
+  | Tuplet;
 
 export type Track = {
   id: UniqueId;
-  entries: {
-    by_tick: Record<UniqueId, UniqueId[]>;
-    by_id: Record<UniqueId, Entry>;
-  };
+  entries: Entries<Entry>;
 };
 
 export type Tracks = {
@@ -378,6 +394,7 @@ type ToneSelection = {
   stave_id: UniqueId;
   track_id: UniqueId;
   tone_id: UniqueId;
+  tuplet_id?: UniqueId | null;
 };
 
 type RestSelection = {
@@ -387,6 +404,7 @@ type RestSelection = {
   stave_id: UniqueId;
   track_id: UniqueId;
   tick: number;
+  tuplet_id?: UniqueId | null;
 };
 
 type TempoSelection = {
@@ -418,13 +436,24 @@ type ClefSelection = {
   tick: Tick;
 };
 
+type TupletSelection = {
+  type: "Tuplet";
+  flow_id: UniqueId;
+  instrument_id: UniqueId;
+  stave_id: UniqueId;
+  track_id: UniqueId;
+  tuplet_id: UniqueId;
+  tick: Tick;
+};
+
 export type Selection =
   | ToneSelection
   | RestSelection
   | TempoSelection
   | TimeSignatureSelection
   | KeySignatureSelection
-  | ClefSelection;
+  | ClefSelection
+  | TupletSelection;
 
 export type AppState = {
   ui: {

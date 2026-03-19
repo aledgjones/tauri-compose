@@ -1,12 +1,22 @@
 import { FC, useMemo } from "react";
-import { Instrument, Flow } from "../../../../../services/types";
+import { Instrument, Flow, Tone, Tuplet } from "../../../../../services/types";
 import { TickConfig } from "../../../hooks/use-ticks";
 import { useAppState } from "../../../../../services/state";
 import classNames from "classnames";
+import {
+  AxisAddress,
+  buildSequencerAddressLattice,
+  getSpanForAddressDuration,
+} from "../../../components/sequencer-address-lattice";
 
 const range = { min: 21, max: 108 };
 const rowHeight = 96;
 const pianoRangeSize = range.max - range.min;
+
+const getToneAddress = (tone: Tone, tupletId: number | null): AxisAddress => ({
+  tuplet_id: tupletId,
+  tick: tone.tick,
+});
 
 interface MiniaturePianoRollProps {
   instrument: Instrument;
@@ -39,47 +49,90 @@ export const MiniaturePianoRoll: FC<MiniaturePianoRollProps> = ({
     });
   }, [instrument.stave_ids, flow.staves.by_id, state.score.tracks.by_id]);
 
-  // Collect all tones from all tracks
-  const tones = useMemo(() => {
+  const renderedTones = useMemo(() => {
     const allTones: Array<{
       id: number;
-      tick: number;
-      duration: number;
       pitch: number;
+      leftPx: number;
+      widthPx: number;
+      tupletId: number | null;
     }> = [];
 
     tracks.forEach((track) => {
-      if (!track) return;
+      if (!track) {
+        return;
+      }
+
+      const trackTuplets = Object.values(track.entries.by_id).filter(
+        (entry) => entry.type === "Tuplet",
+      ) as Tuplet[];
+      const addressLattice = buildSequencerAddressLattice(
+        flow.length,
+        ticks.tickWidth,
+        trackTuplets,
+      );
 
       Object.values(track.entries.by_id).forEach((entry) => {
-        if (entry.type === "Tone") {
+        if (entry.type !== "Tone") {
+          return;
+        }
+
+        const span = getSpanForAddressDuration(
+          addressLattice,
+          getToneAddress(entry, null),
+          entry.duration,
+        );
+
+        if (!span) {
+          return;
+        }
+
+        allTones.push({
+          id: entry.id,
+          pitch: entry.pitch.int,
+          leftPx: span.startX,
+          widthPx: span.width,
+          tupletId: null,
+        });
+      });
+
+      trackTuplets.forEach((tuplet) => {
+        Object.values(tuplet.entries.by_id).forEach((entry) => {
+          const span = getSpanForAddressDuration(
+            addressLattice,
+            getToneAddress(entry, tuplet.id),
+            entry.duration,
+          );
+
+          if (!span) {
+            return;
+          }
+
           allTones.push({
             id: entry.id,
-            tick: entry.tick,
-            duration: entry.duration,
             pitch: entry.pitch.int,
+            leftPx: span.startX,
+            widthPx: span.width,
+            tupletId: tuplet.id,
           });
-        }
+        });
       });
     });
 
     return allTones;
-  }, [tracks]);
+  }, [tracks, flow.length, ticks.tickWidth]);
 
   // Merge overlapping time ranges where there are notes
   const activeRanges = useMemo(() => {
-    if (tones.length === 0) return [];
+    if (renderedTones.length === 0) return [];
 
-    // Create ranges from tones
-    const ranges = tones.map((tone) => ({
-      start: tone.tick,
-      end: tone.tick + tone.duration,
+    const ranges = renderedTones.map((tone) => ({
+      start: tone.leftPx,
+      end: tone.leftPx + tone.widthPx,
     }));
 
-    // Sort by start time
     ranges.sort((a, b) => a.start - b.start);
 
-    // Merge overlapping ranges
     const merged: Array<{ start: number; end: number }> = [];
     let current = ranges[0];
 
@@ -96,7 +149,7 @@ export const MiniaturePianoRoll: FC<MiniaturePianoRollProps> = ({
     merged.push(current);
 
     return merged;
-  }, [tones]);
+  }, [renderedTones]);
 
   return (
     <div
@@ -127,17 +180,14 @@ export const MiniaturePianoRoll: FC<MiniaturePianoRollProps> = ({
 
       {/* Background highlights for merged time ranges */}
       {activeRanges.map((range, index) => {
-        const x = range.start * ticks.tickWidth;
-        const width = (range.end - range.start) * ticks.tickWidth;
-
         return (
           <div
             key={`bg-${index}`}
             className="absolute opacity-20"
             style={{
-              left: x,
+              left: range.start,
               top: 0,
-              width: Math.max(1, width),
+              width: Math.max(1, range.end - range.start),
               height: rowHeight,
               backgroundColor: color,
             }}
@@ -146,25 +196,28 @@ export const MiniaturePianoRoll: FC<MiniaturePianoRollProps> = ({
       })}
 
       {/* Individual note boxes */}
-      {tones.map((tone) => {
-        const x = tone.tick * ticks.tickWidth;
-        const width = tone.duration * ticks.tickWidth;
-
+      {renderedTones.map((tone) => {
         // Position pitch relative to full piano range
         const pitchRatio = (tone.pitch - range.min) / pianoRangeSize;
         const y = (1 - pitchRatio) * (rowHeight - 3);
 
         return (
           <div
-            key={tone.id}
+            key={
+              tone.tupletId === null ? tone.id : `${tone.tupletId}-${tone.id}`
+            }
             className="absolute opacity-80"
             style={{
-              left: x,
+              left: tone.leftPx,
               top: y,
-              width: Math.max(1, width),
+              width: Math.max(1, tone.widthPx),
               height: 3,
               backgroundColor: color,
             }}
+            data-tone-id={tone.id}
+            {...(tone.tupletId !== null
+              ? { "data-tuplet-id": tone.tupletId }
+              : {})}
           />
         );
       })}

@@ -103,22 +103,15 @@ Example VS Code MCP config:
 1. Add the `soloc` server to your VS Code MCP config
 2. Start the app with `npm run start:dev`
 
-When the app is running, VS Code can connect directly to the app's MCP endpoint at `http://127.0.0.1:4767/mcp`. The app binds only to localhost and exposes four MCP tools:
+When the app is running, VS Code can connect directly to the app's MCP endpoint at `http://127.0.0.1:4767/mcp`. The app binds only to localhost and exposes one fixed MCP onboarding tool:
 
 - `compose_get_started`
-- `compose_list_actions`
-- `compose_describe_model`
-- `compose_call_action`
 
-`compose_get_started` is the onboarding entrypoint. It returns the recommended call order, runtime id guidance, tick rules, and common action patterns for MCP-only clients.
+It also exposes one generated MCP tool per automation action using the `compose_action_` prefix, such as `compose_action_score_flow_create` or `compose_action_score_tone_create`.
 
-`compose_list_actions` now returns only explicitly wrapped MCP actions, including dotted action names, descriptions when available, required positional arguments, curated examples, and agent-oriented metadata about prerequisites, entity effects, and returned ids where annotated.
+`compose_get_started` is the onboarding entrypoint. It returns the recommended call order, runtime id guidance, tick rules, common action patterns, and a nested `domainModel` reference section for MCP-only clients.
 
-`compose_describe_model` returns a curated overview of the score data model, runtime id semantics, tick and duration rules, key entity relationships, and lifecycle behaviors such as how players, instruments, flows, staves, and tracks are wired together.
-
-`compose_call_action` validates required positional arguments against the annotated action metadata before dispatching to the running app.
-
-`compose_call_action` accepts a dotted action path such as `ui.setTab` and positional JSON arguments that are forwarded to the app-hosted automation layer.
+Generated `compose_action_*` tools are the mutation entrypoint. They are discoverable through the standard MCP `tools/list` response and accept named JSON arguments, which removes positional argument ambiguity.
 
 The same app process also exposes a local automation API at `http://127.0.0.1:4767/api/v1/automation` for non-MCP localhost consumers.
 

@@ -4,6 +4,7 @@ pub mod key_signature;
 pub mod tempo;
 pub mod time_signature;
 pub mod tone;
+pub mod tuplet;
 
 use super::components::duration::Tick;
 use crate::utils::UniqueId;
@@ -12,13 +13,18 @@ use clef::Clef;
 use key_signature::KeySignature;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
+use serde_with::{serde_as, DisplayFromStr};
 use tempo::Tempo;
 use time_signature::TimeSignature;
 use tone::Tone;
+use tuplet::Tuplet;
 
+#[serde_as]
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Entries {
+    #[serde_as(as = "FxHashMap<DisplayFromStr, _>")]
     pub by_tick: FxHashMap<Tick, Vec<UniqueId>>,
+    #[serde_as(as = "FxHashMap<DisplayFromStr, _>")]
     pub by_id: FxHashMap<UniqueId, Entry>,
 }
 
@@ -40,6 +46,7 @@ pub enum Entry {
     Tempo(Tempo),
     TimeSignature(TimeSignature),
     Tone(Tone),
+    Tuplet(Box<Tuplet>),
 }
 
 impl Entry {
@@ -52,6 +59,7 @@ impl Entry {
             Entry::Tempo(tempo) => tempo.id,
             Entry::TimeSignature(time_signature) => time_signature.id,
             Entry::Tone(tone) => tone.id,
+            Entry::Tuplet(tuplet) => tuplet.id,
         }
     }
 
@@ -64,6 +72,7 @@ impl Entry {
             Entry::Tempo(tempo) => tempo.tick,
             Entry::TimeSignature(time_signature) => time_signature.tick,
             Entry::Tone(tone) => tone.tick,
+            Entry::Tuplet(tuplet) => tuplet.tick,
         }
     }
 
@@ -79,6 +88,7 @@ impl Entry {
             Entry::Tempo(tempo) => tempo.tick = tick,
             Entry::TimeSignature(time_signature) => time_signature.tick = tick,
             Entry::Tone(tone) => tone.tick = tick,
+            Entry::Tuplet(tuplet) => tuplet.tick = tick,
         }
     }
 }
@@ -98,6 +108,7 @@ mod tests {
     use tempo::Tempo;
     use time_signature::{TimeSignature, TimeSignatureDrawType};
     use tone::Tone;
+    use tuplet::{Tuplet, TupletEntries, TupletEntry};
 
     fn make_barline(id: UniqueId, tick: Tick) -> Entry {
         Entry::Barline(Barline {
@@ -158,6 +169,28 @@ mod tests {
         ))
     }
 
+    fn make_tuplet(id: UniqueId, tick: Tick) -> Entry {
+        let mut entries = TupletEntries::new();
+        entries.insert_entry(TupletEntry::Tone(Tone::new(
+            id + 100,
+            16,
+            32,
+            Pitch::new(60, Accidental::Natural),
+            Velocity::new(90),
+            Articulations::new(),
+        )));
+
+        Entry::Tuplet(Box::new(Tuplet {
+            id,
+            tick,
+            note_count: 3,
+            in_space_of: 2,
+            base_note_value: NoteDuration::Eighth,
+            groupings: vec![3],
+            entries,
+        }))
+    }
+
     // --- Entries::new() ---
 
     #[test]
@@ -205,6 +238,12 @@ mod tests {
         assert_eq!(entry.id(), 6);
     }
 
+    #[test]
+    fn tuplet_id_returns_correct_value() {
+        let entry = make_tuplet(7, 0);
+        assert_eq!(entry.id(), 7);
+    }
+
     // --- Entry::tick() ---
 
     #[test]
@@ -241,6 +280,12 @@ mod tests {
     fn tempo_tick_returns_correct_value() {
         let entry = make_tempo(6, 96);
         assert_eq!(entry.tick(), 96);
+    }
+
+    #[test]
+    fn tuplet_tick_returns_correct_value() {
+        let entry = make_tuplet(7, 144);
+        assert_eq!(entry.tick(), 144);
     }
 
     // --- Entry::set_tick() ---
@@ -285,5 +330,69 @@ mod tests {
         let mut entry = make_tempo(15, 0);
         entry.set_tick(48);
         assert_eq!(entry.tick(), 48);
+    }
+
+    #[test]
+    fn set_tick_updates_tuplet() {
+        let mut entry = make_tuplet(16, 0);
+        entry.set_tick(72);
+        assert_eq!(entry.tick(), 72);
+    }
+
+    #[test]
+    fn serde_round_trip_preserves_supported_tuplet_child_entries() {
+        let entry = make_tuplet(17, 64);
+        let value = serde_json::to_value(&entry).unwrap();
+        let restored: Entry = serde_json::from_value(value).unwrap();
+
+        let Entry::Tuplet(tuplet) = restored else {
+            panic!("expected tuplet entry");
+        };
+
+        assert_eq!(tuplet.entries.len(), 1);
+        assert!(matches!(
+            tuplet.entries.get(&117),
+            Some(TupletEntry::Tone(_))
+        ));
+    }
+
+    #[test]
+    fn serde_rejects_nested_tuplet_child_entries() {
+        let result = serde_json::from_value::<Entry>(serde_json::json!({
+            "type": "Tuplet",
+            "id": 17,
+            "tick": 64,
+            "note_count": 3,
+            "in_space_of": 2,
+            "base_note_value": 8,
+            "groupings": [3],
+            "entries": {
+                "by_tick": {
+                    "16": [118]
+                },
+                "by_id": {
+                    "118": {
+                        "type": "Tuplet",
+                        "id": 118,
+                        "tick": 16,
+                        "note_count": 3,
+                        "in_space_of": 2,
+                        "base_note_value": 8,
+                        "groupings": [3],
+                        "entries": {
+                            "by_tick": {},
+                            "by_id": {}
+                        }
+                    }
+                }
+            }
+        }));
+
+        let error = match result {
+            Ok(_) => panic!("expected nested tuplet child entries to be rejected"),
+            Err(error) => error,
+        };
+
+        assert!(error.to_string().contains("Tuplet"));
     }
 }

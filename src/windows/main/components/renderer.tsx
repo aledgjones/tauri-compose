@@ -3,7 +3,6 @@ import { FC, useRef, useEffect, useState } from "react";
 import { actions } from "../../../services/actions";
 import { useAppState } from "../../../services/state";
 import { pxPerMm } from "../../../utils/mm";
-import { useKeyboardShortcuts } from "../hooks/use-keyboard-shortcuts";
 import { hitTest } from "../../../services/hit-test";
 import { Popover, PopoverState } from "../../../ui/popover";
 
@@ -13,9 +12,6 @@ export const Renderer: FC<Props> = ({ className }) => {
   const divRef = useRef<HTMLDivElement>(null);
   const state = useAppState();
   const [popover, setPopover] = useState<PopoverState>(null);
-
-  // Tone keyboard shortcuts
-  useKeyboardShortcuts();
 
   // Use refs to track current pan/zoom without triggering re-renders
   const panXRef = useRef(state.ui.renderer.pan_x);
@@ -106,6 +102,7 @@ export const Renderer: FC<Props> = ({ className }) => {
               hitResult.stave_id,
               hitResult.flow_id,
               hitResult.instrument_id,
+              hitResult.tuplet_id,
             );
             return;
           }
@@ -116,6 +113,7 @@ export const Renderer: FC<Props> = ({ className }) => {
               hitResult.stave_id,
               hitResult.flow_id,
               hitResult.instrument_id,
+              hitResult.tuplet_id,
             );
             return;
           }
@@ -148,6 +146,17 @@ export const Renderer: FC<Props> = ({ className }) => {
               hitResult.flow_id,
               hitResult.stave_id,
               hitResult.clef_id,
+              hitResult.tick,
+            );
+            return;
+          }
+          case "Tuplet": {
+            await actions.ui.sequencer.selectTuplet(
+              hitResult.flow_id,
+              hitResult.instrument_id,
+              hitResult.stave_id,
+              hitResult.track_id,
+              hitResult.tuplet_id,
               hitResult.tick,
             );
             return;

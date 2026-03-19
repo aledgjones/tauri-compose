@@ -2,9 +2,9 @@ use crate::score::components::duration::{Direction, Tick};
 use crate::score::entries::tone::Tone;
 use crate::utils::UniqueId;
 
-use super::get_stem_directions::StemDirectionsByTrack;
+use super::get_stem_directions::{StemDirections, StemDirectionsByTrack};
 use super::get_tone_offsets::ToneVerticalOffsets;
-use super::get_written_durations::{Notation, NotationByTrack};
+use super::get_written_durations::{Notation, NotationByTrack, NotationTrack};
 use rayon::prelude::*;
 use rustc_hash::FxHashMap;
 
@@ -18,12 +18,33 @@ pub enum Shunt {
     Post,
 }
 
+#[derive(Clone)]
 pub struct Shunts {
     pub by_id: FxHashMap<(Tick, UniqueId), Shunt>,
     pub by_offset: FxHashMap<(Tick, i8), Shunt>,
 }
 
 pub type ShuntsByTrack = FxHashMap<UniqueId, Shunts>;
+
+pub fn get_note_shunts_in_track(
+    notation: &NotationTrack,
+    tone_offsets: &ToneVerticalOffsets,
+    stem_directions: &StemDirections,
+) -> Shunts {
+    let mut shunts = Shunts {
+        by_id: FxHashMap::default(),
+        by_offset: FxHashMap::default(),
+    };
+
+    for (tick, entry) in &notation.track {
+        if !entry.is_rest() {
+            let stem_direction = &stem_directions[tick];
+            note_shunts_in_chord(tick, entry, tone_offsets, stem_direction, &mut shunts);
+        }
+    }
+
+    shunts
+}
 
 pub fn note_shunts_in_chord(
     tick: &Tick,
@@ -70,18 +91,11 @@ pub fn get_note_shunts(
     let results: Vec<(UniqueId, _)> = notation_by_track
         .par_iter()
         .map(|(track_id, notation)| {
-            let mut shunts = Shunts {
-                by_id: FxHashMap::default(),
-                by_offset: FxHashMap::default(),
-            };
             let stem_directions = &stem_directions_by_track[track_id];
-            for (tick, entry) in &notation.track {
-                if !entry.is_rest() {
-                    let stem_direction = &stem_directions[tick];
-                    note_shunts_in_chord(tick, entry, tone_offsets, stem_direction, &mut shunts);
-                }
-            }
-            (*track_id, shunts)
+            (
+                *track_id,
+                get_note_shunts_in_track(notation, tone_offsets, stem_directions),
+            )
         })
         .collect();
 
@@ -329,6 +343,7 @@ mod tests {
             crate::instructions::parse::get_written_durations::NotationTrack {
                 length: 96,
                 track: notation_track,
+                anchored_tracks: Vec::new(),
             },
         );
 

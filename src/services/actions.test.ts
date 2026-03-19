@@ -252,6 +252,7 @@ describe("actions.ui", () => {
           stave_id: 3,
           flow_id: 4,
           instrument_id: 5,
+          tuplet_id: null,
         },
       );
     });
@@ -266,6 +267,7 @@ describe("actions.ui", () => {
           stave_id: 3,
           flow_id: 4,
           instrument_id: 5,
+          tuplet_id: null,
         },
       );
     });
@@ -314,6 +316,21 @@ describe("actions.ui", () => {
           flow_id: 4,
           stave_id: 3,
           clef_id: 10,
+          tick: 64,
+        },
+      );
+    });
+
+    it("selectTuplet calls invoke with the tuplet selection payload", async () => {
+      await actions.ui.sequencer.selectTuplet(4, 5, 3, 2, 10, 64);
+      expect(mockInvoke).toHaveBeenCalledWith(
+        "ui_sequencer_selection_set_tuplet",
+        {
+          flow_id: 4,
+          instrument_id: 5,
+          stave_id: 3,
+          track_id: 2,
+          tuplet_id: 10,
           tick: 64,
         },
       );
@@ -1080,8 +1097,36 @@ describe("actions.score.tone", () => {
       accidental: Accidental.Natural,
       velocity: 100,
       articulations: [Articulation.Staccato],
+      tuplet_id: null,
     });
     expect(id).toBe(200);
+  });
+
+  it("create forwards optional tuplet context through the existing seam", async () => {
+    mockInvoke.mockResolvedValueOnce(201);
+
+    const id = await actions.score.tone.create(
+      10,
+      16,
+      16,
+      67,
+      Accidental.Natural,
+      90,
+      [Articulation.Accent],
+      44,
+    );
+
+    expect(mockInvoke).toHaveBeenCalledWith("score_entries_tone_create", {
+      track_id: 10,
+      tick: 16,
+      duration: 16,
+      pitch_int: 67,
+      accidental: Accidental.Natural,
+      velocity: 90,
+      articulations: [Articulation.Accent],
+      tuplet_id: 44,
+    });
+    expect(id).toBe(201);
   });
 
   it("shift calls invoke correctly", async () => {
@@ -1090,6 +1135,8 @@ describe("actions.score.tone", () => {
       track_id: 10,
       entry_id: 200,
       new_tick: 64,
+      current_tuplet_id: null,
+      target_tuplet_id: null,
     });
   });
 
@@ -1097,7 +1144,7 @@ describe("actions.score.tone", () => {
     await actions.score.tone.unifyArticulations(10, 200);
     expect(mockInvoke).toHaveBeenCalledWith(
       "score_entries_tone_unify_articulations",
-      { track_id: 10, entry_id: 200 },
+      { track_id: 10, entry_id: 200, tuplet_id: null },
     );
   });
 
@@ -1107,6 +1154,7 @@ describe("actions.score.tone", () => {
       track_id: 10,
       tone_id: 200,
       duration: 32,
+      tuplet_id: null,
     });
   });
 
@@ -1114,67 +1162,209 @@ describe("actions.score.tone", () => {
     await actions.score.tone.setPositionAndDuration(10, 200, 64, 16);
     expect(mockInvoke).toHaveBeenCalledWith(
       "score_entries_tone_set_position_and_duration",
-      { track_id: 10, tone_id: 200, tick: 64, duration: 16 },
+      {
+        track_id: 10,
+        tone_id: 200,
+        tick: 64,
+        duration: 16,
+        current_tuplet_id: null,
+        target_tuplet_id: null,
+      },
     );
   });
 
   it("setPitch calls invoke correctly", async () => {
-    await actions.score.tone.setPitch(10, 200, 62, Accidental.Sharp);
+    await actions.score.tone.setPitch(10, null, 200, 62, Accidental.Sharp);
     expect(mockInvoke).toHaveBeenCalledWith("score_entries_tone_pitch_set", {
       track_id: 10,
       tone_id: 200,
       pitch_int: 62,
       accidental: Accidental.Sharp,
+      tuplet_id: null,
+    });
+  });
+
+  it("setPitch passes tuplet context when provided", async () => {
+    await actions.score.tone.setPitch(10, 44, 200, 62, null);
+    expect(mockInvoke).toHaveBeenCalledWith("score_entries_tone_pitch_set", {
+      track_id: 10,
+      tone_id: 200,
+      pitch_int: 62,
+      accidental: null,
+      tuplet_id: 44,
     });
   });
 
   it("remove calls invoke correctly", async () => {
-    await actions.score.tone.remove(10, 200);
+    await actions.score.tone.remove(10, null, 200);
     expect(mockInvoke).toHaveBeenCalledWith(
       "score_entries_tone_duration_remove",
-      { track_id: 10, tone_id: 200 },
+      { track_id: 10, tone_id: 200, tuplet_id: null },
+    );
+  });
+
+  it("remove passes tuplet context when provided", async () => {
+    await actions.score.tone.remove(10, 44, 200);
+    expect(mockInvoke).toHaveBeenCalledWith(
+      "score_entries_tone_duration_remove",
+      { track_id: 10, tone_id: 200, tuplet_id: 44 },
     );
   });
 
   it("slice calls invoke correctly", async () => {
-    await actions.score.tone.slice(10, 200, 48);
+    await actions.score.tone.slice(10, 200, 48, null, null);
     expect(mockInvoke).toHaveBeenCalledWith("score_entries_tone_slice", {
       track_id: 10,
       tone_id: 200,
       slice_tick: 48,
+      current_tuplet_id: null,
+      target_tuplet_id: null,
+    });
+  });
+
+  it("slice passes ownership context when provided", async () => {
+    await actions.score.tone.slice(10, 200, 16, 44, 44);
+    expect(mockInvoke).toHaveBeenCalledWith("score_entries_tone_slice", {
+      track_id: 10,
+      tone_id: 200,
+      slice_tick: 16,
+      current_tuplet_id: 44,
+      target_tuplet_id: 44,
+    });
+  });
+
+  it("slice supports cross-owner split context", async () => {
+    await actions.score.tone.slice(10, 200, 96, 44, null);
+    expect(mockInvoke).toHaveBeenCalledWith("score_entries_tone_slice", {
+      track_id: 10,
+      tone_id: 200,
+      slice_tick: 96,
+      current_tuplet_id: 44,
+      target_tuplet_id: null,
     });
   });
 
   it("shiftPitchByStep calls invoke correctly", async () => {
-    await actions.score.tone.shiftPitchByStep(10, 200, 2);
+    await actions.score.tone.shiftPitchByStep(10, null, 200, 2);
     expect(mockInvoke).toHaveBeenCalledWith(
       "score_entries_tone_pitch_shift_by_steps",
-      { track_id: 10, tone_id: 200, steps: 2 },
+      { track_id: 10, tone_id: 200, steps: 2, tuplet_id: null },
+    );
+  });
+
+  it("shiftPitchByStep passes tuplet context when provided", async () => {
+    await actions.score.tone.shiftPitchByStep(10, 44, 200, 2);
+    expect(mockInvoke).toHaveBeenCalledWith(
+      "score_entries_tone_pitch_shift_by_steps",
+      { track_id: 10, tone_id: 200, steps: 2, tuplet_id: 44 },
     );
   });
 
   it("shiftPitchByOctave calls invoke correctly", async () => {
-    await actions.score.tone.shiftPitchByOctave(10, 200, 1);
+    await actions.score.tone.shiftPitchByOctave(10, null, 200, 1);
     expect(mockInvoke).toHaveBeenCalledWith(
       "score_entries_tone_pitch_shift_by_octaves",
-      { track_id: 10, tone_id: 200, octaves: 1 },
+      { track_id: 10, tone_id: 200, octaves: 1, tuplet_id: null },
+    );
+  });
+
+  it("shiftPitchByOctave passes tuplet context when provided", async () => {
+    await actions.score.tone.shiftPitchByOctave(10, 44, 200, 1);
+    expect(mockInvoke).toHaveBeenCalledWith(
+      "score_entries_tone_pitch_shift_by_octaves",
+      { track_id: 10, tone_id: 200, octaves: 1, tuplet_id: 44 },
     );
   });
 
   it("setAccidental calls invoke correctly", async () => {
-    await actions.score.tone.setAccidental(10, 200, Accidental.Flat);
+    await actions.score.tone.setAccidental(10, null, 200, Accidental.Flat);
     expect(mockInvoke).toHaveBeenCalledWith(
       "score_entries_tone_accidental_set",
-      { track_id: 10, tone_id: 200, accidental: Accidental.Flat },
+      {
+        track_id: 10,
+        tone_id: 200,
+        accidental: Accidental.Flat,
+        tuplet_id: null,
+      },
+    );
+  });
+
+  it("setAccidental passes tuplet context when provided", async () => {
+    await actions.score.tone.setAccidental(10, 44, 200, Accidental.Flat);
+    expect(mockInvoke).toHaveBeenCalledWith(
+      "score_entries_tone_accidental_set",
+      {
+        track_id: 10,
+        tone_id: 200,
+        accidental: Accidental.Flat,
+        tuplet_id: 44,
+      },
     );
   });
 
   it("setArticulation calls invoke correctly", async () => {
-    await actions.score.tone.setArticulation(10, 200, Articulation.Tenuto);
+    await actions.score.tone.setArticulation(
+      10,
+      null,
+      200,
+      Articulation.Tenuto,
+    );
     expect(mockInvoke).toHaveBeenCalledWith(
       "score_entries_tone_articulation_set",
-      { track_id: 10, tone_id: 200, articulation: Articulation.Tenuto },
+      {
+        track_id: 10,
+        tone_id: 200,
+        articulation: Articulation.Tenuto,
+        tuplet_id: null,
+      },
     );
+  });
+
+  it("setArticulation passes tuplet context when provided", async () => {
+    await actions.score.tone.setArticulation(10, 44, 200, Articulation.Tenuto);
+    expect(mockInvoke).toHaveBeenCalledWith(
+      "score_entries_tone_articulation_set",
+      {
+        track_id: 10,
+        tone_id: 200,
+        articulation: Articulation.Tenuto,
+        tuplet_id: 44,
+      },
+    );
+  });
+});
+
+describe("actions.score.tuplet", () => {
+  it("create calls invoke and returns id", async () => {
+    mockInvoke.mockResolvedValueOnce(300);
+
+    const id = await actions.score.tuplet.create(
+      10,
+      32,
+      3,
+      2,
+      NoteDuration.Eighth,
+      [3],
+    );
+
+    expect(mockInvoke).toHaveBeenCalledWith("score_entries_tuplet_create", {
+      track_id: 10,
+      tick: 32,
+      note_count: 3,
+      in_space_of: 2,
+      base_note_value: NoteDuration.Eighth,
+      groupings: [3],
+    });
+    expect(id).toBe(300);
+  });
+
+  it("remove calls invoke correctly", async () => {
+    await actions.score.tuplet.remove(10, 300);
+
+    expect(mockInvoke).toHaveBeenCalledWith("score_entries_tuplet_remove", {
+      track_id: 10,
+      tuplet_id: 300,
+    });
   });
 });
 
@@ -1190,11 +1380,6 @@ describe("actions.transport", () => {
   it("pause calls invoke('transport_pause')", async () => {
     await actions.transport.pause();
     expect(mockInvoke).toHaveBeenCalledWith("transport_pause");
-  });
-
-  it("stop calls invoke('transport_stop')", async () => {
-    await actions.transport.stop();
-    expect(mockInvoke).toHaveBeenCalledWith("transport_stop");
   });
 
   it("seek calls invoke with tick", async () => {

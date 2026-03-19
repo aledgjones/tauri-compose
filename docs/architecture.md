@@ -55,6 +55,7 @@ The score itself is rendered natively by Rust/Skia/Metal — all other UI (panel
 - **`AudioContext`** — Behind `Mutex`, holds `cpal` host/device/stream, `MixerHandle`
 - **`SamplerContext`** — Behind `Mutex`, holds plugin metadata, `Cache` (decoded instrument data)
 - **`TransportContext`** — Behind `Mutex` + `TransportShared` (Arc with atomics for lock-free polling)
+- **Sample attack alignment path** — SCVI SIDX metadata -> `SampleIndex` -> sampler `CacheSample` -> transport `StreamRequest` -> streamer trim-before-resample
 
 ### Frontend Side (Display Layer)
 
@@ -84,6 +85,13 @@ Four React contexts mirror the backend state:
 - Explicit Sequence-local flow switching updates `ui.flow_id` directly; the shared top bar does not own a workflow-specific flow selector.
 - Deliberate score-object selection may hand off `ui.flow_id` to the selected object's flow through the backend selection seam.
 - Passive score interactions such as pan, zoom, hover, and miss-to-clear do not change `ui.flow_id`.
+
+### Sample attack alignment
+
+- Per-sample playback alignment is backend-owned metadata, not a transport scheduling hack and not frontend timing state.
+- `scvi_compress.rs` derives `attack_offset_frames` during SCVI builds with a build-time onset detector that uses a short-window RMS envelope plus a local baseline estimate, then stores the first meaningful RMS crossing as the onset so slow blooms and bow noise are kept at the start of the audible bloom instead of trimmed to a later high-energy point.
+- `ScviContainer::open()` loads that offset into `SampleIndex`, the sampler cache carries it through `CacheSample`, transport threads it into `StreamRequest`, and `streamer.rs` discards those leading source frames before resampling or pitch work.
+- Older SCVI containers remain readable because a zero-filled offset decodes to `attack_offset_frames = 0`; rebuilt SCVI assets are required to benefit from alignment.
 
 ---
 
@@ -179,6 +187,42 @@ Score Data (Entry variants in FxHashMaps)
 - As a general rule, new markings should **not** get new slots unless they truly change notation flow. Tempo markings are the reference example: they align to existing slots instead of creating their own.
 - If an element is visually anchored to an existing horizontal position and does not need to push later notation, prefer drawing it relative to an existing slot rather than adding another one.
 
+### Tuplet notation contract
+
+- Shipped MVP tuplets are created through the existing popover flow, then edited through the sequencer's existing tone and container seams. The durable contract is popover-first container creation plus backend-owned sequencer editing, not a separate freeform tuplet construction model.
+- Supported shipped ratios are currently triplet-first (`3q/2`, `3e/2`, `3s/2`, `3t/2`). Broader arbitrary ratios remain deferred and should not be implied by architecture prose.
+- Persisted `Tuplet` entries are not themselves printed-score notation output. The parse phase derives notation from the authoritative host-track container and its child `entries`.
+- The local derived unit should remain a normal `NotationTrack`, not a second tuplet-only notation structure. This preserves existing parser helpers and keeps downstream consumers working against the same base notation type.
+- The only extra contract around that local `NotationTrack` is a thin anchor carrying the host-span projection metadata needed to place the local unit back into the surrounding flow.
+- Conceptually, the parser output for a bounded notation region follows this shape:
+
+```rust
+type SemanticAddress = {
+    owner_id: Option<UniqueId>,
+    tick: Tick,
+};
+
+type HostSpan = {
+    start_tick: Tick,
+    end_tick: Tick,
+};
+
+type AnchoredNotationTrack = {
+    owner_id: UniqueId,
+    host_span: HostSpan,
+    notation: NotationTrack,
+};
+```
+
+- `owner_id` is intentionally generic in the architecture contract. For tuplets it is the tuplet container id, but the same anchored-region pattern can be reused later for other bounded notation units with minimal structural change.
+- The contract must preserve three separate meanings: local semantic address, written duration used for notation decisions inside the local frame, and projected host occupancy used by spacing and draw consumers.
+- The parse architecture is therefore: treat the governed host span as an implicit placeholder, derive the tuplet as an isolated local `NotationTrack`, then project that local unit back into host ordering through explicit host-span metadata rather than through host-only `tick + duration` arithmetic.
+- Boundary-crossing tones remain one stored tone. Derivation may produce multiple local notations or host-side companions at the boundary, but continuity still follows stored tone identity.
+- A completely empty triplet is a special readability case and should derive one base-note rest per local slot. Outside that case, tuplets reuse the existing local split-unit logic for note and rest spelling.
+- Later renderer and spacing work should consume this anchored local `NotationTrack` directly. They should not reconstruct tuplet meaning from flattened host ticks, and they should not introduce a parallel frontend-owned notation model.
+- Sequencer interactions remain tone-focused in MVP: empty tuplet space is derived rather than persisted, blank tuplet space is non-selectable there, and delete/slice/selection continue to flow through the existing shared tone and container seams.
+- Nested tuplets, generalized sequencer-native tuplet tooling beyond the shipped seams, and any cross-flow expansion of tuplet playback remain explicit post-MVP work.
+
 ### Caching
 
 - Draw instructions cached on `RendererContext` — re-rendered on pan/zoom without recalculation
@@ -231,6 +275,7 @@ Score Data (Entry variants in FxHashMaps)
 - `transport_get_state()` reports truthful stopped-state tempo for the current tick as well, so stopped seek and stop-to-tick-0 transitions show the effective score tempo instead of stale playback tempo.
 - Pause/resume behaves like a fresh playback start from the current tick: pause retires the old thread, and resume re-snapshots score tempo data so edits made while paused are reflected.
 - Live edits during active playback still do not affect the in-flight run; a fresh play/resume cycle is required because transport playback uses a play-start score snapshot.
+- Tuplet playback consumes the same shared tuplet model used by persistence and notation, and shipped MVP playback remains scoped to the active flow selected through `ui.flow_id`; tuplets do not widen playback to inactive flows.
 - Tempo property editing also changes persisted tempo load/save semantics: `Tempo.text` is now stored as a required string, and migration `1.25.0` normalizes older `text: null` payloads to `""` during project load.
 
 ---
@@ -252,6 +297,9 @@ Secondary windows (instrument-picker, preferences, etc.) close on blur via `taur
 - **Project files:** `.soloc` — custom binary container with `SOLOC` magic, container version, authoritative header `app_version`, a chunk directory, and a required gzip-compressed `PROJECT_JSON` chunk containing `{ ui, score, next_id }`
 - **Recent files:** Stored in `sled` embedded database at app config directory
 - **Migration system:** `migrations/mod.rs` holds version-gated JSON migration functions; the loader uses the container header `app_version` as the authoritative migration key, validates it against `score.meta.app_version`, applies migrations to `serde_json::Value`, then performs a single typed deserialize before mutating app state
+- **Tuplet persistence contract:** Tuplet-bearing scores use that same single `.soloc` transport and typed deserialize path. Load does not create a parallel tuplet repair layer, split crossing tones into extra stored events, or normalize ownership away from the rule that tones live where they start.
+- **Desktop file-workflow contract:** Tuplet-bearing projects keep the same offline-first local open, save, reopen, current-file-path, recent-file, and transport-resync path as non-tuplet projects through the existing Tauri file commands; no network-backed persistence or alternate frontend-owned file state is introduced.
+- **Current migration stance for tuplets:** No tuplet-specific step is present in `src-tauri/src/migrations/next.rs` because pre-tuplet releases produced no tuplet-bearing payloads. Legacy non-tuplet files still validate and migrate exactly as before; add a tuplet migration only if a released older persisted format requires a real compatibility transform.
 - **Instrument plugins:** Discovered at runtime from `$DATA_DIR/Solo Compose/plugins/` — each is an SCVI binary container
 
 ---

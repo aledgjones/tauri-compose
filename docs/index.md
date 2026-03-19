@@ -24,6 +24,7 @@
 - [Source Tree Analysis](./source-tree-analysis.md) — Complete annotated directory tree
 - [Component Inventory](./component-inventory.md) — UI primitives, app components, screen components
 - [Development Guide](./development-guide.md) — Setup, commands, versioning, build config
+- [Render Performance Baselines](./performance-baselines.md) — Historical render benchmark snapshots and comparison guidance
 
 ---
 

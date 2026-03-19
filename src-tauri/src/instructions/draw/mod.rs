@@ -19,6 +19,7 @@ pub mod draw_systemic_barline;
 pub mod draw_tempo;
 pub mod draw_ties;
 pub mod draw_time_signature;
+pub mod draw_tuplet;
 #[cfg(test)]
 pub mod test_helpers {
     use crate::instructions::parse::get_beams::Beam;

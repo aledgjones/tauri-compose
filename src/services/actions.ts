@@ -166,6 +166,7 @@ export const actions = {
         stave_id: number,
         flow_id: number,
         instrument_id: number,
+        tuplet_id?: number | null,
       ) => {
         return invoke("ui_sequencer_selection_set_tone", {
           tone_id,
@@ -173,6 +174,7 @@ export const actions = {
           stave_id,
           flow_id,
           instrument_id,
+          tuplet_id: tuplet_id ?? null,
         });
       },
       selectRest: (
@@ -181,6 +183,7 @@ export const actions = {
         stave_id: number,
         flow_id: number,
         instrument_id: number,
+        tuplet_id?: number | null,
       ) => {
         return invoke("ui_sequencer_selection_set_rest", {
           tick,
@@ -188,6 +191,7 @@ export const actions = {
           stave_id,
           flow_id,
           instrument_id,
+          tuplet_id: tuplet_id ?? null,
         });
       },
       selectTempo: (tempo_id: number, flow_id: number, tick: number) => {
@@ -229,6 +233,23 @@ export const actions = {
           flow_id,
           stave_id,
           clef_id,
+          tick,
+        });
+      },
+      selectTuplet: (
+        flow_id: number,
+        instrument_id: number,
+        stave_id: number,
+        track_id: number,
+        tuplet_id: number,
+        tick: number,
+      ) => {
+        return invoke("ui_sequencer_selection_set_tuplet", {
+          flow_id,
+          instrument_id,
+          stave_id,
+          track_id,
+          tuplet_id,
           tick,
         });
       },
@@ -429,16 +450,16 @@ export const actions = {
           player_id,
         });
       },
-      assignFlow: (layout_id: UniqueId, player_id: UniqueId) => {
+      assignFlow: (layout_id: UniqueId, flow_id: UniqueId) => {
         return invoke<void>("score_layouts_assign_flow", {
           layout_id,
-          player_id,
+          flow_id,
         });
       },
-      unassignFlow: (layout_id: UniqueId, player_id: UniqueId) => {
+      unassignFlow: (layout_id: UniqueId, flow_id: UniqueId) => {
         return invoke<void>("score_layouts_unassign_flow", {
           layout_id,
-          player_id,
+          flow_id,
         });
       },
       move: (from_index: number, to_index: number) => {
@@ -804,6 +825,7 @@ export const actions = {
         accidental: Accidental | null,
         velocity: number,
         articulations: Articulation[],
+        tuplet_id?: UniqueId,
       ) => {
         return invoke<UniqueId>("score_entries_tone_create", {
           track_id,
@@ -813,26 +835,46 @@ export const actions = {
           accidental,
           velocity,
           articulations,
+          tuplet_id: tuplet_id ?? null,
         });
       },
-      shift: (track_id: UniqueId, entry_id: UniqueId, new_tick: Tick) => {
+      shift: (
+        track_id: UniqueId,
+        entry_id: UniqueId,
+        new_tick: Tick,
+        current_tuplet_id?: UniqueId,
+        target_tuplet_id?: UniqueId,
+      ) => {
         return invoke("score_entries_tone_shift", {
           track_id,
           entry_id,
           new_tick,
+          current_tuplet_id: current_tuplet_id ?? null,
+          target_tuplet_id: target_tuplet_id ?? null,
         });
       },
-      unifyArticulations: (track_id: UniqueId, entry_id: UniqueId) => {
+      unifyArticulations: (
+        track_id: UniqueId,
+        entry_id: UniqueId,
+        tuplet_id?: UniqueId,
+      ) => {
         return invoke<void>("score_entries_tone_unify_articulations", {
           track_id,
           entry_id,
+          tuplet_id: tuplet_id ?? null,
         });
       },
-      setDuration: (track_id: UniqueId, tone_id: UniqueId, duration: Ticks) => {
+      setDuration: (
+        track_id: UniqueId,
+        tone_id: UniqueId,
+        duration: Ticks,
+        tuplet_id?: UniqueId,
+      ) => {
         return invoke("score_entries_tone_duration_set", {
           track_id,
           tone_id,
           duration,
+          tuplet_id: tuplet_id ?? null,
         });
       },
       setPositionAndDuration: (
@@ -840,42 +882,62 @@ export const actions = {
         tone_id: UniqueId,
         tick: Tick,
         duration: Ticks,
+        current_tuplet_id?: UniqueId,
+        target_tuplet_id?: UniqueId,
       ) => {
         return invoke("score_entries_tone_set_position_and_duration", {
           track_id,
           tone_id,
           tick,
           duration,
+          current_tuplet_id: current_tuplet_id ?? null,
+          target_tuplet_id: target_tuplet_id ?? null,
         });
       },
       setPitch: (
         track_id: UniqueId,
+        tuplet_id: UniqueId | null,
         tone_id: UniqueId,
         pitch_int: number,
         accidental?: Accidental | null,
       ) => {
         return invoke("score_entries_tone_pitch_set", {
           track_id,
+          tuplet_id: tuplet_id ?? null,
           tone_id,
           pitch_int,
           accidental,
         });
       },
-      remove: (track_id: UniqueId, tone_id: UniqueId) => {
+      remove: (
+        track_id: UniqueId,
+        tuplet_id: UniqueId | null,
+        tone_id: UniqueId,
+      ) => {
         return invoke<void>("score_entries_tone_duration_remove", {
           track_id,
+          tuplet_id: tuplet_id ?? null,
           tone_id,
         });
       },
-      slice: (track_id: UniqueId, tone_id: UniqueId, slice_tick: Tick) => {
+      slice: (
+        track_id: UniqueId,
+        tone_id: UniqueId,
+        slice_tick: Tick,
+        current_tuplet_id?: UniqueId | null,
+        target_tuplet_id?: UniqueId | null,
+      ) => {
         return invoke<UniqueId | null>("score_entries_tone_slice", {
           track_id,
           tone_id,
           slice_tick,
+          current_tuplet_id: current_tuplet_id ?? null,
+          target_tuplet_id: target_tuplet_id ?? null,
         });
       },
       shiftPitchByStep: (
         track_id: UniqueId,
+        tuplet_id: UniqueId | null,
         tone_id: UniqueId,
         steps: number,
       ) => {
@@ -883,6 +945,7 @@ export const actions = {
           "score_entries_tone_pitch_shift_by_steps",
           {
             track_id,
+            tuplet_id: tuplet_id ?? null,
             tone_id,
             steps,
           },
@@ -890,6 +953,7 @@ export const actions = {
       },
       shiftPitchByOctave: (
         track_id: UniqueId,
+        tuplet_id: UniqueId | null,
         tone_id: UniqueId,
         octaves: number,
       ) => {
@@ -897,6 +961,7 @@ export const actions = {
           "score_entries_tone_pitch_shift_by_octaves",
           {
             track_id,
+            tuplet_id: tuplet_id ?? null,
             tone_id,
             octaves,
           },
@@ -904,24 +969,53 @@ export const actions = {
       },
       setAccidental: (
         track_id: UniqueId,
+        tuplet_id: UniqueId | null,
         tone_id: UniqueId,
         accidental: Accidental,
       ) => {
         return invoke<number | null>("score_entries_tone_accidental_set", {
           track_id,
+          tuplet_id: tuplet_id ?? null,
           tone_id,
           accidental,
         });
       },
       setArticulation: (
         track_id: UniqueId,
+        tuplet_id: UniqueId | null,
         tone_id: UniqueId,
         articulation: Articulation,
       ) => {
         return invoke<void>("score_entries_tone_articulation_set", {
           track_id,
+          tuplet_id: tuplet_id ?? null,
           tone_id,
           articulation,
+        });
+      },
+    },
+    tuplet: {
+      create: (
+        track_id: UniqueId,
+        tick: Tick,
+        note_count: number,
+        in_space_of: number,
+        base_note_value: NoteDuration,
+        groupings: number[],
+      ) => {
+        return invoke<UniqueId>("score_entries_tuplet_create", {
+          track_id,
+          tick,
+          note_count,
+          in_space_of,
+          base_note_value,
+          groupings,
+        });
+      },
+      remove: (track_id: UniqueId, tuplet_id: UniqueId) => {
+        return invoke<void>("score_entries_tuplet_remove", {
+          track_id,
+          tuplet_id,
         });
       },
     },
@@ -1020,7 +1114,6 @@ export const actions = {
   transport: {
     play: () => invoke("transport_play"),
     pause: () => invoke("transport_pause"),
-    stop: () => invoke("transport_stop"),
     seek: (tick: number) => invoke("transport_seek", { tick }),
     getState: () => invoke<TransportState>("transport_get_state"),
   },

@@ -8,11 +8,14 @@ import MdiIcon from "@mdi/react";
 import { mdiChevronDown, mdiChevronUp } from "@mdi/js";
 import classNames from "classnames";
 import { SelectedToneInfoDisplay } from "../../components/selected-tone-info-display";
+import { useKeyboardShortcuts } from "../../hooks/use-keyboard-shortcuts";
 
 export const Write = () => {
   const state = useAppState();
   const minimized = state.ui.screens.write.bottom_panel_minimized;
   const gridTemplateRows = minimized ? "1fr" : "3fr 2fr";
+
+  useKeyboardShortcuts();
 
   return (
     <>

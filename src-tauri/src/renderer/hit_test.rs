@@ -202,6 +202,39 @@ mod tests {
     }
 
     #[test]
+    fn returns_tuplet_selection_when_click_is_inside_tuplet_hit_target() {
+        let mut renderer = make_test_renderer();
+        renderer.hit_targets.push(HitTarget {
+            entry: Selection::Tuplet {
+                flow_id: 4,
+                instrument_id: 2,
+                stave_id: 3,
+                track_id: 5,
+                tuplet_id: 11,
+                tick: 64,
+            },
+            x: 6.0,
+            y: 1.0,
+            width: 4.0,
+            height: 2.0,
+            popover_x: 8.0,
+            popover_y: 0.0,
+        });
+
+        assert_eq!(
+            hit_test_selection(&renderer, 8.0, 2.0, 0.0, 0.0, 100.0),
+            Some(Selection::Tuplet {
+                flow_id: 4,
+                instrument_id: 2,
+                stave_id: 3,
+                track_id: 5,
+                tuplet_id: 11,
+                tick: 64,
+            })
+        );
+    }
+
+    #[test]
     fn resolves_offset_second_flow_hit_targets_in_shared_renderer_space() {
         let mut renderer = make_test_renderer();
         renderer.hit_targets.push(HitTarget {
@@ -420,6 +453,7 @@ mod tests {
                 stave_id: 2,
                 instrument_id: 3,
                 tone_id: 15,
+                tuplet_id: None,
             },
             x: 8.0,
             y: 4.0,
@@ -439,6 +473,7 @@ mod tests {
                 stave_id: 2,
                 instrument_id: 3,
                 tone_id: 15,
+                tuplet_id: None,
             })
         );
     }

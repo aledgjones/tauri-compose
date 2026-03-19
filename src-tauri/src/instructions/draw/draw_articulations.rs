@@ -8,6 +8,50 @@ use crate::score::components::text::{Align, Font, FontFamily, Justify};
 use rustc_hash::FxHashSet;
 use skia_safe::Color;
 
+const TUPLET_ARTICULATION_CLEARANCE_STACCATO: f32 = 0.25;
+const TUPLET_ARTICULATION_CLEARANCE_TENUTO: f32 = 0.5;
+const TUPLET_ARTICULATION_CLEARANCE_STACCATISSIMO: f32 = 1.25;
+const TUPLET_ARTICULATION_CLEARANCE_STACKED_POINT: f32 = 0.25;
+const TUPLET_ARTICULATION_CLEARANCE_STACCATO_TENUTO: f32 = 1.0;
+const TUPLET_ARTICULATION_CLEARANCE_ACCENT: f32 = 1.25;
+const TUPLET_ARTICULATION_CLEARANCE_MARCATO: f32 = 1.0;
+
+pub(crate) fn tuplet_bracket_clearance(articulations: &FxHashSet<Articulation>) -> f32 {
+    if articulations.is_empty() {
+        return 0.0;
+    }
+
+    let stacked_point_clearance = if articulations.len() > 1 {
+        articulations
+            .iter()
+            .filter(|articulation| {
+                matches!(
+                    articulation,
+                    Articulation::Staccato | Articulation::Staccatissimo
+                )
+            })
+            .count() as f32
+            * TUPLET_ARTICULATION_CLEARANCE_STACKED_POINT
+    } else {
+        0.0
+    };
+
+    articulations
+        .iter()
+        .map(|articulation| match articulation {
+            Articulation::Staccato => TUPLET_ARTICULATION_CLEARANCE_STACCATO,
+            Articulation::Tenuto => TUPLET_ARTICULATION_CLEARANCE_TENUTO,
+            Articulation::Staccatissimo => TUPLET_ARTICULATION_CLEARANCE_STACCATISSIMO,
+            Articulation::StaccatoTenuto => TUPLET_ARTICULATION_CLEARANCE_STACCATO_TENUTO,
+            Articulation::Accent | Articulation::Stressed | Articulation::Unstressed => {
+                TUPLET_ARTICULATION_CLEARANCE_ACCENT
+            }
+            Articulation::Marcato => TUPLET_ARTICULATION_CLEARANCE_MARCATO,
+        })
+        .sum::<f32>()
+        + stacked_point_clearance
+}
+
 pub fn draw_articulations(
     origin: &Point,
     articulations: &FxHashSet<Articulation>,
@@ -250,17 +294,17 @@ pub fn draw_articulations(
                         offset - 1.5
                     }
                 } else if articulations.contains(&Articulation::StaccatoTenuto) {
-                    if info.lowest > 4 {
+                    if info.highest > 4 {
                         origin.y
-                    } else if info.lowest == 4 {
+                    } else if info.highest == 4 {
                         offset - 3.0
-                    } else if info.lowest == 3 {
+                    } else if info.highest == 3 {
                         offset - 2.5
-                    } else if info.lowest == 2 {
+                    } else if info.highest == 2 {
                         offset - 3.5
-                    } else if info.lowest == 1 || info.lowest == 0 {
+                    } else if info.highest == 1 || info.highest == 0 {
                         offset - 3.0
-                    } else if info.lowest == -1 || info.lowest == -2 {
+                    } else if info.highest == -1 || info.highest == -2 {
                         offset - 2.5
                     } else {
                         offset - 2.0
@@ -271,7 +315,7 @@ pub fn draw_articulations(
                     origin.y + 2.0
                 } else if info.highest > 0 && info.highest % 2 != 0 {
                     offset - 1.5
-                } else if info.lowest < 0 && info.lowest > -4 {
+                } else if info.highest < 0 && info.highest > -4 {
                     origin.y - 2.5
                 } else {
                     offset - 1.0
@@ -545,5 +589,112 @@ mod tests {
             renderer.instructions[0],
             DrawInstruction::Text { .. }
         ));
+    }
+
+    fn accent_y(renderer: &crate::renderer::RendererContext, glyph: &str) -> f32 {
+        renderer
+            .instructions
+            .iter()
+            .find_map(|instruction| match instruction {
+                DrawInstruction::Text { text, point, .. } if text == glyph => Some(point.1),
+                _ => None,
+            })
+            .expect("accent glyph should be drawn")
+    }
+
+    #[test]
+    fn accent_stem_down_position_ignores_lower_note_extent() {
+        let mut high_only_renderer = make_test_renderer();
+        let mut wide_chord_renderer = make_test_renderer();
+        let notation = make_notation_with_tone();
+        let arts: FxHashSet<Articulation> = [Articulation::Accent].into_iter().collect();
+        let accent_down = "\u{E4A0}";
+
+        let mut high_only = notation.clone();
+        high_only.info = Some(ToneOffsetInfo {
+            highest: -2,
+            lowest: 2,
+            furthest: 2,
+        });
+
+        let mut wide_chord = notation;
+        wide_chord.info = Some(ToneOffsetInfo {
+            highest: -2,
+            lowest: -3,
+            furthest: -3,
+        });
+
+        draw_articulations(
+            &Point { x: 0.0, y: 0.0 },
+            &arts,
+            &high_only,
+            1.0,
+            Some(&Direction::Down),
+            None,
+            &mut high_only_renderer,
+        );
+        draw_articulations(
+            &Point { x: 0.0, y: 0.0 },
+            &arts,
+            &wide_chord,
+            1.0,
+            Some(&Direction::Down),
+            None,
+            &mut wide_chord_renderer,
+        );
+
+        assert_eq!(
+            accent_y(&high_only_renderer, accent_down),
+            accent_y(&wide_chord_renderer, accent_down)
+        );
+    }
+
+    #[test]
+    fn accent_staccato_tenuto_stem_down_position_ignores_lower_note_extent() {
+        let mut shallow_renderer = make_test_renderer();
+        let mut deep_renderer = make_test_renderer();
+        let notation = make_notation_with_tone();
+        let arts: FxHashSet<Articulation> = [Articulation::Accent, Articulation::StaccatoTenuto]
+            .into_iter()
+            .collect();
+        let accent_down = "\u{E4A0}";
+
+        let mut shallow_chord = notation.clone();
+        shallow_chord.info = Some(ToneOffsetInfo {
+            highest: -1,
+            lowest: 4,
+            furthest: 4,
+        });
+
+        let mut deep_chord = notation;
+        deep_chord.info = Some(ToneOffsetInfo {
+            highest: -1,
+            lowest: -6,
+            furthest: -6,
+        });
+
+        draw_articulations(
+            &Point { x: 0.0, y: 0.0 },
+            &arts,
+            &shallow_chord,
+            1.0,
+            Some(&Direction::Down),
+            None,
+            &mut shallow_renderer,
+        );
+        draw_articulations(
+            &Point { x: 0.0, y: 0.0 },
+            &arts,
+            &deep_chord,
+            1.0,
+            Some(&Direction::Down),
+            None,
+            &mut deep_renderer,
+        );
+
+        assert_eq!(
+            accent_y(&shallow_renderer, accent_down),
+            accent_y(&deep_renderer, accent_down)
+        );
     }
 }

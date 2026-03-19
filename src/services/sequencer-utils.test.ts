@@ -35,6 +35,17 @@ describe("getSequencerClickTarget", () => {
     expect(result).toEqual({ type: "Tone", id: 7 });
   });
 
+  it("returns a tuplet target when element is inside a data-tuplet-id region", () => {
+    const parent = document.createElement("div");
+    parent.setAttribute("data-tuplet-id", "17");
+    const child = document.createElement("span");
+    parent.appendChild(child);
+    container.appendChild(parent);
+
+    const result = getSequencerClickTarget(child);
+    expect(result).toEqual({ type: "Tuplet", id: 17 });
+  });
+
   it("returns correct target for deeply nested child", () => {
     const ancestor = document.createElement("div");
     ancestor.setAttribute("data-tone-id", "99");
@@ -46,6 +57,30 @@ describe("getSequencerClickTarget", () => {
 
     const result = getSequencerClickTarget(inner);
     expect(result).toEqual({ type: "Tone", id: 99 });
+  });
+
+  it("includes tuplet context when a tone lives inside a tuplet region", () => {
+    const tuplet = document.createElement("div");
+    tuplet.setAttribute("data-tuplet-id", "17");
+    const tone = document.createElement("div");
+    tone.setAttribute("data-tone-id", "99");
+    tuplet.appendChild(tone);
+    container.appendChild(tuplet);
+
+    const result = getSequencerClickTarget(tone);
+    expect(result).toEqual({ type: "Tone", id: 99, tuplet_id: 17 });
+  });
+
+  it("keeps tone precedence over tuplet container ancestry", () => {
+    const tuplet = document.createElement("div");
+    tuplet.setAttribute("data-tuplet-id", "17");
+    const tone = document.createElement("div");
+    tone.setAttribute("data-tone-id", "99");
+    tuplet.appendChild(tone);
+    container.appendChild(tuplet);
+
+    const result = getSequencerClickTarget(tone);
+    expect(result).toEqual({ type: "Tone", id: 99, tuplet_id: 17 });
   });
 
   it("id is parsed as a number", () => {

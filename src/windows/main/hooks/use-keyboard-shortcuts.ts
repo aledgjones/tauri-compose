@@ -1,7 +1,8 @@
 import { useEffect, useMemo } from "react";
-import { useAppState } from "../../../services/state";
+import { useAppState, useTransportState } from "../../../services/state";
 import { Accidental, Articulation } from "../../../services/types";
 import { actions } from "../../../services/actions";
+import { getSelectedTone } from "./use-selected-tone-info";
 
 type Modifiers = { command: boolean; control: boolean; option: boolean };
 
@@ -51,7 +52,60 @@ const isEditableTarget = (target: EventTarget | null) => {
 
 export const useKeyboardShortcuts = () => {
   const state = useAppState();
+  const transport = useTransportState();
   const selection = state.ui.sequencer.selection;
+  const selectionFlowId = selection?.flow_id ?? null;
+
+  const selectionTick = useMemo(() => {
+    if (selection === null) {
+      return null;
+    }
+
+    const resolveTupletHostTick = (
+      trackId: number,
+      tupletId: number | null | undefined,
+      localTick: number,
+    ) => {
+      if (tupletId === null || tupletId === undefined) {
+        return localTick;
+      }
+
+      const track = state.score.tracks.by_id[trackId];
+      const tupletEntry = track?.entries.by_id[tupletId];
+      if (tupletEntry?.type !== "Tuplet") {
+        return null;
+      }
+
+      return tupletEntry.tick + localTick;
+    };
+
+    if (selection.type === "Tone") {
+      const track = state.score.tracks.by_id[selection.track_id];
+      const tone = track
+        ? getSelectedTone(track, selection.tone_id, selection.tuplet_id)
+        : null;
+
+      if (!tone) {
+        return null;
+      }
+
+      return resolveTupletHostTick(
+        selection.track_id,
+        selection.tuplet_id,
+        tone.tick,
+      );
+    }
+
+    if (selection.type === "Rest") {
+      return resolveTupletHostTick(
+        selection.track_id,
+        selection.tuplet_id,
+        selection.tick,
+      );
+    }
+
+    return selection.tick;
+  }, [selection, state.score.tracks.by_id]);
 
   const toneSelectionInfo = useMemo(() => {
     if (selection === null || selection.type !== "Tone") {
@@ -63,17 +117,18 @@ export const useKeyboardShortcuts = () => {
       return null;
     }
 
-    const entry = track.entries.by_id[selection.tone_id];
-    if (!entry || entry.type !== "Tone") {
+    const tone = getSelectedTone(track, selection.tone_id, selection.tuplet_id);
+    if (!tone) {
       return null;
     }
 
     return {
-      tone: entry,
+      tone,
       toneId: selection.tone_id,
       instrumentId: selection.instrument_id,
       trackId: selection.track_id,
       flowId: selection.flow_id,
+      tupletId: selection.tuplet_id ?? null,
     };
   }, [selection, state.score.tracks.by_id]);
 
@@ -92,6 +147,7 @@ export const useKeyboardShortcuts = () => {
           deleteSelection: () =>
             actions.score.tone.remove(
               toneSelectionInfo.trackId,
+              toneSelectionInfo.tupletId,
               toneSelectionInfo.toneId,
             ),
         };
@@ -130,16 +186,21 @@ export const useKeyboardShortcuts = () => {
             ),
         };
       }
+      case "Tuplet": {
+        return {
+          deleteSelection: () =>
+            actions.score.tuplet.remove(
+              selection.track_id,
+              selection.tuplet_id,
+            ),
+        };
+      }
       case "Rest":
         return null;
     }
   }, [selection, toneSelectionInfo]);
 
   useEffect(() => {
-    if (!selection) {
-      return;
-    }
-
     const activeToneSelectionInfo = toneSelectionInfo;
 
     const auditionTone = (pitch: number) => {
@@ -165,178 +226,163 @@ export const useKeyboardShortcuts = () => {
       modifiers: Modifiers;
       action: () => Promise<number | null | void>;
       shouldAudition?: boolean;
-    }> = activeToneSelectionInfo
-      ? [
-          {
-            key: "ArrowUp",
-            modifiers: { command: false, control: false, option: true },
-            action: () =>
-              actions.score.tone.shiftPitchByStep(
-                activeToneSelectionInfo.trackId,
-                activeToneSelectionInfo.toneId,
-                1,
-              ),
-            shouldAudition: true,
-          },
-          {
-            key: "ArrowUp",
-            modifiers: { command: true, control: false, option: true },
-            action: () =>
-              actions.score.tone.shiftPitchByOctave(
-                activeToneSelectionInfo.trackId,
-                activeToneSelectionInfo.toneId,
-                1,
-              ),
-            shouldAudition: true,
-          },
-          {
-            key: "ArrowDown",
-            modifiers: { command: false, control: false, option: true },
-            action: () =>
-              actions.score.tone.shiftPitchByStep(
-                activeToneSelectionInfo.trackId,
-                activeToneSelectionInfo.toneId,
-                -1,
-              ),
-            shouldAudition: true,
-          },
-          {
-            key: "ArrowDown",
-            modifiers: { command: true, control: false, option: true },
-            action: () =>
-              actions.score.tone.shiftPitchByOctave(
-                activeToneSelectionInfo.trackId,
-                activeToneSelectionInfo.toneId,
-                -1,
-              ),
-            shouldAudition: true,
-          },
-          {
-            key: "=",
-            modifiers: { command: false, control: false, option: false },
-            action: () =>
-              actions.score.tone.setAccidental(
-                activeToneSelectionInfo.trackId,
-                activeToneSelectionInfo.toneId,
-                Accidental.Sharp,
-              ),
-            shouldAudition: true,
-          },
-          {
-            key: "-",
-            modifiers: { command: false, control: false, option: false },
-            action: () =>
-              actions.score.tone.setAccidental(
-                activeToneSelectionInfo.trackId,
-                activeToneSelectionInfo.toneId,
-                Accidental.Flat,
-              ),
-            shouldAudition: true,
-          },
-          {
-            key: "0",
-            modifiers: { command: false, control: false, option: false },
-            action: () =>
-              actions.score.tone.setAccidental(
-                activeToneSelectionInfo.trackId,
-                activeToneSelectionInfo.toneId,
-                Accidental.Natural,
-              ),
-            shouldAudition: true,
-          },
-          {
-            key: "]",
-            modifiers: { command: false, control: false, option: false },
-            action: () => {
-              return actions.score.tone.setArticulation(
-                activeToneSelectionInfo.trackId,
-                activeToneSelectionInfo.toneId,
-                Articulation.Staccato,
-              );
-            },
-          },
-          {
-            key: "\\",
-            modifiers: { command: false, control: false, option: false },
-            action: () => {
-              return actions.score.tone.setArticulation(
-                activeToneSelectionInfo.trackId,
-                activeToneSelectionInfo.toneId,
-                Articulation.Tenuto,
-              );
-            },
-          },
-          {
-            key: "[",
-            modifiers: { command: false, control: false, option: false },
-            action: () => {
-              return actions.score.tone.setArticulation(
-                activeToneSelectionInfo.trackId,
-                activeToneSelectionInfo.toneId,
-                Articulation.Staccatissimo,
-              );
-            },
-          },
-          {
-            key: "'",
-            modifiers: { command: false, control: false, option: false },
-            action: () => {
-              return actions.score.tone.setArticulation(
-                activeToneSelectionInfo.trackId,
-                activeToneSelectionInfo.toneId,
-                Articulation.StaccatoTenuto,
-              );
-            },
-          },
-          {
-            key: "}",
-            modifiers: { command: false, control: false, option: false },
-            action: () => {
-              return actions.score.tone.setArticulation(
-                activeToneSelectionInfo.trackId,
-                activeToneSelectionInfo.toneId,
-                Articulation.Accent,
-              );
-            },
-          },
-          {
-            key: "|",
-            modifiers: { command: false, control: false, option: false },
-            action: () => {
-              return actions.score.tone.setArticulation(
-                activeToneSelectionInfo.trackId,
-                activeToneSelectionInfo.toneId,
-                Articulation.Marcato,
-              );
-            },
-          },
-          {
-            key: "{",
-            modifiers: { command: false, control: false, option: false },
-            action: () => {
-              return actions.score.tone.setArticulation(
-                activeToneSelectionInfo.trackId,
-                activeToneSelectionInfo.toneId,
-                Articulation.Stressed,
-              );
-            },
-          },
-          {
-            key: '"',
-            modifiers: { command: false, control: false, option: false },
-            action: () => {
-              return actions.score.tone.setArticulation(
-                activeToneSelectionInfo.trackId,
-                activeToneSelectionInfo.toneId,
-                Articulation.Unstressed,
-              );
-            },
-          },
-        ]
-      : [];
+    }> = [];
+
+    if (activeToneSelectionInfo) {
+      const { trackId, toneId, tupletId } = activeToneSelectionInfo;
+
+      const shiftPitchByStep = (steps: number) =>
+        actions.score.tone.shiftPitchByStep(trackId, tupletId, toneId, steps);
+
+      const shiftPitchByOctave = (octaves: number) =>
+        actions.score.tone.shiftPitchByOctave(
+          trackId,
+          tupletId,
+          toneId,
+          octaves,
+        );
+
+      const setAccidental = (accidental: Accidental) =>
+        actions.score.tone.setAccidental(trackId, tupletId, toneId, accidental);
+
+      const setArticulation = (articulation: Articulation) =>
+        actions.score.tone.setArticulation(
+          trackId,
+          tupletId,
+          toneId,
+          articulation,
+        );
+
+      toneShortcuts.push(
+        {
+          key: "ArrowUp",
+          modifiers: { command: false, control: false, option: true },
+          action: () => shiftPitchByStep(1),
+          shouldAudition: true,
+        },
+        {
+          key: "ArrowUp",
+          modifiers: { command: true, control: false, option: true },
+          action: () => shiftPitchByOctave(1),
+          shouldAudition: true,
+        },
+        {
+          key: "ArrowDown",
+          modifiers: { command: false, control: false, option: true },
+          action: () => shiftPitchByStep(-1),
+          shouldAudition: true,
+        },
+        {
+          key: "ArrowDown",
+          modifiers: { command: true, control: false, option: true },
+          action: () => shiftPitchByOctave(-1),
+          shouldAudition: true,
+        },
+        {
+          key: "=",
+          modifiers: { command: false, control: false, option: false },
+          action: () => setAccidental(Accidental.Sharp),
+          shouldAudition: true,
+        },
+        {
+          key: "-",
+          modifiers: { command: false, control: false, option: false },
+          action: () => setAccidental(Accidental.Flat),
+          shouldAudition: true,
+        },
+        {
+          key: "0",
+          modifiers: { command: false, control: false, option: false },
+          action: () => setAccidental(Accidental.Natural),
+          shouldAudition: true,
+        },
+        {
+          key: "]",
+          modifiers: { command: false, control: false, option: false },
+          action: () => setArticulation(Articulation.Staccato),
+        },
+        {
+          key: "\\",
+          modifiers: { command: false, control: false, option: false },
+          action: () => setArticulation(Articulation.Tenuto),
+        },
+        {
+          key: "[",
+          modifiers: { command: false, control: false, option: false },
+          action: () => setArticulation(Articulation.Staccatissimo),
+        },
+        {
+          key: "'",
+          modifiers: { command: false, control: false, option: false },
+          action: () => setArticulation(Articulation.StaccatoTenuto),
+        },
+        {
+          key: "}",
+          modifiers: { command: false, control: false, option: false },
+          action: () => setArticulation(Articulation.Accent),
+        },
+        {
+          key: "|",
+          modifiers: { command: false, control: false, option: false },
+          action: () => setArticulation(Articulation.Marcato),
+        },
+        {
+          key: "{",
+          modifiers: { command: false, control: false, option: false },
+          action: () => setArticulation(Articulation.Stressed),
+        },
+        {
+          key: '"',
+          modifiers: { command: false, control: false, option: false },
+          action: () => setArticulation(Articulation.Unstressed),
+        },
+      );
+    }
 
     const handleKeyDown = async (e: KeyboardEvent) => {
       if (e.defaultPrevented || isEditableTarget(e.target)) {
+        return;
+      }
+
+      if (
+        e.key === " " &&
+        matchesModifiers(e, { command: false, control: false, option: false })
+      ) {
+        e.preventDefault();
+
+        if (transport.playing) {
+          await actions.transport.pause();
+        } else {
+          await actions.transport.play();
+        }
+
+        return;
+      }
+
+      if (
+        (e.key === "p" || e.key === "P") &&
+        matchesModifiers(e, { command: false, control: false, option: false })
+      ) {
+        e.preventDefault();
+
+        if (selectionTick !== null) {
+          if (
+            selectionFlowId !== null &&
+            state.ui.flow_id !== selectionFlowId
+          ) {
+            await actions.ui.setActiveFlowId(selectionFlowId);
+          }
+          await actions.transport.seek(selectionTick);
+          await actions.transport.play();
+          return;
+        }
+
+        if (transport.playing) {
+          await actions.transport.pause();
+        } else {
+          await actions.transport.play();
+        }
+
         return;
       }
 
@@ -360,7 +406,7 @@ export const useKeyboardShortcuts = () => {
         return;
       }
 
-      if (!activeToneSelectionInfo) {
+      if (toneShortcuts.length === 0) {
         return;
       }
 
@@ -385,8 +431,12 @@ export const useKeyboardShortcuts = () => {
   }, [
     deletionInfo,
     selection,
+    selectionFlowId,
+    selectionTick,
     state.preferences.audition,
+    state.ui.flow_id,
     state.score.instruments.by_id,
     toneSelectionInfo,
+    transport.playing,
   ]);
 };

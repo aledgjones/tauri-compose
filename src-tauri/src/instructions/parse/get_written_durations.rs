@@ -1,5 +1,5 @@
 use super::get_beams::Beams;
-use super::get_measures::Measures;
+use super::get_measures::{measures_from_single_time_signature, Measures};
 use super::get_shunts::Shunt;
 use super::get_shunts::Shunts;
 use super::get_tone_offset_info::get_tone_offset_info;
@@ -16,6 +16,7 @@ use crate::score::entries::time_signature::TimeSignature;
 use crate::score::entries::time_signature::TimeSignatureDrawType;
 use crate::score::entries::time_signature::TimeSignatureType;
 use crate::score::entries::tone::Tone;
+use crate::score::entries::tuplet::{Tuplet, TupletEntry};
 use crate::score::entries::Entry;
 use crate::score::flows::Flow;
 use crate::score::instruments::Instrument;
@@ -28,6 +29,19 @@ use rustc_hash::FxHashSet;
 use std::collections::BTreeSet;
 
 pub type NotationByTrack = FxHashMap<UniqueId, NotationTrack>;
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct HostSpan {
+    pub start_tick: Tick,
+    pub end_tick: Tick,
+}
+
+#[derive(Clone)]
+pub struct AnchoredNotationTrack {
+    pub owner_id: UniqueId,
+    pub host_span: HostSpan,
+    pub notation: NotationTrack,
+}
 
 #[derive(Clone)]
 pub struct Notation {
@@ -302,9 +316,11 @@ impl Notation {
     }
 }
 
+#[derive(Clone)]
 pub struct NotationTrack {
     pub length: u64,
     pub track: FxHashMap<Tick, Notation>,
+    pub anchored_tracks: Vec<AnchoredNotationTrack>,
 }
 
 struct FourBeatBoundaries {
@@ -319,7 +335,11 @@ impl NotationTrack {
     pub fn new(length: Ticks) -> NotationTrack {
         let track = FxHashMap::default();
 
-        NotationTrack { length, track }
+        NotationTrack {
+            length,
+            track,
+            anchored_tracks: Vec::new(),
+        }
     }
 
     pub fn is_tick_empty(&self, tick: Tick) -> bool {
@@ -543,7 +563,13 @@ impl NotationTrack {
         true
     }
 
-    pub fn split_at_events(&mut self, track: &Track, measures: &Measures) {
+    pub fn split_at_explicit_events(
+        &mut self,
+        tones: &[Tone],
+        barline_ticks: &[Tick],
+        measures: &Measures,
+        extra_split_points: &[Tick],
+    ) {
         let mut split_points: BTreeSet<Tick> = BTreeSet::new();
 
         // measure dictated barline events
@@ -551,21 +577,22 @@ impl NotationTrack {
             split_points.insert(*tick);
         }
 
-        // tone / explicit barline events
-        for entry in track.entries.by_id.values() {
-            match entry {
-                Entry::Tone(tone) => {
-                    split_points.insert(tone.tick);
-                    let end_tick = tone.tick + tone.duration;
-                    if end_tick < self.length {
-                        split_points.insert(end_tick);
-                    }
-                }
-                Entry::Barline(barline) => {
-                    split_points.insert(barline.tick);
-                }
-                _ => {}
+        for tick in extra_split_points {
+            if *tick < self.length {
+                split_points.insert(*tick);
             }
+        }
+
+        for tone in tones {
+            split_points.insert(tone.tick);
+            let end_tick = tone.tick + tone.duration;
+            if end_tick < self.length {
+                split_points.insert(end_tick);
+            }
+        }
+
+        for tick in barline_ticks {
+            split_points.insert(*tick);
         }
 
         let mut prev_split_point = self.length;
@@ -576,20 +603,18 @@ impl NotationTrack {
             prev_split_point = split_point;
         }
 
-        for entry in track.entries.by_id.values() {
-            if let Entry::Tone(tone) = entry {
-                let mut is_split = false;
-                let start_tick = tone.tick;
-                let end_tick = tone.tick + tone.duration;
+        for tone in tones {
+            let mut is_split = false;
+            let start_tick = tone.tick;
+            let end_tick = tone.tick + tone.duration;
 
-                for tick in (start_tick..end_tick).rev() {
-                    if let Some(notation) = self.track.get_mut(&tick) {
-                        notation.tones.push(tone.clone());
-                        if is_split {
-                            notation.ties.insert(tone.id);
-                        }
-                        is_split = true
+            for tick in (start_tick..end_tick).rev() {
+                if let Some(notation) = self.track.get_mut(&tick) {
+                    notation.tones.push(tone.clone());
+                    if is_split {
+                        notation.ties.insert(tone.id);
                     }
+                    is_split = true
                 }
             }
         }
@@ -1123,6 +1148,289 @@ impl NotationTrack {
     }
 }
 
+fn derive_notation_track_from_tones(
+    length: Ticks,
+    tones: &[Tone],
+    barline_ticks: &[Tick],
+    measures: &Measures,
+    tone_offsets: &ToneVerticalOffsets,
+    extra_split_points: &[Tick],
+) -> NotationTrack {
+    let mut notation = NotationTrack::new(length);
+    notation.split_at_explicit_events(tones, barline_ticks, measures, extra_split_points);
+
+    for (tick, time_signature) in measures {
+        let measure_stop = (*tick + time_signature.ticks_per_bar()).min(notation.length);
+
+        match time_signature.kind() {
+            TimeSignatureType::Simple => {
+                notation.split_simple_unit(*tick, measure_stop, time_signature, time_signature)
+            }
+            TimeSignatureType::Compound => {
+                notation.split_compound_unit(*tick, measure_stop, time_signature)
+            }
+            TimeSignatureType::Complex => todo!(),
+            TimeSignatureType::Open => todo!(),
+        }
+    }
+
+    get_tone_offset_info(&mut notation, tone_offsets);
+    notation
+}
+
+fn get_sorted_tuplets(track: &Track) -> Vec<&Tuplet> {
+    let mut tuplets = track
+        .entries
+        .by_id
+        .values()
+        .filter(|entry| matches!(entry, Entry::Tuplet(_)))
+        .map(|entry| {
+            let Entry::Tuplet(tuplet) = entry else {
+                unreachable!("filtered to tuplet entries")
+            };
+            tuplet.as_ref()
+        })
+        .collect::<Vec<_>>();
+    tuplets.sort_by_key(|tuplet| tuplet.tick);
+    tuplets
+}
+
+struct TupletTimingSpan<'a> {
+    tuplet: &'a Tuplet,
+    continuous_start: Tick,
+    continuous_end: Tick,
+    host_end: Tick,
+}
+
+#[derive(Clone)]
+struct ContinuousTone {
+    tone: Tone,
+    owner_tuplet_id: Option<UniqueId>,
+    continuous_start: Tick,
+    continuous_end: Tick,
+}
+
+fn get_tuplet_timing_spans<'a>(tuplets: &'a [&'a Tuplet]) -> Vec<TupletTimingSpan<'a>> {
+    let mut expansion = 0;
+
+    tuplets
+        .iter()
+        .map(|tuplet| {
+            let continuous_start = tuplet.tick + expansion;
+            let continuous_end = continuous_start + tuplet.local_length_ticks();
+            let host_end = tuplet.tick + tuplet.consumed_ticks();
+
+            expansion += tuplet.local_length_ticks() - tuplet.consumed_ticks();
+
+            TupletTimingSpan {
+                tuplet,
+                continuous_start,
+                continuous_end,
+                host_end,
+            }
+        })
+        .collect()
+}
+
+fn get_continuous_host_tick(host_tick: Tick, tuplets: &[TupletTimingSpan<'_>]) -> Tick {
+    let expansion = tuplets
+        .iter()
+        .filter(|span| span.host_end <= host_tick)
+        .map(|span| span.tuplet.local_length_ticks() - span.tuplet.consumed_ticks())
+        .sum::<Tick>();
+
+    host_tick + expansion
+}
+
+fn get_host_tick_from_continuous(continuous_tick: Tick, tuplets: &[TupletTimingSpan<'_>]) -> Tick {
+    let expansion = tuplets
+        .iter()
+        .take_while(|span| span.continuous_end <= continuous_tick)
+        .map(|span| span.tuplet.local_length_ticks() - span.tuplet.consumed_ticks())
+        .sum::<Tick>();
+
+    continuous_tick - expansion
+}
+
+fn get_continuous_tones(track: &Track, tuplets: &[TupletTimingSpan<'_>]) -> Vec<ContinuousTone> {
+    let mut tones = track
+        .entries
+        .by_id
+        .values()
+        .filter_map(|entry| match entry {
+            Entry::Tone(tone) => Some(ContinuousTone {
+                tone: tone.clone(),
+                owner_tuplet_id: None,
+                continuous_start: get_continuous_host_tick(tone.tick, tuplets),
+                continuous_end: get_continuous_host_tick(tone.tick, tuplets) + tone.duration,
+            }),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+
+    for tuplet in tuplets {
+        for entry in tuplet.tuplet.entries.by_id.values() {
+            let TupletEntry::Tone(tone) = entry;
+            let continuous_start = tuplet.continuous_start + tone.tick;
+
+            tones.push(ContinuousTone {
+                tone: tone.clone(),
+                owner_tuplet_id: Some(tuplet.tuplet.id),
+                continuous_start,
+                continuous_end: continuous_start + tone.duration,
+            });
+        }
+    }
+
+    tones
+}
+
+fn build_tuplet_local_tones(
+    tuplet: &Tuplet,
+    continuous_tones: &[ContinuousTone],
+    tuplets: &[TupletTimingSpan<'_>],
+) -> Vec<Tone> {
+    let mut tones = Vec::new();
+
+    let Some(tuplet_span) = tuplets.iter().find(|span| span.tuplet.id == tuplet.id) else {
+        return tones;
+    };
+
+    for source in continuous_tones {
+        let overlap_start = source.continuous_start.max(tuplet_span.continuous_start);
+        let overlap_end = source.continuous_end.min(tuplet_span.continuous_end);
+
+        if overlap_end <= overlap_start {
+            continue;
+        }
+
+        let local_start = overlap_start - tuplet_span.continuous_start;
+        let local_end = overlap_end - tuplet_span.continuous_start;
+
+        if local_end <= local_start {
+            continue;
+        }
+
+        let mut projected = source.tone.clone();
+        projected.tick = local_start;
+        projected.duration = local_end - local_start;
+        tones.push(projected);
+    }
+
+    tones
+}
+
+fn build_host_projected_tones(
+    continuous_tones: &[ContinuousTone],
+    tuplets: &[TupletTimingSpan<'_>],
+) -> Vec<Tone> {
+    let mut projected = Vec::new();
+
+    for source in continuous_tones {
+        let mut cursor = match source.owner_tuplet_id {
+            Some(owner_tuplet_id) => tuplets
+                .iter()
+                .find(|span| span.tuplet.id == owner_tuplet_id)
+                .map(|span| span.continuous_end)
+                .unwrap_or(source.continuous_start),
+            None => source.continuous_start,
+        };
+
+        if cursor >= source.continuous_end {
+            continue;
+        }
+
+        for tuplet in tuplets {
+            if source.owner_tuplet_id == Some(tuplet.tuplet.id) {
+                continue;
+            }
+
+            let tuplet_start = tuplet.continuous_start;
+            let tuplet_end = tuplet.continuous_end;
+
+            if source.continuous_end <= tuplet_start || cursor >= source.continuous_end {
+                break;
+            }
+
+            if cursor >= tuplet_end {
+                continue;
+            }
+
+            if cursor < tuplet_start {
+                let mut segment = source.tone.clone();
+                segment.tick = get_host_tick_from_continuous(cursor, tuplets);
+                segment.duration = (tuplet_start.min(source.continuous_end)) - cursor;
+                projected.push(segment);
+            }
+
+            if source.continuous_end <= tuplet_end {
+                cursor = source.continuous_end;
+                break;
+            }
+
+            cursor = tuplet_end;
+        }
+
+        if cursor < source.continuous_end {
+            let mut segment = source.tone.clone();
+            segment.tick = get_host_tick_from_continuous(cursor, tuplets);
+            segment.duration = source.continuous_end - cursor;
+            projected.push(segment);
+        }
+    }
+
+    projected
+}
+
+fn get_barline_ticks(track: &Track) -> Vec<Tick> {
+    track
+        .entries
+        .by_id
+        .values()
+        .filter_map(|entry| match entry {
+            Entry::Barline(barline) => Some(barline.tick),
+            _ => None,
+        })
+        .collect()
+}
+
+fn remove_tuplet_placeholder_entries(notation: &mut NotationTrack, tuplets: &[&Tuplet]) {
+    notation.track.retain(|tick, _| {
+        !tuplets.iter().any(|tuplet| {
+            let start = tuplet.tick;
+            let end = tuplet.tick + tuplet.consumed_ticks();
+            *tick >= start && *tick < end
+        })
+    });
+}
+
+fn local_grouping_split_points(tuplet: &Tuplet) -> Vec<Tick> {
+    let measures = measures_from_single_time_signature(tuplet.local_time_signature());
+    let Some(time_signature) = measures.get(&0) else {
+        return Vec::new();
+    };
+
+    time_signature
+        .groupings_to_ticks(0)
+        .into_iter()
+        .filter(|tick| *tick > 0 && *tick < tuplet.local_length_ticks())
+        .collect()
+}
+
+fn make_empty_triplet_rest_track(base_note_value: &NoteDuration) -> NotationTrack {
+    let local_length = 3 * base_note_value.to_ticks();
+    let mut notation = NotationTrack::new(local_length);
+
+    for slot in 0..3 {
+        let tick = slot * base_note_value.to_ticks();
+        notation
+            .track
+            .insert(tick, Notation::new(tick, base_note_value.to_ticks()));
+    }
+
+    notation
+}
+
 pub fn get_written_durations(
     flow: &Flow,
     instruments: &Vec<&Instrument>,
@@ -1145,34 +1453,67 @@ pub fn get_written_durations(
                         .par_iter()
                         .map(|track_id| {
                             let track = &tracks.by_id[track_id];
-                            let mut notation = NotationTrack::new(flow.length);
-                            notation.split_at_events(track, measures);
+                            let tuplets = get_sorted_tuplets(track);
+                            let barline_ticks = get_barline_ticks(track);
+                            let timing_spans = get_tuplet_timing_spans(&tuplets);
+                            let continuous_tones = get_continuous_tones(track, &timing_spans);
+                            let host_projected_tones =
+                                build_host_projected_tones(&continuous_tones, &timing_spans);
+                            let extra_split_points = tuplets
+                                .iter()
+                                .flat_map(|tuplet| {
+                                    [tuplet.tick, tuplet.tick + tuplet.consumed_ticks()]
+                                })
+                                .collect::<Vec<_>>();
+                            let mut notation = derive_notation_track_from_tones(
+                                flow.length,
+                                &host_projected_tones,
+                                &barline_ticks,
+                                measures,
+                                tone_offsets,
+                                &extra_split_points,
+                            );
 
-                            // split as measures
-                            for (tick, time_signature) in measures {
-                                let measure_stop =
-                                    (*tick + time_signature.ticks_per_bar()).min(notation.length);
+                            remove_tuplet_placeholder_entries(&mut notation, &tuplets);
 
-                                match time_signature.kind() {
-                                    TimeSignatureType::Simple => notation.split_simple_unit(
-                                        *tick,
-                                        measure_stop,
-                                        time_signature,
-                                        time_signature,
-                                    ),
-                                    TimeSignatureType::Compound => notation.split_compound_unit(
-                                        *tick,
-                                        measure_stop,
-                                        time_signature,
-                                    ),
-                                    TimeSignatureType::Complex => todo!(),
-                                    TimeSignatureType::Open => todo!(),
-                                }
-                            }
+                            notation.anchored_tracks = tuplets
+                                .iter()
+                                .map(|tuplet| {
+                                    let local_tones = build_tuplet_local_tones(
+                                        tuplet,
+                                        &continuous_tones,
+                                        &timing_spans,
+                                    );
+                                    let local_notation = if local_tones.is_empty()
+                                        && tuplet.note_count == 3
+                                    {
+                                        make_empty_triplet_rest_track(&tuplet.base_note_value)
+                                    } else {
+                                        let local_measures = measures_from_single_time_signature(
+                                            tuplet.local_time_signature(),
+                                        );
+                                        let local_grouping_split_points =
+                                            local_grouping_split_points(tuplet);
+                                        derive_notation_track_from_tones(
+                                            tuplet.local_length_ticks(),
+                                            &local_tones,
+                                            &[],
+                                            &local_measures,
+                                            tone_offsets,
+                                            &local_grouping_split_points,
+                                        )
+                                    };
 
-                            // Assign tone offset info here so we don't have to pass mutable
-                            // notation tracks around
-                            get_tone_offset_info(&mut notation, tone_offsets);
+                                    AnchoredNotationTrack {
+                                        owner_id: tuplet.id,
+                                        host_span: HostSpan {
+                                            start_tick: tuplet.tick,
+                                            end_tick: tuplet.tick + tuplet.consumed_ticks(),
+                                        },
+                                        notation: local_notation,
+                                    }
+                                })
+                                .collect();
 
                             (track.id, notation)
                         })
@@ -1193,12 +1534,12 @@ pub fn get_written_durations(
 mod tests {
     use super::*;
     use crate::instructions::parse::test_support::get_written_durations_test_harness::{
+        anchored_notation_expectation, assert_anchored_notation_track_matches,
         assert_notation_track_matches, assert_written_duration_scenario,
         assert_written_duration_scenarios, make_time_signature_for_test, notation_expectation,
-        run_written_duration_scenario, Scenario,
+        run_written_duration_scenario, run_written_duration_scenario_with_tuplets,
+        run_written_duration_scenario_with_tuplets_and_barlines, Scenario, TupletSpec,
     };
-
-    // --- Notation::is_writable ---
 
     #[test]
     fn quarter_note_is_writable() {
@@ -4380,6 +4721,376 @@ mod tests {
                 notation_expectation(e, e, true, vec![], vec![]),
                 notation_expectation(e * 2, e, false, vec![1], vec![]),
             ],
+        );
+    }
+
+    #[test]
+    fn get_written_durations_keeps_host_only_six_eight_dotted_quarter_beats_without_tuplets() {
+        let e = NoteDuration::Eighth.to_ticks();
+        let q = NoteDuration::Quarter.to_ticks();
+        let dotted_quarter = q + e;
+
+        assert_written_duration_scenario(
+            "6/8 dotted-quarter beats stay unsplit without tuplets",
+            make_time_signature_for_test(0, 6, NoteDuration::Eighth),
+            &[
+                (1, 0, dotted_quarter, 60),
+                (2, dotted_quarter, dotted_quarter, 64),
+            ],
+            vec![
+                notation_expectation(0, dotted_quarter, false, vec![1], vec![]),
+                notation_expectation(dotted_quarter, dotted_quarter, false, vec![2], vec![]),
+            ],
+        );
+    }
+
+    #[test]
+    fn get_written_durations_preserves_anchored_local_triplet_contract() {
+        let four_four = make_time_signature_for_test(0, 4, NoteDuration::Quarter);
+        let e = NoteDuration::Eighth.to_ticks();
+        let (notation_by_track, track_id) = run_written_duration_scenario_with_tuplets(
+            four_four.clone(),
+            four_four.ticks_per_bar(),
+            &[],
+            &[TupletSpec {
+                id: 99,
+                tick: 32,
+                note_count: 3,
+                in_space_of: 2,
+                base_note_value: NoteDuration::Eighth,
+                groupings: vec![3],
+                tone_specs: vec![(201, 0, e, 60), (202, e, e, 62), (203, e * 2, e, 64)],
+            }],
+        );
+
+        let track = &notation_by_track[&track_id];
+
+        assert_eq!(track.anchored_tracks.len(), 1);
+        assert!(!track.track.contains_key(&32));
+
+        assert_anchored_notation_track_matches(
+            &track.anchored_tracks[0],
+            anchored_notation_expectation(
+                99,
+                32,
+                64,
+                e * 3,
+                vec![
+                    notation_expectation(0, e, false, vec![201], vec![]),
+                    notation_expectation(e, e, false, vec![202], vec![]),
+                    notation_expectation(e * 2, e, false, vec![203], vec![]),
+                ],
+            ),
+        );
+    }
+
+    #[test]
+    fn get_written_durations_uses_base_note_rests_for_an_empty_triplet() {
+        let four_four = make_time_signature_for_test(0, 4, NoteDuration::Quarter);
+        let e = NoteDuration::Eighth.to_ticks();
+        let (notation_by_track, track_id) = run_written_duration_scenario_with_tuplets(
+            four_four.clone(),
+            four_four.ticks_per_bar(),
+            &[],
+            &[TupletSpec {
+                id: 99,
+                tick: 32,
+                note_count: 3,
+                in_space_of: 2,
+                base_note_value: NoteDuration::Eighth,
+                groupings: vec![3],
+                tone_specs: vec![],
+            }],
+        );
+
+        let anchored_track = &notation_by_track[&track_id].anchored_tracks[0];
+
+        assert_anchored_notation_track_matches(
+            anchored_track,
+            anchored_notation_expectation(
+                99,
+                32,
+                64,
+                e * 3,
+                vec![
+                    notation_expectation(0, e, true, vec![], vec![]),
+                    notation_expectation(e, e, true, vec![], vec![]),
+                    notation_expectation(e * 2, e, true, vec![], vec![]),
+                ],
+            ),
+        );
+    }
+
+    #[test]
+    fn get_written_durations_preserves_partially_filled_triplet_with_derived_middle_rest() {
+        let four_four = make_time_signature_for_test(0, 4, NoteDuration::Quarter);
+        let e = NoteDuration::Eighth.to_ticks();
+        let (notation_by_track, track_id) = run_written_duration_scenario_with_tuplets(
+            four_four.clone(),
+            four_four.ticks_per_bar(),
+            &[],
+            &[TupletSpec {
+                id: 99,
+                tick: 32,
+                note_count: 3,
+                in_space_of: 2,
+                base_note_value: NoteDuration::Eighth,
+                groupings: vec![3],
+                tone_specs: vec![(201, 0, e, 60), (203, e * 2, e, 64)],
+            }],
+        );
+
+        assert_anchored_notation_track_matches(
+            &notation_by_track[&track_id].anchored_tracks[0],
+            anchored_notation_expectation(
+                99,
+                32,
+                64,
+                e * 3,
+                vec![
+                    notation_expectation(0, e, false, vec![201], vec![]),
+                    notation_expectation(e, e, true, vec![], vec![]),
+                    notation_expectation(e * 2, e, false, vec![203], vec![]),
+                ],
+            ),
+        );
+    }
+
+    #[test]
+    fn get_written_durations_projects_host_owned_boundary_crossings_into_tuplet_local_space() {
+        let four_four = make_time_signature_for_test(0, 4, NoteDuration::Quarter);
+        let e = NoteDuration::Eighth.to_ticks();
+        let (notation_by_track, track_id) = run_written_duration_scenario_with_tuplets(
+            four_four.clone(),
+            four_four.ticks_per_bar(),
+            &[(7, 16, 48, 60)],
+            &[TupletSpec {
+                id: 99,
+                tick: 32,
+                note_count: 3,
+                in_space_of: 2,
+                base_note_value: NoteDuration::Eighth,
+                groupings: vec![3],
+                tone_specs: vec![],
+            }],
+        );
+
+        let host_track = &notation_by_track[&track_id];
+        assert_notation_track_matches(
+            host_track,
+            vec![
+                notation_expectation(0, 16, true, vec![], vec![]),
+                notation_expectation(16, 16, false, vec![7], vec![]),
+                notation_expectation(64, 64, true, vec![], vec![]),
+            ],
+        );
+
+        assert_anchored_notation_track_matches(
+            &host_track.anchored_tracks[0],
+            anchored_notation_expectation(
+                99,
+                32,
+                64,
+                e * 3,
+                vec![
+                    notation_expectation(0, 32, false, vec![7], vec![]),
+                    notation_expectation(32, 16, true, vec![], vec![]),
+                ],
+            ),
+        );
+    }
+
+    #[test]
+    fn get_written_durations_keeps_host_crossing_tone_inside_literal_triplet_span() {
+        let four_four = make_time_signature_for_test(0, 4, NoteDuration::Quarter);
+        let e = NoteDuration::Eighth.to_ticks();
+        let (notation_by_track, track_id) = run_written_duration_scenario_with_tuplets(
+            four_four.clone(),
+            four_four.ticks_per_bar(),
+            &[(7, 0, e * 5, 60)],
+            &[TupletSpec {
+                id: 99,
+                tick: e * 2,
+                note_count: 3,
+                in_space_of: 2,
+                base_note_value: NoteDuration::Eighth,
+                groupings: vec![3],
+                tone_specs: vec![],
+            }],
+        );
+
+        let host_track = &notation_by_track[&track_id];
+        assert_notation_track_matches(
+            host_track,
+            vec![
+                notation_expectation(0, e * 2, false, vec![7], vec![]),
+                notation_expectation(e * 4, e * 4, true, vec![], vec![]),
+            ],
+        );
+
+        assert_anchored_notation_track_matches(
+            &host_track.anchored_tracks[0],
+            anchored_notation_expectation(
+                99,
+                e * 2,
+                e * 4,
+                e * 3,
+                vec![notation_expectation(0, e * 3, false, vec![7], vec![])],
+            ),
+        );
+    }
+
+    #[test]
+    fn get_written_durations_projects_tuplet_owned_boundary_crossings_back_into_host_space() {
+        let four_four = make_time_signature_for_test(0, 4, NoteDuration::Quarter);
+        let e = NoteDuration::Eighth.to_ticks();
+        let (notation_by_track, track_id) = run_written_duration_scenario_with_tuplets(
+            four_four.clone(),
+            four_four.ticks_per_bar(),
+            &[],
+            &[TupletSpec {
+                id: 99,
+                tick: e * 2,
+                note_count: 3,
+                in_space_of: 2,
+                base_note_value: NoteDuration::Eighth,
+                groupings: vec![3],
+                tone_specs: vec![(301, e, e * 2 + e / 2, 60)],
+            }],
+        );
+
+        let host_track = &notation_by_track[&track_id];
+        assert!(host_track
+            .track
+            .values()
+            .any(|entry| { entry.tick == e * 4 && entry.tones.iter().any(|tone| tone.id == 301) }));
+
+        let anchored_track = &host_track.anchored_tracks[0];
+        assert_eq!(anchored_track.host_span.start_tick, e * 2);
+        assert_eq!(anchored_track.host_span.end_tick, e * 4);
+        assert!(anchored_track
+            .notation
+            .track
+            .values()
+            .any(|entry| { entry.tones.iter().any(|tone| tone.id == 301) }));
+    }
+
+    #[test]
+    fn get_written_durations_splits_tones_at_explicit_barlines() {
+        let four_four = make_time_signature_for_test(0, 4, NoteDuration::Quarter);
+        let q = NoteDuration::Quarter.to_ticks();
+        let (notation_by_track, track_id) = run_written_duration_scenario_with_tuplets_and_barlines(
+            four_four.clone(),
+            four_four.ticks_per_bar(),
+            &[(7, 0, q * 2, 60)],
+            &[],
+            &[q],
+        );
+
+        assert_notation_track_matches(
+            &notation_by_track[&track_id],
+            vec![
+                notation_expectation(0, q, false, vec![7], vec![7]),
+                notation_expectation(q, q, false, vec![7], vec![]),
+                notation_expectation(q * 2, q * 2, true, vec![], vec![]),
+            ],
+        );
+    }
+
+    #[test]
+    fn get_written_durations_projects_crossing_tone_into_adjacent_tuplet_tracks() {
+        let four_four = make_time_signature_for_test(0, 4, NoteDuration::Quarter);
+        let e = NoteDuration::Eighth.to_ticks();
+        let (notation_by_track, track_id) = run_written_duration_scenario_with_tuplets(
+            four_four.clone(),
+            four_four.ticks_per_bar() + e * 2,
+            &[],
+            &[
+                TupletSpec {
+                    id: 99,
+                    tick: e * 2,
+                    note_count: 3,
+                    in_space_of: 2,
+                    base_note_value: NoteDuration::Eighth,
+                    groupings: vec![3],
+                    tone_specs: vec![(401, e * 2, e * 2, 60)],
+                },
+                TupletSpec {
+                    id: 100,
+                    tick: e * 4,
+                    note_count: 3,
+                    in_space_of: 2,
+                    base_note_value: NoteDuration::Eighth,
+                    groupings: vec![3],
+                    tone_specs: vec![],
+                },
+            ],
+        );
+
+        let anchored_tracks = &notation_by_track[&track_id].anchored_tracks;
+        assert_eq!(anchored_tracks.len(), 2);
+
+        assert_anchored_notation_track_matches(
+            &anchored_tracks[0],
+            anchored_notation_expectation(
+                99,
+                e * 2,
+                e * 4,
+                e * 3,
+                vec![
+                    notation_expectation(0, e, true, vec![], vec![]),
+                    notation_expectation(e, e, true, vec![], vec![]),
+                    notation_expectation(e * 2, e, false, vec![401], vec![]),
+                ],
+            ),
+        );
+        assert_anchored_notation_track_matches(
+            &anchored_tracks[1],
+            anchored_notation_expectation(
+                100,
+                e * 4,
+                e * 6,
+                e * 3,
+                vec![
+                    notation_expectation(0, e, false, vec![401], vec![]),
+                    notation_expectation(e, e, true, vec![], vec![]),
+                    notation_expectation(e * 2, e, true, vec![], vec![]),
+                ],
+            ),
+        );
+    }
+
+    #[test]
+    fn get_written_durations_honors_tuplet_groupings_when_deriving_local_notation() {
+        let four_four = make_time_signature_for_test(0, 4, NoteDuration::Quarter);
+        let e = NoteDuration::Eighth.to_ticks();
+        let (notation_by_track, track_id) = run_written_duration_scenario_with_tuplets(
+            four_four.clone(),
+            four_four.ticks_per_bar(),
+            &[],
+            &[TupletSpec {
+                id: 99,
+                tick: e * 2,
+                note_count: 3,
+                in_space_of: 2,
+                base_note_value: NoteDuration::Eighth,
+                groupings: vec![1, 2],
+                tone_specs: vec![(501, 0, e * 3, 60)],
+            }],
+        );
+
+        assert_anchored_notation_track_matches(
+            &notation_by_track[&track_id].anchored_tracks[0],
+            anchored_notation_expectation(
+                99,
+                e * 2,
+                e * 4,
+                e * 3,
+                vec![
+                    notation_expectation(0, e, false, vec![501], vec![501]),
+                    notation_expectation(e, e * 2, false, vec![501], vec![]),
+                ],
+            ),
         );
     }
 

@@ -1,64 +1,3 @@
-<!-- BMAD:START -->
-
-# BMAD Method — Project Instructions
-
-## Project Configuration
-
-- **Project**: compose
-- **User**: Aled
-- **Communication Language**: English
-- **Document Output Language**: English
-- **User Skill Level**: intermediate
-- **Output Folder**: {project-root}/\_bmad-output
-- **Planning Artifacts**: {project-root}/\_bmad-output/planning-artifacts
-- **Implementation Artifacts**: {project-root}/\_bmad-output/implementation-artifacts
-- **Project Knowledge**: {project-root}/docs
-
-## BMAD Runtime Structure
-
-- **Agent definitions**: `_bmad/bmm/agents/` (BMM module) and `_bmad/core/agents/` (core)
-- **Workflow definitions**: `_bmad/bmm/workflows/` (organized by phase)
-- **Core tasks**: `_bmad/core/tasks/` (help, editorial review, indexing, sharding, adversarial review)
-- **Core workflows**: `_bmad/core/workflows/` (brainstorming, party-mode, advanced-elicitation)
-- **Workflow engine**: `_bmad/core/tasks/workflow.xml` (executes YAML-based workflows)
-- **Module configuration**: `_bmad/bmm/config.yaml`
-- **Core configuration**: `_bmad/core/config.yaml`
-- **Agent manifest**: `_bmad/_config/agent-manifest.csv`
-- **Workflow manifest**: `_bmad/_config/workflow-manifest.csv`
-- **Help manifest**: `_bmad/_config/bmad-help.csv`
-- **Agent memory**: `_bmad/_memory/`
-
-## Key Conventions
-
-- Always load `_bmad/bmm/config.yaml` before any agent activation or workflow execution
-- Store all config fields as session variables: `{user_name}`, `{communication_language}`, `{output_folder}`, `{planning_artifacts}`, `{implementation_artifacts}`, `{project_knowledge}`
-- MD-based workflows execute directly — load and follow the `.md` file
-- YAML-based workflows require the workflow engine — load `workflow.xml` first, then pass the `.yaml` config
-- Follow step-based workflow execution: load steps JIT, never multiple at once
-- Save outputs after EACH step when using the workflow engine
-- The `{project-root}` variable resolves to the workspace root at runtime
-
-## Available Agents
-
-| Agent               | Persona     | Title                                                                | Capabilities                                                                             |
-| ------------------- | ----------- | -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| bmad-master         | BMad Master | BMad Master Executor, Knowledge Custodian, and Workflow Orchestrator | runtime resource management, workflow orchestration, task execution, knowledge custodian |
-| analyst             | Mary        | Business Analyst                                                     | market research, competitive analysis, requirements elicitation, domain expertise        |
-| architect           | Winston     | Architect                                                            | distributed systems, cloud infrastructure, API design, scalable patterns                 |
-| dev                 | Amelia      | Developer Agent                                                      | story execution, test-driven development, code implementation                            |
-| pm                  | John        | Product Manager                                                      | PRD creation, requirements discovery, stakeholder alignment, user interviews             |
-| qa                  | Quinn       | QA Engineer                                                          | test automation, API testing, E2E testing, coverage analysis                             |
-| quick-flow-solo-dev | Barry       | Quick Flow Solo Dev                                                  | rapid spec creation, lean implementation, minimum ceremony                               |
-| sm                  | Bob         | Scrum Master                                                         | sprint planning, story preparation, agile ceremonies, backlog management                 |
-| tech-writer         | Paige       | Technical Writer                                                     | documentation, Mermaid diagrams, standards compliance, concept explanation               |
-| ux-designer         | Sally       | UX Designer                                                          | user research, interaction design, UI patterns, experience strategy                      |
-
-## Slash Commands
-
-Type `/bmad-` in Copilot Chat to see all available BMAD workflows and agent activators. Agents are also available in the agents dropdown.
-
-<!-- BMAD:END -->
-
 ## MCP
 
 When connected to atlassian-rovo-mcp:
@@ -92,6 +31,11 @@ When connected to atlassian-rovo-mcp:
 - **MUST** identify which docs should be updated whenever a spec changes behavior, architecture, persistence, workflows, user-visible features, or developer expectations
 - **MUST** include explicit documentation update tasks and acceptance criteria in specs; docs are not a follow-up nice-to-have
 - **MUST** update AI-agent instructions as part of the work when project rules or required implementation practices change
+- **MUST** preserve the tuplet timing invariant across parser, sequencer, and editing work: tuplet container geometry stays compressed to the denominator span on the host track, but crossing tone duration remains literal on the canonical expanded timeline and must not be compressed to the denominator span
+- **MUST** treat tuplets as one shared semantic model across persistence, parsing, rendering, and playback; later consumers may apply that model for their own mechanics, but they must not re-derive ownership, boundary meaning, projection, or continuity through local subsystem-specific inference
+- **MUST** keep tuplet regressions at the owning seam whenever local tests are sufficient; extend existing parser, renderer, playback, persistence, or editing tests before inventing a cross-cutting tuplet-only harness
+- **MUST** treat shipped MVP tuplets as single-level only; nested `Tuplet` child entries remain intentionally unsupported until explicit post-MVP planning reopens that scope
+- **MUST NOT** claim or implement broader arbitrary tuplet ratios or generalized sequencer-native tuplet editing UX unless the active story explicitly expands the shipped MVP scope
 - **MUST** treat the current release-like `npm run perf:render` 3-instrument, 30-bar single-flow scenario as the active performance characterization baseline; trigger a regression warning when that representative pass reaches or exceeds 2ms total median time, and reevaluate the baseline and warning threshold as performance-sensitive features land
 - **MUST** preserve `ui.flow_id` as the only authoritative active-flow slot across score, Sequence, miniature piano rolls, and transport-facing consumers; do not introduce parallel frontend-owned active-flow state
 - **MUST** keep the shared main-window top bar limited to universal controls; workflow-specific single-flow selectors belong inside the owning workflow surface such as Sequence
@@ -100,7 +44,16 @@ When connected to atlassian-rovo-mcp:
 - **MUST** assess migration impact for any persisted-data change, `.soloc` payload/file-format change, or load/save semantic change; if older data would not load correctly without transformation, add or update the corresponding migration
 - **MUST** author unreleased persisted-data migrations in `src-tauri/src/migrations/next.rs` until a human prepares the release
 - **MUST** do persisted-data work in this order: implement the change, add/update pending migration steps in `src-tauri/src/migrations/next.rs`, then have a human run `prepare-release:*` and `finalize-release` last
+- **MUST** keep the current tuplet migration stance explicit: legacy non-tuplet files do not need a dedicated tuplet migration today because pre-tuplet releases produced no tuplet-bearing payloads; add one only when a released older format truly requires transformation
 - **MUST NOT** run release scripts or any release/tag/publish workflow; release commands are human-only
 - **MUST** ensure shipped release states contain only concrete versioned migrations; `src-tauri/src/migrations/next.rs` is development-only and must be promoted/reseeded by the human prepare/finalize flow
 - **MUST** update relevant docs whenever `.soloc` file-format behavior, persistence architecture, or migration rules change
 - **MUST NOT** merge persisted-data changes that break older files without the required migration update and explicit migration-impact note
+
+## Story And Review Discipline
+
+- **MUST** continue to surface real bugs, missing requirements, and architectural risks during review, even when related future work exists
+- **MUST** cross-reference planned future stories or explicitly deferred scope before classifying a concern as a defect in the current story; do not treat already-accounted-for future work as missing implementation in a stepping-stone story
+- **MUST** distinguish between “current-story defect” and “valid concern owned by future work” in review output so scope is enforced without hiding real problems
+- **MUST** ask clarifying questions before starting implementation when a story contains ambiguous or subjective decisions about behavior, UX, architecture, or quality expectations
+- **MUST** prefer extending and refining existing APIs and seams over introducing parallel or duplicate flows unless the spec explicitly requires a new surface

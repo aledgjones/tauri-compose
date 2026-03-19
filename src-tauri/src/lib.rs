@@ -19,7 +19,7 @@ use crate::playback::sampler::{
 };
 use crate::playback::transport::{
     stop_transport_playback, sync_transport_to_app_state, transport_get_state, transport_pause,
-    transport_play, transport_seek, transport_stop, TransportContext, TransportSharedState,
+    transport_play, transport_seek, TransportContext, TransportSharedState,
 };
 use crate::renderer::backends::metal::MetalRenderer;
 use files::{
@@ -69,6 +69,7 @@ use score::entries::tone::{
     score_entries_tone_pitch_shift_by_steps, score_entries_tone_set_position_and_duration,
     score_entries_tone_shift, score_entries_tone_slice, score_entries_tone_unify_articulations,
 };
+use score::entries::tuplet::{score_entries_tuplet_create, score_entries_tuplet_remove};
 use score::flows::{
     score_flows_assign_player, score_flows_create, score_flows_move, score_flows_remove,
     score_flows_rename, score_flows_unassign_player,
@@ -118,7 +119,8 @@ use ui::sequencer::{
     ui_sequencer_selection_set_clef, ui_sequencer_selection_set_key_signature,
     ui_sequencer_selection_set_rest, ui_sequencer_selection_set_tempo,
     ui_sequencer_selection_set_time_signature, ui_sequencer_selection_set_tone,
-    ui_sequencer_snap_set, ui_sequencer_tool_set, ui_sequencer_track_set,
+    ui_sequencer_selection_set_tuplet, ui_sequencer_snap_set, ui_sequencer_tool_set,
+    ui_sequencer_track_set,
 };
 use ui::{ui_flow_id_set, ui_get_selection_coordinates, ui_layout_id_set, ui_tab_set, Ui};
 use utils::UniqueId;
@@ -352,7 +354,7 @@ fn reset(
     audio_state: State<'_, AudioContextState>,
     transport_state: State<'_, Mutex<TransportContext>>,
 ) -> Result<(), String> {
-    let transport_shared = stop_transport_playback(transport_state.inner())?;
+    let transport_shared = stop_transport_playback(transport_state.inner(), audio_state.inner())?;
 
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
@@ -414,12 +416,11 @@ pub(crate) fn reset_app_state(
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    #[cfg(debug_assertions)]
-    let devtools = tauri_plugin_devtools::init();
     let mut builder = tauri::Builder::default();
 
     #[cfg(debug_assertions)]
     {
+        let devtools = tauri_plugin_devtools::init();
         builder = builder.plugin(devtools);
     }
 
@@ -583,7 +584,6 @@ pub fn run() {
             sampler_audition,
             transport_play,
             transport_pause,
-            transport_stop,
             transport_seek,
             transport_get_state,
             preferences_audition_set,
@@ -630,6 +630,8 @@ pub fn run() {
             score_entries_tone_unify_articulations,
             score_entries_tone_slice,
             score_entries_tone_duration_remove,
+            score_entries_tuplet_create,
+            score_entries_tuplet_remove,
             score_flows_create,
             score_flows_rename,
             score_flows_move,
@@ -689,6 +691,7 @@ pub fn run() {
             ui_sequencer_selection_set_tempo,
             ui_sequencer_selection_set_time_signature,
             ui_sequencer_selection_set_tone,
+            ui_sequencer_selection_set_tuplet,
             ui_sequencer_snap_set,
             ui_sequencer_tool_set,
             ui_sequencer_track_set,

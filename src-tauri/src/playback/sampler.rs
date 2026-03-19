@@ -57,6 +57,8 @@ pub struct CacheSample {
     pub flac_offset: u64,
     /// Byte length of the FLAC data within the container
     pub flac_length: u64,
+    /// Leading source-rate frames to discard so the audible attack aligns with peer samples.
+    pub attack_offset_frames: u32,
 }
 
 #[derive(Clone)]
@@ -250,6 +252,7 @@ impl SamplerContext {
                                 source_sample_rate: index.sample_rate,
                                 flac_offset: index.file_offset,
                                 flac_length: index.length,
+                                attack_offset_frames: index.attack_offset_frames,
                             },
                         });
                     }
@@ -500,6 +503,7 @@ pub fn sampler_audition(
         source_sample_rate: sample.source_sample_rate,
         target_sample_rate,
         channels,
+        attack_offset_frames: sample.attack_offset_frames,
         pitch_offset,
         max_output_frames: max_frames,
         fade_start_frame: duration_frames,

@@ -185,4 +185,55 @@ describe("SelectedToneInfoDisplay", () => {
       screen.getByText(/Staff \(B\), Up-stem voice 1/),
     ).toBeInTheDocument();
   });
+
+  it("renders the shared summary for a tuplet-owned tone selection", () => {
+    const appState = buildStateWithTone();
+    appState.score.tracks.by_id[TRACK_ID] = {
+      id: TRACK_ID,
+      entries: {
+        by_tick: { 64: [700] },
+        by_id: {
+          700: {
+            id: 700,
+            tick: 64,
+            type: "Tuplet",
+            note_count: 3,
+            in_space_of: 2,
+            base_note_value: 8,
+            groupings: [3],
+            entries: {
+              by_tick: { 0: [701] },
+              by_id: {
+                701: {
+                  id: 701,
+                  tick: 0,
+                  type: "Tone",
+                  duration: 16,
+                  pitch: { int: 62, accidental: Accidental.Natural },
+                  velocity: { int: 100 },
+                  articulations: [],
+                },
+              },
+            },
+          },
+        },
+      },
+    } as never;
+    appState.ui.sequencer.selection = {
+      type: "Tone",
+      flow_id: FLOW_ID,
+      instrument_id: INSTRUMENT_ID,
+      stave_id: STAVE_ID,
+      track_id: TRACK_ID,
+      tone_id: 701,
+      tuplet_id: 700,
+    };
+
+    renderWithProviders(<SelectedToneInfoDisplay />, {
+      appState,
+    });
+
+    expect(screen.getByText(/Piano/)).toBeInTheDocument();
+    expect(screen.getByText(/voice/)).toBeInTheDocument();
+  });
 });

@@ -104,7 +104,6 @@ export const AppStateProvider: FC<Props> = ({
   useEffect(() => {
     const originalPlay = actions.transport.play;
     const originalPause = actions.transport.pause;
-    const originalStop = actions.transport.stop;
     const originalSeek = actions.transport.seek;
 
     actions.transport.play = () => {
@@ -115,15 +114,6 @@ export const AppStateProvider: FC<Props> = ({
 
     actions.transport.pause = () => {
       const result = originalPause();
-      result.then(() => {
-        setIsPolling(false);
-        actions.transport.getState().then(setTransportState);
-      });
-      return result;
-    };
-
-    actions.transport.stop = () => {
-      const result = originalStop();
       result.then(() => {
         setIsPolling(false);
         actions.transport.getState().then(setTransportState);
@@ -142,7 +132,6 @@ export const AppStateProvider: FC<Props> = ({
     return () => {
       actions.transport.play = originalPlay;
       actions.transport.pause = originalPause;
-      actions.transport.stop = originalStop;
       actions.transport.seek = originalSeek;
     };
   }, []);

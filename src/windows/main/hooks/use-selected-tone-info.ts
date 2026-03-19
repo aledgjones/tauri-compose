@@ -1,9 +1,41 @@
 import { useMemo } from "react";
 import { useAppState } from "../../../services/state";
 import { getPitchName } from "../../../services/pitch-utils";
+import { Tone, Track } from "../../../services/types";
 
 const ALPHABET = ["A", "B"];
 const TRACK_LABEL = ["Up-stem", "Down-stem"];
+
+export const getSelectedTone = (
+  track: Track,
+  toneId: number,
+  tupletId?: number | null,
+): Tone | null => {
+  if (tupletId !== undefined && tupletId !== null) {
+    const tupletEntry = track.entries.by_id[tupletId];
+
+    if (tupletEntry && tupletEntry.type === "Tuplet") {
+      return tupletEntry.entries.by_id[toneId] ?? null;
+    }
+  }
+
+  const entry = track.entries.by_id[toneId];
+  if (entry && entry.type === "Tone") {
+    return entry;
+  }
+
+  for (const tick of Object.keys(track.entries.by_tick)) {
+    const entryIds = track.entries.by_tick[parseInt(tick)];
+    for (const entryId of entryIds) {
+      const nestedEntry = track.entries.by_id[entryId];
+      if (nestedEntry.type === "Tone" && nestedEntry.id === toneId) {
+        return nestedEntry;
+      }
+    }
+  }
+
+  return null;
+};
 
 export const useSelectedToneInfo = () => {
   const state = useAppState();
@@ -19,7 +51,8 @@ export const useSelectedToneInfo = () => {
       selection.type === "Tempo" ||
       selection.type === "TimeSignature" ||
       selection.type === "KeySignature" ||
-      selection.type === "Clef"
+      selection.type === "Clef" ||
+      selection.type === "Tuplet"
     ) {
       return null;
     }
@@ -68,18 +101,11 @@ export const useSelectedToneInfo = () => {
     }
 
     if (selection.type === "Tone") {
-      let tone = null;
-      for (const tick of Object.keys(track.entries.by_tick)) {
-        const entryIds = track.entries.by_tick[parseInt(tick)];
-        for (const entryId of entryIds) {
-          const entry = track.entries.by_id[entryId];
-          if (entry.type === "Tone" && entry.id === selection.tone_id) {
-            tone = entry;
-            break;
-          }
-        }
-        if (tone) break;
-      }
+      const tone = getSelectedTone(
+        track,
+        selection.tone_id,
+        selection.tuplet_id,
+      );
 
       if (!tone) {
         return null;

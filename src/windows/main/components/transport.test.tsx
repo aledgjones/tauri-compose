@@ -8,7 +8,6 @@ vi.mock("../../../services/actions", () => ({
     transport: {
       play: vi.fn().mockResolvedValue(undefined),
       pause: vi.fn().mockResolvedValue(undefined),
-      stop: vi.fn().mockResolvedValue(undefined),
       seek: vi.fn().mockResolvedValue(undefined),
     },
   },
@@ -27,7 +26,7 @@ describe("Transport", () => {
     });
     // The play button renders an SVG icon — we check buttons are rendered
     const buttons = screen.getAllByRole("button");
-    expect(buttons.length).toBe(3);
+    expect(buttons.length).toBe(2);
   });
 
   it("renders current position display", () => {
@@ -55,15 +54,6 @@ describe("Transport", () => {
     const buttons = screen.getAllByRole("button");
     fireEvent.click(buttons[1]);
     expect(actions.transport.pause).toHaveBeenCalledOnce();
-  });
-
-  it("calls actions.transport.stop when stop button clicked", () => {
-    renderWithProviders(<Transport />, {
-      transportState: { playing: false, current_tick: 0, tempo: 120 },
-    });
-    const buttons = screen.getAllByRole("button");
-    fireEvent.click(buttons[2]); // stop button (index 2)
-    expect(actions.transport.stop).toHaveBeenCalledOnce();
   });
 
   it("calls actions.transport.seek(0) when skip-previous button clicked", () => {

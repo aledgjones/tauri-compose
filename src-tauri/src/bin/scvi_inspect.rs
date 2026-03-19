@@ -19,6 +19,18 @@ fn format_bytes(bytes: u64) -> String {
     }
 }
 
+fn format_attack_offset(frames: u32, sample_rate: u32) -> String {
+    if sample_rate == 0 {
+        return format!("{} fr", frames);
+    }
+
+    format!(
+        "{} fr ({:.2} ms)",
+        frames,
+        frames as f64 * 1000.0 / sample_rate as f64
+    )
+}
+
 fn inspect(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let container = ScviContainer::open(path)?;
     let m = &container.manifest.meta;
@@ -102,22 +114,23 @@ fn inspect(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
         unique_ids.len()
     );
     println!(
-        "  {:>6}  {:>12}  {:>10}  {:>6}  {:>4}",
-        "ID", "Offset", "Size", "Rate", "Ch"
+        "  {:>6}  {:>12}  {:>10}  {:>6}  {:>4}  {:>20}",
+        "ID", "Offset", "Size", "Rate", "Ch", "Attack"
     );
     println!(
-        "  {:─>6}  {:─>12}  {:─>10}  {:─>6}  {:─>4}",
-        "", "", "", "", ""
+        "  {:─>6}  {:─>12}  {:─>10}  {:─>6}  {:─>4}  {:─>20}",
+        "", "", "", "", "", ""
     );
     for s in &container.samples {
         let _ = container.get_sample_index(s.sample_id);
         println!(
-            "  {:>6}  {:>12}  {:>10}  {:>6}  {:>4}",
+            "  {:>6}  {:>12}  {:>10}  {:>6}  {:>4}  {:>20}",
             s.sample_id,
             s.file_offset,
             format_bytes(s.length),
             s.sample_rate,
-            s.channels
+            s.channels,
+            format_attack_offset(s.attack_offset_frames, s.sample_rate)
         );
     }
     println!();

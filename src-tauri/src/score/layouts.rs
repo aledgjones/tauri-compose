@@ -278,12 +278,12 @@ pub fn score_layouts_assign_flow(
     state: State<'_, AppContextState>,
     renderer_state: State<'_, RendererContextState>,
     layout_id: UniqueId,
-    player_id: UniqueId,
+    flow_id: UniqueId,
 ) {
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
 
-    state.assign_flow_to_layout(layout_id, player_id);
+    state.assign_flow_to_layout(layout_id, flow_id);
 
     state.emit_general_state(
         &app,
@@ -298,12 +298,12 @@ pub fn score_layouts_unassign_flow(
     state: State<'_, AppContextState>,
     renderer_state: State<'_, RendererContextState>,
     layout_id: UniqueId,
-    player_id: UniqueId,
+    flow_id: UniqueId,
 ) {
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
 
-    state.unassign_flow_from_layout(layout_id, player_id);
+    state.unassign_flow_from_layout(layout_id, flow_id);
 
     state.emit_general_state(
         &app,

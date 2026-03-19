@@ -22,6 +22,7 @@ pub fn draw_notehead(
     stave_id: UniqueId,
     flow_id: UniqueId,
     instrument_id: UniqueId,
+    tuplet_id: Option<UniqueId>,
     stave_top: f32,
     renderer: &mut RendererContext,
 ) {
@@ -31,7 +32,7 @@ pub fn draw_notehead(
         Shunt::Post => origin.x + glyph_width,
     };
 
-    let color = if matches!(selection, Some(Selection::Tone { tone_id, track_id: selected_track_id, .. }) if *tone_id == tone.id && *selected_track_id == track_id)
+    let color = if matches!(selection, Some(Selection::Tone { tone_id, .. }) if *tone_id == tone.id)
     {
         Color::from_rgb(14, 165, 233)
     } else {
@@ -60,6 +61,7 @@ pub fn draw_notehead(
             stave_id,
             flow_id,
             instrument_id,
+            tuplet_id,
         },
         x: left,
         y: origin.y - 0.5,
@@ -119,6 +121,7 @@ mod tests {
             1,
             1,
             1,
+            None,
             5.0,
             &mut renderer,
         );
@@ -148,6 +151,7 @@ mod tests {
             1,
             1,
             1,
+            None,
             5.0,
             &mut renderer,
         );
@@ -177,6 +181,7 @@ mod tests {
             1,
             1,
             1,
+            None,
             5.0,
             &mut renderer,
         );
@@ -206,6 +211,7 @@ mod tests {
             1,
             1,
             1,
+            None,
             5.0,
             &mut renderer,
         );
@@ -227,6 +233,7 @@ mod tests {
             stave_id: 1,
             flow_id: 1,
             instrument_id: 1,
+            tuplet_id: None,
         };
         draw_notehead(
             &Point { x: 0.0, y: 0.0 },
@@ -240,6 +247,7 @@ mod tests {
             1,
             1,
             1,
+            None,
             0.0,
             &mut renderer,
         );
@@ -267,11 +275,48 @@ mod tests {
             1,
             1,
             1,
+            None,
             0.0,
             &mut renderer,
         );
         if let DrawInstruction::Text { color, .. } = &renderer.instructions[0] {
             assert_eq!(*color, skia_safe::Color::BLACK);
+        } else {
+            panic!("expected Text");
+        }
+    }
+
+    #[test]
+    fn selected_tone_uses_blue_color_across_tuplet_ownership() {
+        let mut renderer = make_test_renderer();
+        let tone = make_tone(1);
+        let shunts = make_shunts(0, 1, Shunt::None);
+        let selection = Selection::Tone {
+            tone_id: 1,
+            track_id: 42,
+            stave_id: 1,
+            flow_id: 1,
+            instrument_id: 1,
+            tuplet_id: Some(77),
+        };
+        draw_notehead(
+            &Point { x: 0.0, y: 0.0 },
+            0,
+            &tone,
+            "\u{E0A4}",
+            1.175,
+            &shunts,
+            Some(&selection),
+            42,
+            1,
+            1,
+            1,
+            None,
+            0.0,
+            &mut renderer,
+        );
+        if let DrawInstruction::Text { color, .. } = &renderer.instructions[0] {
+            assert_eq!(*color, skia_safe::Color::from_rgb(14, 165, 233));
         } else {
             panic!("expected Text");
         }

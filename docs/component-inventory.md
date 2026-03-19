@@ -85,15 +85,16 @@ Supporting: `shared.ts` (shared button styles), `smufl.ts` (SMuFL glyph code map
 
 ### Sequencer / Piano Roll
 
-| Component                 | File                             | Description                                      |
-| ------------------------- | -------------------------------- | ------------------------------------------------ |
-| `Sequencer`               | `sequencer.tsx`                  | Piano roll editor container                      |
-| `SequencerTrack`          | `sequencer-track.tsx`            | Single track row in piano roll                   |
-| `SequencerTrackTone`      | `sequencer-track-tone.tsx`       | Individual tone block in piano roll              |
-| `Keyboard`                | `keyboard.tsx`                   | Piano keyboard display (left side of piano roll) |
-| `TickBar`                 | `tick-bar.tsx`                   | Time ruler / tick position indicator             |
-| `PlaybackLine`            | `playback-line.tsx`              | Vertical playback position line                  |
-| `SelectedToneInfoDisplay` | `selected-tone-info-display.tsx` | Shows details of selected tone                   |
+| Component                 | File                             | Description                                                  |
+| ------------------------- | -------------------------------- | ------------------------------------------------------------ |
+| `Sequencer`               | `sequencer.tsx`                  | Piano roll editor container                                  |
+| `SequencerTrack`          | `sequencer-track.tsx`            | Single track row in piano roll                               |
+| `SequencerTrackTuplet`    | `sequencer-track-tuplet.tsx`     | Tuplet region tint and compressed local markers              |
+| `SequencerTrackTone`      | `sequencer-track-tone.tsx`       | Individual tone block in piano roll                          |
+| `Keyboard`                | `keyboard.tsx`                   | Piano keyboard display (left side of piano roll)             |
+| `TickBar`                 | `tick-bar.tsx`                   | Time ruler / tick position indicator plus tuplet annotations |
+| `PlaybackLine`            | `playback-line.tsx`              | Vertical playback position line                              |
+| `SelectedToneInfoDisplay` | `selected-tone-info-display.tsx` | Shows details of selected tone                               |
 
 ### Mixer
 

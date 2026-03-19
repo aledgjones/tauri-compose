@@ -8,14 +8,46 @@ import {
   Tool,
   Tone,
   Track,
+  Tuplet,
   UniqueId,
 } from "../../../services/types";
 import { actions } from "../../../services/actions";
 import { SequencerTrackTone } from "./sequencer-track-tone";
+import { SequencerTrackTuplet } from "./sequencer-track-tuplet";
 import {
   getSequencerClickTarget,
   ClickTarget,
 } from "../../../services/sequencer-utils";
+import {
+  AddressLookupDirection,
+  AxisAddress,
+  SequencerAddressLattice,
+  SequencerSnapOverlay,
+  addressKey,
+  advanceIndex,
+  buildSequencerAddressLattice,
+  buildSnapOverlay,
+  findSnappedAddressForX,
+  getAddressAtIndex,
+  getIndexForAddress,
+  getSpanForAddressDuration,
+  getXForAddress,
+} from "./sequencer-address-lattice";
+import {
+  getTupletLocalTickFromClientX,
+  getTupletRegion,
+  isTickInsideTupletRegion,
+} from "./sequencer-tuplet-utils";
+
+const getStaveIdForTrack = (flow: Flow, trackId: UniqueId) => {
+  for (const stave of Object.values(flow.staves.by_id)) {
+    if (stave.track_ids.includes(trackId)) {
+      return stave.id;
+    }
+  }
+
+  return null;
+};
 
 const getSnappedXPosition = (
   x: number,
@@ -60,6 +92,100 @@ const getPitchFromYPosition = (y: number, slotHeight: number) => {
   return int;
 };
 
+const getTicksPerSnap = (snapDuration: NoteDuration) => {
+  const subdivisions = 32;
+
+  return (subdivisions * 4) / snapDuration;
+};
+
+const getToneAddress = (
+  tone: Tone,
+  tupletId: UniqueId | null,
+): AxisAddress => ({
+  tuplet_id: tupletId,
+  tick: tone.tick,
+});
+
+const clampIndex = (value: number, min: number, max: number) => {
+  return Math.min(max, Math.max(min, value));
+};
+
+const getSnappedAddress = (
+  overlay: SequencerSnapOverlay,
+  x: number,
+  direction: AddressLookupDirection = "nearest",
+) => {
+  return findSnappedAddressForX(overlay, x, direction);
+};
+
+const syncSelectedToneOwner = async (
+  flow: Flow,
+  track: Track,
+  instrumentId: UniqueId,
+  toneId: UniqueId,
+  tupletId: UniqueId | null,
+) => {
+  const staveId = getStaveIdForTrack(flow, track.id);
+
+  if (staveId === null) {
+    return;
+  }
+
+  await actions.ui.sequencer.selectTone(
+    toneId,
+    track.id,
+    staveId,
+    flow.id,
+    instrumentId,
+    tupletId ?? undefined,
+  );
+};
+
+const getToneEntryFromClickTarget = (
+  track: Track,
+  clickTarget: ClickTarget,
+) => {
+  if (clickTarget.type !== "Tone") {
+    return null;
+  }
+
+  if (clickTarget.tuplet_id !== undefined) {
+    const tupletEntry = track.entries.by_id[clickTarget.tuplet_id];
+
+    if (!tupletEntry || tupletEntry.type !== "Tuplet") {
+      return null;
+    }
+
+    return tupletEntry.entries.by_id[clickTarget.id] ?? null;
+  }
+
+  return track.entries.by_id[clickTarget.id] ?? null;
+};
+
+const getTargetTupletFromClickTarget = (
+  track: Track,
+  clickTarget: ClickTarget | null,
+) => {
+  if (!clickTarget) {
+    return null;
+  }
+
+  const tupletId =
+    clickTarget.type === "Tuplet" ? clickTarget.id : clickTarget.tuplet_id;
+
+  if (tupletId === undefined) {
+    return null;
+  }
+
+  const tupletEntry = track.entries.by_id[tupletId];
+
+  if (!tupletEntry || tupletEntry.type !== "Tuplet") {
+    return null;
+  }
+
+  return tupletEntry;
+};
+
 type SequencerTrackProps = {
   flow: Flow;
   track: Track;
@@ -79,8 +205,9 @@ const handleWriteTool = async (
   flow: Flow,
   track: Track,
   ticks: TickConfig,
+  lattice: SequencerAddressLattice,
+  overlay: SequencerSnapOverlay,
   slots: Slots,
-  snapDuration: NoteDuration,
   instrumentId: UniqueId,
   audition: boolean,
   pluginId: string | null,
@@ -93,25 +220,35 @@ const handleWriteTool = async (
   e.stopPropagation();
   e.preventDefault();
 
-  const subdivisions = 32;
-  const ticksPerSnap = (subdivisions * 4) / snapDuration;
+  const ticksPerSnap = overlay.ticksPerSnap;
   const x = e.clientX - box.left;
   const y = e.clientY - box.top;
   let duration = ticksPerSnap;
 
   const pitch = getPitchFromYPosition(y, slots.slotHeight);
-  const startTick = getSnappedXPosition(
-    x,
-    ticks.tickWidth,
-    ticksPerSnap,
-    "down",
-  );
-
-  // Ensure the tone doesn't start beyond flow bounds
-  const clampedStart = Math.max(
-    0,
-    Math.min(flow.length - ticksPerSnap, startTick),
-  );
+  const clickTarget = getSequencerClickTarget(e.target as HTMLElement);
+  const targetTuplet = getTargetTupletFromClickTarget(track, clickTarget);
+  const clampedStart = targetTuplet
+    ? getTupletLocalTickFromClientX(
+        x,
+        targetTuplet,
+        ticks.tickWidth,
+        ticksPerSnap,
+        getSnappedXPosition,
+      )
+    : Math.max(
+        0,
+        Math.min(
+          flow.length - ticksPerSnap,
+          getSnappedXPosition(x, ticks.tickWidth, ticksPerSnap, "down"),
+        ),
+      );
+  const startTick = clampedStart;
+  const startAddress: AxisAddress = {
+    tuplet_id: targetTuplet?.id ?? null,
+    tick: startTick,
+  };
+  const startIndex = getIndexForAddress(lattice, startAddress);
 
   const tone_id = await actions.score.tone.create(
     track.id,
@@ -121,7 +258,12 @@ const handleWriteTool = async (
     null,
     100,
     [],
+    targetTuplet?.id,
   );
+
+  if (startIndex === null) {
+    return;
+  }
 
   // Audition the created note
   if (audition && pluginId) {
@@ -149,10 +291,45 @@ const handleWriteTool = async (
     stave_id,
     flow.id,
     instrumentId,
+    targetTuplet?.id,
   );
 
   const handlePointerMove = async (e: PointerEvent) => {
     const x = e.clientX - box.left;
+
+    if (targetTuplet) {
+      const endAddress = getSnappedAddress(overlay, x);
+
+      if (!endAddress) {
+        return;
+      }
+
+      const endIndex = getIndexForAddress(lattice, endAddress);
+
+      if (endIndex === null) {
+        return;
+      }
+
+      const clampedEndIndex = clampIndex(
+        endIndex,
+        startIndex + ticksPerSnap,
+        lattice.continuous.length - 1,
+      );
+      const clampedDuration = clampedEndIndex - startIndex;
+
+      if (clampedDuration !== duration && clampedDuration >= ticksPerSnap) {
+        duration = clampedDuration;
+        await actions.score.tone.setDuration(
+          track.id,
+          tone_id,
+          clampedDuration,
+          targetTuplet.id,
+        );
+      }
+
+      return;
+    }
+
     const endTick = getSnappedXPosition(
       x,
       ticks.tickWidth,
@@ -186,12 +363,16 @@ const handleSliceTool = async (
   e: React.PointerEvent<HTMLDivElement>,
   sequencerRef: React.RefObject<HTMLDivElement | null>,
   track: Track,
-  ticks: TickConfig,
-  snapDuration: NoteDuration,
+  lattice: SequencerAddressLattice,
+  overlay: SequencerSnapOverlay,
 ) => {
   const clickTarget = getSequencerClickTarget(e.target as HTMLElement);
 
   if (clickTarget === null) {
+    return;
+  }
+
+  if (clickTarget.type !== "Tone") {
     return;
   }
 
@@ -200,24 +381,33 @@ const handleSliceTool = async (
     return;
   }
 
+  const toneEntry = getToneEntryFromClickTarget(track, clickTarget);
+
+  if (!toneEntry || toneEntry.type !== "Tone") {
+    return;
+  }
+
   e.stopPropagation();
   e.preventDefault();
-
-  const subdivisions = 32;
-  const ticksPerSnap = (subdivisions * 4) / snapDuration;
   const x = e.clientX - box.left;
+  const sliceAddress = getSnappedAddress(overlay, x);
 
-  const sliceTick = getSnappedXPosition(
-    x,
-    ticks.tickWidth,
-    ticksPerSnap,
-    "nearest",
-  );
+  if (!sliceAddress) {
+    return;
+  }
+
+  const toneAddress = getToneAddress(toneEntry, clickTarget.tuplet_id ?? null);
+
+  if (getIndexForAddress(lattice, toneAddress) === null) {
+    return;
+  }
 
   const newToneId = await actions.score.tone.slice(
     track.id,
     clickTarget.id,
-    sliceTick,
+    sliceAddress.tick,
+    clickTarget.tuplet_id ?? null,
+    sliceAddress.tuplet_id ?? null,
   );
 
   if (!newToneId) {
@@ -237,7 +427,15 @@ const handleEraseTool = async (
     return;
   }
 
-  await actions.score.tone.remove(track.id, clickTarget.id);
+  if (clickTarget.type !== "Tone") {
+    return;
+  }
+
+  await actions.score.tone.remove(
+    track.id,
+    clickTarget.tuplet_id ?? null,
+    clickTarget.id,
+  );
   await actions.ui.sequencer.clearSelection();
 };
 
@@ -246,36 +444,54 @@ const handleDurationAdjustment = async (
   track: Track,
   clickTarget: ClickTarget,
   originalTone: Tone,
-  ticks: TickConfig,
+  currentTupletId: UniqueId | null,
+  lattice: SequencerAddressLattice,
+  overlay: SequencerSnapOverlay,
   ticksPerSnap: number,
-  flow: Flow,
 ) => {
+  const startAddress = getToneAddress(originalTone, currentTupletId);
+  const startIndex = getIndexForAddress(lattice, startAddress);
+
+  if (startIndex === null) {
+    return;
+  }
+
   let lastDuration = originalTone.duration;
+  const lastIndex = lattice.continuous.length - 1;
 
   const handlePointerMove = async (e: PointerEvent) => {
     const x = e.clientX - box.left;
-    const endTick = getSnappedXPosition(
-      x,
-      ticks.tickWidth,
-      ticksPerSnap,
-      "nearest",
+    const endAddress = getSnappedAddress(overlay, x);
+
+    if (!endAddress) {
+      return;
+    }
+
+    const endIndex = getIndexForAddress(lattice, endAddress);
+
+    if (endIndex === null) {
+      return;
+    }
+
+    const clampedEndIndex = clampIndex(
+      endIndex,
+      startIndex + ticksPerSnap,
+      lastIndex,
     );
-
-    const startTick = originalTone.tick;
-    const newDuration = Math.max(ticksPerSnap, endTick - startTick);
-
-    // Ensure the tone doesn't extend beyond flow bounds
-    const maxEndTick = flow.length;
-    const clampedEndTick = Math.min(maxEndTick, startTick + newDuration);
-    const clampedDuration = clampedEndTick - startTick;
+    const clampedDuration = clampedEndIndex - startIndex;
 
     if (clampedDuration !== lastDuration && clampedDuration >= ticksPerSnap) {
-      lastDuration = clampedDuration;
-      await actions.score.tone.setDuration(
-        track.id,
-        clickTarget.id,
-        clampedDuration,
-      );
+      try {
+        await actions.score.tone.setDuration(
+          track.id,
+          clickTarget.id,
+          clampedDuration,
+          currentTupletId ?? undefined,
+        );
+        lastDuration = clampedDuration;
+      } catch {
+        return;
+      }
     }
   };
 
@@ -291,50 +507,93 @@ const handleDurationAdjustment = async (
 const handleLeftSideAdjustment = async (
   box: DOMRect,
   track: Track,
+  flow: Flow,
   clickTarget: ClickTarget,
   originalTone: Tone,
-  ticks: TickConfig,
+  instrumentId: UniqueId,
+  currentTupletId: UniqueId | null,
+  lattice: SequencerAddressLattice,
+  overlay: SequencerSnapOverlay,
   ticksPerSnap: number,
-  flow: Flow,
 ) => {
-  const originalEndTick = originalTone.tick + originalTone.duration;
-  let lastTick = originalTone.tick;
+  const originalStartAddress = getToneAddress(originalTone, currentTupletId);
+  const originalStartIndex = getIndexForAddress(lattice, originalStartAddress);
+
+  if (originalStartIndex === null) {
+    return;
+  }
+
+  const originalEndIndex = advanceIndex(
+    lattice,
+    originalStartIndex,
+    originalTone.duration,
+  );
+
+  if (originalEndIndex === null) {
+    return;
+  }
+
+  let lastAddress = originalStartAddress;
   let lastDuration = originalTone.duration;
+  let lastOwnerTupletId = currentTupletId;
 
   const handlePointerMove = async (e: PointerEvent) => {
     const x = e.clientX - box.left;
-    const newStartTick = getSnappedXPosition(
-      x,
-      ticks.tickWidth,
-      ticksPerSnap,
-      "nearest",
-    );
+    const nextAddress = getSnappedAddress(overlay, x);
 
-    // Calculate new duration to maintain end position
-    const newDuration = originalEndTick - newStartTick;
-
-    // Don't move if it would make the tone too short or start before 0
-    if (newDuration < ticksPerSnap || newStartTick < 0) {
+    if (!nextAddress) {
       return;
     }
 
-    // Ensure the tone doesn't extend beyond flow bounds
-    const clampedStartTick = Math.max(0, newStartTick);
-    const clampedDuration = Math.min(
-      flow.length - clampedStartTick,
-      newDuration,
-    );
+    const nextIndex = getIndexForAddress(lattice, nextAddress);
 
-    // Update both position and duration in one operation
-    if (clampedStartTick !== lastTick || clampedDuration !== lastDuration) {
-      await actions.score.tone.setPositionAndDuration(
-        track.id,
-        clickTarget.id,
-        clampedStartTick,
-        clampedDuration,
-      );
-      lastTick = clampedStartTick;
-      lastDuration = clampedDuration;
+    if (nextIndex === null) {
+      return;
+    }
+
+    const clampedStartIndex = clampIndex(
+      nextIndex,
+      0,
+      originalEndIndex - ticksPerSnap,
+    );
+    const clampedStartAddress = getAddressAtIndex(lattice, clampedStartIndex);
+
+    if (!clampedStartAddress) {
+      return;
+    }
+
+    const clampedDuration = originalEndIndex - clampedStartIndex;
+
+    if (
+      addressKey(clampedStartAddress) !== addressKey(lastAddress) ||
+      clampedDuration !== lastDuration
+    ) {
+      try {
+        await actions.score.tone.setPositionAndDuration(
+          track.id,
+          clickTarget.id,
+          clampedStartAddress.tick,
+          clampedDuration,
+          lastOwnerTupletId ?? undefined,
+          clampedStartAddress.tuplet_id ?? undefined,
+        );
+
+        if (lastOwnerTupletId !== clampedStartAddress.tuplet_id) {
+          await syncSelectedToneOwner(
+            flow,
+            track,
+            instrumentId,
+            clickTarget.id,
+            clampedStartAddress.tuplet_id,
+          );
+        }
+
+        lastAddress = clampedStartAddress;
+        lastDuration = clampedDuration;
+        lastOwnerTupletId = clampedStartAddress.tuplet_id;
+      } catch {
+        return;
+      }
     }
   };
 
@@ -342,7 +601,11 @@ const handleLeftSideAdjustment = async (
     document.removeEventListener("pointermove", handlePointerMove);
     document.removeEventListener("pointerup", handlePointerUp);
 
-    await actions.score.tone.unifyArticulations(track.id, clickTarget.id);
+    await actions.score.tone.unifyArticulations(
+      track.id,
+      clickTarget.id,
+      lastOwnerTupletId ?? undefined,
+    );
   };
 
   document.addEventListener("pointermove", handlePointerMove);
@@ -353,59 +616,95 @@ const handlePositionDragging = async (
   e: React.PointerEvent<HTMLDivElement>,
   box: DOMRect,
   track: Track,
+  flow: Flow,
   clickTarget: ClickTarget,
   originalTone: Tone,
-  ticks: TickConfig,
-  ticksPerSnap: number,
-  flow: Flow,
+  instrumentId: UniqueId,
+  lattice: SequencerAddressLattice,
+  overlay: SequencerSnapOverlay,
   slots: Slots,
   audition: boolean,
   pluginId: string | null,
 ) => {
-  let lastPitch = originalTone.pitch.int;
-  let lastTick = originalTone.tick;
+  const originalTupletId =
+    clickTarget.type === "Tone" ? (clickTarget.tuplet_id ?? null) : null;
+  const originalAddress = getToneAddress(originalTone, originalTupletId);
+  const originalStartX = getXForAddress(lattice, originalAddress);
+  const originalStartIndex = getIndexForAddress(lattice, originalAddress);
 
-  // Calculate initial position for relative movement
+  if (originalStartX === null || originalStartIndex === null) {
+    return;
+  }
+
+  const maxStartIndex = lattice.continuous.length - 1 - originalTone.duration;
+  let lastPitch = originalTone.pitch.int;
+  let lastAddress = originalAddress;
+  let lastOwnerTupletId = originalTupletId;
   const initialX = e.clientX - box.left;
-  const initialTickRaw = initialX / ticks.tickWidth;
-  const originalToneTick = originalTone.tick;
+  const initialOffsetX = initialX - originalStartX;
 
   const handlePointerMove = async (e: PointerEvent) => {
     const x = e.clientX - box.left;
     const y = e.clientY - box.top;
-
-    // Calculate new pitch (vertical movement)
     const newPitch = getPitchFromYPosition(y, slots.slotHeight);
+    const snappedAddress = getSnappedAddress(overlay, x - initialOffsetX);
 
-    // Calculate new tick (horizontal movement) - relative delta movement
-    const currentTickRaw = x / ticks.tickWidth;
-    const delta = currentTickRaw - initialTickRaw;
-    const newToneTickRaw = originalToneTick + delta;
+    if (!snappedAddress) {
+      return;
+    }
 
-    const newTick = getSnappedXPosition(
-      newToneTickRaw * ticks.tickWidth,
-      ticks.tickWidth,
-      ticksPerSnap,
-      "nearest",
-    );
+    const snappedIndex = getIndexForAddress(lattice, snappedAddress);
 
-    // Ensure bounds after snapping
-    const maxTick = flow.length - originalTone.duration;
-    const clampedNewTick = Math.max(0, Math.min(maxTick, newTick));
+    if (snappedIndex === null) {
+      return;
+    }
 
-    // Update pitch if it changed
+    const clampedIndex = clampIndex(snappedIndex, 0, maxStartIndex);
+    const clampedAddress = getAddressAtIndex(lattice, clampedIndex);
+
+    if (!clampedAddress) {
+      return;
+    }
+
     if (newPitch !== lastPitch) {
-      await actions.score.tone.setPitch(track.id, clickTarget.id, newPitch);
+      await actions.score.tone.setPitch(
+        track.id,
+        lastOwnerTupletId,
+        clickTarget.id,
+        newPitch,
+        null,
+      );
       if (audition && pluginId) {
         actions.sampler.audition(pluginId, newPitch);
       }
       lastPitch = newPitch;
     }
 
-    // Update tick if it changed
-    if (clampedNewTick !== lastTick) {
-      await actions.score.tone.shift(track.id, clickTarget.id, clampedNewTick);
-      lastTick = clampedNewTick;
+    if (addressKey(clampedAddress) !== addressKey(lastAddress)) {
+      try {
+        await actions.score.tone.shift(
+          track.id,
+          clickTarget.id,
+          clampedAddress.tick,
+          lastOwnerTupletId ?? undefined,
+          clampedAddress.tuplet_id ?? undefined,
+        );
+
+        if (lastOwnerTupletId !== clampedAddress.tuplet_id) {
+          await syncSelectedToneOwner(
+            flow,
+            track,
+            instrumentId,
+            clickTarget.id,
+            clampedAddress.tuplet_id,
+          );
+        }
+
+        lastAddress = clampedAddress;
+        lastOwnerTupletId = clampedAddress.tuplet_id;
+      } catch {
+        return;
+      }
     }
   };
 
@@ -413,7 +712,11 @@ const handlePositionDragging = async (
     document.removeEventListener("pointermove", handlePointerMove);
     document.removeEventListener("pointerup", handlePointerUp);
 
-    await actions.score.tone.unifyArticulations(track.id, clickTarget.id);
+    await actions.score.tone.unifyArticulations(
+      track.id,
+      clickTarget.id,
+      lastOwnerTupletId ?? undefined,
+    );
   };
 
   document.addEventListener("pointermove", handlePointerMove);
@@ -425,28 +728,21 @@ const handleSelectTool = async (
   sequencerRef: React.RefObject<HTMLDivElement | null>,
   flow: Flow,
   track: Track,
-  ticks: TickConfig,
+  lattice: SequencerAddressLattice,
+  overlay: SequencerSnapOverlay,
   slots: Slots,
-  snapDuration: NoteDuration,
   instrumentId: UniqueId,
   audition: boolean,
   pluginId: string | null,
 ) => {
   const clickTarget = getSequencerClickTarget(e.target as HTMLElement);
 
-  if (clickTarget === null) {
+  if (clickTarget === null || clickTarget.type === "Tuplet") {
     await actions.ui.sequencer.clearSelection();
     return;
   }
 
-  // Find the stave that contains this track
-  let stave_id: UniqueId | null = null;
-  for (const stave of Object.values(flow.staves.by_id)) {
-    if (stave.track_ids.includes(track.id)) {
-      stave_id = stave.id;
-      break;
-    }
-  }
+  const stave_id = getStaveIdForTrack(flow, track.id);
 
   if (!stave_id) {
     console.error("Could not find stave for track", track.id);
@@ -459,6 +755,7 @@ const handleSelectTool = async (
     stave_id,
     flow.id,
     instrumentId,
+    clickTarget.tuplet_id,
   );
 
   const box = sequencerRef.current?.getBoundingClientRect();
@@ -468,29 +765,29 @@ const handleSelectTool = async (
 
   e.stopPropagation();
   e.preventDefault();
+  const ticksPerSnap = overlay.ticksPerSnap;
 
-  // Calculate snap settings
-  const subdivisions = 32;
-  const ticksPerSnap = (subdivisions * 4) / snapDuration;
-
-  // Get the original tone data
-  const originalEntry = track.entries.by_id[clickTarget.id];
-  if (originalEntry.type !== "Tone") {
+  const originalEntry = getToneEntryFromClickTarget(track, clickTarget);
+  if (!originalEntry || originalEntry.type !== "Tone") {
     return;
   }
 
   const originalTone = originalEntry as Tone;
+  const originalTupletId = clickTarget.tuplet_id ?? null;
+  const originalSpan = getSpanForAddressDuration(
+    lattice,
+    getToneAddress(originalTone, originalTupletId),
+    originalTone.duration,
+  );
 
-  // Calculate tone width and determine touch target areas
-  const toneWidthPx = originalTone.duration * ticks.tickWidth;
-  const touchTargetWidth = Math.min(10, Math.max(5, toneWidthPx / 2)); // Max 10px, or half for small tones, min 5px
-  const toneStartPx = originalTone.tick * ticks.tickWidth;
+  if (!originalSpan) {
+    return;
+  }
 
-  // Get click position relative to tone
+  const toneWidthPx = originalSpan.width;
+  const touchTargetWidth = Math.min(10, Math.max(5, toneWidthPx / 2));
   const clickX = e.clientX - box.left;
-  const relativeClickX = clickX - toneStartPx;
-
-  // Determine interaction mode based on click position
+  const relativeClickX = clickX - originalSpan.startX;
   const isDurationAdjustment = relativeClickX >= toneWidthPx - touchTargetWidth;
   const isLeftSideAdjustment = relativeClickX <= touchTargetWidth;
 
@@ -500,30 +797,35 @@ const handleSelectTool = async (
       track,
       clickTarget,
       originalTone,
-      ticks,
+      originalTupletId,
+      lattice,
+      overlay,
       ticksPerSnap,
-      flow,
     );
   } else if (isLeftSideAdjustment) {
     await handleLeftSideAdjustment(
       box,
       track,
+      flow,
       clickTarget,
       originalTone,
-      ticks,
+      instrumentId,
+      originalTupletId,
+      lattice,
+      overlay,
       ticksPerSnap,
-      flow,
     );
   } else {
     await handlePositionDragging(
       e,
       box,
       track,
+      flow,
       clickTarget,
       originalTone,
-      ticks,
-      ticksPerSnap,
-      flow,
+      instrumentId,
+      lattice,
+      overlay,
       slots,
       audition,
       pluginId,
@@ -545,6 +847,67 @@ export const SequencerTrack: FC<SequencerTrackProps> = ({
 }) => {
   const sequencerRef = useRef<HTMLDivElement>(null);
 
+  const tones = useMemo(() => {
+    return Object.values(track.entries.by_id).filter(
+      (entry) => entry.type === "Tone",
+    ) as Tone[];
+  }, [track.entries.by_id]);
+
+  const tuplets = useMemo(() => {
+    return Object.values(track.entries.by_id).filter(
+      (entry) => entry.type === "Tuplet",
+    ) as Tuplet[];
+  }, [track.entries.by_id]);
+
+  const tupletRegions = useMemo(() => {
+    return tuplets.map(getTupletRegion);
+  }, [tuplets]);
+
+  const tupletTones = useMemo(() => {
+    return tuplets.flatMap((tuplet) =>
+      Object.values(tuplet.entries.by_id).map((tone) => ({
+        tone,
+        tupletId: tuplet.id,
+      })),
+    );
+  }, [tuplets]);
+
+  const addressLattice = useMemo(() => {
+    return buildSequencerAddressLattice(flow.length, ticks.tickWidth, tuplets);
+  }, [flow.length, ticks.tickWidth, tuplets]);
+
+  const snapOverlay = useMemo(() => {
+    return buildSnapOverlay(addressLattice, getTicksPerSnap(snapDuration));
+  }, [addressLattice, snapDuration]);
+
+  const renderedTones = useMemo(() => {
+    return tones
+      .map((tone) => {
+        const span = getSpanForAddressDuration(
+          addressLattice,
+          getToneAddress(tone, null),
+          tone.duration,
+        );
+
+        return span ? { tone, tupletId: null, span } : null;
+      })
+      .filter((tone): tone is NonNullable<typeof tone> => tone !== null);
+  }, [addressLattice, tones]);
+
+  const renderedTupletTones = useMemo(() => {
+    return tupletTones
+      .map(({ tone, tupletId }) => {
+        const span = getSpanForAddressDuration(
+          addressLattice,
+          getToneAddress(tone, tupletId),
+          tone.duration,
+        );
+
+        return span ? { tone, tupletId, span } : null;
+      })
+      .filter((tone): tone is NonNullable<typeof tone> => tone !== null);
+  }, [addressLattice, tupletTones]);
+
   const onPointerDown = useCallback(
     async (e: React.PointerEvent<HTMLDivElement>) => {
       switch (tool) {
@@ -555,13 +918,14 @@ export const SequencerTrack: FC<SequencerTrackProps> = ({
             flow,
             track,
             ticks,
+            addressLattice,
+            snapOverlay,
             slots,
-            snapDuration,
             instrumentId,
             audition,
             pluginId,
           );
-          break;
+          return;
 
         case Tool.Select:
           await handleSelectTool(
@@ -569,28 +933,35 @@ export const SequencerTrack: FC<SequencerTrackProps> = ({
             sequencerRef,
             flow,
             track,
-            ticks,
+            addressLattice,
+            snapOverlay,
             slots,
-            snapDuration,
             instrumentId,
             audition,
             pluginId,
           );
-          break;
+          return;
 
         case Tool.Erase:
           await handleEraseTool(e, track);
-          break;
+          return;
 
         case Tool.Slice:
-          await handleSliceTool(e, sequencerRef, track, ticks, snapDuration);
-          break;
+          await handleSliceTool(
+            e,
+            sequencerRef,
+            track,
+            addressLattice,
+            snapOverlay,
+          );
+          return;
       }
     },
     [
       flow,
+      addressLattice,
       slots,
-      snapDuration,
+      snapOverlay,
       tool,
       track,
       instrumentId,
@@ -600,11 +971,13 @@ export const SequencerTrack: FC<SequencerTrackProps> = ({
     ],
   );
 
-  const tones = useMemo(() => {
-    return Object.values(track.entries.by_id).filter(
-      (entry) => entry.type === "Tone",
+  const barTicks = useMemo(() => {
+    return new Set(
+      ticks.entries
+        .filter((entry) => entry.type === "bar")
+        .map((entry) => entry.x / ticks.tickWidth),
     );
-  }, [track.entries.by_id]);
+  }, [ticks.entries, ticks.tickWidth]);
 
   return (
     <div
@@ -633,13 +1006,23 @@ export const SequencerTrack: FC<SequencerTrackProps> = ({
           return null;
         }
 
+        const tickPosition = entry.x / ticks.tickWidth;
+        const isInsideTuplet = tupletRegions.some((tupletRegion) =>
+          isTickInsideTupletRegion(tickPosition, tupletRegion),
+        );
+
+        if (entry.type !== "bar" && isInsideTuplet) {
+          return null;
+        }
+
         return (
           <div
             key={tick}
             className={classNames("absolute top-0 left-0", {
               "bg-neutral-500": entry.type === "bar",
-              "bg-neutral-800": entry.type === "beat",
+              "bg-neutral-700": entry.type === "beat",
             })}
+            data-sequencer-tick-line={entry.type}
             style={{
               height: slots.height,
               width: 1,
@@ -649,7 +1032,20 @@ export const SequencerTrack: FC<SequencerTrackProps> = ({
         );
       })}
 
-      {tones.map((tone) => {
+      {tuplets.map((tuplet) => {
+        return (
+          <SequencerTrackTuplet
+            key={tuplet.id}
+            tuplet={tuplet}
+            tickWidth={ticks.tickWidth}
+            height={slots.height}
+            color={color}
+            barTicks={barTicks}
+          />
+        );
+      })}
+
+      {renderedTones.map(({ tone, span }) => {
         return (
           <SequencerTrackTone
             key={tone.id}
@@ -657,6 +1053,23 @@ export const SequencerTrack: FC<SequencerTrackProps> = ({
             tickWidth={ticks.tickWidth}
             tone={tone}
             color={color}
+            startX={span.startX}
+            widthPx={span.width}
+          />
+        );
+      })}
+
+      {renderedTupletTones.map(({ tone, tupletId, span }) => {
+        return (
+          <SequencerTrackTone
+            key={`${tupletId}-${tone.id}`}
+            slotHeight={slots.slotHeight}
+            tickWidth={ticks.tickWidth}
+            tone={tone}
+            color={color}
+            startX={span.startX}
+            widthPx={span.width}
+            tupletId={tupletId}
           />
         );
       })}

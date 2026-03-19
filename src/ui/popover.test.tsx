@@ -34,6 +34,7 @@ vi.mock("../services/popovers", async (importOriginal) => {
     parseBarlinePopover: vi.fn(),
     parseClefPopover: vi.fn(),
     parseKeySignaturePopover: vi.fn(),
+    parseTupletPopover: vi.fn(),
     parseTempoPopover: vi.fn(),
     parseTimeSignaturePopover: vi.fn(),
   };
@@ -43,6 +44,7 @@ import {
   parseBarlinePopover,
   parseClefPopover,
   parseKeySignaturePopover,
+  parseTupletPopover,
   parseTempoPopover,
   parseTimeSignaturePopover,
 } from "../services/popovers";
@@ -138,6 +140,11 @@ describe("Popover", () => {
     expect(screen.getByText("Tempo")).toBeInTheDocument();
   });
 
+  it("shows 'Tuplet' label for PopoverType.Tuplet", () => {
+    renderPopover({ x: 0, y: 0, type: PopoverType.Tuplet });
+    expect(screen.getByText("Tuplet")).toBeInTheDocument();
+  });
+
   // -------------------------------------------------------------------------
   // Input value
   // -------------------------------------------------------------------------
@@ -147,6 +154,14 @@ describe("Popover", () => {
     const input = screen.getByRole("textbox");
     await user.type(input, "||");
     expect(input).toHaveValue("||");
+  });
+
+  it("starts the tuplet input empty", () => {
+    renderPopover({ x: 0, y: 0, type: PopoverType.Tuplet });
+
+    expect(screen.getByRole("textbox")).toHaveValue("");
+    expect(screen.queryByRole("group", { name: "Base note value" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Eighth" })).toBeNull();
   });
 
   // -------------------------------------------------------------------------
@@ -221,6 +236,100 @@ describe("Popover", () => {
     await user.type(screen.getByRole("textbox"), "Allegro{Enter}");
     expect(parseTempoPopover).toHaveBeenCalledWith("Allegro", FLOW_ID, TICK);
     expect(setPopover).toHaveBeenCalledWith(null);
+  });
+
+  it("Enter with valid tuplet input calls parseTupletPopover and closes", async () => {
+    const user = userEvent.setup();
+    renderPopover({ x: 0, y: 0, type: PopoverType.Tuplet });
+
+    await user.type(screen.getByRole("textbox"), "3e/2{Enter}");
+
+    expect(parseTupletPopover).toHaveBeenCalledWith(
+      "3e/2",
+      FLOW_ID,
+      TICK,
+      10,
+      STAVE_ID,
+      300,
+    );
+    expect(setPopover).toHaveBeenCalledWith(null);
+  });
+
+  it("passes explicit tuplet text syntax through to the parser", async () => {
+    const user = userEvent.setup();
+    renderPopover({ x: 0, y: 0, type: PopoverType.Tuplet });
+
+    await user.clear(screen.getByRole("textbox"));
+    await user.type(screen.getByRole("textbox"), "3s/2{Enter}");
+
+    expect(parseTupletPopover).toHaveBeenCalledWith(
+      "3s/2",
+      FLOW_ID,
+      TICK,
+      10,
+      STAVE_ID,
+      300,
+    );
+  });
+
+  it("Arrow keys remain available for normal textbox navigation in the tuplet popover", async () => {
+    const user = userEvent.setup();
+    renderPopover({ x: 0, y: 0, type: PopoverType.Tuplet });
+
+    const input = screen.getByRole("textbox");
+    await user.click(input);
+    await user.keyboard("{ArrowLeft}{ArrowRight}");
+
+    expect(setPopover).not.toHaveBeenCalled();
+    expect(input).toHaveFocus();
+    expect(input).toHaveValue("");
+    expect(parseTupletPopover).not.toHaveBeenCalled();
+  });
+
+  it("submits the typed explicit tuplet format", async () => {
+    const user = userEvent.setup();
+    renderPopover({ x: 0, y: 0, type: PopoverType.Tuplet });
+
+    await user.clear(screen.getByRole("textbox"));
+    await user.type(screen.getByRole("textbox"), "3q/2{Enter}");
+
+    expect(parseTupletPopover).toHaveBeenCalledWith(
+      "3q/2",
+      FLOW_ID,
+      TICK,
+      10,
+      STAVE_ID,
+      300,
+    );
+  });
+
+  it("Enter for Tuplet does nothing when the selection is not a tone or rest", async () => {
+    const user = userEvent.setup();
+    const tempoSelectionState = createAppState({
+      ui: {
+        sequencer: {
+          selection: {
+            type: "Tempo",
+            flow_id: FLOW_ID,
+            tempo_id: 99,
+            tick: TICK,
+          },
+        },
+      } as never,
+    });
+
+    renderWithProviders(
+      <Popover
+        popover={{ x: 0, y: 0, type: PopoverType.Tuplet }}
+        setPopover={setPopover}
+      />,
+      { appState: tempoSelectionState },
+    );
+
+    await user.type(screen.getByRole("textbox"), "3e/2{Enter}");
+
+    expect(parseTupletPopover).not.toHaveBeenCalled();
+    expect(setPopover).not.toHaveBeenCalled();
   });
 
   // -------------------------------------------------------------------------
@@ -397,6 +506,74 @@ describe("Popover", () => {
         type: PopoverType.Tempo,
       });
     });
+  });
+
+  it("semicolon fires setPopover with Tuplet type", async () => {
+    renderPopover(null);
+    fireEvent.keyDown(document, { key: ";" });
+    await waitFor(() => {
+      expect(setPopover).toHaveBeenCalledWith({
+        x: 100,
+        y: 200,
+        type: PopoverType.Tuplet,
+      });
+    });
+  });
+
+  it("does not open the tuplet popover from non-tone, non-rest selections", async () => {
+    const tempoSelectionState = createAppState({
+      ui: {
+        sequencer: {
+          selection: {
+            type: "Tempo",
+            flow_id: FLOW_ID,
+            tempo_id: 99,
+            tick: TICK,
+          },
+        },
+      } as never,
+    });
+
+    renderWithProviders(<Popover popover={null} setPopover={setPopover} />, {
+      appState: tempoSelectionState,
+    });
+
+    fireEvent.keyDown(document, { key: ";" });
+
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(setPopover).not.toHaveBeenCalled();
+  });
+
+  it("does not trigger tuplet hotkeys from inside text inputs", async () => {
+    renderPopover(null);
+
+    const input = document.createElement("input");
+    input.type = "text";
+    document.body.appendChild(input);
+
+    try {
+      fireEvent.keyDown(input, { key: ";" });
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(setPopover).not.toHaveBeenCalled();
+    } finally {
+      input.remove();
+    }
+  });
+
+  it("does not trigger directive hotkeys from inside text inputs", async () => {
+    renderPopover(null);
+
+    const input = document.createElement("input");
+    input.type = "text";
+    document.body.appendChild(input);
+
+    try {
+      fireEvent.keyDown(input, { key: "T", shiftKey: true });
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(setPopover).not.toHaveBeenCalled();
+    } finally {
+      input.remove();
+    }
   });
 
   it("keyboard shortcuts are skipped when popover is already open", async () => {

@@ -47,6 +47,8 @@ pub struct StreamBuffer {
     buffer: Mutex<VecDeque<f32>>,
     /// Set when the streamer has pushed all remaining audio
     finished: AtomicBool,
+    /// Set when playback has been canceled and the streamer should exit early.
+    canceled: AtomicBool,
 }
 
 impl StreamBuffer {
@@ -55,11 +57,16 @@ impl StreamBuffer {
         StreamBuffer {
             buffer: Mutex::new(VecDeque::with_capacity(48000 * 2)),
             finished: AtomicBool::new(false),
+            canceled: AtomicBool::new(false),
         }
     }
 
     /// Push decoded interleaved samples (called by streamer thread).
     pub fn push(&self, samples: &[f32]) {
+        if self.canceled.load(Ordering::Acquire) {
+            return;
+        }
+
         let mut buf = self.buffer.lock().unwrap();
         buf.extend(samples);
     }
@@ -80,6 +87,17 @@ impl StreamBuffer {
     /// Signal that the streamer has finished producing audio.
     pub fn mark_finished(&self) {
         self.finished.store(true, Ordering::Release);
+    }
+
+    /// Cancel playback and clear any buffered audio so the streamer and mixer stop immediately.
+    pub fn cancel(&self) {
+        self.canceled.store(true, Ordering::Release);
+        self.finished.store(true, Ordering::Release);
+        self.buffer.lock().unwrap().clear();
+    }
+
+    pub fn is_canceled(&self) -> bool {
+        self.canceled.load(Ordering::Acquire)
     }
 
     /// True when the streamer is done AND the buffer is empty.
@@ -174,6 +192,8 @@ pub struct StreamRequest {
     pub target_sample_rate: u32,
     /// Number of audio channels
     pub channels: usize,
+    /// Leading source-rate frames to discard before any resample or pitch processing.
+    pub attack_offset_frames: u32,
     /// Pitch offset in semitones (applied via interpolation)
     pub pitch_offset: i32,
     /// Total maximum output frames to produce (duration + release)
@@ -201,6 +221,26 @@ pub fn start_stream(request: StreamRequest) {
             }
         })
         .expect("Failed to spawn disk streaming thread");
+}
+
+fn trim_packet_samples<'a>(
+    packet_samples: &'a [f32],
+    channels: usize,
+    remaining_attack_frames: &mut u32,
+) -> &'a [f32] {
+    if *remaining_attack_frames == 0 || channels == 0 {
+        return packet_samples;
+    }
+
+    let packet_frames = packet_samples.len() / channels;
+    if packet_frames == 0 {
+        return packet_samples;
+    }
+
+    let skip_frames = packet_frames.min(*remaining_attack_frames as usize);
+    *remaining_attack_frames -= skip_frames as u32;
+
+    &packet_samples[skip_frames * channels..]
 }
 
 fn run_stream(req: StreamRequest) -> Result<(), Box<dyn std::error::Error>> {
@@ -256,6 +296,7 @@ fn run_stream(req: StreamRequest) -> Result<(), Box<dyn std::error::Error>> {
     // Fractional position within the resampler output, carried across
     // packets so there are no discontinuities.
     let mut resample_frac: f64 = 0.0;
+    let mut remaining_attack_frames = req.attack_offset_frames;
 
     // Output state
     let mut src_pos = 0.0_f64; // fractional position in resampled data
@@ -271,6 +312,10 @@ fn run_stream(req: StreamRequest) -> Result<(), Box<dyn std::error::Error>> {
     // immediately. The mixer gets audio within <1ms of thread start.
 
     loop {
+        if req.stream_buffer.is_canceled() {
+            break;
+        }
+
         if output_frame >= max_output {
             break;
         }
@@ -302,9 +347,16 @@ fn run_stream(req: StreamRequest) -> Result<(), Box<dyn std::error::Error>> {
             Err(e) => return Err(e.into()),
         };
 
+        let packet_samples =
+            trim_packet_samples(&packet_samples, channels, &mut remaining_attack_frames);
+
+        if packet_samples.is_empty() {
+            continue;
+        }
+
         // — Build source chunk: tail from previous packet + new packet —
         let mut source = std::mem::take(&mut tail);
-        source.extend_from_slice(&packet_samples);
+        source.extend_from_slice(packet_samples);
         let source_frames = source.len() / channels;
 
         if source_frames == 0 {
@@ -373,6 +425,10 @@ fn run_stream(req: StreamRequest) -> Result<(), Box<dyn std::error::Error>> {
         let available = resampled_frames;
 
         loop {
+            if req.stream_buffer.is_canceled() {
+                break;
+            }
+
             if output_frame >= max_output {
                 break;
             }
@@ -382,6 +438,11 @@ fn run_stream(req: StreamRequest) -> Result<(), Box<dyn std::error::Error>> {
             let mut need_more = false;
 
             for _ in 0..frames_this_chunk {
+                if req.stream_buffer.is_canceled() {
+                    need_more = true;
+                    break;
+                }
+
                 let read_pos = src_pos * pitch_ratio;
                 let idx = read_pos.floor() as usize;
                 let frac = (read_pos - idx as f64) as f32;
@@ -444,4 +505,57 @@ fn run_stream(req: StreamRequest) -> Result<(), Box<dyn std::error::Error>> {
 
     req.stream_buffer.mark_finished();
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cancel_clears_buffer_and_rejects_future_pushes() {
+        let stream = StreamBuffer::new();
+        let mut output = [0.0_f32; 4];
+
+        stream.push(&[0.5, 0.5, 0.25, 0.25]);
+        stream.cancel();
+        stream.push(&[1.0, 1.0]);
+
+        assert!(stream.is_canceled());
+        assert!(stream.is_exhausted());
+        assert_eq!(stream.drain_mix(&mut output), 0);
+        assert_eq!(output, [0.0, 0.0, 0.0, 0.0]);
+    }
+
+    #[test]
+    fn trim_packet_samples_preserves_zero_offset_packets() {
+        let packet = [0.1, 0.2, 0.3, 0.4];
+        let mut remaining_attack_frames = 0;
+
+        let trimmed = trim_packet_samples(&packet, 2, &mut remaining_attack_frames);
+
+        assert_eq!(trimmed, &packet);
+        assert_eq!(remaining_attack_frames, 0);
+    }
+
+    #[test]
+    fn trim_packet_samples_skips_requested_source_frames() {
+        let packet = [0.1, 0.2, 1.1, 1.2, 2.1, 2.2, 3.1, 3.2];
+        let mut remaining_attack_frames = 2;
+
+        let trimmed = trim_packet_samples(&packet, 2, &mut remaining_attack_frames);
+
+        assert_eq!(trimmed, &[2.1, 2.2, 3.1, 3.2]);
+        assert_eq!(remaining_attack_frames, 0);
+    }
+
+    #[test]
+    fn trim_packet_samples_handles_offsets_longer_than_available_audio() {
+        let packet = [0.1, 0.2, 1.1, 1.2];
+        let mut remaining_attack_frames = 8;
+
+        let trimmed = trim_packet_samples(&packet, 2, &mut remaining_attack_frames);
+
+        assert!(trimmed.is_empty());
+        assert_eq!(remaining_attack_frames, 6);
+    }
 }

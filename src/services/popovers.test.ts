@@ -3,6 +3,7 @@ import {
   parseBarlinePopover,
   parseClefPopover,
   parseKeySignaturePopover,
+  parseTupletPopover,
   parseTempoPopover,
   parseTimeSignaturePopover,
 } from "./popovers";
@@ -41,6 +42,9 @@ vi.mock("./actions", () => ({
         create: vi.fn().mockResolvedValue(104),
         clearAtTick: vi.fn().mockResolvedValue(undefined),
       },
+      tuplet: {
+        create: vi.fn().mockResolvedValue(105),
+      },
     },
     ui: {
       sequencer: {
@@ -48,6 +52,7 @@ vi.mock("./actions", () => ({
         selectTimeSignature: vi.fn().mockResolvedValue(undefined),
         selectKeySignature: vi.fn().mockResolvedValue(undefined),
         selectClef: vi.fn().mockResolvedValue(undefined),
+        selectTuplet: vi.fn().mockResolvedValue(undefined),
       },
     },
   },
@@ -59,6 +64,8 @@ import { actions } from "./actions";
 const FLOW_ID = 1;
 const TICK = 128;
 const STAVE_ID = 10;
+const INSTRUMENT_ID = 11;
+const TRACK_ID = 12;
 
 // ---------------------------------------------------------------------------
 // parseBarlinePopover
@@ -511,6 +518,107 @@ describe("parseTempoPopover", () => {
     await expect(parseTempoPopover("Vivace", FLOW_ID, TICK)).rejects.toThrow(
       "Unknown input: Vivace",
     );
+  });
+});
+
+describe("parseTupletPopover", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("creates an eighth-note triplet and selects it", async () => {
+    await parseTupletPopover(
+      "3e/2",
+      FLOW_ID,
+      TICK,
+      INSTRUMENT_ID,
+      STAVE_ID,
+      TRACK_ID,
+    );
+
+    expect(actions.score.tuplet.create).toHaveBeenCalledWith(
+      TRACK_ID,
+      TICK,
+      3,
+      2,
+      NoteDuration.Eighth,
+      [3],
+    );
+    expect(actions.ui.sequencer.selectTuplet).toHaveBeenCalledWith(
+      FLOW_ID,
+      INSTRUMENT_ID,
+      STAVE_ID,
+      TRACK_ID,
+      105,
+      TICK,
+    );
+  });
+
+  it("parses an explicit sixteenth-note triplet suffix", async () => {
+    await parseTupletPopover(
+      "3s/2",
+      FLOW_ID,
+      TICK,
+      INSTRUMENT_ID,
+      STAVE_ID,
+      TRACK_ID,
+    );
+
+    expect(actions.score.tuplet.create).toHaveBeenCalledWith(
+      TRACK_ID,
+      TICK,
+      3,
+      2,
+      NoteDuration.Sixteenth,
+      [3],
+    );
+  });
+
+  it("accepts uppercase duration suffixes", async () => {
+    await parseTupletPopover(
+      "3Q/2",
+      FLOW_ID,
+      TICK,
+      INSTRUMENT_ID,
+      STAVE_ID,
+      TRACK_ID,
+    );
+
+    expect(actions.score.tuplet.create).toHaveBeenCalledWith(
+      TRACK_ID,
+      TICK,
+      3,
+      2,
+      NoteDuration.Quarter,
+      [3],
+    );
+  });
+
+  it("throws for unsupported tuplet input", async () => {
+    await expect(
+      parseTupletPopover(
+        "5/4",
+        FLOW_ID,
+        TICK,
+        INSTRUMENT_ID,
+        STAVE_ID,
+        TRACK_ID,
+      ),
+    ).rejects.toThrow("Unknown input: 5/4");
+    expect(actions.score.tuplet.create).not.toHaveBeenCalled();
+  });
+
+  it("throws for missing explicit duration suffix", async () => {
+    await expect(
+      parseTupletPopover(
+        "3/2",
+        FLOW_ID,
+        TICK,
+        INSTRUMENT_ID,
+        STAVE_ID,
+        TRACK_ID,
+      ),
+    ).rejects.toThrow("Unknown input: 3/2");
   });
 });
 

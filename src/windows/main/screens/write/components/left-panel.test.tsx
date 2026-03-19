@@ -112,6 +112,53 @@ describe("LeftPanel", () => {
     expect(quarterBtn.className).not.toContain("pointer-events-none");
   });
 
+  it("duration buttons stay enabled for ordinary tones when selection carries tuplet_id as null", () => {
+    const trackId = 1;
+    const toneId = 2;
+    const appState = createAppState({
+      ui: {
+        sequencer: {
+          selection: {
+            type: "Tone",
+            flow_id: 0,
+            instrument_id: 0,
+            stave_id: 0,
+            track_id: trackId,
+            tone_id: toneId,
+            tuplet_id: null,
+          },
+        },
+      } as never,
+      score: {
+        tracks: {
+          by_id: {
+            [trackId]: {
+              id: trackId,
+              entries: {
+                by_tick: {},
+                by_id: {
+                  [toneId]: {
+                    id: toneId,
+                    type: "Tone",
+                    tick: 0,
+                    duration: 768,
+                    velocity: { int: 100 },
+                    pitch: { int: 60, accidental: Accidental.Natural },
+                    articulations: [],
+                  },
+                },
+              },
+            },
+          },
+        },
+      } as never,
+    });
+
+    renderWithProviders(<LeftPanel spanRow={false} />, { appState });
+    const quarterBtn = screen.getByTitle("Quarter");
+    expect(quarterBtn.className).not.toContain("pointer-events-none");
+  });
+
   const makeStateWithTone = (
     durationOverride?: number,
     accidentalOverride?: Accidental,
@@ -161,6 +208,72 @@ describe("LeftPanel", () => {
     });
   };
 
+  const makeStateWithTupletTone = (
+    durationOverride = 16,
+    accidentalOverride: Accidental = Accidental.Natural,
+    articulations: Articulation[] = [],
+  ) => {
+    const trackId = 1;
+    const toneId = 2;
+    const tupletId = 20;
+
+    return createAppState({
+      ui: {
+        sequencer: {
+          selection: {
+            type: "Tone",
+            flow_id: 0,
+            instrument_id: 0,
+            stave_id: 0,
+            track_id: trackId,
+            tone_id: toneId,
+            tuplet_id: tupletId,
+          },
+        },
+      } as never,
+      score: {
+        tracks: {
+          by_id: {
+            [trackId]: {
+              id: trackId,
+              entries: {
+                by_tick: { 0: [tupletId] },
+                by_id: {
+                  [tupletId]: {
+                    id: tupletId,
+                    tick: 0,
+                    type: "Tuplet",
+                    note_count: 3,
+                    in_space_of: 2,
+                    base_note_value: 8,
+                    groupings: [3],
+                    entries: {
+                      by_tick: { 0: [toneId] },
+                      by_id: {
+                        [toneId]: {
+                          id: toneId,
+                          type: "Tone",
+                          tick: 0,
+                          duration: durationOverride,
+                          velocity: { int: 100 },
+                          pitch: {
+                            int: 60,
+                            accidental: accidentalOverride,
+                          },
+                          articulations,
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      } as never,
+    });
+  };
+
   it("calls setDuration when a duration button is clicked with tone selected", () => {
     renderWithProviders(<LeftPanel spanRow={false} />, {
       appState: makeStateWithTone(),
@@ -192,6 +305,24 @@ describe("LeftPanel", () => {
     });
     const eighthBtn = screen.getByTitle("Eighth");
     expect(eighthBtn.className).toContain("bg-sky-500");
+  });
+
+  it("duration button is selected for tuplet child tones using their literal stored duration", () => {
+    renderWithProviders(<LeftPanel spanRow={false} />, {
+      appState: makeStateWithTupletTone(16),
+    });
+
+    const eighthBtn = screen.getByTitle("Eighth");
+    expect(eighthBtn.className).toContain("bg-sky-500");
+  });
+
+  it("duration buttons are not visually disabled for tuplet child tones", () => {
+    renderWithProviders(<LeftPanel spanRow={false} />, {
+      appState: makeStateWithTupletTone(16),
+    });
+
+    const quarterBtn = screen.getByTitle("Quarter");
+    expect(quarterBtn.className).not.toContain("pointer-events-none");
   });
 
   it("accidental button is selected when tone accidental matches", () => {

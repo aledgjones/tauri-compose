@@ -21,10 +21,11 @@ pub fn draw_rest(
     stave_id: UniqueId,
     flow_id: UniqueId,
     instrument_id: UniqueId,
+    tuplet_id: Option<UniqueId>,
     stave_top: f32,
     renderer: &mut RendererContext,
 ) {
-    let color = if matches!(selection, Some(Selection::Rest { tick: selected_tick, track_id: selected_track_id, .. }) if *selected_tick == tick && *selected_track_id == track_id)
+    let color = if matches!(selection, Some(Selection::Rest { tick: selected_tick, track_id: selected_track_id, tuplet_id: selected_tuplet_id, .. }) if *selected_tick == tick && *selected_track_id == track_id && *selected_tuplet_id == tuplet_id)
     {
         Color::from_rgb(14, 165, 233)
     } else {
@@ -57,6 +58,7 @@ pub fn draw_rest(
                 stave_id,
                 track_id,
                 tick,
+                tuplet_id,
             },
             x: left,
             y: top - 0.25,
@@ -129,6 +131,7 @@ pub fn draw_rest(
                 stave_id,
                 track_id,
                 tick,
+                tuplet_id,
             },
             x: left,
             y: top - hit_top_offset,
@@ -189,6 +192,7 @@ mod tests {
             1,
             1,
             1,
+            None,
             5.0,
             &mut renderer,
         );
@@ -217,6 +221,7 @@ mod tests {
             1,
             1,
             1,
+            None,
             5.0,
             &mut renderer,
         );
@@ -239,6 +244,7 @@ mod tests {
             stave_id: 1,
             flow_id: 1,
             instrument_id: 1,
+            tuplet_id: None,
         };
         draw_rest(
             &Point { x: 0.0, y: 0.0 },
@@ -252,6 +258,7 @@ mod tests {
             1,
             1,
             1,
+            None,
             0.0,
             &mut renderer,
         );
@@ -260,6 +267,54 @@ mod tests {
         } else {
             panic!("expected Text");
         }
+    }
+
+    #[test]
+    fn tuplet_owned_rest_preserves_tuplet_selection_payload() {
+        let mut renderer = make_test_renderer();
+        let entry = make_notation(32);
+        let spacing = make_spacing(32);
+        let selection = Selection::Rest {
+            tick: 16,
+            track_id: 42,
+            stave_id: 1,
+            flow_id: 1,
+            instrument_id: 1,
+            tuplet_id: Some(77),
+        };
+
+        draw_rest(
+            &Point { x: 0.0, y: 0.0 },
+            16,
+            "\u{E4E7}",
+            &entry,
+            false,
+            &spacing,
+            Some(&selection),
+            42,
+            1,
+            1,
+            1,
+            Some(77),
+            0.0,
+            &mut renderer,
+        );
+
+        if let DrawInstruction::Text { color, .. } = &renderer.instructions[0] {
+            assert_eq!(*color, skia_safe::Color::from_rgb(14, 165, 233));
+        } else {
+            panic!("expected Text");
+        }
+
+        assert!(matches!(
+            renderer.hit_targets[0].entry,
+            Selection::Rest {
+                tick: 16,
+                track_id: 42,
+                tuplet_id: Some(77),
+                ..
+            }
+        ));
     }
 
     #[test]
@@ -279,6 +334,7 @@ mod tests {
             1,
             1,
             1,
+            None,
             0.0,
             &mut renderer,
         );
@@ -307,6 +363,7 @@ mod tests {
             1,
             1,
             1,
+            None,
             0.0,
             &mut renderer,
         );
@@ -334,6 +391,7 @@ mod tests {
             1,
             1,
             1,
+            None,
             0.0,
             &mut renderer,
         );

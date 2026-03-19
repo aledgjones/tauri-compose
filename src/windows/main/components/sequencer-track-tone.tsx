@@ -29,6 +29,11 @@ type Props = {
   tickWidth: number;
   tone: Tone;
   color: string;
+  startX?: number;
+  widthPx?: number;
+  originTick?: number;
+  tickScale?: number;
+  tupletId?: number;
 };
 
 export const SequencerTrackTone: FC<Props> = ({
@@ -36,18 +41,26 @@ export const SequencerTrackTone: FC<Props> = ({
   tickWidth,
   tone,
   color,
+  startX,
+  widthPx,
+  originTick = 0,
+  tickScale = 1,
+  tupletId,
 }) => {
   const appState = useAppState();
   const selection = appState.ui.sequencer.selection;
   const isSelected =
     selection !== null &&
     selection.type === "Tone" &&
-    selection.tone_id === tone.id;
-  const width = tone.duration * tickWidth;
+    selection.tone_id === tone.id &&
+    (selection.tuplet_id ?? null) === (tupletId ?? null);
+  const scaledTickWidth = tickWidth * tickScale;
+  const width = widthPx ?? tone.duration * scaledTickWidth;
   const name = getPitchName(tone.pitch);
   const showPitchName = getShowPitchName(width, name, isSelected);
   const showHandles = getShowHandles(width, isSelected);
   const backgroundColor = isSelected ? lightenColor(color, 0.5) : color;
+  const left = startX ?? tickWidth * originTick + scaledTickWidth * tone.tick;
 
   return (
     <div
@@ -56,10 +69,11 @@ export const SequencerTrackTone: FC<Props> = ({
         backgroundColor,
         bottom: slotHeight * (tone.pitch.int - 12),
         height: slotHeight - 1,
-        left: tickWidth * tone.tick + 1,
+        left: left + 1,
         width: width - 1,
       }}
       data-tone-id={tone.id}
+      {...(tupletId !== undefined ? { "data-tuplet-id": tupletId } : {})}
     >
       {showHandles && (
         <Icon className="-mx-1.5" path={mdiMenuLeft} color="black" />
