@@ -4,8 +4,7 @@ use serde::Serialize;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
 use tauri::{
-    AppHandle, Manager, TitleBarStyle, WebviewUrl, WebviewWindow, WebviewWindowBuilder,
-    WindowEvent,
+    AppHandle, Manager, TitleBarStyle, WebviewUrl, WebviewWindow, WebviewWindowBuilder, WindowEvent,
 };
 
 const WINDOW_LABEL: &str = "plugin-host-poc";
@@ -176,7 +175,12 @@ fn plugin_bundle_binary_path(path: &Path) -> Result<PathBuf, String> {
     }
 
     let mut binaries = std::fs::read_dir(&macos_dir)
-        .map_err(|error| format!("Failed to read VST3 bundle binary directory '{}': {error}", macos_dir.display()))?
+        .map_err(|error| {
+            format!(
+                "Failed to read VST3 bundle binary directory '{}': {error}",
+                macos_dir.display()
+            )
+        })?
         .filter_map(Result::ok)
         .map(|entry| entry.path())
         .filter(|entry| entry.is_file())
@@ -193,16 +197,17 @@ fn plugin_bundle_binary_path(path: &Path) -> Result<PathBuf, String> {
 }
 
 fn build_host_window(app: &AppHandle) -> Result<WebviewWindow, String> {
-    let window = WebviewWindowBuilder::new(app, WINDOW_LABEL, WebviewUrl::App(HOST_PAGE_PATH.into()))
-        .title("Plugin Host POC")
-        .title_bar_style(TitleBarStyle::Transparent)
-        .hidden_title(false)
-        .inner_size(960.0, 720.0)
-        .resizable(false)
-        .center()
-        .accept_first_mouse(true)
-        .build()
-        .map_err(|error| format!("Failed to create plugin host POC window: {error}"))?;
+    let window =
+        WebviewWindowBuilder::new(app, WINDOW_LABEL, WebviewUrl::App(HOST_PAGE_PATH.into()))
+            .title("Plugin Host POC")
+            .title_bar_style(TitleBarStyle::Transparent)
+            .hidden_title(false)
+            .inner_size(960.0, 720.0)
+            .resizable(false)
+            .center()
+            .accept_first_mouse(true)
+            .build()
+            .map_err(|error| format!("Failed to create plugin host POC window: {error}"))?;
 
     #[cfg(target_os = "macos")]
     window
@@ -261,16 +266,16 @@ mod macos_host {
     use std::sync::{Arc, Mutex as StdMutex};
     use tauri::{LogicalSize, WebviewWindow};
     use vst3::Steinberg::IBStream_::IStreamSeekMode_::{kIBSeekCur, kIBSeekEnd, kIBSeekSet};
-    use vst3::Steinberg::{
-        self, tresult, FUnknown, IBStream, IBStreamTrait, IPlugFrame, IPlugFrameTrait, IPlugView,
-        IPlugViewTrait, IPluginBaseTrait, IPluginFactory, IPluginFactoryTrait, TUID, ViewRect,
-        kInvalidArgument, kNotImplemented, kPlatformTypeNSView, kResultOk,
-    };
     use vst3::Steinberg::Vst::{
         self, IComponent, IComponentHandler, IComponentHandlerTrait, IComponentTrait,
-        IConnectionPoint, IConnectionPointTrait, IEditController, IEditControllerTrait,
-        IHostApplication, IHostApplicationTrait, String128, ViewType, IComponent_iid,
-        IEditController_iid,
+        IComponent_iid, IConnectionPoint, IConnectionPointTrait, IEditController,
+        IEditControllerTrait, IEditController_iid, IHostApplication, IHostApplicationTrait,
+        String128, ViewType,
+    };
+    use vst3::Steinberg::{
+        self, kInvalidArgument, kNotImplemented, kPlatformTypeNSView, kResultOk, tresult, FUnknown,
+        IBStream, IBStreamTrait, IPlugFrame, IPlugFrameTrait, IPlugView, IPlugViewTrait,
+        IPluginBaseTrait, IPluginFactory, IPluginFactoryTrait, ViewRect, TUID,
     };
     use vst3::{Class, ComPtr, ComWrapper};
 
@@ -294,7 +299,12 @@ mod macos_host {
     }
 
     impl IBStreamTrait for HostMemoryStream {
-        unsafe fn read(&self, buffer: *mut c_void, num_bytes: i32, num_bytes_read: *mut i32) -> tresult {
+        unsafe fn read(
+            &self,
+            buffer: *mut c_void,
+            num_bytes: i32,
+            num_bytes_read: *mut i32,
+        ) -> tresult {
             if !num_bytes_read.is_null() {
                 *num_bytes_read = 0;
             }
@@ -317,7 +327,11 @@ mod macos_host {
 
             let available = bytes.len().saturating_sub(*cursor);
             let to_copy = available.min(num_bytes as usize);
-            std::ptr::copy_nonoverlapping(bytes.as_ptr().add(*cursor), buffer.cast::<u8>(), to_copy);
+            std::ptr::copy_nonoverlapping(
+                bytes.as_ptr().add(*cursor),
+                buffer.cast::<u8>(),
+                to_copy,
+            );
             *cursor += to_copy;
             if !num_bytes_read.is_null() {
                 *num_bytes_read = to_copy as i32;
@@ -357,7 +371,11 @@ mod macos_host {
                 bytes.resize(end, 0);
             }
 
-            std::ptr::copy_nonoverlapping(buffer.cast::<u8>(), bytes.as_mut_ptr().add(*cursor), num_bytes as usize);
+            std::ptr::copy_nonoverlapping(
+                buffer.cast::<u8>(),
+                bytes.as_mut_ptr().add(*cursor),
+                num_bytes as usize,
+            );
             *cursor = end;
             if !num_bytes_written.is_null() {
                 *num_bytes_written = num_bytes;
@@ -510,11 +528,14 @@ mod macos_host {
             kResultOk
         }
 
-        unsafe fn performEdit(&self, id: Vst::ParamID, value_normalized: Vst::ParamValue) -> tresult {
+        unsafe fn performEdit(
+            &self,
+            id: Vst::ParamID,
+            value_normalized: Vst::ParamValue,
+        ) -> tresult {
             eprintln!(
                 "plugin_editor_poc: plugin changed parameter {} to normalized value {}",
-                id,
-                value_normalized
+                id, value_normalized
             );
             kResultOk
         }
@@ -525,7 +546,10 @@ mod macos_host {
         }
 
         unsafe fn restartComponent(&self, flags: i32) -> tresult {
-            eprintln!("plugin_editor_poc: plugin requested component restart with flags {}", flags);
+            eprintln!(
+                "plugin_editor_poc: plugin requested component restart with flags {}",
+                flags
+            );
             kResultOk
         }
     }
@@ -564,15 +588,23 @@ mod macos_host {
 
     fn write_string128(buffer: &mut String128, value: &str) {
         buffer.fill(0);
-        for (index, code_unit) in value.encode_utf16().take(buffer.len().saturating_sub(1)).enumerate() {
+        for (index, code_unit) in value
+            .encode_utf16()
+            .take(buffer.len().saturating_sub(1))
+            .enumerate()
+        {
             buffer[index] = code_unit;
         }
     }
 
     fn load_vst3_module(plugin_path: &Path) -> Result<LoadedVst3Module, String> {
         let binary_path = plugin_bundle_binary_path(plugin_path)?;
-        let library = unsafe { Library::new(&binary_path) }
-            .map_err(|error| format!("Failed to load VST3 bundle binary '{}': {error}", binary_path.display()))?;
+        let library = unsafe { Library::new(&binary_path) }.map_err(|error| {
+            format!(
+                "Failed to load VST3 bundle binary '{}': {error}",
+                binary_path.display()
+            )
+        })?;
 
         if let Ok(bundle_entry) = unsafe { library.get::<BundleEntryFn>(b"BundleEntry") } {
             let entered = unsafe { bundle_entry(std::ptr::null_mut()) };
@@ -596,13 +628,17 @@ mod macos_host {
     }
 
     fn create_plugin_factory(module: &LoadedVst3Module) -> Result<ComPtr<IPluginFactory>, String> {
-        let get_plugin_factory = unsafe { module.library.get::<GetPluginFactoryFn>(b"GetPluginFactory") }
-            .map_err(|error| {
-                format!(
-                    "Failed to resolve GetPluginFactory in '{}': {error}",
-                    module.binary_path.display()
-                )
-            })?;
+        let get_plugin_factory = unsafe {
+            module
+                .library
+                .get::<GetPluginFactoryFn>(b"GetPluginFactory")
+        }
+        .map_err(|error| {
+            format!(
+                "Failed to resolve GetPluginFactory in '{}': {error}",
+                module.binary_path.display()
+            )
+        })?;
         let raw_factory = unsafe { get_plugin_factory() };
         unsafe { ComPtr::from_raw(raw_factory) }.ok_or_else(|| {
             format!(
@@ -675,7 +711,9 @@ mod macos_host {
                 controller,
                 shared_with_component: false,
             })
-            .ok_or_else(|| String::from("Plugin editor POC received a null VST3 edit controller pointer."))
+            .ok_or_else(|| {
+                String::from("Plugin editor POC received a null VST3 edit controller pointer.")
+            })
     }
 
     fn create_memory_stream() -> Result<ComPtr<IBStream>, String> {
@@ -684,9 +722,14 @@ mod macos_host {
             .ok_or_else(|| String::from("Failed to allocate the VST3 memory stream shim."))
     }
 
-    fn sync_component_state_to_controller(component: &ComPtr<IComponent>, controller: &ComPtr<IEditController>) {
+    fn sync_component_state_to_controller(
+        component: &ComPtr<IComponent>,
+        controller: &ComPtr<IEditController>,
+    ) {
         let Ok(stream) = create_memory_stream() else {
-            eprintln!("plugin_editor_poc: failed to allocate memory stream for controller state sync");
+            eprintln!(
+                "plugin_editor_poc: failed to allocate memory stream for controller state sync"
+            );
             return;
         };
 
@@ -712,12 +755,14 @@ mod macos_host {
         let set_state_result = unsafe { controller.setComponentState(stream.as_ptr()) };
         eprintln!(
             "plugin_editor_poc: controller state sync result {} after component state export {}",
-            set_state_result,
-            get_state_result
+            set_state_result, get_state_result
         );
     }
 
-    unsafe fn disconnect_component_and_controller(component: &ComPtr<IComponent>, controller: &ComPtr<IEditController>) {
+    unsafe fn disconnect_component_and_controller(
+        component: &ComPtr<IComponent>,
+        controller: &ComPtr<IEditController>,
+    ) {
         let Some(component_connection) = component.cast::<IConnectionPoint>() else {
             return;
         };
@@ -729,7 +774,10 @@ mod macos_host {
         let _ = component_connection.disconnect(controller_connection.as_ptr());
     }
 
-    fn connect_component_and_controller(component: &ComPtr<IComponent>, controller: &ComPtr<IEditController>) -> bool {
+    fn connect_component_and_controller(
+        component: &ComPtr<IComponent>,
+        controller: &ComPtr<IEditController>,
+    ) -> bool {
         let Some(component_connection) = component.cast::<IConnectionPoint>() else {
             eprintln!("plugin_editor_poc: component does not expose IConnectionPoint");
             return false;
@@ -739,8 +787,10 @@ mod macos_host {
             return false;
         };
 
-        let component_connect_result = unsafe { component_connection.connect(controller_connection.as_ptr()) };
-        let controller_connect_result = unsafe { controller_connection.connect(component_connection.as_ptr()) };
+        let component_connect_result =
+            unsafe { component_connection.connect(controller_connection.as_ptr()) };
+        let controller_connect_result =
+            unsafe { controller_connection.connect(component_connection.as_ptr()) };
         if component_connect_result == kResultOk && controller_connect_result == kResultOk {
             eprintln!("plugin_editor_poc: connected component and controller connection points");
             return true;
@@ -799,7 +849,8 @@ mod macos_host {
             ),
         ));
         label.setAutoresizingMask(
-            NSAutoresizingMaskOptions::ViewWidthSizable | NSAutoresizingMaskOptions::ViewHeightSizable,
+            NSAutoresizingMaskOptions::ViewWidthSizable
+                | NSAutoresizingMaskOptions::ViewHeightSizable,
         );
         host_view.addSubview(&label);
     }
@@ -857,16 +908,14 @@ mod macos_host {
             true
         };
 
-        let cleanup_initialized_plugin = |connection_points_connected: bool| {
-            unsafe {
-                if connection_points_connected {
-                    disconnect_component_and_controller(&component, &controller);
-                }
-                if controller_initialized && !controller_shared_with_component {
-                    let _ = controller.terminate();
-                }
-                let _ = component.terminate();
+        let cleanup_initialized_plugin = |connection_points_connected: bool| unsafe {
+            if connection_points_connected {
+                disconnect_component_and_controller(&component, &controller);
             }
+            if controller_initialized && !controller_shared_with_component {
+                let _ = controller.terminate();
+            }
+            let _ = component.terminate();
         };
 
         if !controller_shared_with_component {
@@ -887,8 +936,8 @@ mod macos_host {
         let plug_frame = ComWrapper::new(PluginHostFrame {
             window: window.clone(),
         })
-            .to_com_ptr::<IPlugFrame>()
-            .ok_or_else(|| String::from("Failed to allocate the VST3 plug-frame shim."))?;
+        .to_com_ptr::<IPlugFrame>()
+        .ok_or_else(|| String::from("Failed to allocate the VST3 plug-frame shim."))?;
 
         let view = unsafe { ComPtr::from_raw(controller.createView(ViewType::kEditor)) }
             .ok_or_else(|| {
@@ -932,8 +981,7 @@ mod macos_host {
         if let Err(error) = window.set_resizable(plugin_can_resize) {
             eprintln!(
                 "plugin_editor_poc: failed to apply plugin resizable state {}: {}",
-                plugin_can_resize,
-                error
+                plugin_can_resize, error
             );
         }
         eprintln!(
@@ -1050,7 +1098,10 @@ mod macos_host {
         });
     }
 
-    pub fn attach_native_host_surface(window: &WebviewWindow, plugin_path: &Path) -> Result<bool, String> {
+    pub fn attach_native_host_surface(
+        window: &WebviewWindow,
+        plugin_path: &Path,
+    ) -> Result<bool, String> {
         let (sender, receiver) = std::sync::mpsc::channel();
         let scheduler_window = window.clone();
         let attachment_window = window.clone();
@@ -1094,7 +1145,13 @@ mod macos_host {
                                 plugin_path.display(),
                                 error
                             );
-                            attach_error_message(mtm, &native_host_view, host_frame, &plugin_path, &error);
+                            attach_error_message(
+                                mtm,
+                                &native_host_view,
+                                host_frame,
+                                &plugin_path,
+                                &error,
+                            );
                             return Ok(false);
                         }
                     };
@@ -1121,7 +1178,6 @@ mod macos_host {
             .recv()
             .map_err(|error| format!("Failed to receive native host attachment result: {error}"))?
     }
-
 }
 
 #[cfg(target_os = "macos")]
@@ -1137,7 +1193,10 @@ fn attach_native_host_surface(window: &WebviewWindow, plugin_path: &Path) -> Res
 }
 
 #[cfg(not(target_os = "macos"))]
-fn attach_native_host_surface(_window: &WebviewWindow, _plugin_path: &Path) -> Result<bool, String> {
+fn attach_native_host_surface(
+    _window: &WebviewWindow,
+    _plugin_path: &Path,
+) -> Result<bool, String> {
     Err(String::from("plugin_editor_poc_open is macOS-only"))
 }
 
@@ -1171,7 +1230,11 @@ pub async fn plugin_editor_poc_open(
             plugin_path: active_plugin_target()
                 .lock()
                 .ok()
-                .and_then(|active_target| active_target.as_ref().map(|path| path.display().to_string()))
+                .and_then(|active_target| {
+                    active_target
+                        .as_ref()
+                        .map(|path| path.display().to_string())
+                })
                 .unwrap_or_default(),
             native_host_attached: live_plugin_host_attached(),
         });
@@ -1259,10 +1322,8 @@ mod tests {
 
     #[test]
     fn discover_plugin_target_in_roots_prefers_sorted_valid_vst3_bundle() {
-        let root = std::env::temp_dir().join(format!(
-            "plugin-editor-poc-search-{}",
-            std::process::id()
-        ));
+        let root =
+            std::env::temp_dir().join(format!("plugin-editor-poc-search-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&root);
         std::fs::create_dir_all(&root).unwrap();
 
@@ -1299,10 +1360,8 @@ mod tests {
 
     #[test]
     fn plugin_bundle_binary_path_prefers_named_executable() {
-        let root = std::env::temp_dir().join(format!(
-            "plugin-editor-poc-bundle-{}",
-            std::process::id()
-        ));
+        let root =
+            std::env::temp_dir().join(format!("plugin-editor-poc-bundle-{}", std::process::id()));
         let bundle = root.join("My Instrument.vst3");
         let macos = bundle.join("Contents").join("MacOS");
         let _ = std::fs::remove_dir_all(&root);
