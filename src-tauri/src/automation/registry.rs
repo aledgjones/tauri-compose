@@ -24,21 +24,21 @@ use crate::score::engraves::{
     score_engraves_systemic_barline_single_instrument_system_set, BracketStyle, BracketingApproach,
 };
 use crate::score::entries::barline::{
-    score_entries_barline_clear, score_entries_barline_create, BarlineDrawType,
+    score_entries_barline_clear, score_entries_barline_create, Barline, BarlineDrawType,
 };
 use crate::score::entries::clef::{
     score_entries_clef_clear, score_entries_clef_create, score_entries_clef_update, ClefDrawType,
 };
 use crate::score::entries::key_signature::{
     score_entries_key_signature_clear, score_entries_key_signature_create,
-    score_entries_key_signature_update, KeySignatureMode,
+    score_entries_key_signature_update, KeySignature, KeySignatureMode,
 };
 use crate::score::entries::tempo::{
-    score_entries_tempo_clear, score_entries_tempo_create, score_entries_tempo_update,
+    score_entries_tempo_clear, score_entries_tempo_create, score_entries_tempo_update, Tempo,
 };
 use crate::score::entries::time_signature::{
     score_entries_time_signature_clear, score_entries_time_signature_create,
-    score_entries_time_signature_update, TimeSignatureDrawType,
+    score_entries_time_signature_update, TimeSignature, TimeSignatureDrawType,
 };
 use crate::score::entries::tone::{
     score_entries_tone_accidental_set, score_entries_tone_articulation_set,
@@ -46,8 +46,12 @@ use crate::score::entries::tone::{
     score_entries_tone_pitch_set, score_entries_tone_pitch_shift_by_octaves,
     score_entries_tone_pitch_shift_by_steps, score_entries_tone_set_position_and_duration,
     score_entries_tone_shift, score_entries_tone_slice, score_entries_tone_unify_articulations,
+    Tone,
 };
-use crate::score::entries::tuplet::{score_entries_tuplet_create, score_entries_tuplet_remove};
+use crate::score::entries::tuplet::{
+    score_entries_tuplet_create, score_entries_tuplet_remove, Tuplet, TupletEntry,
+};
+use crate::score::entries::Entry;
 use crate::score::flows::{
     score_flows_assign_player, score_flows_create, score_flows_move, score_flows_remove,
     score_flows_rename, score_flows_unassign_player,
@@ -117,9 +121,22 @@ struct LookupInstrumentFlowTracks {
     staves: Vec<LookupStaveTracks>,
 }
 
+#[derive(Serialize)]
+struct LookupBar {
+    bar_number: u64,
+    start_tick: u64,
+    length_ticks: u64,
+    time_signature_id: u64,
+}
+
 pub fn action_definitions() -> Vec<ActionDefinition> {
     vec![
         action("reset", "Reset the current score back to a blank default state.", vec![]),
+        action(
+            "app.getActiveScore",
+            "Inspect the active score path and currently selected UI ids.",
+            vec![],
+        ),
         action(
             "file.loadFromPath",
             "Load a project from a specific file path.",
@@ -534,6 +551,25 @@ pub fn action_definitions() -> Vec<ActionDefinition> {
                 optional_arg("instrument_id", "Optional numeric instrument id filter."),
             ],
         ),
+        action(
+            "score.lookup.getBarMap",
+            "Inspect bar boundaries for a flow using its time-signature map.",
+            vec![arg("flow_id", "Numeric flow id.")],
+        ),
+        action(
+            "score.lookup.getFlowMarkers",
+            "Inspect flow-level marker entries such as time signatures, key signatures, tempos, and barlines.",
+            vec![arg("flow_id", "Numeric flow id.")],
+        ),
+        action(
+            "score.lookup.getTrackEvents",
+            "Inspect track-level tone and tuplet events within an optional tick range.",
+            vec![
+                arg("track_id", "Numeric track id."),
+                optional_arg("start_tick", "Optional inclusive start tick. Defaults to 0."),
+                optional_arg("end_tick", "Optional exclusive end tick. Defaults to the end of the track content."),
+            ],
+        ),
     ]
 }
 
@@ -550,6 +586,7 @@ pub async fn execute_action(app: &AppHandle, name: &str, args: &[Value]) -> Resu
             )?;
             Ok(Value::Null)
         }
+        "app.getActiveScore" => Ok(derive_active_score(app)?),
         "file.loadFromPath" => {
             load_project_from_file(
                 app.clone(),
@@ -1460,6 +1497,14 @@ pub async fn execute_action(app: &AppHandle, name: &str, args: &[Value]) -> Resu
             optional_id(args, 1)?,
             optional_id(args, 2)?,
         )?),
+        "score.lookup.getBarMap" => Ok(derive_bar_map(app, arg_id(args, 0, "flow_id")?)?),
+        "score.lookup.getFlowMarkers" => Ok(derive_flow_markers(app, arg_id(args, 0, "flow_id")?)?),
+        "score.lookup.getTrackEvents" => Ok(derive_track_events(
+            app,
+            arg_id(args, 0, "track_id")?,
+            optional_u64(args, 1)?,
+            optional_u64(args, 2)?,
+        )?),
         _ => Err(format!("Unknown automation action: {name}")),
     }
 }
@@ -1693,6 +1738,330 @@ fn derive_score_slice(
     }))
 }
 
+fn derive_active_score(app: &AppHandle) -> Result<Value, String> {
+    let state = get_general_state_snapshot(app.state::<AppContextState>());
+
+    Ok(json!({
+        "file_path": state.current_file_path,
+        "active_flow_id": state.ui.flow_id,
+        "active_layout_id": state.ui.layout_id,
+        "flow_ids": state.score.flows.order,
+        "layout_ids": state.score.layouts.order,
+    }))
+}
+
+fn derive_bar_map(app: &AppHandle, flow_id: u64) -> Result<Value, String> {
+    let state = get_general_state_snapshot(app.state::<AppContextState>());
+    let flow = state
+        .score
+        .flows
+        .by_id
+        .get(&flow_id)
+        .ok_or_else(|| format!("Flow {flow_id} not found"))?;
+    let master = state
+        .score
+        .tracks
+        .by_id
+        .get(&flow.master_id)
+        .ok_or_else(|| format!("Flow {flow_id} master track {} not found", flow.master_id))?;
+
+    let time_signatures = collect_time_signatures(master);
+    if time_signatures.is_empty() {
+        return Err(format!(
+            "Flow {flow_id} has no time signatures on master track {}",
+            flow.master_id
+        ));
+    }
+
+    let mut bars = Vec::new();
+    for (index, time_signature) in time_signatures.iter().enumerate() {
+        let segment_end = time_signatures
+            .get(index + 1)
+            .map(|next| next.tick)
+            .unwrap_or(flow.length);
+        let mut tick = time_signature.tick;
+
+        while tick < segment_end && tick < flow.length {
+            let remaining_in_segment = segment_end.saturating_sub(tick);
+            let remaining_in_flow = flow.length.saturating_sub(tick);
+            let length_ticks = time_signature
+                .ticks_per_bar()
+                .min(remaining_in_segment)
+                .min(remaining_in_flow);
+
+            if length_ticks == 0 {
+                break;
+            }
+
+            bars.push(LookupBar {
+                bar_number: bars.len() as u64 + 1,
+                start_tick: tick,
+                length_ticks,
+                time_signature_id: time_signature.id,
+            });
+
+            tick += length_ticks;
+        }
+    }
+
+    Ok(json!({
+        "flow_id": flow.id,
+        "flow_length_ticks": flow.length,
+        "bars": bars,
+    }))
+}
+
+fn derive_flow_markers(app: &AppHandle, flow_id: u64) -> Result<Value, String> {
+    let state = get_general_state_snapshot(app.state::<AppContextState>());
+    let flow = state
+        .score
+        .flows
+        .by_id
+        .get(&flow_id)
+        .ok_or_else(|| format!("Flow {flow_id} not found"))?;
+    let master = state
+        .score
+        .tracks
+        .by_id
+        .get(&flow.master_id)
+        .ok_or_else(|| format!("Flow {flow_id} master track {} not found", flow.master_id))?;
+
+    Ok(json!({
+        "flow_id": flow.id,
+        "master_track_id": flow.master_id,
+        "flow_length_ticks": flow.length,
+        "barlines": collect_barlines(master).into_iter().map(serialize_barline).collect::<Vec<_>>(),
+        "key_signatures": collect_key_signatures(master).into_iter().map(serialize_key_signature).collect::<Vec<_>>(),
+        "time_signatures": collect_time_signatures(master).into_iter().map(serialize_time_signature).collect::<Vec<_>>(),
+        "tempo_entries": collect_tempos(master).into_iter().map(serialize_tempo).collect::<Vec<_>>(),
+    }))
+}
+
+fn derive_track_events(
+    app: &AppHandle,
+    track_id: u64,
+    start_tick: Option<u64>,
+    end_tick: Option<u64>,
+) -> Result<Value, String> {
+    let state = get_general_state_snapshot(app.state::<AppContextState>());
+    let track = state
+        .score
+        .tracks
+        .by_id
+        .get(&track_id)
+        .ok_or_else(|| format!("Track {track_id} not found"))?;
+    let start_tick = start_tick.unwrap_or(0);
+    let end_tick = end_tick.unwrap_or_else(|| max_track_tick(track).unwrap_or(start_tick));
+
+    if end_tick < start_tick {
+        return Err(format!(
+            "end_tick {end_tick} must be greater than or equal to start_tick {start_tick}"
+        ));
+    }
+
+    let tones = collect_tones(track)
+        .into_iter()
+        .filter(|tone| tick_in_half_open_range(tone.tick, start_tick, end_tick))
+        .map(serialize_tone)
+        .collect::<Vec<_>>();
+    let tuplets = collect_tuplets(track)
+        .into_iter()
+        .filter(|tuplet| tick_in_half_open_range(tuplet.tick, start_tick, end_tick))
+        .map(serialize_tuplet)
+        .collect::<Vec<_>>();
+
+    Ok(json!({
+        "track_id": track.id,
+        "start_tick": start_tick,
+        "end_tick": end_tick,
+        "tones": tones,
+        "tuplets": tuplets,
+    }))
+}
+
+fn collect_barlines(track: &crate::score::tracks::Track) -> Vec<&Barline> {
+    let mut barlines = track
+        .entries
+        .by_id
+        .values()
+        .filter_map(|entry| match entry {
+            Entry::Barline(barline) => Some(barline),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    barlines.sort_by_key(|barline| (barline.tick, barline.id));
+    barlines
+}
+
+fn collect_key_signatures(track: &crate::score::tracks::Track) -> Vec<&KeySignature> {
+    let mut key_signatures = track
+        .entries
+        .by_id
+        .values()
+        .filter_map(|entry| match entry {
+            Entry::KeySignature(key_signature) => Some(key_signature),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    key_signatures.sort_by_key(|key_signature| (key_signature.tick, key_signature.id));
+    key_signatures
+}
+
+fn collect_time_signatures(track: &crate::score::tracks::Track) -> Vec<&TimeSignature> {
+    let mut time_signatures = track
+        .entries
+        .by_id
+        .values()
+        .filter_map(|entry| match entry {
+            Entry::TimeSignature(time_signature) => Some(time_signature),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    time_signatures.sort_by_key(|time_signature| (time_signature.tick, time_signature.id));
+    time_signatures
+}
+
+fn collect_tempos(track: &crate::score::tracks::Track) -> Vec<&Tempo> {
+    let mut tempos = track
+        .entries
+        .by_id
+        .values()
+        .filter_map(|entry| match entry {
+            Entry::Tempo(tempo) => Some(tempo),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    tempos.sort_by_key(|tempo| (tempo.tick, tempo.id));
+    tempos
+}
+
+fn collect_tones(track: &crate::score::tracks::Track) -> Vec<&Tone> {
+    let mut tones = track
+        .entries
+        .by_id
+        .values()
+        .filter_map(|entry| match entry {
+            Entry::Tone(tone) => Some(tone),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    tones.sort_by_key(|tone| (tone.tick, tone.id));
+    tones
+}
+
+fn collect_tuplets(track: &crate::score::tracks::Track) -> Vec<&Tuplet> {
+    let mut tuplets = track
+        .entries
+        .by_id
+        .values()
+        .filter_map(|entry| match entry {
+            Entry::Tuplet(tuplet) => Some(tuplet.as_ref()),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    tuplets.sort_by_key(|tuplet| (tuplet.tick, tuplet.id));
+    tuplets
+}
+
+fn serialize_barline(barline: &Barline) -> Value {
+    json!({
+        "barline_id": barline.id,
+        "tick": barline.tick,
+        "barline_draw_type": barline.barline_draw_type,
+    })
+}
+
+fn serialize_key_signature(key_signature: &KeySignature) -> Value {
+    json!({
+        "key_signature_id": key_signature.id,
+        "tick": key_signature.tick,
+        "mode": key_signature.mode,
+        "offset": key_signature.offset,
+        "hidden": key_signature.hidden,
+    })
+}
+
+fn serialize_time_signature(time_signature: &TimeSignature) -> Value {
+    json!({
+        "time_signature_id": time_signature.id,
+        "tick": time_signature.tick,
+        "beats": time_signature.beats,
+        "beat_type": time_signature.beat_type,
+        "draw_type": time_signature.draw_type,
+        "hidden": time_signature.hidden,
+        "groupings": time_signature.groupings,
+        "ticks_per_bar": time_signature.ticks_per_bar(),
+    })
+}
+
+fn serialize_tempo(tempo: &Tempo) -> Value {
+    json!({
+        "tempo_id": tempo.id,
+        "tick": tempo.tick,
+        "text": tempo.text,
+        "beat_type": tempo.beat_type,
+        "dots": tempo.dots,
+        "bpm": tempo.bpm,
+        "hidden": tempo.hidden,
+        "show_text": tempo.show_text,
+        "show_metronome": tempo.show_metronome,
+        "parenthesized": tempo.parenthesized,
+    })
+}
+
+fn serialize_tone(tone: &Tone) -> Value {
+    json!({
+        "tone_id": tone.id,
+        "tick": tone.tick,
+        "duration": tone.duration,
+        "pitch_int": tone.pitch.int,
+        "accidental": tone.pitch.accidental,
+        "velocity": tone.velocity.int(),
+        "articulations": tone.articulations,
+    })
+}
+
+fn serialize_tuplet(tuplet: &Tuplet) -> Value {
+    let mut tones = tuplet
+        .entries
+        .by_id
+        .values()
+        .filter_map(|entry| match entry {
+            TupletEntry::Tone(tone) => Some(tone),
+        })
+        .collect::<Vec<_>>();
+    tones.sort_by_key(|tone| (tone.tick, tone.id));
+
+    json!({
+        "tuplet_id": tuplet.id,
+        "tick": tuplet.tick,
+        "note_count": tuplet.note_count,
+        "in_space_of": tuplet.in_space_of,
+        "base_note_value": tuplet.base_note_value,
+        "groupings": tuplet.groupings,
+        "consumed_ticks": tuplet.consumed_ticks(),
+        "local_length_ticks": tuplet.local_length_ticks(),
+        "tones": tones.into_iter().map(serialize_tone).collect::<Vec<_>>(),
+    })
+}
+
+fn max_track_tick(track: &crate::score::tracks::Track) -> Option<u64> {
+    let tone_end = collect_tones(track)
+        .into_iter()
+        .map(|tone| tone.tick + tone.duration)
+        .max();
+    let tuplet_end = collect_tuplets(track)
+        .into_iter()
+        .map(|tuplet| tuplet.tick + tuplet.consumed_ticks())
+        .max();
+
+    tone_end.into_iter().chain(tuplet_end).max()
+}
+
+fn tick_in_half_open_range(tick: u64, start_tick: u64, end_tick: u64) -> bool {
+    tick >= start_tick && tick < end_tick
+}
+
 fn arg_value<'a>(args: &'a [Value], index: usize, name: &str) -> Result<&'a Value, String> {
     args.get(index)
         .ok_or_else(|| format!("Missing argument {name} at position {index}"))
@@ -1719,6 +2088,10 @@ fn optional_id(args: &[Value], index: usize) -> Result<Option<u64>, String> {
             format!("Argument at position {index} must be a positive integer or null")
         }),
     }
+}
+
+fn optional_u64(args: &[Value], index: usize) -> Result<Option<u64>, String> {
+    optional_id(args, index)
 }
 
 fn arg_u64(args: &[Value], index: usize, name: &str) -> Result<u64, String> {
@@ -1841,5 +2214,18 @@ mod tests {
                 "groupings",
             ]
         );
+    }
+
+    #[test]
+    fn action_definitions_include_new_lookup_tools() {
+        let names = action_definitions()
+            .into_iter()
+            .map(|definition| definition.name)
+            .collect::<Vec<_>>();
+
+        assert!(names.contains(&"app.getActiveScore"));
+        assert!(names.contains(&"score.lookup.getBarMap"));
+        assert!(names.contains(&"score.lookup.getFlowMarkers"));
+        assert!(names.contains(&"score.lookup.getTrackEvents"));
     }
 }
