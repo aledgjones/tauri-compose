@@ -31,6 +31,18 @@ enum TupletSide {
     Below,
 }
 
+enum TupletLayout {
+    Bracketed {
+        side: TupletSide,
+        anchor_y: f32,
+        number_y: f32,
+    },
+    NumberOnly {
+        side: TupletSide,
+        number_y: f32,
+    },
+}
+
 fn is_number_only_tuplet(track: &AnchoredNotationTrack, beams: &Beams) -> bool {
     !beams.is_empty()
         && track
@@ -129,6 +141,20 @@ fn default_anchor_y(stave_top: f32, stem_direction: &Direction, number_only: boo
     }
 }
 
+fn bracket_side(stem_direction: &Direction) -> TupletSide {
+    match stem_direction {
+        Direction::Down => TupletSide::Above,
+        Direction::Up => TupletSide::Below,
+    }
+}
+
+fn number_only_side(stem_direction: &Direction) -> TupletSide {
+    match stem_direction {
+        Direction::Up => TupletSide::Above,
+        Direction::Down => TupletSide::Below,
+    }
+}
+
 fn clamp_anchor_y_clear_of_stave(anchor_y: f32, side: TupletSide, stave_top: f32) -> f32 {
     match side {
         TupletSide::Above => anchor_y.min(stave_top - TUPLET_STAVE_OFFSET - TUPLET_SIDE_GAP),
@@ -136,17 +162,69 @@ fn clamp_anchor_y_clear_of_stave(anchor_y: f32, side: TupletSide, stave_top: f32
     }
 }
 
-fn number_y_from_anchor(anchor_y: f32, side: TupletSide, draw_bracket: bool) -> f32 {
-    let gap = if draw_bracket {
-        TUPLET_BRACKET_NUMBER_GAP
-    } else {
-        TUPLET_BEAM_NUMBER_GAP
-    };
-
+fn clamp_number_y_clear_of_stave(number_y: f32, side: TupletSide, stave_top: f32) -> f32 {
     match side {
-        TupletSide::Above => anchor_y - gap - 0.1,
-        TupletSide::Below => anchor_y + gap + 0.5,
+        TupletSide::Above => number_y.min(stave_top - TUPLET_STAVE_OFFSET - TUPLET_SIDE_GAP + 0.1),
+        TupletSide::Below => number_y.max(stave_top + TUPLET_STAVE_OFFSET + TUPLET_SIDE_GAP + 0.25),
     }
+}
+
+fn bracket_number_y_from_anchor(anchor_y: f32, side: TupletSide) -> f32 {
+    match side {
+        TupletSide::Above => anchor_y - TUPLET_BRACKET_NUMBER_GAP - 0.1,
+        TupletSide::Below => anchor_y + TUPLET_BRACKET_NUMBER_GAP + 0.5,
+    }
+}
+
+fn number_only_y_from_anchor(anchor_y: f32, side: TupletSide) -> f32 {
+    match side {
+        TupletSide::Above => anchor_y - TUPLET_BEAM_NUMBER_GAP - 0.2,
+        TupletSide::Below => anchor_y + TUPLET_BEAM_NUMBER_GAP + 0.5,
+    }
+}
+
+fn resolve_bracketed_layout(
+    anchored_track: &AnchoredNotationTrack,
+    articulations: &TrackArticulations,
+    stem_direction: &Direction,
+    stave_top: f32,
+) -> TupletLayout {
+    let side = bracket_side(stem_direction);
+    let articulation_offset = articulations
+        .values()
+        .map(tuplet_bracket_clearance)
+        .fold(0.0, f32::max);
+    let anchor_y = notehead_side_anchor_y(anchored_track, stem_direction, stave_top)
+        .map(|notehead_y| match side {
+            TupletSide::Above => notehead_y - TUPLET_SIDE_GAP - articulation_offset,
+            TupletSide::Below => notehead_y + TUPLET_SIDE_GAP + articulation_offset,
+        })
+        .unwrap_or_else(|| default_anchor_y(stave_top, stem_direction, false));
+    let anchor_y = clamp_anchor_y_clear_of_stave(anchor_y, side, stave_top);
+    let number_y = bracket_number_y_from_anchor(anchor_y, side);
+
+    TupletLayout::Bracketed {
+        side,
+        anchor_y,
+        number_y,
+    }
+}
+
+fn resolve_number_only_layout(
+    beams: &Beams,
+    stem_lengths: &StemLengths,
+    stem_direction: &Direction,
+    host_left: f32,
+    center_x: f32,
+    stave_top: f32,
+) -> TupletLayout {
+    let side = number_only_side(stem_direction);
+    let anchor_y = beam_side_anchor_y(beams, stem_lengths, host_left, center_x, stave_top)
+        .unwrap_or_else(|| default_anchor_y(stave_top, stem_direction, true));
+    let number_y = number_only_y_from_anchor(anchor_y, side);
+    let number_y = clamp_number_y_clear_of_stave(number_y, side, stave_top);
+
+    TupletLayout::NumberOnly { side, number_y }
 }
 
 fn tuplet_font() -> Font {
@@ -268,39 +346,28 @@ pub fn draw_tuplet(
     let left_gap_edge = (center_x - gap_half_width).clamp(bracket_left, bracket_right);
     let right_gap_edge = (center_x + gap_half_width).clamp(bracket_left, bracket_right);
     let stem_direction = resolve_stem_direction(anchored_track, stem_directions);
-    let draw_bracket = !is_number_only_tuplet(anchored_track, beams);
-    let articulation_offset = if draw_bracket {
-        articulations
-            .values()
-            .map(tuplet_bracket_clearance)
-            .fold(0.0, f32::max)
+    let layout = if is_number_only_tuplet(anchored_track, beams) {
+        resolve_number_only_layout(
+            beams,
+            stem_lengths,
+            &stem_direction,
+            host_left,
+            center_x,
+            stave_top,
+        )
     } else {
-        0.0
+        resolve_bracketed_layout(anchored_track, articulations, &stem_direction, stave_top)
     };
-    let side = if draw_bracket {
-        match stem_direction {
-            Direction::Down => TupletSide::Above,
-            Direction::Up => TupletSide::Below,
+
+    let draw_bracket = matches!(layout, TupletLayout::Bracketed { .. });
+    let side = match layout {
+        TupletLayout::Bracketed { side, .. } | TupletLayout::NumberOnly { side, .. } => side,
+    };
+    let number_y = match layout {
+        TupletLayout::Bracketed { number_y, .. } | TupletLayout::NumberOnly { number_y, .. } => {
+            number_y
         }
-    } else {
-        match stem_direction {
-            Direction::Up => TupletSide::Above,
-            Direction::Down => TupletSide::Below,
-        }
     };
-    let anchor_y = if draw_bracket {
-        notehead_side_anchor_y(anchored_track, &stem_direction, stave_top)
-            .map(|notehead_y| match side {
-                TupletSide::Above => notehead_y - TUPLET_SIDE_GAP - articulation_offset,
-                TupletSide::Below => notehead_y + TUPLET_SIDE_GAP + articulation_offset,
-            })
-            .unwrap_or_else(|| default_anchor_y(stave_top, &stem_direction, false))
-    } else {
-        beam_side_anchor_y(beams, stem_lengths, host_left, center_x, stave_top)
-            .unwrap_or_else(|| default_anchor_y(stave_top, &stem_direction, true))
-    };
-    let anchor_y = clamp_anchor_y_clear_of_stave(anchor_y, side, stave_top);
-    let number_y = number_y_from_anchor(anchor_y, side, draw_bracket);
 
     renderer.text(
         &number_text,
@@ -312,7 +379,7 @@ pub fn draw_tuplet(
         color,
     );
 
-    if draw_bracket {
+    if let TupletLayout::Bracketed { anchor_y, .. } = layout {
         let hook_end_y = match side {
             TupletSide::Above => anchor_y + TUPLET_BRACKET_HOOK_HEIGHT,
             TupletSide::Below => anchor_y - TUPLET_BRACKET_HOOK_HEIGHT,
@@ -382,23 +449,20 @@ pub fn draw_tuplet(
         );
     }
 
-    let hit_top = if draw_bracket {
-        let hook_end_y = match side {
-            TupletSide::Above => anchor_y + TUPLET_BRACKET_HOOK_HEIGHT,
-            TupletSide::Below => anchor_y - TUPLET_BRACKET_HOOK_HEIGHT,
-        };
-        (number_y - TUPLET_NUMBER_FONT_SIZE).min(anchor_y.min(hook_end_y)) + 0.6
-    } else {
-        number_y - TUPLET_NUMBER_FONT_SIZE + 0.6
-    };
-    let hit_bottom = if draw_bracket {
-        let hook_end_y = match side {
-            TupletSide::Above => anchor_y + TUPLET_BRACKET_HOOK_HEIGHT,
-            TupletSide::Below => anchor_y - TUPLET_BRACKET_HOOK_HEIGHT,
-        };
-        (number_y + 0.25).max(anchor_y.max(hook_end_y)) + 0.25
-    } else {
-        number_y + 0.5
+    let (hit_top, hit_bottom) = match layout {
+        TupletLayout::Bracketed { anchor_y, .. } => {
+            let hook_end_y = match side {
+                TupletSide::Above => anchor_y + TUPLET_BRACKET_HOOK_HEIGHT,
+                TupletSide::Below => anchor_y - TUPLET_BRACKET_HOOK_HEIGHT,
+            };
+            (
+                (number_y - TUPLET_NUMBER_FONT_SIZE).min(anchor_y.min(hook_end_y)) + 0.6,
+                (number_y + 0.25).max(anchor_y.max(hook_end_y)) + 0.25,
+            )
+        }
+        TupletLayout::NumberOnly { .. } => {
+            (number_y - TUPLET_NUMBER_FONT_SIZE + 0.6, number_y + 0.5)
+        }
     };
     let hit_left = if draw_bracket {
         bracket_left - (TUPLET_LINE_WIDTH / 2.0)
@@ -872,6 +936,42 @@ mod tests {
             0
         );
         assert_eq!(renderer.hit_targets.len(), 1);
+    }
+
+    #[test]
+    fn clamps_number_only_tuplet_with_same_stave_clearance_rule() {
+        let mut renderer = make_test_renderer();
+        let triplet = make_triplet();
+        let anchored_track =
+            make_anchored_track(&[(0, 16, false), (16, 16, false), (32, 16, false)]);
+        let horizontal_spacing = make_uniform_spacing(anchored_track.notation.length, 12.0);
+        let converter = renderer.converter.clone();
+        let text_measurer = TextMeasurer::new(&converter);
+        let beams = vec![make_beam(0, 32)];
+        let stem_directions = make_stem_directions(Direction::Up, &[0, 16, 32]);
+        let stem_lengths = make_stem_lengths(&[(0, -1.0, 1.0, -1.0), (32, -1.0, 11.0, -1.0)]);
+
+        draw_tuplet(
+            &triplet,
+            &anchored_track,
+            &TrackArticulations::default(),
+            &beams,
+            &stem_directions,
+            &stem_lengths,
+            &horizontal_spacing,
+            10.0,
+            22.0,
+            &text_measurer,
+            None,
+            1,
+            2,
+            3,
+            4,
+            8.0,
+            &mut renderer,
+        );
+
+        assert!((tuplet_number_y(&renderer) - 5.25).abs() < 1e-6);
     }
 
     #[test]
