@@ -88,7 +88,10 @@ export const InstrumentOverviewRow: FC<InstrumentOverviewRowProps> = ({
         onChange={handlePluginChange}
         icon={mdiCableData}
         variant="filled"
-        placeholder="Unassigned"
+        placeholder={
+          options.length === 0 ? "No plugins available" : "Assign plugin"
+        }
+        disabled={isDisabled || options.length === 0}
       />
     </div>
   );

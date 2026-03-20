@@ -1,6 +1,6 @@
 import { FC, useMemo, useState } from "react";
 import { IconButton } from "../../../ui/buttons/icon-button";
-import { mdiRefresh, mdiMagnify, mdiOpenInNew } from "@mdi/js";
+import { mdiRefresh, mdiMagnify } from "@mdi/js";
 import { useSamplerState } from "../../../services/state";
 import { TokenizedText } from "../../../ui/text";
 import { actions } from "../../../services/actions";
@@ -8,41 +8,16 @@ import { convertFileSrc } from "@tauri-apps/api/core";
 import { Input } from "../../../ui/input";
 import { Switch } from "../../../ui/switch";
 import { PluginInfo } from "../../../services/types";
-import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 
 interface PluginTileProps {
   plugin: PluginInfo;
-  isLoaded: boolean;
 }
 
-const PluginTile: FC<PluginTileProps> = ({ plugin, isLoaded }) => {
+const PluginTile: FC<PluginTileProps> = ({ plugin }) => {
   // Convert file path to asset URL if cover image exists
   const backgroundImage = plugin.cover_image
     ? `url(${convertFileSrc(plugin.cover_image)})`
     : undefined;
-
-  const handleOpenSettings = async () => {
-    const sanitizedId = plugin.id.replace(/\./g, "-");
-    const windowLabel = `plugin-settings-${sanitizedId}`;
-
-    const existingWindow = await WebviewWindow.getByLabel(windowLabel);
-    if (existingWindow) {
-      await existingWindow.setFocus();
-      return;
-    }
-
-    new WebviewWindow(windowLabel, {
-      url: `/plugin-settings.html?id=${encodeURIComponent(plugin.id)}`,
-      title: "",
-      width: 550,
-      height: 650,
-      resizable: false,
-      titleBarStyle: "overlay",
-      theme: "dark",
-      center: true,
-      focus: true,
-    });
-  };
 
   return (
     <div
@@ -53,17 +28,6 @@ const PluginTile: FC<PluginTileProps> = ({ plugin, isLoaded }) => {
         <div className="mt-1 bg-neutral-950/50 text-neutral-300 text-xs px-2 py-1 text-center min-w-0 truncate">
           v{plugin.version}
         </div>
-
-        <div className="flex-1" />
-
-        <IconButton
-          path={mdiOpenInNew}
-          variant="filled"
-          className="bg-transparent"
-          isDisabled={!isLoaded}
-          size={0.75}
-          onClick={handleOpenSettings}
-        />
       </div>
 
       <div className="text-center absolute bottom-0 left-0 right-0 p-4 pt-20 bg-linear-0 from-black/75 to-black/0">
@@ -103,14 +67,6 @@ export const PluginsToolbar: FC<PluginsToolbarProps> = ({
     }
   };
 
-  const handleOpenNativeHostPoc = async () => {
-    try {
-      await actions.sampler.openPluginEditorPoc();
-    } catch (error) {
-      console.error("Failed to open macOS native host POC:", error);
-    }
-  };
-
   return (
     <div className="flex flex-1 gap-0.5">
       <IconButton
@@ -139,16 +95,6 @@ export const PluginsToolbar: FC<PluginsToolbarProps> = ({
         placeholder="Search plugins..."
         className="w-80"
       />
-
-      <button
-        type="button"
-        onClick={handleOpenNativeHostPoc}
-        className="bg-neutral-900 px-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-sky-400 transition-colors hover:bg-neutral-800"
-        title="Open the macOS native plugin host proof of concept"
-        aria-label="Open the macOS native plugin host proof of concept"
-      >
-        Native Host POC
-      </button>
 
       <div className="bg-neutral-900 flex-1" />
     </div>
@@ -183,7 +129,7 @@ export const Plugins: FC<PluginProps> = ({ searchTerm, showActiveOnly }) => {
     return (
       <div className="w-full h-full flex items-center justify-center bg-neutral-900">
         <div className="text-center text-neutral-400">
-          <div className="text-md mb-2">No instruments found</div>
+          <div className="text-md mb-2">No plugins found</div>
         </div>
       </div>
     );
@@ -193,7 +139,7 @@ export const Plugins: FC<PluginProps> = ({ searchTerm, showActiveOnly }) => {
     return (
       <div className="w-full h-full flex items-center justify-center bg-neutral-900">
         <div className="text-center text-neutral-700">
-          <div className="text-md mb-2">No instruments match your filters</div>
+          <div className="text-md mb-2">No plugins match your filters</div>
         </div>
       </div>
     );
@@ -203,11 +149,7 @@ export const Plugins: FC<PluginProps> = ({ searchTerm, showActiveOnly }) => {
     <div className="w-full h-full overflow-x-auto overflow-y-hidden">
       <div className="flex h-full gap-0.5">
         {filteredPlugins.map((plugin) => {
-          const isLoaded = sampler.loaded_plugin_ids.includes(plugin.id);
-
-          return (
-            <PluginTile key={plugin.id} plugin={plugin} isLoaded={isLoaded} />
-          );
+          return <PluginTile key={plugin.id} plugin={plugin} />;
         })}
 
         <div className="bg-neutral-900 flex-1 h-full" />

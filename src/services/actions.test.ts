@@ -717,7 +717,7 @@ describe("actions.score.layout", () => {
     await actions.score.layout.assignFlow(2, 3);
     expect(mockInvoke).toHaveBeenCalledWith("score_layouts_assign_flow", {
       layout_id: 2,
-      player_id: 3,
+      flow_id: 3,
     });
   });
 
@@ -725,7 +725,7 @@ describe("actions.score.layout", () => {
     await actions.score.layout.unassignFlow(2, 3);
     expect(mockInvoke).toHaveBeenCalledWith("score_layouts_unassign_flow", {
       layout_id: 2,
-      player_id: 3,
+      flow_id: 3,
     });
   });
 

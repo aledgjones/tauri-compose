@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { screen, fireEvent } from "@testing-library/react";
+import { screen, fireEvent, waitFor } from "@testing-library/react";
 import { renderWithProviders } from "../../../services/test-utils";
 import { PluginsToolbar, Plugins } from "./plugins";
 
@@ -8,18 +8,10 @@ vi.mock("@tauri-apps/api/core", () => ({
   convertFileSrc: vi.fn((p: string) => `asset://${p}`),
 }));
 
-vi.mock("@tauri-apps/api/webviewWindow", () => ({
-  WebviewWindow: vi.fn().mockImplementation(() => ({
-    setFocus: vi.fn(),
-    once: vi.fn().mockResolvedValue(vi.fn()),
-  })),
-}));
-
 vi.mock("../../../services/actions", () => ({
   actions: {
     sampler: {
       rescanPlugins: vi.fn().mockResolvedValue(undefined),
-      openPluginEditorPoc: vi.fn().mockResolvedValue(undefined),
       audition: vi.fn(),
     },
   },
@@ -66,7 +58,9 @@ describe("PluginsToolbar", () => {
     renderWithProviders(<PluginsToolbar {...defaults} />);
     const buttons = screen.getAllByRole("button");
     fireEvent.click(buttons[0]);
-    expect(actions.sampler.rescanPlugins).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(actions.sampler.rescanPlugins).toHaveBeenCalled();
+    });
   });
 
   it("calls onShowActiveOnlyChange when Active only switch is toggled", () => {
@@ -89,24 +83,14 @@ describe("PluginsToolbar", () => {
       screen.getByPlaceholderText("Search plugins..."),
     ).toBeInTheDocument();
   });
-
-  it("calls openPluginEditorPoc when the native host trigger is clicked", () => {
-    renderWithProviders(<PluginsToolbar {...defaults} />);
-    fireEvent.click(
-      screen.getByRole("button", {
-        name: "Open the macOS native plugin host proof of concept",
-      }),
-    );
-    expect(actions.sampler.openPluginEditorPoc).toHaveBeenCalled();
-  });
 });
 
 describe("Plugins", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it("renders 'No instruments found' when sampler has no plugins", () => {
+  it("renders 'No plugins found' when sampler has no plugins", () => {
     renderWithProviders(<Plugins searchTerm="" showActiveOnly={false} />);
-    expect(screen.getByText("No instruments found")).toBeInTheDocument();
+    expect(screen.getByText("No plugins found")).toBeInTheDocument();
   });
 
   it("renders plugin names when plugins exist", () => {
@@ -119,7 +103,7 @@ describe("Plugins", () => {
     expect(screen.getByText("Grand Piano")).toBeInTheDocument();
   });
 
-  it("shows 'No instruments match' when search term filters all plugins", () => {
+  it("shows 'No plugins match' when search term filters all plugins", () => {
     renderWithProviders(
       <Plugins searchTerm="xyznothing" showActiveOnly={false} />,
       {
@@ -130,11 +114,11 @@ describe("Plugins", () => {
       },
     );
     expect(
-      screen.getByText("No instruments match your filters"),
+      screen.getByText("No plugins match your filters"),
     ).toBeInTheDocument();
   });
 
-  it("shows 'No instruments match' when showActiveOnly=true and none loaded", () => {
+  it("shows 'No plugins match' when showActiveOnly=true and none loaded", () => {
     renderWithProviders(<Plugins searchTerm="" showActiveOnly={true} />, {
       samplerState: {
         plugins: [makePlugin({ id: "com.vendor.piano" })],
@@ -142,8 +126,23 @@ describe("Plugins", () => {
       },
     });
     expect(
-      screen.getByText("No instruments match your filters"),
+      screen.getByText("No plugins match your filters"),
     ).toBeInTheDocument();
+  });
+
+  it("does not render a plugin-settings entry point on plugin tiles", () => {
+    renderWithProviders(<Plugins searchTerm="" showActiveOnly={false} />, {
+      samplerState: {
+        plugins: [makePlugin()],
+        loaded_plugin_ids: ["com.vendor.piano"],
+      },
+    });
+
+    expect(
+      screen.queryByRole("button", {
+        name: /plugin settings|open settings|open plugin/i,
+      }),
+    ).not.toBeInTheDocument();
   });
 
   it("shows plugin when showActiveOnly=true and plugin is loaded", () => {

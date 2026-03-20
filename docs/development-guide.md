@@ -136,7 +136,7 @@ Pre-commit hooks (via `lint-staged` + `simple-git-hooks`) run ESLint and Prettie
 
 ## macOS Native Plugin Host POC
 
-The experimental native host proof is macOS-only and is opened from the Plugins toolbar using the `Native Host POC` button.
+The experimental native host proof is macOS-only and remains an internal developer seam. The current product UI does not expose a toolbar button or other user-facing entry point for it.
 
 The POC resolves its target in this order:
 
@@ -169,7 +169,7 @@ What it does not yet do:
 Manual validation checklist:
 
 1. Start the app on macOS with either `SOLOC_PLUGIN_EDITOR_POC_VST3_PATH` set to an existing `.vst3` bundle or at least one valid `.vst3` bundle installed under the standard VST3 directories.
-2. Open the main window Plugins screen and click `Native Host POC`.
+2. Trigger `plugin_editor_poc_open` from a development-only harness or temporary call to `actions.sampler.openPluginEditorPoc()`.
 3. Confirm the dedicated host window opens and remains responsive.
 4. Confirm the Rust logs show create/focus events and, for a compatible plugin, that the plugin editor UI appears inside the host window rather than the previous placeholder-only surface.
 5. Resize the window and confirm the native host area stays attached without leaving stale content behind.

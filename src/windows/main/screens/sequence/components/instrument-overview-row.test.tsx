@@ -71,7 +71,7 @@ describe("InstrumentOverviewRow", () => {
     expect(container.querySelector(".opacity-50")).toBeInTheDocument();
   });
 
-  it("renders the plugin select with 'Unassigned' placeholder when no plugins", () => {
+  it("renders a disabled plugin select with 'No plugins available' placeholder when no plugins", () => {
     renderWithProviders(
       <InstrumentOverviewRow
         instrument={mockInstrument}
@@ -79,7 +79,10 @@ describe("InstrumentOverviewRow", () => {
         isDisabled={false}
       />,
     );
-    expect(screen.getByText("Unassigned")).toBeInTheDocument();
+    expect(screen.getByText("No plugins available")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /no plugins available/i }),
+    ).toBeDisabled();
   });
 
   it("calls setSolo when solo button clicked", () => {

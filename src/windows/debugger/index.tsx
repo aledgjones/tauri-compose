@@ -3,7 +3,7 @@ import {
   useAudioState,
   useSamplerState,
 } from "../../services/state";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { AppBar } from "../../components/app-bar";
 import { actions } from "../../services/actions";
@@ -15,6 +15,12 @@ export const Main = () => {
   const state = useAppState();
   const audio = useAudioState();
   const sampler = useSamplerState();
+  const pluginAuditionState = useMemo(() => {
+    return {
+      ...sampler,
+      plugins: sampler.plugins.map(({ path: _path, ...plugin }) => plugin),
+    };
+  }, [sampler]);
 
   useEffect(() => {
     const show = async () => {
@@ -73,9 +79,12 @@ export const Main = () => {
       </div>
 
       <div className="bg-neutral-900 p-2 overflow-auto mx-2">
+        <div className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500">
+          Legacy Plugin Audition State
+        </div>
         <ObjectInspector
-          data={sampler}
-          name="sampler"
+          data={pluginAuditionState}
+          name="plugin_audition_state"
           theme={
             {
               ...chromeDark,
