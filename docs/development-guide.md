@@ -134,6 +134,49 @@ All four must pass. Clippy warnings are treated as errors — do not suppress wi
 
 Pre-commit hooks (via `lint-staged` + `simple-git-hooks`) run ESLint and Prettier automatically on staged files. If hooks are not running after a fresh clone, register them with `npx simple-git-hooks`.
 
+## macOS Native Plugin Host POC
+
+The experimental native host proof is macOS-only and is opened from the Plugins toolbar using the `Native Host POC` button.
+
+The POC resolves its target in this order:
+
+- explicit `plugin_path` passed to the backend command
+- `SOLOC_PLUGIN_EDITOR_POC_VST3_PATH`
+- first valid `.vst3` bundle found under `~/Library/Audio/Plug-Ins/VST3`
+- first valid `.vst3` bundle found under `/Library/Audio/Plug-Ins/VST3`
+
+Set the env var if you want to override the default macOS discovery path:
+
+```bash
+export SOLOC_PLUGIN_EDITOR_POC_VST3_PATH="/Library/Audio/Plug-Ins/VST3/My Test Plugin.vst3"
+npm run start:dev
+```
+
+What the current proof does:
+
+- validates the configured path before creating the host window
+- creates or focuses a dedicated backend-owned Tauri window labeled `plugin-host-poc`
+- loads the VST3 bundle binary from the macOS bundle, creates a component/controller pair, synchronizes component state into the controller when the plugin exposes separate objects, connects `IConnectionPoint` when available, requests `ViewType::kEditor`, attaches the returned `IPlugView` to the native AppKit content area, and now applies plugin-driven resize requests back to the host window
+- defaults the host window to non-resizable until the plugin explicitly reports that its editor can resize via `IPlugView::canResize()` and logs the host callbacks the plugin invokes through the current proof seam
+- keeps the experimental host state in Rust and logs create, focus, resize, close, and destroy lifecycle events
+
+What it does not yet do:
+
+- guarantee that every VST3 bundle will attach successfully; some plugins may still reject the minimal experimental host context
+- implement a production-ready Steinberg host contract, automation, preset/state persistence, or transport integration
+- provide full keyboard or wheel coverage across all plugins
+
+Manual validation checklist:
+
+1. Start the app on macOS with either `SOLOC_PLUGIN_EDITOR_POC_VST3_PATH` set to an existing `.vst3` bundle or at least one valid `.vst3` bundle installed under the standard VST3 directories.
+2. Open the main window Plugins screen and click `Native Host POC`.
+3. Confirm the dedicated host window opens and remains responsive.
+4. Confirm the Rust logs show create/focus events and, for a compatible plugin, that the plugin editor UI appears inside the host window rather than the previous placeholder-only surface.
+5. Resize the window and confirm the native host area stays attached without leaving stale content behind.
+6. Switch focus between the main window and the host window and confirm the app remains responsive.
+7. Close the host window and reopen it in the same session.
+8. Clear or invalidate `SOLOC_PLUGIN_EDITOR_POC_VST3_PATH`, remove any `.vst3` bundles from the standard VST3 directories, trigger the POC again, and confirm the command fails without leaving an orphaned host window.
+
 ## Versioning
 
 Version is kept in sync across three files:
@@ -222,7 +265,7 @@ When making changes to the container format, update `soloc.rs` and rebuild fixtu
 
 ### Vite (Frontend)
 
-- Multi-page app: 8 HTML entry points configured in `rollupOptions.input`
+- Multi-page app: 9 HTML entry points configured in `rollupOptions.input`
 - Dev server on port 1420 (strict port)
 - HMR enabled, ignores `src-tauri/` directory
 

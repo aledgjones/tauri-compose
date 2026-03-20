@@ -40,6 +40,7 @@ export default defineConfig(async () => ({
         instrumentPicker: resolve(__dirname, "instrument-picker.html"),
         layoutSettings: resolve(__dirname, "layout-settings.html"),
         playerSettings: resolve(__dirname, "player-settings.html"),
+        pluginHostPoc: resolve(__dirname, "plugin-host-poc.html"),
         pluginSettings: resolve(__dirname, "plugin-settings.html"),
         preferences: resolve(__dirname, "preferences.html"),
         projectSettings: resolve(__dirname, "project-settings.html"),

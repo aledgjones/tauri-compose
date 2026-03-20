@@ -13,6 +13,7 @@ mod utils;
 use crate::playback::audio::{
     audio_device_sample_rate_set, audio_device_set, audio_devices_refresh, AudioContext,
 };
+use crate::playback::plugin_editor_poc::plugin_editor_poc_open;
 use crate::playback::sampler::{
     sampler_audition, sampler_load_plugin, sampler_rescan_plugins, sampler_sync_with_instruments,
     SamplerContext,
@@ -578,6 +579,7 @@ pub fn run() {
             audio_device_set,
             audio_device_sample_rate_set,
             audio_devices_refresh,
+            plugin_editor_poc_open,
             sampler_load_plugin,
             sampler_rescan_plugins,
             sampler_sync_with_instruments,

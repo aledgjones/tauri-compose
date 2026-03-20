@@ -18,12 +18,13 @@ The score itself is rendered natively by Rust/Skia/Metal — all other UI (panel
 │  │   React Frontend       │    │       Rust Backend            │  │
 │  │                        │    │                               │  │
 │  │  ┌──────────────────┐  │    │  ┌─────────────────────────┐ │  │
-│  │  │ 8 HTML Windows   │  │    │  │ AppContext (Mutex)       │ │  │
+│  │  │ 9 HTML Windows   │  │    │  │ AppContext (Mutex)       │ │  │
 │  │  │  - main          │  │    │  │  ├── Ui                  │ │  │
 │  │  │  - debugger      │◄─┼─emit──┤  ├── Score               │ │  │
 │  │  │  - inst-picker   │  │    │  │  ├── Preferences         │ │  │
 │  │  │  - layout-settings│ │    │  │  └── next_id             │ │  │
 │  │  │  - player-settings│ │    │  └─────────────────────────┘ │  │
+│  │  │  - plugin-host-poc│ │    │                               │  │
 │  │  │  - plugin-settings│ │    │                               │  │
 │  │  │  - preferences   │  │    │  ┌─────────────────────────┐ │  │
 │  │  │  - project-settings│ │   │  │ RendererContext (Mutex)  │ │  │
@@ -282,13 +283,15 @@ type AnchoredNotationTrack = {
 
 ## Multi-Window Architecture
 
-Each of the 8 windows has:
+Each of the 9 windows has:
 
 - Its own HTML entry point (e.g., `instrument-picker.html`)
 - Its own `boot.tsx` mounting `AppStateProvider`
 - Independent React tree receiving state via `app.emit()` to all windows
 
 Secondary windows (instrument-picker, preferences, etc.) close on blur via `tauri://blur` event listener. New windows are opened via `WebviewWindow` from `@tauri-apps/api/webviewWindow`.
+
+The experimental `plugin-host-poc` window is the one exception to the normal frontend-owned open flow: React triggers a thin backend command, and Rust creates or focuses the host window so the backend can own macOS-native attachment and teardown. The current proof resolves its target from an explicit request, then `SOLOC_PLUGIN_EDITOR_POC_VST3_PATH`, then the standard macOS VST3 install roots under `~/Library/Audio/Plug-Ins/VST3` and `/Library/Audio/Plug-Ins/VST3`. It validates that the chosen target is a local `.vst3` bundle, loads the bundle binary in Rust, creates a minimal VST3 component/controller/editor stack, synchronizes component state into the controller when needed, connects component/controller `IConnectionPoint` pairs when the plugin exposes them, and attaches the returned `IPlugView` to a native AppKit subview in the Tauri content hierarchy. That proves the live editor-host seam is at least technically reachable inside the app, but it remains an experimental narrow host rather than the final plugin-host architecture.
 
 ---
 
@@ -301,6 +304,7 @@ Secondary windows (instrument-picker, preferences, etc.) close on blur via `taur
 - **Desktop file-workflow contract:** Tuplet-bearing projects keep the same offline-first local open, save, reopen, current-file-path, recent-file, and transport-resync path as non-tuplet projects through the existing Tauri file commands; no network-backed persistence or alternate frontend-owned file state is introduced.
 - **Current migration stance for tuplets:** No tuplet-specific step is present in `src-tauri/src/migrations/next.rs` because pre-tuplet releases produced no tuplet-bearing payloads. Legacy non-tuplet files still validate and migrate exactly as before; add a tuplet migration only if a released older persisted format requires a real compatibility transform.
 - **Instrument plugins:** Discovered at runtime from `$DATA_DIR/Solo Compose/plugins/` — each is an SCVI binary container
+- **Experimental editor-host target:** The native plugin-host POC does not reuse the SCVI instrument catalog. It resolves a local VST3 bundle from an explicit request, `SOLOC_PLUGIN_EDITOR_POC_VST3_PATH`, or the standard macOS VST3 install roots because Compose does not yet maintain a full live VST3 plugin inventory or production-ready retained editor-host lifecycle in app state.
 
 ---
 

@@ -103,6 +103,14 @@ export const PluginsToolbar: FC<PluginsToolbarProps> = ({
     }
   };
 
+  const handleOpenNativeHostPoc = async () => {
+    try {
+      await actions.sampler.openPluginEditorPoc();
+    } catch (error) {
+      console.error("Failed to open macOS native host POC:", error);
+    }
+  };
+
   return (
     <div className="flex flex-1 gap-0.5">
       <IconButton
@@ -131,6 +139,16 @@ export const PluginsToolbar: FC<PluginsToolbarProps> = ({
         placeholder="Search plugins..."
         className="w-80"
       />
+
+      <button
+        type="button"
+        onClick={handleOpenNativeHostPoc}
+        className="bg-neutral-900 px-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-sky-400 transition-colors hover:bg-neutral-800"
+        title="Open the macOS native plugin host proof of concept"
+        aria-label="Open the macOS native plugin host proof of concept"
+      >
+        Native Host POC
+      </button>
 
       <div className="bg-neutral-900 flex-1" />
     </div>

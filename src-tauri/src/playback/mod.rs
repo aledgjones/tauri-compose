@@ -1,5 +1,6 @@
 pub mod audio;
 pub mod mixer;
+pub mod plugin_editor_poc;
 pub mod sampler;
 pub mod scvi;
 pub mod streamer;

@@ -107,6 +107,13 @@ describe("actions.sampler", () => {
     expect(mockInvoke).toHaveBeenCalledWith("sampler_rescan_plugins");
   });
 
+  it("openPluginEditorPoc calls invoke with a nullable plugin_path", async () => {
+    await actions.sampler.openPluginEditorPoc();
+    expect(mockInvoke).toHaveBeenCalledWith("plugin_editor_poc_open", {
+      plugin_path: null,
+    });
+  });
+
   it("syncWithInstruments calls invoke with assigned_plugin_ids", async () => {
     await actions.sampler.syncWithInstruments(["a", "b"]);
     expect(mockInvoke).toHaveBeenCalledWith("sampler_sync_with_instruments", {

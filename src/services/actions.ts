@@ -81,6 +81,11 @@ export const actions = {
     rescanPlugins: async () => {
       return invoke("sampler_rescan_plugins");
     },
+    openPluginEditorPoc: (plugin_path?: string | null) => {
+      return invoke("plugin_editor_poc_open", {
+        plugin_path: plugin_path ?? null,
+      });
+    },
     syncWithInstruments: (assigned_plugin_ids: string[]) => {
       return invoke("sampler_sync_with_instruments", { assigned_plugin_ids });
     },

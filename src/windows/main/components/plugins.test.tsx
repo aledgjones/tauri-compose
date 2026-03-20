@@ -19,6 +19,7 @@ vi.mock("../../../services/actions", () => ({
   actions: {
     sampler: {
       rescanPlugins: vi.fn().mockResolvedValue(undefined),
+      openPluginEditorPoc: vi.fn().mockResolvedValue(undefined),
       audition: vi.fn(),
     },
   },
@@ -87,6 +88,16 @@ describe("PluginsToolbar", () => {
     expect(
       screen.getByPlaceholderText("Search plugins..."),
     ).toBeInTheDocument();
+  });
+
+  it("calls openPluginEditorPoc when the native host trigger is clicked", () => {
+    renderWithProviders(<PluginsToolbar {...defaults} />);
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Open the macOS native plugin host proof of concept",
+      }),
+    );
+    expect(actions.sampler.openPluginEditorPoc).toHaveBeenCalled();
   });
 });
 
