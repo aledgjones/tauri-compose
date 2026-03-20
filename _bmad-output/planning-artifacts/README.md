@@ -4,14 +4,13 @@ Root-level canonical files in this folder represent the active BMAD initiative.
 
 ## Active Initiative
 
-- `prd.md`: foundational tuplet support PRD
-- `architecture.md`: foundational tuplet support architecture
-- `epics.md`: current epic and story breakdown for the active initiative
+- No active root-level planning set is checked in right now.
+- The next initiative should create fresh root-level `prd.md`, `architecture.md`, and related planning artifacts here.
 
 ## Archived Initiative Context
 
 - `archive/2026-03-multi-flow-score/`: completed multi-flow score planning set
-- `archive/2026-03-tuplet-planning-history/`: readiness and planning-change history for the active tuplet initiative
+- `archive/2026-03-foundational-tuplet-support/`: completed foundational tuplet planning set, including PRD, architecture, epics, UX, research, readiness, and planning-change history
 
 ## Working Rule
 
