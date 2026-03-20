@@ -432,6 +432,8 @@ pub fn run() {
             app.manage(AppContext::new(app_handle));
             app.manage(RendererContext::new());
             app.manage(AudioContext::new());
+            // Legacy sampler state remains registered for tooling and audition only.
+            // Supported transport playback no longer snapshots this state as runtime truth.
             app.manage(SamplerContext::new());
 
             let (transport_ctx, transport_shared) = TransportContext::new();

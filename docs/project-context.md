@@ -92,7 +92,7 @@ _This file contains critical rules and patterns that AI agents must follow when 
 
 - All components are `FC<Props>` — no class components
 - State source of truth is Rust `AppContext` behind `Mutex` — FE is a display layer only
-- 4 React contexts: `AppContext`, `AudioContext`, `SamplerContext`, `TransportContext` — each with a typed hook that throws outside its provider
+- 4 React contexts: `AppContext`, `AudioContext`, `SamplerContext`, `TransportContext` — each with a typed hook that throws outside its provider; `SamplerContext` remains legacy sampler tooling/audition state, not the supported transport runtime
 - State pushed to FE via Tauri events (`soloc://state/general`, `soloc://state/audio`, `soloc://state/sampler`)
 - Transport polling uses `requestAnimationFrame` loop — no events during playback to keep transport thread silent
 - Multi-window app: 8 HTML entry points, each mounts its own `AppStateProvider` in `boot.tsx`
@@ -204,8 +204,9 @@ The score page is rendered natively by Rust/Skia/Metal — all other UI (panels,
 #### Audio Gotchas
 
 - Transport state uses RAF polling during playback — never add event-based transport state updates, it will cause the transport thread to emit during playback
+- Supported `transport_play` is currently timing-only on the product path: it advances tick and tempo state without snapshotting `SamplerContext` or dispatching SCVI streamer work
 - Playback is another consumer of the shared tuplet model, not a second semantics engine. Transport code may implement scheduling mechanics, but it must not locally infer tuplet ownership, boundary meaning, projection, or continuity; if playback exposes a gap, extend the shared semantic seam instead of patching transport in isolation
-- Sample attack alignment is backend-owned playback metadata. Derive and persist `attack_offset_frames` in SCVI/sample seams, thread it through sampler and transport requests, and trim in the streamer before resample/pitch processing instead of inventing frontend timing offsets or per-instrument transport hacks
+- Sample attack alignment is backend-owned playback metadata. Derive and persist `attack_offset_frames` in SCVI/sample seams, thread it through sampler and legacy sampler streaming requests, and trim in the streamer before resample/pitch processing instead of inventing frontend timing offsets or per-instrument transport hacks
 - Nested tuplets, broader arbitrary ratios, and generalized sequencer-native tuplet editing remain explicit post-MVP work. Do not normalize them into current rules or documentation.
 - Custom binary instrument format (SCVI) — instruments are compressed/inspected via dedicated Rust CLI binaries, not runtime code
 

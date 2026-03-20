@@ -31,14 +31,6 @@ impl PlaybackTick {
         self.numerator / self.denominator
     }
 
-    pub fn to_f64(&self) -> f64 {
-        self.numerator as f64 / self.denominator as f64
-    }
-
-    pub fn fractional_within_tick(&self) -> Self {
-        Self::new(self.numerator % self.denominator, self.denominator)
-    }
-
     fn add(&self, other: &Self) -> Self {
         let left = self.numerator as u128 * other.denominator as u128;
         let right = other.numerator as u128 * self.denominator as u128;

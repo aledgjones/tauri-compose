@@ -1,13 +1,9 @@
-use crate::playback::mixer::MixerHandle;
-use crate::playback::sampler::{Cache, CacheArticulation};
-use crate::playback::streamer::{self, StreamBuffer, StreamRequest};
 use crate::playback::tuplet_projection::{collect_track_playback_events, PlaybackTick};
 use crate::score::components::duration::Tick;
 use crate::score::entries::tempo::{EffectiveTempoResolver, DEFAULT_TEMPO_BPM};
 use crate::score::Score;
 use crate::utils::UniqueId;
-use crate::{AppContext, AppContextState, AudioContextState, SamplerContextState};
-use rand::RngExt;
+use crate::{AppContext, AppContextState, AudioContextState};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering as CmpOrdering;
@@ -124,20 +120,6 @@ fn playback_can_start(current_tick: Tick, flow_length: Tick) -> bool {
     current_tick < flow_length
 }
 
-/// Map the score Articulation enum to the sampler articulation ID string.
-fn find_articulation_id(
-    articulations: &rustc_hash::FxHashMap<String, CacheArticulation>,
-) -> Option<String> {
-    // TODO: convert this mapping into a dynamic mapping in the manifest,
-    // e.g. via a "default_articulation" field or similar — this would allow
-    // non-standard articulations and more flexible mappings in the future.
-    if articulations.contains_key("sustain") {
-        return Some("sustain".to_string());
-    }
-
-    articulations.keys().next().cloned()
-}
-
 #[derive(Serialize, Deserialize, Clone)]
 pub struct TransportState {
     pub playing: bool,
@@ -231,135 +213,6 @@ pub(crate) fn sync_transport_to_app_state(
     publish_app_tempo(shared, app_ctx, tick)
 }
 
-/// Render a single note by spawning a disk-streaming thread and submitting
-/// the voice to the mixer. The streamer decodes from disk, applies pitch
-/// shifting, envelope, and volume/pan, then pushes audio into a shared
-/// buffer that the mixer drains in the audio callback.
-#[allow(clippy::too_many_arguments)]
-fn render_note(
-    cache: &Cache,
-    articulation_id: &str,
-    pitch: u8,
-    velocity: u8,
-    duration_seconds: f64,
-    sample_rate: u32,
-    mixer_handle: &MixerHandle,
-    volume: u8,
-    pan: u8,
-) {
-    let articulation = match cache.articulations.get(articulation_id) {
-        Some(a) => a,
-        None => return,
-    };
-
-    let velocity = velocity.clamp(1, 127);
-
-    let is_percussion = matches!(
-        cache.meta.r#type,
-        crate::playback::sampler::InstrumentType::Percussion
-    );
-
-    // Find nearest zone
-    let (zone, pitch_offset) = {
-        if articulation.zones.is_empty() {
-            return;
-        }
-
-        if is_percussion {
-            // For percussion, only exact matches
-            if let Some(zone) = articulation.zones.iter().find(|z| z.pitch == pitch) {
-                (zone, 0)
-            } else {
-                return;
-            }
-        } else {
-            // For pitched instruments, find nearest
-            let mut nearest = &articulation.zones[0];
-            let mut min_dist = (nearest.pitch as i32 - pitch as i32).abs();
-
-            for zone in &articulation.zones[1..] {
-                let dist = (zone.pitch as i32 - pitch as i32).abs();
-                if dist < min_dist {
-                    min_dist = dist;
-                    nearest = zone;
-                }
-            }
-
-            let offset = pitch as i32 - nearest.pitch as i32;
-            (nearest, offset)
-        }
-    };
-
-    // Find velocity layer
-    let velocity_layer = match zone
-        .velocity_layers
-        .iter()
-        .find(|vl| velocity >= vl.range[0] && velocity <= vl.range[1])
-    {
-        Some(vl) => vl,
-        None => return,
-    };
-
-    if velocity_layer.samples.is_empty() {
-        return;
-    }
-
-    // Random round-robin
-    let sample_index = if velocity_layer.samples.len() > 1 {
-        rand::rng().random_range(0..velocity_layer.samples.len())
-    } else {
-        0
-    };
-
-    let sample = &velocity_layer.samples[sample_index].sample;
-    let (request, stream_buffer, channels) = build_stream_request(
-        sample,
-        pitch_offset,
-        duration_seconds,
-        sample_rate,
-        volume,
-        pan,
-    );
-
-    streamer::start_stream(request);
-    mixer_handle.play(stream_buffer, channels);
-}
-
-fn build_stream_request(
-    sample: &crate::playback::sampler::CacheSample,
-    pitch_offset: i32,
-    duration_seconds: f64,
-    sample_rate: u32,
-    volume: u8,
-    pan: u8,
-) -> (StreamRequest, Arc<StreamBuffer>, usize) {
-    let channels = sample.channels as usize;
-    let duration_frames = (duration_seconds * sample_rate as f64).ceil() as usize;
-    let release_frames = (sample_rate as f64 * 0.15).ceil() as usize;
-    let max_frames = duration_frames + release_frames;
-    let (vol_gain, pan_left, pan_right) = instrument_gain_and_pan(volume, pan);
-    let stream_buffer = Arc::new(StreamBuffer::new());
-
-    let request = StreamRequest {
-        container_path: sample.container_path.clone(),
-        flac_offset: sample.flac_offset,
-        flac_length: sample.flac_length,
-        source_sample_rate: sample.source_sample_rate,
-        target_sample_rate: sample_rate,
-        channels,
-        attack_offset_frames: sample.attack_offset_frames,
-        pitch_offset,
-        max_output_frames: max_frames,
-        fade_start_frame: duration_frames,
-        volume_gain: vol_gain,
-        pan_left,
-        pan_right,
-        stream_buffer: stream_buffer.clone(),
-    };
-
-    (request, stream_buffer, channels)
-}
-
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct ScheduledNote {
     start: PlaybackTick,
@@ -381,25 +234,6 @@ fn compare_scheduled_notes(left: &ScheduledNote, right: &ScheduledNote) -> CmpOr
         .then(left.velocity.cmp(&right.velocity))
         .then(left.duration.cmp(&right.duration))
         .then(left.plugin_id.cmp(&right.plugin_id))
-}
-
-fn filter_audible_scheduled_notes<'a>(
-    notes: &'a [ScheduledNote],
-    local_mix: &'a FxHashMap<UniqueId, InstrumentMixParams>,
-    has_solo: bool,
-) -> Vec<(&'a ScheduledNote, &'a InstrumentMixParams)> {
-    notes
-        .iter()
-        .filter_map(|note| {
-            let params = local_mix.get(&note.instrument_id)?;
-
-            if params.mute || (has_solo && !params.solo) {
-                return None;
-            }
-
-            Some((note, params))
-        })
-        .collect()
 }
 
 /// Collect all notes in the active flow, projected into exact host musical time and bucketed by
@@ -472,30 +306,47 @@ fn collect_scheduled_notes(
     notes_by_tick
 }
 
-/// Get volume and pan for an instrument. Volume is 0-127 mapped to 0.0-1.0 gain.
-/// Pan is 0-127 where 64 is center, mapped to left/right gain multipliers.
-fn instrument_gain_and_pan(volume: u8, pan: u8) -> (f32, f32, f32) {
-    let gain = volume as f32 / 127.0;
-    // Pan: 0=left, 64=center, 127=right
-    // Use constant-power panning
-    let pan_norm = pan as f32 / 127.0; // 0..1
-    let angle = pan_norm * std::f32::consts::FRAC_PI_2; // 0..PI/2
-    let left_gain = angle.cos();
-    let right_gain = angle.sin();
-    (gain, left_gain, right_gain)
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum PlaybackExecutionMode {
+    TransportOnly,
 }
 
-/// The transport playback thread. Walks through ticks at tempo rate,
-/// collects notes, renders them, and submits to the mixer.
-/// A snapshot of all data the transport thread needs for playback.
-/// Cloned once at play-start so the thread never locks AppContextState or SamplerContextState.
+/// A snapshot of all data the transport thread needs for supported playback.
+/// Cloned once at play-start so the thread never locks AppContextState.
 struct PlaybackSnapshot {
     score: Score,
-    sampler_cache: FxHashMap<String, Cache>,
     scheduled_notes: FxHashMap<Tick, Vec<ScheduledNote>>,
     flow_length: u64,
-    sample_rate: u32,
     tempo_resolver: EffectiveTempoResolver,
+    execution_mode: PlaybackExecutionMode,
+}
+
+fn build_supported_playback_snapshot(
+    app_ctx: &AppContext,
+    current_tick: Tick,
+) -> Option<(PlaybackSnapshot, f64)> {
+    let flow_id = active_flow_id(app_ctx)?;
+    let flow =
+        app_ctx.score.flows.by_id.get(&flow_id).unwrap_or_else(|| {
+            panic!("Missing flow {} while starting transport playback", flow_id)
+        });
+    let tempo_resolver = flow_tempo_resolver(&app_ctx.score, flow_id);
+    let initial_tempo = tempo_resolver.resolve(current_tick).bpm_f64();
+
+    if !playback_can_start(current_tick, flow.length) {
+        return None;
+    }
+
+    Some((
+        PlaybackSnapshot {
+            score: app_ctx.score.clone(),
+            scheduled_notes: collect_scheduled_notes(&app_ctx.score, flow_id),
+            flow_length: flow.length,
+            tempo_resolver,
+            execution_mode: PlaybackExecutionMode::TransportOnly,
+        },
+        initial_tempo,
+    ))
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -532,11 +383,7 @@ impl TickScheduleState {
     }
 }
 
-fn transport_thread(
-    shared: Arc<TransportShared>,
-    snapshot: PlaybackSnapshot,
-    mixer_handle: crate::playback::mixer::MixerHandle,
-) {
+fn transport_thread(shared: Arc<TransportShared>, snapshot: PlaybackSnapshot) {
     let mut tick_origin = std::time::Instant::now();
     let mut schedule_state = TickScheduleState::new();
 
@@ -558,66 +405,12 @@ fn transport_thread(
         }
 
         let bpm = publish_resolved_tempo(&shared, &snapshot.tempo_resolver, current_tick);
-        let spt = seconds_per_tick(bpm);
 
-        // Snapshot the live mix params into a local copy — hold the lock as briefly as possible
-        // so that the heavy render_note work below is entirely lock-free.
-        let (local_mix, has_solo) = {
-            let mix = shared.mix_params.read().unwrap();
-            let has_solo = mix.values().any(|p| p.solo);
-            (mix.clone(), has_solo)
-        };
-
-        let tick_start_deadline = tick_origin + schedule_state.next_tick_offset;
-        let raw_notes = snapshot
-            .scheduled_notes
-            .get(&current_tick)
-            .cloned()
-            .unwrap_or_default();
-        let audible_notes = filter_audible_scheduled_notes(&raw_notes, &local_mix, has_solo);
-
-        // Render and submit each note
-        for (note, params) in audible_notes {
-            let note_deadline = tick_start_deadline
-                + std::time::Duration::from_secs_f64(
-                    note.start.fractional_within_tick().to_f64() * spt,
-                );
-            let now = std::time::Instant::now();
-
-            if note_deadline > now {
-                std::thread::sleep(note_deadline - now);
-            }
-
-            if shared.stop_signal.load(Ordering::Acquire)
-                || shared.current_tick.load(Ordering::Relaxed) != current_tick
-            {
-                break;
-            }
-
-            let duration_seconds = note.duration.to_f64() * spt;
-
-            // Look up the sampler cache from the snapshot
-            let cache = match snapshot.sampler_cache.get(&note.plugin_id) {
-                Some(c) => c,
-                None => continue,
-            };
-
-            let art_id = match find_articulation_id(&cache.articulations) {
-                Some(id) => id,
-                None => continue,
-            };
-
-            render_note(
-                cache,
-                &art_id,
-                note.pitch,
-                note.velocity,
-                duration_seconds,
-                snapshot.sample_rate,
-                &mixer_handle,
-                params.volume,
-                params.pan,
-            );
+        if matches!(
+            snapshot.execution_mode,
+            PlaybackExecutionMode::TransportOnly
+        ) {
+            let _ = snapshot.scheduled_notes.get(&current_tick);
         }
 
         if shared.stop_signal.load(Ordering::Acquire) {
@@ -650,14 +443,9 @@ fn transport_thread(
     }
 }
 
-// -- Tauri Commands --
-
-#[tauri::command(rename_all = "snake_case")]
-pub fn transport_play(
-    state: State<'_, Mutex<TransportContext>>,
-    app_state: State<'_, AppContextState>,
-    sampler_state: State<'_, SamplerContextState>,
-    audio_state: State<'_, AudioContextState>,
+fn transport_play_with_states(
+    state: &Mutex<TransportContext>,
+    app_state: &AppContextState,
 ) -> Result<(), String> {
     let (shared, stale_handle) = {
         let mut ctx = state.lock().unwrap();
@@ -671,55 +459,26 @@ pub fn transport_play(
 
     join_transport_thread(stale_handle)?;
 
-    // Build a snapshot of everything the thread needs — snapshot locks are brief and one-time
-    let (snapshot, mixer_handle, initial_tempo) = {
+    let (snapshot, initial_tempo) = {
         let app_ctx = app_state.lock().unwrap();
-        let flow_id = active_flow_id(&app_ctx);
+        let current_tick = shared.current_tick.load(Ordering::Relaxed);
 
-        let flow_id = match flow_id {
-            Some(id) => id,
+        match build_supported_playback_snapshot(&app_ctx, current_tick) {
+            Some((snapshot, initial_tempo)) => (snapshot, initial_tempo),
             None => {
-                shared.set_tempo(f64::from(DEFAULT_TEMPO_BPM));
+                let flow_id = active_flow_id(&app_ctx);
+                shared.set_tempo(resolve_score_tempo_bpm(
+                    &app_ctx.score,
+                    flow_id,
+                    current_tick,
+                ));
                 return Ok(());
             }
-        };
-
-        let flow = app_ctx.score.flows.by_id.get(&flow_id).unwrap_or_else(|| {
-            panic!("Missing flow {} while starting transport playback", flow_id)
-        });
-        let tempo_resolver = flow_tempo_resolver(&app_ctx.score, flow_id);
-        let current_tick = shared.current_tick.load(Ordering::Relaxed);
-        let initial_tempo = tempo_resolver.resolve(current_tick).bpm_f64();
-
-        if !playback_can_start(current_tick, flow.length) {
-            shared.set_tempo(initial_tempo);
-            return Ok(());
         }
-
-        let sampler = sampler_state.lock().unwrap();
-        let sampler_cache = sampler.clone_cache();
-        drop(sampler);
-
-        let audio = audio_state.lock().unwrap();
-        let sample_rate = audio.get_sample_rate();
-        let mixer_handle = audio.get_mixer_handle().clone();
-        drop(audio);
-
-        let snapshot = PlaybackSnapshot {
-            score: app_ctx.score.clone(),
-            sampler_cache,
-            scheduled_notes: collect_scheduled_notes(&app_ctx.score, flow_id),
-            flow_length: flow.length,
-            sample_rate,
-            tempo_resolver,
-        };
-
-        (snapshot, mixer_handle, initial_tempo)
     };
 
     let mut ctx = state.lock().unwrap();
 
-    // Populate live mix params from the score
     {
         let mut mix = ctx.shared.mix_params.write().unwrap();
         mix.clear();
@@ -736,8 +495,6 @@ pub fn transport_play(
         }
     }
 
-    // Drop any old finished thread handle
-    // Reset stop signal
     ctx.shared.stop_signal.store(false, Ordering::Release);
     ctx.shared.playing.store(true, Ordering::Release);
     ctx.shared.set_tempo(initial_tempo);
@@ -745,10 +502,20 @@ pub fn transport_play(
     let shared = ctx.shared.clone();
 
     ctx.thread_handle = Some(std::thread::spawn(move || {
-        transport_thread(shared, snapshot, mixer_handle);
+        transport_thread(shared, snapshot);
     }));
 
     Ok(())
+}
+
+// -- Tauri Commands --
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn transport_play(
+    state: State<'_, Mutex<TransportContext>>,
+    app_state: State<'_, AppContextState>,
+) -> Result<(), String> {
+    transport_play_with_states(state.inner(), app_state.inner())
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -835,8 +602,6 @@ mod tests {
     use crate::score::staves::Stave;
     use crate::score::tracks::Track;
     use rustc_hash::FxHashSet;
-    use std::path::PathBuf;
-
     fn make_transport_shared() -> TransportShared {
         TransportShared {
             playing: AtomicBool::new(false),
@@ -845,6 +610,24 @@ mod tests {
             tempo_bits: AtomicU64::new(f64::from(DEFAULT_TEMPO_BPM).to_bits()),
             mix_params: RwLock::new(FxHashMap::default()),
         }
+    }
+
+    fn make_transport_context_state() -> Mutex<TransportContext> {
+        TransportContext::new().0
+    }
+
+    fn stop_test_transport(state: &Mutex<TransportContext>) {
+        let handle = {
+            let mut ctx = state.lock().unwrap();
+            ctx.shared.stop_signal.store(true, Ordering::Release);
+            ctx.shared.playing.store(false, Ordering::Release);
+            ctx.thread_handle.take()
+        };
+
+        join_transport_thread(handle).unwrap();
+
+        let ctx = state.lock().unwrap();
+        ctx.shared.stop_signal.store(false, Ordering::Release);
     }
 
     fn make_tempo(id: UniqueId, tick: Tick, bpm: u16) -> Tempo {
@@ -1103,27 +886,6 @@ mod tests {
     }
 
     #[test]
-    fn build_stream_request_threads_attack_offsets_into_playback_requests() {
-        let sample = crate::playback::sampler::CacheSample {
-            channels: 2,
-            container_path: PathBuf::from("/tmp/test.scvi"),
-            source_sample_rate: 44_100,
-            flac_offset: 512,
-            flac_length: 2_048,
-            attack_offset_frames: 321,
-        };
-
-        let (request, _buffer, channels) = build_stream_request(&sample, 0, 0.5, 48_000, 100, 64);
-
-        assert_eq!(channels, 2);
-        assert_eq!(request.attack_offset_frames, 321);
-        assert_eq!(request.source_sample_rate, 44_100);
-        assert_eq!(request.flac_offset, 512);
-        assert_eq!(request.max_output_frames, 31_200);
-        assert_eq!(request.fade_start_frame, 24_000);
-    }
-
-    #[test]
     fn resolve_score_tempo_bpm_uses_fallback_when_flow_has_no_tempos() {
         let (score, flow_id) = make_score_with_tempos(&[]);
 
@@ -1244,6 +1006,93 @@ mod tests {
         assert!(playback_can_start(31, 32));
         assert!(!playback_can_start(32, 32));
         assert!(!playback_can_start(64, 32));
+    }
+
+    #[test]
+    fn build_supported_playback_snapshot_uses_transport_only_mode_for_supported_playback() {
+        let mut track = Track::new(50);
+        track
+            .create_tone(80, 32, 16, 60, None, 96, Default::default(), None)
+            .unwrap();
+
+        let (score, flow_id) = make_flow_score_with_track(track);
+        let app_ctx = make_app_context(score, Some(flow_id));
+
+        let (snapshot, initial_tempo) =
+            build_supported_playback_snapshot(&app_ctx, 0).expect("expected snapshot");
+
+        assert_eq!(initial_tempo, 120.0);
+        assert_eq!(
+            snapshot.execution_mode,
+            PlaybackExecutionMode::TransportOnly
+        );
+        assert_eq!(snapshot.scheduled_notes.get(&32).map(Vec::len), Some(1));
+    }
+
+    #[test]
+    fn build_supported_playback_snapshot_returns_none_when_start_tick_is_past_flow_end() {
+        let mut track = Track::new(50);
+        track
+            .create_tone(80, 32, 16, 60, None, 96, Default::default(), None)
+            .unwrap();
+
+        let (score, flow_id) = make_flow_score_with_track(track);
+        let app_ctx = make_app_context(score, Some(flow_id));
+
+        assert!(build_supported_playback_snapshot(&app_ctx, 160).is_none());
+    }
+
+    #[test]
+    fn transport_play_with_states_starts_transport_only_playback_from_supported_command_seam() {
+        let mut track = Track::new(50);
+        track
+            .create_tone(80, 32, 16, 60, None, 96, Default::default(), None)
+            .unwrap();
+
+        let (score, flow_id) = make_flow_score_with_track(track);
+        let transport_state = make_transport_context_state();
+        let app_state = Mutex::new(make_app_context(score, Some(flow_id)));
+
+        transport_play_with_states(&transport_state, &app_state).unwrap();
+
+        let ctx = transport_state.lock().unwrap();
+        assert!(ctx.shared.playing.load(Ordering::Acquire));
+        assert_eq!(ctx.shared.get_tempo(), 120.0);
+
+        let mix = ctx.shared.mix_params.read().unwrap();
+        assert_eq!(mix.len(), 1);
+        let params = mix.values().next().unwrap();
+        assert_eq!(params.volume, 100);
+        assert_eq!(params.pan, 64);
+        assert!(!params.mute);
+        assert!(!params.solo);
+        drop(mix);
+        drop(ctx);
+
+        stop_test_transport(&transport_state);
+    }
+
+    #[test]
+    fn transport_play_with_states_keeps_transport_stopped_when_tick_is_past_flow_end() {
+        let mut track = Track::new(50);
+        track
+            .create_tone(80, 32, 16, 60, None, 96, Default::default(), None)
+            .unwrap();
+
+        let (score, flow_id) = make_flow_score_with_track(track);
+        let transport_state = make_transport_context_state();
+        {
+            let ctx = transport_state.lock().unwrap();
+            ctx.shared.current_tick.store(160, Ordering::Relaxed);
+        }
+        let app_state = Mutex::new(make_app_context(score, Some(flow_id)));
+
+        transport_play_with_states(&transport_state, &app_state).unwrap();
+
+        let ctx = transport_state.lock().unwrap();
+        assert!(!ctx.shared.playing.load(Ordering::Acquire));
+        assert_eq!(ctx.shared.get_tempo(), 120.0);
+        assert!(ctx.thread_handle.is_none());
     }
 
     #[test]
@@ -1776,53 +1625,5 @@ mod tests {
                 .collect::<Vec<_>>(),
             vec![84.0, 132.0]
         );
-    }
-
-    #[test]
-    fn filter_audible_scheduled_notes_respects_mute_and_solo_for_host_only_passages() {
-        let mut muted_track = Track::new(50);
-        muted_track
-            .create_tone(80, 32, 16, 60, None, 96, Default::default(), None)
-            .unwrap();
-        let mut unmuted_track = Track::new(51);
-        unmuted_track
-            .create_tone(81, 32, 16, 62, None, 96, Default::default(), None)
-            .unwrap();
-        let mut solo_track = Track::new(52);
-        solo_track
-            .create_tone(82, 32, 16, 64, None, 96, Default::default(), None)
-            .unwrap();
-
-        let (score, flow_id, instrument_ids) = make_flow_score_with_tracks(vec![
-            (muted_track, "plugin-a", true, false),
-            (unmuted_track, "plugin-b", false, false),
-            (solo_track, "plugin-c", false, true),
-        ]);
-        let scheduled = collect_scheduled_notes(&score, flow_id);
-        let bucket = scheduled
-            .get(&32)
-            .expect("expected shared host-only bucket");
-        let local_mix = score
-            .instruments
-            .by_id
-            .iter()
-            .map(|(instrument_id, instrument)| {
-                (
-                    *instrument_id,
-                    InstrumentMixParams {
-                        volume: instrument.volume,
-                        pan: instrument.pan,
-                        mute: instrument.mute,
-                        solo: instrument.solo,
-                    },
-                )
-            })
-            .collect::<FxHashMap<_, _>>();
-
-        let audible = filter_audible_scheduled_notes(bucket, &local_mix, true);
-
-        assert_eq!(audible.len(), 1);
-        assert_eq!(audible[0].0.instrument_id, instrument_ids[2]);
-        assert_eq!(audible[0].0.start, PlaybackTick::from_tick(32));
     }
 }

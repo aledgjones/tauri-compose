@@ -123,11 +123,6 @@ impl SamplerContext {
         })
     }
 
-    /// Clone the entire sampler cache (used by transport to take a playback snapshot)
-    pub fn clone_cache(&self) -> FxHashMap<String, Cache> {
-        self.cache.clone()
-    }
-
     fn scan_plugins() -> Vec<PluginMeta> {
         let path = "/Library/Audio/Plug-Ins/SCVI";
         let mut plugins = Vec::new();

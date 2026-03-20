@@ -54,9 +54,9 @@ The score itself is rendered natively by Rust/Skia/Metal — all other UI (panel
 - **`AppContext`** — Behind `Mutex`, holds `Ui`, `Score`, `Preferences`, `next_id`, `current_file_path`
 - **`RendererContext`** — Behind `Mutex`, holds `MetalRenderer`, `DrawInstruction[]`, `HitTarget[]`, `Converter`
 - **`AudioContext`** — Behind `Mutex`, holds `cpal` host/device/stream, `MixerHandle`
-- **`SamplerContext`** — Behind `Mutex`, holds plugin metadata, `Cache` (decoded instrument data)
+- **`SamplerContext`** — Behind `Mutex`, holds legacy sampler plugin metadata and cache for sampler tooling/audition; supported transport playback no longer snapshots it as runtime truth
 - **`TransportContext`** — Behind `Mutex` + `TransportShared` (Arc with atomics for lock-free polling)
-- **Sample attack alignment path** — SCVI SIDX metadata -> `SampleIndex` -> sampler `CacheSample` -> transport `StreamRequest` -> streamer trim-before-resample
+- **Sample attack alignment path** — SCVI SIDX metadata -> `SampleIndex` -> sampler `CacheSample` -> legacy sampler `StreamRequest` -> streamer trim-before-resample
 
 ### Frontend Side (Display Layer)
 
@@ -91,7 +91,7 @@ Four React contexts mirror the backend state:
 
 - Per-sample playback alignment is backend-owned metadata, not a transport scheduling hack and not frontend timing state.
 - `scvi_compress.rs` derives `attack_offset_frames` during SCVI builds with a build-time onset detector that uses a short-window RMS envelope plus a local baseline estimate, then stores the first meaningful RMS crossing as the onset so slow blooms and bow noise are kept at the start of the audible bloom instead of trimmed to a later high-energy point.
-- `ScviContainer::open()` loads that offset into `SampleIndex`, the sampler cache carries it through `CacheSample`, transport threads it into `StreamRequest`, and `streamer.rs` discards those leading source frames before resampling or pitch work.
+- `ScviContainer::open()` loads that offset into `SampleIndex`, the sampler cache carries it through `CacheSample`, legacy sampler streaming threads it into `StreamRequest`, and `streamer.rs` discards those leading source frames before resampling or pitch work.
 - Older SCVI containers remain readable because a zero-filled offset decodes to `attack_offset_frames = 0`; rebuilt SCVI assets are required to benefit from alignment.
 
 ---
@@ -238,6 +238,8 @@ type AnchoredNotationTrack = {
 ---
 
 ## Audio Pipeline
+
+Supported `transport_play` is currently timing-only on the product path. It advances tick and tempo state from the score snapshot without cloning `SamplerContext` or dispatching SCVI streamer work. The SCVI pipeline below remains legacy sampler and audition infrastructure, not the supported transport runtime.
 
 ```
 ┌──────────────┐     ┌──────────────────────────────────┐
