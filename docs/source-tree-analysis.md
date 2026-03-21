@@ -227,7 +227,7 @@ compose/                              # Project root
 │   │   │   ├── sampler.rs            # Plugin scanning + instrument caching (507 lines)
 │   │   │   ├── mixer.rs              # 64-slot lock-free voice mixer (163 lines)
 │   │   │   ├── streamer.rs           # Disk-streaming FLAC decode + resample (448 lines)
-│   │   │   └── scvi.rs               # SCVI binary container reader (217 lines)
+│   │   │   └── scvi.rs               # Legacy runtime-only `.scvi` container reader (217 lines)
 │   │   │
 │   │   ├── ui/                       # UI state management (Rust side)
 │   │   │   ├── mod.rs                # Ui struct, Tab enum, tab/layout/flow commands
@@ -240,9 +240,10 @@ compose/                              # Project root
 │   │   │   └── mod.rs                # Migration registry
 │   │   │
 │   │   └── bin/                      # CLI tools (compiled separately)
-│   │       ├── scvi_compress.rs      # Compress instruments → SCVI format
-│   │       ├── scvi_inspect.rs       # Inspect SCVI container contents
-│   │       └── generate_manifest.rs  # Generate instrument manifests
+│   │       ├── build_fixtures.rs     # Build `.soloc` visual-regression fixtures from JSON
+│   │       ├── generate_manifest.rs  # Generate instrument manifests
+│   │       ├── performance.rs        # Render/performance benchmark harness
+│   │       └── release.rs            # Release preparation/finalization tool
 │   │
 │   ├── capabilities/                 # Tauri security capabilities
 │   ├── gen/                          # Tauri generated code
@@ -268,10 +269,9 @@ compose/                              # Project root
 │   └── clarinet/
 │
 ├── scripts/                          # Build tools (compiled Rust binaries)
+│   ├── coverage-summary              # Print JS coverage totals from coverage-final.json
 │   ├── generate-manifest             # Instrument manifest generator
-│   ├── release                       # Version bump + release tool
-│   ├── scvi-compress                 # SCVI compression tool
-│   └── scvi-inspect                  # SCVI inspection tool
+│   └── release                       # Version bump + release tool
 │
 └── docs/                             # Project documentation
     └── project-context.md            # AI agent rules (52 rules)
