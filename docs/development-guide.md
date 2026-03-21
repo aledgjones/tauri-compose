@@ -160,11 +160,15 @@ What the current proof does:
 - defaults the host window to non-resizable until the plugin explicitly reports that its editor can resize via `IPlugView::canResize()` and logs the host callbacks the plugin invokes through the current proof seam
 - keeps the experimental host state in Rust and logs create, focus, resize, close, and destroy lifecycle events
 
+The `plugin-host-poc` window remains a development-only proof seam for the upcoming native editor-host stories. Keep it distinct from the canonical Sequence-menu `Plugin Manager...` inventory window, and do not treat the legacy `actions.sampler.openPluginEditorPoc()` trigger as the product ownership model for VST workflows.
+
 Plugin inventory startup behavior:
 
 - Compose persists the machine-local VST3 inventory under the app config directory and reuses that cache on startup so known plugins are visible immediately.
 - Startup validation is intentionally bounded: it rechecks cached bundle paths and related cached entry state, then does one cheap root listing sweep to spot uncached `.vst3` bundles and probes only those newly seen bundles.
 - Startup cache reuse is not `.soloc` persistence. Project files remain portable score data only.
+- The canonical app-scoped browse surface for that inventory is the Sequence-menu `Plugin Manager...` window.
+- The Sequence `Plugins` surface remains a temporary contextual browse seam. It is not the final assignment workflow and should not replace the dedicated manager window's app-scoped role.
 - The Sequence `Plugins` refresh action is still the explicit manual discovery seam. It is distinct from startup cache reuse and is where broader discovery/rescan behavior belongs.
 
 What it does not yet do:
@@ -268,7 +272,7 @@ When making changes to the container format, update `soloc.rs` and rebuild fixtu
 
 ### Vite (Frontend)
 
-- Multi-page app: 9 HTML entry points configured in `rollupOptions.input`
+- Multi-page app: 10 HTML entry points configured in `rollupOptions.input`
 - Dev server on port 1420 (strict port)
 - HMR enabled, ignores `src-tauri/` directory
 

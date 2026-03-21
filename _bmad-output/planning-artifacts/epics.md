@@ -525,6 +525,31 @@ So that Compose can claim a bounded credible editor-host path without overclaimi
 **Then** they can identify which tested plugins support the bounded editor-host path credibly
 **And** any limitations, exclusions, or caveats are explicit rather than implicit.
 
+### Story 2.8: Surface Best-Effort Plugin Artwork in Plugin Manager
+
+As a maintainer,
+I want Plugin Manager rows to show plugin artwork when Compose can derive it safely,
+So that the inventory is easier to scan without depending on artwork availability for core usability.
+
+**FRs implemented:** FR2
+
+**Acceptance Criteria:**
+
+**Given** Plugin Manager rows reserve a square visual slot for plugin identity
+**When** Compose has best-effort artwork or icon metadata for a plugin
+**Then** the Plugin Manager renders that image in the same square slot used by the fallback badge
+**And** the row layout remains consistent across plugins with and without artwork.
+
+**Given** VST3 plugins do not provide deterministic cross-platform cover art in the current inventory seam
+**When** no usable artwork is available for a plugin
+**Then** Compose falls back to the generated square name badge
+**And** inventory browsing remains legible and complete without missing-image errors or blank identity slots.
+
+**Given** plugin artwork is a presentation enhancement rather than core inventory truth
+**When** this story is implemented
+**Then** discovery, cached startup reuse, and manual rescan remain backend-owned and coherent
+**And** missing artwork does not change plugin availability classification, block inventory browsing, or alter `.soloc` persistence boundaries.
+
 ## Epic 3: Make Score Instruments Playable
 
 Composers can assign playback to score instruments through both single-part and one-instance multi-instrument plugin workflows, see whether each part is ready or needs attention, and rely on stable plugin lifecycle behavior.

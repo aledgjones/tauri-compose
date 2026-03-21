@@ -55,6 +55,16 @@ describe("PluginsToolbar", () => {
     expect(screen.getByText("Available only")).toBeInTheDocument();
   });
 
+  it("can hide the refresh button for browse-only windows", () => {
+    renderWithProviders(
+      <PluginsToolbar {...defaults} showRefreshButton={false} />,
+    );
+
+    expect(
+      screen.queryByRole("button", { name: /refresh plugin inventory/i }),
+    ).not.toBeInTheDocument();
+  });
+
   it("calls discover when refresh button is clicked", async () => {
     renderWithProviders(<PluginsToolbar {...defaults} />);
     const buttons = screen.getAllByRole("button");
@@ -84,6 +94,15 @@ describe("PluginsToolbar", () => {
       screen.getByPlaceholderText("Search plugins..."),
     ).toBeInTheDocument();
   });
+
+  it("lets the search input expand to the remaining toolbar width", () => {
+    renderWithProviders(<PluginsToolbar {...defaults} />);
+
+    expect(
+      screen.getByPlaceholderText("Search plugins...").closest("div")
+        ?.parentElement?.className,
+    ).toContain("flex-1");
+  });
 });
 
 describe("Plugins", () => {
@@ -101,6 +120,11 @@ describe("Plugins", () => {
       },
     });
     expect(screen.getByText("Grand Piano")).toBeInTheDocument();
+    expect(screen.getByText("Available")).toBeInTheDocument();
+    expect(screen.getByLabelText("Status: Available")).toBeInTheDocument();
+    expect(screen.getByLabelText("Status: Available").className).toContain(
+      "bg-emerald-500/10",
+    );
   });
 
   it("shows 'No plugins match' when search term filters all plugins", () => {
@@ -171,6 +195,87 @@ describe("Plugins", () => {
     ).toBeInTheDocument();
   });
 
+  it("renders the shared compact plugin row", () => {
+    renderWithProviders(<Plugins searchTerm="" showActiveOnly={false} />, {
+      pluginInventoryState: {
+        entries: [makePlugin()],
+      },
+    });
+
+    expect(screen.getByText("Grand Piano")).toBeInTheDocument();
+    expect(
+      screen.getByText(/Contents\/MacOS\/Grand Piano/),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByTestId(
+        "plugin-badge-vst3:/Library/Audio/Plug-Ins/VST3/Grand Piano.vst3",
+      ),
+    ).toHaveTextContent("GP");
+    expect(screen.queryByText("Root")).not.toBeInTheDocument();
+    expect(screen.queryByText("Binary")).not.toBeInTheDocument();
+    expect(screen.getByTestId("plugins-list-filler").className).toContain(
+      "bg-neutral-900",
+    );
+  });
+
+  it("shows a compact validation message for unavailable plugins", () => {
+    renderWithProviders(<Plugins searchTerm="" showActiveOnly={false} />, {
+      pluginInventoryState: {
+        entries: [
+          makePlugin({
+            availability: "unavailable",
+            binary_path: null,
+            validation_failure: {
+              kind: "missing_bundle_binary",
+              message: "Missing Contents/MacOS binary",
+            },
+          }),
+        ],
+      },
+    });
+
+    expect(
+      screen.getByText("Missing Contents/MacOS binary"),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("Binary path unavailable"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("uses a square plugin-name badge", () => {
+    renderWithProviders(<Plugins searchTerm="" showActiveOnly={false} />, {
+      pluginInventoryState: {
+        entries: [makePlugin({ id: "a", name: "Alpha" })],
+      },
+    });
+
+    const badge = screen.getByTestId("plugin-badge-a");
+
+    expect(badge).toHaveTextContent("AL");
+    expect(badge.className).toContain("h-10");
+    expect(badge.className).toContain("w-10");
+  });
+
+  it("ignores punctuation when deriving badge initials", () => {
+    renderWithProviders(<Plugins searchTerm="" showActiveOnly={false} />, {
+      pluginInventoryState: {
+        entries: [
+          makePlugin({ id: "a", name: "Originals - Piano" }),
+          makePlugin({ id: "b", name: "Originals Piano" }),
+          makePlugin({ id: "c", name: "OriginalsPiano" }),
+          makePlugin({ id: "d", name: "Originals ! -" }),
+          makePlugin({ id: "e", name: " ! - " }),
+        ],
+      },
+    });
+
+    expect(screen.getByTestId("plugin-badge-a")).toHaveTextContent("OP");
+    expect(screen.getByTestId("plugin-badge-b")).toHaveTextContent("OP");
+    expect(screen.getByTestId("plugin-badge-c")).toHaveTextContent("OR");
+    expect(screen.getByTestId("plugin-badge-d")).toHaveTextContent("OR");
+    expect(screen.getByTestId("plugin-badge-e")).toHaveTextContent("?");
+  });
+
   it("renders plugin issue details for problematic bundles", () => {
     renderWithProviders(<Plugins searchTerm="" showActiveOnly={false} />, {
       pluginInventoryState: {
@@ -186,6 +291,11 @@ describe("Plugins", () => {
         ],
       },
     });
+    expect(screen.getByText("Unavailable")).toBeInTheDocument();
+    expect(screen.getByLabelText("Status: Unavailable")).toBeInTheDocument();
+    expect(screen.getByLabelText("Status: Unavailable").className).toContain(
+      "bg-amber-500/10",
+    );
     expect(
       screen.getByText("Missing Contents/MacOS binary"),
     ).toBeInTheDocument();

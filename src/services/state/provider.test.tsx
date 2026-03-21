@@ -43,6 +43,7 @@ vi.mock("@tauri-apps/api/webviewWindow", () => ({
 vi.mock("../actions", () => ({
   actions: {
     initialize: vi.fn().mockResolvedValue(undefined),
+    openPluginManager: vi.fn().mockResolvedValue(undefined),
     transport: {
       play: vi.fn().mockResolvedValue(undefined),
       pause: vi.fn().mockResolvedValue(undefined),
@@ -365,6 +366,7 @@ describe("AppStateProvider", () => {
     expect(listeners.has("soloc://menu/open")).toBe(true);
     expect(listeners.has("soloc://menu/open-recent")).toBe(true);
     expect(listeners.has("soloc://menu/new")).toBe(true);
+    expect(listeners.has("soloc://menu/plugin-manager")).toBe(true);
     expect(listeners.has("soloc://recents-changed")).toBe(true);
 
     await act(async () => {
@@ -383,6 +385,7 @@ describe("AppStateProvider", () => {
         payload: "/Users/aledjones/example.soloc",
       });
       listeners.get("soloc://menu/new")?.({ payload: "" });
+      listeners.get("soloc://menu/plugin-manager")?.({ payload: "" });
       listeners.get("soloc://recents-changed")?.({ payload: "" });
       await Promise.resolve();
     });
@@ -394,6 +397,7 @@ describe("AppStateProvider", () => {
       "/Users/aledjones/example.soloc",
     );
     expect(actions.reset).toHaveBeenCalledTimes(1);
+    expect(actions.openPluginManager).toHaveBeenCalledTimes(1);
 
     expect(invokeMock).toHaveBeenCalledWith("refresh_menus");
   });
@@ -419,6 +423,7 @@ describe("AppStateProvider", () => {
     expect(listeners.has("soloc://menu/save")).toBe(false);
     expect(listeners.has("soloc://menu/open")).toBe(false);
     expect(listeners.has("soloc://menu/open-recent")).toBe(false);
+    expect(listeners.has("soloc://menu/plugin-manager")).toBe(false);
     expect(listeners.has("soloc://recents-changed")).toBe(false);
   });
 

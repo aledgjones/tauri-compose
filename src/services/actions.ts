@@ -31,6 +31,32 @@ export const actions = {
   reset: () => {
     return invoke("reset");
   },
+  openPluginManager: async () => {
+    const existing = await WebviewWindow.getByLabel("plugin-manager");
+
+    if (existing) {
+      await existing.show();
+      await existing.setFocus();
+
+      return existing;
+    }
+
+    const webview = new WebviewWindow("plugin-manager", {
+      url: "/plugin-manager.html",
+      title: "Plugin Manager",
+      visible: false,
+      titleBarStyle: "overlay",
+      acceptFirstMouse: true,
+      height: 720,
+      width: 1100,
+      theme: "dark",
+    });
+
+    await webview.show();
+    await webview.setFocus();
+
+    return webview;
+  },
   pickAnInstrument: () => {
     return new Promise<string | null>((resolve) => {
       (async () => {

@@ -181,6 +181,7 @@ export const AppStateProvider: FC<Props> = ({
     let unlistenMenuOpen: UnlistenFn | null = null;
     let unlistenMenuOpenRecent: UnlistenFn | null = null;
     let unlistenMenuNew: UnlistenFn | null = null;
+    let unlistenMenuPluginManager: UnlistenFn | null = null;
     let unlistenMenuPreferences: UnlistenFn | null = null;
     let unlistenRecentsChanged: UnlistenFn | null = null;
 
@@ -231,6 +232,13 @@ export const AppStateProvider: FC<Props> = ({
           actions.reset().catch(console.error);
         });
 
+        unlistenMenuPluginManager = await listen(
+          "soloc://menu/plugin-manager",
+          () => {
+            actions.openPluginManager().catch(console.error);
+          },
+        );
+
         unlistenMenuPreferences = await listen(
           "soloc://menu/preferences",
           () => {
@@ -276,6 +284,7 @@ export const AppStateProvider: FC<Props> = ({
       unlistenMenuOpen?.();
       unlistenMenuOpenRecent?.();
       unlistenMenuNew?.();
+      unlistenMenuPluginManager?.();
       unlistenMenuPreferences?.();
       unlistenRecentsChanged?.();
     };

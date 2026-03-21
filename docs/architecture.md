@@ -71,7 +71,7 @@ Five React contexts mirror the backend state:
 | `SamplerContext`         | `soloc://state/sampler`               | `useSamplerState()`         | Plugin list, loaded plugins       |
 | `TransportContext`       | RAF polling via `transport_get_state` | `useTransportState()`       | Playing, tick, tempo              |
 
-The sampler state above is retained only as bounded legacy scaffolding. The dedicated plugin inventory state is now the backend-owned machine-local VST3 discovery seam. Startup reuses the persisted inventory immediately, revalidates cached entries, performs one cheap directory sweep to spot uncached bundles, probes only those newly seen bundles, and still leaves full root-wide reprobe behavior to the explicit manual refresh workflow. Epic 2 through Epic 6 must continue building VST-owned assignment, runtime, and transport-adjacent contracts rather than extending `SamplerContext`, `soloc://state/sampler`, or sampler-era action/event contracts. The planned end state is full removal of the remaining SCVI subsystem once the VST replacement path is complete.
+The sampler state above is retained only as bounded legacy scaffolding. The dedicated plugin inventory state is now the backend-owned machine-local VST3 discovery seam. Startup reuses the persisted inventory immediately, revalidates cached entries, performs one cheap directory sweep to spot uncached bundles, probes only those newly seen bundles, and still leaves full root-wide reprobe behavior to the explicit manual refresh workflow. The canonical app-scoped browse surface for that inventory is now the dedicated Plugin Manager window opened from the Sequence menu, while the Sequence bottom panel remains a temporary contextual browse seam until later score-assignment stories own contextual launch and recovery UX. Epic 2 through Epic 6 must continue building VST-owned assignment, runtime, and transport-adjacent contracts rather than extending `SamplerContext`, `soloc://state/sampler`, or sampler-era action/event contracts. The planned end state is full removal of the remaining SCVI subsystem once the VST replacement path is complete.
 
 ### State Flow
 
@@ -289,7 +289,7 @@ Supported `transport_play` is currently timing-only on the product path. It adva
 
 ## Multi-Window Architecture
 
-Each of the 9 windows has:
+Each of the 10 windows has:
 
 - Its own HTML entry point (e.g., `instrument-picker.html`)
 - Its own `boot.tsx` mounting `AppStateProvider`
@@ -297,7 +297,7 @@ Each of the 9 windows has:
 
 Secondary windows (instrument-picker, preferences, etc.) close on blur via `tauri://blur` event listener. New windows are opened via `WebviewWindow` from `@tauri-apps/api/webviewWindow`.
 
-The experimental `plugin-host-poc` window is the one exception to the normal frontend-owned open flow: React triggers a thin backend command, and Rust creates or focuses the host window so the backend can own macOS-native attachment and teardown. The current proof resolves its target from an explicit request, then `SOLOC_PLUGIN_EDITOR_POC_VST3_PATH`, then the standard macOS VST3 install roots under `~/Library/Audio/Plug-Ins/VST3` and `/Library/Audio/Plug-Ins/VST3`. It validates that the chosen target is a local `.vst3` bundle, loads the bundle binary in Rust, creates a minimal VST3 component/controller/editor stack, synchronizes component state into the controller when needed, connects component/controller `IConnectionPoint` pairs when the plugin exposes them, and attaches the returned `IPlugView` to a native AppKit subview in the Tauri content hierarchy. That proves the live editor-host seam is at least technically reachable inside the app, but it remains an experimental narrow host rather than the final plugin-host architecture.
+The experimental `plugin-host-poc` window is the one exception to the normal frontend-owned open flow: React triggers a thin backend command, and Rust creates or focuses the host window so the backend can own macOS-native attachment and teardown. The current proof resolves its target from an explicit request, then `SOLOC_PLUGIN_EDITOR_POC_VST3_PATH`, then the standard macOS VST3 install roots under `~/Library/Audio/Plug-Ins/VST3` and `/Library/Audio/Plug-Ins/VST3`. It validates that the chosen target is a local `.vst3` bundle, loads the bundle binary in Rust, creates a minimal VST3 component/controller/editor stack, synchronizes component state into the controller when needed, connects component/controller `IConnectionPoint` pairs when the plugin exposes them, and attaches the returned `IPlugView` to a native AppKit subview in the Tauri content hierarchy. That proves the live editor-host seam is at least technically reachable inside the app, but it remains an experimental narrow host rather than the final plugin-host architecture. It is still a bounded development seam for Stories 2.5 through 2.7, not the canonical inventory surface and not the template for long-term frontend-owned VST workflows.
 
 ---
 

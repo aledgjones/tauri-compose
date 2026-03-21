@@ -19,14 +19,19 @@ vi.mock("@tauri-apps/plugin-dialog", () => ({
 }));
 
 vi.mock("@tauri-apps/api/webviewWindow", () => ({
-  WebviewWindow: vi.fn().mockImplementation(() => ({
-    once: vi.fn().mockResolvedValue(vi.fn()),
-    close: vi.fn(),
-  })),
+  WebviewWindow: vi.fn(function MockWebviewWindow() {
+    return {
+      show: vi.fn(),
+      setFocus: vi.fn(),
+      once: vi.fn().mockResolvedValue(vi.fn()),
+      close: vi.fn(),
+    };
+  }),
 }));
 
 import { invoke } from "@tauri-apps/api/core";
 import { save, open } from "@tauri-apps/plugin-dialog";
+import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { actions } from "./actions";
 import {
   Accidental,
@@ -71,6 +76,50 @@ describe("actions.reset", () => {
   it("calls invoke('reset')", async () => {
     await actions.reset();
     expect(mockInvoke).toHaveBeenCalledWith("reset");
+  });
+});
+
+describe("actions.openPluginManager", () => {
+  it("creates, shows, and focuses the dedicated plugin manager window", async () => {
+    vi.mocked(WebviewWindow.getByLabel).mockResolvedValueOnce(null);
+
+    await actions.openPluginManager();
+
+    const windowMock = vi.mocked(WebviewWindow).mock.results[0]?.value as {
+      show: ReturnType<typeof vi.fn>;
+      setFocus: ReturnType<typeof vi.fn>;
+    };
+
+    expect(WebviewWindow.getByLabel).toHaveBeenCalledWith("plugin-manager");
+    expect(WebviewWindow).toHaveBeenCalledWith(
+      "plugin-manager",
+      expect.objectContaining({
+        url: "/plugin-manager.html",
+        title: "Plugin Manager",
+        visible: false,
+      }),
+    );
+    expect(windowMock).toBeDefined();
+    expect(windowMock.show).toHaveBeenCalledTimes(1);
+    expect(windowMock.setFocus).toHaveBeenCalledTimes(1);
+  });
+
+  it("reuses and focuses the existing dedicated plugin manager window", async () => {
+    const existingWindow = {
+      show: vi.fn(),
+      setFocus: vi.fn(),
+    };
+
+    vi.mocked(WebviewWindow.getByLabel).mockResolvedValueOnce(
+      existingWindow as unknown as WebviewWindow,
+    );
+
+    const result = await actions.openPluginManager();
+
+    expect(WebviewWindow).not.toHaveBeenCalled();
+    expect(existingWindow.show).toHaveBeenCalledTimes(1);
+    expect(existingWindow.setFocus).toHaveBeenCalledTimes(1);
+    expect(result).toBe(existingWindow);
   });
 });
 

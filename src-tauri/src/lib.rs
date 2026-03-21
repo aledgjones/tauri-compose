@@ -477,6 +477,13 @@ pub fn run() {
                 true,
                 Some("CmdOrCtrl+,"),
             )?;
+            let plugin_manager = MenuItem::with_id(
+                app,
+                "plugin_manager",
+                "Plugin Manager...",
+                true,
+                None::<&str>,
+            )?;
 
             let app_menu = Submenu::with_items(
                 app,
@@ -518,8 +525,16 @@ pub fn run() {
                 &[&new, &open, &open_recent, &separator, &save, &save_as],
             )?;
 
-            // Create main menu with app menu first, then File menu
-            let menu = Menu::with_items(app, &[&app_menu, &file_menu])?;
+            let sequence_menu = Submenu::with_id_and_items(
+                app,
+                "sequence_menu",
+                "Sequence",
+                true,
+                &[&plugin_manager],
+            )?;
+
+            // Create main menu with app menu first, then File and Sequence menus
+            let menu = Menu::with_items(app, &[&app_menu, &file_menu, &sequence_menu])?;
 
             // Set the menu
             app.set_menu(menu)?;
@@ -547,6 +562,10 @@ pub fn run() {
                     "preferences" => {
                         // Trigger preferences window
                         let _ = app.emit("soloc://menu/preferences", ());
+                    }
+                    "plugin_manager" => {
+                        // Trigger plugin manager window
+                        let _ = app.emit("soloc://menu/plugin-manager", ());
                     }
                     "clear_recent_files" => {
                         // Clear recent files

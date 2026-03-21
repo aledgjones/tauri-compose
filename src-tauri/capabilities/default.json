@@ -11,7 +11,8 @@
     "player-settings",
     "instrument-picker",
     "plugin-settings-*",
-    "plugin-host-poc"
+    "plugin-host-poc",
+    "plugin-manager"
   ],
   "permissions": [
     "core:default",

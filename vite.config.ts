@@ -41,6 +41,7 @@ export default defineConfig(async () => ({
         layoutSettings: resolve(__dirname, "layout-settings.html"),
         playerSettings: resolve(__dirname, "player-settings.html"),
         pluginHostPoc: resolve(__dirname, "plugin-host-poc.html"),
+        pluginManager: resolve(__dirname, "plugin-manager.html"),
         pluginSettings: resolve(__dirname, "plugin-settings.html"),
         preferences: resolve(__dirname, "preferences.html"),
         projectSettings: resolve(__dirname, "project-settings.html"),
