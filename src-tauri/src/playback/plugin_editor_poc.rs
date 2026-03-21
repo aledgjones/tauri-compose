@@ -1,5 +1,9 @@
 #![allow(non_snake_case)]
 
+use crate::playback::vst3::{
+    default_vst3_search_roots, discover_first_valid_vst3_in_roots, validate_vst3_bundle,
+    MACOS_VST3_SEARCH_ROOTS,
+};
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
@@ -11,10 +15,6 @@ const WINDOW_LABEL: &str = "plugin-host-poc";
 const HOST_PAGE_PATH: &str = "plugin-host-poc.html";
 const HOST_HEADER_HEIGHT: f64 = 0.0;
 const PLUGIN_PATH_ENV: &str = "SOLOC_PLUGIN_EDITOR_POC_VST3_PATH";
-const MACOS_VST3_SEARCH_ROOTS: [&str; 2] = [
-    "~/Library/Audio/Plug-Ins/VST3",
-    "/Library/Audio/Plug-Ins/VST3",
-];
 
 fn active_plugin_target() -> &'static Mutex<Option<PathBuf>> {
     static ACTIVE_PLUGIN_TARGET: OnceLock<Mutex<Option<PathBuf>>> = OnceLock::new();
@@ -49,7 +49,7 @@ fn live_plugin_host_attached() -> bool {
 }
 
 fn resolve_plugin_target(explicit_plugin_path: Option<&str>) -> Result<PathBuf, String> {
-    resolve_plugin_target_in_roots(explicit_plugin_path, &default_plugin_search_roots())
+    resolve_plugin_target_in_roots(explicit_plugin_path, &default_vst3_search_roots())
 }
 
 fn resolve_plugin_target_in_roots(
@@ -57,12 +57,12 @@ fn resolve_plugin_target_in_roots(
     default_roots: &[PathBuf],
 ) -> Result<PathBuf, String> {
     if let Some(path) = requested_plugin_target_candidate(explicit_plugin_path) {
-        validate_plugin_target(&path)?;
+        validate_vst3_bundle(&path).map_err(|error| error.message)?;
         return Ok(path);
     }
 
-    if let Some(path) = discover_plugin_target_in_roots(default_roots) {
-        validate_plugin_target(&path)?;
+    if let Some(path) = discover_first_valid_vst3_in_roots(default_roots) {
+        validate_vst3_bundle(&path).map_err(|error| error.message)?;
         return Ok(path);
     }
 
@@ -85,115 +85,6 @@ fn requested_plugin_target_candidate(explicit_plugin_path: Option<&str>) -> Opti
                 .filter(|value| !value.is_empty())
                 .map(PathBuf::from)
         })
-}
-
-fn discover_plugin_target_in_roots(roots: &[PathBuf]) -> Option<PathBuf> {
-    for root in roots {
-        let Ok(read_dir) = std::fs::read_dir(root) else {
-            continue;
-        };
-
-        let mut entries = read_dir.filter_map(Result::ok).collect::<Vec<_>>();
-        entries.sort_by_key(|entry| entry.file_name());
-
-        for entry in entries {
-            let path = entry.path();
-            if validate_plugin_target(&path).is_ok() {
-                return Some(path);
-            }
-        }
-    }
-
-    None
-}
-
-#[cfg(target_os = "macos")]
-fn default_plugin_search_roots() -> Vec<PathBuf> {
-    MACOS_VST3_SEARCH_ROOTS
-        .iter()
-        .filter_map(|root| expand_home_dir(root))
-        .filter(|root| root.is_dir())
-        .collect()
-}
-
-#[cfg(not(target_os = "macos"))]
-fn default_plugin_search_roots() -> Vec<PathBuf> {
-    Vec::new()
-}
-
-fn expand_home_dir(path: &str) -> Option<PathBuf> {
-    if path == "~" {
-        return std::env::var_os("HOME").map(PathBuf::from);
-    }
-
-    if let Some(stripped) = path.strip_prefix("~/") {
-        return std::env::var_os("HOME").map(|home| PathBuf::from(home).join(stripped));
-    }
-
-    Some(PathBuf::from(path))
-}
-
-fn validate_plugin_target(path: &Path) -> Result<(), String> {
-    if path.extension().and_then(|extension| extension.to_str()) != Some("vst3") {
-        return Err(format!(
-            "Plugin editor POC expects a .vst3 bundle path, got '{}'.",
-            path.display()
-        ));
-    }
-
-    if !path.exists() {
-        return Err(format!(
-            "Plugin editor POC target does not exist: '{}'.",
-            path.display()
-        ));
-    }
-
-    if !path.is_dir() {
-        return Err(format!(
-            "Plugin editor POC expects a VST3 bundle directory, got '{}'.",
-            path.display()
-        ));
-    }
-
-    Ok(())
-}
-
-fn plugin_bundle_binary_path(path: &Path) -> Result<PathBuf, String> {
-    let macos_dir = path.join("Contents").join("MacOS");
-    if !macos_dir.is_dir() {
-        return Err(format!(
-            "Plugin editor POC expected a Contents/MacOS directory inside '{}'.",
-            path.display()
-        ));
-    }
-
-    if let Some(bundle_name) = path.file_stem().and_then(|value| value.to_str()) {
-        let preferred = macos_dir.join(bundle_name);
-        if preferred.is_file() {
-            return Ok(preferred);
-        }
-    }
-
-    let mut binaries = std::fs::read_dir(&macos_dir)
-        .map_err(|error| {
-            format!(
-                "Failed to read VST3 bundle binary directory '{}': {error}",
-                macos_dir.display()
-            )
-        })?
-        .filter_map(Result::ok)
-        .map(|entry| entry.path())
-        .filter(|entry| entry.is_file())
-        .collect::<Vec<_>>();
-    binaries.sort();
-
-    match binaries.len() {
-        0 => Err(format!(
-            "Plugin editor POC did not find a bundle executable inside '{}'.",
-            macos_dir.display()
-        )),
-        _ => Ok(binaries.remove(0)),
-    }
 }
 
 fn build_host_window(app: &AppHandle) -> Result<WebviewWindow, String> {
@@ -254,7 +145,8 @@ fn log_window_event(window: &WebviewWindow, event: &WindowEvent) {
 
 #[cfg(target_os = "macos")]
 mod macos_host {
-    use super::{active_plugin_host_session, plugin_bundle_binary_path, HOST_HEADER_HEIGHT};
+    use super::{active_plugin_host_session, HOST_HEADER_HEIGHT};
+    use crate::playback::vst3::vst3_bundle_binary_path;
     use libloading::Library;
     use objc2::rc::Retained;
     use objc2::{MainThreadMarker, MainThreadOnly};
@@ -598,7 +490,7 @@ mod macos_host {
     }
 
     fn load_vst3_module(plugin_path: &Path) -> Result<LoadedVst3Module, String> {
-        let binary_path = plugin_bundle_binary_path(plugin_path)?;
+        let binary_path = vst3_bundle_binary_path(plugin_path).map_err(|error| error.message)?;
         let library = unsafe { Library::new(&binary_path) }.map_err(|error| {
             format!(
                 "Failed to load VST3 bundle binary '{}': {error}",
@@ -1207,7 +1099,7 @@ pub async fn plugin_editor_poc_open(
 ) -> Result<PluginEditorPocOpenResult, String> {
     if let Some(window) = app.get_webview_window(WINDOW_LABEL) {
         if let Some(requested_target) = requested_plugin_target_candidate(plugin_path.as_deref()) {
-            validate_plugin_target(&requested_target)?;
+            validate_vst3_bundle(&requested_target).map_err(|error| error.message)?;
 
             let active_target = active_plugin_target()
                 .lock()
@@ -1277,34 +1169,7 @@ pub async fn plugin_editor_poc_open(
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        discover_plugin_target_in_roots, expand_home_dir, plugin_bundle_binary_path,
-        resolve_plugin_target_in_roots, validate_plugin_target,
-    };
-    use std::path::Path;
-
-    #[test]
-    fn validate_plugin_target_rejects_non_vst3_paths() {
-        let error = validate_plugin_target(Path::new("/tmp/test-plugin.component")).unwrap_err();
-        assert!(error.contains(".vst3 bundle path"));
-    }
-
-    #[test]
-    fn validate_plugin_target_rejects_missing_paths() {
-        let error = validate_plugin_target(Path::new("/tmp/missing-test-plugin.vst3")).unwrap_err();
-        assert!(error.contains("does not exist"));
-    }
-
-    #[test]
-    fn validate_plugin_target_rejects_non_directory_vst3_paths() {
-        let path = std::env::temp_dir().join("plugin-editor-poc-file.vst3");
-        std::fs::write(&path, b"not-a-bundle").unwrap();
-
-        let error = validate_plugin_target(&path).unwrap_err();
-        assert!(error.contains("bundle directory"));
-
-        std::fs::remove_file(path).unwrap();
-    }
+    use super::resolve_plugin_target_in_roots;
 
     #[test]
     fn resolve_plugin_target_requires_explicit_env_or_discovered_bundle() {
@@ -1318,61 +1183,5 @@ mod tests {
             Some(value) => std::env::set_var(super::PLUGIN_PATH_ENV, value),
             None => std::env::remove_var(super::PLUGIN_PATH_ENV),
         }
-    }
-
-    #[test]
-    fn discover_plugin_target_in_roots_prefers_sorted_valid_vst3_bundle() {
-        let root =
-            std::env::temp_dir().join(format!("plugin-editor-poc-search-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&root);
-        std::fs::create_dir_all(&root).unwrap();
-
-        let ignored_file = root.join("Ignore Me.vst3");
-        std::fs::write(&ignored_file, b"not-a-bundle").unwrap();
-
-        let later_bundle = root.join("Zoo Instrument.vst3");
-        let earlier_bundle = root.join("Alpha Instrument.vst3");
-        std::fs::create_dir_all(&later_bundle).unwrap();
-        std::fs::create_dir_all(&earlier_bundle).unwrap();
-
-        let discovered = discover_plugin_target_in_roots(std::slice::from_ref(&root)).unwrap();
-        assert_eq!(discovered, earlier_bundle);
-
-        let _ = std::fs::remove_dir_all(&root);
-    }
-
-    #[test]
-    fn expand_home_dir_replaces_tilde_prefix() {
-        let previous = std::env::var_os("HOME");
-        std::env::set_var("HOME", "/tmp/plugin-editor-poc-home");
-
-        let expanded = expand_home_dir("~/Library/Audio/Plug-Ins/VST3").unwrap();
-        assert_eq!(
-            expanded,
-            Path::new("/tmp/plugin-editor-poc-home/Library/Audio/Plug-Ins/VST3")
-        );
-
-        match previous {
-            Some(value) => std::env::set_var("HOME", value),
-            None => std::env::remove_var("HOME"),
-        }
-    }
-
-    #[test]
-    fn plugin_bundle_binary_path_prefers_named_executable() {
-        let root =
-            std::env::temp_dir().join(format!("plugin-editor-poc-bundle-{}", std::process::id()));
-        let bundle = root.join("My Instrument.vst3");
-        let macos = bundle.join("Contents").join("MacOS");
-        let _ = std::fs::remove_dir_all(&root);
-        std::fs::create_dir_all(&macos).unwrap();
-        std::fs::write(macos.join("OtherBinary"), b"x").unwrap();
-        let expected = macos.join("My Instrument");
-        std::fs::write(&expected, b"x").unwrap();
-
-        let resolved = plugin_bundle_binary_path(&bundle).unwrap();
-        assert_eq!(resolved, expected);
-
-        let _ = std::fs::remove_dir_all(&root);
     }
 }

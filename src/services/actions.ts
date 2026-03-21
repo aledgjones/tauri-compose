@@ -77,6 +77,9 @@ export const actions = {
     },
     refreshDevices: () => invoke("audio_devices_refresh"),
   },
+  pluginInventory: {
+    discover: () => invoke("plugin_inventory_discover"),
+  },
   sampler: {
     rescanPlugins: async () => {
       return invoke("sampler_rescan_plugins");

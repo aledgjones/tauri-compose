@@ -92,8 +92,8 @@ _This file contains critical rules and patterns that AI agents must follow when 
 
 - All components are `FC<Props>` — no class components
 - State source of truth is Rust `AppContext` behind `Mutex` — FE is a display layer only
-- 4 React contexts: `AppContext`, `AudioContext`, `SamplerContext`, `TransportContext` — each with a typed hook that throws outside its provider; `SamplerContext` remains legacy sampler tooling/audition state, not the supported transport runtime
-- State pushed to FE via Tauri events (`soloc://state/general`, `soloc://state/audio`, `soloc://state/sampler`)
+- 5 React contexts: `AppContext`, `AudioContext`, `PluginInventoryContext`, `SamplerContext`, `TransportContext` — each with a typed hook that throws outside its provider; `PluginInventoryContext` is the backend-owned machine-local VST3 inventory channel, and `SamplerContext` remains legacy sampler tooling/audition state, not the supported transport runtime
+- State pushed to FE via Tauri events (`soloc://state/general`, `soloc://state/audio`, `soloc://state/plugin_inventory`, `soloc://state/sampler`)
 - Treat `SamplerContext`, `soloc://state/sampler`, and `actions.sampler.*` as temporary legacy seams. Epic 2 through Epic 6 work must introduce VST-owned backend contracts instead of extending sampler-era state shapes or frontend ownership patterns.
 - Transport polling uses `requestAnimationFrame` loop — no events during playback to keep transport thread silent
 - Multi-window app: 8 HTML entry points, each mounts its own `AppStateProvider` in `boot.tsx`

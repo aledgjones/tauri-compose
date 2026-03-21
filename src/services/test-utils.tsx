@@ -4,14 +4,22 @@ import userEvent from "@testing-library/user-event";
 import {
   AppContext,
   AudioContext,
+  PluginInventoryContext,
   SamplerContext,
   TransportContext,
   initialAppState,
   initialAudioState,
+  initialPluginInventoryState,
   initialSamplerState,
   initialTransportState,
 } from "./state/context";
-import { AppState, AudioState, SamplerState, TransportState } from "./types";
+import {
+  AppState,
+  AudioState,
+  PluginInventoryState,
+  SamplerState,
+  TransportState,
+} from "./types";
 
 export { screen, within, waitFor, userEvent };
 
@@ -59,6 +67,7 @@ export function createAppState(overrides?: Partial<AppState>): AppState {
 export type RenderOptions = {
   appState?: Partial<AppState>;
   audioState?: Partial<AudioState>;
+  pluginInventoryState?: Partial<PluginInventoryState>;
   samplerState?: Partial<SamplerState>;
   transportState?: Partial<TransportState>;
 };
@@ -75,6 +84,13 @@ export function renderWithProviders(
     ? { ...structuredClone(initialAudioState), ...options.audioState }
     : structuredClone(initialAudioState);
 
+  const pluginInventoryState = options?.pluginInventoryState
+    ? {
+        ...structuredClone(initialPluginInventoryState),
+        ...options.pluginInventoryState,
+      }
+    : structuredClone(initialPluginInventoryState);
+
   const samplerState = options?.samplerState
     ? { ...structuredClone(initialSamplerState), ...options.samplerState }
     : structuredClone(initialSamplerState);
@@ -87,11 +103,13 @@ export function renderWithProviders(
     return (
       <AppContext.Provider value={appState}>
         <AudioContext.Provider value={audioState}>
-          <SamplerContext.Provider value={samplerState}>
-            <TransportContext.Provider value={transportState}>
-              {children}
-            </TransportContext.Provider>
-          </SamplerContext.Provider>
+          <PluginInventoryContext.Provider value={pluginInventoryState}>
+            <SamplerContext.Provider value={samplerState}>
+              <TransportContext.Provider value={transportState}>
+                {children}
+              </TransportContext.Provider>
+            </SamplerContext.Provider>
+          </PluginInventoryContext.Provider>
         </AudioContext.Provider>
       </AppContext.Provider>
     );
@@ -114,6 +132,13 @@ export function createWrapper(
     ? { ...structuredClone(initialAudioState), ...options.audioState }
     : structuredClone(initialAudioState);
 
+  const pluginInventoryState = options?.pluginInventoryState
+    ? {
+        ...structuredClone(initialPluginInventoryState),
+        ...options.pluginInventoryState,
+      }
+    : structuredClone(initialPluginInventoryState);
+
   const samplerState = options?.samplerState
     ? { ...structuredClone(initialSamplerState), ...options.samplerState }
     : structuredClone(initialSamplerState);
@@ -126,11 +151,13 @@ export function createWrapper(
     return (
       <AppContext.Provider value={appState}>
         <AudioContext.Provider value={audioState}>
-          <SamplerContext.Provider value={samplerState}>
-            <TransportContext.Provider value={transportState}>
-              {children}
-            </TransportContext.Provider>
-          </SamplerContext.Provider>
+          <PluginInventoryContext.Provider value={pluginInventoryState}>
+            <SamplerContext.Provider value={samplerState}>
+              <TransportContext.Provider value={transportState}>
+                {children}
+              </TransportContext.Provider>
+            </SamplerContext.Provider>
+          </PluginInventoryContext.Provider>
         </AudioContext.Provider>
       </AppContext.Provider>
     );

@@ -10,9 +10,8 @@ vi.mock("@tauri-apps/api/core", () => ({
 
 vi.mock("../../../services/actions", () => ({
   actions: {
-    sampler: {
-      rescanPlugins: vi.fn().mockResolvedValue(undefined),
-      audition: vi.fn(),
+    pluginInventory: {
+      discover: vi.fn().mockResolvedValue(undefined),
     },
   },
 }));
@@ -20,12 +19,14 @@ vi.mock("../../../services/actions", () => ({
 import { actions } from "../../../services/actions";
 
 const makePlugin = (overrides = {}) => ({
-  id: "com.vendor.piano",
+  id: "vst3:/Library/Audio/Plug-Ins/VST3/Grand Piano.vst3",
   name: "Grand Piano",
-  path: "/plugins/grand-piano",
-  author: "VendorCo",
-  version: "1.0.0",
-  articulations: [],
+  bundle_path: "/Library/Audio/Plug-Ins/VST3/Grand Piano.vst3",
+  binary_path:
+    "/Library/Audio/Plug-Ins/VST3/Grand Piano.vst3/Contents/MacOS/Grand Piano",
+  source_root: "/Library/Audio/Plug-Ins/VST3",
+  availability: "available" as const,
+  validation_failure: null,
   ...overrides,
 });
 
@@ -49,17 +50,17 @@ describe("PluginsToolbar", () => {
     expect(screen.getAllByRole("button").length).toBeGreaterThanOrEqual(1);
   });
 
-  it("renders Active only label", () => {
+  it("renders Available only label", () => {
     renderWithProviders(<PluginsToolbar {...defaults} />);
-    expect(screen.getByText("Active only")).toBeInTheDocument();
+    expect(screen.getByText("Available only")).toBeInTheDocument();
   });
 
-  it("calls rescanPlugins when refresh button is clicked", async () => {
+  it("calls discover when refresh button is clicked", async () => {
     renderWithProviders(<PluginsToolbar {...defaults} />);
     const buttons = screen.getAllByRole("button");
     fireEvent.click(buttons[0]);
     await waitFor(() => {
-      expect(actions.sampler.rescanPlugins).toHaveBeenCalled();
+      expect(actions.pluginInventory.discover).toHaveBeenCalled();
     });
   });
 
@@ -88,16 +89,15 @@ describe("PluginsToolbar", () => {
 describe("Plugins", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it("renders 'No plugins found' when sampler has no plugins", () => {
+  it("renders 'No plugins discovered yet' when inventory is empty", () => {
     renderWithProviders(<Plugins searchTerm="" showActiveOnly={false} />);
-    expect(screen.getByText("No plugins found")).toBeInTheDocument();
+    expect(screen.getByText("No plugins discovered yet")).toBeInTheDocument();
   });
 
   it("renders plugin names when plugins exist", () => {
     renderWithProviders(<Plugins searchTerm="" showActiveOnly={false} />, {
-      samplerState: {
-        plugins: [makePlugin()],
-        loaded_plugin_ids: [],
+      pluginInventoryState: {
+        entries: [makePlugin()],
       },
     });
     expect(screen.getByText("Grand Piano")).toBeInTheDocument();
@@ -107,9 +107,8 @@ describe("Plugins", () => {
     renderWithProviders(
       <Plugins searchTerm="xyznothing" showActiveOnly={false} />,
       {
-        samplerState: {
-          plugins: [makePlugin()],
-          loaded_plugin_ids: [],
+        pluginInventoryState: {
+          entries: [makePlugin()],
         },
       },
     );
@@ -118,11 +117,19 @@ describe("Plugins", () => {
     ).toBeInTheDocument();
   });
 
-  it("shows 'No plugins match' when showActiveOnly=true and none loaded", () => {
+  it("shows 'No plugins match' when showActiveOnly=true and none are available", () => {
     renderWithProviders(<Plugins searchTerm="" showActiveOnly={true} />, {
-      samplerState: {
-        plugins: [makePlugin({ id: "com.vendor.piano" })],
-        loaded_plugin_ids: [],
+      pluginInventoryState: {
+        entries: [
+          makePlugin({
+            availability: "unavailable",
+            binary_path: null,
+            validation_failure: {
+              kind: "missing_bundle_binary",
+              message: "Missing Contents/MacOS binary",
+            },
+          }),
+        ],
       },
     });
     expect(
@@ -132,9 +139,8 @@ describe("Plugins", () => {
 
   it("does not render a plugin-settings entry point on plugin tiles", () => {
     renderWithProviders(<Plugins searchTerm="" showActiveOnly={false} />, {
-      samplerState: {
-        plugins: [makePlugin()],
-        loaded_plugin_ids: ["com.vendor.piano"],
+      pluginInventoryState: {
+        entries: [makePlugin()],
       },
     });
 
@@ -145,44 +151,53 @@ describe("Plugins", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("shows plugin when showActiveOnly=true and plugin is loaded", () => {
+  it("shows plugin when showActiveOnly=true and plugin is available", () => {
     renderWithProviders(<Plugins searchTerm="" showActiveOnly={true} />, {
-      samplerState: {
-        plugins: [makePlugin({ id: "com.vendor.piano" })],
-        loaded_plugin_ids: ["com.vendor.piano"],
+      pluginInventoryState: {
+        entries: [makePlugin()],
       },
     });
     expect(screen.getByText("Grand Piano")).toBeInTheDocument();
   });
 
-  it("renders plugin version", () => {
+  it("renders plugin binary path", () => {
     renderWithProviders(<Plugins searchTerm="" showActiveOnly={false} />, {
-      samplerState: {
-        plugins: [makePlugin({ version: "2.3.1" })],
-        loaded_plugin_ids: [],
+      pluginInventoryState: {
+        entries: [makePlugin()],
       },
     });
-    expect(screen.getByText("v2.3.1")).toBeInTheDocument();
+    expect(
+      screen.getByText(/Contents\/MacOS\/Grand Piano/),
+    ).toBeInTheDocument();
   });
 
-  it("renders plugin author", () => {
+  it("renders plugin issue details for problematic bundles", () => {
     renderWithProviders(<Plugins searchTerm="" showActiveOnly={false} />, {
-      samplerState: {
-        plugins: [makePlugin({ author: "AcmeSounds" })],
-        loaded_plugin_ids: [],
+      pluginInventoryState: {
+        entries: [
+          makePlugin({
+            availability: "unavailable",
+            binary_path: null,
+            validation_failure: {
+              kind: "missing_bundle_binary",
+              message: "Missing Contents/MacOS binary",
+            },
+          }),
+        ],
       },
     });
-    expect(screen.getByText("by AcmeSounds")).toBeInTheDocument();
+    expect(
+      screen.getByText("Missing Contents/MacOS binary"),
+    ).toBeInTheDocument();
   });
 
   it("renders multiple plugins", () => {
     renderWithProviders(<Plugins searchTerm="" showActiveOnly={false} />, {
-      samplerState: {
-        plugins: [
+      pluginInventoryState: {
+        entries: [
           makePlugin({ id: "a", name: "Alpha Synth" }),
           makePlugin({ id: "b", name: "Beta Bass" }),
         ],
-        loaded_plugin_ids: [],
       },
     });
     expect(screen.getByText("Alpha Synth")).toBeInTheDocument();

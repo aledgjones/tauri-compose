@@ -9,6 +9,9 @@ import { BottomPanelTab } from "../../../../../services/types";
 
 vi.mock("../../../../../services/actions", () => ({
   actions: {
+    pluginInventory: {
+      discover: vi.fn().mockResolvedValue(undefined),
+    },
     ui: {
       setActiveFlowId: vi.fn(),
       screens: {
@@ -34,7 +37,6 @@ vi.mock("../../../../../services/actions", () => ({
         setVolume: vi.fn(),
       },
     },
-    sampler: { rescanPlugins: vi.fn().mockResolvedValue(undefined) },
   },
 }));
 
@@ -108,7 +110,7 @@ describe("Sequence BottomPanel", () => {
       } as never,
     });
     renderWithProviders(<BottomPanel />, { appState });
-    expect(screen.getByText("Active only")).toBeInTheDocument();
+    expect(screen.getByText("Available only")).toBeInTheDocument();
   });
 
   it("renders Sequencer toolbar when Sequencer tab is active", () => {

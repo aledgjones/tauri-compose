@@ -544,6 +544,35 @@ export type SamplerState = {
   loaded_plugin_ids: string[];
 };
 
+export type PluginInventoryAvailability = "available" | "unavailable";
+
+export type PluginInventoryFailureKind =
+  | "invalid_bundle"
+  | "missing_bundle_binary"
+  | "io_error"
+  | "storage_error";
+
+export type PluginInventoryFailure = {
+  kind: PluginInventoryFailureKind;
+  message: string;
+};
+
+export type PluginInventoryEntry = {
+  id: string;
+  name: string;
+  bundle_path: string;
+  binary_path: string | null;
+  source_root: string;
+  availability: PluginInventoryAvailability;
+  validation_failure: PluginInventoryFailure | null;
+};
+
+export type PluginInventoryState = {
+  entries: PluginInventoryEntry[];
+  errors: PluginInventoryFailure[];
+  last_discovered_at_ms: number | null;
+};
+
 export type TransportState = {
   playing: boolean;
   current_tick: number;

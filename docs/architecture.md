@@ -54,22 +54,24 @@ The score itself is rendered natively by Rust/Skia/Metal — all other UI (panel
 - **`AppContext`** — Behind `Mutex`, holds `Ui`, `Score`, `Preferences`, `next_id`, `current_file_path`
 - **`RendererContext`** — Behind `Mutex`, holds `MetalRenderer`, `DrawInstruction[]`, `HitTarget[]`, `Converter`
 - **`AudioContext`** — Behind `Mutex`, holds `cpal` host/device/stream, `MixerHandle`
+- **`PluginInventoryContext`** — Behind `Mutex`, holds the machine-local VST3 discovery inventory persisted under the app config directory and emitted to the frontend as backend-owned inventory truth
 - **`SamplerContext`** — Behind `Mutex`, holds legacy sampler plugin metadata and cache for sampler tooling/audition; supported transport playback no longer snapshots it as runtime truth, and this seam is temporary legacy scaffolding rather than the foundation for VST work
 - **`TransportContext`** — Behind `Mutex` + `TransportShared` (Arc with atomics for lock-free polling)
 - **Sample attack alignment path** — SCVI SIDX metadata -> `SampleIndex` -> sampler `CacheSample` -> legacy sampler `StreamRequest` -> streamer trim-before-resample
 
 ### Frontend Side (Display Layer)
 
-Four React contexts mirror the backend state:
+Five React contexts mirror the backend state:
 
-| Context            | Event Channel                         | Hook                  | Purpose                           |
-| ------------------ | ------------------------------------- | --------------------- | --------------------------------- |
-| `AppContext`       | `soloc://state/general`               | `useAppState()`       | UI state, score data, preferences |
-| `AudioContext`     | `soloc://state/audio`                 | `useAudioState()`     | Device list, active device        |
-| `SamplerContext`   | `soloc://state/sampler`               | `useSamplerState()`   | Plugin list, loaded plugins       |
-| `TransportContext` | RAF polling via `transport_get_state` | `useTransportState()` | Playing, tick, tempo              |
+| Context                  | Event Channel                         | Hook                        | Purpose                           |
+| ------------------------ | ------------------------------------- | --------------------------- | --------------------------------- |
+| `AppContext`             | `soloc://state/general`               | `useAppState()`             | UI state, score data, preferences |
+| `AudioContext`           | `soloc://state/audio`                 | `useAudioState()`           | Device list, active device        |
+| `PluginInventoryContext` | `soloc://state/plugin_inventory`      | `usePluginInventoryState()` | Machine-local VST3 inventory      |
+| `SamplerContext`         | `soloc://state/sampler`               | `useSamplerState()`         | Plugin list, loaded plugins       |
+| `TransportContext`       | RAF polling via `transport_get_state` | `useTransportState()`       | Playing, tick, tempo              |
 
-The sampler state above is retained only as bounded legacy scaffolding. Epic 2 through Epic 6 must build VST-owned inventory, assignment, runtime, and transport-adjacent seams rather than extending `SamplerContext`, `soloc://state/sampler`, or sampler-era action/event contracts. The planned end state is full removal of the remaining SCVI subsystem once the VST replacement path is complete.
+The sampler state above is retained only as bounded legacy scaffolding. The dedicated plugin inventory state is now the backend-owned machine-local VST3 discovery seam. Epic 2 through Epic 6 must continue building VST-owned assignment, runtime, and transport-adjacent contracts rather than extending `SamplerContext`, `soloc://state/sampler`, or sampler-era action/event contracts. The planned end state is full removal of the remaining SCVI subsystem once the VST replacement path is complete.
 
 ### State Flow
 
@@ -307,18 +309,20 @@ The experimental `plugin-host-poc` window is the one exception to the normal fro
 - **Tuplet persistence contract:** Tuplet-bearing scores use that same single `.soloc` transport and typed deserialize path. Load does not create a parallel tuplet repair layer, split crossing tones into extra stored events, or normalize ownership away from the rule that tones live where they start.
 - **Desktop file-workflow contract:** Tuplet-bearing projects keep the same offline-first local open, save, reopen, current-file-path, recent-file, and transport-resync path as non-tuplet projects through the existing Tauri file commands; no network-backed persistence or alternate frontend-owned file state is introduced.
 - **Current migration stance for tuplets:** No tuplet-specific step is present in `src-tauri/src/migrations/next.rs` because pre-tuplet releases produced no tuplet-bearing payloads. Legacy non-tuplet files still validate and migrate exactly as before; add a tuplet migration only if a released older persisted format requires a real compatibility transform.
+- **Machine-local VST3 inventory:** Stored outside `.soloc` files in a `sled` database under the app config directory; this backend-owned inventory is machine-local discovery state, not portable project data
 - **Legacy sampler plugins:** Discovered at runtime from `/Library/Audio/Plug-Ins/SCVI` for bounded sampler/audition seams only; this is not an active SCVI build workflow
-- **Experimental editor-host target:** The native plugin-host POC does not reuse the SCVI instrument catalog. It resolves a local VST3 bundle from an explicit request, `SOLOC_PLUGIN_EDITOR_POC_VST3_PATH`, or the standard macOS VST3 install roots because Compose does not yet maintain a full live VST3 plugin inventory or production-ready retained editor-host lifecycle in app state.
+- **Experimental editor-host target:** The native plugin-host POC does not reuse the SCVI instrument catalog. It resolves a local VST3 bundle from an explicit request, `SOLOC_PLUGIN_EDITOR_POC_VST3_PATH`, or the standard macOS VST3 install roots. Compose now maintains a machine-local VST3 inventory, but the editor-host POC still remains a separate bounded seam rather than the production-ready retained editor-host lifecycle.
 
 ---
 
 ## Managed State Summary (Tauri)
 
-| State                   | Type                      | Purpose                     |
-| ----------------------- | ------------------------- | --------------------------- |
-| `AppContextState`       | `Mutex<AppContext>`       | Core app state              |
-| `RendererContextState`  | `Mutex<RendererContext>`  | Score rendering             |
-| `AudioContextState`     | `Mutex<AudioContext>`     | Audio device I/O            |
-| `SamplerContextState`   | `Mutex<SamplerContext>`   | Instrument cache            |
-| `TransportContextState` | `Mutex<TransportContext>` | Playback control            |
-| `TransportSharedState`  | `Arc<TransportShared>`    | Lock-free transport polling |
+| State                         | Type                            | Purpose                      |
+| ----------------------------- | ------------------------------- | ---------------------------- |
+| `AppContextState`             | `Mutex<AppContext>`             | Core app state               |
+| `RendererContextState`        | `Mutex<RendererContext>`        | Score rendering              |
+| `AudioContextState`           | `Mutex<AudioContext>`           | Audio device I/O             |
+| `PluginInventoryContextState` | `Mutex<PluginInventoryContext>` | Machine-local VST3 inventory |
+| `SamplerContextState`         | `Mutex<SamplerContext>`         | Instrument cache             |
+| `TransportContextState`       | `Mutex<TransportContext>`       | Playback control             |
+| `TransportSharedState`        | `Arc<TransportShared>`          | Lock-free transport polling  |

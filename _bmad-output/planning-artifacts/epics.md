@@ -381,9 +381,19 @@ So that available plugins are shown quickly without forcing a full rescan every 
 **And** startup does not require a full reprobe to expose known plugins.
 
 **Given** cached inventory data exists and the user has not requested a full rescan
-**When** playback-related plugin surfaces are opened
-**Then** previously known plugins are available from the cache
-**And** the app remains consistent about which inventory state is current.
+**When** the app starts normally
+**Then** Compose may perform a bounded file-lookup sanity check of cached bundle paths and related cached entry state
+**And** it does not require a full discovery reprobe to keep ordinary startup visibility coherent.
+
+**Given** some cached plugin entries may no longer be present or valid on disk
+**When** the startup sanity check runs
+**Then** Compose marks those entries consistently as unavailable, stale, or otherwise non-usable according to the current inventory model
+**And** cached startup behavior remains consistent with the current local environment.
+
+**Given** no cached inventory exists yet
+**When** the app starts normally
+**Then** Compose performs initial discovery so plugin surfaces are not left permanently empty
+**And** the resulting inventory becomes the machine-local cache for later startups.
 
 **Given** plugin inventory is machine-local state
 **When** cache reuse is implemented

@@ -106,7 +106,7 @@ Exact numbers can be calibrated during architecture and validation planning, but
 
 - Full replacement of SCVI with a macOS-only VST3 playback path
 - Clean-slate implementation direction with SCVI removed by MVP completion
-- Cached VST3 discovery on startup plus manual full rescan
+- Cache-first VST3 startup with bounded cached-entry validation, initial discovery when the cache is empty, plus manual full rescan
 - Instrument assignment integrated into the main score workflow
 - Explicit support for both single-part plugins and compatible multi-part or channel-addressed plugin workflows, including one plugin instance serving multiple score instruments where the plugin exposes that model
 - Auto-loading attempt on instrument creation, with unassigned fallback when no mapping exists
@@ -149,7 +149,7 @@ The journey succeeds when the composer feels that playback is now part of the sa
 
 Capabilities revealed by this journey:
 
-- cached VST3 discovery and startup availability
+- cache-first VST3 discovery, startup availability, and empty-cache fallback discovery
 - instrument auto-loading attempt with unassigned fallback
 - assignment UX inside the main composition flow
 - fast path from score creation to first believable playback
@@ -311,7 +311,7 @@ This work requires strong Rust systems/audio implementation, native desktop inte
 **Must-Have Capabilities:**
 
 - SCVI replacement path established and SCVI removed by MVP completion
-- macOS-only VST3 discovery with cached startup registry
+- macOS-only VST3 discovery with cache-first startup, bounded cached-entry validation, and empty-cache fallback discovery
 - manual full rescan
 - main-flow instrument assignment
 - explicit support for compatible single-part and multi-part or channel-addressed plugin workflows, including one-instance multi-instrument assignment where the plugin exposes it
@@ -375,7 +375,7 @@ The main resource risk is allowing compatibility breadth or host-surface complet
 
 - FR1: Composers can use Compose with a VST3-based playback environment on macOS.
 - FR2: Composers can access a discovered inventory of available VST3 plugins from within Compose.
-- FR3: Composers can use a cached plugin inventory so previously discovered plugins remain available without a full probe on every launch.
+- FR3: Composers can use a cached plugin inventory so previously discovered plugins remain available without a full probe on every launch, while empty-cache startup still performs initial discovery.
 - FR4: Composers can trigger a full plugin rescan when they need Compose to refresh the available VST3 inventory.
 - FR5: Compose can distinguish between discovered plugins that are currently usable and plugins that cannot currently be used.
 - FR6: Maintainers can validate plugin discovery and rescan behavior against representative installed plugin libraries.

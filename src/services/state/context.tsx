@@ -10,6 +10,7 @@ import {
   Justify,
   LayoutType,
   NoteDuration,
+  PluginInventoryState,
   SamplerState,
   Tab,
   Tool,
@@ -171,6 +172,15 @@ export const initialSamplerState: SamplerState = {
 
 export const SamplerContext = createContext<SamplerState | null>(null);
 
+export const initialPluginInventoryState: PluginInventoryState = {
+  entries: [],
+  errors: [],
+  last_discovered_at_ms: null,
+};
+
+export const PluginInventoryContext =
+  createContext<PluginInventoryState | null>(null);
+
 export const initialTransportState: TransportState = {
   playing: false,
   current_tick: 0,
@@ -204,6 +214,18 @@ export const useSamplerState = () => {
 
   if (!context) {
     throw new Error("useSamplerState must be used within an AppStateProvider");
+  }
+
+  return context;
+};
+
+export const usePluginInventoryState = () => {
+  const context = useContext(PluginInventoryContext);
+
+  if (!context) {
+    throw new Error(
+      "usePluginInventoryState must be used within an AppStateProvider",
+    );
   }
 
   return context;

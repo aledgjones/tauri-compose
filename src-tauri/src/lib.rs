@@ -14,6 +14,9 @@ use crate::playback::audio::{
     audio_device_sample_rate_set, audio_device_set, audio_devices_refresh, AudioContext,
 };
 use crate::playback::plugin_editor_poc::plugin_editor_poc_open;
+use crate::playback::plugin_inventory::{
+    plugin_inventory_discover, PluginInventoryContext, PluginInventoryContextState,
+};
 use crate::playback::sampler::{
     sampler_audition, sampler_load_plugin, sampler_rescan_plugins, sampler_sync_with_instruments,
     SamplerContext,
@@ -305,6 +308,7 @@ impl AppContext {
 
 pub(crate) type AppContextState = Mutex<AppContext>;
 pub(crate) type AudioContextState = Mutex<AudioContext>;
+pub(crate) type ManagedPluginInventoryContextState = PluginInventoryContextState;
 pub(crate) type RendererContextState = Mutex<RendererContext>;
 pub(crate) type SamplerContextState = Mutex<SamplerContext>;
 
@@ -328,12 +332,14 @@ fn initialize(
     state: State<'_, AppContextState>,
     renderer_state: State<'_, RendererContextState>,
     audio_state: State<'_, AudioContextState>,
+    plugin_inventory_state: State<'_, ManagedPluginInventoryContextState>,
     sampler_state: State<'_, SamplerContextState>,
     transport_shared: State<'_, TransportSharedState>,
 ) {
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
     let audio = audio_state.lock().unwrap();
+    let plugin_inventory = plugin_inventory_state.lock().unwrap();
     let sampler = sampler_state.lock().unwrap();
 
     sync_transport_to_app_state(transport_shared.inner(), &state, 0);
@@ -343,6 +349,7 @@ fn initialize(
         Some(FlowRenderRecalculationRequest::full_visible_flows()),
     );
     audio.emit(&app);
+    plugin_inventory.emit(&app);
     sampler.emit(&app);
 }
 
@@ -432,6 +439,7 @@ pub fn run() {
             app.manage(AppContext::new(app_handle));
             app.manage(RendererContext::new());
             app.manage(AudioContext::new());
+            app.manage(PluginInventoryContext::new(app_handle));
             // Legacy sampler state remains registered for tooling and audition only.
             // Supported transport playback no longer snapshots this state as runtime truth.
             app.manage(SamplerContext::new());
@@ -581,6 +589,7 @@ pub fn run() {
             audio_device_set,
             audio_device_sample_rate_set,
             audio_devices_refresh,
+            plugin_inventory_discover,
             plugin_editor_poc_open,
             sampler_load_plugin,
             sampler_rescan_plugins,

@@ -1,6 +1,6 @@
 # Story 2.1: Discover Installed VST3 Plugins Into a Local Inventory
 
-Status: ready-for-dev
+Status: review
 
 ## Story
 
@@ -16,27 +16,27 @@ so that I can see which playback tools are available without configuring them ma
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Introduce a Rust-owned VST3 inventory domain model and machine-local persistence seam (AC: 1, 2)
-  - [ ] Add a dedicated playback inventory module under `src-tauri/src/playback/` instead of extending the legacy SCVI sampler model in place.
-  - [ ] Define explicit Rust-owned inventory records for discovered plugins, availability state, and discovery failure detail using `snake_case` fields that can cross the Rust ↔ TypeScript boundary unchanged.
-  - [ ] Persist the discovered inventory in app-local storage outside `.soloc` files, reusing the existing `sled` + `app.path().app_config_dir()` style already used by preferences and recent files.
-- [ ] Task 2: Implement bounded macOS VST3 discovery and validation for the approved MVP search roots (AC: 1, 2)
-  - [ ] Discover candidate bundles only from `~/Library/Audio/Plug-Ins/VST3` and `/Library/Audio/Plug-Ins/VST3` for this story's MVP scope.
-  - [ ] Reuse and extract the existing VST3 path-validation and bundle-resolution helpers from `src-tauri/src/playback/plugin_editor_poc.rs` where practical instead of duplicating filesystem logic.
-  - [ ] Validate candidates enough to separate usable bundles from unavailable/problematic entries without widening this story into full runtime loading, assignment, or editor-host lifecycle work.
-  - [ ] Keep discovery ordering deterministic so repeated scans produce stable inventory ordering and stable identity records.
-- [ ] Task 3: Expose inventory truth through backend commands and the existing confirmation surface (AC: 2, 3)
-  - [ ] Add or update backend command seams so discovery can run and emit Rust-owned inventory state to the frontend.
-  - [ ] Keep the frontend as a presentation layer only; do not introduce a frontend-owned plugin inventory model.
-  - [ ] Reuse the existing Sequence bottom-panel `Plugins` surface as the temporary confirmation UI for Story 2.1 rather than creating the dedicated Plugin Manager window early.
-  - [ ] Make the reused surface capable of showing discovered versus unavailable/problematic plugin state clearly enough for confirmation, without trying to complete Story 2.3's full manager workflow.
-- [ ] Task 4: Add focused validation close to the owning seams (AC: 1, 2, 3)
-  - [ ] Add Rust tests for discovery-root handling, deterministic ordering, candidate validation, and persistence/load behavior for machine-local inventory state.
-  - [ ] Extend frontend tests only where needed to prove the reused `Plugins` surface consumes the new inventory shape correctly.
-  - [ ] Run the relevant validation commands needed to prove the new story remains build-safe and testable.
-- [ ] Task 5: Capture narrow documentation impact for the new inventory seam (AC: 1, 2)
-  - [ ] Update developer-facing docs that describe playback/plugin state ownership if they become inaccurate after the new inventory seam is added.
-  - [ ] Do not document a dedicated Plugin Manager workflow yet; Story 2.3 owns that app-scoped window.
+- [x] Task 1: Introduce a Rust-owned VST3 inventory domain model and machine-local persistence seam (AC: 1, 2)
+  - [x] Add a dedicated playback inventory module under `src-tauri/src/playback/` instead of extending the legacy SCVI sampler model in place.
+  - [x] Define explicit Rust-owned inventory records for discovered plugins, availability state, and discovery failure detail using `snake_case` fields that can cross the Rust ↔ TypeScript boundary unchanged.
+  - [x] Persist the discovered inventory in app-local storage outside `.soloc` files, reusing the existing `sled` + `app.path().app_config_dir()` style already used by preferences and recent files.
+- [x] Task 2: Implement bounded macOS VST3 discovery and validation for the approved MVP search roots (AC: 1, 2)
+  - [x] Discover candidate bundles only from `~/Library/Audio/Plug-Ins/VST3` and `/Library/Audio/Plug-Ins/VST3` for this story's MVP scope.
+  - [x] Reuse and extract the existing VST3 path-validation and bundle-resolution helpers from `src-tauri/src/playback/plugin_editor_poc.rs` where practical instead of duplicating filesystem logic.
+  - [x] Validate candidates enough to separate usable bundles from unavailable/problematic entries without widening this story into full runtime loading, assignment, or editor-host lifecycle work.
+  - [x] Keep discovery ordering deterministic so repeated scans produce stable inventory ordering and stable identity records.
+- [x] Task 3: Expose inventory truth through backend commands and the existing confirmation surface (AC: 2, 3)
+  - [x] Add or update backend command seams so discovery can run and emit Rust-owned inventory state to the frontend.
+  - [x] Keep the frontend as a presentation layer only; do not introduce a frontend-owned plugin inventory model.
+  - [x] Reuse the existing Sequence bottom-panel `Plugins` surface as the temporary confirmation UI for Story 2.1 rather than creating the dedicated Plugin Manager window early.
+  - [x] Make the reused surface capable of showing discovered versus unavailable/problematic plugin state clearly enough for confirmation, without trying to complete Story 2.3's full manager workflow.
+- [x] Task 4: Add focused validation close to the owning seams (AC: 1, 2, 3)
+  - [x] Add Rust tests for discovery-root handling, deterministic ordering, candidate validation, and persistence/load behavior for machine-local inventory state.
+  - [x] Extend frontend tests only where needed to prove the reused `Plugins` surface consumes the new inventory shape correctly.
+  - [x] Run the relevant validation commands needed to prove the new story remains build-safe and testable.
+- [x] Task 5: Capture narrow documentation impact for the new inventory seam (AC: 1, 2)
+  - [x] Update developer-facing docs that describe playback/plugin state ownership if they become inaccurate after the new inventory seam is added.
+  - [x] Do not document a dedicated Plugin Manager workflow yet; Story 2.3 owns that app-scoped window.
 
 ## Dev Notes
 
@@ -230,14 +230,46 @@ GPT-5.4
 - No previous story exists in Epic 2, so there are no prior implementation learnings within the epic to import.
 - User clarified two ambiguous decisions during story preparation: limit Story 2.1 discovery to the user + system macOS VST3 roots, and reuse the existing Sequence bottom-panel `Plugins` surface as the confirmation UI until Story 2.3.
 - External verification checked current Steinberg VST3 location guidance and current Tauri 2.10.x app-local path guidance before finalizing implementation notes.
+- Extracted shared macOS VST3 filesystem helpers into `src-tauri/src/playback/vst3.rs` so the editor-host POC and inventory discovery use one validation and bundle-resolution seam.
+- Added a dedicated `PluginInventoryContext` + `soloc://state/plugin_inventory` channel rather than extending the legacy sampler state for Epic 2 inventory truth.
+- Full validation passed with `npm run lint`, `npm run check-types`, `npm run test:js`, `npm run test:rust`, and `cargo clippy --lib -- -D warnings`.
+- Follow-up review fixes made plugin inventory storage failures explicit via a lightweight alert path and promoted root/bundle read problems into structured runtime inventory errors instead of silently dropping or flattening them.
+- Focused follow-up validation passed with `npm run lint`, `npm run check-types`, `cargo test --lib plugin_inventory`, `cargo test --lib vst3`, and `cargo clippy --lib -- -D warnings`.
 
 ### Completion Notes List
 
 - Story context created with explicit path-scope and confirmation-surface decisions so the dev agent does not have to infer product scope.
 - Guidance explicitly prevents common failure modes: persisting inventory into `.soloc`, overloading the SCVI sampler as the long-term VST domain model, or creating the Plugin Manager window early.
 - Story 2.1 is positioned as the reusable inventory foundation for Stories 2.2 through 2.4 and Epic 3 assignment work.
+- Implemented a dedicated backend-owned machine-local VST3 inventory seam with persisted discovery state, explicit availability/failure records, and deterministic candidate ordering.
+- Reused extracted VST3 helper logic from the editor-host POC and kept the existing Sequence `Plugins` panel as a thin confirmation surface backed by the new inventory event channel.
+- Added focused Rust and frontend tests for discovery ordering, invalid bundle handling, persistence round-trips, toolbar discovery actions, available-only filtering, and problematic bundle rendering.
+- Added runtime-only plugin inventory error reporting so storage/config failures are surfaced explicitly without persisting transient failures into the machine-local cache.
+- Preserved real VST3 root-scan and bundle-read I/O failures as structured inventory errors and validated the frontend alert path with a focused provider test.
 
 ### File List
 
+- `docs/architecture.md`
+- `docs/development-guide.md`
+- `docs/project-context.md`
 - `_bmad-output/implementation-artifacts/2-1-discover-installed-vst3-plugins-into-a-local-inventory.md`
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `src-tauri/src/lib.rs`
+- `src-tauri/src/playback/mod.rs`
+- `src-tauri/src/playback/plugin_editor_poc.rs`
+- `src-tauri/src/playback/plugin_inventory.rs`
+- `src-tauri/src/playback/vst3.rs`
+- `src/services/actions.test.ts`
+- `src/services/actions.ts`
+- `src/services/state/context.tsx`
+- `src/services/state/provider.tsx`
+- `src/services/state/provider.test.tsx`
+- `src/services/test-utils.tsx`
+- `src/services/types.ts`
+- `src/windows/main/components/plugins.test.tsx`
+- `src/windows/main/components/plugins.tsx`
+- `src/windows/main/screens/sequence/components/bottom-panel.test.tsx`
+
+### Change Log
+
+- 2026-03-21: Added a dedicated machine-local VST3 inventory seam, extracted shared VST3 helper logic, rewired the Sequence `Plugins` panel to the new backend inventory channel, added focused tests, and updated developer documentation.

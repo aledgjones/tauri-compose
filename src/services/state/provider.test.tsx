@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { AppStateProvider } from "./provider";
 import { initialAppState } from "./context";
-import { AppState, NoteDuration } from "../types";
+import { AppState, NoteDuration, PluginInventoryState } from "../types";
 import { invoke } from "@tauri-apps/api/core";
 import { actions } from "../actions";
 
@@ -56,6 +56,7 @@ describe("AppStateProvider", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useRealTimers();
+    vi.stubGlobal("alert", vi.fn());
     listenMock.mockReset();
     listenMock.mockResolvedValue(vi.fn());
     getStateMock.mockClear();
@@ -68,6 +69,7 @@ describe("AppStateProvider", () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.unstubAllGlobals();
   });
 
   it("renders children", async () => {
@@ -410,5 +412,56 @@ describe("AppStateProvider", () => {
     expect(listeners.has("soloc://menu/open")).toBe(false);
     expect(listeners.has("soloc://menu/open-recent")).toBe(false);
     expect(listeners.has("soloc://recents-changed")).toBe(false);
+  });
+
+  it("alerts once when plugin inventory errors are emitted", async () => {
+    let pluginInventoryListener:
+      | ((event: { payload: PluginInventoryState }) => void)
+      | null = null;
+
+    listenMock.mockImplementation(async (eventName, callback) => {
+      if (eventName === "soloc://state/plugin_inventory") {
+        pluginInventoryListener = callback as (event: {
+          payload: PluginInventoryState;
+        }) => void;
+      }
+
+      return vi.fn();
+    });
+
+    await act(async () => {
+      render(
+        <AppStateProvider>
+          <div>child content</div>
+        </AppStateProvider>,
+      );
+    });
+
+    const payload: PluginInventoryState = {
+      entries: [],
+      errors: [
+        {
+          kind: "storage_error",
+          message:
+            "Failed to open plugin inventory database '/tmp/plugin_inventory': nope",
+        },
+      ],
+      last_discovered_at_ms: null,
+    };
+
+    await act(async () => {
+      pluginInventoryListener?.({ payload });
+    });
+
+    expect(globalThis.alert).toHaveBeenCalledTimes(1);
+    expect(globalThis.alert).toHaveBeenCalledWith(
+      expect.stringContaining("Failed to open plugin inventory database"),
+    );
+
+    await act(async () => {
+      pluginInventoryListener?.({ payload });
+    });
+
+    expect(globalThis.alert).toHaveBeenCalledTimes(1);
   });
 });

@@ -169,13 +169,14 @@ What it does not yet do:
 Manual validation checklist:
 
 1. Start the app on macOS with either `SOLOC_PLUGIN_EDITOR_POC_VST3_PATH` set to an existing `.vst3` bundle or at least one valid `.vst3` bundle installed under the standard VST3 directories.
-2. Trigger `plugin_editor_poc_open` from a development-only harness or temporary call to `actions.sampler.openPluginEditorPoc()`.
-3. Confirm the dedicated host window opens and remains responsive.
-4. Confirm the Rust logs show create/focus events and, for a compatible plugin, that the plugin editor UI appears inside the host window rather than the previous placeholder-only surface.
-5. Resize the window and confirm the native host area stays attached without leaving stale content behind.
-6. Switch focus between the main window and the host window and confirm the app remains responsive.
-7. Close the host window and reopen it in the same session.
-8. Clear or invalidate `SOLOC_PLUGIN_EDITOR_POC_VST3_PATH`, remove any `.vst3` bundles from the standard VST3 directories, trigger the POC again, and confirm the command fails without leaving an orphaned host window.
+2. If you need to confirm inventory state first, trigger `plugin_inventory_discover` from the Sequence `Plugins` bottom panel and verify the machine-local VST3 inventory updates there.
+3. Trigger `plugin_editor_poc_open` from a development-only harness or temporary call to `actions.sampler.openPluginEditorPoc()`.
+4. Confirm the dedicated host window opens and remains responsive.
+5. Confirm the Rust logs show create/focus events and, for a compatible plugin, that the plugin editor UI appears inside the host window rather than the previous placeholder-only surface.
+6. Resize the window and confirm the native host area stays attached without leaving stale content behind.
+7. Switch focus between the main window and the host window and confirm the app remains responsive.
+8. Close the host window and reopen it in the same session.
+9. Clear or invalidate `SOLOC_PLUGIN_EDITOR_POC_VST3_PATH`, remove any `.vst3` bundles from the standard VST3 directories, trigger the POC again, and confirm the command fails without leaving an orphaned host window.
 
 ## Versioning
 

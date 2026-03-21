@@ -1,42 +1,55 @@
 import { FC, useMemo, useState } from "react";
 import { IconButton } from "../../../ui/buttons/icon-button";
 import { mdiRefresh, mdiMagnify } from "@mdi/js";
-import { useSamplerState } from "../../../services/state";
+import { usePluginInventoryState } from "../../../services/state";
 import { TokenizedText } from "../../../ui/text";
 import { actions } from "../../../services/actions";
-import { convertFileSrc } from "@tauri-apps/api/core";
 import { Input } from "../../../ui/input";
 import { Switch } from "../../../ui/switch";
-import { PluginInfo } from "../../../services/types";
+import { PluginInventoryEntry } from "../../../services/types";
 
 interface PluginTileProps {
-  plugin: PluginInfo;
+  plugin: PluginInventoryEntry;
 }
 
 const PluginTile: FC<PluginTileProps> = ({ plugin }) => {
-  // Convert file path to asset URL if cover image exists
-  const backgroundImage = plugin.cover_image
-    ? `url(${convertFileSrc(plugin.cover_image)})`
-    : undefined;
+  const isAvailable = plugin.availability === "available";
+  const statusLabel = isAvailable ? "Available" : "Problematic";
+  const detail = isAvailable
+    ? plugin.binary_path
+    : (plugin.validation_failure?.message ?? "Validation failed");
 
   return (
-    <div
-      className="flex flex-col bg-neutral-900 h-full relative bg-no-repeat bg-cover bg-center"
-      style={{ aspectRatio: "24 / 40", backgroundImage }}
-    >
-      <div className="absolute top-0 left-0 right-0 p-2 pl-4 flex items-center gap-1">
-        <div className="mt-1 bg-neutral-950/50 text-neutral-300 text-xs px-2 py-1 text-center min-w-0 truncate">
-          v{plugin.version}
+    <div className="flex min-w-84 max-w-84 flex-col justify-between bg-neutral-900 p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="text-white text-sm truncate font-semibold">
+            <TokenizedText>{plugin.name}</TokenizedText>
+          </div>
+          <div className="mt-1 text-[11px] text-neutral-500 truncate">
+            {plugin.bundle_path}
+          </div>
+        </div>
+
+        <div
+          className="shrink-0 px-2 py-1 text-[11px] uppercase tracking-[0.18em] text-neutral-200"
+          aria-label={`Status: ${statusLabel}`}
+        >
+          {statusLabel}
         </div>
       </div>
 
-      <div className="text-center absolute bottom-0 left-0 right-0 p-4 pt-20 bg-linear-0 from-black/75 to-black/0">
-        <div className="text-white text-sm truncate font-semibold">
-          <TokenizedText>{plugin.name}</TokenizedText>
+      <div className="mt-4 space-y-2 text-xs text-neutral-300">
+        <div>
+          <div className="text-neutral-500">Root</div>
+          <div className="truncate">{plugin.source_root}</div>
         </div>
 
-        <div className="text-neutral-400 text-xs truncate">
-          by {plugin.author}
+        <div>
+          <div className="text-neutral-500">
+            {isAvailable ? "Binary" : "Issue"}
+          </div>
+          <div className="line-clamp-3">{detail}</div>
         </div>
       </div>
     </div>
@@ -61,7 +74,7 @@ export const PluginsToolbar: FC<PluginsToolbarProps> = ({
   const handleRescan = async () => {
     setIsRescanning(true);
     try {
-      await actions.sampler.rescanPlugins();
+      await actions.pluginInventory.discover();
     } finally {
       setIsRescanning(false);
     }
@@ -74,11 +87,11 @@ export const PluginsToolbar: FC<PluginsToolbarProps> = ({
         variant="interactive"
         onClick={handleRescan}
         isDisabled={isRescanning}
-        title={isRescanning ? "Rescanning..." : "Refresh plugin list"}
+        title={isRescanning ? "Refreshing..." : "Refresh plugin inventory"}
       />
 
       <div className="flex bg-neutral-900 items-center text-white text-xs px-2 gap-2">
-        <span>Active only</span>
+        <span>Available only</span>
         <Switch
           small
           value={showActiveOnly}
@@ -107,14 +120,14 @@ type PluginProps = {
 };
 
 export const Plugins: FC<PluginProps> = ({ searchTerm, showActiveOnly }) => {
-  const sampler = useSamplerState();
+  const pluginInventory = usePluginInventoryState();
 
   const filteredPlugins = useMemo(() => {
-    return sampler.plugins
+    return pluginInventory.entries
       .filter((plugin) => {
-        const isLoaded = sampler.loaded_plugin_ids.includes(plugin.id);
+        const isAvailable = plugin.availability === "available";
 
-        if (showActiveOnly && !isLoaded) {
+        if (showActiveOnly && !isAvailable) {
           return false;
         }
 
@@ -123,13 +136,13 @@ export const Plugins: FC<PluginProps> = ({ searchTerm, showActiveOnly }) => {
       .sort((a, b) => {
         return a.id.localeCompare(b.id);
       });
-  }, [sampler.loaded_plugin_ids, sampler.plugins, searchTerm, showActiveOnly]);
+  }, [pluginInventory.entries, searchTerm, showActiveOnly]);
 
-  if (sampler.plugins.length === 0) {
+  if (pluginInventory.entries.length === 0) {
     return (
       <div className="w-full h-full flex items-center justify-center bg-neutral-900">
         <div className="text-center text-neutral-400">
-          <div className="text-md mb-2">No plugins found</div>
+          <div className="text-md mb-2">No plugins discovered yet</div>
         </div>
       </div>
     );
@@ -146,13 +159,11 @@ export const Plugins: FC<PluginProps> = ({ searchTerm, showActiveOnly }) => {
   }
 
   return (
-    <div className="w-full h-full overflow-x-auto overflow-y-hidden">
-      <div className="flex h-full gap-0.5">
+    <div className="w-full h-full overflow-auto bg-neutral-950">
+      <div className="grid min-h-full grid-cols-[repeat(auto-fill,minmax(21rem,1fr))] gap-0.5">
         {filteredPlugins.map((plugin) => {
           return <PluginTile key={plugin.id} plugin={plugin} />;
         })}
-
-        <div className="bg-neutral-900 flex-1 h-full" />
       </div>
     </div>
   );

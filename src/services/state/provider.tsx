@@ -4,18 +4,28 @@ import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import {
   AppState,
   AudioState,
+  PluginInventoryState,
   SamplerState,
   Tempo,
   TransportState,
   UniqueId,
 } from "../types";
 import { actions } from "../actions";
-import { FC, PropsWithChildren, useEffect, useMemo, useState } from "react";
+import {
+  FC,
+  PropsWithChildren,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   AppContext,
   initialAppState,
   initialAudioState,
   AudioContext,
+  initialPluginInventoryState,
+  PluginInventoryContext,
   initialSamplerState,
   SamplerContext,
   initialTransportState,
@@ -30,12 +40,15 @@ export const AppStateProvider: FC<Props> = ({
 }) => {
   const [appState, setAppState] = useState<AppState>(initialAppState);
   const [audioState, setAudioState] = useState<AudioState>(initialAudioState);
+  const [pluginInventoryState, setPluginInventoryState] =
+    useState<PluginInventoryState>(initialPluginInventoryState);
   const [samplerState, setSamplerState] =
     useState<SamplerState>(initialSamplerState);
   const [transportState, setTransportState] = useState<TransportState>(
     initialTransportState,
   );
   const [isInitialized, setIsInitialized] = useState(false);
+  const lastPluginInventoryErrorSignatureRef = useRef("");
 
   // Transport polling: poll atomics via lightweight command instead of event listener.
   // This keeps the transport thread completely silent — no app.emit() during playback.
@@ -137,8 +150,31 @@ export const AppStateProvider: FC<Props> = ({
   }, []);
 
   useEffect(() => {
+    if (pluginInventoryState.errors.length === 0) {
+      lastPluginInventoryErrorSignatureRef.current = "";
+      return;
+    }
+
+    const signature = pluginInventoryState.errors
+      .map((error) => `${error.kind}:${error.message}`)
+      .join("\n");
+
+    if (signature === lastPluginInventoryErrorSignatureRef.current) {
+      return;
+    }
+
+    lastPluginInventoryErrorSignatureRef.current = signature;
+    alert(
+      `Plugin inventory issue\n\n${pluginInventoryState.errors
+        .map((error) => error.message)
+        .join("\n\n")}`,
+    );
+  }, [pluginInventoryState.errors]);
+
+  useEffect(() => {
     let unlistenApp: UnlistenFn | null = null;
     let unlistenAudio: UnlistenFn | null = null;
+    let unlistenPluginInventory: UnlistenFn | null = null;
     let unlistenSampler: UnlistenFn | null = null;
     let unlistenMenuSave: UnlistenFn | null = null;
     let unlistenMenuSaveAs: UnlistenFn | null = null;
@@ -156,6 +192,13 @@ export const AppStateProvider: FC<Props> = ({
       unlistenAudio = await listen<AudioState>("soloc://state/audio", (e) => {
         setAudioState(e.payload);
       });
+
+      unlistenPluginInventory = await listen<PluginInventoryState>(
+        "soloc://state/plugin_inventory",
+        (e) => {
+          setPluginInventoryState(e.payload);
+        },
+      );
 
       unlistenSampler = await listen<SamplerState>(
         "soloc://state/sampler",
@@ -226,6 +269,7 @@ export const AppStateProvider: FC<Props> = ({
     return () => {
       unlistenApp?.();
       unlistenAudio?.();
+      unlistenPluginInventory?.();
       unlistenSampler?.();
       unlistenMenuSave?.();
       unlistenMenuSaveAs?.();
@@ -240,11 +284,13 @@ export const AppStateProvider: FC<Props> = ({
   return (
     <AppContext.Provider value={appState}>
       <AudioContext.Provider value={audioState}>
-        <SamplerContext.Provider value={samplerState}>
-          <TransportContext.Provider value={transportState}>
-            {children}
-          </TransportContext.Provider>
-        </SamplerContext.Provider>
+        <PluginInventoryContext.Provider value={pluginInventoryState}>
+          <SamplerContext.Provider value={samplerState}>
+            <TransportContext.Provider value={transportState}>
+              {children}
+            </TransportContext.Provider>
+          </SamplerContext.Provider>
+        </PluginInventoryContext.Provider>
       </AudioContext.Provider>
     </AppContext.Provider>
   );

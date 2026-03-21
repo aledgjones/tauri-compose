@@ -1,8 +1,10 @@
 pub mod audio;
 pub mod mixer;
 pub mod plugin_editor_poc;
+pub mod plugin_inventory;
 pub mod sampler;
 pub mod scvi;
 pub mod streamer;
 pub mod transport;
 pub mod tuplet_projection;
+pub mod vst3;

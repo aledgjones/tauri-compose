@@ -99,6 +99,16 @@ describe("actions.audio", () => {
 });
 
 // ---------------------------------------------------------------------------
+// pluginInventory
+// ---------------------------------------------------------------------------
+describe("actions.pluginInventory", () => {
+  it("discover calls invoke correctly", async () => {
+    await actions.pluginInventory.discover();
+    expect(mockInvoke).toHaveBeenCalledWith("plugin_inventory_discover");
+  });
+});
+
+// ---------------------------------------------------------------------------
 // sampler
 // ---------------------------------------------------------------------------
 describe("actions.sampler", () => {
