@@ -67,7 +67,7 @@ so that future playback work can proceed on one unambiguous foundation.
 - Story 1.2 removed SCVI from user-facing workflow surfaces so the app no longer presents SCVI as the supported playback direction.
 - Story 1.3 removed SCVI package scripts, generated wrappers, and Rust CLI binaries while retaining bounded `.scvi` reader and sampler seams only as legacy internals.
 - Story 1.4 removed stale documentation and source-tree guidance that still presented SCVI as current product direction, while intentionally preserving bounded legacy/runtime-only explanations where the code still exists.
-- Story 1.4 is currently in `review`, so Story 1.5 must verify against the actual current workspace state rather than relying only on sprint-status labels.
+- Story 1.4 was reviewed and closed after the verification pass, so Epic 1 can now be treated as fully complete.
 
 ### Architecture Compliance
 
@@ -240,6 +240,7 @@ GPT-5.4
 - Verified the active toolchain and product checks pass without SCVI-specific behavior: `npm run lint`, `npm run check-types`, `npm run build`, full JS tests (1113 passed), Rust library tests (1100 passed), and clippy with warnings denied.
 - Future playback stories can treat SCVI as retired from active product behavior and repository workflow without dual-path assumptions, migration scaffolding, or legacy fallback requirements.
 - User accepted the verification pass as sufficient review and approved the story for closure as done.
+- Story 1.4 review has since completed, so the Epic 1 record is now fully aligned with the verification outcome.
 
 ### File List
 
@@ -250,3 +251,4 @@ GPT-5.4
 
 - 2026-03-21: Completed the SCVI retirement verification audit, recorded the remaining legacy/historical classifications, validated the repo without SCVI-specific workflow dependencies, and moved Story 1.5 to review.
 - 2026-03-21: User accepted the verification outcome as the effective review and closed Story 1.5 as done.
+- 2026-03-21: Story 1.4 review completion was reflected after the verification pass, aligning the Epic 1 documentation and tracker state.

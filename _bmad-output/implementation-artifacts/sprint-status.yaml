@@ -35,20 +35,20 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-03-20T22:13:26Z
-last_updated: 2026-03-21T11:12:00Z
+last_updated: 2026-03-21T11:06:33Z
 project: compose
 project_key: NOKEY
 tracking_system: file-system
 story_location: /Users/aledjones/compose/_bmad-output/implementation-artifacts
 
 development_status:
-  epic-1: in-progress
+  epic-1: done
   1-1-remove-scvi-from-the-active-playback-runtime: done
   1-2-remove-scvi-from-user-facing-playback-workflow: done
   1-3-remove-scvi-tooling-and-build-workflow-residue: done
-  1-4-remove-scvi-references-from-documentation-and-guidance: review
+  1-4-remove-scvi-references-from-documentation-and-guidance: done
   1-5-verify-clean-scvi-retirement-across-product-and-repo-surfaces: done
-  epic-1-retrospective: optional
+  epic-1-retrospective: done
 
   epic-2: backlog
   2-1-discover-installed-vst3-plugins-into-a-local-inventory: backlog

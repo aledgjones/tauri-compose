@@ -1,6 +1,6 @@
 # Story 1.4: Remove SCVI References From Documentation and Guidance
 
-Status: review
+Status: done
 
 ## Story
 
@@ -209,6 +209,7 @@ GPT-5.4
 - Updated `docs/project-overview.md` to replace the stale SCVI sampler-engine feature claim with VST-first product-direction wording that does not overstate currently shipped playback behavior.
 - Updated `docs/source-tree-analysis.md` to remove retired SCVI CLI binary and wrapper-script entries and to relabel `src-tauri/src/playback/scvi.rs` as legacy runtime-only reader infrastructure.
 - Validation stayed documentation-scoped because the change set did not touch code, commands, or agent instructions.
+- Review completed and the story is now closed as done.
 
 ### File List
 
@@ -220,3 +221,4 @@ GPT-5.4
 ## Change Log
 
 - 2026-03-21: Removed stale SCVI-as-current documentation claims, reconciled source-tree docs with post-1.3 repo state, and validated that remaining SCVI mentions are legacy/runtime-only context.
+- 2026-03-21: Review completed and Story 1.4 was closed as done.
