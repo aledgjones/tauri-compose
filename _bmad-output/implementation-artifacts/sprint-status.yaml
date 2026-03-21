@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-03-20T22:13:26Z
-last_updated: 2026-03-21T10:27:30Z
+last_updated: 2026-03-21T11:12:00Z
 project: compose
 project_key: NOKEY
 tracking_system: file-system
@@ -47,7 +47,7 @@ development_status:
   1-2-remove-scvi-from-user-facing-playback-workflow: done
   1-3-remove-scvi-tooling-and-build-workflow-residue: done
   1-4-remove-scvi-references-from-documentation-and-guidance: review
-  1-5-verify-clean-scvi-retirement-across-product-and-repo-surfaces: backlog
+  1-5-verify-clean-scvi-retirement-across-product-and-repo-surfaces: done
   epic-1-retrospective: optional
 
   epic-2: backlog
