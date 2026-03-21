@@ -51,7 +51,7 @@ development_status:
   epic-1-retrospective: done
 
   epic-2: in-progress
-  2-1-discover-installed-vst3-plugins-into-a-local-inventory: review
+  2-1-discover-installed-vst3-plugins-into-a-local-inventory: done
   2-2-reuse-a-cached-plugin-inventory-on-startup: done
   2-3-expose-plugin-inventory-and-availability-in-a-dedicated-plugin-manager: review
   2-4-support-manual-full-plugin-rescan: ready-for-dev

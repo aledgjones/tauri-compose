@@ -150,6 +150,11 @@ export const AppStateProvider: FC<Props> = ({
   }, []);
 
   useEffect(() => {
+    if (!isMainWindow) {
+      lastPluginInventoryErrorSignatureRef.current = "";
+      return;
+    }
+
     if (pluginInventoryState.errors.length === 0) {
       lastPluginInventoryErrorSignatureRef.current = "";
       return;
@@ -169,7 +174,7 @@ export const AppStateProvider: FC<Props> = ({
         .map((error) => error.message)
         .join("\n\n")}`,
     );
-  }, [pluginInventoryState.errors]);
+  }, [isMainWindow, pluginInventoryState.errors]);
 
   useEffect(() => {
     let unlistenApp: UnlistenFn | null = null;

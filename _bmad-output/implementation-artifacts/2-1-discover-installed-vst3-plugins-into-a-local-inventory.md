@@ -1,6 +1,6 @@
 # Story 2.1: Discover Installed VST3 Plugins Into a Local Inventory
 
-Status: review
+Status: done
 
 ## Story
 
@@ -234,6 +234,8 @@ GPT-5.4
 - Added a dedicated `PluginInventoryContext` + `soloc://state/plugin_inventory` channel rather than extending the legacy sampler state for Epic 2 inventory truth.
 - Full validation passed with `npm run lint`, `npm run check-types`, `npm run test:js`, `npm run test:rust`, and `cargo clippy --lib -- -D warnings`.
 - Follow-up review fixes made plugin inventory storage failures explicit via a lightweight alert path and promoted root/bundle read problems into structured runtime inventory errors instead of silently dropping or flattening them.
+- Final review follow-up restricted plugin inventory alerts to the main window so secondary windows do not duplicate modal error reporting while still receiving backend inventory state updates.
+- Final follow-up validation for the accepted review fixes passed with `src/services/state/provider.test.tsx`, `cargo test --lib vst3`, `npm run check-types`, and `cargo clippy --lib -- -D warnings`.
 - Focused follow-up validation passed with `npm run lint`, `npm run check-types`, `cargo test --lib plugin_inventory`, `cargo test --lib vst3`, and `cargo clippy --lib -- -D warnings`.
 
 ### Completion Notes List
@@ -246,6 +248,7 @@ GPT-5.4
 - Added focused Rust and frontend tests for discovery ordering, invalid bundle handling, persistence round-trips, toolbar discovery actions, available-only filtering, and problematic bundle rendering.
 - Added runtime-only plugin inventory error reporting so storage/config failures are surfaced explicitly without persisting transient failures into the machine-local cache.
 - Preserved real VST3 root-scan and bundle-read I/O failures as structured inventory errors and validated the frontend alert path with a focused provider test.
+- Kept the accepted review scope narrow by leaving the available-only toggle behavior unchanged and fixing only the explicit runtime error-reporting and discovery-failure issues.
 
 ### File List
 

@@ -444,7 +444,7 @@ describe("AppStateProvider", () => {
 
     await act(async () => {
       render(
-        <AppStateProvider>
+        <AppStateProvider isMainWindow={true}>
           <div>child content</div>
         </AppStateProvider>,
       );
@@ -476,6 +476,48 @@ describe("AppStateProvider", () => {
     });
 
     expect(globalThis.alert).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not alert for plugin inventory errors in secondary windows", async () => {
+    let pluginInventoryListener:
+      | ((event: { payload: PluginInventoryState }) => void)
+      | null = null;
+
+    listenMock.mockImplementation(async (eventName, callback) => {
+      if (eventName === "soloc://state/plugin_inventory") {
+        pluginInventoryListener = callback as (event: {
+          payload: PluginInventoryState;
+        }) => void;
+      }
+
+      return vi.fn();
+    });
+
+    await act(async () => {
+      render(
+        <AppStateProvider isMainWindow={false}>
+          <div>child content</div>
+        </AppStateProvider>,
+      );
+    });
+
+    await act(async () => {
+      pluginInventoryListener?.({
+        payload: {
+          entries: [],
+          errors: [
+            {
+              kind: "storage_error",
+              message:
+                "Failed to open plugin inventory database '/tmp/plugin_inventory': nope",
+            },
+          ],
+          last_discovered_at_ms: null,
+        },
+      });
+    });
+
+    expect(globalThis.alert).not.toHaveBeenCalled();
   });
 
   it("applies startup-emitted plugin inventory state without a manual refresh", async () => {

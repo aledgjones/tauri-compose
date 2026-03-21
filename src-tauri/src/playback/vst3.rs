@@ -110,17 +110,28 @@ pub fn vst3_bundle_binary_path(path: &Path) -> Result<PathBuf, Vst3BundleError> 
         }
     }
 
-    let mut binaries = std::fs::read_dir(&macos_dir)
-        .map_err(|error| {
+    let mut binaries = Vec::new();
+    let read_dir = std::fs::read_dir(&macos_dir).map_err(|error| {
+        Vst3BundleError::io_error(format!(
+            "Failed to read VST3 bundle binary directory '{}': {error}",
+            macos_dir.display()
+        ))
+    })?;
+
+    for entry in read_dir {
+        let entry = entry.map_err(|error| {
             Vst3BundleError::io_error(format!(
-                "Failed to read VST3 bundle binary directory '{}': {error}",
+                "Failed to inspect VST3 bundle binary entry in '{}': {error}",
                 macos_dir.display()
             ))
-        })?
-        .filter_map(Result::ok)
-        .map(|entry| entry.path())
-        .filter(|entry| entry.is_file())
-        .collect::<Vec<_>>();
+        })?;
+        let path = entry.path();
+
+        if path.is_file() {
+            binaries.push(path);
+        }
+    }
+
     binaries.sort();
 
     match binaries.len() {
@@ -140,11 +151,21 @@ pub fn list_vst3_candidates_in_root(root: &Path) -> Result<Vec<PathBuf>, String>
         )
     })?;
 
-    let mut entries = read_dir
-        .filter_map(Result::ok)
-        .map(|entry| entry.path())
-        .filter(|path| path.extension().and_then(|value| value.to_str()) == Some("vst3"))
-        .collect::<Vec<_>>();
+    let mut entries = Vec::new();
+    for entry in read_dir {
+        let entry = entry.map_err(|error| {
+            format!(
+                "Failed to inspect VST3 discovery root entry in '{}': {error}",
+                root.display()
+            )
+        })?;
+        let path = entry.path();
+
+        if path.extension().and_then(|value| value.to_str()) == Some("vst3") {
+            entries.push(path);
+        }
+    }
+
     entries.sort();
     Ok(entries)
 }
