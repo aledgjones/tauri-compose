@@ -1,6 +1,6 @@
 # Story 2.3: Expose Plugin Inventory and Availability in a Dedicated Plugin Manager
 
-Status: review
+Status: done
 
 ## Story
 
@@ -253,6 +253,7 @@ GPT-5.4
 - Refined the dedicated Plugin Manager presentation to a compact list view with only display name, status, and binary-path subtitle, and removed the window-local title/description block.
 - Refined the inventory status presentation into color-coded chips while preserving text and icon cues for accessibility.
 - Follow-up review fix: reused the existing `plugin-manager` window by label on repeated opens, aligned the story/docs to the Sequence-menu launch decision, and restored compact unavailable-plugin failure messaging in the minimal list rows.
+- Review completed and the story is now closed as done.
 
 ### Retro Note
 
@@ -283,3 +284,4 @@ GPT-5.4
 - 2026-03-21: Added the dedicated app-scoped Plugin Manager window, canonical app-menu launch wiring, shared inventory-browser reuse, focused tests, and developer-facing documentation updates.
 - 2026-03-21: Refined the Plugin Manager UI to a compact list layout with reduced metadata and no extra header copy.
 - 2026-03-21: Updated Plugin Manager status badges to color-coded chips that still retain text and icon cues.
+- 2026-03-21: Review completed and Story 2.3 was closed as done.
