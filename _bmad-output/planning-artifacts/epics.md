@@ -103,6 +103,7 @@ NFR14: Validation must use explicit representative scenarios for transport, plug
 - Treat focus, resize, close, reopen, and teardown behavior of the native editor host as explicit acceptance concerns, not incidental implementation details.
 - Require manual macOS runbook validation alongside unit/frontend coverage for the native editor host proof.
 - Allow a fallback host-windowing route only if direct Tauri/AppKit parenting proves insufficient; record that as a tested architectural outcome rather than assuming it up front.
+- Treat the remaining SCVI sampler/runtime code as temporary legacy scaffolding only. Epic 2 through Epic 6 must build clean VST-owned seams rather than extending `SamplerContext`, `soloc://state/sampler`, `actions.sampler.*`, or other SCVI-era contracts; the explicit end state is full removal of that remaining SCVI subsystem in Epic 7 Story 7.2 once the replacement VST path is complete.
 
 ### UX Design Requirements
 
@@ -203,8 +204,8 @@ Compose gains the first score-linked expression-map playback path so written art
 
 ### Epic 7: Prove And Document The Supported MVP Playback Baseline
 
-Compose documents and validates the named plugin baseline that the team can honestly support for MVP release decisions.
-**FRs covered:** FR38, FR39
+Compose validates the named plugin baseline, removes the last legacy SCVI subsystem once the VST replacement seams are complete, and documents the final MVP support posture the team can honestly ship.
+**FRs covered:** FR36, FR38, FR39
 
 ## Epic 1: Retire SCVI And Clear The Product For VST-First Playback
 
@@ -1207,7 +1208,7 @@ So that louder and softer writing affects the audible result in a credible and i
 
 ## Epic 7: Prove And Document The Supported MVP Playback Baseline
 
-Compose documents and validates the named plugin baseline that the team can honestly support for MVP release decisions.
+Compose validates the named plugin baseline, removes the last legacy SCVI subsystem once the VST replacement seams are complete, and documents the final MVP support posture the team can honestly ship.
 
 ### Story 7.1: Validate Realism and Compatibility Against Named Plugin Baselines
 
@@ -1244,7 +1245,32 @@ So that release confidence is grounded in explicit evidence rather than anecdota
 **Then** the evidence covers both ordinary playback behavior and the first articulation-plus-dynamics realism path
 **And** it is explicit enough to guide an MVP support baseline and its documented limits.
 
-### Story 7.2: Publish a Known-Good Compatibility Matrix and Manual Release Runbook
+### Story 7.2: Remove the Remaining SCVI Legacy System After VST Replacement Is Complete
+
+As a maintainer,
+I want the remaining SCVI legacy sampler/runtime system removed once the VST replacement seams are complete,
+So that Compose ships on one playback architecture instead of carrying a dormant second system.
+
+**FRs implemented:** FR36
+
+**Acceptance Criteria:**
+
+**Given** Epics 2 through 6 and Epic 7.1 have established and validated the VST inventory, assignment, playback, recovery, and realism seams needed for MVP
+**When** final legacy cleanup is performed
+**Then** the remaining SCVI-only backend modules, state contexts, commands, and frontend state surfaces are removed
+**And** no supported product or developer workflow depends on `SamplerContext`, `.scvi` container handling, or sampler-specific event/action contracts.
+
+**Given** some current internal behaviors may still be represented through legacy sampler-era surfaces
+**When** this story is complete
+**Then** each required behavior is either replaced by a VST-owned seam or intentionally removed
+**And** the codebase no longer carries dormant SCVI fallback, audition, or cache infrastructure as an undeleted subsystem.
+
+**Given** the project intent is full SCVI replacement by MVP completion rather than permanent coexistence
+**When** repository/build/test verification is run after cleanup
+**Then** the app builds and tests without SCVI modules present in active source
+**And** maintainers can inspect the codebase and treat VST playback as the only remaining playback system apart from historical planning or release records.
+
+### Story 7.3: Publish a Known-Good Compatibility Matrix and Manual Release Runbook
 
 As a maintainer,
 I want a concrete compatibility matrix and manual validation runbook for the MVP playback baseline,

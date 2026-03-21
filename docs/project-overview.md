@@ -10,7 +10,7 @@
 
 ## Executive Summary
 
-Solo Compose is a Tauri-based desktop application that combines a React/TypeScript frontend with a Rust backend to deliver a professional music composition workflow. The app features five operational modes — Setup, Write, Engrave, Sequence, and Print — with hardware-accelerated score rendering via Skia/Metal. Playback direction is VST-first, while any remaining `.scvi` support is bounded to legacy internal sampler seams rather than the supported product path.
+Solo Compose is a Tauri-based desktop application that combines a React/TypeScript frontend with a Rust backend to deliver a professional music composition workflow. The app features five operational modes — Setup, Write, Engrave, Sequence, and Print — with hardware-accelerated score rendering via Skia/Metal. Playback direction is VST-first, while any remaining `.scvi` support is bounded to temporary legacy internal sampler seams rather than the supported product path. The explicit end state is full SCVI removal once the VST replacement path is complete.
 
 ## Architecture Type
 
@@ -39,7 +39,7 @@ Solo Compose is a Tauri-based desktop application that combines a React/TypeScri
 1. **Notation Editor** — Professional score writing with multiple clef types, key/time signatures, barlines, articulations
 2. **Score Engraving** — Hardware-accelerated rendering via 19-module parse pipeline → 20-module draw pipeline → Metal backend
 3. **Audio Sequencing** — Piano roll editor with multi-track instrument sequencing, expression control
-4. **Playback Direction** — VST-first playback architecture is the intended product direction; the current product path remains foundation-building while legacy `.scvi` container support is retained only for bounded internal sampler seams
+4. **Playback Direction** — VST-first playback architecture is the intended product direction; the current product path remains foundation-building while legacy `.scvi` container support is retained only for bounded temporary internal sampler seams, and current VST work must replace rather than extend those seams
 5. **Multi-Window UI** — 8 HTML entry points (main, debugger, instrument-picker, layout-settings, player-settings, plugin-settings, preferences, project-settings)
 6. **Instrument Library** — 12+ instrument patches (orchestral strings, keyboards, percussion, woodwinds) with multi-velocity sampling
 

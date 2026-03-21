@@ -227,6 +227,7 @@ The project must not be reinitialized. Any future use of starter guidance is str
 - Machine-local plugin inventory and discovery cache live in app-local storage outside project files.
 - Playback runtime is split between a Rust control plane and a realtime-safe playback plane, with the audio path consuming precomputed, lock-safe state only.
 - Missing plugin resolution degrades to explicit recoverable unassigned states rather than silent fallback or corrupted project state.
+- Remaining SCVI sampler/runtime code is temporary legacy scaffolding only. Epic 2 through Epic 6 must build replacement VST-owned seams rather than extending `SamplerContext`, `soloc://state/sampler`, `actions.sampler.*`, or other sampler-era contracts; the planned end state is full removal of that subsystem once the VST path is complete.
 
 **Rationale:**
 This preserves the strongest existing architectural rule in the product, protects the jitter-sensitive path from UI and control-plane noise, and cleanly separates portable score intent from machine-local plugin availability.

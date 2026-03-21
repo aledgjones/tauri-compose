@@ -50,8 +50,8 @@ development_status:
   1-5-verify-clean-scvi-retirement-across-product-and-repo-surfaces: done
   epic-1-retrospective: done
 
-  epic-2: backlog
-  2-1-discover-installed-vst3-plugins-into-a-local-inventory: backlog
+  epic-2: in-progress
+  2-1-discover-installed-vst3-plugins-into-a-local-inventory: ready-for-dev
   2-2-reuse-a-cached-plugin-inventory-on-startup: backlog
   2-3-expose-plugin-inventory-and-availability-in-a-dedicated-plugin-manager: backlog
   2-4-support-manual-full-plugin-rescan: backlog
@@ -101,5 +101,6 @@ development_status:
 
   epic-7: backlog
   7-1-validate-realism-and-compatibility-against-named-plugin-baselines: backlog
-  7-2-publish-a-known-good-compatibility-matrix-and-manual-release-runbook: backlog
+  7-2-remove-the-remaining-scvi-legacy-system-after-vst-replacement-is-complete: backlog
+  7-3-publish-a-known-good-compatibility-matrix-and-manual-release-runbook: backlog
   epic-7-retrospective: optional

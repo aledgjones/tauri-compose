@@ -94,6 +94,7 @@ _This file contains critical rules and patterns that AI agents must follow when 
 - State source of truth is Rust `AppContext` behind `Mutex` — FE is a display layer only
 - 4 React contexts: `AppContext`, `AudioContext`, `SamplerContext`, `TransportContext` — each with a typed hook that throws outside its provider; `SamplerContext` remains legacy sampler tooling/audition state, not the supported transport runtime
 - State pushed to FE via Tauri events (`soloc://state/general`, `soloc://state/audio`, `soloc://state/sampler`)
+- Treat `SamplerContext`, `soloc://state/sampler`, and `actions.sampler.*` as temporary legacy seams. Epic 2 through Epic 6 work must introduce VST-owned backend contracts instead of extending sampler-era state shapes or frontend ownership patterns.
 - Transport polling uses `requestAnimationFrame` loop — no events during playback to keep transport thread silent
 - Multi-window app: 8 HTML entry points, each mounts its own `AppStateProvider` in `boot.tsx`
 - All mutations go through the `actions` object in `actions.ts` via `invoke()` — never manipulate state directly
@@ -209,6 +210,7 @@ The score page is rendered natively by Rust/Skia/Metal — all other UI (panels,
 - Sample attack alignment is backend-owned playback metadata. Preserve and thread any existing `attack_offset_frames` metadata through the legacy SCVI sampler seams and trim in the streamer before resample/pitch processing instead of inventing frontend timing offsets or per-instrument transport hacks
 - Nested tuplets, broader arbitrary ratios, and generalized sequencer-native tuplet editing remain explicit post-MVP work. Do not normalize them into current rules or documentation.
 - Legacy SCVI container support is runtime-only now. Do not treat SCVI CLI binaries or SCVI build/inspection commands as supported workflow.
+- Legacy SCVI sampler/runtime code is maintenance-only until its planned deletion. Do not use it as the architectural template for VST inventory, assignment, plugin lifecycle, or transport-facing playback seams.
 
 ---
 

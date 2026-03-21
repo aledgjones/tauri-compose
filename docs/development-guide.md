@@ -226,6 +226,7 @@ Avoid manually editing synced version files just to reserve a migration target.
 - Compose no longer ships supported SCVI build or inspection commands.
 - Existing legacy `.scvi` sampler assets may still carry per-sample `attack_offset_frames` metadata in their sample index.
 - When present, the Rust legacy sampler path trims those leading source-rate frames in the streamer before resampling, so any preserved alignment metadata stays backend-owned and does not alter transport timestamps.
+- Treat those SCVI sampler seams as maintenance-only legacy support, not as the template for Epic 2 through Epic 6 playback work. New VST work should replace them with VST-owned seams, and the intended end state is full SCVI removal once the replacement path is complete.
 
 ## Visual Regression Fixtures
 

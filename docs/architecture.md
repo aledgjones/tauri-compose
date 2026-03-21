@@ -54,7 +54,7 @@ The score itself is rendered natively by Rust/Skia/Metal — all other UI (panel
 - **`AppContext`** — Behind `Mutex`, holds `Ui`, `Score`, `Preferences`, `next_id`, `current_file_path`
 - **`RendererContext`** — Behind `Mutex`, holds `MetalRenderer`, `DrawInstruction[]`, `HitTarget[]`, `Converter`
 - **`AudioContext`** — Behind `Mutex`, holds `cpal` host/device/stream, `MixerHandle`
-- **`SamplerContext`** — Behind `Mutex`, holds legacy sampler plugin metadata and cache for sampler tooling/audition; supported transport playback no longer snapshots it as runtime truth
+- **`SamplerContext`** — Behind `Mutex`, holds legacy sampler plugin metadata and cache for sampler tooling/audition; supported transport playback no longer snapshots it as runtime truth, and this seam is temporary legacy scaffolding rather than the foundation for VST work
 - **`TransportContext`** — Behind `Mutex` + `TransportShared` (Arc with atomics for lock-free polling)
 - **Sample attack alignment path** — SCVI SIDX metadata -> `SampleIndex` -> sampler `CacheSample` -> legacy sampler `StreamRequest` -> streamer trim-before-resample
 
@@ -68,6 +68,8 @@ Four React contexts mirror the backend state:
 | `AudioContext`     | `soloc://state/audio`                 | `useAudioState()`     | Device list, active device        |
 | `SamplerContext`   | `soloc://state/sampler`               | `useSamplerState()`   | Plugin list, loaded plugins       |
 | `TransportContext` | RAF polling via `transport_get_state` | `useTransportState()` | Playing, tick, tempo              |
+
+The sampler state above is retained only as bounded legacy scaffolding. Epic 2 through Epic 6 must build VST-owned inventory, assignment, runtime, and transport-adjacent seams rather than extending `SamplerContext`, `soloc://state/sampler`, or sampler-era action/event contracts. The planned end state is full removal of the remaining SCVI subsystem once the VST replacement path is complete.
 
 ### State Flow
 
