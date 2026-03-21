@@ -113,6 +113,7 @@ fn recompute_spacing_positions(spacing: &mut HorizontalSpacing, include_final_ba
     };
 }
 
+#[allow(clippy::too_many_arguments)]
 fn collect_notation_spacing_updates(
     notation: &NotationTrack,
     anchored_tracks: &[AnchoredNotationTrack],
@@ -856,6 +857,7 @@ fn collect_anchored_track_opening_spacing_updates(
     updates
 }
 
+#[allow(clippy::too_many_arguments)]
 fn extend_anchored_layout_tail_spacing(
     anchored_layout: &mut AnchoredTrackLayout,
     anchored_track: &AnchoredNotationTrack,

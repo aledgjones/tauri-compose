@@ -142,7 +142,7 @@ The score page is rendered natively by Rust/Skia/Metal — all other UI (panels,
 - `src-tauri/src/score/` — score data model (players, instruments, flows, tracks, entries, layouts, engraves, components)
 - `src-tauri/src/instructions/` — parse/ + draw/ for the render pipeline
 - `src-tauri/src/renderer/` — Metal backend, converter, fonts, hit-test
-- `src-tauri/src/playback/` — audio, mixer, sampler, transport, SCVI format, streamer
+- `src-tauri/src/playback/` — audio, mixer, sampler, transport, legacy SCVI reader, streamer
 
 #### Formatting & Linting
 
@@ -206,9 +206,9 @@ The score page is rendered natively by Rust/Skia/Metal — all other UI (panels,
 - Transport state uses RAF polling during playback — never add event-based transport state updates, it will cause the transport thread to emit during playback
 - Supported `transport_play` is currently timing-only on the product path: it advances tick and tempo state without snapshotting `SamplerContext` or dispatching SCVI streamer work
 - Playback is another consumer of the shared tuplet model, not a second semantics engine. Transport code may implement scheduling mechanics, but it must not locally infer tuplet ownership, boundary meaning, projection, or continuity; if playback exposes a gap, extend the shared semantic seam instead of patching transport in isolation
-- Sample attack alignment is backend-owned playback metadata. Derive and persist `attack_offset_frames` in SCVI/sample seams, thread it through sampler and legacy sampler streaming requests, and trim in the streamer before resample/pitch processing instead of inventing frontend timing offsets or per-instrument transport hacks
+- Sample attack alignment is backend-owned playback metadata. Preserve and thread any existing `attack_offset_frames` metadata through the legacy SCVI sampler seams and trim in the streamer before resample/pitch processing instead of inventing frontend timing offsets or per-instrument transport hacks
 - Nested tuplets, broader arbitrary ratios, and generalized sequencer-native tuplet editing remain explicit post-MVP work. Do not normalize them into current rules or documentation.
-- Custom binary instrument format (SCVI) — instruments are compressed/inspected via dedicated Rust CLI binaries, not runtime code
+- Legacy SCVI container support is runtime-only now. Do not treat SCVI CLI binaries or SCVI build/inspection commands as supported workflow.
 
 ---
 

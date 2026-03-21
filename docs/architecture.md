@@ -90,9 +90,9 @@ Four React contexts mirror the backend state:
 ### Sample attack alignment
 
 - Per-sample playback alignment is backend-owned metadata, not a transport scheduling hack and not frontend timing state.
-- `scvi_compress.rs` derives `attack_offset_frames` during SCVI builds with a build-time onset detector that uses a short-window RMS envelope plus a local baseline estimate, then stores the first meaningful RMS crossing as the onset so slow blooms and bow noise are kept at the start of the audible bloom instead of trimmed to a later high-energy point.
+- Existing legacy SCVI containers may carry `attack_offset_frames` in their sample index.
 - `ScviContainer::open()` loads that offset into `SampleIndex`, the sampler cache carries it through `CacheSample`, legacy sampler streaming threads it into `StreamRequest`, and `streamer.rs` discards those leading source frames before resampling or pitch work.
-- Older SCVI containers remain readable because a zero-filled offset decodes to `attack_offset_frames = 0`; rebuilt SCVI assets are required to benefit from alignment.
+- Older SCVI containers remain readable because a zero-filled offset decodes to `attack_offset_frames = 0`.
 
 ---
 
@@ -269,7 +269,7 @@ Supported `transport_play` is currently timing-only on the product path. It adva
 - **Tempo resolution** — Playback snapshots the score's flow master-track tempo data at play/resume start, resolves the active BPM once per tick via a bounded resolver, and silently falls back to 120 BPM when no score tempo applies
 - **Streamer** — Per-packet disk streaming (FLAC decode → resample → push to `StreamBuffer`); pre-allocates ~0.5s stereo buffer
 - **Mixer** — Fixed 64-slot voice array, lock-free slot claiming via `AtomicBool`; runs in cpal audio callback
-- **SCVI Format** — Custom binary container: `MAGIC(4)` + `Header` + `META(MessagePack)` + `SIDX(sample index)` + `SDAT(FLAC data)`
+- **Legacy SCVI format** — Custom binary container still read by sampler/audition seams: `MAGIC(4)` + `Header` + `META(MessagePack)` + `SIDX(sample index)` + `SDAT(FLAC data)`
 
 ### Transport tempo semantics
 
@@ -305,7 +305,7 @@ The experimental `plugin-host-poc` window is the one exception to the normal fro
 - **Tuplet persistence contract:** Tuplet-bearing scores use that same single `.soloc` transport and typed deserialize path. Load does not create a parallel tuplet repair layer, split crossing tones into extra stored events, or normalize ownership away from the rule that tones live where they start.
 - **Desktop file-workflow contract:** Tuplet-bearing projects keep the same offline-first local open, save, reopen, current-file-path, recent-file, and transport-resync path as non-tuplet projects through the existing Tauri file commands; no network-backed persistence or alternate frontend-owned file state is introduced.
 - **Current migration stance for tuplets:** No tuplet-specific step is present in `src-tauri/src/migrations/next.rs` because pre-tuplet releases produced no tuplet-bearing payloads. Legacy non-tuplet files still validate and migrate exactly as before; add a tuplet migration only if a released older persisted format requires a real compatibility transform.
-- **Instrument plugins:** Discovered at runtime from `$DATA_DIR/Solo Compose/plugins/` — each is an SCVI binary container
+- **Legacy sampler plugins:** Discovered at runtime from `/Library/Audio/Plug-Ins/SCVI` for bounded sampler/audition seams only; this is not an active SCVI build workflow
 - **Experimental editor-host target:** The native plugin-host POC does not reuse the SCVI instrument catalog. It resolves a local VST3 bundle from an explicit request, `SOLOC_PLUGIN_EDITOR_POC_VST3_PATH`, or the standard macOS VST3 install roots because Compose does not yet maintain a full live VST3 plugin inventory or production-ready retained editor-host lifecycle in app state.
 
 ---

@@ -220,20 +220,12 @@ Avoid manually editing synced version files just to reserve a migration target.
 | --------------------------------- | --------------------------------------------------------- |
 | `npm run generate-manifest`       | Generate instrument manifest JSON from sample directories |
 | `npm run generate-manifest:build` | Compile the manifest generator                            |
-| `npm run generate-scvi`           | Compress instruments into SCVI binary containers          |
-| `npm run generate-scvi:build`     | Compile the SCVI compressor                               |
-| `npm run inspect-scvi`            | Inspect SCVI container contents                           |
-| `npm run inspect-scvi:build`      | Compile the SCVI inspector                                |
 
-### Sample attack alignment workflow
+### Legacy sample attack alignment notes
 
-- SCVI builds now derive per-sample `attack_offset_frames` during compression and persist that metadata in the container sample index.
-- The current detector is fully build-time and backend-owned: it analyzes a short-window RMS envelope, estimates a local baseline, and stores the first meaningful RMS crossing as the onset so gradual attacks keep the beginning of the bloom instead of waiting for a later peak.
-- Rebuild an instrument container after sample-library changes with `npm run generate-scvi -- <instrument-folder-name>` or rebuild all containers with `npm run generate-scvi`.
-- Inspect stored offsets with `npm run inspect-scvi -- /Library/Audio/Plug-Ins/SCVI/<instrument>.scvi`.
-- The inspector prints both frames and milliseconds, which is the maintainer-facing proof path for comparing velocity layers such as piano `ppp` versus `ff`.
-- If an onset still lands beyond the build-time plausibility cap, the compressor stores `0` for that sample and reports the rejection in the build output so suspicious articulations can be inspected explicitly.
-- Runtime playback trims those leading source-rate frames in the Rust streamer before resampling, so alignment fixes stay backend-owned and do not alter transport timestamps.
+- Compose no longer ships supported SCVI build or inspection commands.
+- Existing legacy `.scvi` sampler assets may still carry per-sample `attack_offset_frames` metadata in their sample index.
+- When present, the Rust legacy sampler path trims those leading source-rate frames in the streamer before resampling, so any preserved alignment metadata stays backend-owned and does not alter transport timestamps.
 
 ## Visual Regression Fixtures
 

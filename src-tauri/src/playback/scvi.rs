@@ -1,12 +1,12 @@
-/// SCVI Binary Container Reader
+/// Legacy SCVI container reader.
 ///
-/// Reads .scvi binary container files produced by scvi_compress.
+/// Reads existing `.scvi` sampler assets for legacy sampler/audition seams.
 /// Provides zero-copy access to the META, SIDX, and SDAT chunks.
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
 use std::path::Path;
 
-// ── Constants (must match scvi_compress.rs) ────────────────────────────
+// ── Format constants ───────────────────────────────────────────────────
 
 const MAGIC: &[u8; 4] = b"SCVI";
 
@@ -28,7 +28,7 @@ struct RawHeader {
 
 const RAW_HEADER_SIZE: usize = std::mem::size_of::<RawHeader>();
 
-// ── SIDX entry (must match scvi_compress.rs) ───────────────────────────
+// ── SIDX entry layout ──────────────────────────────────────────────────
 
 #[repr(C, packed)]
 #[derive(Clone, Copy)]

@@ -1335,7 +1335,7 @@ mod tests {
         std::fs::create_dir_all(&later_bundle).unwrap();
         std::fs::create_dir_all(&earlier_bundle).unwrap();
 
-        let discovered = discover_plugin_target_in_roots(&[root.clone()]).unwrap();
+        let discovered = discover_plugin_target_in_roots(std::slice::from_ref(&root)).unwrap();
         assert_eq!(discovered, earlier_bundle);
 
         let _ = std::fs::remove_dir_all(&root);

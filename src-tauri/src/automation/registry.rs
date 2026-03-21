@@ -2026,8 +2026,8 @@ fn serialize_tuplet(tuplet: &Tuplet) -> Value {
         .entries
         .by_id
         .values()
-        .filter_map(|entry| match entry {
-            TupletEntry::Tone(tone) => Some(tone),
+        .map(|entry| match entry {
+            TupletEntry::Tone(tone) => tone,
         })
         .collect::<Vec<_>>();
     tones.sort_by_key(|tone| (tone.tick, tone.id));
