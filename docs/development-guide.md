@@ -160,6 +160,13 @@ What the current proof does:
 - defaults the host window to non-resizable until the plugin explicitly reports that its editor can resize via `IPlugView::canResize()` and logs the host callbacks the plugin invokes through the current proof seam
 - keeps the experimental host state in Rust and logs create, focus, resize, close, and destroy lifecycle events
 
+Plugin inventory startup behavior:
+
+- Compose persists the machine-local VST3 inventory under the app config directory and reuses that cache on startup so known plugins are visible immediately.
+- Startup validation is intentionally bounded: it rechecks cached bundle paths and related cached entry state, then does one cheap root listing sweep to spot uncached `.vst3` bundles and probes only those newly seen bundles.
+- Startup cache reuse is not `.soloc` persistence. Project files remain portable score data only.
+- The Sequence `Plugins` refresh action is still the explicit manual discovery seam. It is distinct from startup cache reuse and is where broader discovery/rescan behavior belongs.
+
 What it does not yet do:
 
 - guarantee that every VST3 bundle will attach successfully; some plugins may still reject the minimal experimental host context
@@ -169,14 +176,16 @@ What it does not yet do:
 Manual validation checklist:
 
 1. Start the app on macOS with either `SOLOC_PLUGIN_EDITOR_POC_VST3_PATH` set to an existing `.vst3` bundle or at least one valid `.vst3` bundle installed under the standard VST3 directories.
-2. If you need to confirm inventory state first, trigger `plugin_inventory_discover` from the Sequence `Plugins` bottom panel and verify the machine-local VST3 inventory updates there.
-3. Trigger `plugin_editor_poc_open` from a development-only harness or temporary call to `actions.sampler.openPluginEditorPoc()`.
-4. Confirm the dedicated host window opens and remains responsive.
-5. Confirm the Rust logs show create/focus events and, for a compatible plugin, that the plugin editor UI appears inside the host window rather than the previous placeholder-only surface.
-6. Resize the window and confirm the native host area stays attached without leaving stale content behind.
-7. Switch focus between the main window and the host window and confirm the app remains responsive.
-8. Close the host window and reopen it in the same session.
-9. Clear or invalidate `SOLOC_PLUGIN_EDITOR_POC_VST3_PATH`, remove any `.vst3` bundles from the standard VST3 directories, trigger the POC again, and confirm the command fails without leaving an orphaned host window.
+2. Confirm startup first reuses any existing machine-local cache in the Sequence `Plugins` bottom panel without requiring the refresh action.
+3. If you add a new `.vst3` bundle under the standard discovery roots between launches, confirm the next startup surfaces it without requiring refresh.
+4. If you need to force a broader discovery pass, trigger `plugin_inventory_discover` from the Sequence `Plugins` bottom panel and verify the machine-local VST3 inventory updates there.
+5. Trigger `plugin_editor_poc_open` from a development-only harness or temporary call to `actions.sampler.openPluginEditorPoc()`.
+6. Confirm the dedicated host window opens and remains responsive.
+7. Confirm the Rust logs show create/focus events and, for a compatible plugin, that the plugin editor UI appears inside the host window rather than the previous placeholder-only surface.
+8. Resize the window and confirm the native host area stays attached without leaving stale content behind.
+9. Switch focus between the main window and the host window and confirm the app remains responsive.
+10. Close the host window and reopen it in the same session.
+11. Clear or invalidate `SOLOC_PLUGIN_EDITOR_POC_VST3_PATH`, remove any `.vst3` bundles from the standard VST3 directories, trigger the POC again, and confirm the command fails without leaving an orphaned host window.
 
 ## Versioning
 

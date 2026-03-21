@@ -4,6 +4,7 @@ use crate::playback::vst3::{
 };
 use serde::{Deserialize, Serialize};
 use sled::Db;
+use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -68,7 +69,7 @@ struct PluginInventoryDiscoveryResult {
 pub struct PluginInventoryContext {
     state: PluginInventoryState,
     db: Option<Db>,
-    storage_error: Option<PluginInventoryFailure>,
+    sticky_errors: Vec<PluginInventoryFailure>,
 }
 
 pub type PluginInventoryContextState = Mutex<PluginInventoryContext>;
@@ -85,28 +86,43 @@ impl PluginInventoryContext {
                 None
             }
         };
+        let roots = default_vst3_search_roots();
 
-        Mutex::new(Self::from_db_path(db_path.as_deref(), startup_errors))
+        Mutex::new(Self::from_db_path_and_roots(
+            db_path.as_deref(),
+            &roots,
+            startup_errors,
+        ))
     }
 
+    #[cfg(test)]
     fn from_db_path(db_path: Option<&Path>, startup_errors: Vec<PluginInventoryFailure>) -> Self {
-        let mut state = PluginInventoryState::default();
-        let mut storage_error = startup_errors.first().cloned();
+        Self::from_db_path_and_roots(db_path, &[], startup_errors)
+    }
+
+    fn from_db_path_and_roots(
+        db_path: Option<&Path>,
+        roots: &[PathBuf],
+        startup_errors: Vec<PluginInventoryFailure>,
+    ) -> Self {
+        let state = PluginInventoryState::default();
+        let mut sticky_errors = startup_errors;
+        let mut persisted_state = None;
 
         let db = match db_path {
             Some(path) => match sled::open(path) {
                 Ok(db) => {
-                    state = match load_persisted_state(&db) {
-                        Ok(Some(persisted_state)) => persisted_state.into(),
-                        Ok(None) => PluginInventoryState::default(),
+                    match load_persisted_state(&db) {
+                        Ok(Some(loaded_state)) => {
+                            persisted_state = Some(loaded_state);
+                        }
+                        Ok(None) => {}
                         Err(error) => {
-                            let mut errored_state = PluginInventoryState::default();
-                            errored_state.errors.push(storage_failure(format!(
+                            sticky_errors.push(storage_failure(format!(
                                 "Failed to load persisted plugin inventory: {error}"
                             )));
-                            errored_state
                         }
-                    };
+                    }
                     Some(db)
                 }
                 Err(error) => {
@@ -114,21 +130,37 @@ impl PluginInventoryContext {
                         "Failed to open plugin inventory database '{}': {error}",
                         path.display()
                     ));
-                    storage_error = Some(failure.clone());
-                    state.errors.push(failure);
+                    sticky_errors.push(failure);
                     None
                 }
             },
             None => None,
         };
 
-        state.errors.extend(startup_errors);
-
-        Self {
+        let mut context = Self {
             state,
             db,
-            storage_error,
+            sticky_errors,
+        };
+
+        if let Some(persisted_state) = persisted_state {
+            context.state = validate_persisted_state(persisted_state, roots);
+            if let Err(error) = context.persist_state() {
+                context.state.errors.push(storage_failure(error));
+            }
+            context.append_sticky_errors();
+        } else if roots.is_empty() {
+            context.append_sticky_errors();
+        } else if let Err(error) = context.discover_in_roots(roots) {
+            context.state.errors.push(storage_failure(error));
+            context.append_sticky_errors();
         }
+
+        context
+    }
+
+    fn append_sticky_errors(&mut self) {
+        self.state.errors.extend(self.sticky_errors.iter().cloned());
     }
 
     pub fn emit(&self, app: &AppHandle) {
@@ -154,9 +186,7 @@ impl PluginInventoryContext {
             last_discovered_at_ms: Some(current_unix_time_ms()?),
         };
 
-        if let Some(storage_error) = &self.storage_error {
-            self.state.errors.push(storage_error.clone());
-        }
+        self.append_sticky_errors();
 
         if let Err(error) = self.persist_state() {
             self.state.errors.push(storage_failure(error));
@@ -223,6 +253,106 @@ fn discover_inventory_in_roots(roots: &[PathBuf]) -> PluginInventoryDiscoveryRes
         .sort_by(|left, right| left.message.cmp(&right.message));
 
     result
+}
+
+fn validate_persisted_state(
+    persisted_state: PersistedPluginInventoryState,
+    roots: &[PathBuf],
+) -> PluginInventoryState {
+    let mut entries = persisted_state
+        .entries
+        .into_iter()
+        .map(validate_cached_entry)
+        .collect::<Vec<_>>();
+    let cached_bundle_paths = entries
+        .iter()
+        .map(|entry| entry.bundle_path.clone())
+        .collect::<BTreeSet<_>>();
+    let uncached_discovery = discover_uncached_inventory_in_roots(roots, &cached_bundle_paths);
+    let last_discovered_at_ms = if uncached_discovery.entries.is_empty() {
+        persisted_state.last_discovered_at_ms
+    } else {
+        current_unix_time_ms()
+            .ok()
+            .or(persisted_state.last_discovered_at_ms)
+    };
+
+    entries.extend(uncached_discovery.entries);
+    entries.sort_by(|left, right| left.bundle_path.cmp(&right.bundle_path));
+
+    PluginInventoryState {
+        entries,
+        errors: uncached_discovery.errors,
+        last_discovered_at_ms,
+    }
+}
+
+fn discover_uncached_inventory_in_roots(
+    roots: &[PathBuf],
+    cached_bundle_paths: &BTreeSet<String>,
+) -> PluginInventoryDiscoveryResult {
+    let mut result = PluginInventoryDiscoveryResult::default();
+
+    for root in roots {
+        let source_root = root.display().to_string();
+        match list_vst3_candidates_in_root(root) {
+            Ok(candidates) => {
+                result
+                    .entries
+                    .extend(candidates.into_iter().filter_map(|candidate| {
+                        let bundle_path = candidate.display().to_string();
+
+                        if cached_bundle_paths.contains(&bundle_path) {
+                            None
+                        } else {
+                            Some(build_inventory_entry(candidate, source_root.clone()))
+                        }
+                    }));
+            }
+            Err(error) => result.errors.push(PluginInventoryFailure {
+                kind: PluginInventoryFailureKind::IoError,
+                message: error,
+            }),
+        }
+    }
+
+    result
+        .entries
+        .sort_by(|left, right| left.bundle_path.cmp(&right.bundle_path));
+    result
+        .errors
+        .sort_by(|left, right| left.message.cmp(&right.message));
+
+    result
+}
+
+fn validate_cached_entry(entry: PluginInventoryEntry) -> PluginInventoryEntry {
+    let bundle_path = PathBuf::from(&entry.bundle_path);
+
+    match validate_vst3_bundle(&bundle_path) {
+        Ok(()) => match vst3_bundle_binary_path(&bundle_path) {
+            Ok(binary_path) => PluginInventoryEntry {
+                availability: PluginInventoryAvailability::Available,
+                binary_path: Some(binary_path.display().to_string()),
+                validation_failure: None,
+                ..entry
+            },
+            Err(error) => unavailable_cached_entry(entry, error),
+        },
+        Err(error) => unavailable_cached_entry(entry, error),
+    }
+}
+
+fn unavailable_cached_entry(
+    entry: PluginInventoryEntry,
+    error: Vst3BundleError,
+) -> PluginInventoryEntry {
+    PluginInventoryEntry {
+        availability: PluginInventoryAvailability::Unavailable,
+        binary_path: None,
+        validation_failure: Some(PluginInventoryFailure::from(error)),
+        ..entry
+    }
 }
 
 fn build_inventory_entry(candidate: PathBuf, source_root: String) -> PluginInventoryEntry {
@@ -319,9 +449,10 @@ pub fn plugin_inventory_discover(
 #[cfg(test)]
 mod tests {
     use super::{
-        discover_inventory_in_roots, PluginInventoryAvailability, PluginInventoryContext,
-        PluginInventoryFailureKind,
+        discover_inventory_in_roots, load_persisted_state, PluginInventoryAvailability,
+        PluginInventoryContext, PluginInventoryFailureKind,
     };
+    use sled::Db;
     use std::path::PathBuf;
 
     fn create_valid_bundle(root: &PathBuf, name: &str) -> PathBuf {
@@ -330,6 +461,10 @@ mod tests {
         std::fs::create_dir_all(&macos_dir).unwrap();
         std::fs::write(macos_dir.join(name), b"binary").unwrap();
         bundle
+    }
+
+    fn open_db(path: &std::path::Path) -> Db {
+        sled::open(path).unwrap()
     }
 
     #[test]
@@ -426,6 +561,225 @@ mod tests {
         assert_eq!(reloaded.snapshot(), snapshot);
         assert_eq!(reloaded.snapshot().entries.len(), 1);
         assert!(reloaded.snapshot().errors.is_empty());
+
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn plugin_inventory_startup_reuses_cached_entries_when_no_new_bundles_exist() {
+        let root = std::env::temp_dir().join(format!(
+            "plugin-inventory-startup-cache-reuse-{}",
+            std::process::id()
+        ));
+        let db_path = root.join("db");
+        let cached_root = root.join("cached-plugins");
+        let empty_root = root.join("other-plugins");
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&cached_root).unwrap();
+        std::fs::create_dir_all(&empty_root).unwrap();
+        create_valid_bundle(&cached_root, "Alpha");
+
+        let mut context = PluginInventoryContext::from_db_path(Some(&db_path), Vec::new());
+        context
+            .discover_in_roots(std::slice::from_ref(&cached_root))
+            .unwrap();
+        drop(context);
+
+        let reloaded = PluginInventoryContext::from_db_path_and_roots(
+            Some(&db_path),
+            std::slice::from_ref(&empty_root),
+            Vec::new(),
+        );
+        let snapshot = reloaded.snapshot();
+
+        assert_eq!(snapshot.entries.len(), 1);
+        assert_eq!(snapshot.entries[0].name, "Alpha");
+        assert_eq!(
+            snapshot.entries[0].availability,
+            PluginInventoryAvailability::Available
+        );
+        assert!(snapshot.errors.is_empty());
+
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn plugin_inventory_startup_discovers_new_uncached_bundles_during_bounded_sweep() {
+        let root = std::env::temp_dir().join(format!(
+            "plugin-inventory-startup-new-bundles-{}",
+            std::process::id()
+        ));
+        let db_path = root.join("db");
+        let cached_root = root.join("cached-plugins");
+        let new_root = root.join("new-plugins");
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&cached_root).unwrap();
+        std::fs::create_dir_all(&new_root).unwrap();
+        create_valid_bundle(&cached_root, "Alpha");
+        create_valid_bundle(&new_root, "Beta");
+
+        let mut context = PluginInventoryContext::from_db_path(Some(&db_path), Vec::new());
+        context
+            .discover_in_roots(std::slice::from_ref(&cached_root))
+            .unwrap();
+        let alpha_id = context.snapshot().entries[0].id.clone();
+        drop(context);
+
+        let reloaded = PluginInventoryContext::from_db_path_and_roots(
+            Some(&db_path),
+            std::slice::from_ref(&new_root),
+            Vec::new(),
+        );
+        let snapshot = reloaded.snapshot();
+
+        assert_eq!(snapshot.entries.len(), 2);
+        assert_eq!(snapshot.entries[0].id, alpha_id);
+        assert_eq!(snapshot.entries[0].name, "Alpha");
+        assert_eq!(snapshot.entries[1].name, "Beta");
+        assert_eq!(
+            snapshot.entries[1].availability,
+            PluginInventoryAvailability::Available
+        );
+        assert!(snapshot.errors.is_empty());
+
+        drop(reloaded);
+        let persisted = load_persisted_state(&open_db(&db_path)).unwrap().unwrap();
+        assert_eq!(persisted.entries.len(), 2);
+        assert_eq!(persisted.entries[1].name, "Beta");
+
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn plugin_inventory_startup_discovers_when_no_cache_exists() {
+        let root = std::env::temp_dir().join(format!(
+            "plugin-inventory-startup-discover-{}",
+            std::process::id()
+        ));
+        let db_path = root.join("db");
+        let discovery_root = root.join("plugins");
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&discovery_root).unwrap();
+        create_valid_bundle(&discovery_root, "Alpha");
+
+        let context = PluginInventoryContext::from_db_path_and_roots(
+            Some(&db_path),
+            std::slice::from_ref(&discovery_root),
+            Vec::new(),
+        );
+        let snapshot = context.snapshot();
+        drop(context);
+
+        assert_eq!(snapshot.entries.len(), 1);
+        assert_eq!(snapshot.entries[0].name, "Alpha");
+        assert_eq!(
+            snapshot.entries[0].availability,
+            PluginInventoryAvailability::Available
+        );
+        assert!(snapshot.last_discovered_at_ms.is_some());
+
+        let persisted = load_persisted_state(&open_db(&db_path)).unwrap().unwrap();
+        assert_eq!(persisted.entries.len(), 1);
+        assert_eq!(persisted.entries[0].name, "Alpha");
+
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn plugin_inventory_startup_marks_missing_cached_entries_unavailable() {
+        let root = std::env::temp_dir().join(format!(
+            "plugin-inventory-startup-stale-entry-{}",
+            std::process::id()
+        ));
+        let db_path = root.join("db");
+        let discovery_root = root.join("plugins");
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&discovery_root).unwrap();
+        let bundle = create_valid_bundle(&discovery_root, "Alpha");
+
+        let mut context = PluginInventoryContext::from_db_path(Some(&db_path), Vec::new());
+        context
+            .discover_in_roots(std::slice::from_ref(&discovery_root))
+            .unwrap();
+        let persisted_id = context.snapshot().entries[0].id.clone();
+        drop(context);
+
+        std::fs::remove_dir_all(&bundle).unwrap();
+
+        let reloaded = PluginInventoryContext::from_db_path_and_roots(
+            Some(&db_path),
+            std::slice::from_ref(&discovery_root),
+            Vec::new(),
+        );
+        let snapshot = reloaded.snapshot();
+
+        assert_eq!(snapshot.entries.len(), 1);
+        assert_eq!(snapshot.entries[0].id, persisted_id);
+        assert_eq!(
+            snapshot.entries[0].availability,
+            PluginInventoryAvailability::Unavailable
+        );
+        assert_eq!(
+            snapshot.entries[0]
+                .validation_failure
+                .as_ref()
+                .map(|failure| &failure.kind),
+            Some(&PluginInventoryFailureKind::InvalidBundle)
+        );
+        assert!(snapshot.entries[0]
+            .validation_failure
+            .as_ref()
+            .unwrap()
+            .message
+            .contains("does not exist"));
+
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn plugin_inventory_startup_recovers_from_load_failures_via_discovery() {
+        let root = std::env::temp_dir().join(format!(
+            "plugin-inventory-startup-load-failure-{}",
+            std::process::id()
+        ));
+        let db_path = root.join("db");
+        let discovery_root = root.join("plugins");
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&discovery_root).unwrap();
+        create_valid_bundle(&discovery_root, "Alpha");
+
+        let db = open_db(&db_path);
+        db.insert(super::INVENTORY_STATE_KEY, b"not-json".as_slice())
+            .unwrap();
+        db.flush().unwrap();
+        drop(db);
+
+        let context = PluginInventoryContext::from_db_path_and_roots(
+            Some(&db_path),
+            std::slice::from_ref(&discovery_root),
+            Vec::new(),
+        );
+        let snapshot = context.snapshot();
+        drop(context);
+
+        assert_eq!(snapshot.entries.len(), 1);
+        assert_eq!(snapshot.entries[0].name, "Alpha");
+        assert_eq!(
+            snapshot.entries[0].availability,
+            PluginInventoryAvailability::Available
+        );
+        assert_eq!(snapshot.errors.len(), 1);
+        assert_eq!(
+            snapshot.errors[0].kind,
+            PluginInventoryFailureKind::StorageError
+        );
+        assert!(snapshot.errors[0]
+            .message
+            .contains("Failed to load persisted plugin inventory"));
+
+        let persisted = load_persisted_state(&open_db(&db_path)).unwrap().unwrap();
+        assert_eq!(persisted.entries.len(), 1);
+        assert_eq!(persisted.entries[0].name, "Alpha");
 
         let _ = std::fs::remove_dir_all(&root);
     }

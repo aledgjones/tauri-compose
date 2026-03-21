@@ -106,7 +106,7 @@ Exact numbers can be calibrated during architecture and validation planning, but
 
 - Full replacement of SCVI with a macOS-only VST3 playback path
 - Clean-slate implementation direction with SCVI removed by MVP completion
-- Cache-first VST3 startup with bounded cached-entry validation, initial discovery when the cache is empty, plus manual full rescan
+- Cache-first VST3 startup with bounded cached-entry validation, one cheap sweep for newly added uncached bundles, initial discovery when the cache is empty, plus manual full rescan
 - Instrument assignment integrated into the main score workflow
 - Explicit support for both single-part plugins and compatible multi-part or channel-addressed plugin workflows, including one plugin instance serving multiple score instruments where the plugin exposes that model
 - Auto-loading attempt on instrument creation, with unassigned fallback when no mapping exists
@@ -311,7 +311,7 @@ This work requires strong Rust systems/audio implementation, native desktop inte
 **Must-Have Capabilities:**
 
 - SCVI replacement path established and SCVI removed by MVP completion
-- macOS-only VST3 discovery with cache-first startup, bounded cached-entry validation, and empty-cache fallback discovery
+- macOS-only VST3 discovery with cache-first startup, bounded cached-entry validation plus a cheap uncached-bundle sweep, and empty-cache fallback discovery
 - manual full rescan
 - main-flow instrument assignment
 - explicit support for compatible single-part and multi-part or channel-addressed plugin workflows, including one-instance multi-instrument assignment where the plugin exposes it

@@ -1,10 +1,18 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { AppStateProvider } from "./provider";
-import { initialAppState } from "./context";
+import { initialAppState, usePluginInventoryState } from "./context";
 import { AppState, NoteDuration, PluginInventoryState } from "../types";
 import { invoke } from "@tauri-apps/api/core";
 import { actions } from "../actions";
+
+const PluginInventoryConsumer = () => {
+  const pluginInventoryState = usePluginInventoryState();
+
+  return (
+    <div>{pluginInventoryState.entries[0]?.name ?? "No plugin inventory"}</div>
+  );
+};
 
 const { listenMock, getStateMock } = vi.hoisted(() => ({
   listenMock: vi.fn(),
@@ -463,5 +471,55 @@ describe("AppStateProvider", () => {
     });
 
     expect(globalThis.alert).toHaveBeenCalledTimes(1);
+  });
+
+  it("applies startup-emitted plugin inventory state without a manual refresh", async () => {
+    let pluginInventoryListener:
+      | ((event: { payload: PluginInventoryState }) => void)
+      | null = null;
+
+    listenMock.mockImplementation(async (eventName, callback) => {
+      if (eventName === "soloc://state/plugin_inventory") {
+        pluginInventoryListener = callback as (event: {
+          payload: PluginInventoryState;
+        }) => void;
+      }
+
+      return vi.fn();
+    });
+
+    await act(async () => {
+      render(
+        <AppStateProvider>
+          <PluginInventoryConsumer />
+        </AppStateProvider>,
+      );
+    });
+
+    expect(screen.getByText("No plugin inventory")).toBeInTheDocument();
+
+    await act(async () => {
+      pluginInventoryListener?.({
+        payload: {
+          entries: [
+            {
+              id: "vst3:/Library/Audio/Plug-Ins/VST3/Alpha.vst3",
+              name: "Alpha",
+              bundle_path: "/Library/Audio/Plug-Ins/VST3/Alpha.vst3",
+              binary_path:
+                "/Library/Audio/Plug-Ins/VST3/Alpha.vst3/Contents/MacOS/Alpha",
+              source_root: "/Library/Audio/Plug-Ins/VST3",
+              availability: "available",
+              validation_failure: null,
+            },
+          ],
+          errors: [],
+          last_discovered_at_ms: 123,
+        },
+      });
+    });
+
+    expect(screen.getByText("Alpha")).toBeInTheDocument();
+    expect(actions.initialize).toHaveBeenCalledTimes(1);
   });
 });
