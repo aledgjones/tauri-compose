@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-03-20T22:13:26Z
-last_updated: 2026-03-21T15:18:00Z
+last_updated: 2026-03-21T16:41:11Z
 project: compose
 project_key: NOKEY
 tracking_system: file-system
@@ -53,11 +53,11 @@ development_status:
   epic-2: in-progress
   2-1-discover-installed-vst3-plugins-into-a-local-inventory: review
   2-2-reuse-a-cached-plugin-inventory-on-startup: done
-  2-3-expose-plugin-inventory-and-availability-in-a-dedicated-plugin-manager: backlog
-  2-4-support-manual-full-plugin-rescan: backlog
-  2-5-open-a-bounded-native-plugin-editor-host-for-supported-plugins: backlog
-  2-6-stabilize-native-editor-host-lifecycle-within-a-session: backlog
-  2-7-validate-editor-host-failure-handling-against-a-known-good-plugin-subset: backlog
+  2-3-expose-plugin-inventory-and-availability-in-a-dedicated-plugin-manager: ready-for-dev
+  2-4-support-manual-full-plugin-rescan: ready-for-dev
+  2-5-open-a-bounded-native-plugin-editor-host-for-supported-plugins: ready-for-dev
+  2-6-stabilize-native-editor-host-lifecycle-within-a-session: ready-for-dev
+  2-7-validate-editor-host-failure-handling-against-a-known-good-plugin-subset: ready-for-dev
   epic-2-retrospective: optional
 
   epic-3: backlog
