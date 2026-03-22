@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-03-20T22:13:26Z
-last_updated: 2026-03-22T19:59:24Z
+last_updated: 2026-03-22T20:55:00Z
 project: compose
 project_key: NOKEY
 tracking_system: file-system
@@ -50,7 +50,7 @@ development_status:
   1-5-verify-clean-scvi-retirement-across-product-and-repo-surfaces: done
   epic-1-retrospective: done
 
-  epic-2: in-progress
+  epic-2: done
   2-1-discover-installed-vst3-plugins-into-a-local-inventory: done
   2-2-reuse-a-cached-plugin-inventory-on-startup: done
   2-3-expose-plugin-inventory-and-availability-in-a-dedicated-plugin-manager: done
@@ -59,7 +59,7 @@ development_status:
   2-6-stabilize-native-editor-host-lifecycle-within-a-session: done
   2-7-validate-editor-host-failure-handling-against-a-known-good-plugin-subset: done
   2-8-surface-best-effort-plugin-artwork-in-plugin-manager: done
-  epic-2-retrospective: optional
+  epic-2-retrospective: done
 
   epic-3: backlog
   3-1-represent-playback-assignment-state-on-score-instruments: backlog
