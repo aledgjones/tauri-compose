@@ -12,6 +12,7 @@ vi.mock("../../../services/actions", () => ({
   actions: {
     pluginInventory: {
       discover: vi.fn().mockResolvedValue(undefined),
+      openEditorPoc: vi.fn().mockResolvedValue(undefined),
     },
   },
 }));
@@ -217,6 +218,127 @@ describe("Plugins", () => {
     expect(
       screen.queryByRole("button", {
         name: /plugin settings|open settings|open plugin/i,
+      }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("keeps the native editor trigger hidden outside the maintainer flow", () => {
+    renderWithProviders(<Plugins searchTerm="" showActiveOnly={false} />, {
+      pluginInventoryState: {
+        entries: [makePlugin()],
+      },
+    });
+
+    expect(
+      screen.queryByRole("button", {
+        name: "Open native editor host for Grand Piano",
+      }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("renders the bounded native editor trigger for available plugins in maintainer mode", () => {
+    renderWithProviders(
+      <Plugins
+        searchTerm=""
+        showActiveOnly={false}
+        showMaintainerEditorTrigger={true}
+      />,
+      {
+        pluginInventoryState: {
+          entries: [makePlugin()],
+        },
+      },
+    );
+
+    expect(
+      screen.getByRole("button", {
+        name: "Open native editor host for Grand Piano",
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it("opens the native editor host through the inventory action in maintainer mode", async () => {
+    renderWithProviders(
+      <Plugins
+        searchTerm=""
+        showActiveOnly={false}
+        showMaintainerEditorTrigger={true}
+      />,
+      {
+        pluginInventoryState: {
+          entries: [makePlugin()],
+        },
+      },
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Open native editor host for Grand Piano",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(actions.pluginInventory.openEditorPoc).toHaveBeenCalledWith(
+        "vst3:/Library/Audio/Plug-Ins/VST3/Grand Piano.vst3",
+      );
+    });
+  });
+
+  it("surfaces a local failure message when the native editor host cannot open", async () => {
+    vi.mocked(actions.pluginInventory.openEditorPoc).mockRejectedValueOnce(
+      new Error("Attach failed"),
+    );
+
+    renderWithProviders(
+      <Plugins
+        searchTerm=""
+        showActiveOnly={false}
+        showMaintainerEditorTrigger={true}
+      />,
+      {
+        pluginInventoryState: {
+          entries: [makePlugin()],
+        },
+      },
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Open native editor host for Grand Piano",
+      }),
+    );
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Native editor host failed: Attach failed",
+    );
+  });
+
+  it("does not render the native editor trigger for unavailable plugins", () => {
+    renderWithProviders(
+      <Plugins
+        searchTerm=""
+        showActiveOnly={false}
+        showMaintainerEditorTrigger={true}
+      />,
+      {
+        pluginInventoryState: {
+          entries: [
+            makePlugin({
+              availability: "unavailable",
+              binary_path: null,
+              validation_failure: {
+                kind: "missing_bundle_binary",
+                message: "Missing Contents/MacOS binary",
+              },
+            }),
+          ],
+        },
+      },
+    );
+
+    expect(
+      screen.queryByRole("button", {
+        name: "Open native editor host for Grand Piano",
       }),
     ).not.toBeInTheDocument();
   });

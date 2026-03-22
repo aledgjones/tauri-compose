@@ -1,5 +1,5 @@
 # generated: 2026-03-20T22:13:26Z
-# last_updated: 2026-03-22T00:58:10Z
+# last_updated: 2026-03-22T09:49:03Z
 # project: compose
 # project_key: NOKEY
 # tracking_system: file-system
@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-03-20T22:13:26Z
-last_updated: 2026-03-22T00:58:10Z
+last_updated: 2026-03-22T09:49:03Z
 project: compose
 project_key: NOKEY
 tracking_system: file-system
@@ -55,7 +55,7 @@ development_status:
   2-2-reuse-a-cached-plugin-inventory-on-startup: done
   2-3-expose-plugin-inventory-and-availability-in-a-dedicated-plugin-manager: done
   2-4-support-manual-full-plugin-rescan: done
-  2-5-open-a-bounded-native-plugin-editor-host-for-supported-plugins: ready-for-dev
+  2-5-open-a-bounded-native-plugin-editor-host-for-supported-plugins: done
   2-6-stabilize-native-editor-host-lifecycle-within-a-session: ready-for-dev
   2-7-validate-editor-host-failure-handling-against-a-known-good-plugin-subset: ready-for-dev
   2-8-surface-best-effort-plugin-artwork-in-plugin-manager: backlog

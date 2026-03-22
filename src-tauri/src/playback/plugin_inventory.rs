@@ -174,6 +174,10 @@ impl PluginInventoryContext {
         self.state.clone()
     }
 
+    pub fn resolve_available_bundle_path(&self, plugin_id: &str) -> Result<PathBuf, String> {
+        resolve_available_bundle_path_in_entries(plugin_id, &self.state.entries)
+    }
+
     pub fn discover(&mut self) -> Result<(), String> {
         self.discover_in_roots(&default_vst3_search_roots())
     }
@@ -213,6 +217,35 @@ fn current_unix_time_ms() -> Result<u64, String> {
         .duration_since(UNIX_EPOCH)
         .map(|duration| duration.as_millis() as u64)
         .map_err(|error| error.to_string())
+}
+
+fn resolve_available_bundle_path_in_entries(
+    plugin_id: &str,
+    entries: &[PluginInventoryEntry],
+) -> Result<PathBuf, String> {
+    let requested_plugin_id = plugin_id.trim();
+    if requested_plugin_id.is_empty() {
+        return Err(String::from("Plugin inventory target id cannot be empty."));
+    }
+
+    let entry = entries
+        .iter()
+        .find(|entry| entry.id == requested_plugin_id)
+        .ok_or_else(|| {
+            format!(
+                "Plugin inventory does not contain the requested target: '{}'.",
+                requested_plugin_id
+            )
+        })?;
+
+    if entry.availability != PluginInventoryAvailability::Available {
+        return Err(format!(
+            "Plugin inventory target '{}' is unavailable.",
+            entry.name
+        ));
+    }
+
+    Ok(PathBuf::from(&entry.bundle_path))
 }
 
 fn load_persisted_state(db: &Db) -> Result<Option<PersistedPluginInventoryState>, String> {
@@ -449,11 +482,25 @@ pub fn plugin_inventory_discover(
 #[cfg(test)]
 mod tests {
     use super::{
-        discover_inventory_in_roots, load_persisted_state, PluginInventoryAvailability,
-        PluginInventoryContext, PluginInventoryFailureKind,
+        discover_inventory_in_roots, load_persisted_state,
+        resolve_available_bundle_path_in_entries, PluginInventoryAvailability,
+        PluginInventoryContext, PluginInventoryEntry, PluginInventoryFailure,
+        PluginInventoryFailureKind,
     };
     use sled::Db;
     use std::path::PathBuf;
+
+    fn available_entry(id: &str, name: &str, bundle_path: &str) -> PluginInventoryEntry {
+        PluginInventoryEntry {
+            id: id.to_string(),
+            name: name.to_string(),
+            bundle_path: bundle_path.to_string(),
+            binary_path: Some(format!("{bundle_path}/Contents/MacOS/{name}")),
+            source_root: String::from("/Library/Audio/Plug-Ins/VST3"),
+            availability: PluginInventoryAvailability::Available,
+            validation_failure: None,
+        }
+    }
 
     fn create_valid_bundle(root: &PathBuf, name: &str) -> PathBuf {
         let bundle = root.join(format!("{name}.vst3"));
@@ -465,6 +512,59 @@ mod tests {
 
     fn open_db(path: &std::path::Path) -> Db {
         sled::open(path).unwrap()
+    }
+
+    #[test]
+    fn resolve_available_bundle_path_returns_matching_available_entry() {
+        let bundle_path = "/Library/Audio/Plug-Ins/VST3/Grand Piano.vst3";
+        let resolved = resolve_available_bundle_path_in_entries(
+            "vst3:/Library/Audio/Plug-Ins/VST3/Grand Piano.vst3",
+            &[available_entry(
+                "vst3:/Library/Audio/Plug-Ins/VST3/Grand Piano.vst3",
+                "Grand Piano",
+                bundle_path,
+            )],
+        )
+        .unwrap();
+
+        assert_eq!(resolved, PathBuf::from(bundle_path));
+    }
+
+    #[test]
+    fn resolve_available_bundle_path_rejects_missing_inventory_ids() {
+        let error = resolve_available_bundle_path_in_entries(
+            "vst3:/Library/Audio/Plug-Ins/VST3/Missing.vst3",
+            &[available_entry(
+                "vst3:/Library/Audio/Plug-Ins/VST3/Grand Piano.vst3",
+                "Grand Piano",
+                "/Library/Audio/Plug-Ins/VST3/Grand Piano.vst3",
+            )],
+        )
+        .unwrap_err();
+
+        assert!(error.contains("does not contain the requested target"));
+    }
+
+    #[test]
+    fn resolve_available_bundle_path_rejects_unavailable_entries() {
+        let error = resolve_available_bundle_path_in_entries(
+            "vst3:/Library/Audio/Plug-Ins/VST3/Broken.vst3",
+            &[PluginInventoryEntry {
+                availability: PluginInventoryAvailability::Unavailable,
+                validation_failure: Some(PluginInventoryFailure {
+                    kind: PluginInventoryFailureKind::MissingBundleBinary,
+                    message: String::from("Missing Contents/MacOS binary"),
+                }),
+                ..available_entry(
+                    "vst3:/Library/Audio/Plug-Ins/VST3/Broken.vst3",
+                    "Broken Plugin",
+                    "/Library/Audio/Plug-Ins/VST3/Broken.vst3",
+                )
+            }],
+        )
+        .unwrap_err();
+
+        assert!(error.contains("is unavailable"));
     }
 
     #[test]

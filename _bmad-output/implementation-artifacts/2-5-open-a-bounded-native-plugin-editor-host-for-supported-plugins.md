@@ -1,6 +1,6 @@
 # Story 2.5: Open a Bounded Native Plugin Editor Host for Supported Plugins
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -16,22 +16,22 @@ so that Compose can prove the macOS editor-host seam without mixing it into the 
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Formalize the bounded open-editor flow on top of the existing native host POC seam (AC: 1, 2)
-  - [ ] Reuse `plugin_editor_poc_open` and the dedicated `plugin-host-poc` window seam instead of inventing HTML embedding or a second native-host architecture.
-  - [ ] Keep host attachment backend-owned in Rust, with the frontend limited to a deliberate trigger from the appropriate inventory/maintainer surface.
-  - [ ] Ensure the targeted plugin path comes from the Rust-owned inventory model or explicit validated input, not ad hoc frontend path construction.
-- [ ] Task 2: Add a bounded maintainer-facing trigger without widening into assignment or playback activation UX (AC: 1, 2)
-  - [ ] Add a deliberate editor-open trigger from the appropriate app-scoped inventory workflow or dedicated maintainer harness.
-  - [ ] Keep the action explicit and secondary; do not present native editor hosting as the default answer to routine playback or assignment problems.
-  - [ ] Do not couple the editor-open trigger to score assignment state, transport playback, or plugin activation stories.
-- [ ] Task 3: Fail gracefully for unsupported or unusable editor targets (AC: 3)
-  - [ ] Surface open failure coherently when the plugin is invalid, unavailable, or cannot provide a usable editor attach path.
-  - [ ] Avoid leaving orphaned host windows or ambiguous half-open state when attach fails.
-  - [ ] Keep the failure local to the host path and preserve overall app responsiveness.
-- [ ] Task 4: Add focused validation and documentation for the bounded host-open seam (AC: 1, 2, 3)
-  - [ ] Add or extend backend tests around target resolution and explicit failure paths where the code is testable.
-  - [ ] Add focused manual validation guidance for the open-editor path using a known-good plugin target.
-  - [ ] Update developer-facing docs for the bounded editor-host trigger and its current limitations.
+- [x] Task 1: Formalize the bounded open-editor flow on top of the existing native host POC seam (AC: 1, 2)
+  - [x] Reuse `plugin_editor_poc_open` and the dedicated `plugin-host-poc` window seam instead of inventing HTML embedding or a second native-host architecture.
+  - [x] Keep host attachment backend-owned in Rust, with the frontend limited to a deliberate trigger from the appropriate inventory/maintainer surface.
+  - [x] Ensure the targeted plugin path comes from the Rust-owned inventory model or explicit validated input, not ad hoc frontend path construction.
+- [x] Task 2: Add a bounded maintainer-facing trigger without widening into assignment or playback activation UX (AC: 1, 2)
+  - [x] Add a deliberate editor-open trigger from the appropriate app-scoped inventory workflow or dedicated maintainer harness.
+  - [x] Keep the action explicit and secondary; do not present native editor hosting as the default answer to routine playback or assignment problems.
+  - [x] Do not couple the editor-open trigger to score assignment state, transport playback, or plugin activation stories.
+- [x] Task 3: Fail gracefully for unsupported or unusable editor targets (AC: 3)
+  - [x] Surface open failure coherently when the plugin is invalid, unavailable, or cannot provide a usable editor attach path.
+  - [x] Avoid leaving orphaned host windows or ambiguous half-open state when attach fails.
+  - [x] Keep the failure local to the host path and preserve overall app responsiveness.
+- [x] Task 4: Add focused validation and documentation for the bounded host-open seam (AC: 1, 2, 3)
+  - [x] Add or extend backend tests around target resolution and explicit failure paths where the code is testable.
+  - [x] Add focused manual validation guidance for the open-editor path using a known-good plugin target.
+  - [x] Update developer-facing docs for the bounded editor-host trigger and its current limitations.
 
 ## Dev Notes
 
@@ -155,14 +155,36 @@ GPT-5.4
 - Story selected explicitly as `2.5`.
 - Repo inspection confirmed the bounded native host POC already exists and is substantial enough to anchor the story.
 - Cross-story planning kept 2.5 focused on the initial open seam while deferring lifecycle hardening to 2.6 and validation credibility to 2.7.
+- Implemented inventory-backed target resolution in Rust so the maintainer trigger resolves plugin ids against the backend-owned machine-local inventory before falling back to explicit validated input.
+- Added a bounded `Open native editor` maintainer action only in the dedicated Plugin Manager surface, with local inline failure messaging on the shared plugin tile.
+- Validation completed with `npm run lint`, `npm run check-types`, `npm run test:js`, `cargo test --lib`, and `cargo clippy --lib -- -D warnings`.
 
 ### Completion Notes List
 
 - Story context preserves the backend-owned host boundary.
 - Story context explicitly avoids assignment, playback activation, and production-host overreach.
 - Story context keeps native editor open as a deliberate secondary maintainer action, not a default workflow.
+- Rust now resolves editor-open requests from the authoritative plugin inventory when the Plugin Manager trigger provides a plugin id, while still permitting explicit validated input for bounded harness use.
+- The Plugin Manager now exposes the deliberate maintainer-only editor-open trigger, and unavailable entries do not advertise it.
+- Frontend failures from editor-open attempts now stay local to the invoking tile instead of widening into global app state.
+- Added focused Rust tests for inventory-backed target resolution plus frontend Vitest coverage for the maintainer trigger and local failure path.
+- Updated developer-facing docs to describe the Plugin Manager trigger, inventory-first resolution order, and the current manual validation path.
 
 ### File List
 
 - `_bmad-output/implementation-artifacts/2-5-open-a-bounded-native-plugin-editor-host-for-supported-plugins.md`
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `docs/architecture.md`
+- `docs/development-guide.md`
+- `src-tauri/src/playback/plugin_editor_poc.rs`
+- `src-tauri/src/playback/plugin_inventory.rs`
+- `src/services/actions.test.ts`
+- `src/services/actions.ts`
+- `src/windows/main/components/plugins.test.tsx`
+- `src/windows/main/components/plugins.tsx`
+- `src/windows/plugin-manager/index.test.tsx`
+- `src/windows/plugin-manager/index.tsx`
+
+## Change Log
+
+- 2026-03-22: Resolved Story 2.5 by moving the bounded maintainer trigger into Plugin Manager, resolving targets from Rust-owned inventory, adding local failure handling, extending focused tests, and updating developer docs.

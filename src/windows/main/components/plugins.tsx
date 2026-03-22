@@ -4,6 +4,7 @@ import {
   mdiAlertCircleOutline,
   mdiCheckCircleOutline,
   mdiMagnify,
+  mdiOpenInNew,
   mdiRefresh,
 } from "@mdi/js";
 import { usePluginInventoryState } from "../../../services/state";
@@ -49,9 +50,15 @@ const getPluginBadgeTone = (name: string) => {
 
 interface PluginTileProps {
   plugin: PluginInventoryEntry;
+  showMaintainerEditorTrigger: boolean;
 }
 
-const PluginTile: FC<PluginTileProps> = ({ plugin }) => {
+const PluginTile: FC<PluginTileProps> = ({
+  plugin,
+  showMaintainerEditorTrigger,
+}) => {
+  const [isOpeningEditor, setIsOpeningEditor] = useState(false);
+  const [openError, setOpenError] = useState<string | null>(null);
   const isAvailable = plugin.availability === "available";
   const statusLabel = isAvailable ? "Available" : "Unavailable";
   const statusIcon = isAvailable
@@ -76,6 +83,27 @@ const PluginTile: FC<PluginTileProps> = ({ plugin }) => {
   });
   const badgeLabel = getPluginBadgeLabel(plugin.name);
   const badgeToneClassName = getPluginBadgeTone(plugin.name);
+
+  const handleOpenNativeEditor = async () => {
+    if (!isAvailable || isOpeningEditor) {
+      return;
+    }
+
+    setIsOpeningEditor(true);
+    setOpenError(null);
+
+    try {
+      await actions.pluginInventory.openEditorPoc(plugin.id);
+    } catch (error) {
+      setOpenError(
+        error instanceof Error
+          ? error.message
+          : "Failed to open the native editor host.",
+      );
+    } finally {
+      setIsOpeningEditor(false);
+    }
+  };
 
   return (
     <div className="flex flex-col gap-3 bg-neutral-900 px-4 py-3">
@@ -108,6 +136,47 @@ const PluginTile: FC<PluginTileProps> = ({ plugin }) => {
           <span>{statusLabel}</span>
         </div>
       </div>
+
+      {showMaintainerEditorTrigger && isAvailable ? (
+        <div className="flex items-center justify-between gap-3 border border-sky-900/60 bg-neutral-950/70 px-3 py-2">
+          <div className="min-w-0 flex-1">
+            <div className="text-[11px] uppercase tracking-[0.18em] text-sky-200/80">
+              Maintainer preview
+            </div>
+            <div className="truncate text-xs text-neutral-400">
+              Open the bounded native editor host for this inventory target.
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleOpenNativeEditor}
+            disabled={isOpeningEditor}
+            className={classNames(
+              "flex shrink-0 items-center gap-2 border px-3 py-2 text-xs uppercase tracking-[0.14em]",
+              {
+                "border-sky-700/70 bg-sky-500/10 text-sky-100 hover:bg-sky-500/20":
+                  !isOpeningEditor,
+                "cursor-default border-sky-900/70 bg-sky-500/5 text-sky-100/50":
+                  isOpeningEditor,
+              },
+            )}
+            aria-label={`Open native editor host for ${plugin.name}`}
+          >
+            <Icon path={mdiOpenInNew} size={0.7} />
+            <span>{isOpeningEditor ? "Opening..." : "Open native editor"}</span>
+          </button>
+        </div>
+      ) : null}
+
+      {openError ? (
+        <div
+          role="alert"
+          className="border border-amber-800/70 bg-amber-500/10 px-3 py-2 text-xs text-amber-100"
+        >
+          Native editor host failed: {openError}
+        </div>
+      ) : null}
     </div>
   );
 };
@@ -176,9 +245,14 @@ export const PluginsToolbar: FC<PluginsToolbarProps> = ({
 type PluginProps = {
   searchTerm: string;
   showActiveOnly: boolean;
+  showMaintainerEditorTrigger?: boolean;
 };
 
-export const Plugins: FC<PluginProps> = ({ searchTerm, showActiveOnly }) => {
+export const Plugins: FC<PluginProps> = ({
+  searchTerm,
+  showActiveOnly,
+  showMaintainerEditorTrigger = false,
+}) => {
   const pluginInventory = usePluginInventoryState();
 
   const filteredPlugins = useMemo(() => {
@@ -221,7 +295,13 @@ export const Plugins: FC<PluginProps> = ({ searchTerm, showActiveOnly }) => {
     <div className="w-full h-full overflow-auto bg-neutral-950">
       <div className="flex min-h-full flex-col gap-0.5">
         {filteredPlugins.map((plugin) => {
-          return <PluginTile key={plugin.id} plugin={plugin} />;
+          return (
+            <PluginTile
+              key={plugin.id}
+              plugin={plugin}
+              showMaintainerEditorTrigger={showMaintainerEditorTrigger}
+            />
+          );
         })}
         <div
           aria-hidden="true"

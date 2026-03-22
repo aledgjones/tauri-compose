@@ -47,6 +47,11 @@ describe("PluginManager Main", () => {
     ).toBeInTheDocument();
     expect(screen.queryByText("Root")).not.toBeInTheDocument();
     expect(screen.queryByText("Binary")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", {
+        name: "Open native editor host for Grand Piano",
+      }),
+    ).toBeInTheDocument();
   });
 
   it("reuses Available only filtering in the dedicated window", () => {

@@ -160,6 +160,16 @@ describe("actions.pluginInventory", () => {
     await actions.pluginInventory.discover();
     expect(mockInvoke).toHaveBeenCalledWith("plugin_inventory_discover");
   });
+
+  it("openEditorPoc calls invoke with inventory-backed plugin_id", async () => {
+    await actions.pluginInventory.openEditorPoc(
+      "vst3:/Library/Audio/Plug-Ins/VST3/Grand Piano.vst3",
+    );
+    expect(mockInvoke).toHaveBeenCalledWith("plugin_editor_poc_open", {
+      plugin_id: "vst3:/Library/Audio/Plug-Ins/VST3/Grand Piano.vst3",
+      plugin_path: null,
+    });
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -169,13 +179,6 @@ describe("actions.sampler", () => {
   it("rescanPlugins calls invoke correctly", async () => {
     await actions.sampler.rescanPlugins();
     expect(mockInvoke).toHaveBeenCalledWith("sampler_rescan_plugins");
-  });
-
-  it("openPluginEditorPoc calls invoke with a nullable plugin_path", async () => {
-    await actions.sampler.openPluginEditorPoc();
-    expect(mockInvoke).toHaveBeenCalledWith("plugin_editor_poc_open", {
-      plugin_path: null,
-    });
   });
 
   it("syncWithInstruments calls invoke with assigned_plugin_ids", async () => {

@@ -136,10 +136,11 @@ Pre-commit hooks (via `lint-staged` + `simple-git-hooks`) run ESLint and Prettie
 
 ## macOS Native Plugin Host POC
 
-The experimental native host proof is macOS-only and remains an internal developer seam. The current product UI does not expose a toolbar button or other user-facing entry point for it.
+The experimental native host proof is macOS-only and remains a bounded maintainer seam. Its deliberate frontend trigger lives in the dedicated Plugin Manager window and remains secondary to the normal inventory browse workflow.
 
 The POC resolves its target in this order:
 
+- inventory-backed `plugin_id` resolved in Rust from the machine-local VST3 inventory
 - explicit `plugin_path` passed to the backend command
 - `SOLOC_PLUGIN_EDITOR_POC_VST3_PATH`
 - first valid `.vst3` bundle found under `~/Library/Audio/Plug-Ins/VST3`
@@ -155,12 +156,13 @@ npm run start:dev
 What the current proof does:
 
 - validates the configured path before creating the host window
+- prefers Rust-owned plugin inventory targeting when the request comes from the Plugin Manager maintainer action
 - creates or focuses a dedicated backend-owned Tauri window labeled `plugin-host-poc`
 - loads the VST3 bundle binary from the macOS bundle, creates a component/controller pair, synchronizes component state into the controller when the plugin exposes separate objects, connects `IConnectionPoint` when available, requests `ViewType::kEditor`, attaches the returned `IPlugView` to the native AppKit content area, and now applies plugin-driven resize requests back to the host window
 - defaults the host window to non-resizable until the plugin explicitly reports that its editor can resize via `IPlugView::canResize()` and logs the host callbacks the plugin invokes through the current proof seam
 - keeps the experimental host state in Rust and logs create, focus, resize, close, and destroy lifecycle events
 
-The `plugin-host-poc` window remains a development-only proof seam for the upcoming native editor-host stories. Keep it distinct from the canonical Sequence-menu `Plugin Manager...` inventory window, and do not treat the legacy `actions.sampler.openPluginEditorPoc()` trigger as the product ownership model for VST workflows.
+The `plugin-host-poc` window remains a development-only proof seam for the upcoming native editor-host stories. Keep it distinct from the canonical Sequence-menu `Plugin Manager...` inventory window, and do not treat the maintainer-only `Open native editor` action as the default answer to assignment, playback, or routine plugin troubleshooting workflows.
 
 Plugin inventory startup behavior:
 
@@ -184,13 +186,13 @@ Manual validation checklist:
 2. Confirm startup first reuses any existing machine-local cache in the Sequence `Plugins` bottom panel without requiring the refresh action.
 3. If you add a new `.vst3` bundle under the standard discovery roots between launches, confirm the next startup surfaces it without requiring refresh.
 4. If you need to force a broader discovery pass, trigger `plugin_inventory_discover` from the Plugin Manager `Refresh plugin inventory` action and verify the machine-local VST3 inventory updates there.
-5. Trigger `plugin_editor_poc_open` from a development-only harness or temporary call to `actions.sampler.openPluginEditorPoc()`.
+5. Open `Plugin Manager...` from the Sequence menu and trigger the maintainer-only `Open native editor` action for a known-good available plugin.
 6. Confirm the dedicated host window opens and remains responsive.
 7. Confirm the Rust logs show create/focus events and, for a compatible plugin, that the plugin editor UI appears inside the host window rather than the previous placeholder-only surface.
 8. Resize the window and confirm the native host area stays attached without leaving stale content behind.
 9. Switch focus between the main window and the host window and confirm the app remains responsive.
 10. Close the host window and reopen it in the same session.
-11. Clear or invalidate `SOLOC_PLUGIN_EDITOR_POC_VST3_PATH`, remove any `.vst3` bundles from the standard VST3 directories, trigger the POC again, and confirm the command fails without leaving an orphaned host window.
+11. Try the same action against an invalid or unavailable target via a development harness or invalid `SOLOC_PLUGIN_EDITOR_POC_VST3_PATH`, and confirm the failure stays local to the maintainer action without leaving an orphaned host window.
 
 ## Versioning
 

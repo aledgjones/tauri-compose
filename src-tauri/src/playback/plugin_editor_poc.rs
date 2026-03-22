@@ -4,11 +4,13 @@ use crate::playback::vst3::{
     default_vst3_search_roots, discover_first_valid_vst3_in_roots, validate_vst3_bundle,
     MACOS_VST3_SEARCH_ROOTS,
 };
+use crate::ManagedPluginInventoryContextState;
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
 use tauri::{
-    AppHandle, Manager, TitleBarStyle, WebviewUrl, WebviewWindow, WebviewWindowBuilder, WindowEvent,
+    AppHandle, Manager, State, TitleBarStyle, WebviewUrl, WebviewWindow, WebviewWindowBuilder,
+    WindowEvent,
 };
 
 const WINDOW_LABEL: &str = "plugin-host-poc";
@@ -16,9 +18,42 @@ const HOST_PAGE_PATH: &str = "plugin-host-poc.html";
 const HOST_HEADER_HEIGHT: f64 = 0.0;
 const PLUGIN_PATH_ENV: &str = "SOLOC_PLUGIN_EDITOR_POC_VST3_PATH";
 
+#[derive(Debug)]
+enum PluginTargetReservation {
+    Acquired,
+    AlreadyReserved,
+}
+
 fn active_plugin_target() -> &'static Mutex<Option<PathBuf>> {
     static ACTIVE_PLUGIN_TARGET: OnceLock<Mutex<Option<PathBuf>>> = OnceLock::new();
     ACTIVE_PLUGIN_TARGET.get_or_init(|| Mutex::new(None))
+}
+
+fn reserve_plugin_target(target: &Path) -> Result<PluginTargetReservation, String> {
+    let mut active_target = active_plugin_target()
+        .lock()
+        .map_err(|_| String::from("Failed to read plugin editor POC target state"))?;
+
+    if let Some(active_target_path) = active_target.as_deref() {
+        if active_target_path != target {
+            return Err(String::from(
+                "The plugin editor POC window is already open for a different target. Close it before switching plugin paths.",
+            ));
+        }
+
+        return Ok(PluginTargetReservation::AlreadyReserved);
+    }
+
+    *active_target = Some(target.to_path_buf());
+    Ok(PluginTargetReservation::Acquired)
+}
+
+fn release_reserved_plugin_target(target: &Path) {
+    if let Ok(mut active_target) = active_plugin_target().lock() {
+        if active_target.as_deref() == Some(target) {
+            *active_target = None;
+        }
+    }
 }
 
 #[cfg(target_os = "macos")]
@@ -48,14 +83,37 @@ fn live_plugin_host_attached() -> bool {
     false
 }
 
-fn resolve_plugin_target(explicit_plugin_path: Option<&str>) -> Result<PathBuf, String> {
-    resolve_plugin_target_in_roots(explicit_plugin_path, &default_vst3_search_roots())
+fn resolve_requested_plugin_target(
+    plugin_id: Option<&str>,
+    explicit_plugin_path: Option<&str>,
+    plugin_inventory_state: &ManagedPluginInventoryContextState,
+) -> Result<Option<PathBuf>, String> {
+    if let Some(plugin_id) = plugin_id.map(str::trim).filter(|value| !value.is_empty()) {
+        let plugin_inventory = plugin_inventory_state
+            .lock()
+            .map_err(|_| String::from("Failed to read plugin inventory state"))?;
+        let plugin_path = plugin_inventory.resolve_available_bundle_path(plugin_id)?;
+        validate_vst3_bundle(&plugin_path).map_err(|error| error.message)?;
+        return Ok(Some(plugin_path));
+    }
+
+    if let Some(path) = requested_plugin_target_candidate(explicit_plugin_path) {
+        validate_vst3_bundle(&path).map_err(|error| error.message)?;
+        return Ok(Some(path));
+    }
+
+    Ok(None)
 }
 
 fn resolve_plugin_target_in_roots(
     explicit_plugin_path: Option<&str>,
     default_roots: &[PathBuf],
+    inventory_target: Option<PathBuf>,
 ) -> Result<PathBuf, String> {
+    if let Some(path) = inventory_target {
+        return Ok(path);
+    }
+
     if let Some(path) = requested_plugin_target_candidate(explicit_plugin_path) {
         validate_vst3_bundle(&path).map_err(|error| error.message)?;
         return Ok(path);
@@ -71,6 +129,20 @@ fn resolve_plugin_target_in_roots(
         PLUGIN_PATH_ENV,
         MACOS_VST3_SEARCH_ROOTS.join(" or ")
     ))
+}
+
+fn resolve_plugin_target(
+    plugin_id: Option<&str>,
+    explicit_plugin_path: Option<&str>,
+    plugin_inventory_state: &ManagedPluginInventoryContextState,
+) -> Result<PathBuf, String> {
+    let inventory_target =
+        resolve_requested_plugin_target(plugin_id, None, plugin_inventory_state)?;
+    resolve_plugin_target_in_roots(
+        explicit_plugin_path,
+        &default_vst3_search_roots(),
+        inventory_target,
+    )
 }
 
 fn requested_plugin_target_candidate(explicit_plugin_path: Option<&str>) -> Option<PathBuf> {
@@ -1095,46 +1167,56 @@ fn attach_native_host_surface(
 #[tauri::command(rename_all = "snake_case")]
 pub async fn plugin_editor_poc_open(
     app: AppHandle,
+    plugin_inventory_state: State<'_, ManagedPluginInventoryContextState>,
+    plugin_id: Option<String>,
     plugin_path: Option<String>,
 ) -> Result<PluginEditorPocOpenResult, String> {
-    if let Some(window) = app.get_webview_window(WINDOW_LABEL) {
-        if let Some(requested_target) = requested_plugin_target_candidate(plugin_path.as_deref()) {
-            validate_vst3_bundle(&requested_target).map_err(|error| error.message)?;
+    let plugin_path = resolve_plugin_target(
+        plugin_id.as_deref(),
+        plugin_path.as_deref(),
+        plugin_inventory_state.inner(),
+    )?;
 
-            let active_target = active_plugin_target()
-                .lock()
-                .map_err(|_| String::from("Failed to read plugin editor POC target state"))?;
-            if let Some(active_target) = active_target.as_ref() {
-                if active_target != &requested_target {
-                    return Err(String::from(
-                        "The plugin editor POC window is already open for a different target. Close it before switching plugin paths.",
-                    ));
-                }
+    match reserve_plugin_target(&plugin_path)? {
+        PluginTargetReservation::Acquired => {}
+        PluginTargetReservation::AlreadyReserved => {
+            if let Some(window) = app.get_webview_window(WINDOW_LABEL) {
+                window
+                    .set_focus()
+                    .map_err(|error| format!("Failed to focus plugin host POC window: {error}"))?;
+
+                return Ok(PluginEditorPocOpenResult {
+                    window_label: WINDOW_LABEL.to_string(),
+                    plugin_path: plugin_path.display().to_string(),
+                    native_host_attached: live_plugin_host_attached(),
+                });
             }
-        }
 
+            return Err(String::from(
+                "The plugin editor POC window is already opening for this target.",
+            ));
+        }
+    }
+
+    if let Some(window) = app.get_webview_window(WINDOW_LABEL) {
         window
             .set_focus()
             .map_err(|error| format!("Failed to focus plugin host POC window: {error}"))?;
 
         return Ok(PluginEditorPocOpenResult {
             window_label: WINDOW_LABEL.to_string(),
-            plugin_path: active_plugin_target()
-                .lock()
-                .ok()
-                .and_then(|active_target| {
-                    active_target
-                        .as_ref()
-                        .map(|path| path.display().to_string())
-                })
-                .unwrap_or_default(),
+            plugin_path: plugin_path.display().to_string(),
             native_host_attached: live_plugin_host_attached(),
         });
     }
 
-    let plugin_path = resolve_plugin_target(plugin_path.as_deref())?;
-
-    let window = build_host_window(&app)?;
+    let window = match build_host_window(&app) {
+        Ok(window) => window,
+        Err(error) => {
+            release_reserved_plugin_target(&plugin_path);
+            return Err(error);
+        }
+    };
 
     let native_host_attached = match attach_native_host_surface(&window, &plugin_path) {
         Ok(attached) => attached,
@@ -1144,17 +1226,11 @@ pub async fn plugin_editor_poc_open(
                 plugin_path.display(),
                 error
             );
+            release_reserved_plugin_target(&plugin_path);
             let _ = window.close();
             return Err(error);
         }
     };
-
-    {
-        let mut active_target = active_plugin_target()
-            .lock()
-            .map_err(|_| String::from("Failed to store plugin editor POC target state"))?;
-        *active_target = Some(plugin_path.clone());
-    }
 
     window
         .set_focus()
@@ -1169,19 +1245,110 @@ pub async fn plugin_editor_poc_open(
 
 #[cfg(test)]
 mod tests {
-    use super::resolve_plugin_target_in_roots;
+    use super::{
+        active_plugin_target, release_reserved_plugin_target, reserve_plugin_target,
+        resolve_plugin_target_in_roots, PluginTargetReservation,
+    };
+    use std::path::{Path, PathBuf};
+    use std::sync::{Mutex, OnceLock};
+
+    fn plugin_target_test_mutex() -> &'static Mutex<()> {
+        static PLUGIN_TARGET_TEST_MUTEX: OnceLock<Mutex<()>> = OnceLock::new();
+        PLUGIN_TARGET_TEST_MUTEX.get_or_init(|| Mutex::new(()))
+    }
+
+    fn reset_active_plugin_target() {
+        if let Ok(mut active_target) = active_plugin_target().lock() {
+            *active_target = None;
+        }
+    }
 
     #[test]
     fn resolve_plugin_target_requires_explicit_env_or_discovered_bundle() {
         let previous = std::env::var(super::PLUGIN_PATH_ENV).ok();
         std::env::remove_var(super::PLUGIN_PATH_ENV);
 
-        let error = resolve_plugin_target_in_roots(None, &[]).unwrap_err();
+        let error = resolve_plugin_target_in_roots(None, &[], None).unwrap_err();
         assert!(error.contains(super::PLUGIN_PATH_ENV));
 
         match previous {
             Some(value) => std::env::set_var(super::PLUGIN_PATH_ENV, value),
             None => std::env::remove_var(super::PLUGIN_PATH_ENV),
         }
+    }
+
+    #[test]
+    fn resolve_plugin_target_prefers_inventory_target_before_discovery() {
+        let inventory_target = PathBuf::from("/tmp/test-plugin.vst3");
+
+        let resolved =
+            resolve_plugin_target_in_roots(None, &[], Some(inventory_target.clone())).unwrap();
+
+        assert_eq!(resolved, inventory_target);
+    }
+
+    #[test]
+    fn reserve_plugin_target_marks_first_request_as_acquired() {
+        let _guard = plugin_target_test_mutex().lock().unwrap();
+        reset_active_plugin_target();
+
+        let target = Path::new("/tmp/test-plugin.vst3");
+        let reservation = reserve_plugin_target(target).unwrap();
+
+        assert!(matches!(reservation, PluginTargetReservation::Acquired));
+
+        reset_active_plugin_target();
+    }
+
+    #[test]
+    fn reserve_plugin_target_reuses_matching_target() {
+        let _guard = plugin_target_test_mutex().lock().unwrap();
+        reset_active_plugin_target();
+
+        let target = Path::new("/tmp/test-plugin.vst3");
+        reserve_plugin_target(target).unwrap();
+
+        let reservation = reserve_plugin_target(target).unwrap();
+
+        assert!(matches!(
+            reservation,
+            PluginTargetReservation::AlreadyReserved
+        ));
+
+        reset_active_plugin_target();
+    }
+
+    #[test]
+    fn reserve_plugin_target_rejects_different_target_while_reserved() {
+        let _guard = plugin_target_test_mutex().lock().unwrap();
+        reset_active_plugin_target();
+
+        reserve_plugin_target(Path::new("/tmp/test-plugin-a.vst3")).unwrap();
+
+        let error = reserve_plugin_target(Path::new("/tmp/test-plugin-b.vst3")).unwrap_err();
+
+        assert!(error.contains("already open for a different target"));
+
+        reset_active_plugin_target();
+    }
+
+    #[test]
+    fn release_reserved_plugin_target_clears_matching_target_only() {
+        let _guard = plugin_target_test_mutex().lock().unwrap();
+        reset_active_plugin_target();
+
+        let active_target = Path::new("/tmp/test-plugin-a.vst3");
+        reserve_plugin_target(active_target).unwrap();
+        release_reserved_plugin_target(Path::new("/tmp/test-plugin-b.vst3"));
+
+        assert_eq!(
+            active_plugin_target().lock().unwrap().as_deref(),
+            Some(active_target)
+        );
+
+        release_reserved_plugin_target(active_target);
+
+        assert_eq!(active_plugin_target().lock().unwrap().as_deref(), None);
+        reset_active_plugin_target();
     }
 }
