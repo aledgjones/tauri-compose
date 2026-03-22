@@ -25,8 +25,11 @@ export const IconButton: FC<IconProps & Props> = ({
 }) => {
   return (
     <button
+      type="button"
       onClick={onClick}
       onPointerDown={onPointerDown}
+      disabled={isDisabled}
+      aria-disabled={isDisabled}
       className={classNames(
         "flex items-center justify-center h-9 w-9",
         getTheme(variant, isSelected),

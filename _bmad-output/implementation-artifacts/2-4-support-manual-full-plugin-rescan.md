@@ -1,6 +1,6 @@
 # Story 2.4: Support Manual Full Plugin Rescan
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -16,22 +16,22 @@ so that Compose can refresh its plugin inventory when the local environment chan
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Keep manual full rescan as the explicit full-reprobe seam in the Rust-owned inventory domain (AC: 1, 3)
-  - [ ] Reuse `plugin_inventory_discover` as the explicit full discovery command and keep startup cache reuse bounded.
-  - [ ] Ensure manual full rescan refreshes the complete supported root set, persists the resulting inventory, and emits updated inventory truth through `soloc://state/plugin_inventory`.
-  - [ ] Do not route manual full rescan through the legacy sampler rescan seam or any frontend-owned cache state.
-- [ ] Task 2: Add the explicit rescan UX to the dedicated Plugin Manager and keep the user-visible result legible (AC: 1, 2)
-  - [ ] Add a clear rescan action in the dedicated Plugin Manager window built by Story 2.3.
-  - [ ] Surface refresh-in-progress and refresh-complete feedback using existing Compose patterns so users can tell the inventory was updated.
-  - [ ] Keep the temporary Sequence inventory surface coherent if it still reuses shared inventory components during the transition, but treat the Plugin Manager as the canonical app-scoped home for the workflow.
-- [ ] Task 3: Preserve the Story 2.2 startup-cache boundary while allowing broad manual refresh (AC: 1, 3)
-  - [ ] Do not widen startup validation into a hidden full reprobe.
-  - [ ] Keep startup semantics cache-first and bounded, with manual full rescan remaining the broader maintenance workflow.
-  - [ ] Keep machine-local inventory persistence outside `.soloc` and preserve stable inventory availability semantics after rescan.
-- [ ] Task 4: Add focused validation and documentation for the explicit rescan workflow (AC: 1, 2, 3)
-  - [ ] Add backend tests proving manual full rescan remains broader than startup validation and updates persisted inventory truth.
-  - [ ] Extend frontend tests for Plugin Manager refresh interaction, refreshed inventory rendering, and user-visible completion state.
-  - [ ] Update developer-facing docs where startup cache reuse versus manual full rescan behavior is described.
+- [x] Task 1: Keep manual full rescan as the explicit full-reprobe seam in the Rust-owned inventory domain (AC: 1, 3)
+  - [x] Reuse `plugin_inventory_discover` as the explicit full discovery command and keep startup cache reuse bounded.
+  - [x] Ensure manual full rescan refreshes the complete supported root set, persists the resulting inventory, and emits updated inventory truth through `soloc://state/plugin_inventory`.
+  - [x] Do not route manual full rescan through the legacy sampler rescan seam or any frontend-owned cache state.
+- [x] Task 2: Add the explicit rescan UX to the dedicated Plugin Manager and keep the user-visible result legible (AC: 1, 2)
+  - [x] Add a clear rescan action in the dedicated Plugin Manager window built by Story 2.3.
+  - [x] Surface refresh-in-progress and refresh-complete feedback using existing Compose patterns so users can tell the inventory was updated.
+  - [x] Keep the temporary Sequence inventory surface coherent if it still reuses shared inventory components during the transition, but treat the Plugin Manager as the canonical app-scoped home for the workflow.
+- [x] Task 3: Preserve the Story 2.2 startup-cache boundary while allowing broad manual refresh (AC: 1, 3)
+  - [x] Do not widen startup validation into a hidden full reprobe.
+  - [x] Keep startup semantics cache-first and bounded, with manual full rescan remaining the broader maintenance workflow.
+  - [x] Keep machine-local inventory persistence outside `.soloc` and preserve stable inventory availability semantics after rescan.
+- [x] Task 4: Add focused validation and documentation for the explicit rescan workflow (AC: 1, 2, 3)
+  - [x] Add backend tests proving manual full rescan remains broader than startup validation and updates persisted inventory truth.
+  - [x] Extend frontend tests for Plugin Manager refresh interaction, refreshed inventory rendering, and user-visible completion state.
+  - [x] Update developer-facing docs where startup cache reuse versus manual full rescan behavior is described.
 
 ## Dev Notes
 
@@ -153,14 +153,36 @@ GPT-5.4
 - Story selected explicitly as `2.4`.
 - Wider repo analysis confirmed the broad reprobe command already exists and is distinct from the bounded startup path.
 - Cross-story review kept Story 2.4 focused on explicit rescan behavior in the dedicated Plugin Manager instead of widening Story 2.3 or regressing Story 2.2 semantics.
+- Added backend regression coverage proving bounded startup cache reuse remains distinct from the broader manual reprobe path and that manual refresh persists the updated machine-local inventory truth.
+- Added shared toolbar feedback for `Refreshing inventory...` and `Inventory refreshed`, plus Plugin Manager-specific labeled refresh affordance, without introducing frontend-owned inventory state.
+- Validation completed successfully with `npm run lint`, `npm run check-types`, `npm run test:js`, `npm run test:rust`, and `cargo clippy --lib -- -D warnings`.
+- Follow-up fix hardened the refresh button's semantic disabled state and guarded the rescan handler against duplicate activation while a discovery pass is already in flight.
 
 ### Completion Notes List
 
 - Story context preserves the critical boundary: startup stays bounded, manual rescan stays broad.
 - Story context explicitly avoids the legacy sampler rescan seam.
 - Story context keeps the dedicated Plugin Manager as the canonical app-scoped refresh surface while preserving later score-context boundaries.
+- Reused the existing Rust-owned `plugin_inventory_discover` seam and verified manual full rescan replaces the bounded startup snapshot only when the explicit refresh workflow runs.
+- Enabled the dedicated Plugin Manager's `Refresh plugin inventory` action with visible in-progress and refreshed-state feedback while keeping the temporary Sequence inventory surface on the same shared component path.
+- Updated architecture and development docs so the startup-cache versus manual full rescan split matches the implemented product workflow.
+- Strengthened the shared `IconButton` disabled semantics and the toolbar re-entry guard so plugin discovery cannot be re-triggered through rapid repeat activation while disabled.
 
 ### File List
 
 - `_bmad-output/implementation-artifacts/2-4-support-manual-full-plugin-rescan.md`
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `docs/architecture.md`
+- `docs/development-guide.md`
+- `src/services/actions.test.ts`
+- `src-tauri/src/playback/plugin_inventory.rs`
+- `src/ui/buttons/icon-button.tsx`
+- `src/windows/main/components/plugins.test.tsx`
+- `src/windows/main/components/plugins.tsx`
+- `src/windows/plugin-manager/index.test.tsx`
+- `src/windows/plugin-manager/index.tsx`
+
+## Change Log
+
+- 2026-03-21: Added the canonical Plugin Manager manual rescan UX, kept startup cache reuse bounded, added focused frontend/backend coverage, and updated developer docs.
+- 2026-03-22: Hardened the refresh button disabled semantics and prevented duplicate refresh activation before closing Story 2.4.

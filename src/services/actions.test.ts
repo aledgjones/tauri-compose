@@ -19,14 +19,19 @@ vi.mock("@tauri-apps/plugin-dialog", () => ({
 }));
 
 vi.mock("@tauri-apps/api/webviewWindow", () => ({
-  WebviewWindow: vi.fn(function MockWebviewWindow() {
-    return {
-      show: vi.fn(),
-      setFocus: vi.fn(),
-      once: vi.fn().mockResolvedValue(vi.fn()),
-      close: vi.fn(),
-    };
-  }),
+  WebviewWindow: Object.assign(
+    vi.fn(function MockWebviewWindow() {
+      return {
+        show: vi.fn(),
+        setFocus: vi.fn(),
+        once: vi.fn().mockResolvedValue(vi.fn()),
+        close: vi.fn(),
+      };
+    }),
+    {
+      getByLabel: vi.fn().mockResolvedValue(null),
+    },
+  ),
 }));
 
 import { invoke } from "@tauri-apps/api/core";

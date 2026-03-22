@@ -26,7 +26,6 @@ export const Main: FC = () => {
           onSearchTermChange={setSearchTerm}
           showActiveOnly={showActiveOnly}
           onShowActiveOnlyChange={setShowActiveOnly}
-          showRefreshButton={false}
         />
         <Plugins searchTerm={searchTerm} showActiveOnly={showActiveOnly} />
       </div>

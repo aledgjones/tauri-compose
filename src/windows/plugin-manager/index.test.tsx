@@ -38,6 +38,9 @@ describe("PluginManager Main", () => {
     expect(
       screen.getByPlaceholderText("Search plugins..."),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Refresh plugin inventory" }),
+    ).toBeInTheDocument();
     expect(screen.getByText("Grand Piano")).toBeInTheDocument();
     expect(
       screen.getByText(/Contents\/MacOS\/Grand Piano/),

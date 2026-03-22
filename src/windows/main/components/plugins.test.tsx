@@ -47,7 +47,9 @@ describe("PluginsToolbar", () => {
 
   it("renders the refresh button", () => {
     renderWithProviders(<PluginsToolbar {...defaults} />);
-    expect(screen.getAllByRole("button").length).toBeGreaterThanOrEqual(1);
+    expect(
+      screen.getByRole("button", { name: "Refresh plugin inventory" }),
+    ).toBeInTheDocument();
   });
 
   it("renders Available only label", () => {
@@ -55,22 +57,66 @@ describe("PluginsToolbar", () => {
     expect(screen.getByText("Available only")).toBeInTheDocument();
   });
 
-  it("can hide the refresh button for browse-only windows", () => {
-    renderWithProviders(
-      <PluginsToolbar {...defaults} showRefreshButton={false} />,
-    );
-
-    expect(
-      screen.queryByRole("button", { name: /refresh plugin inventory/i }),
-    ).not.toBeInTheDocument();
-  });
-
   it("calls discover when refresh button is clicked", async () => {
     renderWithProviders(<PluginsToolbar {...defaults} />);
-    const buttons = screen.getAllByRole("button");
-    fireEvent.click(buttons[0]);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Refresh plugin inventory" }),
+    );
     await waitFor(() => {
       expect(actions.pluginInventory.discover).toHaveBeenCalled();
+    });
+  });
+
+  it("disables the refresh button while discovery is running", async () => {
+    let resolveDiscover: (() => void) | undefined;
+
+    vi.mocked(actions.pluginInventory.discover).mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        resolveDiscover = resolve;
+      }),
+    );
+
+    renderWithProviders(<PluginsToolbar {...defaults} />);
+
+    const refreshButton = screen.getByRole("button", {
+      name: "Refresh plugin inventory",
+    });
+
+    fireEvent.click(refreshButton);
+
+    expect(refreshButton).toBeDisabled();
+
+    resolveDiscover?.();
+
+    await waitFor(() => {
+      expect(refreshButton).not.toBeDisabled();
+    });
+  });
+
+  it("ignores repeated refresh activation while discovery is already running", async () => {
+    let resolveDiscover: (() => void) | undefined;
+
+    vi.mocked(actions.pluginInventory.discover).mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        resolveDiscover = resolve;
+      }),
+    );
+
+    renderWithProviders(<PluginsToolbar {...defaults} />);
+
+    const refreshButton = screen.getByRole("button", {
+      name: "Refresh plugin inventory",
+    });
+
+    fireEvent.click(refreshButton);
+    fireEvent.click(refreshButton);
+
+    expect(actions.pluginInventory.discover).toHaveBeenCalledTimes(1);
+
+    resolveDiscover?.();
+
+    await waitFor(() => {
+      expect(refreshButton).not.toBeDisabled();
     });
   });
 

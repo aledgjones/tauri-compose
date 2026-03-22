@@ -604,6 +604,60 @@ mod tests {
     }
 
     #[test]
+    fn manual_full_rescan_replaces_bounded_startup_snapshot_and_persists_new_truth() {
+        let root = std::env::temp_dir().join(format!(
+            "plugin-inventory-manual-full-rescan-{}",
+            std::process::id()
+        ));
+        let db_path = root.join("db");
+        let cached_root = root.join("cached-plugins");
+        let startup_root = root.join("startup-plugins");
+        let manual_root = root.join("manual-plugins");
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&cached_root).unwrap();
+        std::fs::create_dir_all(&startup_root).unwrap();
+        std::fs::create_dir_all(&manual_root).unwrap();
+        create_valid_bundle(&cached_root, "Alpha");
+        create_valid_bundle(&manual_root, "Beta");
+
+        let mut seeded = PluginInventoryContext::from_db_path(Some(&db_path), Vec::new());
+        seeded
+            .discover_in_roots(std::slice::from_ref(&cached_root))
+            .unwrap();
+        drop(seeded);
+
+        let mut reloaded = PluginInventoryContext::from_db_path_and_roots(
+            Some(&db_path),
+            std::slice::from_ref(&startup_root),
+            Vec::new(),
+        );
+        let startup_snapshot = reloaded.snapshot();
+
+        assert_eq!(startup_snapshot.entries.len(), 1);
+        assert_eq!(startup_snapshot.entries[0].name, "Alpha");
+
+        reloaded
+            .discover_in_roots(std::slice::from_ref(&manual_root))
+            .unwrap();
+        let rescan_snapshot = reloaded.snapshot();
+        drop(reloaded);
+
+        assert_eq!(rescan_snapshot.entries.len(), 1);
+        assert_eq!(rescan_snapshot.entries[0].name, "Beta");
+        assert_eq!(
+            rescan_snapshot.entries[0].availability,
+            PluginInventoryAvailability::Available
+        );
+        assert!(rescan_snapshot.last_discovered_at_ms.is_some());
+
+        let persisted = load_persisted_state(&open_db(&db_path)).unwrap().unwrap();
+        assert_eq!(persisted.entries.len(), 1);
+        assert_eq!(persisted.entries[0].name, "Beta");
+
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
     fn plugin_inventory_startup_discovers_new_uncached_bundles_during_bounded_sweep() {
         let root = std::env::temp_dir().join(format!(
             "plugin-inventory-startup-new-bundles-{}",

@@ -169,7 +169,8 @@ Plugin inventory startup behavior:
 - Startup cache reuse is not `.soloc` persistence. Project files remain portable score data only.
 - The canonical app-scoped browse surface for that inventory is the Sequence-menu `Plugin Manager...` window.
 - The Sequence `Plugins` surface remains a temporary contextual browse seam. It is not the final assignment workflow and should not replace the dedicated manager window's app-scoped role.
-- The Sequence `Plugins` refresh action is still the explicit manual discovery seam. It is distinct from startup cache reuse and is where broader discovery/rescan behavior belongs.
+- The dedicated Plugin Manager exposes the canonical `Refresh plugin inventory` action for the explicit full reprobe workflow and shows refresh-in-progress plus refreshed-state feedback.
+- The Sequence `Plugins` surface may reuse that same shared refresh control during the transition, but startup cache reuse remains distinct from that manual full rescan seam.
 
 What it does not yet do:
 
@@ -182,7 +183,7 @@ Manual validation checklist:
 1. Start the app on macOS with either `SOLOC_PLUGIN_EDITOR_POC_VST3_PATH` set to an existing `.vst3` bundle or at least one valid `.vst3` bundle installed under the standard VST3 directories.
 2. Confirm startup first reuses any existing machine-local cache in the Sequence `Plugins` bottom panel without requiring the refresh action.
 3. If you add a new `.vst3` bundle under the standard discovery roots between launches, confirm the next startup surfaces it without requiring refresh.
-4. If you need to force a broader discovery pass, trigger `plugin_inventory_discover` from the Sequence `Plugins` bottom panel and verify the machine-local VST3 inventory updates there.
+4. If you need to force a broader discovery pass, trigger `plugin_inventory_discover` from the Plugin Manager `Refresh plugin inventory` action and verify the machine-local VST3 inventory updates there.
 5. Trigger `plugin_editor_poc_open` from a development-only harness or temporary call to `actions.sampler.openPluginEditorPoc()`.
 6. Confirm the dedicated host window opens and remains responsive.
 7. Confirm the Rust logs show create/focus events and, for a compatible plugin, that the plugin editor UI appears inside the host window rather than the previous placeholder-only surface.

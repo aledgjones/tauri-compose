@@ -58,7 +58,7 @@ const PluginTile: FC<PluginTileProps> = ({ plugin }) => {
     ? mdiCheckCircleOutline
     : mdiAlertCircleOutline;
   const statusChipClassName = classNames(
-    "shrink-0 flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] uppercase tracking-[0.18em]",
+    "self-center shrink-0 flex items-center gap-1.5 rounded-full border pl-1.5 pr-2.5 py-1 text-[11px] uppercase tracking-[0.18em]",
     {
       "border-emerald-700/70 bg-emerald-500/10 text-emerald-100": isAvailable,
       "border-amber-700/70 bg-amber-500/10 text-amber-100": !isAvailable,
@@ -117,7 +117,6 @@ type PluginsToolbarProps = {
   onSearchTermChange: (term: string) => void;
   showActiveOnly: boolean;
   onShowActiveOnlyChange: (value: boolean) => void;
-  showRefreshButton?: boolean;
 };
 
 export const PluginsToolbar: FC<PluginsToolbarProps> = ({
@@ -125,12 +124,16 @@ export const PluginsToolbar: FC<PluginsToolbarProps> = ({
   onSearchTermChange,
   showActiveOnly,
   onShowActiveOnlyChange,
-  showRefreshButton = true,
 }) => {
   const [isRescanning, setIsRescanning] = useState(false);
 
   const handleRescan = async () => {
+    if (isRescanning) {
+      return;
+    }
+
     setIsRescanning(true);
+
     try {
       await actions.pluginInventory.discover();
     } finally {
@@ -140,15 +143,13 @@ export const PluginsToolbar: FC<PluginsToolbarProps> = ({
 
   return (
     <div className="flex flex-1 gap-0.5">
-      {showRefreshButton && (
-        <IconButton
-          path={mdiRefresh}
-          variant="interactive"
-          onClick={handleRescan}
-          isDisabled={isRescanning}
-          title={isRescanning ? "Refreshing..." : "Refresh plugin inventory"}
-        />
-      )}
+      <IconButton
+        path={mdiRefresh}
+        variant="interactive"
+        onClick={handleRescan}
+        isDisabled={isRescanning}
+        title="Refresh plugin inventory"
+      />
 
       <div className="flex bg-neutral-900 items-center text-white text-xs px-2 gap-2">
         <span>Available only</span>
