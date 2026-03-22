@@ -1,6 +1,6 @@
 # Story 2.7: Validate Editor Host Failure Handling Against a Known-Good Plugin Subset
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -16,22 +16,22 @@ so that Compose can claim a bounded credible editor-host path without overclaimi
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Harden invalid-target and failure-path behavior around the bounded host seam (AC: 1)
-  - [ ] Verify invalid, unavailable, or unsupported targets fail without leaving orphaned host windows or stale active-session state.
-  - [ ] Ensure failure outcomes remain explicit and reviewable rather than silent.
-  - [ ] Keep failures local to the host seam and preserve general app stability.
-- [ ] Task 2: Define and run a representative known-good plugin subset validation pass (AC: 2, 3)
-  - [ ] Establish a maintainer-facing known-good subset that is representative, sensible, and explicit about why those plugins were chosen.
-  - [ ] Run the bounded editor-host workflow against that subset using the supported validation harness or documented manual procedure.
-  - [ ] Capture which plugins behave credibly, which do not, and what caveats apply.
-- [ ] Task 3: Record bounded credibility without overclaiming compatibility (AC: 2, 3)
-  - [ ] Document limitations, exclusions, and caveats explicitly.
-  - [ ] Keep the result framed as bounded maintainer validation rather than a universal compatibility promise.
-  - [ ] Avoid prematurely turning this into the public release compatibility matrix; later release-story documentation owns that broader artifact.
-- [ ] Task 4: Add focused failure-handling coverage and validation guidance (AC: 1, 2, 3)
-  - [ ] Add backend tests where feasible for invalid-target and failure-path behavior.
-  - [ ] Extend maintainer validation guidance for the known-good subset and explicit unsupported/failure cases.
-  - [ ] Update docs that describe current editor-host support and validation expectations.
+- [x] Task 1: Harden invalid-target and failure-path behavior around the bounded host seam (AC: 1)
+  - [x] Verify invalid, unavailable, or unsupported targets fail without leaving orphaned host windows or stale active-session state.
+  - [x] Ensure failure outcomes remain explicit and reviewable rather than silent.
+  - [x] Keep failures local to the host seam and preserve general app stability.
+- [x] Task 2: Define and run a representative known-good plugin subset validation pass (AC: 2, 3)
+  - [x] Establish a maintainer-facing known-good subset that is representative, sensible, and explicit about why those plugins were chosen.
+  - [x] Run the bounded editor-host workflow against that subset using the supported validation harness or documented manual procedure.
+  - [x] Capture which plugins behave credibly, which do not, and what caveats apply.
+- [x] Task 3: Record bounded credibility without overclaiming compatibility (AC: 2, 3)
+  - [x] Document limitations, exclusions, and caveats explicitly.
+  - [x] Keep the result framed as bounded maintainer validation rather than a universal compatibility promise.
+  - [x] Avoid prematurely turning this into the public release compatibility matrix; later release-story documentation owns that broader artifact.
+- [x] Task 4: Add focused failure-handling coverage and validation guidance (AC: 1, 2, 3)
+  - [x] Add backend tests where feasible for invalid-target and failure-path behavior.
+  - [x] Extend maintainer validation guidance for the known-good subset and explicit unsupported/failure cases.
+  - [x] Update docs that describe current editor-host support and validation expectations.
 
 ## Dev Notes
 
@@ -148,14 +148,28 @@ GPT-5.4
 - Story selected explicitly as `2.7`.
 - Repo inspection showed this story is the right place to formalize known-good-subset validation and honest limitation reporting because earlier editor-host stories focus on opening and lifecycle.
 - Cross-story planning intentionally left public compatibility publication for later release-focused work.
+- Added an explicit pre-window unsupported-target gate for the currently unsupported Steinberg family so the maintainer action fails locally before reserving host lifecycle state.
+- Recorded the bounded validation subset around `BBC Symphony Orchestra.vst3` and documented why Steinberg-family bundles remain excluded in the current proof host.
 
 ### Completion Notes List
 
 - Story context turns failure handling and subset validation into explicit deliverables instead of implied follow-up.
 - Story context preserves bounded credibility without overclaiming universal editor compatibility.
 - Story context keeps validation evidence maintainer-facing at this stage.
+- `plugin_editor_poc.rs` now rejects Steinberg-family editor-host targets before creating or reserving a host window, with a maintainer-facing error that explains the bounded exclusion and points back to the known-good subset.
+- Added focused Rust coverage for unsupported-target detection and for proving the rejection path leaves host lifecycle state idle.
+- Updated maintainer-facing docs and the host tech spec to record the current known-good control case (`BBC Symphony Orchestra.vst3`), the explicit Steinberg-family exclusion, and the expected local failure behavior.
+- Validation passed with `cargo test --lib plugin_editor_poc`, `cargo clippy --lib -- -D warnings`, `npm run lint`, and `npm run check-types`.
 
 ### File List
 
 - `_bmad-output/implementation-artifacts/2-7-validate-editor-host-failure-handling-against-a-known-good-plugin-subset.md`
+- `_bmad-output/implementation-artifacts/tech-spec-macos-native-plugin-editor-host-poc.md`
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `TESTING.md`
+- `docs/development-guide.md`
+- `src-tauri/src/playback/plugin_editor_poc.rs`
+
+## Change Log
+
+- 2026-03-22: Added explicit unsupported-target handling for the currently unsupported Steinberg editor-host family, documented the bounded known-good subset around BBC Symphony Orchestra, and validated the host seam with focused Rust tests, clippy, lint, and typecheck.

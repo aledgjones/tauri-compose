@@ -1,6 +1,7 @@
 pub mod audio;
 pub mod mixer;
 pub mod plugin_editor_poc;
+pub mod plugin_host_compatibility;
 pub mod plugin_inventory;
 pub mod sampler;
 pub mod scvi;

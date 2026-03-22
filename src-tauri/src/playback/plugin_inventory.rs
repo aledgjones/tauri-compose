@@ -1,3 +1,4 @@
+use crate::playback::plugin_host_compatibility::bounded_editor_host_unsupported_reason;
 use crate::playback::vst3::{
     default_vst3_search_roots, list_vst3_candidates_in_root, validate_vst3_bundle,
     vst3_bundle_binary_path, Vst3BundleError, Vst3BundleErrorKind,
@@ -24,6 +25,7 @@ pub enum PluginInventoryAvailability {
 pub enum PluginInventoryFailureKind {
     InvalidBundle,
     MissingBundleBinary,
+    UnsupportedEditorHost,
     IoError,
     StorageError,
 }
@@ -367,7 +369,12 @@ fn validate_cached_entry(entry: PluginInventoryEntry) -> PluginInventoryEntry {
             Ok(binary_path) => PluginInventoryEntry {
                 availability: PluginInventoryAvailability::Available,
                 binary_path: Some(binary_path.display().to_string()),
-                validation_failure: None,
+                validation_failure: bounded_editor_host_unsupported_reason(&bundle_path).map(
+                    |message| PluginInventoryFailure {
+                        kind: PluginInventoryFailureKind::UnsupportedEditorHost,
+                        message,
+                    },
+                ),
                 ..entry
             },
             Err(error) => unavailable_cached_entry(entry, error),
@@ -406,7 +413,12 @@ fn build_inventory_entry(candidate: PathBuf, source_root: String) -> PluginInven
                     binary_path: Some(binary_path.display().to_string()),
                     source_root,
                     availability: PluginInventoryAvailability::Available,
-                    validation_failure: None,
+                    validation_failure: bounded_editor_host_unsupported_reason(&candidate).map(
+                        |message| PluginInventoryFailure {
+                            kind: PluginInventoryFailureKind::UnsupportedEditorHost,
+                            message,
+                        },
+                    ),
                 };
             }
             Err(error) => PluginInventoryFailure::from(error),
@@ -961,6 +973,37 @@ mod tests {
         assert!(snapshot.errors[0]
             .message
             .contains("Failed to open plugin inventory database"));
+
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn discover_inventory_marks_known_unsupported_editor_hosts_without_hiding_bundle_availability()
+    {
+        let root = std::env::temp_dir().join(format!(
+            "plugin-inventory-unsupported-editor-host-{}",
+            std::process::id()
+        ));
+        let steinberg_root = root.join("Steinberg");
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&steinberg_root).unwrap();
+        create_valid_bundle(&steinberg_root, "HALion Sonic");
+
+        let discovery = discover_inventory_in_roots(std::slice::from_ref(&root));
+
+        assert_eq!(discovery.entries.len(), 1);
+        assert_eq!(discovery.entries[0].name, "HALion Sonic");
+        assert_eq!(
+            discovery.entries[0].availability,
+            PluginInventoryAvailability::Available
+        );
+        assert_eq!(
+            discovery.entries[0]
+                .validation_failure
+                .as_ref()
+                .map(|failure| &failure.kind),
+            Some(&PluginInventoryFailureKind::UnsupportedEditorHost)
+        );
 
         let _ = std::fs::remove_dir_all(&root);
     }

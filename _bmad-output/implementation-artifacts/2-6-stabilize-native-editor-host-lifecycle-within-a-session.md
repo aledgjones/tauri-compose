@@ -1,6 +1,6 @@
 # Story 2.6: Stabilize Native Editor Host Lifecycle Within a Session
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -16,22 +16,22 @@ so that we can treat it as a usable platform seam rather than a one-shot proof.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Make session lifecycle behavior explicit in the bounded host seam (AC: 1, 2, 3)
-  - [ ] Preserve a single authoritative active host session and active plugin target within the app session.
-  - [ ] Ensure close, destroy, and reopen paths cleanly tear down and re-establish native host ownership.
-  - [ ] Prevent orphaned session state when lifecycle events arrive in awkward order.
-- [ ] Task 2: Support bounded focus and resize behavior that reflects plugin capability (AC: 1, 3)
-  - [ ] Keep plugin focus notifications coherent when host-window focus changes.
-  - [ ] Honor plugin-driven resize capability only when the plugin reports that its editor can resize.
-  - [ ] Avoid promising arbitrary production-host resizing behavior beyond the supported bounded session interactions.
-- [ ] Task 3: Preserve reopen and teardown safety within one app session (AC: 1, 2)
-  - [ ] Ensure closing a host window leaves the app able to reopen the same supported plugin editor again without restart.
-  - [ ] Preserve the teardown order needed to disconnect and terminate native host resources safely.
-  - [ ] Keep failures local to the host seam and do not leak stale window references or session ownership.
-- [ ] Task 4: Add focused lifecycle validation and maintainer-facing guidance (AC: 1, 2, 3)
-  - [ ] Add backend tests for lifecycle invariants and pure logic where feasible.
-  - [ ] Add or refine manual validation steps for focus, resize, close, destroy, and reopen.
-  - [ ] Update docs describing supported host-lifecycle behavior and known limitations.
+- [x] Task 1: Make session lifecycle behavior explicit in the bounded host seam (AC: 1, 2, 3)
+  - [x] Preserve a single authoritative active host session and active plugin target within the app session.
+  - [x] Ensure close, destroy, and reopen paths cleanly tear down and re-establish native host ownership.
+  - [x] Prevent orphaned session state when lifecycle events arrive in awkward order.
+- [x] Task 2: Support bounded focus and resize behavior that reflects plugin capability (AC: 1, 3)
+  - [x] Keep plugin focus notifications coherent when host-window focus changes.
+  - [x] Honor plugin-driven resize capability only when the plugin reports that its editor can resize.
+  - [x] Avoid promising arbitrary production-host resizing behavior beyond the supported bounded session interactions.
+- [x] Task 3: Preserve reopen and teardown safety within one app session (AC: 1, 2)
+  - [x] Ensure closing a host window leaves the app able to reopen the same supported plugin editor again without restart.
+  - [x] Preserve the teardown order needed to disconnect and terminate native host resources safely.
+  - [x] Keep failures local to the host seam and do not leak stale window references or session ownership.
+- [x] Task 4: Add focused lifecycle validation and maintainer-facing guidance (AC: 1, 2, 3)
+  - [x] Add backend tests for lifecycle invariants and pure logic where feasible.
+  - [x] Add or refine manual validation steps for focus, resize, close, destroy, and reopen.
+  - [x] Update docs describing supported host-lifecycle behavior and known limitations.
 
 ## Dev Notes
 
@@ -144,14 +144,30 @@ GPT-5.4
 - Story selected explicitly as `2.6`.
 - Repo inspection confirmed lifecycle stabilization is the next clean increment after the open-host seam and before credibility validation.
 - The story is anchored to the existing session holders, cleanup ordering, and plugin-driven resize/focus behavior already present in the code.
+- Replaced the split target-only reservation with an explicit backend lifecycle record so one target reservation and one live session stay coherent through reserve, attach, close, destroy, and reopen.
+- Fixed the initial native host sync ordering bug by storing the live session before issuing the first focus/size sync.
+- Added unit coverage for lifecycle phase transitions, stale reservation recovery, and bounded geometry-sync behavior.
 
 ### Completion Notes List
 
 - Story context keeps lifecycle hardening local to the bounded host seam.
 - Story context makes resize support capability-driven rather than overclaimed.
 - Story context preserves the separation from assignment and playback runtime work.
+- `plugin_editor_poc.rs` now keeps one authoritative lifecycle reservation for the active plugin target, marks close as an explicit teardown phase, and clears stale reservations when no host window remains.
+- Native session startup now stores the session before issuing the initial focus/size sync, while keeping geometry sync callbacks available so attached editors keep the correct size and position.
+- Added focused Rust tests for lifecycle reservation transitions, stale close/reopen recovery, and bounded geometry-sync behavior.
+- Updated maintainer-facing docs and the host tech spec to document bounded focus, resize, close, destroy, and same-session reopen behavior.
+- Validation passed with `cargo test --lib plugin_editor_poc`, `cargo clippy --lib -- -D warnings`, `npm run lint`, `npm run check-types`, and the JS suite (`1134` tests passed).
 
 ### File List
 
 - `_bmad-output/implementation-artifacts/2-6-stabilize-native-editor-host-lifecycle-within-a-session.md`
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `_bmad-output/implementation-artifacts/tech-spec-macos-native-plugin-editor-host-poc.md`
+- `docs/architecture.md`
+- `docs/development-guide.md`
+- `src-tauri/src/playback/plugin_editor_poc.rs`
+
+## Change Log
+
+- 2026-03-22: Stabilized the bounded native editor host lifecycle by making target/session ownership explicit across attach, focus, resize, close, destroy, and same-session reopen; added focused Rust coverage; and updated maintainer-facing lifecycle guidance.

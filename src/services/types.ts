@@ -549,6 +549,7 @@ export type PluginInventoryAvailability = "available" | "unavailable";
 export type PluginInventoryFailureKind =
   | "invalid_bundle"
   | "missing_bundle_binary"
+  | "unsupported_editor_host"
   | "io_error"
   | "storage_error";
 

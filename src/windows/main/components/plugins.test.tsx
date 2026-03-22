@@ -208,6 +208,26 @@ describe("Plugins", () => {
     ).toBeInTheDocument();
   });
 
+  it("hides unsupported plugins when showActiveOnly=true", () => {
+    renderWithProviders(<Plugins searchTerm="" showActiveOnly={true} />, {
+      pluginInventoryState: {
+        entries: [
+          makePlugin({
+            validation_failure: {
+              kind: "unsupported_editor_host",
+              message:
+                "Steinberg-family bundles are unsupported in the bounded native editor host.",
+            },
+          }),
+        ],
+      },
+    });
+
+    expect(
+      screen.getByText("No plugins match your filters"),
+    ).toBeInTheDocument();
+  });
+
   it("does not render a plugin-settings entry point on plugin tiles", () => {
     renderWithProviders(<Plugins searchTerm="" showActiveOnly={false} />, {
       pluginInventoryState: {
@@ -324,6 +344,9 @@ describe("Plugins", () => {
         pluginInventoryState: {
           entries: [
             makePlugin({
+              id: "vst3:/Library/Audio/Plug-Ins/VST3/Broken.vst3",
+              name: "Broken Plugin",
+              bundle_path: "/Library/Audio/Plug-Ins/VST3/Broken.vst3",
               availability: "unavailable",
               binary_path: null,
               validation_failure: {
@@ -343,6 +366,40 @@ describe("Plugins", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("shows supported bundles as unsupported in the maintainer preview when the bounded host excludes them", () => {
+    renderWithProviders(
+      <Plugins
+        searchTerm=""
+        showActiveOnly={false}
+        showMaintainerEditorTrigger={true}
+      />,
+      {
+        pluginInventoryState: {
+          entries: [
+            makePlugin({
+              validation_failure: {
+                kind: "unsupported_editor_host",
+                message:
+                  "Steinberg-family bundles are unsupported in the bounded native editor host.",
+              },
+            }),
+          ],
+        },
+      },
+    );
+
+    expect(screen.getByLabelText("Status: Unsupported")).toBeInTheDocument();
+    expect(
+      screen.getByText(/Contents\/MacOS\/Grand Piano/),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", {
+        name: "Open native editor host for Grand Piano",
+      }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Maintainer preview")).not.toBeInTheDocument();
+  });
+
   it("shows plugin when showActiveOnly=true and plugin is available", () => {
     renderWithProviders(<Plugins searchTerm="" showActiveOnly={true} />, {
       pluginInventoryState: {
@@ -350,6 +407,57 @@ describe("Plugins", () => {
       },
     });
     expect(screen.getByText("Grand Piano")).toBeInTheDocument();
+  });
+
+  it("sorts supported available plugins first and alphabetizes each group", () => {
+    const { container } = renderWithProviders(
+      <Plugins searchTerm="" showActiveOnly={false} />,
+      {
+        pluginInventoryState: {
+          entries: [
+            makePlugin({
+              id: "unsupported-zebra",
+              name: "Zebra Synth",
+              validation_failure: {
+                kind: "unsupported_editor_host",
+                message:
+                  "Steinberg-family bundles and Kontakt 7 are blocked in the bounded native editor host.",
+              },
+            }),
+            makePlugin({
+              id: "available-strings",
+              name: "Amber Strings",
+            }),
+            makePlugin({
+              id: "unavailable-broken",
+              name: "Broken Plugin",
+              bundle_path: "/Library/Audio/Plug-Ins/VST3/Broken.vst3",
+              binary_path: null,
+              availability: "unavailable",
+              validation_failure: {
+                kind: "missing_bundle_binary",
+                message: "Missing Contents/MacOS binary",
+              },
+            }),
+            makePlugin({
+              id: "available-piano",
+              name: "Grand Piano",
+            }),
+          ],
+        },
+      },
+    );
+
+    const renderedNames = Array.from(
+      container.querySelectorAll(".text-white.text-sm.truncate.font-semibold"),
+    ).map((element) => element.textContent);
+
+    expect(renderedNames).toEqual([
+      "Amber Strings",
+      "Grand Piano",
+      "Broken Plugin",
+      "Zebra Synth",
+    ]);
   });
 
   it("renders plugin binary path", () => {
@@ -386,11 +494,14 @@ describe("Plugins", () => {
     );
   });
 
-  it("shows a compact validation message for unavailable plugins", () => {
+  it("shows the plugin path for unavailable plugins", () => {
     renderWithProviders(<Plugins searchTerm="" showActiveOnly={false} />, {
       pluginInventoryState: {
         entries: [
           makePlugin({
+            id: "vst3:/Library/Audio/Plug-Ins/VST3/Broken.vst3",
+            name: "Broken Plugin",
+            bundle_path: "/Library/Audio/Plug-Ins/VST3/Broken.vst3",
             availability: "unavailable",
             binary_path: null,
             validation_failure: {
@@ -403,11 +514,8 @@ describe("Plugins", () => {
     });
 
     expect(
-      screen.getByText("Missing Contents/MacOS binary"),
+      screen.getByText("/Library/Audio/Plug-Ins/VST3/Broken.vst3"),
     ).toBeInTheDocument();
-    expect(
-      screen.queryByText("Binary path unavailable"),
-    ).not.toBeInTheDocument();
   });
 
   it("uses a square plugin-name badge", () => {
@@ -449,6 +557,9 @@ describe("Plugins", () => {
       pluginInventoryState: {
         entries: [
           makePlugin({
+            id: "vst3:/Library/Audio/Plug-Ins/VST3/Broken.vst3",
+            name: "Broken Plugin",
+            bundle_path: "/Library/Audio/Plug-Ins/VST3/Broken.vst3",
             availability: "unavailable",
             binary_path: null,
             validation_failure: {
@@ -465,7 +576,7 @@ describe("Plugins", () => {
       "bg-amber-500/10",
     );
     expect(
-      screen.getByText("Missing Contents/MacOS binary"),
+      screen.getByText("/Library/Audio/Plug-Ins/VST3/Broken.vst3"),
     ).toBeInTheDocument();
   });
 

@@ -1,3 +1,4 @@
+use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -144,25 +145,40 @@ pub fn vst3_bundle_binary_path(path: &Path) -> Result<PathBuf, Vst3BundleError> 
 }
 
 pub fn list_vst3_candidates_in_root(root: &Path) -> Result<Vec<PathBuf>, String> {
-    let read_dir = std::fs::read_dir(root).map_err(|error| {
-        format!(
-            "Failed to read VST3 discovery root '{}': {error}",
-            root.display()
-        )
-    })?;
-
     let mut entries = Vec::new();
-    for entry in read_dir {
-        let entry = entry.map_err(|error| {
+    let mut roots_to_visit = vec![root.to_path_buf()];
+    let mut visited_roots = BTreeSet::new();
+
+    while let Some(current_root) = roots_to_visit.pop() {
+        let visited_key = std::fs::canonicalize(&current_root).unwrap_or(current_root.clone());
+        if !visited_roots.insert(visited_key) {
+            continue;
+        }
+
+        let read_dir = std::fs::read_dir(&current_root).map_err(|error| {
             format!(
-                "Failed to inspect VST3 discovery root entry in '{}': {error}",
-                root.display()
+                "Failed to read VST3 discovery root '{}': {error}",
+                current_root.display()
             )
         })?;
-        let path = entry.path();
 
-        if path.extension().and_then(|value| value.to_str()) == Some("vst3") {
-            entries.push(path);
+        for entry in read_dir {
+            let entry = entry.map_err(|error| {
+                format!(
+                    "Failed to inspect VST3 discovery root entry in '{}': {error}",
+                    current_root.display()
+                )
+            })?;
+            let path = entry.path();
+
+            if path.extension().and_then(|value| value.to_str()) == Some("vst3") {
+                entries.push(path);
+                continue;
+            }
+
+            if path.is_dir() {
+                roots_to_visit.push(path);
+            }
         }
     }
 
@@ -190,6 +206,8 @@ mod tests {
         discover_first_valid_vst3_in_roots, expand_home_dir, list_vst3_candidates_in_root,
         validate_vst3_bundle, vst3_bundle_binary_path, Vst3BundleErrorKind,
     };
+    #[cfg(unix)]
+    use std::os::unix::fs::symlink;
     use std::path::Path;
 
     #[test]
@@ -249,6 +267,60 @@ mod tests {
 
         let candidates = list_vst3_candidates_in_root(&root).unwrap();
         assert_eq!(candidates, vec![root.join("Alpha.vst3")]);
+
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn list_vst3_candidates_in_root_recurses_into_nested_folders() {
+        let root = std::env::temp_dir().join(format!("vst3-helper-nested-{}", std::process::id()));
+        let nested = root.join("Steinberg").join("VST3");
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&nested).unwrap();
+
+        let nested_bundle = nested.join("HALion Sonic.vst3");
+        let top_level_bundle = root.join("Alpha.vst3");
+        std::fs::create_dir_all(&nested_bundle).unwrap();
+        std::fs::create_dir_all(&top_level_bundle).unwrap();
+
+        let candidates = list_vst3_candidates_in_root(&root).unwrap();
+        assert_eq!(candidates, vec![top_level_bundle, nested_bundle]);
+
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn list_vst3_candidates_in_root_does_not_descend_into_bundle_contents() {
+        let root = std::env::temp_dir().join(format!(
+            "vst3-helper-bundle-recursion-{}",
+            std::process::id()
+        ));
+        let bundle = root.join("NestedHost.vst3");
+        let fake_nested_bundle = bundle.join("Contents").join("MacOS").join("Ghost.vst3");
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&fake_nested_bundle).unwrap();
+
+        let candidates = list_vst3_candidates_in_root(&root).unwrap();
+        assert_eq!(candidates, vec![bundle]);
+
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn list_vst3_candidates_in_root_skips_symlink_cycles() {
+        let root =
+            std::env::temp_dir().join(format!("vst3-helper-symlink-cycle-{}", std::process::id()));
+        let loop_dir = root.join("loop");
+        let bundle = root.join("Alpha.vst3");
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&root).unwrap();
+        std::fs::create_dir_all(&bundle).unwrap();
+        symlink(&root, &loop_dir).unwrap();
+
+        let candidates = list_vst3_candidates_in_root(&root).unwrap();
+
+        assert_eq!(candidates, vec![bundle]);
 
         let _ = std::fs::remove_dir_all(&root);
     }

@@ -158,9 +158,11 @@ What the current proof does:
 - validates the configured path before creating the host window
 - prefers Rust-owned plugin inventory targeting when the request comes from the Plugin Manager maintainer action
 - creates or focuses a dedicated backend-owned Tauri window labeled `plugin-host-poc`
-- loads the VST3 bundle binary from the macOS bundle, creates a component/controller pair, synchronizes component state into the controller when the plugin exposes separate objects, connects `IConnectionPoint` when available, requests `ViewType::kEditor`, attaches the returned `IPlugView` to the native AppKit content area, and now applies plugin-driven resize requests back to the host window
-- defaults the host window to non-resizable until the plugin explicitly reports that its editor can resize via `IPlugView::canResize()` and logs the host callbacks the plugin invokes through the current proof seam
-- keeps the experimental host state in Rust and logs create, focus, resize, close, and destroy lifecycle events
+- keeps one authoritative backend-owned host lifecycle reservation for one active plugin target inside the app session, self-heals stale reservations when the window is gone, and treats close/destroy as explicit teardown phases rather than frontend-owned state
+- loads the VST3 bundle binary from the macOS bundle, creates a component/controller pair, synchronizes component state into the controller when the plugin exposes separate objects, connects `IConnectionPoint` when available, requests `ViewType::kEditor`, and attaches the returned `IPlugView` to the native AppKit content area
+- performs the initial focus/size sync only after Rust stores the live host session, so reopen and same-session reattach follow the same backend-owned session path instead of depending on a one-shot attach side effect
+- defaults the host window to non-resizable until the plugin explicitly reports that its editor can resize via `IPlugView::canResize()`, while still forwarding bounded geometry sync callbacks needed to keep the attached editor positioned correctly inside the host surface
+- keeps the experimental host state in Rust and logs create, focus, resize, close, destroy, and reopen lifecycle events
 
 The `plugin-host-poc` window remains a development-only proof seam for the upcoming native editor-host stories. Keep it distinct from the canonical Sequence-menu `Plugin Manager...` inventory window, and do not treat the maintainer-only `Open native editor` action as the default answer to assignment, playback, or routine plugin troubleshooting workflows.
 
@@ -176,9 +178,15 @@ Plugin inventory startup behavior:
 
 What it does not yet do:
 
-- guarantee that every VST3 bundle will attach successfully; some plugins may still reject the minimal experimental host context
+- guarantee that every VST3 bundle will attach successfully; the current bounded validation claim is narrower than universal VST3 compatibility
 - implement a production-ready Steinberg host contract, automation, preset/state persistence, or transport integration
 - provide full keyboard or wheel coverage across all plugins
+
+Current bounded validation subset:
+
+- Known-good bounded-host examples: `BBC Symphony Orchestra.vst3` remains the primary control case, and recent successful maintainer runs also include `Reverb.vst3`, `ProEQ.vst3`, and `Originals - Intimate Grand Piano.vst3`.
+- Explicitly unsupported targets in the current proof host: bundles on the current unsupported list are marked as `Unsupported` in the shared plugin inventory UI for the bounded native editor-host seam. That list currently includes Steinberg-family `HALion Sonic.vst3`, `HALion Sonic SE.vst3`, `Groove Agent SE.vst3`, `Kontakt 7.vst3`, and `MT-PowerDrumKit.vst3`; current evidence shows `HALion Sonic.vst3` and `Groove Agent SE.vst3` crash during controller initialization in that seam, `HALion Sonic SE.vst3` fails earlier because its resolved `ContentPlayer` executable returns a null `GetPluginFactory` pointer, `Kontakt 7.vst3` crashes during component `createInstance`, and `MT-PowerDrumKit.vst3` currently requires an MVP-host teardown exception we do not want to keep in this bounded seam.
+- Expected failure behavior for unsupported targets: the maintainer `Open native editor` action is suppressed in the Plugin Manager surface for those inventory entries, and backend fallback protection still rejects direct requests without reserving host lifecycle state or leaving behind a plugin-host window for bundles on that unsupported list.
 
 Manual validation checklist:
 
@@ -189,10 +197,11 @@ Manual validation checklist:
 5. Open `Plugin Manager...` from the Sequence menu and trigger the maintainer-only `Open native editor` action for a known-good available plugin.
 6. Confirm the dedicated host window opens and remains responsive.
 7. Confirm the Rust logs show create/focus events and, for a compatible plugin, that the plugin editor UI appears inside the host window rather than the previous placeholder-only surface.
-8. Resize the window and confirm the native host area stays attached without leaving stale content behind.
-9. Switch focus between the main window and the host window and confirm the app remains responsive.
-10. Close the host window and reopen it in the same session.
+8. If the plugin reports that its editor can resize, resize the window and confirm the native host area stays attached without leaving stale content behind. If the plugin does not report resize support, confirm the host window remains bounded instead of pretending arbitrary resize support exists.
+9. Switch focus between the main window and the host window and confirm the app remains responsive and the plugin editor retains coherent focus behavior.
+10. Close the host window, confirm the Rust logs show teardown without leaving stale host ownership behind, then reopen the same plugin in the same session.
 11. Try the same action against an invalid or unavailable target via a development harness or invalid `SOLOC_PLUGIN_EDITOR_POC_VST3_PATH`, and confirm the failure stays local to the maintainer action without leaving an orphaned host window.
+12. Try the same action against a bundle on the unsupported list, such as `HALion Sonic.vst3`, `HALion Sonic SE.vst3`, `Groove Agent SE.vst3`, or `Kontakt 7.vst3`, and confirm the maintainer surface reports the unsupported-target error without creating or reserving a plugin-host window.
 
 ## Versioning
 

@@ -53,6 +53,43 @@ interface PluginTileProps {
   showMaintainerEditorTrigger: boolean;
 }
 
+const getPluginPathSubtitle = (plugin: PluginInventoryEntry) => {
+  return plugin.binary_path ?? plugin.bundle_path;
+};
+
+const isPluginSupportedAvailable = (plugin: PluginInventoryEntry) => {
+  return (
+    plugin.availability === "available" &&
+    plugin.validation_failure?.kind !== "unsupported_editor_host"
+  );
+};
+
+const getPluginSortPriority = (plugin: PluginInventoryEntry) => {
+  return isPluginSupportedAvailable(plugin) ? 0 : 1;
+};
+
+const comparePlugins = (
+  left: PluginInventoryEntry,
+  right: PluginInventoryEntry,
+) => {
+  const priorityDifference =
+    getPluginSortPriority(left) - getPluginSortPriority(right);
+
+  if (priorityDifference !== 0) {
+    return priorityDifference;
+  }
+
+  const nameComparison = left.name.localeCompare(right.name, undefined, {
+    sensitivity: "base",
+  });
+
+  if (nameComparison !== 0) {
+    return nameComparison;
+  }
+
+  return left.id.localeCompare(right.id);
+};
+
 const PluginTile: FC<PluginTileProps> = ({
   plugin,
   showMaintainerEditorTrigger,
@@ -60,32 +97,35 @@ const PluginTile: FC<PluginTileProps> = ({
   const [isOpeningEditor, setIsOpeningEditor] = useState(false);
   const [openError, setOpenError] = useState<string | null>(null);
   const isAvailable = plugin.availability === "available";
-  const statusLabel = isAvailable ? "Available" : "Unavailable";
-  const statusIcon = isAvailable
-    ? mdiCheckCircleOutline
-    : mdiAlertCircleOutline;
+  const editorHostFailure =
+    plugin.validation_failure?.kind === "unsupported_editor_host"
+      ? plugin.validation_failure
+      : null;
+  const isEditorHostSupported = isAvailable && editorHostFailure === null;
+  const statusLabel = !isAvailable
+    ? "Unavailable"
+    : editorHostFailure
+      ? "Unsupported"
+      : "Available";
+  const statusIcon =
+    statusLabel === "Available" ? mdiCheckCircleOutline : mdiAlertCircleOutline;
   const statusChipClassName = classNames(
     "self-center shrink-0 flex items-center gap-1.5 rounded-full border pl-1.5 pr-2.5 py-1 text-[11px] uppercase tracking-[0.18em]",
     {
-      "border-emerald-700/70 bg-emerald-500/10 text-emerald-100": isAvailable,
-      "border-amber-700/70 bg-amber-500/10 text-amber-100": !isAvailable,
+      "border-emerald-700/70 bg-emerald-500/10 text-emerald-100":
+        statusLabel === "Available",
+      "border-amber-700/70 bg-amber-500/10 text-amber-100":
+        statusLabel !== "Available",
     },
   );
-  const statusIconClassName = isAvailable
-    ? "text-emerald-200"
-    : "text-amber-200";
-  const subtitle = isAvailable
-    ? (plugin.binary_path ?? "Binary path unavailable")
-    : (plugin.validation_failure?.message ?? "Validation failed");
-  const subtitleClassName = classNames("mt-0.5 text-[11px] truncate", {
-    "text-neutral-500": isAvailable,
-    "text-amber-200/80": !isAvailable,
-  });
+  const statusIconClassName =
+    statusLabel === "Available" ? "text-emerald-200" : "text-amber-200";
+  const subtitle = getPluginPathSubtitle(plugin);
   const badgeLabel = getPluginBadgeLabel(plugin.name);
   const badgeToneClassName = getPluginBadgeTone(plugin.name);
 
   const handleOpenNativeEditor = async () => {
-    if (!isAvailable || isOpeningEditor) {
+    if (!isEditorHostSupported || isOpeningEditor) {
       return;
     }
 
@@ -124,7 +164,9 @@ const PluginTile: FC<PluginTileProps> = ({
             <div className="text-white text-sm truncate font-semibold">
               <TokenizedText>{plugin.name}</TokenizedText>
             </div>
-            <div className={subtitleClassName}>{subtitle}</div>
+            <div className="mt-0.5 text-[11px] truncate text-neutral-500">
+              {subtitle}
+            </div>
           </div>
         </div>
 
@@ -137,7 +179,7 @@ const PluginTile: FC<PluginTileProps> = ({
         </div>
       </div>
 
-      {showMaintainerEditorTrigger && isAvailable ? (
+      {showMaintainerEditorTrigger && isEditorHostSupported ? (
         <div className="flex items-center justify-between gap-3 border border-sky-900/60 bg-neutral-950/70 px-3 py-2">
           <div className="min-w-0 flex-1">
             <div className="text-[11px] uppercase tracking-[0.18em] text-sky-200/80">
@@ -258,17 +300,13 @@ export const Plugins: FC<PluginProps> = ({
   const filteredPlugins = useMemo(() => {
     return pluginInventory.entries
       .filter((plugin) => {
-        const isAvailable = plugin.availability === "available";
-
-        if (showActiveOnly && !isAvailable) {
+        if (showActiveOnly && !isPluginSupportedAvailable(plugin)) {
           return false;
         }
 
         return plugin.name.toLowerCase().includes(searchTerm.toLowerCase());
       })
-      .sort((a, b) => {
-        return a.id.localeCompare(b.id);
-      });
+      .sort(comparePlugins);
   }, [pluginInventory.entries, searchTerm, showActiveOnly]);
 
   if (pluginInventory.entries.length === 0) {

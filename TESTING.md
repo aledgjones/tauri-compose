@@ -15,6 +15,25 @@ This project uses [Vitest](https://vitest.dev) as the test runner for TypeScript
 | `npm run test:js:logs:watch` | Watch mode with verbose logs           |
 | `npm run test:rust`          | Run all Rust tests (from `src-tauri/`) |
 
+## Native editor host validation subset
+
+Use Story 2.7's bounded macOS editor-host claim, not a universal compatibility assumption.
+
+- Known-good bounded-host examples: `BBC Symphony Orchestra.vst3` remains the primary control case, and recent successful maintainer runs also include `Reverb.vst3`, `ProEQ.vst3`, and `Originals - Intimate Grand Piano.vst3`
+- Explicit unsupported targets in the current proof host: the current unsupported list includes `HALion Sonic.vst3`, `HALion Sonic SE.vst3`, `Groove Agent SE.vst3`, `Kontakt 7.vst3`, and `MT-PowerDrumKit.vst3`
+- Expected unsupported behavior: inventory still reports a successfully discovered bundle as available, but the maintainer surfaces render it as `Unsupported`, hide the `Open native editor` action, and backend fallback protection still rejects direct requests without creating or reserving a plugin-host window for bundles on that unsupported list
+
+Recommended validation commands for host-seam changes:
+
+- `cd src-tauri && cargo test --lib plugin_editor_poc`
+- `cd src-tauri && cargo clippy --lib -- -D warnings`
+
+Recommended manual validation sequence for the bounded host seam:
+
+1. Open `BBC Symphony Orchestra.vst3` through the Plugin Manager maintainer action and confirm the host window opens, attaches the editor, stays responsive, and can be closed and reopened in the same app session.
+2. If the control-case plugin reports resize support, verify resize remains coherent; otherwise confirm the host stays bounded without pretending unsupported resize capability.
+3. Confirm a bundle on the unsupported list such as a Steinberg-family plugin renders as `Unsupported` in the maintainer plugin surfaces, does not show the `Open native editor` action, and still cannot create a host window or stale reservation through a direct backend request.
+
 ## Multi-flow performance characterization
 
 Use the existing Rust-owned debugger diagnostics as the primary evidence path for multi-flow performance work. Do not add ad hoc console logging or frontend-owned benchmark state when validating render scope.

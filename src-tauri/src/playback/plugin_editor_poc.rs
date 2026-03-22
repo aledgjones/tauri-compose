@@ -1,5 +1,6 @@
 #![allow(non_snake_case)]
 
+use crate::playback::plugin_host_compatibility::bounded_editor_host_unsupported_reason;
 use crate::playback::vst3::{
     default_vst3_search_roots, discover_first_valid_vst3_in_roots, validate_vst3_bundle,
     MACOS_VST3_SEARCH_ROOTS,
@@ -18,41 +19,132 @@ const HOST_PAGE_PATH: &str = "plugin-host-poc.html";
 const HOST_HEADER_HEIGHT: f64 = 0.0;
 const PLUGIN_PATH_ENV: &str = "SOLOC_PLUGIN_EDITOR_POC_VST3_PATH";
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum PluginHostLifecyclePhase {
+    Idle,
+    Reserved,
+    Attached,
+    Closing,
+}
+
 #[derive(Debug)]
+struct PluginHostLifecycleState {
+    target: Option<PathBuf>,
+    phase: PluginHostLifecyclePhase,
+}
+
+impl Default for PluginHostLifecycleState {
+    fn default() -> Self {
+        Self {
+            target: None,
+            phase: PluginHostLifecyclePhase::Idle,
+        }
+    }
+}
+
+#[derive(Debug, Eq, PartialEq)]
 enum PluginTargetReservation {
     Acquired,
-    AlreadyReserved,
+    AlreadyReserved(PluginHostLifecyclePhase),
 }
 
-fn active_plugin_target() -> &'static Mutex<Option<PathBuf>> {
-    static ACTIVE_PLUGIN_TARGET: OnceLock<Mutex<Option<PathBuf>>> = OnceLock::new();
-    ACTIVE_PLUGIN_TARGET.get_or_init(|| Mutex::new(None))
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum PluginHostSyncReason {
+    InitialAttach,
+    WindowFocusChanged,
+    WindowResized,
 }
 
-fn reserve_plugin_target(target: &Path) -> Result<PluginTargetReservation, String> {
-    let mut active_target = active_plugin_target()
+fn active_plugin_host_lifecycle() -> &'static Mutex<PluginHostLifecycleState> {
+    static ACTIVE_PLUGIN_HOST_LIFECYCLE: OnceLock<Mutex<PluginHostLifecycleState>> =
+        OnceLock::new();
+    ACTIVE_PLUGIN_HOST_LIFECYCLE.get_or_init(|| Mutex::new(PluginHostLifecycleState::default()))
+}
+
+fn reset_plugin_host_lifecycle(state: &mut PluginHostLifecycleState) {
+    state.target = None;
+    state.phase = PluginHostLifecyclePhase::Idle;
+}
+
+fn clear_stale_plugin_host_lifecycle(
+    state: &mut PluginHostLifecycleState,
+    host_window_exists: bool,
+) {
+    if state.target.is_some()
+        && !host_window_exists
+        && state.phase != PluginHostLifecyclePhase::Reserved
+    {
+        eprintln!(
+            "plugin_editor_poc: clearing stale plugin host lifecycle reservation without a live host window"
+        );
+        reset_plugin_host_lifecycle(state);
+    }
+}
+
+fn reserve_plugin_target(
+    target: &Path,
+    host_window_exists: bool,
+) -> Result<PluginTargetReservation, String> {
+    let mut lifecycle = active_plugin_host_lifecycle()
         .lock()
         .map_err(|_| String::from("Failed to read plugin editor POC target state"))?;
 
-    if let Some(active_target_path) = active_target.as_deref() {
+    clear_stale_plugin_host_lifecycle(&mut lifecycle, host_window_exists);
+
+    if let Some(active_target_path) = lifecycle.target.as_deref() {
         if active_target_path != target {
             return Err(String::from(
                 "The plugin editor POC window is already open for a different target. Close it before switching plugin paths.",
             ));
         }
 
-        return Ok(PluginTargetReservation::AlreadyReserved);
+        return Ok(PluginTargetReservation::AlreadyReserved(lifecycle.phase));
     }
 
-    *active_target = Some(target.to_path_buf());
+    lifecycle.target = Some(target.to_path_buf());
+    lifecycle.phase = PluginHostLifecyclePhase::Reserved;
     Ok(PluginTargetReservation::Acquired)
 }
 
-fn release_reserved_plugin_target(target: &Path) {
-    if let Ok(mut active_target) = active_plugin_target().lock() {
-        if active_target.as_deref() == Some(target) {
-            *active_target = None;
+fn active_plugin_target_path() -> Option<PathBuf> {
+    active_plugin_host_lifecycle()
+        .lock()
+        .ok()
+        .and_then(|state| state.target.clone())
+}
+
+fn mark_plugin_target_attached(target: &Path) {
+    if let Ok(mut lifecycle) = active_plugin_host_lifecycle().lock() {
+        if lifecycle.target.as_deref() == Some(target) {
+            lifecycle.phase = PluginHostLifecyclePhase::Attached;
         }
+    }
+}
+
+fn begin_plugin_target_close(target: Option<&Path>) {
+    if let Ok(mut lifecycle) = active_plugin_host_lifecycle().lock() {
+        let should_close = match target {
+            Some(target) => lifecycle.target.as_deref() == Some(target),
+            None => lifecycle.target.is_some(),
+        };
+
+        if should_close {
+            lifecycle.phase = PluginHostLifecyclePhase::Closing;
+        }
+    }
+}
+
+fn release_reserved_plugin_target(target: &Path) {
+    if let Ok(mut lifecycle) = active_plugin_host_lifecycle().lock() {
+        if lifecycle.target.as_deref() == Some(target) {
+            reset_plugin_host_lifecycle(&mut lifecycle);
+        }
+    }
+}
+
+fn clear_reserved_plugin_target() {
+    if let Ok(mut lifecycle) = active_plugin_host_lifecycle().lock() {
+        reset_plugin_host_lifecycle(&mut lifecycle);
     }
 }
 
@@ -159,6 +251,13 @@ fn requested_plugin_target_candidate(explicit_plugin_path: Option<&str>) -> Opti
         })
 }
 
+fn ensure_editor_host_target_supported(plugin_path: &Path) -> Result<(), String> {
+    match bounded_editor_host_unsupported_reason(plugin_path) {
+        Some(reason) => Err(reason),
+        None => Ok(()),
+    }
+}
+
 fn build_host_window(app: &AppHandle) -> Result<WebviewWindow, String> {
     let window =
         WebviewWindowBuilder::new(app, WINDOW_LABEL, WebviewUrl::App(HOST_PAGE_PATH.into()))
@@ -191,24 +290,27 @@ fn log_window_event(window: &WebviewWindow, event: &WindowEvent) {
                 size.width, size.height
             );
             #[cfg(target_os = "macos")]
-            sync_active_plugin_host(window, None);
+            sync_active_plugin_host(window, None, PluginHostSyncReason::WindowResized);
         }
         WindowEvent::Focused(focused) => {
             eprintln!("plugin_editor_poc: host window focus changed: {}", focused);
             #[cfg(target_os = "macos")]
-            sync_active_plugin_host(window, Some(*focused));
+            sync_active_plugin_host(
+                window,
+                Some(*focused),
+                PluginHostSyncReason::WindowFocusChanged,
+            );
         }
         WindowEvent::CloseRequested { .. } => {
             eprintln!("plugin_editor_poc: host window close requested");
+            begin_plugin_target_close(active_plugin_target_path().as_deref());
             #[cfg(target_os = "macos")]
-            cleanup_active_plugin_host_session(window);
+            prepare_active_plugin_host_session_for_close(window);
         }
         WindowEvent::Destroyed => {
-            if let Ok(mut active_target) = active_plugin_target().lock() {
-                *active_target = None;
-            }
+            clear_reserved_plugin_target();
             #[cfg(target_os = "macos")]
-            cleanup_orphaned_plugin_host_session();
+            cleanup_active_plugin_host_session(window);
             eprintln!("plugin_editor_poc: host window destroyed");
         }
         _ => {}
@@ -219,27 +321,56 @@ fn log_window_event(window: &WebviewWindow, event: &WindowEvent) {
 mod macos_host {
     use super::{active_plugin_host_session, HOST_HEADER_HEIGHT};
     use crate::playback::vst3::vst3_bundle_binary_path;
-    use libloading::Library;
+    use core_foundation::base::{CFRelease, CFRetain, CFTypeRef, TCFType};
+    use core_foundation::bundle::CFBundle;
+    use core_foundation::string::CFString;
+    use core_foundation::url::CFURL;
+    use core_foundation_sys::bundle::{CFBundleLoadExecutable, CFBundleUnloadExecutable};
     use objc2::rc::Retained;
     use objc2::{MainThreadMarker, MainThreadOnly};
     use objc2_app_kit::{NSAutoresizingMaskOptions, NSTextField, NSView, NSWindow};
     use objc2_foundation::{NSPoint, NSRect, NSSize, NSString};
-    use std::ffi::c_void;
+    use std::ffi::{c_void, CStr, CString};
     use std::mem::zeroed;
     use std::path::{Path, PathBuf};
     use std::sync::{Arc, Mutex as StdMutex};
     use tauri::{LogicalSize, WebviewWindow};
     use vst3::Steinberg::IBStream_::IStreamSeekMode_::{kIBSeekCur, kIBSeekEnd, kIBSeekSet};
+    use vst3::Steinberg::Linux::{
+        FileDescriptor, IEventHandler, IRunLoop, IRunLoopTrait, IRunLoop_iid, ITimerHandler,
+        TimerInterval,
+    };
     use vst3::Steinberg::Vst::{
-        self, IComponent, IComponentHandler, IComponentHandlerTrait, IComponentTrait,
-        IComponent_iid, IConnectionPoint, IConnectionPointTrait, IEditController,
-        IEditControllerTrait, IEditController_iid, IHostApplication, IHostApplicationTrait,
-        String128, ViewType,
+        self, IAttributeList, IAttributeListTrait, IAutomationState, IAutomationStateTrait,
+        IComponent, IComponentHandler, IComponentHandler2, IComponentHandler2Trait,
+        IComponentHandler3, IComponentHandler3Trait, IComponentHandlerBusActivation,
+        IComponentHandlerBusActivationTrait, IComponentHandlerSystemTime,
+        IComponentHandlerSystemTimeTrait, IComponentHandlerTrait, IComponentTrait, IComponent_iid,
+        IConnectionPoint, IConnectionPointTrait, IContextMenu, IContextMenuTarget,
+        IContextMenuTargetTrait, IDataExchangeHandler, IDataExchangeHandlerTrait, IEditController,
+        IEditControllerHostEditing, IEditControllerHostEditingTrait, IEditControllerTrait,
+        IEditController_iid, IHostApplication, IHostApplicationTrait, IMessage, IMessageTrait,
+        IPlugInterfaceSupport, IPlugInterfaceSupportTrait, IProgress, IProgressTrait, IUnitHandler,
+        IUnitHandler2, IUnitHandler2Trait, IUnitHandlerTrait, String128, TChar, ViewType,
+    };
+    use vst3::Steinberg::Vst::{
+        IAttributeList_::AttrID,
+        IAttributeList_iid, IAutomationState_iid, IComponentHandler2_iid, IComponentHandler3_iid,
+        IComponentHandlerBusActivation_iid, IComponentHandlerSystemTime_iid, IComponentHandler_iid,
+        IContextMenuTarget_iid, IDataExchangeHandler_iid, IEditControllerHostEditing_iid,
+        IHostApplication_iid, IMessage_iid, IMidiLearn_iid, INoteExpressionController_iid,
+        INoteExpressionPhysicalUIMapping_iid, IParameterFunctionName_iid,
+        IPlugInterfaceSupport_iid,
+        IProgress_::{ProgressType, ID as ProgressID},
+        IProgress_iid, IUnitHandler2_iid, IUnitHandler_iid,
     };
     use vst3::Steinberg::{
-        self, kInvalidArgument, kNotImplemented, kPlatformTypeNSView, kResultOk, tresult, FUnknown,
-        IBStream, IBStreamTrait, IPlugFrame, IPlugFrameTrait, IPlugView, IPlugViewTrait,
-        IPluginBaseTrait, IPluginFactory, IPluginFactoryTrait, ViewRect, TUID,
+        self, int64, kInvalidArgument, kNotImplemented, kPlatformTypeNSView, kResultFalse,
+        kResultOk, kResultTrue, tresult, uint32, FIDString, FUnknown, FUnknown_iid, IBStream,
+        IBStreamTrait, IPlugFrame, IPlugFrameTrait, IPlugView, IPlugViewTrait, IPluginBaseTrait,
+        IPluginFactory, IPluginFactory2, IPluginFactory2Trait, IPluginFactory3,
+        IPluginFactory3Trait, IPluginFactoryTrait, IUpdateHandlerTrait, IUpdateHandler_iid, TBool,
+        ViewRect, TUID,
     };
     use vst3::{Class, ComPtr, ComWrapper};
 
@@ -250,6 +381,14 @@ mod macos_host {
     struct CreatedController {
         controller: ComPtr<IEditController>,
         shared_with_component: bool,
+    }
+
+    #[derive(Clone, Debug, PartialEq, Eq)]
+    pub(crate) struct ComponentClassCandidate {
+        pub(crate) cid: TUID,
+        pub(crate) name: String,
+        pub(crate) category: String,
+        pub(crate) subcategories: String,
     }
 
     #[derive(Default)]
@@ -391,6 +530,401 @@ mod macos_host {
         }
     }
 
+    enum HostAttributeValue {
+        Int(int64),
+        Float(f64),
+        String(Vec<TChar>),
+        Binary(Box<[u8]>),
+    }
+
+    struct HostAttributeEntry {
+        key: Vec<u8>,
+        value: HostAttributeValue,
+    }
+
+    #[derive(Default)]
+    struct HostAttributeList {
+        entries: StdMutex<Vec<HostAttributeEntry>>,
+    }
+
+    impl Class for HostAttributeList {
+        type Interfaces = (IAttributeList,);
+    }
+
+    impl HostAttributeList {
+        fn set_entry(&self, key: Vec<u8>, value: HostAttributeValue) -> tresult {
+            let Ok(mut entries) = self.entries.lock() else {
+                return kInvalidArgument;
+            };
+
+            if let Some(entry) = entries.iter_mut().find(|entry| entry.key == key) {
+                entry.value = value;
+            } else {
+                entries.push(HostAttributeEntry { key, value });
+            }
+
+            kResultOk
+        }
+    }
+
+    impl IAttributeListTrait for HostAttributeList {
+        unsafe fn setInt(&self, id: AttrID, value: int64) -> tresult {
+            let Some(key) = attribute_key(id) else {
+                return kInvalidArgument;
+            };
+            self.set_entry(key, HostAttributeValue::Int(value))
+        }
+
+        unsafe fn getInt(&self, id: AttrID, value: *mut int64) -> tresult {
+            if value.is_null() {
+                return kInvalidArgument;
+            }
+
+            let Some(key) = attribute_key(id) else {
+                return kInvalidArgument;
+            };
+            let Ok(entries) = self.entries.lock() else {
+                return kInvalidArgument;
+            };
+            let Some(entry) = entries.iter().find(|entry| entry.key == key) else {
+                return kResultFalse;
+            };
+
+            match &entry.value {
+                HostAttributeValue::Int(stored) => {
+                    *value = *stored;
+                    kResultOk
+                }
+                _ => kResultFalse,
+            }
+        }
+
+        unsafe fn setFloat(&self, id: AttrID, value: f64) -> tresult {
+            let Some(key) = attribute_key(id) else {
+                return kInvalidArgument;
+            };
+            self.set_entry(key, HostAttributeValue::Float(value))
+        }
+
+        unsafe fn getFloat(&self, id: AttrID, value: *mut f64) -> tresult {
+            if value.is_null() {
+                return kInvalidArgument;
+            }
+
+            let Some(key) = attribute_key(id) else {
+                return kInvalidArgument;
+            };
+            let Ok(entries) = self.entries.lock() else {
+                return kInvalidArgument;
+            };
+            let Some(entry) = entries.iter().find(|entry| entry.key == key) else {
+                return kResultFalse;
+            };
+
+            match &entry.value {
+                HostAttributeValue::Float(stored) => {
+                    *value = *stored;
+                    kResultOk
+                }
+                _ => kResultFalse,
+            }
+        }
+
+        unsafe fn setString(&self, id: AttrID, string: *const TChar) -> tresult {
+            let Some(key) = attribute_key(id) else {
+                return kInvalidArgument;
+            };
+            let Some(value) = copy_tchar_string(string) else {
+                return kInvalidArgument;
+            };
+
+            self.set_entry(key, HostAttributeValue::String(value))
+        }
+
+        unsafe fn getString(
+            &self,
+            id: AttrID,
+            string: *mut TChar,
+            size_in_bytes: uint32,
+        ) -> tresult {
+            if string.is_null() || size_in_bytes == 0 {
+                return kInvalidArgument;
+            }
+
+            let Some(key) = attribute_key(id) else {
+                return kInvalidArgument;
+            };
+            let Ok(entries) = self.entries.lock() else {
+                return kInvalidArgument;
+            };
+            let Some(entry) = entries.iter().find(|entry| entry.key == key) else {
+                return kResultFalse;
+            };
+
+            match &entry.value {
+                HostAttributeValue::String(stored) => {
+                    copy_tchar_string_to_buffer(stored, string, size_in_bytes)
+                }
+                _ => kResultFalse,
+            }
+        }
+
+        unsafe fn setBinary(
+            &self,
+            id: AttrID,
+            data: *const ::std::ffi::c_void,
+            size_in_bytes: uint32,
+        ) -> tresult {
+            if data.is_null() && size_in_bytes > 0 {
+                return kInvalidArgument;
+            }
+
+            let Some(key) = attribute_key(id) else {
+                return kInvalidArgument;
+            };
+            let value = if size_in_bytes == 0 {
+                Box::<[u8]>::default()
+            } else {
+                std::slice::from_raw_parts(data.cast::<u8>(), size_in_bytes as usize)
+                    .to_vec()
+                    .into_boxed_slice()
+            };
+
+            self.set_entry(key, HostAttributeValue::Binary(value))
+        }
+
+        unsafe fn getBinary(
+            &self,
+            id: AttrID,
+            data: *mut *const ::std::ffi::c_void,
+            size_in_bytes: *mut uint32,
+        ) -> tresult {
+            if data.is_null() || size_in_bytes.is_null() {
+                return kInvalidArgument;
+            }
+
+            let Some(key) = attribute_key(id) else {
+                return kInvalidArgument;
+            };
+            let Ok(entries) = self.entries.lock() else {
+                return kInvalidArgument;
+            };
+            let Some(entry) = entries.iter().find(|entry| entry.key == key) else {
+                return kResultFalse;
+            };
+
+            match &entry.value {
+                HostAttributeValue::Binary(stored) => {
+                    *data = stored.as_ptr().cast::<c_void>();
+                    *size_in_bytes = stored.len() as uint32;
+                    kResultOk
+                }
+                _ => kResultFalse,
+            }
+        }
+    }
+
+    struct HostMessage {
+        message_id: StdMutex<Option<CString>>,
+        attributes: ComPtr<IAttributeList>,
+    }
+
+    impl HostMessage {
+        fn new() -> Result<Self, String> {
+            let attributes = ComWrapper::new(HostAttributeList::default())
+                .to_com_ptr::<IAttributeList>()
+                .ok_or_else(|| String::from("Failed to allocate the VST3 attribute-list shim."))?;
+
+            Ok(Self {
+                message_id: StdMutex::new(None),
+                attributes,
+            })
+        }
+    }
+
+    impl Class for HostMessage {
+        type Interfaces = (IMessage,);
+    }
+
+    impl IMessageTrait for HostMessage {
+        unsafe fn getMessageID(&self) -> FIDString {
+            let Ok(message_id) = self.message_id.lock() else {
+                return std::ptr::null();
+            };
+
+            message_id
+                .as_ref()
+                .map(|message_id| message_id.as_ptr())
+                .unwrap_or(std::ptr::null())
+        }
+
+        unsafe fn setMessageID(&self, id: FIDString) {
+            let Ok(mut message_id) = self.message_id.lock() else {
+                return;
+            };
+
+            if id.is_null() {
+                *message_id = None;
+                return;
+            }
+
+            *message_id = Some(CStr::from_ptr(id).to_owned());
+        }
+
+        unsafe fn getAttributes(&self) -> *mut IAttributeList {
+            self.attributes.clone().into_raw()
+        }
+    }
+
+    unsafe fn attribute_key(id: AttrID) -> Option<Vec<u8>> {
+        if id.is_null() {
+            return None;
+        }
+
+        Some(CStr::from_ptr(id).to_bytes().to_vec())
+    }
+
+    unsafe fn copy_tchar_string(string: *const TChar) -> Option<Vec<TChar>> {
+        if string.is_null() {
+            return None;
+        }
+
+        let mut length = 0_usize;
+        while *string.add(length) != 0 {
+            length += 1;
+        }
+
+        Some(std::slice::from_raw_parts(string, length).to_vec())
+    }
+
+    unsafe fn copy_tchar_string_to_buffer(
+        value: &[TChar],
+        buffer: *mut TChar,
+        size_in_bytes: uint32,
+    ) -> tresult {
+        if buffer.is_null() || size_in_bytes < std::mem::size_of::<TChar>() as uint32 {
+            return kInvalidArgument;
+        }
+
+        let max_units = size_in_bytes as usize / std::mem::size_of::<TChar>();
+        if max_units == 0 {
+            return kInvalidArgument;
+        }
+
+        let units_to_copy = value.len().min(max_units.saturating_sub(1));
+        std::ptr::copy_nonoverlapping(value.as_ptr(), buffer, units_to_copy);
+        *buffer.add(units_to_copy) = 0;
+        kResultOk
+    }
+
+    unsafe fn tuid_matches(candidate: *mut TUID, expected: &TUID) -> bool {
+        !candidate.is_null() && *candidate == *expected
+    }
+
+    fn format_tuid(iid: &TUID) -> String {
+        iid.iter()
+            .map(|byte| format!("{:02X}", *byte as u8))
+            .collect::<Vec<_>>()
+            .join("")
+    }
+
+    fn describe_host_interface(iid: &TUID) -> &'static str {
+        if *iid == IMessage_iid {
+            "IMessage"
+        } else if *iid == IAttributeList_iid {
+            "IAttributeList"
+        } else if *iid == IComponentHandler_iid {
+            "IComponentHandler"
+        } else if *iid == IComponentHandler2_iid {
+            "IComponentHandler2"
+        } else if *iid == IComponentHandler3_iid {
+            "IComponentHandler3"
+        } else if *iid == IComponentHandlerBusActivation_iid {
+            "IComponentHandlerBusActivation"
+        } else if *iid == IComponentHandlerSystemTime_iid {
+            "IComponentHandlerSystemTime"
+        } else if *iid == IContextMenuTarget_iid {
+            "IContextMenuTarget"
+        } else if *iid == IDataExchangeHandler_iid {
+            "IDataExchangeHandler"
+        } else if *iid == IAutomationState_iid {
+            "IAutomationState"
+        } else if *iid == IEditControllerHostEditing_iid {
+            "IEditControllerHostEditing"
+        } else if *iid == IHostApplication_iid {
+            "IHostApplication"
+        } else if *iid == IMidiLearn_iid {
+            "IMidiLearn"
+        } else if *iid == INoteExpressionController_iid {
+            "INoteExpressionController"
+        } else if *iid == INoteExpressionPhysicalUIMapping_iid {
+            "INoteExpressionPhysicalUIMapping"
+        } else if *iid == IParameterFunctionName_iid {
+            "IParameterFunctionName"
+        } else if *iid == vst3::Steinberg::Vst::ChannelContext::IInfoListener_iid {
+            "ChannelContext::IInfoListener"
+        } else if *iid == IPlugInterfaceSupport_iid {
+            "IPlugInterfaceSupport"
+        } else if *iid == IProgress_iid {
+            "IProgress"
+        } else if *iid == IRunLoop_iid {
+            "IRunLoop"
+        } else if *iid == IUpdateHandler_iid {
+            "IUpdateHandler"
+        } else if *iid == IUnitHandler_iid {
+            "IUnitHandler"
+        } else if *iid == IUnitHandler2_iid {
+            "IUnitHandler2"
+        } else if *iid == FUnknown_iid {
+            "FUnknown"
+        } else {
+            "unknown"
+        }
+    }
+
+    fn describe_requested_interface(iid: *const TUID) -> String {
+        if iid.is_null() {
+            return String::from("null");
+        }
+
+        let iid = unsafe { &*iid };
+        format!("{} ({})", describe_host_interface(iid), format_tuid(iid))
+    }
+
+    unsafe fn query_host_support_interface(
+        instance: ComPtr<FUnknown>,
+        iid: *mut TUID,
+        obj: *mut *mut c_void,
+    ) -> tresult {
+        eprintln!(
+            "plugin_editor_poc: host queryInterface requested {}",
+            describe_requested_interface(iid.cast_const())
+        );
+        let ptr = instance.as_ptr();
+        ((*(*ptr).vtbl).queryInterface)(ptr, iid, obj)
+    }
+
+    fn host_supports_interface(iid: &TUID) -> bool {
+        *iid == IMessage_iid
+            || *iid == IAttributeList_iid
+            || *iid == IAutomationState_iid
+            || *iid == IComponentHandler_iid
+            || *iid == IComponentHandler2_iid
+            || *iid == IComponentHandler3_iid
+            || *iid == IComponentHandlerBusActivation_iid
+            || *iid == IComponentHandlerSystemTime_iid
+            || *iid == IContextMenuTarget_iid
+            || *iid == IDataExchangeHandler_iid
+            || *iid == IEditControllerHostEditing_iid
+            || *iid == IHostApplication_iid
+            || *iid == IPlugInterfaceSupport_iid
+            || *iid == IProgress_iid
+            || *iid == IRunLoop_iid
+            || *iid == IUnitHandler_iid
+            || *iid == IUnitHandler2_iid
+            || *iid == FUnknown_iid
+    }
+
     pub struct PluginHostSession {
         pub plugin_path: PathBuf,
         _module: LoadedVst3Module,
@@ -401,43 +935,100 @@ mod macos_host {
         _component_handler: ComPtr<IComponentHandler>,
         _plug_frame: ComPtr<IPlugFrame>,
         host_view_ptr: usize,
+        plugin_can_resize: bool,
         view_attached: bool,
         connection_points_connected: bool,
         component_initialized: bool,
         controller_initialized: bool,
         controller_shared_with_component: bool,
+        close_prepared: bool,
     }
 
     impl PluginHostSession {
-        fn shutdown(mut self) {
+        fn prepare_for_window_close(&mut self) {
             unsafe {
+                if self.close_prepared {
+                    return;
+                }
+
+                if self.view_attached {
+                    eprintln!(
+                        "plugin_editor_poc: removing editor view for '{}'",
+                        self.plugin_path.display()
+                    );
+                    let _ = self.view.removed();
+                    let clear_frame_result = self.view.setFrame(std::ptr::null_mut());
+                    eprintln!(
+                        "plugin_editor_poc: clear editor frame result {} for '{}'",
+                        clear_frame_result,
+                        self.plugin_path.display()
+                    );
+                    self.view_attached = false;
+                }
+                self.close_prepared = true;
+            }
+        }
+
+        fn shutdown(mut self) {
+            self.prepare_for_window_close();
+
+            unsafe {
+                if self.controller_initialized && !self.controller_shared_with_component {
+                    let clear_handler_result =
+                        self.controller.setComponentHandler(std::ptr::null_mut());
+                    eprintln!(
+                        "plugin_editor_poc: clear component handler result {} for '{}'",
+                        clear_handler_result,
+                        self.plugin_path.display()
+                    );
+                }
                 if self.connection_points_connected {
+                    eprintln!(
+                        "plugin_editor_poc: disconnecting component/controller connection points for '{}'",
+                        self.plugin_path.display()
+                    );
                     disconnect_component_and_controller(&self.component, &self.controller);
                     self.connection_points_connected = false;
                 }
-                if self.view_attached {
-                    let _ = self.view.removed();
-                    self.view_attached = false;
-                }
                 if self.controller_initialized && !self.controller_shared_with_component {
+                    eprintln!(
+                        "plugin_editor_poc: terminating edit controller for '{}'",
+                        self.plugin_path.display()
+                    );
                     let _ = self.controller.terminate();
                     self.controller_initialized = false;
                 }
                 if self.component_initialized {
+                    eprintln!(
+                        "plugin_editor_poc: terminating component for '{}'",
+                        self.plugin_path.display()
+                    );
                     let _ = self.component.terminate();
                     self.component_initialized = false;
                 }
             }
         }
 
-        fn view_state(&self) -> (ComPtr<IPlugView>, usize) {
-            (self.view.clone(), self.host_view_ptr)
+        fn view_state(&self) -> (ComPtr<IPlugView>, usize, bool) {
+            (
+                self.view.clone(),
+                self.host_view_ptr,
+                self.plugin_can_resize,
+            )
         }
+    }
+
+    pub(crate) fn should_notify_plugin_view_layout(
+        _reason: super::PluginHostSyncReason,
+        _plugin_can_resize: bool,
+    ) -> bool {
+        true
     }
 
     struct LoadedVst3Module {
         binary_path: PathBuf,
-        library: Library,
+        bundle_ref: Option<usize>,
+        get_plugin_factory: GetPluginFactoryFn,
         bundle_exit: Option<BundleExitFn>,
     }
 
@@ -448,13 +1039,369 @@ mod macos_host {
                     let _ = bundle_exit();
                 }
             }
+            if let Some(bundle_ref) = self.bundle_ref.take() {
+                unsafe {
+                    CFBundleUnloadExecutable(bundle_ref as _);
+                    CFRelease(bundle_ref as CFTypeRef);
+                }
+            }
         }
     }
 
-    struct PluginHostApplication;
+    pub(crate) struct PluginHostApplication;
 
     impl Class for PluginHostApplication {
-        type Interfaces = (IHostApplication,);
+        type Interfaces = (
+            IHostApplication,
+            IPlugInterfaceSupport,
+            IRunLoop,
+            IAutomationState,
+            IComponentHandler,
+            IComponentHandler2,
+            IComponentHandler3,
+            IComponentHandlerBusActivation,
+            IComponentHandlerSystemTime,
+            IContextMenuTarget,
+            IDataExchangeHandler,
+            IEditControllerHostEditing,
+            IUnitHandler,
+            IUnitHandler2,
+            IProgress,
+        );
+    }
+
+    impl IComponentHandlerTrait for PluginHostApplication {
+        unsafe fn beginEdit(&self, id: Vst::ParamID) -> tresult {
+            eprintln!("plugin_editor_poc: host beginEdit {}", id);
+            kResultOk
+        }
+
+        unsafe fn performEdit(
+            &self,
+            id: Vst::ParamID,
+            value_normalized: Vst::ParamValue,
+        ) -> tresult {
+            eprintln!(
+                "plugin_editor_poc: host performEdit {} => {}",
+                id, value_normalized
+            );
+            kResultOk
+        }
+
+        unsafe fn endEdit(&self, id: Vst::ParamID) -> tresult {
+            eprintln!("plugin_editor_poc: host endEdit {}", id);
+            kResultOk
+        }
+
+        unsafe fn restartComponent(&self, flags: i32) -> tresult {
+            eprintln!("plugin_editor_poc: host restartComponent flags={}", flags);
+            kResultOk
+        }
+    }
+
+    impl IComponentHandler2Trait for PluginHostApplication {
+        unsafe fn setDirty(&self, state: TBool) -> tresult {
+            eprintln!("plugin_editor_poc: host setDirty state={}", state);
+            kResultOk
+        }
+
+        unsafe fn requestOpenEditor(&self, _name: FIDString) -> tresult {
+            eprintln!("plugin_editor_poc: host requestOpenEditor");
+            kResultOk
+        }
+
+        unsafe fn startGroupEdit(&self) -> tresult {
+            eprintln!("plugin_editor_poc: host startGroupEdit");
+            kResultOk
+        }
+
+        unsafe fn finishGroupEdit(&self) -> tresult {
+            eprintln!("plugin_editor_poc: host finishGroupEdit");
+            kResultOk
+        }
+    }
+
+    impl IComponentHandler3Trait for PluginHostApplication {
+        unsafe fn createContextMenu(
+            &self,
+            _plugView: *mut IPlugView,
+            _paramID: *const Vst::ParamID,
+        ) -> *mut IContextMenu {
+            eprintln!("plugin_editor_poc: host createContextMenu");
+            std::ptr::null_mut()
+        }
+    }
+
+    impl IComponentHandlerBusActivationTrait for PluginHostApplication {
+        unsafe fn requestBusActivation(
+            &self,
+            r#type: Vst::MediaType,
+            dir: Vst::BusDirection,
+            index: i32,
+            state: TBool,
+        ) -> tresult {
+            eprintln!(
+                "plugin_editor_poc: host requestBusActivation type={} dir={} index={} state={}",
+                r#type, dir, index, state
+            );
+            kResultOk
+        }
+    }
+
+    impl IComponentHandlerSystemTimeTrait for PluginHostApplication {
+        unsafe fn getSystemTime(&self, systemTime: *mut int64) -> tresult {
+            if systemTime.is_null() {
+                return kInvalidArgument;
+            }
+
+            let now = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|duration| duration.as_millis() as int64)
+                .unwrap_or_default();
+            *systemTime = now;
+            eprintln!("plugin_editor_poc: host getSystemTime => {}", now);
+            kResultOk
+        }
+    }
+
+    impl IAutomationStateTrait for PluginHostApplication {
+        unsafe fn setAutomationState(&self, state: i32) -> tresult {
+            eprintln!("plugin_editor_poc: host setAutomationState state={}", state);
+            kResultOk
+        }
+    }
+
+    impl IRunLoopTrait for PluginHostApplication {
+        unsafe fn registerEventHandler(
+            &self,
+            handler: *mut IEventHandler,
+            fd: FileDescriptor,
+        ) -> tresult {
+            if handler.is_null() {
+                return kInvalidArgument;
+            }
+
+            eprintln!(
+                "plugin_editor_poc: run-loop registerEventHandler fd={} accepted as a no-op shim",
+                fd
+            );
+            kResultOk
+        }
+
+        unsafe fn unregisterEventHandler(&self, handler: *mut IEventHandler) -> tresult {
+            if handler.is_null() {
+                return kInvalidArgument;
+            }
+
+            eprintln!(
+                "plugin_editor_poc: run-loop unregisterEventHandler accepted as a no-op shim"
+            );
+            kResultOk
+        }
+
+        unsafe fn registerTimer(
+            &self,
+            handler: *mut ITimerHandler,
+            milliseconds: TimerInterval,
+        ) -> tresult {
+            if handler.is_null() {
+                return kInvalidArgument;
+            }
+
+            eprintln!(
+                "plugin_editor_poc: run-loop registerTimer interval={} accepted as a no-op shim",
+                milliseconds
+            );
+            kResultOk
+        }
+
+        unsafe fn unregisterTimer(&self, handler: *mut ITimerHandler) -> tresult {
+            if handler.is_null() {
+                return kInvalidArgument;
+            }
+
+            eprintln!("plugin_editor_poc: run-loop unregisterTimer accepted as a no-op shim");
+            kResultOk
+        }
+    }
+
+    impl IContextMenuTargetTrait for PluginHostApplication {
+        unsafe fn executeMenuItem(&self, tag: i32) -> tresult {
+            eprintln!("plugin_editor_poc: host executeMenuItem tag={}", tag);
+            kResultOk
+        }
+    }
+
+    impl IDataExchangeHandlerTrait for PluginHostApplication {
+        unsafe fn openQueue(
+            &self,
+            _processor: *mut Vst::IAudioProcessor,
+            blockSize: uint32,
+            numBlocks: uint32,
+            alignment: uint32,
+            userContextID: Vst::DataExchangeUserContextID,
+            outID: *mut Vst::DataExchangeQueueID,
+        ) -> tresult {
+            eprintln!(
+                "plugin_editor_poc: host openQueue blockSize={} numBlocks={} alignment={} userContextID={}",
+                blockSize, numBlocks, alignment, userContextID
+            );
+            if !outID.is_null() {
+                *outID = 0;
+            }
+            kResultOk
+        }
+
+        unsafe fn closeQueue(&self, queueID: Vst::DataExchangeQueueID) -> tresult {
+            eprintln!("plugin_editor_poc: host closeQueue queueID={}", queueID);
+            kResultOk
+        }
+
+        unsafe fn lockBlock(
+            &self,
+            queueId: Vst::DataExchangeQueueID,
+            _block: *mut Vst::DataExchangeBlock,
+        ) -> tresult {
+            eprintln!("plugin_editor_poc: host lockBlock queueId={}", queueId);
+            kResultOk
+        }
+
+        unsafe fn freeBlock(
+            &self,
+            queueId: Vst::DataExchangeQueueID,
+            blockID: Vst::DataExchangeBlockID,
+            sendToController: TBool,
+        ) -> tresult {
+            eprintln!(
+                "plugin_editor_poc: host freeBlock queueId={} blockID={} sendToController={}",
+                queueId, blockID, sendToController
+            );
+            kResultOk
+        }
+    }
+
+    impl IEditControllerHostEditingTrait for PluginHostApplication {
+        unsafe fn beginEditFromHost(&self, paramID: Vst::ParamID) -> tresult {
+            eprintln!(
+                "plugin_editor_poc: host beginEditFromHost paramID={}",
+                paramID
+            );
+            kResultOk
+        }
+
+        unsafe fn endEditFromHost(&self, paramID: Vst::ParamID) -> tresult {
+            eprintln!(
+                "plugin_editor_poc: host endEditFromHost paramID={}",
+                paramID
+            );
+            kResultOk
+        }
+    }
+
+    impl IUnitHandlerTrait for PluginHostApplication {
+        unsafe fn notifyUnitSelection(&self, unitId: Vst::UnitID) -> tresult {
+            eprintln!(
+                "plugin_editor_poc: host notifyUnitSelection unitId={}",
+                unitId
+            );
+            kResultOk
+        }
+
+        unsafe fn notifyProgramListChange(
+            &self,
+            listId: Vst::ProgramListID,
+            programIndex: i32,
+        ) -> tresult {
+            eprintln!(
+                "plugin_editor_poc: host notifyProgramListChange listId={} programIndex={}",
+                listId, programIndex
+            );
+            kResultOk
+        }
+    }
+
+    impl IUnitHandler2Trait for PluginHostApplication {
+        unsafe fn notifyUnitByBusChange(&self) -> tresult {
+            eprintln!("plugin_editor_poc: host notifyUnitByBusChange");
+            kResultOk
+        }
+    }
+
+    impl IProgressTrait for PluginHostApplication {
+        unsafe fn start(
+            &self,
+            r#type: ProgressType,
+            _optionalDescription: *const vst3::Steinberg::tchar,
+            outID: *mut ProgressID,
+        ) -> tresult {
+            eprintln!("plugin_editor_poc: host progress start type={}", r#type);
+            if !outID.is_null() {
+                *outID = 0;
+            }
+            kResultOk
+        }
+
+        unsafe fn update(&self, id: ProgressID, normValue: Vst::ParamValue) -> tresult {
+            eprintln!(
+                "plugin_editor_poc: host progress update id={} value={}",
+                id, normValue
+            );
+            kResultOk
+        }
+
+        unsafe fn finish(&self, id: ProgressID) -> tresult {
+            eprintln!("plugin_editor_poc: host progress finish id={}", id);
+            kResultOk
+        }
+    }
+
+    impl IUpdateHandlerTrait for PluginHostApplication {
+        unsafe fn addDependent(
+            &self,
+            _object: *mut FUnknown,
+            _dependent: *mut vst3::Steinberg::IDependent,
+        ) -> tresult {
+            eprintln!("plugin_editor_poc: host addDependent");
+            kResultOk
+        }
+
+        unsafe fn removeDependent(
+            &self,
+            _object: *mut FUnknown,
+            _dependent: *mut vst3::Steinberg::IDependent,
+        ) -> tresult {
+            eprintln!("plugin_editor_poc: host removeDependent");
+            kResultOk
+        }
+
+        unsafe fn triggerUpdates(&self, _object: *mut FUnknown, message: i32) -> tresult {
+            eprintln!("plugin_editor_poc: host triggerUpdates message={}", message);
+            kResultOk
+        }
+
+        unsafe fn deferUpdates(&self, _object: *mut FUnknown, message: i32) -> tresult {
+            eprintln!("plugin_editor_poc: host deferUpdates message={}", message);
+            kResultOk
+        }
+    }
+
+    impl IPlugInterfaceSupportTrait for PluginHostApplication {
+        unsafe fn isPlugInterfaceSupported(&self, iid: *const TUID) -> tresult {
+            if iid.is_null() {
+                return kInvalidArgument;
+            }
+
+            eprintln!(
+                "plugin_editor_poc: isPlugInterfaceSupported asked for {}",
+                describe_requested_interface(iid)
+            );
+
+            if host_supports_interface(&*iid) {
+                kResultTrue
+            } else {
+                kResultFalse
+            }
+        }
     }
 
     impl IHostApplicationTrait for PluginHostApplication {
@@ -469,52 +1416,40 @@ mod macos_host {
 
         unsafe fn createInstance(
             &self,
-            _cid: *mut TUID,
-            _iid: *mut TUID,
+            cid: *mut TUID,
+            iid: *mut TUID,
             obj: *mut *mut c_void,
         ) -> tresult {
             if !obj.is_null() {
                 *obj = std::ptr::null_mut();
             }
+
+            eprintln!(
+                "plugin_editor_poc: host createInstance cid={} iid={}",
+                describe_requested_interface(cid.cast_const()),
+                describe_requested_interface(iid.cast_const())
+            );
+
+            if tuid_matches(cid, &IMessage_iid) || tuid_matches(iid, &IMessage_iid) {
+                let Ok(message) = HostMessage::new() else {
+                    return kNotImplemented;
+                };
+                let Some(instance) = ComWrapper::new(message).to_com_ptr::<FUnknown>() else {
+                    return kNotImplemented;
+                };
+                return query_host_support_interface(instance, iid, obj);
+            }
+
+            if tuid_matches(cid, &IAttributeList_iid) || tuid_matches(iid, &IAttributeList_iid) {
+                let Some(instance) =
+                    ComWrapper::new(HostAttributeList::default()).to_com_ptr::<FUnknown>()
+                else {
+                    return kNotImplemented;
+                };
+                return query_host_support_interface(instance, iid, obj);
+            }
+
             kNotImplemented
-        }
-    }
-
-    struct PluginComponentHandler;
-
-    impl Class for PluginComponentHandler {
-        type Interfaces = (IComponentHandler,);
-    }
-
-    impl IComponentHandlerTrait for PluginComponentHandler {
-        unsafe fn beginEdit(&self, id: Vst::ParamID) -> tresult {
-            eprintln!("plugin_editor_poc: plugin began editing parameter {}", id);
-            kResultOk
-        }
-
-        unsafe fn performEdit(
-            &self,
-            id: Vst::ParamID,
-            value_normalized: Vst::ParamValue,
-        ) -> tresult {
-            eprintln!(
-                "plugin_editor_poc: plugin changed parameter {} to normalized value {}",
-                id, value_normalized
-            );
-            kResultOk
-        }
-
-        unsafe fn endEdit(&self, id: Vst::ParamID) -> tresult {
-            eprintln!("plugin_editor_poc: plugin ended editing parameter {}", id);
-            kResultOk
-        }
-
-        unsafe fn restartComponent(&self, flags: i32) -> tresult {
-            eprintln!(
-                "plugin_editor_poc: plugin requested component restart with flags {}",
-                flags
-            );
-            kResultOk
         }
     }
 
@@ -563,16 +1498,52 @@ mod macos_host {
 
     fn load_vst3_module(plugin_path: &Path) -> Result<LoadedVst3Module, String> {
         let binary_path = vst3_bundle_binary_path(plugin_path).map_err(|error| error.message)?;
-        let library = unsafe { Library::new(&binary_path) }.map_err(|error| {
-            format!(
-                "Failed to load VST3 bundle binary '{}': {error}",
-                binary_path.display()
-            )
-        })?;
+        let bundle = CFURL::from_path(plugin_path, true)
+            .and_then(CFBundle::new)
+            .ok_or_else(|| {
+                format!(
+                    "Failed to create a CFBundle for VST3 bundle '{}'.",
+                    plugin_path.display()
+                )
+            })?;
+        let bundle_ref = unsafe { CFRetain(bundle.as_concrete_TypeRef() as CFTypeRef) as usize };
+        let executable_loaded = unsafe { CFBundleLoadExecutable(bundle_ref as _) != 0 };
+        if !executable_loaded {
+            unsafe {
+                CFRelease(bundle_ref as CFTypeRef);
+            }
+            return Err(format!(
+                "Failed to load the VST3 bundle executable for '{}'.",
+                plugin_path.display()
+            ));
+        }
 
-        if let Ok(bundle_entry) = unsafe { library.get::<BundleEntryFn>(b"BundleEntry") } {
-            let entered = unsafe { bundle_entry(std::ptr::null_mut()) };
+        let get_plugin_factory_ptr =
+            bundle.function_pointer_for_name(CFString::from_static_string("GetPluginFactory"));
+        if get_plugin_factory_ptr.is_null() {
+            unsafe {
+                CFBundleUnloadExecutable(bundle_ref as _);
+                CFRelease(bundle_ref as CFTypeRef);
+            }
+            return Err(format!(
+                "Failed to resolve GetPluginFactory in '{}'.",
+                binary_path.display()
+            ));
+        }
+
+        let get_plugin_factory: GetPluginFactoryFn =
+            unsafe { std::mem::transmute(get_plugin_factory_ptr) };
+
+        let bundle_entry_ptr =
+            bundle.function_pointer_for_name(CFString::from_static_string("BundleEntry"));
+        if !bundle_entry_ptr.is_null() {
+            let bundle_entry: BundleEntryFn = unsafe { std::mem::transmute(bundle_entry_ptr) };
+            let entered = unsafe { bundle_entry(bundle_ref as *mut c_void) };
             if !entered {
+                unsafe {
+                    CFBundleUnloadExecutable(bundle_ref as _);
+                    CFRelease(bundle_ref as CFTypeRef);
+                }
                 return Err(format!(
                     "VST3 bundle entry point returned false for '{}'.",
                     binary_path.display()
@@ -580,30 +1551,26 @@ mod macos_host {
             }
         }
 
-        let bundle_exit = unsafe { library.get::<BundleExitFn>(b"BundleExit") }
-            .ok()
-            .map(|symbol| *symbol);
+        let bundle_exit = {
+            let bundle_exit_ptr =
+                bundle.function_pointer_for_name(CFString::from_static_string("BundleExit"));
+            if bundle_exit_ptr.is_null() {
+                None
+            } else {
+                Some(unsafe { std::mem::transmute::<*const c_void, BundleExitFn>(bundle_exit_ptr) })
+            }
+        };
 
         Ok(LoadedVst3Module {
             binary_path,
-            library,
+            bundle_ref: Some(bundle_ref),
+            get_plugin_factory,
             bundle_exit,
         })
     }
 
     fn create_plugin_factory(module: &LoadedVst3Module) -> Result<ComPtr<IPluginFactory>, String> {
-        let get_plugin_factory = unsafe {
-            module
-                .library
-                .get::<GetPluginFactoryFn>(b"GetPluginFactory")
-        }
-        .map_err(|error| {
-            format!(
-                "Failed to resolve GetPluginFactory in '{}': {error}",
-                module.binary_path.display()
-            )
-        })?;
-        let raw_factory = unsafe { get_plugin_factory() };
+        let raw_factory = unsafe { (module.get_plugin_factory)() };
         unsafe { ComPtr::from_raw(raw_factory) }.ok_or_else(|| {
             format!(
                 "GetPluginFactory returned a null factory pointer for '{}'.",
@@ -612,29 +1579,234 @@ mod macos_host {
         })
     }
 
-    fn create_component(factory: &ComPtr<IPluginFactory>) -> Result<ComPtr<IComponent>, String> {
+    fn configure_factory_host_context(
+        factory: &ComPtr<IPluginFactory>,
+        host_context: &ComPtr<FUnknown>,
+    ) {
+        let Some(factory3) = factory.cast::<IPluginFactory3>() else {
+            eprintln!(
+                "plugin_editor_poc: VST3 factory does not expose IPluginFactory3 host-context support"
+            );
+            return;
+        };
+
+        let host_context_result = unsafe { factory3.setHostContext(host_context.as_ptr()) };
+        eprintln!(
+            "plugin_editor_poc: IPluginFactory3::setHostContext result {}",
+            host_context_result
+        );
+    }
+
+    fn class_info_string(field: &[i8]) -> String {
+        let bytes = field
+            .iter()
+            .copied()
+            .take_while(|byte| *byte != 0)
+            .map(|byte| byte as u8)
+            .collect::<Vec<_>>();
+        String::from_utf8_lossy(&bytes).into_owned()
+    }
+
+    pub(crate) fn class_info_is_audio_module(info: &Steinberg::PClassInfo) -> bool {
+        class_info_string(&info.category) == "Audio Module Class"
+    }
+
+    fn normalized_plugin_match_key(value: &str) -> String {
+        value
+            .chars()
+            .filter(|character| character.is_ascii_alphanumeric())
+            .map(|character| character.to_ascii_lowercase())
+            .collect()
+    }
+
+    fn requested_component_name(plugin_path: &Path) -> Option<String> {
+        plugin_path
+            .file_stem()
+            .and_then(|value| value.to_str())
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(str::to_string)
+    }
+
+    fn component_class_match_score(
+        candidate: &ComponentClassCandidate,
+        requested_name: &str,
+    ) -> usize {
+        let requested_key = normalized_plugin_match_key(requested_name);
+        if requested_key.is_empty() {
+            return 0;
+        }
+
+        let name_key = normalized_plugin_match_key(&candidate.name);
+        if !name_key.is_empty() {
+            if name_key == requested_key {
+                return 400;
+            }
+            if name_key.starts_with(&requested_key) || requested_key.starts_with(&name_key) {
+                return 300;
+            }
+            if name_key.contains(&requested_key) || requested_key.contains(&name_key) {
+                return 200;
+            }
+        }
+
+        let subcategory_key = normalized_plugin_match_key(&candidate.subcategories);
+        if !subcategory_key.is_empty() {
+            if subcategory_key == requested_key {
+                return 150;
+            }
+            if subcategory_key.contains(&requested_key) || requested_key.contains(&subcategory_key)
+            {
+                return 100;
+            }
+        }
+
+        0
+    }
+
+    pub(crate) fn select_component_class_candidate<'a>(
+        candidates: &'a [ComponentClassCandidate],
+        requested_name: Option<&str>,
+    ) -> Option<&'a ComponentClassCandidate> {
+        let Some(requested_name) = requested_name else {
+            return candidates.first();
+        };
+
+        let best_match = candidates
+            .iter()
+            .max_by_key(|candidate| component_class_match_score(candidate, requested_name));
+
+        match best_match {
+            Some(candidate) if component_class_match_score(candidate, requested_name) > 0 => {
+                Some(candidate)
+            }
+            _ => candidates.first(),
+        }
+    }
+
+    fn audio_module_class_candidates(
+        factory: &ComPtr<IPluginFactory>,
+    ) -> Vec<ComponentClassCandidate> {
+        if let Some(factory2) = factory.cast::<IPluginFactory2>() {
+            let mut candidates = Vec::new();
+
+            for index in 0..unsafe { factory2.countClasses() } {
+                let mut info = unsafe { zeroed::<Steinberg::PClassInfo2>() };
+                if unsafe { factory2.getClassInfo2(index, &mut info) } != kResultOk {
+                    continue;
+                }
+
+                let category = class_info_string(&info.category);
+                let name = class_info_string(&info.name);
+                if category != "Audio Module Class" {
+                    eprintln!(
+                        "plugin_editor_poc: skipping non-component class '{}' in category '{}'",
+                        name, category
+                    );
+                    continue;
+                }
+
+                candidates.push(ComponentClassCandidate {
+                    cid: info.cid,
+                    name,
+                    category,
+                    subcategories: class_info_string(&info.subCategories),
+                });
+            }
+
+            return candidates;
+        }
+
+        let mut candidates = Vec::new();
         for index in 0..unsafe { factory.countClasses() } {
             let mut info = unsafe { zeroed::<Steinberg::PClassInfo>() };
             if unsafe { factory.getClassInfo(index, &mut info) } != kResultOk {
                 continue;
             }
 
-            let mut raw_object: *mut c_void = std::ptr::null_mut();
-            let result = unsafe {
-                factory.createInstance(info.cid.as_ptr(), IComponent_iid.as_ptr(), &mut raw_object)
-            };
-            if result != kResultOk {
+            if !class_info_is_audio_module(&info) {
+                eprintln!(
+                    "plugin_editor_poc: skipping non-component class '{}' in category '{}'",
+                    class_info_string(&info.name),
+                    class_info_string(&info.category)
+                );
                 continue;
             }
 
-            if let Some(component) = unsafe { ComPtr::from_raw(raw_object.cast::<IComponent>()) } {
-                return Ok(component);
-            }
+            candidates.push(ComponentClassCandidate {
+                cid: info.cid,
+                name: class_info_string(&info.name),
+                category: class_info_string(&info.category),
+                subcategories: String::new(),
+            });
         }
 
-        Err(String::from(
-            "Plugin editor POC could not create an IComponent instance from the VST3 factory.",
-        ))
+        candidates
+    }
+
+    fn create_component(
+        factory: &ComPtr<IPluginFactory>,
+        plugin_path: &Path,
+    ) -> Result<ComPtr<IComponent>, String> {
+        let candidates = audio_module_class_candidates(factory);
+        let requested_name = requested_component_name(plugin_path);
+
+        if candidates.len() > 1 {
+            eprintln!(
+                "plugin_editor_poc: available audio-module classes for '{}' => {}",
+                plugin_path.display(),
+                candidates
+                    .iter()
+                    .map(|candidate| candidate.name.as_str())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            );
+        }
+
+        let candidate = select_component_class_candidate(&candidates, requested_name.as_deref())
+            .ok_or_else(|| {
+                String::from(
+                    "Plugin editor POC could not find an audio-module component class in the VST3 factory.",
+                )
+            })?;
+
+        eprintln!(
+            "plugin_editor_poc: selected component class '{}' for '{}'",
+            candidate.name,
+            plugin_path.display()
+        );
+
+        eprintln!(
+            "plugin_editor_poc: creating component instance '{}' for '{}'",
+            candidate.name,
+            plugin_path.display()
+        );
+        let mut raw_object: *mut c_void = std::ptr::null_mut();
+        let result = unsafe {
+            factory.createInstance(
+                candidate.cid.as_ptr(),
+                IComponent_iid.as_ptr(),
+                &mut raw_object,
+            )
+        };
+        eprintln!(
+            "plugin_editor_poc: component createInstance result {} for '{}'",
+            result, candidate.name
+        );
+        if result != kResultOk {
+            return Err(format!(
+                "Plugin editor POC failed to create the selected VST3 component class '{}' (tresult = {}).",
+                candidate.name,
+                result
+            ));
+        }
+
+        unsafe { ComPtr::from_raw(raw_object.cast::<IComponent>()) }.ok_or_else(|| {
+            format!(
+                "Plugin editor POC received a null VST3 component pointer for '{}'.",
+                candidate.name
+            )
+        })
     }
 
     fn create_controller(
@@ -642,6 +1814,9 @@ mod macos_host {
         component: &ComPtr<IComponent>,
     ) -> Result<CreatedController, String> {
         if let Some(controller) = component.cast::<IEditController>() {
+            eprintln!(
+                "plugin_editor_poc: component already exposes IEditController; reusing component as controller"
+            );
             return Ok(CreatedController {
                 controller,
                 shared_with_component: true,
@@ -650,12 +1825,21 @@ mod macos_host {
 
         let mut controller_cid: TUID = [0; 16];
         let result = unsafe { component.getControllerClassId(&mut controller_cid) };
+        eprintln!(
+            "plugin_editor_poc: getControllerClassId result {} with cid {}",
+            result,
+            format_tuid(&controller_cid)
+        );
         if result != kResultOk || controller_cid.iter().all(|byte| *byte == 0) {
             return Err(String::from(
                 "Plugin editor POC could not resolve a controller class ID for the VST3 component.",
             ));
         }
 
+        eprintln!(
+            "plugin_editor_poc: creating edit controller instance for controller cid {}",
+            format_tuid(&controller_cid)
+        );
         let mut raw_object: *mut c_void = std::ptr::null_mut();
         let create_result = unsafe {
             factory.createInstance(
@@ -664,6 +1848,10 @@ mod macos_host {
                 &mut raw_object,
             )
         };
+        eprintln!(
+            "plugin_editor_poc: edit controller createInstance result {}",
+            create_result
+        );
         if create_result != kResultOk {
             return Err(String::from(
                 "Plugin editor POC failed to create the VST3 edit controller instance.",
@@ -832,9 +2020,19 @@ mod macos_host {
             .to_com_ptr::<IHostApplication>()
             .ok_or_else(|| String::from("Failed to allocate the VST3 host-application shim."))?;
         let host_context = host_application.clone().upcast::<FUnknown>();
+        configure_factory_host_context(&factory, &host_context);
 
-        let component = create_component(&factory)?;
+        let component = create_component(&factory, plugin_path)?;
+        eprintln!(
+            "plugin_editor_poc: initializing component for '{}'",
+            plugin_path.display()
+        );
         let component_init = unsafe { component.initialize(host_context.as_ptr()) };
+        eprintln!(
+            "plugin_editor_poc: component initialize result {} for '{}'",
+            component_init,
+            plugin_path.display()
+        );
         if component_init != kResultOk {
             return Err(format!(
                 "Plugin editor POC failed to initialize the VST3 component (tresult = {}).",
@@ -855,11 +2053,34 @@ mod macos_host {
             }
         };
 
+        let component_handler = host_application
+            .clone()
+            .cast::<IComponentHandler>()
+            .ok_or_else(|| {
+                String::from("Failed to expose the VST3 host application as a component handler.")
+            })?;
+
         let controller_initialized = if controller_shared_with_component {
             eprintln!("plugin_editor_poc: component also implements the edit controller interface");
             false
         } else {
+            let pre_init_handler_result =
+                unsafe { controller.setComponentHandler(component_handler.as_ptr()) };
+            eprintln!(
+                "plugin_editor_poc: pre-initialize setComponentHandler result {} for '{}'",
+                pre_init_handler_result,
+                plugin_path.display()
+            );
+            eprintln!(
+                "plugin_editor_poc: initializing edit controller for '{}'",
+                plugin_path.display()
+            );
             let controller_init = unsafe { controller.initialize(host_context.as_ptr()) };
+            eprintln!(
+                "plugin_editor_poc: edit controller initialize result {} for '{}'",
+                controller_init,
+                plugin_path.display()
+            );
             if controller_init != kResultOk {
                 unsafe {
                     let _ = component.terminate();
@@ -883,17 +2104,27 @@ mod macos_host {
         };
 
         if !controller_shared_with_component {
+            eprintln!(
+                "plugin_editor_poc: syncing component state to controller for '{}'",
+                plugin_path.display()
+            );
             sync_component_state_to_controller(&component, &controller);
         }
-
-        let component_handler = ComWrapper::new(PluginComponentHandler)
-            .to_com_ptr::<IComponentHandler>()
-            .ok_or_else(|| String::from("Failed to allocate the VST3 component-handler shim."))?;
-        let _ = unsafe { controller.setComponentHandler(component_handler.as_ptr()) };
+        let set_handler_result =
+            unsafe { controller.setComponentHandler(component_handler.as_ptr()) };
+        eprintln!(
+            "plugin_editor_poc: setComponentHandler result {} for '{}'",
+            set_handler_result,
+            plugin_path.display()
+        );
 
         let connection_points_connected = if controller_shared_with_component {
             false
         } else {
+            eprintln!(
+                "plugin_editor_poc: connecting component/controller connection points for '{}'",
+                plugin_path.display()
+            );
             connect_component_and_controller(&component, &controller)
         };
 
@@ -903,6 +2134,10 @@ mod macos_host {
         .to_com_ptr::<IPlugFrame>()
         .ok_or_else(|| String::from("Failed to allocate the VST3 plug-frame shim."))?;
 
+        eprintln!(
+            "plugin_editor_poc: creating editor view for '{}'",
+            plugin_path.display()
+        );
         let view = unsafe { ComPtr::from_raw(controller.createView(ViewType::kEditor)) }
             .ok_or_else(|| {
                 cleanup_initialized_plugin(connection_points_connected);
@@ -910,8 +2145,17 @@ mod macos_host {
                     "Plugin editor POC did not receive a plugin editor view. The selected VST3 may not expose an editor.",
                 )
             })?;
+        eprintln!(
+            "plugin_editor_poc: created editor view for '{}'",
+            plugin_path.display()
+        );
 
         let platform_supported = unsafe { view.isPlatformTypeSupported(kPlatformTypeNSView) };
+        eprintln!(
+            "plugin_editor_poc: isPlatformTypeSupported(NSView) result {} for '{}'",
+            platform_supported,
+            plugin_path.display()
+        );
         if platform_supported != kResultOk {
             cleanup_initialized_plugin(connection_points_connected);
             return Err(String::from(
@@ -919,10 +2163,24 @@ mod macos_host {
             ));
         }
 
-        let _ = unsafe { view.setFrame(plug_frame.as_ptr()) };
+        let set_frame_result = unsafe { view.setFrame(plug_frame.as_ptr()) };
+        eprintln!(
+            "plugin_editor_poc: setFrame result {} for '{}'",
+            set_frame_result,
+            plugin_path.display()
+        );
 
         let parent_ptr = (parent_view as *const NSView).cast_mut().cast::<c_void>();
+        eprintln!(
+            "plugin_editor_poc: attaching editor view to NSView for '{}'",
+            plugin_path.display()
+        );
         let attached = unsafe { view.attached(parent_ptr, kPlatformTypeNSView) };
+        eprintln!(
+            "plugin_editor_poc: view.attached result {} for '{}'",
+            attached,
+            plugin_path.display()
+        );
         if attached != kResultOk {
             cleanup_initialized_plugin(connection_points_connected);
             return Err(format!(
@@ -968,12 +2226,36 @@ mod macos_host {
             _component_handler: component_handler,
             _plug_frame: plug_frame,
             host_view_ptr: parent_ptr as usize,
+            plugin_can_resize,
             view_attached: true,
             connection_points_connected,
             component_initialized: true,
             controller_initialized,
             controller_shared_with_component,
+            close_prepared: false,
         })
+    }
+
+    pub fn prepare_active_plugin_host_session_for_close(window: &WebviewWindow) {
+        let cleanup_window = window.clone();
+        if cleanup_window
+            .run_on_main_thread(move || {
+                if let Ok(mut active_session) = active_plugin_host_session().lock() {
+                    if let Some(session) = active_session.as_mut() {
+                        eprintln!(
+                            "plugin_editor_poc: preparing active plugin host for close {}",
+                            session.plugin_path.display()
+                        );
+                        session.prepare_for_window_close();
+                    }
+                }
+            })
+            .is_err()
+        {
+            eprintln!(
+                "plugin_editor_poc: failed to schedule close preparation on the main thread; deferring native close preparation"
+            );
+        }
     }
 
     pub fn cleanup_active_plugin_host_session(window: &WebviewWindow) {
@@ -1003,27 +2285,23 @@ mod macos_host {
             })
             .is_err()
         {
+            eprintln!(
+                "plugin_editor_poc: failed to schedule native host teardown on the main thread; leaking session handles instead of tearing down off-thread"
+            );
             if let Ok(mut session_state) = session_state.lock() {
                 if let Some(session) = session_state.take() {
-                    session.shutdown();
+                    std::mem::forget(session);
                 }
             }
         }
     }
 
-    pub fn cleanup_orphaned_plugin_host_session() {
-        let session = active_plugin_host_session()
-            .lock()
-            .ok()
-            .and_then(|mut active_session| active_session.take());
-
-        if let Some(session) = session {
-            session.shutdown();
-        }
-    }
-
-    pub fn sync_active_plugin_host(window: &WebviewWindow, focused: Option<bool>) {
-        let Some((view, host_view_ptr)) = active_plugin_host_session()
+    pub fn sync_active_plugin_host(
+        window: &WebviewWindow,
+        focused: Option<bool>,
+        reason: super::PluginHostSyncReason,
+    ) {
+        let Some((view, host_view_ptr, plugin_can_resize)) = active_plugin_host_session()
             .lock()
             .ok()
             .and_then(|active_session| active_session.as_ref().map(PluginHostSession::view_state))
@@ -1054,8 +2332,10 @@ mod macos_host {
                 (*host_view).setFrame(host_frame);
             }
 
-            let mut rect = view_rect_for_host_frame(host_frame);
-            let _ = unsafe { view.onSize(&mut rect) };
+            if should_notify_plugin_view_layout(reason, plugin_can_resize) {
+                let mut rect = view_rect_for_host_frame(host_frame);
+                let _ = unsafe { view.onSize(&mut rect) };
+            }
             if let Some(focused) = focused {
                 let _ = unsafe { view.onFocus(if focused { 1 } else { 0 }) };
             }
@@ -1119,12 +2399,20 @@ mod macos_host {
                             return Ok(false);
                         }
                     };
-                    sync_active_plugin_host(&attachment_window, Some(true));
+                    let session_target = session.plugin_path.clone();
 
-                    let mut active_session = active_plugin_host_session()
-                        .lock()
-                        .map_err(|_| String::from("Failed to store plugin host session"))?;
-                    *active_session = Some(session);
+                    if let Ok(mut active_session) = active_plugin_host_session().lock() {
+                        *active_session = Some(session);
+                    } else {
+                        return Err(String::from("Failed to store plugin host session"));
+                    }
+
+                    super::mark_plugin_target_attached(&session_target);
+                    sync_active_plugin_host(
+                        &attachment_window,
+                        Some(true),
+                        super::PluginHostSyncReason::InitialAttach,
+                    );
 
                     eprintln!(
                         "plugin_editor_poc: attached live VST3 editor host for {}",
@@ -1147,7 +2435,7 @@ mod macos_host {
 #[cfg(target_os = "macos")]
 use macos_host::{
     attach_native_host_surface as attach_native_host_surface_impl,
-    cleanup_active_plugin_host_session, cleanup_orphaned_plugin_host_session,
+    cleanup_active_plugin_host_session, prepare_active_plugin_host_session_for_close,
     sync_active_plugin_host, PluginHostSession,
 };
 
@@ -1176,11 +2464,14 @@ pub async fn plugin_editor_poc_open(
         plugin_path.as_deref(),
         plugin_inventory_state.inner(),
     )?;
+    ensure_editor_host_target_supported(&plugin_path)?;
 
-    match reserve_plugin_target(&plugin_path)? {
+    let existing_window = app.get_webview_window(WINDOW_LABEL);
+
+    match reserve_plugin_target(&plugin_path, existing_window.is_some())? {
         PluginTargetReservation::Acquired => {}
-        PluginTargetReservation::AlreadyReserved => {
-            if let Some(window) = app.get_webview_window(WINDOW_LABEL) {
+        PluginTargetReservation::AlreadyReserved(_) => {
+            if let Some(window) = existing_window {
                 window
                     .set_focus()
                     .map_err(|error| format!("Failed to focus plugin host POC window: {error}"))?;
@@ -1246,21 +2537,71 @@ pub async fn plugin_editor_poc_open(
 #[cfg(test)]
 mod tests {
     use super::{
-        active_plugin_target, release_reserved_plugin_target, reserve_plugin_target,
-        resolve_plugin_target_in_roots, PluginTargetReservation,
+        active_plugin_host_lifecycle, begin_plugin_target_close, clear_reserved_plugin_target,
+        ensure_editor_host_target_supported, mark_plugin_target_attached,
+        release_reserved_plugin_target, reserve_plugin_target, resolve_plugin_target_in_roots,
+        PluginHostLifecyclePhase, PluginHostSyncReason, PluginTargetReservation,
     };
+    use crate::playback::plugin_host_compatibility::bounded_editor_host_unsupported_reason;
+    #[cfg(target_os = "macos")]
+    use std::ffi::{c_void, CStr, CString};
     use std::path::{Path, PathBuf};
     use std::sync::{Mutex, OnceLock};
+
+    #[cfg(target_os = "macos")]
+    fn write_class_info_field<const N: usize>(buffer: &mut [i8; N], value: &str) {
+        buffer.fill(0);
+        for (index, byte) in value
+            .as_bytes()
+            .iter()
+            .copied()
+            .take(N.saturating_sub(1))
+            .enumerate()
+        {
+            buffer[index] = byte as i8;
+        }
+    }
+
+    #[cfg(target_os = "macos")]
+    fn component_class_candidate(
+        name: &str,
+        subcategories: &str,
+    ) -> super::macos_host::ComponentClassCandidate {
+        super::macos_host::ComponentClassCandidate {
+            cid: [0; 16],
+            name: name.to_string(),
+            category: String::from("Audio Module Class"),
+            subcategories: subcategories.to_string(),
+        }
+    }
 
     fn plugin_target_test_mutex() -> &'static Mutex<()> {
         static PLUGIN_TARGET_TEST_MUTEX: OnceLock<Mutex<()>> = OnceLock::new();
         PLUGIN_TARGET_TEST_MUTEX.get_or_init(|| Mutex::new(()))
     }
 
+    fn lock_plugin_target_test_mutex() -> std::sync::MutexGuard<'static, ()> {
+        plugin_target_test_mutex()
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+    }
+
     fn reset_active_plugin_target() {
-        if let Ok(mut active_target) = active_plugin_target().lock() {
-            *active_target = None;
-        }
+        clear_reserved_plugin_target();
+    }
+
+    fn active_plugin_target() -> Option<PathBuf> {
+        active_plugin_host_lifecycle()
+            .lock()
+            .ok()
+            .and_then(|state| state.target.clone())
+    }
+
+    fn active_plugin_phase() -> PluginHostLifecyclePhase {
+        active_plugin_host_lifecycle()
+            .lock()
+            .map(|state| state.phase)
+            .unwrap_or(PluginHostLifecyclePhase::Idle)
     }
 
     #[test]
@@ -1289,30 +2630,31 @@ mod tests {
 
     #[test]
     fn reserve_plugin_target_marks_first_request_as_acquired() {
-        let _guard = plugin_target_test_mutex().lock().unwrap();
+        let _guard = lock_plugin_target_test_mutex();
         reset_active_plugin_target();
 
         let target = Path::new("/tmp/test-plugin.vst3");
-        let reservation = reserve_plugin_target(target).unwrap();
+        let reservation = reserve_plugin_target(target, false).unwrap();
 
         assert!(matches!(reservation, PluginTargetReservation::Acquired));
+        assert_eq!(active_plugin_phase(), PluginHostLifecyclePhase::Reserved);
 
         reset_active_plugin_target();
     }
 
     #[test]
     fn reserve_plugin_target_reuses_matching_target() {
-        let _guard = plugin_target_test_mutex().lock().unwrap();
+        let _guard = lock_plugin_target_test_mutex();
         reset_active_plugin_target();
 
         let target = Path::new("/tmp/test-plugin.vst3");
-        reserve_plugin_target(target).unwrap();
+        reserve_plugin_target(target, true).unwrap();
 
-        let reservation = reserve_plugin_target(target).unwrap();
+        let reservation = reserve_plugin_target(target, true).unwrap();
 
         assert!(matches!(
             reservation,
-            PluginTargetReservation::AlreadyReserved
+            PluginTargetReservation::AlreadyReserved(PluginHostLifecyclePhase::Reserved)
         ));
 
         reset_active_plugin_target();
@@ -1320,12 +2662,12 @@ mod tests {
 
     #[test]
     fn reserve_plugin_target_rejects_different_target_while_reserved() {
-        let _guard = plugin_target_test_mutex().lock().unwrap();
+        let _guard = lock_plugin_target_test_mutex();
         reset_active_plugin_target();
 
-        reserve_plugin_target(Path::new("/tmp/test-plugin-a.vst3")).unwrap();
+        reserve_plugin_target(Path::new("/tmp/test-plugin-a.vst3"), true).unwrap();
 
-        let error = reserve_plugin_target(Path::new("/tmp/test-plugin-b.vst3")).unwrap_err();
+        let error = reserve_plugin_target(Path::new("/tmp/test-plugin-b.vst3"), true).unwrap_err();
 
         assert!(error.contains("already open for a different target"));
 
@@ -1334,21 +2676,477 @@ mod tests {
 
     #[test]
     fn release_reserved_plugin_target_clears_matching_target_only() {
-        let _guard = plugin_target_test_mutex().lock().unwrap();
+        let _guard = lock_plugin_target_test_mutex();
         reset_active_plugin_target();
 
         let active_target = Path::new("/tmp/test-plugin-a.vst3");
-        reserve_plugin_target(active_target).unwrap();
+        reserve_plugin_target(active_target, true).unwrap();
         release_reserved_plugin_target(Path::new("/tmp/test-plugin-b.vst3"));
 
-        assert_eq!(
-            active_plugin_target().lock().unwrap().as_deref(),
-            Some(active_target)
-        );
+        assert_eq!(active_plugin_target().as_deref(), Some(active_target));
 
         release_reserved_plugin_target(active_target);
 
-        assert_eq!(active_plugin_target().lock().unwrap().as_deref(), None);
+        assert_eq!(active_plugin_target().as_deref(), None);
         reset_active_plugin_target();
+    }
+
+    #[test]
+    fn unsupported_editor_host_target_reason_rejects_steinberg_vendor_paths() {
+        let path = Path::new("/Library/Audio/Plug-Ins/VST3/Steinberg/HALion Sonic.vst3");
+
+        let reason = bounded_editor_host_unsupported_reason(path).unwrap();
+
+        assert!(reason.contains("current unsupported list"));
+        assert!(reason.contains("HALion Sonic"));
+    }
+
+    #[test]
+    fn unsupported_editor_host_target_reason_rejects_known_steinberg_bundle_names() {
+        let path = Path::new("/tmp/Groove Agent SE.vst3");
+
+        let reason = bounded_editor_host_unsupported_reason(path).unwrap();
+
+        assert!(reason.contains("Groove Agent SE"));
+    }
+
+    #[test]
+    fn unsupported_editor_host_target_reason_rejects_kontakt_7_bundle_name() {
+        let path = Path::new("/Library/Audio/Plug-Ins/VST3/Kontakt 7.vst3");
+
+        let reason = bounded_editor_host_unsupported_reason(path).unwrap();
+
+        assert!(reason.contains("Kontakt 7"));
+    }
+
+    #[test]
+    fn unsupported_editor_host_target_reason_rejects_mt_power_drumkit_bundle_name() {
+        let path = Path::new("/Library/Audio/Plug-Ins/VST3/MT-PowerDrumKit.vst3");
+
+        let reason = bounded_editor_host_unsupported_reason(path).unwrap();
+
+        assert!(reason.contains("MT-PowerDrumKit"));
+    }
+
+    #[test]
+    fn unsupported_editor_host_target_reason_allows_non_unsupported_control_case() {
+        let path = Path::new("/Library/Audio/Plug-Ins/VST3/BBC Symphony Orchestra.vst3");
+
+        assert_eq!(bounded_editor_host_unsupported_reason(path), None);
+    }
+
+    #[test]
+    fn ensure_editor_host_target_supported_rejects_without_touching_lifecycle_state() {
+        let _guard = lock_plugin_target_test_mutex();
+        reset_active_plugin_target();
+
+        let error = ensure_editor_host_target_supported(Path::new(
+            "/Library/Audio/Plug-Ins/VST3/Steinberg/HALion Sonic.vst3",
+        ))
+        .unwrap_err();
+
+        assert!(error.contains("current unsupported list"));
+        assert_eq!(active_plugin_target(), None);
+        assert_eq!(active_plugin_phase(), PluginHostLifecyclePhase::Idle);
+    }
+
+    #[test]
+    fn ensure_editor_host_target_supported_rejects_kontakt_7_without_touching_lifecycle_state() {
+        let _guard = lock_plugin_target_test_mutex();
+        reset_active_plugin_target();
+
+        let error = ensure_editor_host_target_supported(Path::new(
+            "/Library/Audio/Plug-Ins/VST3/Kontakt 7.vst3",
+        ))
+        .unwrap_err();
+
+        assert!(error.contains("Kontakt 7"));
+        assert_eq!(active_plugin_target(), None);
+        assert_eq!(active_plugin_phase(), PluginHostLifecyclePhase::Idle);
+    }
+
+    #[test]
+    fn reserve_plugin_target_clears_stale_reservation_when_window_is_gone() {
+        let _guard = lock_plugin_target_test_mutex();
+        reset_active_plugin_target();
+
+        let target = Path::new("/tmp/test-plugin.vst3");
+        reserve_plugin_target(target, true).unwrap();
+        begin_plugin_target_close(Some(target));
+
+        let reservation = reserve_plugin_target(target, false).unwrap();
+
+        assert!(matches!(reservation, PluginTargetReservation::Acquired));
+        assert_eq!(active_plugin_phase(), PluginHostLifecyclePhase::Reserved);
+
+        reset_active_plugin_target();
+    }
+
+    #[test]
+    fn reserve_plugin_target_keeps_in_flight_reservation_without_window() {
+        let _guard = lock_plugin_target_test_mutex();
+        reset_active_plugin_target();
+
+        let target = Path::new("/tmp/test-plugin.vst3");
+        reserve_plugin_target(target, false).unwrap();
+
+        let reservation = reserve_plugin_target(target, false).unwrap();
+
+        assert!(matches!(
+            reservation,
+            PluginTargetReservation::AlreadyReserved(PluginHostLifecyclePhase::Reserved)
+        ));
+        assert_eq!(active_plugin_phase(), PluginHostLifecyclePhase::Reserved);
+
+        reset_active_plugin_target();
+    }
+
+    #[test]
+    fn mark_plugin_target_attached_promotes_reserved_target() {
+        let _guard = lock_plugin_target_test_mutex();
+        reset_active_plugin_target();
+
+        let target = Path::new("/tmp/test-plugin.vst3");
+        reserve_plugin_target(target, false).unwrap();
+
+        mark_plugin_target_attached(target);
+
+        assert_eq!(active_plugin_phase(), PluginHostLifecyclePhase::Attached);
+
+        reset_active_plugin_target();
+    }
+
+    #[test]
+    fn begin_plugin_target_close_marks_matching_target_only() {
+        let _guard = lock_plugin_target_test_mutex();
+        reset_active_plugin_target();
+
+        let target = Path::new("/tmp/test-plugin.vst3");
+        reserve_plugin_target(target, false).unwrap();
+
+        begin_plugin_target_close(Some(Path::new("/tmp/other-plugin.vst3")));
+        assert_eq!(active_plugin_phase(), PluginHostLifecyclePhase::Reserved);
+
+        begin_plugin_target_close(Some(target));
+        assert_eq!(active_plugin_phase(), PluginHostLifecyclePhase::Closing);
+
+        reset_active_plugin_target();
+    }
+
+    #[test]
+    fn plugin_host_layout_notifications_remain_enabled_for_attached_views() {
+        assert!(super::macos_host::should_notify_plugin_view_layout(
+            PluginHostSyncReason::InitialAttach,
+            false,
+        ));
+        assert!(super::macos_host::should_notify_plugin_view_layout(
+            PluginHostSyncReason::WindowFocusChanged,
+            true,
+        ));
+        assert!(super::macos_host::should_notify_plugin_view_layout(
+            PluginHostSyncReason::WindowResized,
+            false,
+        ));
+        assert!(super::macos_host::should_notify_plugin_view_layout(
+            PluginHostSyncReason::WindowResized,
+            true,
+        ));
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn class_info_audio_module_filter_only_accepts_component_category() {
+        let mut component_info = unsafe { std::mem::zeroed::<vst3::Steinberg::PClassInfo>() };
+        write_class_info_field(&mut component_info.category, "Audio Module Class");
+
+        let mut controller_info = unsafe { std::mem::zeroed::<vst3::Steinberg::PClassInfo>() };
+        write_class_info_field(&mut controller_info.category, "Component Controller Class");
+
+        assert!(super::macos_host::class_info_is_audio_module(
+            &component_info
+        ));
+        assert!(!super::macos_host::class_info_is_audio_module(
+            &controller_info
+        ));
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn component_class_selector_prefers_exact_bundle_name_match() {
+        let candidates = vec![
+            component_class_candidate("HALion Sonic SE", "Instrument"),
+            component_class_candidate("HALion Sonic", "Instrument"),
+        ];
+
+        let selected =
+            super::macos_host::select_component_class_candidate(&candidates, Some("HALion Sonic"))
+                .unwrap();
+
+        assert_eq!(selected.name, "HALion Sonic");
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn component_class_selector_falls_back_to_first_audio_module_without_name_match() {
+        let candidates = vec![
+            component_class_candidate("Kontakt 7", "Instrument"),
+            component_class_candidate("Kontakt 7 FX", "Fx"),
+        ];
+
+        let selected = super::macos_host::select_component_class_candidate(
+            &candidates,
+            Some("Some Other Plugin"),
+        )
+        .unwrap();
+
+        assert_eq!(selected.name, "Kontakt 7");
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn host_application_create_instance_supports_messages_and_attributes() {
+        use vst3::Steinberg::Vst::{
+            IAttributeList, IAttributeListTrait, IAttributeList_iid, IHostApplication,
+            IHostApplicationTrait, IMessage, IMessageTrait, IMessage_iid,
+        };
+        use vst3::Steinberg::{int64, kResultOk, FUnknown_iid};
+        use vst3::{ComPtr, ComWrapper};
+
+        let host_application = ComWrapper::new(super::macos_host::PluginHostApplication)
+            .to_com_ptr::<IHostApplication>()
+            .unwrap();
+
+        let mut raw_message: *mut c_void = std::ptr::null_mut();
+        let mut message_cid = IMessage_iid;
+        let mut message_iid = IMessage_iid;
+        let message_result = unsafe {
+            host_application.createInstance(&mut message_cid, &mut message_iid, &mut raw_message)
+        };
+        assert_eq!(message_result, kResultOk);
+
+        let message = unsafe { ComPtr::from_raw(raw_message.cast::<IMessage>()) }.unwrap();
+        let message_id = CString::new("host-message").unwrap();
+        unsafe {
+            message.setMessageID(message_id.as_ptr());
+        }
+
+        let returned_id = unsafe { message.getMessageID() };
+        assert_eq!(
+            unsafe { CStr::from_ptr(returned_id) }.to_str().unwrap(),
+            "host-message"
+        );
+
+        let attributes = unsafe { ComPtr::from_raw(message.getAttributes()) }.unwrap();
+        let key = CString::new("host-attribute").unwrap();
+        let mut value: int64 = 0;
+        assert_eq!(unsafe { attributes.setInt(key.as_ptr(), 42) }, kResultOk);
+        assert_eq!(
+            unsafe { attributes.getInt(key.as_ptr(), &mut value) },
+            kResultOk
+        );
+        assert_eq!(value, 42);
+
+        let mut raw_attributes: *mut c_void = std::ptr::null_mut();
+        let mut attribute_cid = IAttributeList_iid;
+        let mut attribute_iid = IAttributeList_iid;
+        let attribute_result = unsafe {
+            host_application.createInstance(
+                &mut attribute_cid,
+                &mut attribute_iid,
+                &mut raw_attributes,
+            )
+        };
+        assert_eq!(attribute_result, kResultOk);
+        assert!(unsafe { ComPtr::from_raw(raw_attributes.cast::<IAttributeList>()) }.is_some());
+
+        let mut raw_unknown: *mut c_void = std::ptr::null_mut();
+        let mut unknown_message_cid = IMessage_iid;
+        let mut unknown_iid = FUnknown_iid;
+        let unknown_result = unsafe {
+            host_application.createInstance(
+                &mut unknown_message_cid,
+                &mut unknown_iid,
+                &mut raw_unknown,
+            )
+        };
+        assert_eq!(unknown_result, kResultOk);
+        assert!(!raw_unknown.is_null());
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn host_application_exposes_every_supported_interface() {
+        use vst3::Steinberg::FUnknown;
+        use vst3::Steinberg::IUpdateHandler;
+        use vst3::Steinberg::Linux::IRunLoop;
+        use vst3::Steinberg::Vst::{
+            IAutomationState, IComponentHandler, IComponentHandler2, IComponentHandler3,
+            IComponentHandlerBusActivation, IComponentHandlerSystemTime, IContextMenuTarget,
+            IDataExchangeHandler, IEditControllerHostEditing, IHostApplication,
+            IPlugInterfaceSupport, IProgress, IUnitHandler, IUnitHandler2,
+        };
+        use vst3::{ComPtr, ComWrapper};
+
+        let host_application = ComWrapper::new(super::macos_host::PluginHostApplication)
+            .to_com_ptr::<IHostApplication>()
+            .unwrap();
+        let unknown = host_application.clone().upcast::<FUnknown>();
+
+        assert!(unknown.cast::<IHostApplication>().is_some());
+        assert!(unknown.cast::<IPlugInterfaceSupport>().is_some());
+        assert!(unknown.cast::<IRunLoop>().is_some());
+        assert!(unknown.cast::<IAutomationState>().is_some());
+        assert!(unknown.cast::<IComponentHandler>().is_some());
+        assert!(unknown.cast::<IComponentHandler2>().is_some());
+        assert!(unknown.cast::<IComponentHandler3>().is_some());
+        assert!(unknown.cast::<IComponentHandlerBusActivation>().is_some());
+        assert!(unknown.cast::<IComponentHandlerSystemTime>().is_some());
+        assert!(unknown.cast::<IContextMenuTarget>().is_some());
+        assert!(unknown.cast::<IDataExchangeHandler>().is_some());
+        assert!(unknown.cast::<IEditControllerHostEditing>().is_some());
+        assert!(unknown.cast::<IUnitHandler>().is_some());
+        assert!(unknown.cast::<IUnitHandler2>().is_some());
+        assert!(unknown.cast::<IProgress>().is_some());
+        assert!(unknown.cast::<IUpdateHandler>().is_none());
+
+        let _keep_alive: ComPtr<IHostApplication> = host_application;
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn host_application_reports_supported_interfaces() {
+        use vst3::Steinberg::Linux::IRunLoop_iid;
+        use vst3::Steinberg::Vst::{
+            IAttributeList_iid, IAutomationState_iid, IComponentHandler2_iid,
+            IComponentHandler3_iid, IComponentHandlerBusActivation_iid,
+            IComponentHandlerSystemTime_iid, IComponentHandler_iid, IConnectionPoint_iid,
+            IContextMenuTarget_iid, IDataExchangeHandler_iid, IEditControllerHostEditing_iid,
+            IHostApplication_iid, IMessage_iid, IPlugInterfaceSupport, IPlugInterfaceSupportTrait,
+            IPlugInterfaceSupport_iid, IProgress_iid, IUnitHandler2_iid, IUnitHandler_iid,
+        };
+        use vst3::Steinberg::{kResultFalse, kResultTrue, FUnknown_iid, IUpdateHandler_iid};
+        use vst3::{ComPtr, ComWrapper};
+
+        let host_support = ComWrapper::new(super::macos_host::PluginHostApplication)
+            .to_com_ptr::<IPlugInterfaceSupport>()
+            .unwrap();
+
+        assert_eq!(
+            unsafe { host_support.isPlugInterfaceSupported(&IMessage_iid) },
+            kResultTrue
+        );
+        assert_eq!(
+            unsafe { host_support.isPlugInterfaceSupported(&IAttributeList_iid) },
+            kResultTrue
+        );
+        assert_eq!(
+            unsafe { host_support.isPlugInterfaceSupported(&IAutomationState_iid) },
+            kResultTrue
+        );
+        assert_eq!(
+            unsafe { host_support.isPlugInterfaceSupported(&IHostApplication_iid) },
+            kResultTrue
+        );
+        assert_eq!(
+            unsafe { host_support.isPlugInterfaceSupported(&IComponentHandler_iid) },
+            kResultTrue
+        );
+        assert_eq!(
+            unsafe { host_support.isPlugInterfaceSupported(&IComponentHandler2_iid) },
+            kResultTrue
+        );
+        assert_eq!(
+            unsafe { host_support.isPlugInterfaceSupported(&IComponentHandler3_iid) },
+            kResultTrue
+        );
+        assert_eq!(
+            unsafe { host_support.isPlugInterfaceSupported(&IComponentHandlerBusActivation_iid) },
+            kResultTrue
+        );
+        assert_eq!(
+            unsafe { host_support.isPlugInterfaceSupported(&IComponentHandlerSystemTime_iid) },
+            kResultTrue
+        );
+        assert_eq!(
+            unsafe { host_support.isPlugInterfaceSupported(&IContextMenuTarget_iid) },
+            kResultTrue
+        );
+        assert_eq!(
+            unsafe { host_support.isPlugInterfaceSupported(&IDataExchangeHandler_iid) },
+            kResultTrue
+        );
+        assert_eq!(
+            unsafe { host_support.isPlugInterfaceSupported(&IEditControllerHostEditing_iid) },
+            kResultTrue
+        );
+        assert_eq!(
+            unsafe { host_support.isPlugInterfaceSupported(&IPlugInterfaceSupport_iid) },
+            kResultTrue
+        );
+        assert_eq!(
+            unsafe { host_support.isPlugInterfaceSupported(&IProgress_iid) },
+            kResultTrue
+        );
+        assert_eq!(
+            unsafe { host_support.isPlugInterfaceSupported(&IRunLoop_iid) },
+            kResultTrue
+        );
+        assert_eq!(
+            unsafe { host_support.isPlugInterfaceSupported(&IUnitHandler_iid) },
+            kResultTrue
+        );
+        assert_eq!(
+            unsafe { host_support.isPlugInterfaceSupported(&IUnitHandler2_iid) },
+            kResultTrue
+        );
+        assert_eq!(
+            unsafe { host_support.isPlugInterfaceSupported(&IUpdateHandler_iid) },
+            kResultFalse
+        );
+        assert_eq!(
+            unsafe { host_support.isPlugInterfaceSupported(&FUnknown_iid) },
+            kResultTrue
+        );
+        assert_eq!(
+            unsafe { host_support.isPlugInterfaceSupported(&IConnectionPoint_iid) },
+            kResultFalse
+        );
+        assert_eq!(
+            unsafe { host_support.isPlugInterfaceSupported(&vst3::Steinberg::Vst::IMidiLearn_iid) },
+            kResultFalse
+        );
+        assert_eq!(
+            unsafe {
+                host_support
+                    .isPlugInterfaceSupported(&vst3::Steinberg::Vst::INoteExpressionController_iid)
+            },
+            kResultFalse
+        );
+        assert_eq!(
+            unsafe {
+                host_support.isPlugInterfaceSupported(
+                    &vst3::Steinberg::Vst::INoteExpressionPhysicalUIMapping_iid,
+                )
+            },
+            kResultFalse
+        );
+        assert_eq!(
+            unsafe {
+                host_support
+                    .isPlugInterfaceSupported(&vst3::Steinberg::Vst::IParameterFunctionName_iid)
+            },
+            kResultFalse
+        );
+        assert_eq!(
+            unsafe {
+                host_support.isPlugInterfaceSupported(
+                    &vst3::Steinberg::Vst::ChannelContext::IInfoListener_iid,
+                )
+            },
+            kResultFalse
+        );
+
+        let raw_support = host_support.clone().into_raw();
+        assert!(unsafe { ComPtr::from_raw(raw_support.cast::<IPlugInterfaceSupport>()) }.is_some());
     }
 }
