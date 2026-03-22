@@ -1,6 +1,6 @@
 # Story 2.8: Surface Best-Effort Plugin Artwork in Plugin Manager
 
-Status: backlog
+Status: done
 
 ## Story
 
@@ -153,20 +153,23 @@ GPT-5.4
 
 ### Debug Log References
 
-- Story added explicitly as Epic 2 Story 2.8 at the user's request.
-- Story scope is based on current Plugin Manager implementation and follow-up research into plugin artwork metadata feasibility.
-- Research conclusion: VST3 plugins may expose platform-specific icons or resource assets, but there is no deterministic cross-platform cover-art field in the current inventory seam.
-- The story is intentionally parked as `backlog` so it does not interrupt higher-priority Epic 2 implementation work.
+- Attempted a bounded best-effort artwork implementation for 2.8, then reverted it after real-world validation showed the seam was not surfacing usable images.
+- Reverted all product-code, test, and documentation changes added for the attempted artwork feature so inventory behavior returns to the pre-2.8 badge-only state.
+- Closed the story intentionally as abandoned by product decision rather than shipped feature completion.
+- Validation after revert: targeted plugin frontend tests plus focused Rust plugin inventory tests.
 
 ### Completion Notes List
 
-- Created a dedicated deferred story for optional plugin artwork support in Plugin Manager.
-- Scoped the story around best-effort artwork extraction with fallback to the current generated square badge.
-- Preserved existing architectural boundaries: backend-owned inventory truth, app-scoped Plugin Manager ownership, and no `.soloc` persistence impact.
-- Recorded that this enhancement should not block the remaining Epic 2 critical path.
+- Intentionally abandoned Story 2.8 after the attempted implementation failed to surface useful real-world plugin artwork.
+- Restored the product to the existing generated square badge behavior with no optional artwork metadata seam in the inventory model.
+- Reverted the related docs and tests so the repository reflects the abandonment decision rather than the attempted implementation.
+- Marked the story `done` to indicate the explicit decision to stop pursuing this enhancement in the current plan.
 
 ### File List
 
 - `_bmad-output/implementation-artifacts/2-8-surface-best-effort-plugin-artwork-in-plugin-manager.md`
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
-- `_bmad-output/planning-artifacts/epics.md`
+
+## Change Log
+
+- 2026-03-22: Attempted best-effort plugin artwork support, reverted the implementation after it failed to surface usable images, and closed the story as intentionally abandoned.
