@@ -3,6 +3,8 @@ use crate::playback::vst3::{
     default_vst3_search_roots, list_vst3_candidates_in_root, validate_vst3_bundle,
     vst3_bundle_binary_path, Vst3BundleError, Vst3BundleErrorKind,
 };
+use crate::{AppContextState, RendererContextState};
+use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 use sled::Db;
 use std::collections::BTreeSet;
@@ -102,6 +104,19 @@ impl PluginInventoryContext {
         Self::from_db_path_and_roots(db_path, &[], startup_errors)
     }
 
+    #[cfg(test)]
+    pub fn with_entries_for_tests(entries: Vec<PluginInventoryEntry>) -> Self {
+        Self {
+            state: PluginInventoryState {
+                entries,
+                errors: vec![],
+                last_discovered_at_ms: None,
+            },
+            db: None,
+            sticky_errors: vec![],
+        }
+    }
+
     fn from_db_path_and_roots(
         db_path: Option<&Path>,
         roots: &[PathBuf],
@@ -178,6 +193,15 @@ impl PluginInventoryContext {
 
     pub fn resolve_available_bundle_path(&self, plugin_id: &str) -> Result<PathBuf, String> {
         resolve_available_bundle_path_in_entries(plugin_id, &self.state.entries)
+    }
+
+    pub fn available_plugin_ids(&self) -> FxHashSet<String> {
+        self.state
+            .entries
+            .iter()
+            .filter(|entry| entry.availability == PluginInventoryAvailability::Available)
+            .map(|entry| entry.id.clone())
+            .collect()
     }
 
     pub fn discover(&mut self) -> Result<(), String> {
@@ -485,9 +509,18 @@ pub fn plugin_inventory_discover(
     app: AppHandle,
     state: State<'_, PluginInventoryContextState>,
 ) -> Result<(), String> {
-    let mut inventory = state.lock().unwrap();
-    inventory.discover()?;
-    inventory.emit(&app);
+    {
+        let mut inventory = state.lock().unwrap();
+        inventory.discover()?;
+        inventory.emit(&app);
+    }
+
+    let app_state_handle = app.state::<AppContextState>();
+    let renderer_state_handle = app.state::<RendererContextState>();
+    let mut app_state = app_state_handle.lock().unwrap();
+    let mut renderer = renderer_state_handle.lock().unwrap();
+    app_state.emit_general_state(&app, &mut renderer, None);
+
     Ok(())
 }
 
@@ -497,7 +530,7 @@ mod tests {
         discover_inventory_in_roots, load_persisted_state,
         resolve_available_bundle_path_in_entries, PluginInventoryAvailability,
         PluginInventoryContext, PluginInventoryEntry, PluginInventoryFailure,
-        PluginInventoryFailureKind,
+        PluginInventoryFailureKind, PluginInventoryState,
     };
     use sled::Db;
     use std::path::PathBuf;
@@ -577,6 +610,38 @@ mod tests {
         .unwrap_err();
 
         assert!(error.contains("is unavailable"));
+    }
+
+    #[test]
+    fn available_plugin_ids_returns_only_available_entries() {
+        let context = PluginInventoryContext {
+            state: PluginInventoryState {
+                entries: vec![
+                    available_entry("plugin-a", "Plugin A", "/tmp/plugin-a.vst3"),
+                    PluginInventoryEntry {
+                        id: String::from("plugin-b"),
+                        name: String::from("Plugin B"),
+                        bundle_path: String::from("/tmp/plugin-b.vst3"),
+                        binary_path: None,
+                        source_root: String::from("/tmp"),
+                        availability: PluginInventoryAvailability::Unavailable,
+                        validation_failure: Some(PluginInventoryFailure {
+                            kind: PluginInventoryFailureKind::InvalidBundle,
+                            message: String::from("broken"),
+                        }),
+                    },
+                ],
+                errors: vec![],
+                last_discovered_at_ms: None,
+            },
+            db: None,
+            sticky_errors: vec![],
+        };
+
+        let available = context.available_plugin_ids();
+
+        assert!(available.contains("plugin-a"));
+        assert!(!available.contains("plugin-b"));
     }
 
     #[test]

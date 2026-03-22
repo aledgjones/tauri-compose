@@ -38,6 +38,7 @@ use instructions::{
 use preferences::{preferences_audition_set, Preferences};
 use renderer::hit_test::renderer_hit_test;
 use renderer::RendererContext;
+use rustc_hash::FxHashSet;
 use score::config::{
     score_config_auto_count_styles_section_set, score_config_auto_count_styles_solo_set,
 };
@@ -82,7 +83,7 @@ use score::instruments::defs::score_instruments_get_all_definitions;
 use score::instruments::{
     score_instruments_assign_plugin, score_instruments_create, score_instruments_move,
     score_instruments_remove, score_instruments_set_mute, score_instruments_set_pan,
-    score_instruments_set_solo, score_instruments_set_volume,
+    score_instruments_set_solo, score_instruments_set_volume, ResolvedPlaybackAssignment,
 };
 use score::layouts::{
     score_layouts_assign_flow, score_layouts_assign_player, score_layouts_create,
@@ -133,6 +134,8 @@ use utils::UniqueId;
 struct AppStateGeneral {
     ui: Ui,
     score: Score,
+    resolved_playback_assignment_by_instrument_id:
+        rustc_hash::FxHashMap<UniqueId, ResolvedPlaybackAssignment>,
     preferences: Preferences,
     current_file_path: Option<String>,
 }
@@ -144,6 +147,15 @@ struct AppContext {
     preferences: Preferences,
     next_id: UniqueId,
     current_file_path: Option<String>,
+}
+
+fn get_available_plugin_ids(
+    plugin_inventory_state: &ManagedPluginInventoryContextState,
+) -> FxHashSet<String> {
+    plugin_inventory_state
+        .lock()
+        .unwrap()
+        .available_plugin_ids()
 }
 
 impl AppContext {
@@ -260,6 +272,11 @@ impl AppContext {
         let general_state = AppStateGeneral {
             ui: self.ui.clone(),
             score: self.score.clone(),
+            resolved_playback_assignment_by_instrument_id: self
+                .score
+                .resolved_playback_assignment_by_instrument_id(&get_available_plugin_ids(
+                    app.state::<ManagedPluginInventoryContextState>().inner(),
+                )),
             current_file_path: self.current_file_path.clone(),
             preferences: self.preferences.clone(),
         };
@@ -315,12 +332,19 @@ pub(crate) type SamplerContextState = Mutex<SamplerContext>;
 const APP_NAME: &str = "Solo Compose";
 
 #[tauri::command(rename_all = "snake_case")]
-fn get_general_state(state: State<'_, AppContextState>) -> AppStateGeneral {
+fn get_general_state(
+    state: State<'_, AppContextState>,
+    plugin_inventory_state: State<'_, ManagedPluginInventoryContextState>,
+) -> AppStateGeneral {
     let state = state.lock().unwrap();
+    let available_plugin_ids = get_available_plugin_ids(plugin_inventory_state.inner());
 
     AppStateGeneral {
         ui: state.ui.clone(),
         score: state.score.clone(),
+        resolved_playback_assignment_by_instrument_id: state
+            .score
+            .resolved_playback_assignment_by_instrument_id(&available_plugin_ids),
         preferences: state.preferences.clone(),
         current_file_path: state.current_file_path.clone(),
     }
@@ -339,7 +363,6 @@ fn initialize(
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
     let audio = audio_state.lock().unwrap();
-    let plugin_inventory = plugin_inventory_state.lock().unwrap();
     let sampler = sampler_state.lock().unwrap();
 
     sync_transport_to_app_state(transport_shared.inner(), &state, 0);
@@ -349,7 +372,7 @@ fn initialize(
         Some(FlowRenderRecalculationRequest::full_visible_flows()),
     );
     audio.emit(&app);
-    plugin_inventory.emit(&app);
+    plugin_inventory_state.lock().unwrap().emit(&app);
     sampler.emit(&app);
 }
 
@@ -400,8 +423,11 @@ fn reset(
     Ok(())
 }
 
-pub(crate) fn get_general_state_snapshot(state: State<'_, AppContextState>) -> AppStateGeneral {
-    get_general_state(state)
+pub(crate) fn get_general_state_snapshot(app: &AppHandle) -> AppStateGeneral {
+    get_general_state(
+        app.state::<AppContextState>(),
+        app.state::<ManagedPluginInventoryContextState>(),
+    )
 }
 
 pub(crate) fn reset_app_state(

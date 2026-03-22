@@ -2,7 +2,13 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { useKeyboardShortcuts } from "./use-keyboard-shortcuts";
 import { createWrapper, createAppState } from "../../../services/test-utils";
-import { Accidental, Articulation, PlayerType } from "../../../services/types";
+import {
+  Accidental,
+  Articulation,
+  PlaybackAssignmentMode,
+  PlaybackAssignmentStatus,
+  PlayerType,
+} from "../../../services/types";
 
 // ---------------------------------------------------------------------------
 // Mock the actions module
@@ -88,7 +94,12 @@ const buildStateWithToneSelection = () => {
             short_name: "Pno.",
             stave_ids: [STAVE_ID],
             count: null,
-            assigned_plugin_id: null, // no audition
+            assignment_intent: {
+              mode: PlaybackAssignmentMode.Unassigned,
+              plugin_id: null,
+              target: null,
+              shared_instance_id: null,
+            },
             volume: 100,
             pan: 0,
             mute: false,
@@ -1463,12 +1474,26 @@ describe("useKeyboardShortcuts", () => {
         short_name: "Pno.",
         stave_ids: [STAVE_ID],
         count: null,
-        assigned_plugin_id: PLUGIN_ID,
+        assignment_intent: {
+          mode: PlaybackAssignmentMode.Direct,
+          plugin_id: PLUGIN_ID,
+          target: null,
+          shared_instance_id: null,
+        },
         volume: 100,
         pan: 0,
         mute: false,
         solo: false,
       };
+    state.resolved_playback_assignment_by_instrument_id = {
+      [INSTRUMENT_ID]: {
+        status: PlaybackAssignmentStatus.Ready,
+        mode: PlaybackAssignmentMode.Direct,
+        effective_plugin_id: PLUGIN_ID,
+        target: null,
+        shared_instance_id: null,
+      },
+    };
     state.preferences = { ...state.preferences, audition: true };
 
     // shiftPitchByStep returns a new pitch int (number) → audition should fire
@@ -1499,12 +1524,26 @@ describe("useKeyboardShortcuts", () => {
         short_name: "Pno.",
         stave_ids: [STAVE_ID],
         count: null,
-        assigned_plugin_id: PLUGIN_ID,
+        assignment_intent: {
+          mode: PlaybackAssignmentMode.Direct,
+          plugin_id: PLUGIN_ID,
+          target: null,
+          shared_instance_id: null,
+        },
         volume: 100,
         pan: 0,
         mute: false,
         solo: false,
       };
+    state.resolved_playback_assignment_by_instrument_id = {
+      [INSTRUMENT_ID]: {
+        status: PlaybackAssignmentStatus.Ready,
+        mode: PlaybackAssignmentMode.Direct,
+        effective_plugin_id: PLUGIN_ID,
+        target: null,
+        shared_instance_id: null,
+      },
+    };
     state.preferences = { ...state.preferences, audition: false };
 
     vi.mocked(actions.score.tone.shiftPitchByStep).mockResolvedValueOnce(61);

@@ -8,9 +8,123 @@ use crate::score::players::PlayerType;
 use crate::utils::UniqueId;
 use crate::{AppContextState, AudioContextState, RendererContextState, SamplerContextState};
 use defs::{get_instrument_definition, InstrumentType};
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
+use serde_repr::{Deserialize_repr, Serialize_repr};
 use tauri::State;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize_repr, Deserialize_repr)]
+#[repr(u8)]
+pub enum PlaybackAssignmentMode {
+    Unassigned = 0,
+    Direct = 1,
+    Targeted = 2,
+    SharedInstance = 3,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize_repr, Deserialize_repr)]
+#[repr(u8)]
+pub enum PlaybackAssignmentTargetMode {
+    PluginPart = 0,
+    MidiChannel = 1,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PlaybackAssignmentTarget {
+    pub mode: PlaybackAssignmentTargetMode,
+    pub index: u8,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PlaybackAssignmentIntent {
+    pub mode: PlaybackAssignmentMode,
+    pub plugin_id: Option<String>,
+    pub target: Option<PlaybackAssignmentTarget>,
+    pub shared_instance_id: Option<UniqueId>,
+}
+
+impl Default for PlaybackAssignmentIntent {
+    fn default() -> Self {
+        Self::unassigned()
+    }
+}
+
+impl PlaybackAssignmentIntent {
+    pub fn unassigned() -> Self {
+        Self {
+            mode: PlaybackAssignmentMode::Unassigned,
+            plugin_id: None,
+            target: None,
+            shared_instance_id: None,
+        }
+    }
+
+    pub fn direct(plugin_id: String) -> Self {
+        Self {
+            mode: PlaybackAssignmentMode::Direct,
+            plugin_id: Some(plugin_id),
+            target: None,
+            shared_instance_id: None,
+        }
+    }
+
+    pub fn effective_plugin_id(&self, available_plugin_ids: &FxHashSet<String>) -> Option<&str> {
+        let plugin_id = self.plugin_id.as_deref()?;
+
+        match self.mode {
+            PlaybackAssignmentMode::Direct if available_plugin_ids.contains(plugin_id) => {
+                Some(plugin_id)
+            }
+            PlaybackAssignmentMode::Unassigned
+            | PlaybackAssignmentMode::Direct
+            | PlaybackAssignmentMode::Targeted
+            | PlaybackAssignmentMode::SharedInstance => None,
+        }
+    }
+
+    pub fn resolved_state(
+        &self,
+        available_plugin_ids: &FxHashSet<String>,
+    ) -> ResolvedPlaybackAssignment {
+        let effective_plugin_id = self
+            .effective_plugin_id(available_plugin_ids)
+            .map(String::from);
+        let status = match self.mode {
+            PlaybackAssignmentMode::Unassigned => PlaybackAssignmentStatus::Unassigned,
+            PlaybackAssignmentMode::Direct if effective_plugin_id.is_some() => {
+                PlaybackAssignmentStatus::Ready
+            }
+            PlaybackAssignmentMode::Direct
+            | PlaybackAssignmentMode::Targeted
+            | PlaybackAssignmentMode::SharedInstance => PlaybackAssignmentStatus::NeedsAttention,
+        };
+
+        ResolvedPlaybackAssignment {
+            status,
+            mode: self.mode,
+            effective_plugin_id,
+            target: self.target.clone(),
+            shared_instance_id: self.shared_instance_id,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize_repr, Deserialize_repr)]
+#[repr(u8)]
+pub enum PlaybackAssignmentStatus {
+    Unassigned = 0,
+    Ready = 1,
+    NeedsAttention = 2,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ResolvedPlaybackAssignment {
+    pub status: PlaybackAssignmentStatus,
+    pub mode: PlaybackAssignmentMode,
+    pub effective_plugin_id: Option<String>,
+    pub target: Option<PlaybackAssignmentTarget>,
+    pub shared_instance_id: Option<UniqueId>,
+}
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Instrument {
@@ -21,7 +135,7 @@ pub struct Instrument {
     pub short_name: String,
     pub stave_ids: Vec<UniqueId>,
     pub count: Option<String>,
-    pub assigned_plugin_id: Option<String>,
+    pub assignment_intent: PlaybackAssignmentIntent,
     pub volume: u8,
     pub pan: u8,
     pub mute: bool,
@@ -42,6 +156,25 @@ impl Instrument {
             Some(count) => format!("{} {}", self.long_name, count),
             None => self.long_name.clone(),
         }
+    }
+
+    pub fn effective_plugin_id(&self, available_plugin_ids: &FxHashSet<String>) -> Option<&str> {
+        self.assignment_intent
+            .effective_plugin_id(available_plugin_ids)
+    }
+
+    pub fn resolved_playback_assignment(
+        &self,
+        available_plugin_ids: &FxHashSet<String>,
+    ) -> ResolvedPlaybackAssignment {
+        self.assignment_intent.resolved_state(available_plugin_ids)
+    }
+
+    pub fn set_direct_plugin_assignment(&mut self, plugin_id: Option<String>) {
+        self.assignment_intent = plugin_id.map_or_else(
+            PlaybackAssignmentIntent::unassigned,
+            PlaybackAssignmentIntent::direct,
+        );
     }
 
     pub fn set_volume(&mut self, volume: u8) -> u8 {
@@ -79,11 +212,31 @@ impl Instruments {
 }
 
 impl Score {
-    pub fn assigned_plugin_ids(&self) -> Vec<String> {
+    pub fn assigned_plugin_ids(&self, available_plugin_ids: &FxHashSet<String>) -> Vec<String> {
         self.instruments
             .by_id
             .values()
-            .filter_map(|instrument| instrument.assigned_plugin_id.clone())
+            .filter_map(|instrument| {
+                instrument
+                    .effective_plugin_id(available_plugin_ids)
+                    .map(String::from)
+            })
+            .collect()
+    }
+
+    pub fn resolved_playback_assignment_by_instrument_id(
+        &self,
+        available_plugin_ids: &FxHashSet<String>,
+    ) -> FxHashMap<UniqueId, ResolvedPlaybackAssignment> {
+        self.instruments
+            .by_id
+            .iter()
+            .map(|(instrument_id, instrument)| {
+                (
+                    *instrument_id,
+                    instrument.resolved_playback_assignment(available_plugin_ids),
+                )
+            })
             .collect()
     }
 
@@ -165,7 +318,7 @@ pub fn score_instruments_create(
         short_name: String::from(def.short_name),
         stave_ids,
         count: None,
-        assigned_plugin_id: None,
+        assignment_intent: PlaybackAssignmentIntent::default(),
         volume: 100,
         pan: 64,
         mute: false,
@@ -285,7 +438,7 @@ pub fn score_instruments_assign_plugin(
     let mut state = state.lock().unwrap();
 
     if let Some(instrument) = state.score.instruments.by_id.get_mut(&instrument_id) {
-        instrument.assigned_plugin_id = plugin_id;
+        instrument.set_direct_plugin_assignment(plugin_id);
     }
 
     sync_sampler_with_score(
@@ -428,7 +581,7 @@ mod tests {
             short_name: String::from(""),
             stave_ids: vec![],
             count: None,
-            assigned_plugin_id: None,
+            assignment_intent: PlaybackAssignmentIntent::default(),
             volume: 100,
             pan: 64,
             mute: false,
@@ -525,9 +678,62 @@ mod tests {
     }
 
     #[test]
-    fn instrument_assigned_plugin_id_default_none() {
+    fn instrument_assignment_intent_defaults_to_unassigned() {
         let i = make_instrument(1, "woodwind.flute", "Flute");
-        assert!(i.assigned_plugin_id.is_none());
+        assert_eq!(i.assignment_intent, PlaybackAssignmentIntent::unassigned());
+    }
+
+    #[test]
+    fn effective_plugin_id_reads_direct_assignment() {
+        let mut i = make_instrument(1, "woodwind.flute", "Flute");
+        let mut available_plugin_ids = FxHashSet::default();
+        available_plugin_ids.insert(String::from("plugin-a"));
+
+        i.set_direct_plugin_assignment(Some(String::from("plugin-a")));
+
+        assert_eq!(
+            i.effective_plugin_id(&available_plugin_ids),
+            Some("plugin-a")
+        );
+    }
+
+    #[test]
+    fn targeted_assignment_resolves_to_attention_needed() {
+        let mut available_plugin_ids = FxHashSet::default();
+        available_plugin_ids.insert(String::from("plugin-a"));
+
+        let i = Instrument {
+            assignment_intent: PlaybackAssignmentIntent {
+                mode: PlaybackAssignmentMode::Targeted,
+                plugin_id: Some(String::from("plugin-a")),
+                target: Some(PlaybackAssignmentTarget {
+                    mode: PlaybackAssignmentTargetMode::PluginPart,
+                    index: 2,
+                }),
+                shared_instance_id: None,
+            },
+            ..make_instrument(1, "woodwind.flute", "Flute")
+        };
+
+        assert_eq!(
+            i.resolved_playback_assignment(&available_plugin_ids).status,
+            PlaybackAssignmentStatus::NeedsAttention
+        );
+        assert_eq!(i.effective_plugin_id(&available_plugin_ids), None);
+    }
+
+    #[test]
+    fn direct_assignment_without_available_inventory_resolves_to_attention_needed() {
+        let i = Instrument {
+            assignment_intent: PlaybackAssignmentIntent::direct(String::from("plugin-a")),
+            ..make_instrument(1, "woodwind.flute", "Flute")
+        };
+
+        let available_plugin_ids = FxHashSet::default();
+        let resolved = i.resolved_playback_assignment(&available_plugin_ids);
+
+        assert_eq!(resolved.status, PlaybackAssignmentStatus::NeedsAttention);
+        assert_eq!(resolved.effective_plugin_id, None);
     }
 
     #[test]
@@ -678,6 +884,10 @@ mod tests {
 
     #[test]
     fn assigned_plugin_ids_collects_only_assigned_plugins() {
+        let mut available_plugin_ids = FxHashSet::default();
+        available_plugin_ids.insert(String::from("a"));
+        available_plugin_ids.insert(String::from("b"));
+
         let mut score = make_score(
             vec![make_player(1, PlayerType::Section, vec![10, 11, 12])],
             vec![
@@ -692,17 +902,50 @@ mod tests {
             .by_id
             .get_mut(&10)
             .unwrap()
-            .assigned_plugin_id = Some(String::from("a"));
+            .set_direct_plugin_assignment(Some(String::from("a")));
         score
             .instruments
             .by_id
             .get_mut(&12)
             .unwrap()
-            .assigned_plugin_id = Some(String::from("b"));
+            .set_direct_plugin_assignment(Some(String::from("b")));
 
         assert_eq!(
-            score.assigned_plugin_ids(),
+            score.assigned_plugin_ids(&available_plugin_ids),
             vec![String::from("a"), String::from("b")]
+        );
+    }
+
+    #[test]
+    fn resolved_playback_assignment_map_uses_backend_truth() {
+        let mut available_plugin_ids = FxHashSet::default();
+        available_plugin_ids.insert(String::from("plugin-a"));
+
+        let mut score = make_score(
+            vec![make_player(1, PlayerType::Section, vec![10, 11])],
+            vec![
+                make_instrument(10, "strings.violin", "Violin"),
+                make_instrument(11, "woodwind.flute", "Flute"),
+            ],
+        );
+
+        score
+            .instruments
+            .by_id
+            .get_mut(&10)
+            .unwrap()
+            .set_direct_plugin_assignment(Some(String::from("plugin-a")));
+
+        let by_instrument =
+            score.resolved_playback_assignment_by_instrument_id(&available_plugin_ids);
+
+        assert_eq!(
+            by_instrument.get(&10).unwrap().status,
+            PlaybackAssignmentStatus::Ready
+        );
+        assert_eq!(
+            by_instrument.get(&11).unwrap().status,
+            PlaybackAssignmentStatus::Unassigned
         );
     }
 }

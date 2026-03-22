@@ -53,6 +53,7 @@ mod tests {
     use crate::renderer::test_helpers::make_test_renderer;
     use crate::renderer::DrawInstruction;
     use crate::score::instruments::defs::InstrumentType;
+    use crate::score::instruments::PlaybackAssignmentIntent;
     use crate::score::staves::Stave;
     use crate::utils::UniqueId;
     use rustc_hash::FxHashMap;
@@ -66,7 +67,7 @@ mod tests {
             short_name: String::from("Vln."),
             stave_ids: vec![stave_id],
             count: None,
-            assigned_plugin_id: None,
+            assignment_intent: PlaybackAssignmentIntent::default(),
             volume: 100,
             pan: 64,
             mute: false,

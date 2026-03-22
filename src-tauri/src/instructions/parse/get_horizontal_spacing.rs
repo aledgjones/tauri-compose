@@ -1168,6 +1168,7 @@ pub fn get_horizontal_spacing_with_anchored_layouts(
 mod tests {
     use super::*;
     use crate::instructions::parse::get_measures::get_measures;
+    use crate::instructions::parse::get_written_durations::HostSpan;
 
     #[test]
     fn slot_count_reflects_all_variants() {
@@ -1276,8 +1277,7 @@ mod tests {
         use crate::score::entries::key_signature::{KeySignature, KeySignatureMode};
         use crate::score::entries::time_signature::{TimeSignature, TimeSignatureDrawType};
         use crate::score::entries::Entry;
-        use crate::score::instruments::defs::InstrumentType;
-        use crate::score::instruments::Instrument;
+        use crate::score::instruments::{defs::InstrumentType, Instrument, PlaybackAssignmentIntent};
         use crate::score::layouts::LayoutType;
         use crate::score::staves::Stave;
         use crate::score::tracks::{Track, Tracks};
@@ -1304,7 +1304,7 @@ mod tests {
             short_name: String::from("Sn."),
             stave_ids: vec![10],
             count: None,
-            assigned_plugin_id: None,
+            assignment_intent: PlaybackAssignmentIntent::default(),
             volume: 100,
             pan: 64,
             mute: false,
@@ -1316,7 +1316,7 @@ mod tests {
             1,
             0,
             4,
-            crate::score::components::duration::NoteDuration::Quarter,
+            NoteDuration::Quarter,
             TimeSignatureDrawType::Regular,
             None,
         )));
@@ -1371,8 +1371,7 @@ mod tests {
         use crate::score::entries::key_signature::{KeySignature, KeySignatureMode};
         use crate::score::entries::time_signature::{TimeSignature, TimeSignatureDrawType};
         use crate::score::entries::Entry;
-        use crate::score::instruments::defs::InstrumentType;
-        use crate::score::instruments::Instrument;
+        use crate::score::instruments::{defs::InstrumentType, Instrument, PlaybackAssignmentIntent};
         use crate::score::layouts::LayoutType;
         use crate::score::staves::Stave;
         use crate::score::tracks::{Track, Tracks};
@@ -1399,7 +1398,7 @@ mod tests {
             short_name: String::from("Vln."),
             stave_ids: vec![10],
             count: None,
-            assigned_plugin_id: None,
+            assignment_intent: PlaybackAssignmentIntent::default(),
             volume: 100,
             pan: 64,
             mute: false,
@@ -1411,7 +1410,7 @@ mod tests {
             1,
             0,
             4,
-            crate::score::components::duration::NoteDuration::Quarter,
+            NoteDuration::Quarter,
             TimeSignatureDrawType::Regular,
             None,
         )));
@@ -1531,11 +1530,11 @@ mod tests {
     #[test]
     fn horizontal_spacing_empty_nine_eight_bar_is_wider_than_empty_six_eight_bar() {
         use crate::score::components::duration::NoteDuration;
+        use crate::score::engraves::Engraves;
         use crate::score::entries::time_signature::{TimeSignature, TimeSignatureDrawType};
         use crate::score::entries::Entry;
         use crate::score::flows::Flow;
-        use crate::score::instruments::defs::InstrumentType;
-        use crate::score::instruments::Instrument;
+        use crate::score::instruments::{defs::InstrumentType, Instrument, PlaybackAssignmentIntent};
         use crate::score::layouts::LayoutType;
         use crate::score::staves::Stave;
         use crate::score::tracks::{Track, Tracks};
@@ -1563,7 +1562,7 @@ mod tests {
                 short_name: String::from("Vln."),
                 stave_ids: vec![10],
                 count: None,
-                assigned_plugin_id: None,
+                assignment_intent: PlaybackAssignmentIntent::default(),
                 volume: 100,
                 pan: 64,
                 mute: false,
@@ -1578,7 +1577,7 @@ mod tests {
             tracks.by_id.insert(100, flow_master);
             tracks.by_id.insert(200, Track::new(200));
 
-            let engraves = crate::score::engraves::Engraves::new();
+            let engraves = Engraves::new();
             let engrave = engraves.by_layout_type.get(&LayoutType::FullScore).unwrap();
             let measures = get_measures(&flow, &tracks);
 
@@ -1733,7 +1732,7 @@ mod tests {
 
         let anchored_track = AnchoredNotationTrack {
             owner_id: 77,
-            host_span: crate::instructions::parse::get_written_durations::HostSpan {
+            host_span: HostSpan {
                 start_tick: 0,
                 end_tick: eighth * 2,
             },
@@ -1843,7 +1842,7 @@ mod tests {
             .collect(),
         );
 
-        let shared_host_span = crate::instructions::parse::get_written_durations::HostSpan {
+        let shared_host_span = HostSpan {
             start_tick: 0,
             end_tick: 2,
         };
@@ -1964,7 +1963,7 @@ mod tests {
                 track: FxHashMap::default(),
                 anchored_tracks: vec![AnchoredNotationTrack {
                     owner_id: 401,
-                    host_span: crate::instructions::parse::get_written_durations::HostSpan {
+                    host_span: HostSpan {
                         start_tick: 0,
                         end_tick: 2,
                     },
@@ -1979,7 +1978,7 @@ mod tests {
                 track: FxHashMap::default(),
                 anchored_tracks: vec![AnchoredNotationTrack {
                     owner_id: 402,
-                    host_span: crate::instructions::parse::get_written_durations::HostSpan {
+                    host_span: HostSpan {
                         start_tick: 1,
                         end_tick: 3,
                     },
@@ -2010,7 +2009,9 @@ mod tests {
 
     #[test]
     fn consecutive_tuplets_use_next_tuplet_opening_as_forward_successor() {
+        use crate::instructions::parse::get_accidentals::AnchoredAccidentals;
         use crate::instructions::parse::get_tone_offset_info::ToneOffsetInfo;
+        use crate::instructions::parse::get_written_durations::{HostSpan, Notation, NotationTrack};
         use crate::score::components::duration::NoteDuration;
         use crate::score::components::pitch::{Accidental, Pitch};
         use crate::score::components::velocity::Velocity;
@@ -2020,8 +2021,7 @@ mod tests {
         use crate::score::entries::tuplet::Tuplet;
         use crate::score::entries::Entry;
         use crate::score::flows::Flow;
-        use crate::score::instruments::defs::InstrumentType;
-        use crate::score::instruments::Instrument;
+        use crate::score::instruments::{defs::InstrumentType, Instrument, PlaybackAssignmentIntent};
         use crate::score::layouts::LayoutType;
         use crate::score::staves::Stave;
         use crate::score::tracks::{Track, Tracks};
@@ -2055,7 +2055,7 @@ mod tests {
                 short_name: String::from("Vln."),
                 stave_ids: vec![10],
                 count: None,
-                assigned_plugin_id: None,
+                assignment_intent: PlaybackAssignmentIntent::default(),
                 volume: 100,
                 pan: 64,
                 mute: false,
@@ -2097,8 +2097,7 @@ mod tests {
             tracks.by_id.insert(300, track_master);
 
             let mut first_local_track = NotationTrack::new(e * 3);
-            let mut first_entry =
-                crate::instructions::parse::get_written_durations::Notation::new(e * 2, e);
+            let mut first_entry = Notation::new(e * 2, e);
             first_entry.tones.push(Tone::new(
                 first_tone_id,
                 e * 2,
@@ -2115,8 +2114,7 @@ mod tests {
             first_local_track.track.insert(e * 2, first_entry);
 
             let mut second_local_track = NotationTrack::new(e * 3);
-            let mut second_entry =
-                crate::instructions::parse::get_written_durations::Notation::new(0, e);
+            let mut second_entry = Notation::new(0, e);
             second_entry.tones.push(Tone::new(
                 second_tone_id,
                 0,
@@ -2138,7 +2136,7 @@ mod tests {
                 anchored_tracks: vec![
                     AnchoredNotationTrack {
                         owner_id: first_tuplet_id,
-                        host_span: crate::instructions::parse::get_written_durations::HostSpan {
+                        host_span: HostSpan {
                             start_tick: 0,
                             end_tick: e * 2,
                         },
@@ -2146,7 +2144,7 @@ mod tests {
                     },
                     AnchoredNotationTrack {
                         owner_id: second_tuplet_id,
-                        host_span: crate::instructions::parse::get_written_durations::HostSpan {
+                        host_span: HostSpan {
                             start_tick: e * 2,
                             end_tick: e * 4,
                         },
@@ -2178,8 +2176,7 @@ mod tests {
                 second_anchored_accidentals.slots_by_tick.insert(0, 1);
             }
 
-            let mut anchored_accidentals =
-                crate::instructions::parse::get_accidentals::AnchoredAccidentals::default();
+            let mut anchored_accidentals = AnchoredAccidentals::default();
             anchored_accidentals.insert(first_tuplet_id, Accidentals::new());
             anchored_accidentals.insert(second_tuplet_id, second_anchored_accidentals);
 

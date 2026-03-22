@@ -214,11 +214,17 @@ export const useKeyboardShortcuts = () => {
 
       const instrument =
         state.score.instruments.by_id[activeToneSelectionInfo.instrumentId];
-      if (!instrument?.assigned_plugin_id) {
+      const resolvedAssignment =
+        state.resolved_playback_assignment_by_instrument_id[
+          activeToneSelectionInfo.instrumentId
+        ];
+      const pluginId = resolvedAssignment?.effective_plugin_id;
+
+      if (!instrument || !pluginId) {
         return;
       }
 
-      actions.sampler.audition(instrument.assigned_plugin_id, pitch);
+      actions.sampler.audition(pluginId, pitch);
     };
 
     const toneShortcuts: Array<{
@@ -434,6 +440,7 @@ export const useKeyboardShortcuts = () => {
     selectionFlowId,
     selectionTick,
     state.preferences.audition,
+    state.resolved_playback_assignment_by_instrument_id,
     state.ui.flow_id,
     state.score.instruments.by_id,
     toneSelectionInfo,

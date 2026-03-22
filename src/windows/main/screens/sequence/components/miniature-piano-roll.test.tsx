@@ -10,6 +10,7 @@ import {
   Instrument,
   InstrumentType,
   NoteDuration,
+  PlaybackAssignmentMode,
 } from "../../../../../services/types";
 
 const makeFlow = (overrides = {}): Flow => ({
@@ -30,7 +31,12 @@ const makeInstrument = (overrides: Partial<Instrument> = {}): Instrument => ({
   short_name: "Pno.",
   stave_ids: [],
   count: null,
-  assigned_plugin_id: null,
+  assignment_intent: {
+    mode: PlaybackAssignmentMode.Unassigned,
+    plugin_id: null,
+    target: null,
+    shared_instance_id: null,
+  },
   volume: 100,
   pan: 64,
   mute: false,

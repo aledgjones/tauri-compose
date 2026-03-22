@@ -127,6 +127,44 @@ export enum InstrumentType {
   Percussive,
 }
 
+export enum PlaybackAssignmentMode {
+  Unassigned = 0,
+  Direct,
+  Targeted,
+  SharedInstance,
+}
+
+export enum PlaybackAssignmentTargetMode {
+  PluginPart = 0,
+  MidiChannel,
+}
+
+export type PlaybackAssignmentTarget = {
+  mode: PlaybackAssignmentTargetMode;
+  index: number;
+};
+
+export type PlaybackAssignmentIntent = {
+  mode: PlaybackAssignmentMode;
+  plugin_id: string | null;
+  target: PlaybackAssignmentTarget | null;
+  shared_instance_id: UniqueId | null;
+};
+
+export enum PlaybackAssignmentStatus {
+  Unassigned = 0,
+  Ready,
+  NeedsAttention,
+}
+
+export type ResolvedPlaybackAssignment = {
+  status: PlaybackAssignmentStatus;
+  mode: PlaybackAssignmentMode;
+  effective_plugin_id: string | null;
+  target: PlaybackAssignmentTarget | null;
+  shared_instance_id: UniqueId | null;
+};
+
 export type Instrument = {
   id: UniqueId;
   definition_id: string;
@@ -135,7 +173,7 @@ export type Instrument = {
   short_name: string;
   stave_ids: UniqueId[];
   count: string | null;
-  assigned_plugin_id: string | null;
+  assignment_intent: PlaybackAssignmentIntent;
   volume: number;
   pan: number;
   mute: boolean;
@@ -503,6 +541,10 @@ export type AppState = {
     layouts: Layouts;
     engraves: Engraves;
   };
+  resolved_playback_assignment_by_instrument_id: Record<
+    UniqueId,
+    ResolvedPlaybackAssignment
+  >;
   preferences: {
     audition: boolean;
   };

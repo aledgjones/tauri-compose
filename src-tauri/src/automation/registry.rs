@@ -1546,7 +1546,7 @@ fn derive_instrument_tracks(
     flow_id: u64,
     instrument_id: u64,
 ) -> Result<LookupInstrumentFlowTracks, String> {
-    let state = get_general_state_snapshot(app.state::<AppContextState>());
+    let state = get_general_state_snapshot(app);
     let flow = state
         .score
         .flows
@@ -1618,7 +1618,7 @@ fn derive_score_slice(
     player_id: Option<u64>,
     instrument_id: Option<u64>,
 ) -> Result<Value, String> {
-    let state = get_general_state_snapshot(app.state::<AppContextState>());
+    let state = get_general_state_snapshot(app);
 
     if let Some(id) = flow_id {
         if !state.score.flows.by_id.contains_key(&id) {
@@ -1684,13 +1684,21 @@ fn derive_score_slice(
         .iter()
         .map(|current_instrument_id| {
             let instrument = &state.score.instruments.by_id[current_instrument_id];
+            let resolved_playback_assignment = state
+                .resolved_playback_assignment_by_instrument_id
+                .get(current_instrument_id)
+                .cloned();
             json!({
                 "id": instrument.id,
                 "definition_id": instrument.definition_id,
                 "long_name": instrument.long_name,
                 "short_name": instrument.short_name,
                 "stave_ids": instrument.stave_ids,
-                "assigned_plugin_id": instrument.assigned_plugin_id,
+                "assigned_plugin_id": resolved_playback_assignment
+                    .as_ref()
+                    .and_then(|assignment| assignment.effective_plugin_id.clone()),
+                "assignment_intent": instrument.assignment_intent,
+                "resolved_playback_assignment": resolved_playback_assignment,
             })
         })
         .collect::<Vec<_>>();
@@ -1739,7 +1747,7 @@ fn derive_score_slice(
 }
 
 fn derive_active_score(app: &AppHandle) -> Result<Value, String> {
-    let state = get_general_state_snapshot(app.state::<AppContextState>());
+    let state = get_general_state_snapshot(app);
 
     Ok(json!({
         "file_path": state.current_file_path,
@@ -1751,7 +1759,7 @@ fn derive_active_score(app: &AppHandle) -> Result<Value, String> {
 }
 
 fn derive_bar_map(app: &AppHandle, flow_id: u64) -> Result<Value, String> {
-    let state = get_general_state_snapshot(app.state::<AppContextState>());
+    let state = get_general_state_snapshot(app);
     let flow = state
         .score
         .flows
@@ -1812,7 +1820,7 @@ fn derive_bar_map(app: &AppHandle, flow_id: u64) -> Result<Value, String> {
 }
 
 fn derive_flow_markers(app: &AppHandle, flow_id: u64) -> Result<Value, String> {
-    let state = get_general_state_snapshot(app.state::<AppContextState>());
+    let state = get_general_state_snapshot(app);
     let flow = state
         .score
         .flows
@@ -1843,7 +1851,7 @@ fn derive_track_events(
     start_tick: Option<u64>,
     end_tick: Option<u64>,
 ) -> Result<Value, String> {
-    let state = get_general_state_snapshot(app.state::<AppContextState>());
+    let state = get_general_state_snapshot(app);
     let track = state
         .score
         .tracks

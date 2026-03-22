@@ -1,3 +1,4 @@
+use crate::playback::plugin_inventory::PluginInventoryContextState;
 use crate::playback::scvi::ScviContainer;
 use crate::playback::streamer::{self, StreamBuffer, StreamRequest};
 use crate::score::Score;
@@ -11,7 +12,7 @@ use std::fs::{self, File};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
-use tauri::{AppHandle, Emitter, State};
+use tauri::{AppHandle, Emitter, Manager, State};
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct ArticulationMeta {
@@ -101,7 +102,12 @@ pub fn sync_sampler_with_score(
     audio_state: &AudioContextState,
     error_context: &str,
 ) {
-    let assigned_plugin_ids = score.assigned_plugin_ids();
+    let available_plugin_ids = app
+        .state::<PluginInventoryContextState>()
+        .lock()
+        .unwrap()
+        .available_plugin_ids();
+    let assigned_plugin_ids = score.assigned_plugin_ids(&available_plugin_ids);
 
     let mut sampler = sampler_state.lock().unwrap();
     let audio = audio_state.lock().unwrap();

@@ -156,7 +156,7 @@ pub fn get_vertical_spans(instruments: &Vec<&Instrument>, engrave: &Engrave) -> 
 mod tests {
     use super::*;
     use crate::score::engraves::Engraves;
-    use crate::score::instruments::{defs::InstrumentType, Instrument};
+    use crate::score::instruments::{defs::InstrumentType, Instrument, PlaybackAssignmentIntent};
     use crate::score::layouts::LayoutType;
 
     fn make_instrument(id: u64, definition_id: &str, stave_ids: Vec<u64>) -> Instrument {
@@ -168,7 +168,7 @@ mod tests {
             short_name: String::new(),
             stave_ids,
             count: None,
-            assigned_plugin_id: None,
+            assignment_intent: PlaybackAssignmentIntent::default(),
             volume: 100,
             pan: 64,
             mute: false,

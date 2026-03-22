@@ -5,7 +5,7 @@ import { mdiCableData, mdiSizeM, mdiSizeS } from "@mdi/js";
 import { TokenizedText } from "../../../../../ui/text";
 import classNames from "classnames";
 import { Select } from "../../../../../ui/select";
-import { useSamplerState } from "../../../../../services/state";
+import { useAppState, useSamplerState } from "../../../../../services/state";
 import { actions } from "../../../../../services/actions";
 
 interface InstrumentOverviewRowProps {
@@ -19,8 +19,11 @@ export const InstrumentOverviewRow: FC<InstrumentOverviewRowProps> = ({
   color,
   isDisabled,
 }) => {
+  const state = useAppState();
   const sampler = useSamplerState();
   const { plugins } = sampler;
+  const assignmentState =
+    state.resolved_playback_assignment_by_instrument_id[instrument.id];
 
   const options = useMemo(() => {
     return Object.values(plugins).map((plugin) => ({
@@ -83,7 +86,7 @@ export const InstrumentOverviewRow: FC<InstrumentOverviewRowProps> = ({
 
       <Select
         className="flex-1"
-        value={instrument.assigned_plugin_id || ""}
+        value={assignmentState?.effective_plugin_id || ""}
         options={options}
         onChange={handlePluginChange}
         icon={mdiCableData}

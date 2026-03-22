@@ -148,10 +148,6 @@ export const Sequencer: FC<Props> = ({
     return instrumentColors[index] ?? "#4A90D9";
   }, [instruments, instrumentId, instrumentColors]);
 
-  const instrument = instrumentId
-    ? state.score.instruments.by_id[instrumentId]
-    : null;
-
   const tuplets = useMemo(() => {
     if (!track) {
       return [];
@@ -221,7 +217,13 @@ export const Sequencer: FC<Props> = ({
             instrumentId={instrumentId}
             color={color}
             audition={state.preferences.audition}
-            pluginId={instrument?.assigned_plugin_id ?? null}
+            pluginId={
+              instrumentId === null
+                ? null
+                : (state.resolved_playback_assignment_by_instrument_id[
+                    instrumentId
+                  ]?.effective_plugin_id ?? null)
+            }
           />
           <PlaybackLine ticks={ticks} height={slots.height} />
         </div>

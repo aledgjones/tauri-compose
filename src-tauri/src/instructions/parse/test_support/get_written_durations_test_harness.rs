@@ -10,7 +10,7 @@ use crate::score::entries::tuplet::{Tuplet, TupletEntry};
 use crate::score::entries::Entry;
 use crate::score::flows::Flow;
 use crate::score::instruments::defs::InstrumentType;
-use crate::score::instruments::Instrument;
+use crate::score::instruments::{Instrument, PlaybackAssignmentIntent};
 use crate::score::staves::{Stave, Staves};
 use crate::score::tracks::{Track, Tracks};
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -307,7 +307,7 @@ fn make_parser_fixture_with_length_and_tuplets_and_barlines(
         short_name: String::from("Test"),
         stave_ids: vec![stave_id],
         count: None,
-        assigned_plugin_id: None,
+        assignment_intent: PlaybackAssignmentIntent::default(),
         volume: 100,
         pan: 64,
         mute: false,

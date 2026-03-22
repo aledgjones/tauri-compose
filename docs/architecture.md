@@ -59,17 +59,24 @@ The score itself is rendered natively by Rust/Skia/Metal — all other UI (panel
 - **`TransportContext`** — Behind `Mutex` + `TransportShared` (Arc with atomics for lock-free polling)
 - **Sample attack alignment path** — SCVI SIDX metadata -> `SampleIndex` -> sampler `CacheSample` -> legacy sampler `StreamRequest` -> streamer trim-before-resample
 
+Score-instrument playback assignment is now split into two backend-owned layers:
+
+- persisted `Instrument.assignment_intent` on the score domain stores portable project intent only
+- emitted `resolved_playback_assignment_by_instrument_id` on `soloc://state/general` stores the backend-computed score-context status (`Unassigned`, `Ready`, `NeedsAttention`) plus the currently compatible effective plugin id and any explicit target/shared-instance metadata needed by later stories
+
+That split is deliberate. `.soloc` files must stay portable and must not persist machine-local inventory truth, while React score surfaces must still receive one authoritative backend answer instead of inventing local assignment health rules. A direct assignment is only `Ready` when the referenced machine-local inventory entry is currently available, and targeted/shared intents remain explicit attention-needed states until their owning later stories add the corresponding runtime behavior.
+
 ### Frontend Side (Display Layer)
 
 Five React contexts mirror the backend state:
 
-| Context                  | Event Channel                         | Hook                        | Purpose                           |
-| ------------------------ | ------------------------------------- | --------------------------- | --------------------------------- |
-| `AppContext`             | `soloc://state/general`               | `useAppState()`             | UI state, score data, preferences |
-| `AudioContext`           | `soloc://state/audio`                 | `useAudioState()`           | Device list, active device        |
-| `PluginInventoryContext` | `soloc://state/plugin_inventory`      | `usePluginInventoryState()` | Machine-local VST3 inventory      |
-| `SamplerContext`         | `soloc://state/sampler`               | `useSamplerState()`         | Plugin list, loaded plugins       |
-| `TransportContext`       | RAF polling via `transport_get_state` | `useTransportState()`       | Playing, tick, tempo              |
+| Context                  | Event Channel                         | Hook                        | Purpose                                                               |
+| ------------------------ | ------------------------------------- | --------------------------- | --------------------------------------------------------------------- |
+| `AppContext`             | `soloc://state/general`               | `useAppState()`             | UI state, score data, resolved playback assignment state, preferences |
+| `AudioContext`           | `soloc://state/audio`                 | `useAudioState()`           | Device list, active device                                            |
+| `PluginInventoryContext` | `soloc://state/plugin_inventory`      | `usePluginInventoryState()` | Machine-local VST3 inventory                                          |
+| `SamplerContext`         | `soloc://state/sampler`               | `useSamplerState()`         | Plugin list, loaded plugins                                           |
+| `TransportContext`       | RAF polling via `transport_get_state` | `useTransportState()`       | Playing, tick, tempo                                                  |
 
 The sampler state above is retained only as bounded legacy scaffolding. The dedicated plugin inventory state is now the backend-owned machine-local VST3 discovery seam. Startup reuses the persisted inventory immediately, revalidates cached entries, performs one cheap directory sweep to spot uncached bundles, probes only those newly seen bundles, and still leaves full root-wide reprobe behavior to the explicit manual refresh workflow. The canonical app-scoped browse surface for that inventory is now the dedicated Plugin Manager window opened from the Sequence menu, where the shared `Refresh plugin inventory` control surfaces refresh-in-progress and refreshed-state feedback while the Sequence bottom panel remains a temporary contextual browse seam until later score-assignment stories own contextual launch and recovery UX. Epic 2 through Epic 6 must continue building VST-owned assignment, runtime, and transport-adjacent contracts rather than extending `SamplerContext`, `soloc://state/sampler`, or sampler-era action/event contracts. The planned end state is full removal of the remaining SCVI subsystem once the VST replacement path is complete.
 
@@ -78,7 +85,7 @@ The sampler state above is retained only as bounded legacy scaffolding. The dedi
 1. User interacts with React UI
 2. `actions.ts` calls `invoke("command_name", { params })` — all params use `snake_case`
 3. Rust command locks `AppContext`, mutates state
-4. Rust calls `state.emit()` → serializes state → `app.emit("soloc://state/general")` to ALL windows
+4. Rust calls `state.emit()` → serializes state, including backend-resolved playback assignment status → `app.emit("soloc://state/general")` to ALL windows
 5. Each window's `AppStateProvider` receives event via `listen()`, calls `setState()`
 6. React re-renders
 

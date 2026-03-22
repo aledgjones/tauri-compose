@@ -15,7 +15,7 @@ Score
 ├── Players           — Ordered collection of Players (Solo or Section)
 │   └── Player        — Has ordered list of Instrument IDs
 ├── Instruments       — Collection of Instruments (by_id only)
-│   └── Instrument    — Definition, stave IDs, mixer params, plugin assignment
+│   └── Instrument    — Definition, stave IDs, mixer params, persisted playback assignment intent
 ├── Flows             — Ordered collection of musical movements
 │   └── Flow          — Player assignments, length in ticks, staves
 │       └── Staves    — Per-instrument staves within a flow
@@ -386,13 +386,43 @@ pub struct Instrument {
     pub short_name: String,
     pub stave_ids: Vec<UniqueId>,
     pub count: Option<String>,        // Auto-generated: "I", "II" or "1", "2"
-    pub assigned_plugin_id: Option<String>,
+    pub assignment_intent: PlaybackAssignmentIntent,
     pub volume: u8,                   // 0–255 mixer volume
     pub pan: u8,                      // 0–127 pan (64=center)
     pub mute: bool,
     pub solo: bool,
 }
 ```
+
+`Instrument.assignment_intent` is the durable score-owned playback contract. It persists portable user intent only and supports the current direct single-part case plus the deferred Epic 3 targeted/shared-instance cases without reintroducing frontend-owned truth.
+
+```rust
+pub struct PlaybackAssignmentIntent {
+    pub mode: PlaybackAssignmentMode,          // Unassigned | Direct | Targeted | SharedInstance
+    pub plugin_id: Option<String>,
+    pub target: Option<PlaybackAssignmentTarget>,
+    pub shared_instance_id: Option<UniqueId>,
+}
+
+pub struct PlaybackAssignmentTarget {
+    pub mode: PlaybackAssignmentTargetMode,    // PluginPart | MidiChannel
+    pub index: u8,
+}
+```
+
+Portable assignment intent is distinct from machine-local readiness. The backend emits resolved score-context state separately through `soloc://state/general` so React can present one Rust-owned answer instead of re-deriving assignment health from scattered fields.
+
+```rust
+pub struct ResolvedPlaybackAssignment {
+    pub status: PlaybackAssignmentStatus,      // Unassigned | Ready | NeedsAttention
+    pub mode: PlaybackAssignmentMode,
+    pub effective_plugin_id: Option<String>,   // Present only when current runtime compatibility is available
+    pub target: Option<PlaybackAssignmentTarget>,
+    pub shared_instance_id: Option<UniqueId>,
+}
+```
+
+`ResolvedPlaybackAssignment` is availability-aware. `effective_plugin_id` is exposed only for direct assignments that are currently compatible on this machine, so targeted/shared intents and missing direct plugins degrade to `NeedsAttention` instead of silently falling through legacy runtime paths.
 
 Instrument definitions are hardcoded in `defs.rs` via `lazy_static!`. Each definition specifies the instrument family path, names, stave count, default clef, and pitch assignments. Categories include: Brass, Keyboards, Percussion, Strings, Woodwinds.
 
