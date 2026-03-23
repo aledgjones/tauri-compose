@@ -27,6 +27,11 @@ vi.mock("../../../../../services/actions", () => ({
       },
     },
     score: {
+      playback: {
+        slot: {
+          create: vi.fn().mockResolvedValue(99),
+        },
+      },
       instrument: {
         setSolo: vi.fn(),
         setMute: vi.fn(),
@@ -172,9 +177,29 @@ describe("Sequence BottomPanel", () => {
         ],
       },
     });
-    expect(screen.getAllByText("Current rack").length).toBeGreaterThan(0);
+    expect(
+      screen.getByRole("button", { name: "Add slot" }),
+    ).toBeInTheDocument();
     expect(screen.getByText("1. Grand Piano")).toBeInTheDocument();
     expect(screen.getByText("2. Unassigned")).toBeInTheDocument();
+  });
+
+  it("creates a slot from the Instruments tab top bar", async () => {
+    const appState = createAppState({
+      ui: {
+        screens: {
+          sequence: {
+            bottom_panel_tab: BottomPanelTab.Instruments,
+          } as never,
+        },
+      } as never,
+    });
+
+    renderWithProviders(<BottomPanel />, { appState });
+
+    fireEvent.click(screen.getByRole("button", { name: "Add slot" }));
+
+    expect(actions.score.playback.slot.create).toHaveBeenCalled();
   });
 
   it("renders Sequencer toolbar when Sequencer tab is active", () => {

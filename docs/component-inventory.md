@@ -150,14 +150,14 @@ The notation editor view.
 
 Piano roll / sequencer view.
 
-| Component               | File                                     | Description                                                                   |
-| ----------------------- | ---------------------------------------- | ----------------------------------------------------------------------------- |
-| `Sequence`              | `index.tsx`                              | Full-height piano roll with instrument overview                               |
-| `BottomPanel`           | `components/bottom-panel.tsx`            | Sequence tabs plus the current-rack bottom-panel surface                      |
-| `InstrumentOverview`    | `components/instrument-overview.tsx`     | Instrument list with miniature piano rolls                                    |
-| `InstrumentOverviewRow` | `components/instrument-overview-row.tsx` | Single instrument row with compact route summary and bounded recovery handoff |
-| `PlaybackRackPanel`     | `components/playback-rack-panel.tsx`     | Current score rack surface showing backend-owned slots, including empty slots |
-| `MiniaturePianoRoll`    | `components/miniature-piano-roll.tsx`    | Small preview of instrument track                                             |
+| Component               | File                                     | Description                                                                                                                                  |
+| ----------------------- | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Sequence`              | `index.tsx`                              | Full-height piano roll with instrument overview                                                                                              |
+| `BottomPanel`           | `components/bottom-panel.tsx`            | Sequence tabs plus the current-rack bottom-panel surface                                                                                     |
+| `InstrumentOverview`    | `components/instrument-overview.tsx`     | Instrument list with miniature piano rolls                                                                                                   |
+| `InstrumentOverviewRow` | `components/instrument-overview-row.tsx` | Single instrument row with compact route summary and bounded recovery handoff                                                                |
+| `PlaybackRackPanel`     | `components/playback-rack-panel.tsx`     | Current score rack surface showing backend-owned slots as horizontal cards, with an add-slot control and slot-local available-plugin pickers |
+| `MiniaturePianoRoll`    | `components/miniature-piano-roll.tsx`    | Small preview of instrument track                                                                                                            |
 
 ---
 

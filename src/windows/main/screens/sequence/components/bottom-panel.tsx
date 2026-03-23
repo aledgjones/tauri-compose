@@ -1,10 +1,9 @@
-import { FC } from "react";
+import { FC, useState } from "react";
 import { useAppState } from "../../../../../services/state";
 import { BottomPanelTab } from "../../../../../services/types";
 import { actions } from "../../../../../services/actions";
-import { mdiCableData, mdiPiano, mdiTuneVertical } from "@mdi/js";
+import { mdiCableData, mdiPiano, mdiPlus, mdiTuneVertical } from "@mdi/js";
 import { IconButton } from "../../../../../ui/buttons/icon-button";
-import { TokenizedText } from "../../../../../ui/text";
 import { Sequencer, SequencerToolbar } from "../../../components/sequencer";
 import { Mixer, MixerToolbar } from "../../../components/mixer";
 import { useBottomPanelState } from "../../../hooks/use-bottom-panel-state";
@@ -18,6 +17,8 @@ const SEQUENCE_TABS = [
 
 export const BottomPanel: FC = () => {
   const state = useAppState();
+  const [isCreatingSlot, setIsCreatingSlot] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
   const {
     instruments,
     instrumentOptions,
@@ -32,9 +33,25 @@ export const BottomPanel: FC = () => {
     snapValue,
   } = useBottomPanelState();
   const tab = state.ui.screens.sequence.bottom_panel_tab;
-  const selectedInstrumentLabel = selectedInstrument
-    ? `${selectedInstrument.long_name}${selectedInstrument.count ? ` ${selectedInstrument.count}` : ""}`
-    : null;
+
+  const handleCreateSlot = async () => {
+    if (isCreatingSlot) {
+      return;
+    }
+
+    setIsCreatingSlot(true);
+    setCreateError(null);
+
+    try {
+      await actions.score.playback.slot.create();
+    } catch (error) {
+      setCreateError(
+        error instanceof Error ? error.message : "Failed to create slot.",
+      );
+    } finally {
+      setIsCreatingSlot(false);
+    }
+  };
 
   return (
     <div className="flex flex-col min-h-0 overflow-hidden">
@@ -56,13 +73,15 @@ export const BottomPanel: FC = () => {
           <MixerToolbar instruments={instruments} />
         )}
         {tab === BottomPanelTab.Instruments && (
-          <div className="flex flex-1 items-center bg-neutral-900 px-3 text-[11px] uppercase tracking-[0.18em] text-neutral-500">
-            <span>Current rack</span>
-            {selectedInstrumentLabel ? (
-              <span className="ml-3 truncate text-xs normal-case tracking-normal text-neutral-200">
-                <TokenizedText>{selectedInstrumentLabel}</TokenizedText>
-              </span>
-            ) : null}
+          <div className="flex flex-1 gap-0.5">
+            <IconButton
+              path={mdiPlus}
+              variant="interactive"
+              onClick={handleCreateSlot}
+              isDisabled={isCreatingSlot}
+              title="Add slot"
+            />
+            <div className="bg-neutral-900 flex-1" />
           </div>
         )}
         <div className="flex flex-1 justify-end gap-0.5">
@@ -92,6 +111,7 @@ export const BottomPanel: FC = () => {
       {tab === BottomPanelTab.Mixer && <Mixer instruments={instruments} />}
       {tab === BottomPanelTab.Instruments && (
         <PlaybackRackPanel
+          createError={createError}
           instrument={selectedInstrument}
           route={selectedRoute}
         />

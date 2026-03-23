@@ -1163,6 +1163,21 @@ mod tests {
     }
 
     #[test]
+    fn create_playback_slot_creates_empty_slot() {
+        let mut score = make_score(
+            vec![make_player(1, PlayerType::Section, vec![10])],
+            vec![make_instrument(10, "strings.violin", "Violin")],
+        );
+
+        score
+            .create_playback_slot(100)
+            .expect("slot creation should succeed");
+
+        assert_eq!(score.playback.rack.order, vec![100]);
+        assert_eq!(score.playback.rack.by_id[&100].target, None);
+    }
+
+    #[test]
     fn cannot_remove_referenced_slot() {
         let mut score = make_score(
             vec![make_player(1, PlayerType::Section, vec![10])],

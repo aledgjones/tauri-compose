@@ -1,6 +1,6 @@
 # Story 3.3: Load Or Create A Rack Slot From The Available Plugin Inventory
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -10,33 +10,33 @@ so that I can prepare a reusable playback destination without leaving my composi
 
 ## Acceptance Criteria
 
-1. Given a usable plugin inventory exists, when the user chooses a plugin from the contextual rack workflow, then Compose creates a rack slot, assigns the chosen plugin to that slot, and stores the slot as backend-owned playback intent.
+1. Given a usable plugin inventory exists, when the user adds a slot from the contextual rack workflow, then Compose creates an empty rack slot as backend-owned playback intent, and when the user chooses or updates that slot's plugin from the slot-local picker, then Compose stores the chosen plugin on that existing slot.
 2. Given the score-context picker is used for slot preparation, when the user opens it, then it presents a filtered, musician-friendly view of currently usable plugins and it does not require the user to manage the full plugin inventory window just to prepare a slot.
 3. Given a rack slot is created successfully, when Sequence state is refreshed, then the current rack reflects the new slot and exposes a routeable slot destination for later routing stories without yet connecting any instrument to it.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Reuse the corrected Sequence rack surfaces for slot preparation instead of inventing a parallel workflow (AC: 1, 2, 3)
-  - [ ] Keep the Sequence bottom panel as the primary current-rack surface where slot preparation occurs.
-  - [ ] Let row-level or compact score-context affordances hand off into that same rack surface rather than creating a second slot-preparation model.
-  - [ ] Do not introduce a new dedicated window, app-scoped setup flow, or Plugin Manager-dependent workflow for ordinary slot preparation.
-- [ ] Task 2: Source slot preparation from the backend-owned usable VST inventory seam (AC: 1, 2)
-  - [ ] Consume the current usable plugin inventory truth from the existing Rust-owned inventory seam rather than sampler-era plugin lists or frontend-only filtering.
-  - [ ] Present only plugins Compose can currently use for this score-context slot-preparation workflow.
-  - [ ] Keep the picker musician-friendly, concise, and contextual instead of exposing maintainer-oriented inventory details.
-- [ ] Task 3: Create backend-owned rack-slot intent without widening into routing or activation (AC: 1, 3)
-  - [ ] Persist the prepared slot into the current score rack using the backend-owned rack and slot model established by Story 3.1.
-  - [ ] Bind the chosen plugin identity to that newly created slot as part of the same backend-owned slot intent.
-  - [ ] Refresh emitted Sequence state so the current rack shows the new slot immediately after successful preparation.
-  - [ ] Keep this slice about prepared slot intent only; do not activate plugin runtime state or require first-audible-playback behavior.
-- [ ] Task 4: Keep Story 3.3 bounded away from route selection and shared-slot semantics (AC: 1, 2, 3)
-  - [ ] Do not capture instrument-to-slot target routing here; Story 3.4 owns explicit route authoring.
-  - [ ] Do not silently collapse this workflow into shared-slot reuse across instruments; Story 3.5 owns explicit shared-slot reuse behavior.
-  - [ ] Do not add automatic routing, repair or reroute flows, native plugin-editor launch, or runtime activation behavior.
-- [ ] Task 5: Add focused seam-level validation and docs for score-context slot preparation (AC: 1, 2, 3)
-  - [ ] Add frontend tests covering slot preparation from the Sequence rack workflow, usable-plugin filtering, and rack refresh after success.
-  - [ ] Add backend or contract tests only where needed to confirm prepared slot intent is stored in backend-owned rack state and emitted coherently to Sequence.
-  - [ ] Update docs so they describe Sequence as the score-context rack surface and Plugin Manager as the app-scoped inventory-management surface.
+- [x] Task 1: Reuse the corrected Sequence rack surfaces for slot preparation instead of inventing a parallel workflow (AC: 1, 2, 3)
+  - [x] Keep the Sequence bottom panel as the primary current-rack surface where slot preparation occurs.
+  - [x] Let row-level or compact score-context affordances hand off into that same rack surface rather than creating a second slot-preparation model.
+  - [x] Do not introduce a new dedicated window, app-scoped setup flow, or Plugin Manager-dependent workflow for ordinary slot preparation.
+- [x] Task 2: Source slot preparation from the backend-owned usable VST inventory seam (AC: 1, 2)
+  - [x] Consume the current usable plugin inventory truth from the existing Rust-owned inventory seam rather than sampler-era plugin lists or frontend-only filtering.
+  - [x] Present only plugins Compose can currently use for this score-context slot-preparation workflow.
+  - [x] Keep the picker musician-friendly, concise, and contextual instead of exposing maintainer-oriented inventory details.
+- [x] Task 3: Create backend-owned rack-slot intent without widening into routing or activation (AC: 1, 3)
+  - [x] Persist the prepared slot into the current score rack using the backend-owned rack and slot model established by Story 3.1.
+  - [x] Bind the chosen plugin identity to that newly created slot as part of the same backend-owned slot intent.
+  - [x] Refresh emitted Sequence state so the current rack shows the new slot immediately after successful preparation.
+  - [x] Keep this slice about prepared slot intent only; do not activate plugin runtime state or require first-audible-playback behavior.
+- [x] Task 4: Keep Story 3.3 bounded away from route selection and shared-slot semantics (AC: 1, 2, 3)
+  - [x] Do not capture instrument-to-slot target routing here; Story 3.4 owns explicit route authoring.
+  - [x] Do not silently collapse this workflow into shared-slot reuse across instruments; Story 3.5 owns explicit shared-slot reuse behavior.
+  - [x] Do not add automatic routing, repair or reroute flows, native plugin-editor launch, or runtime activation behavior.
+- [x] Task 5: Add focused seam-level validation and docs for score-context slot preparation (AC: 1, 2, 3)
+  - [x] Add frontend tests covering slot preparation from the Sequence rack workflow, usable-plugin filtering, and rack refresh after success.
+  - [x] Add backend or contract tests only where needed to confirm prepared slot intent is stored in backend-owned rack state and emitted coherently to Sequence.
+  - [x] Update docs so they describe Sequence as the score-context rack surface and Plugin Manager as the app-scoped inventory-management surface.
 
 ## Dev Notes
 
@@ -305,6 +305,9 @@ GPT-5.4
 - Artifact review confirmed the approved Epic 3 sequence is now rack foundation, rack display, slot preparation, route authoring, shared-slot reuse, and only later activation.
 - Source review confirmed the corrected workflow is now built on explicit slot and route seams, and direct-assignment compatibility paths should not be reintroduced.
 - UX and architecture review confirmed slot preparation must stay score-contextual, compact, musician-friendly, and distinct from Plugin Manager responsibilities.
+- Reworked the implementation after AC1 correction to use separate slot creation and slot plugin assignment invokes, matching the existing player and instrument mutation patterns.
+- Rebuilt `PlaybackRackPanel` into mixer-style horizontal grey cards with an add-slot icon in the top bar and slot-local available-plugin pickers for empty or already-assigned slots.
+- The combined `score_playback_slots_prepare` seam was removed because it encoded the wrong workflow shape for the corrected story.
 
 ### Completion Notes List
 
@@ -313,11 +316,25 @@ GPT-5.4
 - Added implementation guardrails around legacy direct-assignment seams so the dev agent does not accidentally rebuild the rejected model.
 - Incorporated user clarification that this story creates a slot and assigns the chosen plugin to it, with no remaining clarification question at story-prep time.
 - Tightened the story wording so slot preparation is clearly separated from later instrument routing and later automatic default setup on instrument creation.
+- Aligned the implementation to the corrected empty-slot-first workflow by creating slots separately and assigning or updating plugins from the slot-local picker.
+- Replaced the previous stacked prepare UI with mixer-inspired horizontal rack cards, an add-slot top-bar button, and an end spacer for sparse slot counts.
+- Removed the unnecessary combined prepare command and restored the explicit create-slot then assign-plugin mutation pattern.
+- Updated focused frontend and backend tests around empty-slot creation, slot-local plugin assignment, and the absence of the combined prepare seam.
+- Updated architecture, development-guide, and component-inventory docs to describe add-slot creation and slot-local available-plugin pickers inside Sequence.
 
 ### File List
 
 - `_bmad-output/implementation-artifacts/3-3-manually-assign-a-plugin-to-a-score-instrument.md`
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `docs/architecture.md`
+- `docs/component-inventory.md`
+- `docs/development-guide.md`
+- `src/services/actions.test.ts`
+- `src/services/actions.ts`
+- `src-tauri/src/lib.rs`
+- `src-tauri/src/score/instruments/mod.rs`
+- `src/windows/main/screens/sequence/components/playback-rack-panel.test.tsx`
+- `src/windows/main/screens/sequence/components/playback-rack-panel.tsx`
 
 ## Change Log
 
@@ -325,3 +342,5 @@ GPT-5.4
 - 2026-03-23: Story rewritten after course correction to the approved rack-slot preparation scope while preserving the existing artifact path and sprint key.
 - 2026-03-23: Clarified that Story 3.3 creates a slot and assigns the chosen plugin to it, removing the obsolete open question.
 - 2026-03-23: Clarified that Story 3.3 prepares a routeable slot destination only, while Story 3.4 owns routing and Story 3.6 owns automatic default setup on instrument creation.
+- 2026-03-23: Implemented score-context slot preparation in the Sequence rack panel, added the backend slot-preparation command, added focused frontend/backend validation, and updated docs.
+- 2026-03-23: Corrected the implementation to create empty slots from a top-bar add control, assign plugins from slot-local pickers, remove the combined prepare command, and restyle the rack surface into horizontal mixer-like cards.
