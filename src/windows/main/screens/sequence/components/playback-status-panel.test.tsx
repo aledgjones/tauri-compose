@@ -4,9 +4,8 @@ import { renderWithProviders } from "../../../../../services/test-utils";
 import {
   Instrument,
   InstrumentType,
-  PlaybackAssignmentMode,
-  PlaybackAssignmentStatus,
-  ResolvedPlaybackAssignment,
+  ResolvedPlaybackRoute,
+  ResolvedPlaybackRouteStatus,
 } from "../../../../../services/types";
 import { PlaybackStatusPanel } from "./playback-status-panel";
 
@@ -18,32 +17,29 @@ const instrument: Instrument = {
   short_name: "Vln.",
   stave_ids: [],
   count: null,
-  assignment_intent: {
-    mode: PlaybackAssignmentMode.Unassigned,
-    plugin_id: null,
-    target: null,
-    shared_instance_id: null,
-  },
+  playback_route: null,
   volume: 100,
   pan: 64,
   mute: false,
   solo: false,
 };
 
-const readyAssignment: ResolvedPlaybackAssignment = {
-  status: PlaybackAssignmentStatus.Ready,
-  mode: PlaybackAssignmentMode.Direct,
+const readyRoute: ResolvedPlaybackRoute = {
+  status: ResolvedPlaybackRouteStatus.Ready,
+  slot_id: 9,
+  slot_target: { plugin_id: "vst3:grand-piano" },
   effective_plugin_id: "vst3:grand-piano",
   target: null,
-  shared_instance_id: null,
+  address: null,
 };
 
-const unavailableAssignment: ResolvedPlaybackAssignment = {
-  status: PlaybackAssignmentStatus.Unassigned,
-  mode: PlaybackAssignmentMode.Unassigned,
+const unavailableRoute: ResolvedPlaybackRoute = {
+  status: ResolvedPlaybackRouteStatus.Unrouted,
+  slot_id: null,
+  slot_target: null,
   effective_plugin_id: null,
   target: null,
-  shared_instance_id: null,
+  address: null,
 };
 
 describe("PlaybackStatusPanel", () => {
@@ -53,10 +49,7 @@ describe("PlaybackStatusPanel", () => {
 
   it("renders selected instrument playback context when ready", () => {
     renderWithProviders(
-      <PlaybackStatusPanel
-        instrument={instrument}
-        assignment={readyAssignment}
-      />,
+      <PlaybackStatusPanel instrument={instrument} route={readyRoute} />,
       {
         pluginInventoryState: {
           entries: [
@@ -82,34 +75,28 @@ describe("PlaybackStatusPanel", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("Grand Piano")).toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: /focus row assignment/i }),
+      screen.queryByRole("button", { name: /focus row route/i }),
     ).toBeNull();
   });
 
   it("uses one primary in-score recovery handoff for non-ready instruments", () => {
-    const assignmentButton = document.createElement("button");
-    assignmentButton.textContent = "Assign plugin";
-    assignmentButton.scrollIntoView = vi.fn();
-
-    const wrapper = document.createElement("div");
-    wrapper.setAttribute("data-assignment-select-for", "5");
-    wrapper.appendChild(assignmentButton);
-    document.body.appendChild(wrapper);
+    const routeRow = document.createElement("div");
+    routeRow.tabIndex = -1;
+    routeRow.scrollIntoView = vi.fn();
+    routeRow.setAttribute("data-route-focus-for", "5");
+    document.body.appendChild(routeRow);
 
     renderWithProviders(
-      <PlaybackStatusPanel
-        instrument={instrument}
-        assignment={unavailableAssignment}
-      />,
+      <PlaybackStatusPanel instrument={instrument} route={unavailableRoute} />,
     );
 
     fireEvent.click(
-      screen.getByRole("button", { name: "Focus row assignment for Violin" }),
+      screen.getByRole("button", { name: "Focus route summary for Violin" }),
     );
 
-    expect(assignmentButton.scrollIntoView).toHaveBeenCalled();
-    expect(assignmentButton).toHaveFocus();
+    expect(routeRow.scrollIntoView).toHaveBeenCalled();
+    expect(routeRow).toHaveFocus();
 
-    wrapper.remove();
+    routeRow.remove();
   });
 });

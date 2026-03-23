@@ -10,7 +10,7 @@ so that I can tell at a glance which parts are playable and which need action.
 
 ## Acceptance Criteria
 
-1. Given score instruments have resolved playback route state, when they are displayed in relevant score-context surfaces, then the Sequence bottom panel shows the current rack and its slot instances and instrument rows or expansions show compact route summaries and health state.
+1. Given score instruments have resolved playback route state, when they are displayed in relevant score-context surfaces, then the Sequence bottom panel shows the current rack and its slot instances, including slots with no plugin currently assigned, and instrument rows or expansions show compact route summaries and health state.
 2. Given playback state can be Ready, Needs Attention, or Unavailable, when those states are shown in the UI, then they are legible without relying on color alone and the presentation remains consistent with the existing Compose design system.
 3. Given an instrument is not ready for playback, when a user inspects that instrument's score-context UI, then they are given one primary contextual recovery path and the product does not force them into an unrelated app-scoped workflow by default.
 
@@ -19,6 +19,7 @@ so that I can tell at a glance which parts are playable and which need action.
 - [ ] Task 1: Replace the superseded selected-instrument readiness panel with a current-rack surface in the Sequence bottom panel (AC: 1, 2)
   - [ ] Reuse the existing Sequence bottom-panel seam and show the current score rack plus its hosted slot instances.
   - [ ] Label rack slots in the MVP format `{slot index}. {Plugin Name}` so duplicate plugin instances remain distinguishable.
+  - [ ] Make unassigned slots legible as valid rack objects rather than silently hiding them.
   - [ ] Keep the bottom panel score-contextual to the current score rather than widening it into Plugin Manager responsibilities.
 - [ ] Task 2: Show compact route summaries and health state on Sequence instrument surfaces (AC: 1, 2)
   - [ ] Update the instrument row to summarize the route target, slot context, and current health without turning the row into a status-heavy badge strip.
@@ -44,6 +45,7 @@ so that I can tell at a glance which parts are playable and which need action.
 - Story 3.2 is no longer the assignment-readiness display slice.
 - Its corrected job is to make the current score rack and each instrument's route summary visible in Sequence after the rack-and-routing pivot.
 - The Sequence bottom panel should show the current rack and hosted slot instances.
+- Empty slots are valid part of the current rack and must remain visible so later slot-preparation and route-authoring stories build on the same mental model.
 - Instrument rows and expansions should summarize route state compactly without reintroducing the rejected assignment-first UX.
 
 ### User Decisions Captured

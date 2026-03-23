@@ -17,10 +17,7 @@ use crate::playback::plugin_editor_poc::plugin_editor_poc_open;
 use crate::playback::plugin_inventory::{
     plugin_inventory_discover, PluginInventoryContext, PluginInventoryContextState,
 };
-use crate::playback::sampler::{
-    sampler_audition, sampler_load_plugin, sampler_rescan_plugins, sampler_sync_with_instruments,
-    SamplerContext,
-};
+use crate::playback::sampler::{sampler_audition, sampler_rescan_plugins, SamplerContext};
 use crate::playback::transport::{
     stop_transport_playback, sync_transport_to_app_state, transport_get_state, transport_pause,
     transport_play, transport_seek, TransportContext, TransportSharedState,
@@ -81,9 +78,11 @@ use score::flows::{
 };
 use score::instruments::defs::score_instruments_get_all_definitions;
 use score::instruments::{
-    score_instruments_assign_plugin, score_instruments_create, score_instruments_move,
+    score_instruments_assign_slot_route, score_instruments_create, score_instruments_move,
     score_instruments_remove, score_instruments_set_mute, score_instruments_set_pan,
-    score_instruments_set_solo, score_instruments_set_volume, ResolvedPlaybackAssignment,
+    score_instruments_set_solo, score_instruments_set_volume, score_instruments_unassign_route,
+    score_playback_slots_assign_plugin, score_playback_slots_create, score_playback_slots_remove,
+    score_playback_slots_unassign_plugin,
 };
 use score::layouts::{
     score_layouts_assign_flow, score_layouts_assign_player, score_layouts_create,
@@ -97,6 +96,7 @@ use score::meta::{
     score_meta_lyricist_set, score_meta_other_information_set, score_meta_publisher_set,
     score_meta_subtitle_set, score_meta_title_set, score_meta_work_number_set,
 };
+use score::playback::ResolvedPlaybackRoute;
 use score::players::{
     score_players_assign_instrument, score_players_create, score_players_move,
     score_players_remove, score_players_unassign_instrument,
@@ -134,8 +134,8 @@ use utils::UniqueId;
 struct AppStateGeneral {
     ui: Ui,
     score: Score,
-    resolved_playback_assignment_by_instrument_id:
-        rustc_hash::FxHashMap<UniqueId, ResolvedPlaybackAssignment>,
+    resolved_playback_route_by_instrument_id:
+        rustc_hash::FxHashMap<UniqueId, ResolvedPlaybackRoute>,
     preferences: Preferences,
     current_file_path: Option<String>,
 }
@@ -272,9 +272,9 @@ impl AppContext {
         let general_state = AppStateGeneral {
             ui: self.ui.clone(),
             score: self.score.clone(),
-            resolved_playback_assignment_by_instrument_id: self
+            resolved_playback_route_by_instrument_id: self
                 .score
-                .resolved_playback_assignment_by_instrument_id(&get_available_plugin_ids(
+                .resolved_playback_route_by_instrument_id(&get_available_plugin_ids(
                     app.state::<ManagedPluginInventoryContextState>().inner(),
                 )),
             current_file_path: self.current_file_path.clone(),
@@ -342,9 +342,9 @@ fn get_general_state(
     AppStateGeneral {
         ui: state.ui.clone(),
         score: state.score.clone(),
-        resolved_playback_assignment_by_instrument_id: state
+        resolved_playback_route_by_instrument_id: state
             .score
-            .resolved_playback_assignment_by_instrument_id(&available_plugin_ids),
+            .resolved_playback_route_by_instrument_id(&available_plugin_ids),
         preferences: state.preferences.clone(),
         current_file_path: state.current_file_path.clone(),
     }
@@ -415,7 +415,7 @@ fn reset(
     let sample_rate = audio.get_sample_rate();
     drop(audio);
 
-    if let Err(e) = sampler.sync_with_instruments(&[], sample_rate) {
+    if let Err(e) = sampler.sync_with_plugin_ids(&[], sample_rate) {
         eprintln!("Failed to sync sampler after reset: {}", e);
     }
     sampler.emit(&app);
@@ -636,9 +636,7 @@ pub fn run() {
             audio_devices_refresh,
             plugin_inventory_discover,
             plugin_editor_poc_open,
-            sampler_load_plugin,
             sampler_rescan_plugins,
-            sampler_sync_with_instruments,
             sampler_audition,
             transport_play,
             transport_pause,
@@ -700,11 +698,16 @@ pub fn run() {
             score_instruments_get_all_definitions,
             score_instruments_move,
             score_instruments_remove,
-            score_instruments_assign_plugin,
+            score_instruments_assign_slot_route,
+            score_instruments_unassign_route,
             score_instruments_set_volume,
             score_instruments_set_pan,
             score_instruments_set_mute,
             score_instruments_set_solo,
+            score_playback_slots_create,
+            score_playback_slots_remove,
+            score_playback_slots_assign_plugin,
+            score_playback_slots_unassign_plugin,
             score_layouts_create,
             score_layouts_rename,
             score_layouts_assign_flow,

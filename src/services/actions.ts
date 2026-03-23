@@ -116,9 +116,6 @@ export const actions = {
     rescanPlugins: async () => {
       return invoke("sampler_rescan_plugins");
     },
-    syncWithInstruments: (assigned_plugin_ids: string[]) => {
-      return invoke("sampler_sync_with_instruments", { assigned_plugin_ids });
-    },
     audition: (
       plugin_id: string,
       note: number,
@@ -563,10 +560,15 @@ export const actions = {
           instrument_id,
         });
       },
-      assignPlugin: (instrument_id: number, plugin_id: string | null) => {
-        return invoke<void>("score_instruments_assign_plugin", {
+      assignSlotRoute: (instrument_id: number, slot_id: number) => {
+        return invoke<void>("score_instruments_assign_slot_route", {
           instrument_id,
-          plugin_id,
+          slot_id,
+        });
+      },
+      unassignRoute: (instrument_id: number) => {
+        return invoke<void>("score_instruments_unassign_route", {
+          instrument_id,
         });
       },
       setVolume: (instrument_id: number, volume: number) => {
@@ -592,6 +594,29 @@ export const actions = {
           instrument_id,
           solo,
         });
+      },
+    },
+    playback: {
+      slot: {
+        create: () => {
+          return invoke<number>("score_playback_slots_create");
+        },
+        remove: (slot_id: number) => {
+          return invoke<void>("score_playback_slots_remove", {
+            slot_id,
+          });
+        },
+        assignPlugin: (slot_id: number, plugin_id: string) => {
+          return invoke<void>("score_playback_slots_assign_plugin", {
+            slot_id,
+            plugin_id,
+          });
+        },
+        unassignPlugin: (slot_id: number) => {
+          return invoke<void>("score_playback_slots_unassign_plugin", {
+            slot_id,
+          });
+        },
       },
     },
     config: {

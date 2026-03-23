@@ -141,15 +141,13 @@ export const useBottomPanelState = () => {
     return state.score.instruments.by_id[instrumentId] ?? null;
   }, [instrumentId, state.score.instruments.by_id]);
 
-  const selectedAssignment = useMemo(() => {
+  const selectedRoute = useMemo(() => {
     if (!instrumentId) {
       return null;
     }
 
-    return (
-      state.resolved_playback_assignment_by_instrument_id[instrumentId] ?? null
-    );
-  }, [instrumentId, state.resolved_playback_assignment_by_instrument_id]);
+    return state.resolved_playback_route_by_instrument_id[instrumentId] ?? null;
+  }, [instrumentId, state.resolved_playback_route_by_instrument_id]);
 
   return {
     instruments,
@@ -160,7 +158,7 @@ export const useBottomPanelState = () => {
     tracks,
     trackId,
     selectedInstrument,
-    selectedAssignment,
+    selectedRoute,
     tool: state.ui.sequencer.tool,
     snapValue: state.ui.sequencer.snap,
   };

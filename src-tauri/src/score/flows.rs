@@ -323,7 +323,7 @@ mod tests {
     use super::*;
     use crate::preferences::Preferences;
     use crate::score::entries::clef::ClefDrawType;
-    use crate::score::instruments::{Instrument, Instruments, PlaybackAssignmentIntent};
+    use crate::score::instruments::{Instrument, Instruments};
     use crate::score::layouts::Layouts;
     use crate::score::players::{Player, PlayerType, Players};
     use crate::score::Score;
@@ -358,7 +358,7 @@ mod tests {
             short_name,
             stave_ids,
             count: None,
-            assignment_intent: PlaybackAssignmentIntent::default(),
+            playback_route: None,
             volume: 100,
             pan: 64,
             mute: false,

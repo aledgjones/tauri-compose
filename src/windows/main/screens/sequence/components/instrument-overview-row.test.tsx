@@ -5,15 +5,13 @@ import { renderWithProviders } from "../../../../../services/test-utils";
 import {
   Instrument,
   InstrumentType,
-  PlaybackAssignmentMode,
-  PlaybackAssignmentStatus,
+  ResolvedPlaybackRouteStatus,
 } from "../../../../../services/types";
 
 vi.mock("../../../../../services/actions", () => ({
   actions: {
     score: {
       instrument: {
-        assignPlugin: vi.fn().mockResolvedValue(undefined),
         setSolo: vi.fn().mockResolvedValue(undefined),
         setMute: vi.fn().mockResolvedValue(undefined),
       },
@@ -31,12 +29,7 @@ const mockInstrument: Instrument = {
   short_name: "Vln.",
   stave_ids: [],
   count: null,
-  assignment_intent: {
-    mode: PlaybackAssignmentMode.Unassigned,
-    plugin_id: null,
-    target: null,
-    shared_instance_id: null,
-  },
+  playback_route: null,
   volume: 100,
   pan: 64,
   mute: false,
@@ -55,13 +48,14 @@ describe("InstrumentOverviewRow", () => {
       />,
       {
         appState: {
-          resolved_playback_assignment_by_instrument_id: {
+          resolved_playback_route_by_instrument_id: {
             5: {
-              status: PlaybackAssignmentStatus.Unassigned,
-              mode: PlaybackAssignmentMode.Unassigned,
+              status: ResolvedPlaybackRouteStatus.Unrouted,
+              slot_id: null,
+              slot_target: null,
               effective_plugin_id: null,
               target: null,
-              shared_instance_id: null,
+              address: null,
               ...resolvedAssignment,
             },
           },
@@ -83,10 +77,11 @@ describe("InstrumentOverviewRow", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders a ready badge when the backend assignment is ready", () => {
+  it("renders a ready badge when the backend route is ready", () => {
     renderRow({
-      status: PlaybackAssignmentStatus.Ready,
-      mode: PlaybackAssignmentMode.Direct,
+      status: ResolvedPlaybackRouteStatus.Ready,
+      slot_id: 7,
+      slot_target: { plugin_id: "vst3:grand-piano" },
       effective_plugin_id: "vst3:grand-piano",
     });
 
@@ -95,10 +90,11 @@ describe("InstrumentOverviewRow", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders a needs-attention badge when the backend assignment requires recovery", () => {
+  it("renders a needs-attention badge when the backend route requires recovery", () => {
     renderRow({
-      status: PlaybackAssignmentStatus.NeedsAttention,
-      mode: PlaybackAssignmentMode.Direct,
+      status: ResolvedPlaybackRouteStatus.NeedsAttention,
+      slot_id: 7,
+      slot_target: { plugin_id: "vst3:grand-piano" },
     });
 
     expect(
@@ -124,12 +120,22 @@ describe("InstrumentOverviewRow", () => {
     expect(container.querySelector(".opacity-50")).toBeInTheDocument();
   });
 
-  it("renders a disabled plugin select with 'No plugins available' placeholder when no plugins", () => {
-    renderRow();
-    expect(screen.getByText("No plugins available")).toBeInTheDocument();
+  it("renders the current route target summary", () => {
+    renderRow({
+      status: ResolvedPlaybackRouteStatus.Ready,
+      slot_id: 7,
+      slot_target: { plugin_id: "vst3:grand-piano" },
+      effective_plugin_id: "vst3:grand-piano",
+    });
+
     expect(
-      screen.getByRole("button", { name: /no plugins available/i }),
-    ).toBeDisabled();
+      screen.getByText("Route target: vst3:grand-piano"),
+    ).toBeInTheDocument();
+  });
+
+  it("renders a missing route target summary by default", () => {
+    renderRow();
+    expect(screen.getByText("No route target configured")).toBeInTheDocument();
   });
 
   it("calls setSolo when solo button clicked", () => {

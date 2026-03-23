@@ -27,7 +27,7 @@ export const BottomPanel: FC = () => {
     tracks,
     trackId,
     selectedInstrument,
-    selectedAssignment,
+    selectedRoute,
     tool,
     snapValue,
   } = useBottomPanelState();
@@ -93,7 +93,7 @@ export const BottomPanel: FC = () => {
       {tab === BottomPanelTab.Instruments && (
         <PlaybackStatusPanel
           instrument={selectedInstrument}
-          assignment={selectedAssignment}
+          route={selectedRoute}
         />
       )}
     </div>

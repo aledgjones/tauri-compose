@@ -2,13 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { useKeyboardShortcuts } from "./use-keyboard-shortcuts";
 import { createWrapper, createAppState } from "../../../services/test-utils";
-import {
-  Accidental,
-  Articulation,
-  PlaybackAssignmentMode,
-  PlaybackAssignmentStatus,
-  PlayerType,
-} from "../../../services/types";
+import { Accidental, Articulation, PlayerType } from "../../../services/types";
 
 // ---------------------------------------------------------------------------
 // Mock the actions module
@@ -94,12 +88,6 @@ const buildStateWithToneSelection = () => {
             short_name: "Pno.",
             stave_ids: [STAVE_ID],
             count: null,
-            assignment_intent: {
-              mode: PlaybackAssignmentMode.Unassigned,
-              plugin_id: null,
-              target: null,
-              shared_instance_id: null,
-            },
             volume: 100,
             pan: 0,
             mute: false,
@@ -167,7 +155,6 @@ const buildStateWithLaterFlowToneSelection = () => {
             short_name: "Pno.",
             stave_ids: [STAVE_ID, 101],
             count: null,
-            assigned_plugin_id: null,
             volume: 100,
             pan: 0,
             mute: false,
@@ -235,7 +222,6 @@ const buildStateWithTupletToneSelection = () => {
             short_name: "Pno.",
             stave_ids: [STAVE_ID],
             count: null,
-            assigned_plugin_id: null,
             volume: 100,
             pan: 0,
             mute: false,
@@ -318,7 +304,6 @@ const buildStateWithTupletSelection = () => {
             short_name: "Pno.",
             stave_ids: [STAVE_ID],
             count: null,
-            assigned_plugin_id: null,
             volume: 100,
             pan: 0,
             mute: false,
@@ -401,7 +386,6 @@ const buildStateWithTupletRestSelection = () => {
             short_name: "Pno.",
             stave_ids: [STAVE_ID],
             count: null,
-            assigned_plugin_id: null,
             volume: 100,
             pan: 0,
             mute: false,
@@ -1474,24 +1458,19 @@ describe("useKeyboardShortcuts", () => {
         short_name: "Pno.",
         stave_ids: [STAVE_ID],
         count: null,
-        assignment_intent: {
-          mode: PlaybackAssignmentMode.Direct,
-          plugin_id: PLUGIN_ID,
-          target: null,
-          shared_instance_id: null,
-        },
         volume: 100,
         pan: 0,
         mute: false,
         solo: false,
       };
-    state.resolved_playback_assignment_by_instrument_id = {
+    state.resolved_playback_route_by_instrument_id = {
       [INSTRUMENT_ID]: {
-        status: PlaybackAssignmentStatus.Ready,
-        mode: PlaybackAssignmentMode.Direct,
+        status: 1,
+        slot_id: 77,
+        slot_target: { plugin_id: PLUGIN_ID },
         effective_plugin_id: PLUGIN_ID,
         target: null,
-        shared_instance_id: null,
+        address: null,
       },
     };
     state.preferences = { ...state.preferences, audition: true };
@@ -1524,24 +1503,19 @@ describe("useKeyboardShortcuts", () => {
         short_name: "Pno.",
         stave_ids: [STAVE_ID],
         count: null,
-        assignment_intent: {
-          mode: PlaybackAssignmentMode.Direct,
-          plugin_id: PLUGIN_ID,
-          target: null,
-          shared_instance_id: null,
-        },
         volume: 100,
         pan: 0,
         mute: false,
         solo: false,
       };
-    state.resolved_playback_assignment_by_instrument_id = {
+    state.resolved_playback_route_by_instrument_id = {
       [INSTRUMENT_ID]: {
-        status: PlaybackAssignmentStatus.Ready,
-        mode: PlaybackAssignmentMode.Direct,
+        status: 1,
+        slot_id: 77,
+        slot_target: { plugin_id: PLUGIN_ID },
         effective_plugin_id: PLUGIN_ID,
         target: null,
-        shared_instance_id: null,
+        address: null,
       },
     };
     state.preferences = { ...state.preferences, audition: false };

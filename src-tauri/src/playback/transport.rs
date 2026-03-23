@@ -264,7 +264,9 @@ fn collect_scheduled_notes(
                 None => continue,
             };
 
-            let plugin_id = match instrument.effective_plugin_id(available_plugin_ids) {
+            let plugin_id = match score
+                .instrument_effective_plugin_id(*instrument_id, available_plugin_ids)
+            {
                 Some(id) => String::from(id),
                 None => continue,
             };
@@ -613,7 +615,7 @@ mod tests {
     use crate::score::components::duration::NoteDuration;
     use crate::score::entries::{tempo::Tempo, Entry};
     use crate::score::flows::Flow;
-    use crate::score::instruments::{defs::InstrumentType, Instrument, PlaybackAssignmentIntent};
+    use crate::score::instruments::{defs::InstrumentType, Instrument};
     use crate::score::players::{Player, PlayerType};
     use crate::score::staves::Stave;
     use crate::score::tracks::Track;
@@ -727,7 +729,7 @@ mod tests {
         (score, flow_id)
     }
 
-    fn make_instrument(id: UniqueId, stave_id: UniqueId, plugin_id: &str) -> Instrument {
+    fn make_instrument(id: UniqueId, stave_id: UniqueId, _plugin_id: &str) -> Instrument {
         Instrument {
             id,
             definition_id: String::from("test.instrument"),
@@ -736,7 +738,7 @@ mod tests {
             short_name: String::from("T."),
             stave_ids: vec![stave_id],
             count: None,
-            assignment_intent: PlaybackAssignmentIntent::direct(plugin_id.to_string()),
+            playback_route: None,
             volume: 100,
             pan: 64,
             mute: false,
@@ -793,10 +795,19 @@ mod tests {
             .get_mut(&player_id)
             .unwrap()
             .instrument_ids = vec![instrument_id];
-        score.instruments.by_id.insert(
-            instrument_id,
-            make_instrument(instrument_id, stave_id, "plugin-a"),
-        );
+        score
+            .instruments
+            .by_id
+            .insert(instrument_id, make_instrument(instrument_id, stave_id, "plugin-a"));
+        score
+            .create_playback_slot(6)
+            .expect("slot creation should succeed");
+        score
+            .assign_plugin_to_slot(6, String::from("plugin-a"))
+            .expect("slot assignment should succeed");
+        score
+            .assign_instrument_route_to_slot(instrument_id, 6)
+            .expect("route assignment should succeed");
 
         (score, flow_id)
     }
@@ -891,6 +902,16 @@ mod tests {
                 instrument_id,
                 make_instrument_with_mix(instrument_id, stave_id, plugin_id, mute, solo),
             );
+            let slot_id = 200 + index as UniqueId;
+            score
+                .create_playback_slot(slot_id)
+                .expect("slot creation should succeed");
+            score
+                .assign_plugin_to_slot(slot_id, String::from(plugin_id))
+                .expect("slot assignment should succeed");
+            score
+                .assign_instrument_route_to_slot(instrument_id, slot_id)
+                .expect("route assignment should succeed");
             score
                 .players
                 .by_id

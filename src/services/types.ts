@@ -127,42 +127,65 @@ export enum InstrumentType {
   Percussive,
 }
 
-export enum PlaybackAssignmentMode {
-  Unassigned = 0,
-  Direct,
-  Targeted,
-  SharedInstance,
-}
-
-export enum PlaybackAssignmentTargetMode {
-  PluginPart = 0,
+export enum PlaybackRouteTargetMode {
+  Plugin = 0,
+  PluginPart,
   MidiChannel,
 }
 
-export type PlaybackAssignmentTarget = {
-  mode: PlaybackAssignmentTargetMode;
-  index: number;
+export type PlaybackRouteTarget = {
+  mode: PlaybackRouteTargetMode;
+  index: number | null;
 };
 
-export type PlaybackAssignmentIntent = {
-  mode: PlaybackAssignmentMode;
-  plugin_id: string | null;
-  target: PlaybackAssignmentTarget | null;
-  shared_instance_id: UniqueId | null;
+export enum PlaybackRouteAddressMode {
+  Root = 0,
+  Part,
+  MidiChannel,
+}
+
+export type PlaybackRouteAddress = {
+  mode: PlaybackRouteAddressMode;
+  index: number | null;
 };
 
-export enum PlaybackAssignmentStatus {
-  Unassigned = 0,
+export type InstrumentPlaybackRoute = {
+  slot_id: UniqueId;
+  target: PlaybackRouteTarget;
+  address: PlaybackRouteAddress;
+};
+
+export type PlaybackSlotTarget = {
+  plugin_id: string;
+};
+
+export type PlaybackRackSlot = {
+  id: UniqueId;
+  target: PlaybackSlotTarget | null;
+};
+
+export type PlaybackRack = {
+  order: UniqueId[];
+  by_id: Record<UniqueId, PlaybackRackSlot>;
+};
+
+export type ScorePlayback = {
+  rack: PlaybackRack;
+};
+
+export enum ResolvedPlaybackRouteStatus {
+  Unrouted = 0,
   Ready,
   NeedsAttention,
 }
 
-export type ResolvedPlaybackAssignment = {
-  status: PlaybackAssignmentStatus;
-  mode: PlaybackAssignmentMode;
+export type ResolvedPlaybackRoute = {
+  status: ResolvedPlaybackRouteStatus;
+  slot_id: UniqueId | null;
+  slot_target: PlaybackSlotTarget | null;
   effective_plugin_id: string | null;
-  target: PlaybackAssignmentTarget | null;
-  shared_instance_id: UniqueId | null;
+  target: PlaybackRouteTarget | null;
+  address: PlaybackRouteAddress | null;
 };
 
 export type Instrument = {
@@ -173,7 +196,7 @@ export type Instrument = {
   short_name: string;
   stave_ids: UniqueId[];
   count: string | null;
-  assignment_intent: PlaybackAssignmentIntent;
+  playback_route?: InstrumentPlaybackRoute | null;
   volume: number;
   pan: number;
   mute: boolean;
@@ -535,15 +558,16 @@ export type AppState = {
     players: Players;
     config: Config;
     meta: Meta;
+    playback?: ScorePlayback;
     instruments: Instruments;
     flows: Flows;
     tracks: Tracks;
     layouts: Layouts;
     engraves: Engraves;
   };
-  resolved_playback_assignment_by_instrument_id: Record<
+  resolved_playback_route_by_instrument_id: Record<
     UniqueId,
-    ResolvedPlaybackAssignment
+    ResolvedPlaybackRoute
   >;
   preferences: {
     audition: boolean;

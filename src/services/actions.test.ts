@@ -181,13 +181,6 @@ describe("actions.sampler", () => {
     expect(mockInvoke).toHaveBeenCalledWith("sampler_rescan_plugins");
   });
 
-  it("syncWithInstruments calls invoke with assigned_plugin_ids", async () => {
-    await actions.sampler.syncWithInstruments(["a", "b"]);
-    expect(mockInvoke).toHaveBeenCalledWith("sampler_sync_with_instruments", {
-      assigned_plugin_ids: ["a", "b"],
-    });
-  });
-
   it("audition calls invoke with all required fields", async () => {
     await actions.sampler.audition("plug-1", 60, 80, "artic-1", 300);
     expect(mockInvoke).toHaveBeenCalledWith("sampler_audition", {
@@ -887,20 +880,58 @@ describe("actions.score.instrument", () => {
     });
   });
 
-  it("assignPlugin calls invoke with plugin_id", async () => {
-    await actions.score.instrument.assignPlugin(10, "vst-1");
-    expect(mockInvoke).toHaveBeenCalledWith("score_instruments_assign_plugin", {
-      instrument_id: 10,
-      plugin_id: "vst-1",
+  it("assignSlotRoute calls invoke with slot_id", async () => {
+    await actions.score.instrument.assignSlotRoute(10, 30);
+    expect(mockInvoke).toHaveBeenCalledWith(
+      "score_instruments_assign_slot_route",
+      {
+        instrument_id: 10,
+        slot_id: 30,
+      },
+    );
+  });
+
+  it("unassignRoute calls invoke correctly", async () => {
+    await actions.score.instrument.unassignRoute(10);
+    expect(mockInvoke).toHaveBeenCalledWith(
+      "score_instruments_unassign_route",
+      {
+        instrument_id: 10,
+      },
+    );
+  });
+
+  it("create playback slot calls invoke correctly", async () => {
+    await actions.score.playback.slot.create();
+    expect(mockInvoke).toHaveBeenCalledWith("score_playback_slots_create");
+  });
+
+  it("remove playback slot calls invoke correctly", async () => {
+    await actions.score.playback.slot.remove(55);
+    expect(mockInvoke).toHaveBeenCalledWith("score_playback_slots_remove", {
+      slot_id: 55,
     });
   });
 
-  it("assignPlugin accepts null plugin_id", async () => {
-    await actions.score.instrument.assignPlugin(10, null);
-    expect(mockInvoke).toHaveBeenCalledWith("score_instruments_assign_plugin", {
-      instrument_id: 10,
-      plugin_id: null,
-    });
+  it("assignPlugin to playback slot calls invoke correctly", async () => {
+    await actions.score.playback.slot.assignPlugin(55, "vst-1");
+    expect(mockInvoke).toHaveBeenCalledWith(
+      "score_playback_slots_assign_plugin",
+      {
+        slot_id: 55,
+        plugin_id: "vst-1",
+      },
+    );
+  });
+
+  it("unassignPlugin from playback slot calls invoke correctly", async () => {
+    await actions.score.playback.slot.unassignPlugin(55);
+    expect(mockInvoke).toHaveBeenCalledWith(
+      "score_playback_slots_unassign_plugin",
+      {
+        slot_id: 55,
+      },
+    );
   });
 
   it("setVolume calls invoke correctly", async () => {

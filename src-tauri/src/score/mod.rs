@@ -6,6 +6,7 @@ pub mod flows;
 pub mod instruments;
 pub mod layouts;
 pub mod meta;
+pub mod playback;
 pub mod players;
 pub mod staves;
 pub mod tracks;
@@ -16,6 +17,7 @@ use flows::Flows;
 use instruments::Instruments;
 use layouts::Layouts;
 use meta::Meta;
+use playback::ScorePlayback;
 use players::Players;
 use serde::Deserialize;
 use serde::Serialize;
@@ -25,6 +27,7 @@ use tracks::Tracks;
 pub struct Score {
     pub config: Config,
     pub meta: Meta,
+    pub playback: ScorePlayback,
     pub players: Players,
     pub instruments: Instruments,
     pub flows: Flows,
@@ -39,6 +42,7 @@ impl Score {
             layouts: Layouts::new(),
             config: Config::new(),
             meta: Meta::new(),
+            playback: ScorePlayback::new(),
             players: Players::new(),
             instruments: Instruments::new(),
             flows: Flows::new(),

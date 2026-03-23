@@ -22,7 +22,7 @@ export const DEFAULT_TRANSPORT_TEMPO = 120;
 
 export const initialAppState: AppState = {
   current_file_path: null,
-  resolved_playback_assignment_by_instrument_id: {},
+  resolved_playback_route_by_instrument_id: {},
   ui: {
     tab: Tab.Setup,
     layout_id: null,
@@ -61,6 +61,9 @@ export const initialAppState: AppState = {
     audition: true,
   },
   score: {
+    playback: {
+      rack: { order: [], by_id: {} },
+    },
     layouts: { order: [], by_id: {} },
     flows: { order: [], by_id: {} },
     players: { order: [], by_id: {} },

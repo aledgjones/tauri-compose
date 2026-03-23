@@ -121,12 +121,6 @@ describe("Sequence BottomPanel", () => {
               short_name: "Vln.",
               stave_ids: [],
               count: null,
-              assignment_intent: {
-                mode: 0,
-                plugin_id: null,
-                target: null,
-                shared_instance_id: null,
-              },
               volume: 100,
               pan: 64,
               mute: false,

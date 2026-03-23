@@ -220,9 +220,8 @@ export const Sequencer: FC<Props> = ({
             pluginId={
               instrumentId === null
                 ? null
-                : (state.resolved_playback_assignment_by_instrument_id[
-                    instrumentId
-                  ]?.effective_plugin_id ?? null)
+                : (state.resolved_playback_route_by_instrument_id[instrumentId]
+                    ?.effective_plugin_id ?? null)
             }
           />
           <PlaybackLine ticks={ticks} height={slots.height} />

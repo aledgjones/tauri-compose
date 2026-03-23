@@ -98,7 +98,6 @@ mod tests {
     use crate::score::engraves::Engrave;
     use crate::score::engraves::Engraves;
     use crate::score::instruments::defs::InstrumentType;
-    use crate::score::instruments::PlaybackAssignmentIntent;
     use crate::score::layouts::LayoutType;
     use crate::utils::UniqueId;
     use rustc_hash::FxHashMap;
@@ -112,7 +111,7 @@ mod tests {
             short_name: String::from(name),
             stave_ids: vec![],
             count: None,
-            assignment_intent: PlaybackAssignmentIntent::default(),
+            playback_route: None,
             volume: 100,
             pan: 64,
             mute: false,

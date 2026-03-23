@@ -1,11 +1,10 @@
-import { FC, useMemo } from "react";
+import { FC } from "react";
 import { Instrument } from "../../../../../services/types";
 import { IconButton } from "../../../../../ui/buttons/icon-button";
-import { mdiCableData, mdiSizeM, mdiSizeS } from "@mdi/js";
+import { mdiSizeM, mdiSizeS } from "@mdi/js";
 import { TokenizedText } from "../../../../../ui/text";
 import classNames from "classnames";
-import { Select } from "../../../../../ui/select";
-import { useAppState, useSamplerState } from "../../../../../services/state";
+import { useAppState } from "../../../../../services/state";
 import { actions } from "../../../../../services/actions";
 import { PlaybackReadinessBadge } from "./playback-readiness";
 import { getPlaybackReadinessPresentation } from "./playback-readiness-presentation";
@@ -22,31 +21,14 @@ export const InstrumentOverviewRow: FC<InstrumentOverviewRowProps> = ({
   isDisabled,
 }) => {
   const state = useAppState();
-  const sampler = useSamplerState();
-  const { plugins } = sampler;
-  const assignmentState =
-    state.resolved_playback_assignment_by_instrument_id[instrument.id];
-  const presentation = getPlaybackReadinessPresentation(
-    assignmentState,
-    instrument,
-  );
-
-  const options = useMemo(() => {
-    return Object.values(plugins).map((plugin) => ({
-      label: plugin.name,
-      value: plugin.id,
-    }));
-  }, [plugins]);
-
-  const handlePluginChange = async (pluginId: string) => {
-    await actions.score.instrument.assignPlugin(
-      instrument.id,
-      pluginId || null,
-    );
-  };
+  const routeState =
+    state.resolved_playback_route_by_instrument_id[instrument.id];
+  const presentation = getPlaybackReadinessPresentation(routeState, instrument);
 
   return (
     <div
+      data-route-focus-for={instrument.id}
+      tabIndex={-1}
       className={classNames(
         "flex flex-col p-2 gap-2 border-l-4 bg-neutral-900",
         { "opacity-50": isDisabled },
@@ -96,19 +78,10 @@ export const InstrumentOverviewRow: FC<InstrumentOverviewRowProps> = ({
         )}
       </div>
 
-      <div data-assignment-select-for={instrument.id}>
-        <Select
-          className="flex-1"
-          value={assignmentState?.effective_plugin_id || ""}
-          options={options}
-          onChange={handlePluginChange}
-          icon={mdiCableData}
-          variant="filled"
-          placeholder={
-            options.length === 0 ? "No plugins available" : "Assign plugin"
-          }
-          disabled={isDisabled || options.length === 0}
-        />
+      <div className="text-xs text-neutral-400">
+        {presentation.plugin_label
+          ? `Route target: ${presentation.plugin_label}`
+          : "No route target configured"}
       </div>
     </div>
   );

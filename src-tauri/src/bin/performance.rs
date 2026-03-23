@@ -178,7 +178,7 @@ mod instructions {
     use crate::score::entries::Entry;
     use crate::score::flows::Flow;
     use crate::score::instruments::defs::InstrumentType;
-    use crate::score::instruments::{Instrument, PlaybackAssignmentIntent};
+    use crate::score::instruments::Instrument;
     use crate::score::players::{Player, PlayerType};
     use crate::score::tracks::Track;
     use crate::score::Score;
@@ -473,7 +473,7 @@ mod instructions {
                     short_name: format!("V{}", instrument_index + 1),
                     stave_ids: vec![stave_id],
                     count: None,
-                    assignment_intent: PlaybackAssignmentIntent::default(),
+                    playback_route: None,
                     volume: 100,
                     pan: 64,
                     mute: false,

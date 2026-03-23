@@ -5,11 +5,11 @@ import {
 } from "@mdi/js";
 import {
   Instrument,
-  PlaybackAssignmentMode,
-  PlaybackAssignmentStatus,
+  PlaybackRouteTargetMode,
   PluginInfo,
   PluginInventoryEntry,
-  ResolvedPlaybackAssignment,
+  ResolvedPlaybackRoute,
+  ResolvedPlaybackRouteStatus,
 } from "../../../../../services/types";
 
 type PlaybackReadinessKind = "ready" | "needs-attention" | "unavailable";
@@ -40,13 +40,13 @@ const resolvePluginName = (
 };
 
 export const getPlaybackReadinessPresentation = (
-  assignment: ResolvedPlaybackAssignment | null | undefined,
-  instrument: Instrument,
+  route: ResolvedPlaybackRoute | null | undefined,
+  _instrument: Instrument,
   pluginInventoryEntries: PluginInventoryEntry[] = [],
   samplerPlugins: PluginInfo[] = [],
 ): PlaybackReadinessPresentation => {
   const requestedPluginId =
-    assignment?.effective_plugin_id ?? instrument.assignment_intent.plugin_id;
+    route?.effective_plugin_id ?? route?.slot_target?.plugin_id ?? null;
   const pluginLabel = requestedPluginId
     ? resolvePluginName(
         requestedPluginId,
@@ -55,15 +55,15 @@ export const getPlaybackReadinessPresentation = (
       )
     : null;
 
-  switch (assignment?.status) {
-    case PlaybackAssignmentStatus.Ready:
+  switch (route?.status) {
+    case ResolvedPlaybackRouteStatus.Ready:
       return {
         kind: "ready",
         label: "Ready",
         summary: "Playable from this score context.",
         explanation: pluginLabel
           ? `Compose can use ${pluginLabel} for this instrument.`
-          : "Compose can use the current plugin assignment for this instrument.",
+          : "Compose can use the current routed plugin for this instrument.",
         plugin_label: pluginLabel,
         plugin_caption: pluginLabel ? "Current plugin" : null,
         action_label: null,
@@ -72,40 +72,38 @@ export const getPlaybackReadinessPresentation = (
           "border-emerald-700/70 bg-emerald-500/10 text-emerald-100",
         icon_class_name: "text-emerald-200",
       };
-    case PlaybackAssignmentStatus.NeedsAttention:
+    case ResolvedPlaybackRouteStatus.NeedsAttention:
       return {
         kind: "needs-attention",
         label: "Needs attention",
-        summary: "Not playable until the assignment is corrected.",
+        summary: "Not playable until the route is corrected.",
         explanation:
-          instrument.assignment_intent.mode === PlaybackAssignmentMode.Direct &&
-          instrument.assignment_intent.plugin_id
-            ? "The assigned plugin is not currently available. Choose a different plugin in the Sequence row to recover playback readiness."
-            : instrument.assignment_intent.mode ===
-                PlaybackAssignmentMode.Targeted
-              ? "This assignment still needs a target selection before Compose can use it for playback."
-              : instrument.assignment_intent.mode ===
-                  PlaybackAssignmentMode.SharedInstance
-                ? "This shared assignment is not ready for playback in the current workflow yet."
-                : "Compose cannot use the current playback assignment for this instrument yet.",
+          route?.target?.mode === PlaybackRouteTargetMode.Plugin &&
+          route?.slot_target?.plugin_id
+            ? "The routed slot points at a plugin that is not currently available. Use the current rack workflow to repair the slot or route."
+            : route?.target?.mode === PlaybackRouteTargetMode.PluginPart
+              ? "This route still needs a target selection before Compose can use it for playback."
+              : route?.target?.mode === PlaybackRouteTargetMode.MidiChannel
+                ? "This channel-addressed route is not ready for playback in the current workflow yet."
+                : "Compose cannot use the current playback route for this instrument yet.",
         plugin_label: pluginLabel,
-        plugin_caption: pluginLabel ? "Current assignment" : null,
-        action_label: "Focus row assignment",
+        plugin_caption: pluginLabel ? "Current slot target" : null,
+        action_label: "Focus route summary",
         icon: mdiAlertCircleOutline,
         tone_class_name: "border-amber-700/70 bg-amber-500/10 text-amber-100",
         icon_class_name: "text-amber-200",
       };
-    case PlaybackAssignmentStatus.Unassigned:
+    case ResolvedPlaybackRouteStatus.Unrouted:
     default:
       return {
         kind: "unavailable",
         label: "Unavailable",
-        summary: "No playable assignment is available yet.",
+        summary: "No playable route is available yet.",
         explanation:
-          "This instrument does not have a plugin assigned yet. Use the Sequence row assignment control to choose one playable plugin.",
+          "This instrument is not routed to a playable slot yet. Use the rack and route workflow in Sequence to prepare a slot and connect the instrument.",
         plugin_label: null,
         plugin_caption: null,
-        action_label: "Focus row assignment",
+        action_label: "Focus route summary",
         icon: mdiMinusCircleOutline,
         tone_class_name:
           "border-neutral-600 bg-neutral-700/70 text-neutral-100",

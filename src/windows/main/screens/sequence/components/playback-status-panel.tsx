@@ -5,7 +5,7 @@ import {
 } from "../../../../../services/state";
 import {
   Instrument,
-  ResolvedPlaybackAssignment,
+  ResolvedPlaybackRoute,
 } from "../../../../../services/types";
 import { TokenizedText } from "../../../../../ui/text";
 import { PlaybackReadinessBadge } from "./playback-readiness";
@@ -13,12 +13,12 @@ import { getPlaybackReadinessPresentation } from "./playback-readiness-presentat
 
 type PlaybackStatusPanelProps = {
   instrument: Instrument | null;
-  assignment: ResolvedPlaybackAssignment | null;
+  route: ResolvedPlaybackRoute | null;
 };
 
 export const PlaybackStatusPanel: FC<PlaybackStatusPanelProps> = ({
   instrument,
-  assignment,
+  route,
 }) => {
   const pluginInventory = usePluginInventoryState();
   const sampler = useSamplerState();
@@ -29,24 +29,24 @@ export const PlaybackStatusPanel: FC<PlaybackStatusPanelProps> = ({
     }
 
     return getPlaybackReadinessPresentation(
-      assignment,
+      route,
       instrument,
       pluginInventory.entries,
       sampler.plugins,
     );
-  }, [assignment, instrument, pluginInventory.entries, sampler.plugins]);
+  }, [route, instrument, pluginInventory.entries, sampler.plugins]);
 
-  const handleFocusAssignment = () => {
+  const handleFocusRoute = () => {
     if (!instrument) {
       return;
     }
 
-    const assignmentButton = document.querySelector<HTMLButtonElement>(
-      `[data-assignment-select-for="${instrument.id}"] button`,
+    const routeRow = document.querySelector<HTMLDivElement>(
+      `[data-route-focus-for="${instrument.id}"]`,
     );
 
-    assignmentButton?.scrollIntoView({ block: "center" });
-    assignmentButton?.focus();
+    routeRow?.scrollIntoView({ block: "center" });
+    routeRow?.focus();
   };
 
   if (!instrument || !presentation) {
@@ -117,14 +117,15 @@ export const PlaybackStatusPanel: FC<PlaybackStatusPanelProps> = ({
             </div>
             <div className="mt-2 flex flex-col gap-3 text-sm text-neutral-300 md:flex-row md:items-center md:justify-between">
               <div>
-                Use the existing Sequence row assignment control for the primary
-                recovery path.
+                Use the current Sequence route summary as the primary in-score
+                handoff while slot preparation and route authoring stay on their
+                dedicated rack workflow.
               </div>
               <button
                 type="button"
-                onClick={handleFocusAssignment}
+                onClick={handleFocusRoute}
                 className="border border-sky-700/70 bg-sky-500/10 px-3 py-2 text-xs uppercase tracking-[0.14em] text-sky-100 hover:bg-sky-500/20"
-                aria-label={`Focus row assignment for ${instrumentLabel}`}
+                aria-label={`Focus route summary for ${instrumentLabel}`}
               >
                 {presentation.action_label}
               </button>

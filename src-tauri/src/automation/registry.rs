@@ -58,9 +58,11 @@ use crate::score::flows::{
 };
 use crate::score::instruments::defs::score_instruments_get_all_definitions;
 use crate::score::instruments::{
-    score_instruments_assign_plugin, score_instruments_create, score_instruments_move,
+    score_instruments_assign_slot_route, score_instruments_create, score_instruments_move,
     score_instruments_remove, score_instruments_set_mute, score_instruments_set_pan,
-    score_instruments_set_solo, score_instruments_set_volume,
+    score_instruments_set_solo, score_instruments_set_volume, score_instruments_unassign_route,
+    score_playback_slots_assign_plugin, score_playback_slots_create,
+    score_playback_slots_remove, score_playback_slots_unassign_plugin,
 };
 use crate::score::layouts::{
     score_layouts_assign_flow, score_layouts_assign_player, score_layouts_create,
@@ -402,12 +404,40 @@ pub fn action_definitions() -> Vec<ActionDefinition> {
         ),
         action("score.instrument.remove", "Remove an instrument.", vec![arg("instrument_id", "Numeric instrument id.")]),
         action(
-            "score.instrument.assignPlugin",
-            "Assign or clear a plugin id for an instrument.",
+            "score.instrument.assignSlotRoute",
+            "Assign an instrument route to an existing playback slot.",
             vec![
                 arg("instrument_id", "Numeric instrument id."),
-                optional_arg("plugin_id", "Optional plugin id string, or null to clear the plugin assignment."),
+                arg("slot_id", "Numeric playback slot id."),
             ],
+        ),
+        action(
+            "score.instrument.unassignRoute",
+            "Unassign the playback route for an instrument.",
+            vec![arg("instrument_id", "Numeric instrument id.")],
+        ),
+        action(
+            "score.playback.slot.create",
+            "Create an empty playback slot in the current score rack.",
+            vec![],
+        ),
+        action(
+            "score.playback.slot.remove",
+            "Remove an existing playback slot from the current score rack.",
+            vec![arg("slot_id", "Numeric playback slot id.")],
+        ),
+        action(
+            "score.playback.slot.assignPlugin",
+            "Assign a plugin to an existing playback slot.",
+            vec![
+                arg("slot_id", "Numeric playback slot id."),
+                arg("plugin_id", "Plugin id string."),
+            ],
+        ),
+        action(
+            "score.playback.slot.unassignPlugin",
+            "Unassign the current plugin from an existing playback slot.",
+            vec![arg("slot_id", "Numeric playback slot id.")],
         ),
         action("score.instrument.setVolume", "Set an instrument volume value from 0-127.", vec![arg("instrument_id", "Numeric instrument id."), arg("volume", "Volume from 0-127.")]),
         action("score.instrument.setPan", "Set an instrument pan value from 0-127.", vec![arg("instrument_id", "Numeric instrument id."), arg("pan", "Pan from 0-127.")]),
@@ -1088,16 +1118,69 @@ pub async fn execute_action(app: &AppHandle, name: &str, args: &[Value]) -> Resu
             );
             Ok(Value::Null)
         }
-        "score.instrument.assignPlugin" => {
-            score_instruments_assign_plugin(
+        "score.instrument.assignSlotRoute" => {
+            score_instruments_assign_slot_route(
                 app.clone(),
                 app.state::<AppContextState>(),
                 app.state::<RendererContextState>(),
                 app.state::<SamplerContextState>(),
                 app.state::<AudioContextState>(),
                 arg_id(args, 0, "instrument_id")?,
-                arg_optional_string(args, 1)?,
-            );
+                arg_id(args, 1, "slot_id")?,
+            )?;
+            Ok(Value::Null)
+        }
+        "score.instrument.unassignRoute" => {
+            score_instruments_unassign_route(
+                app.clone(),
+                app.state::<AppContextState>(),
+                app.state::<RendererContextState>(),
+                app.state::<SamplerContextState>(),
+                app.state::<AudioContextState>(),
+                arg_id(args, 0, "instrument_id")?,
+            )?;
+            Ok(Value::Null)
+        }
+        "score.playback.slot.create" => {
+            let slot_id = score_playback_slots_create(
+                app.clone(),
+                app.state::<AppContextState>(),
+                app.state::<RendererContextState>(),
+            )?;
+            Ok(json!(slot_id))
+        }
+        "score.playback.slot.remove" => {
+            score_playback_slots_remove(
+                app.clone(),
+                app.state::<AppContextState>(),
+                app.state::<RendererContextState>(),
+                app.state::<SamplerContextState>(),
+                app.state::<AudioContextState>(),
+                arg_id(args, 0, "slot_id")?,
+            )?;
+            Ok(Value::Null)
+        }
+        "score.playback.slot.assignPlugin" => {
+            score_playback_slots_assign_plugin(
+                app.clone(),
+                app.state::<AppContextState>(),
+                app.state::<RendererContextState>(),
+                app.state::<SamplerContextState>(),
+                app.state::<AudioContextState>(),
+                arg_id(args, 0, "slot_id")?,
+                arg_string(args, 1, "plugin_id")?,
+            )?;
+            Ok(Value::Null)
+        }
+        "score.playback.slot.unassignPlugin" => {
+            score_playback_slots_unassign_plugin(
+                app.clone(),
+                app.state::<AppContextState>(),
+                app.state::<RendererContextState>(),
+                app.state::<SamplerContextState>(),
+                app.state::<AudioContextState>(),
+                arg_id(args, 0, "slot_id")?,
+            )?;
             Ok(Value::Null)
         }
         "score.instrument.setVolume" => {
@@ -1684,8 +1767,8 @@ fn derive_score_slice(
         .iter()
         .map(|current_instrument_id| {
             let instrument = &state.score.instruments.by_id[current_instrument_id];
-            let resolved_playback_assignment = state
-                .resolved_playback_assignment_by_instrument_id
+            let resolved_playback_route = state
+                .resolved_playback_route_by_instrument_id
                 .get(current_instrument_id)
                 .cloned();
             json!({
@@ -1694,11 +1777,8 @@ fn derive_score_slice(
                 "long_name": instrument.long_name,
                 "short_name": instrument.short_name,
                 "stave_ids": instrument.stave_ids,
-                "assigned_plugin_id": resolved_playback_assignment
-                    .as_ref()
-                    .and_then(|assignment| assignment.effective_plugin_id.clone()),
-                "assignment_intent": instrument.assignment_intent,
-                "resolved_playback_assignment": resolved_playback_assignment,
+                "playback_route": instrument.playback_route,
+                "resolved_playback_route": resolved_playback_route,
             })
         })
         .collect::<Vec<_>>();
@@ -2139,17 +2219,6 @@ fn arg_bool(args: &[Value], index: usize, name: &str) -> Result<bool, String> {
     arg_value(args, index, name)?
         .as_bool()
         .ok_or_else(|| format!("Argument {name} must be a boolean"))
-}
-
-fn arg_optional_string(args: &[Value], index: usize) -> Result<Option<String>, String> {
-    match args.get(index) {
-        None => Ok(None),
-        Some(Value::Null) => Ok(None),
-        Some(value) => value
-            .as_str()
-            .map(|value| Some(value.to_string()))
-            .ok_or_else(|| format!("Argument at position {index} must be a string or null")),
-    }
 }
 
 fn arg_optional_id(args: &[Value], index: usize) -> Result<Option<UniqueId>, String> {

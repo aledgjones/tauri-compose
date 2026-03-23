@@ -386,7 +386,7 @@ pub struct Instrument {
     pub short_name: String,
     pub stave_ids: Vec<UniqueId>,
     pub count: Option<String>,        // Auto-generated: "I", "II" or "1", "2"
-    pub assignment_intent: PlaybackAssignmentIntent,
+    pub playback_route: Option<InstrumentPlaybackRoute>,
     pub volume: u8,                   // 0–255 mixer volume
     pub pan: u8,                      // 0–127 pan (64=center)
     pub mute: bool,
@@ -394,35 +394,60 @@ pub struct Instrument {
 }
 ```
 
-`Instrument.assignment_intent` is the durable score-owned playback contract. It persists portable user intent only and supports the current direct single-part case plus the deferred Epic 3 targeted/shared-instance cases without reintroducing frontend-owned truth.
+`Instrument.playback_route` is the durable score-owned link from an instrument into the persisted score rack. The rack stores portable slot targets, while the route stores the instrument's intended destination and engine-facing address payload without reintroducing frontend-owned truth.
 
 ```rust
-pub struct PlaybackAssignmentIntent {
-    pub mode: PlaybackAssignmentMode,          // Unassigned | Direct | Targeted | SharedInstance
-    pub plugin_id: Option<String>,
-    pub target: Option<PlaybackAssignmentTarget>,
-    pub shared_instance_id: Option<UniqueId>,
+pub struct ScorePlayback {
+    pub rack: PlaybackRack,
 }
 
-pub struct PlaybackAssignmentTarget {
-    pub mode: PlaybackAssignmentTargetMode,    // PluginPart | MidiChannel
-    pub index: u8,
+pub struct PlaybackRack {
+    pub order: Vec<UniqueId>,
+    pub by_id: FxHashMap<UniqueId, PlaybackRackSlot>,
+}
+
+pub struct PlaybackRackSlot {
+    pub id: UniqueId,
+    pub target: Option<PlaybackSlotTarget>,
+}
+
+pub struct PlaybackSlotTarget {
+    pub plugin_id: String,
+}
+
+pub struct InstrumentPlaybackRoute {
+    pub slot_id: UniqueId,
+    pub target: PlaybackRouteTarget,
+    pub address: PlaybackRouteAddress,
+}
+
+pub struct PlaybackRouteTarget {
+    pub mode: PlaybackRouteTargetMode,     // Plugin | PluginPart | MidiChannel
+    pub index: Option<u8>,
+}
+
+pub struct PlaybackRouteAddress {
+    pub mode: PlaybackRouteAddressMode,    // Root | Part | MidiChannel
+    pub index: Option<u8>,
 }
 ```
 
-Portable assignment intent is distinct from machine-local readiness. The backend emits resolved score-context state separately through `soloc://state/general` so React can present one Rust-owned answer instead of re-deriving assignment health from scattered fields.
+Portable rack and route intent are distinct from machine-local readiness. A rack slot is a first-class score object and may exist before any plugin is assigned to it, which lets slot preparation, route authoring, and later runtime activation remain separate bounded workflows. The backend emits resolved score-context state separately through `soloc://state/general` so React can present one Rust-owned answer instead of re-deriving route health from scattered fields.
 
 ```rust
-pub struct ResolvedPlaybackAssignment {
-    pub status: PlaybackAssignmentStatus,      // Unassigned | Ready | NeedsAttention
-    pub mode: PlaybackAssignmentMode,
+pub struct ResolvedPlaybackRoute {
+    pub status: ResolvedPlaybackRouteStatus,   // Unrouted | Ready | NeedsAttention
+    pub slot_id: Option<UniqueId>,
+    pub slot_target: Option<PlaybackSlotTarget>,
     pub effective_plugin_id: Option<String>,   // Present only when current runtime compatibility is available
-    pub target: Option<PlaybackAssignmentTarget>,
-    pub shared_instance_id: Option<UniqueId>,
+    pub target: Option<PlaybackRouteTarget>,
+    pub address: Option<PlaybackRouteAddress>,
 }
 ```
 
-`ResolvedPlaybackAssignment` is availability-aware. `effective_plugin_id` is exposed only for direct assignments that are currently compatible on this machine, so targeted/shared intents and missing direct plugins degrade to `NeedsAttention` instead of silently falling through legacy runtime paths.
+`ResolvedPlaybackRoute` is availability-aware. `effective_plugin_id` is exposed only when the routed slot target is currently compatible on this machine, so unrouted instruments, missing slots, slots with no assigned plugin, missing plugins, and deferred plugin-part or MIDI-channel workflows degrade to explicit `NeedsAttention` or `Unrouted` states instead of silently falling through legacy runtime paths. Multiple instruments can intentionally share one slot by pointing distinct `Instrument.playback_route` entries at the same `slot_id`.
+
+The ownership split is strict: the rack owns slot lifecycle, slots own plugin assignment, and instruments own only their explicit route into an existing slot. Removing or unrouting an instrument must not implicitly delete the referenced slot.
 
 Instrument definitions are hardcoded in `defs.rs` via `lazy_static!`. Each definition specifies the instrument family path, names, stave count, default clef, and pitch assignments. Categories include: Brass, Keyboards, Percussion, Strings, Woodwinds.
 

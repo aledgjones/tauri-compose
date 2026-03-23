@@ -1277,7 +1277,7 @@ mod tests {
         use crate::score::entries::key_signature::{KeySignature, KeySignatureMode};
         use crate::score::entries::time_signature::{TimeSignature, TimeSignatureDrawType};
         use crate::score::entries::Entry;
-        use crate::score::instruments::{defs::InstrumentType, Instrument, PlaybackAssignmentIntent};
+        use crate::score::instruments::{defs::InstrumentType, Instrument};
         use crate::score::layouts::LayoutType;
         use crate::score::staves::Stave;
         use crate::score::tracks::{Track, Tracks};
@@ -1304,7 +1304,7 @@ mod tests {
             short_name: String::from("Sn."),
             stave_ids: vec![10],
             count: None,
-            assignment_intent: PlaybackAssignmentIntent::default(),
+            playback_route: None,
             volume: 100,
             pan: 64,
             mute: false,
@@ -1371,7 +1371,7 @@ mod tests {
         use crate::score::entries::key_signature::{KeySignature, KeySignatureMode};
         use crate::score::entries::time_signature::{TimeSignature, TimeSignatureDrawType};
         use crate::score::entries::Entry;
-        use crate::score::instruments::{defs::InstrumentType, Instrument, PlaybackAssignmentIntent};
+        use crate::score::instruments::{defs::InstrumentType, Instrument};
         use crate::score::layouts::LayoutType;
         use crate::score::staves::Stave;
         use crate::score::tracks::{Track, Tracks};
@@ -1398,7 +1398,7 @@ mod tests {
             short_name: String::from("Vln."),
             stave_ids: vec![10],
             count: None,
-            assignment_intent: PlaybackAssignmentIntent::default(),
+            playback_route: None,
             volume: 100,
             pan: 64,
             mute: false,
@@ -1534,7 +1534,7 @@ mod tests {
         use crate::score::entries::time_signature::{TimeSignature, TimeSignatureDrawType};
         use crate::score::entries::Entry;
         use crate::score::flows::Flow;
-        use crate::score::instruments::{defs::InstrumentType, Instrument, PlaybackAssignmentIntent};
+        use crate::score::instruments::{defs::InstrumentType, Instrument};
         use crate::score::layouts::LayoutType;
         use crate::score::staves::Stave;
         use crate::score::tracks::{Track, Tracks};
@@ -1562,7 +1562,7 @@ mod tests {
                 short_name: String::from("Vln."),
                 stave_ids: vec![10],
                 count: None,
-                assignment_intent: PlaybackAssignmentIntent::default(),
+                playback_route: None,
                 volume: 100,
                 pan: 64,
                 mute: false,
@@ -2021,7 +2021,7 @@ mod tests {
         use crate::score::entries::tuplet::Tuplet;
         use crate::score::entries::Entry;
         use crate::score::flows::Flow;
-        use crate::score::instruments::{defs::InstrumentType, Instrument, PlaybackAssignmentIntent};
+        use crate::score::instruments::{defs::InstrumentType, Instrument};
         use crate::score::layouts::LayoutType;
         use crate::score::staves::Stave;
         use crate::score::tracks::{Track, Tracks};
@@ -2055,7 +2055,7 @@ mod tests {
                 short_name: String::from("Vln."),
                 stave_ids: vec![10],
                 count: None,
-                assignment_intent: PlaybackAssignmentIntent::default(),
+                playback_route: None,
                 volume: 100,
                 pan: 64,
                 mute: false,

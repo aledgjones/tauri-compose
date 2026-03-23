@@ -4,10 +4,7 @@ import { render } from "@testing-library/react";
 import { MixerChannel } from "./mixer-channel";
 import { TokenizationContext } from "../../../ui/text/context";
 import type { Instrument } from "../../../services/types";
-import {
-  InstrumentType,
-  PlaybackAssignmentMode,
-} from "../../../services/types";
+import { InstrumentType } from "../../../services/types";
 
 const instrument: Instrument = {
   id: 1,
@@ -17,12 +14,6 @@ const instrument: Instrument = {
   short_name: "Pno.",
   stave_ids: [],
   count: null,
-  assignment_intent: {
-    mode: PlaybackAssignmentMode.Unassigned,
-    plugin_id: null,
-    target: null,
-    shared_instance_id: null,
-  },
   volume: 100,
   pan: 0,
   mute: false,

@@ -1,11 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { PlayerPanelInstrumentListItem } from "./player-panel-instrument-list-item";
-import {
-  Instrument,
-  InstrumentType,
-  PlaybackAssignmentMode,
-} from "../../../../../services/types";
+import { Instrument, InstrumentType } from "../../../../../services/types";
 
 vi.mock("../../../../../services/actions", () => ({
   actions: {
@@ -30,12 +26,6 @@ const mockInstrument: Instrument = {
   short_name: "Vln.",
   stave_ids: [],
   count: null,
-  assignment_intent: {
-    mode: PlaybackAssignmentMode.Unassigned,
-    plugin_id: null,
-    target: null,
-    shared_instance_id: null,
-  },
   volume: 100,
   pan: 64,
   mute: false,

@@ -1,6 +1,13 @@
 pub mod defs;
 
-use super::{config::AutoCountStyle, Score};
+use super::{
+    config::AutoCountStyle,
+    playback::{
+        InstrumentPlaybackRoute, PlaybackRackSlot, ResolvedPlaybackRoute,
+        ResolvedPlaybackRouteStatus,
+    },
+    Score,
+};
 use crate::instructions::FlowRenderRecalculationRequest;
 use crate::playback::sampler::sync_sampler_with_score;
 use crate::playback::transport::TransportSharedState;
@@ -10,121 +17,7 @@ use crate::{AppContextState, AudioContextState, RendererContextState, SamplerCon
 use defs::{get_instrument_definition, InstrumentType};
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
-use serde_repr::{Deserialize_repr, Serialize_repr};
 use tauri::State;
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize_repr, Deserialize_repr)]
-#[repr(u8)]
-pub enum PlaybackAssignmentMode {
-    Unassigned = 0,
-    Direct = 1,
-    Targeted = 2,
-    SharedInstance = 3,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize_repr, Deserialize_repr)]
-#[repr(u8)]
-pub enum PlaybackAssignmentTargetMode {
-    PluginPart = 0,
-    MidiChannel = 1,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct PlaybackAssignmentTarget {
-    pub mode: PlaybackAssignmentTargetMode,
-    pub index: u8,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct PlaybackAssignmentIntent {
-    pub mode: PlaybackAssignmentMode,
-    pub plugin_id: Option<String>,
-    pub target: Option<PlaybackAssignmentTarget>,
-    pub shared_instance_id: Option<UniqueId>,
-}
-
-impl Default for PlaybackAssignmentIntent {
-    fn default() -> Self {
-        Self::unassigned()
-    }
-}
-
-impl PlaybackAssignmentIntent {
-    pub fn unassigned() -> Self {
-        Self {
-            mode: PlaybackAssignmentMode::Unassigned,
-            plugin_id: None,
-            target: None,
-            shared_instance_id: None,
-        }
-    }
-
-    pub fn direct(plugin_id: String) -> Self {
-        Self {
-            mode: PlaybackAssignmentMode::Direct,
-            plugin_id: Some(plugin_id),
-            target: None,
-            shared_instance_id: None,
-        }
-    }
-
-    pub fn effective_plugin_id(&self, available_plugin_ids: &FxHashSet<String>) -> Option<&str> {
-        let plugin_id = self.plugin_id.as_deref()?;
-
-        match self.mode {
-            PlaybackAssignmentMode::Direct if available_plugin_ids.contains(plugin_id) => {
-                Some(plugin_id)
-            }
-            PlaybackAssignmentMode::Unassigned
-            | PlaybackAssignmentMode::Direct
-            | PlaybackAssignmentMode::Targeted
-            | PlaybackAssignmentMode::SharedInstance => None,
-        }
-    }
-
-    pub fn resolved_state(
-        &self,
-        available_plugin_ids: &FxHashSet<String>,
-    ) -> ResolvedPlaybackAssignment {
-        let effective_plugin_id = self
-            .effective_plugin_id(available_plugin_ids)
-            .map(String::from);
-        let status = match self.mode {
-            PlaybackAssignmentMode::Unassigned => PlaybackAssignmentStatus::Unassigned,
-            PlaybackAssignmentMode::Direct if effective_plugin_id.is_some() => {
-                PlaybackAssignmentStatus::Ready
-            }
-            PlaybackAssignmentMode::Direct
-            | PlaybackAssignmentMode::Targeted
-            | PlaybackAssignmentMode::SharedInstance => PlaybackAssignmentStatus::NeedsAttention,
-        };
-
-        ResolvedPlaybackAssignment {
-            status,
-            mode: self.mode,
-            effective_plugin_id,
-            target: self.target.clone(),
-            shared_instance_id: self.shared_instance_id,
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize_repr, Deserialize_repr)]
-#[repr(u8)]
-pub enum PlaybackAssignmentStatus {
-    Unassigned = 0,
-    Ready = 1,
-    NeedsAttention = 2,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ResolvedPlaybackAssignment {
-    pub status: PlaybackAssignmentStatus,
-    pub mode: PlaybackAssignmentMode,
-    pub effective_plugin_id: Option<String>,
-    pub target: Option<PlaybackAssignmentTarget>,
-    pub shared_instance_id: Option<UniqueId>,
-}
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Instrument {
@@ -135,7 +28,7 @@ pub struct Instrument {
     pub short_name: String,
     pub stave_ids: Vec<UniqueId>,
     pub count: Option<String>,
-    pub assignment_intent: PlaybackAssignmentIntent,
+    pub playback_route: Option<InstrumentPlaybackRoute>,
     pub volume: u8,
     pub pan: u8,
     pub mute: bool,
@@ -156,25 +49,6 @@ impl Instrument {
             Some(count) => format!("{} {}", self.long_name, count),
             None => self.long_name.clone(),
         }
-    }
-
-    pub fn effective_plugin_id(&self, available_plugin_ids: &FxHashSet<String>) -> Option<&str> {
-        self.assignment_intent
-            .effective_plugin_id(available_plugin_ids)
-    }
-
-    pub fn resolved_playback_assignment(
-        &self,
-        available_plugin_ids: &FxHashSet<String>,
-    ) -> ResolvedPlaybackAssignment {
-        self.assignment_intent.resolved_state(available_plugin_ids)
-    }
-
-    pub fn set_direct_plugin_assignment(&mut self, plugin_id: Option<String>) {
-        self.assignment_intent = plugin_id.map_or_else(
-            PlaybackAssignmentIntent::unassigned,
-            PlaybackAssignmentIntent::direct,
-        );
     }
 
     pub fn set_volume(&mut self, volume: u8) -> u8 {
@@ -212,30 +86,193 @@ impl Instruments {
 }
 
 impl Score {
-    pub fn assigned_plugin_ids(&self, available_plugin_ids: &FxHashSet<String>) -> Vec<String> {
+    fn slot_reference_count(&self, slot_id: UniqueId) -> usize {
         self.instruments
             .by_id
             .values()
-            .filter_map(|instrument| {
+            .filter(|instrument| {
                 instrument
-                    .effective_plugin_id(available_plugin_ids)
+                    .playback_route
+                    .as_ref()
+                    .map(|route| route.slot_id)
+                    == Some(slot_id)
+            })
+            .count()
+    }
+
+    pub fn create_playback_slot(&mut self, slot_id: UniqueId) -> Result<(), String> {
+        if self.playback.rack.by_id.contains_key(&slot_id) {
+            return Err(format!("Playback slot {} already exists", slot_id));
+        }
+
+        self.playback.rack.order.push(slot_id);
+        self.playback
+            .rack
+            .by_id
+            .insert(slot_id, PlaybackRackSlot::new(slot_id));
+
+        Ok(())
+    }
+
+    pub fn remove_playback_slot(&mut self, slot_id: UniqueId) -> Result<(), String> {
+        if !self.playback.rack.by_id.contains_key(&slot_id) {
+            return Err(format!("Playback slot {} does not exist", slot_id));
+        }
+
+        if self.slot_reference_count(slot_id) > 0 {
+            return Err(format!(
+                "Playback slot {} is still routed from one or more instruments",
+                slot_id
+            ));
+        }
+
+        self.playback
+            .rack
+            .order
+            .retain(|current_slot_id| *current_slot_id != slot_id);
+        self.playback.rack.by_id.remove(&slot_id);
+
+        Ok(())
+    }
+
+    pub fn assign_plugin_to_slot(
+        &mut self,
+        slot_id: UniqueId,
+        plugin_id: String,
+    ) -> Result<(), String> {
+        let slot = self
+            .playback
+            .rack
+            .by_id
+            .get_mut(&slot_id)
+            .ok_or_else(|| format!("Playback slot {} does not exist", slot_id))?;
+
+        slot.target = Some(super::playback::PlaybackSlotTarget { plugin_id });
+
+        Ok(())
+    }
+
+    pub fn unassign_plugin_from_slot(&mut self, slot_id: UniqueId) -> Result<(), String> {
+        let slot = self
+            .playback
+            .rack
+            .by_id
+            .get_mut(&slot_id)
+            .ok_or_else(|| format!("Playback slot {} does not exist", slot_id))?;
+
+        slot.target = None;
+
+        Ok(())
+    }
+
+    pub fn assign_instrument_route_to_slot(
+        &mut self,
+        instrument_id: UniqueId,
+        slot_id: UniqueId,
+    ) -> Result<(), String> {
+        if !self.playback.rack.by_id.contains_key(&slot_id) {
+            return Err(format!("Playback slot {} does not exist", slot_id));
+        }
+
+        let instrument = self
+            .instruments
+            .by_id
+            .get_mut(&instrument_id)
+            .ok_or_else(|| format!("Instrument {} does not exist", instrument_id))?;
+
+        instrument.playback_route = Some(InstrumentPlaybackRoute::direct(slot_id));
+
+        Ok(())
+    }
+
+    pub fn unassign_instrument_route(&mut self, instrument_id: UniqueId) -> Result<(), String> {
+        let instrument = self
+            .instruments
+            .by_id
+            .get_mut(&instrument_id)
+            .ok_or_else(|| format!("Instrument {} does not exist", instrument_id))?;
+
+        instrument.playback_route = None;
+
+        Ok(())
+    }
+
+    pub fn instrument_effective_plugin_id(
+        &self,
+        instrument_id: UniqueId,
+        available_plugin_ids: &FxHashSet<String>,
+    ) -> Option<&str> {
+        let instrument = self.instruments.by_id.get(&instrument_id)?;
+        let route = instrument.playback_route.as_ref()?;
+        let slot = self.playback.rack.by_id.get(&route.slot_id)?;
+        let plugin_id = slot.target.as_ref()?.plugin_id.as_str();
+
+        available_plugin_ids
+            .contains(plugin_id)
+            .then_some(plugin_id)
+    }
+
+    pub fn routed_plugin_ids(&self, available_plugin_ids: &FxHashSet<String>) -> Vec<String> {
+        self.instruments
+            .by_id
+            .keys()
+            .filter_map(|instrument_id| {
+                self.instrument_effective_plugin_id(*instrument_id, available_plugin_ids)
                     .map(String::from)
             })
             .collect()
     }
 
-    pub fn resolved_playback_assignment_by_instrument_id(
+    pub fn resolved_playback_route_by_instrument_id(
         &self,
         available_plugin_ids: &FxHashSet<String>,
-    ) -> FxHashMap<UniqueId, ResolvedPlaybackAssignment> {
+    ) -> FxHashMap<UniqueId, ResolvedPlaybackRoute> {
         self.instruments
             .by_id
             .iter()
             .map(|(instrument_id, instrument)| {
-                (
-                    *instrument_id,
-                    instrument.resolved_playback_assignment(available_plugin_ids),
-                )
+                let resolved_route = match instrument.playback_route.as_ref() {
+                    None => ResolvedPlaybackRoute {
+                        status: ResolvedPlaybackRouteStatus::Unrouted,
+                        slot_id: None,
+                        slot_target: None,
+                        effective_plugin_id: None,
+                        target: None,
+                        address: None,
+                    },
+                    Some(route) => match self.playback.rack.by_id.get(&route.slot_id) {
+                        None => ResolvedPlaybackRoute {
+                            status: ResolvedPlaybackRouteStatus::NeedsAttention,
+                            slot_id: Some(route.slot_id),
+                            slot_target: None,
+                            effective_plugin_id: None,
+                            target: Some(route.target.clone()),
+                            address: Some(route.address.clone()),
+                        },
+                        Some(slot) => {
+                            let effective_plugin_id = slot.target.as_ref().and_then(|target| {
+                                available_plugin_ids
+                                    .contains(&target.plugin_id)
+                                    .then(|| target.plugin_id.clone())
+                            });
+
+                            ResolvedPlaybackRoute {
+                                status: if effective_plugin_id.is_some() {
+                                    ResolvedPlaybackRouteStatus::Ready
+                                } else {
+                                    ResolvedPlaybackRouteStatus::NeedsAttention
+                                },
+                                slot_id: Some(route.slot_id),
+                                slot_target: slot.target.clone(),
+                                effective_plugin_id,
+                                target: Some(route.target.clone()),
+                                address: Some(route.address.clone()),
+                            }
+                        }
+                    },
+                };
+
+                (*instrument_id, resolved_route)
             })
             .collect()
     }
@@ -318,7 +355,7 @@ pub fn score_instruments_create(
         short_name: String::from(def.short_name),
         stave_ids,
         count: None,
-        assignment_intent: PlaybackAssignmentIntent::default(),
+        playback_route: None,
         volume: 100,
         pan: 64,
         mute: false,
@@ -426,31 +463,159 @@ pub fn score_instruments_remove(
 }
 
 #[tauri::command(rename_all = "snake_case")]
-pub fn score_instruments_assign_plugin(
+pub fn score_playback_slots_create(
+    app: tauri::AppHandle,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
+) -> Result<UniqueId, String> {
+    let mut state = state.lock().unwrap();
+    let slot_id = state.generate_id();
+
+    state.score.create_playback_slot(slot_id)?;
+
+    let mut renderer = renderer_state.lock().unwrap();
+    state.emit_general_state(&app, &mut renderer, None);
+
+    Ok(slot_id)
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn score_playback_slots_remove(
     app: tauri::AppHandle,
     state: State<'_, AppContextState>,
     renderer_state: State<'_, RendererContextState>,
     sampler_state: State<'_, SamplerContextState>,
     audio_state: State<'_, AudioContextState>,
-    instrument_id: UniqueId,
-    plugin_id: Option<String>,
-) {
+    slot_id: UniqueId,
+) -> Result<(), String> {
     let mut state = state.lock().unwrap();
 
-    if let Some(instrument) = state.score.instruments.by_id.get_mut(&instrument_id) {
-        instrument.set_direct_plugin_assignment(plugin_id);
-    }
+    state.score.remove_playback_slot(slot_id)?;
 
     sync_sampler_with_score(
         &app,
         &state.score,
         sampler_state.inner(),
         audio_state.inner(),
-        "after plugin assignment",
+        "after playback slot removal",
     );
 
     let mut renderer = renderer_state.lock().unwrap();
     state.emit_general_state(&app, &mut renderer, None);
+
+    Ok(())
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn score_playback_slots_assign_plugin(
+    app: tauri::AppHandle,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
+    sampler_state: State<'_, SamplerContextState>,
+    audio_state: State<'_, AudioContextState>,
+    slot_id: UniqueId,
+    plugin_id: String,
+) -> Result<(), String> {
+    let mut state = state.lock().unwrap();
+
+    state.score.assign_plugin_to_slot(slot_id, plugin_id)?;
+
+    sync_sampler_with_score(
+        &app,
+        &state.score,
+        sampler_state.inner(),
+        audio_state.inner(),
+        "after playback slot plugin assignment",
+    );
+
+    let mut renderer = renderer_state.lock().unwrap();
+    state.emit_general_state(&app, &mut renderer, None);
+
+    Ok(())
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn score_playback_slots_unassign_plugin(
+    app: tauri::AppHandle,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
+    sampler_state: State<'_, SamplerContextState>,
+    audio_state: State<'_, AudioContextState>,
+    slot_id: UniqueId,
+) -> Result<(), String> {
+    let mut state = state.lock().unwrap();
+
+    state.score.unassign_plugin_from_slot(slot_id)?;
+
+    sync_sampler_with_score(
+        &app,
+        &state.score,
+        sampler_state.inner(),
+        audio_state.inner(),
+        "after playback slot plugin unassignment",
+    );
+
+    let mut renderer = renderer_state.lock().unwrap();
+    state.emit_general_state(&app, &mut renderer, None);
+
+    Ok(())
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn score_instruments_assign_slot_route(
+    app: tauri::AppHandle,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
+    sampler_state: State<'_, SamplerContextState>,
+    audio_state: State<'_, AudioContextState>,
+    instrument_id: UniqueId,
+    slot_id: UniqueId,
+) -> Result<(), String> {
+    let mut state = state.lock().unwrap();
+
+    state
+        .score
+        .assign_instrument_route_to_slot(instrument_id, slot_id)?;
+
+    sync_sampler_with_score(
+        &app,
+        &state.score,
+        sampler_state.inner(),
+        audio_state.inner(),
+        "after instrument route assignment",
+    );
+
+    let mut renderer = renderer_state.lock().unwrap();
+    state.emit_general_state(&app, &mut renderer, None);
+
+    Ok(())
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn score_instruments_unassign_route(
+    app: tauri::AppHandle,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
+    sampler_state: State<'_, SamplerContextState>,
+    audio_state: State<'_, AudioContextState>,
+    instrument_id: UniqueId,
+) -> Result<(), String> {
+    let mut state = state.lock().unwrap();
+
+    state.score.unassign_instrument_route(instrument_id)?;
+
+    sync_sampler_with_score(
+        &app,
+        &state.score,
+        sampler_state.inner(),
+        audio_state.inner(),
+        "after instrument route unassignment",
+    );
+
+    let mut renderer = renderer_state.lock().unwrap();
+    state.emit_general_state(&app, &mut renderer, None);
+
+    Ok(())
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -568,6 +733,7 @@ pub fn score_instruments_set_solo(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::score::playback::{PlaybackRouteAddress, PlaybackRouteTarget};
     use crate::score::players::{Player, PlayerType, Players};
     use crate::score::Score;
     use defs::InstrumentType;
@@ -581,7 +747,7 @@ mod tests {
             short_name: String::from(""),
             stave_ids: vec![],
             count: None,
-            assignment_intent: PlaybackAssignmentIntent::default(),
+            playback_route: None,
             volume: 100,
             pan: 64,
             mute: false,
@@ -613,6 +779,28 @@ mod tests {
             .collect();
 
         score
+    }
+
+    fn add_slot(score: &mut Score, slot_id: UniqueId, plugin_id: &str) {
+        score.playback.rack.order.push(slot_id);
+        score.playback.rack.by_id.insert(
+            slot_id,
+            PlaybackRackSlot {
+                id: slot_id,
+                target: Some(crate::score::playback::PlaybackSlotTarget {
+                    plugin_id: String::from(plugin_id),
+                }),
+            },
+        );
+    }
+
+    fn add_empty_slot(score: &mut Score, slot_id: UniqueId) {
+        score.playback.rack.order.push(slot_id);
+        score
+            .playback
+            .rack
+            .by_id
+            .insert(slot_id, PlaybackRackSlot::new(slot_id));
     }
 
     #[test]
@@ -678,62 +866,83 @@ mod tests {
     }
 
     #[test]
-    fn instrument_assignment_intent_defaults_to_unassigned() {
+    fn instrument_playback_route_defaults_to_unrouted() {
         let i = make_instrument(1, "woodwind.flute", "Flute");
-        assert_eq!(i.assignment_intent, PlaybackAssignmentIntent::unassigned());
+        assert_eq!(i.playback_route, None);
     }
 
     #[test]
-    fn effective_plugin_id_reads_direct_assignment() {
-        let mut i = make_instrument(1, "woodwind.flute", "Flute");
+    fn effective_plugin_id_reads_direct_route() {
         let mut available_plugin_ids = FxHashSet::default();
         available_plugin_ids.insert(String::from("plugin-a"));
 
-        i.set_direct_plugin_assignment(Some(String::from("plugin-a")));
+        let mut score = make_score(
+            vec![make_player(1, PlayerType::Section, vec![10])],
+            vec![make_instrument(10, "woodwind.flute", "Flute")],
+        );
+
+        add_slot(&mut score, 100, "plugin-a");
+        score.instruments.by_id.get_mut(&10).unwrap().playback_route =
+            Some(InstrumentPlaybackRoute::direct(100));
 
         assert_eq!(
-            i.effective_plugin_id(&available_plugin_ids),
+            score.instrument_effective_plugin_id(10, &available_plugin_ids),
             Some("plugin-a")
         );
     }
 
     #[test]
-    fn targeted_assignment_resolves_to_attention_needed() {
+    fn plugin_part_route_without_available_slot_resolves_to_attention_needed() {
         let mut available_plugin_ids = FxHashSet::default();
         available_plugin_ids.insert(String::from("plugin-a"));
 
-        let i = Instrument {
-            assignment_intent: PlaybackAssignmentIntent {
-                mode: PlaybackAssignmentMode::Targeted,
-                plugin_id: Some(String::from("plugin-a")),
-                target: Some(PlaybackAssignmentTarget {
-                    mode: PlaybackAssignmentTargetMode::PluginPart,
-                    index: 2,
-                }),
-                shared_instance_id: None,
-            },
-            ..make_instrument(1, "woodwind.flute", "Flute")
-        };
+        let mut score = make_score(
+            vec![make_player(1, PlayerType::Section, vec![10])],
+            vec![make_instrument(10, "woodwind.flute", "Flute")],
+        );
+
+        score.instruments.by_id.get_mut(&10).unwrap().playback_route =
+            Some(InstrumentPlaybackRoute {
+                slot_id: 400,
+                target: PlaybackRouteTarget {
+                    mode: super::super::playback::PlaybackRouteTargetMode::PluginPart,
+                    index: Some(2),
+                },
+                address: PlaybackRouteAddress {
+                    mode: super::super::playback::PlaybackRouteAddressMode::Part,
+                    index: Some(2),
+                },
+            });
+
+        let resolved = score.resolved_playback_route_by_instrument_id(&available_plugin_ids);
 
         assert_eq!(
-            i.resolved_playback_assignment(&available_plugin_ids).status,
-            PlaybackAssignmentStatus::NeedsAttention
+            resolved.get(&10).unwrap().status,
+            ResolvedPlaybackRouteStatus::NeedsAttention
         );
-        assert_eq!(i.effective_plugin_id(&available_plugin_ids), None);
+        assert_eq!(resolved.get(&10).unwrap().effective_plugin_id, None);
     }
 
     #[test]
-    fn direct_assignment_without_available_inventory_resolves_to_attention_needed() {
-        let i = Instrument {
-            assignment_intent: PlaybackAssignmentIntent::direct(String::from("plugin-a")),
-            ..make_instrument(1, "woodwind.flute", "Flute")
-        };
-
+    fn direct_route_without_available_inventory_resolves_to_attention_needed() {
         let available_plugin_ids = FxHashSet::default();
-        let resolved = i.resolved_playback_assignment(&available_plugin_ids);
 
-        assert_eq!(resolved.status, PlaybackAssignmentStatus::NeedsAttention);
-        assert_eq!(resolved.effective_plugin_id, None);
+        let mut score = make_score(
+            vec![make_player(1, PlayerType::Section, vec![10])],
+            vec![make_instrument(10, "woodwind.flute", "Flute")],
+        );
+
+        add_slot(&mut score, 100, "plugin-a");
+        score.instruments.by_id.get_mut(&10).unwrap().playback_route =
+            Some(InstrumentPlaybackRoute::direct(100));
+
+        let resolved = score.resolved_playback_route_by_instrument_id(&available_plugin_ids);
+
+        assert_eq!(
+            resolved.get(&10).unwrap().status,
+            ResolvedPlaybackRouteStatus::NeedsAttention
+        );
+        assert_eq!(resolved.get(&10).unwrap().effective_plugin_id, None);
     }
 
     #[test]
@@ -883,7 +1092,7 @@ mod tests {
     }
 
     #[test]
-    fn assigned_plugin_ids_collects_only_assigned_plugins() {
+    fn routed_plugin_ids_collect_only_routed_plugins() {
         let mut available_plugin_ids = FxHashSet::default();
         available_plugin_ids.insert(String::from("a"));
         available_plugin_ids.insert(String::from("b"));
@@ -897,27 +1106,79 @@ mod tests {
             ],
         );
 
+        add_slot(&mut score, 100, "a");
+        add_slot(&mut score, 101, "b");
         score
-            .instruments
-            .by_id
-            .get_mut(&10)
-            .unwrap()
-            .set_direct_plugin_assignment(Some(String::from("a")));
+            .assign_instrument_route_to_slot(10, 100)
+            .expect("route assignment should succeed");
         score
-            .instruments
-            .by_id
-            .get_mut(&12)
-            .unwrap()
-            .set_direct_plugin_assignment(Some(String::from("b")));
+            .assign_instrument_route_to_slot(12, 101)
+            .expect("route assignment should succeed");
 
         assert_eq!(
-            score.assigned_plugin_ids(&available_plugin_ids),
+            score.routed_plugin_ids(&available_plugin_ids),
             vec![String::from("a"), String::from("b")]
         );
     }
 
     #[test]
-    fn resolved_playback_assignment_map_uses_backend_truth() {
+    fn routed_instrument_with_unassigned_slot_resolves_to_attention_needed() {
+        let available_plugin_ids = FxHashSet::default();
+
+        let mut score = make_score(
+            vec![make_player(1, PlayerType::Section, vec![10])],
+            vec![make_instrument(10, "strings.violin", "Violin")],
+        );
+
+        add_empty_slot(&mut score, 100);
+        score
+            .assign_instrument_route_to_slot(10, 100)
+            .expect("route assignment should succeed");
+
+        let by_instrument = score.resolved_playback_route_by_instrument_id(&available_plugin_ids);
+
+        assert_eq!(
+            by_instrument.get(&10).unwrap().status,
+            ResolvedPlaybackRouteStatus::NeedsAttention
+        );
+        assert_eq!(by_instrument.get(&10).unwrap().slot_target, None);
+        assert_eq!(by_instrument.get(&10).unwrap().effective_plugin_id, None);
+    }
+
+    #[test]
+    fn removing_instrument_does_not_remove_slot() {
+        let mut score = make_score(
+            vec![make_player(1, PlayerType::Section, vec![10])],
+            vec![make_instrument(10, "strings.violin", "Violin")],
+        );
+
+        add_slot(&mut score, 100, "plugin-a");
+        score
+            .assign_instrument_route_to_slot(10, 100)
+            .expect("route assignment should succeed");
+
+        score.instruments.by_id.remove(&10);
+
+        assert!(score.playback.rack.by_id.contains_key(&100));
+    }
+
+    #[test]
+    fn cannot_remove_referenced_slot() {
+        let mut score = make_score(
+            vec![make_player(1, PlayerType::Section, vec![10])],
+            vec![make_instrument(10, "strings.violin", "Violin")],
+        );
+
+        add_slot(&mut score, 100, "plugin-a");
+        score
+            .assign_instrument_route_to_slot(10, 100)
+            .expect("route assignment should succeed");
+
+        assert!(score.remove_playback_slot(100).is_err());
+    }
+
+    #[test]
+    fn resolved_playback_route_map_uses_backend_truth() {
         let mut available_plugin_ids = FxHashSet::default();
         available_plugin_ids.insert(String::from("plugin-a"));
 
@@ -929,23 +1190,20 @@ mod tests {
             ],
         );
 
+        add_slot(&mut score, 100, "plugin-a");
         score
-            .instruments
-            .by_id
-            .get_mut(&10)
-            .unwrap()
-            .set_direct_plugin_assignment(Some(String::from("plugin-a")));
+            .assign_instrument_route_to_slot(10, 100)
+            .expect("route assignment should succeed");
 
-        let by_instrument =
-            score.resolved_playback_assignment_by_instrument_id(&available_plugin_ids);
+        let by_instrument = score.resolved_playback_route_by_instrument_id(&available_plugin_ids);
 
         assert_eq!(
             by_instrument.get(&10).unwrap().status,
-            PlaybackAssignmentStatus::Ready
+            ResolvedPlaybackRouteStatus::Ready
         );
         assert_eq!(
             by_instrument.get(&11).unwrap().status,
-            PlaybackAssignmentStatus::Unassigned
+            ResolvedPlaybackRouteStatus::Unrouted
         );
     }
 }

@@ -102,7 +102,7 @@ mod tests {
     fn get_vertical_spacing_with_one_instrument_has_positive_height() {
         use crate::score::engraves::Engraves;
         use crate::score::flows::Flow;
-        use crate::score::instruments::{defs::InstrumentType, Instrument, PlaybackAssignmentIntent};
+        use crate::score::instruments::{defs::InstrumentType, Instrument};
         use crate::score::layouts::LayoutType;
         use crate::score::staves::Stave;
 
@@ -115,7 +115,7 @@ mod tests {
             short_name: String::from("Pno."),
             stave_ids: vec![stave_id],
             count: None,
-            assignment_intent: PlaybackAssignmentIntent::default(),
+            playback_route: None,
             volume: 100,
             pan: 64,
             mute: false,
@@ -147,7 +147,7 @@ mod tests {
     fn get_vertical_spacing_two_instruments_adds_spacing() {
         use crate::score::engraves::Engraves;
         use crate::score::flows::Flow;
-        use crate::score::instruments::{defs::InstrumentType, Instrument, PlaybackAssignmentIntent};
+        use crate::score::instruments::{defs::InstrumentType, Instrument};
         use crate::score::layouts::LayoutType;
         use crate::score::staves::Stave;
 
@@ -162,7 +162,7 @@ mod tests {
             short_name: String::new(),
             stave_ids: vec![stave_id],
             count: None,
-            assignment_intent: PlaybackAssignmentIntent::default(),
+            playback_route: None,
             volume: 100,
             pan: 64,
             mute: false,

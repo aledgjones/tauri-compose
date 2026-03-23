@@ -502,9 +502,941 @@ mod tests {
     }
 
     fn legacy_non_tuplet_fixture_payload() -> Value {
-        let mut fixture = serde_json::from_str::<Value>(include_str!(
-            "../../tests/fixtures/source/tempo/tempo.json"
-        ))
+        let mut fixture = serde_json::from_str::<Value>(
+            r#"{
+    "next_id": 300,
+    "score": {
+        "config": {
+            "auto_count_styles": {
+                "section": 1,
+                "solo": 0
+            }
+        },
+        "engraves": {
+            "by_layout_type": {
+                "0": {
+                    "base_note_space": 4,
+                    "bracket_single_staves": false,
+                    "bracket_style": 1,
+                    "bracketing_approach": 1,
+                    "frame_padding": {
+                        "bottom": 20,
+                        "left": 0,
+                        "right": 0,
+                        "top": 20
+                    },
+                    "instrument_name_font": {
+                        "align": 1,
+                        "family": 1,
+                        "justify": 2,
+                        "size": 1.75
+                    },
+                    "instrument_name_spacing": 2,
+                    "instrument_spacing": 8,
+                    "maximum_beam_slant": 0.5,
+                    "minimum_note_space": 0.8999999761581421,
+                    "minimum_tie_space": 1.600000023841858,
+                    "note_space_ratio": 1.409999966621399,
+                    "page_padding": {
+                        "bottom": 30,
+                        "left": 20,
+                        "right": 20,
+                        "top": 30
+                    },
+                    "space": 1.5,
+                    "stave_spacing": 6,
+                    "system_start_padding": 0.75,
+                    "systemic_barline_single_instrument_system": true
+                },
+                "1": {
+                    "base_note_space": 4,
+                    "bracket_single_staves": false,
+                    "bracket_style": 1,
+                    "bracketing_approach": 1,
+                    "frame_padding": {
+                        "bottom": 20,
+                        "left": 0,
+                        "right": 0,
+                        "top": 20
+                    },
+                    "instrument_name_font": {
+                        "align": 1,
+                        "family": 1,
+                        "justify": 2,
+                        "size": 1.75
+                    },
+                    "instrument_name_spacing": 2,
+                    "instrument_spacing": 8,
+                    "maximum_beam_slant": 0.5,
+                    "minimum_note_space": 0.8999999761581421,
+                    "minimum_tie_space": 1.600000023841858,
+                    "note_space_ratio": 1.409999966621399,
+                    "page_padding": {
+                        "bottom": 30,
+                        "left": 20,
+                        "right": 20,
+                        "top": 30
+                    },
+                    "space": 2,
+                    "stave_spacing": 6,
+                    "system_start_padding": 0.75,
+                    "systemic_barline_single_instrument_system": false
+                }
+            }
+        },
+        "flows": {
+            "order": [5, 14, 23, 32],
+            "by_id": {
+                "5": {
+                    "id": 5,
+                    "title": "Tick 0 Allegro",
+                    "player_ids": [1],
+                    "length": 256,
+                    "master_id": 6,
+                    "staves": {
+                        "by_id": {
+                            "3": {
+                                "id": 3,
+                                "lines": [1, 1, 1, 1, 1],
+                                "master_id": 8,
+                                "track_ids": [10]
+                            },
+                            "4": {
+                                "id": 4,
+                                "lines": [1, 1, 1, 1, 1],
+                                "master_id": 11,
+                                "track_ids": [13]
+                            }
+                        }
+                    }
+                },
+                "14": {
+                    "id": 14,
+                    "title": "Tick 0 Allegro q=120",
+                    "player_ids": [1],
+                    "length": 256,
+                    "master_id": 15,
+                    "staves": {
+                        "by_id": {
+                            "3": {
+                                "id": 3,
+                                "lines": [1, 1, 1, 1, 1],
+                                "master_id": 17,
+                                "track_ids": [19]
+                            },
+                            "4": {
+                                "id": 4,
+                                "lines": [1, 1, 1, 1, 1],
+                                "master_id": 20,
+                                "track_ids": [22]
+                            }
+                        }
+                    }
+                },
+                "23": {
+                    "id": 23,
+                    "title": "Tick 0 Allegro (q=120)",
+                    "player_ids": [1],
+                    "length": 256,
+                    "master_id": 24,
+                    "staves": {
+                        "by_id": {
+                            "3": {
+                                "id": 3,
+                                "lines": [1, 1, 1, 1, 1],
+                                "master_id": 26,
+                                "track_ids": [28]
+                            },
+                            "4": {
+                                "id": 4,
+                                "lines": [1, 1, 1, 1, 1],
+                                "master_id": 29,
+                                "track_ids": [31]
+                            }
+                        }
+                    }
+                },
+                "32": {
+                    "id": 32,
+                    "title": "Metronome + Mid-flow Changes",
+                    "player_ids": [1],
+                    "length": 256,
+                    "master_id": 33,
+                    "staves": {
+                        "by_id": {
+                            "3": {
+                                "id": 3,
+                                "lines": [1, 1, 1, 1, 1],
+                                "master_id": 35,
+                                "track_ids": [37]
+                            },
+                            "4": {
+                                "id": 4,
+                                "lines": [1, 1, 1, 1, 1],
+                                "master_id": 38,
+                                "track_ids": [40]
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "instruments": {
+            "by_id": {
+                "2": {
+                    "id": 2,
+                    "definition_id": "keyboard.piano",
+                    "instrument_type": 0,
+                    "long_name": "Piano",
+                    "short_name": "Pno.",
+                    "stave_ids": [3, 4],
+                    "count": null,
+                    "assigned_plugin_id": null,
+                    "volume": 100,
+                    "pan": 64,
+                    "mute": false,
+                    "solo": false
+                }
+            }
+        },
+        "layouts": {
+            "by_id": {
+                "0": {
+                    "id": 0,
+                    "layout_type": 0,
+                    "title": "",
+                    "player_ids": [1],
+                    "flow_ids": [5, 14, 23, 32]
+                }
+            },
+            "order": [0]
+        },
+        "meta": {
+            "app_version": "1.23.3",
+            "arranger": "",
+            "artist": "",
+            "composer": "",
+            "composer_dates": "",
+            "composition_year": "",
+            "copyist": "",
+            "copyright": "",
+            "created": 1772928000000,
+            "dedication": "",
+            "editor": "",
+            "lyricist": "",
+            "other_information": "",
+            "publisher": "",
+            "subtitle": "Visual Regression Fixture",
+            "title": "Tempo Markings",
+            "work_number": ""
+        },
+        "players": {
+            "order": [1],
+            "by_id": {
+                "1": {
+                    "id": 1,
+                    "player_type": 0,
+                    "instrument_ids": [2]
+                }
+            }
+        },
+        "tracks": {
+            "by_id": {
+                "6": {
+                    "id": 6,
+                    "entries": {
+                        "by_tick": {
+                            "0": [7, 70]
+                        },
+                        "by_id": {
+                            "7": {
+                                "type": "TimeSignature",
+                                "id": 7,
+                                "tick": 0,
+                                "beats": 4,
+                                "beat_type": 4,
+                                "draw_type": 1,
+                                "groupings": [2, 2],
+                                "hidden": false
+                            },
+                            "70": {
+                                "type": "Tempo",
+                                "id": 70,
+                                "tick": 0,
+                                "text": "Allegro",
+                                "beat_type": 4,
+                                "dots": 0,
+                                "bpm": 130,
+                                "hidden": false,
+                                "show_text": true,
+                                "show_metronome": false,
+                                "parenthesized": false
+                            }
+                        }
+                    }
+                },
+                "8": {
+                    "id": 8,
+                    "entries": {
+                        "by_tick": {
+                            "0": [9]
+                        },
+                        "by_id": {
+                            "9": {
+                                "type": "Clef",
+                                "id": 9,
+                                "tick": 0,
+                                "draw_as": 1,
+                                "pitch": {
+                                    "int": 67,
+                                    "accidental": 0
+                                },
+                                "offset": 2,
+                                "hidden": false
+                            }
+                        }
+                    }
+                },
+                "10": {
+                    "id": 10,
+                    "entries": {
+                        "by_tick": {
+                            "0": [100],
+                            "32": [101],
+                            "64": [102],
+                            "96": [103]
+                        },
+                        "by_id": {
+                            "100": {
+                                "type": "Tone",
+                                "id": 100,
+                                "tick": 0,
+                                "duration": 32,
+                                "pitch": {
+                                    "int": 60,
+                                    "accidental": 0
+                                },
+                                "velocity": {
+                                    "int": 90
+                                },
+                                "articulations": []
+                            },
+                            "101": {
+                                "type": "Tone",
+                                "id": 101,
+                                "tick": 32,
+                                "duration": 32,
+                                "pitch": {
+                                    "int": 62,
+                                    "accidental": 0
+                                },
+                                "velocity": {
+                                    "int": 90
+                                },
+                                "articulations": []
+                            },
+                            "102": {
+                                "type": "Tone",
+                                "id": 102,
+                                "tick": 64,
+                                "duration": 32,
+                                "pitch": {
+                                    "int": 64,
+                                    "accidental": 0
+                                },
+                                "velocity": {
+                                    "int": 90
+                                },
+                                "articulations": []
+                            },
+                            "103": {
+                                "type": "Tone",
+                                "id": 103,
+                                "tick": 96,
+                                "duration": 32,
+                                "pitch": {
+                                    "int": 65,
+                                    "accidental": 0
+                                },
+                                "velocity": {
+                                    "int": 90
+                                },
+                                "articulations": []
+                            }
+                        }
+                    }
+                },
+                "11": {
+                    "id": 11,
+                    "entries": {
+                        "by_tick": {
+                            "0": [12]
+                        },
+                        "by_id": {
+                            "12": {
+                                "type": "Clef",
+                                "id": 12,
+                                "tick": 0,
+                                "draw_as": 2,
+                                "pitch": {
+                                    "int": 53,
+                                    "accidental": 0
+                                },
+                                "offset": -2,
+                                "hidden": false
+                            }
+                        }
+                    }
+                },
+                "13": {
+                    "id": 13,
+                    "entries": {
+                        "by_tick": {},
+                        "by_id": {}
+                    }
+                },
+                "15": {
+                    "id": 15,
+                    "entries": {
+                        "by_tick": {
+                            "0": [16, 71]
+                        },
+                        "by_id": {
+                            "16": {
+                                "type": "TimeSignature",
+                                "id": 16,
+                                "tick": 0,
+                                "beats": 4,
+                                "beat_type": 4,
+                                "draw_type": 1,
+                                "groupings": [2, 2],
+                                "hidden": false
+                            },
+                            "71": {
+                                "type": "Tempo",
+                                "id": 71,
+                                "tick": 0,
+                                "text": "Allegro",
+                                "beat_type": 4,
+                                "dots": 0,
+                                "bpm": 120,
+                                "hidden": false,
+                                "show_text": true,
+                                "show_metronome": true,
+                                "parenthesized": false
+                            }
+                        }
+                    }
+                },
+                "17": {
+                    "id": 17,
+                    "entries": {
+                        "by_tick": {
+                            "0": [18]
+                        },
+                        "by_id": {
+                            "18": {
+                                "type": "Clef",
+                                "id": 18,
+                                "tick": 0,
+                                "draw_as": 1,
+                                "pitch": {
+                                    "int": 67,
+                                    "accidental": 0
+                                },
+                                "offset": 2,
+                                "hidden": false
+                            }
+                        }
+                    }
+                },
+                "19": {
+                    "id": 19,
+                    "entries": {
+                        "by_tick": {
+                            "0": [104],
+                            "32": [105],
+                            "64": [106],
+                            "96": [107]
+                        },
+                        "by_id": {
+                            "104": {
+                                "type": "Tone",
+                                "id": 104,
+                                "tick": 0,
+                                "duration": 32,
+                                "pitch": {
+                                    "int": 67,
+                                    "accidental": 0
+                                },
+                                "velocity": {
+                                    "int": 90
+                                },
+                                "articulations": []
+                            },
+                            "105": {
+                                "type": "Tone",
+                                "id": 105,
+                                "tick": 32,
+                                "duration": 32,
+                                "pitch": {
+                                    "int": 69,
+                                    "accidental": 0
+                                },
+                                "velocity": {
+                                    "int": 90
+                                },
+                                "articulations": []
+                            },
+                            "106": {
+                                "type": "Tone",
+                                "id": 106,
+                                "tick": 64,
+                                "duration": 32,
+                                "pitch": {
+                                    "int": 71,
+                                    "accidental": 0
+                                },
+                                "velocity": {
+                                    "int": 90
+                                },
+                                "articulations": []
+                            },
+                            "107": {
+                                "type": "Tone",
+                                "id": 107,
+                                "tick": 96,
+                                "duration": 32,
+                                "pitch": {
+                                    "int": 72,
+                                    "accidental": 0
+                                },
+                                "velocity": {
+                                    "int": 90
+                                },
+                                "articulations": []
+                            }
+                        }
+                    }
+                },
+                "20": {
+                    "id": 20,
+                    "entries": {
+                        "by_tick": {
+                            "0": [21]
+                        },
+                        "by_id": {
+                            "21": {
+                                "type": "Clef",
+                                "id": 21,
+                                "tick": 0,
+                                "draw_as": 2,
+                                "pitch": {
+                                    "int": 53,
+                                    "accidental": 0
+                                },
+                                "offset": -2,
+                                "hidden": false
+                            }
+                        }
+                    }
+                },
+                "22": {
+                    "id": 22,
+                    "entries": {
+                        "by_tick": {},
+                        "by_id": {}
+                    }
+                },
+                "24": {
+                    "id": 24,
+                    "entries": {
+                        "by_tick": {
+                            "0": [25, 72]
+                        },
+                        "by_id": {
+                            "25": {
+                                "type": "TimeSignature",
+                                "id": 25,
+                                "tick": 0,
+                                "beats": 4,
+                                "beat_type": 4,
+                                "draw_type": 1,
+                                "groupings": [2, 2],
+                                "hidden": false
+                            },
+                            "72": {
+                                "type": "Tempo",
+                                "id": 72,
+                                "tick": 0,
+                                "text": "Allegro",
+                                "beat_type": 4,
+                                "dots": 0,
+                                "bpm": 120,
+                                "hidden": false,
+                                "show_text": true,
+                                "show_metronome": true,
+                                "parenthesized": true
+                            }
+                        }
+                    }
+                },
+                "26": {
+                    "id": 26,
+                    "entries": {
+                        "by_tick": {
+                            "0": [27]
+                        },
+                        "by_id": {
+                            "27": {
+                                "type": "Clef",
+                                "id": 27,
+                                "tick": 0,
+                                "draw_as": 1,
+                                "pitch": {
+                                    "int": 67,
+                                    "accidental": 0
+                                },
+                                "offset": 2,
+                                "hidden": false
+                            }
+                        }
+                    }
+                },
+                "28": {
+                    "id": 28,
+                    "entries": {
+                        "by_tick": {
+                            "0": [108],
+                            "32": [109],
+                            "64": [110],
+                            "96": [111]
+                        },
+                        "by_id": {
+                            "108": {
+                                "type": "Tone",
+                                "id": 108,
+                                "tick": 0,
+                                "duration": 32,
+                                "pitch": {
+                                    "int": 72,
+                                    "accidental": 0
+                                },
+                                "velocity": {
+                                    "int": 90
+                                },
+                                "articulations": []
+                            },
+                            "109": {
+                                "type": "Tone",
+                                "id": 109,
+                                "tick": 32,
+                                "duration": 32,
+                                "pitch": {
+                                    "int": 74,
+                                    "accidental": 0
+                                },
+                                "velocity": {
+                                    "int": 90
+                                },
+                                "articulations": []
+                            },
+                            "110": {
+                                "type": "Tone",
+                                "id": 110,
+                                "tick": 64,
+                                "duration": 32,
+                                "pitch": {
+                                    "int": 76,
+                                    "accidental": 0
+                                },
+                                "velocity": {
+                                    "int": 90
+                                },
+                                "articulations": []
+                            },
+                            "111": {
+                                "type": "Tone",
+                                "id": 111,
+                                "tick": 96,
+                                "duration": 32,
+                                "pitch": {
+                                    "int": 77,
+                                    "accidental": 0
+                                },
+                                "velocity": {
+                                    "int": 90
+                                },
+                                "articulations": []
+                            }
+                        }
+                    }
+                },
+                "29": {
+                    "id": 29,
+                    "entries": {
+                        "by_tick": {
+                            "0": [30]
+                        },
+                        "by_id": {
+                            "30": {
+                                "type": "Clef",
+                                "id": 30,
+                                "tick": 0,
+                                "draw_as": 2,
+                                "pitch": {
+                                    "int": 53,
+                                    "accidental": 0
+                                },
+                                "offset": -2,
+                                "hidden": false
+                            }
+                        }
+                    }
+                },
+                "31": {
+                    "id": 31,
+                    "entries": {
+                        "by_tick": {},
+                        "by_id": {}
+                    }
+                },
+                "33": {
+                    "id": 33,
+                    "entries": {
+                        "by_tick": {
+                            "0": [34, 73],
+                            "64": [76],
+                            "128": [74],
+                            "192": [75]
+                        },
+                        "by_id": {
+                            "34": {
+                                "type": "TimeSignature",
+                                "id": 34,
+                                "tick": 0,
+                                "beats": 4,
+                                "beat_type": 4,
+                                "draw_type": 1,
+                                "groupings": [2, 2],
+                                "hidden": false
+                            },
+                            "73": {
+                                "type": "Tempo",
+                                "id": 73,
+                                "tick": 0,
+                                "text": null,
+                                "beat_type": 4,
+                                "dots": 0,
+                                "bpm": 120,
+                                "hidden": false,
+                                "show_text": false,
+                                "show_metronome": true,
+                                "parenthesized": false
+                            },
+                            "74": {
+                                "type": "Tempo",
+                                "id": 74,
+                                "tick": 128,
+                                "text": "Moderato",
+                                "beat_type": 4,
+                                "dots": 0,
+                                "bpm": 110,
+                                "hidden": false,
+                                "show_text": true,
+                                "show_metronome": false,
+                                "parenthesized": false
+                            },
+                            "75": {
+                                "type": "Tempo",
+                                "id": 75,
+                                "tick": 192,
+                                "text": "Presto",
+                                "beat_type": 4,
+                                "dots": 0,
+                                "bpm": 180,
+                                "hidden": false,
+                                "show_text": true,
+                                "show_metronome": false,
+                                "parenthesized": false
+                            },
+                            "76": {
+                                "type": "Tempo",
+                                "id": 76,
+                                "tick": 64,
+                                "text": "Largo",
+                                "beat_type": 4,
+                                "dots": 0,
+                                "bpm": 50,
+                                "hidden": false,
+                                "show_text": true,
+                                "show_metronome": false,
+                                "parenthesized": false
+                            }
+                        }
+                    }
+                },
+                "35": {
+                    "id": 35,
+                    "entries": {
+                        "by_tick": {
+                            "0": [36]
+                        },
+                        "by_id": {
+                            "36": {
+                                "type": "Clef",
+                                "id": 36,
+                                "tick": 0,
+                                "draw_as": 1,
+                                "pitch": {
+                                    "int": 67,
+                                    "accidental": 0
+                                },
+                                "offset": 2,
+                                "hidden": false
+                            }
+                        }
+                    }
+                },
+                "37": {
+                    "id": 37,
+                    "entries": {
+                        "by_tick": {
+                            "0": [112],
+                            "64": [113],
+                            "128": [114],
+                            "192": [115]
+                        },
+                        "by_id": {
+                            "112": {
+                                "type": "Tone",
+                                "id": 112,
+                                "tick": 0,
+                                "duration": 32,
+                                "pitch": {
+                                    "int": 60,
+                                    "accidental": 0
+                                },
+                                "velocity": {
+                                    "int": 90
+                                },
+                                "articulations": []
+                            },
+                            "113": {
+                                "type": "Tone",
+                                "id": 113,
+                                "tick": 64,
+                                "duration": 32,
+                                "pitch": {
+                                    "int": 64,
+                                    "accidental": 0
+                                },
+                                "velocity": {
+                                    "int": 90
+                                },
+                                "articulations": []
+                            },
+                            "114": {
+                                "type": "Tone",
+                                "id": 114,
+                                "tick": 128,
+                                "duration": 32,
+                                "pitch": {
+                                    "int": 67,
+                                    "accidental": 0
+                                },
+                                "velocity": {
+                                    "int": 90
+                                },
+                                "articulations": []
+                            },
+                            "115": {
+                                "type": "Tone",
+                                "id": 115,
+                                "tick": 192,
+                                "duration": 32,
+                                "pitch": {
+                                    "int": 72,
+                                    "accidental": 0
+                                },
+                                "velocity": {
+                                    "int": 90
+                                },
+                                "articulations": []
+                            }
+                        }
+                    }
+                },
+                "38": {
+                    "id": 38,
+                    "entries": {
+                        "by_tick": {
+                            "0": [39]
+                        },
+                        "by_id": {
+                            "39": {
+                                "type": "Clef",
+                                "id": 39,
+                                "tick": 0,
+                                "draw_as": 2,
+                                "pitch": {
+                                    "int": 53,
+                                    "accidental": 0
+                                },
+                                "offset": -2,
+                                "hidden": false
+                            }
+                        }
+                    }
+                },
+                "40": {
+                    "id": 40,
+                    "entries": {
+                        "by_tick": {},
+                        "by_id": {}
+                    }
+                }
+            }
+        }
+    },
+    "ui": {
+        "flow_id": 5,
+        "layout_id": 0,
+        "renderer": {
+            "debug": false,
+            "pan_x": 100,
+            "pan_y": 100,
+            "zoom": 100
+        },
+        "screens": {
+            "sequence": {
+                "bottom_panel_minimized": false,
+                "bottom_panel_tab": 1,
+                "show_active_only": true
+            },
+            "setup": {
+                "expanded": [],
+                "selection": null
+            },
+            "write": {
+                "bottom_panel_minimized": false,
+                "bottom_panel_tab": 1
+            }
+        },
+        "sequencer": {
+            "flow": null,
+            "instrument": null,
+            "selection": null,
+            "snap": 8,
+            "tool": 0,
+            "track": null,
+            "x": 0,
+            "y": 1008
+        },
+        "tab": 1
+    }
+}"#,
+        )
         .unwrap();
 
         fixture["score"]["tracks"]["by_id"]["6"]["entries"]["by_id"]["70"]["text"] = Value::Null;

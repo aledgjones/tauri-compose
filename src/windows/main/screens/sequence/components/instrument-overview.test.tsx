@@ -9,7 +9,6 @@ import {
   Flow,
   Instrument,
   InstrumentType,
-  PlaybackAssignmentMode,
   Player,
   PlayerType,
 } from "../../../../../services/types";
@@ -21,7 +20,6 @@ vi.mock("../../../../../services/actions", () => ({
     },
     score: {
       instrument: {
-        assignPlugin: vi.fn().mockResolvedValue(undefined),
         setSolo: vi.fn().mockResolvedValue(undefined),
         setMute: vi.fn().mockResolvedValue(undefined),
       },
@@ -46,12 +44,6 @@ const mockInstrument: Instrument = {
   short_name: "Pno.",
   stave_ids: [],
   count: null,
-  assignment_intent: {
-    mode: PlaybackAssignmentMode.Unassigned,
-    plugin_id: null,
-    target: null,
-    shared_instance_id: null,
-  },
   volume: 100,
   pan: 64,
   mute: false,

@@ -40,7 +40,6 @@ const buildStateWithTone = () =>
             short_name: "Pno.",
             stave_ids: [STAVE_ID],
             count: null,
-            assigned_plugin_id: null,
             volume: 100,
             pan: 0,
             mute: false,

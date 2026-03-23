@@ -11,19 +11,12 @@ When connected to atlassian-rovo-mcp:
 - **MUST** use `npm run test:js:coverage` to generate/refresh the coverage data before running `test:js:coverage:summary` if the data may be stale
 - These scripts are safe to auto-approve; inline coverage scripts are not
 
-## Visual Regression Fixtures
+## Visual Regression Cases
 
-- Fixture source files live in `tests/fixtures/source/` — plain JSON, committed to the repo
-- Built `.soloc` files live in `tests/fixtures/built/` — gitignored, regenerated on demand
-- **MUST** run `npm run build:fixtures` after adding or modifying any fixture JSON
-- **MUST** group fixture files by concern (e.g. `time-signatures/`, `rhythms/`, `clefs/`, `key-signatures/`)
-- **MUST** use flows to isolate individual test cases within a fixture file
-- **MUST NOT** commit `.soloc` files — they are binary output and are gitignored
-- See [tests/fixtures/README.md](../tests/fixtures/README.md) for the authoritative fixture guide
-- Fixture JSON `score.meta.app_version` **MUST** match the current `CARGO_PKG_VERSION` (currently `1.23.3`) — the build script will fail with a clear error if it is missing
-- When the `.soloc` container format changes, fixtures must be regenerated with `npm run build:fixtures`
-- Compound fixture coverage is now valid where the app supports it; add representative variants under `tests/fixtures/source/rhythms/` when exercising compound notation behavior
-- **MUST NOT** use Complex (5/4, 7/8, …) time signatures in fixtures until the renderer and load path support them end to end
+- **MUST NOT** add or restore committed visual-fixture corpora under `tests/fixtures/`
+- **MUST** generate renderer-focused test cases on demand when manual visual inspection is needed, then discard those temporary artifacts before finishing the work
+- **MUST** prefer seam-local automated tests over committed manual-regression assets whenever durable coverage is required
+- **MUST** validate `.soloc` container changes through the relevant load/save tests and targeted local checks rather than a repo-owned fixture builder workflow
 
 ## Spec and Documentation Requirements
 
@@ -31,6 +24,7 @@ When connected to atlassian-rovo-mcp:
 - **MUST** identify which docs should be updated whenever a spec changes behavior, architecture, persistence, workflows, user-visible features, or developer expectations
 - **MUST** include explicit documentation update tasks and acceptance criteria in specs; docs are not a follow-up nice-to-have
 - **MUST** update AI-agent instructions as part of the work when project rules or required implementation practices change
+- **MUST** treat score playback setup as rack-first: racks own slot lifecycle, slots own plugin assignment or unassignment, and instruments only own routes to already-existing slots; legacy direct instrument-to-plugin helpers are compatibility residue rather than the architecture to extend
 - **MUST** preserve the tuplet timing invariant across parser, sequencer, and editing work: tuplet container geometry stays compressed to the denominator span on the host track, but crossing tone duration remains literal on the canonical expanded timeline and must not be compressed to the denominator span
 - **MUST** treat tuplets as one shared semantic model across persistence, parsing, rendering, and playback; later consumers may apply that model for their own mechanics, but they must not re-derive ownership, boundary meaning, projection, or continuity through local subsystem-specific inference
 - **MUST** keep tuplet regressions at the owning seam whenever local tests are sufficient; extend existing parser, renderer, playback, persistence, or editing tests before inventing a cross-cutting tuplet-only harness

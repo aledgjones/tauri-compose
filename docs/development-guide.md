@@ -254,31 +254,19 @@ Avoid manually editing synced version files just to reserve a migration target.
 - When present, the Rust legacy sampler path trims those leading source-rate frames in the streamer before resampling, so any preserved alignment metadata stays backend-owned and does not alter transport timestamps.
 - Treat those SCVI sampler seams as maintenance-only legacy support, not as the template for Epic 2 through Epic 6 playback work. New VST work should replace them with VST-owned seams, and the intended end state is full SCVI removal once the replacement path is complete.
 
-## Visual Regression Fixtures
+## Visual Regression Cases
 
-See [tests/fixtures/README.md](../tests/fixtures/README.md) for full details.
+Compose no longer keeps a committed visual-fixture corpus under `tests/fixtures/`.
 
-Fixtures enable manual visual regression of score rendering: a human opens each generated `.soloc` file in the app and visually confirms rendering is correct.
-
-| Command                  | Description                                           |
-| ------------------------ | ----------------------------------------------------- |
-| `npm run build:fixtures` | Convert all `tests/fixtures/source/*.json` → `.soloc` |
-
-### Adding a new fixture
-
-1. Create `tests/fixtures/source/<concern>/<name>.json` — a valid project JSON payload (see [tests/fixtures/README.md](../tests/fixtures/README.md))
-2. Run `npm run build:fixtures`
-3. Open the generated `tests/fixtures/built/<concern>/<name>.soloc` in the app and verify rendering
-4. Commit the `.json` file only (`.soloc` files are gitignored)
+For manual renderer checks, generate the smallest temporary score or `.soloc` case needed for the behavior under review, verify it locally, and discard the temporary artifact when the check is finished. Prefer seam-local automated tests over adding new committed manual-regression assets.
 
 ### `soloc.rs` — shared container logic
 
-The container encoding functions (`build_soloc_container`, `compress_project_payload`, `decompress_project_payload`) and all `.soloc` format constants live in `src-tauri/src/soloc.rs`. Both the production save path (`files.rs`) and the `build-fixtures` binary share this module via:
+The container encoding functions (`build_soloc_container`, `compress_project_payload`, `decompress_project_payload`) and all `.soloc` format constants live in `src-tauri/src/soloc.rs`.
 
 - `files.rs` — `use crate::soloc::*`
-- `build_fixtures.rs` — `#[path = "../soloc.rs"] mod soloc`
 
-When making changes to the container format, update `soloc.rs` and rebuild fixtures with `npm run build:fixtures`.
+When making changes to the container format, update `soloc.rs` and validate the relevant load and save paths directly.
 
 ## Build Configuration
 
@@ -319,7 +307,7 @@ See [TESTING.md](../TESTING.md) for full details. Quick reference:
 
 Test files are colocated next to the source files they test (e.g. `utils.ts` → `utils.test.ts`).
 
-For **visual regression testing** (manual, human-driven), see [tests/fixtures/README.md](../tests/fixtures/README.md).
+For manual visual regression checks, create temporary local cases on demand rather than committing fixture corpora.
 
 ## Tuplet Authoring Guardrails
 

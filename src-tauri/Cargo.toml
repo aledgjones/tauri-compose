@@ -16,10 +16,6 @@ name = "compose_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [[bin]]
-name = "build-fixtures"
-path = "src/bin/build_fixtures.rs"
-
-[[bin]]
 name = "performance"
 path = "src/bin/performance.rs"
 

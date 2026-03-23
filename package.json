@@ -64,7 +64,6 @@
   "private": true,
   "scripts": {
     "build": "tsc && vite build",
-    "build:fixtures": "cargo run --manifest-path src-tauri/Cargo.toml --bin build-fixtures -- tests/fixtures/source tests/fixtures/built",
     "check-types": "tsc --noEmit",
     "dev": "vite",
     "finalize-release": "./scripts/release finalize",

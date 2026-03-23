@@ -1,6 +1,6 @@
 # Story 3.1: Define Backend-Owned Rack, Slot, Target, Address, And Route State
 
-Status: ready-for-dev
+Status: review
 
 ## Story
 
@@ -11,30 +11,36 @@ so that score instruments can participate in a consistent playback topology with
 ## Acceptance Criteria
 
 1. Given a score contains instruments that may or may not have playback prepared, when Compose resolves playback topology for that score, then the backend owns explicit rack, slot, target, address, and route state and that state is available to score-context UI surfaces without frontend-owned truth.
-2. Given some instruments may not yet have a valid playback mapping, when their topology is resolved, then they are represented explicitly as unrouted or attention-needed and Compose does not silently substitute hidden fallback behavior.
+2. Given some instruments may not yet have a valid playback mapping, when their topology is resolved, then they are represented explicitly as unrouted or attention-needed and Compose does not silently substitute hidden fallback behavior, including the case where an instrument routes to an existing slot that does not currently have a plugin assigned.
 3. Given this is the first score-routing story, when it is complete, then the model supports both single-target plugin routing and explicit multi-target or channel-addressed routing and it can represent the MVP case where multiple score instruments intentionally share one rack slot through distinct routes.
+4. Given Story 3.1 owns the foundation slice, when it is complete, then backend-owned mutation seams exist for slot creation or removal, plugin assignment or unassignment on slots, and instrument route assignment or unassignment without making instruments the owner of slot lifecycle.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Replace the assignment-first score model with backend-owned rack, slot, target, address, and route types that match the corrected Epic 3 language (AC: 1, 2, 3)
-  - [ ] Define durable Rust score-domain types for the current score rack, hosted slots, stable product-facing targets, engine-specific address payloads, and instrument routes.
-  - [ ] Keep the authoritative routing truth backend-owned and serializable with the score while separating portable rack or route intent from machine-local plugin inventory state.
-  - [ ] Preserve the bounded MVP semantics only: single-target routing, explicit supported multi-target or channel-addressed routing, and shared-slot intent where compatible plugins expose it.
-- [ ] Task 2: Expose backend-owned resolved route state through existing FE or BE state flows without creating parallel frontend topology truth (AC: 1, 2)
-  - [ ] Add Rust-owned resolved rack or route state that score-context surfaces can consume in later Epic 3 stories.
-  - [ ] Mirror the new backend contract in TypeScript with the repo's existing `snake_case` and numeric-enum conventions.
-  - [ ] Ensure score-context UI surfaces receive rack and route state through existing general-state seams rather than a new provider or manager-local fetch path.
-- [ ] Task 3: Migrate current direct plugin consumers onto backend-owned route helpers while preserving bounded compatibility where it is still needed (AC: 1, 2, 3)
-  - [ ] Update current consumers that read direct plugin identity from instrument state so they use backend-owned effective-route helpers rather than legacy field layouts.
-  - [ ] Keep current single-target compatibility working for existing row controls, keyboard audition, transport preparation, and automation seams where that is still required during the transition.
-  - [ ] Avoid silently treating route resolution as generic DAW routing; only expose the product-approved rack or target semantics.
-- [ ] Task 4: Add persistence, migration, and seam-level validation for the rack and routing foundation (AC: 1, 2, 3)
-  - [ ] Update `.soloc` save or load serialization to persist the new portable rack and route intent.
-  - [ ] Add the required pending migration in `src-tauri/src/migrations/next.rs` if persisted score data changes.
-  - [ ] Add focused Rust and TypeScript tests for serialization, migration, compatibility helpers, and state exposure to score-context surfaces.
-- [ ] Task 5: Update implementation-facing docs for the rack-and-routing pivot and this story's slice boundaries (AC: 1, 2, 3)
-  - [ ] Update data-model and architecture docs so they describe rack, slot, target, address, and route ownership instead of direct instrument-to-plugin assignment.
-  - [ ] Keep the docs explicit that this story owns the representational foundation, while rack display, slot creation, route authoring, activation, and recovery remain owned by later stories.
+- [x] Task 1: Replace the assignment-first score model with backend-owned rack, slot, target, address, and route types that match the corrected Epic 3 language (AC: 1, 2, 3)
+  - [x] Define durable Rust score-domain types for the current score rack, hosted slots, stable product-facing targets, engine-specific address payloads, and instrument routes.
+  - [x] Keep the authoritative routing truth backend-owned and serializable with the score while separating portable rack or route intent from machine-local plugin inventory state.
+  - [x] Allow a rack slot to exist before a plugin is assigned so rack preparation and instrument routing remain separate concerns.
+  - [x] Preserve the bounded MVP semantics only: single-target routing, explicit supported multi-target or channel-addressed routing, and shared-slot intent where compatible plugins expose it.
+- [x] Task 2: Expose backend-owned resolved route state through existing FE or BE state flows without creating parallel frontend topology truth (AC: 1, 2)
+  - [x] Add Rust-owned resolved rack or route state that score-context surfaces can consume in later Epic 3 stories.
+  - [x] Mirror the new backend contract in TypeScript with the repo's existing `snake_case` and numeric-enum conventions.
+  - [x] Ensure score-context UI surfaces receive rack and route state through existing general-state seams rather than a new provider or manager-local fetch path.
+- [x] Task 3: Add minimal backend-owned slot and route mutation seams without preserving legacy direct-assignment integrity beyond compile/run stability (AC: 1, 2, 3, 4)
+  - [x] Add explicit backend commands for slot creation or removal, slot plugin assignment or unassignment, and instrument route assignment or unassignment.
+  - [x] Replace instrument-facing direct plugin mutation with route-first seams; any temporary residue exists only where needed to keep the app compiling and running during the transition.
+  - [x] Keep slot lifecycle independent from instrument deletion or route removal.
+- [x] Task 4: Migrate current direct plugin consumers onto backend-owned route helpers without treating legacy behavior as a compatibility requirement (AC: 1, 2, 3)
+  - [x] Update current consumers that read direct plugin identity from instrument state so they use backend-owned effective-route helpers rather than legacy field layouts.
+  - [x] Keep current row controls, keyboard audition, transport preparation, and automation seams compiling and runnable while they move onto backend-owned route helpers.
+  - [x] Avoid silently treating route resolution as generic DAW routing; only expose the product-approved rack or target semantics.
+- [x] Task 5: Add persistence, migration, and seam-level validation for the rack and routing foundation (AC: 1, 2, 3, 4)
+  - [x] Update `.soloc` save or load serialization to persist the new portable rack and route intent.
+  - [x] Add the required pending migration in `src-tauri/src/migrations/next.rs` if persisted score data changes.
+  - [x] Add focused Rust and TypeScript tests for serialization, migration, compatibility helpers, and state exposure to score-context surfaces.
+- [x] Task 6: Update implementation-facing docs for the rack-and-routing pivot and this story's slice boundaries (AC: 1, 2, 3, 4)
+  - [x] Update data-model and architecture docs so they describe rack, slot, target, address, and route ownership instead of direct instrument-to-plugin assignment.
+  - [x] Keep the docs explicit that this story owns the representational foundation, while rack display, slot creation, route authoring, activation, and recovery remain owned by later stories.
 
 ## Dev Notes
 
@@ -42,6 +48,7 @@ so that score instruments can participate in a consistent playback topology with
 
 - Story 3.1 is the foundation slice for the corrected Epic 3 rack-and-routing model.
 - Its job is to define the durable backend-owned representation for the current score rack and each instrument's explicit route into that rack.
+- The rack owns slot lifecycle, slots can exist before a plugin is assigned, and instruments only store routes to already-existing slots.
 - This story must not try to finish the Sequence rack UI, slot-creation workflow, route-authoring UX, activation path, or reopen recovery behavior.
 - The prior direct-assignment framing is now a superseded stepping stone. This story exists to give Epic 3 one stable playback topology model that later stories can build on cleanly.
 
@@ -50,6 +57,7 @@ so that score instruments can participate in a consistent playback topology with
 - Preserve the Epic 2 retrospective guardrail: this story creates one Rust-owned routing truth and does not create a parallel frontend topology model.
 - Preserve the score-first UX promise: score instruments route into a current score rack rather than owning app-scoped host topology directly.
 - Keep this slice representational. Do not absorb Story 3.2 rack or route presentation, Story 3.3 slot creation, Story 3.4 route authoring, Story 3.5 shared-slot UX legibility, Story 3.8 activation, or Epic 5 reopen or recovery behavior.
+- Include the minimal backend mutation seams needed so later stories can mutate the clarified model without re-opening Story 3.1.
 - Keep the product-facing model stable: `target` is the user-meaningful destination, while `address` is the engine-specific routing payload. For MVP, the only supported address variant is VST-rooted.
 
 ### Bounded Slice Template
@@ -57,10 +65,11 @@ so that score instruments can participate in a consistent playback topology with
 #### This Story Owns
 
 - Defining the durable Rust-owned rack, slot, target, address, and route representation for score playback.
+- Defining the backend-owned slot lifecycle and minimal mutation seams for creating or removing slots, assigning or unassigning plugins on slots, and assigning or unassigning instrument routes.
 - Distinguishing portable rack or route intent from machine-local plugin inventory truth.
 - Exposing resolved route state to score-context UI consumers through existing app state.
 - Migrating persisted score data if the instrument or playback payload shape changes.
-- Preserving bounded compatibility for current single-target consumers while the rest of Epic 3 catches up.
+- Keeping the app compiling and runnable while current consumers move onto the new backend-owned route model.
 
 #### This Story Does Not Own
 
@@ -89,7 +98,7 @@ so that score instruments can participate in a consistent playback topology with
 #### Verification Required For Done
 
 - Rust tests proving the new rack and route model serializes, deserializes, and migrates correctly.
-- Focused tests proving current single-target compatibility consumers still work through the new seam where temporary compatibility is required.
+- Focused tests proving current consumers still compile and run through the new seam while the legacy direct-assignment path is being retired.
 - Frontend tests proving score-context state consumers can read the new backend contract without inventing local derived truth.
 - Validation with the project-standard commands relevant to touched files.
 
@@ -101,9 +110,10 @@ so that score instruments can participate in a consistent playback topology with
 
 - In scope:
   - Rust-owned rack, slot, target, address, and route representation for score playback.
+  - Backend-owned slot lifecycle primitives that later stories can call without reintroducing instrument-owned slot creation semantics.
   - Rust-owned resolved route state exposed to score-context surfaces.
   - Migration and persistence updates required by the new model.
-  - Compatibility adjustments for current transport, audition, automation, and transitional score-context consumers.
+  - Compile/run-stable migration adjustments for current transport, audition, automation, and transitional score-context consumers.
 - Out of scope:
   - New score-surface presentation polish beyond plumbing the new state.
   - New app-scoped windows, Plugin Manager expansion, or plugin-editor affordances.
@@ -161,7 +171,7 @@ so that score instruments can participate in a consistent playback topology with
   - portable score-owned rack or route intent belongs in persisted score data
   - resolved route health or readiness belongs in backend-owned emitted state
   - machine-local plugin inventory and availability remain outside project files
-- Preserve current single-target behavior through bounded adapters or helper methods while later Epic 3 stories catch up.
+- Keep the app compiling and runnable while current consumers move onto the new route helpers; do not preserve legacy direct-assignment behavior beyond that stability bar.
 - Avoid a big-bang frontend rewrite. Replace the backend model seam first, then let later stories reshape Sequence surfaces around it.
 - Do not make React responsible for inferring unrouted, missing-target, or attention-needed states from scattered fields.
 - If a compact summary is needed for current consumers, derive it in Rust and emit it as part of state rather than recomputing it independently in multiple UI surfaces.
@@ -264,25 +274,55 @@ GPT-5.4
 
 ### Debug Log References
 
-- Story selected explicitly as `3.1`.
-- The planning artifacts now define Epic 3 Story 3.1 as `Define Backend-Owned Rack, Slot, Target, Address, And Route State`.
-- The existing 3.1 implementation artifact was still framed around direct assignment and marked `done`, which no longer matched the approved rack-and-routing plan.
-- Sprint tracking still showed `3-1-represent-playback-assignment-state-on-score-instruments: done` even though the sprint change proposal explicitly recommended reopening Story 3.1 under the corrected model.
-- Artifact review confirmed the corrected story must be backend-first, Rust-owned, and bounded away from the later Sequence UI, slot-creation, route-authoring, activation, and recovery slices.
-- Project-context review confirmed Rust remains the single source of truth and `.soloc` must keep machine-local inventory outside project persistence.
+- Implemented a new persisted score playback model in `src-tauri/src/score/playback.rs` and wired `Score.playback` plus `Instrument.playback_route` through Rust-owned state and migrations.
+- Replaced emitted assignment-era general state with `resolved_playback_route_by_instrument_id` and updated bounded compatibility consumers in transport, audition, automation, and Sequence score-context surfaces.
+- Added pending migration coverage for assignment-intent payloads, including `next_id`-aware slot allocation and durable rack construction during load.
+- Fixed a transport test-fixture regression by restoring direct route assignment in multi-track scheduling fixtures.
+- Updated implementation-facing docs in `docs/architecture.md` and `docs/data-models.md` to describe rack, slot, target, address, and route ownership.
+- Validated the story with `npm run check-types`, `npm run test:js`, `npm run lint`, `cargo clippy --lib -- -D warnings`, and `cargo test --lib`.
 
 ### Completion Notes List
 
-- Story context rewritten from the superseded assignment-first foundation to the approved rack-and-routing foundation.
-- Scope boundaries preserved so Story 3.1 owns only the backend topology model and its emitted state seams.
-- Migration and documentation impact called out explicitly because the persisted playback-domain shape is expected to change again under the corrected model.
-- Sprint tracking reset so Epic 3 can re-implement the true foundation instead of treating the superseded slice as complete.
+- Added backend-owned rack, slot, target, address, and route types to persisted score state and kept the portable rack model separate from machine-local plugin inventory truth.
+- Exposed backend-owned resolved route state through the existing general app-state seam and updated TypeScript mirrors to the new route-first contract.
+- Migrated transport preparation, keyboard audition, automation payloads, and Sequence read-only playback readiness consumers to backend-owned effective-route helpers.
+- Added or updated Rust and TypeScript tests for migration, state exposure, compatibility helpers, and routing-aware playback scheduling.
+- Updated architecture and data-model documentation to reflect the rack-and-routing foundation while preserving later-story boundaries for route authoring, activation, and recovery.
 
 ### File List
 
 - `_bmad-output/implementation-artifacts/3-1-represent-playback-assignment-state-on-score-instruments.md`
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `docs/architecture.md`
+- `docs/data-models.md`
+- `src-tauri/src/score/playback.rs`
+- `src-tauri/src/score/mod.rs`
+- `src-tauri/src/score/instruments/mod.rs`
+- `src-tauri/src/lib.rs`
+- `src-tauri/src/playback/transport.rs`
+- `src-tauri/src/automation/registry.rs`
+- `src-tauri/src/migrations/next.rs`
+- `src-tauri/src/score/flows.rs`
+- `src-tauri/src/bin/performance.rs`
+- `src-tauri/src/instructions/mod.rs`
+- `src-tauri/src/instructions/draw/draw_names.rs`
+- `src-tauri/src/instructions/draw/draw_staves.rs`
+- `src-tauri/src/instructions/parse/get_horizontal_spacing.rs`
+- `src-tauri/src/instructions/parse/get_vertical_spacing.rs`
+- `src-tauri/src/instructions/parse/get_vertical_spans.rs`
+- `src-tauri/src/instructions/parse/test_support/get_written_durations_test_harness.rs`
+- `src/services/types.ts`
+- `src/services/state/context.tsx`
+- `src/windows/main/hooks/use-bottom-panel-state.ts`
+- `src/windows/main/hooks/use-keyboard-shortcuts.ts`
+- `src/windows/main/hooks/use-keyboard-shortcuts.test.ts`
+- `src/windows/main/components/sequencer.tsx`
+- `src/windows/main/screens/sequence/components/instrument-overview-row.tsx`
+- `src/windows/main/screens/sequence/components/instrument-overview-row.test.tsx`
+- `src/windows/main/screens/sequence/components/playback-readiness-presentation.ts`
+- `src/windows/main/screens/sequence/components/playback-status-panel.tsx`
+- `src/windows/main/screens/sequence/components/playback-status-panel.test.tsx`
 
 ## Change Log
 
-- 2026-03-23: Story rewritten to the approved rack-and-routing foundation scope, replacing the superseded assignment-first framing and resetting the slice to ready-for-dev.
+- 2026-03-23: Implemented the backend-owned rack-and-routing foundation, updated route-first docs, passed the required validation suite, and moved the story to review.

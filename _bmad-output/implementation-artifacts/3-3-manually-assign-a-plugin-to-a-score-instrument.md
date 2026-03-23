@@ -1,65 +1,3 @@
-# Story 3.3: Manually Assign a Plugin to a Score Instrument
-
-Status: ready-for-dev
-
-## Story
-
-As a composer,
-I want to assign an available single-part plugin to a score instrument from the score workflow,
-so that I can prepare that instrument for playback quickly without leaving my composition context.
-
-## Acceptance Criteria
-
-1. Given a score instrument is selected and a usable plugin inventory exists, when the user chooses a plugin from the contextual assignment control, then that plugin is assigned to the selected score instrument and the assignment is stored as backend-owned playback intent.
-2. Given the score-context picker is used for assignment, when the user opens it, then it presents a filtered, musician-friendly view of currently usable plugins and it does not require the user to manage the full plugin inventory window just to make an assignment.
-3. Given a manual assignment is completed successfully, when the instrument's playback state is refreshed, then its readiness state reflects the new assignment and the instrument becomes eligible for later playback stories.
-
-## Tasks / Subtasks
-
-- [ ] Task 1: Reuse the existing Sequence score-context assignment surfaces instead of inventing a parallel workflow (AC: 1, 2)
-  - [ ] Keep the Sequence instrument row as the compact quick-assignment surface.
-  - [ ] Reuse the Sequence bottom panel as the richer score-context surface for the selected instrument so row and panel stay one assignment model rather than two competing flows.
-  - [ ] Do not introduce a new dedicated window, Setup-screen assignment model, or app-scoped picker for this story.
-- [ ] Task 2: Switch the assignment picker from legacy sampler-era plugin data to the backend-owned usable VST inventory seam (AC: 1, 2)
-  - [ ] Replace sampler-era plugin-list consumption in the score-context assignment control with the current VST inventory source of truth for usable plugins.
-  - [ ] Filter the picker to assignment-ready single-part options that Compose can currently use.
-  - [ ] Keep availability filtering backend-aligned so the picker does not invent a second frontend-only inventory truth.
-- [ ] Task 3: Deliver a compact, musician-friendly manual assignment interaction (AC: 1, 2)
-  - [ ] Preserve the efficient score-first feel of the current row control while making the available choices clearer and more musician-friendly.
-  - [ ] Keep labels and UI text concise rather than technical or verbose.
-  - [ ] Avoid broad metadata browsing, scan-management controls, or debug-oriented detail inside the picker itself.
-- [ ] Task 4: Persist manual single-part assignment through the existing backend-owned intent model and refresh readiness state (AC: 1, 3)
-  - [ ] Route all assignment changes through the existing backend command and persisted assignment-intent seam.
-  - [ ] Ensure successful assignment refreshes the emitted readiness state used by Story 3.2 row and panel presentation.
-  - [ ] Preserve current single-part compatibility paths without widening this story into runtime activation, playback verification, or reopen recovery work.
-- [ ] Task 5: Keep Story 3.3 bounded to manual single-part assignment only (AC: 1, 2, 3)
-  - [ ] Do not expose part/channel targeting UI; Story 3.4 owns that.
-  - [ ] Do not introduce shared-instance reuse logic; Story 3.5 owns that.
-  - [ ] Do not add user-facing native plugin-editor launch controls in the Sequence row or picker; that remains later secondary handoff work.
-  - [ ] Do not reopen Plugin Manager responsibilities such as refresh, full inventory browsing, or unavailable-plugin troubleshooting.
-- [ ] Task 6: Add focused seam-level validation and documentation updates for score-context assignment (AC: 1, 2, 3)
-  - [ ] Add frontend tests covering row and panel assignment interactions, usable-plugin filtering, and readiness refresh after assignment.
-  - [ ] Add contract or backend tests only where needed to confirm the assignment seam still stores direct single-part playback intent and refreshes emitted state correctly.
-  - [ ] Update relevant docs so they describe Sequence score-context assignment as distinct from Plugin Manager inventory management.
-
-## Dev Notes
-
-### Story Intent
-
-- Story 3.3 is the manual assignment slice that follows Story 3.2's readiness-display slice.
-- Its job is to let the user choose a currently usable single-part plugin from within the score workflow and store that choice as backend-owned playback intent.
-- The compact quick-assignment surface remains the Sequence instrument row.
-- The richer contextual assignment surface remains the Sequence bottom panel for the selected instrument.
-
-### User Decisions Captured
-
-- Story 3.3 is a direct continuation of Story 3.2: the same Sequence row and Sequence bottom-panel surfaces should now support score-context manual assignment.
-- The interaction should stay compact and low-wordiness, with clarity through minimalism rather than heavy explanatory picker UI.
-- The bottom panel should support the score-context assignment workflow without becoming a second Plugin Manager.
-- A direct row-level or picker-level "open selected plugin UI" button is still future work, not part of Story 3.3.
-
-### Bounded Slice Template
-
 # Story 3.3: Load Or Create A Rack Slot From The Available Plugin Inventory
 
 Status: ready-for-dev
@@ -221,14 +159,14 @@ so that I can prepare a reusable playback destination without leaving my composi
   - Existing bottom-panel state seam that should continue to mediate the current score-context panel.
 - `src/services/actions.ts`
   - Current frontend mutation seam.
-  - The existing `actions.score.instrument.assignPlugin()` path is a legacy direct-assignment seam and should not be extended as the end-state rack-slot workflow.
+  - Extend the explicit playback-slot actions rather than reintroducing any direct instrument-to-plugin shortcut.
 - `src/services/types.ts`
   - Frontend contract mirror for backend-owned rack, slot, route, and plugin inventory state.
 - `src/services/state/context.tsx`
   - General app-state mirror used by Sequence surfaces.
 - `src-tauri/src/score/instruments/mod.rs`
   - Current backend mutation seam closest to playback-domain intent.
-  - If direct-assignment commands still exist here, treat them as compatibility residue to evolve away from rather than the target model.
+  - Keep slot lifecycle and route mutation separate so this story does not reintroduce instrument-owned slot setup.
 - `src-tauri/src/playback/plugin_inventory.rs`
   - Backend-owned usable plugin inventory seam that must back the slot-preparation picker.
 - `src-tauri/src/lib.rs`
@@ -238,9 +176,8 @@ so that I can prepare a reusable playback destination without leaving my composi
 
 ### Legacy Or Superseded Seams To Avoid
 
-- `actions.score.instrument.assignPlugin()` and `score_instruments_assign_plugin`
-  - Direct-assignment era seams.
-  - Do not treat them as the desired long-term slot workflow without first aligning them to the rack model.
+- Reintroducing any direct instrument-to-plugin mutation seam.
+  - Slot preparation must stay rack-first so instruments continue to route to already-existing slots.
 - The old Story 3.3 direct-assignment artifact itself should be treated as superseded.
 - Plugin Manager window code should not become the implementation home for ordinary score-context slot preparation.
 
@@ -321,7 +258,7 @@ so that I can prepare a reusable playback destination without leaving my composi
 ### Latest Technical Information
 
 - The planning artifacts now define Story 3.3 as score-context rack-slot preparation, not direct instrument assignment.
-- The current codebase still exposes legacy direct-assignment seams such as `actions.score.instrument.assignPlugin()` and `score_instruments_assign_plugin`, which are likely compatibility residue rather than the desired corrected workflow.
+- The current codebase now exposes explicit slot and route seams for Story 3.1 groundwork, and the earlier direct-assignment compatibility paths have been removed.
 - No new external library or framework choice is required for this story.
 
 ### Project Structure Notes
@@ -366,7 +303,7 @@ GPT-5.4
 - Story selected explicitly as `3.3` for replacement after the rack-and-routing course correction.
 - Sprint tracking still preserved the legacy story key and artifact path, so the rewrite keeps those stable while replacing the story content.
 - Artifact review confirmed the approved Epic 3 sequence is now rack foundation, rack display, slot preparation, route authoring, shared-slot reuse, and only later activation.
-- Source review confirmed the current codebase still exposes direct-assignment seams such as `actions.score.instrument.assignPlugin()` and `score_instruments_assign_plugin`, which should not be treated as the corrected long-term slot workflow without redesign.
+- Source review confirmed the corrected workflow is now built on explicit slot and route seams, and direct-assignment compatibility paths should not be reintroduced.
 - UX and architecture review confirmed slot preparation must stay score-contextual, compact, musician-friendly, and distinct from Plugin Manager responsibilities.
 
 ### Completion Notes List

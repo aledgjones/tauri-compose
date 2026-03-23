@@ -107,14 +107,14 @@ pub fn sync_sampler_with_score(
         .lock()
         .unwrap()
         .available_plugin_ids();
-    let assigned_plugin_ids = score.assigned_plugin_ids(&available_plugin_ids);
+    let routed_plugin_ids = score.routed_plugin_ids(&available_plugin_ids);
 
     let mut sampler = sampler_state.lock().unwrap();
     let audio = audio_state.lock().unwrap();
     let sample_rate = audio.get_sample_rate();
     drop(audio);
 
-    if let Err(error) = sampler.sync_with_instruments(&assigned_plugin_ids, sample_rate) {
+    if let Err(error) = sampler.sync_with_plugin_ids(&routed_plugin_ids, sample_rate) {
         eprintln!("Failed to sync sampler {}: {}", error_context, error);
     }
     sampler.emit(app);
@@ -290,15 +290,15 @@ impl SamplerContext {
         }
     }
 
-    /// Sync sampler with score instruments: load assigned plugins and unload unused ones
-    pub fn sync_with_instruments(
+    /// Sync sampler cache with the score-owned routed plugin set.
+    pub fn sync_with_plugin_ids(
         &mut self,
-        assigned_plugin_ids: &[String],
+        plugin_ids: &[String],
         target_sample_rate: u32,
     ) -> Result<(), String> {
-        // Collect unique assigned plugin IDs
+        // Collect unique routed plugin IDs
         let required_plugins: std::collections::HashSet<&String> =
-            assigned_plugin_ids.iter().collect();
+            plugin_ids.iter().collect();
 
         // Load plugins that are assigned but not yet loaded
         for plugin_id in &required_plugins {
@@ -323,30 +323,6 @@ impl SamplerContext {
 }
 
 #[tauri::command(rename_all = "snake_case")]
-pub fn sampler_load_plugin(
-    app: AppHandle,
-    state: State<'_, SamplerContextState>,
-    audio_state: State<'_, AudioContextState>,
-    plugin_id: String,
-) -> Result<(), String> {
-    let mut ctx = state.lock().unwrap();
-    let audio_ctx = audio_state.lock().unwrap();
-
-    let result = match ctx.load_instrument(&plugin_id, audio_ctx.get_sample_rate()) {
-        Ok(cache) => {
-            ctx.cache.insert(plugin_id.clone(), cache);
-
-            Ok(())
-        }
-        Err(e) => Err(format!("Failed to load instrument: {}", e)),
-    };
-
-    ctx.emit(&app);
-
-    result
-}
-
-#[tauri::command(rename_all = "snake_case")]
 pub fn sampler_rescan_plugins(
     app: AppHandle,
     state: State<'_, SamplerContextState>,
@@ -357,22 +333,6 @@ pub fn sampler_rescan_plugins(
     ctx.plugins = SamplerContext::scan_plugins();
 
     // Emit updated state to frontend
-    ctx.emit(&app);
-
-    Ok(())
-}
-
-#[tauri::command(rename_all = "snake_case")]
-pub fn sampler_sync_with_instruments(
-    app: AppHandle,
-    state: State<'_, SamplerContextState>,
-    audio_state: State<'_, AudioContextState>,
-    assigned_plugin_ids: Vec<String>,
-) -> Result<(), String> {
-    let mut ctx = state.lock().unwrap();
-    let audio_ctx = audio_state.lock().unwrap();
-
-    ctx.sync_with_instruments(&assigned_plugin_ids, audio_ctx.get_sample_rate())?;
     ctx.emit(&app);
 
     Ok(())
