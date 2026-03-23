@@ -61,8 +61,8 @@ use crate::score::instruments::{
     score_instruments_assign_slot_route, score_instruments_create, score_instruments_move,
     score_instruments_remove, score_instruments_set_mute, score_instruments_set_pan,
     score_instruments_set_solo, score_instruments_set_volume, score_instruments_unassign_route,
-    score_playback_slots_assign_plugin, score_playback_slots_create,
-    score_playback_slots_remove, score_playback_slots_unassign_plugin,
+    score_playback_slots_assign_plugin, score_playback_slots_create, score_playback_slots_remove,
+    score_playback_slots_unassign_plugin,
 };
 use crate::score::layouts::{
     score_layouts_assign_flow, score_layouts_assign_player, score_layouts_create,
@@ -408,7 +408,10 @@ pub fn action_definitions() -> Vec<ActionDefinition> {
             "Assign an instrument route to an existing playback slot.",
             vec![
                 arg("instrument_id", "Numeric instrument id."),
-                arg("slot_id", "Numeric playback slot id."),
+                arg(
+                    "route",
+                    "InstrumentPlaybackRoute payload with slot_id, target, and address.",
+                ),
             ],
         ),
         action(
@@ -1126,7 +1129,7 @@ pub async fn execute_action(app: &AppHandle, name: &str, args: &[Value]) -> Resu
                 app.state::<SamplerContextState>(),
                 app.state::<AudioContextState>(),
                 arg_id(args, 0, "instrument_id")?,
-                arg_id(args, 1, "slot_id")?,
+                arg_enum(args, 1, "route")?,
             )?;
             Ok(Value::Null)
         }

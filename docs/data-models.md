@@ -430,9 +430,18 @@ pub struct PlaybackRouteAddress {
     pub mode: PlaybackRouteAddressMode,    // Root | Part | MidiChannel
     pub index: Option<u8>,
 }
+
+pub struct PlaybackRouteChoice {
+    pub key: String,
+    pub label: String,
+    pub target: PlaybackRouteTarget,
+    pub address: PlaybackRouteAddress,
+}
 ```
 
 Portable rack and route intent are distinct from machine-local readiness. A rack slot is a first-class score object and may exist before any plugin is assigned to it, which lets slot preparation, route authoring, and later runtime activation remain separate bounded workflows. The backend emits resolved score-context state separately through `soloc://state/general` so React can present one Rust-owned answer instead of re-deriving route health from scattered fields.
+
+The backend also emits per-slot `PlaybackRouteChoice` lists through `route_target_options_by_slot_id` on `soloc://state/general`. Sequence must consume that Rust-owned contract when offering route targets; if Rust can only prove the direct plugin output for a slot, React must expose only that direct choice and must not invent speculative part or MIDI-channel options.
 
 ```rust
 pub struct ResolvedPlaybackRoute {

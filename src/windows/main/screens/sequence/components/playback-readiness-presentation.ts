@@ -48,13 +48,13 @@ const getPlaybackRouteTargetLabel = (
 ) => {
   switch (route?.target?.mode) {
     case PlaybackRouteTargetMode.Plugin:
-      return "Target Plugin output";
+      return "Target: plugin output";
     case PlaybackRouteTargetMode.PluginPart:
-      return `Target Plugin part ${(route.target.index ?? 0) + 1}`;
+      return `Target: plugin part ${(route.target.index ?? 0) + 1}`;
     case PlaybackRouteTargetMode.MidiChannel:
-      return `Target MIDI channel ${(route.target.index ?? 0) + 1}`;
+      return `Target: MIDI channel ${(route.target.index ?? 0) + 1}`;
     default:
-      return "No route target selected";
+      return "Target: --";
   }
 };
 
@@ -63,11 +63,11 @@ const getPlaybackRouteAddressLabel = (
 ) => {
   switch (address?.mode) {
     case PlaybackRouteAddressMode.Root:
-      return "Address Root";
+      return "Address: root";
     case PlaybackRouteAddressMode.Part:
-      return `Address Part ${(address.index ?? 0) + 1}`;
+      return `Address: part ${(address.index ?? 0) + 1}`;
     case PlaybackRouteAddressMode.MidiChannel:
-      return `Address MIDI channel ${(address.index ?? 0) + 1}`;
+      return `Address: MIDI channel ${(address.index ?? 0) + 1}`;
     default:
       return null;
   }
@@ -84,7 +84,7 @@ export const getPlaybackRackSlotLabel = (
   const pluginId = fallbackPluginId ?? slot?.target?.plugin_id ?? null;
   const pluginLabel = pluginId
     ? resolvePluginName(pluginId, pluginInventoryEntries)
-    : "Unassigned";
+    : "--";
 
   if (slotIndex >= 0) {
     return `${slotIndex + 1}. ${pluginLabel}`;
@@ -152,7 +152,7 @@ export const getPlaybackReadinessPresentation = (
           : "Compose can use the current routed rack slot for this instrument.",
         plugin_label: pluginLabel,
         plugin_caption: pluginLabel ? "Current slot target" : null,
-        action_label: null,
+        action_label: "Change route",
         icon: mdiCheckCircleOutline,
         tone_class_name: "text-emerald-300",
         icon_class_name: "text-emerald-300",
@@ -193,16 +193,19 @@ export const getPlaybackReadinessPresentation = (
       return {
         kind: "ok",
         label: "Okay",
-        summary: "No playable route is available yet.",
-        explanation:
-          "This instrument is not routed to a playable score rack slot yet.",
+        summary: hasSlotReference
+          ? "The selected score slot is currently empty."
+          : "No playable route is available yet.",
+        explanation: hasSlotReference
+          ? "This instrument is still assigned to the current score rack slot, but that slot does not have a plugin yet."
+          : "This instrument is not routed to a playable score rack slot yet.",
         plugin_label: null,
         plugin_caption: null,
-        action_label: null,
+        action_label: "Route in rack",
         icon: mdiMinusCircleOutline,
         tone_class_name: "text-neutral-300",
         icon_class_name: "text-neutral-300",
-        slot_summary: "No routed slot yet",
+        slot_summary: slotLabel ? `Slot ${slotLabel}` : "No routed slot yet",
         target_summary: targetSummary,
         address_summary: addressSummary,
       };

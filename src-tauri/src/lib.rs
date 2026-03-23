@@ -136,6 +136,8 @@ struct AppStateGeneral {
     score: Score,
     resolved_playback_route_by_instrument_id:
         rustc_hash::FxHashMap<UniqueId, ResolvedPlaybackRoute>,
+    route_target_options_by_slot_id:
+        rustc_hash::FxHashMap<UniqueId, Vec<score::playback::PlaybackRouteChoice>>,
     preferences: Preferences,
     current_file_path: Option<String>,
 }
@@ -277,6 +279,7 @@ impl AppContext {
                 .resolved_playback_route_by_instrument_id(&get_available_plugin_ids(
                     app.state::<ManagedPluginInventoryContextState>().inner(),
                 )),
+            route_target_options_by_slot_id: self.score.playback_route_choices_by_slot_id(),
             current_file_path: self.current_file_path.clone(),
             preferences: self.preferences.clone(),
         };
@@ -345,6 +348,7 @@ fn get_general_state(
         resolved_playback_route_by_instrument_id: state
             .score
             .resolved_playback_route_by_instrument_id(&available_plugin_ids),
+        route_target_options_by_slot_id: state.score.playback_route_choices_by_slot_id(),
         preferences: state.preferences.clone(),
         current_file_path: state.current_file_path.clone(),
     }

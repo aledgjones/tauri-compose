@@ -1,22 +1,11 @@
-import classNames from "classnames";
 import { FC, useMemo, useState } from "react";
 import {
   useAppState,
   usePluginInventoryState,
 } from "../../../../../services/state";
-import {
-  Instrument,
-  PluginInventoryEntry,
-  ResolvedPlaybackRoute,
-} from "../../../../../services/types";
+import { PluginInventoryEntry } from "../../../../../services/types";
 import { actions } from "../../../../../services/actions";
 import { Select, SelectOption } from "../../../../../ui/select";
-import { TokenizedText } from "../../../../../ui/text";
-import { PlaybackReadinessBadge } from "./playback-readiness";
-import {
-  getPlaybackRackSlotLabel,
-  getPlaybackReadinessPresentation,
-} from "./playback-readiness-presentation";
 
 const isUsablePreparationPlugin = (plugin: PluginInventoryEntry) => {
   return (
@@ -42,14 +31,12 @@ const compareUsablePlugins = (
 
 type PlaybackRackPanelProps = {
   createError?: string | null;
-  instrument: Instrument | null;
-  route: ResolvedPlaybackRoute | null;
 };
+
+const EMPTY_PLUGIN_VALUE = "__empty_slot__";
 
 export const PlaybackRackPanel: FC<PlaybackRackPanelProps> = ({
   createError = null,
-  instrument,
-  route,
 }) => {
   const state = useAppState();
   const pluginInventory = usePluginInventoryState();
@@ -62,36 +49,19 @@ export const PlaybackRackPanel: FC<PlaybackRackPanelProps> = ({
     [pluginInventory.entries],
   );
   const pluginOptions = useMemo<SelectOption<string>[]>(
-    () =>
-      usablePlugins.map((plugin) => ({ value: plugin.id, label: plugin.name })),
+    () => [
+      { value: EMPTY_PLUGIN_VALUE, label: "--" },
+      ...usablePlugins.map((plugin) => ({
+        value: plugin.id,
+        label: plugin.name,
+      })),
+    ],
     [usablePlugins],
   );
   const [assigningSlotId, setAssigningSlotId] = useState<number | null>(null);
   const [assignErrorBySlotId, setAssignErrorBySlotId] = useState<
     Record<number, string>
   >({});
-
-  const presentation = useMemo(() => {
-    if (!instrument) {
-      return null;
-    }
-
-    return getPlaybackReadinessPresentation(
-      route,
-      instrument,
-      pluginInventory.entries,
-      rack,
-    );
-  }, [instrument, pluginInventory.entries, rack, route]);
-
-  const instrumentLabel = instrument
-    ? instrument.count
-      ? `${instrument.long_name} ${instrument.count}`
-      : instrument.long_name
-    : null;
-  const focusedSlotId = route?.slot_id ?? null;
-  const focusedSlotMissing =
-    focusedSlotId !== null && rack?.by_id[focusedSlotId] === undefined;
   const slotIds = useMemo(() => rack?.order ?? [], [rack]);
 
   const handleSlotPluginChange = async (slotId: number, pluginId: string) => {
@@ -123,7 +93,11 @@ export const PlaybackRackPanel: FC<PlaybackRackPanelProps> = ({
     setAssigningSlotId(slotId);
 
     try {
-      await actions.score.playback.slot.assignPlugin(slotId, pluginId);
+      if (pluginId === EMPTY_PLUGIN_VALUE) {
+        await actions.score.playback.slot.unassignPlugin(slotId);
+      } else {
+        await actions.score.playback.slot.assignPlugin(slotId, pluginId);
+      }
     } catch (error) {
       setAssignErrorBySlotId((current) => ({
         ...current,
@@ -151,7 +125,7 @@ export const PlaybackRackPanel: FC<PlaybackRackPanelProps> = ({
       ) : null}
 
       <div className="flex h-full w-full overflow-auto gap-0.5">
-        {slotIds.length === 0 && !focusedSlotMissing ? (
+        {slotIds.length === 0 ? (
           <div className="flex h-full w-full items-center justify-center bg-neutral-900 px-6 text-center">
             <div>
               <div className="text-sm text-neutral-200">
@@ -167,69 +141,42 @@ export const PlaybackRackPanel: FC<PlaybackRackPanelProps> = ({
 
         {slotIds.map((slotId) => {
           const slot = rack?.by_id[slotId] ?? null;
-          const slotLabel = getPlaybackRackSlotLabel(
-            slotId,
-            rack,
-            pluginInventory.entries,
-            slot?.target?.plugin_id ?? null,
-          );
-          const isFocused = focusedSlotId === slotId;
+          const slotIndex = (rack?.order.indexOf(slotId) ?? -1) + 1;
           const isAssigning = assigningSlotId === slotId;
           const selectedPluginId = slot?.target?.plugin_id ?? null;
-          const hasUsableAssignedValue =
+          const selectedPickerValue =
             selectedPluginId !== null &&
-            pluginOptions.some((option) => option.value === selectedPluginId);
+            pluginOptions.some((option) => option.value === selectedPluginId)
+              ? selectedPluginId
+              : EMPTY_PLUGIN_VALUE;
 
           return (
             <div
               key={slotId}
               data-rack-slot-id={slotId}
               tabIndex={-1}
-              className={classNames(
-                "flex h-full min-w-64 w-64 flex-col bg-neutral-900",
-                {
-                  "ring-1 ring-sky-500/70": isFocused,
-                },
-              )}
+              className="flex h-full min-w-64 w-64 flex-col bg-neutral-900"
             >
               <div className="p-3 pb-2">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    <div className="text-[11px] uppercase tracking-[0.18em] text-neutral-500">
-                      {slot?.target ? "Assigned slot" : "Empty slot"}
-                    </div>
-                    <div className="mt-1 truncate text-sm font-semibold text-neutral-100">
-                      <TokenizedText>{slotLabel}</TokenizedText>
-                    </div>
-                  </div>
-                  {isFocused && presentation ? (
-                    <PlaybackReadinessBadge presentation={presentation} />
-                  ) : null}
+                <div className="text-[11px] uppercase tracking-[0.18em] text-neutral-500">
+                  Slot {slotIndex > 0 ? slotIndex : slotId}
                 </div>
               </div>
 
               <div className="flex flex-1 flex-col gap-3 px-3 pb-3">
                 <Select
-                  value={hasUsableAssignedValue ? selectedPluginId : null}
+                  value={selectedPickerValue}
                   options={pluginOptions}
                   onChange={(pluginId) =>
                     handleSlotPluginChange(slotId, pluginId)
                   }
                   variant="filled"
-                  label="Plugin"
-                  placeholder={
-                    pluginOptions.length > 0
-                      ? "Select available plugin"
-                      : "No available plugins"
+                  placeholder="--"
+                  disabled={
+                    isAssigning ||
+                    (pluginOptions.length === 1 && selectedPluginId === null)
                   }
-                  disabled={pluginOptions.length === 0 || isAssigning}
                 />
-
-                <div className="text-xs text-neutral-400">
-                  {slot?.target
-                    ? "This slot targets a plugin in the current score rack and can be updated from here."
-                    : "This slot is ready for a plugin assignment from the available inventory."}
-                </div>
 
                 {assignErrorBySlotId[slotId] ? (
                   <div
@@ -239,45 +186,12 @@ export const PlaybackRackPanel: FC<PlaybackRackPanelProps> = ({
                     Plugin assignment failed: {assignErrorBySlotId[slotId]}
                   </div>
                 ) : null}
-
-                {isFocused && instrumentLabel && presentation ? (
-                  <div className="mt-auto rounded border border-sky-900/70 bg-neutral-950 px-3 py-3">
-                    <div className="text-[11px] uppercase tracking-[0.18em] text-sky-100/80">
-                      Focused instrument route
-                    </div>
-                    <div className="mt-1 truncate text-sm text-neutral-100">
-                      <TokenizedText>{instrumentLabel}</TokenizedText>
-                    </div>
-                    <div className="mt-2 text-xs text-neutral-300">
-                      {presentation.target_summary}
-                    </div>
-                    {presentation.address_summary ? (
-                      <div className="mt-1 text-xs text-neutral-400">
-                        {presentation.address_summary}
-                      </div>
-                    ) : null}
-                  </div>
-                ) : null}
               </div>
             </div>
           );
         })}
 
-        {focusedSlotMissing && instrumentLabel && presentation ? (
-          <div className="flex h-full min-w-64 w-64 flex-col bg-neutral-900 px-4 py-4">
-            <div className="text-[11px] uppercase tracking-[0.18em] text-amber-200">
-              Missing routed slot
-            </div>
-            <div className="mt-2 text-sm text-neutral-100">
-              <TokenizedText>{instrumentLabel}</TokenizedText>
-            </div>
-            <div className="mt-2 text-sm text-neutral-300">
-              {presentation.explanation}
-            </div>
-          </div>
-        ) : null}
-
-        {slotIds.length > 0 || focusedSlotMissing ? (
+        {slotIds.length > 0 ? (
           <div className="bg-neutral-900 flex-1 min-w-8" />
         ) : null}
       </div>

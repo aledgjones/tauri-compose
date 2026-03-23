@@ -1,9 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { screen, fireEvent } from "@testing-library/react";
+import { screen, fireEvent, waitFor } from "@testing-library/react";
 import { InstrumentOverviewRow } from "./instrument-overview-row";
 import { renderWithProviders } from "../../../../../services/test-utils";
 import {
-  BottomPanelTab,
   Instrument,
   InstrumentType,
   ResolvedPlaybackRouteStatus,
@@ -12,19 +11,14 @@ import {
 vi.mock("../../../../../services/actions", () => ({
   actions: {
     ui: {
-      screens: {
-        sequence: {
-          bottomPanel: {
-            setTab: vi.fn().mockResolvedValue(undefined),
-          },
-        },
-      },
       sequencer: {
         setInstrument: vi.fn().mockResolvedValue(undefined),
       },
     },
     score: {
       instrument: {
+        assignSlotRoute: vi.fn().mockResolvedValue(undefined),
+        unassignRoute: vi.fn().mockResolvedValue(undefined),
         setSolo: vi.fn().mockResolvedValue(undefined),
         setMute: vi.fn().mockResolvedValue(undefined),
       },
@@ -74,6 +68,16 @@ describe("InstrumentOverviewRow", () => {
               },
             },
           } as never,
+          route_target_options_by_slot_id: {
+            7: [
+              {
+                key: "plugin-root",
+                label: "Plugin output",
+                target: { mode: 0, index: null },
+                address: { mode: 0, index: null },
+              },
+            ],
+          },
           resolved_playback_route_by_instrument_id: {
             5: {
               status: ResolvedPlaybackRouteStatus.Unrouted,
@@ -166,17 +170,79 @@ describe("InstrumentOverviewRow", () => {
       target: { mode: 0, index: null },
     });
 
-    expect(screen.getByText("Slot 1. Grand Piano")).toBeInTheDocument();
-    expect(screen.getByText("Target Plugin output")).toBeInTheDocument();
+    expect(screen.queryByText("Slot 1. Grand Piano")).toBeNull();
+    expect(screen.queryByText("Target: plugin output")).toBeNull();
+  });
+
+  it("renders the slot picker with the current slot selected", () => {
+    renderRow({
+      status: ResolvedPlaybackRouteStatus.Ready,
+      slot_id: 7,
+      slot_target: { plugin_id: "vst3:grand-piano" },
+      effective_plugin_id: "vst3:grand-piano",
+      target: { mode: 0, index: null },
+      address: { mode: 0, index: null },
+    });
+
+    expect(
+      screen.getByRole("button", { name: /1\. Grand Piano/i }),
+    ).toBeInTheDocument();
   });
 
   it("renders a missing route summary by default", () => {
     renderRow();
-    expect(screen.getByText("No routed slot yet")).toBeInTheDocument();
-    expect(screen.getByText("No route target selected")).toBeInTheDocument();
+    expect(screen.queryByText("No routed slot yet")).toBeNull();
+    expect(screen.queryByText("Target: --")).toBeNull();
+    expect(screen.getByRole("button", { name: /^--$/i })).toBeInTheDocument();
   });
 
-  it("uses one primary recovery action for non-ready routes", () => {
+  it("shows an existing empty slot as a numbered selected slot", () => {
+    renderWithProviders(
+      <InstrumentOverviewRow
+        instrument={mockInstrument}
+        color="#ff0000"
+        isDisabled={false}
+      />,
+      {
+        appState: {
+          score: {
+            playback: {
+              rack: {
+                order: [7],
+                by_id: {
+                  7: {
+                    id: 7,
+                    target: null,
+                  },
+                },
+              },
+            },
+          } as never,
+          route_target_options_by_slot_id: {
+            7: [],
+          },
+          resolved_playback_route_by_instrument_id: {
+            5: {
+              status: ResolvedPlaybackRouteStatus.Unrouted,
+              slot_id: 7,
+              slot_target: null,
+              effective_plugin_id: null,
+              target: { mode: 0, index: null },
+              address: { mode: 0, index: null },
+            },
+          },
+        },
+        pluginInventoryState: {
+          entries: [],
+        },
+      },
+    );
+
+    expect(screen.getByRole("button", { name: /1\. --/i })).toBeInTheDocument();
+    expect(screen.queryByLabelText("Playback needs attention")).toBeNull();
+  });
+
+  it("does not render a separate open-rack action button", () => {
     renderRow({
       status: ResolvedPlaybackRouteStatus.NeedsAttention,
       slot_id: 7,
@@ -185,29 +251,358 @@ describe("InstrumentOverviewRow", () => {
       target: { mode: 0, index: null },
     });
 
-    fireEvent.click(
-      screen.getByRole("button", { name: "Open rack for Violin" }),
-    );
-
-    expect(actions.ui.sequencer.setInstrument).toHaveBeenCalledWith(5);
-    expect(actions.ui.screens.sequence.bottomPanel.setTab).toHaveBeenCalledWith(
-      BottomPanelTab.Instruments,
-    );
+    expect(screen.queryByRole("button", { name: /open rack/i })).toBeNull();
   });
 
-  it("treats a route pointing at a missing slot as needs attention", () => {
+  it("routes to a selected slot directly from the overview picker", async () => {
+    renderRow();
+
+    fireEvent.click(screen.getByRole("button", { name: /^--$/i }));
+    fireEvent.click(screen.getByRole("option", { name: "1. Grand Piano" }));
+
+    await waitFor(() => {
+      expect(actions.ui.sequencer.setInstrument).toHaveBeenCalledWith(5);
+      expect(actions.score.instrument.assignSlotRoute).toHaveBeenCalledWith(
+        5,
+        7,
+        { mode: 0, index: null },
+        { mode: 0, index: null },
+      );
+    });
+  });
+
+  it("uses the backend-owned route choice when a slot exposes a non-root target", async () => {
+    renderWithProviders(
+      <InstrumentOverviewRow
+        instrument={mockInstrument}
+        color="#ff0000"
+        isDisabled={false}
+      />,
+      {
+        appState: {
+          score: {
+            playback: {
+              rack: {
+                order: [7],
+                by_id: {
+                  7: {
+                    id: 7,
+                    target: { plugin_id: "vst3:grand-piano" },
+                  },
+                },
+              },
+            },
+          } as never,
+          route_target_options_by_slot_id: {
+            7: [
+              {
+                key: "plugin-part-2",
+                label: "Plugin part 2",
+                target: { mode: 1, index: 1 },
+                address: { mode: 1, index: 1 },
+              },
+            ],
+          },
+          resolved_playback_route_by_instrument_id: {
+            5: {
+              status: ResolvedPlaybackRouteStatus.Unrouted,
+              slot_id: null,
+              slot_target: null,
+              effective_plugin_id: null,
+              target: null,
+              address: null,
+            },
+          },
+        },
+        pluginInventoryState: {
+          entries: [
+            {
+              id: "vst3:grand-piano",
+              name: "Grand Piano",
+              bundle_path: "/Library/Audio/Plug-Ins/VST3/Grand Piano.vst3",
+              binary_path:
+                "/Library/Audio/Plug-Ins/VST3/Grand Piano.vst3/Contents/MacOS/Grand Piano",
+              source_root: "/Library/Audio/Plug-Ins/VST3",
+              availability: "available",
+              validation_failure: null,
+            },
+          ],
+        },
+      },
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /^--$/i }));
+    fireEvent.click(screen.getByRole("option", { name: "1. Grand Piano" }));
+
+    await waitFor(() => {
+      expect(actions.score.instrument.assignSlotRoute).toHaveBeenCalledWith(
+        5,
+        7,
+        { mode: 1, index: 1 },
+        { mode: 1, index: 1 },
+      );
+    });
+  });
+
+  it("routes to an existing empty slot from the overview picker", async () => {
+    renderWithProviders(
+      <InstrumentOverviewRow
+        instrument={mockInstrument}
+        color="#ff0000"
+        isDisabled={false}
+      />,
+      {
+        appState: {
+          score: {
+            playback: {
+              rack: {
+                order: [7],
+                by_id: {
+                  7: {
+                    id: 7,
+                    target: null,
+                  },
+                },
+              },
+            },
+          } as never,
+          route_target_options_by_slot_id: {
+            7: [],
+          },
+          resolved_playback_route_by_instrument_id: {
+            5: {
+              status: ResolvedPlaybackRouteStatus.Unrouted,
+              slot_id: null,
+              slot_target: null,
+              effective_plugin_id: null,
+              target: null,
+              address: null,
+            },
+          },
+        },
+        pluginInventoryState: {
+          entries: [],
+        },
+      },
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /^--$/i }));
+    fireEvent.click(screen.getByRole("option", { name: "1. --" }));
+
+    await waitFor(() => {
+      expect(actions.ui.sequencer.setInstrument).toHaveBeenCalledWith(5);
+      expect(actions.score.instrument.assignSlotRoute).toHaveBeenCalledWith(
+        5,
+        7,
+        { mode: 0, index: null },
+        { mode: 0, index: null },
+      );
+    });
+  });
+
+  it("can clear a route by switching the picker back to unrouted", async () => {
     renderRow({
       status: ResolvedPlaybackRouteStatus.Ready,
-      slot_id: 99,
+      slot_id: 7,
       slot_target: { plugin_id: "vst3:grand-piano" },
       effective_plugin_id: "vst3:grand-piano",
       target: { mode: 0, index: null },
+      address: { mode: 0, index: null },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /1\. Grand Piano/i }));
+    fireEvent.click(screen.getByRole("option", { name: "--" }));
+
+    await waitFor(() => {
+      expect(actions.score.instrument.unassignRoute).toHaveBeenCalledWith(5);
+    });
+  });
+
+  it("shows a recoverable error when direct overview routing fails", async () => {
+    vi.mocked(actions.score.instrument.assignSlotRoute).mockRejectedValueOnce(
+      new Error("Unsupported route target"),
+    );
+
+    renderRow();
+
+    fireEvent.click(screen.getByRole("button", { name: /^--$/i }));
+    fireEvent.click(screen.getByRole("option", { name: "1. Grand Piano" }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Route update failed:/i)).toHaveTextContent(
+        "Route update failed: Unsupported route target",
+      );
+    });
+  });
+
+  it("shows a recoverable error when a slot requires choosing between multiple targets", async () => {
+    renderWithProviders(
+      <InstrumentOverviewRow
+        instrument={mockInstrument}
+        color="#ff0000"
+        isDisabled={false}
+      />,
+      {
+        appState: {
+          score: {
+            playback: {
+              rack: {
+                order: [7],
+                by_id: {
+                  7: {
+                    id: 7,
+                    target: { plugin_id: "vst3:grand-piano" },
+                  },
+                },
+              },
+            },
+          } as never,
+          route_target_options_by_slot_id: {
+            7: [
+              {
+                key: "plugin-root",
+                label: "Plugin output",
+                target: { mode: 0, index: null },
+                address: { mode: 0, index: null },
+              },
+              {
+                key: "plugin-part-1",
+                label: "Plugin part 1",
+                target: { mode: 1, index: 0 },
+                address: { mode: 1, index: 0 },
+              },
+            ],
+          },
+          resolved_playback_route_by_instrument_id: {
+            5: {
+              status: ResolvedPlaybackRouteStatus.Unrouted,
+              slot_id: null,
+              slot_target: null,
+              effective_plugin_id: null,
+              target: null,
+              address: null,
+            },
+          },
+        },
+        pluginInventoryState: {
+          entries: [
+            {
+              id: "vst3:grand-piano",
+              name: "Grand Piano",
+              bundle_path: "/Library/Audio/Plug-Ins/VST3/Grand Piano.vst3",
+              binary_path:
+                "/Library/Audio/Plug-Ins/VST3/Grand Piano.vst3/Contents/MacOS/Grand Piano",
+              source_root: "/Library/Audio/Plug-Ins/VST3",
+              availability: "available",
+              validation_failure: null,
+            },
+          ],
+        },
+      },
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /^--$/i }));
+    fireEvent.click(screen.getByRole("option", { name: "1. Grand Piano" }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Route update failed:/i)).toHaveTextContent(
+        "Route update failed: Selected slot needs a specific route target that this picker cannot choose yet.",
+      );
+    });
+
+    expect(actions.score.instrument.assignSlotRoute).not.toHaveBeenCalled();
+  });
+
+  it("refreshes the visible summary after backend route state updates", () => {
+    const initial = renderRow();
+
+    expect(screen.getByRole("button", { name: /^--$/i })).toBeInTheDocument();
+
+    initial.unmount();
+
+    renderRow({
+      status: ResolvedPlaybackRouteStatus.Ready,
+      slot_id: 7,
+      slot_target: { plugin_id: "vst3:grand-piano" },
+      effective_plugin_id: "vst3:grand-piano",
+      target: { mode: 0, index: null },
+      address: { mode: 0, index: null },
     });
 
     expect(
-      screen.getByLabelText("Playback needs attention"),
+      screen.getByRole("button", { name: /1\. Grand Piano/i }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Missing slot 99")).toBeInTheDocument();
+  });
+
+  it("refreshes the selected slot label after the slot plugin changes", () => {
+    const initial = renderWithProviders(
+      <InstrumentOverviewRow
+        instrument={mockInstrument}
+        color="#ff0000"
+        isDisabled={false}
+      />,
+      {
+        appState: {
+          score: {
+            playback: {
+              rack: {
+                order: [7],
+                by_id: {
+                  7: {
+                    id: 7,
+                    target: null,
+                  },
+                },
+              },
+            },
+          } as never,
+          route_target_options_by_slot_id: {
+            7: [],
+          },
+          resolved_playback_route_by_instrument_id: {
+            5: {
+              status: ResolvedPlaybackRouteStatus.Unrouted,
+              slot_id: 7,
+              slot_target: null,
+              effective_plugin_id: null,
+              target: { mode: 0, index: null },
+              address: { mode: 0, index: null },
+            },
+          },
+        },
+        pluginInventoryState: {
+          entries: [
+            {
+              id: "vst3:grand-piano",
+              name: "Grand Piano",
+              bundle_path: "/Library/Audio/Plug-Ins/VST3/Grand Piano.vst3",
+              binary_path:
+                "/Library/Audio/Plug-Ins/VST3/Grand Piano.vst3/Contents/MacOS/Grand Piano",
+              source_root: "/Library/Audio/Plug-Ins/VST3",
+              availability: "available",
+              validation_failure: null,
+            },
+          ],
+        },
+      },
+    );
+
+    expect(screen.getByRole("button", { name: /1\. --/i })).toBeInTheDocument();
+
+    initial.unmount();
+
+    renderRow({
+      status: ResolvedPlaybackRouteStatus.Ready,
+      slot_id: 7,
+      slot_target: { plugin_id: "vst3:grand-piano" },
+      effective_plugin_id: "vst3:grand-piano",
+      target: { mode: 0, index: null },
+      address: { mode: 0, index: null },
+    });
+
+    expect(
+      screen.getByRole("button", { name: /1\. Grand Piano/i }),
+    ).toBeInTheDocument();
   });
 
   it("calls setSolo when solo button clicked", () => {

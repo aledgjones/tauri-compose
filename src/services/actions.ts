@@ -20,6 +20,8 @@ import {
   TimeSignatureDrawType,
   Tool,
   TransportState,
+  PlaybackRouteAddress,
+  PlaybackRouteTarget,
   UniqueId,
 } from "./types";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
@@ -560,10 +562,19 @@ export const actions = {
           instrument_id,
         });
       },
-      assignSlotRoute: (instrument_id: number, slot_id: number) => {
+      assignSlotRoute: (
+        instrument_id: number,
+        slot_id: number,
+        target: PlaybackRouteTarget,
+        address: PlaybackRouteAddress,
+      ) => {
         return invoke<void>("score_instruments_assign_slot_route", {
           instrument_id,
-          slot_id,
+          route: {
+            slot_id,
+            target,
+            address,
+          },
         });
       },
       unassignRoute: (instrument_id: number) => {

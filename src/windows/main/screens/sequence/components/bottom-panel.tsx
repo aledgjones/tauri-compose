@@ -27,8 +27,6 @@ export const BottomPanel: FC = () => {
     instrumentId,
     tracks,
     trackId,
-    selectedInstrument,
-    selectedRoute,
     tool,
     snapValue,
   } = useBottomPanelState();
@@ -110,11 +108,7 @@ export const BottomPanel: FC = () => {
       )}
       {tab === BottomPanelTab.Mixer && <Mixer instruments={instruments} />}
       {tab === BottomPanelTab.Instruments && (
-        <PlaybackRackPanel
-          createError={createError}
-          instrument={selectedInstrument}
-          route={selectedRoute}
-        />
+        <PlaybackRackPanel createError={createError} />
       )}
     </div>
   );

@@ -3,7 +3,8 @@ pub mod defs;
 use super::{
     config::AutoCountStyle,
     playback::{
-        InstrumentPlaybackRoute, PlaybackRackSlot, ResolvedPlaybackRoute,
+        InstrumentPlaybackRoute, PlaybackRackSlot, PlaybackRouteAddress, PlaybackRouteAddressMode,
+        PlaybackRouteChoice, PlaybackRouteTarget, PlaybackRouteTargetMode, ResolvedPlaybackRoute,
         ResolvedPlaybackRouteStatus,
     },
     Score,
@@ -86,18 +87,85 @@ impl Instruments {
 }
 
 impl Score {
-    fn slot_reference_count(&self, slot_id: UniqueId) -> usize {
-        self.instruments
+    fn default_playback_route_choices_for_slot(
+        slot: &PlaybackRackSlot,
+    ) -> Vec<PlaybackRouteChoice> {
+        if slot.target.is_none() {
+            return Vec::new();
+        }
+
+        vec![PlaybackRouteChoice {
+            key: String::from("plugin-root"),
+            label: String::from("Plugin output"),
+            target: PlaybackRouteTarget::plugin(),
+            address: PlaybackRouteAddress::root(),
+        }]
+    }
+
+    pub fn playback_route_choices_for_slot(
+        &self,
+        slot_id: UniqueId,
+    ) -> Result<Vec<PlaybackRouteChoice>, String> {
+        let slot = self
+            .playback
+            .rack
             .by_id
-            .values()
-            .filter(|instrument| {
-                instrument
-                    .playback_route
-                    .as_ref()
-                    .map(|route| route.slot_id)
-                    == Some(slot_id)
+            .get(&slot_id)
+            .ok_or_else(|| format!("Playback slot {} does not exist", slot_id))?;
+
+        Ok(Self::default_playback_route_choices_for_slot(slot))
+    }
+
+    pub fn playback_route_choices_by_slot_id(
+        &self,
+    ) -> FxHashMap<UniqueId, Vec<PlaybackRouteChoice>> {
+        self.playback
+            .rack
+            .by_id
+            .iter()
+            .map(|(slot_id, slot)| {
+                (
+                    *slot_id,
+                    Self::default_playback_route_choices_for_slot(slot),
+                )
             })
-            .count()
+            .collect()
+    }
+
+    fn route_choice_matches(choice: &PlaybackRouteChoice, route: &InstrumentPlaybackRoute) -> bool {
+        choice.target == route.target && choice.address == route.address
+    }
+
+    fn route_is_direct_plugin_output(route: &InstrumentPlaybackRoute) -> bool {
+        route.target == PlaybackRouteTarget::plugin()
+            && route.address == PlaybackRouteAddress::root()
+    }
+
+    fn format_route_value(target: &PlaybackRouteTarget, address: &PlaybackRouteAddress) -> String {
+        let target_label = match target.mode {
+            PlaybackRouteTargetMode::Plugin => String::from("Plugin output"),
+            PlaybackRouteTargetMode::PluginPart => format!(
+                "Plugin part {}",
+                target.index.map(|index| index + 1).unwrap_or(1)
+            ),
+            PlaybackRouteTargetMode::MidiChannel => format!(
+                "MIDI channel {}",
+                target.index.map(|index| index + 1).unwrap_or(1)
+            ),
+        };
+
+        let address_label = match address.mode {
+            PlaybackRouteAddressMode::Root => String::from("Root"),
+            PlaybackRouteAddressMode::Part => {
+                format!("Part {}", address.index.map(|index| index + 1).unwrap_or(1))
+            }
+            PlaybackRouteAddressMode::MidiChannel => format!(
+                "MIDI channel {}",
+                address.index.map(|index| index + 1).unwrap_or(1)
+            ),
+        };
+
+        format!("{} via {}", target_label, address_label)
     }
 
     pub fn create_playback_slot(&mut self, slot_id: UniqueId) -> Result<(), String> {
@@ -119,11 +187,14 @@ impl Score {
             return Err(format!("Playback slot {} does not exist", slot_id));
         }
 
-        if self.slot_reference_count(slot_id) > 0 {
-            return Err(format!(
-                "Playback slot {} is still routed from one or more instruments",
-                slot_id
-            ));
+        for instrument in self.instruments.by_id.values_mut() {
+            if instrument
+                .playback_route
+                .as_ref()
+                .is_some_and(|route| route.slot_id == slot_id)
+            {
+                instrument.playback_route = None;
+            }
         }
 
         self.playback
@@ -165,6 +236,7 @@ impl Score {
         Ok(())
     }
 
+    #[cfg(test)]
     pub fn assign_instrument_route_to_slot(
         &mut self,
         instrument_id: UniqueId,
@@ -181,6 +253,64 @@ impl Score {
             .ok_or_else(|| format!("Instrument {} does not exist", instrument_id))?;
 
         instrument.playback_route = Some(InstrumentPlaybackRoute::direct(slot_id));
+
+        Ok(())
+    }
+
+    pub fn assign_instrument_route(
+        &mut self,
+        instrument_id: UniqueId,
+        route: InstrumentPlaybackRoute,
+    ) -> Result<(), String> {
+        if let Some(slot) = self.playback.rack.by_id.get(&route.slot_id) {
+            if slot.target.is_none() {
+                if !Self::route_is_direct_plugin_output(&route) {
+                    return Err(format!(
+                        "Requested route {} is not supported for empty playback slot {}",
+                        Self::format_route_value(&route.target, &route.address),
+                        route.slot_id
+                    ));
+                }
+
+                let instrument = self
+                    .instruments
+                    .by_id
+                    .get_mut(&instrument_id)
+                    .ok_or_else(|| format!("Instrument {} does not exist", instrument_id))?;
+
+                instrument.playback_route = Some(route);
+
+                return Ok(());
+            }
+        }
+
+        let choices = self.playback_route_choices_for_slot(route.slot_id)?;
+
+        if choices.is_empty() {
+            return Err(format!(
+                "Playback slot {} does not have a safely routable target yet",
+                route.slot_id
+            ));
+        }
+
+        if !choices
+            .iter()
+            .any(|choice| Self::route_choice_matches(choice, &route))
+        {
+            return Err(format!(
+                "Requested route {} is not supported for playback slot {}",
+                Self::format_route_value(&route.target, &route.address),
+                route.slot_id
+            ));
+        }
+
+        let instrument = self
+            .instruments
+            .by_id
+            .get_mut(&instrument_id)
+            .ok_or_else(|| format!("Instrument {} does not exist", instrument_id))?;
+
+        instrument.playback_route = Some(route);
 
         Ok(())
     }
@@ -257,7 +387,9 @@ impl Score {
                             });
 
                             ResolvedPlaybackRoute {
-                                status: if effective_plugin_id.is_some() {
+                                status: if slot.target.is_none() {
+                                    ResolvedPlaybackRouteStatus::Unrouted
+                                } else if effective_plugin_id.is_some() {
                                     ResolvedPlaybackRouteStatus::Ready
                                 } else {
                                     ResolvedPlaybackRouteStatus::NeedsAttention
@@ -569,13 +701,11 @@ pub fn score_instruments_assign_slot_route(
     sampler_state: State<'_, SamplerContextState>,
     audio_state: State<'_, AudioContextState>,
     instrument_id: UniqueId,
-    slot_id: UniqueId,
+    route: InstrumentPlaybackRoute,
 ) -> Result<(), String> {
     let mut state = state.lock().unwrap();
 
-    state
-        .score
-        .assign_instrument_route_to_slot(instrument_id, slot_id)?;
+    state.score.assign_instrument_route(instrument_id, route)?;
 
     sync_sampler_with_score(
         &app,
@@ -733,7 +863,7 @@ pub fn score_instruments_set_solo(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::score::playback::{PlaybackRouteAddress, PlaybackRouteTarget};
+    use crate::score::playback::{PlaybackRouteAddress, PlaybackRouteChoice, PlaybackRouteTarget};
     use crate::score::players::{Player, PlayerType, Players};
     use crate::score::Score;
     use defs::InstrumentType;
@@ -889,6 +1019,150 @@ mod tests {
             score.instrument_effective_plugin_id(10, &available_plugin_ids),
             Some("plugin-a")
         );
+    }
+
+    #[test]
+    fn playback_route_choices_expose_direct_plugin_target_for_prepared_slot() {
+        let mut score = make_score(
+            vec![make_player(1, PlayerType::Section, vec![10])],
+            vec![make_instrument(10, "woodwind.flute", "Flute")],
+        );
+
+        add_slot(&mut score, 100, "plugin-a");
+
+        assert_eq!(
+            score.playback_route_choices_for_slot(100).unwrap(),
+            vec![PlaybackRouteChoice {
+                key: String::from("plugin-root"),
+                label: String::from("Plugin output"),
+                target: PlaybackRouteTarget::plugin(),
+                address: PlaybackRouteAddress::root(),
+            }]
+        );
+    }
+
+    #[test]
+    fn playback_route_choices_for_empty_slot_are_empty() {
+        let mut score = make_score(
+            vec![make_player(1, PlayerType::Section, vec![10])],
+            vec![make_instrument(10, "woodwind.flute", "Flute")],
+        );
+
+        add_empty_slot(&mut score, 100);
+
+        assert!(score
+            .playback_route_choices_for_slot(100)
+            .unwrap()
+            .is_empty());
+    }
+
+    #[test]
+    fn assign_instrument_route_persists_explicit_direct_target_and_address() {
+        let mut score = make_score(
+            vec![make_player(1, PlayerType::Section, vec![10])],
+            vec![make_instrument(10, "woodwind.flute", "Flute")],
+        );
+
+        add_slot(&mut score, 100, "plugin-a");
+
+        score
+            .assign_instrument_route(
+                10,
+                InstrumentPlaybackRoute {
+                    slot_id: 100,
+                    target: PlaybackRouteTarget::plugin(),
+                    address: PlaybackRouteAddress::root(),
+                },
+            )
+            .expect("route assignment should succeed");
+
+        assert_eq!(
+            score.instruments.by_id[&10].playback_route,
+            Some(InstrumentPlaybackRoute {
+                slot_id: 100,
+                target: PlaybackRouteTarget::plugin(),
+                address: PlaybackRouteAddress::root(),
+            })
+        );
+    }
+
+    #[test]
+    fn assign_instrument_route_rejects_unsupported_target_request() {
+        let mut score = make_score(
+            vec![make_player(1, PlayerType::Section, vec![10])],
+            vec![make_instrument(10, "woodwind.flute", "Flute")],
+        );
+
+        add_slot(&mut score, 100, "plugin-a");
+
+        let error = score
+            .assign_instrument_route(
+                10,
+                InstrumentPlaybackRoute {
+                    slot_id: 100,
+                    target: PlaybackRouteTarget {
+                        mode: super::super::playback::PlaybackRouteTargetMode::PluginPart,
+                        index: Some(0),
+                    },
+                    address: PlaybackRouteAddress {
+                        mode: super::super::playback::PlaybackRouteAddressMode::Part,
+                        index: Some(0),
+                    },
+                },
+            )
+            .expect_err("unsupported target should fail");
+
+        assert!(error.contains("Requested route Plugin part 1 via Part 1 is not supported"));
+    }
+
+    #[test]
+    fn assign_instrument_route_accepts_existing_empty_slot() {
+        let mut score = make_score(
+            vec![make_player(1, PlayerType::Section, vec![10])],
+            vec![make_instrument(10, "woodwind.flute", "Flute")],
+        );
+
+        add_empty_slot(&mut score, 100);
+
+        score
+            .assign_instrument_route(10, InstrumentPlaybackRoute::direct(100))
+            .expect("empty slot selection should persist");
+
+        assert_eq!(
+            score.instruments.by_id[&10].playback_route,
+            Some(InstrumentPlaybackRoute::direct(100))
+        );
+    }
+
+    #[test]
+    fn assign_instrument_route_rejects_non_root_target_for_empty_slot() {
+        let mut score = make_score(
+            vec![make_player(1, PlayerType::Section, vec![10])],
+            vec![make_instrument(10, "woodwind.flute", "Flute")],
+        );
+
+        add_empty_slot(&mut score, 100);
+
+        let error = score
+            .assign_instrument_route(
+                10,
+                InstrumentPlaybackRoute {
+                    slot_id: 100,
+                    target: PlaybackRouteTarget {
+                        mode: super::super::playback::PlaybackRouteTargetMode::PluginPart,
+                        index: Some(0),
+                    },
+                    address: PlaybackRouteAddress {
+                        mode: super::super::playback::PlaybackRouteAddressMode::Part,
+                        index: Some(0),
+                    },
+                },
+            )
+            .expect_err("empty slots should reject non-root targets");
+
+        assert!(error.contains(
+            "Requested route Plugin part 1 via Part 1 is not supported for empty playback slot 100"
+        ));
     }
 
     #[test]
@@ -1122,7 +1396,7 @@ mod tests {
     }
 
     #[test]
-    fn routed_instrument_with_unassigned_slot_resolves_to_attention_needed() {
+    fn routed_instrument_with_unassigned_slot_resolves_to_unrouted() {
         let available_plugin_ids = FxHashSet::default();
 
         let mut score = make_score(
@@ -1139,8 +1413,9 @@ mod tests {
 
         assert_eq!(
             by_instrument.get(&10).unwrap().status,
-            ResolvedPlaybackRouteStatus::NeedsAttention
+            ResolvedPlaybackRouteStatus::Unrouted
         );
+        assert_eq!(by_instrument.get(&10).unwrap().slot_id, Some(100));
         assert_eq!(by_instrument.get(&10).unwrap().slot_target, None);
         assert_eq!(by_instrument.get(&10).unwrap().effective_plugin_id, None);
     }
@@ -1178,7 +1453,7 @@ mod tests {
     }
 
     #[test]
-    fn cannot_remove_referenced_slot() {
+    fn removing_referenced_slot_clears_routes() {
         let mut score = make_score(
             vec![make_player(1, PlayerType::Section, vec![10])],
             vec![make_instrument(10, "strings.violin", "Violin")],
@@ -1189,7 +1464,40 @@ mod tests {
             .assign_instrument_route_to_slot(10, 100)
             .expect("route assignment should succeed");
 
-        assert!(score.remove_playback_slot(100).is_err());
+        score
+            .remove_playback_slot(100)
+            .expect("removing a referenced slot should succeed");
+
+        assert!(!score.playback.rack.by_id.contains_key(&100));
+        assert!(score.playback.rack.order.is_empty());
+        assert_eq!(score.instruments.by_id[&10].playback_route, None);
+    }
+
+    #[test]
+    fn removing_referenced_slot_resolves_instrument_as_unrouted() {
+        let mut available_plugin_ids = FxHashSet::default();
+        available_plugin_ids.insert(String::from("plugin-a"));
+
+        let mut score = make_score(
+            vec![make_player(1, PlayerType::Section, vec![10])],
+            vec![make_instrument(10, "strings.violin", "Violin")],
+        );
+
+        add_slot(&mut score, 100, "plugin-a");
+        score
+            .assign_instrument_route_to_slot(10, 100)
+            .expect("route assignment should succeed");
+        score
+            .remove_playback_slot(100)
+            .expect("removing a referenced slot should succeed");
+
+        let by_instrument = score.resolved_playback_route_by_instrument_id(&available_plugin_ids);
+
+        assert_eq!(
+            by_instrument.get(&10).unwrap().status,
+            ResolvedPlaybackRouteStatus::Unrouted
+        );
+        assert_eq!(by_instrument.get(&10).unwrap().slot_id, None);
     }
 
     #[test]

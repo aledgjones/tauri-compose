@@ -880,13 +880,22 @@ describe("actions.score.instrument", () => {
     });
   });
 
-  it("assignSlotRoute calls invoke with slot_id", async () => {
-    await actions.score.instrument.assignSlotRoute(10, 30);
+  it("assignSlotRoute calls invoke with explicit target and address", async () => {
+    await actions.score.instrument.assignSlotRoute(
+      10,
+      30,
+      { mode: 0, index: null },
+      { mode: 0, index: null },
+    );
     expect(mockInvoke).toHaveBeenCalledWith(
       "score_instruments_assign_slot_route",
       {
         instrument_id: 10,
-        slot_id: 30,
+        route: {
+          slot_id: 30,
+          target: { mode: 0, index: null },
+          address: { mode: 0, index: null },
+        },
       },
     );
   });

@@ -180,8 +180,8 @@ describe("Sequence BottomPanel", () => {
     expect(
       screen.getByRole("button", { name: "Add slot" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("1. Grand Piano")).toBeInTheDocument();
-    expect(screen.getByText("2. Unassigned")).toBeInTheDocument();
+    expect(screen.getByText("Slot 1")).toBeInTheDocument();
+    expect(screen.getByText("Slot 2")).toBeInTheDocument();
   });
 
   it("creates a slot from the Instruments tab top bar", async () => {

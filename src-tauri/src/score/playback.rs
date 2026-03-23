@@ -114,6 +114,7 @@ pub struct InstrumentPlaybackRoute {
 }
 
 impl InstrumentPlaybackRoute {
+    #[cfg(test)]
     pub fn direct(slot_id: UniqueId) -> Self {
         Self {
             slot_id,
@@ -121,6 +122,14 @@ impl InstrumentPlaybackRoute {
             address: PlaybackRouteAddress::root(),
         }
     }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PlaybackRouteChoice {
+    pub key: String,
+    pub label: String,
+    pub target: PlaybackRouteTarget,
+    pub address: PlaybackRouteAddress,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize_repr, Deserialize_repr)]

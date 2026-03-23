@@ -23,6 +23,7 @@ export const DEFAULT_TRANSPORT_TEMPO = 120;
 export const initialAppState: AppState = {
   current_file_path: null,
   resolved_playback_route_by_instrument_id: {},
+  route_target_options_by_slot_id: {},
   ui: {
     tab: Tab.Setup,
     layout_id: null,

@@ -155,6 +155,13 @@ export type InstrumentPlaybackRoute = {
   address: PlaybackRouteAddress;
 };
 
+export type PlaybackRouteChoice = {
+  key: string;
+  label: string;
+  target: PlaybackRouteTarget;
+  address: PlaybackRouteAddress;
+};
+
 export type PlaybackSlotTarget = {
   plugin_id: string;
 };
@@ -569,6 +576,7 @@ export type AppState = {
     UniqueId,
     ResolvedPlaybackRoute
   >;
+  route_target_options_by_slot_id: Record<UniqueId, PlaybackRouteChoice[]>;
   preferences: {
     audition: boolean;
   };
