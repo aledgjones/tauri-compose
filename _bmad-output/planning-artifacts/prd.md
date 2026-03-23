@@ -42,15 +42,15 @@ workflowType: "prd"
 
 Compose is a brownfield macOS desktop notation application evolving from an experimental SCVI-based playback path into a VST3-based audio engine. The goal of this initiative is to replace SCVI entirely and make realistic playback a native part of the score-writing workflow rather than a separate technical setup task. The product outcome is immediate, transport-stable, realistic audio feedback from written scores, with VST3 support treated as a first-class platform capability rather than a peripheral integration.
 
-The primary users are score authors who want more realistic playback and faster creative feedback without leaving their notation environment. The deeper problem is not only weak playback realism, but the loss of compositional momentum when playback setup becomes engineering work. This initiative therefore combines three linked concerns into one product effort: robust VST3 support on macOS, a realtime-safe transport-driven playback engine, and a simpler score-first assignment model that brings instruments into the workflow with less friction.
+The primary users are score authors who want more realistic playback and faster creative feedback without leaving their notation environment. The deeper problem is not only weak playback realism, but the loss of compositional momentum when playback setup becomes engineering work. This initiative therefore combines three linked concerns into one product effort: robust VST3 support on macOS, a realtime-safe transport-driven playback engine, and a simpler score-first rack-and-routing model that brings instruments into the workflow with less friction.
 
-The MVP target is stable transport-driven playback through VST3 with coordinated play, pause, seek, and timing behavior. Discovery, loading, assignment, single-tone production, and editor hosting are important precursor milestones, but they exist in service of proving dependable transport playback. The engine must meet a high technical bar: no locks on the audio thread, strong isolation between rendering and audio execution, and jitter-free behavior under normal composition use. Because the product is unreleased, no backward compatibility or migration path from SCVI is required; SCVI should be removed rather than carried forward.
+The MVP target is stable transport-driven playback through VST3 with coordinated play, pause, seek, and timing behavior. Discovery, rack-slot loading, routing, single-tone production, and editor hosting are important precursor milestones, but they exist in service of proving dependable transport playback. The engine must meet a high technical bar: no locks on the audio thread, strong isolation between rendering and audio execution, and jitter-free behavior under normal composition use. Because the product is unreleased, no backward compatibility or migration path from SCVI is required; SCVI should be removed rather than carried forward.
 
 ### What Makes This Special
 
 Compose’s differentiator is not merely that it supports VST3 plugins. It is that it aims to make industry-standard playback feel native inside a score-first composition tool with a simpler, more opinionated UX than workflows that force the user to think like an audio engineer. Users should not have to jump through hoops to bring VST instruments into their workflow just to hear a realistic mockup of their music.
 
-The core product promise is immediate, realistic audio representation of written scores with minimal playback setup friction. That positions Compose against the common failure mode in notation playback tools: believable audio often exists only after cumbersome configuration, fragmented tooling, or a split notation-plus-DAW workflow. Compose should instead make assigning instruments, hearing results, and iterating on orchestration feel direct and coherent.
+The core product promise is immediate, realistic audio representation of written scores with minimal playback setup friction. That positions Compose against the common failure mode in notation playback tools: believable audio often exists only after cumbersome configuration, fragmented tooling, or a split notation-plus-DAW workflow. Compose should instead make preparing rack slots, routing instruments, hearing results, and iterating on orchestration feel direct and coherent.
 
 This initiative is also timely. SCVI proved useful as an experiment, but VST3 already solves the broader ecosystem and compatibility problem and is the industry standard. The product should therefore stop investing in a proprietary playback path and instead build a dependable VST3-hosted engine that can later expand toward richer capabilities such as expression maps and more flexible routing without losing its opinionated core UX.
 
@@ -79,7 +79,7 @@ Over the longer horizon, success means Compose has a credible release story as a
 
 ### Technical Success
 
-Technical success has three equally mandatory gates. First, the architecture must be safe on the realtime path: no locks on the audio thread, no rendering interference that causes audible glitches, and zero audio dropouts in defined transport regression scenarios. Second, transport behavior must be correct and trustworthy: play, pause, resume, and seek must behave consistently, preserve timing integrity, and avoid hangs, stuck notes, or unstable state transitions. Third, the VST3 host layer must be credible: discovery, loading, retained assignment, playback, and editor integration must work in a best-effort but spec-aligned way for sensible, compliant plugins.
+Technical success has three equally mandatory gates. First, the architecture must be safe on the realtime path: no locks on the audio thread, no rendering interference that causes audible glitches, and zero audio dropouts in defined transport regression scenarios. Second, transport behavior must be correct and trustworthy: play, pause, resume, and seek must behave consistently, preserve timing integrity, and avoid hangs, stuck notes, or unstable state transitions. Third, the VST3 host layer must be credible: discovery, loading, retained rack and route intent, playback, and editor integration must work in a best-effort but spec-aligned way for sensible, compliant plugins.
 
 No single one of these gates can compensate for failure in the others. High realism without trustworthy transport is a failure. Technically correct transport with awkward or partial plugin integration is a failure. Broad plugin support with unsafe realtime behavior is a failure.
 
@@ -87,7 +87,7 @@ The compatibility posture for MVP should be best-effort, grounded in sensible ad
 
 ### Measurable Outcomes
 
-The MVP should be evaluated against defined representative transport regression scenarios and representative instrument/plugin scenarios rather than anecdotal manual testing alone. Zero audio dropouts in those defined transport scenarios is non-negotiable. The measurable bar should include repeated play, pause, resume, and seek operations across representative scores and plugin assignments without glitches, hangs, drift, or stuck playback state.
+The MVP should be evaluated against defined representative transport regression scenarios and representative instrument/plugin scenarios rather than anecdotal manual testing alone. Zero audio dropouts in those defined transport scenarios is non-negotiable. The measurable bar should include repeated play, pause, resume, and seek operations across representative scores and plugin routes without glitches, hangs, drift, or stuck playback state.
 
 Acceptance must be judged against explicit targets for:
 
@@ -95,7 +95,7 @@ Acceptance must be judged against explicit targets for:
 - representative seek and playback-navigation scenarios
 - acceptable startup behavior with cached plugin discovery
 - acceptable manual full rescan behavior
-- assignment-to-first-audible-playback expectations
+- route-to-first-audible-playback expectations
 - project reopen behavior with valid and missing plugins
 
 Exact numbers can be calibrated during architecture and validation planning, but MVP sign-off must use explicit targets rather than vague "feels fast" or "seems stable" claims.
@@ -107,12 +107,12 @@ Exact numbers can be calibrated during architecture and validation planning, but
 - Full replacement of SCVI with a macOS-only VST3 playback path
 - Clean-slate implementation direction with SCVI removed by MVP completion
 - Cache-first VST3 startup with bounded cached-entry validation, one cheap sweep for newly added uncached bundles, initial discovery when the cache is empty, plus manual full rescan
-- Instrument assignment integrated into the main score workflow
-- Explicit support for both single-part plugins and compatible multi-part or channel-addressed plugin workflows, including one plugin instance serving multiple score instruments where the plugin exposes that model
-- Auto-loading attempt on instrument creation, with unassigned fallback when no mapping exists
-- Stable plugin loading and retained per-project assignment state
+- Rack-slot and routing workflow integrated into the main score workflow
+- Explicit support for both single-target plugins and compatible multi-target or channel-addressed plugin workflows, including one rack slot serving multiple score instruments through distinct routes where the plugin exposes that model
+- Auto-routing attempt on instrument creation, with unrouted fallback when no mapping exists
+- Stable plugin loading and retained per-project rack and route state
 - Single-tone playback as an enabling milestone
-- Basic mixer behavior using the existing UI surface and control model
+- Basic mixer behavior using a route-first UX, with route-level controls shown when VST3-exposed separability makes them real and slot-level semantics retained underneath where needed
 - Stable transport-driven playback with dependable play, pause, resume, and seek behavior
 - Bounded edit-during-playback behavior with explicit update rules for when score changes apply immediately versus at a safe defer point
 - Realtime-safe audio architecture with no locks on the audio thread
@@ -125,7 +125,7 @@ Exact numbers can be calibrated during architecture and validation planning, but
 
 - Broader plugin compatibility beyond the validated MVP baseline
 - More sophisticated instance-sharing and routing flexibility
-- Improved default mappings and assignment ergonomics
+- Improved default mappings and routing ergonomics
 - Richer mixer capabilities beyond the current basic scope
 - Stronger diagnostics and recovery behavior around missing or problematic plugins
 - Deeper automation and articulation-aware playback behavior built on the foundational expression-map model
@@ -141,17 +141,17 @@ Exact numbers can be calibrated during architecture and validation planning, but
 
 ### Journey 1: Composer Gets From Empty Score To Trustworthy Playback
 
-A composer starts a new score because they want immediate feedback on an idea, not a long playback setup session. They add instruments, expect Compose to make sensible auto-loading attempts, and accept that some instruments may remain unassigned when no valid default mapping exists. Their first expectation is not deep control. It is hearing something believable quickly enough that playback becomes part of the act of writing.
+A composer starts a new score because they want immediate feedback on an idea, not a long playback setup session. They add instruments, expect Compose to make sensible auto-routing attempts, and accept that some instruments may remain unrouted when no valid default mapping exists. Their first expectation is not deep control. It is hearing something believable quickly enough that playback becomes part of the act of writing.
 
-As they assign or confirm instruments, the product discovers available VST3 options through its cached registry and keeps the workflow inside the main score environment instead of forcing them into a technical side path. They enter a few bars of music, press play, and expect audible results that are realistic enough to judge pacing, texture, and orchestration choices. The critical delivery moment is not just hearing sound; it is hearing a believable mockup without having to think about plugin-hosting mechanics.
+As they route or confirm instruments, the product discovers available VST3 options through its cached registry and keeps the workflow inside the main score environment instead of forcing them into a technical side path. They enter a few bars of music, press play, and expect audible results that are realistic enough to judge pacing, texture, and orchestration choices. The critical delivery moment is not just hearing sound; it is hearing a believable mockup without having to think about plugin-hosting mechanics.
 
 The journey succeeds when the composer feels that playback is now part of the same creative loop as notation. The journey fails if the path from empty score to first useful playback is slow, confusing, or dependent on technical knowledge that most score authors do not want to exercise.
 
 Capabilities revealed by this journey:
 
 - cache-first VST3 discovery, startup availability, and empty-cache fallback discovery
-- instrument auto-loading attempt with unassigned fallback
-- assignment UX inside the main composition flow
+- instrument auto-routing attempt with unrouted fallback
+- routing UX inside the main composition flow
 - fast path from score creation to first believable playback
 - realistic enough default playback to support composition decisions
 
@@ -178,14 +178,14 @@ Capabilities revealed by this journey:
 
 A composer opens a score or creates an instrument and discovers that a preferred mapping is not available. A plugin may be missing, a default mapping may not exist, or a previously used instrument may now be unavailable. The user should not be punished with a broken project or an unrecoverable playback state.
 
-Instead, Compose leaves the instrument unassigned, makes that state clear, and allows the composer to continue working. They can choose a replacement plugin, continue with partial playback, or defer assignment until later. The product should degrade gracefully rather than forcing immediate technical repair. The emotional goal is resilience: the user stays in control and keeps moving.
+Instead, Compose leaves the instrument unrouted, makes that state clear, and allows the composer to continue working. They can choose a replacement plugin, continue with partial playback, or defer routing until later. The product should degrade gracefully rather than forcing immediate technical repair. The emotional goal is resilience: the user stays in control and keeps moving.
 
 The journey succeeds when missing playback assets are handled as recoverable workflow conditions rather than session-breaking failures. It fails if the user feels trapped in repair work, cannot understand why playback is missing, or cannot recover without specialist knowledge.
 
 Capabilities revealed by this journey:
 
-- clear unassigned-instrument state
-- recoverable plugin reassignment flow
+- clear unrouted-instrument state
+- recoverable rerouting workflow
 - project reopen behavior that tolerates missing plugins
 - graceful degradation rather than broken-session playback
 - persistence model that separates score continuity from plugin availability
@@ -210,10 +210,10 @@ Capabilities revealed by this journey:
 
 These journeys reveal six core capability groups:
 
-- playback onboarding through cached plugin discovery, auto-loading attempts, and main-flow instrument assignment
+- playback onboarding through cached plugin discovery, auto-routing attempts, and main-flow instrument routing
 - bounded live-edit trust through explicit update rules for score changes during active playback
 - transport trust through stable play, pause, resume, and seek behavior with zero-dropout representative regressions
-- resilience and recovery through unassigned fallback states, missing-plugin recovery, and stable reopen behavior
+- resilience and recovery through unrouted fallback states, missing-plugin recovery, and stable reopen behavior
 - VST3 platform credibility through best-effort spec-aligned host behavior, validation against representative real-world libraries, and usable editor/lifecycle support
 - maintainable foundation through lock-free audio-thread execution, rendering isolation from audio, and an architecture that allows future playback features to remain incremental
 
@@ -240,7 +240,7 @@ The same separation should apply to expression maps. The architecture should tre
 
 Because this is macOS-only in MVP, the implementation should prefer a clean platform-specific design over premature cross-platform abstraction. The PRD should explicitly allow macOS-native decisions where they simplify or harden the host/runtime path, while keeping later expansion possible if the product matures beyond the initial release target.
 
-The architecture must also preserve the app's offline-first desktop workflow. Users should be able to discover plugins, assign instruments, open projects, and work with playback locally without requiring network services. Plugin inventory, project assignment state, and playback behavior should remain local desktop concerns.
+The architecture must also preserve the app's offline-first desktop workflow. Users should be able to discover plugins, route instruments, open projects, and work with playback locally without requiring network services. Plugin inventory, project rack and route state, and playback behavior should remain local desktop concerns.
 
 ### Platform Support
 
@@ -259,15 +259,15 @@ The playback engine must integrate with:
 
 - local VST3 installation paths and cached plugin discovery
 - the existing audio device selection and settings flow
-- the main score workflow for instrument creation and assignment
-- project persistence for plugin assignment and playback state
+- the main score workflow for instrument creation and routing
+- project persistence for rack, route, and playback state
 - native transport and mixer behavior within the app
 
 System integration should remain opinionated. The app should not initially expose arbitrary DAW-style routing or effects-chain complexity. The purpose of system integration is to make realistic playback easier to access from a score-first workflow, not to turn Compose into a general-purpose production host.
 
 ### Offline Capabilities
 
-The app must remain usable as an offline local desktop tool. Plugin discovery, cached registry use, project open/save, playback preparation, and score-to-playback assignment must not depend on remote services. Missing plugins should degrade to unassigned states rather than breaking the project model or blocking score access.
+The app must remain usable as an offline local desktop tool. Plugin discovery, cached registry use, project open/save, playback preparation, and score-to-playback routing must not depend on remote services. Missing plugins should degrade to unrouted states rather than breaking the project model or blocking score access.
 
 Offline-first behavior also means the app must own enough local state to reopen projects consistently, recover from missing plugins sensibly, and allow the user to continue composing even when some playback assets are unavailable.
 
@@ -291,7 +291,7 @@ For this project type, the key architectural risk is not browser compatibility o
 This MVP is not a market-test stub and not a narrow technology proof. It is the minimum complete replacement of the playback foundation that allows Compose to become a credible score-first composition tool. The MVP must solve the core user problem, which is not merely producing audio, but making realistic playback trustworthy and simple enough to support active composition.
 
 **Resource Requirements:**
-This work requires strong Rust systems/audio implementation, native desktop integration on macOS, VST3 host/runtime work, and enough product/UI attention to keep assignment and playback flows simple. The critical skill mix is:
+This work requires strong Rust systems/audio implementation, native desktop integration on macOS, VST3 host/runtime work, and enough product/UI attention to keep routing and playback flows simple. The critical skill mix is:
 
 - realtime/audio engine engineering
 - native plugin-host integration
@@ -313,10 +313,10 @@ This work requires strong Rust systems/audio implementation, native desktop inte
 - SCVI replacement path established and SCVI removed by MVP completion
 - macOS-only VST3 discovery with cache-first startup, bounded cached-entry validation plus a cheap uncached-bundle sweep, and empty-cache fallback discovery
 - manual full rescan
-- main-flow instrument assignment
-- explicit support for compatible single-part and multi-part or channel-addressed plugin workflows, including one-instance multi-instrument assignment where the plugin exposes it
-- instrument auto-loading attempt with unassigned fallback
-- stable plugin loading and retained assignment state
+- main-flow instrument routing
+- explicit support for compatible single-part and multi-part or channel-addressed plugin workflows, including one-instance multi-instrument routing when the plugin exposes separable parts or channels
+- instrument auto-routing attempt with unrouted fallback
+- stable plugin loading and retained rack and route state
 - single-tone production as an enabling milestone
 - stable transport-driven playback with dependable play, pause, resume, and seek
 - explicit edit-during-playback rules for supported score changes, including when updates apply immediately and when they defer to a safe playback boundary
@@ -334,7 +334,7 @@ This work requires strong Rust systems/audio implementation, native desktop inte
 **Phase 2 (Post-MVP):**
 
 - broader VST3 compatibility coverage beyond validated MVP baseline
-- improved default mappings and assignment ergonomics
+- improved default mappings and routing ergonomics
 - more flexible instance-sharing and routing behavior
 - stronger diagnostics and recovery behavior for problematic plugins
 - richer mixer capabilities beyond the basic control model
@@ -356,7 +356,7 @@ The highest risks are realtime safety, transport correctness, and practical VST3
 - keeping the audio thread lock-free
 - defining explicit transport regression scenarios early
 - validating against representative real plugin libraries from the start
-- treating discovery, assignment, single-note playback, transport playback, and expression switching as dependency-ordered milestones rather than parallel wish lists
+- treating discovery, routing, single-note playback, transport playback, and expression switching as dependency-ordered milestones rather than parallel wish lists
 
 **Market Risks:**
 The biggest market risk is building a technically impressive playback stack that still feels too awkward to use. The MVP mitigates this by making simpler score-first UX a success condition rather than a secondary polish task.
@@ -380,18 +380,18 @@ The main resource risk is allowing compatibility breadth or host-surface complet
 - FR5: Compose can distinguish between discovered plugins that are currently usable and plugins that cannot currently be used.
 - FR6: Maintainers can validate plugin discovery and rescan behavior against representative installed plugin libraries.
 
-### Instrument Assignment & Playback Setup
+### Instrument Routing & Playback Setup
 
-- FR7: Composers can assign a playable VST-backed sound source to score instruments.
-- FR8: Compose can attempt automatic playback assignment when a new score instrument is created.
-- FR9: Compose can leave an instrument unassigned when no suitable playback mapping is available.
-- FR10: Composers can identify which score instruments are assigned, unassigned, or no longer resolvable.
-- FR11: Composers can change the playback assignment for an instrument without restructuring the score.
-- FR12: Compose can support both single-part VST instrument workflows and compatible multi-part or channel-addressed VST instrument workflows in MVP, including one plugin instance serving multiple score instruments where the plugin exposes that model.
+- FR7: Composers can route a playable VST-backed slot target to score instruments.
+- FR8: Compose can attempt automatic playback routing when a new score instrument is created.
+- FR9: Compose can leave an instrument unrouted when no suitable playback mapping is available.
+- FR10: Composers can identify which score instruments are routed, unrouted, or no longer resolvable.
+- FR11: Composers can change the playback route for an instrument without restructuring the score.
+- FR12: Compose can support both single-target VST instrument workflows and compatible multi-target or channel-addressed VST instrument workflows in MVP, including one rack slot serving multiple score instruments through distinct routes where the plugin exposes that model.
 
 ### Plugin Lifecycle & Editing
 
-- FR13: Composers can load assigned VST3 instruments into the playback environment.
+- FR13: Composers can load routed VST3 rack slots into the playback environment.
 - FR14: Compose can maintain usable plugin instance lifecycle behavior across playback sessions within the app.
 - FR15: Composers can open and use plugin-provided editor interfaces for supported VST3 instruments.
 - FR16: Compose can preserve playback usability even when some plugin editor interactions are unavailable or limited.
@@ -399,7 +399,7 @@ The main resource risk is allowing compatibility breadth or host-surface complet
 
 ### Score-To-Playback Mapping
 
-- FR18: Compose can translate written score instruments into playback-capable instrument assignments.
+- FR18: Compose can translate written score instruments into playback-capable routes.
 - FR19: Composers can hear audible results from written score material without leaving the core score workflow.
 - FR20: Compose can support realistic playback through a defined expression-map model, with at least one active expression per instrument and a path to richer score-linked behavior.
 - FR21: Compose can deliver an initial expression-map capability in MVP that links expression behavior to score data where feasible, or proves the concept through a constrained workflow where full linkage would add disproportionate scope.
@@ -407,7 +407,7 @@ The main resource risk is allowing compatibility breadth or host-surface complet
 
 ### Transport Playback
 
-- FR23: Composers can start playback of their score through assigned VST instruments.
+- FR23: Composers can start playback of their score through routed VST instruments.
 - FR24: Composers can pause and resume playback without losing trust in playback state.
 - FR25: Composers can seek to different score positions and hear playback continue from the selected location.
 - FR26: Compose can keep playback state coherent across repeated play, pause, resume, and seek actions.
@@ -416,16 +416,16 @@ The main resource risk is allowing compatibility breadth or host-surface complet
 
 ### Mixer & Playback Control
 
-- FR29: Composers can control basic per-instrument playback mix settings within Compose.
-- FR30: Compose can apply per-instrument playback control settings during score playback.
-- FR31: Compose can retain a basic mixer model that supports current playback needs while allowing later expansion.
+- FR29: Composers can control basic route-first playback mix settings within Compose.
+- FR30: Compose can apply basic playback control settings during score playback according to real VST3-exposed route capability.
+- FR31: Compose can retain a basic mixer model that keeps the user experience route-based while allowing slot-level semantics where the VST3 boundary requires them.
 
 ### Project Persistence & Recovery
 
 - FR32: Compose can persist playback-relevant project state for reopening later in the same product model.
-- FR33: Compose can restore instrument assignments when reopening a project if the required plugins are available.
-- FR34: Compose can degrade missing or unavailable plugin assignments to recoverable unassigned states when reopening a project.
-- FR35: Composers can continue working on a score even when some playback assignments cannot be restored.
+- FR33: Compose can restore rack slots and instrument routes when reopening a project if the required plugins are available.
+- FR34: Compose can degrade missing or unavailable plugin routes to recoverable unrouted states when reopening a project.
+- FR35: Composers can continue working on a score even when some playback routes cannot be restored.
 - FR36: Compose can remove SCVI from the project's active playback path by MVP completion.
 
 ### Validation & Release Readiness
@@ -445,13 +445,13 @@ The main resource risk is allowing compatibility breadth or host-surface complet
 
 Playback must satisfy realtime-safe execution constraints appropriate for a score-first composition product using VST3 instruments. The audio thread must not take locks, and the system must avoid audio dropouts in defined transport regression scenarios. This requirement is release-critical.
 
-Transport playback must remain stable under representative composition scenarios that include repeated play, pause, resume, and seek operations across assigned VST instruments. Performance targets should be validated against explicit test scenarios rather than subjective assessment.
+Transport playback must remain stable under representative composition scenarios that include repeated play, pause, resume, and seek operations across routed VST targets. Performance targets should be validated against explicit test scenarios rather than subjective assessment.
 
-Plugin discovery and assignment workflows must be fast enough to preserve creative momentum. MVP acceptance must define explicit target thresholds for:
+Plugin discovery and routing workflows must be fast enough to preserve creative momentum. MVP acceptance must define explicit target thresholds for:
 
 - cached startup discovery behavior
 - manual full rescan duration
-- assignment-to-first-audible-playback latency
+- route-to-first-audible-playback latency
 - representative project reopen behavior
 
 Rendering and other non-audio activity must not introduce audible playback instability. The system must isolate rendering and other UI-side work from causing glitches during transport playback.
@@ -460,7 +460,7 @@ Rendering and other non-audio activity must not introduce audible playback insta
 
 Compose must provide dependable transport behavior that users can trust during active composition. Repeated play, pause, resume, and seek actions must preserve coherent playback state and avoid hangs, stuck notes, corrupted session behavior, or degraded recovery paths.
 
-Project reopen behavior must remain resilient. When required plugins are available, playback assignments must restore correctly. When plugins are missing or unusable, the system must degrade to clear recoverable unassigned states rather than breaking the project or blocking score work.
+Project reopen behavior must remain resilient. When required plugins are available, playback routes must restore correctly. When plugins are missing or unusable, the system must degrade to clear recoverable unrouted states rather than breaking the project or blocking score work.
 
 The playback environment must remain stable enough to support a release-credible known-good subset of spec-aligned VST3 plugins on macOS. Reliability is judged not only by whether playback can start, but whether it remains trustworthy through realistic composition workflows.
 
@@ -479,7 +479,7 @@ Compose must integrate reliably with:
 - local VST3 installation paths on macOS
 - cached plugin discovery and manual rescan flows
 - the existing audio-device selection and playback settings surfaces
-- the main score workflow for instrument creation and assignment
+- the main score workflow for instrument creation and routing
 - project persistence and reopen behavior
 - native plugin editor hosting where required for usable playback workflows
 

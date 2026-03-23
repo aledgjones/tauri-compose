@@ -25,35 +25,35 @@ FR3: Composers can use a cached plugin inventory so previously discovered plugin
 FR4: Composers can trigger a full plugin rescan when they need Compose to refresh the available VST3 inventory.
 FR5: Compose can distinguish between discovered plugins that are currently usable and plugins that cannot currently be used.
 FR6: Maintainers can validate plugin discovery and rescan behavior against representative installed plugin libraries.
-FR7: Composers can assign a playable VST-backed sound source to score instruments.
-FR8: Compose can attempt automatic playback assignment when a new score instrument is created.
-FR9: Compose can leave an instrument unassigned when no suitable playback mapping is available.
-FR10: Composers can identify which score instruments are assigned, unassigned, or no longer resolvable.
-FR11: Composers can change the playback assignment for an instrument without restructuring the score.
-FR12: Compose can support both single-part VST instrument workflows and multi-part or channel-addressed VST instrument workflows in MVP, including one plugin instance serving multiple score instruments where the plugin exposes that model.
-FR13: Composers can load assigned VST3 instruments into the playback environment.
+FR7: Composers can route a playable VST-backed slot target to score instruments.
+FR8: Compose can attempt automatic playback routing when a new score instrument is created.
+FR9: Compose can leave an instrument unrouted when no suitable playback mapping is available.
+FR10: Composers can identify which score instruments are routed, unrouted, or no longer resolvable.
+FR11: Composers can change the playback route for an instrument without restructuring the score.
+FR12: Compose can support both single-target VST instrument workflows and multi-target or channel-addressed VST instrument workflows in MVP, including one rack slot serving multiple score instruments through distinct routes where the plugin exposes that model.
+FR13: Composers can load routed VST3 rack slots into the playback environment.
 FR14: Compose can maintain usable plugin instance lifecycle behavior across playback sessions within the app.
 FR15: Composers can open and use plugin-provided editor interfaces for supported VST3 instruments.
 FR16: Compose can preserve playback usability even when some plugin editor interactions are unavailable or limited.
 FR17: Maintainers can validate plugin-host behavior against a representative known-good plugin set.
-FR18: Compose can translate written score instruments into playback-capable instrument assignments.
+FR18: Compose can translate written score instruments into playback-capable routes.
 FR19: Composers can hear audible results from written score material without leaving the core score workflow.
 FR20: Compose can support realistic playback through a defined expression-map model, with at least one active expression per instrument and a path to richer score-linked behavior.
 FR21: Compose can deliver an initial expression-map capability in MVP that links expression behavior to score data where feasible, or proves the concept through a constrained workflow where full linkage would add disproportionate scope.
 FR22: Compose can expand expression-map behavior later into a fuller score-linked system without replacing the underlying playback foundation.
-FR23: Composers can start playback of their score through assigned VST instruments.
+FR23: Composers can start playback of their score through routed VST instruments.
 FR24: Composers can pause and resume playback without losing trust in playback state.
 FR25: Composers can seek to different score positions and hear playback continue from the selected location.
 FR26: Compose can keep playback state coherent across repeated play, pause, resume, and seek actions.
 FR27: Compose can support transport-driven playback that composers can use as part of iterative writing and revision.
 FR28: Compose can represent playback failure states in ways that allow users to recover without abandoning score work.
-FR29: Composers can control basic per-instrument playback mix settings within Compose.
-FR30: Compose can apply per-instrument playback control settings during score playback.
-FR31: Compose can retain a basic mixer model that supports current playback needs while allowing later expansion.
+FR29: Composers can control basic route-first playback mix settings within Compose.
+FR30: Compose can apply basic playback control settings during score playback according to real VST3-exposed route capability.
+FR31: Compose can retain a basic mixer model that keeps the user experience route-based while allowing slot-level semantics where the VST3 boundary requires them.
 FR32: Compose can persist playback-relevant project state for reopening later in the same product model.
-FR33: Compose can restore instrument assignments when reopening a project if the required plugins are available.
-FR34: Compose can degrade missing or unavailable plugin assignments to recoverable unassigned states when reopening a project.
-FR35: Composers can continue working on a score even when some playback assignments cannot be restored.
+FR33: Compose can restore rack slots and instrument routes when reopening a project if the required plugins are available.
+FR34: Compose can degrade missing or unavailable plugin routes to recoverable unrouted states when reopening a project.
+FR35: Composers can continue working on a score even when some playback routes cannot be restored.
 FR36: Compose can remove SCVI from the project's active playback path by MVP completion.
 FR37: Maintainers can evaluate Compose playback against representative transport regression scenarios.
 FR38: Maintainers can evaluate Compose playback against representative real-world VST instrument libraries, including the user's existing library.
@@ -66,39 +66,39 @@ FR41: Composers can continue editing and updating the score during playback with
 NFR1: The audio thread must remain lock-free during playback.
 NFR2: Representative transport regression scenarios must complete with zero audio dropouts.
 NFR3: Playback must remain stable through repeated play, pause, resume, and seek operations in representative composition scenarios.
-NFR4: Cached plugin discovery, manual full rescan, assignment-to-first-audible-playback, and project reopen behavior must have explicit measurable performance targets.
+NFR4: Cached plugin discovery, manual full rescan, route-to-first-audible-playback, and project reopen behavior must have explicit measurable performance targets.
 NFR5: Rendering and other non-audio activity must not introduce audible glitches or playback instability.
 NFR6: Playback state must remain coherent and recoverable without hangs, stuck notes, or corrupted session behavior.
-NFR7: Project reopen must restore valid assignments correctly when plugins are available.
-NFR8: Missing or unusable plugins must degrade to clear, recoverable unassigned states rather than breaking score access.
+NFR7: Project reopen must restore valid rack slots and routes correctly when plugins are available.
+NFR8: Missing or unusable plugins must degrade to clear, recoverable unrouted states rather than breaking score access.
 NFR9: The MVP must support a release-credible known-good subset of sensible, spec-aligned VST3 plugins on macOS.
 NFR10: Plugin discovery and loading must operate within local desktop permissions and only access required local VST3 and project data paths.
 NFR11: Playback-related project data must preserve integrity across save, close, and reopen flows.
-NFR12: The system must integrate reliably with local VST3 installation paths, cached discovery, manual rescan, audio-device settings, score workflow assignment, project persistence, and native plugin editor hosting.
+NFR12: The system must integrate reliably with local VST3 installation paths, cached discovery, manual rescan, audio-device settings, score workflow routing, project persistence, and native plugin editor hosting.
 NFR13: Compatibility evaluation must be grounded in sensible adherence to the VST3 specification rather than blanket support for out-of-spec plugins.
 NFR14: Validation must use explicit representative scenarios for transport, plugin compatibility, project reopen and recovery, cached discovery and rescan behavior, and realistic score playback conditions.
 
 ### Additional Requirements
 
 - Preserve the existing brownfield Tauri + React + TypeScript + Vite foundation; implementation must extend the current app rather than reinitialize or replatform it.
-- Treat Rust as the sole source of truth for plugin inventory, assignment state, playback preparation state, transport state, and persisted playback-domain state.
-- Keep `.soloc` portable by storing project intent and assignment references only; machine-local plugin discovery and cache state must remain outside project files.
+- Treat Rust as the sole source of truth for plugin inventory, rack state, slot state, route state, playback preparation state, transport state, and persisted playback-domain state.
+- Keep `.soloc` portable by storing project intent and rack or route references only; machine-local plugin discovery and cache state must remain outside project files.
 - Split playback architecture into a Rust control plane and a realtime-safe playback plane where the audio path consumes precomputed, lock-safe state only.
 - Keep playback-critical communication backend-owned and command-oriented; avoid high-frequency event chatter on transport and playback-critical paths.
 - Treat stable, jitter-free playback as a hard architectural and release gate for all implementation choices.
-- Model missing plugin resolution as explicit, recoverable unassigned states rather than silent fallback or corrupted project state.
+- Model missing plugin resolution as explicit, recoverable unrouted states rather than silent fallback or corrupted project state.
 - Treat VST3 plugins as untrusted third-party code from a host-safety perspective and contain host failures without destabilizing playback or project data.
 - Keep score-context playback relationships in contextual panels, and app-scoped playback assets or inventories in dedicated windows.
 - Reuse backend seams for UI and MCP/automation flows rather than introducing parallel implementation paths.
 - Keep validation and regression coverage close to the owning seam rather than creating broad duplicate harnesses.
-- Formalize plugin inventory, identity, assignment, and recovery models before broader transport and workflow integration.
-- Treat basic VST3 support as explicitly covering both single-part instrument plugins such as Spitfire-style setups and multi-part or channel-addressed plugins such as HALion Sonic, including the MVP case where one plugin instance serves multiple score instruments through explicit part or channel assignment, without implying full DAW-style routing or arbitrary shared-instance topology.
+- Formalize plugin inventory, identity, rack, slot, target, address, route, and recovery models before broader transport and workflow integration.
+- Treat basic VST3 support as explicitly covering both single-target instrument plugins such as Spitfire-style setups and multi-target or channel-addressed plugins such as HALion Sonic, including the MVP case where one rack slot serves multiple score instruments through explicit route targets, without implying full DAW-style routing or arbitrary shared-instance topology.
 - Respect the project’s release and persistence discipline: any persisted-data change must assess migration impact and update pending migrations in `src-tauri/src/migrations/next.rs`.
 - Treat the first implementation work as foundation-building on the existing app, not starter setup; Epic 1 Story 1 must not be project initialization.
 - Treat native VST editor hosting as a narrow macOS-only seam first: one explicit editor-host path, one window label, one open command, and one close path before broader host abstraction.
 - Keep native VST editor lifecycle backend-owned, with the frontend limited to a thin trigger through existing `actions.ts` and secondary-window patterns.
 - Prefer direct AppKit subview attachment inside a dedicated Tauri-managed host window over HTML or React embedding for native plugin UI hosting.
-- Keep the native editor host seam separate from transport, score-assignment lifecycle, preset management, automation, and broader production-host concerns until the proof is validated.
+- Keep the native editor host seam separate from transport, score-routing lifecycle, preset management, automation, and broader production-host concerns until the proof is validated.
 - Preserve the existing HTML plugin-settings workflow unless a deliberate incremental story chooses to replace or converge it; do not conflate metadata/audition UI with native editor hosting.
 - Treat focus, resize, close, reopen, and teardown behavior of the native editor host as explicit acceptance concerns, not incidental implementation details.
 - Require manual macOS runbook validation alongside unit/frontend coverage for the native editor host proof.
@@ -107,20 +107,20 @@ NFR14: Validation must use explicit representative scenarios for transport, plug
 
 ### UX Design Requirements
 
-UX-DR1: Instrument rows must expose a compact direct assignment control that shows the current playback configuration with minimal indirection.
+UX-DR1: Instrument rows must expose a compact direct routing control that shows the current playback route with minimal indirection.
 UX-DR2: Instrument rows must expose a compact readiness or health signal so users can tell at a glance whether playback is ready, needs attention, or is unavailable.
-UX-DR3: The expanded instrument panel must reflect the same assignment model as the row while adding metadata, richer status explanation, and deeper contextual controls.
+UX-DR3: The expanded instrument panel must reflect the same routing model as the row while adding metadata, richer status explanation, and deeper contextual controls.
 UX-DR4: Compact score-context playback state must collapse into the three user-facing states Ready, Needs Attention, and Unavailable.
-UX-DR5: Non-ready states must provide one primary contextual recovery action that opens the relevant plugin panel in the current score context.
-UX-DR6: Plugin assignment must remain a score-first workflow that feels like choosing a usable sound for a musical part rather than configuring host topology.
-UX-DR7: The common assignment and playback workflow must preserve a direct score-first mental model for MVP, while also allowing explicit slot or channel selection and clear cross-instrument linkage where a supported multi-part plugin serves multiple score instruments from one instance.
+UX-DR5: Non-ready states must provide one primary contextual recovery action that opens the relevant rack or route panel in the current score context.
+UX-DR6: Playback routing must remain a score-first workflow that feels like choosing a usable sound path for a musical part rather than configuring host topology.
+UX-DR7: The common routing and playback workflow must preserve a direct score-first mental model for MVP, while also allowing explicit target selection and clear cross-instrument linkage where a supported multi-target plugin serves multiple score instruments from one rack slot.
 UX-DR8: Native plugin editors must be available as deliberate secondary handoff surfaces for plugin-specific control, not as the default answer to routine playback tasks.
 UX-DR9: The system must provide explicit score-context entry points to open the native plugin editor from relevant playback surfaces.
 UX-DR10: Expression maps must be represented as durable, reusable playback assets rather than transient properties of whichever score object is selected.
-UX-DR11: The instrument panel must show which expression map is linked to the current instrument’s playback configuration and whether that linkage is missing or incomplete.
+UX-DR11: The instrument panel must show which route-owned expression map is linked to the current instrument’s playback route and whether that linkage is missing or incomplete.
 UX-DR12: Both instrument-driven and library-driven expression-map workflows must converge on one dedicated expression-map editor window.
 UX-DR13: Full plugin discovery, inventory health, and organisation must live in a dedicated app-scoped Plugin Manager window.
-UX-DR14: Contextual plugin pickers in instrument rows and panels must present a filtered, musician-friendly view of currently usable plugins for the current assignment task.
+UX-DR14: Contextual plugin and target pickers in instrument rows and panels must present a filtered, musician-friendly view of currently usable plugins and targets for the current routing task.
 UX-DR15: Panels must act as score-context relational surfaces, while windows must own app-scoped inventories, reusable assets, and deep editors.
 UX-DR16: Canonical app-scoped entry points for Plugin Manager and Expression Map Library must exist in the system app menu, with contextual launch paths also available from score workflows.
 UX-DR17: Playback UI must preserve Compose’s existing custom design system, compact density, current blue-highlight language, and familiar panel/window grammar rather than introducing a parallel design language.
@@ -134,35 +134,35 @@ FR3: Epic 2 - Use a cached plugin inventory across launches.
 FR4: Epic 2 - Support a manual full plugin rescan.
 FR5: Epic 2 - Distinguish usable plugins from unavailable ones.
 FR6: Epic 2 - Validate discovery and rescan against representative installed libraries.
-FR7: Epic 3 - Assign a playable VST-backed sound source to score instruments.
-FR8: Epic 3 - Attempt automatic assignment when a new score instrument is created.
-FR9: Epic 3 - Leave instruments explicitly unassigned when no suitable mapping exists.
-FR10: Epic 3 - Show whether instruments are assigned, unassigned, or unresolved.
-FR11: Epic 3 - Reassign playback without restructuring the score.
-FR12: Epic 3 - Support both single-part instrument plugins and multi-part or channel-addressed plugins in MVP, including one-instance multi-instrument assignment where the plugin exposes it.
-FR13: Epic 3 - Load assigned VST3 instruments into the playback environment.
+FR7: Epic 3 - Route a playable VST-backed slot target to score instruments.
+FR8: Epic 3 - Attempt automatic routing when a new score instrument is created.
+FR9: Epic 3 - Leave instruments explicitly unrouted when no suitable mapping exists.
+FR10: Epic 3 - Show whether instruments are routed, unrouted, or unresolved.
+FR11: Epic 3 - Change playback routing without restructuring the score.
+FR12: Epic 3 - Support both single-target instrument plugins and multi-target or channel-addressed plugins in MVP, including one rack slot serving multiple score instruments through distinct routes where the plugin exposes it.
+FR13: Epic 3 - Load routed VST3 rack slots into the playback environment.
 FR14: Epic 3 - Maintain usable per-instrument plugin lifecycle behavior across sessions.
 FR15: Epic 2 - Open and use supported plugin-provided editor interfaces through the bounded native-host seam.
 FR16: Epic 2 - Preserve playback usability when plugin editor interactions are limited or unavailable.
 FR17: Epic 2 - Validate plugin-host behavior against a representative known-good plugin set.
-FR18: Epic 4 - Translate written score instruments into playback-capable assignments during first audible playback.
+FR18: Epic 4 - Translate written score instruments into playback-capable routes during first audible playback.
 FR19: Epic 4 - Hear written score material without leaving the core score workflow.
 FR20: Epic 6 - Support a defined expression-map model with initial active-expression realism.
 FR21: Epic 6 - Deliver an initial expression-map capability linked to score data where feasible or constrained where necessary.
 FR22: Epic 6 - Preserve a path to richer score-linked expression behavior without replacing the playback foundation.
-FR23: Epic 4 - Start score playback through assigned VST instruments.
+FR23: Epic 4 - Start score playback through routed VST instruments.
 FR24: Epic 5 - Pause and resume playback without losing trust in playback state.
 FR25: Epic 5 - Seek to different score positions and continue playback coherently.
 FR26: Epic 5 - Keep playback state coherent across repeated transport actions.
 FR27: Epic 5 - Support transport-driven playback for iterative writing and revision.
 FR28: Epic 5 - Represent playback failure states in recoverable ways.
-FR29: Epic 4 - Control basic per-instrument playback mix settings.
-FR30: Epic 4 - Apply per-instrument playback control settings during score playback.
-FR31: Epic 4 - Retain a basic mixer model that supports current needs and later expansion.
+FR29: Epic 4 - Control basic route-first playback mix settings.
+FR30: Epic 4 - Apply basic playback control settings during score playback according to real route capability.
+FR31: Epic 4 - Retain a basic mixer model that supports current needs and later expansion without breaking the route-first user model.
 FR32: Epic 5 - Persist playback-relevant project state for reopening.
-FR33: Epic 5 - Restore instrument assignments on reopen when plugins are available.
-FR34: Epic 5 - Degrade missing or unavailable plugin assignments to recoverable unassigned states on reopen.
-FR35: Epic 5 - Continue score work even when some playback assignments cannot be restored.
+FR33: Epic 5 - Restore rack slots and instrument routes on reopen when plugins are available.
+FR34: Epic 5 - Degrade missing or unavailable plugin routes to recoverable unrouted states on reopen.
+FR35: Epic 5 - Continue score work even when some playback routes cannot be restored.
 FR36: Epic 1 - Retire SCVI from the active product and code path entirely.
 FR37: Epic 5 - Evaluate playback against representative transport regression scenarios.
 FR38: Epic 7 - Evaluate playback against representative real-world VST instrument libraries.
@@ -182,14 +182,14 @@ Compose removes SCVI-specific runtime, workflow, tooling, and guidance residue s
 Users and maintainers can discover which VST3 plugins Compose can use, refresh that inventory, and exercise the bounded native editor-host seam on macOS.
 **FRs covered:** FR1, FR2, FR3, FR4, FR5, FR6, FR15, FR16, FR17
 
-### Epic 3: Make Score Instruments Playable
+### Epic 3: Build The Current Score Rack And Routing Model
 
-Composers can assign playback to score instruments, including supported single-part and multi-part VST configurations, see when multiple score instruments share one plugin instance, see whether each part is ready or needs attention, and rely on stable plugin lifecycle behavior.
+Composers can prepare a current score rack, route score instruments into explicit slot targets, understand route state at a glance, and rely on stable slot lifecycle behavior.
 **FRs covered:** FR7, FR8, FR9, FR10, FR11, FR12, FR13, FR14
 
 ### Epic 4: Get From Written Score to First Audible Playback
 
-Composers can hear written material through assigned VST instruments and shape basic playback levels inside Compose.
+Composers can hear written material through routed VST instruments and shape basic route-first playback levels inside Compose.
 **FRs covered:** FR18, FR19, FR23, FR29, FR30, FR31
 
 ### Epic 5: Trust Playback During Real Composition
@@ -362,7 +362,7 @@ So that I can see which playback tools are available without configuring them ma
 
 **Given** this is the first VST inventory story
 **When** it is complete
-**Then** no score-assignment workflow is required for the story to be valuable
+**Then** no score-routing workflow is required for the story to be valuable
 **And** users or maintainers can confirm that Compose knows what plugins exist locally.
 
 ### Story 2.2: Reuse a Cached Plugin Inventory on Startup
@@ -413,7 +413,7 @@ So that I can inspect what Compose can use and what needs attention.
 **Given** Compose has a discovered or cached plugin inventory
 **When** the user opens the Plugin Manager
 **Then** they can see the plugin inventory in a dedicated app-scoped window
-**And** that window is clearly separate from score-context assignment surfaces.
+**And** that window is clearly separate from score-context routing surfaces.
 
 **Given** some plugins may be usable while others are unavailable or problematic
 **When** the inventory is displayed
@@ -498,7 +498,7 @@ So that we can treat it as a usable platform seam rather than a one-shot proof.
 **Given** Epic 2 is proving a bounded macOS editor-host seam rather than a full production host abstraction
 **When** this story is complete
 **Then** lifecycle behavior is explicit and reviewable for the supported session interactions
-**And** later playback or assignment concerns remain outside this story's scope.
+**And** later playback or routing concerns remain outside this story's scope.
 
 ### Story 2.7: Validate Editor Host Failure Handling Against a Known-Good Plugin Subset
 
@@ -554,45 +554,45 @@ So that the inventory is easier to scan without depending on artwork availabilit
 
 Composers can assign playback to score instruments through both single-part and one-instance multi-instrument plugin workflows, see whether each part is ready or needs attention, and rely on stable plugin lifecycle behavior.
 
-### Story 3.1: Represent Playback Assignment State on Score Instruments
+### Story 3.1: Define Backend-Owned Rack, Slot, Target, Address, And Route State
 
 As a composer,
-I want score instruments to carry explicit playback assignment state,
-So that Compose can tell me whether each instrument is ready, needs attention, or is unassigned.
+I want Compose to carry explicit backend-owned rack and route state,
+So that score instruments can participate in a consistent playback topology without frontend-owned guesswork.
 
 **FRs implemented:** FR7, FR9, FR10, FR12
 
 **Acceptance Criteria:**
 
-**Given** a score contains instruments that may or may not have playback assigned
-**When** Compose resolves playback state for those instruments
-**Then** each instrument has explicit assignment state owned by the backend
-**And** that state is available to score-context UI surfaces.
+**Given** a score contains instruments that may or may not have playback prepared
+**When** Compose resolves playback topology for that score
+**Then** the backend owns explicit rack, slot, target, address, and route state
+**And** that state is available to score-context UI surfaces without frontend-owned truth.
 
 **Given** some instruments may not yet have a valid playback mapping
-**When** their state is resolved
-**Then** they are represented explicitly as unassigned or attention-needed
+**When** their topology is resolved
+**Then** they are represented explicitly as unrouted or attention-needed
 **And** Compose does not silently substitute hidden fallback behavior.
 
-**Given** this is the first score-assignment story
+**Given** this is the first score-routing story
 **When** it is complete
-**Then** the assignment model supports both direct single-part plugin assignments and explicit multi-part or channel-addressed assignments
-**And** it can represent the MVP case where multiple score instruments intentionally share one plugin instance.
+**Then** the model supports both single-target plugin routing and explicit multi-target or channel-addressed routing
+**And** it can represent the MVP case where multiple score instruments intentionally share one rack slot through distinct routes.
 
-### Story 3.2: Show Assignment Readiness in Instrument Rows and Panels
+### Story 3.2: Show Current Rack And Route Summaries In Sequence
 
 As a composer,
-I want to see playback readiness directly on score instruments,
+I want to see the current rack and each instrument's route summary directly in Sequence,
 So that I can tell at a glance which parts are playable and which need action.
 
 **FRs implemented:** FR10
 
 **Acceptance Criteria:**
 
-**Given** score instruments have resolved playback assignment state
+**Given** score instruments have resolved playback route state
 **When** they are displayed in relevant score-context surfaces
-**Then** instrument rows show compact readiness or health state
-**And** the expanded instrument panel shows richer contextual playback information.
+**Then** the Sequence bottom panel shows the current rack and its slot instances
+**And** instrument rows or expansions show compact route summaries and health state.
 
 **Given** playback state can be Ready, Needs Attention, or Unavailable
 **When** those states are shown in the UI
@@ -604,85 +604,85 @@ So that I can tell at a glance which parts are playable and which need action.
 **Then** they are given one primary contextual recovery path
 **And** the product does not force them into an unrelated app-scoped workflow by default.
 
-### Story 3.3: Manually Assign a Plugin to a Score Instrument
+### Story 3.3: Load Or Create A Rack Slot From The Available Plugin Inventory
 
 As a composer,
-I want to assign an available single-part plugin to a score instrument from the score workflow,
-So that I can prepare that instrument for playback quickly without leaving my composition context.
+I want to load or create a rack slot from an available plugin in the score workflow,
+So that I can prepare a reusable playback destination without leaving my composition context.
 
 **FRs implemented:** FR7, FR11
 
 **Acceptance Criteria:**
 
-**Given** a score instrument is selected and a usable plugin inventory exists
-**When** the user chooses a plugin from the contextual assignment control
-**Then** that plugin is assigned to the selected score instrument
-**And** the assignment is stored as backend-owned playback intent.
+**Given** a usable plugin inventory exists
+**When** the user chooses a plugin from the contextual rack workflow
+**Then** Compose creates or loads a rack slot for that plugin
+**And** the slot is stored as backend-owned playback intent.
 
-**Given** the score-context picker is used for assignment
+**Given** the score-context picker is used for slot preparation
 **When** the user opens it
 **Then** it presents a filtered, musician-friendly view of currently usable plugins
-**And** it does not require the user to manage the full plugin inventory window just to make an assignment.
+**And** it does not require the user to manage the full plugin inventory window just to prepare a slot.
 
-**Given** a manual assignment is completed successfully
-**When** the instrument's playback state is refreshed
-**Then** its readiness state reflects the new assignment
-**And** the instrument becomes eligible for later playback stories.
+**Given** a rack slot is created successfully
+**When** Sequence state is refreshed
+**Then** the current rack reflects the new slot
+**And** score instruments become eligible for later routing stories.
 
-### Story 3.4: Select A Part Or Channel When Assigning A Compatible Multi-Part Plugin
+### Story 3.4: Create Or Change A Route From A Score Instrument To A Slot Target
 
 As a composer,
-I want to choose an explicit part or channel when assigning a compatible multi-part plugin,
-So that the playback target for my instrument stays direct and unambiguous.
+I want to create or change an explicit route from a score instrument to a slot target,
+So that the playback destination for my instrument stays direct and unambiguous.
 
 **FRs implemented:** FR12
 
 **Acceptance Criteria:**
 
-**Given** a selected plugin exposes multiple supported parts, slots, or channel-addressed instrument targets
-**When** the user assigns that plugin from the score workflow
-**Then** Compose can capture the chosen part or channel as part of each instrument's playback intent
+**Given** a selected rack slot exposes one or more supported targets
+**When** the user routes an instrument from the score workflow
+**Then** Compose captures the chosen target as part of that instrument's playback route
 **And** the selected target is visible in the instrument's score-context playback state.
 
-**Given** a requested part or channel is unavailable, invalid, or already occupied by a conflicting assignment rule
-**When** the user attempts to complete the assignment
-**Then** Compose prevents ambiguous assignment and surfaces a clear recoverable outcome
-**And** it does not silently guess an alternative part, channel, or instance.
+**Given** a requested target is unavailable, invalid, or not safely routable
+**When** the user attempts to complete the route
+**Then** Compose prevents ambiguous routing and surfaces a clear recoverable outcome
+**And** it does not silently guess an alternative target or instance.
 
 **Given** this MVP support must stay score-first rather than drifting into DAW routing design
 **When** the target-selection workflow is implemented
-**Then** it exposes only the explicit plugin part or channel choices needed for the supported workflow
+**Then** it exposes only the explicit plugin target choices needed for the supported workflow
 **And** it does not expand into arbitrary bus routing or generic host-topology configuration.
 
-### Story 3.5: Reuse A Compatible Multi-Part Plugin Instance Across Multiple Score Instruments
+### Story 3.5: Reuse A Compatible Rack Slot Across Multiple Score Instruments
 
 As a composer,
-I want compatible score instruments to share one multi-part plugin instance through explicit target choices,
+I want compatible score instruments to share one rack slot through explicit route targets,
 So that HALion-style playback setups work as a first-class MVP workflow instead of a later extension.
 
 **FRs implemented:** FR7, FR12
 
 **Acceptance Criteria:**
 
-**Given** one score instrument is already using a compatible multi-part plugin instance
-**When** the user assigns another score instrument to that same plugin through a different supported part or channel
-**Then** Compose reuses the existing compatible plugin instance rather than silently creating a duplicate instance
-**And** the resulting shared-instance relationship is explicit in backend-owned assignment state.
+**Given** one score instrument is already using a compatible rack slot
+**When** the user routes another score instrument to that same slot through a different supported target
+**Then** Compose reuses the existing compatible slot rather than silently creating a duplicate instance
+**And** the resulting shared-slot relationship is explicit in backend-owned route state.
 
-**Given** more than one score instrument can share the same compatible plugin instance
-**When** those assignments are shown in score-context surfaces
-**Then** the UI makes the shared-instance linkage legible
-**And** users can still understand each instrument's own readiness and target part or channel.
+**Given** more than one score instrument can share the same compatible rack slot
+**When** those routes are shown in score-context surfaces
+**Then** the UI makes the shared-slot linkage legible
+**And** users can still understand each instrument's own readiness and route target.
 
-**Given** the compatible plugin instance later becomes unavailable or invalid
-**When** Compose refreshes assignment state
+**Given** the compatible rack slot later becomes unavailable or invalid
+**When** Compose refreshes route state
 **Then** each affected score instrument moves into an explicit recoverable state
-**And** the product preserves the shared-instance relationship as user intent rather than guessing a replacement topology.
+**And** the product preserves the shared-slot relationship as user intent rather than guessing a replacement topology.
 
-### Story 3.6: Attempt Automatic Assignment for New Score Instruments
+### Story 3.6: Attempt Automatic Routing For New Score Instruments
 
 As a composer,
-I want Compose to attempt a sensible playback assignment when I create a new score instrument,
+I want Compose to attempt a sensible playback route when I create a new score instrument,
 So that I can get to playable setup faster without manual work every time.
 
 **FRs implemented:** FR8, FR9
@@ -690,152 +690,152 @@ So that I can get to playable setup faster without manual work every time.
 **Acceptance Criteria:**
 
 **Given** a user creates a new score instrument
-**When** Compose has sufficient local inventory or mapping information to make an assignment attempt
-**Then** it attempts to assign a suitable playback source automatically
-**And** the result is reflected in the instrument's assignment state.
+**When** Compose has sufficient local inventory or mapping information to make a routing attempt
+**Then** it attempts to prepare a suitable playback route automatically
+**And** the result is reflected in the instrument's route state.
 
-**Given** some plugins may require an explicit slot or channel decision to be unambiguous
-**When** automatic assignment cannot choose that target safely
-**Then** Compose leaves the instrument in an explicit recoverable state instead of guessing hidden part, channel, or shared-instance routing
-**And** the user can complete the assignment manually.
+**Given** some plugins may require an explicit target decision to be unambiguous
+**When** automatic routing cannot choose that target safely
+**Then** Compose leaves the instrument in an explicit recoverable state instead of guessing hidden target or shared-slot routing
+**And** the user can complete the route manually.
 
-**Given** no suitable automatic assignment is available
+**Given** no suitable automatic route is available
 **When** the new instrument is created
-**Then** the instrument remains explicitly unassigned
+**Then** the instrument remains explicitly unrouted
 **And** the user can see that further action is needed.
 
-**Given** automatic assignment is a convenience rather than hidden magic
+**Given** automatic routing is a convenience rather than hidden magic
 **When** it succeeds or fails
 **Then** the resulting state is visible in the score workflow
-**And** the user can still manually change the assignment afterward.
+**And** the user can still manually change the route afterward.
 
-### Story 3.7: Reassign and Recover Instrument Playback Without Restructuring the Score
+### Story 3.7: Repair And Reroute Instrument Playback Without Restructuring The Score
 
 As a composer,
-I want to change or repair an instrument's playback assignment directly,
+I want to change or repair an instrument's playback route directly,
 So that I can keep working without rebuilding score structure when playback setup changes.
 
 **FRs implemented:** FR11
 
 **Acceptance Criteria:**
 
-**Given** a score instrument already has an assignment or attention-needed state
-**When** the user selects a different usable plugin from the contextual assignment workflow
-**Then** the assignment is updated for that instrument
+**Given** a score instrument already has a route or attention-needed state
+**When** the user selects a different usable slot or target from the contextual routing workflow
+**Then** the route is updated for that instrument
 **And** the score structure itself does not need to change.
 
 **Given** an instrument is unresolved or needs attention
 **When** the user follows the primary contextual recovery action
-**Then** they can reach the relevant reassignment path quickly
+**Then** they can reach the relevant rerouting path quickly
 **And** the workflow remains anchored in the score context.
 
-**Given** reassignment occurs
-**When** the new assignment is resolved
+**Given** rerouting occurs
+**When** the new route is resolved
 **Then** readiness state updates accordingly
 **And** prior unresolved state does not linger as stale UI.
 
-### Story 3.8: Activate Assigned Plugins for Single-Part and Shared Multi-Part Playback
+### Story 3.8: Activate Rack Slots And Routed Targets For Playback
 
 As a maintainer,
-I want valid score-instrument assignments to activate usable plugin targets within the current app session,
-So that assigned instruments are actually ready to participate in later playback work.
+I want valid rack slots and routed targets to activate usable plugin destinations within the current app session,
+So that routed instruments are actually ready to participate in later playback work.
 
 **FRs implemented:** FR12, FR13
 
 **Acceptance Criteria:**
 
-**Given** score instruments have valid playback assignments
-**When** those assignments are activated for use within the app session
-**Then** Compose loads or attaches the plugin targets needed for those assignments
-**And** each assigned instrument resolves to a usable playback target owned by backend state.
+**Given** score instruments have valid playback routes
+**When** those routes are activated for use within the app session
+**Then** Compose loads or attaches the slot targets needed for those routes
+**And** each routed instrument resolves to a usable playback target owned by backend state.
 
-**Given** the MVP must support both single-part and multi-part plugin workflows
-**When** assignment activation is implemented for this epic
-**Then** it works for both supported single-part assignments and explicit multi-part or channel-addressed shared-instance assignments
+**Given** the MVP must support both single-target and multi-target plugin workflows
+**When** activation is implemented for this epic
+**Then** it works for both supported single-target routes and explicit multi-target or channel-addressed shared-slot routes
 **And** it does not require broader DAW-style routing infrastructure beyond those supported MVP patterns.
 
-**Given** multiple score instruments may intentionally share one compatible multi-part plugin instance
-**When** those assignments are activated
-**Then** Compose reuses that shared instance coherently for the participating instruments
-**And** each instrument retains its own explicit target part or channel in assignment state.
+**Given** multiple score instruments may intentionally share one compatible rack slot
+**When** those routes are activated
+**Then** Compose reuses that shared slot coherently for the participating instruments
+**And** each instrument retains its own explicit target in route state.
 
-### Story 3.9: Preserve Assignment Lifecycle and Recoverability Across the App Session
+### Story 3.9: Preserve Rack-Slot And Route Lifecycle Across The App Session
 
 As a maintainer,
-I want activated assignments to remain stable and recoverable across the app session,
+I want activated rack slots and routes to remain stable and recoverable across the app session,
 So that playback setup behaves like ongoing usable state rather than a one-shot activation.
 
 **FRs implemented:** FR12, FR14
 
 **Acceptance Criteria:**
 
-**Given** assigned plugin targets have been activated in the current app session
+**Given** rack slots and route targets have been activated in the current app session
 **When** the user continues working with the score and related playback setup
-**Then** assignment state remains coherent from the user's perspective
-**And** the assignment does not behave like a one-shot setup action that is lost after first use.
+**Then** route state remains coherent from the user's perspective
+**And** the playback topology does not behave like a one-shot setup action that is lost after first use.
 
-**Given** lifecycle behavior must remain valid for both supported single-part and shared multi-part assignments
-**When** those assignments continue through ordinary in-app use
+**Given** lifecycle behavior must remain valid for both supported single-target and shared multi-target routes
+**When** those routes continue through ordinary in-app use
 **Then** Compose preserves stable lifecycle behavior for both patterns
-**And** it keeps the supported shared-instance relationship explicit rather than silently rewriting topology.
+**And** it keeps the supported shared-slot relationship explicit rather than silently rewriting topology.
 
-**Given** lifecycle issues or unavailable assignments can occur during the app session
-**When** they affect an assigned instrument or shared plugin instance
+**Given** lifecycle issues or unavailable routes can occur during the app session
+**When** they affect a routed instrument or shared plugin instance
 **Then** the affected instruments transition into an explicit attention-needed or unavailable state
 **And** Compose preserves recoverability instead of failing invisibly.
 
 ## Epic 4: Get From Written Score to First Audible Playback
 
-Composers can hear written material through assigned VST instruments and shape basic playback levels inside Compose.
+Composers can hear written material through routed VST targets and shape basic playback levels inside Compose.
 
-### Story 4.1: Translate Assigned Score Instruments Into Playback-Ready Material
+### Story 4.1: Translate Routed Score Instruments Into Playback-Ready Material
 
 As a composer,
-I want Compose to turn assigned score instruments and written material into playback-ready data,
+I want Compose to turn routed score instruments and written material into playback-ready data,
 So that the system can prepare my score to be heard.
 
 **FRs implemented:** FR18
 
 **Acceptance Criteria:**
 
-**Given** a score contains written material on instruments with valid playback assignments
+**Given** a score contains written material on instruments with valid playback routes
 **When** Compose prepares that score for playback
-**Then** it translates those assigned score instruments into playback-ready material
+**Then** it translates those routed score instruments into playback-ready material
 **And** the preparation is owned by backend playback logic rather than frontend inference.
 
-**Given** some score instruments may still be unresolved or unassigned
+**Given** some score instruments may still be unresolved or unrouted
 **When** playback preparation occurs
 **Then** only valid playable material is prepared for audible use
 **And** unresolved instruments remain explicitly non-playable rather than failing invisibly.
 
 **Given** this is the first audible-playback epic
 **When** this story is complete
-**Then** the system can prepare assigned score content for playback
+**Then** the system can prepare routed score content for playback
 **And** it does not require advanced transport behavior such as seek or resume to be valuable.
 
 ### Story 4.2: Start Audible Playback of Written Score Material
 
 As a composer,
-I want to start playback and hear my written score through assigned VST instruments,
+I want to start playback and hear my written score through routed VST targets,
 So that playback becomes part of my composition workflow.
 
 **FRs implemented:** FR19, FR23
 
 **Acceptance Criteria:**
 
-**Given** playback-ready score material exists for assigned instruments
+**Given** playback-ready score material exists for routed instruments
 **When** the user starts playback
-**Then** Compose produces audible playback through those assigned VST instruments
+**Then** Compose produces audible playback through those routed VST targets
 **And** the user hears written score material without leaving the core workflow.
 
-**Given** some instruments may be assigned and others unresolved
+**Given** some instruments may be routed and others unresolved
 **When** playback starts
-**Then** the valid assigned instruments produce audible output
+**Then** the valid routed instruments produce audible output
 **And** unresolved instruments do not prevent the rest of the score from being heard where playback is otherwise valid.
 
 **Given** the goal of this story is first audible playback
 **When** it is complete
-**Then** users can verify that written material is being rendered audibly through the assigned path
+**Then** users can verify that written material is being rendered audibly through the routed path
 **And** later transport-trust concerns remain out of scope for this story.
 
 ### Story 4.3: Surface Basic Per-Instrument Mix Controls
@@ -881,7 +881,7 @@ So that the controls I adjust actually shape what I hear.
 **Given** multiple instruments are playing
 **When** one instrument's mix settings are changed
 **Then** the applied change affects that instrument's playback behavior
-**And** it does not require unrelated reassignment or score restructuring.
+**And** it does not require unrelated rerouting or score restructuring.
 
 **Given** this is still the first-audible-playback epic
 **When** mix application is implemented
@@ -927,7 +927,7 @@ So that I can audition and revise music without restarting the whole workflow.
 
 **Acceptance Criteria:**
 
-**Given** score playback is running through assigned VST instruments
+**Given** score playback is running through routed VST targets
 **When** the user pauses playback
 **Then** Compose stops playback coherently
 **And** it does not leave the session in a broken or obviously invalid state.
@@ -1035,17 +1035,17 @@ So that I can continue working instead of abandoning the score when something go
 **Given** an instrument or playback path becomes invalid during use
 **When** the user inspects the relevant score-context surface
 **Then** they can understand that attention is needed
-**And** they are given one primary contextual recovery action leading to the relevant score-context panel or reassignment flow.
+**And** they are given one primary contextual recovery action leading to the relevant score-context panel or rerouting flow.
 
 **Given** failures are part of a real composition workflow rather than just QA scenarios
 **When** this story is complete
 **Then** users can continue score work after failure conditions where recovery is possible
 **And** the app does not treat ordinary failure handling as session-ending.
 
-### Story 5.6: Restore Valid Playback Assignments On Reopen
+### Story 5.6: Restore Valid Playback Routes On Reopen
 
 As a composer,
-I want valid playback assignments to restore when reopening a score,
+I want valid playback routes to restore when reopening a score,
 So that I can resume work without rebuilding working playback setup every session.
 
 **FRs implemented:** FR32, FR33
@@ -1054,18 +1054,18 @@ So that I can resume work without rebuilding working playback setup every sessio
 
 **Given** a project with valid playback-relevant state is reopened on a machine where the required plugins are available
 **When** Compose restores the project
-**Then** playback assignments are restored coherently
+**Then** playback routes are restored coherently
 **And** the user can continue from the reopened state without manual rebuild of setup.
 
 **Given** project reopen is part of trust in ordinary composition workflow
 **When** this story is complete
 **Then** reopen behavior preserves continuity where possible
-**And** valid restored assignments remain aligned with the same persisted project intent that was saved before closing.
+**And** valid restored routes remain aligned with the same persisted rack and route intent that was saved before closing.
 
-### Story 5.7: Degrade Missing Playback Assignments Safely On Reopen
+### Story 5.7: Degrade Missing Playback Routes Safely On Reopen
 
 As a composer,
-I want missing playback assignments to degrade safely when reopening a score,
+I want missing playback routes to degrade safely when reopening a score,
 So that I can keep working even when the current machine cannot restore every plugin.
 
 **FRs implemented:** FR34, FR35
@@ -1074,13 +1074,13 @@ So that I can keep working even when the current machine cannot restore every pl
 
 **Given** a reopened project references plugins that are now missing or unavailable
 **When** Compose resolves playback state on reopen
-**Then** those assignments degrade to explicit recoverable unassigned or attention-needed states
+**Then** those routes degrade to explicit recoverable unrouted or attention-needed states
 **And** the score itself remains usable.
 
 **Given** recovery from missing plugins is part of ordinary composition trust
 **When** the unresolved state is shown after reopen
 **Then** the user can tell which instrument needs attention
-**And** the original assignment intent is preserved rather than silently remapped.
+**And** the original routing intent is preserved rather than silently remapped.
 
 ### Story 5.8: Validate Trusted Playback Against Representative Transport Scenarios
 
@@ -1161,17 +1161,17 @@ So that deeper realism configuration is managed in a single app-scoped workflow 
 **Then** score-context surfaces can link into the dedicated editor for deeper work
 **And** they do not duplicate full expression-map editing responsibility locally.
 
-### Story 6.3: Link Instrument Playback Configurations to Expression Maps and Surface Current State
+### Story 6.3: Link Instrument Routes to Expression Maps and Surface Current State
 
 As a composer,
-I want each playable score instrument to show which expression map it uses and whether that linkage is healthy,
+I want each playable score instrument to show which route-owned expression map is linked to it and whether that linkage is healthy,
 So that realism behavior is understandable from the score workflow instead of hidden in a detached setup tool.
 
 **FRs implemented:** FR20, FR21
 
 **Acceptance Criteria:**
 
-**Given** an instrument has a playback assignment that can use realism behavior
+**Given** an instrument has a playback route that can use realism behavior
 **When** the user inspects the instrument panel
 **Then** Compose shows which expression map is linked to that instrument
 **And** whether that linkage is present, missing, or incomplete.
@@ -1265,9 +1265,9 @@ So that release confidence is grounded in explicit evidence rather than anecdota
 **Then** maintainers can identify which plugins support the intended playback workflow based on recorded validation results
 **And** which plugins expose limitations, caveats, or unsupported behavior, including any channel-oriented or multi-instrument constraints surfaced by HALion Sonic.
 
-**Given** the MVP assignment model explicitly includes one-instance multi-instrument support for compatible multi-part plugins
+**Given** the MVP routing model explicitly includes one-instance multi-instrument support for compatible multi-part plugins
 **When** HALion Sonic or another multi-part plugin is validated
-**Then** the matrix makes clear how multiple score instruments can share that instance through explicit part or channel assignment
+**Then** the matrix makes clear how multiple score instruments can share that instance through explicit part or channel targeting
 **And** it distinguishes that supported MVP pattern from broader unsupported DAW-style multi-routing behavior.
 
 **Given** basic VST3 support now explicitly includes both Spitfire-style single-part plugins and HALion-style multi-part plugins
@@ -1290,7 +1290,7 @@ So that Compose ships on one playback architecture instead of carrying a dormant
 
 **Acceptance Criteria:**
 
-**Given** Epics 2 through 6 and Epic 7.1 have established and validated the VST inventory, assignment, playback, recovery, and realism seams needed for MVP
+**Given** Epics 2 through 6 and Epic 7.1 have established and validated the VST inventory, routing, playback, recovery, and realism seams needed for MVP
 **When** final legacy cleanup is performed
 **Then** the remaining SCVI-only backend modules, state contexts, commands, and frontend state surfaces are removed
 **And** no supported product or developer workflow depends on `SamplerContext`, `.scvi` container handling, or sampler-specific event/action contracts.

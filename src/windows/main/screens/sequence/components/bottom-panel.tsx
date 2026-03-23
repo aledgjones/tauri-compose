@@ -1,13 +1,14 @@
-import { FC, useState } from "react";
+import { FC } from "react";
 import { useAppState } from "../../../../../services/state";
 import { BottomPanelTab } from "../../../../../services/types";
 import { actions } from "../../../../../services/actions";
 import { mdiCableData, mdiPiano, mdiTuneVertical } from "@mdi/js";
 import { IconButton } from "../../../../../ui/buttons/icon-button";
+import { TokenizedText } from "../../../../../ui/text";
 import { Sequencer, SequencerToolbar } from "../../../components/sequencer";
 import { Mixer, MixerToolbar } from "../../../components/mixer";
-import { Plugins, PluginsToolbar } from "../../../components/plugins";
 import { useBottomPanelState } from "../../../hooks/use-bottom-panel-state";
+import { PlaybackStatusPanel } from "./playback-status-panel";
 
 const SEQUENCE_TABS = [
   { tab: BottomPanelTab.Sequencer, icon: mdiPiano },
@@ -25,12 +26,15 @@ export const BottomPanel: FC = () => {
     instrumentId,
     tracks,
     trackId,
+    selectedInstrument,
+    selectedAssignment,
     tool,
     snapValue,
   } = useBottomPanelState();
   const tab = state.ui.screens.sequence.bottom_panel_tab;
-  const showActiveOnly = state.ui.screens.sequence.show_active_only;
-  const [searchTerm, setSearchTerm] = useState("");
+  const selectedInstrumentLabel = selectedInstrument
+    ? `${selectedInstrument.long_name}${selectedInstrument.count ? ` ${selectedInstrument.count}` : ""}`
+    : null;
 
   return (
     <div className="flex flex-col min-h-0 overflow-hidden">
@@ -52,16 +56,14 @@ export const BottomPanel: FC = () => {
           <MixerToolbar instruments={instruments} />
         )}
         {tab === BottomPanelTab.Instruments && (
-          <PluginsToolbar
-            searchTerm={searchTerm}
-            onSearchTermChange={setSearchTerm}
-            showActiveOnly={showActiveOnly}
-            onShowActiveOnlyChange={(value) =>
-              actions.ui.screens.sequence.bottomPanel.instruments.setShowActiveOnly(
-                value,
-              )
-            }
-          />
+          <div className="flex flex-1 items-center bg-neutral-900 px-3 text-[11px] uppercase tracking-[0.18em] text-neutral-500">
+            <span>Playback status</span>
+            {selectedInstrumentLabel ? (
+              <span className="ml-3 truncate text-xs normal-case tracking-normal text-neutral-200">
+                <TokenizedText>{selectedInstrumentLabel}</TokenizedText>
+              </span>
+            ) : null}
+          </div>
         )}
         <div className="flex flex-1 justify-end gap-0.5">
           <div className="bg-neutral-900 flex-1" />
@@ -89,7 +91,10 @@ export const BottomPanel: FC = () => {
       )}
       {tab === BottomPanelTab.Mixer && <Mixer instruments={instruments} />}
       {tab === BottomPanelTab.Instruments && (
-        <Plugins searchTerm={searchTerm} showActiveOnly={showActiveOnly} />
+        <PlaybackStatusPanel
+          instrument={selectedInstrument}
+          assignment={selectedAssignment}
+        />
       )}
     </div>
   );

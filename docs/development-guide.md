@@ -172,9 +172,9 @@ Plugin inventory startup behavior:
 - Startup validation is intentionally bounded: it rechecks cached bundle paths and related cached entry state, then does one cheap root listing sweep to spot uncached `.vst3` bundles and probes only those newly seen bundles.
 - Startup cache reuse is not `.soloc` persistence. Project files remain portable score data only.
 - The canonical app-scoped browse surface for that inventory is the Sequence-menu `Plugin Manager...` window.
-- The Sequence `Plugins` surface remains a temporary contextual browse seam. It is not the final assignment workflow and should not replace the dedicated manager window's app-scoped role.
+- The Sequence bottom panel now owns selected-instrument playback readiness and the primary in-score recovery handoff. It is contextual to the current score instrument and should not be widened into app-scoped inventory management.
 - The dedicated Plugin Manager exposes the canonical `Refresh plugin inventory` action for the explicit full reprobe workflow and shows refresh-in-progress plus refreshed-state feedback.
-- The Sequence `Plugins` surface may reuse that same shared refresh control during the transition, but startup cache reuse remains distinct from that manual full rescan seam.
+- The dedicated Plugin Manager remains the place for inventory browsing, refresh, and maintainer-facing troubleshooting flows; the Sequence bottom panel is not a substitute for those app-scoped responsibilities.
 
 What it does not yet do:
 

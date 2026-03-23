@@ -6,6 +6,7 @@ import {
   Instrument,
   InstrumentType,
   PlaybackAssignmentMode,
+  PlaybackAssignmentStatus,
 } from "../../../../../services/types";
 
 vi.mock("../../../../../services/actions", () => ({
@@ -45,25 +46,68 @@ const mockInstrument: Instrument = {
 describe("InstrumentOverviewRow", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it("renders the instrument long name", () => {
-    renderWithProviders(
+  const renderRow = (resolvedAssignment = {}) => {
+    return renderWithProviders(
       <InstrumentOverviewRow
         instrument={mockInstrument}
         color="#ff0000"
         isDisabled={false}
       />,
+      {
+        appState: {
+          resolved_playback_assignment_by_instrument_id: {
+            5: {
+              status: PlaybackAssignmentStatus.Unassigned,
+              mode: PlaybackAssignmentMode.Unassigned,
+              effective_plugin_id: null,
+              target: null,
+              shared_instance_id: null,
+              ...resolvedAssignment,
+            },
+          },
+        },
+      },
     );
+  };
+
+  it("renders the instrument long name", () => {
+    renderRow();
     expect(screen.getByText("Violin")).toBeInTheDocument();
   });
 
+  it("renders an accessible unavailable readiness badge by default", () => {
+    renderRow();
+
+    expect(
+      screen.getByRole("status", { name: "Playback status: Unavailable" }),
+    ).toBeInTheDocument();
+  });
+
+  it("renders a ready badge when the backend assignment is ready", () => {
+    renderRow({
+      status: PlaybackAssignmentStatus.Ready,
+      mode: PlaybackAssignmentMode.Direct,
+      effective_plugin_id: "vst3:grand-piano",
+    });
+
+    expect(
+      screen.getByRole("status", { name: "Playback status: Ready" }),
+    ).toBeInTheDocument();
+  });
+
+  it("renders a needs-attention badge when the backend assignment requires recovery", () => {
+    renderRow({
+      status: PlaybackAssignmentStatus.NeedsAttention,
+      mode: PlaybackAssignmentMode.Direct,
+    });
+
+    expect(
+      screen.getByRole("status", { name: "Playback status: Needs attention" }),
+    ).toBeInTheDocument();
+  });
+
   it("renders solo and mute buttons when not disabled", () => {
-    renderWithProviders(
-      <InstrumentOverviewRow
-        instrument={mockInstrument}
-        color="#ff0000"
-        isDisabled={false}
-      />,
-    );
+    renderRow();
     const buttons = screen.getAllByRole("button");
     // solo + mute buttons
     expect(buttons.length).toBeGreaterThanOrEqual(2);
@@ -81,13 +125,7 @@ describe("InstrumentOverviewRow", () => {
   });
 
   it("renders a disabled plugin select with 'No plugins available' placeholder when no plugins", () => {
-    renderWithProviders(
-      <InstrumentOverviewRow
-        instrument={mockInstrument}
-        color="#ff0000"
-        isDisabled={false}
-      />,
-    );
+    renderRow();
     expect(screen.getByText("No plugins available")).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: /no plugins available/i }),
@@ -95,26 +133,14 @@ describe("InstrumentOverviewRow", () => {
   });
 
   it("calls setSolo when solo button clicked", () => {
-    renderWithProviders(
-      <InstrumentOverviewRow
-        instrument={mockInstrument}
-        color="#ff0000"
-        isDisabled={false}
-      />,
-    );
+    renderRow();
     const [soloBtn] = screen.getAllByRole("button");
     fireEvent.click(soloBtn);
     expect(actions.score.instrument.setSolo).toHaveBeenCalledWith(5, true);
   });
 
   it("calls setMute when mute button clicked", () => {
-    renderWithProviders(
-      <InstrumentOverviewRow
-        instrument={mockInstrument}
-        color="#ff0000"
-        isDisabled={false}
-      />,
-    );
+    renderRow();
     const buttons = screen.getAllByRole("button");
     fireEvent.click(buttons[1]);
     expect(actions.score.instrument.setMute).toHaveBeenCalledWith(5, true);

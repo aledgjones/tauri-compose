@@ -38,9 +38,9 @@ _This document builds collaboratively through step-by-step discovery. Sections a
 ### Requirements Overview
 
 **Functional Requirements:**
-The project defines 41 functional requirements centered on replacing the current SCVI playback path with a macOS-only VST3 playback architecture. The primary architectural driver is first-class VST3 instrument support inside Compose's score-first workflow. Architecturally, these requirements group into eight major capability areas: plugin discovery, instrument assignment, plugin lifecycle, score-to-playback mapping, transport playback, mixer control, persistence and recovery, and release validation.
+The project defines 41 functional requirements centered on replacing the current SCVI playback path with a macOS-only VST3 playback architecture. The primary architectural driver is first-class VST3 instrument support inside Compose's score-first workflow. Architecturally, these requirements group into eight major capability areas: plugin discovery, rack and routing state, plugin lifecycle, score-to-playback mapping, transport playback, mixer control, persistence and recovery, and release validation.
 
-The requirements imply several major architectural subsystems. First, the app needs a plugin discovery and inventory layer that can maintain a cached registry, support manual rescans, and distinguish usable versus unavailable plugins. Second, it needs an assignment model that links score instruments to playback-capable configurations while preserving directness in the score workflow, supporting bounded multi-part or channel-addressed assignment where compatible plugins expose it, and allowing missing or invalid mappings to degrade cleanly. Third, it needs a plugin runtime and lifecycle layer capable of loading VST3 instruments, supporting editor hosting where practical, and keeping plugin lifecycle behavior stable enough for repeated composition sessions.
+The requirements imply several major architectural subsystems. First, the app needs a plugin discovery and inventory layer that can maintain a cached registry, support manual rescans, and distinguish usable versus unavailable plugins. Second, it needs a rack and routing model that links score instruments to playback-capable slot targets while preserving directness in the score workflow, supporting bounded multi-target or channel-addressed routing where compatible plugins expose it, and allowing missing or invalid mappings to degrade cleanly. Third, it needs a plugin runtime and lifecycle layer capable of loading VST3 instruments, supporting editor hosting where practical, and keeping plugin lifecycle behavior stable enough for repeated composition sessions.
 
 The requirements also reveal a semantic translation layer between score data and playback behavior. This is most visible in the expression-map requirements, which indicate that playback cannot remain a purely plugin-local concern. The architecture will need a durable seam that maps score intent and score-linked semantics into playback instructions without collapsing those semantics into ad hoc frontend or plugin-specific logic.
 
@@ -51,11 +51,11 @@ Finally, the validation-oriented functional requirements mean the architecture m
 **Non-Functional Requirements:**
 The strongest non-functional requirements are realtime safety, playback stability, jitter-free performance, reliability, offline desktop usability, and measurable validation. Stable, jitter-free playback is a non-negotiable architectural and release gate. The audio thread must remain lock-free, rendering and UI work must not introduce audible instability, and representative transport scenarios must complete without dropouts or jitter. These are hard constraints that directly shape concurrency, ownership, buffering, scheduling, and runtime boundaries.
 
-Reliability requirements are equally strong. Playback state must remain coherent across repeated transport operations, project reopen behavior must restore valid assignments correctly, and missing plugins must degrade to recoverable unassigned states rather than invalidate the project workflow. This implies the need for explicit state models around plugin availability, assignment health, and transport lifecycle.
+Reliability requirements are equally strong. Playback state must remain coherent across repeated transport operations, project reopen behavior must restore valid rack slots and routes correctly, and missing plugins must degrade to recoverable unrouted states rather than invalidate the project workflow. This implies the need for explicit state models around plugin availability, route health, and transport lifecycle.
 
 Integration requirements are also significant because the system must coordinate local VST3 discovery paths, native editor hosting, score workflows, persistence, audio-device settings, and representative plugin validation. The architecture therefore needs strong seam definitions between plugin inventory, plugin runtime, score semantics, transport, and UI control surfaces.
 
-Measurement and validation are first-class architectural concerns rather than post-hoc QA tasks. The PRD expects representative regression scenarios, explicit thresholds for startup, rescan, reopen, assignment-to-audible-playback behavior, and zero-jitter or zero-dropout transport behavior. The architecture should therefore expose stable seams for diagnostics and validation rather than relying on one-off manual reasoning.
+Measurement and validation are first-class architectural concerns rather than post-hoc QA tasks. The PRD expects representative regression scenarios, explicit thresholds for startup, rescan, reopen, route-to-audible-playback behavior, and zero-jitter or zero-dropout transport behavior. The architecture should therefore expose stable seams for diagnostics and validation rather than relying on one-off manual reasoning.
 
 **Scale & Complexity:**
 This is a high-complexity brownfield desktop architecture effort. The project combines native plugin hosting, realtime audio execution, score-semantic modeling, multi-window UI coordination, persistence, and performance validation within an existing Rust-owned state architecture.
@@ -72,21 +72,21 @@ The existing product architecture already establishes important constraints that
 
 The platform scope is explicitly macOS-only for MVP and VST3-only for the plugin format. That is a useful simplifying constraint and should be treated as an intentional architectural narrowing, not a temporary inconvenience to abstract away prematurely.
 
-The product is offline-first and local-desktop oriented. Plugin discovery, cached inventory use, project loading, assignment, and playback must work without network dependencies. Persistence therefore remains local and must tolerate missing assets without breaking score continuity.
+The product is offline-first and local-desktop oriented. Plugin discovery, cached inventory use, project loading, rack setup, routing, and playback must work without network dependencies. Persistence therefore remains local and must tolerate missing assets without breaking score continuity.
 
 The codebase also brings its own structural constraints: a Rust-owned score domain model, a disciplined persistence and migration workflow, a multi-window Tauri shell, native renderer ownership, and an established distinction between score-context UI and app-scoped windows. These are not just implementation details; they should shape architecture decisions so the new playback work extends the existing system coherently.
 
 ### Cross-Cutting Concerns Identified
 
-VST3 host credibility is the leading cross-cutting concern. Discovery, assignment, loading, editor hosting, persistence, transport integration, and validation all need to work together well enough that VST3 instruments feel like a first-class Compose capability rather than a bolted-on host experiment.
+VST3 host credibility is the leading cross-cutting concern. Discovery, rack and route resolution, loading, editor hosting, persistence, transport integration, and validation all need to work together well enough that VST3 instruments feel like a first-class Compose capability rather than a bolted-on host experiment.
 
 Realtime safety and jitter-free playback are the next most important cross-cutting concerns. Plugin hosting, transport scheduling, mixer/runtime coordination, UI control, and diagnostics all have to respect the constraint that the audio path remains lock-free and audibly stable under representative composition workloads.
 
 Transport correctness is another foundational concern spanning score semantics, playback preparation, scheduler design, recovery handling, and validation. The product promise depends on trustworthy navigation and repeated audition, not merely on isolated sound generation.
 
-Semantic translation between score intent and playback behavior is also cross-cutting. Instrument assignment, expression maps, articulations, and future playback intelligence all require a clear ownership seam so notation meaning is not re-derived inconsistently across the runtime.
+Semantic translation between score intent and playback behavior is also cross-cutting. Instrument routing, route-owned expression maps, articulations, and future playback intelligence all require a clear ownership seam so notation meaning is not re-derived inconsistently across the runtime.
 
-Persistence and degraded-state recovery affect both architecture and UX. The system must preserve project continuity even when playback assets change, which means assignment state, plugin identity, and recovery behavior need explicit durable models rather than informal conventions.
+Persistence and degraded-state recovery affect both architecture and UX. The system must preserve project continuity even when playback assets change, which means rack state, route state, plugin identity, and recovery behavior need explicit durable models rather than informal conventions.
 
 Finally, validation and observability are cross-cutting because the product's acceptance depends on representative VST3 compatibility checks, transport regressions, and performance thresholds. The architecture should make these evaluation paths explicit and maintainable.
 
@@ -196,8 +196,8 @@ The project must not be reinitialized. Any future use of starter guidance is str
 
 **Critical Decisions (Block Implementation):**
 
-- Rust remains the sole authoritative owner of plugin inventory, assignment state, playback preparation state, and transport state.
-- `.soloc` persists portable project intent and assignment references, while machine-local plugin discovery/cache state remains outside project files.
+- Rust remains the sole authoritative owner of plugin inventory, rack state, slot state, route state, playback preparation state, and transport state.
+- `.soloc` persists portable project intent and rack or route references, while machine-local plugin discovery/cache state remains outside project files.
 - The realtime playback path consumes precomputed, lock-safe state only.
 - Stable, jitter-free playback is a hard architectural and release gate.
 - Internal app communication remains command-oriented and backend-owned, with playback-critical paths avoiding event chatter.
@@ -222,11 +222,11 @@ The project must not be reinitialized. Any future use of starter guidance is str
 
 ### Data Architecture
 
-- Rust is the sole source of truth for plugin inventory, assignment state, playback preparation state, and transport state.
-- `.soloc` stores portable project intent and assignment references, not machine-local plugin discovery/cache state.
+- Rust is the sole source of truth for plugin inventory, rack state, slot state, route state, playback preparation state, and transport state.
+- `.soloc` stores portable project intent and rack or route references, not machine-local plugin discovery/cache state.
 - Machine-local plugin inventory and discovery cache live in app-local storage outside project files.
 - Playback runtime is split between a Rust control plane and a realtime-safe playback plane, with the audio path consuming precomputed, lock-safe state only.
-- Missing plugin resolution degrades to explicit recoverable unassigned states rather than silent fallback or corrupted project state.
+- Missing plugin resolution degrades to explicit recoverable unrouted states rather than silent fallback or corrupted project state.
 - Remaining SCVI sampler/runtime code is temporary legacy scaffolding only. Epic 2 through Epic 6 must build replacement VST-owned seams rather than extending `SamplerContext`, `soloc://state/sampler`, `actions.sampler.*`, or other sampler-era contracts; the planned end state is full removal of that subsystem once the VST path is complete.
 
 **Rationale:**
@@ -252,7 +252,7 @@ The real security surface in this product is local plugin execution, file integr
 - Contracts remain aligned to Rust-owned models and existing `snake_case` conventions.
 - State push is used where appropriate, but playback-critical paths avoid high-frequency event chatter.
 - Transport runtime state uses polling or lock-safe snapshots rather than emitted-event streams.
-- Plugin inventory, assignment status, transport preparation, and recovery state are exposed as Rust-owned domain APIs rather than frontend-owned orchestration logic.
+- Plugin inventory, route status, transport preparation, and recovery state are exposed as Rust-owned domain APIs rather than frontend-owned orchestration logic.
 - Error handling is standardized around explicit categories for recoverable user issues, missing plugins, host/runtime failures, and persistence/load validation failures.
 - MCP/automation surfaces should reuse the same backend seams rather than introducing parallel logic paths.
 
@@ -266,8 +266,8 @@ This preserves runtime truth in Rust, reduces FE/BE drift, and protects playback
 - Local React state is limited to ephemeral UI concerns such as open/closed state, hover, local input drafts, and other transient presentation concerns.
 - The native-rendered score surface is preserved, with React handling overlays, controls, panels, and windows.
 - Score-context relationships remain in contextual panels, while app-scoped playback assets and inventories live in dedicated windows.
-- Compact `Ready`, `Needs Attention`, and `Unavailable` states are presentation summaries over more precise Rust-owned assignment and recovery state such as unassigned, missing plugin, incomplete linkage, or deferred live-update state.
-- Progressive disclosure keeps assignment and readiness primary, deeper plugin editor access secondary, and advanced semantic playback configuration behind deliberate entry points.
+- Compact `Ready`, `Needs Attention`, and `Unavailable` states are presentation summaries over more precise Rust-owned routing and recovery state such as unrouted, missing plugin, incomplete linkage, or deferred live-update state.
+- Progressive disclosure keeps routing and readiness primary, deeper plugin editor access secondary, and advanced semantic playback configuration behind deliberate entry points.
 - The system app menu owns the canonical launch points for app-scoped playback resources, with score-context surfaces offering contextual handoff into those same windows.
 - Frontend performance strategy minimizes rerenders, FE/BE chatter, and parallel derived state.
 - Plugin editor hosting is treated as a backend/runtime-integrated capability exposed through frontend entry points, not a frontend-owned embedding architecture.
@@ -282,7 +282,7 @@ This matches the existing product architecture and keeps React from becoming the
 - CI/CD focuses on build validation, lint/type/test validation, Rust quality gates, and packaging integrity rather than service deployment orchestration.
 - Release workflows remain human-controlled for versioning, migration promotion, packaging, and final release actions.
 - Environment configuration remains minimal and explicit, with limited development overrides for plugin-path and experimental host settings.
-- Diagnostics and logging focus on plugin discovery, assignment resolution, transport/playback behavior, host/editor lifecycle, and persistence/migration/load failures.
+- Diagnostics and logging focus on plugin discovery, route resolution, transport/playback behavior, host/editor lifecycle, and persistence/migration/load failures.
 - Performance validation remains part of release-readiness, with representative playback and regression scenarios treated as ship gates.
 - Scaling is product-capability scaling rather than cloud autoscaling.
 
@@ -294,7 +294,7 @@ This aligns deployment and operational practice with the actual product shape: a
 **Implementation Sequence:**
 
 1. Preserve the existing Rust-owned/Tauri-based foundation and avoid reinitialization or replatforming.
-2. Establish the plugin inventory, identity, assignment, and recovery model.
+2. Establish the plugin inventory, identity, rack-slot, route, and recovery model.
 3. Define the control-plane versus realtime-playback-plane split.
 4. Formalize command-oriented FE/BE seams and playback-safe communication rules.
 5. Build frontend surfaces around Rust-owned playback state without introducing parallel domain logic.
@@ -332,7 +332,7 @@ The highest-risk conflict areas are:
 
 **Examples:**
 
-- `flow_id`, `track_id`, `plugin_id`, `assigned_plugin_id`
+- `flow_id`, `track_id`, `plugin_id`, `slot_id`
 - `score_entries_tone_create`
 - `transport_get_state`
 
@@ -347,21 +347,23 @@ The highest-risk conflict areas are:
 - file: `plugin-host-window.tsx`
 - component: `PluginHostWindow`
 - Rust file: `transport.rs`
-- Rust function: `resolve_assignment_state`
+- Rust function: `resolve_route_state`
 
 **Domain Naming Rules:**
 
-- Use `assignment` for the relationship between a score instrument and a playback-capable plugin/configuration.
+- Use `route` for the relationship between a score instrument and a playback-capable slot target.
+- Use `rack` for the current score-context playback container and `slot` for one hosted plugin instance inside it.
+- Use `target` for the stable product-facing destination and `address` for the engine-specific VST-rooted payload used to reach it.
 - Use `inventory` for machine-local discovered plugin availability.
-- Use `recovery` for reopen or re-resolution of assignments against current local inventory.
-- Use `unassigned` for recoverable missing or unresolved playback state.
+- Use `recovery` for reopen or re-resolution of rack slots and routes against current local inventory.
+- Use `unrouted` for recoverable missing or unresolved playback state.
 - Do not blur these terms together.
 
 ### Structure Patterns
 
 **Project Organization Rules:**
 
-- Rust owns runtime logic, persistence logic, transport logic, playback preparation, plugin discovery, assignment resolution, and host lifecycle logic.
+- Rust owns runtime logic, persistence logic, transport logic, playback preparation, plugin discovery, rack or route resolution, and host lifecycle logic.
 - React owns display, local interaction affordances, contextual panels, app windows, and transient UI state only.
 - Native-rendered score behavior remains backend-owned; React overlays interact with it but do not recreate score-domain truth.
 
@@ -384,7 +386,7 @@ The highest-risk conflict areas are:
 
 **Persistence Format Rules:**
 
-- `.soloc` stores portable project intent and assignment references only.
+- `.soloc` stores portable project intent and rack or route references only.
 - Machine-local discovery/cache data must not be serialized into project files.
 - Do not persist frontend convenience state unless it is already part of the Rust-owned project model.
 
@@ -422,7 +424,7 @@ The highest-risk conflict areas are:
 
 - Rust owns:
   - plugin inventory truth
-  - assignment truth
+  - rack-slot and route truth
   - transport truth
   - playback preparation truth
   - persisted project truth
@@ -438,14 +440,14 @@ The highest-risk conflict areas are:
 
 **Error Handling Patterns:**
 
-- Missing plugins must degrade to explicit recoverable unassigned states.
+- Missing plugins must degrade to explicit recoverable unrouted states.
 - Host or editor failures must not silently mutate project intent.
 - Runtime failures must be handled in a way that protects playback stability first, then surfaces recoverable UX second.
 - Jitter, dropout risk, or realtime-safety regressions are release-blocking issues, not normal UI errors.
 
 **Loading and Recovery Patterns:**
 
-- Reopen flow should resolve project-persisted assignment intent against current machine-local inventory.
+- Reopen flow should resolve project-persisted rack and route intent against current machine-local inventory.
 - If resolution fails, preserve user intent and expose recoverable unresolved state.
 - Never silently remap to a different plugin without an explicit product rule that says so.
 - Never treat machine-local cache state as canonical project state.
@@ -478,19 +480,19 @@ The highest-risk conflict areas are:
 
 **Good Examples:**
 
-- Persisting `assigned_plugin_id` in project data while keeping the discovered local plugin inventory outside `.soloc`
-- Using a backend command to update assignment state and pushing resolved state back to the UI
+- Persisting `slot_id`, `target_id`, and `VstAddress`-backed route intent in project data while keeping the discovered local plugin inventory outside `.soloc`
+- Using a backend command to update route state and pushing resolved state back to the UI
 - Polling or snapshot-based transport state instead of emitting high-frequency playback events
 - Keeping plugin editor open/focus actions frontend-triggered but backend-owned in lifecycle terms
-- Reporting missing plugin reopen as an explicit unresolved assignment rather than silently clearing user intent
+- Reporting missing plugin reopen as an explicit unresolved route rather than silently clearing user intent
 
 **Anti-Patterns:**
 
 - storing machine-local plugin scan results inside project files
-- introducing frontend-owned copies of assignment truth or transport truth
+- introducing frontend-owned copies of rack or route truth or transport truth
 - letting React derive or own playback semantics that should live in Rust
 - adding event-heavy playback communication on the critical runtime path
-- silently swapping unresolved assignments to arbitrary fallback plugins
+- silently swapping unresolved routes to arbitrary fallback plugins
 - inventing a separate automation-only domain seam that diverges from the UI/backend seam
 
 ## Project Structure & Boundaries
@@ -589,11 +591,11 @@ compose/
 
 - Primary backend location: `src-tauri/src/playback/`
 - Supporting persistence/config locations: `src-tauri/src/files.rs`, machine-local app storage seams
-- Frontend surfaces: plugin-management windows and assignment entry points in existing UI
+- Frontend surfaces: plugin-management windows and routing entry points in existing UI
 
-**FR Category: Instrument Assignment and Playback Setup**
+**FR Category: Instrument Routing and Playback Setup**
 
-- Canonical domain ownership: `src-tauri/src/score/` for persisted assignment intent
+- Canonical domain ownership: `src-tauri/src/score/` for persisted rack and route intent
 - Resolution/runtime ownership: `src-tauri/src/playback/`
 - Frontend surfaces: instrument-related controls in `src/windows/main/` and existing settings windows
 
@@ -621,7 +623,7 @@ compose/
 **FR Category: Project Persistence and Recovery**
 
 - Backend ownership: `src-tauri/src/files.rs`, `src-tauri/src/migrations/`, persisted score/playback identity in `src-tauri/src/score/`
-- Frontend ownership: recovery-state display and reassignment UX only
+- Frontend ownership: recovery-state display and rerouting UX only
 
 **FR Category: Validation and Release Readiness**
 
@@ -718,7 +720,7 @@ The project structure section is aligned with the architecture because it maps t
 All major functional requirement clusters are architecturally supported:
 
 - plugin discovery and playback environment
-- instrument assignment and playback setup
+- instrument routing and playback setup
 - plugin lifecycle and editing
 - score-to-playback mapping
 - transport playback
@@ -727,7 +729,7 @@ All major functional requirement clusters are architecturally supported:
 - validation and release readiness
 
 **Functional Requirements Coverage:**
-The architecture provides explicit ownership and placement for all FR categories. Plugin inventory, assignment, transport, recovery, and validation are all given concrete homes in the existing repository structure. The architecture also preserves the intended product framing: VST3 support is primary, and surrounding architecture exists to make that support stable and composition-worthy.
+The architecture provides explicit ownership and placement for all FR categories. Plugin inventory, routing, transport, recovery, and validation are all given concrete homes in the existing repository structure. The architecture also preserves the intended product framing: VST3 support is primary, and surrounding architecture exists to make that support stable and composition-worthy.
 
 **Non-Functional Requirements Coverage:**
 Performance, realtime safety, stability, offline-first behavior, persistence integrity, and release validation are all addressed. Stable, jitter-free playback is explicitly treated as a release gate. Security is appropriately scoped to local execution boundaries, plugin-host safety, and persisted-data integrity rather than irrelevant SaaS patterns.
@@ -839,4 +841,4 @@ The main validation risk was whether the architecture might accidentally drift i
 - Reuse existing backend seams for UI and automation work rather than creating parallel logic paths.
 
 **First Implementation Priority:**
-Build on the existing brownfield foundation by formalizing the plugin inventory, assignment, identity, recovery, and playback preparation seams inside the current Rust/Tauri architecture rather than reinitializing or replatforming the project.
+Build on the existing brownfield foundation by formalizing the plugin inventory, rack-slot, route, identity, recovery, and playback preparation seams inside the current Rust/Tauri architecture rather than reinitializing or replatforming the project.

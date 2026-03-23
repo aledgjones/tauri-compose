@@ -7,6 +7,8 @@ import classNames from "classnames";
 import { Select } from "../../../../../ui/select";
 import { useAppState, useSamplerState } from "../../../../../services/state";
 import { actions } from "../../../../../services/actions";
+import { PlaybackReadinessBadge } from "./playback-readiness";
+import { getPlaybackReadinessPresentation } from "./playback-readiness-presentation";
 
 interface InstrumentOverviewRowProps {
   instrument: Instrument;
@@ -24,6 +26,10 @@ export const InstrumentOverviewRow: FC<InstrumentOverviewRowProps> = ({
   const { plugins } = sampler;
   const assignmentState =
     state.resolved_playback_assignment_by_instrument_id[instrument.id];
+  const presentation = getPlaybackReadinessPresentation(
+    assignmentState,
+    instrument,
+  );
 
   const options = useMemo(() => {
     return Object.values(plugins).map((plugin) => ({
@@ -49,9 +55,15 @@ export const InstrumentOverviewRow: FC<InstrumentOverviewRowProps> = ({
     >
       {/* Instrument name */}
       <div className="flex items-center justify-between flex-1 min-w-0">
-        <div className="text-sm text-white truncate">
-          <TokenizedText>{instrument.long_name}</TokenizedText>
-          {instrument.count && <span> {instrument.count}</span>}
+        <div className="min-w-0 flex flex-1 items-center gap-2">
+          <div className="text-sm text-white truncate">
+            <TokenizedText>{instrument.long_name}</TokenizedText>
+            {instrument.count && <span> {instrument.count}</span>}
+          </div>
+          <PlaybackReadinessBadge
+            presentation={presentation}
+            className="max-w-full shrink"
+          />
         </div>
 
         {!isDisabled && (
@@ -84,18 +96,20 @@ export const InstrumentOverviewRow: FC<InstrumentOverviewRowProps> = ({
         )}
       </div>
 
-      <Select
-        className="flex-1"
-        value={assignmentState?.effective_plugin_id || ""}
-        options={options}
-        onChange={handlePluginChange}
-        icon={mdiCableData}
-        variant="filled"
-        placeholder={
-          options.length === 0 ? "No plugins available" : "Assign plugin"
-        }
-        disabled={isDisabled || options.length === 0}
-      />
+      <div data-assignment-select-for={instrument.id}>
+        <Select
+          className="flex-1"
+          value={assignmentState?.effective_plugin_id || ""}
+          options={options}
+          onChange={handlePluginChange}
+          icon={mdiCableData}
+          variant="filled"
+          placeholder={
+            options.length === 0 ? "No plugins available" : "Assign plugin"
+          }
+          disabled={isDisabled || options.length === 0}
+        />
+      </div>
     </div>
   );
 };

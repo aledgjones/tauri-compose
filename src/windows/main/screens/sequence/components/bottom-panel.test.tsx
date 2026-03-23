@@ -9,16 +9,12 @@ import { BottomPanelTab } from "../../../../../services/types";
 
 vi.mock("../../../../../services/actions", () => ({
   actions: {
-    pluginInventory: {
-      discover: vi.fn().mockResolvedValue(undefined),
-    },
     ui: {
       setActiveFlowId: vi.fn(),
       screens: {
         sequence: {
           bottomPanel: {
             setTab: vi.fn(),
-            instruments: { setShowActiveOnly: vi.fn() },
           },
         },
       },
@@ -98,19 +94,52 @@ describe("Sequence BottomPanel", () => {
     expect(buttons.length).toBeGreaterThanOrEqual(1);
   });
 
-  it("renders PluginsToolbar when Instruments tab is active", () => {
+  it("renders the contextual playback status panel when Instruments tab is active", () => {
     const appState = createAppState({
       ui: {
         screens: {
           sequence: {
             bottom_panel_tab: BottomPanelTab.Instruments,
-            show_active_only: false,
           } as never,
+        },
+        sequencer: { instrument: 10 } as never,
+      } as never,
+      score: {
+        players: {
+          order: [1],
+          by_id: {
+            1: { id: 1, player_type: 0, instrument_ids: [10] },
+          },
+        },
+        instruments: {
+          by_id: {
+            10: {
+              id: 10,
+              definition_id: "violin",
+              instrument_type: 0,
+              long_name: "Violin",
+              short_name: "Vln.",
+              stave_ids: [],
+              count: null,
+              assignment_intent: {
+                mode: 0,
+                plugin_id: null,
+                target: null,
+                shared_instance_id: null,
+              },
+              volume: 100,
+              pan: 64,
+              mute: false,
+              solo: false,
+            },
+          },
         },
       } as never,
     });
     renderWithProviders(<BottomPanel />, { appState });
-    expect(screen.getByText("Available only")).toBeInTheDocument();
+    expect(screen.getByText("Playback status")).toBeInTheDocument();
+    expect(screen.getAllByText("Violin")).toHaveLength(2);
+    expect(screen.queryByText("Available only")).toBeNull();
   });
 
   it("renders Sequencer toolbar when Sequencer tab is active", () => {
