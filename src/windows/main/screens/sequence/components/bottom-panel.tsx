@@ -8,7 +8,7 @@ import { TokenizedText } from "../../../../../ui/text";
 import { Sequencer, SequencerToolbar } from "../../../components/sequencer";
 import { Mixer, MixerToolbar } from "../../../components/mixer";
 import { useBottomPanelState } from "../../../hooks/use-bottom-panel-state";
-import { PlaybackStatusPanel } from "./playback-status-panel";
+import { PlaybackRackPanel } from "./playback-rack-panel";
 
 const SEQUENCE_TABS = [
   { tab: BottomPanelTab.Sequencer, icon: mdiPiano },
@@ -57,7 +57,7 @@ export const BottomPanel: FC = () => {
         )}
         {tab === BottomPanelTab.Instruments && (
           <div className="flex flex-1 items-center bg-neutral-900 px-3 text-[11px] uppercase tracking-[0.18em] text-neutral-500">
-            <span>Playback status</span>
+            <span>Current rack</span>
             {selectedInstrumentLabel ? (
               <span className="ml-3 truncate text-xs normal-case tracking-normal text-neutral-200">
                 <TokenizedText>{selectedInstrumentLabel}</TokenizedText>
@@ -91,7 +91,7 @@ export const BottomPanel: FC = () => {
       )}
       {tab === BottomPanelTab.Mixer && <Mixer instruments={instruments} />}
       {tab === BottomPanelTab.Instruments && (
-        <PlaybackStatusPanel
+        <PlaybackRackPanel
           instrument={selectedInstrument}
           route={selectedRoute}
         />

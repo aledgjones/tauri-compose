@@ -12,22 +12,25 @@ export const PlaybackReadinessBadge: FC<PlaybackReadinessBadgeProps> = ({
   presentation,
   className,
 }) => {
+  if (presentation.kind !== "needs-attention") {
+    return null;
+  }
+
   return (
-    <div
-      role="status"
-      aria-label={`Playback status: ${presentation.label}`}
+    <span
+      role="img"
+      aria-label={`Playback ${presentation.label.toLowerCase()}`}
       className={classNames(
-        "inline-flex shrink-0 items-center gap-1.5 rounded-full border pl-1.5 pr-2.5 py-1 text-[11px] uppercase tracking-[0.16em]",
+        "inline-flex shrink-0 items-center",
         presentation.tone_class_name,
         className,
       )}
     >
       <Icon
         path={presentation.icon}
-        size={0.7}
+        size={0.8}
         className={presentation.icon_class_name}
       />
-      <span>{presentation.label}</span>
-    </div>
+    </span>
   );
 };

@@ -1,10 +1,13 @@
 import { FC } from "react";
-import { Instrument } from "../../../../../services/types";
+import { BottomPanelTab, Instrument } from "../../../../../services/types";
 import { IconButton } from "../../../../../ui/buttons/icon-button";
 import { mdiSizeM, mdiSizeS } from "@mdi/js";
 import { TokenizedText } from "../../../../../ui/text";
 import classNames from "classnames";
-import { useAppState } from "../../../../../services/state";
+import {
+  useAppState,
+  usePluginInventoryState,
+} from "../../../../../services/state";
 import { actions } from "../../../../../services/actions";
 import { PlaybackReadinessBadge } from "./playback-readiness";
 import { getPlaybackReadinessPresentation } from "./playback-readiness-presentation";
@@ -21,13 +24,26 @@ export const InstrumentOverviewRow: FC<InstrumentOverviewRowProps> = ({
   isDisabled,
 }) => {
   const state = useAppState();
+  const pluginInventory = usePluginInventoryState();
   const routeState =
     state.resolved_playback_route_by_instrument_id[instrument.id];
-  const presentation = getPlaybackReadinessPresentation(routeState, instrument);
+  const presentation = getPlaybackReadinessPresentation(
+    routeState,
+    instrument,
+    pluginInventory.entries,
+    state.score.playback?.rack,
+  );
+  const instrumentLabel = instrument.count
+    ? `${instrument.long_name} ${instrument.count}`
+    : instrument.long_name;
+
+  const handleOpenRack = () => {
+    actions.ui.sequencer.setInstrument(instrument.id);
+    actions.ui.screens.sequence.bottomPanel.setTab(BottomPanelTab.Instruments);
+  };
 
   return (
     <div
-      data-route-focus-for={instrument.id}
       tabIndex={-1}
       className={classNames(
         "flex flex-col p-2 gap-2 border-l-4 bg-neutral-900",
@@ -78,10 +94,25 @@ export const InstrumentOverviewRow: FC<InstrumentOverviewRowProps> = ({
         )}
       </div>
 
-      <div className="text-xs text-neutral-400">
-        {presentation.plugin_label
-          ? `Route target: ${presentation.plugin_label}`
-          : "No route target configured"}
+      <div className="flex flex-col gap-1.5 text-xs text-neutral-300">
+        <div className="text-[11px] uppercase tracking-[0.18em] text-neutral-500">
+          Route summary
+        </div>
+        <div>{presentation.slot_summary}</div>
+        <div>{presentation.target_summary}</div>
+        {presentation.address_summary ? (
+          <div>{presentation.address_summary}</div>
+        ) : null}
+        {presentation.action_label ? (
+          <button
+            type="button"
+            onClick={handleOpenRack}
+            className="mt-1 w-fit border border-sky-700/70 bg-sky-500/10 px-3 py-1.5 text-[11px] uppercase tracking-[0.14em] text-sky-100 hover:bg-sky-500/20"
+            aria-label={`Open rack for ${instrumentLabel}`}
+          >
+            {presentation.action_label}
+          </button>
+        ) : null}
       </div>
     </div>
   );

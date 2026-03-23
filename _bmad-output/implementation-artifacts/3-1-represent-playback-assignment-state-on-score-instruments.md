@@ -1,6 +1,6 @@
 # Story 3.1: Define Backend-Owned Rack, Slot, Target, Address, And Route State
 
-Status: review
+Status: done
 
 ## Story
 

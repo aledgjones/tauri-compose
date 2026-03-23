@@ -94,7 +94,7 @@ describe("Sequence BottomPanel", () => {
     expect(buttons.length).toBeGreaterThanOrEqual(1);
   });
 
-  it("renders the contextual playback status panel when Instruments tab is active", () => {
+  it("renders the current rack panel when Instruments tab is active", () => {
     const appState = createAppState({
       ui: {
         screens: {
@@ -104,7 +104,32 @@ describe("Sequence BottomPanel", () => {
         },
         sequencer: { instrument: 10 } as never,
       } as never,
+      resolved_playback_route_by_instrument_id: {
+        10: {
+          status: 1,
+          slot_id: 22,
+          slot_target: { plugin_id: "vst3:grand-piano" },
+          effective_plugin_id: "vst3:grand-piano",
+          target: { mode: 0, index: null },
+          address: { mode: 0, index: null },
+        },
+      },
       score: {
+        playback: {
+          rack: {
+            order: [22, 23],
+            by_id: {
+              22: {
+                id: 22,
+                target: { plugin_id: "vst3:grand-piano" },
+              },
+              23: {
+                id: 23,
+                target: null,
+              },
+            },
+          },
+        },
         players: {
           order: [1],
           by_id: {
@@ -130,10 +155,26 @@ describe("Sequence BottomPanel", () => {
         },
       } as never,
     });
-    renderWithProviders(<BottomPanel />, { appState });
-    expect(screen.getByText("Playback status")).toBeInTheDocument();
-    expect(screen.getAllByText("Violin")).toHaveLength(2);
-    expect(screen.queryByText("Available only")).toBeNull();
+    renderWithProviders(<BottomPanel />, {
+      appState,
+      pluginInventoryState: {
+        entries: [
+          {
+            id: "vst3:grand-piano",
+            name: "Grand Piano",
+            bundle_path: "/Library/Audio/Plug-Ins/VST3/Grand Piano.vst3",
+            binary_path:
+              "/Library/Audio/Plug-Ins/VST3/Grand Piano.vst3/Contents/MacOS/Grand Piano",
+            source_root: "/Library/Audio/Plug-Ins/VST3",
+            availability: "available",
+            validation_failure: null,
+          },
+        ],
+      },
+    });
+    expect(screen.getAllByText("Current rack").length).toBeGreaterThan(0);
+    expect(screen.getByText("1. Grand Piano")).toBeInTheDocument();
+    expect(screen.getByText("2. Unassigned")).toBeInTheDocument();
   });
 
   it("renders Sequencer toolbar when Sequencer tab is active", () => {
