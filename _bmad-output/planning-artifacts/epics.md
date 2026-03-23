@@ -554,6 +554,8 @@ So that the inventory is easier to scan without depending on artwork availabilit
 
 Composers can assign playback to score instruments through both single-part and one-instance multi-instrument plugin workflows, see whether each part is ready or needs attention, and rely on stable plugin lifecycle behavior.
 
+Planning note: Epic 3 stays focused on the minimum rack, route, activation, and session-lifecycle foundations needed to reach basic audible playback. Sequence rack-surface refinement is allowed only where it directly supports that path. The proposed read-only routing graph is intentionally deferred until after first audible playback exists so it can visualize real audible paths rather than speculative topology, and insert-style slot chaining is explicitly deferred until after the current epics as a later routing enhancement.
+
 ### Story 3.1: Define Backend-Owned Rack, Slot, Target, Address, And Route State
 
 As a composer,
@@ -788,6 +790,8 @@ So that playback setup behaves like ongoing usable state rather than a one-shot 
 
 Composers can hear written material through routed VST targets and shape basic playback levels inside Compose.
 
+Planning note: After Epic 4 establishes first audible playback, the next UX-oriented follow-on should be a read-only Sequence topology view that visualizes the current audible path in simple terms such as instrument -> slot -> main output. That graph should remain explanatory only in its first slice and must not expand this epic into editable routing, slot-to-slot insert chaining, sends, or broader DAW-style topology authoring.
+
 ### Story 4.1: Translate Routed Score Instruments Into Playback-Ready Material
 
 As a composer,
@@ -912,6 +916,72 @@ So that current playback needs are met without blocking later expansion.
 **When** the mixer model is finalized for this epic
 **Then** it remains scoped to first-playback usability
 **And** it does not accumulate unrelated transport-state, reopen, or realism concerns.
+
+### Story 4.6: Refine The Sequence Rack Surface For Fast Slot Management
+
+As a composer,
+I want the Sequence rack surface to support faster lookup and filtering of slots and plugins,
+So that I can manage score-context playback setup efficiently once basic audible playback already exists.
+
+**FRs implemented:** UX-DR14, UX-DR15, UX-DR17
+
+**Acceptance Criteria:**
+
+**Given** the Sequence rack contains multiple slots or assigned plugins
+**When** the user needs to find a slot or plugin quickly
+**Then** the rack surface provides a search field for slot and plugin name lookup
+**And** the visible list updates without leaving the score context.
+
+**Given** the rack may contain different kinds of plugins
+**When** the user wants to narrow the visible rack list
+**Then** the rack surface provides clear filters for `All`, `Instrument`, and `Effect`
+**And** those filters remain score-contextual rather than reopening Plugin Manager responsibilities.
+
+**Given** this story is a post-audible-playback refinement
+**When** it is implemented
+**Then** it improves speed and legibility of slot management inside Sequence
+**And** it does not block, redefine, or expand the first audible playback path.
+
+**Given** Plugin Manager remains the app-scoped inventory browser
+**When** this rack refinement is complete
+**Then** the Sequence rack still behaves as a score-context management surface
+**And** it does not become a second inventory-management window.
+
+### Story 4.7: Visualize The Current Audible Playback Path In Sequence
+
+As a composer,
+I want a read-only view of the current audible playback path in Sequence,
+So that I can understand how my score-context instruments reach output without editing routing topology directly.
+
+**FRs implemented:** FR19, UX-DR3, UX-DR15
+
+**Acceptance Criteria:**
+
+**Given** Compose can already produce audible playback for routed score instruments
+**When** the user inspects the Sequence playback surface
+**Then** the UI shows a read-only explanatory path such as `instrument -> slot -> main output`
+**And** the view is grounded in current backend-owned playback truth rather than frontend inference.
+
+**Given** the selected score-context instrument has a valid or invalid playback route
+**When** the user views the topology surface
+**Then** the relevant path or failure state is highlighted clearly
+**And** missing, unresolved, or attention-needed route states remain legible.
+
+**Given** this is the first topology-visualization slice
+**When** the story is implemented
+**Then** the graph remains read-only and explanatory
+**And** it does not introduce drag-to-connect editing, insert chaining, sends, or broader DAW-style topology authoring.
+
+#### Deferred Enhancement: Linear Insert Chaining
+
+Intent:
+
+- Treat insert-style slot chaining as a later routing enhancement that builds on the audible-playback, activation, and explanatory-graph foundations rather than competing with them.
+
+Placement guidance:
+
+- Defer insert chaining until after the current epics complete.
+- Treat sends or parallel-routing concepts as later still, after insert-style chaining is proven valuable.
 
 ## Epic 5: Trust Playback During Real Composition
 
