@@ -1,202 +1,232 @@
-# Story 3.2: Show Assignment Readiness in Instrument Rows and Panels
+# Story 3.2: Show Current Rack And Route Summaries In Sequence
 
-Status: review
+Status: ready-for-dev
 
 ## Story
 
 As a composer,
-I want to see playback readiness directly on score instruments,
+I want to see the current rack and each instrument's route summary directly in Sequence,
 so that I can tell at a glance which parts are playable and which need action.
 
 ## Acceptance Criteria
 
-1. Given score instruments have resolved playback assignment state, when they are displayed in relevant score-context surfaces, then instrument rows show compact readiness or health state and the expanded instrument panel shows richer contextual playback information.
+1. Given score instruments have resolved playback route state, when they are displayed in relevant score-context surfaces, then the Sequence bottom panel shows the current rack and its slot instances and instrument rows or expansions show compact route summaries and health state.
 2. Given playback state can be Ready, Needs Attention, or Unavailable, when those states are shown in the UI, then they are legible without relying on color alone and the presentation remains consistent with the existing Compose design system.
 3. Given an instrument is not ready for playback, when a user inspects that instrument's score-context UI, then they are given one primary contextual recovery path and the product does not force them into an unrelated app-scoped workflow by default.
 
 ## Tasks / Subtasks
 
-- [x] Task 1: Add compact readiness presentation to Sequence instrument rows using backend-owned assignment truth only (AC: 1, 2)
-  - [x] Update the Sequence instrument overview row to render a compact readiness indicator for each instrument using the existing backend-emitted assignment state.
-  - [x] Keep the row compact and information-dense: use iconography and very short labels that remain legible without color alone.
-  - [x] Preserve the current assignment control and other row actions without widening this story into a new assignment workflow.
-- [x] Task 2: Turn the Sequence bottom-panel instrument surface into the richer score-context playback status panel for the selected instrument (AC: 1, 2, 3)
-  - [x] Reuse the existing Sequence bottom-panel seam rather than creating a new window, new Setup-panel flow, or duplicate panel model.
-  - [x] Show the selected instrument's current playback readiness, current effective plugin context when available, and plain-language status explanation.
-  - [x] Keep the panel contextual to the selected instrument rather than broadening it into full inventory browsing or app-scoped management.
-- [x] Task 3: Provide one primary contextual recovery path while preserving slice boundaries (AC: 3)
-  - [x] Ensure non-ready states point users toward one score-context recovery action inside the Sequence workflow.
-  - [x] Keep that path a lightweight handoff or focus action rather than full assignment-management expansion.
-  - [x] Do not force the user into the dedicated Plugin Manager as the default answer for routine readiness issues.
-- [x] Task 4: Keep readiness presentation aligned with backend ownership and Epic 3 sequencing (AC: 1, 2, 3)
-  - [x] If the current emitted assignment contract is too technical for the promised user-facing labels, add or refine a backend-owned presentation seam instead of letting multiple React surfaces invent their own mapping logic.
-  - [x] Do not absorb Story 3.3 manual assignment UX, Story 3.4 target selection, Story 3.5 shared-instance legibility, Story 3.8 activation, or Epic 5 recovery behavior.
-  - [x] Keep any new copy, labels, and status grouping consistent across row and panel surfaces, with a bias toward minimal wording over explanatory prose in the row itself.
-- [x] Task 5: Add focused seam-level validation and documentation updates for the new readiness UI (AC: 1, 2, 3)
-  - [x] Add frontend tests for row and panel readiness rendering, accessibility-friendly status presentation, and the primary contextual handoff behavior.
-  - [x] Add backend or contract-level tests only if the emitted readiness presentation seam changes.
-  - [x] Update the relevant docs to reflect that Sequence owns score-context readiness display while Plugin Manager remains the app-scoped inventory surface.
+- [ ] Task 1: Replace the superseded selected-instrument readiness panel with a current-rack surface in the Sequence bottom panel (AC: 1, 2)
+  - [ ] Reuse the existing Sequence bottom-panel seam and show the current score rack plus its hosted slot instances.
+  - [ ] Label rack slots in the MVP format `{slot index}. {Plugin Name}` so duplicate plugin instances remain distinguishable.
+  - [ ] Keep the bottom panel score-contextual to the current score rather than widening it into Plugin Manager responsibilities.
+- [ ] Task 2: Show compact route summaries and health state on Sequence instrument surfaces (AC: 1, 2)
+  - [ ] Update the instrument row to summarize the route target, slot context, and current health without turning the row into a status-heavy badge strip.
+  - [ ] Use the existing instrument expansion or closely related score-context seam for richer route detail when needed, including route-owned expression-map linkage summary if that data already exists.
+  - [ ] Keep the row compact, scannable, and accessible through text, iconography, and placement rather than color alone.
+- [ ] Task 3: Keep recovery contextual and bounded to the score workflow (AC: 3)
+  - [ ] Provide one primary recovery handoff from non-ready route states into the relevant score-context rack or route surface.
+  - [ ] Avoid defaulting users into the dedicated Plugin Manager for routine route repair.
+  - [ ] Do not absorb Story 3.3 slot creation, Story 3.4 route authoring, Story 3.5 shared-slot explanation, Story 3.8 activation, or Epic 5 reopen recovery behavior.
+- [ ] Task 4: Preserve backend ownership of rack and route truth (AC: 1, 2, 3)
+  - [ ] Consume the Rust-owned rack, slot, target, address, route, and health state defined by Story 3.1 rather than letting React infer topology locally.
+  - [ ] If the UI needs a lighter presentation contract, derive it in Rust and mirror it in TypeScript rather than creating ad hoc frontend mapping helpers.
+  - [ ] Keep Sequence the presentation layer over backend-owned score-context playback state.
+- [ ] Task 5: Add focused validation and docs for the corrected Sequence rack workflow (AC: 1, 2, 3)
+  - [ ] Update frontend tests for bottom-panel rack display, instrument-row route summaries, and contextual recovery behavior.
+  - [ ] Add backend or contract-level tests only if Story 3.2 requires a refined emitted route-summary payload.
+  - [ ] Update docs so Sequence is described as the current-rack and route-summary surface while Plugin Manager remains the app-scoped inventory browser.
 
 ## Dev Notes
 
 ### Story Intent
 
-- Story 3.2 is the display slice for Epic 3's new backend-owned playback assignment state.
-- Its job is to make playback readiness visible in score-context surfaces without turning this slice into manual assignment workflow, runtime activation, or reopen recovery work.
-- The compact surface is the Sequence instrument row.
-- The richer explanatory surface is the Sequence screen bottom panel for the currently selected instrument.
+- Story 3.2 is no longer the assignment-readiness display slice.
+- Its corrected job is to make the current score rack and each instrument's route summary visible in Sequence after the rack-and-routing pivot.
+- The Sequence bottom panel should show the current rack and hosted slot instances.
+- Instrument rows and expansions should summarize route state compactly without reintroducing the rejected assignment-first UX.
 
 ### User Decisions Captured
 
-- The "expanded instrument panel" for this story is the existing Sequence bottom panel, not the Setup screen and not a new app-scoped window.
-- The bottom panel should act as a score-context playback status panel for the currently selected instrument.
-- The panel exists to explain playback readiness, current context, and next action, not to become a second Plugin Manager.
-- The primary recovery path should stay inside the Sequence workflow as a lightweight contextual handoff.
-- Story 3.3 still owns the fuller musician-facing manual assignment workflow.
-- A direct "open selected plugin UI" button in the Sequence instrument row is not part of Story 3.2. Native plugin UI remains a later secondary handoff once the user-facing editor-host path is intentionally introduced beyond the current bounded maintainer seam.
-- Status presentation should be compact and low-wordiness by default: short labels, strong placement, and icon support rather than verbose descriptive chips in the row.
+- The stakeholder rejected the prior Story 3.2 implementation because it centered the wrong product object: direct instrument-to-plugin assignment.
+- The corrected model is rack-first and backend-led in Rust.
+- The Sequence bottom panel is the primary surface for the current rack.
+- Instrument surfaces are primarily route-focused and can show target, slot, health, and linked route context.
+- Plugin Manager remains the app-scoped inventory browser, not the current score rack.
+- The old readiness-heavy selected-instrument panel should be superseded rather than extended.
 
 ### Bounded Slice Template
 
 #### This Story Owns
 
-- Showing compact readiness state on Sequence instrument rows.
-- Showing richer contextual playback status for the selected instrument in the Sequence bottom panel.
-- Providing one primary score-context recovery handoff for non-ready instruments.
-- Keeping row and panel status presentation aligned to backend-owned truth and existing Compose visual language.
+- Showing the current rack and hosted slot instances in the Sequence bottom panel.
+- Showing compact route summaries and route health in Sequence instrument surfaces.
+- Providing one primary contextual recovery path for non-ready route states.
+- Keeping rack and route presentation aligned to Rust-owned truth and existing Compose visual language.
 
 #### This Story Does Not Own
 
-- A new dedicated window or a Setup-screen playback detail model.
-- Full plugin inventory browsing, refresh controls, scan health management, or other Plugin Manager responsibilities.
-- A redesigned or expanded manual assignment workflow. Story 3.3 owns that.
-- A direct row-level native plugin-editor launch action.
-- Multi-part target selection. Story 3.4 owns that.
-- Shared-instance explanation beyond the bounded readiness context needed here. Story 3.5 owns the fuller shared-instance legibility slice.
-- Plugin activation/loading for playback. Story 3.8 owns that.
-- Reopen, persistence recovery, or degraded restore behavior. Epic 5 owns that.
+- Creating or loading new rack slots from inventory. Story 3.3 owns that.
+- Creating or changing routes to targets. Story 3.4 owns that.
+- Shared-slot legibility beyond the compact summary needed to understand current route context. Story 3.5 owns the fuller slice.
+- Automatic routing for newly created instruments. Story 3.6 owns that.
+- Repair and reroute workflow depth beyond one primary contextual handoff. Story 3.7 owns that.
+- Activating rack slots and routed targets for playback. Story 3.8 owns that.
+- Session reopen restoration and degraded recovery behavior. Epic 5 owns that.
+- Full plugin inventory browsing, refresh control, or maintainer troubleshooting flows. Plugin Manager owns those.
 
 #### Authoritative State Lives In
 
-- Rust-owned resolved playback assignment state emitted through the existing general app state.
-- The current score-context selection and Sequence bottom-panel state already used by the main window.
-- The dedicated Plugin Manager window remains the canonical app-scoped inventory browser.
+- Rust-owned rack, slot, target, address, route, and health state emitted through the general app state.
+- The existing Sequence score-context selection and bottom-panel state.
+- Machine-local plugin inventory remains a separate backend-owned seam outside project data.
 
 #### Future Stories Intentionally Deferred
 
-- Richer musician-friendly assignment controls and picker workflow.
-- User-facing native plugin-editor launch from score-context surfaces once that path is promoted beyond the current maintainer-only proof seam.
-- Explicit target and channel selection.
-- Shared-instance UI legibility beyond readiness context.
-- Activation/runtime lifecycle and reopen recovery semantics.
+- Musician-facing slot creation and plugin picking workflow.
+- Explicit target and channel selection UI.
+- Shared-slot reuse explanation across multiple score instruments.
+- Runtime activation, transport readiness, and reopen repair semantics.
+- Full route-owned expression-map editing workflow.
 
 #### Verification Required For Done
 
-- Frontend tests prove rows and the selected-instrument panel render readiness consistently from backend-owned state.
-- Tests prove non-ready states expose one primary contextual recovery path without routing by default into app-scoped inventory management.
-- If the emitted state contract changes, the TypeScript mirror and contract-level coverage are updated together.
+- Frontend tests prove the Sequence bottom panel renders the current rack and slot labels from backend-owned state.
+- Frontend tests prove instrument surfaces render compact route summaries and health consistently.
+- Tests prove non-ready states expose one primary score-context recovery path without routing by default into Plugin Manager.
+- If the emitted state contract changes, Rust and TypeScript coverage are updated together.
 - Validation uses the project-standard commands relevant to touched files.
 
 #### Open Questions Requiring Human Clarification
 
-- None. The Sequence bottom-panel decision and bounded recovery-path intent have been clarified.
+- None. The rack-first model, the bottom-panel role, and the score-context versus app-scoped boundary have been clarified through the sprint course correction.
 
 ### Scope Boundaries
 
 - In scope:
-  - Sequence instrument-row readiness display.
-  - Sequence bottom-panel playback status display for the selected instrument.
-  - One primary contextual handoff for non-ready states.
-  - Minimal contract refinement only if required to keep readiness presentation backend-owned.
+  - Sequence bottom-panel current-rack display.
+  - Sequence instrument-row or expansion route summaries.
+  - Compact route health presentation using the three user-facing states.
+  - One primary contextual recovery handoff.
+  - Minimal backend presentation refinement only if needed to keep route summaries backend-owned.
 - Out of scope:
-  - New inventory-management UI.
-  - Broad assignment authoring workflow changes.
-  - Runtime plugin-loading behavior.
-  - Recovery persistence or app reopen behavior.
+  - Plugin inventory management.
+  - Slot creation or route-authoring workflows.
+  - Activation and playback runtime behavior.
+  - Reopen recovery and persistence repair flows.
 
 ### Cross-Story Alignment
 
-- Story 3.1 already established the backend-owned assignment-intent and resolved-state seam this story must consume.
-- Story 3.2 should make that seam visible without inventing new playback truth in React.
-- Story 3.3 can build the richer manual assignment UX on top of the same score-context row and bottom-panel surfaces clarified here.
-- Story 3.4 and Story 3.5 can later enrich the panel's explanation with target and shared-instance detail without replacing the Story 3.2 presentation structure.
-- Story 3.8 should be able to layer runtime activation on top of the same readiness surfaces rather than redefining them.
+- Story 3.1 defines the backend-owned rack, slot, target, address, and route model that this story must display.
+- Story 3.2 should make that topology visible in Sequence without inventing a second frontend model.
+- Story 3.3 should build slot creation on top of the same bottom-panel rack surface clarified here.
+- Story 3.4 should layer route editing onto the same instrument surfaces rather than replacing this story's summaries.
+- Story 3.5 can later enrich the UI with stronger shared-slot legibility once the basic route-summary structure is in place.
+- Story 3.8 should be able to layer activation and runtime state on top of the same rack and route surfaces rather than redefining them.
 
 ### Previous Story Intelligence
 
-- Story 3.1 already emits `resolved_playback_assignment_by_instrument_id` for score-context consumers.
-- Story 3.1 deliberately kept React from deriving assignment health locally; Story 3.2 must preserve that rule.
-- Story 3.1 also preserved the existing row assignment control as a compatibility seam, which means Story 3.2 should reuse current score-context surfaces rather than inventing a parallel playback panel model.
+- The rewritten Story 3.1 artifact establishes the corrected Epic 3 foundation: backend-owned rack and route state, not direct assignment truth.
+- The superseded Story 3.2 implementation proved that a readiness-first selected-instrument panel is the wrong UX object for the corrected product direction.
+- The sprint change proposal explicitly says to replace the old Story 3.2 implementation rather than build future work on top of it.
+- Preserve the Epic 2 and Epic 3 guardrail that React must not derive playback topology independently from Rust.
 
 ### Architecture Compliance
 
-- Rust remains the sole authoritative owner of assignment truth and any derived readiness presentation state that crosses the FE/BE boundary.
-- React remains a presentation and interaction layer over that backend-owned state.
-- Score-context playback relationships stay in contextual Sequence surfaces.
-- Plugin Manager stays app-scoped and canonical for full inventory browsing.
-- Readiness presentation must be accessible without relying on color alone.
+- Rust remains the sole authoritative owner of plugin inventory, rack state, slot state, route state, and route health.
+- React remains the presentation and interaction layer over that backend-owned state.
+- Score-context playback relationships stay in Sequence surfaces.
+- Plugin Manager remains app-scoped and canonical for full inventory browsing.
+- User-facing health states must be accessible without relying on color alone.
+- The story must preserve the route-first mental model rather than drifting back into assignment-first wording or UI structure.
 
 ### Current Relevant Seams
 
 - `src/windows/main/screens/sequence/components/instrument-overview-row.tsx`
   - Existing compact row surface for each score instrument.
-  - Already reads the emitted resolved assignment state but only uses the effective plugin id today.
+  - Must shift from assignment-flavored summary toward slot and route summary.
+- `src/windows/main/screens/sequence/components/instrument-overview.tsx`
+  - Coordinates the instrument-row list and selection context.
 - `src/windows/main/screens/sequence/components/bottom-panel.tsx`
-  - Existing Sequence bottom-panel seam that should become the richer score-context playback status panel for this story.
-- `src/windows/main/components/plugins.tsx`
-  - Current bottom-panel instruments/plugins surface contains legacy SCVI and VST-debugging residue.
-  - This story should repurpose or constrain that seam toward selected-instrument playback status instead of app-scoped inventory browsing.
+  - Existing Sequence bottom-panel seam.
+  - Should become the current-rack surface for this story's corrected model.
+- `src/windows/main/screens/sequence/components/playback-status-panel.tsx`
+  - Existing selected-instrument status panel from the superseded Story 3.2 implementation.
+  - Treat this as a replacement target, not as the final product model to preserve.
+- `src/windows/main/screens/sequence/components/playback-readiness.tsx`
+  - Existing presentation helper for compact health states.
+  - May be reusable only if it cleanly adapts to route-based summaries.
 - `src/windows/main/hooks/use-bottom-panel-state.ts`
-  - Existing selected-instrument context for the Sequence bottom panel.
-  - Reuse this selection-driven seam rather than creating a separate selection model.
+  - Existing Sequence bottom-panel selection seam.
+  - Reuse rather than creating a separate rack-selection model.
 - `src/services/types.ts`
-  - Current frontend contract mirrors `PlaybackAssignmentStatus` and `ResolvedPlaybackAssignment`.
-  - If user-facing presentation needs a more precise backend-owned summary, update the contract here in lockstep with Rust.
+  - Frontend contract mirror for backend-owned playback state.
+  - Update here in lockstep with Rust if Story 3.2 needs a lighter route-summary payload.
 - `src/services/state/context.tsx`
-  - Existing general-state mirror already carries `resolved_playback_assignment_by_instrument_id`.
+  - Existing general-state mirror used by Sequence surfaces.
 - `src-tauri/src/score/instruments/mod.rs`
-  - Current backend assignment-resolution seam.
-  - If the user-facing `Ready / Needs Attention / Unavailable` presentation cannot be expressed cleanly from the current status model, refine this seam here rather than in ad hoc React helpers.
+  - Current backend seam for instrument playback state.
+  - After Story 3.1, this should be the route-focused source rather than an assignment-focused helper.
+- `src-tauri/src/lib.rs`
+  - Emits Rust-owned general state to the frontend.
+- `src-tauri/src/ui/screens/sequence.rs`
+  - Existing Sequence UI state seam for bottom-panel behavior.
+- `src-tauri/src/playback/plugin_inventory.rs`
+  - Machine-local plugin inventory truth.
+  - Relevant for route resolution, but not the UI model to expose directly in Sequence.
+
+### Legacy Or Superseded Seams To Avoid
+
+- `src-tauri/src/playback/sampler.rs`
+  - Legacy sampler seam. Do not extend it for rack or route summaries.
+- `src-tauri/src/playback/scvi.rs`
+  - Retired-path legacy seam. Not part of the VST rack model.
+- `src/windows/main/components/plugins.tsx`
+  - Legacy contextual browse and debugging surface.
+  - Do not let it remain the implicit model for the Sequence bottom panel if it conflicts with the corrected current-rack role.
+- The old Story 3.2 artifact content itself should be treated as superseded.
 
 ### Implementation Guidance
 
-- Use the backend-owned resolved assignment state as the only source of readiness truth.
-- Keep row status compact: icon, short label, and consistent placement should do the work rather than color alone.
-- Keep the panel explanatory but concise: tell the user what Compose thinks the current state is, why it is in that state, and what the next contextual action should be without drifting into verbose troubleshooting copy.
-- Reuse the existing Sequence bottom-panel selection and navigation seams.
-- Prefer a single contextual recovery handoff over multiple equal-weight troubleshooting options.
-- Do not default users into the dedicated Plugin Manager for ordinary readiness problems.
-- Do not add a direct row-level "open plugin UI" button in this story. The current native editor host remains a bounded maintainer seam, and the user-facing score-context launch path should be introduced later as a deliberate secondary handoff rather than smuggled into the readiness slice.
-- If the current backend enum values (`Unassigned`, `Ready`, `NeedsAttention`) are too close to internal semantics rather than the UX-required presentation (`Ready`, `Needs Attention`, `Unavailable`), fix that at the backend-owned presentation seam instead of letting each component choose its own wording and grouping.
-- Avoid broad redesign of the existing row assignment select or bottom-panel toolbars in this slice.
+- Show the current rack in the bottom panel, not a selected-instrument status essay.
+- Keep the row summary compact: slot label, route target summary, and one health signal should do the work.
+- Preserve the three user-facing states `Ready`, `Needs Attention`, and `Unavailable`, but derive them from backend-owned route state.
+- Prefer lightweight contextual recovery handoff over dense troubleshooting copy.
+- Do not default the user into Plugin Manager for ordinary routing problems.
+- Keep route-owned expression-map context to a summary or linkage hint only if the data already exists; do not invent the later editing workflow here.
+- Do not reintroduce the rejected assignment-first terminology in UI copy, docs, or dev notes.
+- If the route summary needs backend help to stay concise, add a Rust-owned summary seam instead of frontend recomputation.
 
 ### Persistence And Migration Requirements
 
-- No `.soloc` persistence change is expected for this story if it remains a display slice.
-- If implementation unexpectedly changes any emitted contract only, do not add a persisted-data migration.
-- If work drifts toward persisted state changes, stop and re-evaluate because that likely means the slice boundary has been crossed.
+- No new `.soloc` migration should be required if Story 3.2 remains a display slice over the Story 3.1 model.
+- If this story only refines emitted UI-facing route summaries, do not add a persisted-data migration.
+- If work unexpectedly changes persisted rack or route intent, stop and re-evaluate because that means the slice boundary has been crossed back into Story 3.1 or later recovery work.
 
 ### File Structure Requirements
 
 - Frontend presentation work should stay centered in:
   - `src/windows/main/screens/sequence/components/instrument-overview-row.tsx`
+  - `src/windows/main/screens/sequence/components/instrument-overview.tsx`
   - `src/windows/main/screens/sequence/components/bottom-panel.tsx`
-  - `src/windows/main/components/plugins.tsx` or a closely related Sequence bottom-panel component seam if that surface is being repurposed
+  - `src/windows/main/screens/sequence/components/playback-status-panel.tsx` or its replacement seam
   - `src/windows/main/hooks/use-bottom-panel-state.ts`
 - Contract changes, if needed, should stay centered in:
   - `src/services/types.ts`
   - `src/services/state/context.tsx`
   - `src-tauri/src/score/instruments/mod.rs`
-- Do not spread this story into Plugin Manager window code unless a tiny contextual handoff hook is genuinely required.
+  - `src-tauri/src/lib.rs`
+  - `src-tauri/src/ui/screens/sequence.rs`
+- Do not spread this story into Plugin Manager window code unless a tiny contextual handoff is genuinely required.
 
 ### Testing Requirements
 
 - Frontend tests should cover:
-  - row rendering for all readiness states shown to users
-  - panel rendering for the selected instrument across ready and non-ready cases
-  - accessible status presentation that does not rely on color alone
-  - one primary contextual recovery action for non-ready states
-- Contract-level tests should cover any backend-owned presentation refinement introduced to support the user-facing state labels.
+  - bottom-panel rendering of the current rack and hosted slots
+  - compact route summary rendering on instrument rows or expansions
+  - accessible health-state presentation without relying on color alone
+  - the one primary contextual recovery path for non-ready route states
+- Contract-level tests should cover any backend-owned route-summary or health-presentation refinement introduced for the UI.
 - Validate with the project-standard commands relevant to touched areas:
   - `npm run lint`
   - `npm run check-types`
@@ -206,53 +236,62 @@ so that I can tell at a glance which parts are playable and which need action.
 ### Library / Framework Requirements
 
 - Stay on the existing brownfield React/Tauri stack and repo conventions.
-- Reuse the current icon, tokenized text, and design-system patterns already present in Sequence and Plugin Manager surfaces.
-- Keep FE/BE contracts `snake_case` and enum alignment explicit if the backend contract changes.
+- Reuse the current Sequence design-system patterns and iconography rather than introducing a new playback-specific UI language.
+- Keep FE/BE contracts `snake_case` and enum/value alignment explicit if the backend contract changes.
 - Do not add new state-management libraries or frontend-owned playback models.
 
 ### Documentation Impact
 
-- Update `docs/architecture.md` or `docs/development-guide.md` if implementation changes how the Sequence bottom panel is described as a score-context playback surface.
-- Keep the docs explicit that Plugin Manager remains the app-scoped inventory-management window.
-- Update any component or developer guidance that still frames the Sequence bottom-panel plugin surface as primarily legacy SCVI/debugging scaffolding once this story gives it a score-context playback role.
+- Update `docs/architecture.md` so the Sequence bottom panel is described as the current-rack surface rather than the superseded readiness panel.
+- Update `docs/development-guide.md` where it still describes the bottom panel as selected-instrument readiness and recovery only.
+- Update `docs/component-inventory.md` if component responsibilities change materially during the replacement.
+- Keep docs explicit that Plugin Manager remains the app-scoped inventory browser and that Sequence owns score-context rack and route summaries.
 
 ### Git Intelligence Summary
 
-- Recent work kept Epic 3 disciplined so far:
+- Recent work shows the old Story 3.2 implementation landed on the branch but is now superseded by the course correction:
+  - `5df3c9e2 feat(3.2): old pas at epic 3 stories`
   - `ed1a09f8 feat(3.1): playback assignment setup`
   - `6f2d04fa chore: epic 2 retro`
   - `cfc3fe3e feat(2.8): abandon plugin image`
   - `ffaad55a feat(2.6): plugin ui`
-  - `f2bb4a6a feat(2.5): bind plugin ui`
-- Preserve that pattern here: deliver a clear readiness-display slice rather than compressing future assignment and runtime work into one story.
+- Treat that first commit as evidence of the rejected slice, not as the desired scope to preserve.
 
 ### Latest Technical Information
 
+- The sprint change proposal explicitly rewrites Story 3.2 around current-rack display and route summaries in Sequence.
 - No new external library or framework choice is required for this story.
-- The current repo already has backend-owned resolved assignment state, selected-instrument Sequence context, and status-chip/icon patterns that should be reused rather than replaced.
+- The current repo already has the Sequence row, bottom-panel, and backend-emitted playback state seams needed for this corrected display slice.
 
 ### Project Structure Notes
 
-- The current Sequence bottom-panel instruments/plugins surface is the right structural seam for this story, but its purpose needs to shift from legacy debugging residue toward selected-instrument playback context.
-- The Setup screen is not the intended panel surface for Story 3.2.
+- Preserve the existing artifact path and sprint key for this replacement so sprint tracking continuity is maintained while the story content is corrected.
+- The Sequence bottom panel should move away from the superseded selected-instrument readiness role and toward current-rack display.
 - The dedicated Plugin Manager remains the canonical app-scoped inventory browser and should not be duplicated here.
 
 ### References
 
-- `_bmad-output/planning-artifacts/epics.md` — Epic 3 Story 3.2 requirements
-- `_bmad-output/planning-artifacts/prd.md` — FR10 and Epic 3 assignment requirements
-- `_bmad-output/planning-artifacts/architecture.md` — backend-owned playback state and score-context versus app-scoped boundaries
-- `_bmad-output/planning-artifacts/ux-design-specification.md` — direct assignment surfaces, three-state playback model, and contextual recovery guidance
-- `_bmad-output/implementation-artifacts/3-1-represent-playback-assignment-state-on-score-instruments.md` — previous story learnings and current backend seam
-- `_bmad-output/implementation-artifacts/epic-2-retro-2026-03-22.md` — bounded-slice guardrails for Story 3.2
-- `docs/project-context.md` — FE/BE ownership rules and Sequence/Plugin Manager boundary guidance
-- `docs/architecture.md` — current assignment seam and app-state flow
-- `src/windows/main/screens/sequence/components/instrument-overview-row.tsx` — compact row surface
-- `src/windows/main/screens/sequence/components/bottom-panel.tsx` — Sequence bottom-panel seam
-- `src/windows/main/components/plugins.tsx` — current bottom-panel plugin surface
-- `src/windows/main/hooks/use-bottom-panel-state.ts` — selected-instrument panel context
-- `src/services/types.ts` — frontend playback assignment contract
-- `src-tauri/src/score/instruments/mod.rs` — backend assignment resolution seam
+- `_bmad-output/planning-artifacts/epics.md` — corrected Epic 3 Story 3.2 requirements
+- `_bmad-output/planning-artifacts/prd.md` — Epic 3 route-first functional requirements
+- `_bmad-output/planning-artifacts/architecture.md` — Rust-owned playback state, score-context boundaries, and backend ownership rules
+- `_bmad-output/planning-artifacts/ux-design-specification.md` — Sequence rack surface, compact route state, and panel-versus-window scope guidance
+- `_bmad-output/planning-artifacts/sprint-change-proposal-2026-03-22-rack-routing-pivot.md` — rationale and required Story 3.2 replacement
+- `_bmad-output/implementation-artifacts/3-1-represent-playback-assignment-state-on-score-instruments.md` — corrected Story 3.1 foundation notes
+- `_bmad-output/implementation-artifacts/3-3-manually-assign-a-plugin-to-a-score-instrument.md` — downstream story that must continue from the corrected rack model
+- `docs/project-context.md` — FE/BE ownership rules and legacy seam guardrails
+- `docs/architecture.md` — current architecture language that will need correction for this story
+- `docs/development-guide.md` — current Sequence bottom-panel guidance that must be realigned
+- `src/windows/main/screens/sequence/components/instrument-overview-row.tsx` — compact route-summary surface
+- `src/windows/main/screens/sequence/components/instrument-overview.tsx` — instrument list orchestration seam
+- `src/windows/main/screens/sequence/components/bottom-panel.tsx` — current-rack display seam
+- `src/windows/main/screens/sequence/components/playback-status-panel.tsx` — superseded panel seam to replace or repurpose
+- `src/windows/main/hooks/use-bottom-panel-state.ts` — score-context bottom-panel state seam
+- `src/services/types.ts` — frontend playback contract mirror
+- `src/services/state/context.tsx` — general app-state mirror
+- `src-tauri/src/score/instruments/mod.rs` — backend route-state seam
+- `src-tauri/src/lib.rs` — Rust-to-frontend state emission seam
+- `src-tauri/src/ui/screens/sequence.rs` — Sequence UI state seam
+- `src-tauri/src/playback/plugin_inventory.rs` — machine-local inventory truth
 
 ## Dev Agent Record
 
@@ -262,42 +301,27 @@ GPT-5.4
 
 ### Debug Log References
 
-- Story selected explicitly as `3.2`.
-- Sprint status showed `3-2-show-assignment-readiness-in-instrument-rows-and-panels` in `backlog` before story creation.
-- Artifact review confirmed Epic 3 must preserve bounded-slice discipline and keep assignment, activation, and recovery as separate slices.
-- UX and architecture review confirmed the intended compact surface is the Sequence instrument row and the intended richer surface is a score-context panel rather than app-scoped inventory management.
-- Human clarification confirmed the "expanded instrument panel" for this story is the Sequence screen bottom panel.
-- Human clarification aligned with the recommended bounded recovery path: keep the panel score-contextual and leave the fuller manual assignment workflow to Story 3.3.
-- Implemented shared readiness presentation mapping in Sequence-only presentation helpers without changing the backend contract.
-- Replaced the Sequence Instruments bottom-panel inventory browse seam with a selected-instrument playback status panel and an in-score focus handoff to the existing row assignment control.
-- Validated the completed slice with `runTests` (1145 passed), `npm run check-types`, and `npm run lint`.
+- Story selected explicitly as `3.2` for replacement after course correction.
+- Sprint tracking showed the old `3-2-show-assignment-readiness-in-instrument-rows-and-panels` artifact in `review`, which conflicted with the corrected Epic 3 story definition.
+- Artifact review confirmed the epics file, UX spec, architecture, and sprint change proposal now define Story 3.2 as a rack-and-route summary slice in Sequence.
+- The old Story 3.2 implementation was treated as superseded and not as a base to extend.
+- The artifact path and sprint key were preserved to avoid unrelated tracking churn while replacing the story content.
 
 ### Completion Notes List
 
-- Added compact readiness badges to Sequence instrument rows while preserving the existing assignment select and row actions.
-- Added a selected-instrument playback status panel in the Sequence bottom panel with concise readiness copy, resolved plugin context, and one primary in-score recovery handoff.
-- Kept readiness mapping centralized in a shared Sequence presentation seam and left the Rust/TypeScript playback assignment contract unchanged.
-- Added focused frontend coverage for row readiness states, panel rendering, and the recovery focus handoff.
-- Updated architecture and development guidance so Plugin Manager remains the app-scoped inventory surface while Sequence owns score-context readiness display.
-- Validation complete: `runTests` passed, `npm run check-types` passed, and `npm run lint` passed.
+- Replaced the old assignment-readiness Story 3.2 context with the corrected current-rack and route-summary scope.
+- Reset the story status to `ready-for-dev` so implementation can restart from the corrected model.
+- Preserved explicit scope boundaries so slot creation, route authoring, shared-slot UX, activation, and reopen recovery remain in later stories.
+- Added current code-seam guidance, legacy seams to avoid, and doc impact for the corrected Sequence workflow.
 
 ### File List
 
 - `_bmad-output/implementation-artifacts/3-2-show-assignment-readiness-in-instrument-rows-and-panels.md`
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
-- `docs/architecture.md`
-- `docs/development-guide.md`
-- `src/windows/main/hooks/use-bottom-panel-state.ts`
-- `src/windows/main/screens/sequence/components/bottom-panel.test.tsx`
-- `src/windows/main/screens/sequence/components/bottom-panel.tsx`
-- `src/windows/main/screens/sequence/components/instrument-overview-row.test.tsx`
-- `src/windows/main/screens/sequence/components/instrument-overview-row.tsx`
-- `src/windows/main/screens/sequence/components/playback-readiness-presentation.ts`
-- `src/windows/main/screens/sequence/components/playback-readiness.tsx`
-- `src/windows/main/screens/sequence/components/playback-status-panel.test.tsx`
-- `src/windows/main/screens/sequence/components/playback-status-panel.tsx`
 
 ## Change Log
+
+- 2026-03-23: Story replaced after the rack-and-routing course correction, superseding the assignment-readiness version and resetting the slice to ready-for-dev.
 
 - 2026-03-22: Story created with bounded Sequence-row and Sequence-bottom-panel readiness scope, explicit score-context recovery guidance, and sprint status advanced to ready-for-dev.
 - 2026-03-22: Implemented Sequence row readiness badges, selected-instrument playback status panel, primary in-score recovery handoff, focused frontend tests, and documentation updates; story advanced to review.
