@@ -19,6 +19,7 @@
 # Story Status:
 #   - backlog: Story only exists in epic file
 #   - ready-for-dev: Story file created in stories folder
+#   - blocked: Story is paused by a prerequisite or decision outside normal dev flow
 #   - in-progress: Developer actively working on implementation
 #   - review: Ready for code review (via Dev's code-review workflow)
 #   - done: Story completed
@@ -35,7 +36,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-03-20T22:13:26Z
-last_updated: 2026-03-23T16:10:00Z
+last_updated: 2026-03-24T15:57:11Z
 project: compose
 project_key: NOKEY
 tracking_system: file-system
@@ -66,8 +67,8 @@ development_status:
   3-2-show-assignment-readiness-in-instrument-rows-and-panels: done
   3-3-manually-assign-a-plugin-to-a-score-instrument: done
   3-4-select-a-part-or-channel-when-assigning-a-compatible-multi-part-plugin: done
-  3-5-reuse-a-compatible-multi-part-plugin-instance-across-multiple-score-instruments: backlog
-  3-6-attempt-automatic-assignment-for-new-score-instruments: backlog
+  3-5-reuse-a-compatible-multi-part-plugin-instance-across-multiple-score-instruments: blocked
+  3-6-attempt-automatic-assignment-for-new-score-instruments: blocked
   3-7-reassign-and-recover-instrument-playback-without-restructuring-the-score: backlog
   3-8-activate-assigned-plugins-for-single-part-and-shared-multi-part-playback: backlog
   3-9-preserve-assignment-lifecycle-and-recoverability-across-the-app-session: backlog
