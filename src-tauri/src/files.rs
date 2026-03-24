@@ -1,6 +1,6 @@
 use crate::instructions::FlowRenderRecalculationRequest;
 use crate::migrations::{MigrationKind, MIGRATIONS};
-use crate::playback::sampler::sync_sampler_with_score;
+use crate::playback::sampler::sync_sampler_with_playback_runtime;
 use crate::playback::transport::{
     stop_transport_playback, sync_transport_to_app_state, TransportContext,
 };
@@ -325,6 +325,10 @@ mod tests {
     use super::*;
     use crate::instructions::{prepare_flow_render_plan, FlowRenderRecalculationRequest};
     use crate::migrations::{MigrationKind, MIGRATIONS};
+    use crate::playback::plugin_inventory::{
+        PluginInventoryAvailability, PluginInventoryContext, PluginInventoryEntry,
+    };
+    use crate::playback::runtime_activation::PlaybackActivationRuntime;
     use crate::playback::transport::{sync_transport_to_app_state, TransportContext};
     use crate::preferences::Preferences;
     use crate::score::components::{
@@ -339,9 +343,13 @@ mod tests {
         Entry,
     };
     use crate::score::flows::Flow;
+    use crate::score::instruments::{defs::InstrumentType, Instrument, Instruments};
     use crate::score::layouts::{Layout, LayoutType};
+    use crate::score::playback::ResolvedPlaybackRouteStatus;
+    use crate::score::players::{Player, PlayerType, Players};
     use crate::score::tracks::Track;
     use crate::{score::Score, ui::Ui, AppContext};
+    use rustc_hash::FxHashMap;
     use serde_json::json;
 
     fn test_app_version() -> &'static str {
@@ -499,6 +507,21 @@ mod tests {
         state.next_id = project_file.next_id;
         state.current_file_path = Some(file_path);
         sync_transport_to_app_state(transport_context, state, 0);
+    }
+
+    fn available_inventory_entry(plugin_id: &str) -> PluginInventoryEntry {
+        PluginInventoryEntry {
+            id: plugin_id.to_string(),
+            name: plugin_id.to_string(),
+            bundle_path: format!("/Library/Audio/Plug-Ins/VST3/{plugin_id}.vst3"),
+            binary_path: Some(format!(
+                "/Library/Audio/Plug-Ins/VST3/{plugin_id}.vst3/Contents/MacOS/{plugin_id}"
+            )),
+            source_root: String::from("/Library/Audio/Plug-Ins/VST3"),
+            availability: PluginInventoryAvailability::Available,
+            validation_failure: None,
+            editor_host_validation: None,
+        }
     }
 
     fn legacy_non_tuplet_fixture_payload() -> Value {
@@ -1726,6 +1749,7 @@ mod tests {
         let state = AppContext {
             ui,
             score,
+            playback_activation_runtime: PlaybackActivationRuntime::default(),
             preferences: make_preferences(),
             next_id: 42,
             current_file_path: Some("/tmp/example.soloc".to_string()),
@@ -2017,6 +2041,7 @@ mod tests {
         let mut state = AppContext {
             ui: Ui::new(),
             score: build_score_with_visible_flows(&[30], &[30]),
+            playback_activation_runtime: PlaybackActivationRuntime::default(),
             preferences: make_preferences(),
             next_id: 5,
             current_file_path: None,
@@ -2068,6 +2093,84 @@ mod tests {
             0
         );
         assert!(transport_shared.get_tempo() > 0.0);
+    }
+
+    #[test]
+    fn applying_loaded_project_can_refresh_single_target_runtime_activation() {
+        let (_transport_state, transport_shared) = TransportContext::new();
+        let inventory =
+            PluginInventoryContext::with_entries_for_tests(vec![available_inventory_entry(
+                "plugin-a",
+            )]);
+        let mut score = build_score_with_visible_flows(&[30], &[30]);
+        score.players = Players {
+            order: vec![1],
+            by_id: FxHashMap::from_iter([(1, Player::new(1, PlayerType::Section))]),
+        };
+        score.players.by_id.get_mut(&1).unwrap().instrument_ids = vec![10];
+        score.instruments = Instruments {
+            by_id: FxHashMap::from_iter([(
+                10,
+                Instrument {
+                    id: 10,
+                    definition_id: String::from("strings.violin"),
+                    instrument_type: InstrumentType::Melodic,
+                    long_name: String::from("Violin"),
+                    short_name: String::from("Vln."),
+                    stave_ids: vec![],
+                    count: None,
+                    playback_route: None,
+                    volume: 100,
+                    pan: 64,
+                    mute: false,
+                    solo: false,
+                },
+            )]),
+        };
+        score.create_playback_slot(300).unwrap();
+        score
+            .assign_plugin_to_slot(300, String::from("plugin-a"))
+            .unwrap();
+        score.assign_instrument_route_to_slot(10, 300).unwrap();
+        let project_file = ProjectFile {
+            ui: Ui::new(),
+            score,
+            next_id: 500,
+        };
+        let mut state = AppContext {
+            ui: Ui::new(),
+            score: Score::new(),
+            playback_activation_runtime: PlaybackActivationRuntime::default(),
+            preferences: make_preferences(),
+            next_id: 1,
+            current_file_path: None,
+        };
+
+        restore_loaded_project_for_test(
+            &mut state,
+            &transport_shared,
+            project_file,
+            "/tmp/runtime-refresh.soloc".to_string(),
+        );
+        state.playback_activation_runtime =
+            PlaybackActivationRuntime::from_score_and_inventory(&state.score, &inventory);
+
+        let resolved = state
+            .playback_activation_runtime
+            .resolved_playback_route_by_instrument_id(&state.score);
+
+        assert_eq!(
+            resolved.get(&10).unwrap().status,
+            ResolvedPlaybackRouteStatus::Ready
+        );
+        assert_eq!(
+            resolved.get(&10).unwrap().effective_plugin_id.as_deref(),
+            Some("plugin-a")
+        );
+        assert_eq!(
+            state.current_file_path.as_deref(),
+            Some("/tmp/runtime-refresh.soloc")
+        );
     }
 
     #[test]
@@ -2204,8 +2307,15 @@ pub fn load_project_from_file(
     // Update the current file path
     state.current_file_path = Some(file_path);
     sync_transport_to_app_state(&transport_shared, &state, 0);
+    state.refresh_playback_activation_runtime_from_app(&app);
 
-    let score = state.score.clone();
+    sync_sampler_with_playback_runtime(
+        &app,
+        &state.playback_activation_runtime,
+        sampler_state.inner(),
+        audio_state.inner(),
+        "after load",
+    );
 
     // Emit the updated state
     state.emit_general_state(
@@ -2214,17 +2324,9 @@ pub fn load_project_from_file(
         Some(FlowRenderRecalculationRequest::full_visible_flows()),
     );
 
-    // Drop state locks before potentially slow sampler sync
+    // Drop state locks before emitting side-channel menu events
     drop(state);
     drop(renderer);
-
-    sync_sampler_with_score(
-        &app,
-        &score,
-        sampler_state.inner(),
-        audio_state.inner(),
-        "after load",
-    );
 
     // Emit event to trigger menu refresh
     app.emit("soloc://recents-changed", ()).ok();

@@ -1,11 +1,11 @@
-use crate::playback::plugin_inventory::PluginInventoryContextState;
+use crate::playback::runtime_activation::PlaybackActivationRuntime;
 use crate::playback::tuplet_projection::{collect_track_playback_events, PlaybackTick};
 use crate::score::components::duration::Tick;
 use crate::score::entries::tempo::{EffectiveTempoResolver, DEFAULT_TEMPO_BPM};
 use crate::score::Score;
 use crate::utils::UniqueId;
 use crate::{AppContext, AppContextState, AudioContextState};
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering as CmpOrdering;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -242,7 +242,7 @@ fn compare_scheduled_notes(left: &ScheduledNote, right: &ScheduledNote) -> CmpOr
 fn collect_scheduled_notes(
     score: &Score,
     flow_id: UniqueId,
-    available_plugin_ids: &FxHashSet<String>,
+    playback_runtime: &PlaybackActivationRuntime,
 ) -> FxHashMap<Tick, Vec<ScheduledNote>> {
     let mut notes_by_tick: FxHashMap<Tick, Vec<ScheduledNote>> = FxHashMap::default();
 
@@ -265,7 +265,7 @@ fn collect_scheduled_notes(
             };
 
             let plugin_id =
-                match score.instrument_effective_plugin_id(*instrument_id, available_plugin_ids) {
+                match playback_runtime.effective_plugin_id_for_instrument(*instrument_id) {
                     Some(id) => String::from(id),
                     None => continue,
                 };
@@ -327,7 +327,6 @@ struct PlaybackSnapshot {
 fn build_supported_playback_snapshot(
     app_ctx: &AppContext,
     current_tick: Tick,
-    available_plugin_ids: &FxHashSet<String>,
 ) -> Option<(PlaybackSnapshot, f64)> {
     let flow_id = active_flow_id(app_ctx)?;
     let flow =
@@ -344,7 +343,11 @@ fn build_supported_playback_snapshot(
     Some((
         PlaybackSnapshot {
             score: app_ctx.score.clone(),
-            scheduled_notes: collect_scheduled_notes(&app_ctx.score, flow_id, available_plugin_ids),
+            scheduled_notes: collect_scheduled_notes(
+                &app_ctx.score,
+                flow_id,
+                &app_ctx.playback_activation_runtime,
+            ),
             flow_length: flow.length,
             tempo_resolver,
             execution_mode: PlaybackExecutionMode::TransportOnly,
@@ -450,7 +453,6 @@ fn transport_thread(shared: Arc<TransportShared>, snapshot: PlaybackSnapshot) {
 fn transport_play_with_states(
     state: &Mutex<TransportContext>,
     app_state: &AppContextState,
-    plugin_inventory_state: &PluginInventoryContextState,
 ) -> Result<(), String> {
     let (shared, stale_handle) = {
         let mut ctx = state.lock().unwrap();
@@ -467,12 +469,8 @@ fn transport_play_with_states(
     let (snapshot, initial_tempo) = {
         let app_ctx = app_state.lock().unwrap();
         let current_tick = shared.current_tick.load(Ordering::Relaxed);
-        let available_plugin_ids = plugin_inventory_state
-            .lock()
-            .unwrap()
-            .available_plugin_ids();
 
-        match build_supported_playback_snapshot(&app_ctx, current_tick, &available_plugin_ids) {
+        match build_supported_playback_snapshot(&app_ctx, current_tick) {
             Some((snapshot, initial_tempo)) => (snapshot, initial_tempo),
             None => {
                 let flow_id = active_flow_id(&app_ctx);
@@ -523,13 +521,8 @@ fn transport_play_with_states(
 pub fn transport_play(
     state: State<'_, Mutex<TransportContext>>,
     app_state: State<'_, AppContextState>,
-    plugin_inventory_state: State<'_, PluginInventoryContextState>,
 ) -> Result<(), String> {
-    transport_play_with_states(
-        state.inner(),
-        app_state.inner(),
-        plugin_inventory_state.inner(),
-    )
+    transport_play_with_states(state.inner(), app_state.inner())
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -611,6 +604,7 @@ mod tests {
     use crate::playback::plugin_inventory::{
         PluginInventoryAvailability, PluginInventoryContext, PluginInventoryEntry,
     };
+    use crate::playback::runtime_activation::PlaybackActivationRuntime;
     use crate::score::components::duration::NoteDuration;
     use crate::score::entries::{tempo::Tempo, Entry};
     use crate::score::flows::Flow;
@@ -672,11 +666,39 @@ mod tests {
 
         AppContext {
             ui,
+            playback_activation_runtime: make_playback_runtime_for_score(&score),
             score,
             preferences: make_preferences(),
             next_id: 1,
             current_file_path: None,
         }
+    }
+
+    fn make_playback_runtime_for_score(score: &Score) -> PlaybackActivationRuntime {
+        let inventory = PluginInventoryContext::with_entries_for_tests(
+            score
+                .playback
+                .rack
+                .by_id
+                .values()
+                .filter_map(|slot| slot.target.as_ref())
+                .map(|target| PluginInventoryEntry {
+                    id: target.plugin_id.clone(),
+                    name: target.plugin_id.clone(),
+                    bundle_path: format!("/tmp/{}.vst3", target.plugin_id),
+                    binary_path: Some(format!(
+                        "/tmp/{}.vst3/Contents/MacOS/{}",
+                        target.plugin_id, target.plugin_id
+                    )),
+                    source_root: String::from("/tmp"),
+                    availability: PluginInventoryAvailability::Available,
+                    validation_failure: None,
+                    editor_host_validation: None,
+                })
+                .collect(),
+        );
+
+        PlaybackActivationRuntime::from_score_and_inventory(score, &inventory)
     }
 
     fn add_flow_with_tempos(
@@ -809,27 +831,6 @@ mod tests {
             .expect("route assignment should succeed");
 
         (score, flow_id)
-    }
-
-    fn make_available_plugin_ids(ids: &[&str]) -> FxHashSet<String> {
-        ids.iter().map(|id| String::from(*id)).collect()
-    }
-
-    fn make_plugin_inventory_state(ids: &[&str]) -> Mutex<PluginInventoryContext> {
-        Mutex::new(PluginInventoryContext::with_entries_for_tests(
-            ids.iter()
-                .map(|id| PluginInventoryEntry {
-                    id: String::from(*id),
-                    name: String::from(*id),
-                    bundle_path: format!("/tmp/{id}.vst3"),
-                    binary_path: Some(format!("/tmp/{id}.vst3/Contents/MacOS/{id}")),
-                    source_root: String::from("/tmp"),
-                    availability: PluginInventoryAvailability::Available,
-                    validation_failure: None,
-                    editor_host_validation: None,
-                })
-                .collect(),
-        ))
     }
 
     fn make_flow_score_with_track_and_tempos(
@@ -1075,10 +1076,8 @@ mod tests {
         let (score, flow_id) = make_flow_score_with_track(track);
         let app_ctx = make_app_context(score, Some(flow_id));
 
-        let available_plugin_ids = make_available_plugin_ids(&["plugin-a"]);
         let (snapshot, initial_tempo) =
-            build_supported_playback_snapshot(&app_ctx, 0, &available_plugin_ids)
-                .expect("expected snapshot");
+            build_supported_playback_snapshot(&app_ctx, 0).expect("expected snapshot");
 
         assert_eq!(initial_tempo, 120.0);
         assert_eq!(
@@ -1098,9 +1097,25 @@ mod tests {
         let (score, flow_id) = make_flow_score_with_track(track);
         let app_ctx = make_app_context(score, Some(flow_id));
 
-        let available_plugin_ids = make_available_plugin_ids(&["plugin-a"]);
+        assert!(build_supported_playback_snapshot(&app_ctx, 160).is_none());
+    }
 
-        assert!(build_supported_playback_snapshot(&app_ctx, 160, &available_plugin_ids).is_none());
+    #[test]
+    fn build_supported_playback_snapshot_skips_routes_missing_from_runtime_activation() {
+        let mut track = Track::new(50);
+        track
+            .create_tone(80, 32, 16, 60, None, 96, Default::default(), None)
+            .unwrap();
+
+        let (score, flow_id) = make_flow_score_with_track(track);
+        let mut app_ctx = make_app_context(score, Some(flow_id));
+        app_ctx.playback_activation_runtime = PlaybackActivationRuntime::default();
+
+        let (snapshot, initial_tempo) =
+            build_supported_playback_snapshot(&app_ctx, 0).expect("expected snapshot");
+
+        assert_eq!(initial_tempo, 120.0);
+        assert!(snapshot.scheduled_notes.is_empty());
     }
 
     #[test]
@@ -1113,9 +1128,7 @@ mod tests {
         let (score, flow_id) = make_flow_score_with_track(track);
         let transport_state = make_transport_context_state();
         let app_state = Mutex::new(make_app_context(score, Some(flow_id)));
-        let plugin_inventory_state = make_plugin_inventory_state(&["plugin-a"]);
-
-        transport_play_with_states(&transport_state, &app_state, &plugin_inventory_state).unwrap();
+        transport_play_with_states(&transport_state, &app_state).unwrap();
 
         let ctx = transport_state.lock().unwrap();
         assert!(ctx.shared.playing.load(Ordering::Acquire));
@@ -1148,9 +1161,7 @@ mod tests {
             ctx.shared.current_tick.store(160, Ordering::Relaxed);
         }
         let app_state = Mutex::new(make_app_context(score, Some(flow_id)));
-        let plugin_inventory_state = make_plugin_inventory_state(&["plugin-a"]);
-
-        transport_play_with_states(&transport_state, &app_state, &plugin_inventory_state).unwrap();
+        transport_play_with_states(&transport_state, &app_state).unwrap();
 
         let ctx = transport_state.lock().unwrap();
         assert!(!ctx.shared.playing.load(Ordering::Acquire));
@@ -1290,11 +1301,11 @@ mod tests {
         );
 
         let app_ctx = make_app_context(score, Some(selected_flow_id));
-        let available_plugin_ids = make_available_plugin_ids(&["plugin-a", "plugin-b"]);
+        let playback_runtime = make_playback_runtime_for_score(&app_ctx.score);
         let scheduled = collect_scheduled_notes(
             &app_ctx.score,
             active_flow_id(&app_ctx).expect("expected active flow"),
-            &available_plugin_ids,
+            &playback_runtime,
         );
 
         assert_eq!(
@@ -1384,11 +1395,11 @@ mod tests {
         );
 
         let app_ctx = make_app_context(score, Some(selected_flow_id));
-        let available_plugin_ids = make_available_plugin_ids(&["plugin-a", "plugin-b"]);
+        let playback_runtime = make_playback_runtime_for_score(&app_ctx.score);
         let scheduled = collect_scheduled_notes(
             &app_ctx.score,
             active_flow_id(&app_ctx).expect("expected active flow"),
-            &available_plugin_ids,
+            &playback_runtime,
         );
 
         assert_eq!(
@@ -1469,9 +1480,9 @@ mod tests {
 
         let app_ctx = make_app_context(score, None);
         let selected_flow_id = active_flow_id(&app_ctx).expect("expected fallback flow");
-        let available_plugin_ids = make_available_plugin_ids(&["plugin-a", "plugin-b"]);
+        let playback_runtime = make_playback_runtime_for_score(&app_ctx.score);
         let scheduled =
-            collect_scheduled_notes(&app_ctx.score, selected_flow_id, &available_plugin_ids);
+            collect_scheduled_notes(&app_ctx.score, selected_flow_id, &playback_runtime);
 
         assert_eq!(selected_flow_id, first_flow_id);
         assert_eq!(
@@ -1504,8 +1515,8 @@ mod tests {
             .unwrap();
 
         let (score, flow_id) = make_flow_score_with_track(track);
-        let available_plugin_ids = make_available_plugin_ids(&["plugin-a"]);
-        let scheduled = collect_scheduled_notes(&score, flow_id, &available_plugin_ids);
+        let playback_runtime = make_playback_runtime_for_score(&score);
+        let scheduled = collect_scheduled_notes(&score, flow_id, &playback_runtime);
 
         assert_eq!(scheduled.get(&96).map(Vec::len), Some(1));
         assert_eq!(scheduled.get(&106).map(Vec::len), Some(1));
@@ -1529,8 +1540,8 @@ mod tests {
             .unwrap();
 
         let (score, flow_id) = make_flow_score_with_track(track);
-        let available_plugin_ids = make_available_plugin_ids(&["plugin-a"]);
-        let scheduled = collect_scheduled_notes(&score, flow_id, &available_plugin_ids);
+        let playback_runtime = make_playback_runtime_for_score(&score);
+        let scheduled = collect_scheduled_notes(&score, flow_id, &playback_runtime);
 
         assert_eq!(
             flatten_scheduled_starts(&scheduled),
@@ -1563,8 +1574,8 @@ mod tests {
             .unwrap();
 
         let (score, flow_id) = make_flow_score_with_track(track);
-        let available_plugin_ids = make_available_plugin_ids(&["plugin-a"]);
-        let scheduled = collect_scheduled_notes(&score, flow_id, &available_plugin_ids);
+        let playback_runtime = make_playback_runtime_for_score(&score);
+        let scheduled = collect_scheduled_notes(&score, flow_id, &playback_runtime);
         let bucket = scheduled
             .get(&106)
             .expect("expected mixed shared bucket at tick 106");
@@ -1602,8 +1613,8 @@ mod tests {
             .unwrap();
 
         let (score, flow_id) = make_flow_score_with_track(track);
-        let available_plugin_ids = make_available_plugin_ids(&["plugin-a"]);
-        let scheduled = collect_scheduled_notes(&score, flow_id, &available_plugin_ids);
+        let playback_runtime = make_playback_runtime_for_score(&score);
+        let scheduled = collect_scheduled_notes(&score, flow_id, &playback_runtime);
 
         assert_eq!(
             flatten_scheduled_starts(&scheduled),
@@ -1632,8 +1643,8 @@ mod tests {
             .unwrap();
 
         let (score, flow_id) = make_flow_score_with_track(track);
-        let available_plugin_ids = make_available_plugin_ids(&["plugin-a"]);
-        let scheduled = collect_scheduled_notes(&score, flow_id, &available_plugin_ids);
+        let playback_runtime = make_playback_runtime_for_score(&score);
+        let scheduled = collect_scheduled_notes(&score, flow_id, &playback_runtime);
 
         assert!(scheduled
             .values()
@@ -1656,8 +1667,8 @@ mod tests {
             (first_track, "plugin-a", false, false),
             (second_track, "plugin-b", false, false),
         ]);
-        let available_plugin_ids = make_available_plugin_ids(&["plugin-a", "plugin-b"]);
-        let scheduled = collect_scheduled_notes(&score, flow_id, &available_plugin_ids);
+        let playback_runtime = make_playback_runtime_for_score(&score);
+        let scheduled = collect_scheduled_notes(&score, flow_id, &playback_runtime);
         let bucket = scheduled
             .get(&96)
             .expect("expected host-only shared bucket");
@@ -1686,8 +1697,8 @@ mod tests {
             .unwrap();
 
         let (score, flow_id) = make_flow_score_with_track_and_tempos(track, &[(0, 84), (64, 132)]);
-        let available_plugin_ids = make_available_plugin_ids(&["plugin-a"]);
-        let scheduled = collect_scheduled_notes(&score, flow_id, &available_plugin_ids);
+        let playback_runtime = make_playback_runtime_for_score(&score);
+        let scheduled = collect_scheduled_notes(&score, flow_id, &playback_runtime);
         let starts = flatten_scheduled_starts(&scheduled);
 
         assert_eq!(

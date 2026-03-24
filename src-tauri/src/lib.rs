@@ -17,6 +17,7 @@ use crate::playback::plugin_editor_poc::plugin_editor_poc_open;
 use crate::playback::plugin_inventory::{
     plugin_inventory_discover, PluginInventoryContext, PluginInventoryContextState,
 };
+use crate::playback::runtime_activation::PlaybackActivationRuntime;
 use crate::playback::sampler::{sampler_audition, sampler_rescan_plugins, SamplerContext};
 use crate::playback::transport::{
     stop_transport_playback, sync_transport_to_app_state, transport_get_state, transport_pause,
@@ -35,7 +36,6 @@ use instructions::{
 use preferences::{preferences_audition_set, Preferences};
 use renderer::hit_test::renderer_hit_test;
 use renderer::RendererContext;
-use rustc_hash::FxHashSet;
 use score::config::{
     score_config_auto_count_styles_section_set, score_config_auto_count_styles_solo_set,
 };
@@ -146,18 +146,10 @@ struct AppStateGeneral {
 struct AppContext {
     ui: Ui,
     score: Score,
+    playback_activation_runtime: PlaybackActivationRuntime,
     preferences: Preferences,
     next_id: UniqueId,
     current_file_path: Option<String>,
-}
-
-fn get_available_plugin_ids(
-    plugin_inventory_state: &ManagedPluginInventoryContextState,
-) -> FxHashSet<String> {
-    plugin_inventory_state
-        .lock()
-        .unwrap()
-        .available_plugin_ids()
 }
 
 impl AppContext {
@@ -165,10 +157,41 @@ impl AppContext {
         Mutex::new(Self {
             ui: Ui::new(),
             score: Score::new(),
+            playback_activation_runtime: PlaybackActivationRuntime::default(),
             preferences: Preferences::new(app_handle),
             next_id: 1,
             current_file_path: None,
         })
+    }
+
+    pub(crate) fn refresh_playback_activation_runtime(
+        &mut self,
+        plugin_inventory_state: &ManagedPluginInventoryContextState,
+    ) {
+        let inventory = plugin_inventory_state.lock().unwrap();
+        self.playback_activation_runtime =
+            PlaybackActivationRuntime::from_score_and_inventory(&self.score, &inventory);
+    }
+
+    pub(crate) fn reconcile_playback_activation_runtime_with_sampler(
+        &mut self,
+        sampler_state: &SamplerContextState,
+    ) {
+        let sampler = sampler_state.lock().unwrap();
+        self.playback_activation_runtime
+            .retain_only_loaded_plugin_ids(&sampler.loaded_plugin_ids_set());
+    }
+
+    pub(crate) fn refresh_playback_activation_runtime_from_app(&mut self, app: &AppHandle) {
+        self.refresh_playback_activation_runtime(
+            app.state::<ManagedPluginInventoryContextState>().inner(),
+        );
+    }
+
+    pub(crate) fn reconcile_playback_activation_runtime_with_app(&mut self, app: &AppHandle) {
+        self.reconcile_playback_activation_runtime_with_sampler(
+            app.state::<SamplerContextState>().inner(),
+        );
     }
 
     pub(crate) fn flow_id_for_track(&self, track_id: UniqueId) -> Option<UniqueId> {
@@ -269,16 +292,16 @@ impl AppContext {
         renderer: &mut RendererContext,
         recalculation_request: Option<FlowRenderRecalculationRequest>,
     ) {
+        self.refresh_playback_activation_runtime_from_app(app);
+        self.reconcile_playback_activation_runtime_with_app(app);
         self.render_with_recalculation(app, renderer, recalculation_request);
 
         let general_state = AppStateGeneral {
             ui: self.ui.clone(),
             score: self.score.clone(),
             resolved_playback_route_by_instrument_id: self
-                .score
-                .resolved_playback_route_by_instrument_id(&get_available_plugin_ids(
-                    app.state::<ManagedPluginInventoryContextState>().inner(),
-                )),
+                .playback_activation_runtime
+                .resolved_playback_route_by_instrument_id(&self.score),
             route_target_options_by_slot_id: self.score.playback_route_choices_by_slot_id(),
             current_file_path: self.current_file_path.clone(),
             preferences: self.preferences.clone(),
@@ -338,16 +361,18 @@ const APP_NAME: &str = "Solo Compose";
 fn get_general_state(
     state: State<'_, AppContextState>,
     plugin_inventory_state: State<'_, ManagedPluginInventoryContextState>,
+    sampler_state: State<'_, SamplerContextState>,
 ) -> AppStateGeneral {
-    let state = state.lock().unwrap();
-    let available_plugin_ids = get_available_plugin_ids(plugin_inventory_state.inner());
+    let mut state = state.lock().unwrap();
+    state.refresh_playback_activation_runtime(plugin_inventory_state.inner());
+    state.reconcile_playback_activation_runtime_with_sampler(sampler_state.inner());
 
     AppStateGeneral {
         ui: state.ui.clone(),
         score: state.score.clone(),
         resolved_playback_route_by_instrument_id: state
-            .score
-            .resolved_playback_route_by_instrument_id(&available_plugin_ids),
+            .playback_activation_runtime
+            .resolved_playback_route_by_instrument_id(&state.score),
         route_target_options_by_slot_id: state.score.playback_route_choices_by_slot_id(),
         preferences: state.preferences.clone(),
         current_file_path: state.current_file_path.clone(),
@@ -366,8 +391,6 @@ fn initialize(
 ) {
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
-    let audio = audio_state.lock().unwrap();
-    let sampler = sampler_state.lock().unwrap();
 
     sync_transport_to_app_state(transport_shared.inner(), &state, 0);
     state.emit_general_state(
@@ -375,9 +398,13 @@ fn initialize(
         &mut renderer,
         Some(FlowRenderRecalculationRequest::full_visible_flows()),
     );
-    audio.emit(&app);
+
+    drop(state);
+    drop(renderer);
+
+    audio_state.lock().unwrap().emit(&app);
     plugin_inventory_state.lock().unwrap().emit(&app);
-    sampler.emit(&app);
+    sampler_state.lock().unwrap().emit(&app);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -431,6 +458,7 @@ pub(crate) fn get_general_state_snapshot(app: &AppHandle) -> AppStateGeneral {
     get_general_state(
         app.state::<AppContextState>(),
         app.state::<ManagedPluginInventoryContextState>(),
+        app.state::<SamplerContextState>(),
     )
 }
 

@@ -1337,6 +1337,7 @@ mod tests {
     use crate::instructions::parse::get_stem_directions::get_stem_directions;
     use crate::instructions::parse::get_tone_offsets::get_tone_offsets;
     use crate::instructions::parse::get_written_durations::get_written_durations;
+    use crate::playback::runtime_activation::PlaybackActivationRuntime;
     use crate::renderer::converter::Converter;
     use crate::renderer::RendererContext;
     use crate::renderer::{DrawInstruction, HitTarget};
@@ -1397,6 +1398,7 @@ mod tests {
         let mut app = AppContext {
             ui: Ui::new(),
             score,
+            playback_activation_runtime: PlaybackActivationRuntime::default(),
             preferences: serde_json::from_str(r#"{"audition":true}"#).unwrap(),
             next_id: 100,
             current_file_path: None,

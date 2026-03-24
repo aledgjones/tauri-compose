@@ -321,6 +321,7 @@ pub fn score_flows_remove(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::playback::runtime_activation::PlaybackActivationRuntime;
     use crate::preferences::Preferences;
     use crate::score::entries::clef::ClefDrawType;
     use crate::score::instruments::{Instrument, Instruments};
@@ -394,6 +395,7 @@ mod tests {
         AppContext {
             ui: Ui::new(),
             score,
+            playback_activation_runtime: PlaybackActivationRuntime::default(),
             preferences: serde_json::from_str::<Preferences>(r#"{"audition":true}"#).unwrap(),
             next_id: 1,
             current_file_path: None,

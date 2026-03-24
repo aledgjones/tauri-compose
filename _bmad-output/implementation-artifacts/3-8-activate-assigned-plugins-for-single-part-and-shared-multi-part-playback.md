@@ -1,6 +1,6 @@
 # Story 3.8: Activate Single-Target Rack Slots For Playback And Preserve Same-Session Runtime Coherence
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -16,22 +16,22 @@ so that the current routed score can participate in later playback work without 
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Define one backend-owned single-target activation seam that consumes existing rack and route intent without extending the legacy sampler-era product contract (AC: 1)
-  - [ ] Reuse the persisted rack-slot and route model from Stories 3.1 through 3.4 rather than inventing a parallel activation topology.
-  - [ ] Keep activation bounded to currently supported single-target routes; do not absorb shared-slot or multi-target runtime behavior from deferred Story 3.5.
-  - [ ] Preserve the rule that React remains a presentation layer and must not infer activation truth or runtime ownership.
-- [ ] Task 2: Refresh activation coherently through the ordinary same-session seams that already change score playback state (AC: 1, 2)
-  - [ ] Ensure slot assignment, slot unassignment, route assignment, route clearing, and project load all drive the same backend-owned activation refresh path.
-  - [ ] Keep same-session continuity backend-owned so the routed score does not feel like a one-shot setup action after file load or further editing.
-  - [ ] Do not expand this story into audible transport behavior, first-playback rendering, or broader transport trust semantics.
-- [ ] Task 3: Surface explicit degraded runtime state through existing readiness truth instead of silent fallback (AC: 2, 3)
-  - [ ] Drive non-ready outcomes from backend-owned activation or availability truth rather than frontend heuristics.
-  - [ ] Preserve clear recoverability when an activated slot becomes unavailable or cannot remain usable during the current app session.
-  - [ ] Keep score-context recovery anchored in the existing rack and route workflow rather than inventing a plugin-manager-first runtime-repair flow.
-- [ ] Task 4: Add focused validation and documentation updates for the bounded activation path (AC: 1, 2, 3)
-  - [ ] Add backend tests for single-target activation refresh on route and slot mutations plus project load.
-  - [ ] Add frontend or seam-local tests only where UI-facing readiness behavior changes as a result of the new backend-owned activation truth.
-  - [ ] Update docs so Epic 3 activation is described as same-session runtime preparation for currently routed single-target slots, while reopen recovery remains owned by Epic 5.
+- [x] Task 1: Define one backend-owned single-target activation seam that consumes existing rack and route intent without extending the legacy sampler-era product contract (AC: 1)
+  - [x] Reuse the persisted rack-slot and route model from Stories 3.1 through 3.4 rather than inventing a parallel activation topology.
+  - [x] Keep activation bounded to currently supported single-target routes; do not absorb shared-slot or multi-target runtime behavior from deferred Story 3.5.
+  - [x] Preserve the rule that React remains a presentation layer and must not infer activation truth or runtime ownership.
+- [x] Task 2: Refresh activation coherently through the ordinary same-session seams that already change score playback state (AC: 1, 2)
+  - [x] Ensure slot assignment, slot unassignment, route assignment, route clearing, and project load all drive the same backend-owned activation refresh path.
+  - [x] Keep same-session continuity backend-owned so the routed score does not feel like a one-shot setup action after file load or further editing.
+  - [x] Do not expand this story into audible transport behavior, first-playback rendering, or broader transport trust semantics.
+- [x] Task 3: Surface explicit degraded runtime state through existing readiness truth instead of silent fallback (AC: 2, 3)
+  - [x] Drive non-ready outcomes from backend-owned activation or availability truth rather than frontend heuristics.
+  - [x] Preserve clear recoverability when an activated slot becomes unavailable or cannot remain usable during the current app session.
+  - [x] Keep score-context recovery anchored in the existing rack and route workflow rather than inventing a plugin-manager-first runtime-repair flow.
+- [x] Task 4: Add focused validation and documentation updates for the bounded activation path (AC: 1, 2, 3)
+  - [x] Add backend tests for single-target activation refresh on route and slot mutations plus project load.
+  - [x] Add frontend or seam-local tests only where UI-facing readiness behavior changes as a result of the new backend-owned activation truth.
+  - [x] Update docs so Epic 3 activation is described as same-session runtime preparation for currently routed single-target slots, while reopen recovery remains owned by Epic 5.
 
 ## Dev Notes
 
@@ -202,21 +202,58 @@ so that the current routed score can participate in later playback work without 
 
 - Story file created during sprint correction and then reopened once Epic 3 was narrowed to the single-target playback runway.
 - This is now the next active Epic 3 slice before Epic 4 playback hookup.
+- Add a backend-owned non-persisted playback activation runtime that rebuilds from rack or route intent plus plugin inventory truth and feeds the existing general-state readiness emission.
+- Keep the legacy sampler sync as an explicit compatibility bridge that consumes activated runtime truth instead of deriving readiness directly from persisted score intent.
 
 ### Debug Log
 
 - Created the dedicated Story 3.8 implementation artifact after narrowing the epic-level wording.
 - Kept same-session runtime coherence with Story 3.8 and pushed reopen responsibilities into Epic 5.
+- Added `src-tauri/src/playback/runtime_activation.rs` and threaded activation refresh through slot, route, player-removal, file-load, and inventory-refresh seams.
+- Updated the sampler compatibility seam, performance shim, and seam-local Rust tests to follow the new runtime activation contract.
+- Updated architecture, development-guide, and data-models docs to distinguish persisted rack or route intent from non-persisted same-session activation.
+- Followed code review by reconciling emitted readiness against sampler-loaded runtime truth so inventory-visible routes do not surface as ready before a usable runtime target exists.
+- Removed the remaining transport-side inventory availability seam so transport scheduling now consumes `AppContext.playback_activation_runtime` directly and stays aligned with the same backend readiness contract.
+- Fixed a startup self-deadlock in `initialize` by releasing side-channel sampler and audio lock acquisition until after general-state emission completes its runtime reconciliation.
 
 ### Completion Notes
 
-- Comprehensive story context is in place so implementation can proceed on a bounded single-target runtime slice without resurrecting the old broader scope.
+- Implemented a backend-owned `PlaybackActivationRuntime` in `AppContext` that activates currently supported single-target routes from persisted score rack or route intent plus machine-local VST3 inventory truth.
+- Unified same-session activation refresh across slot assignment, slot unassignment, slot removal, route assignment, route clearing, player-removal seams, project load, and inventory refresh while keeping transport timing-only and reopen restoration out of scope.
+- Preserved frontend presentation as a pure consumer of backend-emitted readiness and kept the legacy sampler bridge explicitly compatibility-only by syncing it from activated runtime truth.
+- Tightened the readiness contract after review so backend-emitted `Ready` reflects reconciled sampler-loaded runtime truth rather than inventory-only candidate activation.
+- Unified transport preparation with the same runtime activation model by removing the redundant score or inventory-based playable-route seam from production transport code.
+- Added Rust seam-local coverage for single-target activation, slot and route refresh, degraded availability, and project-load refresh; updated the required docs for the new same-session runtime boundary.
+- Validation completed with `npm run lint`, `npm run check-types`, `npm run test:js`, `cargo clippy --manifest-path src-tauri/Cargo.toml --lib -- -D warnings`, and `cargo test --manifest-path src-tauri/Cargo.toml --lib`.
+- Follow-up review-fix validation completed with `cargo test --manifest-path /Users/aledjones/compose/src-tauri/Cargo.toml --lib playback::transport`, `cargo test --manifest-path /Users/aledjones/compose/src-tauri/Cargo.toml --lib playback::runtime_activation`, and `cargo test --manifest-path /Users/aledjones/compose/src-tauri/Cargo.toml --lib applying_loaded_project_can_refresh_single_target_runtime_activation`.
+- Startup initialization no longer retains `sampler_state` across `emit_general_state`, preventing the runtime-reconciliation path from self-deadlocking during app load.
+- User accepted the current bounded outcome as sufficient for Story 3.8 closure because the editor UI now opens at least once through the supported path.
 
 ## File List
 
 - \_bmad-output/implementation-artifacts/3-8-activate-assigned-plugins-for-single-part-and-shared-multi-part-playback.md
+- \_bmad-output/implementation-artifacts/sprint-status.yaml
+- docs/architecture.md
+- docs/data-models.md
+- docs/development-guide.md
+- src-tauri/src/bin/performance.rs
+- src-tauri/src/files.rs
+- src-tauri/src/instructions/mod.rs
+- src-tauri/src/lib.rs
+- src-tauri/src/playback/mod.rs
+- src-tauri/src/playback/plugin_inventory.rs
+- src-tauri/src/playback/runtime_activation.rs
+- src-tauri/src/playback/sampler.rs
+- src-tauri/src/playback/transport.rs
+- src-tauri/src/score/flows.rs
+- src-tauri/src/score/instruments/mod.rs
+- src-tauri/src/score/players.rs
 
 ## Change Log
 
 - 2026-03-24: Created the narrowed Story 3.8 implementation artifact and kept tracker-key continuity with the pre-correction slug.
 - 2026-03-24: Reopened Story 3.8 as ready-for-dev after narrowing Epic 3 to the single-target playback runway.
+- 2026-03-24: Implemented the backend-owned same-session playback activation runtime, refreshed all bounded score and inventory seams through it, updated docs, and validated the required JS and Rust checks.
+- 2026-03-24: Reconciled readiness against sampler-loaded runtime truth, unified transport scheduling with `PlaybackActivationRuntime`, and reran targeted Rust regressions for runtime activation, transport, and project load.
+- 2026-03-24: Fixed the app-load startup deadlock caused by locking `sampler_state` across `emit_general_state` after runtime reconciliation began taking the same sampler mutex.
+- 2026-03-24: User accepted the current bounded Story 3.8 outcome and the story was closed as done.

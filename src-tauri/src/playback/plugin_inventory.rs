@@ -1,9 +1,10 @@
 use crate::playback::plugin_host_compatibility::bounded_editor_host_unsupported_reason;
+use crate::playback::sampler::sync_sampler_with_playback_runtime;
 use crate::playback::vst3::{
     default_vst3_search_roots, list_vst3_candidates_in_root, validate_vst3_bundle,
     vst3_bundle_binary_path, Vst3BundleError, Vst3BundleErrorKind,
 };
-use crate::{AppContextState, RendererContextState};
+use crate::{AppContextState, AudioContextState, RendererContextState, SamplerContextState};
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 use sled::Db;
@@ -596,6 +597,16 @@ pub fn plugin_inventory_discover(
     let app_state_handle = app.state::<AppContextState>();
     let renderer_state_handle = app.state::<RendererContextState>();
     let mut app_state = app_state_handle.lock().unwrap();
+    app_state.refresh_playback_activation_runtime(state.inner());
+
+    sync_sampler_with_playback_runtime(
+        &app,
+        &app_state.playback_activation_runtime,
+        app.state::<SamplerContextState>().inner(),
+        app.state::<AudioContextState>().inner(),
+        "after plugin inventory discover",
+    );
+
     let mut renderer = renderer_state_handle.lock().unwrap();
     app_state.emit_general_state(&app, &mut renderer, None);
 

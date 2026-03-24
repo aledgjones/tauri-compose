@@ -176,6 +176,10 @@ Plugin inventory startup behavior:
 - Sequence instrument overview rows are the bounded score-context route-authoring workflow: choose a slot from the current score rack, or switch back to `Unrouted`. If a selected score slot still exists but no longer has a plugin assigned, the picker keeps that slot visible as `N. --` so the user can see that a specific slot remains selected even though it is not currently playable, and that empty-slot selection does not surface a needs-attention badge.
 - The dedicated Plugin Manager exposes the canonical `Refresh plugin inventory` action for the explicit full reprobe workflow and shows refresh-in-progress plus refreshed-state feedback.
 - The dedicated Plugin Manager remains the place for inventory browsing, refresh, and maintainer-facing troubleshooting flows; the Sequence rack panel is not a substitute for those app-scoped responsibilities, but it is the correct in-score surface for creating an empty slot and assigning or updating that slot from currently usable plugins.
+- Same-session playback activation is now backend-owned and single-target only. Refresh the runtime activation seam by mutating score rack or route intent through the existing Rust commands or by loading a project; do not add frontend-owned activation caches or one-shot setup flows.
+- Inventory refresh also rebuilds same-session activation truth. If a previously activated slot target becomes unavailable, keep the route in the existing score-context rack workflow and let backend-emitted readiness fall to `NeedsAttention` instead of repairing it through a Plugin-Manager-first side path.
+- Transport-facing playback preparation must consume `AppContext.playback_activation_runtime` directly. Do not reintroduce plugin-inventory or slot-availability-only resolver helpers inside transport code when deciding whether a routed instrument is playable.
+- Reopen restoration across app restarts is still Epic 5 scope. Story 3.8 covers same-session runtime preparation only.
 
 What it does not yet do:
 

@@ -59,6 +59,30 @@ enum PluginHostSyncReason {
     WindowResized,
 }
 
+fn plugin_host_phase_label(phase: PluginHostLifecyclePhase) -> &'static str {
+    match phase {
+        PluginHostLifecyclePhase::Idle => "Idle",
+        PluginHostLifecyclePhase::Reserved => "Reserved",
+        PluginHostLifecyclePhase::Attached => "Attached",
+        PluginHostLifecyclePhase::Closing => "Closing",
+    }
+}
+
+fn plugin_host_lifecycle_snapshot() -> String {
+    match active_plugin_host_lifecycle().lock() {
+        Ok(state) => format!(
+            "phase={} target={}",
+            plugin_host_phase_label(state.phase),
+            state
+                .target
+                .as_deref()
+                .map(|path| path.display().to_string())
+                .unwrap_or_else(|| String::from("<none>"))
+        ),
+        Err(_) => String::from("phase=<poisoned> target=<unavailable>"),
+    }
+}
+
 fn active_plugin_host_lifecycle() -> &'static Mutex<PluginHostLifecycleState> {
     static ACTIVE_PLUGIN_HOST_LIFECYCLE: OnceLock<Mutex<PluginHostLifecycleState>> =
         OnceLock::new();
@@ -89,6 +113,12 @@ fn reserve_plugin_target(
     target: &Path,
     host_window_exists: bool,
 ) -> Result<PluginTargetReservation, String> {
+    eprintln!(
+        "plugin_editor_poc: reserve requested target={} host_window_exists={} {}",
+        target.display(),
+        host_window_exists,
+        plugin_host_lifecycle_snapshot()
+    );
     let mut lifecycle = active_plugin_host_lifecycle()
         .lock()
         .map_err(|_| String::from("Failed to read plugin editor POC target state"))?;
@@ -97,16 +127,33 @@ fn reserve_plugin_target(
 
     if let Some(active_target_path) = lifecycle.target.as_deref() {
         if active_target_path != target {
+            eprintln!(
+                "plugin_editor_poc: reserve rejected target={} active_target={} phase={}",
+                target.display(),
+                active_target_path.display(),
+                plugin_host_phase_label(lifecycle.phase)
+            );
             return Err(String::from(
                 "The plugin editor POC window is already open for a different target. Close it before switching plugin paths.",
             ));
         }
+
+        eprintln!(
+            "plugin_editor_poc: reserve reused target={} phase={}",
+            target.display(),
+            plugin_host_phase_label(lifecycle.phase)
+        );
 
         return Ok(PluginTargetReservation::AlreadyReserved(lifecycle.phase));
     }
 
     lifecycle.target = Some(target.to_path_buf());
     lifecycle.phase = PluginHostLifecyclePhase::Reserved;
+    eprintln!(
+        "plugin_editor_poc: reserve acquired target={} phase={}",
+        target.display(),
+        plugin_host_phase_label(lifecycle.phase)
+    );
     Ok(PluginTargetReservation::Acquired)
 }
 
@@ -121,6 +168,11 @@ fn mark_plugin_target_attached(target: &Path) {
     if let Ok(mut lifecycle) = active_plugin_host_lifecycle().lock() {
         if lifecycle.target.as_deref() == Some(target) {
             lifecycle.phase = PluginHostLifecyclePhase::Attached;
+            eprintln!(
+                "plugin_editor_poc: lifecycle attached target={} phase={}",
+                target.display(),
+                plugin_host_phase_label(lifecycle.phase)
+            );
         }
     }
 }
@@ -134,6 +186,15 @@ fn begin_plugin_target_close(target: Option<&Path>) {
 
         if should_close {
             lifecycle.phase = PluginHostLifecyclePhase::Closing;
+            eprintln!(
+                "plugin_editor_poc: lifecycle closing target={} phase={}",
+                lifecycle
+                    .target
+                    .as_deref()
+                    .map(|path| path.display().to_string())
+                    .unwrap_or_else(|| String::from("<none>")),
+                plugin_host_phase_label(lifecycle.phase)
+            );
         }
     }
 }
@@ -141,14 +202,36 @@ fn begin_plugin_target_close(target: Option<&Path>) {
 fn release_reserved_plugin_target(target: &Path) {
     if let Ok(mut lifecycle) = active_plugin_host_lifecycle().lock() {
         if lifecycle.target.as_deref() == Some(target) {
+            eprintln!(
+                "plugin_editor_poc: releasing reservation for target={} from phase={}",
+                target.display(),
+                plugin_host_phase_label(lifecycle.phase)
+            );
             reset_plugin_host_lifecycle(&mut lifecycle);
+            eprintln!(
+                "plugin_editor_poc: reservation released phase={}",
+                plugin_host_phase_label(lifecycle.phase)
+            );
         }
     }
 }
 
 fn clear_reserved_plugin_target() {
     if let Ok(mut lifecycle) = active_plugin_host_lifecycle().lock() {
+        eprintln!(
+            "plugin_editor_poc: clearing reservation from phase={} target={}",
+            plugin_host_phase_label(lifecycle.phase),
+            lifecycle
+                .target
+                .as_deref()
+                .map(|path| path.display().to_string())
+                .unwrap_or_else(|| String::from("<none>"))
+        );
         reset_plugin_host_lifecycle(&mut lifecycle);
+        eprintln!(
+            "plugin_editor_poc: reservation cleared phase={}",
+            plugin_host_phase_label(lifecycle.phase)
+        );
     }
 }
 
@@ -386,13 +469,21 @@ fn log_window_event(window: &WebviewWindow, event: &WindowEvent) {
             );
         }
         WindowEvent::CloseRequested { .. } => {
-            eprintln!("plugin_editor_poc: host window close requested");
+            eprintln!(
+                "plugin_editor_poc: host window close requested label={} {}",
+                window.label(),
+                plugin_host_lifecycle_snapshot()
+            );
             begin_plugin_target_close(active_plugin_target_path().as_deref());
             #[cfg(target_os = "macos")]
             prepare_active_plugin_host_session_for_close(window);
         }
         WindowEvent::Destroyed => {
-            clear_reserved_plugin_target();
+            eprintln!(
+                "plugin_editor_poc: host window destroyed event label={} {}",
+                window.label(),
+                plugin_host_lifecycle_snapshot()
+            );
             #[cfg(target_os = "macos")]
             cleanup_active_plugin_host_session(window);
             eprintln!("plugin_editor_poc: host window destroyed");
@@ -416,12 +507,13 @@ mod macos_host {
     use core_foundation_sys::bundle::{CFBundleLoadExecutable, CFBundleUnloadExecutable};
 
     use objc2::rc::Retained;
-    use objc2::{MainThreadMarker, MainThreadOnly};
+    use objc2::{define_class, msg_send, MainThreadMarker, MainThreadOnly};
     use objc2_app_kit::{NSAutoresizingMaskOptions, NSTextField, NSView, NSWindow};
     use objc2_foundation::{NSPoint, NSRect, NSSize, NSString};
     use std::ffi::{c_void, CStr, CString};
     use std::mem::zeroed;
     use std::path::{Path, PathBuf};
+    use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::{Arc, Mutex as StdMutex};
     use tauri::{LogicalSize, WebviewWindow};
     use vst3::Steinberg::IBStream_::IStreamSeekMode_::{kIBSeekCur, kIBSeekEnd, kIBSeekSet};
@@ -466,6 +558,213 @@ mod macos_host {
     type GetPluginFactoryFn = unsafe extern "system" fn() -> *mut IPluginFactory;
     type BundleEntryFn = unsafe extern "system" fn(*mut c_void) -> bool;
     type BundleExitFn = unsafe extern "system" fn() -> bool;
+
+    define_class!(
+        #[unsafe(super(NSView))]
+        #[name = "SoloComposePluginHostView"]
+        struct PluginHostContainerView;
+
+        impl PluginHostContainerView {
+            #[unsafe(method(isFlipped))]
+            fn is_flipped(&self) -> bool {
+                true
+            }
+        }
+    );
+
+    pub(crate) fn pending_plugin_requested_resize() -> &'static AtomicBool {
+        static PENDING_PLUGIN_REQUESTED_RESIZE: AtomicBool = AtomicBool::new(false);
+        &PENDING_PLUGIN_REQUESTED_RESIZE
+    }
+
+    fn queued_plugin_requested_resize() -> &'static StdMutex<Option<(f64, f64)>> {
+        static QUEUED_PLUGIN_REQUESTED_RESIZE: std::sync::OnceLock<StdMutex<Option<(f64, f64)>>> =
+            std::sync::OnceLock::new();
+        QUEUED_PLUGIN_REQUESTED_RESIZE.get_or_init(|| StdMutex::new(None))
+    }
+
+    fn plugin_requested_resize_dispatch_in_flight() -> &'static AtomicBool {
+        static PLUGIN_REQUESTED_RESIZE_DISPATCH_IN_FLIGHT: AtomicBool = AtomicBool::new(false);
+        &PLUGIN_REQUESTED_RESIZE_DISPATCH_IN_FLIGHT
+    }
+
+    pub(crate) fn pending_non_resizable_attach_layout_sync() -> &'static AtomicBool {
+        static PENDING_NON_RESIZABLE_ATTACH_LAYOUT_SYNC: AtomicBool = AtomicBool::new(false);
+        &PENDING_NON_RESIZABLE_ATTACH_LAYOUT_SYNC
+    }
+
+    pub(crate) fn clear_pending_plugin_resize_request() {
+        pending_plugin_requested_resize().store(false, Ordering::Release);
+        plugin_requested_resize_dispatch_in_flight().store(false, Ordering::Release);
+        pending_non_resizable_attach_layout_sync().store(false, Ordering::Release);
+        if let Ok(mut queued_resize) = queued_plugin_requested_resize().lock() {
+            *queued_resize = None;
+        }
+    }
+
+    fn schedule_non_resizable_attach_layout_sync(window: &WebviewWindow) {
+        let scheduled_window = window.clone();
+        tauri::async_runtime::spawn(async move {
+            let callback_window = scheduled_window.clone();
+            let _ = scheduled_window.run_on_main_thread(move || {
+                let Some((view, host_view_ptr, plugin_can_resize)) = active_plugin_host_session()
+                    .lock()
+                    .ok()
+                    .and_then(|active_session| {
+                        active_session.as_ref().map(PluginHostSession::view_state)
+                    })
+                else {
+                    return;
+                };
+
+                if plugin_can_resize {
+                    return;
+                }
+
+                let Ok(ns_window) = callback_window.ns_window() else {
+                    return;
+                };
+                let Some(ns_window) = (unsafe { Retained::retain(ns_window as *mut NSWindow) }) else {
+                    return;
+                };
+                let Some(content_view) = ns_window.contentView() else {
+                    return;
+                };
+
+                let host_view = host_view_ptr as *mut NSView;
+                if host_view.is_null() {
+                    return;
+                }
+
+                let host_frame = host_frame_for_content_frame(content_view.frame());
+                unsafe {
+                    (*host_view).setFrame(host_frame);
+                }
+                let mut rect = view_rect_for_host_frame(host_frame);
+                eprintln!(
+                    "plugin_editor_poc: deferred non-resizable attach layout sync host_frame=({}, {}, {}, {})",
+                    host_frame.origin.x,
+                    host_frame.origin.y,
+                    host_frame.size.width,
+                    host_frame.size.height
+                );
+                let _ = unsafe { view.onSize(&mut rect) };
+            });
+        });
+    }
+
+    fn dispatch_queued_plugin_resize(window: WebviewWindow) {
+        tauri::async_runtime::spawn(async move {
+            loop {
+                let next_resize = queued_plugin_requested_resize()
+                    .lock()
+                    .ok()
+                    .and_then(|mut queued_resize| queued_resize.take());
+
+                let Some((width, height)) = next_resize else {
+                    plugin_requested_resize_dispatch_in_flight().store(false, Ordering::Release);
+
+                    let should_restart = queued_plugin_requested_resize()
+                        .lock()
+                        .ok()
+                        .map(|queued_resize| queued_resize.is_some())
+                        .unwrap_or(false);
+                    if should_restart
+                        && plugin_requested_resize_dispatch_in_flight()
+                            .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+                            .is_ok()
+                    {
+                        continue;
+                    }
+                    break;
+                };
+
+                eprintln!(
+                    "plugin_editor_poc: applying deferred host resize to {}x{} on_main_thread={} {}",
+                    width,
+                    height,
+                    MainThreadMarker::new().is_some(),
+                    super::plugin_host_lifecycle_snapshot()
+                );
+
+                match window.set_size(LogicalSize::new(width, height)) {
+                    Ok(()) => {
+                        eprintln!(
+                            "plugin_editor_poc: deferred host resize applied to {}x{}",
+                            width, height
+                        );
+                        pending_plugin_requested_resize().store(true, Ordering::Release);
+                    }
+                    Err(error) => {
+                        eprintln!(
+                            "plugin_editor_poc: failed to apply deferred host resize to {}x{}: {}",
+                            width, height, error
+                        );
+                    }
+                }
+            }
+        });
+    }
+
+    fn queue_plugin_requested_resize(window: &WebviewWindow, width: f64, height: f64) {
+        if let Ok(mut queued_resize) = queued_plugin_requested_resize().lock() {
+            *queued_resize = Some((width, height));
+        } else {
+            eprintln!(
+                "plugin_editor_poc: failed to queue host-driven resize {}x{} because the resize queue lock is poisoned",
+                width, height
+            );
+            return;
+        }
+
+        let already_dispatching = plugin_requested_resize_dispatch_in_flight()
+            .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+            .is_err();
+        eprintln!(
+            "plugin_editor_poc: queued host-driven resize {}x{} dispatch_in_flight={} {}",
+            width,
+            height,
+            already_dispatching,
+            super::plugin_host_lifecycle_snapshot()
+        );
+
+        if already_dispatching {
+            return;
+        }
+
+        dispatch_queued_plugin_resize(window.clone());
+    }
+
+    fn active_session_snapshot() -> String {
+        match active_plugin_host_session().lock() {
+            Ok(active_session) => active_session
+                .as_ref()
+                .map(|session| {
+                    format!(
+                        "session={} close_prepared={} view_attached={} can_resize={}",
+                        session.plugin_path.display(),
+                        session.close_prepared,
+                        session.view_attached,
+                        session.plugin_can_resize
+                    )
+                })
+                .unwrap_or_else(|| String::from("session=<none>")),
+            Err(_) => String::from("session=<poisoned>"),
+        }
+    }
+
+    fn finish_plugin_host_session_shutdown(session: PluginHostSession) {
+        let plugin_path = session.plugin_path.clone();
+        eprintln!(
+            "plugin_editor_poc: tearing down active plugin host for {} on_main_thread={} {}",
+            plugin_path.display(),
+            MainThreadMarker::new().is_some(),
+            super::plugin_host_lifecycle_snapshot()
+        );
+        clear_pending_plugin_resize_request();
+        session.shutdown();
+        super::release_reserved_plugin_target(&plugin_path);
+    }
 
     struct CreatedController {
         controller: ComPtr<IEditController>,
@@ -1110,10 +1409,45 @@ mod macos_host {
     }
 
     pub(crate) fn should_notify_plugin_view_layout(
-        _reason: super::PluginHostSyncReason,
-        _plugin_can_resize: bool,
+        reason: super::PluginHostSyncReason,
+        plugin_can_resize: bool,
+        _plugin_requested_resize: bool,
     ) -> bool {
-        true
+        match reason {
+            super::PluginHostSyncReason::InitialAttach => true,
+            super::PluginHostSyncReason::WindowFocusChanged => false,
+            super::PluginHostSyncReason::WindowResized => plugin_can_resize,
+        }
+    }
+
+    pub(crate) fn should_skip_initial_attach_layout_for_pending_resize(
+        plugin_can_resize: bool,
+    ) -> bool {
+        !plugin_can_resize
+            && (pending_plugin_requested_resize().load(Ordering::Acquire)
+                || plugin_requested_resize_dispatch_in_flight().load(Ordering::Acquire)
+                || queued_plugin_requested_resize()
+                    .lock()
+                    .ok()
+                    .map(|queued_resize| queued_resize.is_some())
+                    .unwrap_or(false))
+    }
+
+    pub(crate) fn should_accept_plugin_requested_resize(
+        lifecycle_phase: super::PluginHostLifecyclePhase,
+        plugin_can_resize: Option<bool>,
+    ) -> bool {
+        match lifecycle_phase {
+            super::PluginHostLifecyclePhase::Reserved => true,
+            super::PluginHostLifecyclePhase::Attached => plugin_can_resize.unwrap_or(false),
+            super::PluginHostLifecyclePhase::Closing | super::PluginHostLifecyclePhase::Idle => {
+                false
+            }
+        }
+    }
+
+    pub(crate) fn should_forward_plugin_focus(plugin_can_resize: bool) -> bool {
+        plugin_can_resize
     }
 
     struct LoadedVst3Module {
@@ -1536,13 +1870,39 @@ mod macos_host {
                 width, height
             );
 
-            match self.window.set_size(LogicalSize::new(width, height)) {
-                Ok(()) => kResultOk,
-                Err(error) => {
-                    eprintln!("plugin_editor_poc: failed to apply host-driven resize: {error}");
-                    kNotImplemented
-                }
+            let lifecycle_phase = super::active_plugin_host_lifecycle()
+                .lock()
+                .map(|state| state.phase)
+                .unwrap_or(super::PluginHostLifecyclePhase::Idle);
+            let plugin_can_resize =
+                active_plugin_host_session()
+                    .lock()
+                    .ok()
+                    .and_then(|active_session| {
+                        active_session
+                            .as_ref()
+                            .map(|session| session.plugin_can_resize)
+                    });
+
+            if !should_accept_plugin_requested_resize(lifecycle_phase, plugin_can_resize) {
+                eprintln!(
+                    "plugin_editor_poc: ignoring plugin-requested resize {}x{} phase={} plugin_can_resize={:?}",
+                    width,
+                    height,
+                    super::plugin_host_phase_label(lifecycle_phase),
+                    plugin_can_resize
+                );
+                return kResultOk;
             }
+
+            if lifecycle_phase == super::PluginHostLifecyclePhase::Reserved
+                && plugin_can_resize != Some(true)
+            {
+                pending_non_resizable_attach_layout_sync().store(true, Ordering::Release);
+            }
+
+            queue_plugin_requested_resize(&self.window, width, height);
+            kResultOk
         }
     }
 
@@ -2365,6 +2725,12 @@ mod macos_host {
     }
 
     pub fn prepare_active_plugin_host_session_for_close(window: &WebviewWindow) {
+        eprintln!(
+            "plugin_editor_poc: scheduling close preparation label={} {} {}",
+            window.label(),
+            super::plugin_host_lifecycle_snapshot(),
+            active_session_snapshot()
+        );
         let cleanup_window = window.clone();
         if cleanup_window
             .run_on_main_thread(move || {
@@ -2375,6 +2741,11 @@ mod macos_host {
                             session.plugin_path.display()
                         );
                         session.prepare_for_window_close();
+                    } else {
+                        eprintln!(
+                            "plugin_editor_poc: close preparation found no active session {}",
+                            super::plugin_host_lifecycle_snapshot()
+                        );
                     }
                 }
             })
@@ -2387,14 +2758,32 @@ mod macos_host {
     }
 
     pub fn cleanup_active_plugin_host_session(window: &WebviewWindow) {
+        eprintln!(
+            "plugin_editor_poc: cleanup requested label={} on_main_thread={} {} {}",
+            window.label(),
+            MainThreadMarker::new().is_some(),
+            super::plugin_host_lifecycle_snapshot(),
+            active_session_snapshot()
+        );
         let session = active_plugin_host_session()
             .lock()
             .ok()
             .and_then(|mut active_session| active_session.take());
 
         let Some(session) = session else {
+            eprintln!(
+                "plugin_editor_poc: cleanup found no active session; clearing residual lifecycle {}",
+                super::plugin_host_lifecycle_snapshot()
+            );
+            clear_pending_plugin_resize_request();
+            super::clear_reserved_plugin_target();
             return;
         };
+
+        if MainThreadMarker::new().is_some() {
+            finish_plugin_host_session_shutdown(session);
+            return;
+        }
 
         let cleanup_window = window.clone();
         let session_state = Arc::new(StdMutex::new(Some(session)));
@@ -2404,10 +2793,11 @@ mod macos_host {
                 if let Ok(mut session_state) = session_state_for_main.lock() {
                     if let Some(session) = session_state.take() {
                         eprintln!(
-                            "plugin_editor_poc: tearing down active plugin host for {}",
-                            session.plugin_path.display()
+                            "plugin_editor_poc: cleanup executing on main thread for {} {}",
+                            session.plugin_path.display(),
+                            super::plugin_host_lifecycle_snapshot()
                         );
-                        session.shutdown();
+                        finish_plugin_host_session_shutdown(session);
                     }
                 }
             })
@@ -2416,6 +2806,8 @@ mod macos_host {
             eprintln!(
                 "plugin_editor_poc: failed to schedule native host teardown on the main thread; leaking session handles instead of tearing down off-thread"
             );
+            clear_pending_plugin_resize_request();
+            super::clear_reserved_plugin_target();
             if let Ok(mut session_state) = session_state.lock() {
                 if let Some(session) = session_state.take() {
                     std::mem::forget(session);
@@ -2439,6 +2831,14 @@ mod macos_host {
 
         let scheduler_window = window.clone();
         let sync_window = window.clone();
+        eprintln!(
+            "plugin_editor_poc: sync requested label={} reason={:?} focused={:?} {} {}",
+            window.label(),
+            reason,
+            focused,
+            super::plugin_host_lifecycle_snapshot(),
+            active_session_snapshot()
+        );
         let _ = scheduler_window.run_on_main_thread(move || {
             let Ok(ns_window) = sync_window.ns_window() else {
                 return;
@@ -2460,11 +2860,45 @@ mod macos_host {
                 (*host_view).setFrame(host_frame);
             }
 
-            if should_notify_plugin_view_layout(reason, plugin_can_resize) {
+            let plugin_requested_resize =
+                matches!(reason, super::PluginHostSyncReason::WindowResized)
+                    && pending_plugin_requested_resize().swap(false, Ordering::AcqRel);
+            let skip_initial_attach_layout =
+                matches!(reason, super::PluginHostSyncReason::InitialAttach)
+                    && should_skip_initial_attach_layout_for_pending_resize(plugin_can_resize);
+            let schedule_non_resizable_attach_layout =
+                matches!(reason, super::PluginHostSyncReason::WindowResized)
+                    && !plugin_can_resize
+                    && pending_non_resizable_attach_layout_sync().swap(false, Ordering::AcqRel);
+            let forward_focus = focused.is_some() && should_forward_plugin_focus(plugin_can_resize);
+
+            eprintln!(
+                "plugin_editor_poc: sync applying reason={:?} focused={:?} plugin_can_resize={} plugin_requested_resize={} skip_initial_attach_layout={} schedule_non_resizable_attach_layout={} forward_focus={} host_frame=({}, {}, {}, {})",
+                reason,
+                focused,
+                plugin_can_resize,
+                plugin_requested_resize,
+                skip_initial_attach_layout,
+                schedule_non_resizable_attach_layout,
+                forward_focus,
+                host_frame.origin.x,
+                host_frame.origin.y,
+                host_frame.size.width,
+                host_frame.size.height
+            );
+
+            if schedule_non_resizable_attach_layout {
+                schedule_non_resizable_attach_layout_sync(&sync_window);
+            }
+
+            if !skip_initial_attach_layout
+                && should_notify_plugin_view_layout(reason, plugin_can_resize, plugin_requested_resize)
+            {
                 let mut rect = view_rect_for_host_frame(host_frame);
                 let _ = unsafe { view.onSize(&mut rect) };
             }
-            if let Some(focused) = focused {
+            if forward_focus {
+                let focused = focused.unwrap_or(false);
                 let _ = unsafe { view.onFocus(if focused { 1 } else { 0 }) };
             }
         });
@@ -2474,6 +2908,13 @@ mod macos_host {
         window: &WebviewWindow,
         plugin_path: &Path,
     ) -> Result<PluginHostAttachOutcome, String> {
+        eprintln!(
+            "plugin_editor_poc: attach requested label={} plugin={} {}",
+            window.label(),
+            plugin_path.display(),
+            super::plugin_host_lifecycle_snapshot()
+        );
+        clear_pending_plugin_resize_request();
         let (sender, receiver) = std::sync::mpsc::channel();
         let scheduler_window = window.clone();
         let attachment_window = window.clone();
@@ -2496,8 +2937,22 @@ mod macos_host {
                         .contentView()
                         .ok_or_else(|| String::from("Failed to resolve host contentView"))?;
                     let host_frame = host_frame_for_content_frame(content_view.frame());
+                    eprintln!(
+                        "plugin_editor_poc: attach resolved content frame=({}, {}, {}, {}) host_frame=({}, {}, {}, {}) for {}",
+                        content_view.frame().origin.x,
+                        content_view.frame().origin.y,
+                        content_view.frame().size.width,
+                        content_view.frame().size.height,
+                        host_frame.origin.x,
+                        host_frame.origin.y,
+                        host_frame.size.width,
+                        host_frame.size.height,
+                        plugin_path.display()
+                    );
 
-                    let native_host_view = NSView::initWithFrame(NSView::alloc(mtm), host_frame);
+                    let native_host_view: Retained<PluginHostContainerView> = unsafe {
+                        msg_send![PluginHostContainerView::alloc(mtm), initWithFrame: host_frame]
+                    };
                     native_host_view.setAutoresizingMask(
                         NSAutoresizingMaskOptions::ViewWidthSizable
                             | NSAutoresizingMaskOptions::ViewHeightSizable,
@@ -2537,6 +2992,22 @@ mod macos_host {
 
                     if let Ok(mut active_session) = active_plugin_host_session().lock() {
                         *active_session = Some(session);
+                        let stored_session = active_session
+                            .as_ref()
+                            .map(|session| {
+                                format!(
+                                    "session={} close_prepared={} view_attached={} can_resize={}",
+                                    session.plugin_path.display(),
+                                    session.close_prepared,
+                                    session.view_attached,
+                                    session.plugin_can_resize
+                                )
+                            })
+                            .unwrap_or_else(|| String::from("session=<none>"));
+                        eprintln!(
+                            "plugin_editor_poc: stored active session {}",
+                            stored_session
+                        );
                     } else {
                         return Err(String::from("Failed to store plugin host session"));
                     }
@@ -2604,6 +3075,12 @@ pub async fn plugin_editor_poc_open(
         plugin_path.as_deref(),
         plugin_inventory_state.inner(),
     )?;
+    eprintln!(
+        "plugin_editor_poc: open requested plugin={} existing_window={} {}",
+        plugin_path.display(),
+        app.get_webview_window(WINDOW_LABEL).is_some(),
+        plugin_host_lifecycle_snapshot()
+    );
     if let Err(reason) = ensure_editor_host_target_supported(&plugin_path) {
         emit_editor_host_validation(
             &app,
@@ -2619,6 +3096,12 @@ pub async fn plugin_editor_poc_open(
     match reserve_plugin_target(&plugin_path, existing_window.is_some())? {
         PluginTargetReservation::Acquired => {}
         PluginTargetReservation::AlreadyReserved(_) => {
+            eprintln!(
+                "plugin_editor_poc: open found already reserved target={} existing_window={} {}",
+                plugin_path.display(),
+                existing_window.is_some(),
+                plugin_host_lifecycle_snapshot()
+            );
             if let Some(window) = existing_window {
                 window
                     .set_focus()
@@ -2638,6 +3121,11 @@ pub async fn plugin_editor_poc_open(
     }
 
     if let Some(window) = app.get_webview_window(WINDOW_LABEL) {
+        eprintln!(
+            "plugin_editor_poc: open reused existing window for target={} {}",
+            plugin_path.display(),
+            plugin_host_lifecycle_snapshot()
+        );
         window
             .set_focus()
             .map_err(|error| format!("Failed to focus plugin host POC window: {error}"))?;
@@ -2656,6 +3144,13 @@ pub async fn plugin_editor_poc_open(
             return Err(error);
         }
     };
+
+    eprintln!(
+        "plugin_editor_poc: built host window label={} for target={} {}",
+        window.label(),
+        plugin_path.display(),
+        plugin_host_lifecycle_snapshot()
+    );
 
     let attach_outcome = match attach_native_host_surface(&window, &plugin_path) {
         Ok(outcome) => outcome,
@@ -3042,19 +3537,88 @@ mod tests {
         assert!(super::macos_host::should_notify_plugin_view_layout(
             PluginHostSyncReason::InitialAttach,
             false,
+            false,
         ));
-        assert!(super::macos_host::should_notify_plugin_view_layout(
+        assert!(!super::macos_host::should_notify_plugin_view_layout(
             PluginHostSyncReason::WindowFocusChanged,
             true,
+            false,
         ));
-        assert!(super::macos_host::should_notify_plugin_view_layout(
+        assert!(!super::macos_host::should_notify_plugin_view_layout(
             PluginHostSyncReason::WindowResized,
+            false,
             false,
         ));
         assert!(super::macos_host::should_notify_plugin_view_layout(
             PluginHostSyncReason::WindowResized,
             true,
+            false,
         ));
+        assert!(!super::macos_host::should_notify_plugin_view_layout(
+            PluginHostSyncReason::WindowResized,
+            false,
+            true,
+        ));
+    }
+
+    #[test]
+    fn plugin_requested_resize_is_only_accepted_during_attach_for_non_resizable_editors() {
+        assert!(super::macos_host::should_accept_plugin_requested_resize(
+            PluginHostLifecyclePhase::Reserved,
+            None,
+        ));
+        assert!(!super::macos_host::should_accept_plugin_requested_resize(
+            PluginHostLifecyclePhase::Attached,
+            Some(false),
+        ));
+        assert!(super::macos_host::should_accept_plugin_requested_resize(
+            PluginHostLifecyclePhase::Attached,
+            Some(true),
+        ));
+        assert!(!super::macos_host::should_accept_plugin_requested_resize(
+            PluginHostLifecyclePhase::Closing,
+            Some(true),
+        ));
+    }
+
+    #[test]
+    fn initial_attach_layout_is_skipped_when_non_resizable_resize_is_pending() {
+        super::macos_host::clear_pending_plugin_resize_request();
+        assert!(!super::macos_host::should_skip_initial_attach_layout_for_pending_resize(false,));
+
+        super::macos_host::pending_plugin_requested_resize()
+            .store(true, std::sync::atomic::Ordering::Release);
+        assert!(super::macos_host::should_skip_initial_attach_layout_for_pending_resize(false,));
+        assert!(!super::macos_host::should_skip_initial_attach_layout_for_pending_resize(true,));
+        super::macos_host::clear_pending_plugin_resize_request();
+    }
+
+    #[test]
+    fn pending_non_resizable_attach_layout_flag_resets_with_resize_cleanup() {
+        super::macos_host::clear_pending_plugin_resize_request();
+        assert!(
+            !super::macos_host::pending_non_resizable_attach_layout_sync()
+                .load(std::sync::atomic::Ordering::Acquire)
+        );
+
+        super::macos_host::pending_non_resizable_attach_layout_sync()
+            .store(true, std::sync::atomic::Ordering::Release);
+        assert!(
+            super::macos_host::pending_non_resizable_attach_layout_sync()
+                .load(std::sync::atomic::Ordering::Acquire)
+        );
+
+        super::macos_host::clear_pending_plugin_resize_request();
+        assert!(
+            !super::macos_host::pending_non_resizable_attach_layout_sync()
+                .load(std::sync::atomic::Ordering::Acquire)
+        );
+    }
+
+    #[test]
+    fn plugin_focus_is_only_forwarded_for_resizable_editors() {
+        assert!(!super::macos_host::should_forward_plugin_focus(false));
+        assert!(super::macos_host::should_forward_plugin_focus(true));
     }
 
     #[cfg(target_os = "macos")]

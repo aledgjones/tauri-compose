@@ -21,15 +21,20 @@ mod preferences {
 }
 
 mod playback {
+    pub mod runtime_activation {
+        #[derive(Clone, Debug, Default, PartialEq, Eq)]
+        pub struct PlaybackActivationRuntime;
+    }
+
     pub mod sampler {
         use tauri::AppHandle;
 
-        use crate::score::Score;
+        use crate::playback::runtime_activation::PlaybackActivationRuntime;
         use crate::{AudioContextState, SamplerContextState};
 
-        pub fn sync_sampler_with_score(
+        pub fn sync_sampler_with_playback_runtime(
             _app: &AppHandle,
-            _score: &Score,
+            _playback_runtime: &PlaybackActivationRuntime,
             _sampler_state: &SamplerContextState,
             _audio_state: &AudioContextState,
             _error_context: &str,
@@ -102,6 +107,7 @@ struct SamplerContext;
 struct AppContext {
     ui: ui::Ui,
     score: score::Score,
+    playback_activation_runtime: playback::runtime_activation::PlaybackActivationRuntime,
     preferences: preferences::Preferences,
     next_id: utils::UniqueId,
     current_file_path: Option<String>,
@@ -113,6 +119,10 @@ type AudioContextState = Mutex<AudioContext>;
 type SamplerContextState = Mutex<SamplerContext>;
 
 impl AppContext {
+    fn refresh_playback_activation_runtime_from_app(&mut self, _app: &tauri::AppHandle) {}
+
+    fn reconcile_playback_activation_runtime_with_app(&mut self, _app: &tauri::AppHandle) {}
+
     fn flow_id_for_track(&self, track_id: utils::UniqueId) -> Option<utils::UniqueId> {
         self.score.flows.by_id.values().find_map(|flow| {
             if flow.master_id == track_id {
@@ -137,6 +147,7 @@ impl AppContext {
         _renderer: &mut renderer::RendererContext,
         _recalculation_request: Option<instructions::FlowRenderRecalculationRequest>,
     ) {
+        self.reconcile_playback_activation_runtime_with_app(_app);
     }
 
     fn emit_affected_flows(
@@ -444,6 +455,7 @@ mod instructions {
         let mut app = crate::AppContext {
             ui: Ui::new(),
             score: Score::new(),
+            playback_activation_runtime: Default::default(),
             preferences: Preferences { audition: true },
             next_id: 1000,
             current_file_path: None,

@@ -1,6 +1,6 @@
 use super::layouts::LayoutType;
 use crate::instructions::FlowRenderRecalculationRequest;
-use crate::playback::sampler::sync_sampler_with_score;
+use crate::playback::sampler::sync_sampler_with_playback_runtime;
 use crate::utils::UniqueId;
 use crate::{
     AppContext, AppContextState, AudioContextState, RendererContextState, SamplerContextState,
@@ -172,10 +172,11 @@ pub fn score_players_unassign_instrument(
     }
 
     state.score.update_counts();
+    state.refresh_playback_activation_runtime_from_app(&app);
 
-    sync_sampler_with_score(
+    sync_sampler_with_playback_runtime(
         &app,
-        &state.score,
+        &state.playback_activation_runtime,
         sampler_state.inner(),
         audio_state.inner(),
         "after player instrument unassignment",
@@ -231,10 +232,11 @@ pub fn score_players_remove(
     }
 
     state.score.update_counts();
+    state.refresh_playback_activation_runtime_from_app(&app);
 
-    sync_sampler_with_score(
+    sync_sampler_with_playback_runtime(
         &app,
-        &state.score,
+        &state.playback_activation_runtime,
         sampler_state.inner(),
         audio_state.inner(),
         "after player removal",
@@ -250,6 +252,7 @@ pub fn score_players_remove(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::playback::runtime_activation::PlaybackActivationRuntime;
     use crate::preferences::Preferences;
     use crate::score::flows::{Flow, Flows};
     use crate::score::layouts::{Layout, LayoutType, Layouts};
@@ -287,6 +290,7 @@ mod tests {
         AppContext {
             ui: Ui::new(),
             score,
+            playback_activation_runtime: PlaybackActivationRuntime::default(),
             preferences: serde_json::from_str::<Preferences>(r#"{"audition":true}"#).unwrap(),
             next_id: 1,
             current_file_path: None,

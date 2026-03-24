@@ -441,6 +441,17 @@ pub struct PlaybackRouteChoice {
 
 Portable rack and route intent are distinct from machine-local readiness. A rack slot is a first-class score object and may exist before any plugin is assigned to it, which lets slot preparation, route authoring, and later runtime activation remain separate bounded workflows. The backend emits resolved score-context state separately through `soloc://state/general` so React can present one Rust-owned answer instead of re-deriving route health from scattered fields.
 
+The first runtime layer for that split is intentionally non-persisted and same-session only:
+
+```rust
+pub struct PlaybackActivationRuntime {
+    activated_slot_target_by_slot_id: FxHashMap<UniqueId, ActivatedSlotTarget>,
+    activated_instrument_route_by_instrument_id: FxHashMap<UniqueId, ActivatedInstrumentRoute>,
+}
+```
+
+`PlaybackActivationRuntime` lives inside backend app state rather than `.soloc` data. It is rebuilt from persisted rack or route intent plus machine-local inventory truth after slot assignment, slot unassignment, slot removal, route assignment, route clearing, project load, and inventory refresh. Story 3.8 keeps that runtime bounded to single-target plugin-output routes only; deferred plugin-part, MIDI-channel, and reopen-restoration work does not persist extra activation payloads into score files.
+
 The backend also emits per-slot `PlaybackRouteChoice` lists through `route_target_options_by_slot_id` on `soloc://state/general`. Sequence must consume that Rust-owned contract when offering route targets; if Rust can only prove the direct plugin output for a slot, React must expose only that direct choice and must not invent speculative part or MIDI-channel options.
 
 ```rust
@@ -454,7 +465,7 @@ pub struct ResolvedPlaybackRoute {
 }
 ```
 
-`ResolvedPlaybackRoute` is availability-aware. `effective_plugin_id` is exposed only when the routed slot target is currently compatible on this machine, so unrouted instruments, missing slots, slots with no assigned plugin, missing plugins, and deferred plugin-part or MIDI-channel workflows degrade to explicit `NeedsAttention` or `Unrouted` states instead of silently falling through legacy runtime paths. Multiple instruments can intentionally share one slot by pointing distinct `Instrument.playback_route` entries at the same `slot_id`.
+`ResolvedPlaybackRoute` is availability-aware. `effective_plugin_id` is exposed only when the routed slot target currently resolves through the same-session backend activation runtime, so unrouted instruments, missing slots, slots with no assigned plugin, missing plugins, and deferred plugin-part or MIDI-channel workflows degrade to explicit `NeedsAttention` or `Unrouted` states instead of silently falling through legacy runtime paths. Multiple instruments can intentionally share one slot by pointing distinct `Instrument.playback_route` entries at the same `slot_id`.
 
 The ownership split is strict: the rack owns slot lifecycle, slots own plugin assignment, and instruments own only their explicit route into an existing slot. Removing or unrouting an instrument must not implicitly delete the referenced slot.
 

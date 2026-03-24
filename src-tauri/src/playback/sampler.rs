@@ -1,6 +1,6 @@
+use crate::playback::runtime_activation::PlaybackActivationRuntime;
 use crate::playback::scvi::ScviContainer;
 use crate::playback::streamer::{self, StreamBuffer, StreamRequest};
-use crate::score::Score;
 use crate::AudioContextState;
 use crate::SamplerContextState;
 use dirs;
@@ -94,17 +94,15 @@ pub struct SamplerContext {
     cache: FxHashMap<String, Cache>,
 }
 
-pub fn sync_sampler_with_score(
+pub fn sync_sampler_with_playback_runtime(
     app: &AppHandle,
-    score: &Score,
+    playback_runtime: &PlaybackActivationRuntime,
     sampler_state: &SamplerContextState,
     audio_state: &AudioContextState,
     error_context: &str,
 ) {
     let mut sampler = sampler_state.lock().unwrap();
-    let available_plugin_ids: FxHashSet<String> =
-        sampler.plugins.iter().map(|p| p.id.clone()).collect();
-    let routed_plugin_ids = score.routed_plugin_ids(&available_plugin_ids);
+    let routed_plugin_ids = playback_runtime.routed_plugin_ids();
 
     let audio = audio_state.lock().unwrap();
     let sample_rate = audio.get_sample_rate();
@@ -284,6 +282,10 @@ impl SamplerContext {
         if let Err(e) = app.emit("soloc://state/sampler", &state) {
             eprintln!("Failed to emit sampler state: {:?}", e);
         }
+    }
+
+    pub fn loaded_plugin_ids_set(&self) -> FxHashSet<String> {
+        self.cache.keys().cloned().collect()
     }
 
     /// Sync sampler cache with the score-owned routed plugin set.
