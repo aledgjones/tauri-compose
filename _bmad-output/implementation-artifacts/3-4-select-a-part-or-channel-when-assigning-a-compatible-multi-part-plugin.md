@@ -1,33 +1,33 @@
-# Story 3.4: Create Or Change A Route From A Score Instrument To A Slot Target
+# Story 3.4: Create Or Change A Route From A Score Instrument To A Prepared Slot
 
 Status: done
 
 ## Story
 
 As a composer,
-I want to create or change an explicit route from a score instrument to a slot target,
+I want to create or change an explicit route from a score instrument to a prepared slot,
 so that the playback destination for my instrument stays direct and unambiguous.
 
 ## Acceptance Criteria
 
-1. Given a selected rack slot exposes one or more supported targets, when the user routes an instrument from the score workflow, then Compose captures the chosen target as part of that instrument's playback route and the selected target is visible in the instrument's score-context playback state.
+1. Given a selected prepared slot is valid for the current single-target MVP path, when the user routes an instrument from the score workflow, then Compose captures that slot route as part of the instrument's playback state and the selected playback destination is visible in the instrument's score-context playback state.
 2. Given a requested target is unavailable, invalid, or not safely routable, when the user attempts to complete the route, then Compose prevents ambiguous routing and surfaces a clear recoverable outcome and it does not silently guess an alternative target or instance.
-3. Given this MVP support must stay score-first rather than drifting into DAW routing design, when the target-selection workflow is implemented, then it exposes only the explicit plugin target choices needed for the supported workflow and it does not expand into arbitrary bus routing or generic host-topology configuration.
+3. Given this MVP support must stay score-first rather than drifting into DAW routing design, when the route workflow is implemented, then it exposes only the explicit slot choices needed for the supported single-target workflow and it does not expand into arbitrary bus routing, shared-slot topology management, or generic host-topology configuration.
 
 ## Tasks / Subtasks
 
 - [x] Task 1: Add bounded route-authoring UI to existing Sequence score-context surfaces (AC: 1, 2, 3)
   - [x] Reuse the current Sequence route surfaces so the user can choose or change a route from the instrument context and the current-rack panel instead of creating a new app-scoped workflow.
-  - [x] Keep the common path direct: choose a prepared slot, then choose a target only when that slot exposes more than one backend-verified target.
+  - [x] Keep the current MVP common path direct: choose a prepared slot and route to its verified playback destination without introducing shared-slot or multi-target topology work.
   - [x] Preserve one explicit unrouted or clear-route action for recoverable repair without deleting slots or reopening Plugin Manager responsibilities.
 - [x] Task 2: Extend the backend-owned route mutation seam to persist explicit target and address intent (AC: 1, 2)
   - [x] Build on the existing rack-first ownership model where instruments route only to already-existing slots.
   - [x] Replace or extend the current slot-only route command so route creation stores the selected `slot_id`, `PlaybackRouteTarget`, and `PlaybackRouteAddress` instead of hard-coding only `InstrumentPlaybackRoute::direct(slot_id)` for every case.
   - [x] Keep all validation in Rust so invalid slot ids, invalid targets, unsupported target modes, and stale slot state fail with explicit recoverable errors rather than frontend guesses.
-- [x] Task 3: Expose supported target choices from Rust rather than inferring them in React (AC: 1, 2, 3)
+- [x] Task 3: Expose the supported slot-route contract from Rust rather than inferring it in React (AC: 1, 2, 3)
   - [x] Add or refine a backend-owned contract that tells the UI which route targets are currently valid for a prepared slot.
-  - [x] Limit target options to bounded MVP semantics grounded in actual VST-facing concepts already modeled by Compose: `Plugin`, `PluginPart`, and `MidiChannel`.
-  - [x] If the backend cannot prove a richer target safely for a slot, expose only the verified direct plugin target and do not invent speculative part or channel choices in the UI.
+  - [x] Limit the current MVP path to the backend-verified direct plugin target for prepared slots.
+  - [x] If the backend cannot prove a richer target safely for a slot, keep that richer target deferred rather than inventing speculative part or channel choices in the UI.
 - [x] Task 4: Keep route summaries and route-health presentation aligned with backend truth after authoring (AC: 1, 2)
   - [x] Refresh the existing `resolved_playback_route_by_instrument_id` presentation after successful route changes so instrument rows and the rack panel show the chosen target and address consistently.
   - [x] Preserve explicit `Unrouted`, `Ready`, and `NeedsAttention` behavior when a slot is missing, empty, unavailable, or no longer safely routable.
@@ -44,7 +44,7 @@ so that the playback destination for my instrument stays direct and unambiguous.
 - Story 3.4 is the explicit route-authoring slice that follows Story 3.3 slot preparation.
 - Its job is to connect a score instrument to an already-existing rack slot and capture the chosen target and address as backend-owned route intent.
 - This story must keep the product mental model route-first: the user routes an instrument into a prepared slot target, not directly into a plugin object.
-- This story owns bounded explicit target choice, including part or channel selection only when the backend can expose those targets as verified supported choices.
+- This story owns the bounded single-target route-authoring path needed for the current MVP.
 - This story must not collapse into shared-slot reuse logic, plugin activation, reopen recovery, or app-scoped inventory management.
 
 ### User Decisions Captured
@@ -52,8 +52,8 @@ so that the playback destination for my instrument stays direct and unambiguous.
 - The corrected Epic 3 model is rack-first: slots are prepared first, then instruments route into them.
 - Sequence remains the score-context workflow surface for rack and route work.
 - Plugin Manager remains the app-scoped inventory browser and is not the default answer for ordinary route authoring or repair.
-- Target selection should stay bounded and musician-facing rather than exposing generic host-topology configuration.
-- Ambiguous target choice must remain explicit; Compose must not silently guess a part, channel, or replacement slot.
+- The current MVP path is intentionally single-target-first; shared-slot or multi-target route choice is deferred rather than required.
+- Compose must not silently guess a part, channel, or replacement slot.
 
 ### Bounded Slice Template
 
@@ -61,18 +61,18 @@ so that the playback destination for my instrument stays direct and unambiguous.
 
 - Creating or changing the explicit route from an instrument to a prepared rack slot.
 - Capturing the route's selected target and address as backend-owned score intent.
-- Exposing one bounded target-selection workflow in Sequence when a slot has more than one backend-verified target.
+- Exposing one bounded single-target routing workflow in Sequence using the backend-owned route contract.
 - Clearing an instrument route without deleting the underlying slot.
 - Refreshing route summaries and recoverable health state after route authoring.
 
 #### This Story Does Not Own
 
 - Creating new slots or assigning plugins to slots. Story 3.3 owns that.
-- Reusing one compatible slot across multiple instruments as an explicit product slice. Story 3.5 owns that.
-- Automatic routing for newly created instruments. Story 3.6 owns that.
-- Repair and reroute workflows beyond the bounded author-or-clear route flow. Story 3.7 owns that.
+- Reusing one compatible slot across multiple instruments as an explicit product slice. That is deferred beyond the current MVP path.
+- Automatic routing for newly created instruments. That is deferred beyond the current MVP path.
+- Repair and reroute workflows beyond the bounded author-or-clear route flow. That is deferred beyond the current MVP path.
 - Activating plugins or targets for playback. Story 3.8 owns that.
-- Session-lifecycle stabilization, reopen recovery, or degraded reopen handling. Story 3.9 and Epic 5 own those.
+- Same-session runtime lifecycle stabilization stays with Story 3.8; reopen recovery and degraded reopen handling belong to Epic 5.
 - Native plugin-editor launch, Plugin Manager browsing, or maintainer troubleshooting workflows.
 
 #### Authoritative State Lives In
@@ -85,7 +85,7 @@ so that the playback destination for my instrument stays direct and unambiguous.
 #### Future Stories Intentionally Deferred
 
 - Deliberate shared-slot reuse UX and legibility.
-- Automatic routing and repair flows.
+- Automatic routing and richer repair flows.
 - Runtime target activation and first-audible-playback behavior.
 - Session persistence and reopen recovery behavior.
 - Route-owned expression-map editing and native plugin-editor launch from route context.
@@ -122,7 +122,7 @@ so that the playback destination for my instrument stays direct and unambiguous.
 - Story 3.2 made the current rack and route summaries visible in Sequence and provides the presentation surfaces this story should extend.
 - Story 3.3 prepares routeable slots with assigned plugins but explicitly stops short of creating the instrument route.
 - Story 3.4 must add explicit route authoring on top of those prepared slots without smuggling in shared-slot semantics or plugin activation.
-- Story 3.5 should later make multi-instrument reuse of one compatible slot explicit and legible after this story makes route targets authorable.
+- A later deferred follow-on can make multi-instrument reuse of one compatible slot explicit and legible after this story's single-target path.
 - Story 3.8 should later activate routed slots and targets for playback using the route intent captured here rather than redefining route ownership.
 
 ### Previous Story Intelligence
@@ -281,7 +281,7 @@ so that the playback destination for my instrument stays direct and unambiguous.
 - `_bmad-output/planning-artifacts/prd.md` — rack-first routing goals and MVP route-first scope
 - `_bmad-output/planning-artifacts/architecture.md` — backend-owned playback state and Sequence-versus-Plugin-Manager boundaries
 - `_bmad-output/planning-artifacts/ux-design-specification.md` — direct routing mental model and bounded target-choice expectations
-- `_bmad-output/planning-artifacts/sprint-change-proposal-2026-03-22-rack-routing-pivot.md` — authoritative rack-routing pivot and Epic 3 sequencing
+- `_bmad-output/planning-artifacts/archive/2026-03-epic-3-planning-history/sprint-change-proposal-2026-03-22-rack-routing-pivot.md` — archived rack-routing pivot and Epic 3 sequencing history
 - `_bmad-output/implementation-artifacts/3-2-show-assignment-readiness-in-instrument-rows-and-panels.md` — corrected Sequence rack and route-summary slice
 - `_bmad-output/implementation-artifacts/3-3-manually-assign-a-plugin-to-a-score-instrument.md` — corrected slot-preparation slice that explicitly defers route authoring to Story 3.4
 - `docs/project-context.md` — backend ownership, Sequence current-rack surface, and Plugin Manager scope rules

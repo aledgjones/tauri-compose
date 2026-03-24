@@ -1,12 +1,14 @@
 # Story 3.7: Repair And Reroute Instrument Playback Without Restructuring The Score
 
-Status: blocked
+Status: deferred
+
+Deferred reason: the current MVP will rely on the existing manual route-change path and explicit readiness messaging. A dedicated reroute or repair workflow refinement is useful later, but it is not required before Epic 4 playback hookup.
 
 ## Story
 
 As a composer,
 I want to change or repair an instrument's playback route directly,
-so that I can keep working without rebuilding score structure when playback setup changes.
+so that a later UX refinement can reduce recovery friction without blocking first-audible playback work.
 
 ## Acceptance Criteria
 
@@ -42,16 +44,16 @@ so that I can keep working without rebuilding score structure when playback setu
 
 ### Story Intent
 
-- Story 3.7 is not a repeat of Story 3.4's basic route-authoring work. Story 3.4 already introduced the explicit route command and the row-level fast path for direct slot changes.
-- The remaining slice is deliberate repair and reroute when an instrument is unresolved, needs attention, or needs a more contextual reroute flow than the compact row picker can support.
-- This story should make rerouting feel like a score-context recovery action inside Sequence rather than a technical playback-management task.
+- Story 3.7 is now an explicitly deferred UX refinement rather than part of the current Epic 3 completion path.
+- Story 3.4 already introduced the explicit route command and the row-level fast path for direct slot changes, which is sufficient for the current MVP runway.
+- This story can later make rerouting feel more like a score-context recovery action inside Sequence without blocking playback hookup.
 
 ### User Decisions Captured
 
 - Sequence remains the score-context workflow surface for slot preparation, route authoring, and route repair.
 - Plugin Manager remains app-scoped inventory browsing and is not the default answer for ordinary reroute or recovery work.
-- Story 3.5 remains blocked, so Story 3.7 must not introduce hidden shared-slot reuse, guessed channel selection, or speculative multi-target behavior.
-- Story 3.6 remains blocked by user decision, so new instruments continue to rely on explicit manual routing and repair rather than automatic routing heuristics.
+- Shared-slot and multi-target routing remain deferred, so Story 3.7 must not introduce hidden shared-slot reuse, guessed channel selection, or speculative multi-target behavior.
+- Automatic routing remains deferred by user decision, so new instruments continue to rely on explicit manual routing and repair rather than automatic routing heuristics.
 - Empty playback slots remain valid rack state, and a route to an existing empty slot is valid persisted intent that should resolve as `NeedsAttention` until the slot is prepared.
 
 ### Bounded Slice Template
@@ -279,7 +281,7 @@ so that I can keep working without rebuilding score structure when playback setu
 ### Completion Notes
 
 - Removed the newly added reroute UI and returned the product surface to the existing three-state model: slot, slot plugin picker, and instrument route picker.
-- Deferred the richer reroute and recovery UX until Stories 3.5 and 3.6 unblock the multi-timbral direction.
+- Deferred the richer reroute and recovery UX until the post-MVP routing follow-ons are intentionally reopened.
 - Validation completed after the revert with the standard frontend checks.
 
 ## File List

@@ -108,8 +108,8 @@ Exact numbers can be calibrated during architecture and validation planning, but
 - Clean-slate implementation direction with SCVI removed by MVP completion
 - Cache-first VST3 startup with bounded cached-entry validation, one cheap sweep for newly added uncached bundles, initial discovery when the cache is empty, plus manual full rescan
 - Rack-slot and routing workflow integrated into the main score workflow
-- Explicit support for both single-target plugins and compatible multi-target or channel-addressed plugin workflows, including one rack slot serving multiple score instruments through distinct routes where the plugin exposes that model
-- Auto-routing attempt on instrument creation, with unrouted fallback when no mapping exists
+- Explicit support for single-target plugin workflows in the current MVP, with multi-target or channel-addressed routing deferred until after first-audible-playback is working
+- Explicit manual routing for score instruments, with unrouted fallback when no mapping exists
 - Stable plugin loading and retained per-project rack and route state
 - Single-tone playback as an enabling milestone
 - Basic mixer behavior using a route-first UX, with route-level controls shown when VST3-exposed separability makes them real and slot-level semantics retained underneath where needed
@@ -124,7 +124,7 @@ Exact numbers can be calibrated during architecture and validation planning, but
 ### Growth Features (Post-MVP)
 
 - Broader plugin compatibility beyond the validated MVP baseline
-- More sophisticated instance-sharing and routing flexibility
+- More sophisticated instance-sharing, multi-target routing, and routing flexibility
 - Improved default mappings and routing ergonomics
 - Richer mixer capabilities beyond the current basic scope
 - Stronger diagnostics and recovery behavior around missing or problematic plugins
@@ -141,7 +141,7 @@ Exact numbers can be calibrated during architecture and validation planning, but
 
 ### Journey 1: Composer Gets From Empty Score To Trustworthy Playback
 
-A composer starts a new score because they want immediate feedback on an idea, not a long playback setup session. They add instruments, expect Compose to make sensible auto-routing attempts, and accept that some instruments may remain unrouted when no valid default mapping exists. Their first expectation is not deep control. It is hearing something believable quickly enough that playback becomes part of the act of writing.
+A composer starts a new score because they want immediate feedback on an idea, not a long playback setup session. They add instruments, route them explicitly when needed, and accept that some instruments may remain unrouted when no valid mapping exists yet. Their first expectation is not deep control. It is hearing something believable quickly enough that playback becomes part of the act of writing.
 
 As they route or confirm instruments, the product discovers available VST3 options through its cached registry and keeps the workflow inside the main score environment instead of forcing them into a technical side path. They enter a few bars of music, press play, and expect audible results that are realistic enough to judge pacing, texture, and orchestration choices. The critical delivery moment is not just hearing sound; it is hearing a believable mockup without having to think about plugin-hosting mechanics.
 
@@ -150,7 +150,7 @@ The journey succeeds when the composer feels that playback is now part of the sa
 Capabilities revealed by this journey:
 
 - cache-first VST3 discovery, startup availability, and empty-cache fallback discovery
-- instrument auto-routing attempt with unrouted fallback
+- explicit manual routing with unrouted fallback
 - routing UX inside the main composition flow
 - fast path from score creation to first believable playback
 - realistic enough default playback to support composition decisions
@@ -210,7 +210,7 @@ Capabilities revealed by this journey:
 
 These journeys reveal six core capability groups:
 
-- playback onboarding through cached plugin discovery, auto-routing attempts, and main-flow instrument routing
+- playback onboarding through cached plugin discovery, explicit manual routing, and main-flow instrument routing
 - bounded live-edit trust through explicit update rules for score changes during active playback
 - transport trust through stable play, pause, resume, and seek behavior with zero-dropout representative regressions
 - resilience and recovery through unrouted fallback states, missing-plugin recovery, and stable reopen behavior
@@ -314,8 +314,8 @@ This work requires strong Rust systems/audio implementation, native desktop inte
 - macOS-only VST3 discovery with cache-first startup, bounded cached-entry validation plus a cheap uncached-bundle sweep, and empty-cache fallback discovery
 - manual full rescan
 - main-flow instrument routing
-- explicit support for compatible single-part and multi-part or channel-addressed plugin workflows, including one-instance multi-instrument routing when the plugin exposes separable parts or channels
-- instrument auto-routing attempt with unrouted fallback
+- explicit support for single-target plugin workflows in the current MVP; multi-target or channel-addressed routing is deferred until after the manual playback path is proven
+- explicit manual routing with unrouted fallback when no suitable mapping exists
 - stable plugin loading and retained rack and route state
 - single-tone production as an enabling milestone
 - stable transport-driven playback with dependable play, pause, resume, and seek
@@ -383,11 +383,11 @@ The main resource risk is allowing compatibility breadth or host-surface complet
 ### Instrument Routing & Playback Setup
 
 - FR7: Composers can route a playable VST-backed slot target to score instruments.
-- FR8: Compose can attempt automatic playback routing when a new score instrument is created.
+- FR8: Compose can keep new score instruments on the explicit manual-routing path until the user assigns playback.
 - FR9: Compose can leave an instrument unrouted when no suitable playback mapping is available.
 - FR10: Composers can identify which score instruments are routed, unrouted, or no longer resolvable.
 - FR11: Composers can change the playback route for an instrument without restructuring the score.
-- FR12: Compose can support both single-target VST instrument workflows and compatible multi-target or channel-addressed VST instrument workflows in MVP, including one rack slot serving multiple score instruments through distinct routes where the plugin exposes that model.
+- FR12: Compose can support single-target VST instrument workflows in the current MVP while preserving a clean path for later multi-target or channel-addressed expansion.
 
 ### Plugin Lifecycle & Editing
 

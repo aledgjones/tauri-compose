@@ -1,14 +1,14 @@
 # Story 3.5: Reuse A Compatible Rack Slot Across Multiple Score Instruments
 
-Status: blocked
+Status: deferred
 
-Blocked reason: unresolved verified multi-target plugin path for shared-slot routing. HALion remains unproven after investigation, and BBCSO is sufficient to continue validating the single-instrument VST playback principle without forcing Story 3.5 now.
+Deferred reason: the current MVP is intentionally single-target only. Shared-slot and multi-target routing remain valid future work, but they are no longer part of the Epic 3 completion path needed to start Epic 4 playback hookup.
 
 ## Story
 
 As a composer,
 I want compatible score instruments to share one rack slot through explicit route targets,
-so that HALion-style playback setups work as a first-class MVP workflow instead of a later extension.
+so that Compose can later add bounded shared-slot workflows without reworking the rack-first model.
 
 ## Acceptance Criteria
 
@@ -46,10 +46,11 @@ so that HALion-style playback setups work as a first-class MVP workflow instead 
 
 ### Story Intent
 
-- Story 3.5 is the first slice that makes one-slot multi-instrument routing real rather than merely modeled in enums and persistence types.
+- Story 3.5 is now an explicitly deferred follow-on for one-slot multi-instrument routing rather than part of the current MVP path.
 - It follows Story 3.4, which created explicit route authoring, but 3.4 still emits only direct plugin output choices for prepared slots.
 - This story owns deliberate shared-slot reuse only for compatible multi-target plugins. It does not own plugin discovery, slot preparation, editor-host proof work, activation for playback, or transport behavior.
 - The user clarified an important execution constraint: HALion has not been made to work yet and is currently the only available multi-timbral instrument for validating this path.
+- The current MVP deliberately proceeds without this story so Epic 3 can end at the single-target activation seam needed for Epic 4.
 
 ### User Decisions Captured
 
@@ -89,7 +90,7 @@ so that HALion-style playback setups work as a first-class MVP workflow instead 
 - Automatic routing for newly created instruments in Story 3.6.
 - Repair and reroute workflows in Story 3.7.
 - Runtime activation and playback participation in Story 3.8.
-- Session persistence and reopen recovery in Story 3.9 and Epic 5.
+- Same-session runtime lifecycle coherence in Story 3.8, plus reopen recovery in Epic 5.
 
 #### Verification Required For Done
 

@@ -255,7 +255,7 @@ so that score instruments can participate in a consistent playback topology with
 - `_bmad-output/planning-artifacts/prd.md` — Epic 3 functional requirements and offline or local routing rules
 - `_bmad-output/planning-artifacts/architecture.md` — backend-owned state, persisted intent, and FE or BE ownership boundaries
 - `_bmad-output/planning-artifacts/ux-design-specification.md` — score-first routing, rack context, and direct-routing workflow expectations
-- `_bmad-output/planning-artifacts/sprint-change-proposal-2026-03-22-rack-routing-pivot.md` — rationale for reopening and rewriting Story 3.1 around rack and route state
+- `_bmad-output/planning-artifacts/archive/2026-03-epic-3-planning-history/sprint-change-proposal-2026-03-22-rack-routing-pivot.md` — archived rationale for reopening and rewriting Story 3.1 around rack and route state
 - `_bmad-output/implementation-artifacts/epic-2-retro-2026-03-22.md` — bounded-slice guardrails and Epic 3 prep requirements
 - `docs/project-context.md` — FE or BE ownership rules, migration workflow, and legacy sampler guardrails
 - `src-tauri/src/score/instruments/mod.rs` — current nearest persisted playback-intent seam

@@ -1,14 +1,14 @@
 # Story 3.6: Attempt Automatic Routing For New Score Instruments
 
-Status: blocked
+Status: deferred
 
-Blocked Reason: User decided not to pursue the bounded auto-routing heuristic because the behavior is not useful enough to justify the added complexity. New instruments should continue to rely on explicit manual routing.
+Deferred reason: the user decided not to pursue bounded auto-routing in the current MVP. New instruments should continue to rely on explicit manual routing until first-audible playback is working.
 
 ## Story
 
 As a composer,
 I want Compose to attempt a sensible playback route when I create a new score instrument,
-so that I can get to playable setup faster without manual work every time.
+so that a later convenience workflow can reduce repeated manual setup after the manual path is proven.
 
 ## Acceptance Criteria
 
@@ -29,7 +29,7 @@ so that I can get to playable setup faster without manual work every time.
   - [ ] Treat currently workable single-target VST paths such as BBCSO-style plugins as the primary proof path for this story.
   - [ ] Do not introduce expression-map-level logic, reusable mapping libraries, or broader playback asset systems that belong to later epics.
   - [ ] If multiple candidate plugins or targets are equally plausible and the backend cannot prove one safe choice, treat the case as ambiguous and leave the instrument unresolved rather than guessing.
-- [ ] Task 3: Keep blocked shared-slot and multi-target behavior out of automatic routing while Story 3.5 remains blocked (AC: 2, 3, 4)
+- [ ] Task 3: Keep deferred shared-slot and multi-target behavior out of automatic routing while Story 3.5 remains deferred (AC: 2, 3, 4)
   - [ ] Do not auto-select `PluginPart`, `MidiChannel`, or shared-slot reuse behavior when the plugin path requires a human choice or a still-unproven multi-target capability.
   - [ ] Treat Story 3.5's blocked status as an implementation guardrail: no hidden shared-slot routing, no guessed channel assignment, no implicit multi-part reuse.
   - [ ] Leave ambiguous or unsupported multi-target candidates explicitly unrouted or attention-needed so the existing manual route flow can resolve them later.
@@ -48,14 +48,13 @@ so that I can get to playable setup faster without manual work every time.
 
 ### Story Intent
 
-- Story 3.6 is the bounded auto-routing slice that follows explicit manual route authoring.
-- Its purpose is not to make routing magical. Its purpose is to make a sensible best-effort attempt when a new score instrument is created and to leave clear recoverable state when that attempt cannot be made safely.
-- This story is workable even while Story 3.5 is blocked because its acceptance criteria explicitly require Compose not to guess hidden target or shared-slot routing when choice would be ambiguous.
-- The current product goal can be validated through single-target VST paths such as BBCSO-style plugins without forcing multi-target shared-slot proof into this story.
+- Story 3.6 is now an explicitly deferred convenience slice that can be reconsidered after the manual playback path is proven.
+- Its purpose remains best-effort automation rather than hidden magic, but it is no longer required for the current MVP.
+- The current product goal is to validate the manual single-target VST path first.
 
 ### User Decisions Captured
 
-- Story 3.5 remains blocked and must not be pulled into this story implicitly.
+- Shared-slot and multi-target routing remain deferred and must not be pulled into this story implicitly.
 - BBCSO-style single-instrument VST support is sufficient to prove the current VST playback principle for Story 3.6.
 - When the backend cannot choose a route safely, the correct behavior is explicit unrouted or recoverable state, not a clever guess.
 - Sequence remains the score-context surface where the result should be visible and manually correctable.
@@ -89,7 +88,7 @@ so that I can get to playable setup faster without manual work every time.
 - Shared-slot reuse and multi-target routing in Story 3.5.
 - Dedicated reroute and repair flow in Story 3.7.
 - Activation and first audible playback in Story 3.8.
-- Session persistence and reopen recovery in Story 3.9 and Epic 5.
+- Same-session runtime lifecycle coherence in Story 3.8, plus reopen recovery in Epic 5.
 
 #### Verification Required For Done
 
@@ -100,7 +99,7 @@ so that I can get to playable setup faster without manual work every time.
 
 #### Open Questions Requiring Human Clarification
 
-- None. The user explicitly clarified that BBCSO-style single-target VST support is enough to continue proving the current playback direction while shared-slot multi-target work remains blocked.
+- None. The user explicitly clarified that BBCSO-style single-target VST support is enough to continue proving the current playback direction while shared-slot multi-target work remains deferred.
 
 ### Scope Boundaries
 
@@ -128,7 +127,7 @@ so that I can get to playable setup faster without manual work every time.
 ### Previous Story Intelligence
 
 - The Story 3.4 artifact established that React must not infer valid targets and that manual route authoring uses explicit backend-owned route choices.
-- The blocked Story 3.5 artifact now provides an important guardrail: no guessed shared-slot reuse, no hidden channel assignment, and no fake multi-target capability proof.
+- The deferred Story 3.5 artifact now provides an important guardrail: no guessed shared-slot reuse, no hidden channel assignment, and no fake multi-target capability proof.
 - The current backend `score_instruments_create` seam still creates instruments with `playback_route: None` and emits general state immediately, so 3.6 needs to extend that creation path or extract a helper around it.
 - Existing backend route-choice emission is still bounded to direct plugin output for prepared non-empty slots, which makes single-target auto-routing the current practical path.
 
@@ -246,7 +245,7 @@ so that I can get to playable setup faster without manual work every time.
   - `6d6e6ef8 chore: proposed rack ux improvements`
   - `0727803c feat(3.3): slot assignment`
   - `0abd1a14 feat(3.2): assignment readieness`
-- Treat the HALion investigation commit and the blocked 3.5 story as guardrails, not prerequisites for this story's single-target proof path.
+- Treat the HALion investigation commit and deferred Story 3.5 as guardrails, not prerequisites for this story's single-target proof path.
 
 ### Latest Technical Information
 
@@ -259,7 +258,7 @@ so that I can get to playable setup faster without manual work every time.
 
 - Preserve the legacy sprint key and artifact path for story-tracking continuity even though the epic text says "routing" while the sprint key uses "assignment".
 - Keep the auto-routing outcome visible in existing Sequence score-context surfaces rather than inventing a new onboarding workflow.
-- Treat blocked Story 3.5 as an active scope boundary for this artifact.
+- Treat deferred Story 3.5 as an active scope boundary for this artifact.
 
 ### References
 
@@ -290,7 +289,7 @@ GPT-5.4
 - Story selected explicitly as `3.6`.
 - Sprint tracking preserved the legacy `3-6-attempt-automatic-assignment-for-new-score-instruments` key and artifact naming.
 - Artifact review confirmed that `3.6` is explicitly compatible with leaving instruments unrouted when safe auto-routing is not possible.
-- Adjacent-story analysis confirmed that blocked Story 3.5 must remain a guardrail: no hidden shared-slot or multi-target auto-selection.
+- Adjacent-story analysis confirmed that deferred Story 3.5 must remain a guardrail: no hidden shared-slot or multi-target auto-selection.
 - Code exploration confirmed that the backend already owns instrument creation, slot preparation, and explicit route assignment, while the create command currently leaves `playback_route` empty.
 - Implemented and validated a bounded auto-routing prototype, then reverted it after product review because the heuristic did not provide enough user value.
 - Story status changed to `blocked` rather than `review` so the artifact reflects the decision not to pursue this direction.
@@ -298,9 +297,9 @@ GPT-5.4
 ### Completion Notes List
 
 - Created the Story 3.6 context artifact as the bounded auto-routing slice after manual route authoring.
-- Captured the user decision that BBCSO-style single-target VST paths are enough to keep proving the VST playback direction while 3.5 stays blocked.
+- Captured the user decision that BBCSO-style single-target VST paths are enough to keep proving the VST playback direction while 3.5 stays deferred.
 - Directed the dev agent toward extending backend-owned instrument creation and route preparation rather than inventing a frontend orchestration flow.
-- Added explicit guardrails against hidden shared-slot or multi-target guesses while Story 3.5 remains blocked.
+- Added explicit guardrails against hidden shared-slot or multi-target guesses while Story 3.5 remains deferred.
 - The bounded auto-routing prototype was intentionally backed out. Compose continues to rely on explicit manual routing for newly created instruments.
 
 ### File List

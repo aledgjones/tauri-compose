@@ -277,7 +277,7 @@ so that I can tell at a glance which parts are playable and which need action.
 - `_bmad-output/planning-artifacts/prd.md` — Epic 3 route-first functional requirements
 - `_bmad-output/planning-artifacts/architecture.md` — Rust-owned playback state, score-context boundaries, and backend ownership rules
 - `_bmad-output/planning-artifacts/ux-design-specification.md` — Sequence rack surface, compact route state, and panel-versus-window scope guidance
-- `_bmad-output/planning-artifacts/sprint-change-proposal-2026-03-22-rack-routing-pivot.md` — rationale and required Story 3.2 replacement
+- `_bmad-output/planning-artifacts/archive/2026-03-epic-3-planning-history/sprint-change-proposal-2026-03-22-rack-routing-pivot.md` — archived rationale and required Story 3.2 replacement
 - `_bmad-output/implementation-artifacts/3-1-represent-playback-assignment-state-on-score-instruments.md` — corrected Story 3.1 foundation notes
 - `_bmad-output/implementation-artifacts/3-3-manually-assign-a-plugin-to-a-score-instrument.md` — downstream story that must continue from the corrected rack model
 - `docs/project-context.md` — FE/BE ownership rules and legacy seam guardrails

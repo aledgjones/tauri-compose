@@ -74,7 +74,7 @@ so that I can prepare a reusable playback destination without leaving my composi
 - Automatic routing for new instruments. Story 3.6 owns that.
 - Repair and reroute behavior beyond bounded slot preparation. Story 3.7 owns that.
 - Runtime slot activation or playable target loading. Story 3.8 owns that.
-- Session lifecycle stabilization or reopen recovery behavior. Story 3.9 and Epic 5 own that.
+- Same-session runtime lifecycle stabilization beyond bounded slot preparation, plus project reopen recovery. Story 3.8 and Epic 5 own that.
 - Full plugin inventory browsing, rescan, or troubleshooting workflows. Plugin Manager owns those.
 
 #### Authoritative State Lives In
@@ -273,7 +273,7 @@ so that I can prepare a reusable playback destination without leaving my composi
 - `_bmad-output/planning-artifacts/prd.md` — score-first rack and routing goals, FR7, FR11, and MVP slot-preparation direction
 - `_bmad-output/planning-artifacts/architecture.md` — backend-owned playback state, recoverable degraded state, and ownership boundaries
 - `_bmad-output/planning-artifacts/ux-design-specification.md` — score-first routing model, panels-versus-windows scope, and filtered plugin picker expectations
-- `_bmad-output/planning-artifacts/sprint-change-proposal-2026-03-22-rack-routing-pivot.md` — rationale for rewriting Story 3.3 as a slot-preparation slice
+- `_bmad-output/planning-artifacts/archive/2026-03-epic-3-planning-history/sprint-change-proposal-2026-03-22-rack-routing-pivot.md` — archived rationale for rewriting Story 3.3 as a slot-preparation slice
 - `_bmad-output/implementation-artifacts/3-1-represent-playback-assignment-state-on-score-instruments.md` — corrected rack-and-slot foundation notes
 - `_bmad-output/implementation-artifacts/3-2-show-assignment-readiness-in-instrument-rows-and-panels.md` — corrected current-rack display slice that this story builds on
 - `_bmad-output/implementation-artifacts/epic-2-retro-2026-03-22.md` — bounded-slice guardrails for Epic 3 preparation

@@ -1,3 +1,9 @@
+# Archived Sprint Change Proposal
+
+Status: superseded by the later single-target Epic 3 planning rewrite now captured in the active planning set (`prd.md`, `architecture.md`, `ux-design-specification.md`, `epics.md`) and the current tracker state.
+
+Archive note: this document is kept as planning history only. It should not be treated as the active Epic 3 direction.
+
 # Sprint Change Proposal
 
 **Project:** compose  

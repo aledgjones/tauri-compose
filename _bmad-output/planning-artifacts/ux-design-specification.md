@@ -210,7 +210,7 @@ The experience should feel like giving an instrument a clear playback path rathe
 
 Users should think in a direct relationship: this instrument routes to this playback destination. They should not need to think in terms of plugin-host topology, resource allocation, or audio-production routing. Their expectation is that notation and musical intent come first, and playback should attach to that intent in a way that feels legible and predictable.
 
-When a compatible multi-part plugin requires a slot, part, or channel choice, that choice should be presented as a bounded extension of the same direct relationship rather than as a different mode of working. The user should still think this instrument routes to this playback destination, with one additional explicit target choice only when the plugin model genuinely requires it.
+For the current MVP, the user should only need to think this instrument routes to this playback destination. If Compose later grows into explicit multi-target routing, that should be added as a bounded extension of the same direct relationship rather than as a different mode of working.
 
 Current Compose already points toward the right mental model because its direct routing flow is efficient even when the control styling is awkward. Users are likely to expect that same immediacy to remain. Confusion is most likely to appear when scopes blur, especially between direct instrument routing, reusable playback configuration, expression-map authoring, and plugin-owned settings.
 
@@ -270,7 +270,7 @@ Because playback introduces new layers of scope, accessibility also depends on c
 
 The primary playback routing surface should remain close to the instrument itself. The instrument row should continue to own quick visibility and quick rerouting because routing is a core musical action rather than an advanced setup action. The row must stay compact, so it should use a concise routing control that shows current playback truth and a small readiness or health signal.
 
-When the chosen plugin exposes compatible multi-part or channel-addressed targets, the routing flow should add one explicit target-selection step without abandoning the direct score-first model. Users should be able to see which target the current instrument is using and, when relevant, whether another score instrument is intentionally sharing the same rack slot.
+For the current MVP, the routing flow should stay single-target and explicit. Users should be able to see which playback destination the current instrument is using without being asked to manage parts, channels, or shared-slot relationships before first-audible playback is working.
 
 The instrument panel should act as the expanded score-context surface for that same route. It should not introduce a second model. Instead, it should reveal more metadata, richer status explanation, and deeper contextual controls for the currently selected instrument and its linked playback route.
 
