@@ -1,4 +1,3 @@
-use crate::playback::plugin_inventory::PluginInventoryContextState;
 use crate::playback::scvi::ScviContainer;
 use crate::playback::streamer::{self, StreamBuffer, StreamRequest};
 use crate::score::Score;
@@ -6,13 +5,13 @@ use crate::AudioContextState;
 use crate::SamplerContextState;
 use dirs;
 use rand::RngExt;
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use std::fs::{self, File};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
-use tauri::{AppHandle, Emitter, Manager, State};
+use tauri::{AppHandle, Emitter, State};
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct ArticulationMeta {
@@ -102,14 +101,11 @@ pub fn sync_sampler_with_score(
     audio_state: &AudioContextState,
     error_context: &str,
 ) {
-    let available_plugin_ids = app
-        .state::<PluginInventoryContextState>()
-        .lock()
-        .unwrap()
-        .available_plugin_ids();
+    let mut sampler = sampler_state.lock().unwrap();
+    let available_plugin_ids: FxHashSet<String> =
+        sampler.plugins.iter().map(|p| p.id.clone()).collect();
     let routed_plugin_ids = score.routed_plugin_ids(&available_plugin_ids);
 
-    let mut sampler = sampler_state.lock().unwrap();
     let audio = audio_state.lock().unwrap();
     let sample_rate = audio.get_sample_rate();
     drop(audio);
@@ -297,8 +293,7 @@ impl SamplerContext {
         target_sample_rate: u32,
     ) -> Result<(), String> {
         // Collect unique routed plugin IDs
-        let required_plugins: std::collections::HashSet<&String> =
-            plugin_ids.iter().collect();
+        let required_plugins: std::collections::HashSet<&String> = plugin_ids.iter().collect();
 
         // Load plugins that are assigned but not yet loaded
         for plugin_id in &required_plugins {

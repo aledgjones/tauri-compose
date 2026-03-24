@@ -173,6 +173,7 @@ describe("Sequence BottomPanel", () => {
             source_root: "/Library/Audio/Plug-Ins/VST3",
             availability: "available",
             validation_failure: null,
+            editor_host_validation: null,
           },
         ],
       },

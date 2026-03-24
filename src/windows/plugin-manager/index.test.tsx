@@ -19,6 +19,7 @@ const makePlugin = (overrides = {}) => ({
   source_root: "/Library/Audio/Plug-Ins/VST3",
   availability: "available" as const,
   validation_failure: null,
+  editor_host_validation: null,
   ...overrides,
 });
 
@@ -79,7 +80,7 @@ describe("PluginManager Main", () => {
     expect(screen.queryByText("Broken Plugin")).not.toBeInTheDocument();
   });
 
-  it("hides unsupported plugins when Available only is enabled", () => {
+  it("keeps editor-blocked plugins when Available only is enabled", () => {
     renderWithProviders(<Main />, {
       pluginInventoryState: {
         entries: [
@@ -90,10 +91,12 @@ describe("PluginManager Main", () => {
             bundle_path: "/Library/Audio/Plug-Ins/VST3/HALion Sonic.vst3",
             binary_path:
               "/Library/Audio/Plug-Ins/VST3/HALion Sonic.vst3/Contents/MacOS/HALion Sonic",
-            validation_failure: {
-              kind: "unsupported_editor_host",
+            editor_host_validation: {
+              status: "blocked",
+              phase: "policy_gate",
               message:
-                "Steinberg-family bundles are unsupported in the bounded native editor host.",
+                "Blocked for the bounded native editor host by recorded compatibility evidence.",
+              capability_evidence: null,
             },
           }),
         ],
@@ -103,7 +106,7 @@ describe("PluginManager Main", () => {
     fireEvent.click(screen.getByRole("switch"));
 
     expect(screen.getByText("Grand Piano")).toBeInTheDocument();
-    expect(screen.queryByText("HALion Sonic")).not.toBeInTheDocument();
+    expect(screen.getByText("HALion Sonic")).toBeInTheDocument();
   });
 
   it("shows the plugin path for unavailable plugins", () => {
@@ -131,15 +134,17 @@ describe("PluginManager Main", () => {
     ).toBeInTheDocument();
   });
 
-  it("shows bounded native editor-host unsupported state for excluded plugins", () => {
+  it("shows bounded native editor-host blocked state for excluded plugins", () => {
     renderWithProviders(<Main />, {
       pluginInventoryState: {
         entries: [
           makePlugin({
-            validation_failure: {
-              kind: "unsupported_editor_host",
+            editor_host_validation: {
+              status: "blocked",
+              phase: "policy_gate",
               message:
-                "Steinberg-family bundles are unsupported in the bounded native editor host.",
+                "Blocked for the bounded native editor host by recorded compatibility evidence.",
+              capability_evidence: null,
             },
           }),
         ],
@@ -147,16 +152,19 @@ describe("PluginManager Main", () => {
     });
 
     expect(screen.getByText("Grand Piano")).toBeInTheDocument();
-    expect(screen.getByLabelText("Status: Unsupported")).toBeInTheDocument();
+    expect(screen.getByLabelText("Status: Available")).toBeInTheDocument();
     expect(
       screen.getByText(/Contents\/MacOS\/Grand Piano/),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Native editor status:\s*Blocked/i),
     ).toBeInTheDocument();
     expect(
       screen.queryByRole("button", {
         name: "Open native editor host for Grand Piano",
       }),
     ).not.toBeInTheDocument();
-    expect(screen.queryByText("Maintainer preview")).not.toBeInTheDocument();
+    expect(screen.getByText("Maintainer preview")).toBeInTheDocument();
   });
 
   it("orders available plugins before unsupported and unavailable entries", () => {
@@ -166,10 +174,12 @@ describe("PluginManager Main", () => {
           makePlugin({
             id: "unsupported-zebra",
             name: "Zebra Synth",
-            validation_failure: {
-              kind: "unsupported_editor_host",
+            editor_host_validation: {
+              status: "blocked",
+              phase: "policy_gate",
               message:
-                "Steinberg-family bundles and Kontakt 7 are blocked in the bounded native editor host.",
+                "Blocked for the bounded native editor host by recorded compatibility evidence.",
+              capability_evidence: null,
             },
           }),
           makePlugin({
@@ -202,8 +212,8 @@ describe("PluginManager Main", () => {
     expect(renderedNames).toEqual([
       "Amber Strings",
       "Grand Piano",
-      "Broken Plugin",
       "Zebra Synth",
+      "Broken Plugin",
     ]);
   });
 });

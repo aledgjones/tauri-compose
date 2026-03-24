@@ -632,6 +632,43 @@ export type PluginInventoryFailure = {
   message: string;
 };
 
+export type PluginEditorHostValidationStatus =
+  | "blocked"
+  | "failed"
+  | "attached";
+
+export type PluginEditorHostValidationPhase =
+  | "policy_gate"
+  | "module_load"
+  | "factory_create"
+  | "host_context"
+  | "component_create"
+  | "component_initialize"
+  | "controller_create"
+  | "controller_set_component_handler_pre_init"
+  | "controller_initialize"
+  | "component_state_sync"
+  | "controller_set_component_handler"
+  | "connection_point_handshake"
+  | "view_create"
+  | "view_set_frame"
+  | "view_attach"
+  | "attached";
+
+export type PluginCapabilityEvidenceStatus = "not_proven";
+
+export type PluginCapabilityEvidence = {
+  status: PluginCapabilityEvidenceStatus;
+  message: string;
+};
+
+export type PluginEditorHostValidation = {
+  status: PluginEditorHostValidationStatus;
+  phase: PluginEditorHostValidationPhase;
+  message: string;
+  capability_evidence: PluginCapabilityEvidence | null;
+};
+
 export type PluginInventoryEntry = {
   id: string;
   name: string;
@@ -640,6 +677,7 @@ export type PluginInventoryEntry = {
   source_root: string;
   availability: PluginInventoryAvailability;
   validation_failure: PluginInventoryFailure | null;
+  editor_host_validation: PluginEditorHostValidation | null;
 };
 
 export type PluginInventoryState = {

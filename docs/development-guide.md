@@ -186,8 +186,10 @@ What it does not yet do:
 Current bounded validation subset:
 
 - Known-good bounded-host examples: `BBC Symphony Orchestra.vst3` remains the primary control case, and recent successful maintainer runs also include `Reverb.vst3`, `ProEQ.vst3`, and `Originals - Intimate Grand Piano.vst3`.
-- Explicitly unsupported targets in the current proof host: bundles on the current unsupported list are marked as `Unsupported` in the shared plugin inventory UI for the bounded native editor-host seam. That list currently includes Steinberg-family `HALion Sonic.vst3`, `HALion Sonic SE.vst3`, `Groove Agent SE.vst3`, `Kontakt 7.vst3`, and `MT-PowerDrumKit.vst3`; current evidence shows `HALion Sonic.vst3` and `Groove Agent SE.vst3` crash during controller initialization in that seam, `HALion Sonic SE.vst3` fails earlier because its resolved `ContentPlayer` executable returns a null `GetPluginFactory` pointer, `Kontakt 7.vst3` crashes during component `createInstance`, and `MT-PowerDrumKit.vst3` currently requires an MVP-host teardown exception we do not want to keep in this bounded seam.
-- Expected failure behavior for unsupported targets: the maintainer `Open native editor` action is suppressed in the Plugin Manager surface for those inventory entries, and backend fallback protection still rejects direct requests without reserving host lifecycle state or leaving behind a plugin-host window for bundles on that unsupported list.
+- HALion Sonic posture: repeated bounded-host repros now crash with the same `EXC_BAD_ACCESS` null dereference inside `HALion Sonic` during controller `initialize`, so `HALion Sonic.vst3` is again policy-blocked before host attachment instead of leaving the crash path available in maintainer UI flows.
+- Explicitly policy-blocked targets in the current proof host: the bounded native editor-host seam now blocks `HALion Sonic.vst3`, `HALion Sonic SE.vst3`, `Groove Agent SE.vst3`, `Kontakt 7.vst3`, and `MT-PowerDrumKit.vst3` before host attachment. Those entries remain available as inventory items when their bundles validate, but the maintainer preview reports a `Blocked` native editor status based on recorded compatibility evidence instead of overloading bundle validation failure.
+- Structured host diagnostics: the bounded host now records phase-aware native-editor results such as `policy_gate`, `module_load`, `component_create`, `controller_initialize`, `view_create`, and `view_attach`. Successful attaches record that editor-host usability is proven while multi-part capability remains `not_proven` until a later bounded seam exposes plugin-derived facts.
+- Current host-interface tradeoff: the host shim now advertises `IUpdateHandler` because Steinberg-family controllers are more likely to depend on it during initialization. The COM wrapper has a fixed interface tuple limit, so this bounded seam intentionally no longer advertises `IDataExchangeHandler` in the queryable host surface.
 
 Manual validation checklist:
 
@@ -202,7 +204,8 @@ Manual validation checklist:
 9. Switch focus between the main window and the host window and confirm the app remains responsive and the plugin editor retains coherent focus behavior.
 10. Close the host window, confirm the Rust logs show teardown without leaving stale host ownership behind, then reopen the same plugin in the same session.
 11. Try the same action against an invalid or unavailable target via a development harness or invalid `SOLOC_PLUGIN_EDITOR_POC_VST3_PATH`, and confirm the failure stays local to the maintainer action without leaving an orphaned host window.
-12. Try the same action against a bundle on the unsupported list, such as `HALion Sonic.vst3`, `HALion Sonic SE.vst3`, `Groove Agent SE.vst3`, or `Kontakt 7.vst3`, and confirm the maintainer surface reports the unsupported-target error without creating or reserving a plugin-host window.
+12. Try the same action against a blocked Steinberg-family target such as `HALion Sonic.vst3`, `HALion Sonic SE.vst3`, or `Groove Agent SE.vst3`, and confirm the maintainer surface reports `Native editor status: Blocked`, suppresses the native-editor trigger, and backend fallback protection rejects direct requests without creating or reserving a plugin-host window.
+13. Try the same action against another blocked bundle such as `Kontakt 7.vst3` or `MT-PowerDrumKit.vst3`, and confirm the same policy-gate behavior holds without needing a live host attempt.
 
 ## Versioning
 

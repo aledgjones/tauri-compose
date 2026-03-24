@@ -264,12 +264,11 @@ fn collect_scheduled_notes(
                 None => continue,
             };
 
-            let plugin_id = match score
-                .instrument_effective_plugin_id(*instrument_id, available_plugin_ids)
-            {
-                Some(id) => String::from(id),
-                None => continue,
-            };
+            let plugin_id =
+                match score.instrument_effective_plugin_id(*instrument_id, available_plugin_ids) {
+                    Some(id) => String::from(id),
+                    None => continue,
+                };
 
             // Find staves for this instrument in this flow
             for stave_id in &instrument.stave_ids {
@@ -795,10 +794,10 @@ mod tests {
             .get_mut(&player_id)
             .unwrap()
             .instrument_ids = vec![instrument_id];
-        score
-            .instruments
-            .by_id
-            .insert(instrument_id, make_instrument(instrument_id, stave_id, "plugin-a"));
+        score.instruments.by_id.insert(
+            instrument_id,
+            make_instrument(instrument_id, stave_id, "plugin-a"),
+        );
         score
             .create_playback_slot(6)
             .expect("slot creation should succeed");
@@ -827,6 +826,7 @@ mod tests {
                     source_root: String::from("/tmp"),
                     availability: PluginInventoryAvailability::Available,
                     validation_failure: None,
+                    editor_host_validation: None,
                 })
                 .collect(),
         ))

@@ -7,7 +7,7 @@ const UNSUPPORTED_EDITOR_HOST_BUNDLE_NAMES: &[&str] = &[
     "Kontakt 7",
     "MT-PowerDrumKit",
 ];
-const UNSUPPORTED_EDITOR_HOST_MESSAGE: &str = "Unsupported plugin target for the current macOS native editor host POC: this bundle is on the current unsupported list for the bounded seam. Current evidence shows HALion Sonic and Groove Agent SE crash during controller initialization, HALion Sonic SE returns a null plugin factory, Kontakt 7 crashes during component createInstance, and MT-PowerDrumKit currently requires an MVP-host teardown exception we do not want to carry in the bounded seam. Other discovered bundles remain eligible unless they demonstrate host-seam issues and are added to this unsupported list.";
+const UNSUPPORTED_EDITOR_HOST_MESSAGE: &str = "Unsupported plugin target for the current macOS native editor host POC: this bundle is on the current unsupported list for the bounded seam. Current evidence shows Groove Agent SE crashes during controller initialization, HALion Sonic crashes at a NULL internal pointer during controller initialization, HALion Sonic SE returns a null plugin factory, Kontakt 7 crashes during component createInstance, and MT-PowerDrumKit currently requires an MVP-host teardown exception we do not want to carry in the bounded seam. Other discovered bundles remain eligible unless they demonstrate host-seam issues and are added to this unsupported list.";
 
 fn bundle_stem_matches_any_case_insensitive(path: &Path, names: &[&str]) -> bool {
     let Some(bundle_stem) = path.file_stem().and_then(|value| value.to_str()) else {
@@ -33,7 +33,7 @@ mod tests {
 
     #[test]
     fn rejects_known_unsupported_vendor_example() {
-        let path = Path::new("/Library/Audio/Plug-Ins/VST3/Steinberg/HALion Sonic.vst3");
+        let path = Path::new("/Library/Audio/Plug-Ins/VST3/Steinberg/Groove Agent SE.vst3");
 
         let reason = bounded_editor_host_unsupported_reason(path).unwrap();
 
@@ -66,6 +66,26 @@ mod tests {
 
         assert!(reason.contains("MT-PowerDrumKit"));
         assert!(reason.contains("MVP-host teardown exception"));
+    }
+
+    #[test]
+    fn rejects_halion_sonic_bundle_name() {
+        let path = Path::new("/Library/Audio/Plug-Ins/VST3/Steinberg/HALion Sonic.vst3");
+
+        let reason = bounded_editor_host_unsupported_reason(path).unwrap();
+
+        assert!(reason.contains("HALion Sonic"));
+        assert!(reason.contains("NULL internal pointer"));
+    }
+
+    #[test]
+    fn rejects_halion_sonic_se_bundle_name() {
+        let path = Path::new("/Library/Audio/Plug-Ins/VST3/Steinberg/HALion Sonic SE.vst3");
+
+        let reason = bounded_editor_host_unsupported_reason(path).unwrap();
+
+        assert!(reason.contains("HALion Sonic SE"));
+        assert!(reason.contains("null plugin factory"));
     }
 
     #[test]

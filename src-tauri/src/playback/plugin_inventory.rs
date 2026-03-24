@@ -39,6 +39,56 @@ pub struct PluginInventoryFailure {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum PluginEditorHostValidationStatus {
+    Blocked,
+    Failed,
+    Attached,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum PluginEditorHostValidationPhase {
+    PolicyGate,
+    ModuleLoad,
+    FactoryCreate,
+    HostContext,
+    ComponentCreate,
+    ComponentInitialize,
+    ControllerCreate,
+    ControllerSetComponentHandlerPreInit,
+    ControllerInitialize,
+    ComponentStateSync,
+    ControllerSetComponentHandler,
+    ConnectionPointHandshake,
+    ViewCreate,
+    ViewSetFrame,
+    ViewAttach,
+    Attached,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum PluginCapabilityEvidenceStatus {
+    NotProven,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+pub struct PluginCapabilityEvidence {
+    pub status: PluginCapabilityEvidenceStatus,
+    pub message: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+pub struct PluginEditorHostValidation {
+    pub status: PluginEditorHostValidationStatus,
+    pub phase: PluginEditorHostValidationPhase,
+    pub message: String,
+    #[serde(default)]
+    pub capability_evidence: Option<PluginCapabilityEvidence>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 pub struct PluginInventoryEntry {
     pub id: String,
     pub name: String,
@@ -47,6 +97,8 @@ pub struct PluginInventoryEntry {
     pub source_root: String,
     pub availability: PluginInventoryAvailability,
     pub validation_failure: Option<PluginInventoryFailure>,
+    #[serde(default)]
+    pub editor_host_validation: Option<PluginEditorHostValidation>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq, Eq)]
@@ -204,6 +256,25 @@ impl PluginInventoryContext {
             .collect()
     }
 
+    pub fn update_editor_host_validation_for_bundle_path(
+        &mut self,
+        bundle_path: &Path,
+        validation: PluginEditorHostValidation,
+    ) -> Result<bool, String> {
+        let Some(entry) = self
+            .state
+            .entries
+            .iter_mut()
+            .find(|entry| Path::new(&entry.bundle_path) == bundle_path)
+        else {
+            return Ok(false);
+        };
+
+        entry.editor_host_validation = Some(validation);
+        self.persist_state()?;
+        Ok(true)
+    }
+
     pub fn discover(&mut self) -> Result<(), String> {
         self.discover_in_roots(&default_vst3_search_roots())
     }
@@ -243,6 +314,19 @@ fn current_unix_time_ms() -> Result<u64, String> {
         .duration_since(UNIX_EPOCH)
         .map(|duration| duration.as_millis() as u64)
         .map_err(|error| error.to_string())
+}
+
+pub fn blocked_editor_host_validation(message: String) -> PluginEditorHostValidation {
+    PluginEditorHostValidation {
+        status: PluginEditorHostValidationStatus::Blocked,
+        phase: PluginEditorHostValidationPhase::PolicyGate,
+        message,
+        capability_evidence: None,
+    }
+}
+
+fn inventory_editor_host_validation(plugin_path: &Path) -> Option<PluginEditorHostValidation> {
+    bounded_editor_host_unsupported_reason(plugin_path).map(blocked_editor_host_validation)
 }
 
 fn resolve_available_bundle_path_in_entries(
@@ -393,12 +477,8 @@ fn validate_cached_entry(entry: PluginInventoryEntry) -> PluginInventoryEntry {
             Ok(binary_path) => PluginInventoryEntry {
                 availability: PluginInventoryAvailability::Available,
                 binary_path: Some(binary_path.display().to_string()),
-                validation_failure: bounded_editor_host_unsupported_reason(&bundle_path).map(
-                    |message| PluginInventoryFailure {
-                        kind: PluginInventoryFailureKind::UnsupportedEditorHost,
-                        message,
-                    },
-                ),
+                validation_failure: None,
+                editor_host_validation: inventory_editor_host_validation(&bundle_path),
                 ..entry
             },
             Err(error) => unavailable_cached_entry(entry, error),
@@ -415,6 +495,7 @@ fn unavailable_cached_entry(
         availability: PluginInventoryAvailability::Unavailable,
         binary_path: None,
         validation_failure: Some(PluginInventoryFailure::from(error)),
+        editor_host_validation: None,
         ..entry
     }
 }
@@ -437,12 +518,8 @@ fn build_inventory_entry(candidate: PathBuf, source_root: String) -> PluginInven
                     binary_path: Some(binary_path.display().to_string()),
                     source_root,
                     availability: PluginInventoryAvailability::Available,
-                    validation_failure: bounded_editor_host_unsupported_reason(&candidate).map(
-                        |message| PluginInventoryFailure {
-                            kind: PluginInventoryFailureKind::UnsupportedEditorHost,
-                            message,
-                        },
-                    ),
+                    validation_failure: None,
+                    editor_host_validation: inventory_editor_host_validation(&candidate),
                 };
             }
             Err(error) => PluginInventoryFailure::from(error),
@@ -458,6 +535,7 @@ fn build_inventory_entry(candidate: PathBuf, source_root: String) -> PluginInven
         source_root,
         availability: PluginInventoryAvailability::Unavailable,
         validation_failure: Some(validation_failure),
+        editor_host_validation: None,
     }
 }
 
@@ -527,13 +605,14 @@ pub fn plugin_inventory_discover(
 #[cfg(test)]
 mod tests {
     use super::{
-        discover_inventory_in_roots, load_persisted_state,
-        resolve_available_bundle_path_in_entries, PluginInventoryAvailability,
-        PluginInventoryContext, PluginInventoryEntry, PluginInventoryFailure,
-        PluginInventoryFailureKind, PluginInventoryState,
+        blocked_editor_host_validation, discover_inventory_in_roots, load_persisted_state,
+        resolve_available_bundle_path_in_entries, PluginEditorHostValidationPhase,
+        PluginEditorHostValidationStatus, PluginInventoryAvailability, PluginInventoryContext,
+        PluginInventoryEntry, PluginInventoryFailure, PluginInventoryFailureKind,
+        PluginInventoryState,
     };
     use sled::Db;
-    use std::path::PathBuf;
+    use std::path::{Path, PathBuf};
 
     fn available_entry(id: &str, name: &str, bundle_path: &str) -> PluginInventoryEntry {
         PluginInventoryEntry {
@@ -544,6 +623,7 @@ mod tests {
             source_root: String::from("/Library/Audio/Plug-Ins/VST3"),
             availability: PluginInventoryAvailability::Available,
             validation_failure: None,
+            editor_host_validation: None,
         }
     }
 
@@ -600,6 +680,7 @@ mod tests {
                     kind: PluginInventoryFailureKind::MissingBundleBinary,
                     message: String::from("Missing Contents/MacOS binary"),
                 }),
+                editor_host_validation: None,
                 ..available_entry(
                     "vst3:/Library/Audio/Plug-Ins/VST3/Broken.vst3",
                     "Broken Plugin",
@@ -629,6 +710,7 @@ mod tests {
                             kind: PluginInventoryFailureKind::InvalidBundle,
                             message: String::from("broken"),
                         }),
+                        editor_host_validation: None,
                     },
                 ],
                 errors: vec![],
@@ -1052,6 +1134,43 @@ mod tests {
         let steinberg_root = root.join("Steinberg");
         let _ = std::fs::remove_dir_all(&root);
         std::fs::create_dir_all(&steinberg_root).unwrap();
+        create_valid_bundle(&steinberg_root, "HALion Sonic SE");
+
+        let discovery = discover_inventory_in_roots(std::slice::from_ref(&root));
+
+        assert_eq!(discovery.entries.len(), 1);
+        assert_eq!(discovery.entries[0].name, "HALion Sonic SE");
+        assert_eq!(
+            discovery.entries[0].availability,
+            PluginInventoryAvailability::Available
+        );
+        assert_eq!(
+            discovery.entries[0]
+                .editor_host_validation
+                .as_ref()
+                .map(|validation| &validation.status),
+            Some(&PluginEditorHostValidationStatus::Blocked)
+        );
+        assert_eq!(
+            discovery.entries[0]
+                .editor_host_validation
+                .as_ref()
+                .map(|validation| &validation.phase),
+            Some(&PluginEditorHostValidationPhase::PolicyGate)
+        );
+
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn discover_inventory_marks_halion_sonic_as_blocked_without_hiding_bundle_availability() {
+        let root = std::env::temp_dir().join(format!(
+            "plugin-inventory-halion-sonic-{}",
+            std::process::id()
+        ));
+        let steinberg_root = root.join("Steinberg");
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&steinberg_root).unwrap();
         create_valid_bundle(&steinberg_root, "HALion Sonic");
 
         let discovery = discover_inventory_in_roots(std::slice::from_ref(&root));
@@ -1062,14 +1181,44 @@ mod tests {
             discovery.entries[0].availability,
             PluginInventoryAvailability::Available
         );
+        assert_eq!(discovery.entries[0].validation_failure, None);
         assert_eq!(
             discovery.entries[0]
-                .validation_failure
+                .editor_host_validation
                 .as_ref()
-                .map(|failure| &failure.kind),
-            Some(&PluginInventoryFailureKind::UnsupportedEditorHost)
+                .map(|validation| &validation.status),
+            Some(&PluginEditorHostValidationStatus::Blocked)
+        );
+        assert_eq!(
+            discovery.entries[0]
+                .editor_host_validation
+                .as_ref()
+                .map(|validation| &validation.phase),
+            Some(&PluginEditorHostValidationPhase::PolicyGate)
         );
 
         let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn update_editor_host_validation_updates_matching_entry() {
+        let mut context = PluginInventoryContext::with_entries_for_tests(vec![available_entry(
+            "plugin-a",
+            "Plugin A",
+            "/tmp/plugin-a.vst3",
+        )]);
+
+        let updated = context
+            .update_editor_host_validation_for_bundle_path(
+                Path::new("/tmp/plugin-a.vst3"),
+                blocked_editor_host_validation(String::from("blocked")),
+            )
+            .unwrap();
+
+        assert!(updated);
+        assert_eq!(
+            context.snapshot().entries[0].editor_host_validation,
+            Some(blocked_editor_host_validation(String::from("blocked")))
+        );
     }
 }

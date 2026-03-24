@@ -8,9 +8,14 @@ import { actions } from "../../../../../services/actions";
 import { Select, SelectOption } from "../../../../../ui/select";
 
 const isUsablePreparationPlugin = (plugin: PluginInventoryEntry) => {
+  return plugin.availability === "available";
+};
+
+const canOpenPluginEditor = (plugin: PluginInventoryEntry | null) => {
   return (
+    plugin !== null &&
     plugin.availability === "available" &&
-    plugin.validation_failure?.kind !== "unsupported_editor_host"
+    plugin.editor_host_validation?.status !== "blocked"
   );
 };
 
@@ -58,8 +63,18 @@ export const PlaybackRackPanel: FC<PlaybackRackPanelProps> = ({
     ],
     [usablePlugins],
   );
+  const pluginById = useMemo(
+    () => new Map(pluginInventory.entries.map((plugin) => [plugin.id, plugin])),
+    [pluginInventory.entries],
+  );
   const [assigningSlotId, setAssigningSlotId] = useState<number | null>(null);
   const [assignErrorBySlotId, setAssignErrorBySlotId] = useState<
+    Record<number, string>
+  >({});
+  const [openingEditorSlotId, setOpeningEditorSlotId] = useState<number | null>(
+    null,
+  );
+  const [openErrorBySlotId, setOpenErrorBySlotId] = useState<
     Record<number, string>
   >({});
   const slotIds = useMemo(() => rack?.order ?? [], [rack]);
@@ -109,6 +124,36 @@ export const PlaybackRackPanel: FC<PlaybackRackPanelProps> = ({
     }
   };
 
+  const handleOpenPluginEditor = async (
+    slotId: number,
+    plugin: PluginInventoryEntry,
+  ) => {
+    if (openingEditorSlotId !== null || !canOpenPluginEditor(plugin)) {
+      return;
+    }
+
+    setOpenErrorBySlotId((current) => {
+      const next = { ...current };
+      delete next[slotId];
+      return next;
+    });
+    setOpeningEditorSlotId(slotId);
+
+    try {
+      await actions.pluginInventory.openEditorPoc(plugin.id);
+    } catch (error) {
+      setOpenErrorBySlotId((current) => ({
+        ...current,
+        [slotId]:
+          error instanceof Error
+            ? error.message
+            : "Failed to open the plugin UI.",
+      }));
+    } finally {
+      setOpeningEditorSlotId(null);
+    }
+  };
+
   return (
     <div
       data-rack-panel-root
@@ -144,6 +189,12 @@ export const PlaybackRackPanel: FC<PlaybackRackPanelProps> = ({
           const slotIndex = (rack?.order.indexOf(slotId) ?? -1) + 1;
           const isAssigning = assigningSlotId === slotId;
           const selectedPluginId = slot?.target?.plugin_id ?? null;
+          const selectedPlugin =
+            selectedPluginId !== null
+              ? (pluginById.get(selectedPluginId) ?? null)
+              : null;
+          const isOpeningEditor = openingEditorSlotId === slotId;
+          const showOpenPluginButton = canOpenPluginEditor(selectedPlugin);
           const selectedPickerValue =
             selectedPluginId !== null &&
             pluginOptions.some((option) => option.value === selectedPluginId)
@@ -178,12 +229,35 @@ export const PlaybackRackPanel: FC<PlaybackRackPanelProps> = ({
                   }
                 />
 
+                {showOpenPluginButton && selectedPlugin ? (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleOpenPluginEditor(slotId, selectedPlugin)
+                    }
+                    disabled={isOpeningEditor}
+                    className="border border-sky-700/70 bg-sky-500/10 px-3 py-2 text-xs uppercase tracking-[0.14em] text-sky-100 hover:bg-sky-500/20 disabled:cursor-default disabled:border-sky-900/70 disabled:bg-sky-500/5 disabled:text-sky-100/50"
+                    aria-label={`Open plugin UI for ${selectedPlugin.name}`}
+                  >
+                    {isOpeningEditor ? "Opening UI..." : "Open plugin UI"}
+                  </button>
+                ) : null}
+
                 {assignErrorBySlotId[slotId] ? (
                   <div
                     role="alert"
                     className="border border-amber-800/70 bg-amber-500/10 px-3 py-2 text-xs text-amber-100"
                   >
                     Plugin assignment failed: {assignErrorBySlotId[slotId]}
+                  </div>
+                ) : null}
+
+                {openErrorBySlotId[slotId] ? (
+                  <div
+                    role="alert"
+                    className="border border-amber-800/70 bg-amber-500/10 px-3 py-2 text-xs text-amber-100"
+                  >
+                    Plugin UI failed: {openErrorBySlotId[slotId]}
                   </div>
                 ) : null}
               </div>

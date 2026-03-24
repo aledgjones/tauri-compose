@@ -12,7 +12,10 @@ import { TokenizedText } from "../../../ui/text";
 import { actions } from "../../../services/actions";
 import { Input } from "../../../ui/input";
 import { Switch } from "../../../ui/switch";
-import { PluginInventoryEntry } from "../../../services/types";
+import {
+  PluginEditorHostValidation,
+  PluginInventoryEntry,
+} from "../../../services/types";
 import { Icon } from "../../../ui/icon";
 import classNames from "classnames";
 
@@ -57,15 +60,20 @@ const getPluginPathSubtitle = (plugin: PluginInventoryEntry) => {
   return plugin.binary_path ?? plugin.bundle_path;
 };
 
-const isPluginSupportedAvailable = (plugin: PluginInventoryEntry) => {
-  return (
-    plugin.availability === "available" &&
-    plugin.validation_failure?.kind !== "unsupported_editor_host"
-  );
+const isPluginInventoryAvailable = (plugin: PluginInventoryEntry) => {
+  return plugin.availability === "available";
+};
+
+const isEditorHostBlocked = (validation: PluginEditorHostValidation | null) => {
+  return validation?.status === "blocked";
+};
+
+const formatEditorHostPhase = (phase: PluginEditorHostValidation["phase"]) => {
+  return phase.replace(/_/g, " ");
 };
 
 const getPluginSortPriority = (plugin: PluginInventoryEntry) => {
-  return isPluginSupportedAvailable(plugin) ? 0 : 1;
+  return isPluginInventoryAvailable(plugin) ? 0 : 1;
 };
 
 const comparePlugins = (
@@ -97,16 +105,10 @@ const PluginTile: FC<PluginTileProps> = ({
   const [isOpeningEditor, setIsOpeningEditor] = useState(false);
   const [openError, setOpenError] = useState<string | null>(null);
   const isAvailable = plugin.availability === "available";
-  const editorHostFailure =
-    plugin.validation_failure?.kind === "unsupported_editor_host"
-      ? plugin.validation_failure
-      : null;
-  const isEditorHostSupported = isAvailable && editorHostFailure === null;
-  const statusLabel = !isAvailable
-    ? "Unavailable"
-    : editorHostFailure
-      ? "Unsupported"
-      : "Available";
+  const editorHostValidation = plugin.editor_host_validation;
+  const editorHostBlocked = isEditorHostBlocked(editorHostValidation);
+  const canOpenNativeEditor = isAvailable && !editorHostBlocked;
+  const statusLabel = isAvailable ? "Available" : "Unavailable";
   const statusIcon =
     statusLabel === "Available" ? mdiCheckCircleOutline : mdiAlertCircleOutline;
   const statusChipClassName = classNames(
@@ -123,9 +125,19 @@ const PluginTile: FC<PluginTileProps> = ({
   const subtitle = getPluginPathSubtitle(plugin);
   const badgeLabel = getPluginBadgeLabel(plugin.name);
   const badgeToneClassName = getPluginBadgeTone(plugin.name);
+  const editorHostSummary = editorHostValidation?.message ?? null;
+  const editorHostCapabilitySummary =
+    editorHostValidation?.capability_evidence?.message ?? null;
+  const editorHostStatusLabel = editorHostValidation
+    ? editorHostValidation.status === "attached"
+      ? "Ready"
+      : editorHostValidation.status === "blocked"
+        ? "Blocked"
+        : `Failed at ${formatEditorHostPhase(editorHostValidation.phase)}`
+    : "Not run";
 
   const handleOpenNativeEditor = async () => {
-    if (!isEditorHostSupported || isOpeningEditor) {
+    if (!canOpenNativeEditor || isOpeningEditor) {
       return;
     }
 
@@ -179,35 +191,55 @@ const PluginTile: FC<PluginTileProps> = ({
         </div>
       </div>
 
-      {showMaintainerEditorTrigger && isEditorHostSupported ? (
+      {showMaintainerEditorTrigger && isAvailable ? (
         <div className="flex items-center justify-between gap-3 border border-sky-900/60 bg-neutral-950/70 px-3 py-2">
           <div className="min-w-0 flex-1">
             <div className="text-[11px] uppercase tracking-[0.18em] text-sky-200/80">
               Maintainer preview
             </div>
             <div className="truncate text-xs text-neutral-400">
-              Open the bounded native editor host for this inventory target.
+              {editorHostBlocked
+                ? "Blocked for the bounded native editor host by recorded compatibility evidence."
+                : "Open the bounded native editor host for this inventory target."}
+            </div>
+            <div className="mt-1 text-[11px] text-neutral-500">
+              Native editor status: {editorHostStatusLabel}
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={handleOpenNativeEditor}
-            disabled={isOpeningEditor}
-            className={classNames(
-              "flex shrink-0 items-center gap-2 border px-3 py-2 text-xs uppercase tracking-[0.14em]",
-              {
-                "border-sky-700/70 bg-sky-500/10 text-sky-100 hover:bg-sky-500/20":
-                  !isOpeningEditor,
-                "cursor-default border-sky-900/70 bg-sky-500/5 text-sky-100/50":
-                  isOpeningEditor,
-              },
-            )}
-            aria-label={`Open native editor host for ${plugin.name}`}
-          >
-            <Icon path={mdiOpenInNew} size={0.7} />
-            <span>{isOpeningEditor ? "Opening..." : "Open native editor"}</span>
-          </button>
+          {canOpenNativeEditor ? (
+            <button
+              type="button"
+              onClick={handleOpenNativeEditor}
+              disabled={isOpeningEditor}
+              className={classNames(
+                "flex shrink-0 items-center gap-2 border px-3 py-2 text-xs uppercase tracking-[0.14em]",
+                {
+                  "border-sky-700/70 bg-sky-500/10 text-sky-100 hover:bg-sky-500/20":
+                    !isOpeningEditor,
+                  "cursor-default border-sky-900/70 bg-sky-500/5 text-sky-100/50":
+                    isOpeningEditor,
+                },
+              )}
+              aria-label={`Open native editor host for ${plugin.name}`}
+            >
+              <Icon path={mdiOpenInNew} size={0.7} />
+              <span>
+                {isOpeningEditor ? "Opening..." : "Open native editor"}
+              </span>
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+
+      {showMaintainerEditorTrigger && isAvailable && editorHostSummary ? (
+        <div className="border border-neutral-800 bg-neutral-950/70 px-3 py-2 text-xs text-neutral-300">
+          {editorHostSummary}
+          {editorHostCapabilitySummary ? (
+            <div className="mt-1 text-[11px] text-neutral-500">
+              Capability evidence: {editorHostCapabilitySummary}
+            </div>
+          ) : null}
         </div>
       ) : null}
 
@@ -300,7 +332,7 @@ export const Plugins: FC<PluginProps> = ({
   const filteredPlugins = useMemo(() => {
     return pluginInventory.entries
       .filter((plugin) => {
-        if (showActiveOnly && !isPluginSupportedAvailable(plugin)) {
+        if (showActiveOnly && !isPluginInventoryAvailable(plugin)) {
           return false;
         }
 
