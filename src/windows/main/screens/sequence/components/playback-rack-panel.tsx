@@ -1,10 +1,12 @@
 import { FC, useMemo, useState } from "react";
+import { mdiCogOutline } from "@mdi/js";
 import {
   useAppState,
   usePluginInventoryState,
 } from "../../../../../services/state";
 import { PluginInventoryEntry } from "../../../../../services/types";
 import { actions } from "../../../../../services/actions";
+import { IconButton } from "../../../../../ui/buttons/icon-button";
 import { Select, SelectOption } from "../../../../../ui/select";
 
 const isUsablePreparationPlugin = (plugin: PluginInventoryEntry) => {
@@ -215,33 +217,38 @@ export const PlaybackRackPanel: FC<PlaybackRackPanelProps> = ({
               </div>
 
               <div className="flex flex-1 flex-col gap-3 px-3 pb-3">
-                <Select
-                  value={selectedPickerValue}
-                  options={pluginOptions}
-                  onChange={(pluginId) =>
-                    handleSlotPluginChange(slotId, pluginId)
-                  }
-                  variant="filled"
-                  placeholder="--"
-                  disabled={
-                    isAssigning ||
-                    (pluginOptions.length === 1 && selectedPluginId === null)
-                  }
-                />
+                <div className="flex items-stretch gap-2">
+                  <div className="min-w-0 flex-1">
+                    <Select
+                      value={selectedPickerValue}
+                      options={pluginOptions}
+                      onChange={(pluginId) =>
+                        handleSlotPluginChange(slotId, pluginId)
+                      }
+                      variant="filled"
+                      placeholder="--"
+                      disabled={
+                        isAssigning ||
+                        (pluginOptions.length === 1 &&
+                          selectedPluginId === null)
+                      }
+                    />
+                  </div>
 
-                {showOpenPluginButton && selectedPlugin ? (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      handleOpenPluginEditor(slotId, selectedPlugin)
-                    }
-                    disabled={isOpeningEditor}
-                    className="border border-sky-700/70 bg-sky-500/10 px-3 py-2 text-xs uppercase tracking-[0.14em] text-sky-100 hover:bg-sky-500/20 disabled:cursor-default disabled:border-sky-900/70 disabled:bg-sky-500/5 disabled:text-sky-100/50"
-                    aria-label={`Open plugin UI for ${selectedPlugin.name}`}
-                  >
-                    {isOpeningEditor ? "Opening UI..." : "Open plugin UI"}
-                  </button>
-                ) : null}
+                  {showOpenPluginButton && selectedPlugin ? (
+                    <IconButton
+                      path={mdiCogOutline}
+                      variant="filled"
+                      size={0.85}
+                      className="shrink-0"
+                      isDisabled={isOpeningEditor}
+                      onClick={() =>
+                        handleOpenPluginEditor(slotId, selectedPlugin)
+                      }
+                      aria-label={`Open plugin UI for ${selectedPlugin.name}`}
+                    />
+                  ) : null}
+                </div>
 
                 {assignErrorBySlotId[slotId] ? (
                   <div
