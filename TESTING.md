@@ -214,6 +214,8 @@ it("calls play on click", async () => {
 
 Tests are co-located in `#[cfg(test)] mod tests {}` blocks at the bottom of each source file. Run them with `cargo test` from the `src-tauri/` directory.
 
+Playback ownership regressions should stay seam-local. When validating playback readiness or recovery, derive results through `PlaybackActivationRuntime::from_score_and_inventory(...)` and adjacent file/load seams rather than adding score-local duplicate readiness logic in tests.
+
 ```rust
 // src-tauri/src/renderer/converter.rs
 #[cfg(test)]

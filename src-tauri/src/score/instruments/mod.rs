@@ -22,7 +22,13 @@ use tauri::State;
 use rustc_hash::FxHashSet;
 
 #[cfg(test)]
-use super::playback::{ResolvedPlaybackRoute, ResolvedPlaybackRouteStatus};
+use super::playback::ResolvedPlaybackRoute;
+
+#[cfg(test)]
+use crate::playback::{
+    plugin_inventory::{PluginInventoryAvailability, PluginInventoryContext, PluginInventoryEntry},
+    runtime_activation::PlaybackActivationRuntime,
+};
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Instrument {
@@ -332,6 +338,27 @@ impl Score {
     }
 
     #[cfg(test)]
+    fn playback_test_inventory(available_plugin_ids: &FxHashSet<String>) -> PluginInventoryContext {
+        PluginInventoryContext::with_entries_for_tests(
+            available_plugin_ids
+                .iter()
+                .map(|plugin_id| PluginInventoryEntry {
+                    id: plugin_id.clone(),
+                    name: plugin_id.clone(),
+                    bundle_path: format!("/Library/Audio/Plug-Ins/VST3/{plugin_id}.vst3"),
+                    binary_path: Some(format!(
+                        "/Library/Audio/Plug-Ins/VST3/{plugin_id}.vst3/Contents/MacOS/{plugin_id}"
+                    )),
+                    source_root: String::from("/Library/Audio/Plug-Ins/VST3"),
+                    availability: PluginInventoryAvailability::Available,
+                    validation_failure: None,
+                    editor_host_validation: None,
+                })
+                .collect(),
+        )
+    }
+
+    #[cfg(test)]
     pub fn instrument_effective_plugin_id(
         &self,
         instrument_id: UniqueId,
@@ -364,56 +391,10 @@ impl Score {
         &self,
         available_plugin_ids: &FxHashSet<String>,
     ) -> FxHashMap<UniqueId, ResolvedPlaybackRoute> {
-        self.instruments
-            .by_id
-            .iter()
-            .map(|(instrument_id, instrument)| {
-                let resolved_route = match instrument.playback_route.as_ref() {
-                    None => ResolvedPlaybackRoute {
-                        status: ResolvedPlaybackRouteStatus::Unrouted,
-                        slot_id: None,
-                        slot_target: None,
-                        effective_plugin_id: None,
-                        target: None,
-                        address: None,
-                    },
-                    Some(route) => match self.playback.rack.by_id.get(&route.slot_id) {
-                        None => ResolvedPlaybackRoute {
-                            status: ResolvedPlaybackRouteStatus::NeedsAttention,
-                            slot_id: Some(route.slot_id),
-                            slot_target: None,
-                            effective_plugin_id: None,
-                            target: Some(route.target.clone()),
-                            address: Some(route.address.clone()),
-                        },
-                        Some(slot) => {
-                            let effective_plugin_id = slot.target.as_ref().and_then(|target| {
-                                available_plugin_ids
-                                    .contains(&target.plugin_id)
-                                    .then(|| target.plugin_id.clone())
-                            });
+        let inventory = Self::playback_test_inventory(available_plugin_ids);
 
-                            ResolvedPlaybackRoute {
-                                status: if slot.target.is_none() {
-                                    ResolvedPlaybackRouteStatus::Unrouted
-                                } else if effective_plugin_id.is_some() {
-                                    ResolvedPlaybackRouteStatus::Ready
-                                } else {
-                                    ResolvedPlaybackRouteStatus::NeedsAttention
-                                },
-                                slot_id: Some(route.slot_id),
-                                slot_target: slot.target.clone(),
-                                effective_plugin_id,
-                                target: Some(route.target.clone()),
-                                address: Some(route.address.clone()),
-                            }
-                        }
-                    },
-                };
-
-                (*instrument_id, resolved_route)
-            })
-            .collect()
+        PlaybackActivationRuntime::from_score_and_inventory(self, &inventory)
+            .resolved_playback_route_by_instrument_id(self)
     }
 
     pub fn update_counts(&mut self) {
@@ -816,7 +797,9 @@ pub fn score_instruments_set_solo(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::score::playback::{PlaybackRouteAddress, PlaybackRouteChoice, PlaybackRouteTarget};
+    use crate::score::playback::{
+        PlaybackRouteAddress, PlaybackRouteChoice, PlaybackRouteTarget, ResolvedPlaybackRouteStatus,
+    };
     use crate::score::players::{Player, PlayerType, Players};
     use crate::score::Score;
     use defs::InstrumentType;

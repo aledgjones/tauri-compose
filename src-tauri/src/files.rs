@@ -344,7 +344,7 @@ mod tests {
     use crate::score::flows::Flow;
     use crate::score::instruments::{defs::InstrumentType, Instrument, Instruments};
     use crate::score::layouts::{Layout, LayoutType};
-    use crate::score::playback::ResolvedPlaybackRouteStatus;
+    use crate::score::playback::{InstrumentPlaybackRoute, ResolvedPlaybackRouteStatus};
     use crate::score::players::{Player, PlayerType, Players};
     use crate::score::tracks::Track;
     use crate::{score::Score, ui::Ui, AppContext};
@@ -494,6 +494,7 @@ mod tests {
     fn restore_loaded_project_for_test(
         state: &mut AppContext,
         transport_context: &std::sync::Arc<crate::playback::transport::TransportShared>,
+        inventory: &PluginInventoryContext,
         project_file: ProjectFile,
         file_path: String,
     ) {
@@ -506,6 +507,8 @@ mod tests {
         state.next_id = project_file.next_id;
         state.current_file_path = Some(file_path);
         sync_transport_to_app_state(transport_context, state, 0);
+        state.playback_activation_runtime =
+            PlaybackActivationRuntime::from_score_and_inventory(&state.score, inventory);
     }
 
     fn available_inventory_entry(plugin_id: &str) -> PluginInventoryEntry {
@@ -2037,6 +2040,7 @@ mod tests {
     #[test]
     fn applying_loaded_tuplet_project_resets_ephemeral_state_and_updates_transport() {
         let (_transport_state, transport_shared) = TransportContext::new();
+        let inventory = PluginInventoryContext::with_entries_for_tests(vec![]);
         let mut state = AppContext {
             ui: Ui::new(),
             score: build_score_with_visible_flows(&[30], &[30]),
@@ -2065,6 +2069,7 @@ mod tests {
         restore_loaded_project_for_test(
             &mut state,
             &transport_shared,
+            &inventory,
             make_round_trip_tuplet_project(),
             "/tmp/tuplets.soloc".to_string(),
         );
@@ -2148,11 +2153,10 @@ mod tests {
         restore_loaded_project_for_test(
             &mut state,
             &transport_shared,
+            &inventory,
             project_file,
             "/tmp/runtime-refresh.soloc".to_string(),
         );
-        state.playback_activation_runtime =
-            PlaybackActivationRuntime::from_score_and_inventory(&state.score, &inventory);
 
         let resolved = state
             .playback_activation_runtime
@@ -2170,6 +2174,86 @@ mod tests {
             state.current_file_path.as_deref(),
             Some("/tmp/runtime-refresh.soloc")
         );
+    }
+
+    #[test]
+    fn persisted_playback_intent_round_trips_while_runtime_degrades_against_unavailable_inventory()
+    {
+        let (_transport_state, transport_shared) = TransportContext::new();
+        let inventory = PluginInventoryContext::with_entries_for_tests(vec![]);
+        let mut score = build_score_with_visible_flows(&[30], &[30]);
+        score.players = Players {
+            order: vec![1],
+            by_id: FxHashMap::from_iter([(1, Player::new(1, PlayerType::Section))]),
+        };
+        score.players.by_id.get_mut(&1).unwrap().instrument_ids = vec![10];
+        score.instruments = Instruments {
+            by_id: FxHashMap::from_iter([(
+                10,
+                Instrument {
+                    id: 10,
+                    definition_id: String::from("strings.violin"),
+                    instrument_type: InstrumentType::Melodic,
+                    long_name: String::from("Violin"),
+                    short_name: String::from("Vln."),
+                    stave_ids: vec![],
+                    count: None,
+                    playback_route: None,
+                    volume: 100,
+                    pan: 64,
+                    mute: false,
+                    solo: false,
+                },
+            )]),
+        };
+        score.create_playback_slot(300).unwrap();
+        score
+            .assign_plugin_to_slot(300, String::from("plugin-a"))
+            .unwrap();
+        score.assign_instrument_route_to_slot(10, 300).unwrap();
+
+        let project_file = round_trip_project_file(&ProjectFile {
+            ui: Ui::new(),
+            score,
+            next_id: 500,
+        });
+        let mut state = AppContext {
+            ui: Ui::new(),
+            score: Score::new(),
+            playback_activation_runtime: PlaybackActivationRuntime::default(),
+            preferences: make_preferences(),
+            next_id: 1,
+            current_file_path: None,
+        };
+
+        restore_loaded_project_for_test(
+            &mut state,
+            &transport_shared,
+            &inventory,
+            project_file,
+            "/tmp/runtime-degraded.soloc".to_string(),
+        );
+
+        let resolved = state
+            .playback_activation_runtime
+            .resolved_playback_route_by_instrument_id(&state.score);
+
+        assert_eq!(
+            state.score.instruments.by_id[&10].playback_route,
+            Some(InstrumentPlaybackRoute::direct(300))
+        );
+        assert_eq!(
+            state.score.playback.rack.by_id[&300]
+                .target
+                .as_ref()
+                .map(|target| target.plugin_id.as_str()),
+            Some("plugin-a")
+        );
+        assert_eq!(
+            resolved.get(&10).unwrap().status,
+            ResolvedPlaybackRouteStatus::NeedsAttention
+        );
+        assert_eq!(resolved.get(&10).unwrap().effective_plugin_id, None);
     }
 
     #[test]
