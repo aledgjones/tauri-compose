@@ -44,6 +44,7 @@ export const LayoutPlanel = () => {
       url: "/layout-settings.html",
       title: "Layout Settings",
       visible: false,
+      hiddenTitle: true,
       titleBarStyle: "overlay",
       acceptFirstMouse: true,
       height: 500,

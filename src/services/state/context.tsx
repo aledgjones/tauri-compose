@@ -21,6 +21,8 @@ export const DEFAULT_TRANSPORT_TEMPO = 120;
 
 export const initialAppState: AppState = {
   current_file_path: null,
+  is_project_loading: false,
+  is_window_focused: true,
   single_instrument_transport_ready: false,
   resolved_playback_route_by_instrument_id: {},
   route_target_options_by_slot_id: {},

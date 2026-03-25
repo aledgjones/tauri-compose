@@ -627,7 +627,8 @@ pub async fn execute_action(app: &AppHandle, name: &str, args: &[Value]) -> Resu
                 app.state::<AudioContextState>(),
                 app.state(),
                 arg_string(args, 0, "filePath")?,
-            )?;
+            )
+            .await?;
             Ok(Value::Null)
         }
         "score.config.setSoloAutoCountStyle" => {

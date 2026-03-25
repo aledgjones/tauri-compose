@@ -38,8 +38,8 @@ export const Main = () => {
   }, [state]);
 
   return (
-    <div className="h-dvh w-dvw grid grid-rows-[30px_48px_1fr] bg-transparent p-0.75">
-      <AppBar title="Solo Compose" />
+    <div className="relative h-dvh w-dvw grid grid-rows-[30px_48px_1fr] bg-transparent p-0.75">
+      <AppBar title="Solo Compose" showFilename />
       <div className="flex items-center p-2 bg-neutral-900">
         <div className="flex flex-1">
           <Tabs
@@ -94,6 +94,15 @@ export const Main = () => {
       {state.ui.tab === Tab.Write && <Write />}
       {state.ui.tab === Tab.Sequence && <Sequence />}
       {[Tab.Engrave, Tab.Print].includes(state.ui.tab) && <NotFound />}
+
+      {state.is_project_loading && (
+        <div className="absolute inset-0 z-100 flex items-center justify-center rounded-[14px] bg-neutral-950/55 backdrop-blur-[2px]">
+          <div className="flex items-center gap-3 rounded-full border border-amber-400/25 bg-neutral-900/95 px-4 py-2 text-sm font-medium text-neutral-100 shadow-lg shadow-black/30">
+            <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-amber-300" />
+            Loading project...
+          </div>
+        </div>
+      )}
     </div>
   );
 };

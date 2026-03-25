@@ -36,6 +36,10 @@ export const AppStateProvider: FC<Props> = ({
   isMainWindow = false,
 }) => {
   const [appState, setAppState] = useState<AppState>(initialAppState);
+  const [isProjectLoading, setIsProjectLoading] = useState(false);
+  const [isWindowFocused, setIsWindowFocused] = useState(() => {
+    return document.hasFocus();
+  });
   const [audioState, setAudioState] = useState<AudioState>(initialAudioState);
   const [pluginInventoryState, setPluginInventoryState] =
     useState<PluginInventoryState>(initialPluginInventoryState);
@@ -102,6 +106,32 @@ export const AppStateProvider: FC<Props> = ({
     return `${activeFlowId}:${tempos}`;
   }, [activeFlowId, appState.score.flows.by_id, appState.score.tracks.by_id]);
 
+  const appStateWithTransientFlags = useMemo<AppState>(() => {
+    return {
+      ...appState,
+      is_project_loading: isProjectLoading,
+      is_window_focused: isWindowFocused,
+    };
+  }, [appState, isProjectLoading, isWindowFocused]);
+
+  useEffect(() => {
+    const handleFocus = () => {
+      setIsWindowFocused(true);
+    };
+
+    const handleBlur = () => {
+      setIsWindowFocused(false);
+    };
+
+    window.addEventListener("focus", handleFocus);
+    window.addEventListener("blur", handleBlur);
+
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+      window.removeEventListener("blur", handleBlur);
+    };
+  }, []);
+
   useEffect(() => {
     if (!isInitialized || isPolling) return;
 
@@ -141,6 +171,33 @@ export const AppStateProvider: FC<Props> = ({
       actions.transport.play = originalPlay;
       actions.transport.pause = originalPause;
       actions.transport.seek = originalSeek;
+    };
+  }, []);
+
+  useEffect(() => {
+    const originalLoad = actions.file.load;
+    const originalLoadFromPath = actions.file.loadFromPath;
+
+    const withProjectLoading = async <T,>(run: () => Promise<T>) => {
+      setIsProjectLoading(true);
+      await new Promise<void>((resolve) => {
+        setTimeout(resolve, 0);
+      });
+
+      try {
+        return await run();
+      } finally {
+        setIsProjectLoading(false);
+      }
+    };
+
+    actions.file.load = () => withProjectLoading(() => originalLoad());
+    actions.file.loadFromPath = (filePath: string) =>
+      withProjectLoading(() => originalLoadFromPath(filePath));
+
+    return () => {
+      actions.file.load = originalLoad;
+      actions.file.loadFromPath = originalLoadFromPath;
     };
   }, []);
 
@@ -238,6 +295,7 @@ export const AppStateProvider: FC<Props> = ({
               url: "/preferences.html",
               title: "Preferences",
               visible: false,
+              hiddenTitle: true,
               titleBarStyle: "overlay",
               acceptFirstMouse: true,
               height: 500,
@@ -282,7 +340,7 @@ export const AppStateProvider: FC<Props> = ({
   }, [isMainWindow]);
 
   return (
-    <AppContext.Provider value={appState}>
+    <AppContext.Provider value={appStateWithTransientFlags}>
       <AudioContext.Provider value={audioState}>
         <PluginInventoryContext.Provider value={pluginInventoryState}>
           <TransportContext.Provider value={transportState}>

@@ -19,6 +19,7 @@ const onPlayerSettingsPress = () => {
     url: "/player-settings.html",
     title: "Player Settings",
     visible: false,
+    hiddenTitle: true,
     titleBarStyle: "overlay",
     acceptFirstMouse: true,
     height: 500,

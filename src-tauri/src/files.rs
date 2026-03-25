@@ -125,6 +125,26 @@ fn build_project_file(state: &crate::AppContext) -> ProjectFile {
     }
 }
 
+fn load_project_file(file_path: &str) -> Result<ProjectFile, String> {
+    let file_data = fs::read(file_path).map_err(|e| format!("Failed to read file: {}", e))?;
+    let parsed_container = parse_soloc_container(&file_data)?;
+    let json_data = decompress_project_payload(
+        parsed_container.project_payload,
+        parsed_container.project_chunk_flags,
+    )?;
+    let project_data: Value = serde_json::from_slice(&json_data)
+        .map_err(|e| format!("Failed to parse project JSON: {}", e))?;
+    validate_project_version_match(&parsed_container.app_version, &project_data)?;
+
+    let project_data = migrate_project_data(project_data, &parsed_container.app_version)
+        .map_err(|e| format!("Failed to migrate project data: {}", e))?;
+    let mut project_file: ProjectFile = serde_json::from_value(project_data)
+        .map_err(|e| format!("Failed to deserialize project file: {}", e))?;
+    project_file.score.meta.app_version = CURRENT_APP_VERSION.to_string();
+
+    Ok(project_file)
+}
+
 fn parse_chunk_entry(file_data: &[u8], offset: usize) -> ChunkEntry {
     let type_code = u32::from_le_bytes(file_data[offset..offset + 4].try_into().unwrap());
     let flags = u16::from_le_bytes(file_data[offset + 4..offset + 6].try_into().unwrap());
@@ -2397,7 +2417,7 @@ pub fn save_project_to_file(
 
 #[tauri::command(rename_all = "snake_case")]
 #[allow(clippy::too_many_arguments)] // Tauri command wiring requires separate managed state parameters here.
-pub fn load_project_from_file(
+pub async fn load_project_from_file(
     app: AppHandle,
     state: State<'_, AppContextState>,
     renderer_state: State<'_, RendererContextState>,
@@ -2406,22 +2426,11 @@ pub fn load_project_from_file(
     file_path: String,
 ) -> Result<(), String> {
     let transport_shared = stop_transport_playback(transport_state.inner(), audio_state.inner())?;
-
-    let file_data = fs::read(&file_path).map_err(|e| format!("Failed to read file: {}", e))?;
-    let parsed_container = parse_soloc_container(&file_data)?;
-    let json_data = decompress_project_payload(
-        parsed_container.project_payload,
-        parsed_container.project_chunk_flags,
-    )?;
-    let project_data: Value = serde_json::from_slice(&json_data)
-        .map_err(|e| format!("Failed to parse project JSON: {}", e))?;
-    validate_project_version_match(&parsed_container.app_version, &project_data)?;
-
-    let project_data = migrate_project_data(project_data, &parsed_container.app_version)
-        .map_err(|e| format!("Failed to migrate project data: {}", e))?;
-    let mut project_file: ProjectFile = serde_json::from_value(project_data)
-        .map_err(|e| format!("Failed to deserialize project file: {}", e))?;
-    project_file.score.meta.app_version = CURRENT_APP_VERSION.to_string();
+    let file_path_for_load = file_path.clone();
+    let project_file =
+        tauri::async_runtime::spawn_blocking(move || load_project_file(&file_path_for_load))
+            .await
+            .map_err(|error| format!("Failed to join project-load task: {error}"))??;
 
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();

@@ -530,6 +530,8 @@ export type Selection =
 
 export type AppState = {
   single_instrument_transport_ready?: boolean;
+  is_project_loading: boolean;
+  is_window_focused: boolean;
   ui: {
     tab: Tab;
     layout_id: UniqueId | null;

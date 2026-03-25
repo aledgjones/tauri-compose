@@ -24,7 +24,8 @@
         "titleBarStyle": "Overlay",
         "transparent": true,
         "url": "index.html",
-        "width": 800
+        "width": 800,
+        "hiddenTitle": true
       }
     ]
   },

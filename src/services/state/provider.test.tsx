@@ -1,7 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { AppStateProvider } from "./provider";
-import { initialAppState, usePluginInventoryState } from "./context";
+import {
+  initialAppState,
+  useAppState,
+  usePluginInventoryState,
+} from "./context";
 import { AppState, NoteDuration, PluginInventoryState } from "../types";
 import { invoke } from "@tauri-apps/api/core";
 import { actions } from "../actions";
@@ -12,6 +16,18 @@ const PluginInventoryConsumer = () => {
   return (
     <div>{pluginInventoryState.entries[0]?.name ?? "No plugin inventory"}</div>
   );
+};
+
+const ProjectLoadingConsumer = () => {
+  const appState = useAppState();
+
+  return <div>{appState.is_project_loading ? "loading" : "idle"}</div>;
+};
+
+const WindowFocusConsumer = () => {
+  const appState = useAppState();
+
+  return <div>{appState.is_window_focused ? "focused" : "blurred"}</div>;
 };
 
 const { listenMock, getStateMock } = vi.hoisted(() => ({
@@ -340,6 +356,12 @@ describe("AppStateProvider", () => {
 
   it("wires main-window file menu events and refreshes menus after init and recents changes", async () => {
     vi.useFakeTimers();
+    const saveMock = vi.mocked(actions.file.save);
+    const saveAsMock = vi.mocked(actions.file.saveAs);
+    const loadMock = vi.mocked(actions.file.load);
+    const loadFromPathMock = vi.mocked(actions.file.loadFromPath);
+    const resetMock = vi.mocked(actions.reset);
+    const openPluginManagerMock = vi.mocked(actions.openPluginManager);
 
     const listeners = new Map<string, (event: { payload: string }) => void>();
     listenMock.mockImplementation(async (eventName, callback) => {
@@ -388,16 +410,18 @@ describe("AppStateProvider", () => {
       listeners.get("soloc://menu/plugin-manager")?.({ payload: "" });
       listeners.get("soloc://recents-changed")?.({ payload: "" });
       await Promise.resolve();
+      await vi.advanceTimersByTimeAsync(0);
+      await Promise.resolve();
     });
 
-    expect(actions.file.save).toHaveBeenCalledTimes(1);
-    expect(actions.file.saveAs).toHaveBeenCalledTimes(1);
-    expect(actions.file.load).toHaveBeenCalledTimes(1);
-    expect(actions.file.loadFromPath).toHaveBeenCalledWith(
+    expect(saveMock).toHaveBeenCalledTimes(1);
+    expect(saveAsMock).toHaveBeenCalledTimes(1);
+    expect(loadMock).toHaveBeenCalledTimes(1);
+    expect(loadFromPathMock).toHaveBeenCalledWith(
       "/Users/aledjones/example.soloc",
     );
-    expect(actions.reset).toHaveBeenCalledTimes(1);
-    expect(actions.openPluginManager).toHaveBeenCalledTimes(1);
+    expect(resetMock).toHaveBeenCalledTimes(1);
+    expect(openPluginManagerMock).toHaveBeenCalledTimes(1);
 
     expect(invokeMock).toHaveBeenCalledWith("refresh_menus");
   });
@@ -518,6 +542,65 @@ describe("AppStateProvider", () => {
     });
 
     expect(globalThis.alert).not.toHaveBeenCalled();
+  });
+
+  it("toggles project loading state around file load operations", async () => {
+    vi.useFakeTimers();
+
+    let resolveLoad: (() => void) | null = null;
+    vi.mocked(actions.file.load).mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveLoad = resolve;
+        }),
+    );
+
+    await act(async () => {
+      render(
+        <AppStateProvider isMainWindow={true}>
+          <ProjectLoadingConsumer />
+        </AppStateProvider>,
+      );
+    });
+
+    expect(screen.getByText("idle")).toBeInTheDocument();
+
+    const loadPromise = actions.file.load();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+
+    expect(screen.getByText("loading")).toBeInTheDocument();
+
+    await act(async () => {
+      resolveLoad?.();
+      await loadPromise;
+    });
+
+    expect(screen.getByText("idle")).toBeInTheDocument();
+  });
+
+  it("tracks window focus as transient app state", async () => {
+    await act(async () => {
+      render(
+        <AppStateProvider>
+          <WindowFocusConsumer />
+        </AppStateProvider>,
+      );
+    });
+
+    await act(async () => {
+      window.dispatchEvent(new Event("blur"));
+    });
+
+    expect(screen.getByText("blurred")).toBeInTheDocument();
+
+    await act(async () => {
+      window.dispatchEvent(new Event("focus"));
+    });
+
+    expect(screen.getByText("focused")).toBeInTheDocument();
   });
 
   it("applies startup-emitted plugin inventory state without a manual refresh", async () => {
