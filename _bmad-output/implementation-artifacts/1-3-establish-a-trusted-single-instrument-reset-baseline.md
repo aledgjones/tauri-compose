@@ -1,6 +1,6 @@
 # Story 1.3: Establish A Trusted Single-Instrument Reset Baseline
 
-Status: review
+Status: done
 
 ## Story
 
@@ -261,7 +261,7 @@ GPT-5.4
 - Rooted the editor-host repair in comparator research from MuseScore, Carla, Ardour, JUCE AudioPluginHost, and Tracktion: preserve instance-owned backend session lifetime across window close or reopen, make the top-level host window own resize, and guard plugin-driven resize callbacks against host-plugin feedback loops.
 - Extended the exact-instance routing repair so a preserved detached session from one slot no longer blocks opening another slot that hosts the same plugin bundle after the first window has closed.
 - Recorded the discovered follow-up seam more precisely: the missing architectural piece is not persisting live runtime state in `.soloc`, but using portable saved intent to rehydrate slot-owned live plugin sessions before playback or editor-open.
-- Automated validation for the repaired editor-host seam is complete, but the story still requires maintainer manual proof on a supported single-instrument plugin before Epic 4 is unblocked.
+- Story 1.3 is closed as done because it completed the intended trust-restoration baseline and surfaced the deeper runtime-ownership gap honestly. Epic 4 unblock proof now belongs to the approved follow-up Stories 1.4 through 1.6 on the corrected slot-owned-session architecture.
 
 ### File List
 
