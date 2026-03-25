@@ -26,6 +26,33 @@
 #
 # Retrospective Status:
 #   - optional: Can be completed but not required
+# generated: 2026-03-25T00:12:37Z
+# last_updated: 2026-03-25T00:12:37Z
+# project: compose
+# project_key: NOKEY
+# tracking_system: file-system
+# story_location: /Users/aledjones/compose/_bmad-output/implementation-artifacts
+
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic not yet started
+#   - in-progress: Epic actively being worked on
+#   - done: All stories in epic completed
+#
+# Epic Status Transitions:
+#   - backlog -> in-progress: Automatically when first story is created (via create-story)
+#   - in-progress -> done: Manually when all stories reach 'done' status
+#
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - ready-for-dev: Story file created in stories folder
+#   - in-progress: Developer actively working on implementation
+#   - review: Ready for code review (via Dev's code-review workflow)
+#   - done: Story completed
+#
+# Retrospective Status:
+#   - optional: Can be completed but not required
 #   - done: Retrospective has been completed
 #
 # WORKFLOW NOTES:
@@ -35,70 +62,59 @@
 # - SM typically creates next story after previous one is 'done' to incorporate learnings
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
-generated: 2026-03-20T22:13:26Z
-last_updated: 2026-03-24T18:19:28Z
+generated: 2026-03-25T00:12:37Z
+last_updated: 2026-03-25T00:12:37Z
 project: compose
 project_key: NOKEY
 tracking_system: file-system
 story_location: /Users/aledjones/compose/_bmad-output/implementation-artifacts
 
 development_status:
-  epic-1: done
-  1-1-remove-scvi-from-the-active-playback-runtime: done
-  1-2-remove-scvi-from-user-facing-playback-workflow: done
-  1-3-remove-scvi-tooling-and-build-workflow-residue: done
-  1-4-remove-scvi-references-from-documentation-and-guidance: done
-  1-5-verify-clean-scvi-retirement-across-product-and-repo-surfaces: done
-  epic-1-retrospective: done
+  epic-1: backlog
+  1-1-remove-legacy-playback-path-ownership: backlog
+  1-2-reassert-rust-owned-playback-domain-boundaries: backlog
+  1-3-establish-a-trusted-single-instrument-reset-baseline: backlog
+  epic-1-retrospective: optional
 
-  epic-2: done
-  2-1-discover-installed-vst3-plugins-into-a-local-inventory: done
-  2-2-reuse-a-cached-plugin-inventory-on-startup: done
-  2-3-expose-plugin-inventory-and-availability-in-a-dedicated-plugin-manager: done
-  2-4-support-manual-full-plugin-rescan: done
-  2-5-open-a-bounded-native-plugin-editor-host-for-supported-plugins: done
-  2-6-stabilize-native-editor-host-lifecycle-within-a-session: done
-  2-7-validate-editor-host-failure-handling-against-a-known-good-plugin-subset: done
-  2-8-surface-best-effort-plugin-artwork-in-plugin-manager: done
-  epic-2-retrospective: done
+  epic-2: backlog
+  2-1-build-the-app-scoped-plugin-inventory-window: backlog
+  2-2-support-cached-discovery-and-manual-rescan: backlog
+  2-3-expose-musician-friendly-plugin-selection-inputs: backlog
+  2-4-open-supported-native-plugin-editors-through-a-bounded-host-seam: backlog
+  epic-2-retrospective: optional
 
-  epic-3: done
-  3-1-represent-playback-assignment-state-on-score-instruments: done
-  3-2-show-assignment-readiness-in-instrument-rows-and-panels: done
-  3-3-manually-assign-a-plugin-to-a-score-instrument: done
-  3-4-select-a-part-or-channel-when-assigning-a-compatible-multi-part-plugin: done
-  3-8-activate-assigned-plugins-for-single-part-and-shared-multi-part-playback: done
+  epic-3: backlog
+  3-1-show-compact-rack-first-route-state-on-instruments: backlog
+  3-2-assign-and-change-single-target-playback-routes: backlog
+  3-3-preserve-explicit-unrouted-and-recovery-states: backlog
+  3-4-keep-route-and-plugin-session-behavior-stable-in-app: backlog
   epic-3-retrospective: optional
 
   epic-4: backlog
-  4-1-translate-assigned-score-instruments-into-playback-ready-material: backlog
-  4-2-start-audible-playback-of-written-score-material: backlog
-  4-3-surface-basic-per-instrument-mix-controls: backlog
-  4-4-apply-basic-mix-settings-during-playback: backlog
-  4-5-keep-the-basic-mixer-model-stable-and-extendable: backlog
+  4-1-translate-routed-score-instruments-into-playback-preparation: backlog
+  4-2-prove-first-audible-playback-through-auditioning: backlog
+  4-3-apply-basic-route-first-mix-controls-during-audition-and-playback: backlog
+  4-4-keep-first-audible-playback-compact-and-score-first: backlog
   epic-4-retrospective: optional
 
   epic-5: backlog
-  5-1-maintain-coherent-pause-and-resume-behavior: backlog
-  5-2-support-trustworthy-seek-behavior: backlog
-  5-3-keep-transport-state-coherent-across-repeated-playback-actions: backlog
-  5-4-allow-score-editing-during-playback-with-a-clear-update-rule: backlog
-  5-5-recover-gracefully-from-playback-failure-states: backlog
-  5-6-restore-valid-playback-assignments-on-reopen: backlog
-  5-7-degrade-missing-playback-assignments-safely-on-reopen: backlog
-  5-8-validate-trusted-playback-against-representative-transport-scenarios: backlog
+  5-1-start-pause-and-resume-trusted-score-playback: backlog
+  5-2-seek-to-score-positions-without-losing-playback-trust: backlog
+  5-3-define-bounded-editing-during-playback: backlog
+  5-4-restore-playback-state-on-project-reopen: backlog
+  5-5-recover-gracefully-from-missing-or-unavailable-routes: backlog
   epic-5-retrospective: optional
 
   epic-6: backlog
-  6-1-introduce-durable-expression-maps-as-reusable-playback-assets: backlog
-  6-2-provide-one-dedicated-expression-map-editor-surface: backlog
-  6-3-link-instrument-playback-configurations-to-expression-maps-and-surface-current-state: backlog
-  6-4-resolve-written-articulations-into-concrete-playback-expression-changes: backlog
-  6-5-resolve-written-dynamics-into-a-bounded-playback-dynamics-path: backlog
+  6-1-model-expression-maps-as-durable-playback-assets: backlog
+  6-2-show-expression-map-linkage-in-score-context: backlog
+  6-3-create-one-dedicated-expression-map-editor-window: backlog
+  6-4-drive-initial-realistic-playback-through-a-linked-expression-map: backlog
   epic-6-retrospective: optional
 
   epic-7: backlog
-  7-1-validate-realism-and-compatibility-against-named-plugin-baselines: backlog
-  7-2-remove-the-remaining-scvi-legacy-system-after-vst-replacement-is-complete: backlog
-  7-3-publish-a-known-good-compatibility-matrix-and-manual-release-runbook: backlog
+  7-1-define-the-supported-plugin-and-scenario-baseline: backlog
+  7-2-validate-plugin-discovery-and-host-behavior-against-the-baseline: backlog
+  7-3-validate-transport-trust-against-representative-composition-scenarios: backlog
+  7-4-publish-the-mvp-support-verdict-and-boundaries: backlog
   epic-7-retrospective: optional

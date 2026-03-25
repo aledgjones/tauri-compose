@@ -92,10 +92,10 @@ _This file contains critical rules and patterns that AI agents must follow when 
 
 - All components are `FC<Props>` — no class components
 - State source of truth is Rust `AppContext` behind `Mutex` — FE is a display layer only
-- 5 React contexts: `AppContext`, `AudioContext`, `PluginInventoryContext`, `SamplerContext`, `TransportContext` — each with a typed hook that throws outside its provider; `PluginInventoryContext` is the backend-owned machine-local VST3 inventory channel, including persisted `editor_host_validation` diagnostics from real maintainer host attempts, and `SamplerContext` remains legacy sampler tooling/audition state, not the supported transport runtime
+- 5 React contexts: `AppContext`, `AudioContext`, `PluginInventoryContext`, `SamplerContext`, `TransportContext` — each with a typed hook that throws outside its provider; `PluginInventoryContext` is the backend-owned machine-local VST3 inventory channel, including persisted `editor_host_validation` diagnostics from real maintainer host attempts, and `SamplerContext` is legacy sampler tooling/audition state only, not an acceptable owner for the supported transport runtime or future VST product-path work
 - State pushed to FE via Tauri events (`soloc://state/general`, `soloc://state/audio`, `soloc://state/plugin_inventory`, `soloc://state/sampler`)
 - Keep plugin bundle validity separate from bounded native-editor posture: `validation_failure` is for bundle/discovery failures, while editor-host policy blocks and real host-attempt diagnostics belong in `editor_host_validation`
-- Treat `SamplerContext`, `soloc://state/sampler`, and `actions.sampler.*` as temporary legacy seams. Epic 2 through Epic 6 work must introduce VST-owned backend contracts instead of extending sampler-era state shapes or frontend ownership patterns.
+- Treat `SamplerContext`, `soloc://state/sampler`, and `actions.sampler.*` as temporary legacy seams that should be removed or disconnected from active product behavior once an approved VST-owned replacement exists. Epic 2 onward work must not preserve them as quiet parallel ownership paths.
 - Transport polling uses `requestAnimationFrame` loop — no events during playback to keep transport thread silent
 - Multi-window app: 10 HTML entry points, each mounts its own `AppStateProvider` in `boot.tsx`; the Sequence-menu `Plugin Manager...` window is the canonical app-scoped inventory browser, while the `plugin-host-poc` window remains a bounded development proof seam for the upcoming native editor-host stories and the Sequence `Instruments` bottom panel is the score-context current-rack surface
 - All mutations go through the `actions` object in `actions.ts` via `invoke()` — never manipulate state directly
@@ -211,7 +211,7 @@ The score page is rendered natively by Rust/Skia/Metal — all other UI (panels,
 - Sample attack alignment is backend-owned playback metadata. Preserve and thread any existing `attack_offset_frames` metadata through the legacy SCVI sampler seams and trim in the streamer before resample/pitch processing instead of inventing frontend timing offsets or per-instrument transport hacks
 - Nested tuplets, broader arbitrary ratios, and generalized sequencer-native tuplet editing remain explicit post-MVP work. Do not normalize them into current rules or documentation.
 - Legacy SCVI container support is runtime-only now. Do not treat SCVI CLI binaries or SCVI build/inspection commands as supported workflow.
-- Legacy SCVI sampler/runtime code is maintenance-only until its planned deletion. Do not use it as the architectural template for VST inventory, assignment, plugin lifecycle, or transport-facing playback seams.
+- Legacy SCVI sampler/runtime code is a removal target, not a tolerated long-lived foundation. Do not use it as the architectural template for VST inventory, assignment, plugin lifecycle, or transport-facing playback seams, and do not preserve it in active product paths once equivalent VST seams exist.
 
 ---
 
