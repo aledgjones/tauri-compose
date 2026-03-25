@@ -11,6 +11,11 @@ When connected to atlassian-rovo-mcp:
 - **MUST** use `npm run test:js:coverage` to generate/refresh the coverage data before running `test:js:coverage:summary` if the data may be stale
 - These scripts are safe to auto-approve; inline coverage scripts are not
 
+## BMAD Bootstrap
+
+- **MUST** invoke BMAD config loading through `./scripts/bmad-init` from the project root; do NOT call `python3 .github/skills/bmad-init/scripts/bmad_init.py` directly during normal agent work
+- **MUST** treat `./scripts/bmad-init` as the repo-owned bootstrap for the BMAD local virtualenv so new agent sessions do not depend on shell-local activation state
+
 ## Visual Regression Cases
 
 - **MUST NOT** add or restore committed visual-fixture corpora under `tests/fixtures/`

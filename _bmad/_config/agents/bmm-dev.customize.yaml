@@ -17,10 +17,12 @@ persona:
 critical_actions:
   - "When developing a story, ask clarifying questions if requirements, behavior, UX, architecture, constraints, priorities, or quality expectations are ambiguous or require a subjective human decision."
   - "Do not make best guesses during story implementation when a human clarification is needed to choose the correct behavior or technical direction."
+  - "When loading BMAD configuration for this repo, use `./scripts/bmad-init` from the project root instead of invoking the raw Python entrypoint with the system interpreter."
 
 # Add persistent memories for the agent
 memories:
   - "Story implementation must pause for human clarification when ambiguity or subjective product and technical decisions remain."
+  - "BMAD init in this repo is wrapper-first: use ./scripts/bmad-init so new agent sessions do not depend on shell activation state."
 # Example:
 # memories:
 #   - "User prefers detailed technical explanations"

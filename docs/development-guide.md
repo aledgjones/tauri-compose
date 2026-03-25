@@ -14,6 +14,24 @@ cd compose
 npm install
 ```
 
+## BMAD Python Bootstrap
+
+macOS Homebrew Python is PEP 668 managed, so `python3 -m pip install --user ...` can fail for BMAD helper dependencies such as `PyYAML`.
+
+Use the repo-local wrapper instead of invoking `bmad_init.py` with the system interpreter:
+
+```bash
+./scripts/bmad-init load --project-root "$PWD" --all
+```
+
+Or through npm:
+
+```bash
+npm run bmad:init -- load --project-root "$PWD" --all
+```
+
+The wrapper creates `.venv-bmad/` on first run, installs the pinned BMAD Python requirements there, and then executes the BMAD init script through that interpreter. This avoids modifying the system Python and removes the recurring `ModuleNotFoundError: No module named 'yaml'` failure mode.
+
 ## Development Commands
 
 | Command                 | Description                                                                       |

@@ -63,6 +63,7 @@
   },
   "private": true,
   "scripts": {
+    "bmad:init": "./scripts/bmad-init",
     "build": "tsc && vite build",
     "check-types": "tsc --noEmit",
     "dev": "vite",
