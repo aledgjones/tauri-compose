@@ -10,6 +10,8 @@ use crate::playback::vst3::{
     default_vst3_search_roots, discover_first_valid_vst3_in_roots, validate_vst3_bundle,
     MACOS_VST3_SEARCH_ROOTS,
 };
+use crate::score::playback::{PlaybackSlotPluginState, PlaybackSlotTarget};
+use crate::score::Score;
 use crate::utils::UniqueId;
 use crate::{AppContextState, ManagedPluginInventoryContextState};
 use rustc_hash::FxHashMap;
@@ -34,6 +36,26 @@ enum PluginHostLifecyclePhase {
     Attached,
     Detached,
     Closing,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum SlotRuntimePluginStateCapture {
+    MissingSession,
+    NoTransferableState,
+    Captured(PlaybackSlotPluginState),
+}
+
+fn apply_slot_runtime_plugin_state_capture(
+    target: &mut PlaybackSlotTarget,
+    capture: SlotRuntimePluginStateCapture,
+) {
+    match capture {
+        SlotRuntimePluginStateCapture::MissingSession => {}
+        SlotRuntimePluginStateCapture::NoTransferableState => target.plugin_state = None,
+        SlotRuntimePluginStateCapture::Captured(plugin_state) => {
+            target.plugin_state = Some(plugin_state)
+        }
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -703,11 +725,13 @@ mod macos_host {
     use super::{
         active_plugin_host_session, attached_editor_host_validation, failed_editor_host_validation,
         PluginEditorHostAttemptError, PluginEditorHostValidationPhase, PluginHostAttachOutcome,
-        HOST_HEADER_HEIGHT,
+        SlotRuntimePluginStateCapture, HOST_HEADER_HEIGHT,
     };
     use crate::playback::runtime_activation::ActivatedSlotTarget;
     use crate::playback::vst3::vst3_bundle_binary_path;
+    use crate::score::playback::PlaybackSlotPluginState;
     use crate::utils::UniqueId;
+    use base64::prelude::{Engine as _, BASE64_STANDARD};
     use core_foundation::base::{CFRelease, CFRetain, CFTypeRef, TCFType};
     use core_foundation::bundle::CFBundle;
     use core_foundation::string::CFString;
@@ -1290,8 +1314,37 @@ mod macos_host {
 
     #[derive(Default)]
     struct HostMemoryStream {
-        bytes: StdMutex<Vec<u8>>,
-        cursor: StdMutex<usize>,
+        bytes: Arc<StdMutex<Vec<u8>>>,
+        cursor: Arc<StdMutex<usize>>,
+    }
+
+    impl Clone for HostMemoryStream {
+        fn clone(&self) -> Self {
+            Self {
+                bytes: Arc::clone(&self.bytes),
+                cursor: Arc::clone(&self.cursor),
+            }
+        }
+    }
+
+    impl HostMemoryStream {
+        fn snapshot_bytes(&self) -> Result<Vec<u8>, String> {
+            self.bytes
+                .lock()
+                .map(|bytes| bytes.clone())
+                .map_err(|_| String::from("Failed to read the VST3 memory stream shim."))
+        }
+
+        fn replace_bytes(&self, bytes: Vec<u8>) -> Result<(), String> {
+            self.bytes
+                .lock()
+                .map_err(|_| String::from("Failed to write the VST3 memory stream shim."))
+                .map(|mut current| *current = bytes)?;
+            self.cursor
+                .lock()
+                .map_err(|_| String::from("Failed to reset the VST3 memory stream shim."))
+                .map(|mut cursor| *cursor = 0)
+        }
     }
 
     impl Class for HostMemoryStream {
@@ -1827,6 +1880,7 @@ mod macos_host {
     pub struct PluginHostSession {
         pub target: super::PluginEditorTarget,
         pub plugin_path: PathBuf,
+        restorable_plugin_state: Option<PlaybackSlotPluginState>,
         _module: LoadedVst3Module,
         component: ComPtr<IComponent>,
         controller: ComPtr<IEditController>,
@@ -2978,17 +3032,20 @@ mod macos_host {
             })
     }
 
-    fn create_memory_stream() -> Result<ComPtr<IBStream>, String> {
-        ComWrapper::new(HostMemoryStream::default())
+    fn create_memory_stream() -> Result<(HostMemoryStream, ComPtr<IBStream>), String> {
+        let stream = HostMemoryStream::default();
+        let stream_ptr = ComWrapper::new(stream.clone())
             .to_com_ptr::<IBStream>()
-            .ok_or_else(|| String::from("Failed to allocate the VST3 memory stream shim."))
+            .ok_or_else(|| String::from("Failed to allocate the VST3 memory stream shim."))?;
+
+        Ok((stream, stream_ptr))
     }
 
     fn sync_component_state_to_controller(
         component: &ComPtr<IComponent>,
         controller: &ComPtr<IEditController>,
     ) {
-        let Ok(stream) = create_memory_stream() else {
+        let Ok((_, stream)) = create_memory_stream() else {
             eprintln!(
                 "plugin_editor_poc: failed to allocate memory stream for controller state sync"
             );
@@ -3019,6 +3076,64 @@ mod macos_host {
             "plugin_editor_poc: controller state sync result {} after component state export {}",
             set_state_result, get_state_result
         ));
+    }
+
+    fn export_component_state(
+        component: &ComPtr<IComponent>,
+    ) -> Result<SlotRuntimePluginStateCapture, String> {
+        let (stream_state, stream) = create_memory_stream()?;
+        let get_state_result = unsafe { component.getState(stream.as_ptr()) };
+        if get_state_result != kResultOk {
+            return Ok(SlotRuntimePluginStateCapture::NoTransferableState);
+        }
+
+        let bytes = stream_state.snapshot_bytes()?;
+        Ok(SlotRuntimePluginStateCapture::Captured(
+            PlaybackSlotPluginState {
+                vst3_component_state_base64: BASE64_STANDARD.encode(bytes),
+            },
+        ))
+    }
+
+    fn restore_component_state(
+        component: &ComPtr<IComponent>,
+        plugin_state: &PlaybackSlotPluginState,
+    ) -> Result<(), String> {
+        let bytes = BASE64_STANDARD
+            .decode(plugin_state.vst3_component_state_base64.as_bytes())
+            .map_err(|error| format!("Failed to decode persisted VST3 component state: {error}"))?;
+        let (stream_state, stream) = create_memory_stream()?;
+        stream_state.replace_bytes(bytes)?;
+
+        let set_state_result = unsafe { component.setState(stream.as_ptr()) };
+        if set_state_result != kResultOk {
+            return Err(format!(
+                "Plugin editor POC failed to restore the persisted VST3 component state (tresult = {}).",
+                set_state_result
+            ));
+        }
+
+        Ok(())
+    }
+
+    pub(crate) fn slot_runtime_session_matches_target_path_and_state(
+        session_plugin_path: &Path,
+        session_plugin_state: Option<&PlaybackSlotPluginState>,
+        desired_target: &ActivatedSlotTarget,
+    ) -> bool {
+        session_plugin_path == desired_target.bundle_path.as_path()
+            && session_plugin_state == desired_target.plugin_state.as_ref()
+    }
+
+    fn slot_runtime_session_matches_target(
+        session: &PluginHostSession,
+        desired_target: &ActivatedSlotTarget,
+    ) -> bool {
+        slot_runtime_session_matches_target_path_and_state(
+            &session.plugin_path,
+            session.restorable_plugin_state.as_ref(),
+            desired_target,
+        )
     }
 
     unsafe fn disconnect_component_and_controller(
@@ -3144,6 +3259,7 @@ mod macos_host {
 
     fn build_plugin_host_session(
         target: &super::PluginEditorTarget,
+        restorable_plugin_state: Option<&PlaybackSlotPluginState>,
     ) -> Result<PluginHostSession, PluginEditorHostAttemptError> {
         let plugin_path = target.path();
         let module = load_vst3_module(plugin_path).map_err(|error| {
@@ -3188,6 +3304,15 @@ mod macos_host {
                     component_init
                 ),
             ));
+        }
+
+        if let Some(plugin_state) = restorable_plugin_state {
+            restore_component_state(&component, plugin_state).map_err(|error| {
+                PluginEditorHostAttemptError::new(
+                    PluginEditorHostValidationPhase::ComponentStateSync,
+                    error,
+                )
+            })?;
         }
 
         if let Some(processor) = component.cast::<Vst::IAudioProcessor>() {
@@ -3304,6 +3429,7 @@ mod macos_host {
         Ok(PluginHostSession {
             target: target.clone(),
             plugin_path: plugin_path.to_path_buf(),
+            restorable_plugin_state: restorable_plugin_state.cloned(),
             _module: module,
             component,
             controller,
@@ -3661,16 +3787,19 @@ mod macos_host {
         slot_id: UniqueId,
         target: &ActivatedSlotTarget,
     ) -> Result<PluginHostSession, String> {
-        let target = super::PluginEditorTarget::slot(target.bundle_path.clone(), slot_id);
+        let target_identity = super::PluginEditorTarget::slot(target.bundle_path.clone(), slot_id);
+        let restorable_plugin_state = target.plugin_state.clone();
 
         if MainThreadMarker::new().is_some() {
-            return build_plugin_host_session(&target).map_err(|error| error.message);
+            return build_plugin_host_session(&target_identity, restorable_plugin_state.as_ref())
+                .map_err(|error| error.message);
         }
 
         let (sender, receiver) = std::sync::mpsc::channel();
-        let build_target = target.clone();
+        let build_target = target_identity.clone();
         app.run_on_main_thread(move || {
-            let result = build_plugin_host_session(&build_target).map_err(|error| error.message);
+            let result = build_plugin_host_session(&build_target, restorable_plugin_state.as_ref())
+                .map_err(|error| error.message);
             let _ = sender.send(result);
         })
         .map_err(|error| format!("Failed to schedule slot runtime creation: {error}"))?;
@@ -3680,6 +3809,42 @@ mod macos_host {
             .recv()
             .map_err(|error| format!("Failed to receive slot runtime creation result: {error}"));
         log_main_thread_wait_finish("build_slot_runtime_session", wait_started_at);
+        received?
+    }
+
+    fn capture_slot_runtime_plugin_state_now(
+        slot_id: UniqueId,
+    ) -> Result<SlotRuntimePluginStateCapture, String> {
+        let sessions = slot_runtime_sessions().lock().map_err(|_| {
+            String::from("Failed to access slot runtime sessions for state capture.")
+        })?;
+        let Some(session) = sessions.get(&slot_id) else {
+            return Ok(SlotRuntimePluginStateCapture::MissingSession);
+        };
+
+        export_component_state(&session.component)
+    }
+
+    pub(crate) fn capture_slot_runtime_plugin_state(
+        app: &AppHandle,
+        slot_id: UniqueId,
+    ) -> Result<SlotRuntimePluginStateCapture, String> {
+        if MainThreadMarker::new().is_some() {
+            return capture_slot_runtime_plugin_state_now(slot_id);
+        }
+
+        let (sender, receiver) = std::sync::mpsc::channel();
+        app.run_on_main_thread(move || {
+            let result = capture_slot_runtime_plugin_state_now(slot_id);
+            let _ = sender.send(result);
+        })
+        .map_err(|error| format!("Failed to schedule slot runtime state capture: {error}"))?;
+
+        let wait_started_at = log_main_thread_wait_start("capture_slot_runtime_plugin_state");
+        let received = receiver.recv().map_err(|error| {
+            format!("Failed to receive slot runtime state capture result: {error}")
+        });
+        log_main_thread_wait_finish("capture_slot_runtime_plugin_state", wait_started_at);
         received?
     }
 
@@ -3728,7 +3893,9 @@ mod macos_host {
             let slot_ids_to_remove = sessions
                 .iter()
                 .filter_map(|(slot_id, session)| match desired_targets.get(slot_id) {
-                    Some(desired_target) if session.plugin_path == desired_target.bundle_path => {
+                    Some(desired_target)
+                        if slot_runtime_session_matches_target(session, desired_target) =>
+                    {
                         None
                     }
                     _ => Some(*slot_id),
@@ -3963,7 +4130,7 @@ mod macos_host {
                         })?;
                         let mut session = match active_session.take() {
                             Some(session) => session,
-                            None => build_plugin_host_session(&target)
+                            None => build_plugin_host_session(&target, None)
                                 .map_err(|error| error.message.clone())?,
                         };
                         let result = session.attach_view(
@@ -4032,6 +4199,7 @@ mod macos_host {
 #[cfg(target_os = "macos")]
 use macos_host::{
     attach_native_host_surface as attach_native_host_surface_impl,
+    capture_slot_runtime_plugin_state as capture_slot_runtime_plugin_state_impl,
     cleanup_active_plugin_host_session, prepare_active_plugin_host_session_for_close,
     sync_active_plugin_host, sync_slot_runtime_sessions as sync_slot_runtime_sessions_impl,
     PluginHostSession,
@@ -4053,12 +4221,58 @@ pub(crate) fn sync_slot_runtime_sessions(
     sync_slot_runtime_sessions_impl(app, desired_targets)
 }
 
+#[cfg(target_os = "macos")]
+pub(crate) fn capture_slot_runtime_plugin_state(
+    app: &AppHandle,
+    slot_id: UniqueId,
+) -> Result<SlotRuntimePluginStateCapture, String> {
+    capture_slot_runtime_plugin_state_impl(app, slot_id)
+}
+
 #[cfg(not(target_os = "macos"))]
 pub(crate) fn sync_slot_runtime_sessions(
     _app: &AppHandle,
     desired_targets: &FxHashMap<UniqueId, ActivatedSlotTarget>,
 ) -> FxHashMap<UniqueId, ActivatedSlotTarget> {
     desired_targets.clone()
+}
+
+#[cfg(not(target_os = "macos"))]
+pub(crate) fn capture_slot_runtime_plugin_state(
+    _app: &AppHandle,
+    _slot_id: UniqueId,
+) -> Result<SlotRuntimePluginStateCapture, String> {
+    Ok(SlotRuntimePluginStateCapture::MissingSession)
+}
+
+fn sync_score_slot_targets_with_capture<F>(score: &mut Score, mut capture: F) -> Result<(), String>
+where
+    F: FnMut(UniqueId) -> Result<SlotRuntimePluginStateCapture, String>,
+{
+    for (slot_id, slot) in &mut score.playback.rack.by_id {
+        let Some(target) = slot.target.as_mut() else {
+            continue;
+        };
+
+        let capture_result = capture(*slot_id).map_err(|error| {
+            format!(
+                "Failed to capture slot runtime state for slot {}: {}",
+                slot_id, error
+            )
+        })?;
+        apply_slot_runtime_plugin_state_capture(target, capture_result);
+    }
+
+    Ok(())
+}
+
+pub(crate) fn sync_score_slot_targets_with_runtime_state(
+    app: &AppHandle,
+    score: &mut Score,
+) -> Result<(), String> {
+    sync_score_slot_targets_with_capture(score, |slot_id| {
+        capture_slot_runtime_plugin_state(app, slot_id)
+    })
 }
 
 #[cfg(not(target_os = "macos"))]
@@ -4219,6 +4433,7 @@ mod tests {
     };
     use crate::playback::plugin_host_compatibility::bounded_editor_host_unsupported_reason;
     use crate::playback::runtime_activation::ActivatedSlotTarget;
+    use crate::score::playback::{PlaybackSlotPluginState, PlaybackSlotTarget};
     use crate::utils::UniqueId;
     #[cfg(target_os = "macos")]
     use std::ffi::c_void;
@@ -4757,6 +4972,7 @@ mod tests {
             &ActivatedSlotTarget {
                 plugin_id: String::from("plugin-a"),
                 bundle_path: PathBuf::from("/tmp/test-plugin.vst3"),
+                plugin_state: None,
             },
         ));
         assert!(!super::slot_runtime_session_in_flight(
@@ -4764,10 +4980,119 @@ mod tests {
             &ActivatedSlotTarget {
                 plugin_id: String::from("plugin-a"),
                 bundle_path: PathBuf::from("/tmp/other-plugin.vst3"),
+                plugin_state: None,
             },
         ));
 
         reset_active_plugin_target();
+    }
+
+    #[test]
+    fn slot_runtime_session_target_match_rejects_restorable_state_mismatch() {
+        let desired_target = ActivatedSlotTarget {
+            plugin_id: String::from("plugin-a"),
+            bundle_path: PathBuf::from("/tmp/test-plugin.vst3"),
+            plugin_state: Some(PlaybackSlotPluginState {
+                vst3_component_state_base64: String::from("AQID"),
+            }),
+        };
+
+        let matches_same_state =
+            super::macos_host::slot_runtime_session_matches_target_path_and_state(
+                Path::new("/tmp/test-plugin.vst3"),
+                desired_target.plugin_state.as_ref(),
+                &desired_target,
+            );
+        let mismatches_saved_state =
+            super::macos_host::slot_runtime_session_matches_target_path_and_state(
+                Path::new("/tmp/test-plugin.vst3"),
+                Some(&PlaybackSlotPluginState {
+                    vst3_component_state_base64: String::from("BAUG"),
+                }),
+                &desired_target,
+            );
+
+        assert!(matches_same_state);
+        assert!(!mismatches_saved_state);
+    }
+
+    #[test]
+    fn sync_score_slot_targets_preserves_missing_session_state_and_clears_non_transferable_state() {
+        let mut score = crate::score::Score::new();
+        score.playback.rack.order.push(100);
+        score.playback.rack.by_id.insert(
+            100,
+            crate::score::playback::PlaybackRackSlot {
+                id: 100,
+                target: Some(PlaybackSlotTarget {
+                    plugin_id: String::from("plugin-a"),
+                    plugin_state: Some(PlaybackSlotPluginState {
+                        vst3_component_state_base64: String::from("AQID"),
+                    }),
+                }),
+            },
+        );
+        score.playback.rack.order.push(200);
+        score.playback.rack.by_id.insert(
+            200,
+            crate::score::playback::PlaybackRackSlot {
+                id: 200,
+                target: Some(PlaybackSlotTarget {
+                    plugin_id: String::from("plugin-b"),
+                    plugin_state: Some(PlaybackSlotPluginState {
+                        vst3_component_state_base64: String::from("BAUG"),
+                    }),
+                }),
+            },
+        );
+
+        super::sync_score_slot_targets_with_capture(&mut score, |slot_id| match slot_id {
+            100 => Ok(super::SlotRuntimePluginStateCapture::MissingSession),
+            200 => Ok(super::SlotRuntimePluginStateCapture::NoTransferableState),
+            _ => unreachable!(),
+        })
+        .unwrap();
+
+        assert_eq!(
+            score.playback.rack.by_id[&100]
+                .target
+                .as_ref()
+                .and_then(|target| target.plugin_state.as_ref()),
+            Some(&PlaybackSlotPluginState {
+                vst3_component_state_base64: String::from("AQID"),
+            })
+        );
+        assert_eq!(
+            score.playback.rack.by_id[&200]
+                .target
+                .as_ref()
+                .and_then(|target| target.plugin_state.as_ref()),
+            None
+        );
+    }
+
+    #[test]
+    fn sync_score_slot_targets_returns_capture_errors() {
+        let mut score = crate::score::Score::new();
+        score.playback.rack.order.push(100);
+        score.playback.rack.by_id.insert(
+            100,
+            crate::score::playback::PlaybackRackSlot {
+                id: 100,
+                target: Some(PlaybackSlotTarget {
+                    plugin_id: String::from("plugin-a"),
+                    plugin_state: None,
+                }),
+            },
+        );
+
+        let error = super::sync_score_slot_targets_with_capture(&mut score, |_| {
+            Err(String::from("capture failed"))
+        })
+        .unwrap_err();
+
+        assert!(error.contains("slot 100"));
+        assert!(error.contains("capture failed"));
     }
 
     #[test]

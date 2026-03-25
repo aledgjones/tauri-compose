@@ -19,6 +19,8 @@ This project uses [Vitest](https://vitest.dev) as the test runner for TypeScript
 
 Story 1.3 is the explicit release-style gate before Epic 4 audible-playback work can start, and Story 1.4 extends that gate with slot-owned live runtime sessions. Here, single-instrument means one playable instrument per VST instance, even if that instance exposes multiple articulations or expressions; HALion-style multi-slot or multi-part instances remain out of scope. Treat it as a narrow trust-restoration proof, not as evidence of multi-instrument playback or audible transport support.
 
+Story 1.6 extends that same gate with pre-editor restore behavior: when a slot target carries portable restorable plugin state, Compose must rebuild the slot-owned runtime session from that saved intent before any native editor window is opened. The project file may store the minimal portable component-state blob required to recover the intended running instrument, but it must never store live host/runtime objects or machine-local inventory state.
+
 Automated evidence required for the current baseline:
 
 - `cd src-tauri && cargo test runtime_activation -- --nocapture`
@@ -34,7 +36,8 @@ Manual proof required before Epic 4 stories are unblocked:
 3. Open the native editor from the routed rack slot, verify the host window and embedded editor stay in sync during resize behavior, close it, and reopen it in the same session without hangs while the slot remains transport-ready across the close/reopen cycle.
 4. If two rack slots point at the same bundle, confirm the slot-scoped open action targets the intended slot identity rather than reusing the other slot's editor target.
 5. Unassign or remove the routed slot and confirm the readiness state drops immediately instead of persisting until editor close.
-6. Save the score, reopen the `.soloc` file, and confirm portable route intent persists while runtime readiness is re-resolved from current machine-local inventory rather than from serialized live host state.
+6. Save the score, reopen the `.soloc` file, and confirm portable route intent plus any saved restorable plugin state persist while runtime readiness is re-resolved from current machine-local inventory rather than from serialized live host state.
+7. If the plugin supports transferable state and you changed the intended instrument or patch before saving, confirm the restored slot is already back on that intended running instrument before opening the native editor.
 
 Blocking rule:
 

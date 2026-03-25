@@ -228,7 +228,10 @@ impl Score {
             .get_mut(&slot_id)
             .ok_or_else(|| format!("Playback slot {} does not exist", slot_id))?;
 
-        slot.target = Some(super::playback::PlaybackSlotTarget { plugin_id });
+        slot.target = Some(super::playback::PlaybackSlotTarget {
+            plugin_id,
+            plugin_state: None,
+        });
 
         Ok(())
     }
@@ -855,6 +858,7 @@ mod tests {
                 id: slot_id,
                 target: Some(crate::score::playback::PlaybackSlotTarget {
                     plugin_id: String::from(plugin_id),
+                    plugin_state: None,
                 }),
             },
         );

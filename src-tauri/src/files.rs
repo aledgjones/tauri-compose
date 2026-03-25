@@ -1,5 +1,6 @@
 use crate::instructions::FlowRenderRecalculationRequest;
 use crate::migrations::{MigrationKind, MIGRATIONS};
+use crate::playback::plugin_editor_poc::sync_score_slot_targets_with_runtime_state;
 use crate::playback::transport::{
     stop_transport_playback, sync_transport_to_app_state, TransportContext,
 };
@@ -344,7 +345,9 @@ mod tests {
     use crate::score::flows::Flow;
     use crate::score::instruments::{defs::InstrumentType, Instrument, Instruments};
     use crate::score::layouts::{Layout, LayoutType};
-    use crate::score::playback::{InstrumentPlaybackRoute, ResolvedPlaybackRouteStatus};
+    use crate::score::playback::{
+        InstrumentPlaybackRoute, PlaybackSlotPluginState, ResolvedPlaybackRouteStatus,
+    };
     use crate::score::players::{Player, PlayerType, Players};
     use crate::score::tracks::Track;
     use crate::{score::Score, ui::Ui, AppContext};
@@ -2140,6 +2143,18 @@ mod tests {
         score
             .assign_plugin_to_slot(300, String::from("plugin-a"))
             .unwrap();
+        score
+            .playback
+            .rack
+            .by_id
+            .get_mut(&300)
+            .unwrap()
+            .target
+            .as_mut()
+            .unwrap()
+            .plugin_state = Some(PlaybackSlotPluginState {
+            vst3_component_state_base64: String::from("AQID"),
+        });
         score.assign_instrument_route_to_slot(10, 300).unwrap();
         let project_file = ProjectFile {
             ui: Ui::new(),
@@ -2219,6 +2234,18 @@ mod tests {
         score
             .assign_plugin_to_slot(300, String::from("plugin-a"))
             .unwrap();
+        score
+            .playback
+            .rack
+            .by_id
+            .get_mut(&300)
+            .unwrap()
+            .target
+            .as_mut()
+            .unwrap()
+            .plugin_state = Some(PlaybackSlotPluginState {
+            vst3_component_state_base64: String::from("AQID"),
+        });
         score.assign_instrument_route_to_slot(10, 300).unwrap();
 
         let project_file = round_trip_project_file(&ProjectFile {
@@ -2260,6 +2287,15 @@ mod tests {
                 .as_ref()
                 .map(|target| target.plugin_id.as_str()),
             Some("plugin-a")
+        );
+        assert_eq!(
+            state.score.playback.rack.by_id[&300]
+                .target
+                .as_ref()
+                .and_then(|target| target.plugin_state.as_ref()),
+            Some(&PlaybackSlotPluginState {
+                vst3_component_state_base64: String::from("AQID"),
+            })
         );
         assert_eq!(
             resolved.get(&10).unwrap().status,
@@ -2341,6 +2377,7 @@ pub fn save_project_to_file(
 ) -> Result<(), String> {
     let mut state = state.lock().unwrap();
     state.score.meta.app_version = CURRENT_APP_VERSION.to_string();
+    sync_score_slot_targets_with_runtime_state(&app, &mut state.score)?;
 
     let project_file = build_project_file(&state);
     let json_data = serde_json::to_vec(&project_file)

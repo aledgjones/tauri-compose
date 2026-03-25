@@ -164,6 +164,11 @@ export type PlaybackRouteChoice = {
 
 export type PlaybackSlotTarget = {
   plugin_id: string;
+  plugin_state?: PlaybackSlotPluginState | null;
+};
+
+export type PlaybackSlotPluginState = {
+  vst3_component_state_base64: string;
 };
 
 export type PlaybackRackSlot = {

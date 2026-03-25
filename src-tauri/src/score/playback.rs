@@ -58,6 +58,13 @@ impl PlaybackRackSlot {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PlaybackSlotTarget {
     pub plugin_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub plugin_state: Option<PlaybackSlotPluginState>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PlaybackSlotPluginState {
+    pub vst3_component_state_base64: String,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize_repr, Deserialize_repr)]

@@ -1,7 +1,7 @@
 use crate::playback::plugin_inventory::PluginInventoryContext;
 use crate::score::playback::{
-    InstrumentPlaybackRoute, PlaybackRouteAddress, PlaybackRouteTarget, ResolvedPlaybackRoute,
-    ResolvedPlaybackRouteStatus,
+    InstrumentPlaybackRoute, PlaybackRouteAddress, PlaybackRouteTarget, PlaybackSlotPluginState,
+    ResolvedPlaybackRoute, ResolvedPlaybackRouteStatus,
 };
 use crate::score::Score;
 use crate::utils::UniqueId;
@@ -12,6 +12,7 @@ use std::path::PathBuf;
 pub struct ActivatedSlotTarget {
     pub plugin_id: String,
     pub bundle_path: PathBuf,
+    pub plugin_state: Option<PlaybackSlotPluginState>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -85,6 +86,7 @@ impl PlaybackActivationRuntime {
                     ActivatedSlotTarget {
                         plugin_id: target.plugin_id.clone(),
                         bundle_path,
+                        plugin_state: target.plugin_state.clone(),
                     },
                 ))
             })
@@ -292,7 +294,7 @@ mod tests {
     use crate::score::instruments::{defs::InstrumentType, Instrument, Instruments};
     use crate::score::playback::{
         InstrumentPlaybackRoute, PlaybackRackSlot, PlaybackRouteAddress, PlaybackRouteAddressMode,
-        PlaybackRouteTarget, PlaybackRouteTargetMode, PlaybackSlotTarget,
+        PlaybackRouteTarget, PlaybackRouteTargetMode, PlaybackSlotPluginState, PlaybackSlotTarget,
         ResolvedPlaybackRouteStatus,
     };
     use crate::score::players::{Player, PlayerType, Players};
@@ -351,8 +353,38 @@ mod tests {
                 id: slot_id,
                 target: Some(PlaybackSlotTarget {
                     plugin_id: plugin_id.to_string(),
+                    plugin_state: None,
                 }),
             },
+        );
+    }
+
+    #[test]
+    fn expected_slot_targets_preserve_restorable_plugin_state() {
+        let inventory = PluginInventoryContext::with_entries_for_tests(vec![available_entry(
+            "plugin-a",
+            "/Library/Audio/Plug-Ins/VST3/Plugin A.vst3",
+        )]);
+        let mut score = make_score();
+        assign_slot(&mut score, 100, "plugin-a");
+        score.playback.rack.by_id.get_mut(&100).unwrap().target = Some(PlaybackSlotTarget {
+            plugin_id: String::from("plugin-a"),
+            plugin_state: Some(PlaybackSlotPluginState {
+                vst3_component_state_base64: String::from("AQID"),
+            }),
+        });
+
+        let expected = PlaybackActivationRuntime::expected_slot_targets_from_score_and_inventory(
+            &score, &inventory,
+        );
+
+        assert_eq!(
+            expected
+                .get(&100)
+                .and_then(|target| target.plugin_state.as_ref()),
+            Some(&PlaybackSlotPluginState {
+                vst3_component_state_base64: String::from("AQID"),
+            })
         );
     }
 
@@ -411,6 +443,7 @@ mod tests {
             .status;
         score.playback.rack.by_id.get_mut(&100).unwrap().target = Some(PlaybackSlotTarget {
             plugin_id: String::from("plugin-a"),
+            plugin_state: None,
         });
         let after_assignment =
             PlaybackActivationRuntime::from_score_and_inventory(&score, &inventory);
@@ -562,6 +595,7 @@ mod tests {
                 ActivatedSlotTarget {
                     plugin_id: String::from("plugin-a"),
                     bundle_path: PathBuf::from("/Library/Audio/Plug-Ins/VST3/Plugin A.vst3"),
+                    plugin_state: None,
                 },
             )]),
         );
@@ -624,6 +658,7 @@ mod tests {
                     ActivatedSlotTarget {
                         plugin_id: String::from("plugin-a"),
                         bundle_path: PathBuf::from("/Library/Audio/Plug-Ins/VST3/Plugin A.vst3"),
+                        plugin_state: None,
                     },
                 ),
                 (
@@ -631,6 +666,7 @@ mod tests {
                     ActivatedSlotTarget {
                         plugin_id: String::from("plugin-a"),
                         bundle_path: PathBuf::from("/Library/Audio/Plug-Ins/VST3/Plugin A.vst3"),
+                        plugin_state: None,
                     },
                 ),
             ]),

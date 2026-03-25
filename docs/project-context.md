@@ -93,7 +93,7 @@ _This file contains critical rules and patterns that AI agents must follow when 
 - All components are `FC<Props>` — no class components
 - State source of truth is Rust `AppContext` behind `Mutex` — FE is a display layer only
 - 4 React contexts: `AppContext`, `AudioContext`, `PluginInventoryContext`, `TransportContext` — each with a typed hook that throws outside its provider; `PluginInventoryContext` is the backend-owned machine-local VST3 inventory channel, including persisted `editor_host_validation` diagnostics from real maintainer host attempts
-- Slot-owned live plugin sessions are backend-only runtime objects keyed by `slot_id`; they own the real initialized VST instance for prepared slots, while `PlaybackActivationRuntime` is the emitted readiness snapshot derived from those sessions
+- Slot-owned live plugin sessions are backend-only runtime objects keyed by `slot_id`; they own the real initialized VST instance for prepared slots, restore any portable `PlaybackSlotTarget.plugin_state` payload before editor-open, and remain the sole source from which `PlaybackActivationRuntime` readiness is derived
 - State pushed to FE via Tauri events (`soloc://state/general`, `soloc://state/audio`, `soloc://state/plugin_inventory`)
 - Keep plugin bundle validity separate from bounded native-editor posture: `validation_failure` is for bundle/discovery failures, while editor-host policy blocks and real host-attempt diagnostics belong in `editor_host_validation`
 - Transport polling uses `requestAnimationFrame` loop — no events during playback to keep transport thread silent
