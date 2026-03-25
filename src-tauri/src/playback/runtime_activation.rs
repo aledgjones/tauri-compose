@@ -65,8 +65,11 @@ impl SingleInstrumentTrustGate {
 }
 
 impl PlaybackActivationRuntime {
-    pub fn from_score_and_inventory(score: &Score, inventory: &PluginInventoryContext) -> Self {
-        let activated_slot_target_by_slot_id = score
+    pub fn expected_slot_targets_from_score_and_inventory(
+        score: &Score,
+        inventory: &PluginInventoryContext,
+    ) -> FxHashMap<UniqueId, ActivatedSlotTarget> {
+        score
             .playback
             .rack
             .by_id
@@ -85,8 +88,21 @@ impl PlaybackActivationRuntime {
                     },
                 ))
             })
-            .collect::<FxHashMap<_, _>>();
+            .collect()
+    }
 
+    #[cfg_attr(not(test), allow(dead_code))]
+    pub fn from_score_and_inventory(score: &Score, inventory: &PluginInventoryContext) -> Self {
+        let activated_slot_target_by_slot_id =
+            Self::expected_slot_targets_from_score_and_inventory(score, inventory);
+
+        Self::from_live_slot_targets(score, activated_slot_target_by_slot_id)
+    }
+
+    pub fn from_live_slot_targets(
+        score: &Score,
+        activated_slot_target_by_slot_id: FxHashMap<UniqueId, ActivatedSlotTarget>,
+    ) -> Self {
         let activated_instrument_route_by_instrument_id = score
             .instruments
             .by_id
@@ -267,7 +283,7 @@ impl PlaybackActivationRuntime {
 #[cfg(test)]
 mod tests {
     use super::{
-        PlaybackActivationRuntime, SingleInstrumentTrustGateBlocker,
+        ActivatedSlotTarget, PlaybackActivationRuntime, SingleInstrumentTrustGateBlocker,
         SingleInstrumentTrustGateStatus,
     };
     use crate::playback::plugin_inventory::{
@@ -283,6 +299,7 @@ mod tests {
     use crate::score::Score;
     use crate::utils::UniqueId;
     use rustc_hash::FxHashMap;
+    use std::path::PathBuf;
 
     fn available_entry(id: &str, bundle_path: &str) -> PluginInventoryEntry {
         PluginInventoryEntry {
@@ -526,6 +543,110 @@ mod tests {
         assert_eq!(
             degraded.get(&10).unwrap().status,
             ResolvedPlaybackRouteStatus::NeedsAttention
+        );
+    }
+
+    #[test]
+    fn live_slot_targets_drive_readiness_instead_of_slot_intent_alone() {
+        let mut score = make_score();
+        assign_slot(&mut score, 100, "plugin-a");
+        score.instruments.by_id.get_mut(&10).unwrap().playback_route =
+            Some(InstrumentPlaybackRoute::direct(100));
+
+        let no_live_runtime =
+            PlaybackActivationRuntime::from_live_slot_targets(&score, FxHashMap::default());
+        let with_live_runtime = PlaybackActivationRuntime::from_live_slot_targets(
+            &score,
+            FxHashMap::from_iter([(
+                100,
+                ActivatedSlotTarget {
+                    plugin_id: String::from("plugin-a"),
+                    bundle_path: PathBuf::from("/Library/Audio/Plug-Ins/VST3/Plugin A.vst3"),
+                },
+            )]),
+        );
+
+        assert_eq!(
+            no_live_runtime
+                .resolved_playback_route_by_instrument_id(&score)
+                .get(&10)
+                .unwrap()
+                .status,
+            ResolvedPlaybackRouteStatus::NeedsAttention
+        );
+        assert_eq!(
+            with_live_runtime
+                .resolved_playback_route_by_instrument_id(&score)
+                .get(&10)
+                .unwrap()
+                .status,
+            ResolvedPlaybackRouteStatus::Ready
+        );
+    }
+
+    #[test]
+    fn same_bundle_slots_keep_distinct_live_runtime_identity() {
+        let mut score = make_score();
+        score
+            .players
+            .by_id
+            .get_mut(&1)
+            .unwrap()
+            .instrument_ids
+            .push(11);
+        score.instruments.by_id.insert(
+            11,
+            Instrument {
+                id: 11,
+                definition_id: String::from("strings.viola"),
+                instrument_type: InstrumentType::Melodic,
+                long_name: String::from("Viola"),
+                short_name: String::from("Vla."),
+                stave_ids: vec![],
+                count: None,
+                playback_route: Some(InstrumentPlaybackRoute::direct(101)),
+                volume: 100,
+                pan: 64,
+                mute: false,
+                solo: false,
+            },
+        );
+        assign_slot(&mut score, 100, "plugin-a");
+        assign_slot(&mut score, 101, "plugin-a");
+        score.instruments.by_id.get_mut(&10).unwrap().playback_route =
+            Some(InstrumentPlaybackRoute::direct(100));
+
+        let runtime = PlaybackActivationRuntime::from_live_slot_targets(
+            &score,
+            FxHashMap::from_iter([
+                (
+                    100,
+                    ActivatedSlotTarget {
+                        plugin_id: String::from("plugin-a"),
+                        bundle_path: PathBuf::from("/Library/Audio/Plug-Ins/VST3/Plugin A.vst3"),
+                    },
+                ),
+                (
+                    101,
+                    ActivatedSlotTarget {
+                        plugin_id: String::from("plugin-a"),
+                        bundle_path: PathBuf::from("/Library/Audio/Plug-Ins/VST3/Plugin A.vst3"),
+                    },
+                ),
+            ]),
+        );
+
+        let resolved = runtime.resolved_playback_route_by_instrument_id(&score);
+
+        assert_eq!(resolved.get(&10).unwrap().slot_id, Some(100));
+        assert_eq!(resolved.get(&11).unwrap().slot_id, Some(101));
+        assert_eq!(
+            resolved.get(&10).unwrap().effective_plugin_id.as_deref(),
+            Some("plugin-a")
+        );
+        assert_eq!(
+            resolved.get(&11).unwrap().effective_plugin_id.as_deref(),
+            Some("plugin-a")
         );
     }
 

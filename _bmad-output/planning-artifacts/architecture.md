@@ -130,7 +130,7 @@ The architecture should treat the current foundation as fixed and spend decision
 
 - Rust remains the sole authoritative owner of plugin inventory truth, rack state, slot state, route state, playback-preparation state, transport state, and persisted playback-domain state.
 - The active playback product path must be truly VST-owned. Sampler-era and SCVI-era seams must not remain active product-path owners once equivalent VST seams exist.
-- `.soloc` persists portable project intent and playback references only; machine-local plugin discovery, validation, and cache state remain outside project files.
+- `.soloc` persists portable project intent and playback references only; machine-local plugin discovery, validation, cache state, live runtime host objects, and deeper plugin state such as selected patches or instruments remain outside project files until a later story explicitly adds a portable persistence seam for them.
 - The playback runtime is split into a Rust control plane and a realtime-safe playback plane, with the audio path consuming precomputed, lock-safe state only.
 - Stable, trustable transport behavior is a hard architectural gate, not a later polish concern.
 - The score-context versus app-scoped UX boundary is architectural, not cosmetic: score-context surfaces own routing, readiness, and recovery relationships, while app-scoped windows own plugin inventory, reusable playback assets, and deep editors.
@@ -161,7 +161,7 @@ The architecture should treat the current foundation as fixed and spend decision
   - playback-preparation state
   - transport state
   - persisted playback-domain truth
-- `.soloc` stores portable score and playback rehydration intent, not machine-local discovery, cache, or live runtime state.
+- `.soloc` stores portable score and playback rehydration intent for the current rack-first reset foundation, not machine-local discovery, cache, live runtime state, or deeper plugin patch/instrument state.
 - Slot-owned live plugin sessions are runtime-only backend objects keyed by slot identity and rebuilt from portable saved intent during assignment, preparation, or project load.
 - Machine-local plugin inventory, plugin validation results, editor-host validation results, and related environment-specific metadata live in app-local storage outside project files.
 - Missing or invalid plugin restoration degrades to explicit recoverable unrouted or attention-needed states instead of silent fallback.

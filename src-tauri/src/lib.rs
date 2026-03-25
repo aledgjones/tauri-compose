@@ -13,11 +13,11 @@ mod utils;
 use crate::playback::audio::{
     audio_device_sample_rate_set, audio_device_set, audio_devices_refresh, AudioContext,
 };
-use crate::playback::plugin_editor_poc::plugin_editor_poc_open;
+use crate::playback::plugin_editor_poc::{plugin_editor_poc_open, sync_slot_runtime_sessions};
 use crate::playback::plugin_inventory::{
     plugin_inventory_discover, PluginInventoryContext, PluginInventoryContextState,
 };
-use crate::playback::runtime_activation::PlaybackActivationRuntime;
+use crate::playback::runtime_activation::{ActivatedSlotTarget, PlaybackActivationRuntime};
 use crate::playback::transport::{
     stop_transport_playback, sync_transport_to_app_state, transport_get_state, transport_pause,
     transport_play, transport_seek, TransportContext, TransportSharedState,
@@ -166,15 +166,24 @@ impl AppContext {
 
     pub(crate) fn refresh_playback_activation_runtime(
         &mut self,
+        app: &AppHandle,
         plugin_inventory_state: &ManagedPluginInventoryContextState,
     ) {
-        let inventory = plugin_inventory_state.lock().unwrap();
+        let expected_slot_targets: rustc_hash::FxHashMap<UniqueId, ActivatedSlotTarget> = {
+            let inventory = plugin_inventory_state.lock().unwrap();
+            PlaybackActivationRuntime::expected_slot_targets_from_score_and_inventory(
+                &self.score,
+                &inventory,
+            )
+        };
+        let live_slot_targets = sync_slot_runtime_sessions(app, &expected_slot_targets);
         self.playback_activation_runtime =
-            PlaybackActivationRuntime::from_score_and_inventory(&self.score, &inventory);
+            PlaybackActivationRuntime::from_live_slot_targets(&self.score, live_slot_targets);
     }
 
     pub(crate) fn refresh_playback_activation_runtime_from_app(&mut self, app: &AppHandle) {
         self.refresh_playback_activation_runtime(
+            app,
             app.state::<ManagedPluginInventoryContextState>().inner(),
         );
     }
@@ -346,11 +355,11 @@ const APP_NAME: &str = "Solo Compose";
 
 #[tauri::command(rename_all = "snake_case")]
 fn get_general_state(
+    app: AppHandle,
     state: State<'_, AppContextState>,
-    plugin_inventory_state: State<'_, ManagedPluginInventoryContextState>,
 ) -> AppStateGeneral {
     let mut state = state.lock().unwrap();
-    state.refresh_playback_activation_runtime(plugin_inventory_state.inner());
+    state.refresh_playback_activation_runtime_from_app(&app);
 
     AppStateGeneral {
         ui: state.ui.clone(),
@@ -411,6 +420,7 @@ fn reset(
     state.score = Score::new();
     state.next_id = 1;
     state.current_file_path = None;
+    state.refresh_playback_activation_runtime_from_app(&app);
 
     sync_transport_to_app_state(&transport_shared, &state, 0);
 
@@ -426,10 +436,7 @@ fn reset(
 }
 
 pub(crate) fn get_general_state_snapshot(app: &AppHandle) -> AppStateGeneral {
-    get_general_state(
-        app.state::<AppContextState>(),
-        app.state::<ManagedPluginInventoryContextState>(),
-    )
+    get_general_state(app.clone(), app.state::<AppContextState>())
 }
 
 pub(crate) fn reset_app_state(

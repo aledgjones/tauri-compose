@@ -17,7 +17,7 @@ This project uses [Vitest](https://vitest.dev) as the test runner for TypeScript
 
 ## Single-instrument reset baseline
 
-Story 1.3 is the explicit release-style gate before Epic 4 audible-playback work can start. Here, single-instrument means one playable instrument per VST instance, even if that instance exposes multiple articulations or expressions; HALion-style multi-slot or multi-part instances remain out of scope. Treat it as a narrow trust-restoration proof, not as evidence of multi-instrument playback or audible transport support.
+Story 1.3 is the explicit release-style gate before Epic 4 audible-playback work can start, and Story 1.4 extends that gate with slot-owned live runtime sessions. Here, single-instrument means one playable instrument per VST instance, even if that instance exposes multiple articulations or expressions; HALion-style multi-slot or multi-part instances remain out of scope. Treat it as a narrow trust-restoration proof, not as evidence of multi-instrument playback or audible transport support.
 
 Automated evidence required for the current baseline:
 
@@ -30,10 +30,11 @@ Automated evidence required for the current baseline:
 Manual proof required before Epic 4 stories are unblocked:
 
 1. Prepare one routed score instrument against a supported single-instrument VST instance on the VST-only rack path.
-2. Open the app and confirm the route resolves as transport-ready through the existing score-context or maintainer-facing diagnostics surfaces.
-3. Open the native editor from the routed rack slot, verify the host window and embedded editor stay in sync during resize behavior, close it, and reopen it in the same session without hangs.
+2. Open the app and confirm the route resolves as transport-ready through the existing score-context or maintainer-facing diagnostics surfaces before any native editor window is opened.
+3. Open the native editor from the routed rack slot, verify the host window and embedded editor stay in sync during resize behavior, close it, and reopen it in the same session without hangs while the slot remains transport-ready across the close/reopen cycle.
 4. If two rack slots point at the same bundle, confirm the slot-scoped open action targets the intended slot identity rather than reusing the other slot's editor target.
-5. Save the score, reopen the `.soloc` file, and confirm portable route intent persists while runtime readiness is re-resolved from current machine-local inventory.
+5. Unassign or remove the routed slot and confirm the readiness state drops immediately instead of persisting until editor close.
+6. Save the score, reopen the `.soloc` file, and confirm portable route intent persists while runtime readiness is re-resolved from current machine-local inventory rather than from serialized live host state.
 
 Blocking rule:
 

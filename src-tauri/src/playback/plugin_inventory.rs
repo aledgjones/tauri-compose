@@ -586,7 +586,7 @@ pub fn plugin_inventory_discover(
     let app_state_handle = app.state::<AppContextState>();
     let renderer_state_handle = app.state::<RendererContextState>();
     let mut app_state = app_state_handle.lock().unwrap();
-    app_state.refresh_playback_activation_runtime(state.inner());
+    app_state.refresh_playback_activation_runtime_from_app(&app);
 
     let mut renderer = renderer_state_handle.lock().unwrap();
     app_state.emit_general_state(&app, &mut renderer, None);

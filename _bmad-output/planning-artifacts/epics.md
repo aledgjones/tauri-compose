@@ -347,7 +347,7 @@ So that opening or closing the editor does not create, destroy, or swap the real
 ### Story 1.6: Initialize And Restore Slot-Owned Sessions On Assignment And Reopen
 
 As a composer,
-I want assigned slots to initialize their plugin instances during assignment, preparation, or project reopen from portable saved intent,
+I want assigned slots to initialize their plugin instances during assignment, preparation, or project reopen from portable saved intent, including restorable plugin configuration,
 So that the plugin is already the intended running instrument before I ever open its editor.
 
 **Acceptance Criteria:**
@@ -360,7 +360,7 @@ So that the plugin is already the intended running instrument before I ever open
 **Given** a project is reopened and the plugin is available
 **When** slot and route intent are restored
 **Then** the slot-owned session is restored or reinitialized before editor-open and without rewriting project intent
-**And** the restored session reflects the portable saved intent recorded in `.soloc`
+**And** the restored session reflects the portable saved intent recorded in `.soloc`, including the previously selected restorable instrument or patch state needed for the intended running instrument
 
 **Given** the plugin cannot be initialized or restored
 **When** the backend surfaces state
@@ -369,7 +369,7 @@ So that the plugin is already the intended running instrument before I ever open
 
 **Given** `.soloc` is loaded
 **When** slot and plugin configuration are rehydrated
-**Then** the backend uses the portable saved intent to rebuild the slot-owned runtime session
+**Then** the backend uses the portable saved intent to rebuild the slot-owned runtime session, including slot-to-plugin relationships and any restorable plugin configuration required to recover the intended instrument selection
 **And** the file is not required to contain live runtime state
 
 ## Epic 2: Find And Prepare Usable Plugins

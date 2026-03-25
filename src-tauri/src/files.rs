@@ -507,8 +507,13 @@ mod tests {
         state.next_id = project_file.next_id;
         state.current_file_path = Some(file_path);
         sync_transport_to_app_state(transport_context, state, 0);
+        let live_slot_targets =
+            PlaybackActivationRuntime::expected_slot_targets_from_score_and_inventory(
+                &state.score,
+                inventory,
+            );
         state.playback_activation_runtime =
-            PlaybackActivationRuntime::from_score_and_inventory(&state.score, inventory);
+            PlaybackActivationRuntime::from_live_slot_targets(&state.score, live_slot_targets);
     }
 
     fn available_inventory_entry(plugin_id: &str) -> PluginInventoryEntry {

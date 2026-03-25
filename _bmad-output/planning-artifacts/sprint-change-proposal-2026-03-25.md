@@ -238,15 +238,15 @@ NEW STORY:
 `### Story 1.6: Initialize And Restore Slot-Owned Sessions On Assignment And Reopen`
 
 `As a composer,`
-`I want assigned slots to initialize their plugin instances during assignment, preparation, or project reopen from portable saved intent,`
+`I want assigned slots to initialize their plugin instances during assignment, preparation, or project reopen from portable saved intent, including restorable plugin configuration,`
 `So that the plugin is already the intended running instrument before I ever open its editor.`
 
 Acceptance Criteria summary:
 
 - Given I assign a plugin to a slot, when the backend accepts the assignment, then the slot enters an explicit initialization or recovery path that can produce a real running slot-owned session without requiring editor-open.
-- Given a project is reopened and the plugin is available, when slot and route intent are restored, then the slot-owned session is restored or reinitialized before editor-open and without rewriting project intent.
+- Given a project is reopened and the plugin is available, when slot and route intent are restored, then the slot-owned session is restored or reinitialized before editor-open and without rewriting project intent, including the previously selected restorable instrument or patch state needed for the intended running instrument.
 - Given the plugin cannot be initialized or restored, when the backend surfaces state, then Compose reports an explicit recoverable non-ready condition rather than silently pretending the slot is initialized.
-- Given `.soloc` is loaded, when slot and plugin configuration are rehydrated, then the backend uses the portable saved intent to rebuild the slot-owned runtime session and does not require the file to contain live runtime state.
+- Given `.soloc` is loaded, when slot and plugin configuration are rehydrated, then the backend uses the portable saved intent to rebuild the slot-owned runtime session, including slot-to-plugin relationships and any restorable plugin configuration required to recover the intended instrument selection, and does not require the file to contain live runtime state.
 
 Rationale:
 

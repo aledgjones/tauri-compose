@@ -110,7 +110,7 @@ Exact numbers can be calibrated during architecture and validation planning, but
 - Rack-slot and routing workflow integrated into the main score workflow
 - Explicit support for single-target plugin workflows in the current MVP, with multi-target or channel-addressed routing deferred until after first-audible-playback is working
 - Explicit manual routing for score instruments, with unrouted fallback when no mapping exists
-- Stable slot-owned plugin instance loading and retained per-project rack and route state, where a rack slot owns one real initialized VST instance at runtime, `.soloc` stores only the portable rehydration intent needed to rebuild that state on load, and editor windows are transient surfaces on that running instance
+- Stable slot-owned plugin instance loading and retained per-project rack and route intent, where a rack slot owns one real initialized VST instance at runtime, `.soloc` stores only the portable rehydration intent needed to rebuild that state on load today, and editor windows are transient surfaces on that running instance
 - Single-tone playback as an enabling milestone
 - Basic mixer behavior using a route-first UX, with route-level controls shown when VST3-exposed separability makes them real and slot-level semantics retained underneath where needed
 - Stable transport-driven playback with dependable play, pause, resume, and seek behavior
