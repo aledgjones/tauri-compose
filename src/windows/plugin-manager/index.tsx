@@ -27,11 +27,7 @@ export const Main: FC = () => {
           showActiveOnly={showActiveOnly}
           onShowActiveOnlyChange={setShowActiveOnly}
         />
-        <Plugins
-          searchTerm={searchTerm}
-          showActiveOnly={showActiveOnly}
-          showMaintainerEditorTrigger={true}
-        />
+        <Plugins searchTerm={searchTerm} showActiveOnly={showActiveOnly} />
       </div>
     </div>
   );

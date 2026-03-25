@@ -201,7 +201,7 @@ describe("PlaybackRackPanel", () => {
     ).toBeInTheDocument();
   });
 
-  it("filters slot plugin options to usable plugins only", () => {
+  it("filters slot plugin options to selectable plugins only", () => {
     renderWithProviders(<PlaybackRackPanel />, {
       appState: {
         score: {
@@ -271,8 +271,8 @@ describe("PlaybackRackPanel", () => {
       screen.getByRole("option", { name: "Grand Piano" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("option", { name: "Unsupported Plugin" }),
-    ).toBeInTheDocument();
+      screen.queryByRole("option", { name: "Unsupported Plugin" }),
+    ).toBeNull();
     expect(screen.queryByRole("option", { name: "Missing Plugin" })).toBeNull();
   });
 
@@ -551,7 +551,7 @@ describe("PlaybackRackPanel", () => {
     ).toBeInTheDocument();
   });
 
-  it("keeps host-blocked plugins selectable for slot preparation", () => {
+  it("does not keep host-blocked plugins selectable for slot preparation", () => {
     renderWithProviders(<PlaybackRackPanel />, {
       appState: {
         score: {
@@ -590,8 +590,11 @@ describe("PlaybackRackPanel", () => {
       },
     });
 
-    expect(screen.getByRole("button", { name: /^--$/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /^--$/i })).not.toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: /^--$/i }));
+
+    expect(
+      screen.queryByRole("option", { name: "Unsupported Plugin" }),
+    ).toBeNull();
   });
 
   it("does not render route controls inside slot cards", () => {

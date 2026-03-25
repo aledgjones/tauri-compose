@@ -49,10 +49,10 @@ describe("PluginManager Main", () => {
     expect(screen.queryByText("Root")).not.toBeInTheDocument();
     expect(screen.queryByText("Binary")).not.toBeInTheDocument();
     expect(
-      screen.getByRole("button", {
+      screen.queryByRole("button", {
         name: "Open native editor host for Grand Piano",
       }),
-    ).toBeInTheDocument();
+    ).not.toBeInTheDocument();
   });
 
   it("reuses Available only filtering in the dedicated window", () => {
@@ -80,7 +80,7 @@ describe("PluginManager Main", () => {
     expect(screen.queryByText("Broken Plugin")).not.toBeInTheDocument();
   });
 
-  it("keeps editor-blocked plugins when Available only is enabled", () => {
+  it("filters editor-blocked plugins out when Available only is enabled", () => {
     renderWithProviders(<Main />, {
       pluginInventoryState: {
         entries: [
@@ -106,7 +106,7 @@ describe("PluginManager Main", () => {
     fireEvent.click(screen.getByRole("switch"));
 
     expect(screen.getByText("Grand Piano")).toBeInTheDocument();
-    expect(screen.getByText("HALion Sonic")).toBeInTheDocument();
+    expect(screen.queryByText("HALion Sonic")).not.toBeInTheDocument();
   });
 
   it("shows the plugin path for unavailable plugins", () => {
@@ -134,7 +134,7 @@ describe("PluginManager Main", () => {
     ).toBeInTheDocument();
   });
 
-  it("shows bounded native editor-host blocked state for excluded plugins", () => {
+  it("does not expose the maintainer native-editor affordance in the user-facing manager", () => {
     renderWithProviders(<Main />, {
       pluginInventoryState: {
         entries: [
@@ -152,19 +152,16 @@ describe("PluginManager Main", () => {
     });
 
     expect(screen.getByText("Grand Piano")).toBeInTheDocument();
-    expect(screen.getByLabelText("Status: Available")).toBeInTheDocument();
+    expect(screen.getByLabelText("Status: Not supported")).toBeInTheDocument();
     expect(
       screen.getByText(/Contents\/MacOS\/Grand Piano/),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(/Native editor status:\s*Blocked/i),
     ).toBeInTheDocument();
     expect(
       screen.queryByRole("button", {
         name: "Open native editor host for Grand Piano",
       }),
     ).not.toBeInTheDocument();
-    expect(screen.getByText("Maintainer preview")).toBeInTheDocument();
+    expect(screen.queryByText("Maintainer preview")).not.toBeInTheDocument();
   });
 
   it("orders available plugins before unsupported and unavailable entries", () => {
@@ -215,5 +212,29 @@ describe("PluginManager Main", () => {
       "Zebra Synth",
       "Broken Plugin",
     ]);
+  });
+
+  it("shows a not-supported badge for explicitly blocked plugins", () => {
+    renderWithProviders(<Main />, {
+      pluginInventoryState: {
+        entries: [
+          makePlugin({
+            id: "vst3:/Library/Audio/Plug-Ins/VST3/HALion Sonic.vst3",
+            name: "HALion Sonic",
+            editor_host_validation: {
+              status: "blocked",
+              phase: "policy_gate",
+              message:
+                "Blocked for the bounded native editor host by recorded compatibility evidence.",
+              capability_evidence: null,
+            },
+          }),
+        ],
+      },
+    });
+
+    expect(screen.getByText("HALion Sonic")).toBeInTheDocument();
+    expect(screen.getByText("Not supported")).toBeInTheDocument();
+    expect(screen.getByLabelText("Status: Not supported")).toBeInTheDocument();
   });
 });

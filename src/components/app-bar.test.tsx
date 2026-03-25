@@ -60,10 +60,12 @@ describe("AppBar", () => {
     );
   });
 
-  it("does not render a filename pill when current_file_path is null", () => {
+  it("renders an Untitled filename pill when current_file_path is null", () => {
     renderWithProviders(<AppBar title="Compose" showFilename />);
 
-    expect(screen.queryByTestId("app-bar-filename")).toBeNull();
+    expect(screen.getByTestId("app-bar-filename")).toHaveTextContent(
+      "Untitled",
+    );
   });
 
   it("does not render a filename in secondary windows even when a file is open", () => {

@@ -209,7 +209,7 @@ describe("Plugins", () => {
     ).toBeInTheDocument();
   });
 
-  it("keeps editor-blocked plugins visible when showActiveOnly=true", () => {
+  it("filters editor-blocked plugins out when showActiveOnly=true", () => {
     renderWithProviders(<Plugins searchTerm="" showActiveOnly={true} />, {
       pluginInventoryState: {
         entries: [
@@ -227,7 +227,9 @@ describe("Plugins", () => {
       },
     });
 
-    expect(screen.getByText("HALion Sonic")).toBeInTheDocument();
+    expect(
+      screen.getByText("No plugins match your filters"),
+    ).toBeInTheDocument();
   });
 
   it("does not render a plugin-settings entry point on plugin tiles", () => {
@@ -258,153 +260,72 @@ describe("Plugins", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("renders the bounded native editor trigger for available plugins in maintainer mode", () => {
-    renderWithProviders(
-      <Plugins
-        searchTerm=""
-        showActiveOnly={false}
-        showMaintainerEditorTrigger={true}
-      />,
-      {
-        pluginInventoryState: {
-          entries: [makePlugin()],
-        },
+  it("does not surface maintainer-only native editor UI for available plugins", () => {
+    renderWithProviders(<Plugins searchTerm="" showActiveOnly={false} />, {
+      pluginInventoryState: {
+        entries: [makePlugin()],
       },
-    );
-
-    expect(
-      screen.getByRole("button", {
-        name: "Open native editor host for Grand Piano",
-      }),
-    ).toBeInTheDocument();
-  });
-
-  it("opens the native editor host through the inventory action in maintainer mode", async () => {
-    renderWithProviders(
-      <Plugins
-        searchTerm=""
-        showActiveOnly={false}
-        showMaintainerEditorTrigger={true}
-      />,
-      {
-        pluginInventoryState: {
-          entries: [makePlugin()],
-        },
-      },
-    );
-
-    fireEvent.click(
-      screen.getByRole("button", {
-        name: "Open native editor host for Grand Piano",
-      }),
-    );
-
-    await waitFor(() => {
-      expect(actions.pluginInventory.openEditorPoc).toHaveBeenCalledWith(
-        "vst3:/Library/Audio/Plug-Ins/VST3/Grand Piano.vst3",
-      );
     });
-  });
-
-  it("surfaces a local failure message when the native editor host cannot open", async () => {
-    vi.mocked(actions.pluginInventory.openEditorPoc).mockRejectedValueOnce(
-      new Error("Attach failed"),
-    );
-
-    renderWithProviders(
-      <Plugins
-        searchTerm=""
-        showActiveOnly={false}
-        showMaintainerEditorTrigger={true}
-      />,
-      {
-        pluginInventoryState: {
-          entries: [makePlugin()],
-        },
-      },
-    );
-
-    fireEvent.click(
-      screen.getByRole("button", {
-        name: "Open native editor host for Grand Piano",
-      }),
-    );
-
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Native editor host failed: Attach failed",
-    );
-  });
-
-  it("does not render the native editor trigger for unavailable plugins", () => {
-    renderWithProviders(
-      <Plugins
-        searchTerm=""
-        showActiveOnly={false}
-        showMaintainerEditorTrigger={true}
-      />,
-      {
-        pluginInventoryState: {
-          entries: [
-            makePlugin({
-              id: "vst3:/Library/Audio/Plug-Ins/VST3/Broken.vst3",
-              name: "Broken Plugin",
-              bundle_path: "/Library/Audio/Plug-Ins/VST3/Broken.vst3",
-              availability: "unavailable",
-              binary_path: null,
-              validation_failure: {
-                kind: "missing_bundle_binary",
-                message: "Missing Contents/MacOS binary",
-              },
-            }),
-          ],
-        },
-      },
-    );
 
     expect(
       screen.queryByRole("button", {
         name: "Open native editor host for Grand Piano",
       }),
     ).not.toBeInTheDocument();
+    expect(screen.queryByText("Maintainer preview")).not.toBeInTheDocument();
   });
 
-  it("shows blocked native editor posture in the maintainer preview when the bounded host excludes a plugin", () => {
-    renderWithProviders(
-      <Plugins
-        searchTerm=""
-        showActiveOnly={false}
-        showMaintainerEditorTrigger={true}
-      />,
-      {
-        pluginInventoryState: {
-          entries: [
-            makePlugin({
-              editor_host_validation: {
-                status: "blocked",
-                phase: "policy_gate",
-                message:
-                  "Blocked for the bounded native editor host by recorded compatibility evidence.",
-                capability_evidence: null,
-              },
-            }),
-          ],
-        },
+  it("does not surface maintainer-only native editor UI for blocked plugins", () => {
+    renderWithProviders(<Plugins searchTerm="" showActiveOnly={false} />, {
+      pluginInventoryState: {
+        entries: [
+          makePlugin({
+            editor_host_validation: {
+              status: "blocked",
+              phase: "policy_gate",
+              message:
+                "Blocked for the bounded native editor host by recorded compatibility evidence.",
+              capability_evidence: null,
+            },
+          }),
+        ],
       },
-    );
+    });
 
-    expect(screen.getByLabelText("Status: Available")).toBeInTheDocument();
+    expect(screen.getByLabelText("Status: Not supported")).toBeInTheDocument();
     expect(
       screen.getByText(/Contents\/MacOS\/Grand Piano/),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/Native editor status:\s*Blocked/i),
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", {
-        name: "Open native editor host for Grand Piano",
-      }),
+      screen.queryByText(/Native editor status:/i),
     ).not.toBeInTheDocument();
-    expect(screen.getByText("Maintainer preview")).toBeInTheDocument();
+    expect(screen.queryByText("Maintainer preview")).not.toBeInTheDocument();
+  });
+
+  it("renders a distinct not-supported badge for explicitly blocked plugins", () => {
+    renderWithProviders(<Plugins searchTerm="" showActiveOnly={false} />, {
+      pluginInventoryState: {
+        entries: [
+          makePlugin({
+            name: "HALion Sonic",
+            editor_host_validation: {
+              status: "blocked",
+              phase: "policy_gate",
+              message:
+                "Blocked for the bounded native editor host by recorded compatibility evidence.",
+              capability_evidence: null,
+            },
+          }),
+        ],
+      },
+    });
+
+    expect(screen.getByText("HALion Sonic")).toBeInTheDocument();
+    expect(screen.getByText("Not supported")).toBeInTheDocument();
+    expect(screen.getByLabelText("Status: Not supported")).toBeInTheDocument();
+    expect(screen.getByLabelText("Status: Not supported").className).toContain(
+      "bg-amber-500/10",
+    );
   });
 
   it("shows plugin when showActiveOnly=true and plugin is available", () => {
@@ -582,7 +503,7 @@ describe("Plugins", () => {
     expect(screen.getByText("Unavailable")).toBeInTheDocument();
     expect(screen.getByLabelText("Status: Unavailable")).toBeInTheDocument();
     expect(screen.getByLabelText("Status: Unavailable").className).toContain(
-      "bg-amber-500/10",
+      "bg-rose-500/10",
     );
     expect(
       screen.getByText("/Library/Audio/Plug-Ins/VST3/Broken.vst3"),

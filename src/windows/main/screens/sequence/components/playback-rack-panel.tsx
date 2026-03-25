@@ -10,7 +10,10 @@ import { IconButton } from "../../../../../ui/buttons/icon-button";
 import { Select, SelectOption } from "../../../../../ui/select";
 
 const isUsablePreparationPlugin = (plugin: PluginInventoryEntry) => {
-  return plugin.availability === "available";
+  return (
+    plugin.availability === "available" &&
+    plugin.editor_host_validation?.status !== "blocked"
+  );
 };
 
 const canOpenPluginEditor = (plugin: PluginInventoryEntry | null) => {

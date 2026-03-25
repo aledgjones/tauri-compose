@@ -3,8 +3,8 @@ import { IconButton } from "../../../ui/buttons/icon-button";
 import {
   mdiAlertCircleOutline,
   mdiCheckCircleOutline,
+  mdiCloseCircleOutline,
   mdiMagnify,
-  mdiOpenInNew,
   mdiRefresh,
 } from "@mdi/js";
 import { usePluginInventoryState } from "../../../services/state";
@@ -12,10 +12,7 @@ import { TokenizedText } from "../../../ui/text";
 import { actions } from "../../../services/actions";
 import { Input } from "../../../ui/input";
 import { Switch } from "../../../ui/switch";
-import {
-  PluginEditorHostValidation,
-  PluginInventoryEntry,
-} from "../../../services/types";
+import { PluginInventoryEntry } from "../../../services/types";
 import { Icon } from "../../../ui/icon";
 import classNames from "classnames";
 
@@ -53,27 +50,44 @@ const getPluginBadgeTone = (name: string) => {
 
 interface PluginTileProps {
   plugin: PluginInventoryEntry;
-  showMaintainerEditorTrigger: boolean;
 }
+
+type PluginDisplayStatus = "available" | "not_supported" | "unavailable";
 
 const getPluginPathSubtitle = (plugin: PluginInventoryEntry) => {
   return plugin.binary_path ?? plugin.bundle_path;
 };
 
+const getPluginDisplayStatus = (
+  plugin: PluginInventoryEntry,
+): PluginDisplayStatus => {
+  if (plugin.availability !== "available") {
+    return "unavailable";
+  }
+
+  if (plugin.editor_host_validation?.status === "blocked") {
+    return "not_supported";
+  }
+
+  return "available";
+};
+
 const isPluginInventoryAvailable = (plugin: PluginInventoryEntry) => {
-  return plugin.availability === "available";
-};
-
-const isEditorHostBlocked = (validation: PluginEditorHostValidation | null) => {
-  return validation?.status === "blocked";
-};
-
-const formatEditorHostPhase = (phase: PluginEditorHostValidation["phase"]) => {
-  return phase.replace(/_/g, " ");
+  return getPluginDisplayStatus(plugin) === "available";
 };
 
 const getPluginSortPriority = (plugin: PluginInventoryEntry) => {
-  return isPluginInventoryAvailable(plugin) ? 0 : 1;
+  const status = getPluginDisplayStatus(plugin);
+
+  if (status === "available") {
+    return 0;
+  }
+
+  if (status === "not_supported") {
+    return 1;
+  }
+
+  return 2;
 };
 
 const comparePlugins = (
@@ -98,64 +112,40 @@ const comparePlugins = (
   return left.id.localeCompare(right.id);
 };
 
-const PluginTile: FC<PluginTileProps> = ({
-  plugin,
-  showMaintainerEditorTrigger,
-}) => {
-  const [isOpeningEditor, setIsOpeningEditor] = useState(false);
-  const [openError, setOpenError] = useState<string | null>(null);
-  const isAvailable = plugin.availability === "available";
-  const editorHostValidation = plugin.editor_host_validation;
-  const editorHostBlocked = isEditorHostBlocked(editorHostValidation);
-  const canOpenNativeEditor = isAvailable && !editorHostBlocked;
-  const statusLabel = isAvailable ? "Available" : "Unavailable";
+const PluginTile: FC<PluginTileProps> = ({ plugin }) => {
+  const displayStatus = getPluginDisplayStatus(plugin);
+  const statusLabel =
+    displayStatus === "available"
+      ? "Available"
+      : displayStatus === "not_supported"
+        ? "Not supported"
+        : "Unavailable";
   const statusIcon =
-    statusLabel === "Available" ? mdiCheckCircleOutline : mdiAlertCircleOutline;
+    displayStatus === "available"
+      ? mdiCheckCircleOutline
+      : displayStatus === "not_supported"
+        ? mdiAlertCircleOutline
+        : mdiCloseCircleOutline;
   const statusChipClassName = classNames(
     "self-center shrink-0 flex items-center gap-1.5 rounded-full border pl-1.5 pr-2.5 py-1 text-[11px] uppercase tracking-[0.18em]",
     {
       "border-emerald-700/70 bg-emerald-500/10 text-emerald-100":
-        statusLabel === "Available",
+        displayStatus === "available",
       "border-amber-700/70 bg-amber-500/10 text-amber-100":
-        statusLabel !== "Available",
+        displayStatus === "not_supported",
+      "border-rose-700/70 bg-rose-500/10 text-rose-100":
+        displayStatus === "unavailable",
     },
   );
   const statusIconClassName =
-    statusLabel === "Available" ? "text-emerald-200" : "text-amber-200";
+    displayStatus === "available"
+      ? "text-emerald-200"
+      : displayStatus === "not_supported"
+        ? "text-amber-200"
+        : "text-rose-200";
   const subtitle = getPluginPathSubtitle(plugin);
   const badgeLabel = getPluginBadgeLabel(plugin.name);
   const badgeToneClassName = getPluginBadgeTone(plugin.name);
-  const editorHostSummary = editorHostValidation?.message ?? null;
-  const editorHostCapabilitySummary =
-    editorHostValidation?.capability_evidence?.message ?? null;
-  const editorHostStatusLabel = editorHostValidation
-    ? editorHostValidation.status === "attached"
-      ? "Ready"
-      : editorHostValidation.status === "blocked"
-        ? "Blocked"
-        : `Failed at ${formatEditorHostPhase(editorHostValidation.phase)}`
-    : "Not run";
-
-  const handleOpenNativeEditor = async () => {
-    if (!canOpenNativeEditor || isOpeningEditor) {
-      return;
-    }
-
-    setIsOpeningEditor(true);
-    setOpenError(null);
-
-    try {
-      await actions.pluginInventory.openEditorPoc(plugin.id);
-    } catch (error) {
-      setOpenError(
-        error instanceof Error
-          ? error.message
-          : "Failed to open the native editor host.",
-      );
-    } finally {
-      setIsOpeningEditor(false);
-    }
-  };
 
   return (
     <div className="flex flex-col gap-3 bg-neutral-900 px-4 py-3">
@@ -190,67 +180,6 @@ const PluginTile: FC<PluginTileProps> = ({
           <span>{statusLabel}</span>
         </div>
       </div>
-
-      {showMaintainerEditorTrigger && isAvailable ? (
-        <div className="flex items-center justify-between gap-3 border border-sky-900/60 bg-neutral-950/70 px-3 py-2">
-          <div className="min-w-0 flex-1">
-            <div className="text-[11px] uppercase tracking-[0.18em] text-sky-200/80">
-              Maintainer preview
-            </div>
-            <div className="truncate text-xs text-neutral-400">
-              {editorHostBlocked
-                ? "Blocked for the bounded native editor host by recorded compatibility evidence."
-                : "Open the bounded native editor host for this inventory target."}
-            </div>
-            <div className="mt-1 text-[11px] text-neutral-500">
-              Native editor status: {editorHostStatusLabel}
-            </div>
-          </div>
-
-          {canOpenNativeEditor ? (
-            <button
-              type="button"
-              onClick={handleOpenNativeEditor}
-              disabled={isOpeningEditor}
-              className={classNames(
-                "flex shrink-0 items-center gap-2 border px-3 py-2 text-xs uppercase tracking-[0.14em]",
-                {
-                  "border-sky-700/70 bg-sky-500/10 text-sky-100 hover:bg-sky-500/20":
-                    !isOpeningEditor,
-                  "cursor-default border-sky-900/70 bg-sky-500/5 text-sky-100/50":
-                    isOpeningEditor,
-                },
-              )}
-              aria-label={`Open native editor host for ${plugin.name}`}
-            >
-              <Icon path={mdiOpenInNew} size={0.7} />
-              <span>
-                {isOpeningEditor ? "Opening..." : "Open native editor"}
-              </span>
-            </button>
-          ) : null}
-        </div>
-      ) : null}
-
-      {showMaintainerEditorTrigger && isAvailable && editorHostSummary ? (
-        <div className="border border-neutral-800 bg-neutral-950/70 px-3 py-2 text-xs text-neutral-300">
-          {editorHostSummary}
-          {editorHostCapabilitySummary ? (
-            <div className="mt-1 text-[11px] text-neutral-500">
-              Capability evidence: {editorHostCapabilitySummary}
-            </div>
-          ) : null}
-        </div>
-      ) : null}
-
-      {openError ? (
-        <div
-          role="alert"
-          className="border border-amber-800/70 bg-amber-500/10 px-3 py-2 text-xs text-amber-100"
-        >
-          Native editor host failed: {openError}
-        </div>
-      ) : null}
     </div>
   );
 };
@@ -319,14 +248,9 @@ export const PluginsToolbar: FC<PluginsToolbarProps> = ({
 type PluginProps = {
   searchTerm: string;
   showActiveOnly: boolean;
-  showMaintainerEditorTrigger?: boolean;
 };
 
-export const Plugins: FC<PluginProps> = ({
-  searchTerm,
-  showActiveOnly,
-  showMaintainerEditorTrigger = false,
-}) => {
+export const Plugins: FC<PluginProps> = ({ searchTerm, showActiveOnly }) => {
   const pluginInventory = usePluginInventoryState();
 
   const filteredPlugins = useMemo(() => {
@@ -365,13 +289,7 @@ export const Plugins: FC<PluginProps> = ({
     <div className="w-full h-full overflow-auto bg-neutral-950">
       <div className="flex min-h-full flex-col gap-0.5">
         {filteredPlugins.map((plugin) => {
-          return (
-            <PluginTile
-              key={plugin.id}
-              plugin={plugin}
-              showMaintainerEditorTrigger={showMaintainerEditorTrigger}
-            />
-          );
+          return <PluginTile key={plugin.id} plugin={plugin} />;
         })}
         <div
           aria-hidden="true"
