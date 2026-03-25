@@ -216,13 +216,6 @@ export const Sequencer: FC<Props> = ({
             tool={state.ui.sequencer.tool}
             instrumentId={instrumentId}
             color={color}
-            audition={state.preferences.audition}
-            pluginId={
-              instrumentId === null
-                ? null
-                : (state.resolved_playback_route_by_instrument_id[instrumentId]
-                    ?.effective_plugin_id ?? null)
-            }
           />
           <PlaybackLine ticks={ticks} height={slots.height} />
         </div>

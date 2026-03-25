@@ -1,6 +1,52 @@
-use crate::playback::streamer::StreamBuffer;
+use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
+
+/// Shared buffer between a producer thread and the audio mixer.
+pub struct StreamBuffer {
+    buffer: Mutex<VecDeque<f32>>,
+    finished: AtomicBool,
+    canceled: AtomicBool,
+}
+
+impl StreamBuffer {
+    pub fn new() -> Self {
+        Self {
+            buffer: Mutex::new(VecDeque::with_capacity(48000 * 2)),
+            finished: AtomicBool::new(false),
+            canceled: AtomicBool::new(false),
+        }
+    }
+
+    pub fn push(&self, samples: &[f32]) {
+        if self.canceled.load(Ordering::Acquire) {
+            return;
+        }
+
+        let mut buf = self.buffer.lock().unwrap();
+        buf.extend(samples);
+    }
+
+    pub fn drain_mix(&self, output: &mut [f32]) -> usize {
+        let mut buf = self.buffer.lock().unwrap();
+        let sample_count = output.len().min(buf.len());
+        for index in 0..sample_count {
+            output[index] += buf[index];
+        }
+        buf.drain(..sample_count);
+        sample_count
+    }
+
+    pub fn cancel(&self) {
+        self.canceled.store(true, Ordering::Release);
+        self.finished.store(true, Ordering::Release);
+        self.buffer.lock().unwrap().clear();
+    }
+
+    pub fn is_exhausted(&self) -> bool {
+        self.finished.load(Ordering::Acquire) && self.buffer.lock().unwrap().is_empty()
+    }
+}
 
 /// A single playing voice backed by a disk-streaming buffer.
 struct Voice {
@@ -31,7 +77,7 @@ struct VoiceList {
 }
 
 struct VoiceSlot {
-    voice: std::sync::Mutex<Option<Arc<Voice>>>,
+    voice: Mutex<Option<Arc<Voice>>>,
     active: AtomicBool,
 }
 
@@ -39,7 +85,7 @@ impl VoiceList {
     fn new() -> Self {
         VoiceList {
             slots: Box::new(std::array::from_fn(|_| VoiceSlot {
-                voice: std::sync::Mutex::new(None),
+                voice: Mutex::new(None),
                 active: AtomicBool::new(false),
             })),
         }

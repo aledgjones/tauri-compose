@@ -10,7 +10,6 @@
     "preferences",
     "player-settings",
     "instrument-picker",
-    "plugin-settings-*",
     "plugin-host-poc",
     "plugin-manager"
   ],

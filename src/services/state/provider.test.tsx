@@ -419,7 +419,7 @@ describe("AppStateProvider", () => {
 
     expect(listeners.has("soloc://state/general")).toBe(true);
     expect(listeners.has("soloc://state/audio")).toBe(true);
-    expect(listeners.has("soloc://state/sampler")).toBe(true);
+    expect(listeners.has("soloc://state/plugin_inventory")).toBe(true);
     expect(listeners.has("soloc://menu/save")).toBe(false);
     expect(listeners.has("soloc://menu/open")).toBe(false);
     expect(listeners.has("soloc://menu/open-recent")).toBe(false);

@@ -173,38 +173,6 @@ describe("actions.pluginInventory", () => {
 });
 
 // ---------------------------------------------------------------------------
-// sampler
-// ---------------------------------------------------------------------------
-describe("actions.sampler", () => {
-  it("rescanPlugins calls invoke correctly", async () => {
-    await actions.sampler.rescanPlugins();
-    expect(mockInvoke).toHaveBeenCalledWith("sampler_rescan_plugins");
-  });
-
-  it("audition calls invoke with all required fields", async () => {
-    await actions.sampler.audition("plug-1", 60, 80, "artic-1", 300);
-    expect(mockInvoke).toHaveBeenCalledWith("sampler_audition", {
-      plugin_id: "plug-1",
-      note: 60,
-      velocity: 80,
-      articulation_id: "artic-1",
-      duration_ms: 300,
-    });
-  });
-
-  it("audition uses defaults for optional params", async () => {
-    await actions.sampler.audition("plug-2", 62);
-    expect(mockInvoke).toHaveBeenCalledWith("sampler_audition", {
-      plugin_id: "plug-2",
-      note: 62,
-      velocity: 100,
-      articulation_id: null,
-      duration_ms: 250,
-    });
-  });
-});
-
-// ---------------------------------------------------------------------------
 // ui.*
 // ---------------------------------------------------------------------------
 describe("actions.ui", () => {

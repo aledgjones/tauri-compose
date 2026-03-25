@@ -1,11 +1,9 @@
 use crate::playback::plugin_host_compatibility::bounded_editor_host_unsupported_reason;
-use crate::playback::sampler::sync_sampler_with_playback_runtime;
 use crate::playback::vst3::{
     default_vst3_search_roots, list_vst3_candidates_in_root, validate_vst3_bundle,
     vst3_bundle_binary_path, Vst3BundleError, Vst3BundleErrorKind,
 };
-use crate::{AppContextState, AudioContextState, RendererContextState, SamplerContextState};
-use rustc_hash::FxHashSet;
+use crate::{AppContextState, RendererContextState};
 use serde::{Deserialize, Serialize};
 use sled::Db;
 use std::collections::BTreeSet;
@@ -246,15 +244,6 @@ impl PluginInventoryContext {
 
     pub fn resolve_available_bundle_path(&self, plugin_id: &str) -> Result<PathBuf, String> {
         resolve_available_bundle_path_in_entries(plugin_id, &self.state.entries)
-    }
-
-    pub fn available_plugin_ids(&self) -> FxHashSet<String> {
-        self.state
-            .entries
-            .iter()
-            .filter(|entry| entry.availability == PluginInventoryAvailability::Available)
-            .map(|entry| entry.id.clone())
-            .collect()
     }
 
     pub fn update_editor_host_validation_for_bundle_path(
@@ -599,14 +588,6 @@ pub fn plugin_inventory_discover(
     let mut app_state = app_state_handle.lock().unwrap();
     app_state.refresh_playback_activation_runtime(state.inner());
 
-    sync_sampler_with_playback_runtime(
-        &app,
-        &app_state.playback_activation_runtime,
-        app.state::<SamplerContextState>().inner(),
-        app.state::<AudioContextState>().inner(),
-        "after plugin inventory discover",
-    );
-
     let mut renderer = renderer_state_handle.lock().unwrap();
     app_state.emit_general_state(&app, &mut renderer, None);
 
@@ -620,7 +601,6 @@ mod tests {
         resolve_available_bundle_path_in_entries, PluginEditorHostValidationPhase,
         PluginEditorHostValidationStatus, PluginInventoryAvailability, PluginInventoryContext,
         PluginInventoryEntry, PluginInventoryFailure, PluginInventoryFailureKind,
-        PluginInventoryState,
     };
     use sled::Db;
     use std::path::{Path, PathBuf};
@@ -702,39 +682,6 @@ mod tests {
         .unwrap_err();
 
         assert!(error.contains("is unavailable"));
-    }
-
-    #[test]
-    fn available_plugin_ids_returns_only_available_entries() {
-        let context = PluginInventoryContext {
-            state: PluginInventoryState {
-                entries: vec![
-                    available_entry("plugin-a", "Plugin A", "/tmp/plugin-a.vst3"),
-                    PluginInventoryEntry {
-                        id: String::from("plugin-b"),
-                        name: String::from("Plugin B"),
-                        bundle_path: String::from("/tmp/plugin-b.vst3"),
-                        binary_path: None,
-                        source_root: String::from("/tmp"),
-                        availability: PluginInventoryAvailability::Unavailable,
-                        validation_failure: Some(PluginInventoryFailure {
-                            kind: PluginInventoryFailureKind::InvalidBundle,
-                            message: String::from("broken"),
-                        }),
-                        editor_host_validation: None,
-                    },
-                ],
-                errors: vec![],
-                last_discovered_at_ms: None,
-            },
-            db: None,
-            sticky_errors: vec![],
-        };
-
-        let available = context.available_plugin_ids();
-
-        assert!(available.contains("plugin-a"));
-        assert!(!available.contains("plugin-b"));
     }
 
     #[test]

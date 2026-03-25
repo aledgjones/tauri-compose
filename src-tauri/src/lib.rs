@@ -18,7 +18,6 @@ use crate::playback::plugin_inventory::{
     plugin_inventory_discover, PluginInventoryContext, PluginInventoryContextState,
 };
 use crate::playback::runtime_activation::PlaybackActivationRuntime;
-use crate::playback::sampler::{sampler_audition, sampler_rescan_plugins, SamplerContext};
 use crate::playback::transport::{
     stop_transport_playback, sync_transport_to_app_state, transport_get_state, transport_pause,
     transport_play, transport_seek, TransportContext, TransportSharedState,
@@ -173,24 +172,9 @@ impl AppContext {
             PlaybackActivationRuntime::from_score_and_inventory(&self.score, &inventory);
     }
 
-    pub(crate) fn reconcile_playback_activation_runtime_with_sampler(
-        &mut self,
-        sampler_state: &SamplerContextState,
-    ) {
-        let sampler = sampler_state.lock().unwrap();
-        self.playback_activation_runtime
-            .retain_only_loaded_plugin_ids(&sampler.loaded_plugin_ids_set());
-    }
-
     pub(crate) fn refresh_playback_activation_runtime_from_app(&mut self, app: &AppHandle) {
         self.refresh_playback_activation_runtime(
             app.state::<ManagedPluginInventoryContextState>().inner(),
-        );
-    }
-
-    pub(crate) fn reconcile_playback_activation_runtime_with_app(&mut self, app: &AppHandle) {
-        self.reconcile_playback_activation_runtime_with_sampler(
-            app.state::<SamplerContextState>().inner(),
         );
     }
 
@@ -293,7 +277,6 @@ impl AppContext {
         recalculation_request: Option<FlowRenderRecalculationRequest>,
     ) {
         self.refresh_playback_activation_runtime_from_app(app);
-        self.reconcile_playback_activation_runtime_with_app(app);
         self.render_with_recalculation(app, renderer, recalculation_request);
 
         let general_state = AppStateGeneral {
@@ -353,7 +336,6 @@ pub(crate) type AppContextState = Mutex<AppContext>;
 pub(crate) type AudioContextState = Mutex<AudioContext>;
 pub(crate) type ManagedPluginInventoryContextState = PluginInventoryContextState;
 pub(crate) type RendererContextState = Mutex<RendererContext>;
-pub(crate) type SamplerContextState = Mutex<SamplerContext>;
 
 const APP_NAME: &str = "Solo Compose";
 
@@ -361,11 +343,9 @@ const APP_NAME: &str = "Solo Compose";
 fn get_general_state(
     state: State<'_, AppContextState>,
     plugin_inventory_state: State<'_, ManagedPluginInventoryContextState>,
-    sampler_state: State<'_, SamplerContextState>,
 ) -> AppStateGeneral {
     let mut state = state.lock().unwrap();
     state.refresh_playback_activation_runtime(plugin_inventory_state.inner());
-    state.reconcile_playback_activation_runtime_with_sampler(sampler_state.inner());
 
     AppStateGeneral {
         ui: state.ui.clone(),
@@ -386,7 +366,6 @@ fn initialize(
     renderer_state: State<'_, RendererContextState>,
     audio_state: State<'_, AudioContextState>,
     plugin_inventory_state: State<'_, ManagedPluginInventoryContextState>,
-    sampler_state: State<'_, SamplerContextState>,
     transport_shared: State<'_, TransportSharedState>,
 ) {
     let mut state = state.lock().unwrap();
@@ -404,7 +383,6 @@ fn initialize(
 
     audio_state.lock().unwrap().emit(&app);
     plugin_inventory_state.lock().unwrap().emit(&app);
-    sampler_state.lock().unwrap().emit(&app);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -412,7 +390,6 @@ fn reset(
     app: AppHandle,
     state: State<'_, AppContextState>,
     renderer_state: State<'_, RendererContextState>,
-    sampler_state: State<'_, SamplerContextState>,
     audio_state: State<'_, AudioContextState>,
     transport_state: State<'_, Mutex<TransportContext>>,
 ) -> Result<(), String> {
@@ -436,21 +413,6 @@ fn reset(
         Some(FlowRenderRecalculationRequest::full_visible_flows()),
     );
 
-    // Drop state locks before sampler sync
-    drop(state);
-    drop(renderer);
-
-    // Sync sampler — new score has no instruments, so this unloads everything
-    let mut sampler = sampler_state.lock().unwrap();
-    let audio = audio_state.lock().unwrap();
-    let sample_rate = audio.get_sample_rate();
-    drop(audio);
-
-    if let Err(e) = sampler.sync_with_plugin_ids(&[], sample_rate) {
-        eprintln!("Failed to sync sampler after reset: {}", e);
-    }
-    sampler.emit(&app);
-
     Ok(())
 }
 
@@ -458,7 +420,6 @@ pub(crate) fn get_general_state_snapshot(app: &AppHandle) -> AppStateGeneral {
     get_general_state(
         app.state::<AppContextState>(),
         app.state::<ManagedPluginInventoryContextState>(),
-        app.state::<SamplerContextState>(),
     )
 }
 
@@ -466,18 +427,10 @@ pub(crate) fn reset_app_state(
     app: AppHandle,
     state: State<'_, AppContextState>,
     renderer_state: State<'_, RendererContextState>,
-    sampler_state: State<'_, SamplerContextState>,
     audio_state: State<'_, AudioContextState>,
     transport_state: State<'_, Mutex<TransportContext>>,
 ) -> Result<(), String> {
-    reset(
-        app,
-        state,
-        renderer_state,
-        sampler_state,
-        audio_state,
-        transport_state,
-    )
+    reset(app, state, renderer_state, audio_state, transport_state)
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -498,9 +451,6 @@ pub fn run() {
             app.manage(RendererContext::new());
             app.manage(AudioContext::new());
             app.manage(PluginInventoryContext::new(app_handle));
-            // Legacy sampler state remains registered for tooling and audition only.
-            // Supported transport playback no longer snapshots this state as runtime truth.
-            app.manage(SamplerContext::new());
 
             let (transport_ctx, transport_shared) = TransportContext::new();
             app.manage(transport_ctx);
@@ -668,8 +618,6 @@ pub fn run() {
             audio_devices_refresh,
             plugin_inventory_discover,
             plugin_editor_poc_open,
-            sampler_rescan_plugins,
-            sampler_audition,
             transport_play,
             transport_pause,
             transport_seek,

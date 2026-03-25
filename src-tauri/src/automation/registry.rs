@@ -83,7 +83,7 @@ use crate::score::players::{
 use crate::utils::UniqueId;
 use crate::{
     get_general_state_snapshot, reset_app_state, AppContextState, AudioContextState,
-    RendererContextState, SamplerContextState,
+    RendererContextState,
 };
 
 #[derive(Clone, Serialize)]
@@ -613,7 +613,6 @@ pub async fn execute_action(app: &AppHandle, name: &str, args: &[Value]) -> Resu
                 app.clone(),
                 app.state::<AppContextState>(),
                 app.state::<RendererContextState>(),
-                app.state::<SamplerContextState>(),
                 app.state::<AudioContextState>(),
                 app.state(),
             )?;
@@ -625,7 +624,6 @@ pub async fn execute_action(app: &AppHandle, name: &str, args: &[Value]) -> Resu
                 app.clone(),
                 app.state::<AppContextState>(),
                 app.state::<RendererContextState>(),
-                app.state::<SamplerContextState>(),
                 app.state::<AudioContextState>(),
                 app.state(),
                 arg_string(args, 0, "filePath")?,
@@ -1073,8 +1071,6 @@ pub async fn execute_action(app: &AppHandle, name: &str, args: &[Value]) -> Resu
                 app.clone(),
                 app.state::<AppContextState>(),
                 app.state::<RendererContextState>(),
-                app.state::<SamplerContextState>(),
-                app.state::<AudioContextState>(),
                 arg_id(args, 0, "player_id")?,
                 arg_id(args, 1, "instrument_id")?,
             );
@@ -1085,8 +1081,6 @@ pub async fn execute_action(app: &AppHandle, name: &str, args: &[Value]) -> Resu
                 app.clone(),
                 app.state::<AppContextState>(),
                 app.state::<RendererContextState>(),
-                app.state::<SamplerContextState>(),
-                app.state::<AudioContextState>(),
                 arg_id(args, 0, "player_id")?,
             );
             Ok(Value::Null)
@@ -1115,8 +1109,6 @@ pub async fn execute_action(app: &AppHandle, name: &str, args: &[Value]) -> Resu
                 app.clone(),
                 app.state::<AppContextState>(),
                 app.state::<RendererContextState>(),
-                app.state::<SamplerContextState>(),
-                app.state::<AudioContextState>(),
                 arg_id(args, 0, "instrument_id")?,
             );
             Ok(Value::Null)
@@ -1126,8 +1118,6 @@ pub async fn execute_action(app: &AppHandle, name: &str, args: &[Value]) -> Resu
                 app.clone(),
                 app.state::<AppContextState>(),
                 app.state::<RendererContextState>(),
-                app.state::<SamplerContextState>(),
-                app.state::<AudioContextState>(),
                 arg_id(args, 0, "instrument_id")?,
                 arg_enum(args, 1, "route")?,
             )?;
@@ -1138,8 +1128,6 @@ pub async fn execute_action(app: &AppHandle, name: &str, args: &[Value]) -> Resu
                 app.clone(),
                 app.state::<AppContextState>(),
                 app.state::<RendererContextState>(),
-                app.state::<SamplerContextState>(),
-                app.state::<AudioContextState>(),
                 arg_id(args, 0, "instrument_id")?,
             )?;
             Ok(Value::Null)
@@ -1157,8 +1145,6 @@ pub async fn execute_action(app: &AppHandle, name: &str, args: &[Value]) -> Resu
                 app.clone(),
                 app.state::<AppContextState>(),
                 app.state::<RendererContextState>(),
-                app.state::<SamplerContextState>(),
-                app.state::<AudioContextState>(),
                 arg_id(args, 0, "slot_id")?,
             )?;
             Ok(Value::Null)
@@ -1168,8 +1154,6 @@ pub async fn execute_action(app: &AppHandle, name: &str, args: &[Value]) -> Resu
                 app.clone(),
                 app.state::<AppContextState>(),
                 app.state::<RendererContextState>(),
-                app.state::<SamplerContextState>(),
-                app.state::<AudioContextState>(),
                 arg_id(args, 0, "slot_id")?,
                 arg_string(args, 1, "plugin_id")?,
             )?;
@@ -1180,8 +1164,6 @@ pub async fn execute_action(app: &AppHandle, name: &str, args: &[Value]) -> Resu
                 app.clone(),
                 app.state::<AppContextState>(),
                 app.state::<RendererContextState>(),
-                app.state::<SamplerContextState>(),
-                app.state::<AudioContextState>(),
                 arg_id(args, 0, "slot_id")?,
             )?;
             Ok(Value::Null)

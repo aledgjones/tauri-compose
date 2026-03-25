@@ -114,26 +114,6 @@ export const actions = {
       });
     },
   },
-  sampler: {
-    rescanPlugins: async () => {
-      return invoke("sampler_rescan_plugins");
-    },
-    audition: (
-      plugin_id: string,
-      note: number,
-      velocity: number = 100,
-      articulation_id?: string,
-      duration_ms: number = 250,
-    ) => {
-      return invoke("sampler_audition", {
-        plugin_id,
-        note,
-        velocity,
-        articulation_id: articulation_id ?? null,
-        duration_ms,
-      });
-    },
-  },
   ui: {
     setTab: (tab: Tab) => {
       return invoke("ui_tab_set", { tab });

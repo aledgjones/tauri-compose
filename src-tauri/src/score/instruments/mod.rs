@@ -9,11 +9,10 @@ use super::{
     Score,
 };
 use crate::instructions::FlowRenderRecalculationRequest;
-use crate::playback::sampler::sync_sampler_with_playback_runtime;
 use crate::playback::transport::TransportSharedState;
 use crate::score::players::PlayerType;
 use crate::utils::UniqueId;
-use crate::{AppContextState, AudioContextState, RendererContextState, SamplerContextState};
+use crate::{AppContextState, RendererContextState};
 use defs::{get_instrument_definition, InstrumentType};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
@@ -578,22 +577,12 @@ pub fn score_instruments_remove(
     app: tauri::AppHandle,
     state: State<'_, AppContextState>,
     renderer_state: State<'_, RendererContextState>,
-    sampler_state: State<'_, SamplerContextState>,
-    audio_state: State<'_, AudioContextState>,
     instrument_id: UniqueId,
 ) {
     let mut state = state.lock().unwrap();
 
     state.score.instruments.by_id.remove(&instrument_id);
     state.refresh_playback_activation_runtime_from_app(&app);
-
-    sync_sampler_with_playback_runtime(
-        &app,
-        &state.playback_activation_runtime,
-        sampler_state.inner(),
-        audio_state.inner(),
-        "after instrument removal",
-    );
 
     let mut renderer = renderer_state.lock().unwrap();
     state.emit_general_state(
@@ -625,22 +614,12 @@ pub fn score_playback_slots_remove(
     app: tauri::AppHandle,
     state: State<'_, AppContextState>,
     renderer_state: State<'_, RendererContextState>,
-    sampler_state: State<'_, SamplerContextState>,
-    audio_state: State<'_, AudioContextState>,
     slot_id: UniqueId,
 ) -> Result<(), String> {
     let mut state = state.lock().unwrap();
 
     state.score.remove_playback_slot(slot_id)?;
     state.refresh_playback_activation_runtime_from_app(&app);
-
-    sync_sampler_with_playback_runtime(
-        &app,
-        &state.playback_activation_runtime,
-        sampler_state.inner(),
-        audio_state.inner(),
-        "after playback slot removal",
-    );
 
     let mut renderer = renderer_state.lock().unwrap();
     state.emit_general_state(&app, &mut renderer, None);
@@ -653,8 +632,6 @@ pub fn score_playback_slots_assign_plugin(
     app: tauri::AppHandle,
     state: State<'_, AppContextState>,
     renderer_state: State<'_, RendererContextState>,
-    sampler_state: State<'_, SamplerContextState>,
-    audio_state: State<'_, AudioContextState>,
     slot_id: UniqueId,
     plugin_id: String,
 ) -> Result<(), String> {
@@ -662,14 +639,6 @@ pub fn score_playback_slots_assign_plugin(
 
     state.score.assign_plugin_to_slot(slot_id, plugin_id)?;
     state.refresh_playback_activation_runtime_from_app(&app);
-
-    sync_sampler_with_playback_runtime(
-        &app,
-        &state.playback_activation_runtime,
-        sampler_state.inner(),
-        audio_state.inner(),
-        "after playback slot plugin assignment",
-    );
 
     let mut renderer = renderer_state.lock().unwrap();
     state.emit_general_state(&app, &mut renderer, None);
@@ -682,22 +651,12 @@ pub fn score_playback_slots_unassign_plugin(
     app: tauri::AppHandle,
     state: State<'_, AppContextState>,
     renderer_state: State<'_, RendererContextState>,
-    sampler_state: State<'_, SamplerContextState>,
-    audio_state: State<'_, AudioContextState>,
     slot_id: UniqueId,
 ) -> Result<(), String> {
     let mut state = state.lock().unwrap();
 
     state.score.unassign_plugin_from_slot(slot_id)?;
     state.refresh_playback_activation_runtime_from_app(&app);
-
-    sync_sampler_with_playback_runtime(
-        &app,
-        &state.playback_activation_runtime,
-        sampler_state.inner(),
-        audio_state.inner(),
-        "after playback slot plugin unassignment",
-    );
 
     let mut renderer = renderer_state.lock().unwrap();
     state.emit_general_state(&app, &mut renderer, None);
@@ -710,8 +669,6 @@ pub fn score_instruments_assign_slot_route(
     app: tauri::AppHandle,
     state: State<'_, AppContextState>,
     renderer_state: State<'_, RendererContextState>,
-    sampler_state: State<'_, SamplerContextState>,
-    audio_state: State<'_, AudioContextState>,
     instrument_id: UniqueId,
     route: InstrumentPlaybackRoute,
 ) -> Result<(), String> {
@@ -719,14 +676,6 @@ pub fn score_instruments_assign_slot_route(
 
     state.score.assign_instrument_route(instrument_id, route)?;
     state.refresh_playback_activation_runtime_from_app(&app);
-
-    sync_sampler_with_playback_runtime(
-        &app,
-        &state.playback_activation_runtime,
-        sampler_state.inner(),
-        audio_state.inner(),
-        "after instrument route assignment",
-    );
 
     let mut renderer = renderer_state.lock().unwrap();
     state.emit_general_state(&app, &mut renderer, None);
@@ -739,22 +688,12 @@ pub fn score_instruments_unassign_route(
     app: tauri::AppHandle,
     state: State<'_, AppContextState>,
     renderer_state: State<'_, RendererContextState>,
-    sampler_state: State<'_, SamplerContextState>,
-    audio_state: State<'_, AudioContextState>,
     instrument_id: UniqueId,
 ) -> Result<(), String> {
     let mut state = state.lock().unwrap();
 
     state.score.unassign_instrument_route(instrument_id)?;
     state.refresh_playback_activation_runtime_from_app(&app);
-
-    sync_sampler_with_playback_runtime(
-        &app,
-        &state.playback_activation_runtime,
-        sampler_state.inner(),
-        audio_state.inner(),
-        "after instrument route unassignment",
-    );
 
     let mut renderer = renderer_state.lock().unwrap();
     state.emit_general_state(&app, &mut renderer, None);

@@ -597,27 +597,6 @@ export type AudioState = {
   current_sample_rate: number;
 };
 
-export type ArticulationInfo = {
-  id: string;
-  name: string;
-  range: Array<[number, number]>;
-};
-
-export type PluginInfo = {
-  id: string;
-  name: string;
-  path: string;
-  author: string;
-  version: string;
-  cover_image?: string;
-  articulations: ArticulationInfo[];
-};
-
-export type SamplerState = {
-  plugins: PluginInfo[];
-  loaded_plugin_ids: string[];
-};
-
 export type PluginInventoryAvailability = "available" | "unavailable";
 
 export type PluginInventoryFailureKind =

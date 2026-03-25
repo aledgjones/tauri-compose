@@ -149,7 +149,7 @@ vi.mocked(invoke).mockResolvedValueOnce({ bpm: 120 });
 
 ## Context-Aware Component Tests (renderWithProviders)
 
-Components that call `useAppState()`, `useAudioState()`, `useSamplerState()`, or `useTransportState()` need all four React contexts. Use `renderWithProviders` from `src/services/test-utils.tsx`:
+Components that call `useAppState()`, `useAudioState()`, `usePluginInventoryState()`, or `useTransportState()` need the shared app providers. Use `renderWithProviders` from `src/services/test-utils.tsx`:
 
 ```tsx
 import { renderWithProviders, createAppState } from '../../../services/test-utils';

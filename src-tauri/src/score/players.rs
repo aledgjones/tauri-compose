@@ -1,10 +1,7 @@
 use super::layouts::LayoutType;
 use crate::instructions::FlowRenderRecalculationRequest;
-use crate::playback::sampler::sync_sampler_with_playback_runtime;
 use crate::utils::UniqueId;
-use crate::{
-    AppContext, AppContextState, AudioContextState, RendererContextState, SamplerContextState,
-};
+use crate::{AppContext, AppContextState, RendererContextState};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
@@ -153,8 +150,6 @@ pub fn score_players_unassign_instrument(
     app: tauri::AppHandle,
     state: State<'_, AppContextState>,
     renderer_state: State<'_, RendererContextState>,
-    sampler_state: State<'_, SamplerContextState>,
-    audio_state: State<'_, AudioContextState>,
     player_id: UniqueId,
     instrument_id: UniqueId,
 ) {
@@ -174,14 +169,6 @@ pub fn score_players_unassign_instrument(
     state.score.update_counts();
     state.refresh_playback_activation_runtime_from_app(&app);
 
-    sync_sampler_with_playback_runtime(
-        &app,
-        &state.playback_activation_runtime,
-        sampler_state.inner(),
-        audio_state.inner(),
-        "after player instrument unassignment",
-    );
-
     state.emit_general_state(
         &app,
         &mut renderer,
@@ -194,8 +181,6 @@ pub fn score_players_remove(
     app: tauri::AppHandle,
     state: State<'_, AppContextState>,
     renderer_state: State<'_, RendererContextState>,
-    sampler_state: State<'_, SamplerContextState>,
-    audio_state: State<'_, AudioContextState>,
     player_id: UniqueId,
 ) {
     let mut state = state.lock().unwrap();
@@ -233,14 +218,6 @@ pub fn score_players_remove(
 
     state.score.update_counts();
     state.refresh_playback_activation_runtime_from_app(&app);
-
-    sync_sampler_with_playback_runtime(
-        &app,
-        &state.playback_activation_runtime,
-        sampler_state.inner(),
-        audio_state.inner(),
-        "after player removal",
-    );
 
     state.emit_general_state(
         &app,

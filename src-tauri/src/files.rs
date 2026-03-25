@@ -1,6 +1,5 @@
 use crate::instructions::FlowRenderRecalculationRequest;
 use crate::migrations::{MigrationKind, MIGRATIONS};
-use crate::playback::sampler::sync_sampler_with_playback_runtime;
 use crate::playback::transport::{
     stop_transport_playback, sync_transport_to_app_state, TransportContext,
 };
@@ -9,7 +8,7 @@ use crate::soloc::*;
 use crate::ui::sequencer::Tool;
 use crate::ui::Ui;
 use crate::utils::UniqueId;
-use crate::{AppContextState, AudioContextState, RendererContextState, SamplerContextState};
+use crate::{AppContextState, AudioContextState, RendererContextState};
 use semver::Version;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -2268,7 +2267,6 @@ pub fn load_project_from_file(
     app: AppHandle,
     state: State<'_, AppContextState>,
     renderer_state: State<'_, RendererContextState>,
-    sampler_state: State<'_, SamplerContextState>,
     audio_state: State<'_, AudioContextState>,
     transport_state: State<'_, Mutex<TransportContext>>,
     file_path: String,
@@ -2308,14 +2306,6 @@ pub fn load_project_from_file(
     state.current_file_path = Some(file_path);
     sync_transport_to_app_state(&transport_shared, &state, 0);
     state.refresh_playback_activation_runtime_from_app(&app);
-
-    sync_sampler_with_playback_runtime(
-        &app,
-        &state.playback_activation_runtime,
-        sampler_state.inner(),
-        audio_state.inner(),
-        "after load",
-    );
 
     // Emit the updated state
     state.emit_general_state(

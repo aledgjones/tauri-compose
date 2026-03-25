@@ -11,7 +11,6 @@ import {
   LayoutType,
   NoteDuration,
   PluginInventoryState,
-  SamplerState,
   Tab,
   Tool,
   TransportState,
@@ -170,13 +169,6 @@ export const initialAudioState: AudioState = {
 
 export const AudioContext = createContext<AudioState | null>(null);
 
-export const initialSamplerState: SamplerState = {
-  plugins: [],
-  loaded_plugin_ids: [],
-};
-
-export const SamplerContext = createContext<SamplerState | null>(null);
-
 export const initialPluginInventoryState: PluginInventoryState = {
   entries: [],
   errors: [],
@@ -209,16 +201,6 @@ export const useAudioState = () => {
 
   if (!context) {
     throw new Error("useAudioState must be used within an AudioStateProvider");
-  }
-
-  return context;
-};
-
-export const useSamplerState = () => {
-  const context = useContext(SamplerContext);
-
-  if (!context) {
-    throw new Error("useSamplerState must be used within an AppStateProvider");
   }
 
   return context;

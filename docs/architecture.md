@@ -25,7 +25,7 @@ The score itself is rendered natively by Rust/Skia/Metal — all other UI (panel
 │  │  │  - layout-settings│ │    │  │  └── next_id             │ │  │
 │  │  │  - player-settings│ │    │  └─────────────────────────┘ │  │
 │  │  │  - plugin-host-poc│ │    │                               │  │
-│  │  │  - plugin-settings│ │    │                               │  │
+│  │  │  - plugin-manager │ │    │                               │  │
 │  │  │  - preferences   │  │    │  ┌─────────────────────────┐ │  │
 │  │  │  - project-settings│ │   │  │ RendererContext (Mutex)  │ │  │
 │  │  └──────────────────┘  │    │  │  ├── MetalRenderer       │ │  │
@@ -35,9 +35,8 @@ The score itself is rendered natively by Rust/Skia/Metal — all other UI (panel
 │  │           ▼             │    │  └─────────────────────────┘ │  │
 │  │  ┌──────────────────┐  │    │                               │  │
 │  │  │ actions.ts       │──┼────┤  ┌─────────────────────────┐ │  │
-│  │  │ (all mutations)  │  │    │  │ Audio / Sampler / Transport│ │
+│  │  │ (all mutations)  │  │    │  │ Audio / Transport        │ │  │
 │  │  └──────────────────┘  │    │  │  ├── AudioContext        │ │  │
-│  │                        │    │  │  ├── SamplerContext       │ │  │
 │  └────────────────────────┘    │  │  ├── TransportContext     │ │  │
 │                                │  │  └── TransportShared (Arc)│ │  │
 │                                │  └─────────────────────────┘ │  │
@@ -55,9 +54,7 @@ The score itself is rendered natively by Rust/Skia/Metal — all other UI (panel
 - **`RendererContext`** — Behind `Mutex`, holds `MetalRenderer`, `DrawInstruction[]`, `HitTarget[]`, `Converter`
 - **`AudioContext`** — Behind `Mutex`, holds `cpal` host/device/stream, `MixerHandle`
 - **`PluginInventoryContext`** — Behind `Mutex`, holds the machine-local VST3 discovery inventory persisted under the app config directory, reuses that cached inventory during startup, revalidates cached entries, does one bounded root sweep for uncached bundle paths, probes only newly seen bundles, and reserves full root-wide reprobe for the explicit `plugin_inventory_discover` maintenance workflow before emitting refreshed backend-owned inventory truth to the frontend
-- **`SamplerContext`** — Behind `Mutex`, holds legacy sampler plugin metadata and cache for sampler tooling/audition; supported transport playback no longer snapshots it as runtime truth, and this seam is temporary legacy scaffolding rather than the foundation for VST work
 - **`TransportContext`** — Behind `Mutex` + `TransportShared` (Arc with atomics for lock-free polling)
-- **Sample attack alignment path** — SCVI SIDX metadata -> `SampleIndex` -> sampler `CacheSample` -> legacy sampler `StreamRequest` -> streamer trim-before-resample
 
 Score-instrument playback topology is now split into two backend-owned layers:
 
@@ -70,17 +67,16 @@ That split is deliberate. `.soloc` files must stay portable and must not persist
 
 ### Frontend Side (Display Layer)
 
-Five React contexts mirror the backend state:
+Four React contexts mirror the backend state:
 
 | Context                  | Event Channel                         | Hook                        | Purpose                                                          |
 | ------------------------ | ------------------------------------- | --------------------------- | ---------------------------------------------------------------- |
 | `AppContext`             | `soloc://state/general`               | `useAppState()`             | UI state, score data, resolved playback route state, preferences |
 | `AudioContext`           | `soloc://state/audio`                 | `useAudioState()`           | Device list, active device                                       |
 | `PluginInventoryContext` | `soloc://state/plugin_inventory`      | `usePluginInventoryState()` | Machine-local VST3 inventory                                     |
-| `SamplerContext`         | `soloc://state/sampler`               | `useSamplerState()`         | Plugin list, loaded plugins                                      |
 | `TransportContext`       | RAF polling via `transport_get_state` | `useTransportState()`       | Playing, tick, tempo                                             |
 
-The sampler state above is retained only as bounded legacy scaffolding. The dedicated plugin inventory state is now the backend-owned machine-local VST3 discovery seam. Startup reuses the persisted inventory immediately, revalidates cached entries, performs one cheap directory sweep to spot uncached bundles, probes only those newly seen bundles, and still leaves full root-wide reprobe behavior to the explicit manual refresh workflow. Story 3.8 now places one backend-owned same-session activation seam between persisted rack or route intent and any legacy sampler compatibility bridge: inventory refresh and ordinary score playback mutations rebuild that runtime activation state first, any temporary sampler sync proves which routed plugins are actually loaded, and both general readiness plus the timing-only transport snapshot consume that reconciled runtime instead of carrying a second availability-only resolver. The canonical app-scoped browse surface for that inventory is now the dedicated Plugin Manager window opened from the Sequence menu, where the shared `Refresh plugin inventory` control surfaces refresh-in-progress and refreshed-state feedback. Epic 2 through Epic 6 must continue building VST-owned assignment, runtime, and transport-adjacent contracts rather than extending `SamplerContext`, `soloc://state/sampler`, or sampler-era action/event contracts. The planned end state is full removal of the remaining SCVI subsystem once the VST replacement path is complete.
+The dedicated plugin inventory state is now the backend-owned machine-local VST3 discovery seam. Startup reuses the persisted inventory immediately, revalidates cached entries, performs one cheap directory sweep to spot uncached bundles, probes only those newly seen bundles, and still leaves full root-wide reprobe behavior to the explicit manual refresh workflow. Inventory refresh and ordinary score playback mutations rebuild the same-session runtime activation state first, and both general readiness plus the timing-only transport snapshot consume that VST-owned backend answer instead of carrying a second availability resolver. The canonical app-scoped browse surface for that inventory is now the dedicated Plugin Manager window opened from the Sequence menu, where the shared `Refresh plugin inventory` control surfaces refresh-in-progress and refreshed-state feedback. Epic 2 through Epic 6 must continue building VST-owned assignment, runtime, and transport-adjacent contracts rather than reintroducing frontend-owned playback truth or a second legacy runtime path.
 The Sequence bottom panel now owns the current score rack display and score-context slot preparation. It shows backend-owned score-context slots as horizontally stacked rack cards, creates empty slots from an in-panel add control, and assigns or updates each slot's plugin through a slot-local picker backed by the Rust-owned usable inventory seam. Instrument overview rows expose the bounded route-authoring workflow directly as a slot picker, while the rack cards stay focused on slot preparation. When a route still points at an existing empty slot, the row keeps that slot identity visible as a numbered empty label such as `1. --` instead of collapsing back to the unrouted `--` state, and only unusable assigned-plugin routes surface the needs-attention badge. Plugin Manager remains the app-scoped inventory browser rather than the default answer for routine score-route repair or ordinary slot preparation.
 
 ### State Flow
@@ -100,13 +96,6 @@ The Sequence bottom panel now owns the current score rack display and score-cont
 - Explicit Sequence-local flow switching updates `ui.flow_id` directly; the shared top bar does not own a workflow-specific flow selector.
 - Deliberate score-object selection may hand off `ui.flow_id` to the selected object's flow through the backend selection seam.
 - Passive score interactions such as pan, zoom, hover, and miss-to-clear do not change `ui.flow_id`.
-
-### Sample attack alignment
-
-- Per-sample playback alignment is backend-owned metadata, not a transport scheduling hack and not frontend timing state.
-- Existing legacy SCVI containers may carry `attack_offset_frames` in their sample index.
-- `ScviContainer::open()` loads that offset into `SampleIndex`, the sampler cache carries it through `CacheSample`, legacy sampler streaming threads it into `StreamRequest`, and `streamer.rs` discards those leading source frames before resampling or pitch work.
-- Older SCVI containers remain readable because a zero-filled offset decodes to `attack_offset_frames = 0`.
 
 ---
 
@@ -253,37 +242,23 @@ type AnchoredNotationTrack = {
 
 ## Audio Pipeline
 
-Supported `transport_play` is currently timing-only on the product path. It advances tick and tempo state from the score snapshot without cloning `SamplerContext` or dispatching SCVI streamer work. The SCVI pipeline below remains legacy sampler and audition infrastructure, not the supported transport runtime.
+Supported `transport_play` is currently timing-only on the product path. It advances tick and tempo state from the score snapshot and the backend-owned playback activation runtime without any sampler or SCVI fallback path.
 
 ```
-┌──────────────┐     ┌──────────────────────────────────┐
-│  Transport   │     │  Streamer (per note-on)           │
-│  Thread      │────►│                                   │
-│              │     │  1. Read FLAC from .scvi container │
-│  Walks score │     │  2. Decode via symphonia           │
-│  tick by tick│     │  3. Resample via rubato            │
-│              │     │  4. Pitch-shift, envelope,         │
-│              │     │     volume/pan                     │
-│              │     │  5. Push to StreamBuffer           │
-└──────────────┘     └───────────────┬──────────────────┘
-                                     │
-                                     ▼
-                     ┌──────────────────────────────────┐
-                     │  Mixer (audio callback thread)    │
-                     │                                   │
-                     │  64-slot lock-free voice list      │
-                     │  Drains StreamBuffers → output     │
-                     │  via cpal audio device             │
-                     └──────────────────────────────────┘
+┌──────────────┐
+│  Transport   │
+│  Thread      │
+│              │
+│  Walks score │
+│  tick by tick│
+│              │
+└──────────────┘
 ```
 
 ### Key Components
 
 - **Transport** — Uses atomics (`AtomicBool`, `AtomicU64`) for lock-free state sharing; instrument mix params via `RwLock<FxHashMap>`
 - **Tempo resolution** — Playback snapshots the score's flow master-track tempo data at play/resume start, resolves the active BPM once per tick via a bounded resolver, and silently falls back to 120 BPM when no score tempo applies
-- **Streamer** — Per-packet disk streaming (FLAC decode → resample → push to `StreamBuffer`); pre-allocates ~0.5s stereo buffer
-- **Mixer** — Fixed 64-slot voice array, lock-free slot claiming via `AtomicBool`; runs in cpal audio callback
-- **Legacy SCVI format** — Custom binary container still read by sampler/audition seams: `MAGIC(4)` + `Header` + `META(MessagePack)` + `SIDX(sample index)` + `SDAT(FLAC data)`
 
 ### Transport tempo semantics
 
@@ -299,7 +274,7 @@ Supported `transport_play` is currently timing-only on the product path. It adva
 
 ## Multi-Window Architecture
 
-Each of the 10 windows has:
+Each of the 9 windows has:
 
 - Its own HTML entry point (e.g., `instrument-picker.html`)
 - Its own `boot.tsx` mounting `AppStateProvider`
@@ -320,7 +295,6 @@ The experimental `plugin-host-poc` window is the one exception to the normal fro
 - **Desktop file-workflow contract:** Tuplet-bearing projects keep the same offline-first local open, save, reopen, current-file-path, recent-file, and transport-resync path as non-tuplet projects through the existing Tauri file commands; no network-backed persistence or alternate frontend-owned file state is introduced.
 - **Current migration stance for tuplets:** No tuplet-specific step is present in `src-tauri/src/migrations/next.rs` because pre-tuplet releases produced no tuplet-bearing payloads. Legacy non-tuplet files still validate and migrate exactly as before; add a tuplet migration only if a released older persisted format requires a real compatibility transform.
 - **Machine-local VST3 inventory:** Stored outside `.soloc` files in a `sled` database under the app config directory; this backend-owned inventory is machine-local discovery state, not portable project data. Startup reuses that cache, degrades stale cached entries in place, and can append newly seen bundles from one bounded root sweep, while explicit manual refresh remains the seam that may perform broader discovery work.
-- **Legacy sampler plugins:** Discovered at runtime from `/Library/Audio/Plug-Ins/SCVI` for bounded sampler/audition seams only; this is not an active SCVI build workflow
 - **Experimental editor-host target:** The native plugin-host POC does not reuse the SCVI instrument catalog. It resolves a local VST3 bundle from the backend-owned machine-local VST3 inventory when the maintainer trigger provides a plugin id, otherwise from an explicit request, `SOLOC_PLUGIN_EDITOR_POC_VST3_PATH`, or the standard macOS VST3 install roots. Compose now maintains that inventory as the authoritative discovery seam, while the editor-host POC keeps a separate backend-owned single-session lifecycle reservation so close, destroy, and reopen stay local to that bounded native host seam rather than widening into transport or assignment state.
 
 ---
@@ -333,6 +307,5 @@ The experimental `plugin-host-poc` window is the one exception to the normal fro
 | `RendererContextState`        | `Mutex<RendererContext>`        | Score rendering              |
 | `AudioContextState`           | `Mutex<AudioContext>`           | Audio device I/O             |
 | `PluginInventoryContextState` | `Mutex<PluginInventoryContext>` | Machine-local VST3 inventory |
-| `SamplerContextState`         | `Mutex<SamplerContext>`         | Instrument cache             |
 | `TransportContextState`       | `Mutex<TransportContext>`       | Playback control             |
 | `TransportSharedState`        | `Arc<TransportShared>`          | Lock-free transport polling  |

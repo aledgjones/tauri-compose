@@ -1,9 +1,5 @@
-import {
-  useAppState,
-  useAudioState,
-  useSamplerState,
-} from "../../services/state";
-import { useEffect, useMemo } from "react";
+import { useAppState, useAudioState } from "../../services/state";
+import { useEffect } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { AppBar } from "../../components/app-bar";
 import { actions } from "../../services/actions";
@@ -14,13 +10,6 @@ import { PerformanceTimings } from "./components/performance-timings";
 export const Main = () => {
   const state = useAppState();
   const audio = useAudioState();
-  const sampler = useSamplerState();
-  const pluginAuditionState = useMemo(() => {
-    return {
-      ...sampler,
-      plugins: sampler.plugins.map(({ path: _path, ...plugin }) => plugin),
-    };
-  }, [sampler]);
 
   useEffect(() => {
     const show = async () => {
@@ -32,7 +21,7 @@ export const Main = () => {
   }, []);
 
   return (
-    <div className="h-dvh bg-neutral-950 grid grid-rows-[28px_auto_auto_1fr_1fr_1fr] gap-2 overflow-hidden pb-2">
+    <div className="h-dvh bg-neutral-950 grid grid-rows-[28px_auto_auto_1fr_1fr] gap-2 overflow-hidden pb-2">
       <AppBar title="Debugger" />
 
       <PerformanceTimings />
@@ -68,23 +57,6 @@ export const Main = () => {
         <ObjectInspector
           data={audio}
           name="audio"
-          theme={
-            {
-              ...chromeDark,
-              BASE_BACKGROUND_COLOR: "transparent",
-            } as unknown as string
-          }
-          expandPaths={["$"]}
-        />
-      </div>
-
-      <div className="bg-neutral-900 p-2 overflow-auto mx-2">
-        <div className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500">
-          Legacy Plugin Audition State
-        </div>
-        <ObjectInspector
-          data={pluginAuditionState}
-          name="plugin_audition_state"
           theme={
             {
               ...chromeDark,

@@ -40,9 +40,6 @@ vi.mock("../../../services/actions", () => ({
         clearSelection: vi.fn().mockResolvedValue(undefined),
       },
     },
-    sampler: {
-      audition: vi.fn(),
-    },
     transport: {
       play: vi.fn().mockResolvedValue(undefined),
       pause: vi.fn().mockResolvedValue(undefined),
@@ -1445,10 +1442,9 @@ describe("useKeyboardShortcuts", () => {
     );
   });
 
-  it("calls audition when shouldAudition=true and result is a number with assigned plugin", async () => {
+  it("shifts the selected tone upward by step when the shortcut is pressed", async () => {
     const PLUGIN_ID = "plugin-abc";
     const state = buildStateWithToneSelection();
-    // give the instrument an assigned plugin so audition fires
     (state.score.instruments.by_id as Record<number, unknown>)[INSTRUMENT_ID] =
       {
         id: INSTRUMENT_ID,
@@ -1475,7 +1471,6 @@ describe("useKeyboardShortcuts", () => {
     };
     state.preferences = { ...state.preferences, audition: true };
 
-    // shiftPitchByStep returns a new pitch int (number) → audition should fire
     vi.mocked(actions.score.tone.shiftPitchByStep).mockResolvedValueOnce(61);
 
     renderHook(() => useKeyboardShortcuts(), {
@@ -1488,10 +1483,15 @@ describe("useKeyboardShortcuts", () => {
       );
     });
 
-    expect(actions.sampler.audition).toHaveBeenCalledWith(PLUGIN_ID, 61);
+    expect(actions.score.tone.shiftPitchByStep).toHaveBeenCalledWith(
+      TRACK_ID,
+      null,
+      TONE_ID,
+      1,
+    );
   });
 
-  it("does not audition when audition preference is disabled", async () => {
+  it("still shifts pitch when audition preference is disabled", async () => {
     const PLUGIN_ID = "plugin-abc";
     const state = buildStateWithToneSelection();
     (state.score.instruments.by_id as Record<number, unknown>)[INSTRUMENT_ID] =
@@ -1532,13 +1532,17 @@ describe("useKeyboardShortcuts", () => {
       );
     });
 
-    expect(actions.sampler.audition).not.toHaveBeenCalled();
+    expect(actions.score.tone.shiftPitchByStep).toHaveBeenCalledWith(
+      TRACK_ID,
+      null,
+      TONE_ID,
+      1,
+    );
   });
 
-  it("does not audition when instrument has no assigned plugin", async () => {
+  it("still shifts pitch when instrument has no assigned plugin", async () => {
     const state = buildStateWithToneSelection();
     state.preferences = { ...state.preferences, audition: true };
-    // instrument has no assigned plugin (null by default in buildStateWithToneSelection)
 
     vi.mocked(actions.score.tone.shiftPitchByStep).mockResolvedValueOnce(62);
 
@@ -1552,7 +1556,12 @@ describe("useKeyboardShortcuts", () => {
       );
     });
 
-    expect(actions.sampler.audition).not.toHaveBeenCalled();
+    expect(actions.score.tone.shiftPitchByStep).toHaveBeenCalledWith(
+      TRACK_ID,
+      null,
+      TONE_ID,
+      1,
+    );
   });
 
   it("does not fire any action for unknown key", async () => {

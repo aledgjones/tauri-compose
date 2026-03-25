@@ -201,31 +201,7 @@ export const useKeyboardShortcuts = () => {
   }, [selection, toneSelectionInfo]);
 
   useEffect(() => {
-    const activeToneSelectionInfo = toneSelectionInfo;
-
-    const auditionTone = (pitch: number) => {
-      if (!activeToneSelectionInfo) {
-        return;
-      }
-
-      if (!state.preferences.audition) {
-        return;
-      }
-
-      const instrument =
-        state.score.instruments.by_id[activeToneSelectionInfo.instrumentId];
-      const resolvedRoute =
-        state.resolved_playback_route_by_instrument_id[
-          activeToneSelectionInfo.instrumentId
-        ];
-      const pluginId = resolvedRoute?.effective_plugin_id;
-
-      if (!instrument || !pluginId) {
-        return;
-      }
-
-      actions.sampler.audition(pluginId, pitch);
-    };
+    const auditionTone = (_pitch: number) => {};
 
     const toneShortcuts: Array<{
       key: string;
@@ -234,8 +210,8 @@ export const useKeyboardShortcuts = () => {
       shouldAudition?: boolean;
     }> = [];
 
-    if (activeToneSelectionInfo) {
-      const { trackId, toneId, tupletId } = activeToneSelectionInfo;
+    if (toneSelectionInfo) {
+      const { trackId, toneId, tupletId } = toneSelectionInfo;
 
       const shiftPitchByStep = (steps: number) =>
         actions.score.tone.shiftPitchByStep(trackId, tupletId, toneId, steps);

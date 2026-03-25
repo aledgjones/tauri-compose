@@ -195,8 +195,6 @@ type SequencerTrackProps = {
   snapDuration: NoteDuration;
   instrumentId: UniqueId;
   color: string;
-  audition: boolean;
-  pluginId: string | null;
 };
 
 const handleWriteTool = async (
@@ -209,8 +207,6 @@ const handleWriteTool = async (
   overlay: SequencerSnapOverlay,
   slots: Slots,
   instrumentId: UniqueId,
-  audition: boolean,
-  pluginId: string | null,
 ) => {
   const box = sequencerRef.current?.getBoundingClientRect();
   if (!box) {
@@ -263,11 +259,6 @@ const handleWriteTool = async (
 
   if (startIndex === null) {
     return;
-  }
-
-  // Audition the created note
-  if (audition && pluginId) {
-    actions.sampler.audition(pluginId, pitch);
   }
 
   // Find the stave that contains this track
@@ -623,8 +614,6 @@ const handlePositionDragging = async (
   lattice: SequencerAddressLattice,
   overlay: SequencerSnapOverlay,
   slots: Slots,
-  audition: boolean,
-  pluginId: string | null,
 ) => {
   const originalTupletId =
     clickTarget.type === "Tone" ? (clickTarget.tuplet_id ?? null) : null;
@@ -674,9 +663,6 @@ const handlePositionDragging = async (
         newPitch,
         null,
       );
-      if (audition && pluginId) {
-        actions.sampler.audition(pluginId, newPitch);
-      }
       lastPitch = newPitch;
     }
 
@@ -732,8 +718,6 @@ const handleSelectTool = async (
   overlay: SequencerSnapOverlay,
   slots: Slots,
   instrumentId: UniqueId,
-  audition: boolean,
-  pluginId: string | null,
 ) => {
   const clickTarget = getSequencerClickTarget(e.target as HTMLElement);
 
@@ -827,8 +811,6 @@ const handleSelectTool = async (
       lattice,
       overlay,
       slots,
-      audition,
-      pluginId,
     );
   }
 };
@@ -842,8 +824,6 @@ export const SequencerTrack: FC<SequencerTrackProps> = ({
   snapDuration,
   instrumentId,
   color,
-  audition,
-  pluginId,
 }) => {
   const sequencerRef = useRef<HTMLDivElement>(null);
 
@@ -922,8 +902,6 @@ export const SequencerTrack: FC<SequencerTrackProps> = ({
             snapOverlay,
             slots,
             instrumentId,
-            audition,
-            pluginId,
           );
           return;
 
@@ -937,8 +915,6 @@ export const SequencerTrack: FC<SequencerTrackProps> = ({
             snapOverlay,
             slots,
             instrumentId,
-            audition,
-            pluginId,
           );
           return;
 
@@ -966,8 +942,6 @@ export const SequencerTrack: FC<SequencerTrackProps> = ({
       track,
       instrumentId,
       ticks,
-      audition,
-      pluginId,
     ],
   );
 

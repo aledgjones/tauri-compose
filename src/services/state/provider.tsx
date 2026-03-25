@@ -5,7 +5,6 @@ import {
   AppState,
   AudioState,
   PluginInventoryState,
-  SamplerState,
   Tempo,
   TransportState,
   UniqueId,
@@ -26,8 +25,6 @@ import {
   AudioContext,
   initialPluginInventoryState,
   PluginInventoryContext,
-  initialSamplerState,
-  SamplerContext,
   initialTransportState,
   TransportContext,
 } from "./context";
@@ -42,8 +39,6 @@ export const AppStateProvider: FC<Props> = ({
   const [audioState, setAudioState] = useState<AudioState>(initialAudioState);
   const [pluginInventoryState, setPluginInventoryState] =
     useState<PluginInventoryState>(initialPluginInventoryState);
-  const [samplerState, setSamplerState] =
-    useState<SamplerState>(initialSamplerState);
   const [transportState, setTransportState] = useState<TransportState>(
     initialTransportState,
   );
@@ -180,7 +175,6 @@ export const AppStateProvider: FC<Props> = ({
     let unlistenApp: UnlistenFn | null = null;
     let unlistenAudio: UnlistenFn | null = null;
     let unlistenPluginInventory: UnlistenFn | null = null;
-    let unlistenSampler: UnlistenFn | null = null;
     let unlistenMenuSave: UnlistenFn | null = null;
     let unlistenMenuSaveAs: UnlistenFn | null = null;
     let unlistenMenuOpen: UnlistenFn | null = null;
@@ -203,13 +197,6 @@ export const AppStateProvider: FC<Props> = ({
         "soloc://state/plugin_inventory",
         (e) => {
           setPluginInventoryState(e.payload);
-        },
-      );
-
-      unlistenSampler = await listen<SamplerState>(
-        "soloc://state/sampler",
-        (e) => {
-          setSamplerState(e.payload);
         },
       );
 
@@ -283,7 +270,6 @@ export const AppStateProvider: FC<Props> = ({
       unlistenApp?.();
       unlistenAudio?.();
       unlistenPluginInventory?.();
-      unlistenSampler?.();
       unlistenMenuSave?.();
       unlistenMenuSaveAs?.();
       unlistenMenuOpen?.();
@@ -299,11 +285,9 @@ export const AppStateProvider: FC<Props> = ({
     <AppContext.Provider value={appState}>
       <AudioContext.Provider value={audioState}>
         <PluginInventoryContext.Provider value={pluginInventoryState}>
-          <SamplerContext.Provider value={samplerState}>
-            <TransportContext.Provider value={transportState}>
-              {children}
-            </TransportContext.Provider>
-          </SamplerContext.Provider>
+          <TransportContext.Provider value={transportState}>
+            {children}
+          </TransportContext.Provider>
         </PluginInventoryContext.Provider>
       </AudioContext.Provider>
     </AppContext.Provider>
