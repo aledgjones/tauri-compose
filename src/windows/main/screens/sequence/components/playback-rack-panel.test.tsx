@@ -122,6 +122,7 @@ describe("PlaybackRackPanel", () => {
     await waitFor(() => {
       expect(actions.pluginInventory.openEditorPoc).toHaveBeenCalledWith(
         "vst3:grand-piano",
+        { slot_id: 9 },
       );
     });
   });

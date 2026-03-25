@@ -78,6 +78,8 @@ Users should be able to scan the score or sequencer and immediately understand w
 
 Opening a native plugin editor should feel deliberate and predictable from the right entry points, with Compose clearly handing off to the plugin’s own UI rather than attempting to recreate it. Reusing known-good playback setups should be straightforward.
 
+Opening that editor must be a deep handoff into an already-running slot-owned plugin instance. It is not the action that initializes the score's canonical playback instance.
+
 Future expression-map behavior should feel like configuring musical meaning rather than manipulating a low-level trigger matrix. Compose should reuse familiar panel-based editing patterns where possible, but it should distinguish clearly between selection-based properties and higher-level playback configuration. The properties panel can expose contextual information, current resolved behavior, and entry points into map editing, but expression maps themselves should be authored and managed at a higher, durable scope.
 
 ### Critical Success Moments
@@ -306,7 +308,7 @@ Windows should be treated as object-owning or app-scoped surfaces. They are the 
 
 Compose should remain the primary surface for musical intent, playback routing, health state, expression-map linkage, and reusable playback-asset workflows. Native plugin UI should be a deliberate, secondary handoff used when the user needs to control plugin-specific internals such as vendor parameters, mixer state, patch details, or other plugin-owned configuration.
 
-The native plugin window should not become the default answer to routine playback problems. If the user is trying to understand score semantics, mapping, or routing readiness, the answer should stay inside Compose. The native plugin UI should be available from relevant score-context surfaces, but framed as deeper plugin control rather than as a substitute for Compose-owned playback UX.
+The native plugin window should not become the default answer to routine playback problems. If the user is trying to understand score semantics, mapping, or routing readiness, the answer should stay inside Compose. The native plugin UI should be available from relevant score-context surfaces, but framed as deeper plugin control rather than as a substitute for Compose-owned playback UX. Opening that window attaches to the running slot-owned instance for the selected route; it does not create the canonical playback instance.
 
 ### 3.7 Canonical App-Scoped Entry Points
 

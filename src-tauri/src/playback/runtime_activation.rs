@@ -27,6 +27,43 @@ pub struct PlaybackActivationRuntime {
     activated_instrument_route_by_instrument_id: FxHashMap<UniqueId, ActivatedInstrumentRoute>,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum SingleInstrumentTrustGateStatus {
+    TransportReady,
+    Blocked,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum SingleInstrumentTrustGateBlocker {
+    NoRoutedInstrument,
+    MultipleRoutedInstruments {
+        instrument_ids: Vec<UniqueId>,
+    },
+    UnsupportedRouteShape {
+        instrument_id: UniqueId,
+        slot_id: UniqueId,
+    },
+    RouteNotReady {
+        instrument_id: UniqueId,
+        slot_id: UniqueId,
+        status: ResolvedPlaybackRouteStatus,
+    },
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SingleInstrumentTrustGate {
+    pub status: SingleInstrumentTrustGateStatus,
+    pub instrument_id: Option<UniqueId>,
+    pub route: Option<ActivatedInstrumentRoute>,
+    pub blockers: Vec<SingleInstrumentTrustGateBlocker>,
+}
+
+impl SingleInstrumentTrustGate {
+    pub fn is_transport_ready(&self) -> bool {
+        self.status == SingleInstrumentTrustGateStatus::TransportReady
+    }
+}
+
 impl PlaybackActivationRuntime {
     pub fn from_score_and_inventory(score: &Score, inventory: &PluginInventoryContext) -> Self {
         let activated_slot_target_by_slot_id = score
@@ -142,6 +179,85 @@ impl PlaybackActivationRuntime {
             .collect()
     }
 
+    pub fn single_instrument_trust_gate(&self, score: &Score) -> SingleInstrumentTrustGate {
+        let routed_instrument_ids = score
+            .instruments
+            .by_id
+            .iter()
+            .filter_map(|(instrument_id, instrument)| {
+                instrument.playback_route.as_ref().map(|_| *instrument_id)
+            })
+            .collect::<Vec<_>>();
+
+        if routed_instrument_ids.is_empty() {
+            return SingleInstrumentTrustGate {
+                status: SingleInstrumentTrustGateStatus::Blocked,
+                instrument_id: None,
+                route: None,
+                blockers: vec![SingleInstrumentTrustGateBlocker::NoRoutedInstrument],
+            };
+        }
+
+        if routed_instrument_ids.len() > 1 {
+            return SingleInstrumentTrustGate {
+                status: SingleInstrumentTrustGateStatus::Blocked,
+                instrument_id: None,
+                route: None,
+                blockers: vec![
+                    SingleInstrumentTrustGateBlocker::MultipleRoutedInstruments {
+                        instrument_ids: routed_instrument_ids,
+                    },
+                ],
+            };
+        }
+
+        let instrument_id = routed_instrument_ids[0];
+        let route = score.instruments.by_id[&instrument_id]
+            .playback_route
+            .as_ref()
+            .expect("single instrument trust gate requires an existing route");
+
+        if !Self::supports_single_target_activation(route) {
+            return SingleInstrumentTrustGate {
+                status: SingleInstrumentTrustGateStatus::Blocked,
+                instrument_id: Some(instrument_id),
+                route: None,
+                blockers: vec![SingleInstrumentTrustGateBlocker::UnsupportedRouteShape {
+                    instrument_id,
+                    slot_id: route.slot_id,
+                }],
+            };
+        }
+
+        let resolved = self.resolved_playback_route_by_instrument_id(score);
+        let resolved_route = resolved
+            .get(&instrument_id)
+            .expect("resolved playback route should exist for routed instrument");
+
+        if resolved_route.status != ResolvedPlaybackRouteStatus::Ready {
+            return SingleInstrumentTrustGate {
+                status: SingleInstrumentTrustGateStatus::Blocked,
+                instrument_id: Some(instrument_id),
+                route: None,
+                blockers: vec![SingleInstrumentTrustGateBlocker::RouteNotReady {
+                    instrument_id,
+                    slot_id: route.slot_id,
+                    status: resolved_route.status,
+                }],
+            };
+        }
+
+        SingleInstrumentTrustGate {
+            status: SingleInstrumentTrustGateStatus::TransportReady,
+            instrument_id: Some(instrument_id),
+            route: self
+                .activated_instrument_route_by_instrument_id
+                .get(&instrument_id)
+                .cloned(),
+            blockers: vec![],
+        }
+    }
+
     fn supports_single_target_activation(route: &InstrumentPlaybackRoute) -> bool {
         route.target == PlaybackRouteTarget::plugin()
             && route.address == PlaybackRouteAddress::root()
@@ -150,7 +266,10 @@ impl PlaybackActivationRuntime {
 
 #[cfg(test)]
 mod tests {
-    use super::PlaybackActivationRuntime;
+    use super::{
+        PlaybackActivationRuntime, SingleInstrumentTrustGateBlocker,
+        SingleInstrumentTrustGateStatus,
+    };
     use crate::playback::plugin_inventory::{
         PluginInventoryAvailability, PluginInventoryContext, PluginInventoryEntry,
     };
@@ -407,6 +526,148 @@ mod tests {
         assert_eq!(
             degraded.get(&10).unwrap().status,
             ResolvedPlaybackRouteStatus::NeedsAttention
+        );
+    }
+
+    #[test]
+    fn single_instrument_trust_gate_reports_transport_ready_for_one_ready_direct_route() {
+        let inventory = PluginInventoryContext::with_entries_for_tests(vec![available_entry(
+            "plugin-a",
+            "/Library/Audio/Plug-Ins/VST3/Plugin A.vst3",
+        )]);
+        let mut score = make_score();
+        assign_slot(&mut score, 100, "plugin-a");
+        score.instruments.by_id.get_mut(&10).unwrap().playback_route =
+            Some(InstrumentPlaybackRoute::direct(100));
+
+        let runtime = PlaybackActivationRuntime::from_score_and_inventory(&score, &inventory);
+        let trust_gate = runtime.single_instrument_trust_gate(&score);
+
+        assert_eq!(
+            trust_gate.status,
+            SingleInstrumentTrustGateStatus::TransportReady
+        );
+        assert!(trust_gate.is_transport_ready());
+        assert_eq!(trust_gate.instrument_id, Some(10));
+        assert_eq!(
+            trust_gate.route.as_ref().map(|route| route.slot_id),
+            Some(100)
+        );
+        assert_eq!(
+            trust_gate
+                .route
+                .as_ref()
+                .map(|route| route.plugin_id.as_str()),
+            Some("plugin-a")
+        );
+        assert!(trust_gate.blockers.is_empty());
+    }
+
+    #[test]
+    fn single_instrument_trust_gate_blocks_missing_inventory_resolution() {
+        let inventory = PluginInventoryContext::with_entries_for_tests(vec![]);
+        let mut score = make_score();
+        assign_slot(&mut score, 100, "plugin-a");
+        score.instruments.by_id.get_mut(&10).unwrap().playback_route =
+            Some(InstrumentPlaybackRoute::direct(100));
+
+        let runtime = PlaybackActivationRuntime::from_score_and_inventory(&score, &inventory);
+        let trust_gate = runtime.single_instrument_trust_gate(&score);
+
+        assert_eq!(trust_gate.status, SingleInstrumentTrustGateStatus::Blocked);
+        assert_eq!(
+            trust_gate.blockers,
+            vec![SingleInstrumentTrustGateBlocker::RouteNotReady {
+                instrument_id: 10,
+                slot_id: 100,
+                status: ResolvedPlaybackRouteStatus::NeedsAttention,
+            }]
+        );
+    }
+
+    #[test]
+    fn single_instrument_trust_gate_blocks_unsupported_route_shapes() {
+        let inventory = PluginInventoryContext::with_entries_for_tests(vec![available_entry(
+            "plugin-a",
+            "/Library/Audio/Plug-Ins/VST3/Plugin A.vst3",
+        )]);
+        let mut score = make_score();
+        assign_slot(&mut score, 100, "plugin-a");
+        score.instruments.by_id.get_mut(&10).unwrap().playback_route =
+            Some(InstrumentPlaybackRoute {
+                slot_id: 100,
+                target: PlaybackRouteTarget {
+                    mode: PlaybackRouteTargetMode::PluginPart,
+                    index: Some(0),
+                },
+                address: PlaybackRouteAddress {
+                    mode: PlaybackRouteAddressMode::Part,
+                    index: Some(0),
+                },
+            });
+
+        let runtime = PlaybackActivationRuntime::from_score_and_inventory(&score, &inventory);
+        let trust_gate = runtime.single_instrument_trust_gate(&score);
+
+        assert_eq!(trust_gate.status, SingleInstrumentTrustGateStatus::Blocked);
+        assert_eq!(
+            trust_gate.blockers,
+            vec![SingleInstrumentTrustGateBlocker::UnsupportedRouteShape {
+                instrument_id: 10,
+                slot_id: 100,
+            }]
+        );
+    }
+
+    #[test]
+    fn single_instrument_trust_gate_blocks_multiple_routed_instruments() {
+        let inventory = PluginInventoryContext::with_entries_for_tests(vec![available_entry(
+            "plugin-a",
+            "/Library/Audio/Plug-Ins/VST3/Plugin A.vst3",
+        )]);
+        let mut score = make_score();
+        score
+            .players
+            .by_id
+            .get_mut(&1)
+            .unwrap()
+            .instrument_ids
+            .push(11);
+        score.instruments.by_id.insert(
+            11,
+            Instrument {
+                id: 11,
+                definition_id: String::from("strings.viola"),
+                instrument_type: InstrumentType::Melodic,
+                long_name: String::from("Viola"),
+                short_name: String::from("Vla."),
+                stave_ids: vec![],
+                count: None,
+                playback_route: None,
+                volume: 100,
+                pan: 64,
+                mute: false,
+                solo: false,
+            },
+        );
+        assign_slot(&mut score, 100, "plugin-a");
+        assign_slot(&mut score, 101, "plugin-a");
+        score.instruments.by_id.get_mut(&10).unwrap().playback_route =
+            Some(InstrumentPlaybackRoute::direct(100));
+        score.instruments.by_id.get_mut(&11).unwrap().playback_route =
+            Some(InstrumentPlaybackRoute::direct(101));
+
+        let runtime = PlaybackActivationRuntime::from_score_and_inventory(&score, &inventory);
+        let trust_gate = runtime.single_instrument_trust_gate(&score);
+
+        assert_eq!(trust_gate.status, SingleInstrumentTrustGateStatus::Blocked);
+        assert_eq!(
+            trust_gate.blockers,
+            vec![
+                SingleInstrumentTrustGateBlocker::MultipleRoutedInstruments {
+                    instrument_ids: vec![10, 11],
+                }
+            ]
         );
     }
 }

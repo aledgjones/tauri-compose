@@ -166,7 +166,19 @@ describe("actions.pluginInventory", () => {
       "vst3:/Library/Audio/Plug-Ins/VST3/Grand Piano.vst3",
     );
     expect(mockInvoke).toHaveBeenCalledWith("plugin_editor_poc_open", {
+      slot_id: null,
       plugin_id: "vst3:/Library/Audio/Plug-Ins/VST3/Grand Piano.vst3",
+      plugin_path: null,
+    });
+  });
+
+  it("openEditorPoc forwards an optional slot_id for rack-targeted editor opens", async () => {
+    await actions.pluginInventory.openEditorPoc("vst3:grand-piano", {
+      slot_id: 12,
+    });
+    expect(mockInvoke).toHaveBeenCalledWith("plugin_editor_poc_open", {
+      slot_id: 12,
+      plugin_id: "vst3:grand-piano",
       plugin_path: null,
     });
   });

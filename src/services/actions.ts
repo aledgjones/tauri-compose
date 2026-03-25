@@ -107,10 +107,14 @@ export const actions = {
   },
   pluginInventory: {
     discover: () => invoke("plugin_inventory_discover"),
-    openEditorPoc: (plugin_id: string, plugin_path?: string | null) => {
+    openEditorPoc: (
+      plugin_id: string,
+      options?: { plugin_path?: string | null; slot_id?: UniqueId | null },
+    ) => {
       return invoke("plugin_editor_poc_open", {
+        slot_id: options?.slot_id ?? null,
         plugin_id,
-        plugin_path: plugin_path ?? null,
+        plugin_path: options?.plugin_path ?? null,
       });
     },
   },

@@ -38,7 +38,7 @@ The loaded planning set defines 41 functional requirements, 14 explicit non-func
 
 The core functional demand is not merely "play sound through plugins." The real product requirement is a trustworthy score-first playback workflow that stays inside Compose and lets users compose against playback rather than treat it as a fragile preview mode. This means the architecture must support fast routing, audible playback, transport trust, recovery from missing plugins, and eventual score-linked realism without turning the product into a DAW-shaped control surface.
 
-The project context also includes a newly approved course correction. The Epic 3 retrospective and sprint change proposal establish that story-complete progress is currently ahead of product trust. Epic 4 is blocked, the current first-audible-playback sequence is no longer acceptable as the next step, and the architecture must now assume a required stabilization phase before audible-playback work resumes. That stabilization phase exists to remove sampler-era or SCVI-era active-path residue, restore trust in the single-instrument VST path, simplify rack-first score-context UX, and rebaseline downstream planning.
+The project context also includes a newly approved course correction. The Epic 3 retrospective and sprint change proposal establish that story-complete progress is currently ahead of product trust. Epic 4 is blocked, the current first-audible-playback sequence is no longer acceptable as the next step, and the architecture must now assume a required stabilization phase before audible-playback work resumes. That stabilization phase exists to remove sampler-era or SCVI-era active-path residue, restore trust in the single-instrument-VST-instance path, simplify rack-first score-context UX, and rebaseline downstream planning.
 
 This introduces an important architectural fact: the current epic breakdown is historically useful but not authoritative for sequencing. The approved change proposal supersedes the old progression by inserting a new foundation-reset epic before first audible playback. The architecture therefore has to treat planning drift itself as an input constraint and explicitly define the target state the reset epic is working toward.
 
@@ -141,7 +141,8 @@ The architecture should treat the current foundation as fixed and spend decision
 - No product-level authentication or cloud identity model is introduced for MVP.
 - VST3 plugins are treated as untrusted third-party code from a host-safety perspective.
 - Native plugin editor hosting remains a bounded backend-owned seam, secondary to Compose-owned playback UX.
-- The current reset phase is intentionally single-instrument and single-target trust-first; richer multi-target or HALion-style workflows are explicitly deferred until the base path is trustworthy.
+- Native editor attach, focus, resize, detach, and teardown are editor-host responsibilities, but that seam must not become the creator of canonical slot runtime state.
+- The current reset phase is intentionally single-instrument-VST-instance and single-target trust-first; richer multi-target or HALion-style multi-timbral workflows are explicitly deferred until the base path is trustworthy.
 - Validation and trust-restoration criteria must be explicit architectural seams, because seam-local tests alone are not enough to claim product trust.
 
 **Deferred Decisions (Post-MVP or Post-Reset):**
@@ -160,7 +161,8 @@ The architecture should treat the current foundation as fixed and spend decision
   - playback-preparation state
   - transport state
   - persisted playback-domain truth
-- `.soloc` stores portable score and playback intent, not machine-local discovery or cache state.
+- `.soloc` stores portable score and playback rehydration intent, not machine-local discovery, cache, or live runtime state.
+- Slot-owned live plugin sessions are runtime-only backend objects keyed by slot identity and rebuilt from portable saved intent during assignment, preparation, or project load.
 - Machine-local plugin inventory, plugin validation results, editor-host validation results, and related environment-specific metadata live in app-local storage outside project files.
 - Missing or invalid plugin restoration degrades to explicit recoverable unrouted or attention-needed states instead of silent fallback.
 - Persisted-data changes continue to follow the existing migration discipline in `src-tauri/src/migrations/next.rs` until human release preparation promotes them.
@@ -308,12 +310,14 @@ The highest-risk conflict areas are:
 
 - Use `rack` for the score-context playback container.
 - Use `slot` for one hosted plugin instance in that rack.
+- Treat the slot as the authoritative owner of one live initialized plugin session keyed by slot identity, not merely as an inventory reference or readiness token.
 - Use `route` for the relationship from score instrument to playback destination.
 - Use `target` for the product-facing playback destination.
 - Use `address` only for engine-level or plugin-level addressing payloads.
 - Use `inventory` for machine-local discovered plugin availability.
 - Use `recovery` for reopen and re-resolution behavior against current local inventory.
 - Use `unrouted`, `needs_attention`, and `unavailable` as presentation summaries over deeper backend truth.
+- Native plugin editor windows attach to and detach from slot-owned sessions; they do not create or destroy the canonical runtime instance.
 - Do not reuse sampler-era or SCVI-era terms for VST-owned seams.
 
 ### Structure Patterns

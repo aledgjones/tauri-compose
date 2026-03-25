@@ -133,6 +133,7 @@ use utils::UniqueId;
 struct AppStateGeneral {
     ui: Ui,
     score: Score,
+    single_instrument_transport_ready: bool,
     resolved_playback_route_by_instrument_id:
         rustc_hash::FxHashMap<UniqueId, ResolvedPlaybackRoute>,
     route_target_options_by_slot_id:
@@ -282,6 +283,10 @@ impl AppContext {
         let general_state = AppStateGeneral {
             ui: self.ui.clone(),
             score: self.score.clone(),
+            single_instrument_transport_ready: self
+                .playback_activation_runtime
+                .single_instrument_trust_gate(&self.score)
+                .is_transport_ready(),
             resolved_playback_route_by_instrument_id: self
                 .playback_activation_runtime
                 .resolved_playback_route_by_instrument_id(&self.score),
@@ -350,6 +355,10 @@ fn get_general_state(
     AppStateGeneral {
         ui: state.ui.clone(),
         score: state.score.clone(),
+        single_instrument_transport_ready: state
+            .playback_activation_runtime
+            .single_instrument_trust_gate(&state.score)
+            .is_transport_ready(),
         resolved_playback_route_by_instrument_id: state
             .playback_activation_runtime
             .resolved_playback_route_by_instrument_id(&state.score),

@@ -206,9 +206,11 @@ The score page is rendered natively by Rust/Skia/Metal — all other UI (panels,
 
 - Transport state uses RAF polling during playback — never add event-based transport state updates, it will cause the transport thread to emit during playback
 - Supported `transport_play` is currently timing-only on the product path: it advances tick and tempo state without any sampler or SCVI fallback path
+- Before Epic 4 audible-playback work, keep the Story 1.3 single-instrument-VST-instance trust gate green and complete the follow-up slot-ownership stories: one routed direct plugin route into a VST instance that hosts one playable instrument at a time, transport-readiness-only status, no legacy fallback ownership, slot-owned runtime sessions rebuilt from portable saved intent rather than persisted live runtime state, and completed maintainer manual proof on that architecture. Do not treat that gate as evidence of HALion-style multi-slot or other multi-timbral readiness, multi-instrument readiness, or first-audible-playback readiness.
 - Playback is another consumer of the shared tuplet model, not a second semantics engine. Transport code may implement scheduling mechanics, but it must not locally infer tuplet ownership, boundary meaning, projection, or continuity; if playback exposes a gap, extend the shared semantic seam instead of patching transport in isolation
 - Nested tuplets, broader arbitrary ratios, and generalized sequencer-native tuplet editing remain explicit post-MVP work. Do not normalize them into current rules or documentation.
 - Legacy sampler and SCVI runtime ownership have been removed from the product path. Do not reintroduce them as fallback playback, audition, or hidden readiness logic.
+- Native editor opens from score-context rack surfaces must resolve through slot identity as well as bundle path so same-bundle slots remain distinct backend-owned targets during close, reopen, and teardown, and so editor attach does not replace slot-owned runtime-session ownership.
 
 ---
 

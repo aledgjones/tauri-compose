@@ -106,11 +106,11 @@ NFR14: Validation must use explicit representative scenarios for transport, plug
 - Allow a fallback host-windowing route only if direct Tauri and AppKit parenting proves insufficient; record that as a tested architectural outcome rather than assuming it up front.
 - Treat the remaining SCVI sampler and runtime code as temporary legacy scaffolding only. Downstream stories must build clean VST-owned seams rather than extending sampler-era contracts.
 - Once a VST-owned seam replaces a sampler or SCVI-era product path, the superseded path must be removed from active product behavior rather than preserved as parallel runtime or compatibility ownership.
-- Before first-audible-playback stories begin, the plan must establish a trustworthy single-instrument VST-only foundation with no active sampler or SCVI-era product-path interference.
+- Before first-audible-playback stories begin, the plan must establish a trustworthy single-instrument-VST-instance foundation with no active sampler or SCVI-era product-path interference.
 - The approved 2026-03-24 course correction inserts a stabilization or reset epic before first audible playback; the prior direct progression from Epic 3 into audible playback is no longer authoritative sequencing.
 - Epic 3 should be treated as rack-first model discovery and partial runway, not as a production-trustworthy playback foundation.
 - Story implementation must prefer the simplest useful user-facing control surface for the product model; UI added solely to make individual acceptance criteria separately visible is considered scope failure unless it creates clear user value.
-- The planning reset must explicitly preserve the rack-first product model while reclassifying unproven richer multi-instrument support as future capability rather than near-ready scope.
+- The planning reset must explicitly preserve the rack-first product model while reclassifying unproven richer multi-instrument or multi-timbral VST-instance support as future capability rather than near-ready scope.
 
 ### UX Design Requirements
 
@@ -272,22 +272,105 @@ As a maintainer,
 I want explicit trust-restoration checks for the reset playback path,
 So that later audible-playback work starts from a verified single-instrument VST-only baseline instead of assumed progress.
 
+For this story, "single-instrument" means a VST instance that hosts one playable instrument at a time, even if that instrument exposes multiple articulations or expressions. HALion-style multi-slot or multi-part instances remain outside this baseline.
+
 **Acceptance Criteria:**
 
 **Given** the legacy path has been removed from active behavior and backend ownership has been clarified
 **When** the reset baseline is evaluated
-**Then** the project has explicit checks for single-instrument VST-path activation and runtime coherence
+**Then** the project has explicit checks for single-instrument-VST-instance activation and runtime coherence
 **And** those checks are strong enough to block downstream epic work if the foundation is still untrusted
 
 **Given** the reset baseline is now the gate before first-audible-playback work
 **When** trust-restoration criteria are documented
 **Then** they define what must be true before Epic 4 style audible-playback stories can begin
-**And** they do not overclaim unsupported multi-instrument or richer runtime capability
+**And** they do not overclaim unsupported multi-instrument, multi-timbral, or richer runtime capability
 
 **Given** this reset affects developer expectations and planning artifacts
 **When** the baseline is finalized
 **Then** the relevant documentation and planning guidance reflect the VST-only foundation and deletion rules
 **And** the historical Epic 3 runway is not described as a production-trustworthy playback base
+
+**Planning Note:** Story 1.3 establishes the explicit trust-restoration baseline and records whether the pre-Epic-4 path is conceptually stable enough to continue. Epic 4 audible-playback stories remain blocked until the follow-up slot-owned runtime-session stories are complete and the maintainer manual proof flow records a go verdict on that architecture. Epic 3 remains discovery runway only, not a production-trustworthy playback baseline.
+
+### Story 1.4: Make Rack Slots Own Live Plugin Sessions
+
+As a maintainer,
+I want each routed playback slot to own one real initialized VST instance at runtime,
+So that playback and plugin state no longer depend on editor-window lifetime while project files remain portable.
+
+**Acceptance Criteria:**
+
+**Given** a slot is assigned to an available plugin
+**When** the backend prepares or restores that slot
+**Then** Rust creates or restores a slot-owned runtime session keyed by `slot_id`
+**And** that session is the authoritative live plugin ownership seam for the slot
+
+**Given** a slot-owned session exists
+**When** playback or score-context workflows query readiness
+**Then** they reflect that real runtime ownership instead of editor-created approximation
+**And** they do not treat editor-open as the act that creates canonical runtime state
+
+**Given** a slot is unassigned, removed, or the project closes
+**When** ownership ends
+**Then** the slot-owned session is torn down at that ownership boundary rather than at editor close
+**And** the teardown leaves persisted user intent consistent
+
+**Given** a project is saved
+**When** playback state is persisted
+**Then** `.soloc` stores only the portable plugin intent and the minimum data needed to rehydrate the slot-owned session later
+**And** it does not persist live host-session objects or machine-local runtime cache state
+
+### Story 1.5: Make Native Plugin Editors Transient Views On Slot-Owned Sessions
+
+As a composer,
+I want the native plugin editor to open against the running instance already owned by a slot,
+So that opening or closing the editor does not create, destroy, or swap the real playback instance.
+
+**Acceptance Criteria:**
+
+**Given** a slot-owned runtime session already exists
+**When** I open the editor
+**Then** Compose attaches the editor to that existing slot-owned session rather than creating a second canonical instance
+**And** the attach flow preserves the slot's current plugin state
+
+**Given** the editor is closed
+**When** the slot still exists
+**Then** the editor detaches without destroying the slot-owned runtime session
+**And** the slot remains playback-ready according to backend-owned truth
+
+**Given** multiple slots host the same plugin bundle
+**When** I open or reopen editors across them
+**Then** each editor targets the exact slot-owned instance rather than a bundle-level approximation
+**And** same-bundle slots remain distinct backend-owned editor targets
+
+### Story 1.6: Initialize And Restore Slot-Owned Sessions On Assignment And Reopen
+
+As a composer,
+I want assigned slots to initialize their plugin instances during assignment, preparation, or project reopen from portable saved intent,
+So that the plugin is already the intended running instrument before I ever open its editor.
+
+**Acceptance Criteria:**
+
+**Given** I assign a plugin to a slot
+**When** the backend accepts the assignment
+**Then** the slot enters an explicit initialization or recovery path that can produce a real running slot-owned session without requiring editor-open
+**And** the resulting state is surfaced through backend-owned readiness semantics
+
+**Given** a project is reopened and the plugin is available
+**When** slot and route intent are restored
+**Then** the slot-owned session is restored or reinitialized before editor-open and without rewriting project intent
+**And** the restored session reflects the portable saved intent recorded in `.soloc`
+
+**Given** the plugin cannot be initialized or restored
+**When** the backend surfaces state
+**Then** Compose reports an explicit recoverable non-ready condition rather than silently pretending the slot is initialized
+**And** the score remains usable
+
+**Given** `.soloc` is loaded
+**When** slot and plugin configuration are rehydrated
+**Then** the backend uses the portable saved intent to rebuild the slot-owned runtime session
+**And** the file is not required to contain live runtime state
 
 ## Epic 2: Find And Prepare Usable Plugins
 
@@ -481,7 +564,11 @@ So that changing routes or reopening relevant playback surfaces does not make th
 **Then** the frontend continues reflecting backend truth
 **And** no parallel route-state ownership is introduced in the UI
 
+**Planning Note:** Story 3.4 assumes Stories 1.4 through 1.6 have already established slot-owned runtime-session ownership and transient editor attachment. It does not replace that Epic 1 foundation work.
+
 ## Epic 4: Hear The Score Through Routed Instruments
+
+Blocked until Story 1.3 is closed as complete, Stories 1.4 through 1.6 establish slot-owned runtime-session ownership and transient editor attachment, and the required maintainer manual proof has completed successfully on that architecture.
 
 Composers can move from written notation to first audible VST-backed playback, with basic route-first mix control inside the core score workflow.
 

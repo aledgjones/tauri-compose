@@ -15,6 +15,30 @@ This project uses [Vitest](https://vitest.dev) as the test runner for TypeScript
 | `npm run test:js:logs:watch` | Watch mode with verbose logs           |
 | `npm run test:rust`          | Run all Rust tests (from `src-tauri/`) |
 
+## Single-instrument reset baseline
+
+Story 1.3 is the explicit release-style gate before Epic 4 audible-playback work can start. Here, single-instrument means one playable instrument per VST instance, even if that instance exposes multiple articulations or expressions; HALion-style multi-slot or multi-part instances remain out of scope. Treat it as a narrow trust-restoration proof, not as evidence of multi-instrument playback or audible transport support.
+
+Automated evidence required for the current baseline:
+
+- `cd src-tauri && cargo test runtime_activation -- --nocapture`
+- `cd src-tauri && cargo test plugin_editor_poc -- --nocapture`
+- `cd src-tauri && cargo test files::tests:: -- --nocapture`
+- `npm run check-types`
+- `npm run lint`
+
+Manual proof required before Epic 4 stories are unblocked:
+
+1. Prepare one routed score instrument against a supported single-instrument VST instance on the VST-only rack path.
+2. Open the app and confirm the route resolves as transport-ready through the existing score-context or maintainer-facing diagnostics surfaces.
+3. Open the native editor from the routed rack slot, verify the host window and embedded editor stay in sync during resize behavior, close it, and reopen it in the same session without hangs.
+4. If two rack slots point at the same bundle, confirm the slot-scoped open action targets the intended slot identity rather than reusing the other slot's editor target.
+5. Save the score, reopen the `.soloc` file, and confirm portable route intent persists while runtime readiness is re-resolved from current machine-local inventory.
+
+Blocking rule:
+
+- Epic 4 audible-playback implementation stays blocked until both the automated checks above pass and the manual proof flow has been completed with a go verdict.
+
 ## Native editor host validation subset
 
 Use Story 2.7's bounded macOS editor-host claim, not a universal compatibility assumption.
@@ -215,6 +239,8 @@ it("calls play on click", async () => {
 Tests are co-located in `#[cfg(test)] mod tests {}` blocks at the bottom of each source file. Run them with `cargo test` from the `src-tauri/` directory.
 
 Playback ownership regressions should stay seam-local. When validating playback readiness or recovery, derive results through `PlaybackActivationRuntime::from_score_and_inventory(...)` and adjacent file/load seams rather than adding score-local duplicate readiness logic in tests.
+
+For the Story 1.3 reset baseline specifically, use `PlaybackActivationRuntime::single_instrument_trust_gate(...)` as the backend-owned trust seam. It is transport-readiness-only and should not be used to imply audible playback, multi-instrument support, or broader plugin-host compatibility than the currently supported single-instrument subset.
 
 ```rust
 // src-tauri/src/renderer/converter.rs

@@ -2161,6 +2161,9 @@ mod tests {
         let resolved = state
             .playback_activation_runtime
             .resolved_playback_route_by_instrument_id(&state.score);
+        let trust_gate = state
+            .playback_activation_runtime
+            .single_instrument_trust_gate(&state.score);
 
         assert_eq!(
             resolved.get(&10).unwrap().status,
@@ -2174,6 +2177,7 @@ mod tests {
             state.current_file_path.as_deref(),
             Some("/tmp/runtime-refresh.soloc")
         );
+        assert!(trust_gate.is_transport_ready());
     }
 
     #[test]
@@ -2237,6 +2241,9 @@ mod tests {
         let resolved = state
             .playback_activation_runtime
             .resolved_playback_route_by_instrument_id(&state.score);
+        let trust_gate = state
+            .playback_activation_runtime
+            .single_instrument_trust_gate(&state.score);
 
         assert_eq!(
             state.score.instruments.by_id[&10].playback_route,
@@ -2254,6 +2261,7 @@ mod tests {
             ResolvedPlaybackRouteStatus::NeedsAttention
         );
         assert_eq!(resolved.get(&10).unwrap().effective_plugin_id, None);
+        assert!(!trust_gate.is_transport_ready());
     }
 
     #[test]

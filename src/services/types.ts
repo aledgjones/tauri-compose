@@ -524,6 +524,7 @@ export type Selection =
   | TupletSelection;
 
 export type AppState = {
+  single_instrument_transport_ready?: boolean;
   ui: {
     tab: Tab;
     layout_id: UniqueId | null;
