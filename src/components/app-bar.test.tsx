@@ -30,6 +30,14 @@ describe("AppBar", () => {
     );
   });
 
+  it("centers the title row", () => {
+    const { container } = renderWithProviders(<AppBar title="Compose" />);
+
+    expect(container.firstElementChild?.firstElementChild).toHaveClass(
+      "justify-center",
+    );
+  });
+
   it("shows only the custom title when no file is open", () => {
     renderWithProviders(<AppBar title="Compose" />);
 

@@ -24,7 +24,7 @@ export const AppBar: FC<Props> = ({
         className,
       )}
     >
-      <div className="pointer-events-none select-none h-full flex min-w-0 items-center pl-20 -mt-0.5">
+      <div className="pointer-events-none select-none h-full flex min-w-0 items-center justify-center">
         <span
           data-testid="app-bar-custom-title"
           className={classNames(
