@@ -821,6 +821,41 @@ mod tests {
     }
 
     #[test]
+    fn plugin_inventory_startup_treats_empty_persisted_state_as_cache_present() {
+        let root = std::env::temp_dir().join(format!(
+            "plugin-inventory-startup-empty-cache-present-{}",
+            std::process::id()
+        ));
+        let db_path = root.join("db");
+        let discovery_root = root.join("plugins");
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&discovery_root).unwrap();
+
+        let db = open_db(&db_path);
+        let payload = serde_json::to_vec(&super::PersistedPluginInventoryState {
+            entries: vec![],
+            last_discovered_at_ms: Some(123),
+        })
+        .unwrap();
+        db.insert(super::INVENTORY_STATE_KEY, payload).unwrap();
+        db.flush().unwrap();
+        drop(db);
+
+        let reloaded = PluginInventoryContext::from_db_path_and_roots(
+            Some(&db_path),
+            std::slice::from_ref(&discovery_root),
+            Vec::new(),
+        );
+        let snapshot = reloaded.snapshot();
+
+        assert!(snapshot.entries.is_empty());
+        assert!(snapshot.errors.is_empty());
+        assert_eq!(snapshot.last_discovered_at_ms, Some(123));
+
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
     fn manual_full_rescan_replaces_bounded_startup_snapshot_and_persists_new_truth() {
         let root = std::env::temp_dir().join(format!(
             "plugin-inventory-manual-full-rescan-{}",

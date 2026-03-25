@@ -40,7 +40,10 @@ describe("PluginsToolbar", () => {
     onShowActiveOnlyChange: vi.fn(),
   };
 
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.stubGlobal("alert", vi.fn());
+  });
 
   it("renders without crashing", () => {
     const { container } = renderWithProviders(<PluginsToolbar {...defaults} />);
@@ -119,6 +122,24 @@ describe("PluginsToolbar", () => {
 
     await waitFor(() => {
       expect(refreshButton).not.toBeDisabled();
+    });
+  });
+
+  it("shows a dialog when the manual rescan command rejects", async () => {
+    vi.mocked(actions.pluginInventory.discover).mockRejectedValueOnce(
+      new Error("refresh failed"),
+    );
+
+    renderWithProviders(<PluginsToolbar {...defaults} />);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Refresh plugin inventory" }),
+    );
+
+    await waitFor(() => {
+      expect(globalThis.alert).toHaveBeenCalledWith(
+        "Plugin inventory refresh failed.",
+      );
     });
   });
 

@@ -208,6 +208,8 @@ export const PluginsToolbar: FC<PluginsToolbarProps> = ({
 
     try {
       await actions.pluginInventory.discover();
+    } catch {
+      alert("Plugin inventory refresh failed.");
     } finally {
       setIsRescanning(false);
     }
