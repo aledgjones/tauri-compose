@@ -169,12 +169,12 @@ mod playback {
                             },
                             Some(route) => match score.playback.rack.by_id.get(&route.slot_id) {
                                 None => ResolvedPlaybackRoute {
-                                    status: ResolvedPlaybackRouteStatus::NeedsAttention,
-                                    slot_id: Some(route.slot_id),
+                                    status: ResolvedPlaybackRouteStatus::Unrouted,
+                                    slot_id: None,
                                     slot_target: None,
                                     effective_plugin_id: None,
-                                    target: Some(route.target.clone()),
-                                    address: Some(route.address.clone()),
+                                    target: None,
+                                    address: None,
                                 },
                                 Some(slot) => {
                                     let activated_route = self

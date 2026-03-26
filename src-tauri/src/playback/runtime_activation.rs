@@ -160,12 +160,12 @@ impl PlaybackActivationRuntime {
                     },
                     Some(route) => match score.playback.rack.by_id.get(&route.slot_id) {
                         None => ResolvedPlaybackRoute {
-                            status: ResolvedPlaybackRouteStatus::NeedsAttention,
-                            slot_id: Some(route.slot_id),
+                            status: ResolvedPlaybackRouteStatus::Unrouted,
+                            slot_id: None,
                             slot_target: None,
                             effective_plugin_id: None,
-                            target: Some(route.target.clone()),
-                            address: Some(route.address.clone()),
+                            target: None,
+                            address: None,
                         },
                         Some(slot) => {
                             let activated_route = self
@@ -543,6 +543,30 @@ mod tests {
             resolved.get(&10).unwrap().status,
             ResolvedPlaybackRouteStatus::NeedsAttention
         );
+    }
+
+    #[test]
+    fn missing_slot_reference_normalizes_to_unrouted() {
+        let inventory = PluginInventoryContext::with_entries_for_tests(vec![available_entry(
+            "plugin-a",
+            "/Library/Audio/Plug-Ins/VST3/Plugin A.vst3",
+        )]);
+        let mut score = make_score();
+        score.instruments.by_id.get_mut(&10).unwrap().playback_route =
+            Some(InstrumentPlaybackRoute::direct(404));
+
+        let runtime = PlaybackActivationRuntime::from_score_and_inventory(&score, &inventory);
+        let resolved = runtime.resolved_playback_route_by_instrument_id(&score);
+
+        assert_eq!(
+            resolved.get(&10).unwrap().status,
+            ResolvedPlaybackRouteStatus::Unrouted
+        );
+        assert_eq!(resolved.get(&10).unwrap().slot_id, None);
+        assert_eq!(resolved.get(&10).unwrap().slot_target, None);
+        assert_eq!(resolved.get(&10).unwrap().effective_plugin_id, None);
+        assert_eq!(resolved.get(&10).unwrap().target, None);
+        assert_eq!(resolved.get(&10).unwrap().address, None);
     }
 
     #[test]

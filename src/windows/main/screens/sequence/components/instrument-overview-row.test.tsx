@@ -324,6 +324,38 @@ describe("InstrumentOverviewRow", () => {
     });
   });
 
+  it("keeps the score-context route picker usable after a missing slot normalizes to unrouted", async () => {
+    renderRow({
+      status: ResolvedPlaybackRouteStatus.Unrouted,
+      slot_id: null,
+      slot_target: null,
+      effective_plugin_id: null,
+      target: null,
+      address: null,
+    });
+
+    const routeButton = screen.getByRole("button", { name: /^--/i });
+
+    expect(
+      within(routeButton).getByTitle(
+        "Assign a playback route to enable playback.",
+      ),
+    ).toBeInTheDocument();
+
+    fireEvent.click(routeButton);
+    fireEvent.click(screen.getByRole("option", { name: "1. Grand Piano" }));
+
+    await waitFor(() => {
+      expect(actions.ui.sequencer.setInstrument).toHaveBeenCalledWith(5);
+      expect(actions.score.instrument.assignSlotRoute).toHaveBeenCalledWith(
+        5,
+        7,
+        { mode: 0, index: null },
+        { mode: 0, index: null },
+      );
+    });
+  });
+
   it("uses the backend-owned route choice when a slot exposes a non-root target", async () => {
     renderWithProviders(
       <InstrumentOverviewRow

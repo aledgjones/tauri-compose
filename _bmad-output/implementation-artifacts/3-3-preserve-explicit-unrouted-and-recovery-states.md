@@ -1,6 +1,6 @@
 # Story 3.3: Preserve Explicit Unrouted And Recovery States
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -17,26 +17,26 @@ so that missing playback setup does not break my score or get hidden behind fall
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Validate that unrouted and unresolved playback states stay explicit in backend-owned truth (AC: 1, 3, 4)
-  - [ ] Confirm instruments with no playable mapping remain explicitly unrouted or non-ready rather than silently appearing ready.
-  - [ ] Confirm previously valid but currently unresolved routes preserve the intended route truth rather than collapsing into hidden fallback behavior.
-  - [ ] Confirm score work remains usable even when playback is non-ready.
-- [ ] Task 2: Keep recovery bounded to existing score-context seams (AC: 2, 4)
-  - [ ] Treat the current score-context rack and routing seams as the primary recovery path.
-  - [ ] Do not introduce a new repair button, wizard, panel, modal, or app-scoped flow for this story.
-  - [ ] If a gap exists, prefer wiring or validating the existing score-context path rather than inventing a new one.
-- [ ] Task 3: Preserve user intent and avoid frontend-only fallback logic (AC: 1, 3, 4)
-  - [ ] Verify the surfaced non-ready state reflects backend-owned truth.
-  - [ ] Do not add frontend-only logic that masks unresolved routes or pretends playback is ready.
-  - [ ] Keep any necessary correction minimal and within existing state-consumption seams.
-- [ ] Task 4: Keep explanatory behavior and UI changes strictly minimal (AC: 2, 4)
-  - [ ] Do not broaden compact row or rack UI into a richer recovery workflow.
-  - [ ] Do not add inline diagnostic prose, status boxes, or extra recovery controls to satisfy the story.
-  - [ ] If implementation touches nearby non-ready messaging, keep it bounded and aligned with the already-approved minimal UI direction.
-- [ ] Task 5: Add focused regression coverage for honest non-ready and recoverable behavior (AC: 1, 2, 3, 4)
-  - [ ] Update or confirm tests for explicit unrouted and unresolved states.
-  - [ ] Verify tests prove score-context seams remain usable when playback is non-ready.
-  - [ ] Document explicitly that Story 3.3 is primarily a validation and bug-gap story, not a new recovery UX story.
+- [x] Task 1: Validate that unrouted and unresolved playback states stay explicit in backend-owned truth (AC: 1, 3, 4)
+  - [x] Confirm instruments with no playable mapping remain explicitly unrouted or non-ready rather than silently appearing ready.
+  - [x] Confirm previously valid but currently unresolved routes preserve the intended route truth rather than collapsing into hidden fallback behavior.
+  - [x] Confirm score work remains usable even when playback is non-ready.
+- [x] Task 2: Keep recovery bounded to existing score-context seams (AC: 2, 4)
+  - [x] Treat the current score-context rack and routing seams as the primary recovery path.
+  - [x] Do not introduce a new repair button, wizard, panel, modal, or app-scoped flow for this story.
+  - [x] If a gap exists, prefer wiring or validating the existing score-context path rather than inventing a new one.
+- [x] Task 3: Preserve user intent and avoid frontend-only fallback logic (AC: 1, 3, 4)
+  - [x] Verify the surfaced non-ready state reflects backend-owned truth.
+  - [x] Do not add frontend-only logic that masks unresolved routes or pretends playback is ready.
+  - [x] Keep any necessary correction minimal and within existing state-consumption seams.
+- [x] Task 4: Keep explanatory behavior and UI changes strictly minimal (AC: 2, 4)
+  - [x] Do not broaden compact row or rack UI into a richer recovery workflow.
+  - [x] Do not add inline diagnostic prose, status boxes, or extra recovery controls to satisfy the story.
+  - [x] If implementation touches nearby non-ready messaging, keep it bounded and aligned with the already-approved minimal UI direction.
+- [x] Task 5: Add focused regression coverage for honest non-ready and recoverable behavior (AC: 1, 2, 3, 4)
+  - [x] Update or confirm tests for explicit unrouted and unresolved states.
+  - [x] Verify tests prove score-context seams remain usable when playback is non-ready.
+  - [x] Document explicitly that Story 3.3 is primarily a validation and bug-gap story, not a new recovery UX story.
 
 ## Dev Notes
 
@@ -199,6 +199,11 @@ so that missing playback setup does not break my score or get hidden behind fall
 - `src/windows/main/screens/sequence/components/playback-readiness.tsx` — compact non-ready affordance seam.
 - `src/windows/main/screens/sequence/components/playback-readiness-presentation.ts` — compact state mapping seam.
 
+### Review Findings
+
+- [x] [Review][Dismissed] Missing-slot route references are collapsed to generic unrouted state and lose recovery context [src-tauri/src/playback/runtime_activation.rs:163] — expected normalization for this story; no action required.
+- [x] [Review][Patch] Missing-slot route handling is not covered at the score-context presentation seam [src/windows/main/screens/sequence/components/playback-readiness-presentation.ts:47]
+
 ## Dev Agent Record
 
 ### Agent Model Used
@@ -207,6 +212,30 @@ GPT-5.4
 
 ### Debug Log References
 
+- `cargo test --manifest-path src-tauri/Cargo.toml missing_slot_reference_normalizes_to_unrouted`
+- `cargo test --manifest-path src-tauri/Cargo.toml removing_referenced_slot_resolves_instrument_as_unrouted`
+- `npm run lint`
+- `npm run check-types`
+- `npm run test:js`
+- `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings` (blocked by pre-existing unrelated warnings in `src-tauri/src/playback/audio.rs` and `src-tauri/src/playback/plugin_inventory.rs`)
+
 ### Completion Notes List
 
+- Normalized stale missing-slot route references in the Rust-owned runtime resolver to backend-owned `Unrouted` state so unsupported route truth no longer survives as a separate degraded UI case.
+- Kept the supported slot-removal path aligned with that policy by verifying the existing score-model regression still resolves removed-slot instruments as unrouted.
+- Removed the temporary frontend-only missing-slot preservation workaround and left the Sequence row as a thin consumer of backend truth.
+- Added focused Rust regression coverage for the stale missing-slot normalization and kept Story 3.3 bounded as a validation-and-gap story rather than a new recovery UX slice.
+- Added a focused Sequence row regression proving the score-context picker stays usable after backend normalization clears a missing-slot reference to unrouted state.
+
 ### File List
+
+- `_bmad-output/implementation-artifacts/3-3-preserve-explicit-unrouted-and-recovery-states.md`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `src/windows/main/screens/sequence/components/instrument-overview-row.test.tsx`
+- `src-tauri/src/bin/performance.rs`
+- `src-tauri/src/playback/runtime_activation.rs`
+
+## Change Log
+
+- 2026-03-26: Normalized stale missing-slot route references to backend-owned unrouted state and added focused Rust regression coverage for that policy.
+- 2026-03-26: Review follow-up added score-context row coverage for the normalized missing-slot state and closed the story.
