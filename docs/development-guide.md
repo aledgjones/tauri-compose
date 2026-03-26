@@ -152,9 +152,9 @@ All four must pass. Clippy warnings are treated as errors — do not suppress wi
 
 Pre-commit hooks (via `lint-staged` + `simple-git-hooks`) run ESLint and Prettier automatically on staged files. If hooks are not running after a fresh clone, register them with `npx simple-git-hooks`.
 
-## macOS Native Plugin Host POC
+## macOS Native Editor Handoff
 
-The experimental native host proof is macOS-only and remains a bounded maintainer seam. Keep it distinct from the dedicated Plugin Manager window so the canonical inventory browser stays focused on user-facing discovery, health, and refresh workflows.
+The bounded native editor handoff is macOS-only. Keep it distinct from the dedicated Plugin Manager window so the canonical inventory browser stays focused on user-facing discovery, health, and refresh workflows.
 
 The POC resolves its target in this order:
 
@@ -171,7 +171,7 @@ export SOLOC_PLUGIN_EDITOR_POC_VST3_PATH="/Library/Audio/Plug-Ins/VST3/My Test P
 npm run start:dev
 ```
 
-What the current proof does:
+What the current bounded handoff does:
 
 - validates the configured path before creating the host window
 - prefers Rust-owned plugin inventory targeting when the request provides a plugin-backed `plugin_id`
@@ -180,9 +180,9 @@ What the current proof does:
 - loads the VST3 bundle binary from the macOS bundle, creates a component/controller pair, synchronizes component state into the controller when the plugin exposes separate objects, connects `IConnectionPoint` when available, requests `ViewType::kEditor`, and attaches the returned `IPlugView` to the native AppKit content area
 - performs the initial focus/size sync only after Rust stores the live host session, so reopen and same-session reattach follow the same backend-owned session path instead of depending on a one-shot attach side effect
 - defaults the host window to non-resizable until the plugin explicitly reports that its editor can resize via `IPlugView::canResize()`, while still forwarding bounded geometry sync callbacks needed to keep the attached editor positioned correctly inside the host surface
-- keeps the experimental host state in Rust and logs create, focus, resize, close, destroy, and reopen lifecycle events
+- keeps the bounded host state in Rust and logs create, focus, resize, close, destroy, and reopen lifecycle events
 
-The `plugin-host-poc` window remains a development-only proof seam for the upcoming native editor-host stories. Keep it distinct from the canonical Sequence-menu `Plugin Manager...` inventory window, and do not treat the experimental host seam as the default answer to assignment, playback, or routine plugin troubleshooting workflows.
+The supported user-facing entry point for this bounded handoff is the Sequence score-context rack action on a prepared slot. Keep that handoff distinct from the canonical Sequence-menu `Plugin Manager...` inventory window, and do not treat the native editor seam as the default answer to assignment, playback, or routine plugin troubleshooting workflows.
 
 Plugin inventory startup behavior:
 
@@ -209,7 +209,7 @@ Current bounded validation subset:
 
 - Known-good bounded-host examples: `BBC Symphony Orchestra.vst3` remains the primary control case, and recent successful maintainer runs also include `Reverb.vst3`, `ProEQ.vst3`, and `Originals - Intimate Grand Piano.vst3`.
 - HALion Sonic posture: repeated bounded-host repros now crash with the same `EXC_BAD_ACCESS` null dereference inside `HALion Sonic` during controller `initialize`, so `HALion Sonic.vst3` is again policy-blocked before host attachment instead of leaving the crash path available in maintainer UI flows.
-- Explicitly policy-blocked targets in the current proof host: the bounded native editor-host seam now blocks `HALion Sonic.vst3`, `HALion Sonic SE.vst3`, `Groove Agent SE.vst3`, `Kontakt 7.vst3`, and `MT-PowerDrumKit.vst3` before host attachment. Those entries remain available as inventory items when their bundles validate, but the experimental host path keeps that compatibility evidence separate from bundle validation failure.
+- Explicitly policy-blocked targets in the current bounded host: the bounded native editor-host seam now blocks `HALion Sonic.vst3`, `HALion Sonic SE.vst3`, `Groove Agent SE.vst3`, `Kontakt 7.vst3`, and `MT-PowerDrumKit.vst3` before host attachment. Those entries remain available as inventory items when their bundles validate, but the bounded host path keeps that compatibility evidence separate from bundle validation failure.
 - Structured host diagnostics: the bounded host now records phase-aware native-editor results such as `policy_gate`, `module_load`, `component_create`, `controller_initialize`, `view_create`, and `view_attach`. Successful attaches record that editor-host usability is proven while multi-part capability remains `not_proven` until a later bounded seam exposes plugin-derived facts.
 - Current host-interface tradeoff: the host shim now advertises `IUpdateHandler` because Steinberg-family controllers are more likely to depend on it during initialization. The COM wrapper has a fixed interface tuple limit, so this bounded seam intentionally no longer advertises `IDataExchangeHandler` in the queryable host surface.
 
@@ -219,13 +219,13 @@ Manual validation checklist:
 2. Confirm startup first reuses any existing machine-local cache in the Sequence `Plugins` bottom panel without requiring the refresh action.
 3. If you add a new `.vst3` bundle under the standard discovery roots between launches, confirm the next startup surfaces it without requiring refresh.
 4. If you need to force a broader discovery pass, trigger `plugin_inventory_discover` from the Plugin Manager `Refresh plugin inventory` action and verify the machine-local VST3 inventory updates there.
-5. Exercise the bounded native editor-host seam through a development harness or the score-context rack editor-open flow for a known-good available plugin.
+5. Exercise the bounded native editor-host seam through the score-context rack editor-open flow for a known-good available plugin.
 6. Confirm the dedicated host window opens and remains responsive.
 7. Confirm the Rust logs show create/focus events and, for a compatible plugin, that the plugin editor UI appears inside the host window rather than the previous placeholder-only surface.
 8. If the plugin reports that its editor can resize, resize the window and confirm the native host area stays attached without leaving stale content behind. If the plugin does not report resize support, confirm the host window remains bounded instead of pretending arbitrary resize support exists.
 9. Switch focus between the main window and the host window and confirm the app remains responsive and the plugin editor retains coherent focus behavior.
 10. Close the host window, confirm the Rust logs show teardown without leaving stale host ownership behind, then reopen the same plugin in the same session.
-11. Try the same action against an invalid or unavailable target via a development harness or invalid `SOLOC_PLUGIN_EDITOR_POC_VST3_PATH`, and confirm the failure stays local to the host attempt without leaving an orphaned host window.
+11. Try the same action against an invalid or unavailable target via invalid `SOLOC_PLUGIN_EDITOR_POC_VST3_PATH` or an equivalent backend-targeted harness, and confirm the failure stays local to the host attempt without leaving an orphaned host window.
 12. Try the same action against a blocked Steinberg-family target such as `HALion Sonic.vst3`, `HALion Sonic SE.vst3`, or `Groove Agent SE.vst3`, and confirm backend fallback protection rejects direct requests without creating or reserving a plugin-host window.
 13. Try the same action against another blocked bundle such as `Kontakt 7.vst3` or `MT-PowerDrumKit.vst3`, and confirm the same policy-gate behavior holds without needing a live host attempt.
 
