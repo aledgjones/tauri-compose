@@ -196,7 +196,7 @@ A maintainer or advanced internal user is not just composing; they are validatin
 
 Their concern is not musical delight first. It is whether the system is architecturally trustworthy: no locks on the audio thread, no rendering interference causing glitches, no regressions in play/pause/seek behavior, and no evidence that future playback features will require another foundational rewrite. They are effectively asking whether the product now has a credible playback platform instead of an experiment.
 
-The current reset baseline for that verdict is intentionally narrow. Before Epic 4 audible-playback stories begin, maintainers must be able to prove one routed path through a slot-owned single-instrument VST instance is transport-ready, editor-host lifecycle-stable, durable across a `.soloc` save or reopen pass, independent of whether the native editor window is currently open, and rehydrated from portable saved intent rather than persisted live runtime state. Here, single-instrument means one playable instrument per VST instance, even if that instance exposes articulations or expressions; HALion-style multi-slot or multi-part instances remain out of scope. That gate is explicitly not a claim about multi-instrument behavior or first audible playback.
+The reset baseline for that verdict was intentionally narrow, and that gate is now satisfied. Maintainers proved one routed path through a slot-owned single-instrument VST instance is transport-ready, editor-host lifecycle-stable, durable across a `.soloc` save or reopen pass, independent of whether the native editor window is currently open, and rehydrated from portable saved intent rather than persisted live runtime state. Here, single-instrument means one playable instrument per VST instance, even if that instance exposes articulations or expressions; HALion-style multi-slot or multi-part instances remain out of scope. That gate unlocked Epic 4, but it is still explicitly not a claim about multi-instrument behavior or already-shipped audible playback.
 
 The journey succeeds when the maintainer can validate sensible VST3 integration, stable transport behavior, and a clean enough architecture that future features such as expression maps feel incremental. It fails if playback appears to work only in narrow happy paths, if plugin support feels ad hoc, or if regressions suggest the architecture will collapse under future scope.
 
@@ -207,7 +207,7 @@ Capabilities revealed by this journey:
 - defined transport regression scenarios
 - clear architecture constraints around realtime safety
 - observability and validation criteria sufficient for release confidence
-- explicit manual proof for the single-instrument-VST-instance reset baseline before audible-playback implementation begins
+- explicit manual proof for the single-instrument-VST-instance reset baseline that unlocked audible-playback implementation
 
 ### Journey Requirements Summary
 

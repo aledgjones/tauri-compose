@@ -7,6 +7,9 @@ Workflow: Correct Course
 Mode: Batch
 Recommended path: Hybrid of Potential Rollback + PRD MVP Review
 Approval status: Approved by Aled on 2026-03-24
+Resolution status: The stabilization direction proposed here was subsequently executed through Stories 1.3 through 1.6 and the supporting hardening work in Epics 2 and 3; the gate is now satisfied and Epic 4 resumed as the next execution phase on 2026-03-26.
+
+Historical note: The analysis below records the project state and decision logic on 2026-03-24 before the follow-up stabilization work landed.
 
 ## 1. Issue Summary
 
@@ -443,3 +446,9 @@ No planning artifacts besides this proposal have been changed yet.
   - Solution Architect for foundation-reset target state and seam-deletion rules
   - Scrum Master for backlog and sprint reorganization
   - QA for trust-restoration criteria before playback work resumes
+
+## 11. Resolution Note
+
+- This proposal is retained as the historical record of why the original forward plan was paused before Epic 4.
+- Its recommended stabilization direction was later carried out through Story 1.3 plus follow-up Stories 1.4 through 1.6 and the supporting stabilization work in Epics 2 and 3.
+- The gate described here is no longer pending; it is completed history, and Epic 4 is now the correct next execution epic.

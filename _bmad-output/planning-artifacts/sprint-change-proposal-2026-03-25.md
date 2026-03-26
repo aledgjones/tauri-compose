@@ -7,6 +7,9 @@ Workflow: Correct Course
 Mode: Batch
 Recommended path: Hybrid of Direct Adjustment + Narrow Architecture Rebaseline
 Approval status: Approved and applied
+Resolution status: Follow-up Stories 1.4 through 1.6, the supporting stabilization work in Epics 2 and 3, and the required maintainer proof are now complete; Epic 4 is unblocked as of 2026-03-26.
+
+Historical note: The body of this proposal records the gap analysis and recommended gate as they stood on 2026-03-25. Where the text below describes Epic 4 as blocked, read that as proposal-time state, not current project status.
 
 ## 1. Issue Summary
 
@@ -67,9 +70,9 @@ That means the current implementation can make slot and route state look coheren
 
 #### Epic 4 impact
 
-- Epic 4 remains blocked.
-- Story 1.3 alone is not a sufficient gate for Epic 4, even if it is completed and records valid trust-restoration output.
-- Epic 4 should be blocked until the slot-owned runtime-session follow-up stories are complete and the maintainer proof is rerun on that architecture.
+- At proposal time, Epic 4 was still blocked.
+- Story 1.3 alone was not a sufficient gate for Epic 4, even if it was completed and recorded valid trust-restoration output.
+- The proposal required Epic 4 to remain blocked until the slot-owned runtime-session follow-up stories were complete and the maintainer proof was rerun on that architecture.
 
 #### Future epic impact
 
@@ -156,7 +159,7 @@ Selected approach: Hybrid of Option 1 and a narrow Option 3
 1. Keep Story 1.3 as valid completed trust-restoration work once its normal review closure completes.
 2. Add explicit discovered-link follow-up stories under Epic 1.
 3. Tighten PRD, architecture, UX, persistence, and sprint-tracking language so slot-owned runtime sessions become a non-negotiable gate before Epic 4 while `.soloc` remains limited to portable rehydration intent.
-4. Leave Epic 4 blocked until those follow-up stories are complete and the maintainer proof is rerun.
+4. At proposal time, leave Epic 4 blocked until those follow-up stories are complete and the maintainer proof is rerun.
 
 #### Rationale
 
@@ -427,19 +430,24 @@ Moderate
 
 - Story 1.3 is recorded as complete without overstating what it proved.
 - Stories 1.4 through 1.6 exist explicitly in plan and sprint tracking.
-- Epic 4 remains blocked by the correct ownership gate.
+- The proposal correctly defines the ownership gate that had to be cleared before Epic 4 could resume.
 - Planning and architecture artifacts state clearly that slots own live initialized plugin sessions and editors are transient attachments.
+
+Resolution note:
+
+- This success criterion has now been satisfied in full: the ownership gate was cleared by Stories 1.4 through 1.6, the supporting stabilization work in Epics 2 and 3, and the completed maintainer proof.
+- Epic 4 is no longer blocked.
 
 ## 6. Final Review Status
 
 Proposal accuracy review: complete
 
 - The proposal preserves Story 1.3 as valid completed work.
-- The proposal does not overclaim that Epic 4 can now begin.
+- The proposal did not overclaim that Epic 4 could begin before the follow-up work landed; that gate has since been satisfied.
 - The proposal narrows the correction to the discovered architectural gap instead of reopening the broader 2026-03-24 reset.
 
-Pending user decision:
+Current status:
 
-- Approve this proposal as written
-- Revise story names, scope, or sequencing
+- Approved, applied, and resolved.
+- No further user decision is pending on this proposal itself.
 - Convert one or more proposed follow-up stories into a different epic if desired

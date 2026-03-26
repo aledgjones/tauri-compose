@@ -291,7 +291,7 @@ For this story, "single-instrument" means a VST instance that hosts one playable
 **Then** the relevant documentation and planning guidance reflect the VST-only foundation and deletion rules
 **And** the historical Epic 3 runway is not described as a production-trustworthy playback base
 
-**Planning Note:** Story 1.3 establishes the explicit trust-restoration baseline and records whether the pre-Epic-4 path is conceptually stable enough to continue. Epic 4 audible-playback stories remain blocked until the follow-up slot-owned runtime-session stories are complete and the maintainer manual proof flow records a go verdict on that architecture. Epic 3 remains discovery runway only, not a production-trustworthy playback baseline.
+**Planning Note:** Story 1.3 established the explicit trust-restoration baseline, and follow-up Stories 1.4 through 1.6 plus the required maintainer manual proof completed that gate on the corrected slot-owned-session architecture. Epic 4 is now the next execution epic. Epic 3 then exercised that stabilized foundation through compact routing, explicit recovery states, and same-session stability work rather than serving as a separate blocker.
 
 ### Story 1.4: Make Rack Slots Own Live Plugin Sessions
 
@@ -568,7 +568,7 @@ So that changing routes or reopening relevant playback surfaces does not make th
 
 ## Epic 4: Hear The Score Through Routed Instruments
 
-Blocked until Story 1.3 is closed as complete, Stories 1.4 through 1.6 establish slot-owned runtime-session ownership and transient editor attachment, and the required maintainer manual proof has completed successfully on that architecture.
+Readiness Note: The Story 1.3 through 1.6 trust-restoration gate and the required maintainer manual proof are complete on the corrected slot-owned-session architecture. Epic 4 is now ready to begin.
 
 Composers can move from written notation to first audible VST-backed playback, with basic route-first mix control inside the core score workflow.
 

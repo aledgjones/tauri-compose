@@ -38,9 +38,9 @@ The loaded planning set defines 41 functional requirements, 14 explicit non-func
 
 The core functional demand is not merely "play sound through plugins." The real product requirement is a trustworthy score-first playback workflow that stays inside Compose and lets users compose against playback rather than treat it as a fragile preview mode. This means the architecture must support fast routing, audible playback, transport trust, recovery from missing plugins, and eventual score-linked realism without turning the product into a DAW-shaped control surface.
 
-The project context also includes a newly approved course correction. The Epic 3 retrospective and sprint change proposal establish that story-complete progress is currently ahead of product trust. Epic 4 is blocked, the current first-audible-playback sequence is no longer acceptable as the next step, and the architecture must now assume a required stabilization phase before audible-playback work resumes. That stabilization phase exists to remove sampler-era or SCVI-era active-path residue, restore trust in the single-instrument-VST-instance path, simplify rack-first score-context UX, and rebaseline downstream planning.
+The project context also includes a now-completed course correction. The original forward plan paused before Epic 4, then the team used Stories 1.3 through 1.6 plus the routed-workflow hardening in Epics 2 and 3 to stabilize the single-instrument VST foundation, slot-owned runtime sessions, score-context routing, and same-session behavior. A minor follow-up correction was needed to fully solidify that path, but the trust-restoration gate and required maintainer proof are now satisfied. The architecture can therefore treat Epic 4 as the resumed next execution phase rather than as a still-blocked target.
 
-This introduces an important architectural fact: the current epic breakdown is historically useful but not authoritative for sequencing. The approved change proposal supersedes the old progression by inserting a new foundation-reset epic before first audible playback. The architecture therefore has to treat planning drift itself as an input constraint and explicitly define the target state the reset epic is working toward.
+This introduces an important architectural fact: the current epic breakdown must describe the corrected sequence explicitly. The course correction no longer represents a pending insertion before first audible playback; it is the completed bridge that made Epic 4 viable. The architecture therefore has to preserve that history clearly enough that future planning does not regress into the abandoned pre-correction narrative.
 
 **Non-Functional Requirements:**
 The strongest non-functional requirements are lock-free audio-thread behavior, zero-dropout representative transport regressions, coherent repeated play/pause/resume/seek behavior, bounded edit-during-playback behavior, and resilient reopen or recovery semantics. These are hard architectural constraints, not implementation polish. They directly constrain ownership, concurrency, scheduler design, communication patterns, and state modeling.
@@ -68,7 +68,7 @@ The approved reset direction tightens several constraints. The active playback p
 
 Platform scope remains intentionally narrow: macOS only, VST3 only, offline-first, local desktop persistence, local plugin discovery, and local editor hosting. This is useful simplification and should not be abstracted away prematurely.
 
-Another key dependency is planning integrity. The PRD and UX documents are still usable inputs, but they now sit alongside a retrospective and approved change proposal that say the current foundation is not trustworthy enough for direct continuation. The architecture therefore depends on making the reset target explicit enough that future stories do not drift back into evolutionary compatibility language or acceptance-criteria-driven UI bloat.
+Another key dependency is planning integrity. The PRD and UX documents are still usable inputs, but they now sit alongside a retrospective and approved change proposal that record how the foundation was stabilized before Epic 4 resumed. The architecture therefore depends on keeping that corrected sequencing explicit enough that future stories do not drift back into evolutionary compatibility language, obsolete blocker wording, or acceptance-criteria-driven UI bloat.
 
 ### Cross-Cutting Concerns Identified
 
@@ -784,7 +784,7 @@ The project structure section aligns with the architecture because it maps decis
 **Feature and Epic Coverage:**
 The architecture supports the product capabilities described in the PRD and UX spec: plugin discovery, inventory management, rack/slot/route ownership, transport behavior, persistence and reopen recovery, bounded editor hosting, and future reusable playback assets.
 
-However, one planning artifact mismatch remains visible: the approved 2026-03-24 change proposal inserts a stabilization/reset epic before first-audible playback, but the current epic breakdown artifact still shows the old sequencing. The architecture accounts for the approved reset direction, so this is a planning-sync issue rather than an architectural gap.
+The earlier planning mismatch has now been resolved in the living artifact set: the approved 2026-03-24 and 2026-03-25 course-correction work is represented as completed stabilization history, and Epic 4 is restored as the next execution epic on top of that foundation.
 
 **Functional Requirements Coverage:**
 The architecture provides explicit support for:
@@ -838,9 +838,8 @@ No critical architectural gaps were found that would block implementation planni
 
 **Important Gaps:**
 
-- The planning artifacts are not yet fully synchronized: the architecture now reflects the approved reset, but `_bmad-output/planning-artifacts/epics.md` still describes the old epic sequence.
-- The PRD and UX artifacts remain directionally useful, but they should be rebaselined explicitly around the stabilization/reset epic so later story prep does not inherit outdated sequencing assumptions.
-- The trust-restoration criteria are now architecturally named, but they still need explicit story-level operationalization before implementation resumes.
+- The historical change-proposal artifacts still describe the gate as a live blocker because they are records of the decision point; they need clear resolved-status cues so readers do not mistake them for current sequencing.
+- The trust-restoration criteria are now satisfied, but Epic 4 story preparation should continue to cite that gate evidence explicitly so later playback work does not accidentally broaden what the gate proved.
 
 **Nice-to-Have Gaps:**
 
@@ -850,7 +849,7 @@ No critical architectural gaps were found that would block implementation planni
 
 ### Validation Issues Addressed
 
-The main validation issue was whether the architecture was still silently inheriting stale planning assumptions from the pre-reset epic breakdown. That has been addressed by making the reset/stabilization phase an explicit architectural assumption, treating the current epic mismatch as an external planning-sync issue rather than allowing it to distort the architecture itself.
+The main validation issue was whether the architecture was still silently inheriting stale planning assumptions from the pre-course-correction epic breakdown or from the temporary post-correction blocker wording. That has now been addressed by recording the stabilization/reset phase as completed history and by restoring Epic 4 as the next execution phase.
 
 ### Architecture Completeness Checklist
 
@@ -895,12 +894,12 @@ The main validation issue was whether the architecture was still silently inheri
 - explicit deletion-first treatment of obsolete seams
 - score-context versus app-scoped UX boundary clarified
 - persistence portability and machine-local inventory separation made explicit
-- architecture now reflects the approved reset direction rather than the obsolete forward-only sequence
+- architecture now reflects the completed course-corrected sequence and restored Epic 4 readiness
 
 **Areas for Future Enhancement:**
 
-- synchronize PRD and epic planning artifacts to the reset architecture
-- define trust-restoration criteria at story/spec level
+- keep Epic 4 and later playback stories anchored to the completed trust-restoration evidence
+- add clear resolved-status cues to historical change-proposal artifacts when they remain part of active planning context
 - add more explicit reopen identity/re-resolution rules if needed during implementation planning
 - expand reusable playback-asset architecture when expression-map work becomes active again
 
@@ -915,4 +914,4 @@ The main validation issue was whether the architecture was still silently inheri
 - treat transport trust and trust-restoration as hard gating concerns, not polish
 
 **First Implementation Priority:**
-Implement the stabilization/reset phase inside the existing codebase: delete or disconnect obsolete legacy playback-path ownership, formalize the VST-owned inventory/rack/route/recovery seams, and define the trust-restoration checks required before first-audible-playback stories resume.
+Begin Epic 4 by translating routed score instruments into playback preparation on top of the completed stabilization foundation: preserve the slot-owned runtime-session model, keep audible playback bounded to the proven single-target-first path, and continue deleting any legacy playback-path ownership that would undermine that foundation.
