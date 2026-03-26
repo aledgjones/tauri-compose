@@ -1,6 +1,6 @@
 # Story 3.1: Show Compact Rack-First Route State On Instruments
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -18,26 +18,26 @@ so that I can tell at a glance if the instrument is fine or needs action.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Keep Story 3.1 on the existing compact row seam instead of adding a new playback UI surface (AC: 1, 2, 3, 4)
-  - [ ] Reuse the existing instrument-row route control in Sequence rather than introducing a separate badge strip, panel, or message area.
-  - [ ] Keep the presentation framed as instrument-to-playback-route, using the current rack-first terminology.
-  - [ ] Do not introduce new route-detail sections, status blocks, or explanatory inline chrome purely to prove acceptance criteria.
-- [ ] Task 2: Present non-ready playback as one compact inline warning state while leaving Ready visually quiet (AC: 2, 3, 4)
-  - [ ] Leave the ordinary playable state free of special readiness markings.
-  - [ ] Show a small warning icon inline in the route select for any non-ready state that requires user action.
-  - [ ] Ensure the warning state remains legible without relying on color alone.
-- [ ] Task 3: Keep compact state text and hover behavior intentionally brief (AC: 3, 4, 5)
-  - [ ] Use a concise native title on hover for the non-ready warning affordance.
-  - [ ] Keep the hover copy short and action-oriented rather than diagnostic or technical.
-  - [ ] Do not add address summaries, target-address text boxes, or inline explanatory error messages as part of this story.
-- [ ] Task 4: Preserve backend-owned route truth while keeping the compact mapping bounded (AC: 1, 3, 5)
-  - [ ] Consume backend-owned route state and existing row presentation seams rather than introducing new frontend-owned playback truth.
-  - [ ] Keep compact display logic aligned with the approved three-state model: Ready, Needs Attention, Unavailable.
-  - [ ] Treat Needs Attention and Unavailable as the same compact UI outcome for this story: playback needs user action.
-- [ ] Task 5: Add focused validation and lightweight documentation alignment for the compact row-state slice (AC: 1, 2, 3, 4, 5)
-  - [ ] Update frontend tests around instrument-row playback state so Ready remains visually quiet and non-ready states show the bounded warning affordance.
-  - [ ] Verify the story does not add address-detail UI, inline message boxes, or extra proof controls.
-  - [ ] Update implementation-facing notes only if needed so later stories do not assume Story 3.1 introduced richer inline route diagnostics.
+- [x] Task 1: Keep Story 3.1 on the existing compact row seam instead of adding a new playback UI surface (AC: 1, 2, 3, 4)
+  - [x] Reuse the existing instrument-row route control in Sequence rather than introducing a separate badge strip, panel, or message area.
+  - [x] Keep the presentation framed as instrument-to-playback-route, using the current rack-first terminology.
+  - [x] Do not introduce new route-detail sections, status blocks, or explanatory inline chrome purely to prove acceptance criteria.
+- [x] Task 2: Present non-ready playback as one compact inline warning state while leaving Ready visually quiet (AC: 2, 3, 4)
+  - [x] Leave the ordinary playable state free of special readiness markings.
+  - [x] Show a small warning icon inline in the route select for any non-ready state that requires user action.
+  - [x] Ensure the warning state remains legible without relying on color alone.
+- [x] Task 3: Keep compact state text and hover behavior intentionally brief (AC: 3, 4, 5)
+  - [x] Use a concise native title on hover for the non-ready warning affordance.
+  - [x] Keep the hover copy short and action-oriented rather than diagnostic or technical.
+  - [x] Do not add address summaries, target-address text boxes, or inline explanatory error messages as part of this story.
+- [x] Task 4: Preserve backend-owned route truth while keeping the compact mapping bounded (AC: 1, 3, 5)
+  - [x] Consume backend-owned route state and existing row presentation seams rather than introducing new frontend-owned playback truth.
+  - [x] Keep compact display logic aligned with the approved three-state model: Ready, Needs Attention, Unavailable.
+  - [x] Treat Needs Attention and Unavailable as the same compact UI outcome for this story: playback needs user action.
+- [x] Task 5: Add focused validation and lightweight documentation alignment for the compact row-state slice (AC: 1, 2, 3, 4, 5)
+  - [x] Update frontend tests around instrument-row playback state so Ready remains visually quiet and non-ready states show the bounded warning affordance.
+  - [x] Verify the story does not add address-detail UI, inline message boxes, or extra proof controls.
+  - [x] Update implementation-facing notes only if needed so later stories do not assume Story 3.1 introduced richer inline route diagnostics.
 
 ## Dev Notes
 
@@ -220,6 +220,33 @@ GPT-5.4
 
 ### Debug Log References
 
+- 2026-03-26: Added red-first coverage for compact row-state behavior in `instrument-overview-row.test.tsx` and `select.test.tsx`.
+- 2026-03-26: Moved the non-ready playback affordance into the existing route select via `Select.endAdornment` and removed the separate row badge seam.
+- 2026-03-26: Simplified row-level readiness presentation to the bounded compact model: quiet Ready, inline warning for all non-ready states, short native hover titles.
+- 2026-03-26: Validation passed with `npm run lint`, `npm run check-types`, and `npm run test:js`.
+
 ### Completion Notes List
 
+- Kept Story 3.1 on the existing Sequence instrument-row route control and did not add any new playback UI surface.
+- Added a compact inline warning affordance inside the route select for unrouted and needs-attention states while keeping Ready visually quiet.
+- Replaced verbose row-level readiness presentation data with short action-oriented hover copy suitable for native `title` hover only.
+- Added focused tests covering the inline warning affordance, quiet Ready state, and reusable select end-adornment support.
+- No implementation-facing documentation update was required because the story remained within the planned compact row-state scope.
+
 ### File List
+
+- \_bmad-output/implementation-artifacts/3-1-show-compact-rack-first-route-state-on-instruments.md
+- src/ui/select.tsx
+- src/ui/select.test.tsx
+- src/windows/main/screens/sequence/components/instrument-overview-row.tsx
+- src/windows/main/screens/sequence/components/instrument-overview-row.test.tsx
+- src/windows/main/screens/sequence/components/playback-readiness.tsx
+- src/windows/main/screens/sequence/components/playback-readiness-presentation.ts
+
+### Change Log
+
+- 2026-03-26: Implemented compact inline route warnings on Sequence instrument rows, kept Ready visually quiet, and added focused frontend validation.
+
+### Review Findings
+
+- [x] [Review][Dismissed] Disabled route controls hide the only non-ready hover explanation [src/windows/main/screens/sequence/components/instrument-overview-row.tsx:271] — dismissed after maintainer validation of the tested scenario; no action required.

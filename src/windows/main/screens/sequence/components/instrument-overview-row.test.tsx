@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen, fireEvent, waitFor } from "@testing-library/react";
 import { InstrumentOverviewRow } from "./instrument-overview-row";
 import { renderWithProviders } from "../../../../../services/test-utils";
+import { within } from "@testing-library/dom";
 import {
   Instrument,
   InstrumentType,
@@ -114,10 +115,19 @@ describe("InstrumentOverviewRow", () => {
     expect(screen.getByText("Violin")).toBeInTheDocument();
   });
 
-  it("does not render a playback warning by default", () => {
+  it("renders one compact inline playback warning when the instrument is unrouted", () => {
     renderRow();
 
-    expect(screen.queryByLabelText("Playback needs attention")).toBeNull();
+    const routeButton = screen.getByRole("button", { name: /^--/i });
+
+    expect(
+      within(routeButton).getByLabelText("Playback needs attention"),
+    ).toBeInTheDocument();
+    expect(
+      within(routeButton).getByTitle(
+        "Assign a playback route to enable playback.",
+      ),
+    ).toBeInTheDocument();
   });
 
   it("does not render a playback warning when the backend route is ready", () => {
@@ -129,18 +139,33 @@ describe("InstrumentOverviewRow", () => {
       target: { mode: 0, index: null },
     });
 
-    expect(screen.queryByLabelText("Playback needs attention")).toBeNull();
+    const routeButton = screen.getByRole("button", {
+      name: /1\. Grand Piano/i,
+    });
+
+    expect(
+      within(routeButton).queryByLabelText("Playback needs attention"),
+    ).toBeNull();
   });
 
-  it("renders a needs-attention badge when the backend route requires recovery", () => {
+  it("renders one compact inline warning when the backend route requires recovery", () => {
     renderRow({
       status: ResolvedPlaybackRouteStatus.NeedsAttention,
       slot_id: 7,
       slot_target: { plugin_id: "vst3:grand-piano" },
     });
 
+    const routeButton = screen.getByRole("button", {
+      name: /1\. Grand Piano/i,
+    });
+
     expect(
-      screen.getByLabelText("Playback needs attention"),
+      within(routeButton).getByLabelText("Playback needs attention"),
+    ).toBeInTheDocument();
+    expect(
+      within(routeButton).getByTitle(
+        "Repair this playback route to enable playback.",
+      ),
     ).toBeInTheDocument();
   });
 
@@ -194,7 +219,7 @@ describe("InstrumentOverviewRow", () => {
     renderRow();
     expect(screen.queryByText("No routed slot yet")).toBeNull();
     expect(screen.queryByText("Target: --")).toBeNull();
-    expect(screen.getByRole("button", { name: /^--$/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^--/i })).toBeInTheDocument();
   });
 
   it("shows an existing empty slot as a numbered selected slot", () => {
@@ -239,8 +264,35 @@ describe("InstrumentOverviewRow", () => {
       },
     );
 
-    expect(screen.getByRole("button", { name: /1\. --/i })).toBeInTheDocument();
-    expect(screen.queryByLabelText("Playback needs attention")).toBeNull();
+    const routeButton = screen.getByRole("button", { name: /1\. --/i });
+
+    expect(routeButton).toBeInTheDocument();
+    expect(
+      within(routeButton).getByLabelText("Playback needs attention"),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps the compact warning on the route control instead of next to the instrument name", () => {
+    renderRow({
+      status: ResolvedPlaybackRouteStatus.NeedsAttention,
+      slot_id: 7,
+      slot_target: { plugin_id: "vst3:grand-piano" },
+      effective_plugin_id: "vst3:grand-piano",
+      target: { mode: 0, index: null },
+      address: { mode: 0, index: null },
+    });
+
+    const instrumentName = screen.getByText("Violin").closest("div");
+    const routeButton = screen.getByRole("button", {
+      name: /1\. Grand Piano/i,
+    });
+
+    expect(
+      instrumentName?.querySelector('[aria-label="Playback needs attention"]'),
+    ).toBeNull();
+    expect(
+      within(routeButton).getByLabelText("Playback needs attention"),
+    ).toBeInTheDocument();
   });
 
   it("does not render a separate open-rack action button", () => {
@@ -258,7 +310,7 @@ describe("InstrumentOverviewRow", () => {
   it("routes to a selected slot directly from the overview picker", async () => {
     renderRow();
 
-    fireEvent.click(screen.getByRole("button", { name: /^--$/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^--/i }));
     fireEvent.click(screen.getByRole("option", { name: "1. Grand Piano" }));
 
     await waitFor(() => {
@@ -333,7 +385,7 @@ describe("InstrumentOverviewRow", () => {
       },
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /^--$/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^--/i }));
     fireEvent.click(screen.getByRole("option", { name: "1. Grand Piano" }));
 
     await waitFor(() => {
@@ -388,7 +440,7 @@ describe("InstrumentOverviewRow", () => {
       },
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /^--$/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^--/i }));
     fireEvent.click(screen.getByRole("option", { name: "1. --" }));
 
     await waitFor(() => {
@@ -427,7 +479,7 @@ describe("InstrumentOverviewRow", () => {
 
     renderRow();
 
-    fireEvent.click(screen.getByRole("button", { name: /^--$/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^--/i }));
     fireEvent.click(screen.getByRole("option", { name: "1. Grand Piano" }));
 
     await waitFor(() => {
@@ -504,7 +556,7 @@ describe("InstrumentOverviewRow", () => {
       },
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /^--$/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^--/i }));
     fireEvent.click(screen.getByRole("option", { name: "1. Grand Piano" }));
 
     await waitFor(() => {
@@ -519,7 +571,7 @@ describe("InstrumentOverviewRow", () => {
   it("refreshes the visible summary after backend route state updates", () => {
     const initial = renderRow();
 
-    expect(screen.getByRole("button", { name: /^--$/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^--/i })).toBeInTheDocument();
 
     initial.unmount();
 

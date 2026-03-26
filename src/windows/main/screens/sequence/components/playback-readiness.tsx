@@ -20,6 +20,7 @@ export const PlaybackReadinessBadge: FC<PlaybackReadinessBadgeProps> = ({
     <span
       role="img"
       aria-label={`Playback ${presentation.label.toLowerCase()}`}
+      title={presentation.hover_title ?? undefined}
       className={classNames(
         "inline-flex shrink-0 items-center",
         presentation.tone_class_name,

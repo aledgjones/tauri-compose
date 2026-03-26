@@ -1,7 +1,7 @@
 import { mdiChevronDown } from "@mdi/js";
 import Icon from "@mdi/react";
 import classNames from "classnames";
-import { Key, useEffect, useRef, useState } from "react";
+import { Key, ReactNode, useEffect, useRef, useState } from "react";
 import { TokenizedText } from "./text";
 
 export type SelectOption<T> = {
@@ -21,6 +21,7 @@ type SelectProps<T> = {
   disabled?: boolean;
   icon?: string;
   iconSize?: number;
+  endAdornment?: ReactNode;
 };
 
 export const Select = <T extends Key>({
@@ -35,6 +36,7 @@ export const Select = <T extends Key>({
   disabled,
   icon,
   iconSize = 1,
+  endAdornment,
 }: SelectProps<T>) => {
   const [isOpen, setIsOpen] = useState(false);
   const selectRef = useRef<HTMLDivElement>(null);
@@ -108,6 +110,10 @@ export const Select = <T extends Key>({
             </TokenizedText>
           </span>
         </span>
+
+        {endAdornment ? (
+          <div className="ml-2 flex shrink-0 items-center">{endAdornment}</div>
+        ) : null}
 
         <div className="flex items-center pointer-events-none pl-3">
           <Icon

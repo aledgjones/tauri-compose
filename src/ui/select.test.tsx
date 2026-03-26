@@ -134,4 +134,20 @@ describe("Select", () => {
     await user.click(screen.getByRole("button"));
     expect(screen.queryByRole("option")).not.toBeInTheDocument();
   });
+
+  it("renders a non-interactive end adornment inside the select button", () => {
+    render(
+      <Select
+        value="a"
+        options={OPTIONS}
+        onChange={vi.fn()}
+        variant="standard"
+        endAdornment={<span title="Needs attention">!</span>}
+      />,
+    );
+
+    const button = screen.getByRole("button", { name: /apple/i });
+
+    expect(button).toContainElement(screen.getByTitle("Needs attention"));
+  });
 });

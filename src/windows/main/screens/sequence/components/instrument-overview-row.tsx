@@ -235,10 +235,6 @@ export const InstrumentOverviewRow: FC<InstrumentOverviewRowProps> = ({
             <TokenizedText>{instrument.long_name}</TokenizedText>
             {instrument.count && <span> {instrument.count}</span>}
           </div>
-          <PlaybackReadinessBadge
-            presentation={presentation}
-            className="max-w-full shrink"
-          />
         </div>
 
         {!isDisabled && (
@@ -278,6 +274,7 @@ export const InstrumentOverviewRow: FC<InstrumentOverviewRowProps> = ({
           onChange={handleRouteChange}
           variant="filled"
           icon={mdiCableData}
+          endAdornment={<PlaybackReadinessBadge presentation={presentation} />}
           disabled={
             isDisabled ||
             isUpdatingRoute ||
