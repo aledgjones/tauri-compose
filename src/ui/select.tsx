@@ -7,6 +7,7 @@ import { TokenizedText } from "./text";
 export type SelectOption<T> = {
   value: T;
   label: string;
+  disabled?: boolean;
 };
 
 type SelectProps<T> = {
@@ -57,7 +58,11 @@ export const Select = <T extends Key>({
     };
   }, []);
 
-  const handleOptionClick = (optionValue: T) => {
+  const handleOptionClick = (optionValue: T, optionDisabled?: boolean) => {
+    if (optionDisabled) {
+      return;
+    }
+
     onChange(optionValue);
     setIsOpen(false);
   };
@@ -143,16 +148,19 @@ export const Select = <T extends Key>({
             return (
               <li key={option.value}>
                 <button
-                  onClick={() => handleOptionClick(option.value)}
+                  disabled={option.disabled}
+                  onClick={() =>
+                    handleOptionClick(option.value, option.disabled)
+                  }
                   role="option"
                   aria-selected={option.value === value}
-                  className={classNames(
-                    "w-full text-left px-3 py-2 cursor-pointer",
-                    {
-                      "hover:bg-neutral-700": isStandard,
-                      "hover:bg-neutral-600": !isStandard,
-                    },
-                  )}
+                  className={classNames("w-full text-left px-3 py-2", {
+                    "cursor-pointer hover:bg-neutral-700":
+                      isStandard && !option.disabled,
+                    "cursor-pointer hover:bg-neutral-600":
+                      !isStandard && !option.disabled,
+                    "cursor-not-allowed text-neutral-500": option.disabled,
+                  })}
                 >
                   <TokenizedText>{option.label}</TokenizedText>
                 </button>

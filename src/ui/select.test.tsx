@@ -12,6 +12,12 @@ const OPTIONS: SelectOption<Letter>[] = [
   { value: "c", label: "Cherry" },
 ];
 
+const OPTIONS_WITH_DISABLED: SelectOption<Letter>[] = [
+  { value: "a", label: "Apple" },
+  { value: "b", label: "Banana", disabled: true },
+  { value: "c", label: "Cherry" },
+];
+
 describe("Select", () => {
   it("renders with placeholder when value is null", () => {
     render(
@@ -149,5 +155,41 @@ describe("Select", () => {
     const button = screen.getByRole("button", { name: /apple/i });
 
     expect(button).toContainElement(screen.getByTitle("Needs attention"));
+  });
+
+  it("marks disabled options as unavailable in the open list", async () => {
+    const user = userEvent.setup();
+    render(
+      <Select
+        value="a"
+        options={OPTIONS_WITH_DISABLED}
+        onChange={vi.fn()}
+        variant="standard"
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /apple/i }));
+
+    expect(screen.getByRole("option", { name: "Banana" })).toBeDisabled();
+  });
+
+  it("does not call onChange when a disabled option is clicked", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+
+    render(
+      <Select
+        value="a"
+        options={OPTIONS_WITH_DISABLED}
+        onChange={onChange}
+        variant="standard"
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /apple/i }));
+    await user.click(screen.getByRole("option", { name: "Banana" }));
+
+    expect(onChange).not.toHaveBeenCalled();
+    expect(screen.getByRole("option", { name: "Banana" })).toBeInTheDocument();
   });
 });

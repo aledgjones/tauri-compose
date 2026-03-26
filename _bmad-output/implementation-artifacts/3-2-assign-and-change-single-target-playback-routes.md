@@ -1,6 +1,6 @@
 # Story 3.2: Assign And Change Single-Target Playback Routes
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -17,26 +17,26 @@ so that I can connect a musical part to a usable rack slot without restructuring
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Treat the existing instrument-row dropdown as the supported Story 3.2 routing control (AC: 1, 2, 4)
-  - [ ] Reuse the current Sequence instrument-row route dropdown as the only supported interaction surface for assigning, changing, or clearing a route.
-  - [ ] Keep the interaction framed as instrument-to-rack-slot routing rather than legacy assignment language.
-  - [ ] Do not add a second routing surface, wizard, popover, target picker, or panel flow for this story.
-- [ ] Task 2: Keep the route-authoring slice bounded to the current single-target MVP (AC: 1, 2, 3)
-  - [ ] Preserve the current single-target-first workflow.
-  - [ ] Do not expose address editing, multi-target choice, multi-instrument VST refinement, or channel-management UI in this story.
-  - [ ] If backend-owned richer target data exists, do not widen the row interaction to expose it here.
-- [ ] Task 3: Sanity-check backend validity boundaries without adding UI complexity (AC: 3, 4)
-  - [ ] Verify the dropdown remains aligned with backend-owned route validity for the supported MVP path.
-  - [ ] If a small correction is needed so invalid or unsupported routes are not treated as ordinary ready choices, keep that correction minimal and within the existing control.
-  - [ ] Do not solve unsupported richer target-selection cases by adding new inline controls in this story.
-- [ ] Task 4: Keep failure and explanatory behavior bounded (AC: 2, 4)
-  - [ ] Do not expand the row into a diagnostic or setup surface while touching route assignment behavior.
-  - [ ] Avoid adding new inline explanatory boxes, address detail, or workflow copy in the name of route authoring.
-  - [ ] If implementation touches nearby error handling, keep any cleanup strictly minimal and avoid broad UX redesign.
-- [ ] Task 5: Validate the existing dropdown path with focused tests and notes (AC: 1, 2, 3, 4)
-  - [ ] Update or confirm tests for assign, change, and clear behavior through the current dropdown.
-  - [ ] Add or refine tests only where needed to prove the bounded MVP interaction and backend-valid choice behavior.
-  - [ ] Document explicitly that Story 3.2 keeps the current dropdown model and does not introduce a more complex routing UI.
+- [x] Task 1: Treat the existing instrument-row dropdown as the supported Story 3.2 routing control (AC: 1, 2, 4)
+  - [x] Reuse the current Sequence instrument-row route dropdown as the only supported interaction surface for assigning, changing, or clearing a route.
+  - [x] Keep the interaction framed as instrument-to-rack-slot routing rather than legacy assignment language.
+  - [x] Do not add a second routing surface, wizard, popover, target picker, or panel flow for this story.
+- [x] Task 2: Keep the route-authoring slice bounded to the current single-target MVP (AC: 1, 2, 3)
+  - [x] Preserve the current single-target-first workflow.
+  - [x] Do not expose address editing, multi-target choice, multi-instrument VST refinement, or channel-management UI in this story.
+  - [x] If backend-owned richer target data exists, do not widen the row interaction to expose it here.
+- [x] Task 3: Sanity-check backend validity boundaries without adding UI complexity (AC: 3, 4)
+  - [x] Verify the dropdown remains aligned with backend-owned route validity for the supported MVP path.
+  - [x] If a small correction is needed so invalid or unsupported routes are not treated as ordinary ready choices, keep that correction minimal and within the existing control.
+  - [x] Do not solve unsupported richer target-selection cases by adding new inline controls in this story.
+- [x] Task 4: Keep failure and explanatory behavior bounded (AC: 2, 4)
+  - [x] Do not expand the row into a diagnostic or setup surface while touching route assignment behavior.
+  - [x] Avoid adding new inline explanatory boxes, address detail, or workflow copy in the name of route authoring.
+  - [x] If implementation touches nearby error handling, keep any cleanup strictly minimal and avoid broad UX redesign.
+- [x] Task 5: Validate the existing dropdown path with focused tests and notes (AC: 1, 2, 3, 4)
+  - [x] Update or confirm tests for assign, change, and clear behavior through the current dropdown.
+  - [x] Add or refine tests only where needed to prove the bounded MVP interaction and backend-valid choice behavior.
+  - [x] Document explicitly that Story 3.2 keeps the current dropdown model and does not introduce a more complex routing UI.
 
 ## Dev Notes
 
@@ -208,6 +208,28 @@ GPT-5.4
 
 ### Debug Log References
 
+- `npm run lint`
+- `npm run check-types`
+- `npm run test:js`
+
 ### Completion Notes List
 
+- Confirmed the existing Sequence instrument-row dropdown remains the only Story 3.2 route-authoring surface for assign, change, and clear flows.
+- Added bounded-choice handling so slots requiring richer backend target disambiguation stay visible in the dropdown but are not treated as ordinary selectable MVP choices.
+- Extended focused tests to cover route changes between slots and disabled unsupported multi-target choices without introducing any new routing UI.
+- Story 3.2 intentionally keeps the current dropdown model and does not introduce a richer route-authoring surface.
+
 ### File List
+
+- src/ui/select.tsx
+- src/ui/select.test.tsx
+- src/windows/main/screens/sequence/components/instrument-overview-row.tsx
+- src/windows/main/screens/sequence/components/instrument-overview-row.test.tsx
+
+### Change Log
+
+- 2026-03-26: Kept Story 3.2 on the existing instrument-row dropdown, added minimal disabled-option support for bounded unsupported route choices, and expanded focused route tests.
+
+### Review Findings
+
+- [x] [Review][Patch] Non-empty slots with zero backend route choices must not be assignable [src/windows/main/screens/sequence/components/instrument-overview-row.tsx:48]

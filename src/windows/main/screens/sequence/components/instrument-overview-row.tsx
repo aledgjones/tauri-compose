@@ -45,6 +45,42 @@ const routesMatchChoice = (
   );
 };
 
+const isSupportedRouteOption = (
+  availableChoices: PlaybackRouteChoice[],
+  routeState:
+    | {
+        slot_id: number | null;
+        target: PlaybackRouteTarget | null;
+        address: PlaybackRouteAddress | null;
+      }
+    | undefined,
+  slotId: number,
+  isEmptySlot: boolean,
+) => {
+  if (availableChoices.length === 0) {
+    return isEmptySlot;
+  }
+
+  if (availableChoices.length === 1) {
+    return true;
+  }
+
+  if (
+    routeState?.slot_id === slotId &&
+    routeState.target !== null &&
+    routeState.address !== null
+  ) {
+    const currentTarget = routeState.target;
+    const currentAddress = routeState.address;
+
+    return availableChoices.some((choice) =>
+      routesMatchChoice(choice, currentTarget, currentAddress),
+    );
+  }
+
+  return false;
+};
+
 export const InstrumentOverviewRow: FC<InstrumentOverviewRowProps> = ({
   instrument,
   color,
@@ -53,7 +89,10 @@ export const InstrumentOverviewRow: FC<InstrumentOverviewRowProps> = ({
   const state = useAppState();
   const pluginInventory = usePluginInventoryState();
   const rack = state.score.playback?.rack ?? null;
-  const routeChoicesBySlotId = state.route_target_options_by_slot_id ?? {};
+  const routeChoicesBySlotId = useMemo(
+    () => state.route_target_options_by_slot_id ?? {},
+    [state.route_target_options_by_slot_id],
+  );
   const routeState =
     state.resolved_playback_route_by_instrument_id[instrument.id];
   const presentation = getPlaybackReadinessPresentation(
@@ -100,6 +139,8 @@ export const InstrumentOverviewRow: FC<InstrumentOverviewRowProps> = ({
     }
 
     rack.order.forEach((slotId) => {
+      const availableChoices = routeChoicesBySlotId[slotId] ?? [];
+
       options.push({
         value: String(slotId),
         label: getPlaybackRackSlotLabel(
@@ -108,11 +149,17 @@ export const InstrumentOverviewRow: FC<InstrumentOverviewRowProps> = ({
           pluginInventory.entries,
           rack.by_id[slotId]?.target?.plugin_id ?? null,
         ),
+        disabled: !isSupportedRouteOption(
+          availableChoices,
+          routeState,
+          slotId,
+          rack.by_id[slotId]?.target == null,
+        ),
       });
     });
 
     return options;
-  }, [pluginInventory.entries, rack]);
+  }, [pluginInventory.entries, rack, routeChoicesBySlotId, routeState]);
 
   const selectedRouteOptionValue = useMemo(() => {
     if (routeState?.slot_id != null && rack?.by_id[routeState.slot_id]) {
@@ -133,7 +180,6 @@ export const InstrumentOverviewRow: FC<InstrumentOverviewRowProps> = ({
     address: PlaybackRouteAddress;
   } => {
     const availableChoices = routeChoicesBySlotId[slotId] ?? [];
-
     if (
       routeState?.slot_id === slotId &&
       routeState.target !== null &&
@@ -155,10 +201,14 @@ export const InstrumentOverviewRow: FC<InstrumentOverviewRowProps> = ({
     }
 
     if (availableChoices.length === 0) {
-      return {
-        target: { mode: 0, index: null },
-        address: { mode: 0, index: null },
-      };
+      if (rack?.by_id[slotId]?.target == null) {
+        return {
+          target: { mode: 0, index: null },
+          address: { mode: 0, index: null },
+        };
+      }
+
+      throw new Error("Selected slot is no longer routable.");
     }
 
     if (availableChoices.length === 1) {
