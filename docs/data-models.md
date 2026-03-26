@@ -452,7 +452,7 @@ pub struct PlaybackActivationRuntime {
 
 `PlaybackActivationRuntime` lives inside backend app state rather than `.soloc` data. It is rebuilt from persisted rack or route intent plus machine-local inventory truth after slot assignment, slot unassignment, slot removal, route assignment, route clearing, project load, and inventory refresh. Story 3.8 keeps that runtime bounded to single-target plugin-output routes only; deferred plugin-part, MIDI-channel, and reopen-restoration work does not persist extra activation payloads into score files.
 
-The backend also emits per-slot `PlaybackRouteChoice` lists through `route_target_options_by_slot_id` on `soloc://state/general`. Sequence must consume that Rust-owned contract when offering route targets; if Rust can only prove the direct plugin output for a slot, React must expose only that direct choice and must not invent speculative part or MIDI-channel options.
+The backend also emits per-slot `PlaybackRouteChoice` lists through `route_target_options_by_slot_id` on `soloc://state/general`. Sequence must consume that Rust-owned contract when offering route targets; if Rust can only prove the direct plugin output for a slot, React must expose only that direct choice and must not invent speculative part or MIDI-channel options. Separate plugin-assignment pickers remain bounded to plugins whose inventory entries are both `availability === "available"` and not `editor_host_validation.status === "blocked"`.
 
 ```rust
 pub struct ResolvedPlaybackRoute {

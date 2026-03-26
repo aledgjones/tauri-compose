@@ -9,7 +9,7 @@ import { actions } from "../../../../../services/actions";
 import { IconButton } from "../../../../../ui/buttons/icon-button";
 import { Select, SelectOption } from "../../../../../ui/select";
 
-const isUsablePreparationPlugin = (plugin: PluginInventoryEntry) => {
+const isUsablePlugin = (plugin: PluginInventoryEntry) => {
   return (
     plugin.availability === "available" &&
     plugin.editor_host_validation?.status !== "blocked"
@@ -53,9 +53,7 @@ export const PlaybackRackPanel: FC<PlaybackRackPanelProps> = ({
   const rack = state.score.playback?.rack ?? null;
   const usablePlugins = useMemo(
     () =>
-      pluginInventory.entries
-        .filter(isUsablePreparationPlugin)
-        .sort(compareUsablePlugins),
+      pluginInventory.entries.filter(isUsablePlugin).sort(compareUsablePlugins),
     [pluginInventory.entries],
   );
   const pluginOptions = useMemo<SelectOption<string>[]>(

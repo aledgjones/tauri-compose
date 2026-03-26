@@ -278,7 +278,6 @@ export const InstrumentOverviewRow: FC<InstrumentOverviewRowProps> = ({
           onChange={handleRouteChange}
           variant="filled"
           icon={mdiCableData}
-          placeholder={hasVisibleSlotOptions ? "Select slot" : "No score slots"}
           disabled={
             isDisabled ||
             isUpdatingRoute ||
