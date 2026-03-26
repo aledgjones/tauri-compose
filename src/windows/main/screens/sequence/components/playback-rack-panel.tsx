@@ -1,11 +1,12 @@
 import { FC, useMemo, useState } from "react";
-import { mdiCogOutline } from "@mdi/js";
+import { mdiAlertCircleOutline, mdiCogOutline } from "@mdi/js";
 import {
   useAppState,
   usePluginInventoryState,
 } from "../../../../../services/state";
 import { PluginInventoryEntry } from "../../../../../services/types";
 import { actions } from "../../../../../services/actions";
+import { Icon } from "../../../../../ui/icon";
 import { IconButton } from "../../../../../ui/buttons/icon-button";
 import { Select, SelectOption } from "../../../../../ui/select";
 
@@ -44,6 +45,29 @@ type PlaybackRackPanelProps = {
 };
 
 const EMPTY_PLUGIN_VALUE = "__empty_slot__";
+const UNAVAILABLE_ASSIGNED_PLUGIN_WARNING = "Assigned plugin is unavailable";
+
+const getUnavailableSelectedPluginLabel = (
+  selectedPluginId: string,
+  selectedPlugin: PluginInventoryEntry | null,
+) => {
+  if (selectedPlugin !== null) {
+    return selectedPlugin.name;
+  }
+
+  return `Missing plugin (${selectedPluginId})`;
+};
+
+const renderUnavailableAssignedPluginAdornment = (label: string) => {
+  return (
+    <span
+      title={`${UNAVAILABLE_ASSIGNED_PLUGIN_WARNING}: ${label}`}
+      className="text-amber-300"
+    >
+      <Icon path={mdiAlertCircleOutline} size={0.75} />
+    </span>
+  );
+};
 
 export const PlaybackRackPanel: FC<PlaybackRackPanelProps> = ({
   createError = null,
@@ -198,11 +222,40 @@ export const PlaybackRackPanel: FC<PlaybackRackPanelProps> = ({
             selectedPluginId !== null
               ? (pluginById.get(selectedPluginId) ?? null)
               : null;
+          const selectedPluginNeedsAttention =
+            selectedPluginId !== null &&
+            !pluginOptions.some((option) => option.value === selectedPluginId);
+          const unavailableSelectedPluginLabel =
+            selectedPluginId !== null
+              ? getUnavailableSelectedPluginLabel(
+                  selectedPluginId,
+                  selectedPlugin,
+                )
+              : null;
+          const unavailableSelectedPluginOption =
+            selectedPluginId !== null &&
+            selectedPluginNeedsAttention &&
+            unavailableSelectedPluginLabel !== null
+              ? {
+                  value: selectedPluginId,
+                  label: unavailableSelectedPluginLabel,
+                  disabled: true,
+                  endAdornment: renderUnavailableAssignedPluginAdornment(
+                    unavailableSelectedPluginLabel,
+                  ),
+                }
+              : null;
+          const slotPluginOptions =
+            unavailableSelectedPluginOption !== null
+              ? [...pluginOptions, unavailableSelectedPluginOption]
+              : pluginOptions;
           const isOpeningEditor = openingEditorSlotId === slotId;
           const showOpenPluginButton = canOpenPluginEditor(selectedPlugin);
           const selectedPickerValue =
             selectedPluginId !== null &&
-            pluginOptions.some((option) => option.value === selectedPluginId)
+            slotPluginOptions.some(
+              (option) => option.value === selectedPluginId,
+            )
               ? selectedPluginId
               : EMPTY_PLUGIN_VALUE;
 
@@ -224,7 +277,14 @@ export const PlaybackRackPanel: FC<PlaybackRackPanelProps> = ({
                   <div className="min-w-0 flex-1">
                     <Select
                       value={selectedPickerValue}
-                      options={pluginOptions}
+                      options={slotPluginOptions}
+                      endAdornment={
+                        unavailableSelectedPluginOption !== null
+                          ? renderUnavailableAssignedPluginAdornment(
+                              unavailableSelectedPluginOption.label,
+                            )
+                          : null
+                      }
                       onChange={(pluginId) =>
                         handleSlotPluginChange(slotId, pluginId)
                       }

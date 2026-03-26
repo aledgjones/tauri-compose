@@ -679,4 +679,119 @@ describe("PlaybackRackPanel", () => {
       screen.queryByRole("button", { name: "Open plugin UI for Grand Piano" }),
     ).toBeNull();
   });
+
+  it("keeps showing the backend-assigned plugin when that plugin is no longer selectable", () => {
+    renderWithProviders(<PlaybackRackPanel />, {
+      appState: {
+        score: {
+          playback: {
+            rack: {
+              order: [9],
+              by_id: {
+                9: {
+                  id: 9,
+                  target: { plugin_id: "vst3:grand-piano" },
+                },
+              },
+            },
+          },
+        } as never,
+      },
+      pluginInventoryState: {
+        entries: [
+          {
+            id: "vst3:grand-piano",
+            name: "Grand Piano",
+            bundle_path: "/Library/Audio/Plug-Ins/VST3/Grand Piano.vst3",
+            binary_path:
+              "/Library/Audio/Plug-Ins/VST3/Grand Piano.vst3/Contents/MacOS/Grand Piano",
+            source_root: "/Library/Audio/Plug-Ins/VST3",
+            availability: "available",
+            validation_failure: null,
+            editor_host_validation: {
+              status: "blocked",
+              phase: "policy_gate",
+              message: "unsupported",
+              capability_evidence: null,
+            },
+          },
+        ],
+      },
+    });
+
+    const selectedPluginButton = screen.getByRole("button", {
+      name: /^grand piano$/i,
+    });
+
+    expect(selectedPluginButton).toBeInTheDocument();
+    expect(
+      screen.getByTitle("Assigned plugin is unavailable: Grand Piano"),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^--$/i })).toBeNull();
+
+    fireEvent.click(selectedPluginButton);
+
+    expect(screen.getByRole("option", { name: "Grand Piano" })).toBeDisabled();
+  });
+
+  it("keeps showing a missing backend-assigned plugin when the inventory entry disappears entirely", () => {
+    renderWithProviders(<PlaybackRackPanel />, {
+      appState: {
+        score: {
+          playback: {
+            rack: {
+              order: [9],
+              by_id: {
+                9: {
+                  id: 9,
+                  target: { plugin_id: "vst3:grand-piano" },
+                },
+              },
+            },
+          },
+        } as never,
+      },
+      pluginInventoryState: {
+        entries: [],
+      },
+    });
+
+    const selectedPluginButton = screen.getByRole("button", {
+      name: /missing plugin \(vst3:grand-piano\)/i,
+    });
+
+    expect(selectedPluginButton).toBeInTheDocument();
+    expect(
+      screen.getByTitle(
+        "Assigned plugin is unavailable: Missing plugin (vst3:grand-piano)",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^--$/i })).toBeNull();
+  });
+
+  it("keeps the empty -- state when the slot has no backend-assigned plugin", () => {
+    renderWithProviders(<PlaybackRackPanel />, {
+      appState: {
+        score: {
+          playback: {
+            rack: {
+              order: [9],
+              by_id: {
+                9: {
+                  id: 9,
+                  target: null,
+                },
+              },
+            },
+          },
+        } as never,
+      },
+      pluginInventoryState: {
+        entries: [],
+      },
+    });
+
+    expect(screen.getByRole("button", { name: /^--$/i })).toBeInTheDocument();
+    expect(screen.queryByTitle(/Assigned plugin is unavailable:/i)).toBeNull();
+  });
 });

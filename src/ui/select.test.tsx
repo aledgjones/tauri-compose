@@ -18,6 +18,17 @@ const OPTIONS_WITH_DISABLED: SelectOption<Letter>[] = [
   { value: "c", label: "Cherry" },
 ];
 
+const OPTIONS_WITH_END_ADORNMENT: SelectOption<Letter>[] = [
+  { value: "a", label: "Apple" },
+  {
+    value: "b",
+    label: "Banana",
+    disabled: true,
+    endAdornment: <span title="Needs attention">!</span>,
+  },
+  { value: "c", label: "Cherry" },
+];
+
 describe("Select", () => {
   it("renders with placeholder when value is null", () => {
     render(
@@ -191,5 +202,24 @@ describe("Select", () => {
 
     expect(onChange).not.toHaveBeenCalled();
     expect(screen.getByRole("option", { name: "Banana" })).toBeInTheDocument();
+  });
+
+  it("renders option adornments inside the open list", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <Select
+        value="a"
+        options={OPTIONS_WITH_END_ADORNMENT}
+        onChange={vi.fn()}
+        variant="standard"
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /apple/i }));
+
+    const bananaOption = screen.getByRole("option", { name: /banana/i });
+
+    expect(bananaOption).toContainElement(screen.getByTitle("Needs attention"));
   });
 });

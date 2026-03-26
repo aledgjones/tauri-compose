@@ -8,6 +8,7 @@ export type SelectOption<T> = {
   value: T;
   label: string;
   disabled?: boolean;
+  endAdornment?: ReactNode;
 };
 
 type SelectProps<T> = {
@@ -154,15 +155,23 @@ export const Select = <T extends Key>({
                   }
                   role="option"
                   aria-selected={option.value === value}
-                  className={classNames("w-full text-left px-3 py-2", {
-                    "cursor-pointer hover:bg-neutral-700":
-                      isStandard && !option.disabled,
-                    "cursor-pointer hover:bg-neutral-600":
-                      !isStandard && !option.disabled,
-                    "cursor-not-allowed text-neutral-500": option.disabled,
-                  })}
+                  className={classNames(
+                    "flex w-full items-center gap-2 px-3 py-2 text-left",
+                    {
+                      "cursor-pointer hover:bg-neutral-700":
+                        isStandard && !option.disabled,
+                      "cursor-pointer hover:bg-neutral-600":
+                        !isStandard && !option.disabled,
+                      "cursor-not-allowed text-neutral-500": option.disabled,
+                    },
+                  )}
                 >
-                  <TokenizedText>{option.label}</TokenizedText>
+                  <span className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap">
+                    <TokenizedText>{option.label}</TokenizedText>
+                  </span>
+                  {option.endAdornment ? (
+                    <span className="shrink-0">{option.endAdornment}</span>
+                  ) : null}
                 </button>
               </li>
             );

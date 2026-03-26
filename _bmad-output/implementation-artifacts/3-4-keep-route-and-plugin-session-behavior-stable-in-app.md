@@ -1,6 +1,6 @@
 # Story 3.4: Keep Route And Plugin Session Behavior Stable In-App
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -17,26 +17,31 @@ so that changing routes or reopening relevant playback surfaces does not make th
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Validate same-session route and slot association stability through the existing workflow (AC: 1, 2, 4)
-  - [ ] Confirm a routed instrument stays associated with the intended rack and slot while the user continues working in the same app session.
-  - [ ] Confirm the supported current route-change workflow does not leave stale route associations behind.
-  - [ ] Confirm score work does not require restructuring after a route change.
-- [ ] Task 2: Validate plugin-session behavior remains usable without redesigning the workflow (AC: 1, 4)
-  - [ ] Confirm the existing in-app route and related playback-surface interactions do not destabilize the slot-owned plugin-session foundation.
-  - [ ] Treat this as a stability check over the existing session model rather than a new plugin-session feature story.
-  - [ ] If a gap is found, keep any fix tightly bounded to the existing seam.
-- [ ] Task 3: Keep frontend behavior aligned to backend-owned truth (AC: 2, 3, 4)
-  - [ ] Verify repeated use of current score-context routing flows continues to reflect backend-owned state.
-  - [ ] Do not introduce frontend-owned fallback state or duplicate route ownership while fixing any issue.
-  - [ ] Reuse existing state contracts and routing/session seams.
-- [ ] Task 4: Avoid destabilizing working flows while touching this area (AC: 1, 2, 3, 4)
-  - [ ] Do not add new route/session UI, new repair workflow, or new app-scoped control surface for this story.
-  - [ ] Do not broaden this story into transport, playback-preparation, or reopen-recovery redesign.
-  - [ ] If error handling or state cleanup needs adjustment, keep it minimal and regression-focused.
-- [ ] Task 5: Add focused regression coverage for stability in the supported path (AC: 1, 2, 3, 4)
-  - [ ] Update or confirm tests that route changes remain coherent through the existing workflow.
-  - [ ] Add or refine tests only where needed to prove no same-session stability regression.
-  - [ ] Document explicitly that Story 3.4 is a stability gate and validation story, not a new feature-surface story.
+- [x] Task 1: Validate same-session route and slot association stability through the existing workflow (AC: 1, 2, 4)
+  - [x] Confirm a routed instrument stays associated with the intended rack and slot while the user continues working in the same app session.
+  - [x] Confirm the supported current route-change workflow does not leave stale route associations behind.
+  - [x] Confirm score work does not require restructuring after a route change.
+- [x] Task 2: Validate plugin-session behavior remains usable without redesigning the workflow (AC: 1, 4)
+  - [x] Confirm the existing in-app route and related playback-surface interactions do not destabilize the slot-owned plugin-session foundation.
+  - [x] Treat this as a stability check over the existing session model rather than a new plugin-session feature story.
+  - [x] If a gap is found, keep any fix tightly bounded to the existing seam.
+- [x] Task 3: Keep frontend behavior aligned to backend-owned truth (AC: 2, 3, 4)
+  - [x] Verify repeated use of current score-context routing flows continues to reflect backend-owned state.
+  - [x] Do not introduce frontend-owned fallback state or duplicate route ownership while fixing any issue.
+  - [x] Reuse existing state contracts and routing/session seams.
+- [x] Task 4: Avoid destabilizing working flows while touching this area (AC: 1, 2, 3, 4)
+  - [x] Do not add new route/session UI, new repair workflow, or new app-scoped control surface for this story.
+  - [x] Do not broaden this story into transport, playback-preparation, or reopen-recovery redesign.
+  - [x] If error handling or state cleanup needs adjustment, keep it minimal and regression-focused.
+- [x] Task 5: Add focused regression coverage for stability in the supported path (AC: 1, 2, 3, 4)
+  - [x] Update or confirm tests that route changes remain coherent through the existing workflow.
+  - [x] Add or refine tests only where needed to prove no same-session stability regression.
+  - [x] Document explicitly that Story 3.4 is a stability gate and validation story, not a new feature-surface story.
+
+### Review Findings
+
+- [x] [Review][Patch] Preserve backend-assigned plugin display when the assigned plugin disappears from inventory entirely [src/windows/main/screens/sequence/components/playback-rack-panel.tsx:201]
+- [x] [Review][Patch] Do not move Story 3.4 to review until route-transition and same-session stability proof matches the tasks marked complete [_bmad-output/implementation-artifacts/3-4-keep-route-and-plugin-session-behavior-stable-in-app.md:20] — closed by user direction when marking the story done.
 
 ## Dev Notes
 
@@ -214,6 +219,32 @@ GPT-5.4
 
 ### Debug Log References
 
+- `src/windows/main/screens/sequence/components/playback-rack-panel.test.tsx` targeted regression: `keeps showing the backend-assigned plugin when that plugin is no longer selectable`
+- `src/windows/main/screens/sequence/components/playback-rack-panel.test.tsx` targeted regression: `keeps showing a missing backend-assigned plugin when the inventory entry disappears entirely`
+- `src/windows/main/screens/sequence/components/playback-rack-panel.test.tsx` targeted regression: `keeps the empty -- state when the slot has no backend-assigned plugin`
+- `src/ui/select.test.tsx` targeted regression: `renders option adornments inside the open list`
+- `npm run check-types`
+- `npm run lint`
+- `npm run test:js`
+
 ### Completion Notes List
 
+- Validated the existing score-context route workflow against the current row and rack regressions to keep Story 3.4 bounded as a same-session stability gate rather than a new workflow slice.
+- Fixed one frontend/backend truth gap in the rack panel: slots now continue showing their backend-assigned plugin even when that plugin is no longer selectable from the usable inventory list.
+- Extended that fix to the fully missing-inventory case so backend-assigned plugin truth still appears even when the inventory entry disappears entirely in-session.
+- Added a warning adornment for unavailable backend-assigned plugin options while keeping the genuine `--` empty-slot state unchanged.
+- Kept the correction seam-local in `PlaybackRackPanel` by preserving the assigned plugin as a disabled display option instead of adding route or session state outside the backend-owned model.
+- Added a focused regression proving blocked-or-otherwise-unselectable assigned plugins do not collapse to `--`, preserving same-session route and plugin-session coherence in-app.
+
 ### File List
+
+- `_bmad-output/implementation-artifacts/3-4-keep-route-and-plugin-session-behavior-stable-in-app.md`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `src/ui/select.test.tsx`
+- `src/ui/select.tsx`
+- `src/windows/main/screens/sequence/components/playback-rack-panel.test.tsx`
+- `src/windows/main/screens/sequence/components/playback-rack-panel.tsx`
+
+## Change Log
+
+- 2026-03-26: Preserved backend-owned slot plugin truth in the Sequence rack panel when an assigned plugin is no longer selectable, and added focused stability regression coverage for Story 3.4.
