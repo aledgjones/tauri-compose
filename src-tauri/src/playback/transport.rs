@@ -1,4 +1,4 @@
-use crate::playback::runtime_activation::PlaybackActivationRuntime;
+use crate::playback::preparation::{prepare_supported_playback, PlaybackPreparation};
 use crate::playback::tuplet_projection::{collect_track_playback_events, PlaybackTick};
 use crate::score::components::duration::Tick;
 use crate::score::entries::tempo::{EffectiveTempoResolver, DEFAULT_TEMPO_BPM};
@@ -242,9 +242,12 @@ fn compare_scheduled_notes(left: &ScheduledNote, right: &ScheduledNote) -> CmpOr
 fn collect_scheduled_notes(
     score: &Score,
     flow_id: UniqueId,
-    playback_runtime: &PlaybackActivationRuntime,
+    preparation: &PlaybackPreparation,
 ) -> FxHashMap<Tick, Vec<ScheduledNote>> {
     let mut notes_by_tick: FxHashMap<Tick, Vec<ScheduledNote>> = FxHashMap::default();
+    let Some(prepared_target) = preparation.supported_target.as_ref() else {
+        return notes_by_tick;
+    };
 
     let flow = match score.flows.by_id.get(&flow_id) {
         Some(f) => f,
@@ -259,16 +262,16 @@ fn collect_scheduled_notes(
         };
 
         for instrument_id in &player.instrument_ids {
+            if *instrument_id != prepared_target.instrument_id {
+                continue;
+            }
+
             let instrument = match score.instruments.by_id.get(instrument_id) {
                 Some(i) => i,
                 None => continue,
             };
 
-            let plugin_id =
-                match playback_runtime.effective_plugin_id_for_instrument(*instrument_id) {
-                    Some(id) => String::from(id),
-                    None => continue,
-                };
+            let plugin_id = prepared_target.plugin_id.clone();
 
             // Find staves for this instrument in this flow
             for stave_id in &instrument.stave_ids {
@@ -318,6 +321,8 @@ enum PlaybackExecutionMode {
 /// Cloned once at play-start so the thread never locks AppContextState.
 struct PlaybackSnapshot {
     score: Score,
+    #[cfg_attr(not(test), allow(dead_code))]
+    preparation: PlaybackPreparation,
     scheduled_notes: FxHashMap<Tick, Vec<ScheduledNote>>,
     flow_length: u64,
     tempo_resolver: EffectiveTempoResolver,
@@ -327,6 +332,7 @@ struct PlaybackSnapshot {
 fn build_supported_playback_snapshot(
     app_ctx: &AppContext,
     current_tick: Tick,
+    sample_rate: u32,
 ) -> Option<(PlaybackSnapshot, f64)> {
     let flow_id = active_flow_id(app_ctx)?;
     let flow =
@@ -340,14 +346,21 @@ fn build_supported_playback_snapshot(
         return None;
     }
 
+    let preparation = prepare_supported_playback(
+        &app_ctx.score,
+        &app_ctx.playback_activation_runtime,
+        sample_rate,
+    );
+
+    if preparation.blocks_supported_transport_start() {
+        return None;
+    }
+
     Some((
         PlaybackSnapshot {
             score: app_ctx.score.clone(),
-            scheduled_notes: collect_scheduled_notes(
-                &app_ctx.score,
-                flow_id,
-                &app_ctx.playback_activation_runtime,
-            ),
+            preparation: preparation.clone(),
+            scheduled_notes: collect_scheduled_notes(&app_ctx.score, flow_id, &preparation),
             flow_length: flow.length,
             tempo_resolver,
             execution_mode: PlaybackExecutionMode::TransportOnly,
@@ -453,6 +466,7 @@ fn transport_thread(shared: Arc<TransportShared>, snapshot: PlaybackSnapshot) {
 fn transport_play_with_states(
     state: &Mutex<TransportContext>,
     app_state: &AppContextState,
+    sample_rate: u32,
 ) -> Result<(), String> {
     let (shared, stale_handle) = {
         let mut ctx = state.lock().unwrap();
@@ -470,7 +484,7 @@ fn transport_play_with_states(
         let app_ctx = app_state.lock().unwrap();
         let current_tick = shared.current_tick.load(Ordering::Relaxed);
 
-        match build_supported_playback_snapshot(&app_ctx, current_tick) {
+        match build_supported_playback_snapshot(&app_ctx, current_tick, sample_rate) {
             Some((snapshot, initial_tempo)) => (snapshot, initial_tempo),
             None => {
                 let flow_id = active_flow_id(&app_ctx);
@@ -521,8 +535,14 @@ fn transport_play_with_states(
 pub fn transport_play(
     state: State<'_, Mutex<TransportContext>>,
     app_state: State<'_, AppContextState>,
+    audio_state: State<'_, AudioContextState>,
 ) -> Result<(), String> {
-    transport_play_with_states(state.inner(), app_state.inner())
+    let sample_rate = {
+        let audio = audio_state.lock().unwrap();
+        audio.get_sample_rate()
+    };
+
+    transport_play_with_states(state.inner(), app_state.inner(), sample_rate)
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -604,6 +624,7 @@ mod tests {
     use crate::playback::plugin_inventory::{
         PluginInventoryAvailability, PluginInventoryContext, PluginInventoryEntry,
     };
+    use crate::playback::runtime_activation::SingleInstrumentTrustGateBlocker;
     use crate::playback::runtime_activation::PlaybackActivationRuntime;
     use crate::score::components::duration::NoteDuration;
     use crate::score::entries::{tempo::Tempo, Entry};
@@ -699,6 +720,12 @@ mod tests {
         );
 
         PlaybackActivationRuntime::from_score_and_inventory(score, &inventory)
+    }
+
+    fn make_playback_preparation_for_score(score: &Score, sample_rate: u32) -> PlaybackPreparation {
+        let runtime = make_playback_runtime_for_score(score);
+
+        prepare_supported_playback(score, &runtime, sample_rate)
     }
 
     fn add_flow_with_tempos(
@@ -1077,13 +1104,14 @@ mod tests {
         let app_ctx = make_app_context(score, Some(flow_id));
 
         let (snapshot, initial_tempo) =
-            build_supported_playback_snapshot(&app_ctx, 0).expect("expected snapshot");
+            build_supported_playback_snapshot(&app_ctx, 0, 48_000).expect("expected snapshot");
 
         assert_eq!(initial_tempo, 120.0);
         assert_eq!(
             snapshot.execution_mode,
             PlaybackExecutionMode::TransportOnly
         );
+        assert_eq!(snapshot.preparation.sample_rate, 48_000);
         assert_eq!(snapshot.scheduled_notes.get(&32).map(Vec::len), Some(1));
     }
 
@@ -1097,11 +1125,11 @@ mod tests {
         let (score, flow_id) = make_flow_score_with_track(track);
         let app_ctx = make_app_context(score, Some(flow_id));
 
-        assert!(build_supported_playback_snapshot(&app_ctx, 160).is_none());
+        assert!(build_supported_playback_snapshot(&app_ctx, 160, 48_000).is_none());
     }
 
     #[test]
-    fn build_supported_playback_snapshot_skips_routes_missing_from_runtime_activation() {
+    fn build_supported_playback_snapshot_rejects_routes_missing_from_runtime_activation() {
         let mut track = Track::new(50);
         track
             .create_tone(80, 32, 16, 60, None, 96, Default::default(), None)
@@ -1111,11 +1139,94 @@ mod tests {
         let mut app_ctx = make_app_context(score, Some(flow_id));
         app_ctx.playback_activation_runtime = PlaybackActivationRuntime::default();
 
+        assert!(build_supported_playback_snapshot(&app_ctx, 0, 48_000).is_none());
+    }
+
+    #[test]
+    fn build_supported_playback_snapshot_rejects_multiple_routed_instruments() {
+        let mut first_track = Track::new(50);
+        first_track
+            .create_tone(80, 32, 16, 60, None, 96, Default::default(), None)
+            .unwrap();
+        let mut second_track = Track::new(51);
+        second_track
+            .create_tone(81, 32, 16, 64, None, 96, Default::default(), None)
+            .unwrap();
+
+        let (score, flow_id, _instrument_ids) = make_flow_score_with_tracks(vec![
+            (first_track, "plugin-a", false, false),
+            (second_track, "plugin-b", false, false),
+        ]);
+        let app_ctx = make_app_context(score, Some(flow_id));
+
+        assert!(build_supported_playback_snapshot(&app_ctx, 0, 48_000).is_none());
+    }
+
+    #[test]
+    fn build_supported_playback_snapshot_allows_timing_only_when_no_route_is_assigned() {
+        let mut score = Score::new();
+        let flow_id = 10;
+        let master_id = 11;
+        let player_id = 12;
+        let instrument_id = 13;
+        let stave_id = 14;
+        let track_id = 15;
+
+        let mut flow = Flow::new(flow_id, master_id);
+        flow.length = 160;
+        flow.player_ids = FxHashSet::from_iter([player_id]);
+        flow.staves.by_id.insert(
+            stave_id,
+            Stave {
+                id: stave_id,
+                lines: vec![1, 1, 1, 1, 1],
+                master_id,
+                track_ids: vec![track_id],
+            },
+        );
+
+        let mut track = Track::new(track_id);
+        track
+            .create_tone(80, 32, 16, 60, None, 96, Default::default(), None)
+            .unwrap();
+
+        score.flows.order.push(flow_id);
+        score.flows.by_id.insert(flow_id, flow);
+        score.tracks.by_id.insert(master_id, Track::new(master_id));
+        score.tracks.by_id.insert(track_id, track);
+        score.players.order.push(player_id);
+        score.players.by_id.insert(player_id, Player::new(player_id, PlayerType::Solo));
+        score.players.by_id.get_mut(&player_id).unwrap().instrument_ids = vec![instrument_id];
+        score.instruments.by_id.insert(
+            instrument_id,
+            Instrument {
+                id: instrument_id,
+                definition_id: String::from("strings.violin"),
+                instrument_type: InstrumentType::Melodic,
+                long_name: String::from("Violin"),
+                short_name: String::from("Vln."),
+                stave_ids: vec![stave_id],
+                count: None,
+                playback_route: None,
+                volume: 100,
+                pan: 64,
+                mute: false,
+                solo: false,
+            },
+        );
+
+        let app_ctx = make_app_context(score, Some(flow_id));
+
         let (snapshot, initial_tempo) =
-            build_supported_playback_snapshot(&app_ctx, 0).expect("expected snapshot");
+            build_supported_playback_snapshot(&app_ctx, 0, 48_000).expect("expected snapshot");
 
         assert_eq!(initial_tempo, 120.0);
         assert!(snapshot.scheduled_notes.is_empty());
+        assert_eq!(snapshot.preparation.sample_rate, 48_000);
+        assert_eq!(
+            snapshot.preparation.blockers,
+            vec![SingleInstrumentTrustGateBlocker::NoRoutedInstrument]
+        );
     }
 
     #[test]
@@ -1128,7 +1239,7 @@ mod tests {
         let (score, flow_id) = make_flow_score_with_track(track);
         let transport_state = make_transport_context_state();
         let app_state = Mutex::new(make_app_context(score, Some(flow_id)));
-        transport_play_with_states(&transport_state, &app_state).unwrap();
+        transport_play_with_states(&transport_state, &app_state, 48_000).unwrap();
 
         let ctx = transport_state.lock().unwrap();
         assert!(ctx.shared.playing.load(Ordering::Acquire));
@@ -1161,7 +1272,7 @@ mod tests {
             ctx.shared.current_tick.store(160, Ordering::Relaxed);
         }
         let app_state = Mutex::new(make_app_context(score, Some(flow_id)));
-        transport_play_with_states(&transport_state, &app_state).unwrap();
+        transport_play_with_states(&transport_state, &app_state, 48_000).unwrap();
 
         let ctx = transport_state.lock().unwrap();
         assert!(!ctx.shared.playing.load(Ordering::Acquire));
@@ -1301,11 +1412,11 @@ mod tests {
         );
 
         let app_ctx = make_app_context(score, Some(selected_flow_id));
-        let playback_runtime = make_playback_runtime_for_score(&app_ctx.score);
+        let preparation = make_playback_preparation_for_score(&app_ctx.score, 48_000);
         let scheduled = collect_scheduled_notes(
             &app_ctx.score,
             active_flow_id(&app_ctx).expect("expected active flow"),
-            &playback_runtime,
+            &preparation,
         );
 
         assert_eq!(
@@ -1395,11 +1506,11 @@ mod tests {
         );
 
         let app_ctx = make_app_context(score, Some(selected_flow_id));
-        let playback_runtime = make_playback_runtime_for_score(&app_ctx.score);
+        let preparation = make_playback_preparation_for_score(&app_ctx.score, 48_000);
         let scheduled = collect_scheduled_notes(
             &app_ctx.score,
             active_flow_id(&app_ctx).expect("expected active flow"),
-            &playback_runtime,
+            &preparation,
         );
 
         assert_eq!(
@@ -1480,9 +1591,8 @@ mod tests {
 
         let app_ctx = make_app_context(score, None);
         let selected_flow_id = active_flow_id(&app_ctx).expect("expected fallback flow");
-        let playback_runtime = make_playback_runtime_for_score(&app_ctx.score);
-        let scheduled =
-            collect_scheduled_notes(&app_ctx.score, selected_flow_id, &playback_runtime);
+        let preparation = make_playback_preparation_for_score(&app_ctx.score, 48_000);
+        let scheduled = collect_scheduled_notes(&app_ctx.score, selected_flow_id, &preparation);
 
         assert_eq!(selected_flow_id, first_flow_id);
         assert_eq!(
@@ -1515,8 +1625,8 @@ mod tests {
             .unwrap();
 
         let (score, flow_id) = make_flow_score_with_track(track);
-        let playback_runtime = make_playback_runtime_for_score(&score);
-        let scheduled = collect_scheduled_notes(&score, flow_id, &playback_runtime);
+        let preparation = make_playback_preparation_for_score(&score, 48_000);
+        let scheduled = collect_scheduled_notes(&score, flow_id, &preparation);
 
         assert_eq!(scheduled.get(&96).map(Vec::len), Some(1));
         assert_eq!(scheduled.get(&106).map(Vec::len), Some(1));
@@ -1540,8 +1650,8 @@ mod tests {
             .unwrap();
 
         let (score, flow_id) = make_flow_score_with_track(track);
-        let playback_runtime = make_playback_runtime_for_score(&score);
-        let scheduled = collect_scheduled_notes(&score, flow_id, &playback_runtime);
+        let preparation = make_playback_preparation_for_score(&score, 48_000);
+        let scheduled = collect_scheduled_notes(&score, flow_id, &preparation);
 
         assert_eq!(
             flatten_scheduled_starts(&scheduled),
@@ -1574,8 +1684,8 @@ mod tests {
             .unwrap();
 
         let (score, flow_id) = make_flow_score_with_track(track);
-        let playback_runtime = make_playback_runtime_for_score(&score);
-        let scheduled = collect_scheduled_notes(&score, flow_id, &playback_runtime);
+        let preparation = make_playback_preparation_for_score(&score, 48_000);
+        let scheduled = collect_scheduled_notes(&score, flow_id, &preparation);
         let bucket = scheduled
             .get(&106)
             .expect("expected mixed shared bucket at tick 106");
@@ -1613,8 +1723,8 @@ mod tests {
             .unwrap();
 
         let (score, flow_id) = make_flow_score_with_track(track);
-        let playback_runtime = make_playback_runtime_for_score(&score);
-        let scheduled = collect_scheduled_notes(&score, flow_id, &playback_runtime);
+        let preparation = make_playback_preparation_for_score(&score, 48_000);
+        let scheduled = collect_scheduled_notes(&score, flow_id, &preparation);
 
         assert_eq!(
             flatten_scheduled_starts(&scheduled),
@@ -1643,8 +1753,8 @@ mod tests {
             .unwrap();
 
         let (score, flow_id) = make_flow_score_with_track(track);
-        let playback_runtime = make_playback_runtime_for_score(&score);
-        let scheduled = collect_scheduled_notes(&score, flow_id, &playback_runtime);
+        let preparation = make_playback_preparation_for_score(&score, 48_000);
+        let scheduled = collect_scheduled_notes(&score, flow_id, &preparation);
 
         assert!(scheduled
             .values()
@@ -1654,21 +1764,17 @@ mod tests {
 
     #[test]
     fn collect_scheduled_notes_keeps_same_start_host_only_notes_in_deterministic_order() {
-        let mut first_track = Track::new(50);
-        first_track
+        let mut track = Track::new(50);
+        track
             .create_tone(80, 96, 16, 60, None, 96, Default::default(), None)
             .unwrap();
-        let mut second_track = Track::new(51);
-        second_track
-            .create_tone(81, 96, 16, 60, None, 96, Default::default(), None)
+        track
+            .create_tone(81, 96, 16, 64, None, 96, Default::default(), None)
             .unwrap();
 
-        let (score, flow_id, instrument_ids) = make_flow_score_with_tracks(vec![
-            (first_track, "plugin-a", false, false),
-            (second_track, "plugin-b", false, false),
-        ]);
-        let playback_runtime = make_playback_runtime_for_score(&score);
-        let scheduled = collect_scheduled_notes(&score, flow_id, &playback_runtime);
+        let (score, flow_id) = make_flow_score_with_track(track);
+        let preparation = make_playback_preparation_for_score(&score, 48_000);
+        let scheduled = collect_scheduled_notes(&score, flow_id, &preparation);
         let bucket = scheduled
             .get(&96)
             .expect("expected host-only shared bucket");
@@ -1678,11 +1784,8 @@ mod tests {
             .iter()
             .all(|note| note.start == PlaybackTick::from_tick(96)));
         assert_eq!(
-            bucket
-                .iter()
-                .map(|note| note.instrument_id)
-                .collect::<Vec<_>>(),
-            instrument_ids
+            bucket.iter().map(|note| note.pitch).collect::<Vec<_>>(),
+            vec![60, 64]
         );
     }
 
@@ -1697,8 +1800,8 @@ mod tests {
             .unwrap();
 
         let (score, flow_id) = make_flow_score_with_track_and_tempos(track, &[(0, 84), (64, 132)]);
-        let playback_runtime = make_playback_runtime_for_score(&score);
-        let scheduled = collect_scheduled_notes(&score, flow_id, &playback_runtime);
+        let preparation = make_playback_preparation_for_score(&score, 48_000);
+        let scheduled = collect_scheduled_notes(&score, flow_id, &preparation);
         let starts = flatten_scheduled_starts(&scheduled);
 
         assert_eq!(

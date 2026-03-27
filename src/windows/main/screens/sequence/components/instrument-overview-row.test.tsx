@@ -115,19 +115,17 @@ describe("InstrumentOverviewRow", () => {
     expect(screen.getByText("Violin")).toBeInTheDocument();
   });
 
-  it("renders one compact inline playback warning when the instrument is unrouted", () => {
+  it("keeps unrouted instruments visually neutral in the route control", () => {
     renderRow();
 
     const routeButton = screen.getByRole("button", { name: /^--/i });
 
     expect(
-      within(routeButton).getByLabelText("Playback needs attention"),
-    ).toBeInTheDocument();
+      within(routeButton).queryByLabelText("Playback needs attention"),
+    ).toBeNull();
     expect(
-      within(routeButton).getByTitle(
-        "Assign a playback route to enable playback.",
-      ),
-    ).toBeInTheDocument();
+      within(routeButton).queryByTitle(/Assign a playback route/i),
+    ).toBeNull();
   });
 
   it("does not render a playback warning when the backend route is ready", () => {
@@ -249,7 +247,7 @@ describe("InstrumentOverviewRow", () => {
           },
           resolved_playback_route_by_instrument_id: {
             5: {
-              status: ResolvedPlaybackRouteStatus.Unrouted,
+              status: ResolvedPlaybackRouteStatus.NeedsAttention,
               slot_id: 7,
               slot_target: null,
               effective_plugin_id: null,
@@ -268,8 +266,8 @@ describe("InstrumentOverviewRow", () => {
 
     expect(routeButton).toBeInTheDocument();
     expect(
-      within(routeButton).getByLabelText("Playback needs attention"),
-    ).toBeInTheDocument();
+      within(routeButton).queryByLabelText("Playback needs attention"),
+    ).toBeNull();
   });
 
   it("keeps the compact warning on the route control instead of next to the instrument name", () => {
@@ -337,10 +335,8 @@ describe("InstrumentOverviewRow", () => {
     const routeButton = screen.getByRole("button", { name: /^--/i });
 
     expect(
-      within(routeButton).getByTitle(
-        "Assign a playback route to enable playback.",
-      ),
-    ).toBeInTheDocument();
+      within(routeButton).queryByLabelText("Playback needs attention"),
+    ).toBeNull();
 
     fireEvent.click(routeButton);
     fireEvent.click(screen.getByRole("option", { name: "1. Grand Piano" }));

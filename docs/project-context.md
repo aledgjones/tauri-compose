@@ -102,6 +102,7 @@ _This file contains critical rules and patterns that AI agents must follow when 
 - `ui.flow_id` is the one authoritative active-flow slot for score, Sequence, miniature piano rolls, and transport-derived tempo state; deliberate score-object selection may update it, but pan/zoom/hover/miss-to-clear must not
 - Shipped MVP tuplets remain triplet-first and popover-first: create the container through the existing popover flow, then edit owned tones through the shared backend seams rather than inventing a second tuplet-construction workflow in React
 - The shared top bar is reserved for universal controls (tabs, layout, transport, tools); workflow-specific single-flow switching belongs inside the owning workflow surface such as Sequence
+- Keep backend playback-route truth richer than the warning UI. `resolved_playback_route_by_instrument_id` may honestly distinguish `Unrouted`, empty-slot, missing-plugin, and other non-ready states, but the Sequence route picker must stay intentionally minimal: no warning badge for plain `--` or `N. --`, and compact warning chrome only for broken assigned plugin routes that need repair.
 - UI styling: Tailwind utility classes + `classnames` — dark theme (neutral-900 base, sky-500 accents, transparent backgrounds)
 
 #### Score Render Pipeline

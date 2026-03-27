@@ -2011,7 +2011,9 @@ mod tests {
     fn consecutive_tuplets_use_next_tuplet_opening_as_forward_successor() {
         use crate::instructions::parse::get_accidentals::AnchoredAccidentals;
         use crate::instructions::parse::get_tone_offset_info::ToneOffsetInfo;
-        use crate::instructions::parse::get_written_durations::{HostSpan, Notation, NotationTrack};
+        use crate::instructions::parse::get_written_durations::{
+            HostSpan, Notation, NotationTrack,
+        };
         use crate::score::components::duration::NoteDuration;
         use crate::score::components::pitch::{Accidental, Pitch};
         use crate::score::components::velocity::Velocity;

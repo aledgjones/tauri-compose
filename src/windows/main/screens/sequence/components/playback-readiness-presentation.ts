@@ -8,7 +8,7 @@ import {
   UniqueId,
 } from "../../../../../services/types";
 
-type PlaybackReadinessKind = "ok" | "needs-attention";
+type PlaybackReadinessKind = "hidden" | "needs-attention";
 
 export type PlaybackReadinessPresentation = {
   kind: PlaybackReadinessKind;
@@ -53,17 +53,34 @@ export const getPlaybackReadinessPresentation = (
   route: ResolvedPlaybackRoute | null | undefined,
   _instrument: Instrument,
   _pluginInventoryEntries: PluginInventoryEntry[] = [],
-  rack: PlaybackRack | null | undefined = null,
+  _rack: PlaybackRack | null | undefined = null,
 ): PlaybackReadinessPresentation => {
-  const hasSlotReference = route?.slot_id != null;
-  const hasSlotInRack = hasSlotReference
-    ? rack?.by_id[route.slot_id as UniqueId] !== undefined
-    : false;
-
   if (route?.status === ResolvedPlaybackRouteStatus.Ready) {
     return {
-      kind: "ok",
+      kind: "hidden",
       label: "Ready",
+      hover_title: null,
+      icon: mdiAlertCircleOutline,
+      tone_class_name: "text-amber-300",
+      icon_class_name: "text-amber-300",
+    };
+  }
+
+  if (route?.status === ResolvedPlaybackRouteStatus.Unrouted) {
+    return {
+      kind: "hidden",
+      label: "Unrouted",
+      hover_title: null,
+      icon: mdiAlertCircleOutline,
+      tone_class_name: "text-amber-300",
+      icon_class_name: "text-amber-300",
+    };
+  }
+
+  if (route?.slot_target == null) {
+    return {
+      kind: "hidden",
+      label: "Needs attention",
       hover_title: null,
       icon: mdiAlertCircleOutline,
       tone_class_name: "text-amber-300",
@@ -74,10 +91,7 @@ export const getPlaybackReadinessPresentation = (
   return {
     kind: "needs-attention",
     label: "Needs attention",
-    hover_title:
-      hasSlotReference || hasSlotInRack
-        ? "Repair this playback route to enable playback."
-        : "Assign a playback route to enable playback.",
+    hover_title: "Repair this playback route to enable playback.",
     icon: mdiAlertCircleOutline,
     tone_class_name: "text-amber-300",
     icon_class_name: "text-amber-300",

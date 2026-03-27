@@ -66,6 +66,10 @@ impl SingleInstrumentTrustGate {
 }
 
 impl PlaybackActivationRuntime {
+    pub fn activated_slot_target(&self, slot_id: UniqueId) -> Option<&ActivatedSlotTarget> {
+        self.activated_slot_target_by_slot_id.get(&slot_id)
+    }
+
     pub fn expected_slot_targets_from_score_and_inventory(
         score: &Score,
         inventory: &PluginInventoryContext,
@@ -134,6 +138,7 @@ impl PlaybackActivationRuntime {
         }
     }
 
+    #[cfg_attr(not(test), allow(dead_code))]
     pub fn effective_plugin_id_for_instrument(&self, instrument_id: UniqueId) -> Option<&str> {
         self.activated_instrument_route_by_instrument_id
             .get(&instrument_id)
@@ -172,7 +177,7 @@ impl PlaybackActivationRuntime {
                                 .activated_instrument_route_by_instrument_id
                                 .get(instrument_id);
                             let status = if slot.target.is_none() {
-                                ResolvedPlaybackRouteStatus::Unrouted
+                                ResolvedPlaybackRouteStatus::NeedsAttention
                             } else if activated_route.is_some() {
                                 ResolvedPlaybackRouteStatus::Ready
                             } else {
@@ -463,13 +468,42 @@ mod tests {
 
         assert_eq!(
             before_assignment_status,
-            ResolvedPlaybackRouteStatus::Unrouted
+            ResolvedPlaybackRouteStatus::NeedsAttention
         );
         assert_eq!(after_assignment_status, ResolvedPlaybackRouteStatus::Ready);
         assert_eq!(
             after_unassignment_status,
-            ResolvedPlaybackRouteStatus::Unrouted
+            ResolvedPlaybackRouteStatus::NeedsAttention
         );
+    }
+
+    #[test]
+    fn empty_slot_routes_stay_attention_needed() {
+        let inventory = PluginInventoryContext::with_entries_for_tests(vec![available_entry(
+            "plugin-a",
+            "/Library/Audio/Plug-Ins/VST3/Plugin A.vst3",
+        )]);
+        let mut score = make_score();
+        score.playback.rack.order.push(100);
+        score.playback.rack.by_id.insert(
+            100,
+            PlaybackRackSlot {
+                id: 100,
+                target: None,
+            },
+        );
+        score.instruments.by_id.get_mut(&10).unwrap().playback_route =
+            Some(InstrumentPlaybackRoute::direct(100));
+
+        let runtime = PlaybackActivationRuntime::from_score_and_inventory(&score, &inventory);
+        let resolved = runtime.resolved_playback_route_by_instrument_id(&score);
+
+        assert_eq!(
+            resolved.get(&10).unwrap().status,
+            ResolvedPlaybackRouteStatus::NeedsAttention
+        );
+        assert_eq!(resolved.get(&10).unwrap().slot_id, Some(100));
+        assert_eq!(resolved.get(&10).unwrap().slot_target, None);
     }
 
     #[test]

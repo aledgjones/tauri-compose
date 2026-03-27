@@ -192,11 +192,12 @@ Plugin inventory startup behavior:
 - The canonical app-scoped browse surface for that inventory is the Sequence-menu `Plugin Manager...` window.
 - The Sequence bottom panel now owns the current score rack display and the ordinary score-context slot-preparation workflow, including an add-slot control, empty-slot creation, and slot-local plugin pickers backed by Rust-owned inventory truth. Ordinary choices stay bounded to plugins that are both available and not editor-host blocked.
 - Sequence instrument overview rows are the bounded score-context route-authoring workflow: choose a slot from the current score rack, or switch back to the empty `--` state. If a selected score slot still exists but no longer has a plugin assigned, the picker keeps that slot visible as `N. --` so the user can see that a specific slot remains selected even though it is not currently playable, and that empty-slot selection does not surface a needs-attention badge.
+- Keep backend playback truth and user-facing warning chrome separate. The backend should continue to distinguish `Unrouted`, empty-slot, missing-plugin, and other non-ready route states honestly, but the Sequence route control stays intentionally minimal: plain `--` for no assigned route, `N. --` for a selected empty slot, and the compact warning icon/title only for genuinely broken assigned plugin routes that the user should repair.
 - The dedicated Plugin Manager exposes the canonical `Refresh plugin inventory` action for the explicit full reprobe workflow and shows refresh-in-progress plus refreshed-state feedback.
 - The dedicated Plugin Manager remains the place for inventory browsing, health visibility, and refresh; the Sequence rack panel is not a substitute for those app-scoped responsibilities, but it is the correct in-score surface for creating an empty slot and assigning or updating that slot from currently usable plugins.
 - Same-session playback activation is now backend-owned and single-target only. Refresh the runtime activation seam by mutating score rack or route intent through the existing Rust commands or by loading a project; do not add frontend-owned activation caches or one-shot setup flows.
 - Inventory refresh also rebuilds same-session activation truth. If a previously activated slot target becomes unavailable, keep the route in the existing score-context rack workflow and let backend-emitted readiness fall to `NeedsAttention` instead of repairing it through a Plugin-Manager-first side path.
-- Transport-facing playback preparation must consume `AppContext.playback_activation_runtime` directly. Do not reintroduce plugin-inventory or slot-availability-only resolver helpers inside transport code when deciding whether a routed instrument is playable.
+- Transport-facing and audition-facing playback preparation must go through `src-tauri/src/playback/preparation.rs` via `prepare_supported_playback(...)`. That seam consumes `AppContext.playback_activation_runtime` plus the active audio sample rate, preserves explicit resolved-route states, and keeps the current MVP bounded to one supported direct-plugin target.
 - Reopen restoration across app restarts is still Epic 5 scope. Story 3.8 covers same-session runtime preparation only.
 
 What it does not yet do:
@@ -276,7 +277,7 @@ Avoid manually editing synced version files just to reserve a migration target.
 ### Playback reset notes
 
 - Compose no longer ships sampler-context, SCVI-runtime, or sampler-audition ownership on the product path.
-- Treat plugin inventory plus `PlaybackActivationRuntime::from_score_and_inventory(...)` as the only supported readiness seam for playback work.
+- Treat plugin inventory plus `PlaybackActivationRuntime::from_score_and_inventory(...)` as the readiness seam, then derive any transport or audition handoff through `prepare_supported_playback(...)` instead of rebuilding playback preparation inside transport or probe code.
 - Do not restore sampler-style fallback actions, events, or hidden runtime bridges when implementing later VST stories.
 
 ## Visual Regression Cases

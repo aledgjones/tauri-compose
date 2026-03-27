@@ -618,7 +618,7 @@ mod tests {
         }
     }
 
-    fn create_valid_bundle(root: &PathBuf, name: &str) -> PathBuf {
+    fn create_valid_bundle(root: &Path, name: &str) -> PathBuf {
         let bundle = root.join(format!("{name}.vst3"));
         let macos_dir = bundle.join("Contents").join("MacOS");
         std::fs::create_dir_all(&macos_dir).unwrap();

@@ -354,10 +354,7 @@ pub(crate) type RendererContextState = Mutex<RendererContext>;
 const APP_NAME: &str = "Solo Compose";
 
 #[tauri::command(rename_all = "snake_case")]
-fn get_general_state(
-    app: AppHandle,
-    state: State<'_, AppContextState>,
-) -> AppStateGeneral {
+fn get_general_state(app: AppHandle, state: State<'_, AppContextState>) -> AppStateGeneral {
     let mut state = state.lock().unwrap();
     state.refresh_playback_activation_runtime_from_app(&app);
 

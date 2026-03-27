@@ -61,6 +61,7 @@ Score-instrument playback topology is now split into three backend-owned layers:
 - persisted `Score.playback.rack` plus per-instrument `Instrument.playback_route` on the score domain store portable rack and route intent only
 - non-persisted slot-owned live plugin sessions on the backend playback domain are keyed by `slot_id`, hold the real initialized VST runtime objects for prepared slots, restore any portable `PlaybackSlotTarget.plugin_state` payload before editor-open, are rebuilt from portable saved intent plus machine-local inventory truth, and are torn down at slot unassign, slot removal, inventory invalidation, reset, or project replacement instead of editor-window close
 - non-persisted `PlaybackActivationRuntime` on `AppContext` is a readiness snapshot derived from those live slot sessions; it is rebuilt after slot assignment, slot unassignment, slot removal, route assignment, route clearing, project load, inventory refresh, and reset without being written into `.soloc`
+- non-persisted playback preparation in `src-tauri/src/playback/preparation.rs` is the canonical transport and audition handoff: it combines the current `PlaybackActivationRuntime`, the explicit resolved route states, and the active audio sample rate into one backend-owned preparation artifact, exposes at most one supported direct-plugin target for the current MVP, and remains reusable without creating frontend-owned or probe-owned playback truth
 - emitted `resolved_playback_route_by_instrument_id` on `soloc://state/general` stores the backend-computed score-context status (`Unrouted`, `Ready`, `NeedsAttention`) plus the currently activated effective plugin id, resolved slot target, and explicit route metadata needed by later stories
 - emitted `route_target_options_by_slot_id` on `soloc://state/general` tells Sequence which explicit route targets are currently valid for each prepared slot so React does not invent plugin-part or MIDI-channel choices locally
 
@@ -245,7 +246,7 @@ type AnchoredNotationTrack = {
 
 ## Audio Pipeline
 
-Supported `transport_play` is currently timing-only on the product path. It advances tick and tempo state from the score snapshot and the backend-owned playback activation runtime without any sampler or SCVI fallback path.
+Supported `transport_play` is currently timing-only on the product path. It advances tick and tempo state from a play-start score snapshot plus the backend-owned playback preparation artifact derived from `PlaybackActivationRuntime` and the current audio sample rate, without any sampler or SCVI fallback path.
 
 Story 1.3 added an explicit single-instrument reset trust gate on top of that path, and Stories 1.4 through 1.6 plus maintainer manual proof completed it. Here, single-instrument means a VST instance that hosts one playable instrument at a time, even if that instance exposes multiple articulations, expressions, or mic mixes; HALion-style multi-slot or multi-part instances remain out of scope. The backend now evaluates one authoritative routed direct-plugin route through `PlaybackActivationRuntime` and exposes whether that baseline is transport-ready without claiming audible playback. That gate was intentionally narrow: one routed instrument, one single-instrument VST-backed slot target, one backend-owned activation path, and no sampler-era or SCVI-era fallback ownership. Epic 4 audible-playback work now proceeds on top of that completed trust-restoration foundation rather than replacing it.
 
@@ -264,6 +265,7 @@ Story 1.3 added an explicit single-instrument reset trust gate on top of that pa
 
 - **Transport** — Uses atomics (`AtomicBool`, `AtomicU64`) for lock-free state sharing; instrument mix params via `RwLock<FxHashMap>`
 - **Tempo resolution** — Playback snapshots the score's flow master-track tempo data at play/resume start, resolves the active BPM once per tick via a bounded resolver, and silently falls back to 120 BPM when no score tempo applies
+- **Playback preparation** — `prepare_supported_playback(...)` is the canonical backend seam for transport and upcoming audition work; it preserves explicit `Unrouted` and `NeedsAttention` states, captures the active audio sample rate, and only exposes one supported direct-plugin target in the current single-target-first MVP
 
 ### Transport tempo semantics
 

@@ -3,6 +3,7 @@ pub mod mixer;
 pub mod plugin_editor_poc;
 pub mod plugin_host_compatibility;
 pub mod plugin_inventory;
+pub mod preparation;
 pub mod runtime_activation;
 pub mod transport;
 pub mod tuplet_projection;

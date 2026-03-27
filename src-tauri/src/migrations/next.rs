@@ -64,13 +64,30 @@ fn playback_route_from_legacy(
     target: Option<&serde_json::Map<String, Value>>,
     slot_id: u64,
 ) -> Value {
-    let (target_mode, target_index, address_mode, address_index) = match target
-        .and_then(|target| target.get("mode").and_then(Value::as_u64))
-    {
-        Some(1) => (2_u64, target.and_then(|current| current.get("index")).and_then(Value::as_u64), 2_u64, target.and_then(|current| current.get("index")).and_then(Value::as_u64)),
-        Some(_) => (1_u64, target.and_then(|current| current.get("index")).and_then(Value::as_u64), 1_u64, target.and_then(|current| current.get("index")).and_then(Value::as_u64)),
-        None => (0_u64, None, 0_u64, None),
-    };
+    let (target_mode, target_index, address_mode, address_index) =
+        match target.and_then(|target| target.get("mode").and_then(Value::as_u64)) {
+            Some(1) => (
+                2_u64,
+                target
+                    .and_then(|current| current.get("index"))
+                    .and_then(Value::as_u64),
+                2_u64,
+                target
+                    .and_then(|current| current.get("index"))
+                    .and_then(Value::as_u64),
+            ),
+            Some(_) => (
+                1_u64,
+                target
+                    .and_then(|current| current.get("index"))
+                    .and_then(Value::as_u64),
+                1_u64,
+                target
+                    .and_then(|current| current.get("index"))
+                    .and_then(Value::as_u64),
+            ),
+            None => (0_u64, None, 0_u64, None),
+        };
 
     let _ = plugin_id;
 
@@ -92,7 +109,8 @@ fn migrate_instrument_playback_routes(mut data: Value) -> Result<Value, String> 
         .get("next_id")
         .and_then(Value::as_u64)
         .unwrap_or_else(|| max_runtime_id(&data).saturating_add(1));
-    let mut shared_slot_ids: std::collections::BTreeMap<u64, u64> = std::collections::BTreeMap::new();
+    let mut shared_slot_ids: std::collections::BTreeMap<u64, u64> =
+        std::collections::BTreeMap::new();
 
     let existing_playback = data
         .get("score")
@@ -143,30 +161,33 @@ fn migrate_instrument_playback_routes(mut data: Value) -> Result<Value, String> 
         let assignment_intent = instrument_object.remove("assignment_intent");
         let legacy_assigned_plugin_id = instrument_object.remove("assigned_plugin_id");
 
-        let (plugin_id, target, shared_instance_id, mode) = match assignment_intent
-            .as_ref()
-            .and_then(Value::as_object)
-        {
-            Some(intent) => (
-                intent
-                    .get("plugin_id")
-                    .and_then(Value::as_str)
-                    .map(String::from)
-                    .or_else(|| legacy_assigned_plugin_id.as_ref().and_then(Value::as_str).map(String::from)),
-                intent.get("target").and_then(Value::as_object),
-                intent.get("shared_instance_id").and_then(Value::as_u64),
-                intent.get("mode").and_then(Value::as_u64).unwrap_or(0),
-            ),
-            None => (
-                legacy_assigned_plugin_id
-                    .as_ref()
-                    .and_then(Value::as_str)
-                    .map(String::from),
-                None,
-                None,
-                0,
-            ),
-        };
+        let (plugin_id, target, shared_instance_id, mode) =
+            match assignment_intent.as_ref().and_then(Value::as_object) {
+                Some(intent) => (
+                    intent
+                        .get("plugin_id")
+                        .and_then(Value::as_str)
+                        .map(String::from)
+                        .or_else(|| {
+                            legacy_assigned_plugin_id
+                                .as_ref()
+                                .and_then(Value::as_str)
+                                .map(String::from)
+                        }),
+                    intent.get("target").and_then(Value::as_object),
+                    intent.get("shared_instance_id").and_then(Value::as_u64),
+                    intent.get("mode").and_then(Value::as_u64).unwrap_or(0),
+                ),
+                None => (
+                    legacy_assigned_plugin_id
+                        .as_ref()
+                        .and_then(Value::as_str)
+                        .map(String::from),
+                    None,
+                    None,
+                    0,
+                ),
+            };
 
         if mode == 0 || plugin_id.is_none() {
             instrument_object.insert(String::from("playback_route"), Value::Null);
