@@ -36,7 +36,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-03-25T00:12:37Z
-last_updated: 2026-04-03T00:00:00Z
+last_updated: 2026-04-03T22:00:04Z
 project: compose
 project_key: NOKEY
 tracking_system: file-system
@@ -66,13 +66,13 @@ development_status:
   3-4-keep-route-and-plugin-session-behavior-stable-in-app: done
   epic-3-retrospective: done
 
-  epic-4: in-progress
+  epic-4: done
   4-1-translate-routed-score-instruments-into-playback-preparation: done
   4-2-prove-first-audible-playback-through-auditioning: done
   4-3-establish-a-continuous-render-path-for-slot-owned-sessions: done
   4-4-apply-basic-route-first-mix-controls-during-audition-and-playback: done
   4-5-keep-first-audible-playback-compact-and-score-first: done
-  epic-4-retrospective: optional
+  epic-4-retrospective: done
 
   epic-5: backlog
   5-1-start-pause-and-resume-trusted-score-playback: backlog
