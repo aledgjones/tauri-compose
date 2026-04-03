@@ -107,6 +107,8 @@ export const MixerToolbar: FC<MixerToolbarProps> = ({
             isSelected={hasSolo}
             variant="interactive"
             onClick={handleToggleAllSolo}
+            aria-label="Solo all supported instruments"
+            title="Solo all supported instruments"
           />
         )}
         {instruments.some((instrument) =>
@@ -121,6 +123,8 @@ export const MixerToolbar: FC<MixerToolbarProps> = ({
             isSelected={hasMute}
             variant="interactive"
             onClick={handleToggleAllMute}
+            aria-label="Mute all supported instruments"
+            title="Mute all supported instruments"
           />
         )}
         <div className="bg-neutral-900 flex-1" />

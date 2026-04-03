@@ -21,6 +21,8 @@ export const IconButton: FC<IconProps & Props> = ({
   onPointerDown,
   isDisabled = false,
   isSelected,
+  title,
+  "aria-label": ariaLabel,
   ...props
 }) => {
   return (
@@ -30,6 +32,9 @@ export const IconButton: FC<IconProps & Props> = ({
       onPointerDown={onPointerDown}
       disabled={isDisabled}
       aria-disabled={isDisabled}
+      aria-label={ariaLabel ?? undefined}
+      aria-pressed={isSelected}
+      title={title ?? undefined}
       className={classNames(
         "flex items-center justify-center h-9 w-9",
         getTheme(variant, isSelected),

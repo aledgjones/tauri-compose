@@ -76,8 +76,28 @@ describe("MixerToolbar", () => {
         resolvedPlaybackRouteByInstrumentId={{ 1: makeRoute() }}
       />,
     );
-    const buttons = screen.getAllByRole("button");
-    expect(buttons).toHaveLength(2);
+    expect(
+      screen.getByRole("button", { name: "Solo all supported instruments" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Mute all supported instruments" }),
+    ).toBeInTheDocument();
+  });
+
+  it("exposes the active toolbar toggle state without relying on color alone", () => {
+    render(
+      <MixerToolbar
+        instruments={[makeInstrument({ solo: true, mute: false })]}
+        resolvedPlaybackRouteByInstrumentId={{ 1: makeRoute() }}
+      />,
+    );
+
+    expect(
+      screen.getByRole("button", { name: "Solo all supported instruments" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    expect(
+      screen.getByRole("button", { name: "Mute all supported instruments" }),
+    ).toHaveAttribute("aria-pressed", "false");
   });
 
   it("calls setSolo only for instruments whose active route supports solo", () => {
@@ -102,7 +122,9 @@ describe("MixerToolbar", () => {
       />,
     );
 
-    fireEvent.click(screen.getAllByRole("button")[0]);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Solo all supported instruments" }),
+    );
     expect(actions.score.instrument.setSolo).toHaveBeenCalledWith(1, true);
     expect(actions.score.instrument.setSolo).not.toHaveBeenCalledWith(2, true);
   });
@@ -128,7 +150,9 @@ describe("MixerToolbar", () => {
         }}
       />,
     );
-    fireEvent.click(screen.getAllByRole("button")[1]);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Mute all supported instruments" }),
+    );
     expect(actions.score.instrument.setMute).toHaveBeenCalledWith(1, true);
     expect(actions.score.instrument.setMute).not.toHaveBeenCalledWith(2, true);
     expect(actions.score.instrument.setSolo).not.toHaveBeenCalled();

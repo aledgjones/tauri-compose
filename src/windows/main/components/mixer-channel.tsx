@@ -178,6 +178,8 @@ export const MixerChannel: FC<MixerProps> = ({
                 size={0.9}
                 isSelected={isSoloed}
                 onClick={onToggleSolo}
+                aria-label={`Solo ${instrument.short_name}`}
+                title={`Solo ${instrument.short_name}`}
               />
             )}
             {showMuteControl && (
@@ -187,6 +189,8 @@ export const MixerChannel: FC<MixerProps> = ({
                 size={0.9}
                 isSelected={isMuted}
                 onClick={onToggleMute}
+                aria-label={`Mute ${instrument.short_name}`}
+                title={`Mute ${instrument.short_name}`}
               />
             )}
           </div>

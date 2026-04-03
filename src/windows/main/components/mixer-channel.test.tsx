@@ -95,16 +95,36 @@ describe("MixerChannel", () => {
   it("calls onToggleSolo when solo button is clicked", () => {
     const onToggleSolo = vi.fn();
     renderMixerChannel({ onToggleSolo, showSoloControl: true });
-    const buttons = screen.getAllByRole("button");
-    fireEvent.click(buttons[0]);
+    const soloButton = screen.getByRole("button", { name: "Solo Pno." });
+    expect(soloButton).toHaveAttribute("aria-pressed", "false");
+    fireEvent.click(soloButton);
     expect(onToggleSolo).toHaveBeenCalledOnce();
   });
 
   it("calls onToggleMute when mute button is clicked", () => {
     const onToggleMute = vi.fn();
     renderMixerChannel({ onToggleMute, showMuteControl: true });
-    const buttons = screen.getAllByRole("button");
-    fireEvent.click(buttons[0]);
+    const muteButton = screen.getByRole("button", { name: "Mute Pno." });
+    expect(muteButton).toHaveAttribute("aria-pressed", "false");
+    fireEvent.click(muteButton);
     expect(onToggleMute).toHaveBeenCalledOnce();
+  });
+
+  it("exposes pressed state for selected solo and mute controls", () => {
+    renderMixerChannel({
+      showSoloControl: true,
+      showMuteControl: true,
+      isSoloed: true,
+      isMuted: true,
+    });
+
+    expect(screen.getByRole("button", { name: "Solo Pno." })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(screen.getByRole("button", { name: "Mute Pno." })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
   });
 });

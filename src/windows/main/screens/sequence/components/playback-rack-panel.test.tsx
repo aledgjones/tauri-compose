@@ -636,6 +636,48 @@ describe("PlaybackRackPanel", () => {
     expect(screen.queryByRole("button", { name: "Route here" })).toBeNull();
   });
 
+  it("keeps app-scoped inventory actions out of the score-context rack surface", () => {
+    renderWithProviders(<PlaybackRackPanel />, {
+      appState: {
+        score: {
+          playback: {
+            rack: {
+              order: [9],
+              by_id: {
+                9: {
+                  id: 9,
+                  target: { plugin_id: "vst3:grand-piano" },
+                },
+              },
+            },
+          },
+        } as never,
+      },
+      pluginInventoryState: {
+        entries: [
+          {
+            id: "vst3:grand-piano",
+            name: "Grand Piano",
+            bundle_path: "/Library/Audio/Plug-Ins/VST3/Grand Piano.vst3",
+            binary_path:
+              "/Library/Audio/Plug-Ins/VST3/Grand Piano.vst3/Contents/MacOS/Grand Piano",
+            source_root: "/Library/Audio/Plug-Ins/VST3",
+            availability: "available",
+            validation_failure: null,
+            editor_host_validation: null,
+          },
+        ],
+      },
+    });
+
+    expect(
+      screen.queryByRole("button", { name: /refresh plugin inventory/i }),
+    ).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: /plugin manager/i }),
+    ).toBeNull();
+  });
+
   it("does not render the slot-card plugin UI button for blocked editor-host targets", () => {
     renderWithProviders(<PlaybackRackPanel />, {
       appState: {

@@ -302,6 +302,8 @@ export const InstrumentOverviewRow: FC<InstrumentOverviewRowProps> = ({
                   variant="filled"
                   size={0.9}
                   isSelected={instrument.solo}
+                  aria-label={`Solo ${instrument.long_name}`}
+                  title={`Solo ${instrument.long_name}`}
                   onClick={() =>
                     actions.score.instrument.setSolo(
                       instrument.id,
@@ -316,6 +318,8 @@ export const InstrumentOverviewRow: FC<InstrumentOverviewRowProps> = ({
                   variant="filled"
                   size={0.9}
                   isSelected={instrument.mute}
+                  aria-label={`Mute ${instrument.long_name}`}
+                  title={`Mute ${instrument.long_name}`}
                   onClick={() =>
                     actions.score.instrument.setMute(
                       instrument.id,

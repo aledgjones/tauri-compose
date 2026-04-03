@@ -155,6 +155,14 @@ export const useKeyboardShortcuts = () => {
     };
   }, [toneSelectionInfo]);
 
+  const canAutoAuditionSelectedTone = useMemo(() => {
+    return Boolean(
+      state.single_instrument_transport_ready &&
+      selectedToneAudition &&
+      canAuditionInstrument(state, selectedToneAudition.instrumentId),
+    );
+  }, [selectedToneAudition, state]);
+
   const deletionInfo = useMemo(() => {
     if (selection === null) {
       return null;
@@ -229,11 +237,7 @@ export const useKeyboardShortcuts = () => {
     if (!hasObservedInitialSelectionRef.current) {
       hasObservedInitialSelectionRef.current = true;
 
-      if (
-        currentSelectionKey !== null &&
-        selectedToneAudition &&
-        canAuditionInstrument(state, selectedToneAudition.instrumentId)
-      ) {
+      if (currentSelectionKey !== null && canAutoAuditionSelectedTone) {
         lastAuditionedSelectionKeyRef.current = currentSelectionKey;
       } else {
         lastAuditionedSelectionKeyRef.current = null;
@@ -251,11 +255,7 @@ export const useKeyboardShortcuts = () => {
       return;
     }
 
-    if (!selectedToneAudition) {
-      return;
-    }
-
-    if (!canAuditionInstrument(state, selectedToneAudition.instrumentId)) {
+    if (!selectedToneAudition || !canAutoAuditionSelectedTone) {
       return;
     }
 
@@ -266,7 +266,7 @@ export const useKeyboardShortcuts = () => {
       selectedToneAudition.instrumentId,
       selectedToneAudition.pitch,
     );
-  }, [selectedToneAudition, state]);
+  }, [canAutoAuditionSelectedTone, selectedToneAudition, state]);
 
   useEffect(() => {
     const auditionTone = async (instrumentId: number, pitch: number) => {

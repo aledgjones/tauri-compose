@@ -10,9 +10,9 @@ import { useBottomPanelState } from "../../../hooks/use-bottom-panel-state";
 import { PlaybackRackPanel } from "./playback-rack-panel";
 
 const SEQUENCE_TABS = [
-  { tab: BottomPanelTab.Sequencer, icon: mdiPiano },
-  { tab: BottomPanelTab.Mixer, icon: mdiTuneVertical },
-  { tab: BottomPanelTab.Instruments, icon: mdiCableData },
+  { tab: BottomPanelTab.Sequencer, icon: mdiPiano, label: "sequencer" },
+  { tab: BottomPanelTab.Mixer, icon: mdiTuneVertical, label: "mixer" },
+  { tab: BottomPanelTab.Instruments, icon: mdiCableData, label: "instruments" },
 ];
 
 export const BottomPanel: FC = () => {
@@ -95,6 +95,8 @@ export const BottomPanel: FC = () => {
               path={tabConfig.icon}
               variant="interactive"
               isSelected={tab === tabConfig.tab}
+              aria-label={`Show ${tabConfig.label} panel`}
+              title={`Show ${tabConfig.label} panel`}
               onClick={() => {
                 actions.ui.screens.sequence.bottomPanel.setTab(tabConfig.tab);
               }}

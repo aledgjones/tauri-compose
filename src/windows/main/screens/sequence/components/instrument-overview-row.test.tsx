@@ -201,12 +201,13 @@ describe("InstrumentOverviewRow", () => {
     const routeButton = screen.getByRole("button", {
       name: /1\. Grand Piano/i,
     });
-    const mixButtons = screen
-      .getAllByRole("button")
-      .filter((button) => button !== routeButton);
+    const soloButton = screen.getByRole("button", { name: "Solo Violin" });
+    const muteButton = screen.getByRole("button", { name: "Mute Violin" });
 
-    expect(mixButtons).toHaveLength(2);
-    fireEvent.click(mixButtons[1]);
+    expect(routeButton).toBeInTheDocument();
+    expect(soloButton).toHaveAttribute("aria-pressed", "false");
+    expect(muteButton).toHaveAttribute("aria-pressed", "false");
+    fireEvent.click(muteButton);
 
     await waitFor(() => {
       expect(actions.score.instrument.setMute).toHaveBeenCalledWith(5, true);
@@ -909,12 +910,7 @@ describe("InstrumentOverviewRow", () => {
       supported_mix_controls: supportedMixerControls,
     });
 
-    const routeButton = screen.getByRole("button", {
-      name: /1\. Grand Piano/i,
-    });
-    const soloButton = screen
-      .getAllByRole("button")
-      .filter((button) => button !== routeButton)[0];
+    const soloButton = screen.getByRole("button", { name: "Solo Violin" });
 
     fireEvent.click(soloButton);
     expect(actions.score.instrument.setSolo).toHaveBeenCalledWith(5, true);
@@ -930,15 +926,82 @@ describe("InstrumentOverviewRow", () => {
       address: { mode: 0, index: null },
       supported_mix_controls: supportedMixerControls,
     });
-    const routeButton = screen.getByRole("button", {
-      name: /1\. Grand Piano/i,
-    });
-    const muteButton = screen
-      .getAllByRole("button")
-      .filter((button) => button !== routeButton)[1];
+    const muteButton = screen.getByRole("button", { name: "Mute Violin" });
 
     fireEvent.click(muteButton);
     expect(actions.score.instrument.setMute).toHaveBeenCalledWith(5, true);
+  });
+
+  it("exposes pressed state for selected instrument mix toggles", () => {
+    renderWithProviders(
+      <InstrumentOverviewRow
+        instrument={{ ...mockInstrument, solo: true, mute: true }}
+        color="#ff0000"
+        isDisabled={false}
+      />,
+      {
+        appState: {
+          score: {
+            playback: {
+              rack: {
+                order: [7],
+                by_id: {
+                  7: {
+                    id: 7,
+                    target: { plugin_id: "vst3:grand-piano" },
+                  },
+                },
+              },
+            },
+          } as never,
+          route_target_options_by_slot_id: {
+            7: [
+              {
+                key: "plugin-root",
+                label: "Plugin output",
+                target: { mode: 0, index: null },
+                address: { mode: 0, index: null },
+              },
+            ],
+          },
+          resolved_playback_route_by_instrument_id: {
+            5: {
+              status: ResolvedPlaybackRouteStatus.Ready,
+              slot_id: 7,
+              slot_target: { plugin_id: "vst3:grand-piano" },
+              effective_plugin_id: "vst3:grand-piano",
+              target: { mode: 0, index: null },
+              address: { mode: 0, index: null },
+              supported_mix_controls: supportedMixerControls,
+            },
+          },
+        },
+        pluginInventoryState: {
+          entries: [
+            {
+              id: "vst3:grand-piano",
+              name: "Grand Piano",
+              bundle_path: "/Library/Audio/Plug-Ins/VST3/Grand Piano.vst3",
+              binary_path:
+                "/Library/Audio/Plug-Ins/VST3/Grand Piano.vst3/Contents/MacOS/Grand Piano",
+              source_root: "/Library/Audio/Plug-Ins/VST3",
+              availability: "available",
+              validation_failure: null,
+              editor_host_validation: null,
+            },
+          ],
+        },
+      },
+    );
+
+    expect(screen.getByRole("button", { name: "Solo Violin" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(screen.getByRole("button", { name: "Mute Violin" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
   });
 
   it("renders instrument count when count is set", () => {
