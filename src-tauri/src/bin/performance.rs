@@ -181,7 +181,7 @@ mod playback {
                                         .activated_instrument_route_by_instrument_id
                                         .get(instrument_id);
                                     let status = if slot.target.is_none() {
-                                        ResolvedPlaybackRouteStatus::Unrouted
+                                        ResolvedPlaybackRouteStatus::NeedsAttention
                                     } else if activated_route.is_some() {
                                         ResolvedPlaybackRouteStatus::Ready
                                     } else {

@@ -12,6 +12,7 @@ import {
   UniqueId,
 } from "../../../services/types";
 import { actions } from "../../../services/actions";
+import { useAppState } from "../../../services/state";
 import { SequencerTrackTone } from "./sequencer-track-tone";
 import { SequencerTrackTuplet } from "./sequencer-track-tuplet";
 import {
@@ -38,6 +39,7 @@ import {
   getTupletRegion,
   isTickInsideTupletRegion,
 } from "./sequencer-tuplet-utils";
+import { auditionInstrumentPitch } from "../utils/audition";
 
 const getStaveIdForTrack = (flow: Flow, trackId: UniqueId) => {
   for (const stave of Object.values(flow.staves.by_id)) {
@@ -611,6 +613,7 @@ const handlePositionDragging = async (
   clickTarget: ClickTarget,
   originalTone: Tone,
   instrumentId: UniqueId,
+  auditionTone: (pitch: number) => Promise<void>,
   lattice: SequencerAddressLattice,
   overlay: SequencerSnapOverlay,
   slots: Slots,
@@ -656,14 +659,23 @@ const handlePositionDragging = async (
     }
 
     if (newPitch !== lastPitch) {
-      await actions.score.tone.setPitch(
-        track.id,
-        lastOwnerTupletId,
-        clickTarget.id,
-        newPitch,
-        null,
-      );
+      const previousPitch = lastPitch;
       lastPitch = newPitch;
+
+      try {
+        await actions.score.tone.setPitch(
+          track.id,
+          lastOwnerTupletId,
+          clickTarget.id,
+          newPitch,
+          null,
+        );
+      } catch {
+        lastPitch = previousPitch;
+        return;
+      }
+
+      await auditionTone(newPitch);
     }
 
     if (addressKey(clampedAddress) !== addressKey(lastAddress)) {
@@ -718,6 +730,7 @@ const handleSelectTool = async (
   overlay: SequencerSnapOverlay,
   slots: Slots,
   instrumentId: UniqueId,
+  auditionTone: (pitch: number) => Promise<void>,
 ) => {
   const clickTarget = getSequencerClickTarget(e.target as HTMLElement);
 
@@ -808,6 +821,7 @@ const handleSelectTool = async (
       clickTarget,
       originalTone,
       instrumentId,
+      auditionTone,
       lattice,
       overlay,
       slots,
@@ -825,7 +839,15 @@ export const SequencerTrack: FC<SequencerTrackProps> = ({
   instrumentId,
   color,
 }) => {
+  const state = useAppState();
   const sequencerRef = useRef<HTMLDivElement>(null);
+
+  const auditionTone = useCallback(
+    async (pitch: number) => {
+      await auditionInstrumentPitch(state, instrumentId, pitch);
+    },
+    [instrumentId, state],
+  );
 
   const tones = useMemo(() => {
     return Object.values(track.entries.by_id).filter(
@@ -915,6 +937,7 @@ export const SequencerTrack: FC<SequencerTrackProps> = ({
             snapOverlay,
             slots,
             instrumentId,
+            auditionTone,
           );
           return;
 
@@ -941,6 +964,7 @@ export const SequencerTrack: FC<SequencerTrackProps> = ({
       tool,
       track,
       instrumentId,
+      auditionTone,
       ticks,
     ],
   );

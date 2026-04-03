@@ -1106,7 +1106,7 @@ mod tests {
     }
 
     #[test]
-    fn plugin_part_route_without_available_slot_resolves_to_attention_needed() {
+    fn plugin_part_route_without_available_slot_normalizes_to_unrouted() {
         let mut available_plugin_ids = FxHashSet::default();
         available_plugin_ids.insert(String::from("plugin-a"));
 
@@ -1132,8 +1132,10 @@ mod tests {
 
         assert_eq!(
             resolved.get(&10).unwrap().status,
-            ResolvedPlaybackRouteStatus::NeedsAttention
+            ResolvedPlaybackRouteStatus::Unrouted
         );
+        assert_eq!(resolved.get(&10).unwrap().slot_id, None);
+        assert_eq!(resolved.get(&10).unwrap().slot_target, None);
         assert_eq!(resolved.get(&10).unwrap().effective_plugin_id, None);
     }
 
@@ -1336,7 +1338,7 @@ mod tests {
     }
 
     #[test]
-    fn routed_instrument_with_unassigned_slot_resolves_to_unrouted() {
+    fn routed_instrument_with_unassigned_slot_resolves_to_attention_needed() {
         let available_plugin_ids = FxHashSet::default();
 
         let mut score = make_score(
@@ -1353,7 +1355,7 @@ mod tests {
 
         assert_eq!(
             by_instrument.get(&10).unwrap().status,
-            ResolvedPlaybackRouteStatus::Unrouted
+            ResolvedPlaybackRouteStatus::NeedsAttention
         );
         assert_eq!(by_instrument.get(&10).unwrap().slot_id, Some(100));
         assert_eq!(by_instrument.get(&10).unwrap().slot_target, None);

@@ -198,6 +198,8 @@ Plugin inventory startup behavior:
 - Same-session playback activation is now backend-owned and single-target only. Refresh the runtime activation seam by mutating score rack or route intent through the existing Rust commands or by loading a project; do not add frontend-owned activation caches or one-shot setup flows.
 - Inventory refresh also rebuilds same-session activation truth. If a previously activated slot target becomes unavailable, keep the route in the existing score-context rack workflow and let backend-emitted readiness fall to `NeedsAttention` instead of repairing it through a Plugin-Manager-first side path.
 - Transport-facing and audition-facing playback preparation must go through `src-tauri/src/playback/preparation.rs` via `prepare_supported_playback(...)`. That seam consumes `AppContext.playback_activation_runtime` plus the active audio sample rate, preserves explicit resolved-route states, and keeps the current MVP bounded to one supported direct-plugin target.
+- The current audition workflow is a bounded pitch preview, not transport-lite playback: play one score-derived pitch for 1 second at moderate velocity with a default legato articulation.
+- Approved audition triggers are score-context only: tone selection through the renderer or sequencer, pitch changes through keyboard commands or sequencer vertical dragging, and accidental changes through the left-panel control or keyboard command.
 - Reopen restoration across app restarts is still Epic 5 scope. Story 3.8 covers same-session runtime preparation only.
 
 What it does not yet do:
@@ -278,6 +280,7 @@ Avoid manually editing synced version files just to reserve a migration target.
 
 - Compose no longer ships sampler-context, SCVI-runtime, or sampler-audition ownership on the product path.
 - Treat plugin inventory plus `PlaybackActivationRuntime::from_score_and_inventory(...)` as the readiness seam, then derive any transport or audition handoff through `prepare_supported_playback(...)` instead of rebuilding playback preparation inside transport or probe code.
+- Do not broaden audition into phrase playback, play/pause/seek semantics, or a plugin-only proof action while implementing the current first-audible story.
 - Do not restore sampler-style fallback actions, events, or hidden runtime bridges when implementing later VST stories.
 
 ## Visual Regression Cases

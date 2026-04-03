@@ -1488,6 +1488,15 @@ describe("actions.transport", () => {
     expect(mockInvoke).toHaveBeenCalledWith("transport_get_state");
     expect(state).toEqual(mockState);
   });
+
+  it("auditionTone calls invoke with the addressed instrument and pitch", async () => {
+    await actions.transport.auditionTone(10, 64);
+
+    expect(mockInvoke).toHaveBeenCalledWith("playback_audition_tone", {
+      instrument_id: 10,
+      pitch_int: 64,
+    });
+  });
 });
 
 // ---------------------------------------------------------------------------

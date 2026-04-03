@@ -1,5 +1,5 @@
-# generated: 2026-03-20T22:13:26Z
-# last_updated: 2026-03-22T09:49:03Z
+# generated: 2026-03-25T00:12:37Z
+# last_updated: 2026-04-03T00:00:00Z
 # project: compose
 # project_key: NOKEY
 # tracking_system: file-system
@@ -26,33 +26,6 @@
 #
 # Retrospective Status:
 #   - optional: Can be completed but not required
-# generated: 2026-03-25T00:12:37Z
-# last_updated: 2026-03-25T00:12:37Z
-# project: compose
-# project_key: NOKEY
-# tracking_system: file-system
-# story_location: /Users/aledjones/compose/_bmad-output/implementation-artifacts
-
-# STATUS DEFINITIONS:
-# ==================
-# Epic Status:
-#   - backlog: Epic not yet started
-#   - in-progress: Epic actively being worked on
-#   - done: All stories in epic completed
-#
-# Epic Status Transitions:
-#   - backlog -> in-progress: Automatically when first story is created (via create-story)
-#   - in-progress -> done: Manually when all stories reach 'done' status
-#
-# Story Status:
-#   - backlog: Story only exists in epic file
-#   - ready-for-dev: Story file created in stories folder
-#   - in-progress: Developer actively working on implementation
-#   - review: Ready for code review (via Dev's code-review workflow)
-#   - done: Story completed
-#
-# Retrospective Status:
-#   - optional: Can be completed but not required
 #   - done: Retrospective has been completed
 #
 # WORKFLOW NOTES:
@@ -63,7 +36,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-03-25T00:12:37Z
-last_updated: 2026-03-27T17:43:10Z
+last_updated: 2026-04-03T00:00:00Z
 project: compose
 project_key: NOKEY
 tracking_system: file-system
@@ -95,9 +68,10 @@ development_status:
 
   epic-4: in-progress
   4-1-translate-routed-score-instruments-into-playback-preparation: done
-  4-2-prove-first-audible-playback-through-auditioning: backlog
-  4-3-apply-basic-route-first-mix-controls-during-audition-and-playback: backlog
-  4-4-keep-first-audible-playback-compact-and-score-first: backlog
+  4-2-prove-first-audible-playback-through-auditioning: done
+  4-3-establish-a-continuous-render-path-for-slot-owned-sessions: ready-for-dev
+  4-4-apply-basic-route-first-mix-controls-during-audition-and-playback: backlog
+  4-5-keep-first-audible-playback-compact-and-score-first: backlog
   epic-4-retrospective: optional
 
   epic-5: backlog

@@ -601,16 +601,18 @@ As a composer,
 I want to audition routed written material from the score workflow,
 So that Compose can prove the first audible playback path before full transport behavior is introduced.
 
+For this story, auditioning means playing one specific pitch for 1 second at a moderate velocity using a default legato articulation so the user can hear pitches in the instrument voice while interacting with the score.
+
 **Acceptance Criteria:**
 
 **Given** at least one score instrument has a valid routed playback target
 **When** I invoke the supported audition workflow from the score context
-**Then** Compose produces audible VST-backed playback for the targeted written material
+**Then** Compose plays the targeted score pitch for 1 second through the routed VST-backed instrument voice at a moderate velocity with a default legato articulation
 **And** the audible result comes from score-derived musical content rather than a separate plugin-only test path
 
 **Given** some instruments are routed and others are not
-**When** auditioning begins
-**Then** routed instruments can sound through the supported playback path
+**When** auditioning begins for the currently targeted tone
+**Then** the selected tone's routed instrument can sound through the supported playback path
 **And** unrouted instruments remain explicitly non-ready rather than blocking the workflow
 
 **Given** Epic 4 is proving playback basics rather than full transport trust
@@ -618,7 +620,41 @@ So that Compose can prove the first audible playback path before full transport 
 **Then** the result demonstrates a trustworthy first-audible path through auditioning
 **And** it does not require play, pause, resume, or seek behavior that belongs to later transport stories
 
-### Story 4.3: Apply Basic Route-First Mix Controls During Audition And Playback
+**Given** the user is interacting with score tones
+**When** a tone is selected through the renderer or sequencer, its pitch is changed through keyboard commands or sequencer vertical dragging, or its accidental is changed through the left-panel control or keyboard command
+**Then** Compose triggers the supported one-second audition for the affected pitch through the same routed score-context playback path
+
+### Story 4.3: Establish A Continuous Render Path For Slot-Owned Sessions
+
+As a composer,
+I want mounted routed plugin sessions to stay connected to a continuous playback render path,
+So that auditioning, plugin-UI interaction, and later transport work all use the same trustworthy audio foundation.
+
+**Acceptance Criteria:**
+
+**Given** a routed slot-owned plugin session exists and is render-active
+**When** Compose's audio engine is running
+**Then** the session is processed through a continuous backend-owned render path rather than only through burst audition rendering
+**And** silence-safe buffers continue to flow even when no notes are currently scheduled
+
+**Given** the user opens a native plugin editor for a mounted routed session
+**When** the plugin exposes its own playable UI such as a built-in keyboard
+**Then** that interaction can sound through the same continuous render path
+**And** the editor window remains a transient view over the already-running slot-owned session rather than a second playback owner
+
+**Given** transport trust work is still upcoming
+**When** this render path is introduced
+**Then** transport remains responsible for scheduling and transport-state transitions rather than audio-stream ownership
+**And** the OS output stream, mixer lifetime, and live plugin processing stay outside transport
+
+**Given** Compose must stay realtime-safe and rack-first
+**When** the correction story is implemented
+**Then** the audio path consumes precomputed lock-safe state and backend-owned event queues
+**And** the implementation does not reintroduce sampler-style fallbacks, frontend-owned playback truth, or plugin-only side seams
+
+**Planning Note:** This is a correction story inserted after Story 4.2 so the concrete implementation matches the already-approved architecture requirement for a realtime-safe playback plane before mix-control and transport-trust expansion continue.
+
+### Story 4.4: Apply Basic Route-First Mix Controls During Audition And Playback
 
 As a composer,
 I want basic route-first mix controls to affect audible output,
@@ -641,7 +677,7 @@ So that I can make bounded playback adjustments within Compose while keeping the
 **Then** Compose does not pretend the control is available
 **And** the bounded MVP mixer surface remains aligned with actual supported behavior
 
-### Story 4.4: Keep First Audible Playback Compact And Score-First
+### Story 4.5: Keep First Audible Playback Compact And Score-First
 
 As a composer,
 I want the first audible playback workflow to stay compact and tied to score-context controls,

@@ -10,7 +10,6 @@ pub struct StreamBuffer {
 }
 
 impl StreamBuffer {
-    #[cfg(test)]
     pub fn new() -> Self {
         Self {
             buffer: Mutex::new(VecDeque::with_capacity(48000 * 2)),
@@ -19,7 +18,6 @@ impl StreamBuffer {
         }
     }
 
-    #[cfg(test)]
     pub fn push(&self, samples: &[f32]) {
         if self.canceled.load(Ordering::Acquire) {
             return;
@@ -27,6 +25,10 @@ impl StreamBuffer {
 
         let mut buf = self.buffer.lock().unwrap();
         buf.extend(samples);
+    }
+
+    pub fn finish(&self) {
+        self.finished.store(true, Ordering::Release);
     }
 
     pub fn drain_mix(&self, output: &mut [f32]) -> usize {
@@ -108,7 +110,6 @@ pub fn create_mixer() -> (MixerHandle, MixerReader) {
 impl MixerHandle {
     /// Submit a streaming voice. The disk thread pushes decoded audio
     /// into the stream buffer; the mixer drains it in the audio callback.
-    #[cfg(test)]
     pub fn play(&self, stream: Arc<StreamBuffer>, channels: usize) -> bool {
         let voice = Arc::new(Voice {
             stream,

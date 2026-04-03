@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { fireEvent, waitFor } from "@testing-library/react";
 import {
   renderWithProviders,
@@ -39,7 +39,9 @@ vi.mock("../../../services/actions", () => ({
         clearSelection: vi.fn().mockResolvedValue(undefined),
       },
     },
-    sampler: { audition: vi.fn() },
+    transport: {
+      auditionTone: vi.fn().mockResolvedValue(undefined),
+    },
   },
 }));
 
@@ -158,7 +160,17 @@ const defaultProps = {
 };
 
 describe("SequencerTrack", () => {
-  beforeEach(() => vi.clearAllMocks());
+  let consoleError: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    fireEvent.pointerUp(document);
+    consoleError.mockRestore();
+  });
 
   it("renders without crashing", () => {
     const { container } = renderWithProviders(
@@ -712,6 +724,126 @@ describe("SequencerTrack", () => {
 
     await waitFor(() => {
       expect(actions.score.tone.shift).toHaveBeenCalledWith(5, 101, 32, 11, 11);
+    });
+  });
+
+  it("auditions the new pitch while vertically dragging a ready routed tone", async () => {
+    const track = makeTrack([
+      {
+        pitch: { int: 60, accidental: Accidental.Natural },
+        velocity: { int: 100 },
+        articulations: [] as Articulation[],
+      },
+    ]);
+    const appState = createAppState({
+      single_instrument_transport_ready: true,
+      resolved_playback_route_by_instrument_id: {
+        1: {
+          status: 1,
+          slot_id: 77,
+          slot_target: { plugin_id: "plugin-abc" },
+          effective_plugin_id: "plugin-abc",
+          target: null,
+          address: null,
+        },
+      },
+      preferences: {
+        audition: true,
+      },
+    });
+
+    const { container } = renderWithProviders(
+      <SequencerTrack {...defaultProps} track={track} />,
+      { appState },
+    );
+
+    const target = container.querySelector('[data-tone-id="1"]') as HTMLElement;
+    fireEvent.pointerDown(target, { clientX: 24, clientY: 200 });
+
+    await waitFor(() => {
+      expect(actions.ui.sequencer.selectTone).toHaveBeenCalledWith(
+        1,
+        5,
+        20,
+        1,
+        1,
+        undefined,
+      );
+    });
+
+    fireEvent.pointerMove(document, { clientX: 24, clientY: 210 });
+
+    await waitFor(() => {
+      expect(actions.score.tone.setPitch).toHaveBeenCalledWith(
+        5,
+        null,
+        1,
+        110,
+        null,
+      );
+    });
+
+    expect(actions.transport.auditionTone).toHaveBeenCalledWith(1, 110);
+  });
+
+  it("does not queue duplicate auditions for the same dragged pitch before the first update resolves", async () => {
+    let resolveSetPitch: (() => void) | undefined;
+    vi.mocked(actions.score.tone.setPitch).mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveSetPitch = resolve;
+        }),
+    );
+
+    const track = makeTrack([
+      {
+        pitch: { int: 60, accidental: Accidental.Natural },
+        velocity: { int: 100 },
+        articulations: [] as Articulation[],
+      },
+    ]);
+    const appState = createAppState({
+      single_instrument_transport_ready: true,
+      resolved_playback_route_by_instrument_id: {
+        1: {
+          status: 1,
+          slot_id: 77,
+          slot_target: { plugin_id: "plugin-abc" },
+          effective_plugin_id: "plugin-abc",
+          target: null,
+          address: null,
+        },
+      },
+      preferences: {
+        audition: true,
+      },
+    });
+
+    const { container } = renderWithProviders(
+      <SequencerTrack {...defaultProps} track={track} />,
+      { appState },
+    );
+
+    const target = container.querySelector('[data-tone-id="1"]') as HTMLElement;
+    fireEvent.pointerDown(target, { clientX: 24, clientY: 200 });
+
+    await waitFor(() => {
+      expect(actions.ui.sequencer.selectTone).toHaveBeenCalled();
+    });
+
+    fireEvent.pointerMove(document, { clientX: 24, clientY: 210 });
+    fireEvent.pointerMove(document, { clientX: 24, clientY: 210 });
+
+    await waitFor(() => {
+      expect(actions.score.tone.setPitch).toHaveBeenCalledTimes(1);
+    });
+
+    if (resolveSetPitch) {
+      resolveSetPitch();
+    }
+
+    await waitFor(() => {
+      expect(actions.transport.auditionTone).toHaveBeenCalledTimes(1);
     });
   });
 });

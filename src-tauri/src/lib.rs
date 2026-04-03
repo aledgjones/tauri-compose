@@ -13,6 +13,7 @@ mod utils;
 use crate::playback::audio::{
     audio_device_sample_rate_set, audio_device_set, audio_devices_refresh, AudioContext,
 };
+use crate::playback::audition::playback_audition_tone;
 use crate::playback::plugin_editor_poc::{plugin_editor_poc_open, sync_slot_runtime_sessions};
 use crate::playback::plugin_inventory::{
     plugin_inventory_discover, PluginInventoryContext, PluginInventoryContextState,
@@ -631,6 +632,7 @@ pub fn run() {
             audio_devices_refresh,
             plugin_inventory_discover,
             plugin_editor_poc_open,
+            playback_audition_tone,
             transport_play,
             transport_pause,
             transport_seek,

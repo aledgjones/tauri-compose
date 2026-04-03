@@ -84,7 +84,7 @@ Future expression-map behavior should feel like configuring musical meaning rath
 
 ### Critical Success Moments
 
-The first critical success moment is getting from instrument setup to believable audible playback quickly enough that the user feels momentum rather than setup cost. The second is surviving broken or missing playback resources without losing control of the score workflow. The third is seeking, replaying, and re-auditioning passages with stable behavior that earns trust.
+The first critical success moment is getting from instrument setup to believable audible playback quickly enough that the user feels momentum rather than setup cost. The second is surviving broken or missing playback resources without losing control of the score workflow. The current bounded third moment is hearing reliable one-second pitch previews while selecting or editing score tones, with broader seek, replay, and passage re-audition trust deferred to later transport work.
 
 A future critical success moment will come from expression-map editing. The user should feel that they are teaching Compose how score instructions such as articulations and playing techniques should influence playback behavior, not building an opaque technical rules system. If this interaction becomes confusing or detached from the musical context, it will introduce disproportionate UX complexity.
 
@@ -114,7 +114,7 @@ A key differentiating emotional goal is musical control without technical burden
 
 ### Emotional Journey Mapping
 
-When users first encounter the playback workflow, they should feel intrigued but not intimidated. During routing and first playback, the emotional goal is relief turning into confidence: the sense that getting from score instrument to believable sound is straightforward. During active composition, the desired feeling is focused creative flow, with playback acting as a trusted partner in revision and auditioning.
+When users first encounter the playback workflow, they should feel intrigued but not intimidated. During routing and first playback, the emotional goal is relief turning into confidence: the sense that getting from score instrument to believable sound is straightforward. During active composition, the desired feeling is focused creative flow, with playback acting as a trusted partner in bounded pitch-preview auditioning while broader transport trust is still being built.
 
 When something goes wrong, such as a missing plugin or incomplete mapping, users should still feel contained and in control rather than confused or punished. On returning to the product later, they should feel trust and orientation, not anxiety about whether playback state will still make sense.
 

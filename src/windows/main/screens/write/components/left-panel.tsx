@@ -12,6 +12,10 @@ import { BravuraIconButton } from "../../../../../ui/buttons/bravura-icon-button
 import { SMuFL } from "../../../../../ui/buttons/smufl";
 import { noteDurationToTicks } from "../../../../../services/utils";
 import { getSelectedTone } from "../../../hooks/use-selected-tone-info";
+import {
+  auditionInstrumentPitch,
+  canAuditionInstrument,
+} from "../../../utils/audition";
 
 type LeftPanelProps = { spanRow: boolean };
 
@@ -207,14 +211,25 @@ export const LeftPanel: FC<LeftPanelProps> = ({ spanRow }) => {
             title={a.title}
             offset={a.offset}
             className="h-11"
-            onClick={() => {
+            onClick={async () => {
               if (selection?.type !== "Tone" || !tone) return;
-              actions.score.tone.setAccidental(
+              const pitch = await actions.score.tone.setAccidental(
                 selection.track_id,
                 selection.tuplet_id ?? null,
                 selection.tone_id,
                 a.accidental,
               );
+
+              if (
+                typeof pitch === "number" &&
+                canAuditionInstrument(state, selection.instrument_id)
+              ) {
+                await auditionInstrumentPitch(
+                  state,
+                  selection.instrument_id,
+                  pitch,
+                );
+              }
             }}
             isDisabled={!tone}
             isSelected={tone?.pitch.accidental === a.accidental}

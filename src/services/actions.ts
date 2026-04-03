@@ -1173,5 +1173,7 @@ export const actions = {
     pause: () => invoke("transport_pause"),
     seek: (tick: number) => invoke("transport_seek", { tick }),
     getState: () => invoke<TransportState>("transport_get_state"),
+    auditionTone: (instrument_id: UniqueId, pitch_int: number) =>
+      invoke("playback_audition_tone", { instrument_id, pitch_int }),
   },
 };
