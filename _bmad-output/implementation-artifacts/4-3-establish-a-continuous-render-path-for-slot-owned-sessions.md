@@ -46,13 +46,14 @@ so that auditioning, plugin-UI interaction, and later transport work all use the
 
 ### Story Intent
 
-- This is a correction story, not a restart. The repo already has the persistent output stream, slot-owned runtime sessions, backend-owned readiness model, and a bounded audible proof.
+- This is a correction story, not a restart. The repo already has the persistent output stream, slot-owned runtime sessions, and backend-owned readiness model, but the Story 4.2 burst-render audition path is not yet a dependable working audible proof in practice.
 - The missing concrete piece is a continuous realtime-safe render engine between the persistent output stream and the slot-owned plugin sessions.
-- The goal is to make the implemented path match the already-approved architecture rule that playback is split into a Rust control plane and a realtime-safe playback plane.
+- The goal is to make the implemented path match the already-approved architecture rule that playback is split into a Rust control plane and a realtime-safe playback plane, and to restore a genuinely working score-context audible path on top of that engine.
 
 ### Why This Story Exists Now
 
-- Story 4.2 proved that score-context audition can produce sound through a routed VST-backed path, but it currently does so through bounded burst rendering.
+- Story 4.2 established the intended score-context audition contract and the bounded burst-render seam, but maintainers cannot currently rely on that implementation as a trustworthy working audible path.
+- The current burst-render approach is therefore not just incomplete architecture; it is also the active blocker preventing Story 4.2 from being accepted as truly done.
 - Future transport, mix, and plugin-UI interactions should not each invent their own audio-production mechanism.
 - Inserting this story now prevents Epic 5 transport-trust work from being built on top of an architecturally weaker burst-render model.
 
@@ -60,7 +61,7 @@ so that auditioning, plugin-UI interaction, and later transport work all use the
 
 - Defining the concrete continuous render seam for render-active slot-owned sessions.
 - Keeping stream ownership outside transport and preserving the slot-owned runtime-session model.
-- Moving audition onto the shared engine path rather than leaving burst rendering as the long-term product owner.
+- Moving audition onto the shared engine path rather than leaving burst rendering as the long-term product owner, and restoring the currently non-working 4.2 audible path on that corrected foundation.
 - Making plugin-UI interaction audibly meaningful through the same session-owned engine path.
 
 ### This Story Does Not Own
@@ -163,3 +164,4 @@ GPT-5.4
 ## Change Log
 
 - 2026-04-03: Created the next Epic 4 correction story for a continuous slot-session render path and updated story sequencing so later playback work builds on the correct engine shape.
+- 2026-04-03: Updated the story framing to explicitly own correction of the currently non-working Story 4.2 audible path rather than assuming the burst-render proof already held in practice.

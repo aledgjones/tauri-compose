@@ -1,6 +1,6 @@
 # Story 4.2: Prove First Audible Playback Through Auditioning
 
-Status: done
+Status: blocked
 
 ## Story
 
@@ -59,6 +59,7 @@ For this story, auditioning means playing one specific pitch for 1 second at a m
 - The goal is not general playback sophistication. The goal is to prove that routed score content can become audible through the real VST-backed product path while keeping the architecture honest.
 - This story must keep the app score-first and rack-first. It should not teach the system to pass by running a separate plugin test path that bypasses score routing truth.
 - Auditioning is intentionally narrow in this story: one specific pitch, 1 second long, moderate velocity, default legato articulation, triggered while the user is actively interacting with score tones.
+- Follow-up triage on 2026-04-03 determined that the current bounded burst-render implementation is not yet a trustworthy working audible path in practice, so this story is reopened and blocked pending the continuous-render correction in Story 4.3.
 
 ### Epic And Story Context
 
@@ -230,6 +231,7 @@ GPT-5.4
 - Validation summary: `npm run test:js`, `npm run lint`, `npm run check-types`, `cargo test --manifest-path src-tauri/Cargo.toml playback::audition`, `cargo test --manifest-path src-tauri/Cargo.toml`, and `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings` passed.
 - Investigated the remaining Rust failures and resolved them by aligning stale route-resolution tests in `src-tauri/src/score/instruments/mod.rs` and the performance binary's lightweight runtime-activation shim in `src-tauri/src/bin/performance.rs` with the canonical semantics: missing slot references normalize to `Unrouted`, while existing empty slots remain explicit `NeedsAttention`.
 - Addressed code-review follow-ups by tightening frontend audition gating to the backend `single_instrument_transport_ready` signal, centralizing caught preview failures in the shared audition helper, and adding regression coverage for readiness flips and duplicate drag suppression.
+- Reopened the story as blocked after post-review triage concluded that real audible playback is still not dependable through the current burst-render path, and that Story 4.3 must now correct the underlying engine shape before this story can be considered complete.
 
 ### File List
 
@@ -260,3 +262,4 @@ GPT-5.4
 - 2026-03-28: Implemented the backend-owned first-audible audition path, wired score-context triggers, added regression coverage, and moved the story to review with an explicit note about unrelated full Rust suite failures in `src-tauri/src/score/instruments/mod.rs`.
 - 2026-04-03: Investigated and fixed the remaining Rust test failures by updating stale route-resolution expectations and aligning the performance test shim with the canonical empty-slot versus missing-slot readiness semantics.
 - 2026-04-03: Resolved code-review findings by aligning frontend audition gating with backend transport readiness, catching preview-command failures through the shared helper, and adding readiness-flip plus drag-dedup regression coverage.
+- 2026-04-03: Reopened the story as blocked after triage determined that the shipped burst-render audition path is not yet a reliable working audible proof and must be corrected through Story 4.3's continuous render-engine work.
