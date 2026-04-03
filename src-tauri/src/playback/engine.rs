@@ -2,8 +2,10 @@ use crate::playback::audition::AuditionNote;
 use crate::playback::plugin_editor_poc::{
     render_slot_runtime_block, stop_slot_runtime_render, SlotRuntimeRenderOutcome,
 };
+use crate::playback::preparation::EffectivePlaybackMix;
 use crate::utils::UniqueId;
 use rustc_hash::{FxHashMap, FxHashSet};
+use std::f32;
 use std::sync::{Mutex, OnceLock};
 
 const AUDITION_RELEASE_TAIL_MS: u32 = 1_000;
@@ -149,9 +151,22 @@ impl SlotRenderState {
 #[derive(Debug, Default)]
 struct ContinuousRenderEngineState {
     slot_states: FxHashMap<UniqueId, SlotRenderState>,
+    slot_mix_by_slot_id: FxHashMap<UniqueId, EffectivePlaybackMix>,
+    mix_scratch_buffer: Vec<f32>,
 }
 
 impl ContinuousRenderEngineState {
+    fn pan_balance_gains(mix: EffectivePlaybackMix) -> (f32, f32) {
+        let gain = mix.gain_scalar();
+        let pan = if mix.pan >= 64 {
+            (f32::from(mix.pan) - 64.0) / 63.0
+        } else {
+            (f32::from(mix.pan) - 64.0) / 64.0
+        };
+
+        (gain * (1.0 - pan.max(0.0)), gain * (1.0 + pan.min(0.0)))
+    }
+
     fn sync_live_slots(&mut self, live_slot_ids: &FxHashSet<UniqueId>) -> Vec<UniqueId> {
         let mut removed_slot_ids = Vec::new();
         self.slot_states.retain(|slot_id, _| {
@@ -166,7 +181,22 @@ impl ContinuousRenderEngineState {
             self.slot_states.entry(*slot_id).or_default();
         }
 
+        self.slot_mix_by_slot_id
+            .retain(|slot_id, _| live_slot_ids.contains(slot_id));
+
         removed_slot_ids
+    }
+
+    fn sync_slot_mix_states(
+        &mut self,
+        slot_mix_by_slot_id: FxHashMap<UniqueId, EffectivePlaybackMix>,
+    ) {
+        self.slot_mix_by_slot_id = slot_mix_by_slot_id;
+    }
+
+    fn set_slot_mix(&mut self, slot_id: UniqueId, mix: EffectivePlaybackMix) {
+        self.slot_mix_by_slot_id.insert(slot_id, mix);
+        self.slot_states.entry(slot_id).or_default();
     }
 
     fn set_slot_reason(
@@ -232,43 +262,89 @@ impl ContinuousRenderEngineState {
     ) {
         let frames_per_block = output.len() / output_channels.max(1);
         let mut slots_to_stop = Vec::new();
+        let slot_ids = self.slot_states.keys().copied().collect::<Vec<_>>();
 
-        for (slot_id, slot_state) in &mut self.slot_states {
-            if !slot_state.is_render_active() {
-                continue;
-            }
+        for slot_id in slot_ids {
+            let (mix, events) = {
+                let Some(slot_state) = self.slot_states.get_mut(&slot_id) else {
+                    continue;
+                };
 
-            let events = slot_state.collect_due_events(frames_per_block);
+                if !slot_state.is_render_active() {
+                    continue;
+                }
+
+                (
+                    self.slot_mix_by_slot_id
+                        .get(&slot_id)
+                        .copied()
+                        .unwrap_or_default(),
+                    slot_state.collect_due_events(frames_per_block),
+                )
+            };
+
+            self.mix_scratch_buffer.clear();
+            self.mix_scratch_buffer.resize(output.len(), 0.0);
             let outcome = backend.render_slot(
-                *slot_id,
+                slot_id,
                 sample_rate,
                 frames_per_block,
                 &events,
-                output,
+                self.mix_scratch_buffer.as_mut_slice(),
                 output_channels,
             );
 
             match outcome {
                 SlotRuntimeRenderOutcome::Rendered | SlotRuntimeRenderOutcome::SilenceOnly => {}
                 SlotRuntimeRenderOutcome::Busy | SlotRuntimeRenderOutcome::MissingSession => {
+                    let Some(slot_state) = self.slot_states.get_mut(&slot_id) else {
+                        continue;
+                    };
                     slot_state.requeue_due_events(events);
                     continue;
                 }
                 SlotRuntimeRenderOutcome::Unsupported => {
-                    slots_to_stop.push(*slot_id);
+                    slots_to_stop.push(slot_id);
                 }
                 SlotRuntimeRenderOutcome::Error(error) => {
                     eprintln!(
                         "continuous_render_engine: slot {} render block failed: {}",
                         slot_id, error
                     );
-                    slots_to_stop.push(*slot_id);
+                    slots_to_stop.push(slot_id);
                 }
             }
 
+            if !mix.muted {
+                let gain = mix.gain_scalar();
+                if output_channels <= 1 {
+                    for (destination, sample) in
+                        output.iter_mut().zip(self.mix_scratch_buffer.iter())
+                    {
+                        *destination += *sample * gain;
+                    }
+                } else {
+                    let (left_gain, right_gain) = Self::pan_balance_gains(mix);
+                    for (destination_frame, source_frame) in output
+                        .chunks_exact_mut(output_channels)
+                        .zip(self.mix_scratch_buffer.chunks_exact(output_channels))
+                    {
+                        destination_frame[0] += source_frame[0] * left_gain;
+                        destination_frame[1] += source_frame[1] * right_gain;
+
+                        for channel_index in 2..output_channels {
+                            destination_frame[channel_index] += source_frame[channel_index] * gain;
+                        }
+                    }
+                }
+            }
+
+            let Some(slot_state) = self.slot_states.get_mut(&slot_id) else {
+                continue;
+            };
             slot_state.finish_block(sample_rate, frames_per_block);
             if !slot_state.is_render_active() {
-                slots_to_stop.push(*slot_id);
+                slots_to_stop.push(slot_id);
             }
         }
 
@@ -341,6 +417,20 @@ pub(crate) fn sync_live_slot_targets(slot_ids: impl IntoIterator<Item = UniqueId
     stop_slots(removed_slot_ids);
 }
 
+pub(crate) fn sync_slot_mix_states(slot_mix_by_slot_id: FxHashMap<UniqueId, EffectivePlaybackMix>) {
+    continuous_render_engine()
+        .lock()
+        .unwrap()
+        .sync_slot_mix_states(slot_mix_by_slot_id);
+}
+
+pub(crate) fn set_slot_mix(slot_id: UniqueId, mix: EffectivePlaybackMix) {
+    continuous_render_engine()
+        .lock()
+        .unwrap()
+        .set_slot_mix(slot_id, mix);
+}
+
 pub(crate) fn set_slot_editor_render_active(slot_id: UniqueId, active: bool) {
     let should_stop = continuous_render_engine().lock().unwrap().set_slot_reason(
         slot_id,
@@ -397,6 +487,7 @@ mod tests {
     struct FakeRenderBackend {
         render_calls: RefCell<Vec<RenderCall>>,
         stop_calls: RefCell<Vec<UniqueId>>,
+        output_fill: f32,
     }
 
     impl RenderBackend for FakeRenderBackend {
@@ -406,9 +497,10 @@ mod tests {
             sample_rate: u32,
             frames_per_block: usize,
             events: &[LiveRenderEvent],
-            _output: &mut [f32],
+            output: &mut [f32],
             _output_channels: usize,
         ) -> SlotRuntimeRenderOutcome {
+            output.fill(self.output_fill);
             self.render_calls.borrow_mut().push(RenderCall {
                 slot_id,
                 sample_rate,
@@ -611,5 +703,87 @@ mod tests {
             .queued_events
             .iter()
             .any(|event| event.kind == LiveRenderEventKind::NoteOff));
+    }
+
+    #[test]
+    fn supported_slot_mix_scales_rendered_output_gain() {
+        let mut engine = ContinuousRenderEngineState::default();
+        let backend = FakeRenderBackend {
+            output_fill: 1.0,
+            ..Default::default()
+        };
+        let mut output = [0.0_f32; 4];
+
+        engine.sync_live_slots(&FxHashSet::from_iter([3]));
+        engine.set_slot_reason(3, RenderActiveReason::Editor, true);
+        engine.set_slot_mix(
+            3,
+            EffectivePlaybackMix {
+                volume: 64,
+                pan: 64,
+                muted: false,
+            },
+        );
+
+        engine.process_block(&backend, &mut output, 2, 48_000);
+
+        let expected = 64.0 / 127.0;
+        assert!(output
+            .iter()
+            .all(|sample| (*sample - expected).abs() < 0.000_1));
+    }
+
+    #[test]
+    fn supported_slot_mix_can_mute_rendered_output_without_stopping_session() {
+        let mut engine = ContinuousRenderEngineState::default();
+        let backend = FakeRenderBackend {
+            output_fill: 1.0,
+            ..Default::default()
+        };
+        let mut output = [0.0_f32; 4];
+
+        engine.sync_live_slots(&FxHashSet::from_iter([6]));
+        engine.set_slot_reason(6, RenderActiveReason::Editor, true);
+        engine.set_slot_mix(
+            6,
+            EffectivePlaybackMix {
+                volume: 127,
+                pan: 64,
+                muted: true,
+            },
+        );
+
+        engine.process_block(&backend, &mut output, 2, 48_000);
+
+        assert!(output.iter().all(|sample| sample.abs() < 0.000_1));
+        assert!(backend.stop_calls.borrow().is_empty());
+    }
+
+    #[test]
+    fn supported_slot_mix_applies_pan_balance_to_stereo_output() {
+        let mut engine = ContinuousRenderEngineState::default();
+        let backend = FakeRenderBackend {
+            output_fill: 1.0,
+            ..Default::default()
+        };
+        let mut output = [0.0_f32; 4];
+
+        engine.sync_live_slots(&FxHashSet::from_iter([8]));
+        engine.set_slot_reason(8, RenderActiveReason::Editor, true);
+        engine.set_slot_mix(
+            8,
+            EffectivePlaybackMix {
+                volume: 127,
+                pan: 0,
+                muted: false,
+            },
+        );
+
+        engine.process_block(&backend, &mut output, 2, 48_000);
+
+        assert!((output[0] - 1.0).abs() < 0.000_1);
+        assert!(output[1].abs() < 0.000_1);
+        assert!((output[2] - 1.0).abs() < 0.000_1);
+        assert!(output[3].abs() < 0.000_1);
     }
 }

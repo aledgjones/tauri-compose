@@ -29,6 +29,13 @@ vi.mock("../../../../../services/actions", () => ({
 
 import { actions } from "../../../../../services/actions";
 
+const supportedMixerControls = {
+  volume: true,
+  pan: true,
+  mute: true,
+  solo: true,
+};
+
 const mockInstrument: Instrument = {
   id: 5,
   definition_id: "violin",
@@ -87,6 +94,12 @@ describe("InstrumentOverviewRow", () => {
               effective_plugin_id: null,
               target: null,
               address: null,
+              supported_mix_controls: {
+                volume: false,
+                pan: false,
+                mute: false,
+                solo: false,
+              },
               ...resolvedAssignment,
             },
           },
@@ -135,6 +148,7 @@ describe("InstrumentOverviewRow", () => {
       slot_target: { plugin_id: "vst3:grand-piano" },
       effective_plugin_id: "vst3:grand-piano",
       target: { mode: 0, index: null },
+      supported_mix_controls: supportedMixerControls,
     });
 
     const routeButton = screen.getByRole("button", {
@@ -151,6 +165,12 @@ describe("InstrumentOverviewRow", () => {
       status: ResolvedPlaybackRouteStatus.NeedsAttention,
       slot_id: 7,
       slot_target: { plugin_id: "vst3:grand-piano" },
+      supported_mix_controls: {
+        volume: false,
+        pan: false,
+        mute: false,
+        solo: false,
+      },
     });
 
     const routeButton = screen.getByRole("button", {
@@ -167,11 +187,30 @@ describe("InstrumentOverviewRow", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders solo and mute buttons when not disabled", () => {
-    renderRow();
-    const buttons = screen.getAllByRole("button");
-    // solo + mute buttons
-    expect(buttons.length).toBeGreaterThanOrEqual(2);
+  it("renders both supported solo and mute controls beside the route picker", async () => {
+    renderRow({
+      status: ResolvedPlaybackRouteStatus.Ready,
+      slot_id: 7,
+      slot_target: { plugin_id: "vst3:grand-piano" },
+      effective_plugin_id: "vst3:grand-piano",
+      target: { mode: 0, index: null },
+      address: { mode: 0, index: null },
+      supported_mix_controls: supportedMixerControls,
+    });
+
+    const routeButton = screen.getByRole("button", {
+      name: /1\. Grand Piano/i,
+    });
+    const mixButtons = screen
+      .getAllByRole("button")
+      .filter((button) => button !== routeButton);
+
+    expect(mixButtons).toHaveLength(2);
+    fireEvent.click(mixButtons[1]);
+
+    await waitFor(() => {
+      expect(actions.score.instrument.setMute).toHaveBeenCalledWith(5, true);
+    });
   });
 
   it("hides solo/mute controls when disabled (applies opacity-50 class)", () => {
@@ -192,6 +231,7 @@ describe("InstrumentOverviewRow", () => {
       slot_target: { plugin_id: "vst3:grand-piano" },
       effective_plugin_id: "vst3:grand-piano",
       target: { mode: 0, index: null },
+      supported_mix_controls: supportedMixerControls,
     });
 
     expect(screen.queryByText("Slot 1. Grand Piano")).toBeNull();
@@ -206,6 +246,7 @@ describe("InstrumentOverviewRow", () => {
       effective_plugin_id: "vst3:grand-piano",
       target: { mode: 0, index: null },
       address: { mode: 0, index: null },
+      supported_mix_controls: supportedMixerControls,
     });
 
     expect(
@@ -858,16 +899,45 @@ describe("InstrumentOverviewRow", () => {
   });
 
   it("calls setSolo when solo button clicked", () => {
-    renderRow();
-    const [soloBtn] = screen.getAllByRole("button");
-    fireEvent.click(soloBtn);
+    renderRow({
+      status: ResolvedPlaybackRouteStatus.Ready,
+      slot_id: 7,
+      slot_target: { plugin_id: "vst3:grand-piano" },
+      effective_plugin_id: "vst3:grand-piano",
+      target: { mode: 0, index: null },
+      address: { mode: 0, index: null },
+      supported_mix_controls: supportedMixerControls,
+    });
+
+    const routeButton = screen.getByRole("button", {
+      name: /1\. Grand Piano/i,
+    });
+    const soloButton = screen
+      .getAllByRole("button")
+      .filter((button) => button !== routeButton)[0];
+
+    fireEvent.click(soloButton);
     expect(actions.score.instrument.setSolo).toHaveBeenCalledWith(5, true);
   });
 
   it("calls setMute when mute button clicked", () => {
-    renderRow();
-    const buttons = screen.getAllByRole("button");
-    fireEvent.click(buttons[1]);
+    renderRow({
+      status: ResolvedPlaybackRouteStatus.Ready,
+      slot_id: 7,
+      slot_target: { plugin_id: "vst3:grand-piano" },
+      effective_plugin_id: "vst3:grand-piano",
+      target: { mode: 0, index: null },
+      address: { mode: 0, index: null },
+      supported_mix_controls: supportedMixerControls,
+    });
+    const routeButton = screen.getByRole("button", {
+      name: /1\. Grand Piano/i,
+    });
+    const muteButton = screen
+      .getAllByRole("button")
+      .filter((button) => button !== routeButton)[1];
+
+    fireEvent.click(muteButton);
     expect(actions.score.instrument.setMute).toHaveBeenCalledWith(5, true);
   });
 

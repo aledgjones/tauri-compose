@@ -1,7 +1,7 @@
 use crate::playback::plugin_inventory::PluginInventoryContext;
 use crate::score::playback::{
     InstrumentPlaybackRoute, PlaybackRouteAddress, PlaybackRouteTarget, PlaybackSlotPluginState,
-    ResolvedPlaybackRoute, ResolvedPlaybackRouteStatus,
+    ResolvedPlaybackRoute, ResolvedPlaybackRouteStatus, SupportedPlaybackMixControls,
 };
 use crate::score::Score;
 use crate::utils::UniqueId;
@@ -66,6 +66,38 @@ impl SingleInstrumentTrustGate {
 }
 
 impl PlaybackActivationRuntime {
+    fn slot_route_reference_counts(score: &Score) -> FxHashMap<UniqueId, usize> {
+        score
+            .instruments
+            .by_id
+            .values()
+            .filter_map(|instrument| {
+                instrument
+                    .playback_route
+                    .as_ref()
+                    .map(|route| route.slot_id)
+            })
+            .fold(FxHashMap::default(), |mut counts, slot_id| {
+                *counts.entry(slot_id).or_insert(0) += 1;
+                counts
+            })
+    }
+
+    fn supported_mix_controls_for_resolved_route(
+        slot_route_reference_counts: &FxHashMap<UniqueId, usize>,
+        route: &InstrumentPlaybackRoute,
+        status: ResolvedPlaybackRouteStatus,
+    ) -> SupportedPlaybackMixControls {
+        if status == ResolvedPlaybackRouteStatus::Ready
+            && Self::supports_single_target_activation(route)
+            && slot_route_reference_counts.get(&route.slot_id) == Some(&1)
+        {
+            SupportedPlaybackMixControls::direct_plugin_root()
+        } else {
+            SupportedPlaybackMixControls::default()
+        }
+    }
+
     pub fn activated_slot_target(&self, slot_id: UniqueId) -> Option<&ActivatedSlotTarget> {
         self.activated_slot_target_by_slot_id.get(&slot_id)
     }
@@ -149,6 +181,8 @@ impl PlaybackActivationRuntime {
         &self,
         score: &Score,
     ) -> FxHashMap<UniqueId, ResolvedPlaybackRoute> {
+        let slot_route_reference_counts = Self::slot_route_reference_counts(score);
+
         score
             .instruments
             .by_id
@@ -162,6 +196,7 @@ impl PlaybackActivationRuntime {
                         effective_plugin_id: None,
                         target: None,
                         address: None,
+                        supported_mix_controls: SupportedPlaybackMixControls::default(),
                     },
                     Some(route) => match score.playback.rack.by_id.get(&route.slot_id) {
                         None => ResolvedPlaybackRoute {
@@ -171,6 +206,7 @@ impl PlaybackActivationRuntime {
                             effective_plugin_id: None,
                             target: None,
                             address: None,
+                            supported_mix_controls: SupportedPlaybackMixControls::default(),
                         },
                         Some(slot) => {
                             let activated_route = self
@@ -192,6 +228,12 @@ impl PlaybackActivationRuntime {
                                     .map(|activated| activated.plugin_id.clone()),
                                 target: Some(route.target.clone()),
                                 address: Some(route.address.clone()),
+                                supported_mix_controls:
+                                    Self::supported_mix_controls_for_resolved_route(
+                                        &slot_route_reference_counts,
+                                        route,
+                                        status,
+                                    ),
                             }
                         }
                     },
@@ -300,7 +342,7 @@ mod tests {
     use crate::score::playback::{
         InstrumentPlaybackRoute, PlaybackRackSlot, PlaybackRouteAddress, PlaybackRouteAddressMode,
         PlaybackRouteTarget, PlaybackRouteTargetMode, PlaybackSlotPluginState, PlaybackSlotTarget,
-        ResolvedPlaybackRouteStatus,
+        ResolvedPlaybackRouteStatus, SupportedPlaybackMixControls,
     };
     use crate::score::players::{Player, PlayerType, Players};
     use crate::score::Score;
@@ -419,6 +461,10 @@ mod tests {
             resolved.get(&10).unwrap().effective_plugin_id.as_deref(),
             Some("plugin-a")
         );
+        assert_eq!(
+            resolved.get(&10).unwrap().supported_mix_controls,
+            SupportedPlaybackMixControls::direct_plugin_root()
+        );
     }
 
     #[test]
@@ -504,6 +550,10 @@ mod tests {
         );
         assert_eq!(resolved.get(&10).unwrap().slot_id, Some(100));
         assert_eq!(resolved.get(&10).unwrap().slot_target, None);
+        assert_eq!(
+            resolved.get(&10).unwrap().supported_mix_controls,
+            SupportedPlaybackMixControls::default()
+        );
     }
 
     #[test]
@@ -549,6 +599,62 @@ mod tests {
     }
 
     #[test]
+    fn shared_slot_routes_hide_supported_mix_controls_even_when_ready() {
+        let inventory = PluginInventoryContext::with_entries_for_tests(vec![available_entry(
+            "plugin-a",
+            "/Library/Audio/Plug-Ins/VST3/Plugin A.vst3",
+        )]);
+        let mut score = make_score();
+        score
+            .players
+            .by_id
+            .get_mut(&1)
+            .unwrap()
+            .instrument_ids
+            .push(11);
+        score.instruments.by_id.insert(
+            11,
+            Instrument {
+                id: 11,
+                definition_id: String::from("strings.viola"),
+                instrument_type: InstrumentType::Melodic,
+                long_name: String::from("Viola"),
+                short_name: String::from("Vla."),
+                stave_ids: vec![],
+                count: None,
+                playback_route: Some(InstrumentPlaybackRoute::direct(100)),
+                volume: 90,
+                pan: 48,
+                mute: true,
+                solo: true,
+            },
+        );
+        assign_slot(&mut score, 100, "plugin-a");
+        score.instruments.by_id.get_mut(&10).unwrap().playback_route =
+            Some(InstrumentPlaybackRoute::direct(100));
+
+        let runtime = PlaybackActivationRuntime::from_score_and_inventory(&score, &inventory);
+        let resolved = runtime.resolved_playback_route_by_instrument_id(&score);
+
+        assert_eq!(
+            resolved.get(&10).unwrap().status,
+            ResolvedPlaybackRouteStatus::Ready
+        );
+        assert_eq!(
+            resolved.get(&11).unwrap().status,
+            ResolvedPlaybackRouteStatus::Ready
+        );
+        assert_eq!(
+            resolved.get(&10).unwrap().supported_mix_controls,
+            SupportedPlaybackMixControls::default()
+        );
+        assert_eq!(
+            resolved.get(&11).unwrap().supported_mix_controls,
+            SupportedPlaybackMixControls::default()
+        );
+    }
+
+    #[test]
     fn unsupported_multi_target_routes_stay_attention_needed() {
         let inventory = PluginInventoryContext::with_entries_for_tests(vec![available_entry(
             "plugin-a",
@@ -577,6 +683,10 @@ mod tests {
             resolved.get(&10).unwrap().status,
             ResolvedPlaybackRouteStatus::NeedsAttention
         );
+        assert_eq!(
+            resolved.get(&10).unwrap().supported_mix_controls,
+            SupportedPlaybackMixControls::default()
+        );
     }
 
     #[test]
@@ -601,6 +711,10 @@ mod tests {
         assert_eq!(resolved.get(&10).unwrap().effective_plugin_id, None);
         assert_eq!(resolved.get(&10).unwrap().target, None);
         assert_eq!(resolved.get(&10).unwrap().address, None);
+        assert_eq!(
+            resolved.get(&10).unwrap().supported_mix_controls,
+            SupportedPlaybackMixControls::default()
+        );
     }
 
     #[test]

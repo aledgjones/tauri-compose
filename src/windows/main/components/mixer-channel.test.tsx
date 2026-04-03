@@ -25,9 +25,11 @@ function renderMixerChannel(
 ) {
   const defaults = {
     instrument,
+    pan: 64,
     volume: 100,
     isMuted: false,
     isSoloed: false,
+    onPanChange: vi.fn(),
     onVolumeChange: vi.fn(),
     onToggleMute: vi.fn(),
     onToggleSolo: vi.fn(),
@@ -54,9 +56,45 @@ describe("MixerChannel", () => {
     expect(screen.getByText("Pno.")).toBeInTheDocument();
   });
 
+  it("does not render a static pan label when pan control is unsupported", () => {
+    renderMixerChannel();
+    expect(screen.queryByText("C")).not.toBeInTheDocument();
+  });
+
+  it("calls onPanChange when the pan slider moves", () => {
+    const onPanChange = vi.fn();
+    renderMixerChannel({ onPanChange, showPanControl: true, pan: 64 });
+
+    const panControl = screen.getByRole("slider", { name: /Pan Pno\./i });
+    vi.spyOn(panControl, "getBoundingClientRect").mockReturnValue({
+      x: 0,
+      y: 0,
+      width: 100,
+      height: 36,
+      top: 0,
+      right: 100,
+      bottom: 36,
+      left: 0,
+      toJSON: () => ({}),
+    });
+
+    fireEvent.pointerDown(panControl, { clientX: 10 });
+
+    expect(onPanChange).toHaveBeenCalledWith(13);
+  });
+
+  it("resets pan to center when the control is double clicked", () => {
+    const onPanChange = vi.fn();
+    renderMixerChannel({ onPanChange, showPanControl: true, pan: 12 });
+
+    fireEvent.doubleClick(screen.getByRole("slider", { name: /Pan Pno\./i }));
+
+    expect(onPanChange).toHaveBeenCalledWith(64);
+  });
+
   it("calls onToggleSolo when solo button is clicked", () => {
     const onToggleSolo = vi.fn();
-    renderMixerChannel({ onToggleSolo });
+    renderMixerChannel({ onToggleSolo, showSoloControl: true });
     const buttons = screen.getAllByRole("button");
     fireEvent.click(buttons[0]);
     expect(onToggleSolo).toHaveBeenCalledOnce();
@@ -64,9 +102,9 @@ describe("MixerChannel", () => {
 
   it("calls onToggleMute when mute button is clicked", () => {
     const onToggleMute = vi.fn();
-    renderMixerChannel({ onToggleMute });
+    renderMixerChannel({ onToggleMute, showMuteControl: true });
     const buttons = screen.getAllByRole("button");
-    fireEvent.click(buttons[1]);
+    fireEvent.click(buttons[0]);
     expect(onToggleMute).toHaveBeenCalledOnce();
   });
 });

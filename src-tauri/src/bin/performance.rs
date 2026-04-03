@@ -4,10 +4,12 @@ use std::sync::Mutex;
 
 #[path = "../renderer/mod.rs"]
 mod renderer;
+
 #[path = "../score/mod.rs"]
 mod score;
 #[path = "../ui/mod.rs"]
 mod ui;
+
 #[path = "../utils.rs"]
 mod utils;
 
@@ -97,6 +99,23 @@ mod playback {
         }
 
         impl PlaybackActivationRuntime {
+            fn slot_route_reference_counts(score: &Score) -> FxHashMap<UniqueId, usize> {
+                score
+                    .instruments
+                    .by_id
+                    .values()
+                    .filter_map(|instrument| {
+                        instrument
+                            .playback_route
+                            .as_ref()
+                            .map(|route| route.slot_id)
+                    })
+                    .fold(FxHashMap::default(), |mut counts, slot_id| {
+                        *counts.entry(slot_id).or_insert(0) += 1;
+                        counts
+                    })
+            }
+
             pub fn from_score_and_inventory(
                 score: &Score,
                 inventory: &PluginInventoryContext,
@@ -153,6 +172,8 @@ mod playback {
                 &self,
                 score: &Score,
             ) -> FxHashMap<UniqueId, ResolvedPlaybackRoute> {
+                let slot_route_reference_counts = Self::slot_route_reference_counts(score);
+
                 score
                     .instruments
                     .by_id
@@ -166,6 +187,7 @@ mod playback {
                                 effective_plugin_id: None,
                                 target: None,
                                 address: None,
+                                supported_mix_controls: Default::default(),
                             },
                             Some(route) => match score.playback.rack.by_id.get(&route.slot_id) {
                                 None => ResolvedPlaybackRoute {
@@ -175,6 +197,7 @@ mod playback {
                                     effective_plugin_id: None,
                                     target: None,
                                     address: None,
+                                    supported_mix_controls: Default::default(),
                                 },
                                 Some(slot) => {
                                     let activated_route = self
@@ -196,6 +219,16 @@ mod playback {
                                             .map(|activated| activated.plugin_id.clone()),
                                         target: Some(route.target.clone()),
                                         address: Some(route.address.clone()),
+                                        supported_mix_controls: if status
+                                            == ResolvedPlaybackRouteStatus::Ready
+                                            && Self::supports_single_target_activation(route)
+                                            && slot_route_reference_counts.get(&route.slot_id)
+                                                == Some(&1)
+                                        {
+                                            crate::score::playback::SupportedPlaybackMixControls::direct_plugin_root()
+                                        } else {
+                                            Default::default()
+                                        },
                                     }
                                 }
                             },

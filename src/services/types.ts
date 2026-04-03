@@ -191,6 +191,13 @@ export enum ResolvedPlaybackRouteStatus {
   NeedsAttention,
 }
 
+export type SupportedPlaybackMixControls = {
+  volume: boolean;
+  pan: boolean;
+  mute: boolean;
+  solo: boolean;
+};
+
 export type ResolvedPlaybackRoute = {
   status: ResolvedPlaybackRouteStatus;
   slot_id: UniqueId | null;
@@ -198,6 +205,7 @@ export type ResolvedPlaybackRoute = {
   effective_plugin_id: string | null;
   target: PlaybackRouteTarget | null;
   address: PlaybackRouteAddress | null;
+  supported_mix_controls?: SupportedPlaybackMixControls;
 };
 
 export type Instrument = {

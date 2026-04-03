@@ -1,7 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { Mixer, MixerToolbar } from "./mixer";
-import { Instrument, InstrumentType } from "../../../services/types";
+import {
+  Instrument,
+  InstrumentType,
+  ResolvedPlaybackRoute,
+  ResolvedPlaybackRouteStatus,
+} from "../../../services/types";
 
 vi.mock("../../../services/actions", () => ({
   actions: {
@@ -9,6 +14,7 @@ vi.mock("../../../services/actions", () => ({
       instrument: {
         setSolo: vi.fn(),
         setMute: vi.fn(),
+        setPan: vi.fn(),
         setVolume: vi.fn(),
       },
     },
@@ -32,55 +38,100 @@ const makeInstrument = (overrides: Partial<Instrument> = {}): Instrument => ({
   ...overrides,
 });
 
+const makeRoute = (
+  overrides: Partial<ResolvedPlaybackRoute> = {},
+): ResolvedPlaybackRoute => ({
+  status: ResolvedPlaybackRouteStatus.Ready,
+  slot_id: 1,
+  slot_target: { plugin_id: "vst3:grand-piano" },
+  effective_plugin_id: "vst3:grand-piano",
+  target: { mode: 0, index: null },
+  address: { mode: 0, index: null },
+  supported_mix_controls: {
+    volume: true,
+    pan: true,
+    mute: true,
+    solo: true,
+  },
+  ...overrides,
+});
+
 describe("MixerToolbar", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("renders without crashing when instruments list is empty", () => {
-    render(<MixerToolbar instruments={[]} />);
-    const buttons = screen.getAllByRole("button");
-    expect(buttons.length).toBeGreaterThanOrEqual(2);
+    const { container } = render(
+      <MixerToolbar
+        instruments={[]}
+        resolvedPlaybackRouteByInstrumentId={{}}
+      />,
+    );
+    expect(container.firstChild).toBeInTheDocument();
   });
 
-  it("renders S and M buttons", () => {
-    render(<MixerToolbar instruments={[makeInstrument()]} />);
+  it("renders both solo and mute buttons for supported routes", () => {
+    render(
+      <MixerToolbar
+        instruments={[makeInstrument()]}
+        resolvedPlaybackRouteByInstrumentId={{ 1: makeRoute() }}
+      />,
+    );
     const buttons = screen.getAllByRole("button");
-    expect(buttons.length).toBeGreaterThanOrEqual(2);
+    expect(buttons).toHaveLength(2);
   });
 
-  it("calls setSolo for all instruments when S button clicked (none soloed → all soloed)", () => {
+  it("calls setSolo only for instruments whose active route supports solo", () => {
     const instruments = [
       makeInstrument({ id: 1, solo: false }),
       makeInstrument({ id: 2, solo: false }),
     ];
-    render(<MixerToolbar instruments={instruments} />);
-    const [soloBtn] = screen.getAllByRole("button");
-    fireEvent.click(soloBtn);
+    render(
+      <MixerToolbar
+        instruments={instruments}
+        resolvedPlaybackRouteByInstrumentId={{
+          1: makeRoute(),
+          2: makeRoute({
+            supported_mix_controls: {
+              volume: false,
+              pan: false,
+              mute: false,
+              solo: false,
+            },
+          }),
+        }}
+      />,
+    );
+
+    fireEvent.click(screen.getAllByRole("button")[0]);
     expect(actions.score.instrument.setSolo).toHaveBeenCalledWith(1, true);
-    expect(actions.score.instrument.setSolo).toHaveBeenCalledWith(2, true);
+    expect(actions.score.instrument.setSolo).not.toHaveBeenCalledWith(2, true);
   });
 
-  it("calls setSolo(false) for all instruments when S clicked and some are soloed", () => {
-    const instruments = [
-      makeInstrument({ id: 1, solo: true }),
-      makeInstrument({ id: 2, solo: false }),
-    ];
-    render(<MixerToolbar instruments={instruments} />);
-    const [soloBtn] = screen.getAllByRole("button");
-    fireEvent.click(soloBtn);
-    expect(actions.score.instrument.setSolo).toHaveBeenCalledWith(1, false);
-    expect(actions.score.instrument.setSolo).toHaveBeenCalledWith(2, false);
-  });
-
-  it("calls setMute for all instruments when M button clicked", () => {
+  it("calls setMute only for instruments whose active route supports mute", () => {
     const instruments = [
       makeInstrument({ id: 1, mute: false }),
       makeInstrument({ id: 2, mute: false }),
     ];
-    render(<MixerToolbar instruments={instruments} />);
-    const buttons = screen.getAllByRole("button");
-    fireEvent.click(buttons[1]); // mute button is 2nd
+    render(
+      <MixerToolbar
+        instruments={instruments}
+        resolvedPlaybackRouteByInstrumentId={{
+          1: makeRoute(),
+          2: makeRoute({
+            supported_mix_controls: {
+              volume: false,
+              pan: false,
+              mute: false,
+              solo: false,
+            },
+          }),
+        }}
+      />,
+    );
+    fireEvent.click(screen.getAllByRole("button")[1]);
     expect(actions.score.instrument.setMute).toHaveBeenCalledWith(1, true);
-    expect(actions.score.instrument.setMute).toHaveBeenCalledWith(2, true);
+    expect(actions.score.instrument.setMute).not.toHaveBeenCalledWith(2, true);
+    expect(actions.score.instrument.setSolo).not.toHaveBeenCalled();
   });
 });
 
@@ -88,7 +139,9 @@ describe("Mixer", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("renders without crashing when no instruments", () => {
-    const { container } = render(<Mixer instruments={[]} />);
+    const { container } = render(
+      <Mixer instruments={[]} resolvedPlaybackRouteByInstrumentId={{}} />,
+    );
     expect(container.firstChild).toBeInTheDocument();
   });
 
@@ -97,9 +150,42 @@ describe("Mixer", () => {
       makeInstrument({ id: 1, short_name: "Vln." }),
       makeInstrument({ id: 2, short_name: "Vc." }),
     ];
-    render(<Mixer instruments={instruments} />);
-    // Each MixerChannel renders instrument.short_name via TokenizedText
+    render(
+      <Mixer
+        instruments={instruments}
+        resolvedPlaybackRouteByInstrumentId={{
+          1: makeRoute(),
+          2: makeRoute(),
+        }}
+      />,
+    );
     expect(screen.getByText("Vln.")).toBeInTheDocument();
     expect(screen.getByText("Vc.")).toBeInTheDocument();
+  });
+
+  it("wires the pan slider to score instrument pan updates", () => {
+    render(
+      <Mixer
+        instruments={[makeInstrument({ id: 1, short_name: "Vln.", pan: 20 })]}
+        resolvedPlaybackRouteByInstrumentId={{ 1: makeRoute() }}
+      />,
+    );
+
+    const panControl = screen.getByRole("slider", { name: /Pan Vln\./i });
+    vi.spyOn(panControl, "getBoundingClientRect").mockReturnValue({
+      x: 0,
+      y: 0,
+      width: 100,
+      height: 36,
+      top: 0,
+      right: 100,
+      bottom: 36,
+      left: 0,
+      toJSON: () => ({}),
+    });
+
+    fireEvent.pointerDown(panControl, { clientX: 75.6 });
+
+    expect(actions.score.instrument.setPan).toHaveBeenCalledWith(1, 96);
   });
 });

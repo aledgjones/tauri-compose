@@ -1,6 +1,6 @@
 # Story 4.4: Apply Basic Route-First Mix Controls During Audition And Playback
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -16,29 +16,29 @@ so that I can make bounded playback adjustments within Compose while keeping the
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Define the bounded backend-owned mix-capability seam for current direct-plugin routes (AC: 1, 2, 3)
-  - [ ] Start from `src-tauri/src/score/instruments/mod.rs`, `src-tauri/src/playback/transport.rs`, `src-tauri/src/playback/preparation.rs`, and `src-tauri/src/playback/runtime_activation.rs` instead of inventing a frontend-owned capability model.
-  - [ ] Reuse the persisted instrument mix fields (`volume`, `pan`, `mute`, `solo`) as the score-owned intent source while making backend truth explicit about which of those controls are actually honored by the current route path.
-  - [ ] Keep the MVP bounded to the current single-target direct-plugin route model; do not broaden this story into multi-target, multi-slot, or multi-timbral semantics.
-  - [ ] Keep route-first naming in the product surface even if live implementation still resolves through slot-owned mechanics.
-- [ ] Task 2: Make supported mix controls affect both audition and transport-backed audible output (AC: 1, 2)
-  - [ ] Ensure the current continuous engine path in `src-tauri/src/playback/engine.rs` and the transport path consume consistent backend-owned mix parameters rather than letting audition and transport drift.
-  - [ ] Preserve the current transport trust gate in `prepare_supported_playback(...)`; Story 4.4 must not widen transport beyond one supported routed instrument.
-  - [ ] Keep audition able to target a ready route directly, while still applying the same supported mix behavior the user set in score context.
-  - [ ] Do not move output-stream lifetime, engine ownership, or canonical live plugin processing into transport or React while wiring mix behavior through the active playback path.
-- [ ] Task 3: Surface only honest, compact controls in the existing score-context UI (AC: 1, 2, 3)
-  - [ ] Start from the current Sequence score-context surfaces in `src/windows/main/components/mixer.tsx`, `src/windows/main/components/mixer-channel.tsx`, and `src/windows/main/screens/sequence/components/instrument-overview-row.tsx`.
-  - [ ] Treat the currently surfaced controls as the default bounded set: volume, mute, and solo should remain available only if they work end-to-end on the active route; pan should stay hidden until it is truly supported through the same honest path.
-  - [ ] Keep readiness and capability presentation compact; do not add a DAW-style mixer, plugin-manager-first workflow, or explanatory panel whose main purpose is to prove acceptance criteria literally.
-  - [ ] Preserve the current warning semantics: plain unrouted `--` and empty-slot `N. --` remain non-warning states, while broken assigned plugin routes keep the compact warning treatment.
-- [ ] Task 4: Add seam-local regression coverage for mix behavior and capability honesty (AC: 1, 2, 3)
-  - [ ] Extend Rust tests near `src-tauri/src/playback/transport.rs`, `src-tauri/src/playback/audition.rs`, `src-tauri/src/playback/engine.rs`, and `src-tauri/src/score/instruments/mod.rs` to prove supported controls affect audible output and unsupported controls are not falsely exposed.
-  - [ ] Add or extend frontend tests around `src/services/actions.test.ts`, `src/windows/main/components/mixer.test.tsx`, `src/windows/main/components/mixer-channel.test.tsx`, and `src/windows/main/screens/sequence/components/instrument-overview-row.test.tsx` so UI interactions stay aligned with backend-owned route capability and readiness truth.
-  - [ ] Cover the intended asymmetry explicitly: a ready route may still audition even when transport is blocked by the single-instrument trust gate, but the mix-control surface must remain honest about the current transport boundary.
-  - [ ] Validate that mix changes during active playback or immediate re-audition do not create crashes, stale engine state, or frontend-owned caches of playback truth.
-- [ ] Task 5: Update docs and agent guidance when the bounded route-first mix contract becomes concrete (AC: 1, 2, 3)
-  - [ ] Update `docs/architecture.md` and `docs/development-guide.md` if Story 4.4 sharpens where mix capability is derived and how the engine versus transport paths consume mix parameters.
-  - [ ] Update `docs/project-context.md` and `.github/copilot-instructions.md` if the story adds a durable rule about which score-context controls are honest for the current MVP and how unsupported controls must remain hidden.
+- [x] Task 1: Define the bounded backend-owned mix-capability seam for current direct-plugin routes (AC: 1, 2, 3)
+  - [x] Start from `src-tauri/src/score/instruments/mod.rs`, `src-tauri/src/playback/transport.rs`, `src-tauri/src/playback/preparation.rs`, and `src-tauri/src/playback/runtime_activation.rs` instead of inventing a frontend-owned capability model.
+  - [x] Reuse the persisted instrument mix fields (`volume`, `pan`, `mute`, `solo`) as the score-owned intent source while making backend truth explicit about which of those controls are actually honored by the current route path.
+  - [x] Keep the MVP bounded to the current single-target direct-plugin route model; do not broaden this story into multi-target, multi-slot, or multi-timbral semantics.
+  - [x] Keep route-first naming in the product surface even if live implementation still resolves through slot-owned mechanics.
+- [x] Task 2: Make supported mix controls affect both audition and transport-backed audible output (AC: 1, 2)
+  - [x] Ensure the current continuous engine path in `src-tauri/src/playback/engine.rs` and the transport path consume consistent backend-owned mix parameters rather than letting audition and transport drift.
+  - [x] Preserve the current transport trust gate in `prepare_supported_playback(...)`; Story 4.4 must not widen transport beyond one supported routed instrument.
+  - [x] Keep audition able to target a ready route directly, while still applying the same supported mix behavior the user set in score context.
+  - [x] Do not move output-stream lifetime, engine ownership, or canonical live plugin processing into transport or React while wiring mix behavior through the active playback path.
+- [x] Task 3: Surface only honest, compact controls in the existing score-context UI (AC: 1, 2, 3)
+  - [x] Start from the current Sequence score-context surfaces in `src/windows/main/components/mixer.tsx`, `src/windows/main/components/mixer-channel.tsx`, and `src/windows/main/screens/sequence/components/instrument-overview-row.tsx`.
+  - [x] Treat the currently surfaced controls as the default bounded set: volume, mute, and solo should remain available only if they work end-to-end on the active route; pan should stay hidden until it is truly supported through the same honest path.
+  - [x] Keep readiness and capability presentation compact; do not add a DAW-style mixer, plugin-manager-first workflow, or explanatory panel whose main purpose is to prove acceptance criteria literally.
+  - [x] Preserve the current warning semantics: plain unrouted `--` and empty-slot `N. --` remain non-warning states, while broken assigned plugin routes keep the compact warning treatment.
+- [x] Task 4: Add seam-local regression coverage for mix behavior and capability honesty (AC: 1, 2, 3)
+  - [x] Extend Rust tests near `src-tauri/src/playback/transport.rs`, `src-tauri/src/playback/audition.rs`, `src-tauri/src/playback/engine.rs`, and `src-tauri/src/score/instruments/mod.rs` to prove supported controls affect audible output and unsupported controls are not falsely exposed.
+  - [x] Add or extend frontend tests around `src/services/actions.test.ts`, `src/windows/main/components/mixer.test.tsx`, `src/windows/main/components/mixer-channel.test.tsx`, and `src/windows/main/screens/sequence/components/instrument-overview-row.test.tsx` so UI interactions stay aligned with backend-owned route capability and readiness truth.
+  - [x] Cover the intended asymmetry explicitly: a ready route may still audition even when transport is blocked by the single-instrument trust gate, but the mix-control surface must remain honest about the current transport boundary.
+  - [x] Validate that mix changes during active playback or immediate re-audition do not create crashes, stale engine state, or frontend-owned caches of playback truth.
+- [x] Task 5: Update docs and agent guidance when the bounded route-first mix contract becomes concrete (AC: 1, 2, 3)
+  - [x] Update `docs/architecture.md` and `docs/development-guide.md` if Story 4.4 sharpens where mix capability is derived and how the engine versus transport paths consume mix parameters.
+  - [x] Update `docs/project-context.md` and `.github/copilot-instructions.md` if the story adds a durable rule about which score-context controls are honest for the current MVP and how unsupported controls must remain hidden.
 
 ## Dev Notes
 
@@ -194,11 +194,50 @@ GPT-5.4
 ### Debug Log References
 
 - Story creation analysis covered Epic 4 acceptance criteria, current transport and engine ownership, existing score-context mixer and route UI seams, route-readiness UI rules, and recent Epic 4 commit sequence.
+- Implemented a backend-owned `supported_mix_controls` contract on resolved routes, threaded `EffectivePlaybackMix` through preparation and the continuous engine, and kept transport mix snapshots aligned with the same route-owned truth.
+- Extended the same effective-mix seam to support standard solo suppression and stereo balance-style pan for ready direct-plugin root routes, then exposed the new controls in the score-context mixer UI.
+- Validation completed with `npm run test:js -- src/services/actions.test.ts src/windows/main/components/mixer.test.tsx src/windows/main/components/mixer-channel.test.tsx src/windows/main/screens/sequence/components/instrument-overview-row.test.tsx`, `npm run check-types`, `npm run lint`, `cargo test --manifest-path src-tauri/Cargo.toml`, and `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings`.
 
 ### Completion Notes List
 
 - Created Story 4.4 as an implementation-ready guide for bounded route-first mix behavior on top of the current preparation and continuous-engine seams.
+- Added backend-owned route mix capability truth and prepared effective mix state so ready direct-plugin root routes now expose only honest score-context controls.
+- Applied the prepared mix inside the continuous render engine and audition path so live route-backed `volume`, `mute`, `solo`, and `pan` affect active audio without widening the existing transport trust gate.
+- Updated the score-context UI to expose supported `solo` plus a real pan slider on ready direct-plugin routes while keeping the route-row surface compact.
+- Added seam-local Rust and frontend regression coverage and updated developer/agent documentation for the route-first mix honesty rule.
 
 ### File List
 
+- `.github/copilot-instructions.md`
 - `_bmad-output/implementation-artifacts/4-4-apply-basic-route-first-mix-controls-during-audition-and-playback.md`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `docs/architecture.md`
+- `docs/development-guide.md`
+- `docs/project-context.md`
+- `src/services/types.ts`
+- `src/windows/main/components/mixer-channel.test.tsx`
+- `src/windows/main/components/mixer-channel.tsx`
+- `src/windows/main/components/mixer.test.tsx`
+- `src/windows/main/components/mixer.tsx`
+- `src/windows/main/screens/sequence/components/bottom-panel.tsx`
+- `src/windows/main/screens/sequence/components/instrument-overview-row.test.tsx`
+- `src/windows/main/screens/sequence/components/instrument-overview-row.tsx`
+- `src/windows/main/screens/write/components/bottom-panel.tsx`
+- `src-tauri/src/bin/performance.rs`
+- `src-tauri/src/lib.rs`
+- `src-tauri/src/playback/audition.rs`
+- `src-tauri/src/playback/engine.rs`
+- `src-tauri/src/playback/preparation.rs`
+- `src-tauri/src/playback/runtime_activation.rs`
+- `src-tauri/src/playback/transport.rs`
+- `src-tauri/src/score/instruments/mod.rs`
+- `src-tauri/src/score/playback.rs`
+
+## Change Log
+
+- 2026-04-03: Implemented the bounded route-first mix capability seam, applied honest live `volume` / `mute` behavior through the continuous engine path, hid unsupported score-context controls, and updated regression coverage plus docs.
+- 2026-04-03: Extended the same route-first mix seam to support standard solo suppression and stereo balance pan on ready direct-plugin routes, exposed the controls in the score-context mixer, and refreshed the docs to match.
+
+### Review Findings
+
+- [x] [Review][Patch] Shared-slot routes collapse to one live mix state [/Users/aledjones/compose/src-tauri/src/playback/preparation.rs:89]

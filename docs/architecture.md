@@ -268,9 +268,10 @@ Story 1.3 added an explicit single-instrument reset trust gate on top of that pa
 
 - **Transport** — Uses atomics (`AtomicBool`, `AtomicU64`) for lock-free state sharing; instrument mix params via `RwLock<FxHashMap>`
 - **Tempo resolution** — Playback snapshots the score's flow master-track tempo data at play/resume start, resolves the active BPM once per tick via a bounded resolver, and silently falls back to 120 BPM when no score tempo applies
-- **Playback preparation** — `prepare_supported_playback(...)` is the canonical backend seam for transport and upcoming audition work; it preserves explicit `Unrouted` and `NeedsAttention` states, captures the active audio sample rate, and only exposes one supported direct-plugin target in the current single-target-first MVP
-- **Continuous render engine** — `src-tauri/src/playback/engine.rs` keeps render-active slot sessions alive on the audio callback with backend-owned event queues and silent-safe blocks, so audition, mounted plugin UI interaction, and later transport submission share one playback-plane seam
+- **Playback preparation** — `prepare_supported_playback(...)` is the canonical backend seam for transport and audition work; it preserves explicit `Unrouted` and `NeedsAttention` states, captures the active audio sample rate, exposes route-backed `supported_mix_controls`, and only exposes one supported direct-plugin target in the current single-target-first MVP
+- **Continuous render engine** — `src-tauri/src/playback/engine.rs` keeps render-active slot sessions alive on the audio callback with backend-owned event queues and silent-safe blocks, applies the prepared effective route mix for the active slot, and lets audition, mounted plugin UI interaction, and later transport submission share one playback-plane seam
 - **Audition contract** — the first-audible audition workflow is intentionally narrow: it previews one score-derived pitch for 500ms at moderate velocity using a default legato articulation, injects note events into the continuous engine, and is triggered only from score-context tone selection, pitch edits, or accidental edits rather than from transport-like phrase playback
+- **Current MVP score-context mix controls** — `volume`, `mute`, `solo`, and `pan` are exposed as honest controls when the active resolved route is a ready direct-plugin root path; pan currently behaves as a backend-owned stereo balance control on the rendered slot output and solo suppresses other ready supported routes through the same effective-mix seam
 
 ### Transport tempo semantics
 

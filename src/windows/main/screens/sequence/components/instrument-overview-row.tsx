@@ -95,6 +95,12 @@ export const InstrumentOverviewRow: FC<InstrumentOverviewRowProps> = ({
   );
   const routeState =
     state.resolved_playback_route_by_instrument_id[instrument.id];
+  const supportedMixControls = routeState?.supported_mix_controls ?? {
+    volume: false,
+    pan: false,
+    mute: false,
+    solo: false,
+  };
   const presentation = getPlaybackReadinessPresentation(
     routeState,
     instrument,
@@ -287,34 +293,39 @@ export const InstrumentOverviewRow: FC<InstrumentOverviewRowProps> = ({
           </div>
         </div>
 
-        {!isDisabled && (
-          <div className="flex items-end gap-2">
-            <IconButton
-              path={mdiSizeS}
-              variant="filled"
-              size={0.9}
-              isSelected={instrument.solo}
-              onClick={() =>
-                actions.score.instrument.setSolo(
-                  instrument.id,
-                  !instrument.solo,
-                )
-              }
-            />
-            <IconButton
-              path={mdiSizeM}
-              variant="filled"
-              size={0.9}
-              isSelected={instrument.mute}
-              onClick={() =>
-                actions.score.instrument.setMute(
-                  instrument.id,
-                  !instrument.mute,
-                )
-              }
-            />
-          </div>
-        )}
+        {!isDisabled &&
+          (supportedMixControls.solo || supportedMixControls.mute) && (
+            <div className="flex items-end gap-2">
+              {supportedMixControls.solo && (
+                <IconButton
+                  path={mdiSizeS}
+                  variant="filled"
+                  size={0.9}
+                  isSelected={instrument.solo}
+                  onClick={() =>
+                    actions.score.instrument.setSolo(
+                      instrument.id,
+                      !instrument.solo,
+                    )
+                  }
+                />
+              )}
+              {supportedMixControls.mute && (
+                <IconButton
+                  path={mdiSizeM}
+                  variant="filled"
+                  size={0.9}
+                  isSelected={instrument.mute}
+                  onClick={() =>
+                    actions.score.instrument.setMute(
+                      instrument.id,
+                      !instrument.mute,
+                    )
+                  }
+                />
+              )}
+            </div>
+          )}
       </div>
 
       <div className="flex flex-col gap-1.5 text-xs text-neutral-300">

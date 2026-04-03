@@ -147,6 +147,25 @@ pub enum ResolvedPlaybackRouteStatus {
     NeedsAttention = 2,
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SupportedPlaybackMixControls {
+    pub volume: bool,
+    pub pan: bool,
+    pub mute: bool,
+    pub solo: bool,
+}
+
+impl SupportedPlaybackMixControls {
+    pub fn direct_plugin_root() -> Self {
+        Self {
+            volume: true,
+            pan: true,
+            mute: true,
+            solo: true,
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ResolvedPlaybackRoute {
     pub status: ResolvedPlaybackRouteStatus,
@@ -155,4 +174,5 @@ pub struct ResolvedPlaybackRoute {
     pub effective_plugin_id: Option<String>,
     pub target: Option<PlaybackRouteTarget>,
     pub address: Option<PlaybackRouteAddress>,
+    pub supported_mix_controls: SupportedPlaybackMixControls,
 }

@@ -452,6 +452,61 @@ impl Score {
     }
 }
 
+fn sync_transport_mix_params_for_instrument(
+    score: &Score,
+    playback_runtime: &crate::playback::runtime_activation::PlaybackActivationRuntime,
+    transport_shared: &TransportSharedState,
+    instrument_id: UniqueId,
+) {
+    let resolved_playback_route_by_instrument_id =
+        playback_runtime.resolved_playback_route_by_instrument_id(score);
+    let Some(instrument) = score.instruments.by_id.get(&instrument_id) else {
+        return;
+    };
+    let supported_mix_controls = resolved_playback_route_by_instrument_id
+        .get(&instrument_id)
+        .map(|route| route.supported_mix_controls)
+        .unwrap_or_default();
+    let supported_solo_active = score.instruments.by_id.iter().any(
+        |(candidate_instrument_id, candidate_instrument)| {
+            let Some(resolved_route) =
+                resolved_playback_route_by_instrument_id.get(candidate_instrument_id)
+            else {
+                return false;
+            };
+
+            resolved_route.status == super::playback::ResolvedPlaybackRouteStatus::Ready
+                && resolved_route.supported_mix_controls.solo
+                && candidate_instrument.solo
+        },
+    );
+    let instrument_is_supported_solo = supported_mix_controls.solo && instrument.solo;
+    let effective_volume = if supported_mix_controls.volume {
+        instrument.volume
+    } else {
+        127
+    };
+    let effective_pan = if supported_mix_controls.pan {
+        instrument.pan
+    } else {
+        64
+    };
+    let effective_mute = (supported_mix_controls.mute && instrument.mute)
+        || (supported_solo_active && !instrument_is_supported_solo);
+
+    if let Ok(mut mix) = transport_shared.mix_params.write() {
+        mix.insert(
+            instrument_id,
+            crate::playback::transport::InstrumentMixParams {
+                volume: effective_volume,
+                pan: effective_pan,
+                mute: effective_mute,
+                solo: supported_mix_controls.solo && instrument.solo,
+            },
+        );
+    }
+}
+
 #[tauri::command(rename_all = "snake_case")]
 pub fn score_instruments_create(
     app: tauri::AppHandle,
@@ -696,7 +751,7 @@ pub fn score_instruments_set_volume(
 ) {
     let mut state = state.lock().unwrap();
 
-    let clamped = state
+    state
         .score
         .instruments
         .by_id
@@ -705,11 +760,12 @@ pub fn score_instruments_set_volume(
         .unwrap_or_else(|| volume.min(127));
 
     // Update live mix params for in-flight playback
-    if let Ok(mut mix) = transport_shared.mix_params.write() {
-        if let Some(p) = mix.get_mut(&instrument_id) {
-            p.volume = clamped;
-        }
-    }
+    sync_transport_mix_params_for_instrument(
+        &state.score,
+        &state.playback_activation_runtime,
+        transport_shared.inner(),
+        instrument_id,
+    );
 
     let mut renderer = renderer_state.lock().unwrap();
     state.emit_general_state(&app, &mut renderer, None);
@@ -726,7 +782,7 @@ pub fn score_instruments_set_pan(
 ) {
     let mut state = state.lock().unwrap();
 
-    let clamped = state
+    state
         .score
         .instruments
         .by_id
@@ -735,11 +791,12 @@ pub fn score_instruments_set_pan(
         .unwrap_or_else(|| pan.min(127));
 
     // Update live mix params for in-flight playback
-    if let Ok(mut mix) = transport_shared.mix_params.write() {
-        if let Some(p) = mix.get_mut(&instrument_id) {
-            p.pan = clamped;
-        }
-    }
+    sync_transport_mix_params_for_instrument(
+        &state.score,
+        &state.playback_activation_runtime,
+        transport_shared.inner(),
+        instrument_id,
+    );
 
     let mut renderer = renderer_state.lock().unwrap();
     state.emit_general_state(&app, &mut renderer, None);
@@ -761,11 +818,12 @@ pub fn score_instruments_set_mute(
     }
 
     // Update live mix params for in-flight playback
-    if let Ok(mut mix) = transport_shared.mix_params.write() {
-        if let Some(p) = mix.get_mut(&instrument_id) {
-            p.mute = mute;
-        }
-    }
+    sync_transport_mix_params_for_instrument(
+        &state.score,
+        &state.playback_activation_runtime,
+        transport_shared.inner(),
+        instrument_id,
+    );
 
     let mut renderer = renderer_state.lock().unwrap();
     state.emit_general_state(&app, &mut renderer, None);
@@ -787,11 +845,12 @@ pub fn score_instruments_set_solo(
     }
 
     // Update live mix params for in-flight playback
-    if let Ok(mut mix) = transport_shared.mix_params.write() {
-        if let Some(p) = mix.get_mut(&instrument_id) {
-            p.solo = solo;
-        }
-    }
+    sync_transport_mix_params_for_instrument(
+        &state.score,
+        &state.playback_activation_runtime,
+        transport_shared.inner(),
+        instrument_id,
+    );
 
     let mut renderer = renderer_state.lock().unwrap();
     state.emit_general_state(&app, &mut renderer, None);

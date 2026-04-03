@@ -1,4 +1,4 @@
-use crate::playback::engine::queue_audition_note;
+use crate::playback::engine::{queue_audition_note, set_slot_mix};
 use crate::playback::preparation::{prepare_supported_playback, PlaybackPreparation};
 use crate::playback::runtime_activation::PlaybackActivationRuntime;
 use crate::score::playback::{
@@ -60,6 +60,9 @@ pub fn playback_audition_tone(
         prepared.preparation.sample_rate.max(sample_rate),
         prepared.note,
     );
+    if let Some(target) = prepared.preparation.supported_target.as_ref() {
+        set_slot_mix(target.slot_id, target.effective_mix);
+    }
     Ok(())
 }
 

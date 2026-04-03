@@ -1,8 +1,12 @@
 use crate::playback::engine::set_transport_render_target;
-use crate::playback::preparation::{prepare_supported_playback, PlaybackPreparation};
+use crate::playback::preparation::{
+    effective_playback_mix_for_instrument, prepare_supported_playback, PlaybackPreparation,
+};
 use crate::playback::tuplet_projection::{collect_track_playback_events, PlaybackTick};
 use crate::score::components::duration::Tick;
 use crate::score::entries::tempo::{EffectiveTempoResolver, DEFAULT_TEMPO_BPM};
+use crate::score::instruments::Instrument;
+use crate::score::playback::ResolvedPlaybackRoute;
 use crate::score::Score;
 use crate::utils::UniqueId;
 use crate::{AppContext, AppContextState, AudioContextState};
@@ -15,6 +19,7 @@ use tauri::State;
 
 /// Live instrument mix parameters shared between the UI thread and the transport thread.
 /// Updated in real-time by volume/pan/mute/solo commands.
+#[cfg_attr(not(test), allow(dead_code))]
 #[derive(Clone)]
 pub struct InstrumentMixParams {
     pub volume: u8,
@@ -122,6 +127,49 @@ fn playback_can_start(current_tick: Tick, flow_length: Tick) -> bool {
     current_tick < flow_length
 }
 
+#[cfg_attr(not(test), allow(dead_code))]
+pub(crate) fn effective_mix_params_for_instrument(
+    score: &Score,
+    playback_runtime: &crate::playback::runtime_activation::PlaybackActivationRuntime,
+    instrument_id: UniqueId,
+) -> Option<InstrumentMixParams> {
+    let resolved_playback_route_by_instrument_id =
+        playback_runtime.resolved_playback_route_by_instrument_id(score);
+    let instrument = score.instruments.by_id.get(&instrument_id)?;
+
+    Some(effective_mix_params_from_route(
+        score,
+        instrument,
+        &resolved_playback_route_by_instrument_id,
+    ))
+}
+
+fn effective_mix_params_from_route(
+    score: &Score,
+    instrument: &Instrument,
+    resolved_playback_route_by_instrument_id: &rustc_hash::FxHashMap<
+        UniqueId,
+        ResolvedPlaybackRoute,
+    >,
+) -> InstrumentMixParams {
+    let effective_mix = effective_playback_mix_for_instrument(
+        score,
+        resolved_playback_route_by_instrument_id,
+        instrument.id,
+    );
+    let supported_mix_controls = resolved_playback_route_by_instrument_id
+        .get(&instrument.id)
+        .map(|route| route.supported_mix_controls)
+        .unwrap_or_default();
+
+    InstrumentMixParams {
+        volume: effective_mix.volume,
+        pan: effective_mix.pan,
+        mute: effective_mix.muted,
+        solo: supported_mix_controls.solo && instrument.solo,
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone)]
 pub struct TransportState {
     pub playing: bool,
@@ -195,7 +243,6 @@ pub(crate) fn stop_transport_playback(
     };
 
     join_transport_thread(handle)?;
-    set_transport_render_target(None);
     flush_active_audio(audio_state);
     shared.stop_signal.store(false, Ordering::Release);
 
@@ -510,12 +557,13 @@ fn transport_play_with_states(
         for (id, inst) in &snapshot.score.instruments.by_id {
             mix.insert(
                 *id,
-                InstrumentMixParams {
-                    volume: inst.volume,
-                    pan: inst.pan,
-                    mute: inst.mute,
-                    solo: inst.solo,
-                },
+                effective_mix_params_from_route(
+                    &snapshot.score,
+                    inst,
+                    &snapshot
+                        .preparation
+                        .resolved_playback_route_by_instrument_id,
+                ),
             );
         }
     }
@@ -1277,6 +1325,31 @@ mod tests {
         drop(ctx);
 
         stop_test_transport(&transport_state);
+    }
+
+    #[test]
+    fn effective_mix_params_only_honor_controls_supported_by_the_ready_route() {
+        let mut track = Track::new(50);
+        track
+            .create_tone(80, 32, 16, 60, None, 96, Default::default(), None)
+            .unwrap();
+
+        let (mut score, flow_id) = make_flow_score_with_track(track);
+        let instrument = score.instruments.by_id.get_mut(&4).unwrap();
+        instrument.volume = 24;
+        instrument.pan = 11;
+        instrument.mute = true;
+        instrument.solo = true;
+
+        let runtime = make_playback_runtime_for_score(&score);
+        let params = effective_mix_params_for_instrument(&score, &runtime, 4)
+            .expect("expected instrument mix params");
+
+        assert_eq!(flow_id, 1);
+        assert_eq!(params.volume, 24);
+        assert_eq!(params.pan, 11);
+        assert!(params.mute);
+        assert!(params.solo);
     }
 
     #[test]
