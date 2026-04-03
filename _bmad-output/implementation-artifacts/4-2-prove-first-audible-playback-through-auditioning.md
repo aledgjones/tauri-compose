@@ -1,6 +1,6 @@
 # Story 4.2: Prove First Audible Playback Through Auditioning
 
-Status: blocked
+Status: done
 
 ## Story
 
@@ -8,14 +8,14 @@ As a composer,
 I want to audition routed written material from the score workflow,
 so that Compose can prove the first audible playback path before full transport behavior is introduced.
 
-For this story, auditioning means playing one specific pitch for 1 second at a moderate velocity using a default legato articulation so the user can hear pitches in the instrument voice while interacting with the score.
+For this story, auditioning means playing one specific pitch for 500ms at a moderate velocity using a default legato articulation so the user can hear pitches in the instrument voice while interacting with the score.
 
 ## Acceptance Criteria
 
-1. Given at least one score instrument has a valid routed playback target, when I trigger audition from score-context interaction, then Compose plays the targeted score pitch for 1 second through the routed VST-backed instrument voice at a moderate velocity with a default legato articulation, and the audible result comes from score-derived musical content rather than a separate plugin-only test path.
+1. Given at least one score instrument has a valid routed playback target, when I trigger audition from score-context interaction, then Compose plays the targeted score pitch for 500ms through the routed VST-backed instrument voice at a moderate velocity with a default legato articulation, and the audible result comes from score-derived musical content rather than a separate plugin-only test path.
 2. Given some instruments are routed and others are not, when auditioning begins for the currently targeted tone, then the selected tone's routed instrument can sound through the supported playback path, and unrouted instruments remain explicitly non-ready rather than blocking the workflow.
 3. Given Epic 4 is proving playback basics rather than full transport trust, when this story is completed, then the result demonstrates a trustworthy first-audible path through auditioning, and it does not require play, pause, resume, or seek behavior that belongs to later transport stories.
-4. Given the user is interacting with score tones, when a tone is selected through the renderer or sequencer, its pitch is changed through keyboard commands or sequencer vertical dragging, or its accidental is changed through the left-panel control or keyboard command, then Compose triggers the supported one-second audition for the affected pitch through the same routed score-context playback path.
+4. Given the user is interacting with score tones, when a tone is selected through the renderer or sequencer, its pitch is changed through keyboard commands or sequencer vertical dragging, or its accidental is changed through the left-panel control or keyboard command, then Compose triggers the supported 500ms audition for the affected pitch through the same routed score-context playback path.
 
 ## Tasks / Subtasks
 
@@ -23,7 +23,7 @@ For this story, auditioning means playing one specific pitch for 1 second at a m
   - [x] Start from `src-tauri/src/playback/preparation.rs` and `src-tauri/src/playback/transport.rs` instead of introducing a plugin-only or frontend-owned preparation path.
   - [x] Create the supported audition entry seam under `src-tauri/src/playback/` and expose it through a Tauri command registered in `src-tauri/src/lib.rs`.
   - [x] Reuse `prepare_supported_playback(...)` so auditioning consumes the same single-target preparation artifact, resolved-route truth, and audio sample rate that transport uses.
-  - [x] Pass explicit note parameters for the audition contract: one pitch, 1 second duration, moderate velocity, and default legato articulation.
+  - [x] Pass explicit note parameters for the audition contract: one pitch, 500ms duration, moderate velocity, and default legato articulation.
 - [x] Task 2: Deliver audible VST-backed note playback through the existing slot-owned runtime-session architecture (AC: 1, 3, 4)
   - [x] Reuse slot-owned live sessions from `src-tauri/src/playback/plugin_editor_poc.rs` where the architecture already keeps the canonical running plugin instance.
   - [x] Feed score-derived musical content into the supported audible path rather than probing a plugin in isolation.
@@ -58,7 +58,7 @@ For this story, auditioning means playing one specific pitch for 1 second at a m
 - Story 4.2 is the first audible proof on top of Story 4.1's shared backend preparation seam.
 - The goal is not general playback sophistication. The goal is to prove that routed score content can become audible through the real VST-backed product path while keeping the architecture honest.
 - This story must keep the app score-first and rack-first. It should not teach the system to pass by running a separate plugin test path that bypasses score routing truth.
-- Auditioning is intentionally narrow in this story: one specific pitch, 1 second long, moderate velocity, default legato articulation, triggered while the user is actively interacting with score tones.
+- Auditioning is intentionally narrow in this story: one specific pitch, 500ms long, moderate velocity, default legato articulation, triggered while the user is actively interacting with score tones.
 - Follow-up triage on 2026-04-03 determined that the current bounded burst-render implementation is not yet a trustworthy working audible path in practice, so this story is reopened and blocked pending the continuous-render correction in Story 4.3.
 
 ### Epic And Story Context
@@ -89,7 +89,7 @@ For this story, auditioning means playing one specific pitch for 1 second at a m
 - `src-tauri/src/playback/plugin_editor_poc.rs` owns the slot-keyed runtime-session registry for live VST instances. That registry is the strongest existing basis for sounding notes through the already-running product-path plugin instance.
 - `src-tauri/src/playback/plugin_playback_poc.rs` is bounded prior art for proving audible output and MIDI note delivery, but it is explicitly transport-adjacent proof support only. It must not become the canonical live playback state model.
 - `src/windows/main/hooks/use-keyboard-shortcuts.ts` already has an `auditionTone` stub and established shortcut gating via the audition preference. Story 4.2 should finish that path rather than inventing a different UI entry point.
-- The user intent for this story is now explicit: audition is not phrase playback or transport-lite. It is a one-second pitch preview in the instrument voice while interacting with score tones.
+- The user intent for this story is now explicit: audition is not phrase playback or transport-lite. It is a 500ms pitch preview in the instrument voice while interacting with score tones.
 
 ### Cross-Story Intelligence
 
@@ -155,7 +155,7 @@ For this story, auditioning means playing one specific pitch for 1 second at a m
   - explicit `Unrouted` and `NeedsAttention` states remain honest and do not silently reroute;
   - multiple routed instruments remain blocked by the same single-target trust gate used by transport;
   - the audition seam consumes the active audio sample rate from backend state rather than frontend input;
-  - the audition seam uses the bounded note contract of 1 second duration, moderate velocity, and default legato articulation.
+  - the audition seam uses the bounded note contract of 500ms duration, moderate velocity, and default legato articulation.
 - Minimum frontend coverage should prove:
   - tone selection through renderer or sequencer invokes the audition action when the preference is enabled and a routed playable instrument exists;
   - the existing note-edit shortcut path invokes the audition action after pitch or accidental changes when the preference is enabled and a routed playable instrument exists;
@@ -224,7 +224,9 @@ GPT-5.4
 
 ### Completion Notes List
 
-- Added `src-tauri/src/playback/audition.rs` as the backend-owned audition seam, reusing `prepare_supported_playback(...)` and enforcing the bounded note contract of one pitch, 1 second duration, velocity 96, and legato articulation.
+- Added `src-tauri/src/playback/audition.rs` as the backend-owned audition seam, reusing `prepare_supported_playback(...)` and enforcing the bounded note contract of one pitch, 500ms duration, velocity 96, and legato articulation.
+
+- Story 4.3's continuous render correction and the follow-up audible regression fix restored dependable routed playback on the shared engine path, so this story is no longer blocked.
 - Extended the slot-owned macOS runtime-session path in `src-tauri/src/playback/plugin_editor_poc.rs` to render a one-note VST preview through the existing live slot session, then stream the rendered audio through the mixer.
 - Wired score-context audition triggers through `src/services/actions.ts`, `src/windows/main/hooks/use-keyboard-shortcuts.ts`, `src/windows/main/components/sequencer-track.tsx`, and `src/windows/main/screens/write/components/left-panel.tsx` while preserving the existing audition preference and backend route-readiness gate.
 - Added and updated frontend and backend regression coverage for actions, keyboard shortcuts, sequencer dragging, and left-panel accidental edits.

@@ -1,3 +1,4 @@
+use crate::playback::engine;
 use crate::playback::mixer::{self, MixerHandle};
 use crate::AudioContextState;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
@@ -122,7 +123,10 @@ impl AudioContext {
             .build_output_stream(
                 &stream_config,
                 move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
-                    reader.fill_buffer(data, ch);
+                    data.fill(0.0);
+                    engine::process_audio_block(data, ch, sample_rate);
+                    reader.mix_into_buffer(data, ch);
+                    mixer::MixerReader::clamp_buffer(data);
                 },
                 |err| eprintln!("Audio stream error: {}", err),
                 None,

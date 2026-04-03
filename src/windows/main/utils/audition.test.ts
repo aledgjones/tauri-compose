@@ -25,7 +25,7 @@ describe("audition utils", () => {
     consoleError.mockRestore();
   });
 
-  it("requires the backend transport-ready flag before auditioning", () => {
+  it("allows audition when the requested instrument route is ready", () => {
     const state = createAppState({
       single_instrument_transport_ready: false,
       preferences: { audition: true },
@@ -41,7 +41,7 @@ describe("audition utils", () => {
       },
     });
 
-    expect(canAuditionInstrument(state, 10)).toBe(false);
+    expect(canAuditionInstrument(state, 10)).toBe(true);
   });
 
   it("logs and swallows audition failures", async () => {

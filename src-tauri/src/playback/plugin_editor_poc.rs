@@ -1,7 +1,6 @@
 #![allow(non_snake_case)]
 
-use crate::playback::audition::AuditionNote;
-use crate::playback::mixer::MixerHandle;
+use crate::playback::engine::{set_slot_editor_render_active, LiveRenderEvent};
 use crate::playback::plugin_host_compatibility::bounded_editor_host_unsupported_reason;
 use crate::playback::plugin_inventory::{
     blocked_editor_host_validation, PluginCapabilityEvidence, PluginCapabilityEvidenceStatus,
@@ -30,6 +29,17 @@ const WINDOW_LABEL: &str = "plugin-host-poc";
 const HOST_PAGE_PATH: &str = "plugin-host-poc.html";
 const HOST_HEADER_HEIGHT: f64 = 0.0;
 const PLUGIN_PATH_ENV: &str = "SOLOC_PLUGIN_EDITOR_POC_VST3_PATH";
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum SlotRuntimeRenderOutcome {
+    Rendered,
+    SilenceOnly,
+    MissingSession,
+    Busy,
+    #[cfg_attr(target_os = "macos", allow(dead_code))]
+    Unsupported,
+    Error(String),
+}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum PluginHostLifecyclePhase {
@@ -282,6 +292,9 @@ fn mark_plugin_target_attached(target: &PluginEditorTarget) {
     if let Ok(mut lifecycle) = active_plugin_host_lifecycle().lock() {
         if lifecycle.target.as_ref() == Some(target) {
             lifecycle.phase = PluginHostLifecyclePhase::Attached;
+            if let Some(slot_id) = target.slot_id {
+                set_slot_editor_render_active(slot_id, true);
+            }
             eprintln!(
                 "plugin_editor_poc: lifecycle attached target={} phase={}",
                 target,
@@ -295,6 +308,9 @@ fn mark_plugin_target_detached(target: &PluginEditorTarget) {
     if let Ok(mut lifecycle) = active_plugin_host_lifecycle().lock() {
         if lifecycle.target.as_ref() == Some(target) {
             lifecycle.phase = PluginHostLifecyclePhase::Detached;
+            if let Some(slot_id) = target.slot_id {
+                set_slot_editor_render_active(slot_id, false);
+            }
             eprintln!(
                 "plugin_editor_poc: lifecycle detached target={} phase={}",
                 target,
@@ -329,6 +345,9 @@ fn begin_plugin_target_close(target: Option<&PluginEditorTarget>) {
 fn release_reserved_plugin_target(target: &PluginEditorTarget) {
     if let Ok(mut lifecycle) = active_plugin_host_lifecycle().lock() {
         if lifecycle.target.as_ref() == Some(target) {
+            if let Some(slot_id) = target.slot_id {
+                set_slot_editor_render_active(slot_id, false);
+            }
             eprintln!(
                 "plugin_editor_poc: releasing reservation for target={} from phase={}",
                 target,
@@ -345,6 +364,9 @@ fn release_reserved_plugin_target(target: &PluginEditorTarget) {
 
 fn clear_reserved_plugin_target() {
     if let Ok(mut lifecycle) = active_plugin_host_lifecycle().lock() {
+        if let Some(slot_id) = lifecycle.target.as_ref().and_then(|target| target.slot_id) {
+            set_slot_editor_render_active(slot_id, false);
+        }
         eprintln!(
             "plugin_editor_poc: clearing reservation from phase={} target={}",
             plugin_host_phase_label(lifecycle.phase),
@@ -729,8 +751,7 @@ mod macos_host {
         PluginEditorHostAttemptError, PluginEditorHostValidationPhase, PluginHostAttachOutcome,
         SlotRuntimePluginStateCapture, HOST_HEADER_HEIGHT,
     };
-    use crate::playback::audition::AuditionNote;
-    use crate::playback::mixer::{MixerHandle, StreamBuffer};
+    use crate::playback::engine::{LiveRenderEvent, LiveRenderEventKind};
     use crate::playback::runtime_activation::ActivatedSlotTarget;
     use crate::playback::vst3::vst3_bundle_binary_path;
     use crate::score::playback::PlaybackSlotPluginState;
@@ -748,12 +769,10 @@ mod macos_host {
     use objc2_foundation::{NSPoint, NSRect, NSSize, NSString};
     use rustc_hash::FxHashMap;
     use std::ffi::{c_void, CStr, CString};
-    use std::fmt;
     use std::mem::zeroed;
     use std::path::{Path, PathBuf};
     use std::sync::atomic::{AtomicBool, Ordering};
-    use std::sync::mpsc;
-    use std::sync::{Arc, Mutex as StdMutex, OnceLock};
+    use std::sync::{Arc, Mutex as StdMutex};
     use std::time::{Duration, Instant};
     use tauri::{AppHandle, WebviewWindow};
     use vst3::Steinberg::IBStream_::IStreamSeekMode_::{kIBSeekCur, kIBSeekEnd, kIBSeekSet};
@@ -784,41 +803,21 @@ mod macos_host {
         IAttributeList_iid, IAutomationState_iid, IComponentHandler2_iid, IComponentHandler3_iid,
         IComponentHandlerBusActivation_iid, IComponentHandlerSystemTime_iid, IComponentHandler_iid,
         IContextMenuTarget_iid, IDataExchangeHandler_iid, IEditControllerHostEditing_iid,
-        IHostApplication_iid, IMessage_iid, IMidiLearn_iid, INoteExpressionController_iid,
-        INoteExpressionPhysicalUIMapping_iid, IParameterFunctionName_iid,
-        IPlugInterfaceSupport_iid,
+        IHostApplication_iid, IMessage_iid, IPlugInterfaceSupport_iid,
         IProgress_::{ProgressType, ID as ProgressID},
-        IProgress_iid, IUnitHandler2_iid, IUnitHandler_iid, IVst3ToAUWrapper_iid, NoteOffEvent,
-        NoteOnEvent, ProcessData, ProcessSetup,
+        IProgress_iid, IUnitHandler2_iid, IUnitHandler_iid, NoteOffEvent, NoteOnEvent, ProcessData,
+        ProcessSetup,
     };
     use vst3::Steinberg::{
         self, int64, kInvalidArgument, kNotImplemented, kPlatformTypeNSView, kResultFalse,
         kResultOk, kResultTrue, tresult, uint32, FIDString, FUnknown, FUnknown_iid, IBStream,
         IBStreamTrait, IPlugFrame, IPlugFrameTrait, IPlugView, IPlugViewTrait, IPluginBaseTrait,
         IPluginFactory, IPluginFactory2, IPluginFactory2Trait, IPluginFactory3,
-        IPluginFactory3Trait, IPluginFactoryTrait, IUpdateHandler_iid, TBool, ViewRect, TUID,
+        IPluginFactory3Trait, IPluginFactoryTrait, TBool, ViewRect, TUID,
     };
     use vst3::{Class, ComPtr, ComWrapper};
 
-    const VERBOSE_PLUGIN_HOST_LOG_ENV: &str = "SOLOC_PLUGIN_EDITOR_POC_VERBOSE";
     const BUFFERED_REATTACH_RESIZE_DELAY_MS: u64 = 50;
-
-    fn verbose_plugin_host_logging_enabled() -> bool {
-        static ENABLED: OnceLock<bool> = OnceLock::new();
-        *ENABLED.get_or_init(|| {
-            std::env::var(VERBOSE_PLUGIN_HOST_LOG_ENV)
-                .ok()
-                .map(|value| value.trim().to_ascii_lowercase())
-                .map(|value| matches!(value.as_str(), "1" | "true" | "yes" | "on"))
-                .unwrap_or(false)
-        })
-    }
-
-    fn verbose_plugin_host_log(args: fmt::Arguments<'_>) {
-        if verbose_plugin_host_logging_enabled() {
-            eprintln!("{}", args);
-        }
-    }
 
     type GetPluginFactoryFn = unsafe extern "system" fn() -> *mut IPluginFactory;
     type BundleEntryFn = unsafe extern "system" fn(*mut c_void) -> bool;
@@ -1779,276 +1778,414 @@ mod macos_host {
         }
     }
 
-    struct RenderedAuditionAudio {
-        channels: usize,
-        samples: Vec<f32>,
-    }
-
-    fn make_note_on_event(note: AuditionNote) -> Event {
+    fn make_live_render_event(event: LiveRenderEvent) -> Event {
         Event {
             busIndex: 0,
-            sampleOffset: 0,
+            sampleOffset: event.sample_offset as i32,
             ppqPosition: 0.0,
             flags: VstEventFlags::kIsLive as u16,
-            r#type: VstEventTypes::kNoteOnEvent as u16,
-            __field0: vst3::Steinberg::Vst::Event__type0 {
-                noteOn: NoteOnEvent {
-                    channel: 0,
-                    pitch: i16::from(note.pitch),
-                    tuning: 0.0,
-                    velocity: f32::from(note.velocity) / 127.0,
-                    length: 0,
-                    noteId: -1,
+            r#type: match event.kind {
+                LiveRenderEventKind::NoteOn => VstEventTypes::kNoteOnEvent as u16,
+                LiveRenderEventKind::NoteOff => VstEventTypes::kNoteOffEvent as u16,
+            },
+            __field0: match event.kind {
+                LiveRenderEventKind::NoteOn => vst3::Steinberg::Vst::Event__type0 {
+                    noteOn: NoteOnEvent {
+                        channel: 0,
+                        pitch: i16::from(event.pitch),
+                        tuning: 0.0,
+                        velocity: f32::from(event.velocity) / 127.0,
+                        length: 0,
+                        noteId: event.note_id,
+                    },
+                },
+                LiveRenderEventKind::NoteOff => vst3::Steinberg::Vst::Event__type0 {
+                    noteOff: NoteOffEvent {
+                        channel: 0,
+                        pitch: i16::from(event.pitch),
+                        velocity: f32::from(event.velocity) / 127.0,
+                        noteId: event.note_id,
+                        tuning: 0.0,
+                    },
                 },
             },
         }
     }
 
-    fn make_note_off_event(note: AuditionNote) -> Event {
-        Event {
-            busIndex: 0,
-            sampleOffset: 0,
-            ppqPosition: 0.0,
-            flags: VstEventFlags::kIsLive as u16,
-            r#type: VstEventTypes::kNoteOffEvent as u16,
-            __field0: vst3::Steinberg::Vst::Event__type0 {
-                noteOff: NoteOffEvent {
-                    channel: 0,
-                    pitch: i16::from(note.pitch),
-                    velocity: 0.0,
-                    noteId: -1,
-                    tuning: 0.0,
-                },
-            },
-        }
+    #[derive(Clone, Debug, Eq, PartialEq)]
+    struct OutputBusLayout {
+        bus_index: i32,
+        channel_count: usize,
     }
 
-    fn output_channel_count(session: &PluginHostSession) -> usize {
-        let mut bus_info: BusInfo = unsafe { zeroed() };
-        let result = unsafe {
-            session.component.getBusInfo(
+    #[derive(Default)]
+    struct RenderScratch {
+        events: Arc<StdMutex<Vec<Event>>>,
+        event_list: Option<ComPtr<IEventList>>,
+        output_bus_channels_data: Vec<Vec<Vec<f32>>>,
+    }
+
+    fn output_bus_layouts(component: &ComPtr<IComponent>) -> Vec<OutputBusLayout> {
+        let bus_count = unsafe {
+            component.getBusCount(
                 Vst::MediaTypes_::kAudio as i32,
                 Vst::BusDirections_::kOutput as i32,
-                0,
-                &mut bus_info,
             )
         };
 
-        if result == kResultOk && bus_info.channelCount > 0 {
-            bus_info.channelCount as usize
+        if bus_count <= 0 {
+            return vec![OutputBusLayout {
+                bus_index: 0,
+                channel_count: 2,
+            }];
+        }
+
+        let mut layouts = Vec::new();
+        for bus_index in 0..bus_count {
+            let mut bus_info: BusInfo = unsafe { zeroed() };
+            let result = unsafe {
+                component.getBusInfo(
+                    Vst::MediaTypes_::kAudio as i32,
+                    Vst::BusDirections_::kOutput as i32,
+                    bus_index,
+                    &mut bus_info,
+                )
+            };
+
+            if result == kResultOk && bus_info.channelCount > 0 {
+                layouts.push(OutputBusLayout {
+                    bus_index,
+                    channel_count: bus_info.channelCount as usize,
+                });
+            }
+        }
+
+        if layouts.is_empty() {
+            vec![OutputBusLayout {
+                bus_index: 0,
+                channel_count: 2,
+            }]
         } else {
-            2
+            layouts
         }
     }
 
-    fn render_plugin_session_audition(
+    fn activate_component_buses(component: &ComPtr<IComponent>) -> Result<(), String> {
+        for media_type in [
+            Vst::MediaTypes_::kAudio as i32,
+            Vst::MediaTypes_::kEvent as i32,
+        ] {
+            for direction in [
+                Vst::BusDirections_::kInput as i32,
+                Vst::BusDirections_::kOutput as i32,
+            ] {
+                let bus_count = unsafe { component.getBusCount(media_type, direction) };
+                if bus_count < 0 {
+                    return Err(format!(
+                        "Failed to query VST bus count (media_type={}, direction={}, count={}).",
+                        media_type, direction, bus_count
+                    ));
+                }
+
+                for bus_index in 0..bus_count {
+                    let activate_result =
+                        unsafe { component.activateBus(media_type, direction, bus_index, 1) };
+                    if activate_result != kResultOk && activate_result != kResultTrue {
+                        return Err(format!(
+                            "Failed to activate VST bus (media_type={}, direction={}, bus_index={}, tresult={}).",
+                            media_type, direction, bus_index, activate_result
+                        ));
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    impl PluginHostSession {
+        fn ensure_render_scratch(&mut self, frames_per_block: usize) -> Result<(), String> {
+            if self.render_scratch.event_list.is_none() {
+                self.render_scratch.event_list = ComWrapper::new(HostEventList {
+                    events: self.render_scratch.events.clone(),
+                })
+                .to_com_ptr::<IEventList>();
+            }
+
+            if self.render_scratch.event_list.is_none() {
+                return Err(String::from("Failed to allocate the VST event-list shim."));
+            }
+
+            if self.render_scratch.output_bus_channels_data.is_empty()
+                || self.render_scratch.output_bus_channels_data.len()
+                    != self.render_output_buses.len()
+                || self
+                    .render_scratch
+                    .output_bus_channels_data
+                    .iter()
+                    .zip(&self.render_output_buses)
+                    .any(|(channels, layout)| {
+                        channels.len() != layout.channel_count
+                            || channels
+                                .iter()
+                                .any(|channel| channel.len() < frames_per_block)
+                    })
+            {
+                self.render_scratch.output_bus_channels_data = self
+                    .render_output_buses
+                    .iter()
+                    .map(|layout| {
+                        (0..layout.channel_count)
+                            .map(|_| vec![0.0_f32; frames_per_block])
+                            .collect::<Vec<_>>()
+                    })
+                    .collect();
+            }
+
+            Ok(())
+        }
+
+        fn ensure_render_processing(
+            &mut self,
+            sample_rate: u32,
+            max_samples_per_block: i32,
+        ) -> Result<ComPtr<Vst::IAudioProcessor>, String> {
+            let processor = self
+                .component
+                .cast::<Vst::IAudioProcessor>()
+                .ok_or_else(|| {
+                    format!(
+                        "Playback slot {:?} does not expose an audio processor for realtime rendering.",
+                        self.target.slot_id
+                    )
+                })?;
+
+            if !self.render_buses_activated {
+                activate_component_buses(&self.component)?;
+                self.render_output_buses = output_bus_layouts(&self.component);
+                self.render_buses_activated = true;
+            }
+
+            let sample_rate_changed = self.render_sample_rate != Some(sample_rate);
+            let block_size_changed = max_samples_per_block > self.render_max_block_size;
+            if self.render_processing_active && (sample_rate_changed || block_size_changed) {
+                let _ = unsafe { processor.setProcessing(0) };
+                self.render_processing_active = false;
+            }
+
+            if !self.render_processing_active || sample_rate_changed || block_size_changed {
+                let mut setup = ProcessSetup {
+                    processMode: 0,
+                    symbolicSampleSize: 0,
+                    maxSamplesPerBlock: max_samples_per_block,
+                    sampleRate: f64::from(sample_rate),
+                };
+
+                let setup_result = unsafe { processor.setupProcessing(&mut setup) };
+                if setup_result != kResultOk {
+                    return Err(format!(
+                        "Failed to configure slot realtime processing (tresult = {}).",
+                        setup_result
+                    ));
+                }
+
+                let processing_result = unsafe { processor.setProcessing(1) };
+                if processing_result != kResultOk {
+                    return Err(format!(
+                        "Failed to enable slot realtime processing (tresult = {}).",
+                        processing_result
+                    ));
+                }
+
+                self.render_processing_active = true;
+                self.render_sample_rate = Some(sample_rate);
+                self.render_max_block_size = self.render_max_block_size.max(max_samples_per_block);
+            }
+
+            Ok(processor)
+        }
+
+        fn stop_render_processing(&mut self) {
+            if !self.render_processing_active {
+                return;
+            }
+
+            if let Some(processor) = self.component.cast::<Vst::IAudioProcessor>() {
+                let _ = unsafe { processor.setProcessing(0) };
+            }
+
+            self.render_processing_active = false;
+            self.render_sample_rate = None;
+            self.render_max_block_size = 0;
+        }
+    }
+
+    fn render_plugin_session_block(
         session: &mut PluginHostSession,
         sample_rate: u32,
-        note: AuditionNote,
-    ) -> Result<RenderedAuditionAudio, String> {
-        let processor = session
-            .component
-            .cast::<Vst::IAudioProcessor>()
-            .ok_or_else(|| {
-                format!(
-                    "Playback slot {:?} does not expose an audio processor for audition.",
-                    session.target.slot_id
-                )
-            })?;
-
-        let block_size = 512_i32;
-        let mut setup = ProcessSetup {
-            processMode: 0,
-            symbolicSampleSize: 0,
-            maxSamplesPerBlock: block_size,
-            sampleRate: f64::from(sample_rate),
-        };
-
-        let setup_result = unsafe { processor.setupProcessing(&mut setup) };
-        if setup_result != kResultOk {
-            return Err(format!(
-                "Failed to configure slot audition processing (tresult = {}).",
-                setup_result
-            ));
+        frames_per_block: usize,
+        events: &[LiveRenderEvent],
+        output: &mut [f32],
+        output_channels: usize,
+    ) -> Result<bool, String> {
+        let processor = session.ensure_render_processing(sample_rate, frames_per_block as i32)?;
+        if session.render_output_buses.is_empty() {
+            session.render_output_buses = vec![OutputBusLayout {
+                bus_index: 0,
+                channel_count: 2,
+            }];
         }
-
-        let processing_result = unsafe { processor.setProcessing(1) };
-        if processing_result != kResultOk {
-            return Err(format!(
-                "Failed to enable slot audition processing (tresult = {}).",
-                processing_result
-            ));
-        }
-
-        let preview_frames =
-            (u64::from(sample_rate) * u64::from(note.duration_ms) / 1_000) as usize;
-        let output_channels = output_channel_count(session).max(1);
-        let shared_events = Arc::new(StdMutex::new(Vec::<Event>::new()));
-        let event_list = ComWrapper::new(HostEventList {
-            events: shared_events.clone(),
-        })
-        .to_com_ptr::<IEventList>()
-        .ok_or_else(|| String::from("Failed to allocate the VST event-list shim."))?;
-
-        let mut rendered = Vec::with_capacity(preview_frames * output_channels);
-        let mut frames_remaining = preview_frames;
-        let mut first_block = true;
-
-        while frames_remaining > 0 {
-            let frames_this_block = frames_remaining.min(block_size as usize);
-            let mut output_channels_data = (0..output_channels)
-                .map(|_| vec![0.0_f32; frames_this_block])
-                .collect::<Vec<_>>();
-            let mut output_ptrs = output_channels_data
-                .iter_mut()
-                .map(Vec::as_mut_ptr)
-                .collect::<Vec<_>>();
-            let mut output_bus = AudioBusBuffers {
-                numChannels: output_channels as i32,
-                silenceFlags: 0,
-                __field0: AudioBusBuffers__type0 {
-                    channelBuffers32: output_ptrs.as_mut_ptr(),
-                },
-            };
-
-            {
-                let mut events = shared_events
-                    .lock()
-                    .map_err(|_| String::from("Failed to populate slot audition MIDI events."))?;
-                events.clear();
-                if first_block {
-                    events.push(make_note_on_event(note));
-                    first_block = false;
-                }
-            }
-
-            let mut process_data = ProcessData {
-                processMode: 0,
-                symbolicSampleSize: 0,
-                numSamples: frames_this_block as i32,
-                numInputs: 0,
-                numOutputs: 1,
-                inputs: std::ptr::null_mut(),
-                outputs: &mut output_bus,
-                inputParameterChanges: std::ptr::null_mut(),
-                outputParameterChanges: std::ptr::null_mut(),
-                inputEvents: event_list.as_ptr(),
-                outputEvents: std::ptr::null_mut(),
-                processContext: std::ptr::null_mut(),
-            };
-
-            let process_result = unsafe { processor.process(&mut process_data) };
-            if process_result != kResultOk {
-                let _ = unsafe { processor.setProcessing(0) };
-                return Err(format!(
-                    "Slot audition processing failed while rendering audio (tresult = {}).",
-                    process_result
-                ));
-            }
-
-            for frame_index in 0..frames_this_block {
-                for channel in &output_channels_data {
-                    rendered.push(channel[frame_index]);
-                }
-            }
-
-            frames_remaining -= frames_this_block;
-        }
+        session.ensure_render_scratch(frames_per_block)?;
 
         {
-            let mut events = shared_events
+            let mut shared_event_buffer = session
+                .render_scratch
+                .events
                 .lock()
-                .map_err(|_| String::from("Failed to populate slot audition note-off event."))?;
-            events.clear();
-            events.push(make_note_off_event(note));
+                .map_err(|_| String::from("Failed to populate slot realtime MIDI events."))?;
+            shared_event_buffer.clear();
+            shared_event_buffer.extend(events.iter().copied().map(make_live_render_event));
         }
 
-        let mut flush_output_channels = (0..output_channels)
-            .map(|_| vec![0.0_f32; block_size as usize])
-            .collect::<Vec<_>>();
-        let mut flush_output_ptrs = flush_output_channels
-            .iter_mut()
-            .map(Vec::as_mut_ptr)
-            .collect::<Vec<_>>();
-        let mut flush_output_bus = AudioBusBuffers {
-            numChannels: output_channels as i32,
-            silenceFlags: 0,
-            __field0: AudioBusBuffers__type0 {
-                channelBuffers32: flush_output_ptrs.as_mut_ptr(),
-            },
-        };
-        let mut flush_data = ProcessData {
+        let mut output_bus_ptrs =
+            Vec::with_capacity(session.render_scratch.output_bus_channels_data.len());
+        let mut output_buses =
+            Vec::with_capacity(session.render_scratch.output_bus_channels_data.len());
+        for bus_index in 0..session.render_scratch.output_bus_channels_data.len() {
+            let channels = &mut session.render_scratch.output_bus_channels_data[bus_index];
+            let mut channel_ptrs = Vec::with_capacity(channels.len());
+
+            for channel in channels.iter_mut() {
+                channel[..frames_per_block].fill(0.0);
+                channel_ptrs.push(channel.as_mut_ptr());
+            }
+
+            output_buses.push(AudioBusBuffers {
+                numChannels: channels.len() as i32,
+                silenceFlags: 0,
+                __field0: AudioBusBuffers__type0 {
+                    channelBuffers32: channel_ptrs.as_mut_ptr(),
+                },
+            });
+            output_bus_ptrs.push(channel_ptrs);
+        }
+
+        for (bus, channel_ptrs) in output_buses.iter_mut().zip(output_bus_ptrs.iter_mut()) {
+            bus.__field0 = AudioBusBuffers__type0 {
+                channelBuffers32: channel_ptrs.as_mut_ptr(),
+            };
+        }
+
+        let event_list = session
+            .render_scratch
+            .event_list
+            .as_ref()
+            .ok_or_else(|| String::from("Failed to allocate the VST event-list shim."))?;
+
+        let mut process_data = ProcessData {
             processMode: 0,
             symbolicSampleSize: 0,
-            numSamples: block_size,
+            numSamples: frames_per_block as i32,
             numInputs: 0,
-            numOutputs: 1,
+            numOutputs: output_buses.len() as i32,
             inputs: std::ptr::null_mut(),
-            outputs: &mut flush_output_bus,
+            outputs: output_buses.as_mut_ptr(),
             inputParameterChanges: std::ptr::null_mut(),
             outputParameterChanges: std::ptr::null_mut(),
             inputEvents: event_list.as_ptr(),
             outputEvents: std::ptr::null_mut(),
             processContext: std::ptr::null_mut(),
         };
-        let _ = unsafe { processor.process(&mut flush_data) };
-        let _ = unsafe { processor.setProcessing(0) };
 
-        Ok(RenderedAuditionAudio {
-            channels: output_channels,
-            samples: rendered,
-        })
+        let process_result = unsafe { processor.process(&mut process_data) };
+        if process_result != kResultOk {
+            return Err(format!(
+                "Slot realtime processing failed while rendering audio (tresult = {}).",
+                process_result
+            ));
+        }
+
+        let bus_peaks = session
+            .render_scratch
+            .output_bus_channels_data
+            .iter()
+            .map(|bus_channels| {
+                let mut bus_peak = 0.0_f32;
+                for channel in bus_channels {
+                    for sample in channel {
+                        bus_peak = bus_peak.max(sample.abs());
+                    }
+                }
+                bus_peak
+            })
+            .collect::<Vec<_>>();
+
+        let selected_bus_index = bus_peaks
+            .iter()
+            .enumerate()
+            .max_by(|(_, left), (_, right)| {
+                left.partial_cmp(right).unwrap_or(std::cmp::Ordering::Equal)
+            })
+            .map(|(index, _)| index);
+
+        let mut produced_audio = false;
+        if let Some(selected_bus_index) = selected_bus_index {
+            let bus_channels = &session.render_scratch.output_bus_channels_data[selected_bus_index];
+            if !bus_channels.is_empty() {
+                for frame_index in 0..frames_per_block {
+                    for out_channel in 0..output_channels {
+                        let session_channel = if bus_channels.len() == 1 {
+                            0
+                        } else {
+                            out_channel.min(bus_channels.len() - 1)
+                        };
+                        let sample = bus_channels[session_channel][frame_index];
+                        output[frame_index * output_channels + out_channel] += sample;
+                        produced_audio |= sample.abs() > f32::EPSILON;
+                    }
+                }
+            }
+        }
+
+        Ok(produced_audio)
     }
 
-    pub(crate) fn render_slot_runtime_audition(
-        app: &AppHandle,
+    pub(crate) fn render_slot_runtime_block(
         slot_id: UniqueId,
         sample_rate: u32,
-        note: AuditionNote,
-        mixer_handle: MixerHandle,
-    ) -> Result<(), String> {
-        let (sender, receiver) = mpsc::sync_channel(1);
-        app.run_on_main_thread(move || {
-            let result = (|| {
-                let mut session = slot_runtime_sessions()
-                    .lock()
-                    .map_err(|_| String::from("Failed to read slot runtime session registry"))?
-                    .remove(&slot_id)
-                    .ok_or_else(|| {
-                        format!(
-                            "Playback slot {} does not have a prepared live runtime session.",
-                            slot_id
-                        )
-                    })?;
+        frames_per_block: usize,
+        events: &[LiveRenderEvent],
+        output: &mut [f32],
+        output_channels: usize,
+    ) -> super::SlotRuntimeRenderOutcome {
+        let Ok(mut sessions) = slot_runtime_sessions().try_lock() else {
+            return super::SlotRuntimeRenderOutcome::Busy;
+        };
+        let Some(session) = sessions.get_mut(&slot_id) else {
+            return super::SlotRuntimeRenderOutcome::MissingSession;
+        };
 
-                let render_result = render_plugin_session_audition(&mut session, sample_rate, note);
+        match render_plugin_session_block(
+            session,
+            sample_rate,
+            frames_per_block,
+            events,
+            output,
+            output_channels,
+        ) {
+            Ok(true) => super::SlotRuntimeRenderOutcome::Rendered,
+            Ok(false) => super::SlotRuntimeRenderOutcome::SilenceOnly,
+            Err(error) => super::SlotRuntimeRenderOutcome::Error(error),
+        }
+    }
 
-                slot_runtime_sessions()
-                    .lock()
-                    .map_err(|_| String::from("Failed to restore slot runtime session"))?
-                    .insert(slot_id, session);
+    pub(crate) fn stop_slot_runtime_render(slot_id: UniqueId) {
+        let Ok(mut sessions) = slot_runtime_sessions().try_lock() else {
+            return;
+        };
 
-                render_result
-            })();
-
-            let _ = sender.send(result);
-        })
-        .map_err(|error| format!("Failed to schedule slot audition on the main thread: {error}"))?;
-
-        let rendered = receiver.recv().map_err(|_| {
-            String::from("Failed to receive slot audition render result from the main thread")
-        })??;
-
-        let stream = Arc::new(StreamBuffer::new());
-        stream.push(&rendered.samples);
-        stream.finish();
-
-        if mixer_handle.play(stream, rendered.channels) {
-            Ok(())
-        } else {
-            Err(String::from(
-                "Audio mixer is full and dropped the audition preview.",
-            ))
+        if let Some(session) = sessions.get_mut(&slot_id) {
+            session.stop_render_processing();
         }
     }
 
@@ -2097,87 +2234,11 @@ mod macos_host {
         !candidate.is_null() && *candidate == *expected
     }
 
-    fn format_tuid(iid: &TUID) -> String {
-        iid.iter()
-            .map(|byte| format!("{:02X}", *byte as u8))
-            .collect::<Vec<_>>()
-            .join("")
-    }
-
-    fn describe_host_interface(iid: &TUID) -> &'static str {
-        if *iid == IMessage_iid {
-            "IMessage"
-        } else if *iid == IAttributeList_iid {
-            "IAttributeList"
-        } else if *iid == IComponentHandler_iid {
-            "IComponentHandler"
-        } else if *iid == IComponentHandler2_iid {
-            "IComponentHandler2"
-        } else if *iid == IComponentHandler3_iid {
-            "IComponentHandler3"
-        } else if *iid == IComponentHandlerBusActivation_iid {
-            "IComponentHandlerBusActivation"
-        } else if *iid == IComponentHandlerSystemTime_iid {
-            "IComponentHandlerSystemTime"
-        } else if *iid == IContextMenuTarget_iid {
-            "IContextMenuTarget"
-        } else if *iid == IDataExchangeHandler_iid {
-            "IDataExchangeHandler"
-        } else if *iid == IAutomationState_iid {
-            "IAutomationState"
-        } else if *iid == IEditControllerHostEditing_iid {
-            "IEditControllerHostEditing"
-        } else if *iid == IHostApplication_iid {
-            "IHostApplication"
-        } else if *iid == IMidiLearn_iid {
-            "IMidiLearn"
-        } else if *iid == INoteExpressionController_iid {
-            "INoteExpressionController"
-        } else if *iid == INoteExpressionPhysicalUIMapping_iid {
-            "INoteExpressionPhysicalUIMapping"
-        } else if *iid == IParameterFunctionName_iid {
-            "IParameterFunctionName"
-        } else if *iid == IVst3ToAUWrapper_iid {
-            "IVst3ToAUWrapper"
-        } else if *iid == vst3::Steinberg::Vst::ChannelContext::IInfoListener_iid {
-            "ChannelContext::IInfoListener"
-        } else if *iid == IPlugInterfaceSupport_iid {
-            "IPlugInterfaceSupport"
-        } else if *iid == IProgress_iid {
-            "IProgress"
-        } else if *iid == IRunLoop_iid {
-            "IRunLoop"
-        } else if *iid == IUpdateHandler_iid {
-            "IUpdateHandler"
-        } else if *iid == IUnitHandler_iid {
-            "IUnitHandler"
-        } else if *iid == IUnitHandler2_iid {
-            "IUnitHandler2"
-        } else if *iid == FUnknown_iid {
-            "FUnknown"
-        } else {
-            "unknown"
-        }
-    }
-
-    fn describe_requested_interface(iid: *const TUID) -> String {
-        if iid.is_null() {
-            return String::from("null");
-        }
-
-        let iid = unsafe { &*iid };
-        format!("{} ({})", describe_host_interface(iid), format_tuid(iid))
-    }
-
     unsafe fn query_host_support_interface(
         instance: ComPtr<FUnknown>,
         iid: *mut TUID,
         obj: *mut *mut c_void,
     ) -> tresult {
-        verbose_plugin_host_log(format_args!(
-            "plugin_editor_poc: host queryInterface requested {}",
-            describe_requested_interface(iid.cast_const())
-        ));
         let ptr = instance.as_ptr();
         ((*(*ptr).vtbl).queryInterface)(ptr, iid, obj)
     }
@@ -2221,6 +2282,12 @@ mod macos_host {
         controller_initialized: bool,
         controller_shared_with_component: bool,
         close_prepared: bool,
+        render_processing_active: bool,
+        render_sample_rate: Option<u32>,
+        render_max_block_size: i32,
+        render_buses_activated: bool,
+        render_output_buses: Vec<OutputBusLayout>,
+        render_scratch: RenderScratch,
     }
 
     impl PluginHostSession {
@@ -2547,12 +2614,6 @@ mod macos_host {
                 *obj = std::ptr::null_mut();
             }
 
-            verbose_plugin_host_log(format_args!(
-                "plugin_editor_poc: host createInstance cid={} iid={}",
-                describe_requested_interface(cid.cast_const()),
-                describe_requested_interface(iid.cast_const())
-            ));
-
             if tuid_matches(cid, &IMessage_iid) || tuid_matches(iid, &IMessage_iid) {
                 let Ok(message) = HostMessage::new() else {
                     return kNotImplemented;
@@ -2582,11 +2643,6 @@ mod macos_host {
                 return kInvalidArgument;
             }
 
-            verbose_plugin_host_log(format_args!(
-                "plugin_editor_poc: isPlugInterfaceSupported asked for {}",
-                describe_requested_interface(iid)
-            ));
-
             if host_supports_interface(&*iid) {
                 kResultTrue
             } else {
@@ -2596,11 +2652,7 @@ mod macos_host {
     }
 
     impl IAutomationStateTrait for PluginHostApplication {
-        unsafe fn setAutomationState(&self, state: i32) -> tresult {
-            verbose_plugin_host_log(format_args!(
-                "plugin_editor_poc: host setAutomationState state={}",
-                state
-            ));
+        unsafe fn setAutomationState(&self, _state: i32) -> tresult {
             kResultOk
         }
     }
@@ -2609,16 +2661,11 @@ mod macos_host {
         unsafe fn registerEventHandler(
             &self,
             handler: *mut IEventHandler,
-            fd: FileDescriptor,
+            _fd: FileDescriptor,
         ) -> tresult {
             if handler.is_null() {
                 return kInvalidArgument;
             }
-
-            verbose_plugin_host_log(format_args!(
-                "plugin_editor_poc: run-loop registerEventHandler fd={} accepted as a no-op shim",
-                fd
-            ));
             kResultOk
         }
 
@@ -2626,26 +2673,17 @@ mod macos_host {
             if handler.is_null() {
                 return kInvalidArgument;
             }
-
-            verbose_plugin_host_log(format_args!(
-                "plugin_editor_poc: run-loop unregisterEventHandler accepted as a no-op shim"
-            ));
             kResultOk
         }
 
         unsafe fn registerTimer(
             &self,
             handler: *mut ITimerHandler,
-            milliseconds: TimerInterval,
+            _milliseconds: TimerInterval,
         ) -> tresult {
             if handler.is_null() {
                 return kInvalidArgument;
             }
-
-            verbose_plugin_host_log(format_args!(
-                "plugin_editor_poc: run-loop registerTimer interval={} accepted as a no-op shim",
-                milliseconds
-            ));
             kResultOk
         }
 
@@ -2653,67 +2691,46 @@ mod macos_host {
             if handler.is_null() {
                 return kInvalidArgument;
             }
-
-            verbose_plugin_host_log(format_args!(
-                "plugin_editor_poc: run-loop unregisterTimer accepted as a no-op shim"
-            ));
             kResultOk
         }
     }
 
     impl IComponentHandlerTrait for PluginHostApplication {
-        unsafe fn beginEdit(&self, id: Vst::ParamID) -> tresult {
-            verbose_plugin_host_log(format_args!("plugin_editor_poc: host beginEdit {}", id));
+        unsafe fn beginEdit(&self, _id: Vst::ParamID) -> tresult {
             kResultOk
         }
 
         unsafe fn performEdit(
             &self,
-            id: Vst::ParamID,
-            value_normalized: Vst::ParamValue,
+            _id: Vst::ParamID,
+            _value_normalized: Vst::ParamValue,
         ) -> tresult {
-            verbose_plugin_host_log(format_args!(
-                "plugin_editor_poc: host performEdit {} => {}",
-                id, value_normalized
-            ));
             kResultOk
         }
 
-        unsafe fn endEdit(&self, id: Vst::ParamID) -> tresult {
-            verbose_plugin_host_log(format_args!("plugin_editor_poc: host endEdit {}", id));
+        unsafe fn endEdit(&self, _id: Vst::ParamID) -> tresult {
             kResultOk
         }
 
-        unsafe fn restartComponent(&self, flags: i32) -> tresult {
-            verbose_plugin_host_log(format_args!(
-                "plugin_editor_poc: host restartComponent flags={}",
-                flags
-            ));
+        unsafe fn restartComponent(&self, _flags: i32) -> tresult {
             kResultOk
         }
     }
 
     impl IComponentHandler2Trait for PluginHostApplication {
-        unsafe fn setDirty(&self, state: TBool) -> tresult {
-            verbose_plugin_host_log(format_args!(
-                "plugin_editor_poc: host setDirty state={}",
-                state
-            ));
+        unsafe fn setDirty(&self, _state: TBool) -> tresult {
             kResultOk
         }
 
         unsafe fn requestOpenEditor(&self, _name: FIDString) -> tresult {
-            verbose_plugin_host_log(format_args!("plugin_editor_poc: host requestOpenEditor"));
             kResultOk
         }
 
         unsafe fn startGroupEdit(&self) -> tresult {
-            verbose_plugin_host_log(format_args!("plugin_editor_poc: host startGroupEdit"));
             kResultOk
         }
 
         unsafe fn finishGroupEdit(&self) -> tresult {
-            verbose_plugin_host_log(format_args!("plugin_editor_poc: host finishGroupEdit"));
             kResultOk
         }
     }
@@ -2724,7 +2741,6 @@ mod macos_host {
             _plugView: *mut IPlugView,
             _paramID: *const Vst::ParamID,
         ) -> *mut IContextMenu {
-            verbose_plugin_host_log(format_args!("plugin_editor_poc: host createContextMenu"));
             std::ptr::null_mut()
         }
     }
@@ -2732,15 +2748,11 @@ mod macos_host {
     impl IComponentHandlerBusActivationTrait for PluginHostApplication {
         unsafe fn requestBusActivation(
             &self,
-            r#type: Vst::MediaType,
-            dir: Vst::BusDirection,
-            index: i32,
-            state: TBool,
+            _type: Vst::MediaType,
+            _dir: Vst::BusDirection,
+            _index: i32,
+            _state: TBool,
         ) -> tresult {
-            verbose_plugin_host_log(format_args!(
-                "plugin_editor_poc: host requestBusActivation type={} dir={} index={} state={}",
-                r#type, dir, index, state
-            ));
             kResultOk
         }
     }
@@ -2756,20 +2768,12 @@ mod macos_host {
                 .map(|duration| duration.as_millis() as int64)
                 .unwrap_or_default();
             *systemTime = now;
-            verbose_plugin_host_log(format_args!(
-                "plugin_editor_poc: host getSystemTime => {}",
-                now
-            ));
             kResultOk
         }
     }
 
     impl IContextMenuTargetTrait for PluginHostApplication {
-        unsafe fn executeMenuItem(&self, tag: i32) -> tresult {
-            verbose_plugin_host_log(format_args!(
-                "plugin_editor_poc: host executeMenuItem tag={}",
-                tag
-            ));
+        unsafe fn executeMenuItem(&self, _tag: i32) -> tresult {
             kResultOk
         }
     }
@@ -2778,101 +2782,66 @@ mod macos_host {
         unsafe fn openQueue(
             &self,
             _processor: *mut Vst::IAudioProcessor,
-            blockSize: uint32,
-            numBlocks: uint32,
-            alignment: uint32,
-            userContextID: Vst::DataExchangeUserContextID,
+            _blockSize: uint32,
+            _numBlocks: uint32,
+            _alignment: uint32,
+            _userContextID: Vst::DataExchangeUserContextID,
             outID: *mut Vst::DataExchangeQueueID,
         ) -> tresult {
-            verbose_plugin_host_log(format_args!(
-                "plugin_editor_poc: host openQueue blockSize={} numBlocks={} alignment={} userContextID={}",
-                blockSize, numBlocks, alignment, userContextID
-            ));
             if !outID.is_null() {
                 *outID = 0;
             }
             kResultOk
         }
 
-        unsafe fn closeQueue(&self, queueID: Vst::DataExchangeQueueID) -> tresult {
-            verbose_plugin_host_log(format_args!(
-                "plugin_editor_poc: host closeQueue queueID={}",
-                queueID
-            ));
+        unsafe fn closeQueue(&self, _queueID: Vst::DataExchangeQueueID) -> tresult {
             kResultOk
         }
 
         unsafe fn lockBlock(
             &self,
-            queueId: Vst::DataExchangeQueueID,
+            _queueId: Vst::DataExchangeQueueID,
             _block: *mut Vst::DataExchangeBlock,
         ) -> tresult {
-            verbose_plugin_host_log(format_args!(
-                "plugin_editor_poc: host lockBlock queueId={}",
-                queueId
-            ));
             kResultOk
         }
 
         unsafe fn freeBlock(
             &self,
-            queueId: Vst::DataExchangeQueueID,
-            blockID: Vst::DataExchangeBlockID,
-            sendToController: TBool,
+            _queueId: Vst::DataExchangeQueueID,
+            _blockID: Vst::DataExchangeBlockID,
+            _sendToController: TBool,
         ) -> tresult {
-            verbose_plugin_host_log(format_args!(
-                "plugin_editor_poc: host freeBlock queueId={} blockID={} sendToController={}",
-                queueId, blockID, sendToController
-            ));
             kResultOk
         }
     }
 
     impl IEditControllerHostEditingTrait for PluginHostApplication {
-        unsafe fn beginEditFromHost(&self, paramID: Vst::ParamID) -> tresult {
-            verbose_plugin_host_log(format_args!(
-                "plugin_editor_poc: host beginEditFromHost paramID={}",
-                paramID
-            ));
+        unsafe fn beginEditFromHost(&self, _paramID: Vst::ParamID) -> tresult {
             kResultOk
         }
 
-        unsafe fn endEditFromHost(&self, paramID: Vst::ParamID) -> tresult {
-            verbose_plugin_host_log(format_args!(
-                "plugin_editor_poc: host endEditFromHost paramID={}",
-                paramID
-            ));
+        unsafe fn endEditFromHost(&self, _paramID: Vst::ParamID) -> tresult {
             kResultOk
         }
     }
 
     impl IUnitHandlerTrait for PluginHostApplication {
-        unsafe fn notifyUnitSelection(&self, unitId: Vst::UnitID) -> tresult {
-            verbose_plugin_host_log(format_args!(
-                "plugin_editor_poc: host notifyUnitSelection unitId={}",
-                unitId
-            ));
+        unsafe fn notifyUnitSelection(&self, _unitId: Vst::UnitID) -> tresult {
             kResultOk
         }
 
         unsafe fn notifyProgramListChange(
             &self,
-            listId: Vst::ProgramListID,
-            programIndex: i32,
+            _listId: Vst::ProgramListID,
+            _programIndex: i32,
         ) -> tresult {
-            verbose_plugin_host_log(format_args!(
-                "plugin_editor_poc: host notifyProgramListChange listId={} programIndex={}",
-                listId, programIndex
-            ));
             kResultOk
         }
     }
 
     impl IUnitHandler2Trait for PluginHostApplication {
         unsafe fn notifyUnitByBusChange(&self) -> tresult {
-            verbose_plugin_host_log(format_args!(
-                "plugin_editor_poc: host notifyUnitByBusChange"
-            ));
             kResultOk
         }
     }
@@ -2880,33 +2849,21 @@ mod macos_host {
     impl IProgressTrait for PluginHostApplication {
         unsafe fn start(
             &self,
-            r#type: ProgressType,
+            _type: ProgressType,
             _optionalDescription: *const vst3::Steinberg::tchar,
             outID: *mut ProgressID,
         ) -> tresult {
-            verbose_plugin_host_log(format_args!(
-                "plugin_editor_poc: host progress start type={}",
-                r#type
-            ));
             if !outID.is_null() {
                 *outID = 0;
             }
             kResultOk
         }
 
-        unsafe fn update(&self, id: ProgressID, normValue: Vst::ParamValue) -> tresult {
-            verbose_plugin_host_log(format_args!(
-                "plugin_editor_poc: host progress update id={} value={}",
-                id, normValue
-            ));
+        unsafe fn update(&self, _id: ProgressID, _normValue: Vst::ParamValue) -> tresult {
             kResultOk
         }
 
-        unsafe fn finish(&self, id: ProgressID) -> tresult {
-            verbose_plugin_host_log(format_args!(
-                "plugin_editor_poc: host progress finish id={}",
-                id
-            ));
+        unsafe fn finish(&self, _id: ProgressID) -> tresult {
             kResultOk
         }
     }
@@ -3189,10 +3146,6 @@ mod macos_host {
                 let category = class_info_string(&info.category);
                 let name = class_info_string(&info.name);
                 if category != "Audio Module Class" {
-                    verbose_plugin_host_log(format_args!(
-                        "plugin_editor_poc: skipping non-component class '{}' in category '{}'",
-                        name, category
-                    ));
                     continue;
                 }
 
@@ -3215,11 +3168,6 @@ mod macos_host {
             }
 
             if !class_info_is_audio_module(&info) {
-                verbose_plugin_host_log(format_args!(
-                    "plugin_editor_poc: skipping non-component class '{}' in category '{}'",
-                    class_info_string(&info.name),
-                    class_info_string(&info.category)
-                ));
                 continue;
             }
 
@@ -3241,18 +3189,6 @@ mod macos_host {
         let candidates = audio_module_class_candidates(factory);
         let requested_name = requested_component_name(plugin_path);
 
-        if candidates.len() > 1 {
-            verbose_plugin_host_log(format_args!(
-                "plugin_editor_poc: available audio-module classes for '{}' => {}",
-                plugin_path.display(),
-                candidates
-                    .iter()
-                    .map(|candidate| candidate.name.as_str())
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            ));
-        }
-
         let candidate = select_component_class_candidate(&candidates, requested_name.as_deref())
             .ok_or_else(|| {
                 String::from(
@@ -3265,12 +3201,6 @@ mod macos_host {
             candidate.name,
             plugin_path.display()
         );
-
-        verbose_plugin_host_log(format_args!(
-            "plugin_editor_poc: creating component instance '{}' for '{}'",
-            candidate.name,
-            plugin_path.display()
-        ));
         let mut raw_object: *mut c_void = std::ptr::null_mut();
         let result = unsafe {
             factory.createInstance(
@@ -3279,10 +3209,6 @@ mod macos_host {
                 &mut raw_object,
             )
         };
-        verbose_plugin_host_log(format_args!(
-            "plugin_editor_poc: component createInstance result {} for '{}'",
-            result, candidate.name
-        ));
         if result != kResultOk {
             return Err(format!(
                 "Plugin editor POC failed to create the selected VST3 component class '{}' (tresult = {}).",
@@ -3315,21 +3241,11 @@ mod macos_host {
 
         let mut controller_cid: TUID = [0; 16];
         let result = unsafe { component.getControllerClassId(&mut controller_cid) };
-        verbose_plugin_host_log(format_args!(
-            "plugin_editor_poc: getControllerClassId result {} with cid {}",
-            result,
-            format_tuid(&controller_cid)
-        ));
         if result != kResultOk || controller_cid.iter().all(|byte| *byte == 0) {
             return Err(String::from(
                 "Plugin editor POC could not resolve a controller class ID for the VST3 component.",
             ));
         }
-
-        verbose_plugin_host_log(format_args!(
-            "plugin_editor_poc: creating edit controller instance for controller cid {}",
-            format_tuid(&controller_cid)
-        ));
         let mut raw_object: *mut c_void = std::ptr::null_mut();
         let create_result = unsafe {
             factory.createInstance(
@@ -3338,10 +3254,6 @@ mod macos_host {
                 &mut raw_object,
             )
         };
-        verbose_plugin_host_log(format_args!(
-            "plugin_editor_poc: edit controller createInstance result {}",
-            create_result
-        ));
         if create_result != kResultOk {
             return Err(String::from(
                 "Plugin editor POC failed to create the VST3 edit controller instance.",
@@ -3397,11 +3309,7 @@ mod macos_host {
             return;
         }
 
-        let set_state_result = unsafe { controller.setComponentState(stream.as_ptr()) };
-        verbose_plugin_host_log(format_args!(
-            "plugin_editor_poc: controller state sync result {} after component state export {}",
-            set_state_result, get_state_result
-        ));
+        let _set_state_result = unsafe { controller.setComponentState(stream.as_ptr()) };
     }
 
     fn export_component_state(
@@ -3642,6 +3550,12 @@ mod macos_host {
         }
 
         if let Some(processor) = component.cast::<Vst::IAudioProcessor>() {
+            activate_component_buses(&component).map_err(|error| {
+                PluginEditorHostAttemptError::new(
+                    PluginEditorHostValidationPhase::ComponentInitialize,
+                    error,
+                )
+            })?;
             let mut setup = Vst::ProcessSetup {
                 processMode: 0,        // kRealtime
                 symbolicSampleSize: 0, // kSample32
@@ -3770,6 +3684,12 @@ mod macos_host {
             controller_initialized,
             controller_shared_with_component,
             close_prepared: false,
+            render_processing_active: false,
+            render_sample_rate: None,
+            render_max_block_size: 0,
+            render_buses_activated: false,
+            render_output_buses: Vec::new(),
+            render_scratch: RenderScratch::default(),
         })
     }
 
@@ -4527,7 +4447,8 @@ use macos_host::{
     attach_native_host_surface as attach_native_host_surface_impl,
     capture_slot_runtime_plugin_state as capture_slot_runtime_plugin_state_impl,
     cleanup_active_plugin_host_session, prepare_active_plugin_host_session_for_close,
-    render_slot_runtime_audition as render_slot_runtime_audition_impl, sync_active_plugin_host,
+    render_slot_runtime_block as render_slot_runtime_block_impl,
+    stop_slot_runtime_render as stop_slot_runtime_render_impl, sync_active_plugin_host,
     sync_slot_runtime_sessions as sync_slot_runtime_sessions_impl, PluginHostSession,
 };
 
@@ -4556,14 +4477,27 @@ pub(crate) fn capture_slot_runtime_plugin_state(
 }
 
 #[cfg(target_os = "macos")]
-pub(crate) fn render_slot_runtime_audition(
-    app: &AppHandle,
+pub(crate) fn render_slot_runtime_block(
     slot_id: UniqueId,
     sample_rate: u32,
-    note: AuditionNote,
-    mixer_handle: MixerHandle,
-) -> Result<(), String> {
-    render_slot_runtime_audition_impl(app, slot_id, sample_rate, note, mixer_handle)
+    frames_per_block: usize,
+    events: &[LiveRenderEvent],
+    output: &mut [f32],
+    output_channels: usize,
+) -> SlotRuntimeRenderOutcome {
+    render_slot_runtime_block_impl(
+        slot_id,
+        sample_rate,
+        frames_per_block,
+        events,
+        output,
+        output_channels,
+    )
+}
+
+#[cfg(target_os = "macos")]
+pub(crate) fn stop_slot_runtime_render(slot_id: UniqueId) {
+    stop_slot_runtime_render_impl(slot_id)
 }
 
 #[cfg(not(target_os = "macos"))]
@@ -4583,17 +4517,19 @@ pub(crate) fn capture_slot_runtime_plugin_state(
 }
 
 #[cfg(not(target_os = "macos"))]
-pub(crate) fn render_slot_runtime_audition(
-    _app: &AppHandle,
+pub(crate) fn render_slot_runtime_block(
     _slot_id: UniqueId,
     _sample_rate: u32,
-    _note: AuditionNote,
-    _mixer_handle: MixerHandle,
-) -> Result<(), String> {
-    Err(String::from(
-        "Slot-runtime audition is currently supported on macOS only.",
-    ))
+    _frames_per_block: usize,
+    _events: &[LiveRenderEvent],
+    _output: &mut [f32],
+    _output_channels: usize,
+) -> SlotRuntimeRenderOutcome {
+    SlotRuntimeRenderOutcome::Unsupported
 }
+
+#[cfg(not(target_os = "macos"))]
+pub(crate) fn stop_slot_runtime_render(_slot_id: UniqueId) {}
 
 fn sync_score_slot_targets_with_capture<F>(score: &mut Score, mut capture: F) -> Result<(), String>
 where

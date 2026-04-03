@@ -14,6 +14,7 @@ use crate::playback::audio::{
     audio_device_sample_rate_set, audio_device_set, audio_devices_refresh, AudioContext,
 };
 use crate::playback::audition::playback_audition_tone;
+use crate::playback::engine::sync_live_slot_targets;
 use crate::playback::plugin_editor_poc::{plugin_editor_poc_open, sync_slot_runtime_sessions};
 use crate::playback::plugin_inventory::{
     plugin_inventory_discover, PluginInventoryContext, PluginInventoryContextState,
@@ -178,6 +179,7 @@ impl AppContext {
             )
         };
         let live_slot_targets = sync_slot_runtime_sessions(app, &expected_slot_targets);
+        sync_live_slot_targets(live_slot_targets.keys().copied());
         self.playback_activation_runtime =
             PlaybackActivationRuntime::from_live_slot_targets(&self.score, live_slot_targets);
     }

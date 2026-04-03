@@ -11,7 +11,6 @@ export const canAuditionInstrument = (
 ) => {
   return (
     state.preferences.audition &&
-    state.single_instrument_transport_ready === true &&
     state.resolved_playback_route_by_instrument_id[instrumentId]?.status ===
       ResolvedPlaybackRouteStatus.Ready
   );

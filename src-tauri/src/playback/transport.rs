@@ -1,3 +1,4 @@
+use crate::playback::engine::set_transport_render_target;
 use crate::playback::preparation::{prepare_supported_playback, PlaybackPreparation};
 use crate::playback::tuplet_projection::{collect_track_playback_events, PlaybackTick};
 use crate::score::components::duration::Tick;
@@ -194,6 +195,7 @@ pub(crate) fn stop_transport_playback(
     };
 
     join_transport_thread(handle)?;
+    set_transport_render_target(None);
     flush_active_audio(audio_state);
     shared.stop_signal.store(false, Ordering::Release);
 
@@ -457,6 +459,8 @@ fn transport_thread(shared: Arc<TransportShared>, snapshot: PlaybackSnapshot) {
         }
     }
 
+    set_transport_render_target(None);
+
     // Playback ended — mark as not playing unless an external shutdown path did so already.
     if !shared.stop_signal.load(Ordering::Acquire) {
         shared.playing.store(false, Ordering::Release);
@@ -520,6 +524,14 @@ fn transport_play_with_states(
     ctx.shared.playing.store(true, Ordering::Release);
     ctx.shared.set_tempo(initial_tempo);
 
+    set_transport_render_target(
+        snapshot
+            .preparation
+            .supported_target
+            .as_ref()
+            .map(|target| target.slot_id),
+    );
+
     let shared = ctx.shared.clone();
 
     ctx.thread_handle = Some(std::thread::spawn(move || {
@@ -567,6 +579,7 @@ pub fn transport_pause(
         join_transport_thread(handle)?;
     }
 
+    set_transport_render_target(None);
     flush_active_audio(audio_state.inner());
 
     let current_tick = shared.current_tick.load(Ordering::Relaxed);
@@ -624,8 +637,8 @@ mod tests {
     use crate::playback::plugin_inventory::{
         PluginInventoryAvailability, PluginInventoryContext, PluginInventoryEntry,
     };
-    use crate::playback::runtime_activation::SingleInstrumentTrustGateBlocker;
     use crate::playback::runtime_activation::PlaybackActivationRuntime;
+    use crate::playback::runtime_activation::SingleInstrumentTrustGateBlocker;
     use crate::score::components::duration::NoteDuration;
     use crate::score::entries::{tempo::Tempo, Entry};
     use crate::score::flows::Flow;
@@ -1195,8 +1208,16 @@ mod tests {
         score.tracks.by_id.insert(master_id, Track::new(master_id));
         score.tracks.by_id.insert(track_id, track);
         score.players.order.push(player_id);
-        score.players.by_id.insert(player_id, Player::new(player_id, PlayerType::Solo));
-        score.players.by_id.get_mut(&player_id).unwrap().instrument_ids = vec![instrument_id];
+        score
+            .players
+            .by_id
+            .insert(player_id, Player::new(player_id, PlayerType::Solo));
+        score
+            .players
+            .by_id
+            .get_mut(&player_id)
+            .unwrap()
+            .instrument_ids = vec![instrument_id];
         score.instruments.by_id.insert(
             instrument_id,
             Instrument {

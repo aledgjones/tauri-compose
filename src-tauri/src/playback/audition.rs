@@ -1,13 +1,15 @@
-use crate::playback::plugin_editor_poc::render_slot_runtime_audition;
+use crate::playback::engine::queue_audition_note;
 use crate::playback::preparation::{prepare_supported_playback, PlaybackPreparation};
 use crate::playback::runtime_activation::PlaybackActivationRuntime;
-use crate::score::playback::ResolvedPlaybackRouteStatus;
+use crate::score::playback::{
+    PlaybackRouteAddress, PlaybackRouteTarget, ResolvedPlaybackRouteStatus,
+};
 use crate::score::Score;
 use crate::utils::UniqueId;
 use crate::{AppContextState, AudioContextState};
 use tauri::{AppHandle, State};
 
-pub const SUPPORTED_AUDITION_DURATION_MS: u32 = 1_000;
+pub const SUPPORTED_AUDITION_DURATION_MS: u32 = 500;
 pub const SUPPORTED_AUDITION_VELOCITY: u8 = 96;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -26,25 +28,20 @@ pub struct AuditionNote {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PreparedAudition {
     pub preparation: PlaybackPreparation,
+    pub slot_id: UniqueId,
     pub note: AuditionNote,
 }
 
 #[tauri::command(rename_all = "snake_case")]
 pub fn playback_audition_tone(
-    app: AppHandle,
+    _app: AppHandle,
     app_state: State<'_, AppContextState>,
     audio_state: State<'_, AudioContextState>,
     instrument_id: UniqueId,
     pitch_int: u8,
 ) -> Result<(), String> {
-    let (prepared, mixer_handle) = {
-        let sample_rate;
-        let mixer_handle;
-        {
-            let audio = audio_state.lock().unwrap();
-            sample_rate = audio.get_sample_rate();
-            mixer_handle = audio.get_mixer_handle().clone();
-        }
+    let (prepared, sample_rate) = {
+        let sample_rate = audio_state.lock().unwrap().get_sample_rate();
 
         let app_ctx = app_state.lock().unwrap();
         let prepared = prepare_supported_audition(
@@ -55,22 +52,15 @@ pub fn playback_audition_tone(
             pitch_int,
         )?;
 
-        (prepared, mixer_handle)
+        (prepared, sample_rate)
     };
 
-    let target = prepared
-        .preparation
-        .supported_target
-        .as_ref()
-        .ok_or_else(|| String::from("Supported audition target disappeared before playback."))?;
-
-    render_slot_runtime_audition(
-        &app,
-        target.slot_id,
-        prepared.preparation.sample_rate,
+    queue_audition_note(
+        prepared.slot_id,
+        prepared.preparation.sample_rate.max(sample_rate),
         prepared.note,
-        mixer_handle,
-    )
+    );
+    Ok(())
 }
 
 pub fn prepare_supported_audition(
@@ -82,45 +72,62 @@ pub fn prepare_supported_audition(
 ) -> Result<PreparedAudition, String> {
     let preparation = prepare_supported_playback(score, playback_runtime, sample_rate);
 
-    if let Some(target) = preparation.supported_target.as_ref() {
-        if target.instrument_id == instrument_id {
-            return Ok(PreparedAudition {
-                preparation,
-                note: AuditionNote {
-                    pitch,
-                    duration_ms: SUPPORTED_AUDITION_DURATION_MS,
-                    velocity: SUPPORTED_AUDITION_VELOCITY,
-                    articulation: AuditionArticulation::Legato,
-                },
-            });
-        }
-
+    let Some(resolved_route) = preparation
+        .resolved_playback_route_by_instrument_id
+        .get(&instrument_id)
+    else {
         return Err(format!(
-            "Audition target instrument {} does not match prepared supported instrument {}.",
-            instrument_id, target.instrument_id
+            "No resolved playback route is available for instrument {}.",
+            instrument_id
+        ));
+    };
+
+    if resolved_route.status != ResolvedPlaybackRouteStatus::Ready {
+        return Err(format!(
+            "Instrument {} audition route is {:?}.",
+            instrument_id, resolved_route.status
         ));
     }
 
-    if let Some(route) = preparation
-        .resolved_playback_route_by_instrument_id
+    let instrument = score
+        .instruments
+        .by_id
         .get(&instrument_id)
+        .ok_or_else(|| format!("Instrument {} does not exist.", instrument_id))?;
+    let route = instrument
+        .playback_route
+        .as_ref()
+        .ok_or_else(|| format!("Instrument {} has no playback route.", instrument_id))?;
+
+    if route.target != PlaybackRouteTarget::plugin()
+        || route.address != PlaybackRouteAddress::root()
     {
-        if route.status != ResolvedPlaybackRouteStatus::Ready {
-            return Err(format!(
-                "Instrument {} audition route is {:?}.",
-                instrument_id, route.status
-            ));
-        }
+        return Err(format!(
+            "Instrument {} audition route shape is unsupported (target={:?}, address={:?}).",
+            instrument_id, route.target, route.address
+        ));
     }
 
-    if !preparation.blockers.is_empty() {
-        return Err(format!("Audition blocked by {:?}.", preparation.blockers));
+    if playback_runtime
+        .activated_slot_target(route.slot_id)
+        .is_none()
+    {
+        return Err(format!(
+            "Instrument {} audition slot {} is not activated.",
+            instrument_id, route.slot_id
+        ));
     }
 
-    Err(format!(
-        "No supported audition target is available for instrument {}.",
-        instrument_id
-    ))
+    Ok(PreparedAudition {
+        preparation,
+        slot_id: route.slot_id,
+        note: AuditionNote {
+            pitch,
+            duration_ms: SUPPORTED_AUDITION_DURATION_MS,
+            velocity: SUPPORTED_AUDITION_VELOCITY,
+            articulation: AuditionArticulation::Legato,
+        },
+    })
 }
 
 #[cfg(test)]
@@ -229,6 +236,7 @@ mod tests {
                 articulation: AuditionArticulation::Legato,
             }
         );
+        assert_eq!(prepared.slot_id, 100);
     }
 
     #[test]
@@ -247,7 +255,7 @@ mod tests {
     }
 
     #[test]
-    fn prepare_supported_audition_blocks_multiple_routed_instruments_with_transport_gate() {
+    fn prepare_supported_audition_allows_requested_ready_instrument_with_multiple_routes() {
         let inventory = PluginInventoryContext::with_entries_for_tests(vec![available_entry(
             "plugin-a",
             "/Library/Audio/Plug-Ins/VST3/Plugin A.vst3",
@@ -283,10 +291,11 @@ mod tests {
             Some(InstrumentPlaybackRoute::direct(100));
 
         let runtime = PlaybackActivationRuntime::from_score_and_inventory(&score, &inventory);
-        let error = prepare_supported_audition(&score, &runtime, 48_000, 10, 60)
-            .expect_err("expected the single-target trust gate to block audition");
+        let prepared = prepare_supported_audition(&score, &runtime, 48_000, 10, 60)
+            .expect("expected ready instrument audition to bypass the transport trust gate");
 
-        assert!(error.contains("MultipleRoutedInstruments"));
+        assert_eq!(prepared.slot_id, 100);
+        assert_eq!(prepared.note.pitch, 60);
     }
 
     #[test]

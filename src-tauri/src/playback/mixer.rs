@@ -3,6 +3,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
 /// Shared buffer between a producer thread and the audio mixer.
+#[cfg_attr(not(test), allow(dead_code))]
 pub struct StreamBuffer {
     buffer: Mutex<VecDeque<f32>>,
     finished: AtomicBool,
@@ -10,6 +11,7 @@ pub struct StreamBuffer {
 }
 
 impl StreamBuffer {
+    #[cfg_attr(not(test), allow(dead_code))]
     pub fn new() -> Self {
         Self {
             buffer: Mutex::new(VecDeque::with_capacity(48000 * 2)),
@@ -18,6 +20,7 @@ impl StreamBuffer {
         }
     }
 
+    #[cfg_attr(not(test), allow(dead_code))]
     pub fn push(&self, samples: &[f32]) {
         if self.canceled.load(Ordering::Acquire) {
             return;
@@ -27,6 +30,7 @@ impl StreamBuffer {
         buf.extend(samples);
     }
 
+    #[allow(dead_code)]
     pub fn finish(&self) {
         self.finished.store(true, Ordering::Release);
     }
@@ -110,6 +114,7 @@ pub fn create_mixer() -> (MixerHandle, MixerReader) {
 impl MixerHandle {
     /// Submit a streaming voice. The disk thread pushes decoded audio
     /// into the stream buffer; the mixer drains it in the audio callback.
+    #[cfg_attr(not(test), allow(dead_code))]
     pub fn play(&self, stream: Arc<StreamBuffer>, channels: usize) -> bool {
         let voice = Arc::new(Voice {
             stream,
@@ -156,12 +161,7 @@ impl MixerHandle {
 }
 
 impl MixerReader {
-    /// Mix all active voices into the output buffer (additive mixing).
-    /// Called from the audio callback — must be fast.
-    pub fn fill_buffer(&self, output: &mut [f32], channels: usize) {
-        // Zero the output first
-        output.fill(0.0);
-
+    pub fn mix_into_buffer(&self, output: &mut [f32], channels: usize) {
         for slot in self.voices.slots.iter() {
             if !slot.active.load(Ordering::Acquire) {
                 continue;
@@ -219,11 +219,23 @@ impl MixerReader {
                 slot.active.store(false, Ordering::Release);
             }
         }
+    }
 
-        // Clamp output to prevent clipping from overlapping voices
+    pub fn clamp_buffer(output: &mut [f32]) {
         for sample in output.iter_mut() {
             *sample = sample.clamp(-1.0, 1.0);
         }
+    }
+
+    /// Mix all active voices into the output buffer (additive mixing).
+    /// Called from the audio callback — must be fast.
+    #[cfg_attr(not(test), allow(dead_code))]
+    pub fn fill_buffer(&self, output: &mut [f32], channels: usize) {
+        // Zero the output first
+        output.fill(0.0);
+
+        self.mix_into_buffer(output, channels);
+        Self::clamp_buffer(output);
     }
 }
 
