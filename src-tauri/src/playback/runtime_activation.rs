@@ -212,9 +212,16 @@ impl PlaybackActivationRuntime {
                             let activated_route = self
                                 .activated_instrument_route_by_instrument_id
                                 .get(instrument_id);
+                            let activated_route_matches_score =
+                                activated_route.is_some_and(|activated| {
+                                    activated.slot_id == route.slot_id
+                                        && slot.target.as_ref().is_some_and(|target| {
+                                            target.plugin_id == activated.plugin_id
+                                        })
+                                });
                             let status = if slot.target.is_none() {
                                 ResolvedPlaybackRouteStatus::NeedsAttention
-                            } else if activated_route.is_some() {
+                            } else if activated_route_matches_score {
                                 ResolvedPlaybackRouteStatus::Ready
                             } else {
                                 ResolvedPlaybackRouteStatus::NeedsAttention
@@ -224,8 +231,12 @@ impl PlaybackActivationRuntime {
                                 status,
                                 slot_id: Some(route.slot_id),
                                 slot_target: slot.target.clone(),
-                                effective_plugin_id: activated_route
-                                    .map(|activated| activated.plugin_id.clone()),
+                                effective_plugin_id: activated_route_matches_score.then(|| {
+                                    activated_route
+                                        .expect("matched activated route should exist")
+                                        .plugin_id
+                                        .clone()
+                                }),
                                 target: Some(route.target.clone()),
                                 address: Some(route.address.clone()),
                                 supported_mix_controls:
@@ -787,6 +798,43 @@ mod tests {
                 .unwrap()
                 .status,
             ResolvedPlaybackRouteStatus::Ready
+        );
+    }
+
+    #[test]
+    fn stale_live_runtime_does_not_report_ready_after_slot_target_changes() {
+        let mut score = make_score();
+        assign_slot(&mut score, 100, "plugin-a");
+        score.instruments.by_id.get_mut(&10).unwrap().playback_route =
+            Some(InstrumentPlaybackRoute::direct(100));
+
+        let live_runtime = PlaybackActivationRuntime::from_live_slot_targets(
+            &score,
+            FxHashMap::from_iter([(
+                100,
+                ActivatedSlotTarget {
+                    plugin_id: String::from("plugin-a"),
+                    bundle_path: PathBuf::from("/Library/Audio/Plug-Ins/VST3/Plugin A.vst3"),
+                    plugin_state: None,
+                },
+            )]),
+        );
+
+        score.playback.rack.by_id.get_mut(&100).unwrap().target = Some(PlaybackSlotTarget {
+            plugin_id: String::from("plugin-b"),
+            plugin_state: None,
+        });
+
+        let resolved = live_runtime.resolved_playback_route_by_instrument_id(&score);
+
+        assert_eq!(
+            resolved.get(&10).unwrap().status,
+            ResolvedPlaybackRouteStatus::NeedsAttention
+        );
+        assert_eq!(resolved.get(&10).unwrap().effective_plugin_id, None);
+        assert_eq!(
+            resolved.get(&10).unwrap().supported_mix_controls,
+            SupportedPlaybackMixControls::default()
         );
     }
 

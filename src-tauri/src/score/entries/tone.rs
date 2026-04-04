@@ -1,5 +1,7 @@
 use super::key_signature::KeySignature;
 use super::{tuplet::TupletEntry, Entry};
+use crate::instructions::FlowRenderRecalculationRequest;
+use crate::playback::transport::DeferredPlaybackRefreshKind;
 use crate::score::components::articulation::{Articulation, Articulations};
 use crate::score::components::duration::{Tick, Ticks};
 use crate::score::components::pitch::{Accidental, Pitch};
@@ -748,7 +750,12 @@ pub fn score_entries_tone_create(
         tuplet_id,
     )?;
 
-    state.emit_affected_track(&app, &mut renderer, track_id);
+    state.emit_affected_track_after_playback_edit(
+        &app,
+        &mut renderer,
+        track_id,
+        DeferredPlaybackRefreshKind::ScoreStructure,
+    );
 
     Ok(tone_id)
 }
@@ -774,7 +781,12 @@ pub fn score_entries_tone_duration_set(
         return;
     }
 
-    state.emit_affected_track(&app, &mut renderer, track_id);
+    state.emit_affected_track_after_playback_edit(
+        &app,
+        &mut renderer,
+        track_id,
+        DeferredPlaybackRefreshKind::ScoreStructure,
+    );
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -803,7 +815,12 @@ pub fn score_entries_tone_slice(
     )?;
 
     if result.is_some() {
-        state.emit_affected_track(&app, &mut renderer, track_id);
+        state.emit_affected_track_after_playback_edit(
+            &app,
+            &mut renderer,
+            track_id,
+            DeferredPlaybackRefreshKind::ScoreStructure,
+        );
     }
 
     Ok(result)
@@ -827,7 +844,12 @@ pub fn score_entries_tone_pitch_set(
     let track = state.score.tracks.by_id.get_mut(&track_id).unwrap();
     track.set_tone_pitch(tone_id, pitch_int, accidental, tuplet_id);
 
-    state.emit_affected_track(&app, &mut renderer, track_id);
+    state.emit_affected_track_after_playback_edit(
+        &app,
+        &mut renderer,
+        track_id,
+        DeferredPlaybackRefreshKind::ScoreStructure,
+    );
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -847,7 +869,12 @@ pub fn score_entries_tone_duration_remove(
 
     state.ui.sequencer.selection = None;
 
-    state.emit_affected_track(&app, &mut renderer, track_id);
+    state.emit_affected_track_after_playback_edit(
+        &app,
+        &mut renderer,
+        track_id,
+        DeferredPlaybackRefreshKind::ScoreStructure,
+    );
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -880,7 +907,12 @@ pub fn score_entries_tone_set_position_and_duration(
         return;
     }
 
-    state.emit_affected_track(&app, &mut renderer, track_id);
+    state.emit_affected_track_after_playback_edit(
+        &app,
+        &mut renderer,
+        track_id,
+        DeferredPlaybackRefreshKind::ScoreStructure,
+    );
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -907,7 +939,12 @@ pub fn score_entries_tone_shift(
         return;
     }
 
-    state.emit_affected_track(&app, &mut renderer, track_id);
+    state.emit_affected_track_after_playback_edit(
+        &app,
+        &mut renderer,
+        track_id,
+        DeferredPlaybackRefreshKind::ScoreStructure,
+    );
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -925,7 +962,12 @@ pub fn score_entries_tone_unify_articulations(
     let track = state.score.tracks.by_id.get_mut(&track_id).unwrap();
     track.unify_articulations_at_entry(entry_id, tuplet_id);
 
-    state.emit_affected_track(&app, &mut renderer, track_id);
+    state.emit_affected_track_after_playback_edit(
+        &app,
+        &mut renderer,
+        track_id,
+        DeferredPlaybackRefreshKind::ScoreStructure,
+    );
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -956,7 +998,12 @@ pub fn score_entries_tone_pitch_shift_by_steps(
     let track = state.score.tracks.by_id.get_mut(&track_id).unwrap();
     let new_pitch = track.shift_tone_pitch_by_steps(tone_id, steps, &key_signature, tuplet_id);
 
-    state.emit_affected_flows(&app, &mut renderer, &[flow_id]);
+    state.emit_after_playback_edit(
+        &app,
+        &mut renderer,
+        DeferredPlaybackRefreshKind::ScoreStructure,
+        FlowRenderRecalculationRequest::for_flow_ids(&[flow_id]),
+    );
 
     new_pitch
 }
@@ -977,7 +1024,12 @@ pub fn score_entries_tone_pitch_shift_by_octaves(
     let track = state.score.tracks.by_id.get_mut(&track_id).unwrap();
     let new_pitch = track.shift_tone_pitch_by_octaves(tone_id, octaves, tuplet_id);
 
-    state.emit_affected_track(&app, &mut renderer, track_id);
+    state.emit_affected_track_after_playback_edit(
+        &app,
+        &mut renderer,
+        track_id,
+        DeferredPlaybackRefreshKind::ScoreStructure,
+    );
     new_pitch
 }
 
@@ -997,7 +1049,12 @@ pub fn score_entries_tone_accidental_set(
     let track = state.score.tracks.by_id.get_mut(&track_id).unwrap();
     let new_pitch = track.set_tone_accidental(tone_id, accidental, tuplet_id);
 
-    state.emit_affected_track(&app, &mut renderer, track_id);
+    state.emit_affected_track_after_playback_edit(
+        &app,
+        &mut renderer,
+        track_id,
+        DeferredPlaybackRefreshKind::ScoreStructure,
+    );
 
     new_pitch
 }
@@ -1018,7 +1075,12 @@ pub fn score_entries_tone_articulation_set(
     let track = state.score.tracks.by_id.get_mut(&track_id).unwrap();
     track.toggle_articulation_at_tone(tone_id, articulation, tuplet_id);
 
-    state.emit_affected_track(&app, &mut renderer, track_id);
+    state.emit_affected_track_after_playback_edit(
+        &app,
+        &mut renderer,
+        track_id,
+        DeferredPlaybackRefreshKind::ScoreStructure,
+    );
 }
 
 #[cfg(test)]

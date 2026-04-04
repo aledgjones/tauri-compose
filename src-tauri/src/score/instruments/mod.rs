@@ -13,7 +13,9 @@ use crate::playback::engine::sync_slot_mix_states;
 use crate::playback::preparation::{
     effective_playback_mix_by_slot_id, effective_playback_mix_for_instrument,
 };
-use crate::playback::transport::{InstrumentMixParams, TransportSharedState};
+use crate::playback::transport::{
+    DeferredPlaybackRefreshKind, InstrumentMixParams, TransportSharedState,
+};
 use crate::score::players::PlayerType;
 use crate::utils::UniqueId;
 use crate::{AppContextState, RendererContextState};
@@ -606,12 +608,12 @@ pub fn score_instruments_remove(
     let mut state = state.lock().unwrap();
 
     state.score.instruments.by_id.remove(&instrument_id);
-    state.refresh_playback_activation_runtime_from_app(&app);
 
     let mut renderer = renderer_state.lock().unwrap();
-    state.emit_general_state(
+    state.emit_after_playback_edit(
         &app,
         &mut renderer,
+        DeferredPlaybackRefreshKind::PlaybackTopology,
         Some(FlowRenderRecalculationRequest::full_visible_flows()),
     );
 }
@@ -628,7 +630,12 @@ pub fn score_playback_slots_create(
     state.score.create_playback_slot(slot_id)?;
 
     let mut renderer = renderer_state.lock().unwrap();
-    state.emit_general_state(&app, &mut renderer, None);
+    state.emit_after_playback_edit(
+        &app,
+        &mut renderer,
+        DeferredPlaybackRefreshKind::PlaybackTopology,
+        None,
+    );
 
     Ok(slot_id)
 }
@@ -643,10 +650,14 @@ pub fn score_playback_slots_remove(
     let mut state = state.lock().unwrap();
 
     state.score.remove_playback_slot(slot_id)?;
-    state.refresh_playback_activation_runtime_from_app(&app);
 
     let mut renderer = renderer_state.lock().unwrap();
-    state.emit_general_state(&app, &mut renderer, None);
+    state.emit_after_playback_edit(
+        &app,
+        &mut renderer,
+        DeferredPlaybackRefreshKind::PlaybackTopology,
+        None,
+    );
 
     Ok(())
 }
@@ -662,10 +673,14 @@ pub fn score_playback_slots_assign_plugin(
     let mut state = state.lock().unwrap();
 
     state.score.assign_plugin_to_slot(slot_id, plugin_id)?;
-    state.refresh_playback_activation_runtime_from_app(&app);
 
     let mut renderer = renderer_state.lock().unwrap();
-    state.emit_general_state(&app, &mut renderer, None);
+    state.emit_after_playback_edit(
+        &app,
+        &mut renderer,
+        DeferredPlaybackRefreshKind::PlaybackTopology,
+        None,
+    );
 
     Ok(())
 }
@@ -680,10 +695,14 @@ pub fn score_playback_slots_unassign_plugin(
     let mut state = state.lock().unwrap();
 
     state.score.unassign_plugin_from_slot(slot_id)?;
-    state.refresh_playback_activation_runtime_from_app(&app);
 
     let mut renderer = renderer_state.lock().unwrap();
-    state.emit_general_state(&app, &mut renderer, None);
+    state.emit_after_playback_edit(
+        &app,
+        &mut renderer,
+        DeferredPlaybackRefreshKind::PlaybackTopology,
+        None,
+    );
 
     Ok(())
 }
@@ -699,10 +718,14 @@ pub fn score_instruments_assign_slot_route(
     let mut state = state.lock().unwrap();
 
     state.score.assign_instrument_route(instrument_id, route)?;
-    state.refresh_playback_activation_runtime_from_app(&app);
 
     let mut renderer = renderer_state.lock().unwrap();
-    state.emit_general_state(&app, &mut renderer, None);
+    state.emit_after_playback_edit(
+        &app,
+        &mut renderer,
+        DeferredPlaybackRefreshKind::PlaybackTopology,
+        None,
+    );
 
     Ok(())
 }
@@ -717,10 +740,14 @@ pub fn score_instruments_unassign_route(
     let mut state = state.lock().unwrap();
 
     state.score.unassign_instrument_route(instrument_id)?;
-    state.refresh_playback_activation_runtime_from_app(&app);
 
     let mut renderer = renderer_state.lock().unwrap();
-    state.emit_general_state(&app, &mut renderer, None);
+    state.emit_after_playback_edit(
+        &app,
+        &mut renderer,
+        DeferredPlaybackRefreshKind::PlaybackTopology,
+        None,
+    );
 
     Ok(())
 }

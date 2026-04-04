@@ -3,7 +3,7 @@ use crate::playback::mixer::{self, MixerHandle};
 use crate::playback::transport::{
     stop_transport_playback, sync_transport_to_app_state, TransportContext, TransportSharedState,
 };
-use crate::AppContextState;
+use crate::{AppContext, AppContextState};
 use crate::AudioContextState;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{Device, Host, Stream};
@@ -209,14 +209,35 @@ fn resync_transport_after_audio_rebuild(
     Ok(())
 }
 
-pub(crate) fn reset_transport_for_audio_rebuild_with_stop<F>(
+fn reconcile_pending_playback_refresh<F>(
+    app_state: &AppContextState,
+    refresh_topology_runtime: F,
+) -> Result<(), String>
+where
+    F: FnOnce(&mut AppContext) -> Result<(), String>,
+{
+    let mut app_ctx = app_state.lock().unwrap();
+    if app_ctx.pending_playback_refresh_kind()
+        == Some(crate::playback::transport::DeferredPlaybackRefreshKind::PlaybackTopology)
+    {
+        refresh_topology_runtime(&mut app_ctx)?;
+    }
+    app_ctx.clear_pending_playback_refresh();
+
+    Ok(())
+}
+
+pub(crate) fn reset_transport_for_audio_rebuild_with_stop<F, R>(
     app_state: &AppContextState,
     stop_transport: F,
+    refresh_pending_playback_runtime: R,
 ) -> Result<(), String>
 where
     F: FnOnce() -> Result<TransportSharedState, String>,
+    R: FnOnce(&AppContextState) -> Result<(), String>,
 {
     let transport_shared = stop_transport()?;
+    refresh_pending_playback_runtime(app_state)?;
     resync_transport_after_audio_rebuild(&transport_shared, app_state).map(|_| {
         transport_shared.last_queued_tick.store(
             transport_shared.current_tick.load(Ordering::Relaxed),
@@ -226,13 +247,21 @@ where
 }
 
 fn reset_transport_for_audio_rebuild(
+    app: &AppHandle,
     transport_state: &Mutex<TransportContext>,
     audio_state: &AudioContextState,
     app_state: &AppContextState,
 ) -> Result<(), String> {
-    reset_transport_for_audio_rebuild_with_stop(app_state, || {
-        stop_transport_playback(transport_state, audio_state)
-    })
+    reset_transport_for_audio_rebuild_with_stop(
+        app_state,
+        || stop_transport_playback(transport_state, audio_state),
+        |app_state| {
+            reconcile_pending_playback_refresh(app_state, |app_ctx| {
+                app_ctx.refresh_playback_activation_runtime_from_app(app);
+                Ok(())
+            })
+        },
+    )
 }
 
 #[cfg(test)]
@@ -279,6 +308,7 @@ mod tests {
             ui,
             score,
             playback_activation_runtime: PlaybackActivationRuntime::default(),
+            pending_playback_refresh: None,
             preferences: serde_json::from_str(r#"{"audition":true}"#).unwrap(),
             next_id: 1,
             current_file_path: None,
@@ -300,10 +330,14 @@ mod tests {
         let stop_called_flag = stop_called.clone();
         let shared_for_stop = transport_shared.clone();
 
-        reset_transport_for_audio_rebuild_with_stop(&app_state, move || {
-            stop_called_flag.store(true, Ordering::Release);
-            Ok(shared_for_stop.clone())
-        })
+        reset_transport_for_audio_rebuild_with_stop(
+            &app_state,
+            move || {
+                stop_called_flag.store(true, Ordering::Release);
+                Ok(shared_for_stop.clone())
+            },
+            |_| Ok(()),
+        )
         .unwrap();
 
         assert!(stop_called.load(Ordering::Acquire));
@@ -313,6 +347,74 @@ mod tests {
             95
         );
         assert_eq!(transport_shared.get_tempo(), 144.0);
+    }
+
+    #[test]
+    fn reset_transport_for_audio_rebuild_reconciles_pending_topology_refresh_before_clearing() {
+        let (_transport_state, transport_shared) = TransportContext::new();
+        let app_state = make_app_context_with_tempo(1, 64, 144);
+        {
+            let mut app_ctx = app_state.lock().unwrap();
+            app_ctx.defer_playback_refresh(
+                crate::playback::transport::DeferredPlaybackRefreshKind::PlaybackTopology,
+            );
+        }
+
+        let refresh_called = Arc::new(AtomicBool::new(false));
+        let refresh_called_flag = refresh_called.clone();
+        let shared_for_stop = transport_shared.clone();
+
+        reset_transport_for_audio_rebuild_with_stop(
+            &app_state,
+            move || Ok(shared_for_stop.clone()),
+            |app_state| {
+                reconcile_pending_playback_refresh(app_state, |_app_ctx| {
+                    refresh_called_flag.store(true, Ordering::Release);
+                    Ok(())
+                })
+            },
+        )
+        .unwrap();
+
+        assert!(refresh_called.load(Ordering::Acquire));
+        assert_eq!(
+            app_state.lock().unwrap().pending_playback_refresh_kind(),
+            None
+        );
+    }
+
+    #[test]
+    fn reset_transport_for_audio_rebuild_clears_score_structure_refresh_without_topology_runtime_work() {
+        let (_transport_state, transport_shared) = TransportContext::new();
+        let app_state = make_app_context_with_tempo(1, 64, 144);
+        {
+            let mut app_ctx = app_state.lock().unwrap();
+            app_ctx.defer_playback_refresh(
+                crate::playback::transport::DeferredPlaybackRefreshKind::ScoreStructure,
+            );
+        }
+
+        let refresh_called = Arc::new(AtomicBool::new(false));
+        let refresh_called_flag = refresh_called.clone();
+        let shared_for_stop = transport_shared.clone();
+
+        reset_transport_for_audio_rebuild_with_stop(
+            &app_state,
+            move || Ok(shared_for_stop.clone()),
+            |app_state| {
+                reconcile_pending_playback_refresh(app_state, |_app_ctx| {
+                    refresh_called_flag.store(true, Ordering::Release);
+                    Ok(())
+                })
+            },
+        )
+        .unwrap();
+
+        assert!(!refresh_called.load(Ordering::Acquire));
+        assert_eq!(
+            app_state.lock().unwrap().pending_playback_refresh_kind(),
+            None
+        );
     }
 }
 
@@ -346,6 +448,7 @@ pub fn audio_device_set(
             .sample_rate();
 
         reset_transport_for_audio_rebuild(
+            &app,
             transport_state.inner(),
             state.inner(),
             app_state.inner(),
@@ -383,7 +486,7 @@ pub fn audio_device_sample_rate_set(
         ctx.active_device.device.clone()
     };
 
-    reset_transport_for_audio_rebuild(transport_state.inner(), state.inner(), app_state.inner())?;
+    reset_transport_for_audio_rebuild(&app, transport_state.inner(), state.inner(), app_state.inner())?;
 
     let (mixer_handle, stream) = AudioContext::build_stream(&device, sample_rate);
 
@@ -413,6 +516,7 @@ pub fn audio_devices_refresh(
     // If the current device is no longer available, switch to default
     if !device_still_available {
         reset_transport_for_audio_rebuild(
+            &app,
             transport_state.inner(),
             state.inner(),
             app_state.inner(),

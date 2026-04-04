@@ -20,6 +20,13 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, RwLock};
 use tauri::State;
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DeferredPlaybackRefreshKind {
+    ScoreStructure,
+    PlaybackTopology,
+}
+
 /// Live instrument mix parameters shared between the UI thread and the transport thread.
 /// Updated in real-time by volume/pan/mute/solo commands.
 #[cfg_attr(not(test), allow(dead_code))]
@@ -858,38 +865,83 @@ where
     Ok(())
 }
 
+fn reconcile_pending_playback_refresh<F>(
+    app_state: &AppContextState,
+    refresh_topology_runtime: F,
+) -> Result<(), String>
+where
+    F: FnOnce(&mut AppContext) -> Result<(), String>,
+{
+    let mut app_ctx = app_state.lock().unwrap();
+    if app_ctx.pending_playback_refresh_kind()
+        == Some(DeferredPlaybackRefreshKind::PlaybackTopology)
+    {
+        refresh_topology_runtime(&mut app_ctx)?;
+    }
+    app_ctx.clear_pending_playback_refresh();
+
+    Ok(())
+}
+
 // -- Tauri Commands --
 
 #[tauri::command(rename_all = "snake_case")]
 pub fn transport_play(
+    app: tauri::AppHandle,
     state: State<'_, Mutex<TransportContext>>,
     app_state: State<'_, AppContextState>,
     audio_state: State<'_, AudioContextState>,
+    renderer_state: State<'_, crate::RendererContextState>,
 ) -> Result<(), String> {
     let sample_rate = {
         let audio = audio_state.lock().unwrap();
         audio.get_sample_rate()
     };
 
-    transport_play_with_states(state.inner(), app_state.inner(), sample_rate)
+    reconcile_pending_playback_refresh(app_state.inner(), |app_ctx| {
+        app_ctx.refresh_playback_activation_runtime_from_app(&app);
+        Ok(())
+    })?;
+    transport_play_with_states(state.inner(), app_state.inner(), sample_rate)?;
+
+    let mut app_ctx = app_state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
+    app_ctx.emit_general_state(&app, &mut renderer, None);
+
+    Ok(())
 }
 
 #[tauri::command(rename_all = "snake_case")]
 pub fn transport_pause(
+    app: tauri::AppHandle,
     state: State<'_, Mutex<TransportContext>>,
     app_state: State<'_, AppContextState>,
     audio_state: State<'_, AudioContextState>,
+    renderer_state: State<'_, crate::RendererContextState>,
 ) -> Result<(), String> {
     transport_pause_with_states(state.inner(), app_state.inner(), || {
         flush_active_audio(audio_state.inner())
-    })
+    })?;
+
+    reconcile_pending_playback_refresh(app_state.inner(), |app_ctx| {
+        app_ctx.refresh_playback_activation_runtime_from_app(&app);
+        Ok(())
+    })?;
+
+    let mut app_ctx = app_state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
+    app_ctx.emit_general_state(&app, &mut renderer, None);
+
+    Ok(())
 }
 
 #[tauri::command(rename_all = "snake_case")]
 pub fn transport_seek(
+    app: tauri::AppHandle,
     state: State<'_, Mutex<TransportContext>>,
     app_state: State<'_, AppContextState>,
     audio_state: State<'_, AudioContextState>,
+    renderer_state: State<'_, crate::RendererContextState>,
     tick: u64,
 ) -> Result<(), String> {
     let sample_rate = {
@@ -897,7 +949,17 @@ pub fn transport_seek(
         audio.get_sample_rate()
     };
 
-    transport_seek_with_states(state.inner(), app_state.inner(), sample_rate, tick)
+    reconcile_pending_playback_refresh(app_state.inner(), |app_ctx| {
+        app_ctx.refresh_playback_activation_runtime_from_app(&app);
+        Ok(())
+    })?;
+    transport_seek_with_states(state.inner(), app_state.inner(), sample_rate, tick)?;
+
+    let mut app_ctx = app_state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
+    app_ctx.emit_general_state(&app, &mut renderer, None);
+
+    Ok(())
 }
 
 /// Lightweight poll command — reads atomics directly, no mutex lock needed.
@@ -1042,6 +1104,7 @@ mod tests {
             ui,
             playback_activation_runtime: make_playback_runtime_for_score(&score),
             score,
+            pending_playback_refresh: None,
             preferences: make_preferences(),
             next_id: 1,
             current_file_path: None,
@@ -2484,18 +2547,22 @@ mod tests {
         transport_play_with_states(&transport_state, &app_state, 48_000).unwrap();
         wait_for_transport_engine_work(&[6]);
 
-        reset_transport_for_audio_rebuild_with_stop(&app_state, || {
-            let (shared, handle) = {
-                let mut ctx = transport_state.lock().unwrap();
-                ctx.shared.stop_signal.store(true, Ordering::Release);
-                ctx.shared.playing.store(false, Ordering::Release);
+        reset_transport_for_audio_rebuild_with_stop(
+            &app_state,
+            || {
+                let (shared, handle) = {
+                    let mut ctx = transport_state.lock().unwrap();
+                    ctx.shared.stop_signal.store(true, Ordering::Release);
+                    ctx.shared.playing.store(false, Ordering::Release);
 
-                (ctx.shared.clone(), ctx.thread_handle.take())
-            };
+                    (ctx.shared.clone(), ctx.thread_handle.take())
+                };
 
-            join_transport_thread(handle)?;
-            Ok(shared)
-        })
+                join_transport_thread(handle)?;
+                Ok(shared)
+            },
+            |_| Ok(()),
+        )
         .unwrap();
 
         let app_ctx = app_state.lock().unwrap();
@@ -2513,6 +2580,115 @@ mod tests {
         assert_eq!(tick_events[0].events[0].duration_frames, 24_000);
 
         reset_continuous_render_engine_for_tests();
+    }
+
+    #[test]
+    fn transport_play_with_states_keeps_current_pass_running_when_score_changes_are_deferred() {
+        let _guard = transport_test_mutex().lock().unwrap();
+
+        reset_continuous_render_engine_for_tests();
+
+        let mut track = Track::new(50);
+        track
+            .create_tone(80, 32, 32, 60, None, 96, Default::default(), None)
+            .unwrap();
+
+        let (score, flow_id) = make_flow_score_with_track(track);
+        let transport_state = make_transport_context_state();
+        {
+            let ctx = transport_state.lock().unwrap();
+            ctx.shared.current_tick.store(32, Ordering::Relaxed);
+        }
+        let app_state = Mutex::new(make_app_context(score, Some(flow_id)));
+
+        transport_play_with_states(&transport_state, &app_state, 48_000).unwrap();
+        wait_for_transport_engine_work(&[6]);
+
+        {
+            let mut app_ctx = app_state.lock().unwrap();
+            app_ctx
+                .score
+                .tracks
+                .by_id
+                .get_mut(&50)
+                .unwrap()
+                .set_tone_pitch(80, 67, None, None);
+            app_ctx.defer_playback_refresh(DeferredPlaybackRefreshKind::ScoreStructure);
+        }
+
+        {
+            let ctx = transport_state.lock().unwrap();
+            assert!(ctx.shared.playing.load(Ordering::Acquire));
+            assert!(ctx.thread_handle.is_some());
+        }
+        let slot_state = transport_playback_debug_state(6).expect("expected slot state");
+        assert!(
+            slot_state.transport_active
+                || slot_state.queued_transport_event_count > 0
+                || slot_state.active_transport_note_count > 0
+        );
+        {
+            let app_ctx = app_state.lock().unwrap();
+            assert_eq!(
+                app_ctx.pending_playback_refresh_kind(),
+                Some(DeferredPlaybackRefreshKind::ScoreStructure)
+            );
+        }
+
+        stop_test_transport(&transport_state);
+    }
+
+    #[test]
+    fn playback_topology_refresh_priority_survives_later_score_structure_edits() {
+        let mut track = Track::new(50);
+        track
+            .create_tone(80, 32, 16, 60, None, 96, Default::default(), None)
+            .unwrap();
+
+        let (score, flow_id) = make_flow_score_with_track(track);
+        let mut app_ctx = make_app_context(score, Some(flow_id));
+
+        app_ctx.defer_playback_refresh(DeferredPlaybackRefreshKind::PlaybackTopology);
+        app_ctx.defer_playback_refresh(DeferredPlaybackRefreshKind::ScoreStructure);
+
+        assert_eq!(
+            app_ctx.pending_playback_refresh_kind(),
+            Some(DeferredPlaybackRefreshKind::PlaybackTopology)
+        );
+    }
+
+    #[test]
+    fn build_supported_playback_snapshot_uses_updated_score_after_deferred_edit_boundary() {
+        let mut track = Track::new(50);
+        track
+            .create_tone(80, 32, 16, 60, None, 96, Default::default(), None)
+            .unwrap();
+
+        let (score, flow_id) = make_flow_score_with_track(track);
+        let mut app_ctx = make_app_context(score, Some(flow_id));
+
+        let (before_snapshot, _) =
+            build_supported_playback_snapshot(&app_ctx, 32, 48_000).expect("snapshot");
+        let before_tick_events = transport_events_for_tick(&before_snapshot, 32, 48_000, 120.0, 0);
+        assert_eq!(before_tick_events.len(), 1);
+        assert_eq!(before_tick_events[0].events.len(), 1);
+        assert_eq!(before_tick_events[0].events[0].pitch, 60);
+
+        app_ctx
+            .score
+            .tracks
+            .by_id
+            .get_mut(&50)
+            .unwrap()
+            .set_tone_pitch(80, 67, None, None);
+        app_ctx.defer_playback_refresh(DeferredPlaybackRefreshKind::ScoreStructure);
+
+        let (after_snapshot, _) =
+            build_supported_playback_snapshot(&app_ctx, 32, 48_000).expect("snapshot");
+        let after_tick_events = transport_events_for_tick(&after_snapshot, 32, 48_000, 120.0, 0);
+        assert_eq!(after_tick_events.len(), 1);
+        assert_eq!(after_tick_events[0].events.len(), 1);
+        assert_eq!(after_tick_events[0].events[0].pitch, 67);
     }
 
     #[test]

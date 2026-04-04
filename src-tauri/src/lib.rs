@@ -23,7 +23,8 @@ use crate::playback::preparation::effective_playback_mix_by_slot_id;
 use crate::playback::runtime_activation::{ActivatedSlotTarget, PlaybackActivationRuntime};
 use crate::playback::transport::{
     stop_transport_playback, sync_transport_to_app_state, transport_get_state, transport_pause,
-    transport_play, transport_seek, TransportContext, TransportSharedState,
+    transport_play, transport_seek, DeferredPlaybackRefreshKind, TransportContext,
+    TransportSharedState,
 };
 use crate::renderer::backends::metal::MetalRenderer;
 use files::{
@@ -105,6 +106,7 @@ use score::players::{
 };
 use score::Score;
 use serde::{Deserialize, Serialize};
+use std::sync::atomic::Ordering;
 use std::sync::Mutex;
 use std::time::Instant;
 use tauri::menu::{AboutMetadata, Menu, MenuItem, PredefinedMenuItem, Submenu};
@@ -150,6 +152,7 @@ struct AppContext {
     ui: Ui,
     score: Score,
     playback_activation_runtime: PlaybackActivationRuntime,
+    pending_playback_refresh: Option<DeferredPlaybackRefreshKind>,
     preferences: Preferences,
     next_id: UniqueId,
     current_file_path: Option<String>,
@@ -161,6 +164,7 @@ impl AppContext {
             ui: Ui::new(),
             score: Score::new(),
             playback_activation_runtime: PlaybackActivationRuntime::default(),
+            pending_playback_refresh: None,
             preferences: Preferences::new(app_handle),
             next_id: 1,
             current_file_path: None,
@@ -210,6 +214,66 @@ impl AppContext {
                 }
             })
         })
+    }
+
+    pub(crate) fn defer_playback_refresh(&mut self, kind: DeferredPlaybackRefreshKind) {
+        self.pending_playback_refresh = Some(match (self.pending_playback_refresh, kind) {
+            (Some(DeferredPlaybackRefreshKind::PlaybackTopology), _)
+            | (_, DeferredPlaybackRefreshKind::PlaybackTopology) => {
+                DeferredPlaybackRefreshKind::PlaybackTopology
+            }
+            _ => DeferredPlaybackRefreshKind::ScoreStructure,
+        });
+    }
+
+    pub(crate) fn clear_pending_playback_refresh(&mut self) {
+        self.pending_playback_refresh = None;
+    }
+
+    pub(crate) fn pending_playback_refresh_kind(&self) -> Option<DeferredPlaybackRefreshKind> {
+        self.pending_playback_refresh
+    }
+
+    fn transport_is_playing(app: &tauri::AppHandle) -> bool {
+        app.state::<TransportSharedState>()
+            .playing
+            .load(Ordering::Acquire)
+    }
+
+    pub(crate) fn emit_after_playback_edit(
+        &mut self,
+        app: &tauri::AppHandle,
+        renderer: &mut RendererContext,
+        kind: DeferredPlaybackRefreshKind,
+        recalculation_request: Option<FlowRenderRecalculationRequest>,
+    ) {
+        let playing = Self::transport_is_playing(app);
+
+        if playing {
+            self.defer_playback_refresh(kind);
+        }
+
+        if playing && kind == DeferredPlaybackRefreshKind::PlaybackTopology {
+            self.emit_general_state_without_runtime_refresh(app, renderer, recalculation_request);
+        } else {
+            self.emit_general_state(app, renderer, recalculation_request);
+        }
+    }
+
+    pub(crate) fn emit_affected_track_after_playback_edit(
+        &mut self,
+        app: &tauri::AppHandle,
+        renderer: &mut RendererContext,
+        track_id: UniqueId,
+        kind: DeferredPlaybackRefreshKind,
+    ) {
+        let recalculation_request = if let Some(flow_id) = self.flow_id_for_track(track_id) {
+            FlowRenderRecalculationRequest::for_flow_ids(&[flow_id])
+        } else {
+            Some(FlowRenderRecalculationRequest::full_visible_flows())
+        };
+
+        self.emit_after_playback_edit(app, renderer, kind, recalculation_request);
     }
 
     fn render_with_recalculation(
@@ -288,13 +352,16 @@ impl AppContext {
         self.render_with_recalculation(app, renderer, None);
     }
 
-    pub(crate) fn emit_general_state(
+    fn emit_general_state_with_runtime_refresh(
         &mut self,
         app: &tauri::AppHandle,
         renderer: &mut RendererContext,
         recalculation_request: Option<FlowRenderRecalculationRequest>,
+        refresh_playback_runtime: bool,
     ) {
-        self.refresh_playback_activation_runtime_from_app(app);
+        if refresh_playback_runtime {
+            self.refresh_playback_activation_runtime_from_app(app);
+        }
         self.render_with_recalculation(app, renderer, recalculation_request);
 
         let general_state = AppStateGeneral {
@@ -317,6 +384,24 @@ impl AppContext {
         }
     }
 
+    pub(crate) fn emit_general_state(
+        &mut self,
+        app: &tauri::AppHandle,
+        renderer: &mut RendererContext,
+        recalculation_request: Option<FlowRenderRecalculationRequest>,
+    ) {
+        self.emit_general_state_with_runtime_refresh(app, renderer, recalculation_request, true);
+    }
+
+    pub(crate) fn emit_general_state_without_runtime_refresh(
+        &mut self,
+        app: &tauri::AppHandle,
+        renderer: &mut RendererContext,
+        recalculation_request: Option<FlowRenderRecalculationRequest>,
+    ) {
+        self.emit_general_state_with_runtime_refresh(app, renderer, recalculation_request, false);
+    }
+
     pub(crate) fn emit_affected_flows(
         &mut self,
         app: &tauri::AppHandle,
@@ -328,23 +413,6 @@ impl AppContext {
             renderer,
             FlowRenderRecalculationRequest::for_flow_ids(flow_ids),
         );
-    }
-
-    pub(crate) fn emit_affected_track(
-        &mut self,
-        app: &tauri::AppHandle,
-        renderer: &mut RendererContext,
-        track_id: UniqueId,
-    ) {
-        if let Some(flow_id) = self.flow_id_for_track(track_id) {
-            self.emit_affected_flows(app, renderer, &[flow_id]);
-        } else {
-            self.emit_general_state(
-                app,
-                renderer,
-                Some(FlowRenderRecalculationRequest::full_visible_flows()),
-            );
-        }
     }
 
     pub fn generate_id(&mut self) -> UniqueId {
@@ -454,7 +522,6 @@ pub(crate) fn reset_app_state(
     reset(app, state, renderer_state, audio_state, transport_state)
 }
 
-#[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let mut builder = tauri::Builder::default();
 

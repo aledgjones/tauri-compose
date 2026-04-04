@@ -244,6 +244,17 @@ Tests are co-located in `#[cfg(test)] mod tests {}` blocks at the bottom of each
 
 Playback ownership regressions should stay seam-local. When validating playback readiness or recovery, derive results through `PlaybackActivationRuntime::from_score_and_inventory(...)` and adjacent file/load seams rather than adding score-local duplicate readiness logic in tests.
 
+For bounded edit-during-playback changes, keep regressions close to the owning playback seams. Prefer `src-tauri/src/playback/transport.rs` for snapshot-boundary and active-pass coherence checks, `src-tauri/src/playback/runtime_activation.rs` or route-owning seams for stale-runtime truthfulness checks, and only extend frontend transport tests when the backend-owned pending-refresh message or transport semantics visibly change.
+
+Recommended validation commands for bounded live-edit changes:
+
+- `cargo test --manifest-path src-tauri/Cargo.toml transport_ --lib`
+- `cargo test --manifest-path src-tauri/Cargo.toml runtime_activation --lib`
+- `npm run test:js -- src/windows/main/components/transport.test.tsx`
+- `npm run lint`
+- `npm run check-types`
+- `cargo test --manifest-path src-tauri/Cargo.toml --lib`
+
 For the Story 1.3 reset baseline specifically, use `PlaybackActivationRuntime::single_instrument_trust_gate(...)` as the backend-owned trust seam. It is transport-readiness-only and should not be used to imply audible playback, multi-instrument support, or broader plugin-host compatibility than the currently supported single-instrument subset.
 
 ```rust

@@ -1,6 +1,7 @@
 #![allow(dead_code, unused_imports, clippy::items_after_test_module)]
 
 use std::sync::Mutex;
+use tauri::Manager;
 
 #[path = "../renderer/mod.rs"]
 mod renderer;
@@ -275,6 +276,12 @@ mod playback {
             pub solo: bool,
         }
 
+        #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+        pub enum DeferredPlaybackRefreshKind {
+            ScoreStructure,
+            PlaybackTopology,
+        }
+
         pub struct TransportShared {
             pub playing: AtomicBool,
             pub current_tick: AtomicU64,
@@ -419,6 +426,7 @@ struct AppContext {
     ui: ui::Ui,
     score: score::Score,
     playback_activation_runtime: playback::runtime_activation::PlaybackActivationRuntime,
+    pending_playback_refresh: Option<playback::transport::DeferredPlaybackRefreshKind>,
     preferences: preferences::Preferences,
     next_id: utils::UniqueId,
     current_file_path: Option<String>,
@@ -430,6 +438,68 @@ type AudioContextState = Mutex<AudioContext>;
 
 impl AppContext {
     fn refresh_playback_activation_runtime_from_app(&mut self, _app: &tauri::AppHandle) {}
+
+    fn defer_playback_refresh(&mut self, kind: playback::transport::DeferredPlaybackRefreshKind) {
+        self.pending_playback_refresh = Some(match (self.pending_playback_refresh, kind) {
+            (Some(playback::transport::DeferredPlaybackRefreshKind::PlaybackTopology), _)
+            | (_, playback::transport::DeferredPlaybackRefreshKind::PlaybackTopology) => {
+                playback::transport::DeferredPlaybackRefreshKind::PlaybackTopology
+            }
+            _ => playback::transport::DeferredPlaybackRefreshKind::ScoreStructure,
+        });
+    }
+
+    fn clear_pending_playback_refresh(&mut self) {
+        self.pending_playback_refresh = None;
+    }
+
+    fn pending_playback_refresh_kind(
+        &self,
+    ) -> Option<playback::transport::DeferredPlaybackRefreshKind> {
+        self.pending_playback_refresh
+    }
+
+    fn transport_is_playing(app: &tauri::AppHandle) -> bool {
+        app.state::<playback::transport::TransportSharedState>()
+            .playing
+            .load(std::sync::atomic::Ordering::Acquire)
+    }
+
+    fn emit_after_playback_edit(
+        &mut self,
+        app: &tauri::AppHandle,
+        renderer: &mut renderer::RendererContext,
+        kind: playback::transport::DeferredPlaybackRefreshKind,
+        recalculation_request: Option<instructions::FlowRenderRecalculationRequest>,
+    ) {
+        let playing = Self::transport_is_playing(app);
+
+        if playing {
+            self.defer_playback_refresh(kind);
+        }
+
+        if playing && kind == playback::transport::DeferredPlaybackRefreshKind::PlaybackTopology {
+            self.emit_general_state_without_runtime_refresh(app, renderer, recalculation_request);
+        } else {
+            self.emit_general_state(app, renderer, recalculation_request);
+        }
+    }
+
+    fn emit_affected_track_after_playback_edit(
+        &mut self,
+        app: &tauri::AppHandle,
+        renderer: &mut renderer::RendererContext,
+        track_id: utils::UniqueId,
+        kind: playback::transport::DeferredPlaybackRefreshKind,
+    ) {
+        let recalculation_request = if let Some(flow_id) = self.flow_id_for_track(track_id) {
+            instructions::FlowRenderRecalculationRequest::for_flow_ids(&[flow_id])
+        } else {
+            Some(instructions::FlowRenderRecalculationRequest::full_visible_flows())
+        };
+
+        self.emit_after_playback_edit(app, renderer, kind, recalculation_request);
+    }
 
     fn flow_id_for_track(&self, track_id: utils::UniqueId) -> Option<utils::UniqueId> {
         self.score.flows.by_id.values().find_map(|flow| {
@@ -450,6 +520,14 @@ impl AppContext {
     fn render_only(&mut self, _app: &tauri::AppHandle, _renderer: &mut renderer::RendererContext) {}
 
     fn emit_general_state(
+        &mut self,
+        _app: &tauri::AppHandle,
+        _renderer: &mut renderer::RendererContext,
+        _recalculation_request: Option<instructions::FlowRenderRecalculationRequest>,
+    ) {
+    }
+
+    fn emit_general_state_without_runtime_refresh(
         &mut self,
         _app: &tauri::AppHandle,
         _renderer: &mut renderer::RendererContext,
@@ -763,6 +841,7 @@ mod instructions {
             ui: Ui::new(),
             score: Score::new(),
             playback_activation_runtime: Default::default(),
+            pending_playback_refresh: None,
             preferences: Preferences { audition: true },
             next_id: 1000,
             current_file_path: None,

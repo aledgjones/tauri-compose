@@ -150,6 +150,15 @@ npm run lint && npm run check-types && npm test && cd src-tauri && cargo clippy
 
 All four must pass. Clippy warnings are treated as errors — do not suppress with `#[allow(...)]`.
 
+## Bounded Edit-During-Playback Contract
+
+The transport path is intentionally snapshot-based during active playback.
+
+- Immediate in the current audible pass is limited to `volume`, `pan`, `mute`, and `solo` on already-ready direct-plugin root routes.
+- Score-content edits and playback-topology edits persist immediately in canonical score state, but their audible effect is deferred until the next safe backend boundary.
+- Supported refresh boundaries are pause, seek restart, stopped play-start, natural-end replay, and explicit backend transport resets.
+- Do not add mid-pass queue rewrites, frontend-owned pending-edit inference, or ad hoc runtime refreshes from score mutation commands.
+
 Pre-commit hooks (via `lint-staged` + `simple-git-hooks`) run ESLint and Prettier automatically on staged files. If hooks are not running after a fresh clone, register them with `npx simple-git-hooks`.
 
 ## macOS Native Editor Handoff
