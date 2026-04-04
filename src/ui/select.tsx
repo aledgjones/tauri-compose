@@ -1,5 +1,5 @@
 import { mdiChevronDown } from "@mdi/js";
-import Icon from "@mdi/react";
+import { Icon as MdiIcon } from "@mdi/react";
 import classNames from "classnames";
 import { Key, ReactNode, useEffect, useRef, useState } from "react";
 import { TokenizedText } from "./text";
@@ -101,7 +101,7 @@ export const Select = <T extends Key>({
       >
         {icon && (
           <div className="flex items-center pr-2 pointer-events-none">
-            <Icon path={icon} size={iconSize} className="text-neutral-300" />
+            <MdiIcon path={icon} size={iconSize} className="text-neutral-300" />
           </div>
         )}
         <span
@@ -122,7 +122,7 @@ export const Select = <T extends Key>({
         ) : null}
 
         <div className="flex items-center pointer-events-none pl-3">
-          <Icon
+          <MdiIcon
             path={mdiChevronDown}
             size={0.75}
             className={classNames(
