@@ -18,6 +18,7 @@ use crate::score::entries::barline::BarlineDrawType;
 use crate::score::entries::clef::Clef;
 use crate::score::entries::tempo::TEMPO_STAVE_OFFSET;
 use crate::score::entries::tuplet::Tuplet;
+use crate::ui::sequencer::Selection;
 use crate::AppContext;
 use draw::draw_accidentals::draw_accidental;
 use draw::draw_articulations::draw_articulations;
@@ -394,6 +395,10 @@ fn draw_notation_symbols(
         }
 
         if let Some(tick_dots) = dots.get(tick) {
+            let highlight_dots = notation.tones.iter().any(
+                |tone| matches!(selection, Some(Selection::Tone { tone_id, .. }) if *tone_id == tone.id),
+            );
+
             draw_dots(
                 &Point {
                     x: origin.x + x,
@@ -403,6 +408,7 @@ fn draw_notation_symbols(
                 glyph_width,
                 has_post_shunt,
                 has_up_stem_flag,
+                highlight_dots,
                 renderer,
             );
         }

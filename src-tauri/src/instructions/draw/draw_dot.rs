@@ -9,6 +9,7 @@ pub fn draw_dots(
     glyph_width: f32,
     has_post_shunt: bool,
     has_up_stem_flag: bool,
+    is_selected: bool,
     renderer: &mut RendererContext,
 ) {
     let x = if has_post_shunt {
@@ -19,10 +20,16 @@ pub fn draw_dots(
         origin.x + glyph_width + 0.5
     };
 
+    let color = if is_selected {
+        Color::from_rgb(14, 165, 233)
+    } else {
+        Color::BLACK
+    };
+
     for dot_offset in tick_dots {
         renderer.circle(
             0.2,
-            Color::BLACK,
+            color,
             &Point {
                 x,
                 y: origin.y + (*dot_offset as f32 / 2.0),
@@ -48,6 +55,7 @@ mod tests {
             1.175,
             false,
             false,
+            false,
             &mut renderer,
         );
         assert!(renderer.instructions.is_empty());
@@ -62,6 +70,7 @@ mod tests {
             &Point { x: 0.0, y: 0.0 },
             &dots,
             1.175,
+            false,
             false,
             false,
             &mut renderer,
@@ -85,6 +94,7 @@ mod tests {
             1.175,
             false,
             false,
+            false,
             &mut renderer,
         );
         assert_eq!(renderer.instructions.len(), 2);
@@ -105,9 +115,18 @@ mod tests {
             glyph_width,
             false,
             false,
+            false,
             &mut renderer_normal,
         );
-        draw_dots(&origin, &dots, glyph_width, true, false, &mut renderer_post);
+        draw_dots(
+            &origin,
+            &dots,
+            glyph_width,
+            true,
+            false,
+            false,
+            &mut renderer_post,
+        );
 
         if let (
             DrawInstruction::Circle {
@@ -135,11 +154,20 @@ mod tests {
         let glyph_width = 1.175;
         let origin = Point { x: 5.0, y: 0.0 };
 
-        draw_dots(&origin, &dots, glyph_width, false, true, &mut renderer_flag);
         draw_dots(
             &origin,
             &dots,
             glyph_width,
+            false,
+            true,
+            false,
+            &mut renderer_flag,
+        );
+        draw_dots(
+            &origin,
+            &dots,
+            glyph_width,
+            false,
             false,
             false,
             &mut renderer_normal,
@@ -160,6 +188,30 @@ mod tests {
             assert!((o_normal.0 - (origin.x + glyph_width + 0.5)).abs() < 1e-5);
         } else {
             panic!("expected Circle instructions");
+        }
+    }
+
+    #[test]
+    fn selected_dots_use_selection_blue() {
+        let mut renderer = make_test_renderer();
+        let mut dots: DotOffsets = FxHashSet::default();
+        dots.insert(0);
+
+        draw_dots(
+            &Point { x: 0.0, y: 0.0 },
+            &dots,
+            1.175,
+            false,
+            false,
+            true,
+            &mut renderer,
+        );
+
+        match &renderer.instructions[0] {
+            DrawInstruction::Circle { color, .. } => {
+                assert_eq!(*color, Color::from_rgb(14, 165, 233));
+            }
+            _ => panic!("expected Circle instruction"),
         }
     }
 }
