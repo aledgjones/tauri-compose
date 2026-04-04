@@ -1,6 +1,6 @@
 # Story 5.2: Seek To Score Positions Without Losing Playback Trust
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -17,23 +17,29 @@ so that I can navigate the score without stale audio from the old timeline leaki
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Define the supported seek contract for the backend-owned transport path (AC: 1, 2, 3)
-  - [ ] Keep seek backend-owned inside `src-tauri/src/playback/transport.rs`; do not introduce a frontend-owned transport model or a second playback controller.
-  - [ ] Treat in-flight seek as a transport rebase event that clears stale timeline work before continuing from the new tick.
-  - [ ] Preserve score-first active-flow ownership through `ui.flow_id`.
+- [x] Task 1: Define the supported seek contract for the backend-owned transport path (AC: 1, 2, 3)
+  - [x] Keep seek backend-owned inside `src-tauri/src/playback/transport.rs`; do not introduce a frontend-owned transport model or a second playback controller.
+  - [x] Treat in-flight seek as a transport rebase event that clears stale timeline work before continuing from the new tick.
+  - [x] Preserve score-first active-flow ownership through `ui.flow_id`.
 
-- [ ] Task 2: Clear stale timeline work before continuing from the new seek position (AC: 1, 3, 4)
-  - [ ] Extend `src-tauri/src/playback/engine.rs` and `src-tauri/src/playback/transport.rs` so seek cancels queued transport events and active transport-owned notes from the old timeline.
-  - [ ] Ensure the next scheduled work comes from a fresh play-start-style snapshot based on the seek target, not from stale relative frame offsets.
-  - [ ] Keep readiness evaluation snapshot-based rather than per-render-loop.
+- [x] Task 2: Clear stale timeline work before continuing from the new seek position (AC: 1, 3, 4)
+  - [x] Extend `src-tauri/src/playback/engine.rs` and `src-tauri/src/playback/transport.rs` so seek cancels queued transport events and active transport-owned notes from the old timeline.
+  - [x] Ensure the next scheduled work comes from a fresh play-start-style snapshot based on the seek target, not from stale relative frame offsets.
+  - [x] Keep readiness evaluation snapshot-based rather than per-render-loop.
 
-- [ ] Task 3: Keep paused seek truthful and non-destructive (AC: 2)
-  - [ ] Ensure paused or stopped seeks update `current_tick` and effective tempo truth immediately without starting playback.
-  - [ ] Keep the next play-start snapshot coherent after paused seek.
+- [x] Task 3: Keep paused seek truthful and non-destructive (AC: 2)
+  - [x] Ensure paused or stopped seeks update `current_tick` and effective tempo truth immediately without starting playback.
+  - [x] Keep the next play-start snapshot coherent after paused seek.
 
-- [ ] Task 4: Add regression coverage and documentation for the seek contract (AC: 1, 2, 3, 4)
-  - [ ] Extend backend tests in `src-tauri/src/playback/transport.rs` and `src-tauri/src/playback/engine.rs` for seek-while-playing, seek-while-paused, repeated seek cycles, and mixed readiness cases.
-  - [ ] Update docs if Story 5.2 clarifies durable backend seek semantics or the pause-versus-seek interaction contract.
+- [x] Task 4: Add regression coverage and documentation for the seek contract (AC: 1, 2, 3, 4)
+  - [x] Extend backend tests in `src-tauri/src/playback/transport.rs` and `src-tauri/src/playback/engine.rs` for seek-while-playing, seek-while-paused, repeated seek cycles, and mixed readiness cases.
+  - [x] Update docs if Story 5.2 clarifies durable backend seek semantics or the pause-versus-seek interaction contract.
+
+### Review Findings
+
+- [x] [Review][Patch] Active seek can race with a concurrent restart and orphan a transport thread [src-tauri/src/playback/transport.rs:717]
+- [x] [Review][Patch] Clearing shared-slot transport playback can leave old transport notes sounding after seek [src-tauri/src/playback/engine.rs:104]
+- [x] [Review][Patch] Paused-seek regression coverage is still missing despite the story claiming it [src-tauri/src/playback/transport.rs:2008]
 
 ## Dev Notes
 
@@ -84,15 +90,29 @@ GPT-5.4
 #### Debug Log References
 
 - 2026-04-04: Story created after the post-5.0 playback audit to isolate seek correctness from pause/resume hardening.
+- 2026-04-04: Implemented `transport_seek_with_states(...)` so active seek reuses the backend-owned play-start snapshot seam after cancelling stale transport-owned engine work.
+- 2026-04-04: Added transport and engine regressions covering stopped seek, active seek rebasing, mixed readiness no-ops, repeated seek cycles, and preserving non-transport render activity during transport clears.
+- 2026-04-04: Review fixes serialized seek/play handoff under the transport mutex, forced shared-slot runtime stops during transport clears, and added paused-seek plus join-before-restart regressions.
 
 #### Completion Notes List
 
-- Story created and not yet implemented.
+- Active seek now behaves as a transport-owned rebase: `transport_seek` stops and joins the in-flight transport thread, clears stale queued transport events plus active transport-owned notes, clamps through the active flow, and resumes only from a fresh `prepare_supported_playback(...)` snapshot.
+- Stopped and paused seek now republish truthful `current_tick` and effective tempo without arming playback, keeping the next play-start snapshot coherent.
+- Added backend regression coverage for stopped seek, active seek restart, mixed readiness handling, repeated seek stability, and engine clearing that preserves non-transport render activity on the same slot.
+- Validation passed with `cargo test transport_seek --manifest-path src-tauri/Cargo.toml`, `cargo test transport_pause_with_states_rewinds_to_the_last_queued_tick_when_work_is_still_pending --manifest-path src-tauri/Cargo.toml`, `cargo test --manifest-path src-tauri/Cargo.toml`, and `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings`.
+- Code review fixes closed the remaining gaps: restart handoff is serialized, transport clears now stop shared runtimes before rebasing, and paused seek has explicit regression coverage.
 
 #### File List
 
 - `_bmad-output/implementation-artifacts/5-2-seek-to-score-positions-without-losing-playback-trust.md`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `docs/architecture.md`
+- `docs/development-guide.md`
+- `docs/project-context.md`
+- `src-tauri/src/playback/engine.rs`
+- `src-tauri/src/playback/transport.rs`
 
 #### Change Log
 
 - 2026-04-04: Created Story 5.2 to own seek rebase correctness, old-timeline queue clearing, and truthful paused-seek behavior.
+- 2026-04-04: Implemented the backend-owned seek rebase contract, added transport/engine regression coverage, and documented the durable seek-versus-pause semantics.

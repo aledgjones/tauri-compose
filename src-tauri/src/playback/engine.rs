@@ -111,7 +111,7 @@ impl SlotRenderState {
         self.queued_events
             .retain(|event| event.owner != RenderEventOwner::Transport);
 
-        had_transport_state && !self.is_render_active()
+        had_transport_state
     }
 
     fn is_render_active(&self) -> bool {
@@ -1076,6 +1076,26 @@ mod tests {
         assert!(!slot_state.transport_active);
         assert!(slot_state.active_transport_note_ids.is_empty());
         assert!(!slot_state.has_queued_transport_events());
+    }
+
+    #[test]
+    fn clearing_transport_playback_preserves_non_transport_render_activity() {
+        let mut engine = ContinuousRenderEngineState::default();
+
+        engine.sync_live_slots(&FxHashSet::from_iter([24]));
+        engine.set_transport_targets(&FxHashSet::from_iter([24]));
+        engine.set_slot_reason(24, RenderActiveReason::Editor, true);
+        engine.queue_transport_note(24, 0, 8, 64, 100);
+
+        let slots_to_stop = engine.clear_transport_playback();
+
+        assert_eq!(slots_to_stop, vec![24]);
+        let slot_state = engine.slot_states.get(&24).unwrap();
+        assert!(slot_state.editor_active);
+        assert!(!slot_state.transport_active);
+        assert!(slot_state.active_transport_note_ids.is_empty());
+        assert!(!slot_state.has_queued_transport_events());
+        assert!(slot_state.is_render_active());
     }
 
     #[test]
