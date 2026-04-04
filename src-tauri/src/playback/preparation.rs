@@ -568,4 +568,68 @@ mod tests {
         );
         assert!(!preparation.blocks_supported_transport_start());
     }
+
+    #[test]
+    fn prepare_supported_playback_keeps_the_ready_target_when_other_instruments_are_unrouted() {
+        let inventory = PluginInventoryContext::with_entries_for_tests(vec![available_entry(
+            "plugin-a",
+            "/Library/Audio/Plug-Ins/VST3/Plugin A.vst3",
+        )]);
+        let mut score = make_score();
+        assign_slot(&mut score, 100, "plugin-a");
+        score.instruments.by_id.get_mut(&10).unwrap().playback_route =
+            Some(InstrumentPlaybackRoute::direct(100));
+        score
+            .players
+            .by_id
+            .get_mut(&1)
+            .unwrap()
+            .instrument_ids
+            .push(11);
+        score.instruments.by_id.insert(
+            11,
+            Instrument {
+                id: 11,
+                definition_id: String::from("strings.viola"),
+                instrument_type: InstrumentType::Melodic,
+                long_name: String::from("Viola"),
+                short_name: String::from("Vla."),
+                stave_ids: vec![],
+                count: None,
+                playback_route: None,
+                volume: 100,
+                pan: 64,
+                mute: false,
+                solo: false,
+            },
+        );
+
+        let runtime = PlaybackActivationRuntime::from_score_and_inventory(&score, &inventory);
+        let preparation = prepare_supported_playback(&score, &runtime, 48_000);
+
+        assert_eq!(
+            preparation
+                .supported_target
+                .as_ref()
+                .map(|target| target.instrument_id),
+            Some(10)
+        );
+        assert!(preparation.blockers.is_empty());
+        assert_eq!(
+            preparation
+                .resolved_playback_route_by_instrument_id
+                .get(&10)
+                .unwrap()
+                .status,
+            ResolvedPlaybackRouteStatus::Ready
+        );
+        assert_eq!(
+            preparation
+                .resolved_playback_route_by_instrument_id
+                .get(&11)
+                .unwrap()
+                .status,
+            ResolvedPlaybackRouteStatus::Unrouted
+        );
+    }
 }

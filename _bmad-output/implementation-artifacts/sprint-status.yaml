@@ -36,7 +36,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-03-25T00:12:37Z
-last_updated: 2026-04-03T22:00:04Z
+last_updated: 2026-04-04T00:00:00Z
 project: compose
 project_key: NOKEY
 tracking_system: file-system
@@ -74,8 +74,9 @@ development_status:
   4-5-keep-first-audible-playback-compact-and-score-first: done
   epic-4-retrospective: done
 
-  epic-5: backlog
-  5-1-start-pause-and-resume-trusted-score-playback: backlog
+  epic-5: in-progress
+  5-0-make-transport-drive-audible-routed-score-playback: ready-for-dev
+  5-1-start-pause-and-resume-trusted-score-playback: blocked
   5-2-seek-to-score-positions-without-losing-playback-trust: backlog
   5-3-define-bounded-editing-during-playback: backlog
   5-4-restore-playback-state-on-project-reopen: backlog

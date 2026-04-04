@@ -538,6 +538,9 @@ fn transport_play_with_states(
         match build_supported_playback_snapshot(&app_ctx, current_tick, sample_rate) {
             Some((snapshot, initial_tempo)) => (snapshot, initial_tempo),
             None => {
+                shared.playing.store(false, Ordering::Release);
+                shared.stop_signal.store(false, Ordering::Release);
+                set_transport_render_target(None);
                 let flow_id = active_flow_id(&app_ctx);
                 shared.set_tempo(resolve_score_tempo_bpm(
                     &app_ctx.score,
@@ -589,6 +592,34 @@ fn transport_play_with_states(
     Ok(())
 }
 
+fn transport_pause_with_states<F>(
+    state: &Mutex<TransportContext>,
+    app_state: &AppContextState,
+    flush_audio: F,
+) -> Result<(), String>
+where
+    F: FnOnce(),
+{
+    let (shared, handle) = {
+        let mut ctx = state.lock().unwrap();
+        ctx.shared.stop_signal.store(true, Ordering::Release);
+        ctx.shared.playing.store(false, Ordering::Release);
+
+        (ctx.shared.clone(), ctx.thread_handle.take())
+    };
+
+    join_transport_thread(handle)?;
+    set_transport_render_target(None);
+    flush_audio();
+    shared.stop_signal.store(false, Ordering::Release);
+
+    let current_tick = shared.current_tick.load(Ordering::Relaxed);
+    let app_ctx = app_state.lock().unwrap();
+    publish_app_tempo(&shared, &app_ctx, current_tick);
+
+    Ok(())
+}
+
 // -- Tauri Commands --
 
 #[tauri::command(rename_all = "snake_case")]
@@ -611,30 +642,9 @@ pub fn transport_pause(
     app_state: State<'_, AppContextState>,
     audio_state: State<'_, AudioContextState>,
 ) -> Result<(), String> {
-    let (shared, handle, was_playing) = {
-        let mut ctx = state.lock().unwrap();
-        let was_playing = ctx.shared.playing.load(Ordering::Acquire);
-
-        if was_playing {
-            ctx.shared.stop_signal.store(true, Ordering::Release);
-            ctx.shared.playing.store(false, Ordering::Release);
-        }
-
-        (ctx.shared.clone(), ctx.thread_handle.take(), was_playing)
-    };
-
-    if was_playing {
-        join_transport_thread(handle)?;
-    }
-
-    set_transport_render_target(None);
-    flush_active_audio(audio_state.inner());
-
-    let current_tick = shared.current_tick.load(Ordering::Relaxed);
-    let app_ctx = app_state.lock().unwrap();
-    publish_app_tempo(&shared, &app_ctx, current_tick);
-
-    Ok(())
+    transport_pause_with_states(state.inner(), app_state.inner(), || {
+        flush_active_audio(audio_state.inner())
+    })
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -1372,6 +1382,130 @@ mod tests {
         assert!(!ctx.shared.playing.load(Ordering::Acquire));
         assert_eq!(ctx.shared.get_tempo(), 120.0);
         assert!(ctx.thread_handle.is_none());
+    }
+
+    #[test]
+    fn transport_play_with_states_clears_stale_stop_signal_when_a_blocked_start_no_ops() {
+        let mut track = Track::new(50);
+        track
+            .create_tone(80, 32, 16, 60, None, 96, Default::default(), None)
+            .unwrap();
+
+        let (score, flow_id) = make_flow_score_with_track(track);
+        let transport_state = make_transport_context_state();
+        {
+            let ctx = transport_state.lock().unwrap();
+            ctx.shared.stop_signal.store(true, Ordering::Release);
+            ctx.shared.current_tick.store(32, Ordering::Relaxed);
+        }
+
+        let mut app_ctx = make_app_context(score, Some(flow_id));
+        app_ctx.playback_activation_runtime = PlaybackActivationRuntime::default();
+        let app_state = Mutex::new(app_ctx);
+
+        transport_play_with_states(&transport_state, &app_state, 48_000).unwrap();
+
+        let ctx = transport_state.lock().unwrap();
+        assert!(!ctx.shared.playing.load(Ordering::Acquire));
+        assert!(!ctx.shared.stop_signal.load(Ordering::Acquire));
+        assert_eq!(ctx.shared.current_tick.load(Ordering::Relaxed), 32);
+        assert_eq!(ctx.shared.get_tempo(), 120.0);
+        assert!(ctx.thread_handle.is_none());
+    }
+
+    #[test]
+    fn transport_pause_with_states_republishes_tempo_at_the_paused_tick_and_joins_the_thread() {
+        let shared = Arc::new(make_transport_shared());
+        shared.current_tick.store(80, Ordering::Relaxed);
+        shared.playing.store(true, Ordering::Release);
+
+        let joined = Arc::new(AtomicBool::new(false));
+        let joined_flag = joined.clone();
+        let thread_shared = shared.clone();
+        let handle = std::thread::spawn(move || {
+            while !thread_shared.stop_signal.load(Ordering::Acquire) {
+                std::thread::yield_now();
+            }
+
+            joined_flag.store(true, Ordering::Release);
+        });
+
+        let transport_state = Mutex::new(TransportContext {
+            shared: shared.clone(),
+            thread_handle: Some(handle),
+        });
+        let (score, flow_id) = make_score_with_tempos(&[(0, 96), (64, 144)]);
+        let app_state = Mutex::new(make_app_context(score, Some(flow_id)));
+        let flush_count = Arc::new(AtomicU64::new(0));
+        let flush_counter = flush_count.clone();
+
+        transport_pause_with_states(&transport_state, &app_state, move || {
+            flush_counter.fetch_add(1, Ordering::Relaxed);
+        })
+        .unwrap();
+
+        let ctx = transport_state.lock().unwrap();
+        assert!(!ctx.shared.playing.load(Ordering::Acquire));
+        assert!(!ctx.shared.stop_signal.load(Ordering::Acquire));
+        assert_eq!(ctx.shared.current_tick.load(Ordering::Relaxed), 80);
+        assert_eq!(ctx.shared.get_tempo(), 144.0);
+        assert!(ctx.thread_handle.is_none());
+        drop(ctx);
+
+        assert!(joined.load(Ordering::Acquire));
+        assert_eq!(flush_count.load(Ordering::Relaxed), 1);
+    }
+
+    #[test]
+    fn transport_play_with_states_resumes_from_the_current_tick_with_a_fresh_tempo_snapshot() {
+        let mut track = Track::new(50);
+        track
+            .create_tone(80, 32, 16, 60, None, 96, Default::default(), None)
+            .unwrap();
+
+        let (score, flow_id) = make_flow_score_with_track_and_tempos(track, &[(0, 96), (64, 144)]);
+        let transport_state = make_transport_context_state();
+        {
+            let ctx = transport_state.lock().unwrap();
+            ctx.shared.current_tick.store(80, Ordering::Relaxed);
+        }
+        let app_state = Mutex::new(make_app_context(score, Some(flow_id)));
+
+        transport_play_with_states(&transport_state, &app_state, 48_000).unwrap();
+
+        let ctx = transport_state.lock().unwrap();
+        assert!(ctx.shared.playing.load(Ordering::Acquire));
+        assert_eq!(ctx.shared.get_tempo(), 144.0);
+        drop(ctx);
+
+        stop_test_transport(&transport_state);
+    }
+
+    #[test]
+    fn transport_play_and_pause_with_states_remain_stable_across_repeated_cycles() {
+        let mut track = Track::new(50);
+        track
+            .create_tone(80, 32, 16, 60, None, 96, Default::default(), None)
+            .unwrap();
+
+        let (score, flow_id) = make_flow_score_with_track(track);
+        let transport_state = make_transport_context_state();
+        let app_state = Mutex::new(make_app_context(score, Some(flow_id)));
+
+        for _ in 0..3 {
+            transport_play_with_states(&transport_state, &app_state, 48_000).unwrap();
+            {
+                let ctx = transport_state.lock().unwrap();
+                assert!(ctx.shared.playing.load(Ordering::Acquire));
+            }
+
+            transport_pause_with_states(&transport_state, &app_state, || {}).unwrap();
+
+            let ctx = transport_state.lock().unwrap();
+            assert!(!ctx.shared.playing.load(Ordering::Acquire));
+            assert!(!ctx.shared.stop_signal.load(Ordering::Acquire));
+            assert!(ctx.thread_handle.is_none());
+        }
     }
 
     #[test]

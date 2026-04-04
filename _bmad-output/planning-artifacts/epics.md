@@ -159,7 +159,7 @@ FR19: Epic 4 - hear written score material without leaving the core score workfl
 FR20: Epic 6 - support a defined expression-map model with initial realistic playback behavior.
 FR21: Epic 6 - deliver an initial MVP expression-map capability linked to score data where feasible.
 FR22: Epic 6 - preserve a path to richer score-linked expression behavior later.
-FR23: Epic 4 - start score playback through routed VST instruments.
+FR23: Epic 5 - start score playback through routed VST instruments.
 FR24: Epic 5 - pause and resume playback without losing trust in playback state.
 FR25: Epic 5 - seek to different score positions and continue playback coherently.
 FR26: Epic 5 - keep playback state coherent across repeated transport actions.
@@ -199,12 +199,12 @@ Composers can assign instruments to rack-first playback targets, understand read
 ### Epic 4: Hear The Score Through Routed Instruments
 
 Composers can move from written notation to first audible VST-backed playback, with basic route-first mix control inside the core score workflow.
-**FRs covered:** FR18, FR19, FR23, FR29, FR30, FR31
+**FRs covered:** FR18, FR19, FR29, FR30, FR31
 
 ### Epic 5: Trust Playback During Real Composition
 
-Composers can pause, resume, seek, edit during playback, reopen projects, and recover from missing routes without losing trust in the score workflow.
-**FRs covered:** FR24, FR25, FR26, FR27, FR28, FR32, FR33, FR34, FR35, FR41
+Composers can start real transport-driven score playback, then pause, resume, seek, edit during playback, reopen projects, and recover from missing routes without losing trust in the score workflow.
+**FRs covered:** FR23, FR24, FR25, FR26, FR27, FR28, FR32, FR33, FR34, FR35, FR41
 
 ### Epic 6: Shape Playback With Score-Linked Expression Maps
 
@@ -702,7 +702,30 @@ So that hearing the score feels like part of composition instead of a detour int
 
 ## Epic 5: Trust Playback During Real Composition
 
-Composers can pause, resume, seek, edit during playback, reopen projects, and recover from missing routes without losing trust in the score workflow.
+Composers can start real transport-driven score playback, then pause, resume, seek, edit during playback, reopen projects, and recover from missing routes without losing trust in the score workflow.
+
+### Story 5.0: Make Transport Drive Audible Routed Score Playback
+
+As a composer,
+I want the existing score transport to drive actual audible routed playback,
+So that transport becomes the real composition playback path before later trust and realism features extend it.
+
+**Acceptance Criteria:**
+
+**Given** the active flow contains score-derived notes and at least one supported direct-plugin route is transport-ready
+**When** I start playback from the supported transport surface
+**Then** Compose emits audible score-derived note output through the routed VST-backed session rather than advancing timing-only transport state
+**And** the resulting sound comes from the backend-owned transport plus engine path rather than an audition-only or plugin-proof seam
+
+**Given** the current MVP remains single-target-first and some score instruments may still be unresolved
+**When** transport playback starts from the current tick
+**Then** the one supported ready route can sound through the product path
+**And** explicit `Unrouted` and `NeedsAttention` routes remain recoverable backend truth rather than blocking the ready route or triggering hidden fallback playback
+
+**Given** Epic 6 will later shape playback realism through expression maps
+**When** this story introduces audible transport playback
+**Then** it reuses the existing backend preparation, runtime-activation, and continuous-engine seams
+**And** it stops short of introducing expression-map logic, multi-target transport scope, or a second frontend-owned transport model
 
 ### Story 5.1: Start, Pause, And Resume Trusted Score Playback
 
@@ -712,7 +735,7 @@ So that I can re-audition my score during composition without losing trust in pl
 
 **Acceptance Criteria:**
 
-**Given** the score has a supported audible playback path from the earlier epic
+**Given** Story 5.0 established a supported audible transport playback path
 **When** I start, pause, and resume playback from the supported workflow
 **Then** playback state transitions remain coherent
 **And** the app avoids hangs, stuck notes, or corrupted session behavior during those actions
@@ -735,7 +758,7 @@ So that I can navigate the piece freely while composing.
 
 **Acceptance Criteria:**
 
-**Given** the score is using the supported playback path
+**Given** Story 5.0 established a supported audible transport playback path
 **When** I seek to another supported position and continue playback
 **Then** playback resumes from the intended location through the routed VST path
 **And** the transport state remains coherent across repeated seek operations
@@ -758,7 +781,8 @@ So that editing while listening feels predictable rather than fragile.
 
 **Acceptance Criteria:**
 
-**Given** I make supported score edits during active playback
+**Given** Story 5.0 established a supported audible transport playback path
+**And** I make supported score edits during active playback
 **When** the system evaluates those edits
 **Then** it applies them immediately or defers them to a safe boundary according to explicit documented rules
 **And** the workflow remains valid rather than collapsing into a blocked state
@@ -781,7 +805,8 @@ So that playback remains part of the normal project lifecycle.
 
 **Acceptance Criteria:**
 
-**Given** a saved project contains valid playback intent and the required plugins are available
+**Given** Story 5.0 established a supported audible transport playback path
+**And** a saved project contains valid playback intent and the required plugins are available
 **When** I reopen the project
 **Then** Compose restores the relevant rack slots and instrument routes
 **And** playback-relevant state remains coherent with the backend-owned model
@@ -804,7 +829,8 @@ So that I can continue working even when playback assets are unavailable.
 
 **Acceptance Criteria:**
 
-**Given** a previously saved or expected route cannot currently resolve
+**Given** Story 5.0 established a supported audible transport playback path
+**And** a previously saved or expected route cannot currently resolve
 **When** Compose restores or evaluates playback state
 **Then** the route degrades to an explicit recoverable non-ready state
 **And** the score remains usable
