@@ -848,7 +848,8 @@ mod macos_host {
                 let Ok(ns_window) = callback_window.ns_window() else {
                     return;
                 };
-                let Some(ns_window) = (unsafe { Retained::retain(ns_window as *mut NSWindow) }) else {
+                let Some(ns_window) = (unsafe { Retained::retain(ns_window as *mut NSWindow) })
+                else {
                     return;
                 };
                 let Some(content_view) = ns_window.contentView() else {
@@ -876,7 +877,6 @@ mod macos_host {
         width: f64,
         height: f64,
     ) -> Result<(), String> {
-
         let resize_window = window.clone();
         let resize_window_for_callback = resize_window.clone();
         let (sender, receiver) = std::sync::mpsc::channel();
@@ -920,9 +920,7 @@ mod macos_host {
             Ok(()) => {
                 pending_plugin_requested_resize().store(true, Ordering::Release);
                 let followup_window = window.clone();
-                if let Err(_error) = followup_window.run_on_main_thread(move || {
-                }) {
-                }
+                if let Err(_error) = followup_window.run_on_main_thread(move || {}) {}
                 let delayed_window = window.clone();
                 std::thread::spawn(move || {
                     std::thread::sleep(Duration::from_millis(50));
@@ -931,8 +929,8 @@ mod macos_host {
                         let content_size = delayed_callback_window
                             .ns_window()
                             .ok()
-                            .and_then(|ns_window| {
-                                unsafe { Retained::retain(ns_window as *mut NSWindow) }
+                            .and_then(|ns_window| unsafe {
+                                Retained::retain(ns_window as *mut NSWindow)
                             })
                             .and_then(|ns_window| {
                                 ns_window.contentView().map(|content_view| {
@@ -945,14 +943,11 @@ mod macos_host {
                             Some((_current_width, _current_height)) => {}
                             None => {}
                         }
-                    }) {
-                    }
+                    }) {}
                 });
                 Ok(())
             }
-            Err(error) => {
-                Err(error)
-            }
+            Err(error) => Err(error),
         }
     }
 
@@ -2086,8 +2081,7 @@ mod macos_host {
 
             let mut view_rect = view_rect_for_host_frame(host_frame);
             let get_size_result = unsafe { view.getSize(&mut view_rect) };
-            if get_size_result == kResultOk {
-            }
+            if get_size_result == kResultOk {}
 
             let plugin_can_resize = unsafe { view.canResize() } == kResultOk;
             if let Err(_error) = window.set_resizable(plugin_can_resize) {}
@@ -3296,7 +3290,6 @@ mod macos_host {
     }
 
     pub fn prepare_active_plugin_host_session_for_close(window: &WebviewWindow) {
-
         if MainThreadMarker::new().is_some() {
             prepare_plugin_host_session_for_close_now();
             return;
@@ -3450,7 +3443,6 @@ mod macos_host {
         app: &AppHandle,
         detached_target: &super::PluginEditorTarget,
     ) -> Result<(), String> {
-
         let session = if let Some(slot_id) = detached_target.slot_id {
             slot_runtime_sessions()
                 .lock()
@@ -3773,7 +3765,11 @@ mod macos_host {
             }
 
             if !skip_initial_attach_layout
-                && should_notify_plugin_view_layout(reason, plugin_can_resize, plugin_requested_resize)
+                && should_notify_plugin_view_layout(
+                    reason,
+                    plugin_can_resize,
+                    plugin_requested_resize,
+                )
             {
                 let mut rect = view_rect_for_host_frame(host_frame);
                 let _ = unsafe { view.onSize(&mut rect) };
