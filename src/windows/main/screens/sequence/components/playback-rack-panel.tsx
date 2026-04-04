@@ -42,6 +42,7 @@ const compareUsablePlugins = (
 
 type PlaybackRackPanelProps = {
   createError?: string | null;
+  searchTerm?: string;
 };
 
 const EMPTY_PLUGIN_VALUE = "__empty_slot__";
@@ -71,6 +72,7 @@ const renderUnavailableAssignedPluginAdornment = (label: string) => {
 
 export const PlaybackRackPanel: FC<PlaybackRackPanelProps> = ({
   createError = null,
+  searchTerm = "",
 }) => {
   const state = useAppState();
   const pluginInventory = usePluginInventoryState();
@@ -105,6 +107,27 @@ export const PlaybackRackPanel: FC<PlaybackRackPanelProps> = ({
     Record<number, string>
   >({});
   const slotIds = useMemo(() => rack?.order ?? [], [rack]);
+  const normalizedSearchTerm = searchTerm.trim().toLowerCase();
+
+  const visibleSlotIds = useMemo(() => {
+    if (normalizedSearchTerm.length === 0) {
+      return slotIds;
+    }
+
+    return slotIds.filter((slotId) => {
+      const selectedPluginId = rack?.by_id[slotId]?.target?.plugin_id ?? null;
+      if (selectedPluginId == null) {
+        return false;
+      }
+
+      const selectedPlugin = pluginById.get(selectedPluginId) ?? null;
+      const searchLabel =
+        selectedPlugin?.name ??
+        getUnavailableSelectedPluginLabel(selectedPluginId, selectedPlugin);
+
+      return searchLabel.toLowerCase().includes(normalizedSearchTerm);
+    });
+  }, [normalizedSearchTerm, pluginById, rack, slotIds]);
 
   const handleSlotPluginChange = async (slotId: number, pluginId: string) => {
     if (assigningSlotId !== null) {
@@ -211,9 +234,18 @@ export const PlaybackRackPanel: FC<PlaybackRackPanelProps> = ({
               </div>
             </div>
           </div>
+        ) : visibleSlotIds.length === 0 ? (
+          <div className="flex h-full w-full items-center justify-center bg-neutral-900 px-6 text-center">
+            <div>
+              <div className="text-sm text-neutral-200">No slots match.</div>
+              <div className="mt-2 text-sm text-neutral-400">
+                Try a different plugin name.
+              </div>
+            </div>
+          </div>
         ) : null}
 
-        {slotIds.map((slotId) => {
+        {visibleSlotIds.map((slotId) => {
           const slot = rack?.by_id[slotId] ?? null;
           const slotIndex = (rack?.order.indexOf(slotId) ?? -1) + 1;
           const isAssigning = assigningSlotId === slotId;
@@ -335,7 +367,7 @@ export const PlaybackRackPanel: FC<PlaybackRackPanelProps> = ({
           );
         })}
 
-        {slotIds.length > 0 ? (
+        {visibleSlotIds.length > 0 ? (
           <div className="bg-neutral-900 flex-1 min-w-8" />
         ) : null}
       </div>

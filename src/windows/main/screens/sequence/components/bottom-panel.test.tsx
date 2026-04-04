@@ -206,8 +206,126 @@ describe("Sequence BottomPanel", () => {
     expect(
       screen.getByRole("button", { name: "Add slot" }),
     ).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Search slots...")).toBeInTheDocument();
     expect(screen.getByText("Slot 1")).toBeInTheDocument();
     expect(screen.getByText("Slot 2")).toBeInTheDocument();
+  });
+
+  it("keeps the slot search input inline with the add-slot button", () => {
+    const appState = createAppState({
+      ui: {
+        screens: {
+          sequence: {
+            bottom_panel_tab: BottomPanelTab.Instruments,
+          } as never,
+        },
+      } as never,
+      score: {
+        playback: {
+          rack: {
+            order: [22],
+            by_id: {
+              22: {
+                id: 22,
+                target: { plugin_id: "vst3:grand-piano" },
+              },
+            },
+          },
+        },
+      } as never,
+    });
+
+    renderWithProviders(<BottomPanel />, {
+      appState,
+      pluginInventoryState: {
+        entries: [
+          {
+            id: "vst3:grand-piano",
+            name: "Grand Piano",
+            bundle_path: "/Library/Audio/Plug-Ins/VST3/Grand Piano.vst3",
+            binary_path:
+              "/Library/Audio/Plug-Ins/VST3/Grand Piano.vst3/Contents/MacOS/Grand Piano",
+            source_root: "/Library/Audio/Plug-Ins/VST3",
+            availability: "available",
+            validation_failure: null,
+            editor_host_validation: null,
+          },
+        ],
+      },
+    });
+
+    const addSlotButton = screen.getByRole("button", { name: "Add slot" });
+    const searchInput = screen.getByPlaceholderText("Search slots...");
+    const headerRow = addSlotButton.parentElement;
+
+    expect(headerRow).not.toBeNull();
+    expect(headerRow).toContainElement(searchInput);
+  });
+
+  it("filters rack slots from the inline header search", () => {
+    const appState = createAppState({
+      ui: {
+        screens: {
+          sequence: {
+            bottom_panel_tab: BottomPanelTab.Instruments,
+          } as never,
+        },
+      } as never,
+      score: {
+        playback: {
+          rack: {
+            order: [22, 23],
+            by_id: {
+              22: {
+                id: 22,
+                target: { plugin_id: "vst3:grand-piano" },
+              },
+              23: {
+                id: 23,
+                target: { plugin_id: "vst3:string-ensemble" },
+              },
+            },
+          },
+        },
+      } as never,
+    });
+
+    renderWithProviders(<BottomPanel />, {
+      appState,
+      pluginInventoryState: {
+        entries: [
+          {
+            id: "vst3:grand-piano",
+            name: "Grand Piano",
+            bundle_path: "/Library/Audio/Plug-Ins/VST3/Grand Piano.vst3",
+            binary_path:
+              "/Library/Audio/Plug-Ins/VST3/Grand Piano.vst3/Contents/MacOS/Grand Piano",
+            source_root: "/Library/Audio/Plug-Ins/VST3",
+            availability: "available",
+            validation_failure: null,
+            editor_host_validation: null,
+          },
+          {
+            id: "vst3:string-ensemble",
+            name: "String Ensemble",
+            bundle_path: "/Library/Audio/Plug-Ins/VST3/String Ensemble.vst3",
+            binary_path:
+              "/Library/Audio/Plug-Ins/VST3/String Ensemble.vst3/Contents/MacOS/String Ensemble",
+            source_root: "/Library/Audio/Plug-Ins/VST3",
+            availability: "available",
+            validation_failure: null,
+            editor_host_validation: null,
+          },
+        ],
+      },
+    });
+
+    fireEvent.change(screen.getByPlaceholderText("Search slots..."), {
+      target: { value: "grand" },
+    });
+
+    expect(screen.getByText("Slot 1")).toBeInTheDocument();
+    expect(screen.queryByText("Slot 2")).toBeNull();
   });
 
   it("keeps app-scoped inventory browsing out of the Sequence panel header", () => {

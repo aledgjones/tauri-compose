@@ -2,8 +2,15 @@ import { FC, useState } from "react";
 import { useAppState } from "../../../../../services/state";
 import { BottomPanelTab } from "../../../../../services/types";
 import { actions } from "../../../../../services/actions";
-import { mdiCableData, mdiPiano, mdiPlus, mdiTuneVertical } from "@mdi/js";
+import {
+  mdiCableData,
+  mdiMagnify,
+  mdiPiano,
+  mdiPlus,
+  mdiTuneVertical,
+} from "@mdi/js";
 import { IconButton } from "../../../../../ui/buttons/icon-button";
+import { Input } from "../../../../../ui/input";
 import { Sequencer, SequencerToolbar } from "../../../components/sequencer";
 import { Mixer, MixerToolbar } from "../../../components/mixer";
 import { useBottomPanelState } from "../../../hooks/use-bottom-panel-state";
@@ -19,6 +26,7 @@ export const BottomPanel: FC = () => {
   const state = useAppState();
   const [isCreatingSlot, setIsCreatingSlot] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
+  const [slotSearchTerm, setSlotSearchTerm] = useState("");
   const {
     instruments,
     instrumentOptions,
@@ -84,7 +92,17 @@ export const BottomPanel: FC = () => {
               isDisabled={isCreatingSlot}
               title="Add slot"
             />
-            <div className="bg-neutral-900 flex-1" />
+            <div className="bg-neutral-900 flex flex-1 items-center px-2">
+              <Input
+                type="text"
+                variant="dark"
+                leadingIcon={mdiMagnify}
+                value={slotSearchTerm}
+                onChange={setSlotSearchTerm}
+                placeholder="Search slots..."
+                className="flex-1"
+              />
+            </div>
           </div>
         )}
         <div className="flex flex-1 justify-end gap-0.5">
@@ -122,7 +140,10 @@ export const BottomPanel: FC = () => {
         />
       )}
       {tab === BottomPanelTab.Instruments && (
-        <PlaybackRackPanel createError={createError} />
+        <PlaybackRackPanel
+          createError={createError}
+          searchTerm={slotSearchTerm}
+        />
       )}
     </div>
   );

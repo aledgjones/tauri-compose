@@ -81,6 +81,103 @@ describe("PlaybackRackPanel", () => {
     expect(screen.queryByText("Focused instrument route")).toBeNull();
   });
 
+  it("filters rack slots by assigned plugin name", () => {
+    renderWithProviders(<PlaybackRackPanel searchTerm="grand" />, {
+      appState: {
+        score: {
+          playback: {
+            rack: {
+              order: [9, 10],
+              by_id: {
+                9: {
+                  id: 9,
+                  target: { plugin_id: "vst3:grand-piano" },
+                },
+                10: {
+                  id: 10,
+                  target: { plugin_id: "vst3:string-ensemble" },
+                },
+              },
+            },
+          },
+        } as never,
+      },
+      pluginInventoryState: {
+        entries: [
+          {
+            id: "vst3:grand-piano",
+            name: "Grand Piano",
+            bundle_path: "/Library/Audio/Plug-Ins/VST3/Grand Piano.vst3",
+            binary_path:
+              "/Library/Audio/Plug-Ins/VST3/Grand Piano.vst3/Contents/MacOS/Grand Piano",
+            source_root: "/Library/Audio/Plug-Ins/VST3",
+            availability: "available",
+            validation_failure: null,
+            editor_host_validation: null,
+          },
+          {
+            id: "vst3:string-ensemble",
+            name: "String Ensemble",
+            bundle_path: "/Library/Audio/Plug-Ins/VST3/String Ensemble.vst3",
+            binary_path:
+              "/Library/Audio/Plug-Ins/VST3/String Ensemble.vst3/Contents/MacOS/String Ensemble",
+            source_root: "/Library/Audio/Plug-Ins/VST3",
+            availability: "available",
+            validation_failure: null,
+            editor_host_validation: null,
+          },
+        ],
+      },
+    });
+
+    expect(screen.getByText("Slot 1")).toBeInTheDocument();
+    expect(screen.queryByText("Slot 2")).toBeNull();
+    expect(
+      screen.getByRole("button", { name: "Open plugin UI for Grand Piano" }),
+    ).toBeInTheDocument();
+  });
+
+  it("shows an empty-search state when no slot matches the plugin name filter", () => {
+    renderWithProviders(<PlaybackRackPanel searchTerm="brass" />, {
+      appState: {
+        score: {
+          playback: {
+            rack: {
+              order: [9],
+              by_id: {
+                9: {
+                  id: 9,
+                  target: { plugin_id: "vst3:grand-piano" },
+                },
+              },
+            },
+          },
+        } as never,
+      },
+      pluginInventoryState: {
+        entries: [
+          {
+            id: "vst3:grand-piano",
+            name: "Grand Piano",
+            bundle_path: "/Library/Audio/Plug-Ins/VST3/Grand Piano.vst3",
+            binary_path:
+              "/Library/Audio/Plug-Ins/VST3/Grand Piano.vst3/Contents/MacOS/Grand Piano",
+            source_root: "/Library/Audio/Plug-Ins/VST3",
+            availability: "available",
+            validation_failure: null,
+            editor_host_validation: null,
+          },
+        ],
+      },
+    });
+
+    expect(screen.getByText("No slots match.")).toBeInTheDocument();
+    expect(
+      screen.getByText("Try a different plugin name."),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Slot 1")).toBeNull();
+  });
+
   it("opens the assigned plugin UI from the slot card", async () => {
     renderWithProviders(<PlaybackRackPanel />, {
       appState: {
