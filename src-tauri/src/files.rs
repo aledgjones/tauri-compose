@@ -2496,6 +2496,140 @@ mod tests {
     }
 
     #[test]
+    fn restored_mixed_ready_and_degraded_routes_keep_ready_targets_playable() {
+        let (_transport_state, transport_shared) = TransportContext::new();
+        let inventory =
+            PluginInventoryContext::with_entries_for_tests(vec![PluginInventoryEntry {
+                id: String::from("plugin-a"),
+                name: String::from("Plugin A"),
+                bundle_path: String::from("/Library/Audio/Plug-Ins/VST3/Plugin A.vst3"),
+                binary_path: Some(String::from(
+                    "/Library/Audio/Plug-Ins/VST3/Plugin A.vst3/Contents/MacOS/Plugin A",
+                )),
+                source_root: String::from("/Library/Audio/Plug-Ins/VST3"),
+                availability: PluginInventoryAvailability::Available,
+                validation_failure: None,
+                editor_host_validation: None,
+            }]);
+        let mut score = build_score_with_visible_flows(&[30], &[30]);
+        score.players = Players {
+            order: vec![1],
+            by_id: FxHashMap::from_iter([(1, Player::new(1, PlayerType::Section))]),
+        };
+        score.players.by_id.get_mut(&1).unwrap().instrument_ids = vec![10, 11];
+        score.instruments = Instruments {
+            by_id: FxHashMap::from_iter([
+                (
+                    10,
+                    Instrument {
+                        id: 10,
+                        definition_id: String::from("strings.violin"),
+                        instrument_type: InstrumentType::Melodic,
+                        long_name: String::from("Violin"),
+                        short_name: String::from("Vln."),
+                        stave_ids: vec![],
+                        count: None,
+                        playback_route: None,
+                        volume: 100,
+                        pan: 64,
+                        mute: false,
+                        solo: false,
+                    },
+                ),
+                (
+                    11,
+                    Instrument {
+                        id: 11,
+                        definition_id: String::from("strings.viola"),
+                        instrument_type: InstrumentType::Melodic,
+                        long_name: String::from("Viola"),
+                        short_name: String::from("Vla."),
+                        stave_ids: vec![],
+                        count: None,
+                        playback_route: None,
+                        volume: 100,
+                        pan: 64,
+                        mute: false,
+                        solo: false,
+                    },
+                ),
+            ]),
+        };
+        score.create_playback_slot(300).unwrap();
+        score.create_playback_slot(301).unwrap();
+        score
+            .assign_plugin_to_slot(300, String::from("plugin-a"))
+            .unwrap();
+        score
+            .assign_plugin_to_slot(301, String::from("plugin-b"))
+            .unwrap();
+        score.assign_instrument_route_to_slot(10, 300).unwrap();
+        score.assign_instrument_route_to_slot(11, 301).unwrap();
+
+        let project_file = round_trip_project_file(&ProjectFile {
+            ui: Ui::new(),
+            score,
+            next_id: 500,
+        });
+        let mut state = AppContext {
+            ui: Ui::new(),
+            score: Score::new(),
+            playback_activation_runtime: PlaybackActivationRuntime::default(),
+            pending_playback_refresh: None,
+            preferences: make_preferences(),
+            next_id: 1,
+            current_file_path: None,
+        };
+
+        restore_loaded_project_for_test(
+            &mut state,
+            &transport_shared,
+            &inventory,
+            project_file,
+            "/tmp/runtime-mixed-readiness.soloc".to_string(),
+        );
+
+        let resolved = state
+            .playback_activation_runtime
+            .resolved_playback_route_by_instrument_id(&state.score);
+        let preparation =
+            prepare_supported_playback(&state.score, &state.playback_activation_runtime, 48_000);
+
+        assert_eq!(
+            state.score.instruments.by_id[&10].playback_route,
+            Some(InstrumentPlaybackRoute::direct(300))
+        );
+        assert_eq!(
+            state.score.instruments.by_id[&11].playback_route,
+            Some(InstrumentPlaybackRoute::direct(301))
+        );
+        assert_eq!(
+            state.score.playback.rack.by_id[&301]
+                .target
+                .as_ref()
+                .map(|target| target.plugin_id.as_str()),
+            Some("plugin-b")
+        );
+        assert_eq!(
+            resolved.get(&10).unwrap().status,
+            ResolvedPlaybackRouteStatus::Ready
+        );
+        assert_eq!(
+            resolved.get(&11).unwrap().status,
+            ResolvedPlaybackRouteStatus::NeedsAttention
+        );
+        assert_eq!(preparation.supported_targets.len(), 1);
+        assert_eq!(
+            preparation
+                .supported_target_for_instrument(10)
+                .map(|target| (target.slot_id, target.plugin_id.as_str())),
+            Some((300, "plugin-a"))
+        );
+        assert_eq!(preparation.supported_target_for_instrument(11), None);
+        assert!(!preparation.blocks_supported_transport_start());
+    }
+
+    #[test]
     fn persisted_nested_tuplet_child_entries_are_rejected() {
         let result = serde_json::from_value::<ProjectFile>(json!({
             "score": {

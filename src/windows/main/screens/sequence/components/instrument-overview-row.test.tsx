@@ -622,6 +622,108 @@ describe("InstrumentOverviewRow", () => {
     });
   });
 
+  it("keeps repair in the current route picker when an assigned plugin becomes unavailable", async () => {
+    renderWithProviders(
+      <InstrumentOverviewRow
+        instrument={mockInstrument}
+        color="#ff0000"
+        isDisabled={false}
+      />,
+      {
+        appState: {
+          score: {
+            playback: {
+              rack: {
+                order: [7, 8],
+                by_id: {
+                  7: {
+                    id: 7,
+                    target: { plugin_id: "vst3:grand-piano" },
+                  },
+                  8: {
+                    id: 8,
+                    target: { plugin_id: "vst3:string-ensemble" },
+                  },
+                },
+              },
+            },
+          } as never,
+          route_target_options_by_slot_id: {
+            7: [],
+            8: [
+              {
+                key: "plugin-root-8",
+                label: "Plugin output",
+                target: { mode: 0, index: null },
+                address: { mode: 0, index: null },
+              },
+            ],
+          },
+          resolved_playback_route_by_instrument_id: {
+            5: {
+              status: ResolvedPlaybackRouteStatus.NeedsAttention,
+              slot_id: 7,
+              slot_target: { plugin_id: "vst3:grand-piano" },
+              effective_plugin_id: null,
+              target: { mode: 0, index: null },
+              address: { mode: 0, index: null },
+            },
+          },
+        },
+        pluginInventoryState: {
+          entries: [
+            {
+              id: "vst3:grand-piano",
+              name: "Grand Piano",
+              bundle_path: "/Library/Audio/Plug-Ins/VST3/Grand Piano.vst3",
+              binary_path:
+                "/Library/Audio/Plug-Ins/VST3/Grand Piano.vst3/Contents/MacOS/Grand Piano",
+              source_root: "/Library/Audio/Plug-Ins/VST3",
+              availability: "unavailable",
+              validation_failure: {
+                kind: "missing_bundle_binary",
+                message: "missing",
+              },
+              editor_host_validation: null,
+            },
+            {
+              id: "vst3:string-ensemble",
+              name: "String Ensemble",
+              bundle_path: "/Library/Audio/Plug-Ins/VST3/String Ensemble.vst3",
+              binary_path:
+                "/Library/Audio/Plug-Ins/VST3/String Ensemble.vst3/Contents/MacOS/String Ensemble",
+              source_root: "/Library/Audio/Plug-Ins/VST3",
+              availability: "available",
+              validation_failure: null,
+              editor_host_validation: null,
+            },
+          ],
+        },
+      },
+    );
+
+    const routeButton = screen.getByRole("button", {
+      name: /1\. Grand Piano/i,
+    });
+
+    expect(
+      within(routeButton).getByLabelText("Playback needs attention"),
+    ).toBeInTheDocument();
+
+    fireEvent.click(routeButton);
+    fireEvent.click(screen.getByRole("option", { name: "2. String Ensemble" }));
+
+    await waitFor(() => {
+      expect(actions.ui.sequencer.setInstrument).toHaveBeenCalledWith(5);
+      expect(actions.score.instrument.assignSlotRoute).toHaveBeenCalledWith(
+        5,
+        8,
+        { mode: 0, index: null },
+        { mode: 0, index: null },
+      );
+    });
+  });
+
   it("can clear a route by switching the picker back to unrouted", async () => {
     renderRow({
       status: ResolvedPlaybackRouteStatus.Ready,

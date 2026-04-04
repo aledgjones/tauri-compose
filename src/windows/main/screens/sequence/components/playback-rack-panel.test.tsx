@@ -811,6 +811,65 @@ describe("PlaybackRackPanel", () => {
     expect(screen.queryByRole("button", { name: /^--$/i })).toBeNull();
   });
 
+  it("keeps repair inside the slot controls when an assigned plugin becomes unavailable", async () => {
+    renderWithProviders(<PlaybackRackPanel />, {
+      appState: {
+        score: {
+          playback: {
+            rack: {
+              order: [9],
+              by_id: {
+                9: {
+                  id: 9,
+                  target: { plugin_id: "vst3:grand-piano" },
+                },
+              },
+            },
+          },
+        } as never,
+      },
+      pluginInventoryState: {
+        entries: [
+          {
+            id: "vst3:grand-piano",
+            name: "Grand Piano",
+            bundle_path: "/Library/Audio/Plug-Ins/VST3/Grand Piano.vst3",
+            binary_path:
+              "/Library/Audio/Plug-Ins/VST3/Grand Piano.vst3/Contents/MacOS/Grand Piano",
+            source_root: "/Library/Audio/Plug-Ins/VST3",
+            availability: "unavailable",
+            validation_failure: {
+              kind: "missing_bundle_binary",
+              message: "missing",
+            },
+            editor_host_validation: null,
+          },
+          {
+            id: "vst3:string-ensemble",
+            name: "String Ensemble",
+            bundle_path: "/Library/Audio/Plug-Ins/VST3/String Ensemble.vst3",
+            binary_path:
+              "/Library/Audio/Plug-Ins/VST3/String Ensemble.vst3/Contents/MacOS/String Ensemble",
+            source_root: "/Library/Audio/Plug-Ins/VST3",
+            availability: "available",
+            validation_failure: null,
+            editor_host_validation: null,
+          },
+        ],
+      },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /^grand piano$/i }));
+    fireEvent.click(screen.getByRole("option", { name: "String Ensemble" }));
+
+    await waitFor(() => {
+      expect(actions.score.playback.slot.assignPlugin).toHaveBeenCalledWith(
+        9,
+        "vst3:string-ensemble",
+      );
+    });
+  });
+
   it("keeps the empty -- state when the slot has no backend-assigned plugin", () => {
     renderWithProviders(<PlaybackRackPanel />, {
       appState: {
