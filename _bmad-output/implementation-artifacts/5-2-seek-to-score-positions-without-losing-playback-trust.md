@@ -1,6 +1,6 @@
 # Story 5.2: Seek To Score Positions Without Losing Playback Trust
 
-Status: backlog
+Status: ready-for-dev
 
 ## Story
 

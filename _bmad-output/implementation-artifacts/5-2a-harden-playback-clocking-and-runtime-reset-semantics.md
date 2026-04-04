@@ -1,6 +1,6 @@
 # Story 5.2a: Harden Playback Clocking And Runtime Reset Semantics
 
-Status: backlog
+Status: ready-for-dev
 
 ## Story
 
