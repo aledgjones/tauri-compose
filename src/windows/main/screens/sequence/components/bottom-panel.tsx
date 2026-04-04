@@ -99,7 +99,7 @@ export const BottomPanel: FC = () => {
                 leadingIcon={mdiMagnify}
                 value={slotSearchTerm}
                 onChange={setSlotSearchTerm}
-                placeholder="Search slots..."
+                placeholder="Search plugins..."
                 className="flex-1"
               />
             </div>

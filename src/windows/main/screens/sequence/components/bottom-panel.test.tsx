@@ -206,7 +206,9 @@ describe("Sequence BottomPanel", () => {
     expect(
       screen.getByRole("button", { name: "Add slot" }),
     ).toBeInTheDocument();
-    expect(screen.getByPlaceholderText("Search slots...")).toBeInTheDocument();
+    expect(
+      screen.getByPlaceholderText("Search plugins..."),
+    ).toBeInTheDocument();
     expect(screen.getByText("Slot 1")).toBeInTheDocument();
     expect(screen.getByText("Slot 2")).toBeInTheDocument();
   });
@@ -255,7 +257,7 @@ describe("Sequence BottomPanel", () => {
     });
 
     const addSlotButton = screen.getByRole("button", { name: "Add slot" });
-    const searchInput = screen.getByPlaceholderText("Search slots...");
+    const searchInput = screen.getByPlaceholderText("Search plugins...");
     const headerRow = addSlotButton.parentElement;
 
     expect(headerRow).not.toBeNull();
@@ -320,7 +322,7 @@ describe("Sequence BottomPanel", () => {
       },
     });
 
-    fireEvent.change(screen.getByPlaceholderText("Search slots..."), {
+    fireEvent.change(screen.getByPlaceholderText("Search plugins..."), {
       target: { value: "grand" },
     });
 
