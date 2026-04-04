@@ -1,6 +1,6 @@
 # Story 5.1: Start, Pause, And Resume Trusted Score Playback
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -18,31 +18,37 @@ so that repeated transport actions remain trustworthy during real score work.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Make pause and stop a hard transport-owned reset of engine-owned playback work (AC: 1, 2)
-  - [ ] Extend `src-tauri/src/playback/transport.rs` and `src-tauri/src/playback/engine.rs` so pause and stop clear queued transport events, retire active transport-owned notes deterministically, and leave no stale transport work armed after the thread joins.
-  - [ ] Preserve the current backend ownership split: transport owns lifecycle and state transitions, while the continuous engine owns queued event consumption and render-active slot state.
-  - [ ] Ensure the hard-reset path covers multi-target transport playback, not just one slot.
+- [x] Task 1: Make pause and stop a hard transport-owned reset of engine-owned playback work (AC: 1, 2)
+  - [x] Extend `src-tauri/src/playback/transport.rs` and `src-tauri/src/playback/engine.rs` so pause and stop clear queued transport events, retire active transport-owned notes deterministically, and leave no stale transport work armed after the thread joins.
+  - [x] Preserve the current backend ownership split: transport owns lifecycle and state transitions, while the continuous engine owns queued event consumption and render-active slot state.
+  - [x] Ensure the hard-reset path covers multi-target transport playback, not just one slot.
 
-- [ ] Task 2: Harden repeated start, pause, and resume behavior on the current multi-target transport path (AC: 1, 2, 4)
-  - [ ] Keep resume as the existing `transport_play` path from the current tick after `transport_pause`, not as a second mode.
-  - [ ] Ensure repeated play/pause/resume cycles remain idempotent and do not leak stale transport threads, stale render-target state, stale queued events, or corrupted shared transport flags.
-  - [ ] Reuse `prepare_supported_playback(...)` as the canonical play-start handoff and keep readiness evaluation snapshot-based at play-start rather than per-tick or per-render-loop.
-  - [ ] Preserve the current multi-target product path: all supported direct-plugin root routes present at play-start may participate, while unresolved routes remain explicit backend truth and schedule nothing.
+- [x] Task 2: Harden repeated start, pause, and resume behavior on the current multi-target transport path (AC: 1, 2, 4)
+  - [x] Keep resume as the existing `transport_play` path from the current tick after `transport_pause`, not as a second mode.
+  - [x] Ensure repeated play/pause/resume cycles remain idempotent and do not leak stale transport threads, stale render-target state, stale queued events, or corrupted shared transport flags.
+  - [x] Reuse `prepare_supported_playback(...)` as the canonical play-start handoff and keep readiness evaluation snapshot-based at play-start rather than per-tick or per-render-loop.
+  - [x] Preserve the current multi-target product path: all supported direct-plugin root routes present at play-start may participate, while unresolved routes remain explicit backend truth and schedule nothing.
 
-- [ ] Task 3: Keep supported live mix truth coherent during active playback (AC: 3)
-  - [ ] Ensure `volume`, `pan`, `mute`, and `solo` mutations for supported routes update the actual engine mix state used by in-flight playback rather than only a transport-side mirror.
-  - [ ] Keep route-backed mix honesty intact: unsupported route shapes must not pretend to expose live controls they cannot honor.
-  - [ ] Prove the supported live-mix path through seam-local backend tests rather than UI-only assertions.
+- [x] Task 3: Keep supported live mix truth coherent during active playback (AC: 3)
+  - [x] Ensure `volume`, `pan`, `mute`, and `solo` mutations for supported routes update the actual engine mix state used by in-flight playback rather than only a transport-side mirror.
+  - [x] Keep route-backed mix honesty intact: unsupported route shapes must not pretend to expose live controls they cannot honor.
+  - [x] Prove the supported live-mix path through seam-local backend tests rather than UI-only assertions.
 
-- [ ] Task 4: Define coherent transport behavior across audio device and sample-rate rebuilds (AC: 5)
-  - [ ] Treat device or sample-rate changes as transport-owned reset events: clear transport-owned playback state, clear engine transport work, and require a fresh play-start snapshot after rebuild.
-  - [ ] Do not allow stale sample-rate assumptions from an earlier play-start snapshot to survive an audio stream rebuild.
-  - [ ] Keep `src-tauri/src/playback/audio.rs` as the owner of stream lifetime and rebuild wiring rather than moving that responsibility into transport.
+- [x] Task 4: Define coherent transport behavior across audio device and sample-rate rebuilds (AC: 5)
+  - [x] Treat device or sample-rate changes as transport-owned reset events: clear transport-owned playback state, clear engine transport work, and require a fresh play-start snapshot after rebuild.
+  - [x] Do not allow stale sample-rate assumptions from an earlier play-start snapshot to survive an audio stream rebuild.
+  - [x] Keep `src-tauri/src/playback/audio.rs` as the owner of stream lifetime and rebuild wiring rather than moving that responsibility into transport.
 
-- [ ] Task 5: Add regression coverage and documentation for the durable start/pause/resume contract (AC: 1, 2, 3, 4, 5)
-  - [ ] Extend backend tests in `src-tauri/src/playback/transport.rs` and `src-tauri/src/playback/engine.rs` for pause clearing queued work, repeated cycles, resume from paused tick, multi-target hard resets, live mix updates, and device/sample-rate reset behavior.
-  - [ ] Extend backend tests around `src-tauri/src/playback/preparation.rs` only as needed to prove the play-start snapshot contract remains stable and readiness is still not polled in the render loop.
-  - [ ] Update `docs/architecture.md`, `docs/development-guide.md`, `docs/project-context.md`, and `.github/copilot-instructions.md` so transport-reset and multi-target playback rules stay explicit for later Epic 5 and Epic 6 work.
+- [x] Task 5: Add regression coverage and documentation for the durable start/pause/resume contract (AC: 1, 2, 3, 4, 5)
+  - [x] Extend backend tests in `src-tauri/src/playback/transport.rs` and `src-tauri/src/playback/engine.rs` for pause clearing queued work, repeated cycles, resume from paused tick, multi-target hard resets, live mix updates, and device/sample-rate reset behavior.
+  - [x] Extend backend tests around `src-tauri/src/playback/preparation.rs` only as needed to prove the play-start snapshot contract remains stable and readiness is still not polled in the render loop.
+  - [x] Update `docs/architecture.md`, `docs/development-guide.md`, `docs/project-context.md`, and `.github/copilot-instructions.md` so transport-reset and multi-target playback rules stay explicit for later Epic 5 and Epic 6 work.
+
+### Review Findings
+
+- [x] [Review][Patch] Pause and rebuild resume from an already-advanced transport tick [src-tauri/src/playback/transport.rs:587]
+- [x] [Review][Patch] Transport note bookkeeping mutates before render success [src-tauri/src/playback/engine.rs:134]
+- [x] [Review][Patch] Hard-reset teardown no longer guarantees slot runtime stop when no transport note is active [src-tauri/src/playback/engine.rs:312]
 
 ## Dev Notes
 
@@ -142,12 +148,27 @@ GPT-5.4
 
 #### Completion Notes List
 
-- Story rewritten and not yet implemented.
+- Pause, stop, and transport teardown now clear engine-owned transport work through one hard-reset path, including queued-event cleanup and deterministic retirement of active transport notes.
+- Resume continues through the ordinary `transport_play` snapshot path, repeated play/pause cycles stay stable, and unsupported routes remain scheduling no-ops while supported multi-target routes continue to participate.
+- Supported `volume`, `pan`, `mute`, and `solo` edits now recompute live backend mix truth for the engine during playback, and audio device/sample-rate rebuilds stop transport first and republish tick/tempo truth before the next play-start.
+- Added seam-local backend regression coverage in transport, engine, and audio tests; updated architecture and agent guidance docs to keep the reset contract explicit.
 
 #### File List
 
 - `_bmad-output/implementation-artifacts/5-1-start-pause-and-resume-trusted-score-playback.md`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `.github/copilot-instructions.md`
+- `docs/architecture.md`
+- `docs/development-guide.md`
+- `docs/project-context.md`
+- `src-tauri/src/bin/performance.rs`
+- `src-tauri/src/playback/audio.rs`
+- `src-tauri/src/playback/engine.rs`
+- `src-tauri/src/playback/transport.rs`
+- `src-tauri/src/score/instruments/mod.rs`
 
 #### Change Log
 
 - 2026-04-04: Reopened and rewrote Story 5.1 so it now owns play/pause/resume hardening, live mix truth during active playback, and coherent device/sample-rate reset semantics for the current multi-target transport path.
+- 2026-04-04: Implemented the hard-reset transport lifecycle, live engine mix propagation, audio rebuild reset handling, backend regression coverage, and the corresponding architecture/agent documentation updates.
+- 2026-04-04: Resolved code-review findings by rewinding pause/rebuild resume to the last queued tick when transport work is still pending, delaying transport note bookkeeping until render success, and restoring hard slot-runtime stop behavior for queued-only teardown cases.

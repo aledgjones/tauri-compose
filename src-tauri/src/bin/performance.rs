@@ -23,6 +23,18 @@ mod preferences {
 }
 
 mod playback {
+    pub mod engine {
+        use rustc_hash::FxHashMap;
+
+        use crate::playback::preparation::EffectivePlaybackMix;
+        use crate::utils::UniqueId;
+
+        pub(crate) fn sync_slot_mix_states(
+            _slot_mix_by_slot_id: FxHashMap<UniqueId, EffectivePlaybackMix>,
+        ) {
+        }
+    }
+
     pub mod plugin_inventory {
         use rustc_hash::FxHashMap;
         use std::path::PathBuf;
@@ -300,6 +312,102 @@ mod playback {
             let bpm = 120.0;
             shared.set_tempo(bpm);
             bpm
+        }
+    }
+
+    pub mod preparation {
+        use rustc_hash::FxHashMap;
+
+        use crate::playback::runtime_activation::PlaybackActivationRuntime;
+        use crate::score::playback::{ResolvedPlaybackRoute, ResolvedPlaybackRouteStatus};
+        use crate::score::Score;
+        use crate::utils::UniqueId;
+
+        #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+        pub struct EffectivePlaybackMix {
+            pub volume: u8,
+            pub pan: u8,
+            pub muted: bool,
+        }
+
+        pub fn effective_playback_mix_for_instrument(
+            score: &Score,
+            resolved_playback_route_by_instrument_id: &FxHashMap<UniqueId, ResolvedPlaybackRoute>,
+            instrument_id: UniqueId,
+        ) -> EffectivePlaybackMix {
+            let Some(instrument) = score.instruments.by_id.get(&instrument_id) else {
+                return EffectivePlaybackMix {
+                    volume: 127,
+                    pan: 64,
+                    muted: false,
+                };
+            };
+
+            let supported_mix_controls = resolved_playback_route_by_instrument_id
+                .get(&instrument_id)
+                .map(|route| route.supported_mix_controls)
+                .unwrap_or_default();
+            let supported_solo_active = score.instruments.by_id.iter().any(
+                |(candidate_instrument_id, candidate_instrument)| {
+                    let Some(resolved_route) =
+                        resolved_playback_route_by_instrument_id.get(candidate_instrument_id)
+                    else {
+                        return false;
+                    };
+
+                    resolved_route.status == ResolvedPlaybackRouteStatus::Ready
+                        && resolved_route.supported_mix_controls.solo
+                        && candidate_instrument.solo
+                },
+            );
+            let instrument_is_supported_solo = supported_mix_controls.solo && instrument.solo;
+
+            EffectivePlaybackMix {
+                volume: if supported_mix_controls.volume {
+                    instrument.volume
+                } else {
+                    127
+                },
+                pan: if supported_mix_controls.pan {
+                    instrument.pan
+                } else {
+                    64
+                },
+                muted: (supported_mix_controls.mute && instrument.mute)
+                    || (supported_solo_active && !instrument_is_supported_solo),
+            }
+        }
+
+        pub fn effective_playback_mix_by_slot_id(
+            score: &Score,
+            playback_runtime: &PlaybackActivationRuntime,
+        ) -> FxHashMap<UniqueId, EffectivePlaybackMix> {
+            let resolved_playback_route_by_instrument_id =
+                playback_runtime.resolved_playback_route_by_instrument_id(score);
+
+            score
+                .instruments
+                .by_id
+                .iter()
+                .filter_map(|(instrument_id, instrument)| {
+                    let slot_id = instrument.playback_route.as_ref()?.slot_id;
+                    let resolved_route =
+                        resolved_playback_route_by_instrument_id.get(instrument_id)?;
+
+                    if resolved_route.status != ResolvedPlaybackRouteStatus::Ready {
+                        return None;
+                    }
+
+                    Some((
+                        slot_id,
+                        effective_playback_mix_for_instrument(
+                            score,
+                            &resolved_playback_route_by_instrument_id,
+                            *instrument_id,
+                        ),
+                    ))
+                })
+                .collect()
         }
     }
 }

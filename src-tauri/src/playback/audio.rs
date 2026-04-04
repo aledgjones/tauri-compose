@@ -1,10 +1,15 @@
 use crate::playback::engine;
 use crate::playback::mixer::{self, MixerHandle};
+use crate::playback::transport::{
+    stop_transport_playback, sync_transport_to_app_state, TransportContext, TransportSharedState,
+};
+use crate::AppContextState;
 use crate::AudioContextState;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{Device, Host, Stream};
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
+use std::sync::atomic::Ordering;
 use std::sync::Mutex;
 use tauri::{AppHandle, Emitter, State};
 
@@ -194,25 +199,132 @@ impl AudioContext {
     }
 }
 
+fn resync_transport_after_audio_rebuild(
+    transport_shared: &TransportSharedState,
+    app_state: &AppContextState,
+) -> Result<(), String> {
+    let current_tick = transport_shared.current_tick.load(Ordering::Relaxed);
+    let app_ctx = app_state.lock().unwrap();
+    sync_transport_to_app_state(transport_shared, &app_ctx, current_tick);
+    Ok(())
+}
+
+fn reset_transport_for_audio_rebuild_with_stop<F>(
+    app_state: &AppContextState,
+    stop_transport: F,
+) -> Result<(), String>
+where
+    F: FnOnce() -> Result<TransportSharedState, String>,
+{
+    let transport_shared = stop_transport()?;
+    resync_transport_after_audio_rebuild(&transport_shared, app_state)
+}
+
+fn reset_transport_for_audio_rebuild(
+    transport_state: &Mutex<TransportContext>,
+    audio_state: &AudioContextState,
+    app_state: &AppContextState,
+) -> Result<(), String> {
+    reset_transport_for_audio_rebuild_with_stop(app_state, || {
+        stop_transport_playback(transport_state, audio_state)
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::playback::runtime_activation::PlaybackActivationRuntime;
+    use crate::score::components::duration::NoteDuration;
+    use crate::score::entries::{tempo::Tempo, Entry};
+    use crate::score::flows::Flow;
+    use crate::score::tracks::Track;
+    use crate::ui::Ui;
+    use crate::AppContext;
+    use std::sync::atomic::AtomicBool;
+    use std::sync::Arc;
+
+    fn make_app_context_with_tempo(flow_id: u64, tick: u64, bpm: u16) -> AppContextState {
+        let mut score = crate::score::Score::new();
+        let master_id = 2;
+        let mut flow = Flow::new(flow_id, master_id);
+        flow.length = tick + 32;
+
+        let mut master_track = Track::new(master_id);
+        master_track.insert_entry(Entry::Tempo(Tempo::new(
+            10,
+            tick,
+            String::new(),
+            NoteDuration::Quarter,
+            0,
+            bpm,
+            false,
+            false,
+            true,
+            false,
+        )));
+
+        score.flows.order.push(flow_id);
+        score.flows.by_id.insert(flow_id, flow);
+        score.tracks.by_id.insert(master_id, master_track);
+
+        let mut ui = Ui::new();
+        ui.flow_id = Some(flow_id);
+
+        Mutex::new(AppContext {
+            ui,
+            score,
+            playback_activation_runtime: PlaybackActivationRuntime::default(),
+            preferences: serde_json::from_str(r#"{"audition":true}"#).unwrap(),
+            next_id: 1,
+            current_file_path: None,
+        })
+    }
+
+    #[test]
+    fn reset_transport_for_audio_rebuild_republishes_backend_tempo_after_stop() {
+        let (_transport_state, transport_shared) = TransportContext::new();
+        transport_shared.current_tick.store(96, Ordering::Relaxed);
+        transport_shared.playing.store(false, Ordering::Release);
+        transport_shared.set_tempo(72.0);
+
+        let app_state = make_app_context_with_tempo(1, 64, 144);
+        let stop_called = Arc::new(AtomicBool::new(false));
+        let stop_called_flag = stop_called.clone();
+        let shared_for_stop = transport_shared.clone();
+
+        reset_transport_for_audio_rebuild_with_stop(&app_state, move || {
+            stop_called_flag.store(true, Ordering::Release);
+            Ok(shared_for_stop.clone())
+        })
+        .unwrap();
+
+        assert!(stop_called.load(Ordering::Acquire));
+        assert_eq!(transport_shared.current_tick.load(Ordering::Relaxed), 95);
+        assert_eq!(transport_shared.get_tempo(), 144.0);
+    }
+}
+
 #[tauri::command(rename_all = "snake_case")]
 pub fn audio_device_set(
     app: AppHandle,
     state: State<'_, AudioContextState>,
+    transport_state: State<'_, Mutex<TransportContext>>,
+    app_state: State<'_, AppContextState>,
     device_id: String,
 ) -> Result<(), String> {
-    let mut ctx = state.lock().unwrap();
-
-    let device_option = ctx
-        .host
-        .output_devices()
-        .map_err(|e| e.to_string())?
-        .find(|d| {
-            if let Ok(id) = d.id() {
-                id.to_string() == device_id
-            } else {
-                false
-            }
-        });
+    let device_option = {
+        let ctx = state.lock().unwrap();
+        ctx.host
+            .output_devices()
+            .map_err(|e| e.to_string())?
+            .find(|d| {
+                if let Ok(id) = d.id() {
+                    id.to_string() == device_id
+                } else {
+                    false
+                }
+            })
+    };
 
     if let Some(device) = device_option {
         let id = device.id().map_err(|e| e.to_string())?.to_string();
@@ -221,9 +333,15 @@ pub fn audio_device_set(
             .map_err(|e| e.to_string())?
             .sample_rate();
 
-        // Rebuild the stream on the new device
+        reset_transport_for_audio_rebuild(
+            transport_state.inner(),
+            state.inner(),
+            app_state.inner(),
+        )?;
+
         let (mixer_handle, stream) = AudioContext::build_stream(&device, sample_rate);
 
+        let mut ctx = state.lock().unwrap();
         ctx.active_device = ActiveDevice {
             device,
             id,
@@ -236,7 +354,7 @@ pub fn audio_device_set(
 
         Ok(())
     } else {
-        Err("Device not found".to_string())
+        Err(String::from("Device not found"))
     }
 }
 
@@ -244,40 +362,65 @@ pub fn audio_device_set(
 pub fn audio_device_sample_rate_set(
     app: AppHandle,
     state: State<'_, AudioContextState>,
+    transport_state: State<'_, Mutex<TransportContext>>,
+    app_state: State<'_, AppContextState>,
     sample_rate: u32,
-) {
+) -> Result<(), String> {
+    let device = {
+        let ctx = state.lock().unwrap();
+        ctx.active_device.device.clone()
+    };
+
+    reset_transport_for_audio_rebuild(transport_state.inner(), state.inner(), app_state.inner())?;
+
+    let (mixer_handle, stream) = AudioContext::build_stream(&device, sample_rate);
+
     let mut ctx = state.lock().unwrap();
 
     ctx.active_device.sample_rate = sample_rate;
-
-    // Rebuild the stream at the new sample rate
-    let (mixer_handle, stream) = AudioContext::build_stream(&ctx.active_device.device, sample_rate);
     ctx.mixer_handle = mixer_handle;
     ctx._stream = stream;
 
     ctx.emit(&app);
+
+    Ok(())
 }
 
 #[tauri::command(rename_all = "snake_case")]
 pub fn audio_devices_refresh(
     app: AppHandle,
     state: State<'_, AudioContextState>,
+    transport_state: State<'_, Mutex<TransportContext>>,
+    app_state: State<'_, AppContextState>,
 ) -> Result<(), String> {
-    let mut ctx = state.lock().unwrap();
-
-    let device_still_available = ctx.refresh_devices();
+    let device_still_available = {
+        let mut ctx = state.lock().unwrap();
+        ctx.refresh_devices()
+    };
 
     // If the current device is no longer available, switch to default
     if !device_still_available {
+        reset_transport_for_audio_rebuild(
+            transport_state.inner(),
+            state.inner(),
+            app_state.inner(),
+        )?;
+
         let default_device = AudioContext::default_device();
         let (mixer_handle, stream) =
             AudioContext::build_stream(&default_device.device, default_device.sample_rate);
 
+        let mut ctx = state.lock().unwrap();
+
         ctx.active_device = default_device;
         ctx.mixer_handle = mixer_handle;
         ctx._stream = stream;
+
+        ctx.emit(&app);
+        return Ok(());
     }
 
+    let ctx = state.lock().unwrap();
     ctx.emit(&app);
     Ok(())
 }

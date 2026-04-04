@@ -36,7 +36,14 @@ enum RenderActiveReason {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum RenderEventOwner {
+    Audition,
+    Transport,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct QueuedRenderEvent {
+    owner: RenderEventOwner,
     frames_until_dispatch: u64,
     kind: LiveRenderEventKind,
     pitch: u8,
@@ -51,6 +58,7 @@ struct SlotRenderState {
     transport_active: bool,
     tail_frames_remaining: u64,
     next_note_id: i32,
+    active_transport_note_ids: FxHashSet<i32>,
     queued_events: Vec<QueuedRenderEvent>,
 }
 
@@ -78,19 +86,32 @@ impl SlotRenderState {
             .sort_unstable_by_key(|queued| queued.frames_until_dispatch);
     }
 
-    fn requeue_due_events(&mut self, events: Vec<LiveRenderEvent>) {
+    fn requeue_due_events(&mut self, events: Vec<QueuedRenderEvent>) {
         for event in events {
-            self.queued_events.push(QueuedRenderEvent {
-                frames_until_dispatch: event.sample_offset as u64,
-                kind: event.kind,
-                pitch: event.pitch,
-                velocity: event.velocity,
-                note_id: event.note_id,
-            });
+            self.queued_events.push(event);
         }
 
         self.queued_events
             .sort_unstable_by_key(|queued| queued.frames_until_dispatch);
+    }
+
+    fn has_queued_transport_events(&self) -> bool {
+        self.queued_events
+            .iter()
+            .any(|event| event.owner == RenderEventOwner::Transport)
+    }
+
+    fn clear_transport_state(&mut self) -> bool {
+        let had_transport_state = self.transport_active
+            || !self.active_transport_note_ids.is_empty()
+            || self.has_queued_transport_events();
+
+        self.transport_active = false;
+        self.active_transport_note_ids.clear();
+        self.queued_events
+            .retain(|event| event.owner != RenderEventOwner::Transport);
+
+        had_transport_state && !self.is_render_active()
     }
 
     fn is_render_active(&self) -> bool {
@@ -101,20 +122,14 @@ impl SlotRenderState {
             || !self.queued_events.is_empty()
     }
 
-    fn collect_due_events(&mut self, frames_per_block: usize) -> Vec<LiveRenderEvent> {
+    fn collect_due_events(&mut self, frames_per_block: usize) -> Vec<QueuedRenderEvent> {
         let frames_per_block = frames_per_block as u64;
         let mut due_events = Vec::new();
         let mut remaining_events = Vec::with_capacity(self.queued_events.len());
 
         for mut queued in self.queued_events.drain(..) {
             if queued.frames_until_dispatch < frames_per_block {
-                due_events.push(LiveRenderEvent {
-                    sample_offset: queued.frames_until_dispatch as usize,
-                    kind: queued.kind,
-                    pitch: queued.pitch,
-                    velocity: queued.velocity,
-                    note_id: queued.note_id,
-                });
+                due_events.push(queued);
             } else {
                 queued.frames_until_dispatch -= frames_per_block;
                 remaining_events.push(queued);
@@ -122,8 +137,25 @@ impl SlotRenderState {
         }
 
         self.queued_events = remaining_events;
-        due_events.sort_unstable_by_key(|event| event.sample_offset);
+        due_events.sort_unstable_by_key(|event| event.frames_until_dispatch);
         due_events
+    }
+
+    fn apply_rendered_transport_events(&mut self, events: &[QueuedRenderEvent]) {
+        for event in events {
+            if event.owner != RenderEventOwner::Transport {
+                continue;
+            }
+
+            match event.kind {
+                LiveRenderEventKind::NoteOn => {
+                    self.active_transport_note_ids.insert(event.note_id);
+                }
+                LiveRenderEventKind::NoteOff => {
+                    self.active_transport_note_ids.remove(&event.note_id);
+                }
+            }
+        }
     }
 
     fn finish_block(&mut self, sample_rate: u32, frames_per_block: usize) {
@@ -236,6 +268,7 @@ impl ContinuousRenderEngineState {
         state.tail_frames_remaining = audition_release_tail_frames(sample_rate);
         let note_id = state.allocate_note_id();
         state.enqueue_event(QueuedRenderEvent {
+            owner: RenderEventOwner::Audition,
             frames_until_dispatch: 0,
             kind: LiveRenderEventKind::NoteOn,
             pitch: note.pitch,
@@ -245,6 +278,7 @@ impl ContinuousRenderEngineState {
 
         let duration_frames = (u64::from(sample_rate) * u64::from(note.duration_ms) / 1_000).max(1);
         state.enqueue_event(QueuedRenderEvent {
+            owner: RenderEventOwner::Audition,
             frames_until_dispatch: duration_frames,
             kind: LiveRenderEventKind::NoteOff,
             pitch: note.pitch,
@@ -265,6 +299,7 @@ impl ContinuousRenderEngineState {
         state.transport_active = true;
         let note_id = state.allocate_note_id();
         state.enqueue_event(QueuedRenderEvent {
+            owner: RenderEventOwner::Transport,
             frames_until_dispatch: sample_offset as u64,
             kind: LiveRenderEventKind::NoteOn,
             pitch,
@@ -272,12 +307,32 @@ impl ContinuousRenderEngineState {
             note_id,
         });
         state.enqueue_event(QueuedRenderEvent {
+            owner: RenderEventOwner::Transport,
             frames_until_dispatch: sample_offset as u64 + duration_frames.max(1),
             kind: LiveRenderEventKind::NoteOff,
             pitch,
             velocity: 0,
             note_id,
         });
+    }
+
+    fn clear_transport_playback(&mut self) -> Vec<UniqueId> {
+        let mut slots_to_stop = Vec::new();
+
+        for (slot_id, state) in &mut self.slot_states {
+            let should_stop = state.clear_transport_state();
+            if should_stop {
+                slots_to_stop.push(*slot_id);
+            }
+        }
+
+        slots_to_stop
+    }
+
+    fn has_pending_transport_work(&self) -> bool {
+        self.slot_states.values().any(|state| {
+            state.has_queued_transport_events() || !state.active_transport_note_ids.is_empty()
+        })
     }
 
     fn process_block<B: RenderBackend>(
@@ -292,7 +347,7 @@ impl ContinuousRenderEngineState {
         let slot_ids = self.slot_states.keys().copied().collect::<Vec<_>>();
 
         for slot_id in slot_ids {
-            let (mix, events) = {
+            let (mix, due_events) = {
                 let Some(slot_state) = self.slot_states.get_mut(&slot_id) else {
                     continue;
                 };
@@ -310,6 +365,17 @@ impl ContinuousRenderEngineState {
                 )
             };
 
+            let events = due_events
+                .iter()
+                .map(|event| LiveRenderEvent {
+                    sample_offset: event.frames_until_dispatch as usize,
+                    kind: event.kind,
+                    pitch: event.pitch,
+                    velocity: event.velocity,
+                    note_id: event.note_id,
+                })
+                .collect::<Vec<_>>();
+
             self.mix_scratch_buffer.clear();
             self.mix_scratch_buffer.resize(output.len(), 0.0);
             let outcome = backend.render_slot(
@@ -322,12 +388,17 @@ impl ContinuousRenderEngineState {
             );
 
             match outcome {
-                SlotRuntimeRenderOutcome::Rendered | SlotRuntimeRenderOutcome::SilenceOnly => {}
+                SlotRuntimeRenderOutcome::Rendered | SlotRuntimeRenderOutcome::SilenceOnly => {
+                    let Some(slot_state) = self.slot_states.get_mut(&slot_id) else {
+                        continue;
+                    };
+                    slot_state.apply_rendered_transport_events(&due_events);
+                }
                 SlotRuntimeRenderOutcome::Busy | SlotRuntimeRenderOutcome::MissingSession => {
                     let Some(slot_state) = self.slot_states.get_mut(&slot_id) else {
                         continue;
                     };
-                    slot_state.requeue_due_events(events);
+                    slot_state.requeue_due_events(due_events);
                     continue;
                 }
                 SlotRuntimeRenderOutcome::Unsupported => {
@@ -478,6 +549,21 @@ pub(crate) fn set_transport_render_targets(slot_ids: impl IntoIterator<Item = Un
     stop_slots(slots_to_stop);
 }
 
+pub(crate) fn clear_transport_playback() {
+    let slots_to_stop = continuous_render_engine()
+        .lock()
+        .unwrap()
+        .clear_transport_playback();
+    stop_slots(slots_to_stop);
+}
+
+pub(crate) fn transport_playback_has_pending_work() -> bool {
+    continuous_render_engine()
+        .lock()
+        .unwrap()
+        .has_pending_transport_work()
+}
+
 pub(crate) fn queue_audition_note(slot_id: UniqueId, sample_rate: u32, note: AuditionNote) {
     continuous_render_engine()
         .lock()
@@ -509,6 +595,41 @@ pub(crate) fn process_audio_block(output: &mut [f32], output_channels: usize, sa
         output_channels,
         sample_rate,
     );
+}
+
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct TransportPlaybackDebugState {
+    pub transport_active: bool,
+    pub queued_transport_event_count: usize,
+    pub active_transport_note_count: usize,
+}
+
+#[cfg(test)]
+pub(crate) fn transport_playback_debug_state(
+    slot_id: UniqueId,
+) -> Option<TransportPlaybackDebugState> {
+    let engine = continuous_render_engine().lock().unwrap();
+    let slot_state = engine.slot_states.get(&slot_id)?;
+
+    Some(TransportPlaybackDebugState {
+        transport_active: slot_state.transport_active,
+        queued_transport_event_count: slot_state
+            .queued_events
+            .iter()
+            .filter(|event| event.owner == RenderEventOwner::Transport)
+            .count(),
+        active_transport_note_count: slot_state.active_transport_note_ids.len(),
+    })
+}
+
+#[cfg(test)]
+pub(crate) fn reset_continuous_render_engine_for_tests() {
+    let mut engine = continuous_render_engine().lock().unwrap();
+    let slot_ids = engine.slot_states.keys().copied().collect::<Vec<_>>();
+    *engine = ContinuousRenderEngineState::default();
+    drop(engine);
+    stop_slots(slot_ids);
 }
 
 #[cfg(test)]
@@ -601,6 +722,7 @@ mod tests {
         slot_state.audition_active = false;
         slot_state.tail_frames_remaining = audition_release_tail_frames(1_000);
         slot_state.enqueue_event(QueuedRenderEvent {
+            owner: RenderEventOwner::Audition,
             frames_until_dispatch: 100,
             kind: LiveRenderEventKind::NoteOff,
             pitch: 64,
@@ -763,6 +885,47 @@ mod tests {
     }
 
     #[test]
+    fn busy_render_does_not_mutate_transport_note_tracking_before_success() {
+        struct BusyBackend;
+
+        impl RenderBackend for BusyBackend {
+            fn render_slot(
+                &self,
+                _slot_id: UniqueId,
+                _sample_rate: u32,
+                _frames_per_block: usize,
+                _events: &[LiveRenderEvent],
+                _output: &mut [f32],
+                _output_channels: usize,
+            ) -> SlotRuntimeRenderOutcome {
+                SlotRuntimeRenderOutcome::Busy
+            }
+
+            fn stop_slot(&self, _slot_id: UniqueId) {}
+        }
+
+        let mut engine = ContinuousRenderEngineState::default();
+        let mut output = [0.0_f32; 8];
+
+        engine.sync_live_slots(&FxHashSet::from_iter([18]));
+        engine.set_transport_targets(&FxHashSet::from_iter([18]));
+        engine.queue_transport_note(18, 0, 1, 64, 100);
+
+        engine.process_block(&BusyBackend, &mut output, 2, 1_000);
+
+        let slot_state = engine.slot_states.get(&18).unwrap();
+        assert!(slot_state.active_transport_note_ids.is_empty());
+        assert_eq!(
+            slot_state
+                .queued_events
+                .iter()
+                .filter(|event| event.owner == RenderEventOwner::Transport)
+                .count(),
+            2
+        );
+    }
+
+    #[test]
     fn supported_slot_mix_scales_rendered_output_gain() {
         let mut engine = ContinuousRenderEngineState::default();
         let backend = FakeRenderBackend {
@@ -871,5 +1034,86 @@ mod tests {
         assert_eq!(calls[2].events[0].sample_offset, 0);
         assert_eq!(calls[2].events[0].pitch, 67);
         assert_eq!(calls[2].events[0].velocity, 0);
+    }
+
+    #[test]
+    fn clearing_transport_playback_drops_transport_queue_and_stops_active_transport_slots() {
+        let mut engine = ContinuousRenderEngineState::default();
+        let backend = FakeRenderBackend::default();
+        let mut output = [0.0_f32; 8];
+
+        engine.sync_live_slots(&FxHashSet::from_iter([21]));
+        engine.set_transport_targets(&FxHashSet::from_iter([21]));
+        engine.queue_transport_note(21, 0, 8, 64, 100);
+        engine.process_block(&backend, &mut output, 2, 1_000);
+
+        let slot_state = engine.slot_states.get(&21).unwrap();
+        assert!(slot_state.transport_active);
+        assert_eq!(slot_state.active_transport_note_ids.len(), 1);
+        assert!(slot_state.has_queued_transport_events());
+
+        let slots_to_stop = engine.clear_transport_playback();
+
+        assert_eq!(slots_to_stop, vec![21]);
+        let slot_state = engine.slot_states.get(&21).unwrap();
+        assert!(!slot_state.transport_active);
+        assert!(slot_state.active_transport_note_ids.is_empty());
+        assert!(!slot_state.has_queued_transport_events());
+    }
+
+    #[test]
+    fn clearing_transport_playback_stops_slots_with_queued_transport_work_before_note_on() {
+        let mut engine = ContinuousRenderEngineState::default();
+
+        engine.sync_live_slots(&FxHashSet::from_iter([23]));
+        engine.set_transport_targets(&FxHashSet::from_iter([23]));
+        engine.queue_transport_note(23, 64, 8, 64, 100);
+
+        let slots_to_stop = engine.clear_transport_playback();
+
+        assert_eq!(slots_to_stop, vec![23]);
+        let slot_state = engine.slot_states.get(&23).unwrap();
+        assert!(!slot_state.transport_active);
+        assert!(slot_state.active_transport_note_ids.is_empty());
+        assert!(!slot_state.has_queued_transport_events());
+    }
+
+    #[test]
+    fn supported_slot_mix_updates_apply_to_in_flight_render_without_restart() {
+        let mut engine = ContinuousRenderEngineState::default();
+        let backend = FakeRenderBackend {
+            output_fill: 1.0,
+            ..Default::default()
+        };
+        let mut output = [0.0_f32; 4];
+
+        engine.sync_live_slots(&FxHashSet::from_iter([22]));
+        engine.set_slot_reason(22, RenderActiveReason::Editor, true);
+        engine.set_slot_mix(
+            22,
+            EffectivePlaybackMix {
+                volume: 127,
+                pan: 64,
+                muted: false,
+            },
+        );
+        engine.process_block(&backend, &mut output, 2, 48_000);
+        assert!(output.iter().all(|sample| (*sample - 1.0).abs() < 0.000_1));
+
+        output.fill(0.0);
+        engine.set_slot_mix(
+            22,
+            EffectivePlaybackMix {
+                volume: 32,
+                pan: 127,
+                muted: false,
+            },
+        );
+        engine.process_block(&backend, &mut output, 2, 48_000);
+
+        assert!(output[0].abs() < 0.000_1);
+        assert!((output[1] - (32.0 / 127.0)).abs() < 0.000_1);
+        assert!(output[2].abs() < 0.000_1);
+        assert!((output[3] - (32.0 / 127.0)).abs() < 0.000_1);
     }
 }
