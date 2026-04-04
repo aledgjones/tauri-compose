@@ -1,4 +1,4 @@
-import { FC, useState, useEffect } from "react";
+import { FC, useState } from "react";
 import { TextInputProps } from ".";
 import classNames from "classnames";
 import { Icon } from "../../ui/icon";
@@ -18,11 +18,6 @@ export const TextInput: FC<TextInputProps> = ({
   variant = "default",
 }) => {
   const [isFocused, setIsFocused] = useState(false);
-  const [internalValue, setInternalValue] = useState(value);
-
-  useEffect(() => {
-    setInternalValue(value);
-  }, [value]);
 
   return (
     <div className={className}>
@@ -41,9 +36,8 @@ export const TextInput: FC<TextInputProps> = ({
           placeholder={placeholder}
           readOnly={readOnly}
           type="text"
-          value={internalValue}
+          value={value}
           onChange={(e) => {
-            setInternalValue(e.target.value);
             onChange(e.target.value);
           }}
           onFocus={() => setIsFocused(true)}

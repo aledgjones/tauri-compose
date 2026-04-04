@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
+import { useState } from "react";
 import userEvent from "@testing-library/user-event";
 import { TextInput } from "./text-input";
 
@@ -74,5 +75,31 @@ describe("TextInput", () => {
       <TextInput type="text" value="" onChange={vi.fn()} variant="default" />,
     );
     expect(screen.getByRole("textbox").className).toContain("bg-neutral-800");
+  });
+
+  it("preserves the caret when inserting inside an existing value", () => {
+    const ControlledInput = () => {
+      const [value, setValue] = useState("hello");
+
+      return <TextInput type="text" value={value} onChange={setValue} />;
+    };
+
+    render(<ControlledInput />);
+
+    const input = screen.getByRole("textbox") as HTMLInputElement;
+    input.focus();
+    input.setSelectionRange(1, 1);
+
+    fireEvent.change(input, {
+      target: {
+        value: "hXello",
+        selectionStart: 2,
+        selectionEnd: 2,
+      },
+    });
+
+    expect(input).toHaveValue("hXello");
+    expect(input.selectionStart).toBe(2);
+    expect(input.selectionEnd).toBe(2);
   });
 });
