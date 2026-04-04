@@ -60,7 +60,10 @@ pub fn playback_audition_tone(
         prepared.preparation.sample_rate.max(sample_rate),
         prepared.note,
     );
-    if let Some(target) = prepared.preparation.supported_target.as_ref() {
+    if let Some(target) = prepared
+        .preparation
+        .supported_target_for_instrument(instrument_id)
+    {
         set_slot_mix(target.slot_id, target.effective_mix);
     }
     Ok(())

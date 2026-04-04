@@ -134,11 +134,22 @@ pub struct PreparedPlaybackTarget {
 pub struct PlaybackPreparation {
     pub sample_rate: u32,
     pub resolved_playback_route_by_instrument_id: FxHashMap<UniqueId, ResolvedPlaybackRoute>,
+    pub supported_targets: Vec<PreparedPlaybackTarget>,
     pub supported_target: Option<PreparedPlaybackTarget>,
     pub blockers: Vec<SingleInstrumentTrustGateBlocker>,
 }
 
 impl PlaybackPreparation {
+    pub fn supported_target_for_instrument(
+        &self,
+        instrument_id: UniqueId,
+    ) -> Option<&PreparedPlaybackTarget> {
+        self.supported_targets
+            .iter()
+            .find(|target| target.instrument_id == instrument_id)
+    }
+
+    #[cfg_attr(not(test), allow(dead_code))]
     pub fn blocks_supported_transport_start(&self) -> bool {
         self.supported_target.is_none()
             && self.blockers.iter().any(|blocker| {
@@ -150,6 +161,98 @@ impl PlaybackPreparation {
     }
 }
 
+fn prepared_supported_target_for_instrument(
+    score: &Score,
+    playback_runtime: &PlaybackActivationRuntime,
+    resolved_playback_route_by_instrument_id: &FxHashMap<UniqueId, ResolvedPlaybackRoute>,
+    instrument_id: UniqueId,
+) -> Option<PreparedPlaybackTarget> {
+    let route = score
+        .instruments
+        .by_id
+        .get(&instrument_id)?
+        .playback_route
+        .as_ref()?;
+
+    if route.target != PlaybackRouteTarget::plugin()
+        || route.address != PlaybackRouteAddress::root()
+    {
+        return None;
+    }
+
+    let resolved_route = resolved_playback_route_by_instrument_id.get(&instrument_id)?;
+    if resolved_route.status != ResolvedPlaybackRouteStatus::Ready {
+        return None;
+    }
+
+    let slot_target = playback_runtime.activated_slot_target(route.slot_id)?;
+
+    Some(PreparedPlaybackTarget {
+        instrument_id,
+        slot_id: route.slot_id,
+        plugin_id: slot_target.plugin_id.clone(),
+        bundle_path: slot_target.bundle_path.clone(),
+        plugin_state: slot_target.plugin_state.clone(),
+        target: route.target.clone(),
+        address: route.address.clone(),
+        supported_mix_controls: resolved_route.supported_mix_controls,
+        effective_mix: effective_playback_mix_for_instrument(
+            score,
+            resolved_playback_route_by_instrument_id,
+            instrument_id,
+        ),
+    })
+}
+
+fn select_supported_transport_target(
+    score: &Score,
+    playback_runtime: &PlaybackActivationRuntime,
+    resolved_playback_route_by_instrument_id: &FxHashMap<UniqueId, ResolvedPlaybackRoute>,
+) -> Option<PreparedPlaybackTarget> {
+    supported_transport_targets(
+        score,
+        playback_runtime,
+        resolved_playback_route_by_instrument_id,
+    )
+    .into_iter()
+    .next()
+}
+
+fn supported_transport_targets(
+    score: &Score,
+    playback_runtime: &PlaybackActivationRuntime,
+    resolved_playback_route_by_instrument_id: &FxHashMap<UniqueId, ResolvedPlaybackRoute>,
+) -> Vec<PreparedPlaybackTarget> {
+    let mut ready_instrument_ids = score
+        .instruments
+        .by_id
+        .keys()
+        .copied()
+        .filter(|instrument_id| {
+            prepared_supported_target_for_instrument(
+                score,
+                playback_runtime,
+                resolved_playback_route_by_instrument_id,
+                *instrument_id,
+            )
+            .is_some()
+        })
+        .collect::<Vec<_>>();
+    ready_instrument_ids.sort_unstable();
+
+    ready_instrument_ids
+        .into_iter()
+        .filter_map(|instrument_id| {
+            prepared_supported_target_for_instrument(
+                score,
+                playback_runtime,
+                resolved_playback_route_by_instrument_id,
+                instrument_id,
+            )
+        })
+        .collect()
+}
+
 pub fn prepare_supported_playback(
     score: &Score,
     playback_runtime: &PlaybackActivationRuntime,
@@ -158,47 +261,33 @@ pub fn prepare_supported_playback(
     let resolved_playback_route_by_instrument_id =
         playback_runtime.resolved_playback_route_by_instrument_id(score);
     let trust_gate = playback_runtime.single_instrument_trust_gate(score);
+    let supported_targets = supported_transport_targets(
+        score,
+        playback_runtime,
+        &resolved_playback_route_by_instrument_id,
+    );
 
     let supported_target = if trust_gate.status == SingleInstrumentTrustGateStatus::TransportReady {
-        trust_gate
-            .instrument_id
-            .zip(trust_gate.route.as_ref())
-            .and_then(|(instrument_id, activated_route)| {
-                let route = score
-                    .instruments
-                    .by_id
-                    .get(&instrument_id)?
-                    .playback_route
-                    .as_ref()?;
-                let slot_target =
-                    playback_runtime.activated_slot_target(activated_route.slot_id)?;
-
-                Some(PreparedPlaybackTarget {
-                    instrument_id,
-                    slot_id: activated_route.slot_id,
-                    plugin_id: activated_route.plugin_id.clone(),
-                    bundle_path: activated_route.bundle_path.clone(),
-                    plugin_state: slot_target.plugin_state.clone(),
-                    target: route.target.clone(),
-                    address: route.address.clone(),
-                    supported_mix_controls: resolved_playback_route_by_instrument_id
-                        .get(&instrument_id)
-                        .map(|resolved_route| resolved_route.supported_mix_controls)
-                        .unwrap_or_default(),
-                    effective_mix: effective_playback_mix_for_instrument(
-                        score,
-                        &resolved_playback_route_by_instrument_id,
-                        instrument_id,
-                    ),
-                })
-            })
+        trust_gate.instrument_id.and_then(|instrument_id| {
+            prepared_supported_target_for_instrument(
+                score,
+                playback_runtime,
+                &resolved_playback_route_by_instrument_id,
+                instrument_id,
+            )
+        })
     } else {
-        None
+        select_supported_transport_target(
+            score,
+            playback_runtime,
+            &resolved_playback_route_by_instrument_id,
+        )
     };
 
     PlaybackPreparation {
         sample_rate,
         resolved_playback_route_by_instrument_id,
+        supported_targets,
         supported_target,
         blockers: trust_gate.blockers,
     }
@@ -305,6 +394,7 @@ mod tests {
 
         assert_eq!(preparation.sample_rate, 96_000);
         assert!(preparation.blockers.is_empty());
+        assert_eq!(preparation.supported_targets.len(), 1);
         assert_eq!(
             preparation.supported_target,
             Some(PreparedPlaybackTarget {
@@ -454,7 +544,8 @@ mod tests {
     }
 
     #[test]
-    fn prepare_supported_playback_blocks_multiple_routed_instruments() {
+    fn prepare_supported_playback_keeps_a_deterministic_ready_target_when_multiple_routes_are_ready(
+    ) {
         let inventory = PluginInventoryContext::with_entries_for_tests(vec![available_entry(
             "plugin-a",
             "/Library/Audio/Plug-Ins/VST3/Plugin A.vst3",
@@ -492,7 +583,21 @@ mod tests {
         let runtime = PlaybackActivationRuntime::from_score_and_inventory(&score, &inventory);
         let preparation = prepare_supported_playback(&score, &runtime, 48_000);
 
-        assert_eq!(preparation.supported_target, None);
+        assert_eq!(
+            preparation
+                .supported_target
+                .as_ref()
+                .map(|target| target.instrument_id),
+            Some(10)
+        );
+        assert_eq!(
+            preparation
+                .supported_targets
+                .iter()
+                .map(|target| target.instrument_id)
+                .collect::<Vec<_>>(),
+            vec![10, 11]
+        );
         assert_eq!(
             preparation.blockers,
             vec![
@@ -501,7 +606,71 @@ mod tests {
                 }
             ]
         );
-        assert!(preparation.blocks_supported_transport_start());
+        assert!(!preparation.blocks_supported_transport_start());
+    }
+
+    #[test]
+    fn prepare_supported_playback_keeps_the_one_ready_target_when_other_routes_need_attention() {
+        let inventory = PluginInventoryContext::with_entries_for_tests(vec![available_entry(
+            "plugin-a",
+            "/Library/Audio/Plug-Ins/VST3/Plugin A.vst3",
+        )]);
+        let mut score = make_score();
+        score
+            .players
+            .by_id
+            .get_mut(&1)
+            .unwrap()
+            .instrument_ids
+            .push(11);
+        score.instruments.by_id.insert(
+            11,
+            Instrument {
+                id: 11,
+                definition_id: String::from("strings.viola"),
+                instrument_type: InstrumentType::Melodic,
+                long_name: String::from("Viola"),
+                short_name: String::from("Vla."),
+                stave_ids: vec![],
+                count: None,
+                playback_route: Some(InstrumentPlaybackRoute::direct(101)),
+                volume: 100,
+                pan: 64,
+                mute: false,
+                solo: false,
+            },
+        );
+        assign_slot(&mut score, 100, "plugin-a");
+        score.instruments.by_id.get_mut(&10).unwrap().playback_route =
+            Some(InstrumentPlaybackRoute::direct(100));
+        score.playback.rack.order.push(101);
+        score.playback.rack.by_id.insert(
+            101,
+            PlaybackRackSlot {
+                id: 101,
+                target: None,
+            },
+        );
+
+        let runtime = PlaybackActivationRuntime::from_score_and_inventory(&score, &inventory);
+        let preparation = prepare_supported_playback(&score, &runtime, 48_000);
+
+        assert_eq!(
+            preparation
+                .supported_target
+                .as_ref()
+                .map(|target| target.instrument_id),
+            Some(10)
+        );
+        assert_eq!(
+            preparation
+                .resolved_playback_route_by_instrument_id
+                .get(&11)
+                .unwrap()
+                .status,
+            ResolvedPlaybackRouteStatus::NeedsAttention
+        );
+        assert!(!preparation.blocks_supported_transport_start());
     }
 
     #[test]
@@ -562,6 +731,7 @@ mod tests {
         let preparation = prepare_supported_playback(&score, &runtime, 48_000);
 
         assert_eq!(preparation.supported_target, None);
+        assert!(preparation.supported_targets.is_empty());
         assert_eq!(
             preparation.blockers,
             vec![SingleInstrumentTrustGateBlocker::NoRoutedInstrument]

@@ -157,7 +157,6 @@ export const useKeyboardShortcuts = () => {
 
   const canAutoAuditionSelectedTone = useMemo(() => {
     return Boolean(
-      state.single_instrument_transport_ready &&
       selectedToneAudition &&
       canAuditionInstrument(state, selectedToneAudition.instrumentId),
     );

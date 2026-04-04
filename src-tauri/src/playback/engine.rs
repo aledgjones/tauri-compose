@@ -210,19 +210,19 @@ impl ContinuousRenderEngineState {
         !state.is_render_active()
     }
 
-    fn set_transport_target(&mut self, slot_id: Option<UniqueId>) -> Vec<UniqueId> {
+    fn set_transport_targets(&mut self, slot_ids: &FxHashSet<UniqueId>) -> Vec<UniqueId> {
         let mut inactive_slots = Vec::new();
         for (existing_slot_id, state) in &mut self.slot_states {
             let was_active = state.is_render_active();
-            state.transport_active = Some(*existing_slot_id) == slot_id;
+            state.transport_active = slot_ids.contains(existing_slot_id);
             if was_active && !state.is_render_active() {
                 inactive_slots.push(*existing_slot_id);
             }
         }
 
-        if let Some(slot_id) = slot_id {
+        for slot_id in slot_ids {
             self.slot_states
-                .entry(slot_id)
+                .entry(*slot_id)
                 .or_default()
                 .transport_active = true;
         }
@@ -248,6 +248,33 @@ impl ContinuousRenderEngineState {
             frames_until_dispatch: duration_frames,
             kind: LiveRenderEventKind::NoteOff,
             pitch: note.pitch,
+            velocity: 0,
+            note_id,
+        });
+    }
+
+    fn queue_transport_note(
+        &mut self,
+        slot_id: UniqueId,
+        sample_offset: usize,
+        duration_frames: u64,
+        pitch: u8,
+        velocity: u8,
+    ) {
+        let state = self.slot_states.entry(slot_id).or_default();
+        state.transport_active = true;
+        let note_id = state.allocate_note_id();
+        state.enqueue_event(QueuedRenderEvent {
+            frames_until_dispatch: sample_offset as u64,
+            kind: LiveRenderEventKind::NoteOn,
+            pitch,
+            velocity,
+            note_id,
+        });
+        state.enqueue_event(QueuedRenderEvent {
+            frames_until_dispatch: sample_offset as u64 + duration_frames.max(1),
+            kind: LiveRenderEventKind::NoteOff,
+            pitch,
             velocity: 0,
             note_id,
         });
@@ -442,11 +469,12 @@ pub(crate) fn set_slot_editor_render_active(slot_id: UniqueId, active: bool) {
     }
 }
 
-pub(crate) fn set_transport_render_target(slot_id: Option<UniqueId>) {
+pub(crate) fn set_transport_render_targets(slot_ids: impl IntoIterator<Item = UniqueId>) {
+    let active_slot_ids = FxHashSet::from_iter(slot_ids);
     let slots_to_stop = continuous_render_engine()
         .lock()
         .unwrap()
-        .set_transport_target(slot_id);
+        .set_transport_targets(&active_slot_ids);
     stop_slots(slots_to_stop);
 }
 
@@ -455,6 +483,19 @@ pub(crate) fn queue_audition_note(slot_id: UniqueId, sample_rate: u32, note: Aud
         .lock()
         .unwrap()
         .queue_audition_note(slot_id, sample_rate, note);
+}
+
+pub(crate) fn queue_transport_note(
+    slot_id: UniqueId,
+    sample_offset: usize,
+    duration_frames: u64,
+    pitch: u8,
+    velocity: u8,
+) {
+    continuous_render_engine()
+        .lock()
+        .unwrap()
+        .queue_transport_note(slot_id, sample_offset, duration_frames, pitch, velocity);
 }
 
 pub(crate) fn process_audio_block(output: &mut [f32], output_channels: usize, sample_rate: u32) {
@@ -631,21 +672,37 @@ mod tests {
     }
 
     #[test]
-    fn transport_target_switches_without_reassigning_stream_ownership() {
+    fn transport_targets_switch_without_reassigning_stream_ownership() {
         let mut engine = ContinuousRenderEngineState::default();
 
         engine.sync_live_slots(&FxHashSet::from_iter([1, 2]));
-        assert!(engine.set_transport_target(Some(1)).is_empty());
+        assert!(engine
+            .set_transport_targets(&FxHashSet::from_iter([1]))
+            .is_empty());
 
         let first = engine.slot_states.get(&1).unwrap();
         let second = engine.slot_states.get(&2).unwrap();
         assert!(first.transport_active);
         assert!(!second.transport_active);
 
-        let inactive = engine.set_transport_target(Some(2));
+        let inactive = engine.set_transport_targets(&FxHashSet::from_iter([2]));
         assert_eq!(inactive, vec![1]);
         assert!(!engine.slot_states.get(&1).unwrap().transport_active);
         assert!(engine.slot_states.get(&2).unwrap().transport_active);
+    }
+
+    #[test]
+    fn transport_targets_keep_multiple_slots_render_active() {
+        let mut engine = ContinuousRenderEngineState::default();
+
+        engine.sync_live_slots(&FxHashSet::from_iter([1, 2, 3]));
+        assert!(engine
+            .set_transport_targets(&FxHashSet::from_iter([1, 3]))
+            .is_empty());
+
+        assert!(engine.slot_states.get(&1).unwrap().transport_active);
+        assert!(!engine.slot_states.get(&2).unwrap().transport_active);
+        assert!(engine.slot_states.get(&3).unwrap().transport_active);
     }
 
     #[test]
@@ -785,5 +842,34 @@ mod tests {
         assert!(output[1].abs() < 0.000_1);
         assert!((output[2] - 1.0).abs() < 0.000_1);
         assert!(output[3].abs() < 0.000_1);
+    }
+
+    #[test]
+    fn queued_transport_note_dispatches_note_on_and_note_off_across_blocks() {
+        let mut engine = ContinuousRenderEngineState::default();
+        let backend = FakeRenderBackend::default();
+        let mut output = [0.0_f32; 8];
+
+        engine.sync_live_slots(&FxHashSet::from_iter([14]));
+        engine.set_transport_targets(&FxHashSet::from_iter([14]));
+        engine.queue_transport_note(14, 2, 6, 67, 101);
+
+        engine.process_block(&backend, &mut output, 2, 1_000);
+        engine.process_block(&backend, &mut output, 2, 1_000);
+        engine.process_block(&backend, &mut output, 2, 1_000);
+
+        let calls = backend.render_calls.borrow();
+        assert_eq!(calls.len(), 3);
+        assert_eq!(calls[0].events.len(), 1);
+        assert_eq!(calls[0].events[0].kind, LiveRenderEventKind::NoteOn);
+        assert_eq!(calls[0].events[0].sample_offset, 2);
+        assert_eq!(calls[0].events[0].pitch, 67);
+        assert_eq!(calls[0].events[0].velocity, 101);
+        assert!(calls[1].events.is_empty());
+        assert_eq!(calls[2].events.len(), 1);
+        assert_eq!(calls[2].events[0].kind, LiveRenderEventKind::NoteOff);
+        assert_eq!(calls[2].events[0].sample_offset, 0);
+        assert_eq!(calls[2].events[0].pitch, 67);
+        assert_eq!(calls[2].events[0].velocity, 0);
     }
 }

@@ -1647,10 +1647,13 @@ describe("useKeyboardShortcuts", () => {
     );
   });
 
-  it("auditions the selected tone when transport readiness flips to true after selection", async () => {
+  it("auditions the selected tone when its route becomes ready even if transport trust stays false", async () => {
     const initialState = buildStateWithToneSelection();
     initialState.preferences = { ...initialState.preferences, audition: true };
-    initialState.resolved_playback_route_by_instrument_id = {
+    initialState.single_instrument_transport_ready = false;
+
+    const readyState = structuredClone(initialState);
+    readyState.resolved_playback_route_by_instrument_id = {
       [INSTRUMENT_ID]: {
         status: 1,
         slot_id: 77,
@@ -1660,10 +1663,6 @@ describe("useKeyboardShortcuts", () => {
         address: null,
       },
     };
-    initialState.single_instrument_transport_ready = false;
-
-    const readyState = structuredClone(initialState);
-    readyState.single_instrument_transport_ready = true;
 
     let currentAppState = initialState;
 
@@ -1701,6 +1700,46 @@ describe("useKeyboardShortcuts", () => {
     expect(actions.transport.auditionTone).toHaveBeenCalledWith(
       INSTRUMENT_ID,
       60,
+    );
+  });
+
+  it("auditions pitch edits when the route is ready even if single-instrument transport trust is false", async () => {
+    const state = buildStateWithToneSelection();
+    state.single_instrument_transport_ready = false;
+    state.preferences = { ...state.preferences, audition: true };
+    state.resolved_playback_route_by_instrument_id = {
+      [INSTRUMENT_ID]: {
+        status: 1,
+        slot_id: 77,
+        slot_target: { plugin_id: "plugin-abc" },
+        effective_plugin_id: "plugin-abc",
+        target: null,
+        address: null,
+      },
+    };
+
+    vi.mocked(actions.score.tone.shiftPitchByStep).mockResolvedValueOnce(61);
+
+    renderHook(() => useKeyboardShortcuts(), {
+      wrapper: createWrapper({ appState: state }),
+    });
+
+    await act(async () => {
+      window.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "ArrowUp", altKey: true }),
+      );
+      await Promise.resolve();
+    });
+
+    expect(actions.score.tone.shiftPitchByStep).toHaveBeenCalledWith(
+      TRACK_ID,
+      null,
+      TONE_ID,
+      1,
+    );
+    expect(actions.transport.auditionTone).toHaveBeenCalledWith(
+      INSTRUMENT_ID,
+      61,
     );
   });
 
