@@ -110,7 +110,7 @@ use std::sync::atomic::Ordering;
 use std::sync::Mutex;
 use std::time::Instant;
 use tauri::menu::{AboutMetadata, Menu, MenuItem, PredefinedMenuItem, Submenu};
-use tauri::{AppHandle, Emitter, Manager, State};
+use tauri::{include_image, AppHandle, Emitter, Manager, State};
 use ui::renderer::{
     ui_renderer_bounds_set, ui_renderer_debug_toggle, ui_renderer_pan_set, ui_renderer_zoom_set,
 };
@@ -579,6 +579,7 @@ pub fn run() {
                     version: Some(app.package_info().version.to_string()),
                     authors: Some(vec!["Aled Jones <aledjones.viola@gmail.com>".to_string()]),
                     copyright: Some("© 2025".to_string()),
+                    icon: Some(include_image!("./icons/32x32.png")),
                     ..Default::default()
                 }),
             )?;
