@@ -131,7 +131,7 @@ const PluginTile: FC<PluginTileProps> = ({ plugin }) => {
     {
       "border-emerald-700/70 bg-emerald-500/10 text-emerald-100":
         displayStatus === "available",
-      "border-amber-700/70 bg-amber-500/10 text-amber-100":
+      "border-neutral-700/70 bg-neutral-500/10 text-neutral-200":
         displayStatus === "not_supported",
       "border-rose-700/70 bg-rose-500/10 text-rose-100":
         displayStatus === "unavailable",
@@ -141,7 +141,7 @@ const PluginTile: FC<PluginTileProps> = ({ plugin }) => {
     displayStatus === "available"
       ? "text-emerald-200"
       : displayStatus === "not_supported"
-        ? "text-amber-200"
+        ? "text-neutral-300"
         : "text-rose-200";
   const subtitle = getPluginPathSubtitle(plugin);
   const badgeLabel = getPluginBadgeLabel(plugin.name);

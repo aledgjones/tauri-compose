@@ -345,7 +345,7 @@ describe("Plugins", () => {
     expect(screen.getByText("Not supported")).toBeInTheDocument();
     expect(screen.getByLabelText("Status: Not supported")).toBeInTheDocument();
     expect(screen.getByLabelText("Status: Not supported").className).toContain(
-      "bg-amber-500/10",
+      "bg-neutral-500/10",
     );
   });
 
