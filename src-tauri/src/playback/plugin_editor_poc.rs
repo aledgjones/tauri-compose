@@ -140,31 +140,6 @@ enum PluginHostSyncReason {
     WindowResized,
 }
 
-fn plugin_host_phase_label(phase: PluginHostLifecyclePhase) -> &'static str {
-    match phase {
-        PluginHostLifecyclePhase::Idle => "Idle",
-        PluginHostLifecyclePhase::Reserved => "Reserved",
-        PluginHostLifecyclePhase::Attached => "Attached",
-        PluginHostLifecyclePhase::Detached => "Detached",
-        PluginHostLifecyclePhase::Closing => "Closing",
-    }
-}
-
-fn plugin_host_lifecycle_snapshot() -> String {
-    match active_plugin_host_lifecycle().lock() {
-        Ok(state) => format!(
-            "phase={} target={}",
-            plugin_host_phase_label(state.phase),
-            state
-                .target
-                .as_ref()
-                .map(ToString::to_string)
-                .unwrap_or_else(|| String::from("<none>"))
-        ),
-        Err(_) => String::from("phase=<poisoned> target=<unavailable>"),
-    }
-}
-
 fn active_plugin_host_lifecycle() -> &'static Mutex<PluginHostLifecycleState> {
     static ACTIVE_PLUGIN_HOST_LIFECYCLE: OnceLock<Mutex<PluginHostLifecycleState>> =
         OnceLock::new();
@@ -187,9 +162,6 @@ fn clear_stale_plugin_host_lifecycle(
             PluginHostLifecyclePhase::Attached | PluginHostLifecyclePhase::Closing
         )
     {
-        eprintln!(
-            "plugin_editor_poc: clearing stale plugin host lifecycle reservation without a live host window"
-        );
         reset_plugin_host_lifecycle(state);
     }
 }
@@ -230,12 +202,6 @@ fn reserve_plugin_target(
     target: &PluginEditorTarget,
     host_window_exists: bool,
 ) -> Result<PluginTargetReservation, String> {
-    eprintln!(
-        "plugin_editor_poc: reserve requested target={} host_window_exists={} {}",
-        target,
-        host_window_exists,
-        plugin_host_lifecycle_snapshot()
-    );
     let mut lifecycle = active_plugin_host_lifecycle()
         .lock()
         .map_err(|_| String::from("Failed to read plugin editor POC target state"))?;
@@ -244,33 +210,16 @@ fn reserve_plugin_target(
 
     if let Some(active_target) = lifecycle.target.as_ref() {
         if active_target != target {
-            eprintln!(
-                "plugin_editor_poc: reserve rejected target={} active_target={} phase={}",
-                target,
-                active_target,
-                plugin_host_phase_label(lifecycle.phase)
-            );
             return Err(String::from(
                 "The plugin editor POC window is already open for a different target. Close it before switching slot or plugin targets.",
             ));
         }
-
-        eprintln!(
-            "plugin_editor_poc: reserve reused target={} phase={}",
-            target,
-            plugin_host_phase_label(lifecycle.phase)
-        );
 
         return Ok(PluginTargetReservation::AlreadyReserved(lifecycle.phase));
     }
 
     lifecycle.target = Some(target.clone());
     lifecycle.phase = PluginHostLifecyclePhase::Reserved;
-    eprintln!(
-        "plugin_editor_poc: reserve acquired target={} phase={}",
-        target,
-        plugin_host_phase_label(lifecycle.phase)
-    );
     Ok(PluginTargetReservation::Acquired)
 }
 
@@ -303,11 +252,6 @@ fn mark_plugin_target_attached(target: &PluginEditorTarget) {
             if let Some(slot_id) = target.slot_id {
                 set_slot_editor_render_active(slot_id, true);
             }
-            eprintln!(
-                "plugin_editor_poc: lifecycle attached target={} phase={}",
-                target,
-                plugin_host_phase_label(lifecycle.phase)
-            );
         }
     }
 }
@@ -319,11 +263,6 @@ fn mark_plugin_target_detached(target: &PluginEditorTarget) {
             if let Some(slot_id) = target.slot_id {
                 set_slot_editor_render_active(slot_id, false);
             }
-            eprintln!(
-                "plugin_editor_poc: lifecycle detached target={} phase={}",
-                target,
-                plugin_host_phase_label(lifecycle.phase)
-            );
         }
     }
 }
@@ -337,15 +276,6 @@ fn begin_plugin_target_close(target: Option<&PluginEditorTarget>) {
 
         if should_close {
             lifecycle.phase = PluginHostLifecyclePhase::Closing;
-            eprintln!(
-                "plugin_editor_poc: lifecycle closing target={} phase={}",
-                lifecycle
-                    .target
-                    .as_ref()
-                    .map(ToString::to_string)
-                    .unwrap_or_else(|| String::from("<none>")),
-                plugin_host_phase_label(lifecycle.phase)
-            );
         }
     }
 }
@@ -356,16 +286,7 @@ fn release_reserved_plugin_target(target: &PluginEditorTarget) {
             if let Some(slot_id) = target.slot_id {
                 set_slot_editor_render_active(slot_id, false);
             }
-            eprintln!(
-                "plugin_editor_poc: releasing reservation for target={} from phase={}",
-                target,
-                plugin_host_phase_label(lifecycle.phase)
-            );
             reset_plugin_host_lifecycle(&mut lifecycle);
-            eprintln!(
-                "plugin_editor_poc: reservation released phase={}",
-                plugin_host_phase_label(lifecycle.phase)
-            );
         }
     }
 }
@@ -375,20 +296,7 @@ fn clear_reserved_plugin_target() {
         if let Some(slot_id) = lifecycle.target.as_ref().and_then(|target| target.slot_id) {
             set_slot_editor_render_active(slot_id, false);
         }
-        eprintln!(
-            "plugin_editor_poc: clearing reservation from phase={} target={}",
-            plugin_host_phase_label(lifecycle.phase),
-            lifecycle
-                .target
-                .as_ref()
-                .map(ToString::to_string)
-                .unwrap_or_else(|| String::from("<none>"))
-        );
         reset_plugin_host_lifecycle(&mut lifecycle);
-        eprintln!(
-            "plugin_editor_poc: reservation cleared phase={}",
-            plugin_host_phase_label(lifecycle.phase)
-        );
     }
 }
 
@@ -461,27 +369,13 @@ fn emit_editor_host_validation(
     validation: PluginEditorHostValidation,
 ) {
     let Ok(mut inventory) = plugin_inventory_state.lock() else {
-        eprintln!(
-            "plugin_editor_poc: failed to acquire plugin inventory state to record editor-host validation"
-        );
         return;
     };
 
     match inventory.update_editor_host_validation_for_bundle_path(plugin_path, validation) {
         Ok(true) => inventory.emit(app),
-        Ok(false) => {
-            eprintln!(
-                "plugin_editor_poc: editor-host validation target not found in inventory for {}",
-                plugin_path.display()
-            );
-        }
-        Err(error) => {
-            eprintln!(
-                "plugin_editor_poc: failed to persist editor-host validation for {}: {}",
-                plugin_path.display(),
-                error
-            );
-        }
+        Ok(false) => {}
+        Err(_error) => {}
     }
 }
 
@@ -523,15 +417,7 @@ fn release_detached_plugin_host_for_target_switch(
         return Ok(());
     };
 
-    eprintln!(
-        "plugin_editor_poc: switching detached target from {} to {} before open",
-        detached_target, requested_target
-    );
-
     if detached_target.slot_id.is_some() {
-        eprintln!(
-            "plugin_editor_poc: preserving detached slot-owned runtime session while clearing editor reservation for target switch"
-        );
         release_reserved_plugin_target(&detached_target);
         return Ok(());
     }
@@ -727,16 +613,11 @@ fn build_host_window(app: &AppHandle) -> Result<WebviewWindow, String> {
 
 fn log_window_event(window: &WebviewWindow, event: &WindowEvent) {
     match event {
-        WindowEvent::Resized(size) => {
-            eprintln!(
-                "plugin_editor_poc: host window resized to {}x{}",
-                size.width, size.height
-            );
+        WindowEvent::Resized(_size) => {
             #[cfg(target_os = "macos")]
             sync_active_plugin_host(window, None, PluginHostSyncReason::WindowResized);
         }
         WindowEvent::Focused(focused) => {
-            eprintln!("plugin_editor_poc: host window focus changed: {}", focused);
             #[cfg(target_os = "macos")]
             sync_active_plugin_host(
                 window,
@@ -745,25 +626,14 @@ fn log_window_event(window: &WebviewWindow, event: &WindowEvent) {
             );
         }
         WindowEvent::CloseRequested { .. } => {
-            eprintln!(
-                "plugin_editor_poc: host window close requested label={} {}",
-                window.label(),
-                plugin_host_lifecycle_snapshot()
-            );
             let active_target = active_plugin_target_identity();
             begin_plugin_target_close(active_target.as_ref());
             #[cfg(target_os = "macos")]
             prepare_active_plugin_host_session_for_close(window);
         }
         WindowEvent::Destroyed => {
-            eprintln!(
-                "plugin_editor_poc: host window destroyed event label={} {}",
-                window.label(),
-                plugin_host_lifecycle_snapshot()
-            );
             #[cfg(target_os = "macos")]
             cleanup_active_plugin_host_session(window);
-            eprintln!("plugin_editor_poc: host window destroyed");
         }
         _ => {}
     }
@@ -961,24 +831,6 @@ mod macos_host {
         }
     }
 
-    fn slot_runtime_session_snapshot(slot_id: UniqueId) -> String {
-        slot_runtime_sessions()
-            .lock()
-            .ok()
-            .and_then(|sessions| {
-                sessions.get(&slot_id).map(|session| {
-                    format!(
-                        "session={} close_prepared={} view_attached={} can_resize={}",
-                        session.target,
-                        session.close_prepared,
-                        session.view_attached,
-                        session.plugin_can_resize
-                    )
-                })
-            })
-            .unwrap_or_else(|| String::from("session=<none>"))
-    }
-
     fn schedule_non_resizable_attach_layout_sync(window: &WebviewWindow) {
         let scheduled_window = window.clone();
         tauri::async_runtime::spawn(async move {
@@ -1014,13 +866,6 @@ mod macos_host {
                     sync_host_container_subviews_to_bounds(&*host_view);
                 }
                 let mut rect = view_rect_for_host_frame(host_frame);
-                eprintln!(
-                    "plugin_editor_poc: deferred non-resizable attach layout sync host_frame=({}, {}, {}, {})",
-                    host_frame.origin.x,
-                    host_frame.origin.y,
-                    host_frame.size.width,
-                    host_frame.size.height
-                );
                 let _ = unsafe { view.onSize(&mut rect) };
             });
         });
@@ -1031,13 +876,6 @@ mod macos_host {
         width: f64,
         height: f64,
     ) -> Result<(), String> {
-        eprintln!(
-            "plugin_editor_poc: applying deferred host resize to {}x{} on_main_thread={} {}",
-            width,
-            height,
-            MainThreadMarker::new().is_some(),
-            super::plugin_host_lifecycle_snapshot()
-        );
 
         let resize_window = window.clone();
         let resize_window_for_callback = resize_window.clone();
@@ -1080,38 +918,16 @@ mod macos_host {
 
         match resize_result {
             Ok(()) => {
-                eprintln!(
-                    "plugin_editor_poc: deferred host resize applied to {}x{}",
-                    width, height
-                );
                 pending_plugin_requested_resize().store(true, Ordering::Release);
-                eprintln!(
-                    "plugin_editor_poc: scheduling post-resize probes target={}x{} {}",
-                    width,
-                    height,
-                    super::plugin_host_lifecycle_snapshot()
-                );
                 let followup_window = window.clone();
-                if let Err(error) = followup_window.run_on_main_thread(move || {
-                    eprintln!(
-                        "plugin_editor_poc: post-resize main-thread tick target={}x{} {}",
-                        width,
-                        height,
-                        super::plugin_host_lifecycle_snapshot()
-                    );
+                if let Err(_error) = followup_window.run_on_main_thread(move || {
                 }) {
-                    eprintln!(
-                        "plugin_editor_poc: failed to schedule post-resize main-thread tick target={}x{}: {}",
-                        width,
-                        height,
-                        error
-                    );
                 }
                 let delayed_window = window.clone();
                 std::thread::spawn(move || {
                     std::thread::sleep(Duration::from_millis(50));
                     let delayed_callback_window = delayed_window.clone();
-                    if let Err(error) = delayed_window.run_on_main_thread(move || {
+                    if let Err(_error) = delayed_window.run_on_main_thread(move || {
                         let content_size = delayed_callback_window
                             .ns_window()
                             .ok()
@@ -1126,41 +942,15 @@ mod macos_host {
                             });
 
                         match content_size {
-                            Some((current_width, current_height)) => {
-                                eprintln!(
-                                    "plugin_editor_poc: delayed post-resize sample target={}x{} actual={}x{} {}",
-                                    width,
-                                    height,
-                                    current_width,
-                                    current_height,
-                                    super::plugin_host_lifecycle_snapshot()
-                                );
-                            }
-                            None => {
-                                eprintln!(
-                                    "plugin_editor_poc: delayed post-resize sample target={}x{} actual=<unavailable> {}",
-                                    width,
-                                    height,
-                                    super::plugin_host_lifecycle_snapshot()
-                                );
-                            }
+                            Some((_current_width, _current_height)) => {}
+                            None => {}
                         }
                     }) {
-                        eprintln!(
-                            "plugin_editor_poc: failed to schedule delayed post-resize sample target={}x{}: {}",
-                            width,
-                            height,
-                            error
-                        );
                     }
                 });
                 Ok(())
             }
             Err(error) => {
-                eprintln!(
-                    "plugin_editor_poc: failed to apply deferred host resize to {}x{}: {}",
-                    width, height, error
-                );
                 Err(error)
             }
         }
@@ -1210,33 +1000,16 @@ mod macos_host {
         if let Ok(mut queued_resize) = queued_plugin_requested_resize().lock() {
             *queued_resize = Some((width, height));
         } else {
-            eprintln!(
-                "plugin_editor_poc: failed to queue host-driven resize {}x{} because the resize queue lock is poisoned",
-                width, height
-            );
             return;
         }
 
         if !dispatch_immediately {
-            eprintln!(
-                "plugin_editor_poc: buffered host-driven resize {}x{} until reattach completes {}",
-                width,
-                height,
-                super::plugin_host_lifecycle_snapshot()
-            );
             return;
         }
 
         let already_dispatching = plugin_requested_resize_dispatch_in_flight()
             .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
             .is_err();
-        eprintln!(
-            "plugin_editor_poc: queued host-driven resize {}x{} dispatch_in_flight={} {}",
-            width,
-            height,
-            already_dispatching,
-            super::plugin_host_lifecycle_snapshot()
-        );
 
         if already_dispatching {
             return;
@@ -1261,59 +1034,15 @@ mod macos_host {
         if already_dispatching {
             return Ok(());
         }
-
-        eprintln!(
-            "plugin_editor_poc: dispatching buffered host-driven resize after reattach with delay={}ms {}",
-            BUFFERED_REATTACH_RESIZE_DELAY_MS,
-            super::plugin_host_lifecycle_snapshot()
-        );
         std::thread::sleep(Duration::from_millis(BUFFERED_REATTACH_RESIZE_DELAY_MS));
         flush_queued_plugin_resize(window)
     }
 
-    fn active_session_snapshot() -> String {
-        match super::active_plugin_target_identity() {
-            Some(target) => match target.slot_id {
-                Some(slot_id) => slot_runtime_session_snapshot(slot_id),
-                None => match active_plugin_host_session().lock() {
-                    Ok(active_session) => active_session
-                        .as_ref()
-                        .map(|session| {
-                            format!(
-                                "session={} close_prepared={} view_attached={} can_resize={}",
-                                session.target,
-                                session.close_prepared,
-                                session.view_attached,
-                                session.plugin_can_resize
-                            )
-                        })
-                        .unwrap_or_else(|| String::from("session=<none>")),
-                    Err(_) => String::from("session=<poisoned>"),
-                },
-            },
-            None => String::from("session=<none>"),
-        }
-    }
-
-    fn log_main_thread_wait_start(context: &str) -> Instant {
-        eprintln!(
-            "plugin_editor_poc: wait-start context={} {} {}",
-            context,
-            super::plugin_host_lifecycle_snapshot(),
-            active_session_snapshot()
-        );
+    fn log_main_thread_wait_start(_context: &str) -> Instant {
         Instant::now()
     }
 
-    fn log_main_thread_wait_finish(context: &str, started_at: Instant) {
-        eprintln!(
-            "plugin_editor_poc: wait-finish context={} elapsed_ms={} {} {}",
-            context,
-            started_at.elapsed().as_millis(),
-            super::plugin_host_lifecycle_snapshot(),
-            active_session_snapshot()
-        );
-    }
+    fn log_main_thread_wait_finish(_context: &str, _started_at: Instant) {}
 
     pub(crate) fn live_plugin_host_attached() -> bool {
         active_session_view_state().is_some()
@@ -1321,13 +1050,6 @@ mod macos_host {
 
     fn finish_plugin_host_session_shutdown(session: PluginHostSession) {
         let target = session.target.clone();
-        let plugin_path = session.plugin_path.clone();
-        eprintln!(
-            "plugin_editor_poc: tearing down active plugin host for {} on_main_thread={} {}",
-            plugin_path.display(),
-            MainThreadMarker::new().is_some(),
-            super::plugin_host_lifecycle_snapshot()
-        );
         clear_pending_plugin_resize_request();
         session.shutdown();
         super::release_reserved_plugin_target(&target);
@@ -2332,11 +2054,6 @@ mod macos_host {
                     "Failed to allocate the VST3 plug-frame shim.",
                 )
             })?;
-
-            eprintln!(
-                "plugin_editor_poc: creating editor view for '{}'",
-                self.plugin_path.display()
-            );
             let view = unsafe { ComPtr::from_raw(self.controller.createView(ViewType::kEditor)) }
                 .ok_or_else(|| {
                     PluginEditorHostAttemptError::new(
@@ -2344,17 +2061,8 @@ mod macos_host {
                         "Plugin editor POC did not receive a plugin editor view. The selected VST3 may not expose an editor.",
                     )
                 })?;
-            eprintln!(
-                "plugin_editor_poc: created editor view for '{}'",
-                self.plugin_path.display()
-            );
 
             let platform_supported = unsafe { view.isPlatformTypeSupported(kPlatformTypeNSView) };
-            eprintln!(
-                "plugin_editor_poc: isPlatformTypeSupported(NSView) result {} for '{}'",
-                platform_supported,
-                self.plugin_path.display()
-            );
             if platform_supported != kResultOk {
                 return Err(PluginEditorHostAttemptError::new(
                     PluginEditorHostValidationPhase::ViewCreate,
@@ -2362,24 +2070,10 @@ mod macos_host {
                 ));
             }
 
-            let set_frame_result = unsafe { view.setFrame(plug_frame.as_ptr()) };
-            eprintln!(
-                "plugin_editor_poc: setFrame result {} for '{}'",
-                set_frame_result,
-                self.plugin_path.display()
-            );
+            let _ = unsafe { view.setFrame(plug_frame.as_ptr()) };
 
             let parent_ptr = (parent_view as *const NSView).cast_mut().cast::<c_void>();
-            eprintln!(
-                "plugin_editor_poc: attaching editor view to NSView for '{}'",
-                self.plugin_path.display()
-            );
             let attached = unsafe { view.attached(parent_ptr, kPlatformTypeNSView) };
-            eprintln!(
-                "plugin_editor_poc: view.attached result {} for '{}'",
-                attached,
-                self.plugin_path.display()
-            );
             if attached != kResultOk {
                 return Err(PluginEditorHostAttemptError::new(
                     PluginEditorHostValidationPhase::ViewAttach,
@@ -2393,24 +2087,10 @@ mod macos_host {
             let mut view_rect = view_rect_for_host_frame(host_frame);
             let get_size_result = unsafe { view.getSize(&mut view_rect) };
             if get_size_result == kResultOk {
-                eprintln!(
-                    "plugin_editor_poc: plugin reported editor size {}x{}",
-                    view_rect.right - view_rect.left,
-                    view_rect.bottom - view_rect.top
-                );
             }
 
             let plugin_can_resize = unsafe { view.canResize() } == kResultOk;
-            if let Err(error) = window.set_resizable(plugin_can_resize) {
-                eprintln!(
-                    "plugin_editor_poc: failed to apply plugin resizable state {}: {}",
-                    plugin_can_resize, error
-                );
-            }
-            eprintln!(
-                "plugin_editor_poc: plugin reported resizable editor = {}",
-                plugin_can_resize
-            );
+            if let Err(_error) = window.set_resizable(plugin_can_resize) {}
 
             if plugin_can_resize {
                 let _ = unsafe { view.checkSizeConstraint(&mut view_rect) };
@@ -2441,17 +2121,8 @@ mod macos_host {
                         self.close_prepared = true;
                         return;
                     };
-                    eprintln!(
-                        "plugin_editor_poc: removing editor view for '{}'",
-                        self.plugin_path.display()
-                    );
                     let _ = view.removed();
-                    let clear_frame_result = view.setFrame(std::ptr::null_mut());
-                    eprintln!(
-                        "plugin_editor_poc: clear editor frame result {} for '{}'",
-                        clear_frame_result,
-                        self.plugin_path.display()
-                    );
+                    let _ = view.setFrame(std::ptr::null_mut());
                     self.view_attached = false;
                     self.view = None;
                     self._plug_frame = None;
@@ -2471,35 +2142,17 @@ mod macos_host {
 
             unsafe {
                 if self.controller_initialized && !self.controller_shared_with_component {
-                    let clear_handler_result =
-                        self.controller.setComponentHandler(std::ptr::null_mut());
-                    eprintln!(
-                        "plugin_editor_poc: clear component handler result {} for '{}'",
-                        clear_handler_result,
-                        self.plugin_path.display()
-                    );
+                    let _ = self.controller.setComponentHandler(std::ptr::null_mut());
                 }
                 if self.connection_points_connected {
-                    eprintln!(
-                        "plugin_editor_poc: disconnecting component/controller connection points for '{}'",
-                        self.plugin_path.display()
-                    );
                     disconnect_component_and_controller(&self.component, &self.controller);
                     self.connection_points_connected = false;
                 }
                 if self.controller_initialized && !self.controller_shared_with_component {
-                    eprintln!(
-                        "plugin_editor_poc: terminating edit controller for '{}'",
-                        self.plugin_path.display()
-                    );
                     let _ = self.controller.terminate();
                     self.controller_initialized = false;
                 }
                 if self.component_initialized {
-                    eprintln!(
-                        "plugin_editor_poc: deactivating and terminating component for '{}'",
-                        self.plugin_path.display()
-                    );
                     let _ = self.component.setActive(0);
                     let _ = self.component.terminate();
                     self.component_initialized = false;
@@ -2910,10 +2563,6 @@ mod macos_host {
             let new_size = *new_size;
             let width = (new_size.right - new_size.left).max(1) as f64;
             let height = (new_size.bottom - new_size.top).max(1) as f64;
-            eprintln!(
-                "plugin_editor_poc: plugin requested host-driven resize to {}x{}",
-                width, height
-            );
 
             let lifecycle_phase = super::active_plugin_host_lifecycle()
                 .lock()
@@ -2922,13 +2571,6 @@ mod macos_host {
             let plugin_can_resize = active_session_plugin_can_resize();
 
             if !should_accept_plugin_requested_resize(lifecycle_phase, plugin_can_resize) {
-                eprintln!(
-                    "plugin_editor_poc: ignoring plugin-requested resize {}x{} phase={} plugin_can_resize={:?}",
-                    width,
-                    height,
-                    super::plugin_host_phase_label(lifecycle_phase),
-                    plugin_can_resize
-                );
                 return kResultOk;
             }
 
@@ -3048,17 +2690,10 @@ mod macos_host {
         host_context: &ComPtr<FUnknown>,
     ) -> Option<tresult> {
         let Some(factory3) = factory.cast::<IPluginFactory3>() else {
-            eprintln!(
-                "plugin_editor_poc: VST3 factory does not expose IPluginFactory3 host-context support"
-            );
             return None;
         };
 
         let host_context_result = unsafe { factory3.setHostContext(host_context.as_ptr()) };
-        eprintln!(
-            "plugin_editor_poc: IPluginFactory3::setHostContext result {}",
-            host_context_result
-        );
         Some(host_context_result)
     }
 
@@ -3220,12 +2855,6 @@ mod macos_host {
                     "Plugin editor POC could not find an audio-module component class in the VST3 factory.",
                 )
             })?;
-
-        eprintln!(
-            "plugin_editor_poc: selected component class '{}' for '{}'",
-            candidate.name,
-            plugin_path.display()
-        );
         let mut raw_object: *mut c_void = std::ptr::null_mut();
         let result = unsafe {
             factory.createInstance(
@@ -3255,9 +2884,6 @@ mod macos_host {
         component: &ComPtr<IComponent>,
     ) -> Result<CreatedController, String> {
         if let Some(controller) = component.cast::<IEditController>() {
-            eprintln!(
-                "plugin_editor_poc: component already exposes IEditController; reusing component as controller"
-            );
             return Ok(CreatedController {
                 controller,
                 shared_with_component: true,
@@ -3309,28 +2935,17 @@ mod macos_host {
         controller: &ComPtr<IEditController>,
     ) {
         let Ok((_, stream)) = create_memory_stream() else {
-            eprintln!(
-                "plugin_editor_poc: failed to allocate memory stream for controller state sync"
-            );
             return;
         };
 
         let get_state_result = unsafe { component.getState(stream.as_ptr()) };
         if get_state_result != kResultOk {
-            eprintln!(
-                "plugin_editor_poc: component did not provide transferable state for the controller (tresult = {})",
-                get_state_result
-            );
             return;
         }
 
         let mut rewind_position = 0_i64;
         let rewind_result = unsafe { stream.seek(0, kIBSeekSet as i32, &mut rewind_position) };
         if rewind_result != kResultOk {
-            eprintln!(
-                "plugin_editor_poc: failed to rewind component state stream before controller sync (tresult = {})",
-                rewind_result
-            );
             return;
         }
 
@@ -3415,11 +3030,9 @@ mod macos_host {
         controller: &ComPtr<IEditController>,
     ) -> bool {
         let Some(component_connection) = component.cast::<IConnectionPoint>() else {
-            eprintln!("plugin_editor_poc: component does not expose IConnectionPoint");
             return false;
         };
         let Some(controller_connection) = controller.cast::<IConnectionPoint>() else {
-            eprintln!("plugin_editor_poc: controller does not expose IConnectionPoint");
             return false;
         };
 
@@ -3428,15 +3041,8 @@ mod macos_host {
         let controller_connect_result =
             unsafe { controller_connection.connect(component_connection.as_ptr()) };
         if component_connect_result == kResultOk && controller_connect_result == kResultOk {
-            eprintln!("plugin_editor_poc: connected component and controller connection points");
             return true;
         }
-
-        eprintln!(
-            "plugin_editor_poc: component/controller connection-point handshake failed (component = {}, controller = {})",
-            component_connect_result,
-            controller_connect_result
-        );
         unsafe {
             let _ = controller_connection.disconnect(component_connection.as_ptr());
             let _ = component_connection.disconnect(controller_connection.as_ptr());
@@ -3506,14 +3112,6 @@ mod macos_host {
             (*host_view).setFrame(host_frame);
             sync_host_container_subviews_to_bounds(&*host_view);
         }
-        eprintln!(
-            "plugin_editor_poc: synced host container frame to content bounds host_frame=({}, {}, {}, {}) {}",
-            host_frame.origin.x,
-            host_frame.origin.y,
-            host_frame.size.width,
-            host_frame.size.height,
-            super::plugin_host_lifecycle_snapshot()
-        );
     }
 
     fn build_plugin_host_session(
@@ -3545,16 +3143,7 @@ mod macos_host {
                 error,
             )
         })?;
-        eprintln!(
-            "plugin_editor_poc: initializing component for '{}'",
-            plugin_path.display()
-        );
         let component_init = unsafe { component.initialize(host_context.as_ptr()) };
-        eprintln!(
-            "plugin_editor_poc: component initialize result {} for '{}'",
-            component_init,
-            plugin_path.display()
-        );
         if component_init != kResultOk {
             return Err(PluginEditorHostAttemptError::new(
                 PluginEditorHostValidationPhase::ComponentInitialize,
@@ -3587,23 +3176,9 @@ mod macos_host {
                 maxSamplesPerBlock: 1024,
                 sampleRate: 44100.0,
             };
-            let setup_result = unsafe { processor.setupProcessing(&mut setup) };
-            eprintln!(
-                "plugin_editor_poc: setupProcessing result {} for '{}'",
-                setup_result,
-                plugin_path.display()
-            );
-            let active_result = unsafe { component.setActive(1) };
-            eprintln!(
-                "plugin_editor_poc: setActive(1) result {} for '{}'",
-                active_result,
-                plugin_path.display()
-            );
+            let _ = unsafe { processor.setupProcessing(&mut setup) };
+            let _ = unsafe { component.setActive(1) };
         } else {
-            eprintln!(
-                "plugin_editor_poc: component does not expose IAudioProcessor for '{}'",
-                plugin_path.display()
-            );
         }
 
         let CreatedController {
@@ -3635,13 +3210,7 @@ mod macos_host {
             .expect("PluginHostApplication must expose IComponentHandler");
 
         if !controller_shared_with_component {
-            let pre_init_handler_result =
-                unsafe { controller.setComponentHandler(component_handler_ptr.as_ptr()) };
-            eprintln!(
-                "plugin_editor_poc: pre-initialize setComponentHandler result {} for '{}'",
-                pre_init_handler_result,
-                plugin_path.display()
-            );
+            let _ = unsafe { controller.setComponentHandler(component_handler_ptr.as_ptr()) };
         }
 
         // Initialize the edit controller on the main thread.
@@ -3649,19 +3218,9 @@ mod macos_host {
         // with pre-init setComponentHandler, 15 interfaces, and factory
         // host context.
         let controller_initialized = if controller_shared_with_component {
-            eprintln!("plugin_editor_poc: component also implements the edit controller interface");
             false
         } else {
-            eprintln!(
-                "plugin_editor_poc: initializing edit controller for '{}'",
-                plugin_path.display()
-            );
             let controller_init = unsafe { controller.initialize(host_context.as_ptr()) };
-            eprintln!(
-                "plugin_editor_poc: edit controller initialize result {} for '{}'",
-                controller_init,
-                plugin_path.display()
-            );
             if controller_init != kResultOk {
                 unsafe {
                     let _ = component.terminate();
@@ -3722,10 +3281,6 @@ mod macos_host {
         if let Some(slot_id) = active_slot_id() {
             if let Ok(mut sessions) = slot_runtime_sessions().lock() {
                 if let Some(session) = sessions.get_mut(&slot_id) {
-                    eprintln!(
-                        "plugin_editor_poc: preparing slot runtime session for close {}",
-                        session.plugin_path.display()
-                    );
                     session.prepare_for_window_close();
                     return;
                 }
@@ -3734,28 +3289,13 @@ mod macos_host {
 
         if let Ok(mut active_session) = active_plugin_host_session().lock() {
             if let Some(session) = active_session.as_mut() {
-                eprintln!(
-                    "plugin_editor_poc: preparing active plugin host for close {}",
-                    session.plugin_path.display()
-                );
                 session.prepare_for_window_close();
             } else {
-                eprintln!(
-                    "plugin_editor_poc: close preparation found no active session {}",
-                    super::plugin_host_lifecycle_snapshot()
-                );
             }
         }
     }
 
     pub fn prepare_active_plugin_host_session_for_close(window: &WebviewWindow) {
-        eprintln!(
-            "plugin_editor_poc: scheduling close preparation label={} on_main_thread={} {} {}",
-            window.label(),
-            MainThreadMarker::new().is_some(),
-            super::plugin_host_lifecycle_snapshot(),
-            active_session_snapshot()
-        );
 
         if MainThreadMarker::new().is_some() {
             prepare_plugin_host_session_for_close_now();
@@ -3768,21 +3308,10 @@ mod macos_host {
                 prepare_plugin_host_session_for_close_now();
             })
             .is_err()
-        {
-            eprintln!(
-                "plugin_editor_poc: failed to schedule close preparation on the main thread; deferring native close preparation"
-            );
-        }
+        {}
     }
 
     pub fn cleanup_active_plugin_host_session(window: &WebviewWindow) {
-        eprintln!(
-            "plugin_editor_poc: cleanup requested label={} on_main_thread={} {} {}",
-            window.label(),
-            MainThreadMarker::new().is_some(),
-            super::plugin_host_lifecycle_snapshot(),
-            active_session_snapshot()
-        );
         if let Some(slot_id) = active_slot_id() {
             let close_prepared = slot_runtime_sessions()
                 .lock()
@@ -3814,20 +3343,12 @@ mod macos_host {
                             .run_on_main_thread(move || {
                                 if let Ok(mut session_state) = session_state_for_main.lock() {
                                     if let Some(session) = session_state.take() {
-                                        eprintln!(
-                                            "plugin_editor_poc: cleanup executing on main thread for {} {}",
-                                            session.plugin_path.display(),
-                                            super::plugin_host_lifecycle_snapshot()
-                                        );
                                         finish_plugin_host_session_shutdown(session);
                                     }
                                 }
                             })
                             .is_err()
                         {
-                            eprintln!(
-                                "plugin_editor_poc: failed to schedule native slot-session teardown on the main thread; leaking session handles instead of tearing down off-thread"
-                            );
                             clear_pending_plugin_resize_request();
                             super::clear_reserved_plugin_target();
                             if let Ok(mut session_state) = session_state.lock() {
@@ -3849,10 +3370,6 @@ mod macos_host {
             .and_then(|mut active_session| active_session.take());
 
         let Some(session) = session else {
-            eprintln!(
-                "plugin_editor_poc: cleanup found no active session; clearing residual lifecycle {}",
-                super::plugin_host_lifecycle_snapshot()
-            );
             clear_pending_plugin_resize_request();
             super::clear_reserved_plugin_target();
             return;
@@ -3882,20 +3399,12 @@ mod macos_host {
             .run_on_main_thread(move || {
                 if let Ok(mut session_state) = session_state_for_main.lock() {
                     if let Some(session) = session_state.take() {
-                        eprintln!(
-                            "plugin_editor_poc: cleanup executing on main thread for {} {}",
-                            session.plugin_path.display(),
-                            super::plugin_host_lifecycle_snapshot()
-                        );
                         finish_plugin_host_session_shutdown(session);
                     }
                 }
             })
             .is_err()
         {
-            eprintln!(
-                "plugin_editor_poc: failed to schedule native host teardown on the main thread; leaking session handles instead of tearing down off-thread"
-            );
             clear_pending_plugin_resize_request();
             super::clear_reserved_plugin_target();
             if let Ok(mut session_state) = session_state.lock() {
@@ -3941,12 +3450,6 @@ mod macos_host {
         app: &AppHandle,
         detached_target: &super::PluginEditorTarget,
     ) -> Result<(), String> {
-        eprintln!(
-            "plugin_editor_poc: shutdown detached session for target switch target={} {} {}",
-            detached_target,
-            super::plugin_host_lifecycle_snapshot(),
-            active_session_snapshot()
-        );
 
         let session = if let Some(slot_id) = detached_target.slot_id {
             slot_runtime_sessions()
@@ -3965,10 +3468,6 @@ mod macos_host {
         };
 
         let Some(session) = session else {
-            eprintln!(
-                "plugin_editor_poc: detached target switch found no active session for target={}",
-                detached_target
-            );
             super::release_reserved_plugin_target(detached_target);
             return Ok(());
         };
@@ -4185,12 +3684,7 @@ mod macos_host {
         }
 
         for session in sessions_to_shutdown {
-            if let Err(error) = shutdown_plugin_host_session_on_main_thread(app, session) {
-                eprintln!(
-                    "plugin_editor_poc: failed to teardown slot runtime session: {}",
-                    error
-                );
-            }
+            if let Err(_error) = shutdown_plugin_host_session_on_main_thread(app, session) {}
         }
 
         for (slot_id, target) in desired_targets {
@@ -4210,14 +3704,7 @@ mod macos_host {
                         sessions.insert(*slot_id, session);
                     }
                 }
-                Err(error) => {
-                    eprintln!(
-                        "plugin_editor_poc: failed to create slot runtime session for slot {} ({}): {}",
-                        slot_id,
-                        target.bundle_path.display(),
-                        error
-                    );
-                }
+                Err(_error) => {}
             }
         }
 
@@ -4247,14 +3734,6 @@ mod macos_host {
 
         let scheduler_window = window.clone();
         let sync_window = window.clone();
-        eprintln!(
-            "plugin_editor_poc: sync requested label={} reason={:?} focused={:?} {} {}",
-            window.label(),
-            reason,
-            focused,
-            super::plugin_host_lifecycle_snapshot(),
-            active_session_snapshot()
-        );
         let _ = scheduler_window.run_on_main_thread(move || {
             let Ok(ns_window) = sync_window.ns_window() else {
                 return;
@@ -4289,21 +3768,6 @@ mod macos_host {
                     && pending_non_resizable_attach_layout_sync().swap(false, Ordering::AcqRel);
             let forward_focus = focused.is_some() && should_forward_plugin_focus(plugin_can_resize);
 
-            eprintln!(
-                "plugin_editor_poc: sync applying reason={:?} focused={:?} plugin_can_resize={} plugin_requested_resize={} skip_initial_attach_layout={} schedule_non_resizable_attach_layout={} forward_focus={} host_frame=({}, {}, {}, {})",
-                reason,
-                focused,
-                plugin_can_resize,
-                plugin_requested_resize,
-                skip_initial_attach_layout,
-                schedule_non_resizable_attach_layout,
-                forward_focus,
-                host_frame.origin.x,
-                host_frame.origin.y,
-                host_frame.size.width,
-                host_frame.size.height
-            );
-
             if schedule_non_resizable_attach_layout {
                 schedule_non_resizable_attach_layout_sync(&sync_window);
             }
@@ -4325,12 +3789,6 @@ mod macos_host {
         window: &WebviewWindow,
         target: &super::PluginEditorTarget,
     ) -> Result<PluginHostAttachOutcome, String> {
-        eprintln!(
-            "plugin_editor_poc: attach requested label={} plugin={} {}",
-            window.label(),
-            target,
-            super::plugin_host_lifecycle_snapshot()
-        );
         clear_pending_plugin_resize_request();
         let (sender, receiver) = std::sync::mpsc::channel();
         let scheduler_window = window.clone();
@@ -4355,18 +3813,6 @@ mod macos_host {
                         .contentView()
                         .ok_or_else(|| String::from("Failed to resolve host contentView"))?;
                     let host_frame = host_frame_for_content_frame(content_view.frame());
-                    eprintln!(
-                        "plugin_editor_poc: attach resolved content frame=({}, {}, {}, {}) host_frame=({}, {}, {}, {}) for {}",
-                        content_view.frame().origin.x,
-                        content_view.frame().origin.y,
-                        content_view.frame().size.width,
-                        content_view.frame().size.height,
-                        host_frame.origin.x,
-                        host_frame.origin.y,
-                        host_frame.size.width,
-                        host_frame.size.height,
-                        plugin_path.display()
-                    );
 
                     let native_host_view: Retained<PluginHostContainerView> = unsafe {
                         msg_send![PluginHostContainerView::alloc(mtm), initWithFrame: host_frame]
@@ -4418,11 +3864,6 @@ mod macos_host {
                     };
 
                     if let Err(error) = attach_result {
-                        eprintln!(
-                            "plugin_editor_poc: live VST3 attach failed for {}: {}",
-                            plugin_path.display(),
-                            error.message
-                        );
                         attach_error_message(
                             mtm,
                             &native_host_view,
@@ -4441,10 +3882,6 @@ mod macos_host {
                         &attachment_window,
                         Some(true),
                         super::PluginHostSyncReason::InitialAttach,
-                    );
-                    eprintln!(
-                        "plugin_editor_poc: attached live VST3 editor host for {}",
-                        plugin_path.display()
                     );
 
                     Ok(PluginHostAttachOutcome {
@@ -4614,12 +4051,6 @@ pub async fn plugin_editor_poc_open(
         app_state.inner(),
         plugin_inventory_state.inner(),
     )?;
-    eprintln!(
-        "plugin_editor_poc: open requested plugin={} existing_window={} {}",
-        target,
-        app.get_webview_window(WINDOW_LABEL).is_some(),
-        plugin_host_lifecycle_snapshot()
-    );
     if let Err(reason) = ensure_editor_host_target_supported(target.path()) {
         queue_editor_host_validation_emit(
             app.clone(),
@@ -4636,12 +4067,6 @@ pub async fn plugin_editor_poc_open(
     match reserve_plugin_target(&target, existing_window.is_some())? {
         PluginTargetReservation::Acquired => {}
         PluginTargetReservation::AlreadyReserved(phase) => {
-            eprintln!(
-                "plugin_editor_poc: open found already reserved target={} existing_window={} {}",
-                target,
-                existing_window.is_some(),
-                plugin_host_lifecycle_snapshot()
-            );
             if let Some(window) = existing_window {
                 window
                     .set_focus()
@@ -4655,10 +4080,6 @@ pub async fn plugin_editor_poc_open(
             }
 
             if should_continue_reopening_reserved_target(phase, existing_window.is_some()) {
-                eprintln!(
-                    "plugin_editor_poc: reopening detached target={} without an existing window",
-                    target
-                );
             } else {
                 return Err(String::from(
                     "The plugin editor POC window is already opening for this target.",
@@ -4668,11 +4089,6 @@ pub async fn plugin_editor_poc_open(
     }
 
     if let Some(window) = app.get_webview_window(WINDOW_LABEL) {
-        eprintln!(
-            "plugin_editor_poc: open reused existing window for target={} {}",
-            target,
-            plugin_host_lifecycle_snapshot()
-        );
         window
             .set_focus()
             .map_err(|error| format!("Failed to focus plugin host POC window: {error}"))?;
@@ -4692,20 +4108,9 @@ pub async fn plugin_editor_poc_open(
         }
     };
 
-    eprintln!(
-        "plugin_editor_poc: built host window label={} for target={} {}",
-        window.label(),
-        target,
-        plugin_host_lifecycle_snapshot()
-    );
-
     let attach_outcome = match attach_native_host_surface(&window, &target) {
         Ok(outcome) => outcome,
         Err(error) => {
-            eprintln!(
-                "plugin_editor_poc: fatal attach error for {}: {}",
-                target, error
-            );
             release_reserved_plugin_target(&target);
             let _ = window.close();
             return Err(error);
@@ -4723,13 +4128,6 @@ pub async fn plugin_editor_poc_open(
     window
         .set_focus()
         .map_err(|error| format!("Failed to focus plugin host POC window: {error}"))?;
-
-    eprintln!(
-        "plugin_editor_poc: open completed target={} attached={} {}",
-        target,
-        attach_outcome.attached,
-        plugin_host_lifecycle_snapshot()
-    );
 
     Ok(PluginEditorPocOpenResult {
         window_label: WINDOW_LABEL.to_string(),
