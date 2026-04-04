@@ -16,6 +16,13 @@ describe("Textarea", () => {
     expect(screen.getByRole("textbox")).toHaveValue("my text");
   });
 
+  it("uses the same hover background class as default text inputs", () => {
+    render(<Textarea value="my text" label="Label" lines={2} />);
+    expect(screen.getByRole("textbox").className).toContain(
+      "hover:bg-neutral-700",
+    );
+  });
+
   it("calls onChange when user types", () => {
     const onChange = vi.fn();
     render(<Textarea value="" label="Label" onChange={onChange} lines={1} />);
