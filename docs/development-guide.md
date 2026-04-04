@@ -223,7 +223,8 @@ Plugin inventory startup behavior:
 - Keep stream/device lifetime in `src-tauri/src/playback/audio.rs`. Transport may submit engine state or later note events, but it must not take over OS stream creation, audio callback ownership, or canonical live plugin processing.
 - Audio device and sample-rate rebuilds must stop transport through the transport-owned reset seam before rebuilding the stream, then republish tick and tempo truth from the current score state, rebase backend queue timing state such as `last_queued_tick`, and require the next `transport_play` to use a fresh snapshot.
 - Score-context mix mutations for supported direct-plugin root routes must update both backend transport truth and the live engine mix state immediately; do not rely on a transport-only mirror that would require restarting playback to hear the change.
-- Reopen restoration across app restarts is still Epic 5 scope. Story 3.8 covers same-session runtime preparation only.
+- Reopen restoration now restores portable rack and route intent across app restarts through the existing backend file-load seam. The load path clears stale deferred playback-refresh state, republishes truthful stopped transport state from the reopened score, and rebuilds runtime readiness from current machine-local inventory.
+- Reopen remains a reset boundary, not a resume boundary: do not persist active transport playback, queued transport work, or live runtime host objects into `.soloc` files, and do not treat project reopen as a hidden resume-on-reopen workflow.
 
 What it does not yet do:
 

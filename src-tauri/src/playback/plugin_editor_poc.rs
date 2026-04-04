@@ -74,6 +74,7 @@ fn apply_slot_runtime_plugin_state_capture(
 struct PluginEditorTarget {
     plugin_path: PathBuf,
     slot_id: Option<UniqueId>,
+    plugin_state: Option<PlaybackSlotPluginState>,
 }
 
 impl PluginEditorTarget {
@@ -81,13 +82,19 @@ impl PluginEditorTarget {
         Self {
             plugin_path,
             slot_id: None,
+            plugin_state: None,
         }
     }
 
-    fn slot(plugin_path: PathBuf, slot_id: UniqueId) -> Self {
+    fn slot_with_state(
+        plugin_path: PathBuf,
+        slot_id: UniqueId,
+        plugin_state: Option<PlaybackSlotPluginState>,
+    ) -> Self {
         Self {
             plugin_path,
             slot_id: Some(slot_id),
+            plugin_state,
         }
     }
 
@@ -282,6 +289,7 @@ fn slot_runtime_session_in_flight(slot_id: UniqueId, desired_target: &ActivatedS
             state.target.as_ref().map(|target| {
                 target.slot_id == Some(slot_id)
                     && target.path() == desired_target.bundle_path.as_path()
+                    && target.plugin_state.as_ref() == desired_target.plugin_state.as_ref()
                     && state.phase != PluginHostLifecyclePhase::Idle
             })
         })
@@ -587,7 +595,24 @@ fn resolve_requested_plugin_target(
             .map_err(|_| String::from("Failed to read plugin inventory state"))?;
         let plugin_path = plugin_inventory.resolve_available_bundle_path(&slot_plugin_id)?;
         validate_vst3_bundle(&plugin_path).map_err(|error| error.message)?;
-        return Ok(Some(PluginEditorTarget::slot(plugin_path, slot_id)));
+        let plugin_state = {
+            let app_state = app_state.lock().map_err(|_| {
+                String::from("Failed to read app state while resolving slot plugin state")
+            })?;
+            app_state
+                .score
+                .playback
+                .rack
+                .by_id
+                .get(&slot_id)
+                .and_then(|slot| slot.target.as_ref())
+                .and_then(|target| target.plugin_state.clone())
+        };
+        return Ok(Some(PluginEditorTarget::slot_with_state(
+            plugin_path,
+            slot_id,
+            plugin_state,
+        )));
     }
 
     if let Some(plugin_id) = plugin_id.map(str::trim).filter(|value| !value.is_empty()) {
@@ -4033,7 +4058,11 @@ mod macos_host {
         slot_id: UniqueId,
         target: &ActivatedSlotTarget,
     ) -> Result<PluginHostSession, String> {
-        let target_identity = super::PluginEditorTarget::slot(target.bundle_path.clone(), slot_id);
+        let target_identity = super::PluginEditorTarget::slot_with_state(
+            target.bundle_path.clone(),
+            slot_id,
+            target.plugin_state.clone(),
+        );
         let restorable_plugin_state = target.plugin_state.clone();
 
         if MainThreadMarker::new().is_some() {
@@ -4769,7 +4798,15 @@ mod tests {
     }
 
     fn slot_target(path: &str, slot_id: UniqueId) -> super::PluginEditorTarget {
-        super::PluginEditorTarget::slot(PathBuf::from(path), slot_id)
+        super::PluginEditorTarget::slot_with_state(PathBuf::from(path), slot_id, None)
+    }
+
+    fn slot_target_with_state(
+        path: &str,
+        slot_id: UniqueId,
+        plugin_state: Option<PlaybackSlotPluginState>,
+    ) -> super::PluginEditorTarget {
+        super::PluginEditorTarget::slot_with_state(PathBuf::from(path), slot_id, plugin_state)
     }
 
     fn inventory_target(path: &str) -> super::PluginEditorTarget {
@@ -5267,6 +5304,34 @@ mod tests {
                 plugin_id: String::from("plugin-a"),
                 bundle_path: PathBuf::from("/tmp/other-plugin.vst3"),
                 plugin_state: None,
+            },
+        ));
+
+        reset_active_plugin_target();
+    }
+
+    #[test]
+    fn slot_runtime_session_in_flight_rejects_restorable_state_mismatch() {
+        let _guard = lock_plugin_target_test_mutex();
+        reset_active_plugin_target();
+
+        let target = slot_target_with_state(
+            "/tmp/test-plugin.vst3",
+            12,
+            Some(PlaybackSlotPluginState {
+                vst3_component_state_base64: String::from("AQID"),
+            }),
+        );
+        reserve_plugin_target(&target, false).unwrap();
+
+        assert!(!super::slot_runtime_session_in_flight(
+            12,
+            &ActivatedSlotTarget {
+                plugin_id: String::from("plugin-a"),
+                bundle_path: PathBuf::from("/tmp/test-plugin.vst3"),
+                plugin_state: Some(PlaybackSlotPluginState {
+                    vst3_component_state_base64: String::from("BAUG"),
+                }),
             },
         ));
 

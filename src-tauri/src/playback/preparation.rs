@@ -403,6 +403,48 @@ mod tests {
     }
 
     #[test]
+    fn prepare_supported_playback_keeps_portable_plugin_state_after_score_round_trip() {
+        let inventory = PluginInventoryContext::with_entries_for_tests(vec![available_entry(
+            "plugin-a",
+            "/Library/Audio/Plug-Ins/VST3/Plugin A.vst3",
+        )]);
+        let mut score = make_score();
+        assign_slot(&mut score, 100, "plugin-a");
+        score.playback.rack.by_id.get_mut(&100).unwrap().target = Some(PlaybackSlotTarget {
+            plugin_id: String::from("plugin-a"),
+            plugin_state: Some(PlaybackSlotPluginState {
+                vst3_component_state_base64: String::from("AQID"),
+            }),
+        });
+        score.instruments.by_id.get_mut(&10).unwrap().playback_route =
+            Some(InstrumentPlaybackRoute::direct(100));
+
+        let restored_score: Score = serde_json::from_value(serde_json::to_value(&score).unwrap())
+            .expect("score round-trip should preserve portable playback intent");
+
+        let runtime =
+            PlaybackActivationRuntime::from_score_and_inventory(&restored_score, &inventory);
+        let preparation = prepare_supported_playback(&restored_score, &runtime, 48_000);
+
+        assert_eq!(
+            preparation
+                .supported_target_for_instrument(10)
+                .and_then(|target| target.plugin_state.as_ref()),
+            Some(&PlaybackSlotPluginState {
+                vst3_component_state_base64: String::from("AQID"),
+            })
+        );
+        assert_eq!(
+            preparation
+                .resolved_playback_route_by_instrument_id
+                .get(&10)
+                .unwrap()
+                .status,
+            ResolvedPlaybackRouteStatus::Ready
+        );
+    }
+
+    #[test]
     fn prepare_supported_playback_reuses_effective_volume_and_mute_from_score_intent() {
         let inventory = PluginInventoryContext::with_entries_for_tests(vec![available_entry(
             "plugin-a",

@@ -2,7 +2,7 @@ use crate::instructions::FlowRenderRecalculationRequest;
 use crate::migrations::{MigrationKind, MIGRATIONS};
 use crate::playback::plugin_editor_poc::sync_score_slot_targets_with_runtime_state;
 use crate::playback::transport::{
-    stop_transport_playback, sync_transport_to_app_state, TransportContext,
+    stop_transport_playback, sync_transport_to_app_state, TransportContext, TransportSharedState,
 };
 use crate::score::Score;
 use crate::soloc::*;
@@ -143,6 +143,30 @@ fn load_project_file(file_path: &str) -> Result<ProjectFile, String> {
     project_file.score.meta.app_version = CURRENT_APP_VERSION.to_string();
 
     Ok(project_file)
+}
+
+fn apply_loaded_project_with_runtime_refresh<F>(
+    state: &mut crate::AppContext,
+    transport_shared: &TransportSharedState,
+    project_file: ProjectFile,
+    file_path: String,
+    refresh_runtime: F,
+) where
+    F: FnOnce(&mut crate::AppContext),
+{
+    state.ui = project_file.ui;
+
+    // Reset ephemeral state
+    state.ui.sequencer.tool = Tool::Select;
+    state.ui.screens.setup.selection = None;
+    state.ui.sequencer.selection = None;
+
+    state.score = project_file.score;
+    state.next_id = project_file.next_id;
+    state.current_file_path = Some(file_path);
+    state.clear_pending_playback_refresh();
+    sync_transport_to_app_state(transport_shared, state, 0);
+    refresh_runtime(state);
 }
 
 fn parse_chunk_entry(file_data: &[u8], offset: usize) -> ChunkEntry {
@@ -345,11 +369,16 @@ mod tests {
     use super::*;
     use crate::instructions::{prepare_flow_render_plan, FlowRenderRecalculationRequest};
     use crate::migrations::{MigrationKind, MIGRATIONS};
+    use crate::playback::engine::{
+        clear_transport_playback, queue_transport_note, set_transport_render_targets,
+        transport_playback_has_pending_work,
+    };
     use crate::playback::plugin_inventory::{
         PluginInventoryAvailability, PluginInventoryContext, PluginInventoryEntry,
     };
+    use crate::playback::preparation::prepare_supported_playback;
     use crate::playback::runtime_activation::PlaybackActivationRuntime;
-    use crate::playback::transport::{sync_transport_to_app_state, TransportContext};
+    use crate::playback::transport::{DeferredPlaybackRefreshKind, TransportContext};
     use crate::preferences::Preferences;
     use crate::score::components::{
         articulation::Articulations,
@@ -521,22 +550,28 @@ mod tests {
         project_file: ProjectFile,
         file_path: String,
     ) {
-        state.ui = project_file.ui;
-        state.ui.sequencer.tool = Tool::Select;
-        state.ui.screens.setup.selection = None;
-        state.ui.sequencer.selection = None;
+        transport_context
+            .playing
+            .store(false, std::sync::atomic::Ordering::Release);
+        transport_context
+            .stop_signal
+            .store(false, std::sync::atomic::Ordering::Release);
+        transport_context
+            .last_queued_tick
+            .store(0, std::sync::atomic::Ordering::Relaxed);
+        clear_transport_playback();
 
-        state.score = project_file.score;
-        state.next_id = project_file.next_id;
-        state.current_file_path = Some(file_path);
-        sync_transport_to_app_state(transport_context, state, 0);
-        let live_slot_targets =
-            PlaybackActivationRuntime::expected_slot_targets_from_score_and_inventory(
-                &state.score,
-                inventory,
-            );
-        state.playback_activation_runtime =
-            PlaybackActivationRuntime::from_live_slot_targets(&state.score, live_slot_targets);
+        apply_loaded_project_with_runtime_refresh(
+            state,
+            transport_context,
+            project_file,
+            file_path,
+            |state| {
+                state.refresh_playback_activation_runtime_with_inventory(inventory, |expected| {
+                    expected.clone()
+                });
+            },
+        );
     }
 
     fn available_inventory_entry(plugin_id: &str) -> PluginInventoryEntry {
@@ -2095,6 +2130,18 @@ mod tests {
             }))
             .unwrap(),
         );
+        transport_shared
+            .playing
+            .store(true, std::sync::atomic::Ordering::Release);
+        transport_shared
+            .stop_signal
+            .store(true, std::sync::atomic::Ordering::Release);
+        transport_shared
+            .last_queued_tick
+            .store(17, std::sync::atomic::Ordering::Relaxed);
+        set_transport_render_targets([99]);
+        queue_transport_note(99, 0, 8, 64, 100);
+        assert!(transport_playback_has_pending_work());
 
         restore_loaded_project_for_test(
             &mut state,
@@ -2126,7 +2173,20 @@ mod tests {
                 .load(std::sync::atomic::Ordering::Relaxed),
             0
         );
+        assert!(!transport_shared
+            .playing
+            .load(std::sync::atomic::Ordering::Acquire));
+        assert!(!transport_shared
+            .stop_signal
+            .load(std::sync::atomic::Ordering::Acquire));
+        assert_eq!(
+            transport_shared
+                .last_queued_tick
+                .load(std::sync::atomic::Ordering::Relaxed),
+            0
+        );
         assert!(transport_shared.get_tempo() > 0.0);
+        assert!(!transport_playback_has_pending_work());
     }
 
     #[test]
@@ -2224,6 +2284,101 @@ mod tests {
     }
 
     #[test]
+    fn applying_loaded_project_clears_deferred_playback_refresh_and_prepares_supported_playback() {
+        let (_transport_state, transport_shared) = TransportContext::new();
+        let inventory =
+            PluginInventoryContext::with_entries_for_tests(vec![available_inventory_entry(
+                "plugin-a",
+            )]);
+        let mut score = build_score_with_visible_flows(&[30], &[30]);
+        score.players = Players {
+            order: vec![1],
+            by_id: FxHashMap::from_iter([(1, Player::new(1, PlayerType::Section))]),
+        };
+        score.players.by_id.get_mut(&1).unwrap().instrument_ids = vec![10];
+        score.instruments = Instruments {
+            by_id: FxHashMap::from_iter([(
+                10,
+                Instrument {
+                    id: 10,
+                    definition_id: String::from("strings.violin"),
+                    instrument_type: InstrumentType::Melodic,
+                    long_name: String::from("Violin"),
+                    short_name: String::from("Vln."),
+                    stave_ids: vec![],
+                    count: None,
+                    playback_route: None,
+                    volume: 100,
+                    pan: 64,
+                    mute: false,
+                    solo: false,
+                },
+            )]),
+        };
+        score.create_playback_slot(300).unwrap();
+        score
+            .assign_plugin_to_slot(300, String::from("plugin-a"))
+            .unwrap();
+        score
+            .playback
+            .rack
+            .by_id
+            .get_mut(&300)
+            .unwrap()
+            .target
+            .as_mut()
+            .unwrap()
+            .plugin_state = Some(PlaybackSlotPluginState {
+            vst3_component_state_base64: String::from("AQID"),
+        });
+        score.assign_instrument_route_to_slot(10, 300).unwrap();
+
+        let project_file = round_trip_project_file(&ProjectFile {
+            ui: Ui::new(),
+            score,
+            next_id: 500,
+        });
+        let mut state = AppContext {
+            ui: Ui::new(),
+            score: Score::new(),
+            playback_activation_runtime: PlaybackActivationRuntime::default(),
+            pending_playback_refresh: Some(DeferredPlaybackRefreshKind::PlaybackTopology),
+            preferences: make_preferences(),
+            next_id: 1,
+            current_file_path: None,
+        };
+
+        restore_loaded_project_for_test(
+            &mut state,
+            &transport_shared,
+            &inventory,
+            project_file,
+            "/tmp/runtime-ready.soloc".to_string(),
+        );
+
+        let preparation =
+            prepare_supported_playback(&state.score, &state.playback_activation_runtime, 48_000);
+
+        assert_eq!(state.pending_playback_refresh_kind(), None);
+        assert!(preparation.blockers.is_empty());
+        assert_eq!(preparation.supported_targets.len(), 1);
+        assert_eq!(
+            preparation
+                .supported_target_for_instrument(10)
+                .map(|target| (target.slot_id, target.plugin_id.as_str())),
+            Some((300, "plugin-a"))
+        );
+        assert_eq!(
+            preparation
+                .supported_target_for_instrument(10)
+                .and_then(|target| target.plugin_state.as_ref()),
+            Some(&PlaybackSlotPluginState {
+                vst3_component_state_base64: String::from("AQID"),
+            })
+        );
+    }
+
+    #[test]
     fn persisted_playback_intent_round_trips_while_runtime_degrades_against_unavailable_inventory()
     {
         let (_transport_state, transport_shared) = TransportContext::new();
@@ -2300,6 +2455,8 @@ mod tests {
         let trust_gate = state
             .playback_activation_runtime
             .single_instrument_trust_gate(&state.score);
+        let preparation =
+            prepare_supported_playback(&state.score, &state.playback_activation_runtime, 48_000);
 
         assert_eq!(
             state.score.instruments.by_id[&10].playback_route,
@@ -2326,6 +2483,15 @@ mod tests {
             ResolvedPlaybackRouteStatus::NeedsAttention
         );
         assert_eq!(resolved.get(&10).unwrap().effective_plugin_id, None);
+        assert!(preparation.supported_targets.is_empty());
+        assert_eq!(
+            preparation
+                .resolved_playback_route_by_instrument_id
+                .get(&10)
+                .unwrap()
+                .status,
+            ResolvedPlaybackRouteStatus::NeedsAttention
+        );
         assert!(!trust_gate.is_transport_ready());
     }
 
@@ -2439,20 +2605,13 @@ pub async fn load_project_from_file(
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
 
-    state.ui = project_file.ui;
-
-    // Reset ephemral state
-    state.ui.sequencer.tool = Tool::Select;
-    state.ui.screens.setup.selection = None;
-    state.ui.sequencer.selection = None;
-
-    state.score = project_file.score;
-    state.next_id = project_file.next_id;
-
-    // Update the current file path
-    state.current_file_path = Some(file_path);
-    sync_transport_to_app_state(&transport_shared, &state, 0);
-    state.refresh_playback_activation_runtime_from_app(&app);
+    apply_loaded_project_with_runtime_refresh(
+        &mut state,
+        &transport_shared,
+        project_file,
+        file_path,
+        |state| state.refresh_playback_activation_runtime_from_app(&app),
+    );
 
     // Emit the updated state
     state.emit_general_state(

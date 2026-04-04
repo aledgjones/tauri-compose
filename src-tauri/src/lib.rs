@@ -171,19 +171,10 @@ impl AppContext {
         })
     }
 
-    pub(crate) fn refresh_playback_activation_runtime(
+    pub(crate) fn apply_live_slot_targets(
         &mut self,
-        app: &AppHandle,
-        plugin_inventory_state: &ManagedPluginInventoryContextState,
+        live_slot_targets: rustc_hash::FxHashMap<UniqueId, ActivatedSlotTarget>,
     ) {
-        let expected_slot_targets: rustc_hash::FxHashMap<UniqueId, ActivatedSlotTarget> = {
-            let inventory = plugin_inventory_state.lock().unwrap();
-            PlaybackActivationRuntime::expected_slot_targets_from_score_and_inventory(
-                &self.score,
-                &inventory,
-            )
-        };
-        let live_slot_targets = sync_slot_runtime_sessions(app, &expected_slot_targets);
         sync_live_slot_targets(live_slot_targets.keys().copied());
         self.playback_activation_runtime =
             PlaybackActivationRuntime::from_live_slot_targets(&self.score, live_slot_targets);
@@ -191,6 +182,36 @@ impl AppContext {
             &self.score,
             &self.playback_activation_runtime,
         ));
+    }
+
+    pub(crate) fn refresh_playback_activation_runtime_with_inventory<F>(
+        &mut self,
+        inventory: &PluginInventoryContext,
+        sync_slot_targets: F,
+    ) where
+        F: FnOnce(
+            &rustc_hash::FxHashMap<UniqueId, ActivatedSlotTarget>,
+        ) -> rustc_hash::FxHashMap<UniqueId, ActivatedSlotTarget>,
+    {
+        let expected_slot_targets =
+            PlaybackActivationRuntime::expected_slot_targets_from_score_and_inventory(
+                &self.score,
+                inventory,
+            );
+        let live_slot_targets = sync_slot_targets(&expected_slot_targets);
+        self.apply_live_slot_targets(live_slot_targets);
+    }
+
+    pub(crate) fn refresh_playback_activation_runtime(
+        &mut self,
+        app: &AppHandle,
+        plugin_inventory_state: &ManagedPluginInventoryContextState,
+    ) {
+        let inventory = plugin_inventory_state.lock().unwrap();
+        self.refresh_playback_activation_runtime_with_inventory(
+            &inventory,
+            |expected_slot_targets| sync_slot_runtime_sessions(app, expected_slot_targets),
+        );
     }
 
     pub(crate) fn refresh_playback_activation_runtime_from_app(&mut self, app: &AppHandle) {

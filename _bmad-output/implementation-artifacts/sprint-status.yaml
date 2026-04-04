@@ -36,7 +36,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-03-25T00:12:37Z
-last_updated: 2026-04-04T18:10:00Z
+last_updated: 2026-04-04T20:19:06Z
 project: compose
 project_key: NOKEY
 tracking_system: file-system
@@ -80,7 +80,7 @@ development_status:
   5-2-seek-to-score-positions-without-losing-playback-trust: done
   5-2a-harden-playback-clocking-and-runtime-reset-semantics: done
   5-3-define-bounded-editing-during-playback: done
-  5-4-restore-playback-state-on-project-reopen: backlog
+  5-4-restore-playback-state-on-project-reopen: done
   5-5-recover-gracefully-from-missing-or-unavailable-routes: backlog
   epic-5-retrospective: optional
 

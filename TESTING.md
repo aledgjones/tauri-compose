@@ -37,7 +37,8 @@ Manual proof required before Epic 4 stories are unblocked:
 4. If two rack slots point at the same bundle, confirm the slot-scoped open action targets the intended slot identity rather than reusing the other slot's editor target.
 5. Unassign or remove the routed slot and confirm the readiness state drops immediately instead of persisting until editor close.
 6. Save the score, reopen the `.soloc` file, and confirm portable route intent plus any saved restorable plugin state persist while runtime readiness is re-resolved from current machine-local inventory rather than from serialized live host state.
-7. If the plugin supports transferable state and you changed the intended instrument or patch before saving, confirm the restored slot is already back on that intended running instrument before opening the native editor.
+7. Confirm reopen is still a hard reset boundary: playback is stopped after load, tick and tempo are republished from the reopened score truth, and no active transport playback or queued transport work resumes from the prior session.
+8. If the plugin supports transferable state and you changed the intended instrument or patch before saving, confirm the restored slot is already back on that intended running instrument before opening the native editor.
 
 Blocking rule:
 
