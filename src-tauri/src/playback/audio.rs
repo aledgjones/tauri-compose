@@ -209,7 +209,7 @@ fn resync_transport_after_audio_rebuild(
     Ok(())
 }
 
-fn reset_transport_for_audio_rebuild_with_stop<F>(
+pub(crate) fn reset_transport_for_audio_rebuild_with_stop<F>(
     app_state: &AppContextState,
     stop_transport: F,
 ) -> Result<(), String>
@@ -217,7 +217,12 @@ where
     F: FnOnce() -> Result<TransportSharedState, String>,
 {
     let transport_shared = stop_transport()?;
-    resync_transport_after_audio_rebuild(&transport_shared, app_state)
+    resync_transport_after_audio_rebuild(&transport_shared, app_state).map(|_| {
+        transport_shared.last_queued_tick.store(
+            transport_shared.current_tick.load(Ordering::Relaxed),
+            Ordering::Relaxed,
+        );
+    })
 }
 
 fn reset_transport_for_audio_rebuild(
@@ -284,6 +289,9 @@ mod tests {
     fn reset_transport_for_audio_rebuild_republishes_backend_tempo_after_stop() {
         let (_transport_state, transport_shared) = TransportContext::new();
         transport_shared.current_tick.store(96, Ordering::Relaxed);
+        transport_shared
+            .last_queued_tick
+            .store(144, Ordering::Relaxed);
         transport_shared.playing.store(false, Ordering::Release);
         transport_shared.set_tempo(72.0);
 
@@ -300,6 +308,10 @@ mod tests {
 
         assert!(stop_called.load(Ordering::Acquire));
         assert_eq!(transport_shared.current_tick.load(Ordering::Relaxed), 95);
+        assert_eq!(
+            transport_shared.last_queued_tick.load(Ordering::Relaxed),
+            95
+        );
         assert_eq!(transport_shared.get_tempo(), 144.0);
     }
 }

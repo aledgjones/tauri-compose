@@ -1,5 +1,5 @@
 use crate::playback::runtime_activation::{
-    PlaybackActivationRuntime, SingleInstrumentTrustGateBlocker, SingleInstrumentTrustGateStatus,
+    PlaybackActivationRuntime, SingleInstrumentTrustGateBlocker,
 };
 use crate::score::playback::{
     PlaybackRouteAddress, PlaybackRouteTarget, PlaybackSlotPluginState, ResolvedPlaybackRoute,
@@ -135,7 +135,6 @@ pub struct PlaybackPreparation {
     pub sample_rate: u32,
     pub resolved_playback_route_by_instrument_id: FxHashMap<UniqueId, ResolvedPlaybackRoute>,
     pub supported_targets: Vec<PreparedPlaybackTarget>,
-    pub supported_target: Option<PreparedPlaybackTarget>,
     pub blockers: Vec<SingleInstrumentTrustGateBlocker>,
 }
 
@@ -151,7 +150,7 @@ impl PlaybackPreparation {
 
     #[cfg_attr(not(test), allow(dead_code))]
     pub fn blocks_supported_transport_start(&self) -> bool {
-        self.supported_target.is_none()
+        self.supported_targets.is_empty()
             && self.blockers.iter().any(|blocker| {
                 !matches!(
                     blocker,
@@ -204,20 +203,6 @@ fn prepared_supported_target_for_instrument(
     })
 }
 
-fn select_supported_transport_target(
-    score: &Score,
-    playback_runtime: &PlaybackActivationRuntime,
-    resolved_playback_route_by_instrument_id: &FxHashMap<UniqueId, ResolvedPlaybackRoute>,
-) -> Option<PreparedPlaybackTarget> {
-    supported_transport_targets(
-        score,
-        playback_runtime,
-        resolved_playback_route_by_instrument_id,
-    )
-    .into_iter()
-    .next()
-}
-
 fn supported_transport_targets(
     score: &Score,
     playback_runtime: &PlaybackActivationRuntime,
@@ -267,28 +252,10 @@ pub fn prepare_supported_playback(
         &resolved_playback_route_by_instrument_id,
     );
 
-    let supported_target = if trust_gate.status == SingleInstrumentTrustGateStatus::TransportReady {
-        trust_gate.instrument_id.and_then(|instrument_id| {
-            prepared_supported_target_for_instrument(
-                score,
-                playback_runtime,
-                &resolved_playback_route_by_instrument_id,
-                instrument_id,
-            )
-        })
-    } else {
-        select_supported_transport_target(
-            score,
-            playback_runtime,
-            &resolved_playback_route_by_instrument_id,
-        )
-    };
-
     PlaybackPreparation {
         sample_rate,
         resolved_playback_route_by_instrument_id,
         supported_targets,
-        supported_target,
         blockers: trust_gate.blockers,
     }
 }
@@ -396,8 +363,8 @@ mod tests {
         assert!(preparation.blockers.is_empty());
         assert_eq!(preparation.supported_targets.len(), 1);
         assert_eq!(
-            preparation.supported_target,
-            Some(PreparedPlaybackTarget {
+            preparation.supported_target_for_instrument(10),
+            Some(&PreparedPlaybackTarget {
                 instrument_id: 10,
                 slot_id: 100,
                 plugin_id: String::from("plugin-a"),
@@ -453,8 +420,7 @@ mod tests {
 
         assert_eq!(
             preparation
-                .supported_target
-                .as_ref()
+                .supported_target_for_instrument(10)
                 .expect("expected supported target")
                 .effective_mix,
             EffectivePlaybackMix {
@@ -524,7 +490,7 @@ mod tests {
         let runtime = PlaybackActivationRuntime::from_score_and_inventory(&score, &inventory);
         let preparation = prepare_supported_playback(&score, &runtime, 48_000);
 
-        assert_eq!(preparation.supported_target, None);
+        assert!(preparation.supported_targets.is_empty());
         assert_eq!(
             preparation
                 .resolved_playback_route_by_instrument_id
@@ -585,8 +551,8 @@ mod tests {
 
         assert_eq!(
             preparation
-                .supported_target
-                .as_ref()
+                .supported_targets
+                .first()
                 .map(|target| target.instrument_id),
             Some(10)
         );
@@ -657,8 +623,8 @@ mod tests {
 
         assert_eq!(
             preparation
-                .supported_target
-                .as_ref()
+                .supported_targets
+                .first()
                 .map(|target| target.instrument_id),
             Some(10)
         );
@@ -730,7 +696,6 @@ mod tests {
 
         let preparation = prepare_supported_playback(&score, &runtime, 48_000);
 
-        assert_eq!(preparation.supported_target, None);
         assert!(preparation.supported_targets.is_empty());
         assert_eq!(
             preparation.blockers,
@@ -779,8 +744,8 @@ mod tests {
 
         assert_eq!(
             preparation
-                .supported_target
-                .as_ref()
+                .supported_targets
+                .first()
                 .map(|target| target.instrument_id),
             Some(10)
         );

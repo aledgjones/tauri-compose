@@ -227,8 +227,7 @@ mod tests {
         assert_eq!(
             prepared
                 .preparation
-                .supported_target
-                .as_ref()
+                .supported_target_for_instrument(10)
                 .unwrap()
                 .instrument_id,
             10

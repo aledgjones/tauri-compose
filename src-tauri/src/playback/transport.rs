@@ -33,6 +33,8 @@ pub struct InstrumentMixParams {
 
 /// Ticks per quarter note
 const TICKS_PER_QUARTER: u64 = 32;
+const TRANSPORT_LOOKAHEAD: std::time::Duration = std::time::Duration::from_millis(5);
+const TRANSPORT_WAIT_QUANTUM: std::time::Duration = std::time::Duration::from_millis(1);
 
 /// Seconds per tick at a given BPM
 fn seconds_per_tick(bpm: f64) -> f64 {
@@ -124,6 +126,36 @@ fn accumulate_tick_deadline(
     bpm: f64,
 ) -> std::time::Duration {
     next_tick_deadline + std::time::Duration::from_secs_f64(seconds_per_tick(bpm))
+}
+
+fn transport_wait_duration_until_queue_window(
+    remaining_until_tick_deadline: std::time::Duration,
+) -> Option<std::time::Duration> {
+    if remaining_until_tick_deadline <= TRANSPORT_LOOKAHEAD {
+        None
+    } else {
+        Some(
+            remaining_until_tick_deadline
+                .saturating_sub(TRANSPORT_LOOKAHEAD)
+                .min(TRANSPORT_WAIT_QUANTUM),
+        )
+    }
+}
+
+fn duration_to_frames(duration: std::time::Duration, sample_rate: u32) -> u64 {
+    (duration.as_secs_f64() * sample_rate as f64).round() as u64
+}
+
+fn wait_for_transport_work_to_drain(shared: &TransportSharedState) -> bool {
+    while transport_playback_has_pending_work() {
+        if shared.stop_signal.load(Ordering::Acquire) {
+            return false;
+        }
+
+        std::thread::sleep(TRANSPORT_WAIT_QUANTUM);
+    }
+
+    true
 }
 
 fn playback_can_start(current_tick: Tick, flow_length: Tick) -> bool {
@@ -261,12 +293,20 @@ pub(crate) fn stop_transport_playback(
 
     join_transport_thread(handle)?;
     let paused_tick = paused_tick_after_transport_stop(&shared);
-    shared.current_tick.store(paused_tick, Ordering::Relaxed);
-    clear_transport_playback();
-    flush_active_audio(audio_state);
-    shared.stop_signal.store(false, Ordering::Release);
+    reset_transport_runtime_state(&shared, paused_tick, || flush_active_audio(audio_state));
 
     Ok(shared)
+}
+
+fn reset_transport_runtime_state<F>(shared: &TransportSharedState, reset_tick: Tick, flush_audio: F)
+where
+    F: FnOnce(),
+{
+    shared.current_tick.store(reset_tick, Ordering::Relaxed);
+    shared.last_queued_tick.store(reset_tick, Ordering::Relaxed);
+    clear_transport_playback();
+    flush_audio();
+    shared.stop_signal.store(false, Ordering::Release);
 }
 
 fn flush_active_audio(audio_state: &AudioContextState) {
@@ -339,11 +379,23 @@ fn playback_tick_sample_offset_frames(tick: &PlaybackTick, sample_rate: u32, bpm
         .round() as usize
 }
 
+fn transport_event_sample_offset_frames(
+    tick: &PlaybackTick,
+    sample_rate: u32,
+    bpm: f64,
+    lead_frames: u64,
+) -> usize {
+    lead_frames
+        .saturating_add(playback_tick_sample_offset_frames(tick, sample_rate, bpm) as u64)
+        .min(usize::MAX as u64) as usize
+}
+
 fn transport_events_for_tick(
     snapshot: &PlaybackSnapshot,
     current_tick: Tick,
     sample_rate: u32,
     bpm: f64,
+    lead_frames: u64,
 ) -> Vec<TransportTickEvents> {
     let Some(scheduled_notes) = snapshot.scheduled_notes.get(&current_tick) else {
         return Vec::new();
@@ -356,7 +408,12 @@ fn transport_events_for_tick(
             .entry(note.slot_id)
             .or_default()
             .push(TransportQueuedNote {
-                sample_offset: playback_tick_sample_offset_frames(&note.start, sample_rate, bpm),
+                sample_offset: transport_event_sample_offset_frames(
+                    &note.start,
+                    sample_rate,
+                    bpm,
+                    lead_frames,
+                ),
                 duration_frames: playback_tick_duration_frames(&note.duration, sample_rate, bpm),
                 pitch: note.pitch,
                 velocity: note.velocity,
@@ -565,6 +622,25 @@ fn transport_thread(shared: Arc<TransportShared>, snapshot: PlaybackSnapshot) {
             tick_origin = std::time::Instant::now();
         }
 
+        let next_tick_deadline = tick_origin + schedule_state.next_tick_offset;
+        let lead_duration = loop {
+            if shared.stop_signal.load(Ordering::Acquire) {
+                break None;
+            }
+
+            let now = std::time::Instant::now();
+            let remaining_until_tick_deadline = next_tick_deadline.saturating_duration_since(now);
+
+            match transport_wait_duration_until_queue_window(remaining_until_tick_deadline) {
+                Some(wait_duration) => std::thread::sleep(wait_duration),
+                None => break Some(remaining_until_tick_deadline),
+            }
+        };
+
+        let Some(lead_duration) = lead_duration else {
+            break;
+        };
+
         let bpm = publish_resolved_tempo(&shared, &snapshot.tempo_resolver, current_tick);
 
         if matches!(
@@ -576,6 +652,7 @@ fn transport_thread(shared: Arc<TransportShared>, snapshot: PlaybackSnapshot) {
                 current_tick,
                 snapshot.preparation.sample_rate,
                 bpm,
+                duration_to_frames(lead_duration, snapshot.preparation.sample_rate),
             );
 
             if !tick_events.is_empty() {
@@ -611,21 +688,16 @@ fn transport_thread(shared: Arc<TransportShared>, snapshot: PlaybackSnapshot) {
             .current_tick
             .store(current_tick + 1, Ordering::Relaxed);
         schedule_state.advance(current_tick, bpm);
-
-        let next_tick_deadline = tick_origin + schedule_state.next_tick_offset;
-
-        // Sleep until the next tick deadline — accounts for time spent rendering
-        let now = std::time::Instant::now();
-        if next_tick_deadline > now {
-            std::thread::sleep(next_tick_deadline - now);
-        }
     }
 
-    clear_transport_playback();
-
-    // Playback ended — mark as not playing unless an external shutdown path did so already.
     if !shared.stop_signal.load(Ordering::Acquire) {
-        shared.playing.store(false, Ordering::Release);
+        if wait_for_transport_work_to_drain(&shared) {
+            clear_transport_playback();
+        }
+
+        if !shared.stop_signal.load(Ordering::Acquire) {
+            shared.playing.store(false, Ordering::Release);
+        }
     }
 }
 
@@ -654,6 +726,10 @@ fn apply_transport_snapshot(
     ctx.shared.stop_signal.store(false, Ordering::Release);
     ctx.shared.playing.store(true, Ordering::Release);
     ctx.shared.set_tempo(initial_tempo);
+    ctx.shared.last_queued_tick.store(
+        ctx.shared.current_tick.load(Ordering::Relaxed),
+        Ordering::Relaxed,
+    );
 
     for target in &snapshot.preparation.supported_targets {
         set_slot_mix(target.slot_id, target.effective_mix);
@@ -687,8 +763,7 @@ fn start_transport_from_current_tick(
             Some((snapshot, initial_tempo)) => (snapshot, initial_tempo),
             None => {
                 ctx.shared.playing.store(false, Ordering::Release);
-                ctx.shared.stop_signal.store(false, Ordering::Release);
-                clear_transport_playback();
+                reset_transport_runtime_state(&ctx.shared, current_tick, || {});
                 let flow_id = active_flow_id(&app_ctx);
                 ctx.shared.set_tempo(resolve_score_tempo_bpm(
                     &app_ctx.score,
@@ -738,20 +813,19 @@ fn transport_seek_with_states(
 
     let stale_handle = ctx.thread_handle.take();
     join_transport_thread(stale_handle)?;
-    clear_transport_playback();
 
     {
         let app_ctx = app_state.lock().unwrap();
         sync_transport_to_app_state(&ctx.shared, &app_ctx, tick);
     }
 
-    ctx.shared.last_queued_tick.store(
+    reset_transport_runtime_state(
+        &ctx.shared,
         ctx.shared.current_tick.load(Ordering::Relaxed),
-        Ordering::Relaxed,
+        || {},
     );
 
     if !playing {
-        ctx.shared.stop_signal.store(false, Ordering::Release);
         return Ok(());
     }
 
@@ -776,10 +850,7 @@ where
 
     join_transport_thread(handle)?;
     let paused_tick = paused_tick_after_transport_stop(&shared);
-    shared.current_tick.store(paused_tick, Ordering::Relaxed);
-    clear_transport_playback();
-    flush_audio();
-    shared.stop_signal.store(false, Ordering::Release);
+    reset_transport_runtime_state(&shared, paused_tick, flush_audio);
 
     let app_ctx = app_state.lock().unwrap();
     publish_app_tempo(&shared, &app_ctx, paused_tick);
@@ -850,6 +921,7 @@ pub fn transport_get_state(state: State<'_, TransportSharedState>) -> TransportS
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::playback::audio::reset_transport_for_audio_rebuild_with_stop;
     use crate::playback::engine::{
         reset_continuous_render_engine_for_tests, transport_playback_debug_state,
     };
@@ -929,6 +1001,18 @@ mod tests {
                 && state.queued_transport_event_count == 0
                 && state.active_transport_note_count == 0
         })
+    }
+
+    fn wait_for_transport_current_tick(shared: &TransportSharedState, expected_tick: Tick) {
+        for _ in 0..1_000 {
+            if shared.current_tick.load(Ordering::Relaxed) >= expected_tick {
+                return;
+            }
+
+            std::thread::yield_now();
+        }
+
+        panic!("Timed out waiting for transport tick to advance");
     }
 
     fn make_tempo(id: UniqueId, tick: Tick, bpm: u16) -> Tempo {
@@ -1321,6 +1405,34 @@ mod tests {
     }
 
     #[test]
+    fn transport_wait_duration_until_queue_window_caps_sleep_to_the_bounded_quantum() {
+        assert_eq!(
+            transport_wait_duration_until_queue_window(std::time::Duration::from_millis(20)),
+            Some(TRANSPORT_WAIT_QUANTUM)
+        );
+        assert_eq!(
+            transport_wait_duration_until_queue_window(TRANSPORT_LOOKAHEAD),
+            None
+        );
+    }
+
+    #[test]
+    fn transport_event_sample_offset_frames_include_lookahead_lead_time() {
+        assert_eq!(
+            transport_event_sample_offset_frames(
+                &PlaybackTick {
+                    numerator: 0,
+                    denominator: 1,
+                },
+                48_000,
+                120.0,
+                240,
+            ),
+            240
+        );
+    }
+
+    #[test]
     fn tick_schedule_state_rebases_when_seek_jumps_to_a_new_tick() {
         let mut state = TickScheduleState::new();
 
@@ -1457,8 +1569,8 @@ mod tests {
         assert_eq!(
             snapshot
                 .preparation
-                .supported_target
-                .as_ref()
+                .supported_targets
+                .first()
                 .map(|target| target.instrument_id),
             Some(20)
         );
@@ -1767,7 +1879,7 @@ mod tests {
         let (snapshot, _) =
             build_supported_playback_snapshot(&app_ctx, 96, 48_000).expect("expected snapshot");
 
-        let current_tick_events = transport_events_for_tick(&snapshot, 96, 48_000, 120.0);
+        let current_tick_events = transport_events_for_tick(&snapshot, 96, 48_000, 120.0, 0);
         assert_eq!(current_tick_events.len(), 1);
         let current_tick_events = &current_tick_events[0];
         assert_eq!(current_tick_events.slot_id, 6);
@@ -1777,7 +1889,7 @@ mod tests {
         assert_eq!(current_tick_events.events[0].sample_offset, 0);
         assert_eq!(current_tick_events.events[0].duration_frames, 8_000);
 
-        let shared_tick_events = transport_events_for_tick(&snapshot, 106, 48_000, 120.0);
+        let shared_tick_events = transport_events_for_tick(&snapshot, 106, 48_000, 120.0, 0);
         assert_eq!(shared_tick_events.len(), 1);
         let shared_tick_events = &shared_tick_events[0];
         assert_eq!(shared_tick_events.slot_id, 6);
@@ -1789,7 +1901,7 @@ mod tests {
     }
 
     #[test]
-    fn transport_events_for_tick_returns_an_empty_list_without_a_supported_target() {
+    fn transport_events_for_tick_returns_an_empty_list_without_supported_targets() {
         let mut track = Track::new(50);
         track
             .create_tone(80, 32, 16, 60, None, 96, Default::default(), None)
@@ -1801,7 +1913,7 @@ mod tests {
         let (snapshot, _) =
             build_supported_playback_snapshot(&app_ctx, 32, 48_000).expect("expected snapshot");
 
-        assert!(transport_events_for_tick(&snapshot, 32, 48_000, 120.0).is_empty());
+        assert!(transport_events_for_tick(&snapshot, 32, 48_000, 120.0, 0).is_empty());
     }
 
     #[test]
@@ -1823,7 +1935,7 @@ mod tests {
         let (snapshot, _) =
             build_supported_playback_snapshot(&app_ctx, 32, 48_000).expect("expected snapshot");
 
-        let tick_events = transport_events_for_tick(&snapshot, 32, 48_000, 120.0);
+        let tick_events = transport_events_for_tick(&snapshot, 32, 48_000, 120.0, 0);
 
         assert_eq!(tick_events.len(), 2);
         assert_eq!(tick_events[0].slot_id, 200);
@@ -1915,6 +2027,38 @@ mod tests {
         let ctx = transport_state.lock().unwrap();
         assert!(!ctx.shared.playing.load(Ordering::Acquire));
         assert!(ctx.thread_handle.is_none());
+    }
+
+    #[test]
+    fn transport_pause_with_states_rewinds_after_lookahead_queueing_clears_pending_work() {
+        let _guard = transport_test_mutex().lock().unwrap();
+
+        reset_continuous_render_engine_for_tests();
+
+        let mut track = Track::new(50);
+        track
+            .create_tone(80, 32, 16, 60, None, 96, Default::default(), None)
+            .unwrap();
+
+        let (score, flow_id) = make_flow_score_with_track(track);
+        let transport_state = make_transport_context_state();
+        {
+            let ctx = transport_state.lock().unwrap();
+            ctx.shared.current_tick.store(32, Ordering::Relaxed);
+        }
+        let app_state = Mutex::new(make_app_context(score, Some(flow_id)));
+
+        transport_play_with_states(&transport_state, &app_state, 48_000).unwrap();
+        wait_for_transport_engine_work(&[6]);
+
+        transport_pause_with_states(&transport_state, &app_state, || {}).unwrap();
+
+        let ctx = transport_state.lock().unwrap();
+        assert_eq!(ctx.shared.current_tick.load(Ordering::Relaxed), 32);
+        assert_eq!(ctx.shared.last_queued_tick.load(Ordering::Relaxed), 32);
+        drop(ctx);
+
+        assert!(transport_engine_work_is_cleared(6));
     }
 
     #[test]
@@ -2280,6 +2424,93 @@ mod tests {
         drop(ctx);
 
         assert!(transport_engine_work_is_cleared(6));
+
+        reset_continuous_render_engine_for_tests();
+    }
+
+    #[test]
+    fn transport_thread_keeps_final_lookahead_work_alive_until_natural_end_drains() {
+        let _guard = transport_test_mutex().lock().unwrap();
+
+        reset_continuous_render_engine_for_tests();
+
+        let mut track = Track::new(50);
+        track
+            .create_tone(80, 159, 16, 60, None, 96, Default::default(), None)
+            .unwrap();
+
+        let (score, flow_id) = make_flow_score_with_track(track);
+        let transport_state = make_transport_context_state();
+        {
+            let ctx = transport_state.lock().unwrap();
+            ctx.shared.current_tick.store(159, Ordering::Relaxed);
+        }
+        let app_state = Mutex::new(make_app_context(score, Some(flow_id)));
+
+        transport_play_with_states(&transport_state, &app_state, 48_000).unwrap();
+        wait_for_transport_engine_work(&[6]);
+
+        let shared = {
+            let ctx = transport_state.lock().unwrap();
+            ctx.shared.clone()
+        };
+        wait_for_transport_current_tick(&shared, 160);
+
+        assert!(shared.playing.load(Ordering::Acquire));
+        assert!(transport_playback_has_pending_work());
+
+        stop_test_transport(&transport_state);
+    }
+
+    #[test]
+    fn transport_rebuild_reset_requires_the_next_snapshot_to_use_the_new_sample_rate() {
+        let _guard = transport_test_mutex().lock().unwrap();
+
+        reset_continuous_render_engine_for_tests();
+
+        let mut track = Track::new(50);
+        track
+            .create_tone(80, 32, 16, 60, None, 96, Default::default(), None)
+            .unwrap();
+
+        let (score, flow_id) = make_flow_score_with_track(track);
+        let transport_state = make_transport_context_state();
+        {
+            let ctx = transport_state.lock().unwrap();
+            ctx.shared.current_tick.store(32, Ordering::Relaxed);
+        }
+        let app_state = Mutex::new(make_app_context(score, Some(flow_id)));
+
+        transport_play_with_states(&transport_state, &app_state, 48_000).unwrap();
+        wait_for_transport_engine_work(&[6]);
+
+        reset_transport_for_audio_rebuild_with_stop(&app_state, || {
+            let (shared, handle) = {
+                let mut ctx = transport_state.lock().unwrap();
+                ctx.shared.stop_signal.store(true, Ordering::Release);
+                ctx.shared.playing.store(false, Ordering::Release);
+
+                (ctx.shared.clone(), ctx.thread_handle.take())
+            };
+
+            join_transport_thread(handle)?;
+            Ok(shared)
+        })
+        .unwrap();
+
+        let app_ctx = app_state.lock().unwrap();
+        let current_tick = {
+            let ctx = transport_state.lock().unwrap();
+            ctx.shared.current_tick.load(Ordering::Relaxed)
+        };
+        let (snapshot, _) =
+            build_supported_playback_snapshot(&app_ctx, current_tick, 96_000).expect("snapshot");
+        drop(app_ctx);
+
+        assert_eq!(snapshot.preparation.sample_rate, 96_000);
+        let tick_events = transport_events_for_tick(&snapshot, 32, 96_000, 120.0, 0);
+        assert_eq!(tick_events.len(), 1);
+        assert_eq!(tick_events[0].events[0].duration_frames, 24_000);
 
         reset_continuous_render_engine_for_tests();
     }
