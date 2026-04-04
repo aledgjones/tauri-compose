@@ -11,6 +11,9 @@ import {
 
 vi.mock("../../../../../services/actions", () => ({
   actions: {
+    pluginInventory: {
+      openEditorPoc: vi.fn().mockResolvedValue(undefined),
+    },
     ui: {
       sequencer: {
         setInstrument: vi.fn().mockResolvedValue(undefined),
@@ -52,7 +55,12 @@ const mockInstrument: Instrument = {
 };
 
 describe("InstrumentOverviewRow", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(actions.pluginInventory.openEditorPoc).mockResolvedValue(
+      undefined,
+    );
+  });
 
   const renderRow = (resolvedAssignment = {}) => {
     return renderWithProviders(
@@ -157,6 +165,117 @@ describe("InstrumentOverviewRow", () => {
 
     expect(
       within(routeButton).queryByLabelText("Playback needs attention"),
+    ).toBeNull();
+  });
+
+  it("renders a plugin UI button beside the route picker for supported assigned plugins", () => {
+    renderRow({
+      status: ResolvedPlaybackRouteStatus.Ready,
+      slot_id: 7,
+      slot_target: { plugin_id: "vst3:grand-piano" },
+      effective_plugin_id: "vst3:grand-piano",
+      target: { mode: 0, index: null },
+      address: { mode: 0, index: null },
+      supported_mix_controls: supportedMixerControls,
+    });
+
+    expect(
+      screen.getByRole("button", { name: "Open plugin UI for Grand Piano" }),
+    ).toBeInTheDocument();
+  });
+
+  it("opens the assigned plugin UI from the instrument overview row", async () => {
+    renderRow({
+      status: ResolvedPlaybackRouteStatus.Ready,
+      slot_id: 7,
+      slot_target: { plugin_id: "vst3:grand-piano" },
+      effective_plugin_id: "vst3:grand-piano",
+      target: { mode: 0, index: null },
+      address: { mode: 0, index: null },
+      supported_mix_controls: supportedMixerControls,
+    });
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Open plugin UI for Grand Piano" }),
+    );
+
+    await waitFor(() => {
+      expect(actions.pluginInventory.openEditorPoc).toHaveBeenCalledWith(
+        "vst3:grand-piano",
+        { slot_id: 7 },
+      );
+    });
+  });
+
+  it("hides the plugin UI button for blocked editor-host targets", () => {
+    renderWithProviders(
+      <InstrumentOverviewRow
+        instrument={mockInstrument}
+        color="#ff0000"
+        isDisabled={false}
+      />,
+      {
+        appState: {
+          score: {
+            playback: {
+              rack: {
+                order: [7],
+                by_id: {
+                  7: {
+                    id: 7,
+                    target: { plugin_id: "vst3:grand-piano" },
+                  },
+                },
+              },
+            },
+          } as never,
+          route_target_options_by_slot_id: {
+            7: [
+              {
+                key: "plugin-root",
+                label: "Plugin output",
+                target: { mode: 0, index: null },
+                address: { mode: 0, index: null },
+              },
+            ],
+          },
+          resolved_playback_route_by_instrument_id: {
+            5: {
+              status: ResolvedPlaybackRouteStatus.Ready,
+              slot_id: 7,
+              slot_target: { plugin_id: "vst3:grand-piano" },
+              effective_plugin_id: "vst3:grand-piano",
+              target: { mode: 0, index: null },
+              address: { mode: 0, index: null },
+              supported_mix_controls: supportedMixerControls,
+            },
+          },
+        },
+        pluginInventoryState: {
+          entries: [
+            {
+              id: "vst3:grand-piano",
+              name: "Grand Piano",
+              bundle_path: "/Library/Audio/Plug-Ins/VST3/Grand Piano.vst3",
+              binary_path:
+                "/Library/Audio/Plug-Ins/VST3/Grand Piano.vst3/Contents/MacOS/Grand Piano",
+              source_root: "/Library/Audio/Plug-Ins/VST3",
+              availability: "available",
+              validation_failure: null,
+              editor_host_validation: {
+                status: "blocked",
+                phase: "policy_gate",
+                message: "unsupported",
+                capability_evidence: null,
+              },
+            },
+          ],
+        },
+      },
+    );
+
+    expect(
+      screen.queryByRole("button", { name: "Open plugin UI for Grand Piano" }),
     ).toBeNull();
   });
 

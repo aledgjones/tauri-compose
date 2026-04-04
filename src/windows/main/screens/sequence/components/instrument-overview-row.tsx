@@ -1,12 +1,13 @@
 import { FC, useMemo, useState } from "react";
 import {
   Instrument,
+  PluginInventoryEntry,
   PlaybackRouteAddress,
   PlaybackRouteChoice,
   PlaybackRouteTarget,
 } from "../../../../../services/types";
 import { IconButton } from "../../../../../ui/buttons/icon-button";
-import { mdiCableData, mdiSizeM, mdiSizeS } from "@mdi/js";
+import { mdiCableData, mdiCogOutline, mdiSizeM, mdiSizeS } from "@mdi/js";
 import { TokenizedText } from "../../../../../ui/text";
 import classNames from "classnames";
 import {
@@ -81,6 +82,14 @@ const isSupportedRouteOption = (
   return false;
 };
 
+const canOpenPluginEditor = (plugin: PluginInventoryEntry | null) => {
+  return (
+    plugin !== null &&
+    plugin.availability === "available" &&
+    plugin.editor_host_validation?.status !== "blocked"
+  );
+};
+
 export const InstrumentOverviewRow: FC<InstrumentOverviewRowProps> = ({
   instrument,
   color,
@@ -109,6 +118,8 @@ export const InstrumentOverviewRow: FC<InstrumentOverviewRowProps> = ({
   );
   const [isUpdatingRoute, setIsUpdatingRoute] = useState(false);
   const [routeError, setRouteError] = useState<string | null>(null);
+  const [isOpeningPluginEditor, setIsOpeningPluginEditor] = useState(false);
+  const [openPluginError, setOpenPluginError] = useState<string | null>(null);
 
   const routeOptions = useMemo<RouteOption[]>(() => {
     const options: RouteOption[] = [
@@ -178,6 +189,23 @@ export const InstrumentOverviewRow: FC<InstrumentOverviewRowProps> = ({
   const hasVisibleSlotOptions = routeSelectOptions.some(
     (option) => option.value !== "unrouted",
   );
+
+  const selectedSlotId = routeState?.slot_id ?? null;
+  const selectedPlugin = useMemo(() => {
+    if (selectedSlotId == null) {
+      return null;
+    }
+
+    const pluginId = rack?.by_id[selectedSlotId]?.target?.plugin_id ?? null;
+    if (pluginId == null) {
+      return null;
+    }
+
+    return (
+      pluginInventory.entries.find((entry) => entry.id === pluginId) ?? null
+    );
+  }, [pluginInventory.entries, rack, selectedSlotId]);
+  const showOpenPluginButton = canOpenPluginEditor(selectedPlugin);
 
   const resolveRoutePayload = (
     slotId: number,
@@ -275,6 +303,38 @@ export const InstrumentOverviewRow: FC<InstrumentOverviewRowProps> = ({
     }
   };
 
+  const handleOpenPluginEditor = async () => {
+    if (
+      isOpeningPluginEditor ||
+      selectedSlotId == null ||
+      !canOpenPluginEditor(selectedPlugin)
+    ) {
+      return;
+    }
+
+    const plugin = selectedPlugin;
+    if (plugin == null) {
+      return;
+    }
+
+    setOpenPluginError(null);
+    setIsOpeningPluginEditor(true);
+
+    try {
+      await actions.pluginInventory.openEditorPoc(plugin.id, {
+        slot_id: selectedSlotId,
+      });
+    } catch (error) {
+      setOpenPluginError(
+        error instanceof Error
+          ? error.message
+          : "Failed to open the plugin UI.",
+      );
+    } finally {
+      setIsOpeningPluginEditor(false);
+    }
+  };
+
   return (
     <div
       tabIndex={-1}
@@ -333,25 +393,52 @@ export const InstrumentOverviewRow: FC<InstrumentOverviewRowProps> = ({
       </div>
 
       <div className="flex flex-col gap-1.5 text-xs text-neutral-300">
-        <Select
-          value={selectedRouteOptionValue}
-          options={routeSelectOptions}
-          onChange={handleRouteChange}
-          variant="filled"
-          icon={mdiCableData}
-          endAdornment={<PlaybackReadinessBadge presentation={presentation} />}
-          disabled={
-            isDisabled ||
-            isUpdatingRoute ||
-            (!hasVisibleSlotOptions && selectedRouteOptionValue === "unrouted")
-          }
-        />
+        <div className="flex items-stretch gap-2">
+          <div className="min-w-0 flex-1">
+            <Select
+              value={selectedRouteOptionValue}
+              options={routeSelectOptions}
+              onChange={handleRouteChange}
+              variant="filled"
+              icon={mdiCableData}
+              endAdornment={
+                <PlaybackReadinessBadge presentation={presentation} />
+              }
+              disabled={
+                isDisabled ||
+                isUpdatingRoute ||
+                (!hasVisibleSlotOptions &&
+                  selectedRouteOptionValue === "unrouted")
+              }
+            />
+          </div>
+
+          {showOpenPluginButton && selectedPlugin ? (
+            <IconButton
+              path={mdiCogOutline}
+              variant="filled"
+              size={0.85}
+              className="shrink-0"
+              isDisabled={isOpeningPluginEditor || isDisabled}
+              onClick={handleOpenPluginEditor}
+              aria-label={`Open plugin UI for ${selectedPlugin.name}`}
+            />
+          ) : null}
+        </div>
         {routeError ? (
           <div
             role="alert"
             className="border border-amber-800/70 bg-amber-500/10 px-3 py-2 text-xs text-amber-100"
           >
             Route update failed: {routeError}
+          </div>
+        ) : null}
+        {openPluginError ? (
+          <div
+            role="alert"
+            className="border border-amber-800/70 bg-amber-500/10 px-3 py-2 text-xs text-amber-100"
+          >
+            Plugin UI failed: {openPluginError}
           </div>
         ) : null}
       </div>
