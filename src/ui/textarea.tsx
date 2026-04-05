@@ -1,5 +1,5 @@
 import classNames from "classnames";
-import { FC, useRef, useState } from "react";
+import { FC, InputEvent, useRef, useState } from "react";
 
 interface TextareaProps {
   value: string;
@@ -37,7 +37,7 @@ export const Textarea: FC<TextareaProps> = ({
         ref={textareaRef}
         value={displayValue}
         contentEditable={!readOnly}
-        onInput={(e: React.FormEvent<HTMLTextAreaElement>) => {
+        onInput={(e: InputEvent<HTMLTextAreaElement>) => {
           const target = e.target as HTMLTextAreaElement;
           setDraftValue(target.value);
           target.style.height = "1px";
