@@ -128,6 +128,97 @@ describe("actions.openPluginManager", () => {
   });
 });
 
+describe("actions.openExpressionMapWindow", () => {
+  it("creates, shows, and focuses the expression map manager window without a forced selection", async () => {
+    vi.mocked(WebviewWindow.getByLabel).mockResolvedValueOnce(null);
+
+    await actions.openExpressionMapManager();
+
+    const windowMock = vi.mocked(WebviewWindow).mock.results[0]?.value as {
+      show: ReturnType<typeof vi.fn>;
+      setFocus: ReturnType<typeof vi.fn>;
+    };
+
+    expect(WebviewWindow.getByLabel).toHaveBeenCalledWith("expression-map");
+    expect(WebviewWindow).toHaveBeenCalledWith(
+      "expression-map",
+      expect.objectContaining({
+        url: "/expression-map.html",
+        title: "Expression Map",
+        visible: false,
+      }),
+    );
+    expect(windowMock.show).toHaveBeenCalledTimes(1);
+    expect(windowMock.setFocus).toHaveBeenCalledTimes(1);
+  });
+
+  it("reuses the existing expression map manager window without retargeting selection", async () => {
+    const existingWindow = {
+      show: vi.fn(),
+      setFocus: vi.fn(),
+      emit: vi.fn().mockResolvedValue(undefined),
+    };
+
+    vi.mocked(WebviewWindow.getByLabel).mockResolvedValueOnce(
+      existingWindow as unknown as WebviewWindow,
+    );
+
+    const result = await actions.openExpressionMapManager();
+
+    expect(WebviewWindow).not.toHaveBeenCalled();
+    expect(existingWindow.emit).not.toHaveBeenCalled();
+    expect(existingWindow.show).toHaveBeenCalledTimes(1);
+    expect(existingWindow.setFocus).toHaveBeenCalledTimes(1);
+    expect(result).toBe(existingWindow);
+  });
+
+  it("creates, shows, and focuses the dedicated expression map window for a selected map", async () => {
+    vi.mocked(WebviewWindow.getByLabel).mockResolvedValueOnce(null);
+
+    await actions.openExpressionMapWindow("legato");
+
+    const windowMock = vi.mocked(WebviewWindow).mock.results[0]?.value as {
+      show: ReturnType<typeof vi.fn>;
+      setFocus: ReturnType<typeof vi.fn>;
+    };
+
+    expect(WebviewWindow.getByLabel).toHaveBeenCalledWith("expression-map");
+    expect(WebviewWindow).toHaveBeenCalledWith(
+      "expression-map",
+      expect.objectContaining({
+        url: "/expression-map.html?expression_map_id=legato",
+        title: "Expression Map",
+        visible: false,
+      }),
+    );
+    expect(windowMock.show).toHaveBeenCalledTimes(1);
+    expect(windowMock.setFocus).toHaveBeenCalledTimes(1);
+  });
+
+  it("reuses the existing expression map window and retargets it to the selected map", async () => {
+    const existingWindow = {
+      show: vi.fn(),
+      setFocus: vi.fn(),
+      emit: vi.fn().mockResolvedValue(undefined),
+    };
+
+    vi.mocked(WebviewWindow.getByLabel).mockResolvedValueOnce(
+      existingWindow as unknown as WebviewWindow,
+    );
+
+    const result = await actions.openExpressionMapWindow("staccato");
+
+    expect(WebviewWindow).not.toHaveBeenCalled();
+    expect(existingWindow.emit).toHaveBeenCalledWith(
+      "soloc://expression-map/select",
+      { expression_map_id: "staccato" },
+    );
+    expect(existingWindow.show).toHaveBeenCalledTimes(1);
+    expect(existingWindow.setFocus).toHaveBeenCalledTimes(1);
+    expect(result).toBe(existingWindow);
+  });
+});
+
 // ---------------------------------------------------------------------------
 // audio
 // ---------------------------------------------------------------------------
@@ -218,6 +309,32 @@ describe("actions.expressionMaps", () => {
     expect(mockInvoke).toHaveBeenCalledWith("expression_maps_upsert", {
       expression_map: expressionMap,
     });
+  });
+});
+
+describe("actions.score.instrument.setExpressionMap", () => {
+  it("calls invoke with instrument_id and expression_map_id payload", async () => {
+    await actions.score.instrument.setExpressionMap(12, "legato");
+
+    expect(mockInvoke).toHaveBeenCalledWith(
+      "score_instruments_set_expression_map",
+      {
+        instrument_id: 12,
+        expression_map_id: "legato",
+      },
+    );
+  });
+
+  it("supports clearing the current expression map linkage with null", async () => {
+    await actions.score.instrument.setExpressionMap(12, null);
+
+    expect(mockInvoke).toHaveBeenCalledWith(
+      "score_instruments_set_expression_map",
+      {
+        instrument_id: 12,
+        expression_map_id: null,
+      },
+    );
   });
 });
 

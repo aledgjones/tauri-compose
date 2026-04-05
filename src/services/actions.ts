@@ -62,6 +62,65 @@ export const actions = {
 
     return webview;
   },
+  openExpressionMapManager: async () => {
+    const existing = await WebviewWindow.getByLabel("expression-map");
+
+    if (existing) {
+      await existing.show();
+      await existing.setFocus();
+
+      return existing;
+    }
+
+    const webview = new WebviewWindow("expression-map", {
+      url: "/expression-map.html",
+      title: "Expression Map",
+      visible: false,
+      hiddenTitle: true,
+      titleBarStyle: "overlay",
+      acceptFirstMouse: true,
+      height: 520,
+      width: 760,
+      theme: "dark",
+    });
+
+    await webview.show();
+    await webview.setFocus();
+
+    return webview;
+  },
+  openExpressionMapWindow: async (expression_map_id: string) => {
+    const existing = await WebviewWindow.getByLabel("expression-map");
+
+    if (existing) {
+      await existing.emit("soloc://expression-map/select", {
+        expression_map_id,
+      });
+      await existing.show();
+      await existing.setFocus();
+
+      return existing;
+    }
+
+    const webview = new WebviewWindow("expression-map", {
+      url: `/expression-map.html?expression_map_id=${encodeURIComponent(
+        expression_map_id,
+      )}`,
+      title: "Expression Map",
+      visible: false,
+      hiddenTitle: true,
+      titleBarStyle: "overlay",
+      acceptFirstMouse: true,
+      height: 520,
+      width: 760,
+      theme: "dark",
+    });
+
+    await webview.show();
+    await webview.setFocus();
+
+    return webview;
+  },
   pickAnInstrument: () => {
     return new Promise<string | null>((resolve) => {
       (async () => {
@@ -576,6 +635,15 @@ export const actions = {
       unassignRoute: (instrument_id: number) => {
         return invoke<void>("score_instruments_unassign_route", {
           instrument_id,
+        });
+      },
+      setExpressionMap: (
+        instrument_id: number,
+        expression_map_id: string | null,
+      ) => {
+        return invoke<void>("score_instruments_set_expression_map", {
+          instrument_id,
+          expression_map_id,
         });
       },
       setVolume: (instrument_id: number, volume: number) => {

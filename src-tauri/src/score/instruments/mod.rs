@@ -346,6 +346,29 @@ impl Score {
         Ok(())
     }
 
+    pub fn set_instrument_expression_map(
+        &mut self,
+        instrument_id: UniqueId,
+        expression_map_id: Option<String>,
+    ) -> Result<(), String> {
+        let instrument = self
+            .instruments
+            .by_id
+            .get_mut(&instrument_id)
+            .ok_or_else(|| format!("Instrument {} does not exist", instrument_id))?;
+
+        let route = instrument.playback_route.as_mut().ok_or_else(|| {
+            format!(
+                "Instrument {} does not have a playback route",
+                instrument_id
+            )
+        })?;
+
+        route.expression_map_id = expression_map_id;
+
+        Ok(())
+    }
+
     #[cfg(test)]
     fn playback_test_inventory(available_plugin_ids: &FxHashSet<String>) -> PluginInventoryContext {
         PluginInventoryContext::with_entries_for_tests(
@@ -753,6 +776,31 @@ pub fn score_instruments_unassign_route(
 }
 
 #[tauri::command(rename_all = "snake_case")]
+pub fn score_instruments_set_expression_map(
+    app: tauri::AppHandle,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
+    instrument_id: UniqueId,
+    expression_map_id: Option<String>,
+) -> Result<(), String> {
+    let mut state = state.lock().unwrap();
+
+    state
+        .score
+        .set_instrument_expression_map(instrument_id, expression_map_id)?;
+
+    let mut renderer = renderer_state.lock().unwrap();
+    state.emit_after_playback_edit(
+        &app,
+        &mut renderer,
+        DeferredPlaybackRefreshKind::PlaybackTopology,
+        None,
+    );
+
+    Ok(())
+}
+
+#[tauri::command(rename_all = "snake_case")]
 pub fn score_instruments_set_volume(
     app: tauri::AppHandle,
     state: State<'_, AppContextState>,
@@ -1137,6 +1185,63 @@ mod tests {
         score
             .assign_instrument_route(10, InstrumentPlaybackRoute::direct(100))
             .expect("empty slot selection should persist");
+
+        assert_eq!(
+            score.instruments.by_id[&10].playback_route,
+            Some(InstrumentPlaybackRoute::direct(100))
+        );
+    }
+
+    #[test]
+    fn set_instrument_expression_map_preserves_route_target_and_address() {
+        let mut score = make_score(
+            vec![make_player(1, PlayerType::Section, vec![10])],
+            vec![make_instrument(10, "woodwind.flute", "Flute")],
+        );
+
+        add_slot(&mut score, 100, "plugin-a");
+        score
+            .assign_instrument_route(10, InstrumentPlaybackRoute::direct(100))
+            .expect("route assignment should succeed");
+
+        score
+            .set_instrument_expression_map(10, Some(String::from("legato")))
+            .expect("expression map assignment should succeed");
+
+        assert_eq!(
+            score.instruments.by_id[&10].playback_route,
+            Some(InstrumentPlaybackRoute {
+                slot_id: 100,
+                target: PlaybackRouteTarget::plugin(),
+                address: PlaybackRouteAddress::root(),
+                expression_map_id: Some(String::from("legato")),
+            })
+        );
+    }
+
+    #[test]
+    fn set_instrument_expression_map_clears_existing_route_linkage() {
+        let mut score = make_score(
+            vec![make_player(1, PlayerType::Section, vec![10])],
+            vec![make_instrument(10, "woodwind.flute", "Flute")],
+        );
+
+        add_slot(&mut score, 100, "plugin-a");
+        score
+            .assign_instrument_route(
+                10,
+                InstrumentPlaybackRoute {
+                    slot_id: 100,
+                    target: PlaybackRouteTarget::plugin(),
+                    address: PlaybackRouteAddress::root(),
+                    expression_map_id: Some(String::from("staccato")),
+                },
+            )
+            .expect("route assignment should succeed");
+
+        score
+            .set_instrument_expression_map(10, None)
+            .expect("expression map clearing should succeed");
 
         assert_eq!(
             score.instruments.by_id[&10].playback_route,

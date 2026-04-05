@@ -59,10 +59,10 @@ use crate::score::flows::{
 use crate::score::instruments::defs::score_instruments_get_all_definitions;
 use crate::score::instruments::{
     score_instruments_assign_slot_route, score_instruments_create, score_instruments_move,
-    score_instruments_remove, score_instruments_set_mute, score_instruments_set_pan,
-    score_instruments_set_solo, score_instruments_set_volume, score_instruments_unassign_route,
-    score_playback_slots_assign_plugin, score_playback_slots_create, score_playback_slots_remove,
-    score_playback_slots_unassign_plugin,
+    score_instruments_remove, score_instruments_set_expression_map, score_instruments_set_mute,
+    score_instruments_set_pan, score_instruments_set_solo, score_instruments_set_volume,
+    score_instruments_unassign_route, score_playback_slots_assign_plugin,
+    score_playback_slots_create, score_playback_slots_remove, score_playback_slots_unassign_plugin,
 };
 use crate::score::layouts::{
     score_layouts_assign_flow, score_layouts_assign_player, score_layouts_create,
@@ -1133,6 +1133,16 @@ pub async fn execute_action(app: &AppHandle, name: &str, args: &[Value]) -> Resu
             )?;
             Ok(Value::Null)
         }
+        "score.instrument.setExpressionMap" => {
+            score_instruments_set_expression_map(
+                app.clone(),
+                app.state::<AppContextState>(),
+                app.state::<RendererContextState>(),
+                arg_id(args, 0, "instrument_id")?,
+                arg_opt_string(args, 1, "expression_map_id")?,
+            )?;
+            Ok(Value::Null)
+        }
         "score.playback.slot.create" => {
             let slot_id = score_playback_slots_create(
                 app.clone(),
@@ -2146,6 +2156,16 @@ fn arg_string(args: &[Value], index: usize, name: &str) -> Result<String, String
         .as_str()
         .map(ToOwned::to_owned)
         .ok_or_else(|| format!("Argument {name} must be a string"))
+}
+
+fn arg_opt_string(args: &[Value], index: usize, name: &str) -> Result<Option<String>, String> {
+    match args.get(index) {
+        None | Some(Value::Null) => Ok(None),
+        Some(value) => value
+            .as_str()
+            .map(|resolved| Some(resolved.to_owned()))
+            .ok_or_else(|| format!("Argument {name} must be a string or null")),
+    }
 }
 
 fn arg_id(args: &[Value], index: usize, name: &str) -> Result<u64, String> {

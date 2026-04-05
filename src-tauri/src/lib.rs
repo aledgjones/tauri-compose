@@ -86,10 +86,10 @@ use score::flows::{
 use score::instruments::defs::score_instruments_get_all_definitions;
 use score::instruments::{
     score_instruments_assign_slot_route, score_instruments_create, score_instruments_move,
-    score_instruments_remove, score_instruments_set_mute, score_instruments_set_pan,
-    score_instruments_set_solo, score_instruments_set_volume, score_instruments_unassign_route,
-    score_playback_slots_assign_plugin, score_playback_slots_create, score_playback_slots_remove,
-    score_playback_slots_unassign_plugin,
+    score_instruments_remove, score_instruments_set_expression_map, score_instruments_set_mute,
+    score_instruments_set_pan, score_instruments_set_solo, score_instruments_set_volume,
+    score_instruments_unassign_route, score_playback_slots_assign_plugin,
+    score_playback_slots_create, score_playback_slots_remove, score_playback_slots_unassign_plugin,
 };
 use score::layouts::{
     score_layouts_assign_flow, score_layouts_assign_player, score_layouts_create,
@@ -650,6 +650,13 @@ pub fn run() {
                 true,
                 None::<&str>,
             )?;
+            let expression_map_manager = MenuItem::with_id(
+                app,
+                "expression_map_manager",
+                "Expression Maps Manager...",
+                true,
+                None::<&str>,
+            )?;
 
             let app_menu = Submenu::with_items(
                 app,
@@ -696,7 +703,7 @@ pub fn run() {
                 "sequence_menu",
                 "Sequence",
                 true,
-                &[&plugin_manager],
+                &[&plugin_manager, &expression_map_manager],
             )?;
 
             // Create main menu with app menu first, then File and Sequence menus
@@ -732,6 +739,10 @@ pub fn run() {
                     "plugin_manager" => {
                         // Trigger plugin manager window
                         let _ = app.emit("soloc://menu/plugin-manager", ());
+                    }
+                    "expression_map_manager" => {
+                        // Trigger expression map manager window
+                        let _ = app.emit("soloc://menu/expression-map-manager", ());
                     }
                     "clear_recent_files" => {
                         // Clear recent files
@@ -841,6 +852,7 @@ pub fn run() {
             score_instruments_remove,
             score_instruments_assign_slot_route,
             score_instruments_unassign_route,
+            score_instruments_set_expression_map,
             score_instruments_set_volume,
             score_instruments_set_pan,
             score_instruments_set_mute,

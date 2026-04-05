@@ -1,5 +1,5 @@
 import { FC, useMemo, useState } from "react";
-import { mdiAlertCircleOutline, mdiCogOutline } from "@mdi/js";
+import { mdiAlertCircleOutline, mdiOpenInNew } from "@mdi/js";
 import {
   useAppState,
   usePluginInventoryState,
@@ -332,9 +332,9 @@ export const PlaybackRackPanel: FC<PlaybackRackPanelProps> = ({
 
                   {showOpenPluginButton && selectedPlugin ? (
                     <IconButton
-                      path={mdiCogOutline}
+                      path={mdiOpenInNew}
                       variant="filled"
-                      size={0.85}
+                      size={0.8}
                       className="shrink-0"
                       isDisabled={isOpeningEditor}
                       onClick={() =>

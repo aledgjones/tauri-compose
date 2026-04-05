@@ -10,7 +10,7 @@ import {
 } from "../../../components/sequencer-address-lattice";
 
 const range = { min: 21, max: 108 };
-const rowHeight = 96;
+const defaultRowHeight = 96;
 const pianoRangeSize = range.max - range.min;
 
 const getToneAddress = (tone: Tone, tupletId: number | null): AxisAddress => ({
@@ -24,6 +24,7 @@ interface MiniaturePianoRollProps {
   ticks: TickConfig;
   color: string;
   isDisabled: boolean;
+  rowHeightPx?: number;
 }
 
 export const MiniaturePianoRoll: FC<MiniaturePianoRollProps> = ({
@@ -32,6 +33,7 @@ export const MiniaturePianoRoll: FC<MiniaturePianoRollProps> = ({
   ticks,
   color,
   isDisabled,
+  rowHeightPx = defaultRowHeight,
 }) => {
   const state = useAppState();
 
@@ -157,7 +159,7 @@ export const MiniaturePianoRoll: FC<MiniaturePianoRollProps> = ({
         "opacity-50": isDisabled,
       })}
       style={{
-        height: rowHeight,
+        height: rowHeightPx,
         width: ticks.length * ticks.tickWidth,
       }}
     >
@@ -188,7 +190,7 @@ export const MiniaturePianoRoll: FC<MiniaturePianoRollProps> = ({
               left: range.start,
               top: 0,
               width: Math.max(1, range.end - range.start),
-              height: rowHeight,
+              height: rowHeightPx,
               backgroundColor: color,
             }}
           />
@@ -199,7 +201,7 @@ export const MiniaturePianoRoll: FC<MiniaturePianoRollProps> = ({
       {renderedTones.map((tone) => {
         // Position pitch relative to full piano range
         const pitchRatio = (tone.pitch - range.min) / pianoRangeSize;
-        const y = (1 - pitchRatio) * (rowHeight - 3);
+        const y = (1 - pitchRatio) * (rowHeightPx - 3);
 
         return (
           <div

@@ -15,6 +15,7 @@ type SelectProps<T> = {
   value: T | null;
   options: SelectOption<T>[];
   onChange: (value: T) => void;
+  ariaLabel?: string;
   direction?: "up" | "down";
   className?: string;
   variant: "standard" | "filled";
@@ -24,12 +25,15 @@ type SelectProps<T> = {
   icon?: string;
   iconSize?: number;
   endAdornment?: ReactNode;
+  buttonClassName?: string;
+  showChevron?: boolean;
 };
 
 export const Select = <T extends Key>({
   value,
   options,
   onChange,
+  ariaLabel,
   direction = "down",
   className,
   variant,
@@ -39,6 +43,8 @@ export const Select = <T extends Key>({
   icon,
   iconSize = 1,
   endAdornment,
+  buttonClassName,
+  showChevron = true,
 }: SelectProps<T>) => {
   const [isOpen, setIsOpen] = useState(false);
   const selectRef = useRef<HTMLDivElement>(null);
@@ -85,17 +91,19 @@ export const Select = <T extends Key>({
         </label>
       )}
       <button
+        aria-label={ariaLabel}
         disabled={disabled}
         onClick={() => setIsOpen((prev) => !prev)}
         className={classNames(
-          "h-9 flex items-center w-full min-w-0 text-left text-white text-sm px-3 border-2",
+          "h-9 flex items-center w-full min-w-0 text-left text-white text-sm px-2 border-2",
+          buttonClassName,
           {
-            "bg-neutral-900 hover:bg-neutral-800 border-transparent":
-              !isOpen && isStandard,
-            "bg-neutral-800 border-transparent": isOpen && isStandard,
-            "bg-neutral-800 hover:bg-neutral-700 border-transparent":
-              !isOpen && !isStandard,
+            "bg-neutral-900 border-transparent": !isOpen && isStandard,
+            "bg-neutral-800 border-transparent":
+              (isOpen && isStandard) || (!isOpen && !isStandard),
             "bg-neutral-700 border-sky-500": isOpen && !isStandard,
+            "hover:bg-neutral-800": !disabled && !isOpen && isStandard,
+            "hover:bg-neutral-700": !disabled && !isOpen && !isStandard,
           },
         )}
       >
@@ -121,16 +129,18 @@ export const Select = <T extends Key>({
           <div className="ml-2 flex shrink-0 items-center">{endAdornment}</div>
         ) : null}
 
-        <div className="flex items-center pointer-events-none pl-3">
-          <MdiIcon
-            path={mdiChevronDown}
-            size={0.75}
-            className={classNames(
-              "text-neutral-300 transform transition-transform",
-              { "rotate-180": isOpen },
-            )}
-          />
-        </div>
+        {showChevron ? (
+          <div className="flex items-center pointer-events-none pl-3">
+            <MdiIcon
+              path={mdiChevronDown}
+              size={0.75}
+              className={classNames(
+                "text-neutral-300 transform transition-transform",
+                { "rotate-180": isOpen },
+              )}
+            />
+          </div>
+        ) : null}
       </button>
 
       {isOpen && (

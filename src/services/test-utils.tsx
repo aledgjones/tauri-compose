@@ -4,16 +4,19 @@ import userEvent from "@testing-library/user-event";
 import {
   AppContext,
   AudioContext,
+  ExpressionMapLibraryContext,
   PluginInventoryContext,
   TransportContext,
   initialAppState,
   initialAudioState,
+  initialExpressionMapLibraryState,
   initialPluginInventoryState,
   initialTransportState,
 } from "./state/context";
 import {
   AppState,
   AudioState,
+  ExpressionMapLibraryState,
   PluginInventoryState,
   TransportState,
 } from "./types";
@@ -64,6 +67,7 @@ export function createAppState(overrides?: Partial<AppState>): AppState {
 export type RenderOptions = {
   appState?: Partial<AppState>;
   audioState?: Partial<AudioState>;
+  expressionMapLibraryState?: Partial<ExpressionMapLibraryState>;
   pluginInventoryState?: Partial<PluginInventoryState>;
   transportState?: Partial<TransportState>;
 };
@@ -87,6 +91,13 @@ export function renderWithProviders(
       }
     : structuredClone(initialPluginInventoryState);
 
+  const expressionMapLibraryState = options?.expressionMapLibraryState
+    ? {
+        ...structuredClone(initialExpressionMapLibraryState),
+        ...options.expressionMapLibraryState,
+      }
+    : structuredClone(initialExpressionMapLibraryState);
+
   const transportState = options?.transportState
     ? { ...structuredClone(initialTransportState), ...options.transportState }
     : structuredClone(initialTransportState);
@@ -96,9 +107,13 @@ export function renderWithProviders(
       <AppContext.Provider value={appState}>
         <AudioContext.Provider value={audioState}>
           <PluginInventoryContext.Provider value={pluginInventoryState}>
-            <TransportContext.Provider value={transportState}>
-              {children}
-            </TransportContext.Provider>
+            <ExpressionMapLibraryContext.Provider
+              value={expressionMapLibraryState}
+            >
+              <TransportContext.Provider value={transportState}>
+                {children}
+              </TransportContext.Provider>
+            </ExpressionMapLibraryContext.Provider>
           </PluginInventoryContext.Provider>
         </AudioContext.Provider>
       </AppContext.Provider>
@@ -129,6 +144,13 @@ export function createWrapper(
       }
     : structuredClone(initialPluginInventoryState);
 
+  const expressionMapLibraryState = options?.expressionMapLibraryState
+    ? {
+        ...structuredClone(initialExpressionMapLibraryState),
+        ...options.expressionMapLibraryState,
+      }
+    : structuredClone(initialExpressionMapLibraryState);
+
   const transportState = options?.transportState
     ? { ...structuredClone(initialTransportState), ...options.transportState }
     : structuredClone(initialTransportState);
@@ -138,9 +160,13 @@ export function createWrapper(
       <AppContext.Provider value={appState}>
         <AudioContext.Provider value={audioState}>
           <PluginInventoryContext.Provider value={pluginInventoryState}>
-            <TransportContext.Provider value={transportState}>
-              {children}
-            </TransportContext.Provider>
+            <ExpressionMapLibraryContext.Provider
+              value={expressionMapLibraryState}
+            >
+              <TransportContext.Provider value={transportState}>
+                {children}
+              </TransportContext.Provider>
+            </ExpressionMapLibraryContext.Provider>
           </PluginInventoryContext.Provider>
         </AudioContext.Provider>
       </AppContext.Provider>

@@ -4,6 +4,7 @@ import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import {
   AppState,
   AudioState,
+  ExpressionMapLibraryState,
   PluginInventoryState,
   Tempo,
   TransportState,
@@ -23,6 +24,8 @@ import {
   initialAppState,
   initialAudioState,
   AudioContext,
+  ExpressionMapLibraryContext,
+  initialExpressionMapLibraryState,
   initialPluginInventoryState,
   PluginInventoryContext,
   initialTransportState,
@@ -43,6 +46,8 @@ export const AppStateProvider: FC<Props> = ({
   const [audioState, setAudioState] = useState<AudioState>(initialAudioState);
   const [pluginInventoryState, setPluginInventoryState] =
     useState<PluginInventoryState>(initialPluginInventoryState);
+  const [expressionMapLibraryState, setExpressionMapLibraryState] =
+    useState<ExpressionMapLibraryState>(initialExpressionMapLibraryState);
   const [transportState, setTransportState] = useState<TransportState>(
     initialTransportState,
   );
@@ -232,12 +237,14 @@ export const AppStateProvider: FC<Props> = ({
     let unlistenApp: UnlistenFn | null = null;
     let unlistenAudio: UnlistenFn | null = null;
     let unlistenPluginInventory: UnlistenFn | null = null;
+    let unlistenExpressionMaps: UnlistenFn | null = null;
     let unlistenMenuSave: UnlistenFn | null = null;
     let unlistenMenuSaveAs: UnlistenFn | null = null;
     let unlistenMenuOpen: UnlistenFn | null = null;
     let unlistenMenuOpenRecent: UnlistenFn | null = null;
     let unlistenMenuNew: UnlistenFn | null = null;
     let unlistenMenuPluginManager: UnlistenFn | null = null;
+    let unlistenMenuExpressionMapManager: UnlistenFn | null = null;
     let unlistenMenuPreferences: UnlistenFn | null = null;
     let unlistenRecentsChanged: UnlistenFn | null = null;
 
@@ -254,6 +261,13 @@ export const AppStateProvider: FC<Props> = ({
         "soloc://state/plugin_inventory",
         (e) => {
           setPluginInventoryState(e.payload);
+        },
+      );
+
+      unlistenExpressionMaps = await listen<ExpressionMapLibraryState>(
+        "soloc://state/expression_maps",
+        (e) => {
+          setExpressionMapLibraryState(e.payload);
         },
       );
 
@@ -285,6 +299,13 @@ export const AppStateProvider: FC<Props> = ({
           "soloc://menu/plugin-manager",
           () => {
             actions.openPluginManager().catch(console.error);
+          },
+        );
+
+        unlistenMenuExpressionMapManager = await listen(
+          "soloc://menu/expression-map-manager",
+          () => {
+            actions.openExpressionMapManager().catch(console.error);
           },
         );
 
@@ -328,12 +349,14 @@ export const AppStateProvider: FC<Props> = ({
       unlistenApp?.();
       unlistenAudio?.();
       unlistenPluginInventory?.();
+      unlistenExpressionMaps?.();
       unlistenMenuSave?.();
       unlistenMenuSaveAs?.();
       unlistenMenuOpen?.();
       unlistenMenuOpenRecent?.();
       unlistenMenuNew?.();
       unlistenMenuPluginManager?.();
+      unlistenMenuExpressionMapManager?.();
       unlistenMenuPreferences?.();
       unlistenRecentsChanged?.();
     };
@@ -343,9 +366,13 @@ export const AppStateProvider: FC<Props> = ({
     <AppContext.Provider value={appStateWithTransientFlags}>
       <AudioContext.Provider value={audioState}>
         <PluginInventoryContext.Provider value={pluginInventoryState}>
-          <TransportContext.Provider value={transportState}>
-            {children}
-          </TransportContext.Provider>
+          <ExpressionMapLibraryContext.Provider
+            value={expressionMapLibraryState}
+          >
+            <TransportContext.Provider value={transportState}>
+              {children}
+            </TransportContext.Provider>
+          </ExpressionMapLibraryContext.Provider>
         </PluginInventoryContext.Provider>
       </AudioContext.Provider>
     </AppContext.Provider>

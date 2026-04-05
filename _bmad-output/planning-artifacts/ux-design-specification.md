@@ -290,7 +290,7 @@ Expression maps should be treated as durable, reusable playback assets rather th
 
 Two legitimate entry paths should exist. The first is the instrument-driven path, used when a user is diagnosing why a specific instrument is not behaving as expected and wants to assign or edit the currently linked map from the row. The second is a detached library-management path, used when the user wants to create, import, duplicate, export, or generally curate reusable Expression Maps without starting from a particular instrument.
 
-Both paths should stay within one dedicated app-scoped Expression Map workflow consisting of an `Expression Map Library` window and per-map `Expression Map Editor` windows. The editor owns the map itself, while the Sequence row only owns the score-context relationship to the map.
+Both paths should stay within one dedicated app-scoped Expression Map workflow window. That window should use a left library pane for search, browsing, and CRUD actions, and a right editor pane for the currently selected map. The right pane owns the map itself, while the Sequence row only owns the score-context relationship to the map.
 
 ### 3.4 Plugin Inventory And Discovery
 
@@ -312,6 +312,6 @@ The native plugin window should not become the default answer to routine playbac
 
 ### 3.7 Canonical App-Scoped Entry Points
 
-The system app menu should provide canonical entry points for app-scoped playback resources such as the Expression Map Library and Plugin Manager. This reinforces that these surfaces are not owned by the current score selection. However, those windows should still be reachable contextually from within the score workflow so users are not forced to discover them only through the menu bar.
+The system app menu should provide canonical entry points for app-scoped playback resources such as the Expression Map workflow window and Plugin Manager. This reinforces that these surfaces are not owned by the current score selection. However, those windows should still be reachable contextually from within the score workflow so users are not forced to discover them only through the menu bar.
 
 This creates a consistent scope model across the product: score-context relationships are discovered and managed from within the score workflow, while app-scoped inventories and deep editors are owned by dedicated windows that can be launched both from the menu bar and from contextual score surfaces.

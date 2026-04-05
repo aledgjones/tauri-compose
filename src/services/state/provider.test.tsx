@@ -2,11 +2,18 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { AppStateProvider } from "./provider";
 import {
+  initialExpressionMapLibraryState,
   initialAppState,
   useAppState,
+  useExpressionMapLibraryState,
   usePluginInventoryState,
 } from "./context";
-import { AppState, NoteDuration, PluginInventoryState } from "../types";
+import {
+  AppState,
+  ExpressionMapLibraryState,
+  NoteDuration,
+  PluginInventoryState,
+} from "../types";
 import { invoke } from "@tauri-apps/api/core";
 import { actions } from "../actions";
 
@@ -15,6 +22,17 @@ const PluginInventoryConsumer = () => {
 
   return (
     <div>{pluginInventoryState.entries[0]?.name ?? "No plugin inventory"}</div>
+  );
+};
+
+const ExpressionMapLibraryConsumer = () => {
+  const expressionMapLibraryState = useExpressionMapLibraryState();
+
+  return (
+    <div>
+      {expressionMapLibraryState.by_id[expressionMapLibraryState.order[0]]
+        ?.name ?? "No expression maps"}
+    </div>
   );
 };
 
@@ -60,6 +78,7 @@ vi.mock("../actions", () => ({
   actions: {
     initialize: vi.fn().mockResolvedValue(undefined),
     openPluginManager: vi.fn().mockResolvedValue(undefined),
+    openExpressionMapManager: vi.fn().mockResolvedValue(undefined),
     transport: {
       play: vi.fn().mockResolvedValue(undefined),
       pause: vi.fn().mockResolvedValue(undefined),
@@ -106,6 +125,50 @@ describe("AppStateProvider", () => {
       );
     });
     expect(screen.getByText("child content")).toBeInTheDocument();
+  });
+
+  it("updates expression map library state from the expression-maps event", async () => {
+    let expressionMapListener:
+      | ((event: { payload: ExpressionMapLibraryState }) => void)
+      | null = null;
+
+    listenMock.mockImplementation(async (eventName, callback) => {
+      if (eventName === "soloc://state/expression_maps") {
+        expressionMapListener = callback as (event: {
+          payload: ExpressionMapLibraryState;
+        }) => void;
+      }
+
+      return vi.fn();
+    });
+
+    await act(async () => {
+      render(
+        <AppStateProvider>
+          <ExpressionMapLibraryConsumer />
+        </AppStateProvider>,
+      );
+    });
+
+    expect(screen.getByText("No expression maps")).toBeInTheDocument();
+
+    await act(async () => {
+      expressionMapListener?.({
+        payload: {
+          ...initialExpressionMapLibraryState,
+          order: ["legato"],
+          by_id: {
+            legato: {
+              id: "legato",
+              name: "Legato",
+              rules: [],
+            },
+          },
+        },
+      });
+    });
+
+    expect(screen.getByText("Legato")).toBeInTheDocument();
   });
 
   it("renders multiple children", async () => {
@@ -362,6 +425,9 @@ describe("AppStateProvider", () => {
     const loadFromPathMock = vi.mocked(actions.file.loadFromPath);
     const resetMock = vi.mocked(actions.reset);
     const openPluginManagerMock = vi.mocked(actions.openPluginManager);
+    const openExpressionMapManagerMock = vi.mocked(
+      actions.openExpressionMapManager,
+    );
 
     const listeners = new Map<string, (event: { payload: string }) => void>();
     listenMock.mockImplementation(async (eventName, callback) => {
@@ -389,6 +455,7 @@ describe("AppStateProvider", () => {
     expect(listeners.has("soloc://menu/open-recent")).toBe(true);
     expect(listeners.has("soloc://menu/new")).toBe(true);
     expect(listeners.has("soloc://menu/plugin-manager")).toBe(true);
+    expect(listeners.has("soloc://menu/expression-map-manager")).toBe(true);
     expect(listeners.has("soloc://recents-changed")).toBe(true);
 
     await act(async () => {
@@ -408,6 +475,7 @@ describe("AppStateProvider", () => {
       });
       listeners.get("soloc://menu/new")?.({ payload: "" });
       listeners.get("soloc://menu/plugin-manager")?.({ payload: "" });
+      listeners.get("soloc://menu/expression-map-manager")?.({ payload: "" });
       listeners.get("soloc://recents-changed")?.({ payload: "" });
       await Promise.resolve();
       await vi.advanceTimersByTimeAsync(0);
@@ -422,6 +490,7 @@ describe("AppStateProvider", () => {
     );
     expect(resetMock).toHaveBeenCalledTimes(1);
     expect(openPluginManagerMock).toHaveBeenCalledTimes(1);
+    expect(openExpressionMapManagerMock).toHaveBeenCalledTimes(1);
 
     expect(invokeMock).toHaveBeenCalledWith("refresh_menus");
   });
@@ -448,6 +517,7 @@ describe("AppStateProvider", () => {
     expect(listeners.has("soloc://menu/open")).toBe(false);
     expect(listeners.has("soloc://menu/open-recent")).toBe(false);
     expect(listeners.has("soloc://menu/plugin-manager")).toBe(false);
+    expect(listeners.has("soloc://menu/expression-map-manager")).toBe(false);
     expect(listeners.has("soloc://recents-changed")).toBe(false);
   });
 

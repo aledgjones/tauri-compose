@@ -6,6 +6,7 @@ import {
   BottomPanelTab,
   BracketingApproach,
   BracketStyle,
+  ExpressionMapLibraryState,
   FontFamily,
   Justify,
   LayoutType,
@@ -182,6 +183,14 @@ export const initialPluginInventoryState: PluginInventoryState = {
 export const PluginInventoryContext =
   createContext<PluginInventoryState | null>(null);
 
+export const initialExpressionMapLibraryState: ExpressionMapLibraryState = {
+  order: [],
+  by_id: {},
+};
+
+export const ExpressionMapLibraryContext =
+  createContext<ExpressionMapLibraryState | null>(null);
+
 export const initialTransportState: TransportState = {
   playing: false,
   current_tick: 0,
@@ -216,6 +225,18 @@ export const usePluginInventoryState = () => {
   if (!context) {
     throw new Error(
       "usePluginInventoryState must be used within an AppStateProvider",
+    );
+  }
+
+  return context;
+};
+
+export const useExpressionMapLibraryState = () => {
+  const context = useContext(ExpressionMapLibraryContext);
+
+  if (!context) {
+    throw new Error(
+      "useExpressionMapLibraryState must be used within an AppStateProvider",
     );
   }
 

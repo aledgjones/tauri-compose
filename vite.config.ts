@@ -36,6 +36,7 @@ export default defineConfig(async () => ({
     rollupOptions: {
       input: {
         debugger: resolve(__dirname, "debugger.html"),
+        expressionMap: resolve(__dirname, "expression-map.html"),
         index: resolve(__dirname, "index.html"),
         instrumentPicker: resolve(__dirname, "instrument-picker.html"),
         layoutSettings: resolve(__dirname, "layout-settings.html"),

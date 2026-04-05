@@ -11,6 +11,7 @@ import {
 
 vi.mock("../../../../../services/actions", () => ({
   actions: {
+    openExpressionMapWindow: vi.fn().mockResolvedValue(undefined),
     pluginInventory: {
       openEditorPoc: vi.fn().mockResolvedValue(undefined),
     },
@@ -22,6 +23,7 @@ vi.mock("../../../../../services/actions", () => ({
     score: {
       instrument: {
         assignSlotRoute: vi.fn().mockResolvedValue(undefined),
+        setExpressionMap: vi.fn().mockResolvedValue(undefined),
         unassignRoute: vi.fn().mockResolvedValue(undefined),
         setSolo: vi.fn().mockResolvedValue(undefined),
         setMute: vi.fn().mockResolvedValue(undefined),
@@ -68,6 +70,7 @@ describe("InstrumentOverviewRow", () => {
         instrument={mockInstrument}
         color="#ff0000"
         isDisabled={false}
+        isRoutingExpanded={true}
       />,
       {
         appState: {
@@ -127,6 +130,21 @@ describe("InstrumentOverviewRow", () => {
             },
           ],
         },
+        expressionMapLibraryState: {
+          order: ["legato", "staccato"],
+          by_id: {
+            legato: {
+              id: "legato",
+              name: "Legato",
+              rules: [],
+            },
+            staccato: {
+              id: "staccato",
+              name: "Staccato",
+              rules: [],
+            },
+          },
+        },
       },
     );
   };
@@ -134,6 +152,22 @@ describe("InstrumentOverviewRow", () => {
   it("renders the instrument long name", () => {
     renderRow();
     expect(screen.getByText("Violin")).toBeInTheDocument();
+  });
+
+  it("always shows the inline routing controls without a separate expander", () => {
+    renderWithProviders(
+      <InstrumentOverviewRow
+        instrument={mockInstrument}
+        color="#ff0000"
+        isDisabled={false}
+        isRoutingExpanded={false}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: /^--/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Expression Map: --/i }),
+    ).toBeInTheDocument();
   });
 
   it("keeps unrouted instruments visually neutral in the route control", () => {
@@ -182,6 +216,329 @@ describe("InstrumentOverviewRow", () => {
     expect(
       screen.getByRole("button", { name: "Open plugin UI for Grand Piano" }),
     ).toBeInTheDocument();
+  });
+
+  it("renders the assigned expression map name in the compact row control", () => {
+    renderRow({
+      status: ResolvedPlaybackRouteStatus.Ready,
+      slot_id: 7,
+      slot_target: { plugin_id: "vst3:grand-piano" },
+      effective_plugin_id: "vst3:grand-piano",
+      target: { mode: 0, index: null },
+      address: { mode: 0, index: null },
+      supported_mix_controls: supportedMixerControls,
+      expression_map: undefined,
+    });
+
+    expect(
+      screen.getByRole("button", { name: /Expression Map: --/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("shows the resolved assigned expression map name when present", () => {
+    renderWithProviders(
+      <InstrumentOverviewRow
+        instrument={mockInstrument}
+        color="#ff0000"
+        isDisabled={false}
+      />,
+      {
+        appState: {
+          score: {
+            playback: {
+              rack: {
+                order: [7],
+                by_id: {
+                  7: {
+                    id: 7,
+                    target: { plugin_id: "vst3:grand-piano" },
+                  },
+                },
+              },
+            },
+          } as never,
+          route_target_options_by_slot_id: {
+            7: [
+              {
+                key: "plugin-root",
+                label: "Plugin output",
+                target: { mode: 0, index: null },
+                address: { mode: 0, index: null },
+              },
+            ],
+          },
+          resolved_playback_route_by_instrument_id: {
+            5: {
+              status: ResolvedPlaybackRouteStatus.Ready,
+              slot_id: 7,
+              slot_target: { plugin_id: "vst3:grand-piano" },
+              effective_plugin_id: "vst3:grand-piano",
+              target: { mode: 0, index: null },
+              address: { mode: 0, index: null },
+              supported_mix_controls: supportedMixerControls,
+            },
+          },
+          resolved_expression_map_by_instrument_id: {
+            5: {
+              status: 1,
+              expression_map_id: "legato",
+              expression_map_name: "Legato",
+            },
+          },
+        },
+        pluginInventoryState: {
+          entries: [
+            {
+              id: "vst3:grand-piano",
+              name: "Grand Piano",
+              bundle_path: "/Library/Audio/Plug-Ins/VST3/Grand Piano.vst3",
+              binary_path:
+                "/Library/Audio/Plug-Ins/VST3/Grand Piano.vst3/Contents/MacOS/Grand Piano",
+              source_root: "/Library/Audio/Plug-Ins/VST3",
+              availability: "available",
+              validation_failure: null,
+              editor_host_validation: null,
+            },
+          ],
+        },
+        expressionMapLibraryState: {
+          order: ["legato"],
+          by_id: {
+            legato: {
+              id: "legato",
+              name: "Legato",
+              rules: [],
+            },
+          },
+        },
+      },
+    );
+
+    expect(
+      screen.getByRole("button", { name: /Expression Map: Legato/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("assigns an expression map from the row dropdown", async () => {
+    renderRow({
+      status: ResolvedPlaybackRouteStatus.Ready,
+      slot_id: 7,
+      slot_target: { plugin_id: "vst3:grand-piano" },
+      effective_plugin_id: "vst3:grand-piano",
+      target: { mode: 0, index: null },
+      address: { mode: 0, index: null },
+      supported_mix_controls: supportedMixerControls,
+    });
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /Expression Map: --/i }),
+    );
+    fireEvent.click(screen.getByRole("option", { name: "Staccato" }));
+
+    await waitFor(() => {
+      expect(actions.score.instrument.setExpressionMap).toHaveBeenCalledWith(
+        5,
+        "staccato",
+      );
+    });
+  });
+
+  it("clears the assigned expression map back to the truthful unassigned state", async () => {
+    renderWithProviders(
+      <InstrumentOverviewRow
+        instrument={mockInstrument}
+        color="#ff0000"
+        isDisabled={false}
+      />,
+      {
+        appState: {
+          score: {
+            playback: {
+              rack: {
+                order: [7],
+                by_id: {
+                  7: {
+                    id: 7,
+                    target: { plugin_id: "vst3:grand-piano" },
+                  },
+                },
+              },
+            },
+          } as never,
+          route_target_options_by_slot_id: {
+            7: [
+              {
+                key: "plugin-root",
+                label: "Plugin output",
+                target: { mode: 0, index: null },
+                address: { mode: 0, index: null },
+              },
+            ],
+          },
+          resolved_playback_route_by_instrument_id: {
+            5: {
+              status: ResolvedPlaybackRouteStatus.Ready,
+              slot_id: 7,
+              slot_target: { plugin_id: "vst3:grand-piano" },
+              effective_plugin_id: "vst3:grand-piano",
+              target: { mode: 0, index: null },
+              address: { mode: 0, index: null },
+              supported_mix_controls: supportedMixerControls,
+            },
+          },
+          resolved_expression_map_by_instrument_id: {
+            5: {
+              status: 1,
+              expression_map_id: "legato",
+              expression_map_name: "Legato",
+            },
+          },
+        },
+        pluginInventoryState: {
+          entries: [
+            {
+              id: "vst3:grand-piano",
+              name: "Grand Piano",
+              bundle_path: "/Library/Audio/Plug-Ins/VST3/Grand Piano.vst3",
+              binary_path:
+                "/Library/Audio/Plug-Ins/VST3/Grand Piano.vst3/Contents/MacOS/Grand Piano",
+              source_root: "/Library/Audio/Plug-Ins/VST3",
+              availability: "available",
+              validation_failure: null,
+              editor_host_validation: null,
+            },
+          ],
+        },
+        expressionMapLibraryState: {
+          order: ["legato"],
+          by_id: {
+            legato: {
+              id: "legato",
+              name: "Legato",
+              rules: [],
+            },
+          },
+        },
+      },
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /Expression Map: Legato/i }),
+    );
+    fireEvent.click(screen.getByRole("option", { name: "--" }));
+
+    await waitFor(() => {
+      expect(actions.score.instrument.setExpressionMap).toHaveBeenCalledWith(
+        5,
+        null,
+      );
+    });
+  });
+
+  it("disables the expression map edit button when no map is assigned", () => {
+    renderRow({
+      status: ResolvedPlaybackRouteStatus.Ready,
+      slot_id: 7,
+      slot_target: { plugin_id: "vst3:grand-piano" },
+      effective_plugin_id: "vst3:grand-piano",
+      target: { mode: 0, index: null },
+      address: { mode: 0, index: null },
+      supported_mix_controls: supportedMixerControls,
+    });
+
+    expect(
+      screen.getByRole("button", { name: "Open expression map shell" }),
+    ).toBeDisabled();
+  });
+
+  it("opens the selected expression map shell from the instrument overview row", async () => {
+    renderWithProviders(
+      <InstrumentOverviewRow
+        instrument={mockInstrument}
+        color="#ff0000"
+        isDisabled={false}
+      />,
+      {
+        appState: {
+          score: {
+            playback: {
+              rack: {
+                order: [7],
+                by_id: {
+                  7: {
+                    id: 7,
+                    target: { plugin_id: "vst3:grand-piano" },
+                  },
+                },
+              },
+            },
+          } as never,
+          route_target_options_by_slot_id: {
+            7: [
+              {
+                key: "plugin-root",
+                label: "Plugin output",
+                target: { mode: 0, index: null },
+                address: { mode: 0, index: null },
+              },
+            ],
+          },
+          resolved_playback_route_by_instrument_id: {
+            5: {
+              status: ResolvedPlaybackRouteStatus.Ready,
+              slot_id: 7,
+              slot_target: { plugin_id: "vst3:grand-piano" },
+              effective_plugin_id: "vst3:grand-piano",
+              target: { mode: 0, index: null },
+              address: { mode: 0, index: null },
+              supported_mix_controls: supportedMixerControls,
+            },
+          },
+          resolved_expression_map_by_instrument_id: {
+            5: {
+              status: 1,
+              expression_map_id: "legato",
+              expression_map_name: "Legato",
+            },
+          },
+        },
+        pluginInventoryState: {
+          entries: [
+            {
+              id: "vst3:grand-piano",
+              name: "Grand Piano",
+              bundle_path: "/Library/Audio/Plug-Ins/VST3/Grand Piano.vst3",
+              binary_path:
+                "/Library/Audio/Plug-Ins/VST3/Grand Piano.vst3/Contents/MacOS/Grand Piano",
+              source_root: "/Library/Audio/Plug-Ins/VST3",
+              availability: "available",
+              validation_failure: null,
+              editor_host_validation: null,
+            },
+          ],
+        },
+        expressionMapLibraryState: {
+          order: ["legato"],
+          by_id: {
+            legato: {
+              id: "legato",
+              name: "Legato",
+              rules: [],
+            },
+          },
+        },
+      },
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Open expression map shell for Legato",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(actions.openExpressionMapWindow).toHaveBeenCalledWith("legato");
+    });
   });
 
   it("opens the assigned plugin UI from the instrument overview row", async () => {
@@ -275,8 +632,8 @@ describe("InstrumentOverviewRow", () => {
     );
 
     expect(
-      screen.queryByRole("button", { name: "Open plugin UI for Grand Piano" }),
-    ).toBeNull();
+      screen.getByRole("button", { name: "Open plugin UI for Grand Piano" }),
+    ).toBeDisabled();
   });
 
   it("renders one compact inline warning when the backend route requires recovery", () => {
@@ -333,15 +690,18 @@ describe("InstrumentOverviewRow", () => {
     });
   });
 
-  it("hides solo/mute controls when disabled (applies opacity-50 class)", () => {
+  it("keeps solo/mute controls visible but disabled when the row is disabled", () => {
     const { container } = renderWithProviders(
       <InstrumentOverviewRow
         instrument={mockInstrument}
         color="#ff0000"
         isDisabled={true}
+        isRoutingExpanded={true}
       />,
     );
     expect(container.querySelector(".opacity-50")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Solo Violin" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Mute Violin" })).toBeDisabled();
   });
 
   it("renders the current rack slot and route target summary", () => {
@@ -387,6 +747,7 @@ describe("InstrumentOverviewRow", () => {
         instrument={mockInstrument}
         color="#ff0000"
         isDisabled={false}
+        isRoutingExpanded={true}
       />,
       {
         appState: {
@@ -519,6 +880,7 @@ describe("InstrumentOverviewRow", () => {
         instrument={mockInstrument}
         color="#ff0000"
         isDisabled={false}
+        isRoutingExpanded={true}
       />,
       {
         appState: {
@@ -593,6 +955,7 @@ describe("InstrumentOverviewRow", () => {
         instrument={mockInstrument}
         color="#ff0000"
         isDisabled={false}
+        isRoutingExpanded={true}
       />,
       {
         appState: {
@@ -649,6 +1012,7 @@ describe("InstrumentOverviewRow", () => {
         instrument={mockInstrument}
         color="#ff0000"
         isDisabled={false}
+        isRoutingExpanded={true}
       />,
       {
         appState: {
@@ -747,6 +1111,7 @@ describe("InstrumentOverviewRow", () => {
         instrument={mockInstrument}
         color="#ff0000"
         isDisabled={false}
+        isRoutingExpanded={true}
       />,
       {
         appState: {
@@ -861,7 +1226,7 @@ describe("InstrumentOverviewRow", () => {
     });
   });
 
-  it("shows a recoverable error when direct overview routing fails", async () => {
+  it("keeps the row quiet when direct overview routing fails", async () => {
     vi.mocked(actions.score.instrument.assignSlotRoute).mockRejectedValueOnce(
       new Error("Unsupported route target"),
     );
@@ -872,10 +1237,15 @@ describe("InstrumentOverviewRow", () => {
     fireEvent.click(screen.getByRole("option", { name: "1. Grand Piano" }));
 
     await waitFor(() => {
-      expect(screen.getByText(/Route update failed:/i)).toHaveTextContent(
-        "Route update failed: Unsupported route target",
+      expect(actions.score.instrument.assignSlotRoute).toHaveBeenCalledWith(
+        5,
+        7,
+        { mode: 0, index: null },
+        { mode: 0, index: null },
       );
     });
+
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
   it("shows a recoverable error when a slot requires choosing between multiple targets", async () => {
@@ -884,6 +1254,7 @@ describe("InstrumentOverviewRow", () => {
         instrument={mockInstrument}
         color="#ff0000"
         isDisabled={false}
+        isRoutingExpanded={true}
       />,
       {
         appState: {
@@ -965,6 +1336,7 @@ describe("InstrumentOverviewRow", () => {
         instrument={mockInstrument}
         color="#ff0000"
         isDisabled={false}
+        isRoutingExpanded={true}
       />,
       {
         appState: {
@@ -1232,6 +1604,7 @@ describe("InstrumentOverviewRow", () => {
         instrument={withCount}
         color="#ff0000"
         isDisabled={false}
+        isRoutingExpanded={true}
       />,
     );
     expect(screen.getByText("I")).toBeInTheDocument();
@@ -1243,6 +1616,7 @@ describe("InstrumentOverviewRow", () => {
         instrument={mockInstrument}
         color="#ff0000"
         isDisabled={true}
+        isRoutingExpanded={true}
       />,
     );
     expect(container.firstChild).toHaveClass("opacity-50");

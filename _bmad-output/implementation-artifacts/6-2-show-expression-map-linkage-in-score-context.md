@@ -1,6 +1,6 @@
 # Story 6.2: Show Expression-Map Linkage In Score Context
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -16,33 +16,33 @@ so that I can understand and adjust the current score-context linkage without le
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Extend the current instrument-row contract to carry Expression Map linkage alongside playback route state (AC: 1, 2)
-  - [ ] Add or extend backend and shared frontend payloads so the instrument overview row can resolve the currently assigned Expression Map display name or the truthful unassigned `--` state.
-  - [ ] Keep the linkage contract aligned with the route-address-aware backend model from Story 6.1 while surfacing it as the route's Expression Map in MVP UI.
-  - [ ] Preserve the current backend ability to distinguish richer linkage conditions if needed later, but collapse the user-facing row state to assigned-name or `--` only.
+- [x] Task 1: Extend the current instrument-row contract to carry Expression Map linkage alongside playback route state (AC: 1, 2)
+  - [x] Add or extend backend and shared frontend payloads so the instrument overview row can resolve the currently assigned Expression Map display name or the truthful unassigned `--` state.
+  - [x] Keep the linkage contract aligned with the route-address-aware backend model from Story 6.1 while surfacing it as the route's Expression Map in MVP UI.
+  - [x] Preserve the current backend ability to distinguish richer linkage conditions if needed later, but collapse the user-facing row state to assigned-name or `--` only.
 
-- [ ] Task 2: Add a compact row-level Expression Map dropdown without changing the overview row's structural feel (AC: 1, 2)
-  - [ ] Add an inline dropdown in `InstrumentOverviewRow` using the same compact interaction language as the existing slot selector.
-  - [ ] Populate the dropdown from the current reusable Expression Map library and include `--` as the clear option.
-  - [ ] Keep the control bounded to the row only; do not add Expression Map linkage to the bottom `PlaybackRackPanel` in this story.
-  - [ ] Preserve the current instrument-overview height and alignment expectations so the row remains visually matched with the overview track layout rather than growing into a second-tier panel.
+- [x] Task 2: Add a compact row-level Expression Map dropdown without changing the overview row's structural feel (AC: 1, 2)
+  - [x] Add an inline dropdown in `InstrumentOverviewRow` using the same compact interaction language as the existing slot selector.
+  - [x] Populate the dropdown from the current reusable Expression Map library and include `--` as the clear option.
+  - [x] Keep the control bounded to the row only; do not add Expression Map linkage to the bottom `PlaybackRackPanel` in this story.
+  - [x] Preserve the current instrument-overview height and alignment expectations so the row remains visually matched with the overview track layout rather than growing into a second-tier panel.
 
-- [ ] Task 3: Support assignment, reassignment, and clearing through the row control only (AC: 1, 2)
-  - [ ] Selecting a map from the dropdown assigns that Expression Map to the current route linkage seam.
-  - [ ] Selecting `--` clears the linked map and returns playback to the current direct plugin path with no extra guarantee of musically sensible behavior beyond today's default behavior.
-  - [ ] A linked map with zero rules still displays as assigned by name; assignment truth is separate from whether later playback behavior is rich.
-  - [ ] If a previously referenced map no longer exists, resolve the row truthfully to `--` rather than inventing warning-heavy recovery UI.
+- [x] Task 3: Support assignment, reassignment, and clearing through the row control only (AC: 1, 2)
+  - [x] Selecting a map from the dropdown assigns that Expression Map to the current route linkage seam.
+  - [x] Selecting `--` clears the linked map and returns playback to the current direct plugin path with no extra guarantee of musically sensible behavior beyond today's default behavior.
+  - [x] A linked map with zero rules still displays as assigned by name; assignment truth is separate from whether later playback behavior is rich.
+  - [x] If a previously referenced map no longer exists, resolve the row truthfully to `--` rather than inventing warning-heavy recovery UI.
 
-- [ ] Task 4: Add a row-adjacent edit button that opens a minimal selected-map window shell (AC: 3)
-  - [ ] Add a compact cog-style button adjacent to the Expression Map dropdown, matching the current plugin-row control language.
-  - [ ] Keep the button disabled when the row shows `--`.
-  - [ ] Opening the button should launch or focus a dedicated app-scoped Expression Map window shell for the currently assigned map, but that shell should remain intentionally minimal in Story 6.2.
-  - [ ] Do not broaden the shell into full map authoring, browse/import/export workflows, or full library management; Story 6.3 owns that expansion.
+- [x] Task 4: Add a row-adjacent edit button that opens a minimal selected-map window shell (AC: 3)
+  - [x] Add a compact cog-style button adjacent to the Expression Map dropdown, matching the current plugin-row control language.
+  - [x] Keep the button disabled when the row shows `--`.
+  - [x] Opening the button should launch or focus a dedicated app-scoped Expression Map window shell for the currently assigned map, but that shell should remain intentionally minimal in Story 6.2.
+  - [x] Do not broaden the shell into full map authoring, browse/import/export workflows, or full library management; Story 6.3 owns that expansion.
 
-- [ ] Task 5: Prove the row UX boundaries and sequencing contract with seam-local tests and docs (AC: 1, 2, 3)
-  - [ ] Add or extend frontend tests around `InstrumentOverviewRow` to prove assigned-name display, `--` clearing, disabled edit button when unassigned, and minimal-window launch when assigned.
-  - [ ] Add or extend backend or shared-contract tests only as needed to prove row payload truth for assigned and unassigned linkage states.
-  - [ ] Update documentation to record that Story 6.2 adds row-level linkage selection and a minimal selected-map shell, while Story 6.3 still owns the full Expression Map editor and library workflow.
+- [x] Task 5: Prove the row UX boundaries and sequencing contract with seam-local tests and docs (AC: 1, 2, 3)
+  - [x] Add or extend frontend tests around `InstrumentOverviewRow` to prove assigned-name display, `--` clearing, disabled edit button when unassigned, and minimal-window launch when assigned.
+  - [x] Add or extend backend or shared-contract tests only as needed to prove row payload truth for assigned and unassigned linkage states.
+  - [x] Update documentation to record that Story 6.2 adds row-level linkage selection and a minimal selected-map shell, while Story 6.3 still owns the full app-scoped Expression Map workflow.
 
 ## Dev Notes
 
@@ -210,15 +210,52 @@ GPT-5.4
 
 - 2026-04-05: Story prepared after reviewing Story 6.1, Epic 6 planning, current Sequence row seams, row-versus-rack-panel repo memory, and current app-scoped window-opening patterns.
 - 2026-04-05: User clarification locked the 6.2 UX boundaries: row only, compact dropdown assignment, `--` as the truthful clear state, disabled cog when unassigned, and a minimal selected-map shell that Story 6.3 will deepen.
+- 2026-04-05: Implemented the row-level Expression Map linkage workflow, app-scoped library provider wiring, backend route-link mutation command, and minimal selected-map window shell.
+- 2026-04-05: Refined the delivered row UI into a collapsible `Routing` section with always-visible solo and mute buttons, an external-open Expression Map affordance, and shared left-row/right-track height synchronization.
+- 2026-04-05: Validation passed with `npm run test:js`, `npm run check-types`, `npm run lint`, `cargo test --manifest-path src-tauri/Cargo.toml`, and `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features -- -D warnings`.
 
 ### Completion Notes List
 
-- Story context created and sprint status updated to ready-for-dev.
-- Story 6.2 stays intentionally narrow: row-level linkage display and assignment plus a minimal selected-map shell only.
-- Bottom-panel Expression Map UI and richer state taxonomies were explicitly excluded to preserve the intended ownership model and avoid UX noise.
-- Story 6.3 remains the owner of the real editor and library workflow.
+- Added `ExpressionMapLibraryContext` on the frontend so Sequence row controls and the new shell consume the backend-owned reusable library state from `soloc://state/expression_maps`.
+- Added `score_instruments_set_expression_map` plus automation wiring so row assignment and clearing update only the current route linkage without rewriting slot, target, or address intent.
+- Extended `InstrumentOverviewRow` with a compact Expression Map dropdown, truthful `--` handling, and a disabled-when-unassigned adjacent cog that opens or focuses the minimal app-scoped Expression Map shell.
+- Refined the Sequence instrument row so its top line always exposes name plus solo and mute controls, while a collapsible `Routing` section now contains plugin and Expression Map controls without breaking overview-track alignment.
+- Added or extended seam-local tests for the row behavior, action wiring, provider event flow, and backend route-link mutation contract.
+- Updated architecture and development docs to record the new row-only linkage surface and the explicit non-ownership of Expression Map UI in `PlaybackRackPanel`.
 
 ### File List
 
 - `_bmad-output/implementation-artifacts/6-2-show-expression-map-linkage-in-score-context.md`
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `docs/architecture.md`
+- `docs/development-guide.md`
+- `expression-map.html`
+- `src/services/actions.test.ts`
+- `src/services/actions.ts`
+- `src/services/state/context.tsx`
+- `src/services/state/provider.test.tsx`
+- `src/services/state/provider.tsx`
+- `src/services/test-utils.tsx`
+- `src/ui/select.tsx`
+- `src/windows/expression-map/boot.tsx`
+- `src/windows/expression-map/index.tsx`
+- `src/windows/main/screens/sequence/components/instrument-overview-layout.ts`
+- `src/windows/main/screens/sequence/components/instrument-overview-row.test.tsx`
+- `src/windows/main/screens/sequence/components/instrument-overview.tsx`
+- `src/windows/main/screens/sequence/components/instrument-overview-row.tsx`
+- `src/windows/main/screens/sequence/components/miniature-piano-roll.tsx`
+- `src-tauri/src/automation/registry.rs`
+- `src-tauri/src/lib.rs`
+- `src-tauri/src/score/instruments/mod.rs`
+- `vite.config.ts`
+
+## Change Log
+
+- 2026-04-05: Added row-level Expression Map linkage selection, route-link mutation support, and a minimal selected-map shell for Story 6.2.
+- 2026-04-05: Refined the Sequence row layout with collapsible routing details and synchronized overview-track heights.
+
+### Review Findings
+
+- [x] [Review][Patch] Route reassignment now falls back to arbitrary or invalid targets [src/windows/main/screens/sequence/components/instrument-overview-row.tsx:261] — fixed by restoring the explicit throw paths for unroutable zero-choice slots and ambiguous multi-choice slots so the row no longer silently retargets playback routes.
+- [x] [Review][Dismiss] Row-level route and plugin action failures are now invisible to users [src/windows/main/screens/sequence/components/instrument-overview-row.tsx:322] — dismissed by user: quiet failure is the intended UX because the row cannot offer a meaningful user-actionable recovery path here.
+- [x] [Review][Dismiss] Story 6.2 breaks the compact instrument-overview height contract [src/windows/main/screens/sequence/components/instrument-overview-layout.ts:1] — dismissed by user: the current row-height change is expected and accepted for this story.

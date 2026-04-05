@@ -125,11 +125,11 @@ UX-DR8: Native plugin editors must be available as deliberate secondary handoff 
 UX-DR9: The system must provide explicit score-context entry points to open the native plugin editor from relevant playback surfaces.
 UX-DR10: Expression maps must be represented as durable, reusable playback assets rather than transient properties of whichever score object is selected.
 UX-DR11: The Sequence instrument row must show which route-owned Expression Map is linked to the current instrument’s playback route, using the assigned map name or `--` as the bounded MVP user-facing state.
-UX-DR12: Instrument-driven and library-driven expression-map workflows must stay app-scoped and coordinated, with the Sequence row handing off to dedicated Expression Map Library and Expression Map Editor windows rather than expanding score-context panels into asset ownership surfaces.
+UX-DR12: Instrument-driven and library-driven expression-map workflows must stay app-scoped and coordinated, with the Sequence row handing off to one dedicated Expression Map workflow window that combines a library pane and an editor pane rather than expanding score-context panels into asset ownership surfaces.
 UX-DR13: Full plugin discovery, inventory health, and organisation must live in a dedicated app-scoped Plugin Manager window.
 UX-DR14: Contextual plugin and target pickers in instrument rows and panels must present a filtered, musician-friendly view of currently usable plugins and targets for the current routing task.
 UX-DR15: Panels must act as score-context relational surfaces, while windows must own app-scoped inventories, reusable assets, and deep editors.
-UX-DR16: Canonical app-scoped entry points for Plugin Manager and Expression Map Library must exist in the system app menu, with contextual launch paths also available from score workflows.
+UX-DR16: Canonical app-scoped entry points for Plugin Manager and the Expression Map workflow window must exist in the system app menu, with contextual launch paths also available from score workflows.
 UX-DR17: Playback UI must preserve Compose’s existing custom design system, compact density, current blue-highlight language, and familiar panel and window grammar rather than introducing a parallel design language.
 UX-DR18: Playback status must never rely on color alone and must combine text, iconography, and consistent placement for accessibility.
 UX-DR19: For score-context playback workflows, compact direct controls are preferred over explanatory or multi-control proof surfaces.

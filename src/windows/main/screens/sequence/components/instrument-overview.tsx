@@ -15,6 +15,7 @@ import { PlaybackLine } from "../../../components/playback-line";
 import { Select } from "../../../../../ui/select";
 import { mdiHeatWave } from "@mdi/js";
 import { actions } from "../../../../../services/actions";
+import { getInstrumentOverviewRowHeight } from "./instrument-overview-layout";
 
 type InstrumentWithPlayer = Instrument & { playerId: UniqueId };
 
@@ -71,6 +72,21 @@ export const InstrumentOverview: FC = () => {
   const instrumentColors = useMemo(() => {
     return generateRainbowColors(instruments.length);
   }, [instruments.length]);
+
+  const rowHeights = useMemo(() => {
+    return instruments.map(() => getInstrumentOverviewRowHeight());
+  }, [instruments]);
+
+  const playbackLineHeight = useMemo(() => {
+    if (rowHeights.length === 0) {
+      return 0;
+    }
+
+    return (
+      rowHeights.reduce((total, height) => total + height, 0) +
+      (rowHeights.length - 1) * 2
+    );
+  }, [rowHeights]);
 
   // Get ticks for the flow (call hooks before any early returns)
   const master = flow?.master_id
@@ -161,13 +177,11 @@ export const InstrumentOverview: FC = () => {
                 ticks={ticks}
                 color={instrumentColors[index]}
                 isDisabled={!isInstrumentInSelectedFlow(instrument)}
+                rowHeightPx={rowHeights[index]}
               />
             ),
           )}
-          <PlaybackLine
-            ticks={ticks}
-            height={instruments.length * 96 + (instruments.length - 1) * 2}
-          />
+          <PlaybackLine ticks={ticks} height={playbackLineHeight} />
         </div>
       </div>
     </DragScroll>
