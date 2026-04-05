@@ -54,7 +54,7 @@ Compose can create a strong UX advantage by making playback routing feel like a 
 
 The existing pattern of instrument cards in the instruments panel and routing dropdowns in sequencer tracks may be clunky, but it reveals a useful model: users like having a clear pool of available sound sources and a simple way to connect them to musical parts. That mental model can be preserved while improving the mechanics.
 
-Expression maps create an opportunity to extend the product's existing properties-panel editing model into playback configuration. Rather than building a disconnected configuration utility, Compose may be able to use familiar bottom-panel editing patterns for score-aware playback mappings, making advanced playback behavior feel like part of the same editing language as the rest of the app.
+Expression maps create an opportunity to extend the product's existing score-context and app-window editing language into playback configuration. Rather than building a disconnected utility, Compose should keep assignment close to the instrument workflow while moving reusable map authoring into dedicated app-scoped windows.
 
 Finally, the app can reinforce user trust through consistent playback-readiness and routing health signals that support confident composing without introducing a new visual language or replacing the existing design system.
 
@@ -286,11 +286,11 @@ Non-ready states should use one primary contextual recovery action: open the rel
 
 ### 3.3 Expression Maps
 
-Expression maps should be treated as durable, reusable playback assets rather than transient properties of whichever score item happens to be selected. The instrument panel is responsible for showing which route-owned expression map is linked to the current instrument's playback route, whether that linkage is missing or incomplete, and how the user can jump outward to work on the map itself.
+Expression maps should be treated as durable, reusable playback assets rather than transient properties of whichever score item happens to be selected. The Sequence instrument row is responsible for showing which route-owned Expression Map is linked to the current instrument's playback route, using the assigned map name or `--` as the bounded MVP user-facing state, and for providing a compact jump outward to map editing.
 
-Two legitimate entry paths should exist. The first is the instrument-driven path, used when a user is diagnosing why a specific instrument is not behaving as expected. The second is a detached library-management path, used when the user wants to create, import, duplicate, export, or generally curate reusable expression maps without starting from a particular instrument.
+Two legitimate entry paths should exist. The first is the instrument-driven path, used when a user is diagnosing why a specific instrument is not behaving as expected and wants to assign or edit the currently linked map from the row. The second is a detached library-management path, used when the user wants to create, import, duplicate, export, or generally curate reusable Expression Maps without starting from a particular instrument.
 
-Both paths should converge on the same dedicated expression-map editor window. That editor should own the map itself, while the instrument panel only owns the score-context relationship to the map.
+Both paths should stay within one dedicated app-scoped Expression Map workflow consisting of an `Expression Map Library` window and per-map `Expression Map Editor` windows. The editor owns the map itself, while the Sequence row only owns the score-context relationship to the map.
 
 ### 3.4 Plugin Inventory And Discovery
 

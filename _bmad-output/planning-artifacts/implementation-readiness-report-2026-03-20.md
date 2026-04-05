@@ -94,7 +94,7 @@ FR16: Compose can preserve playback usability even when some plugin editor inter
 FR17: Maintainers can validate plugin-host behavior against a representative known-good plugin set.
 FR18: Compose can translate written score instruments into playback-capable instrument assignments.
 FR19: Composers can hear audible results from written score material without leaving the core score workflow.
-FR20: Compose can support realistic playback through a defined expression-map model, with at least one active expression per instrument and a path to richer score-linked behavior.
+FR20: Compose can support realistic playback through a defined expression-map model, with at least one resolved expression rule per played note and a path to richer score-linked behavior.
 FR21: Compose can deliver an initial expression-map capability in MVP that links expression behavior to score data where feasible, or proves the concept through a constrained workflow where full linkage would add disproportionate scope.
 FR22: Compose can expand expression-map behavior later into a fuller score-linked system without replacing the underlying playback foundation.
 FR23: Composers can start playback of their score through assigned VST instruments.
@@ -251,7 +251,7 @@ Total FRs in epics: 41
 | FR17      | Maintainers can validate plugin-host behavior against a representative known-good plugin set.                                                                                                                                                       | Epic 2        | Covered |
 | FR18      | Compose can translate written score instruments into playback-capable instrument assignments.                                                                                                                                                       | Epic 4        | Covered |
 | FR19      | Composers can hear audible results from written score material without leaving the core score workflow.                                                                                                                                             | Epic 4        | Covered |
-| FR20      | Compose can support realistic playback through a defined expression-map model, with at least one active expression per instrument and a path to richer score-linked behavior.                                                                       | Epic 6        | Covered |
+| FR20      | Compose can support realistic playback through a defined expression-map model, with at least one resolved expression rule per played note and a path to richer score-linked behavior.                                                               | Epic 6        | Covered |
 | FR21      | Compose can deliver an initial expression-map capability in MVP that links expression behavior to score data where feasible, or proves the concept through a constrained workflow where full linkage would add disproportionate scope.              | Epic 6        | Covered |
 | FR22      | Compose can expand expression-map behavior later into a fuller score-linked system without replacing the underlying playback foundation.                                                                                                            | Epic 6        | Covered |
 | FR23      | Composers can start playback of their score through assigned VST instruments.                                                                                                                                                                       | Epic 4        | Covered |

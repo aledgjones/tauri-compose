@@ -39,7 +39,7 @@ FR16: Compose can preserve playback usability even when some plugin editor inter
 FR17: Maintainers can validate plugin-host behavior against a representative known-good plugin set.
 FR18: Compose can translate written score instruments into playback-capable routes.
 FR19: Composers can hear audible results from written score material without leaving the core score workflow.
-FR20: Compose can support realistic playback through a defined expression-map model, with at least one active expression per instrument and a path to richer score-linked behavior.
+FR20: Compose can support realistic playback through a defined expression-map model, with at least one resolved expression rule per played note and a path to richer score-linked behavior.
 FR21: Compose can deliver an initial expression-map capability in MVP that links expression behavior to score data where feasible, or proves the concept through a constrained workflow where full linkage would add disproportionate scope.
 FR22: Compose can expand expression-map behavior later into a fuller score-linked system without replacing the underlying playback foundation.
 FR23: Composers can start playback of their score through routed VST instruments.
@@ -124,8 +124,8 @@ UX-DR7: The common routing and playback workflow must preserve a direct single-t
 UX-DR8: Native plugin editors must be available as deliberate secondary handoff surfaces for plugin-specific control, not as the default answer to routine playback tasks.
 UX-DR9: The system must provide explicit score-context entry points to open the native plugin editor from relevant playback surfaces.
 UX-DR10: Expression maps must be represented as durable, reusable playback assets rather than transient properties of whichever score object is selected.
-UX-DR11: The instrument panel must show which route-owned expression map is linked to the current instrument’s playback route and whether that linkage is missing or incomplete.
-UX-DR12: Both instrument-driven and library-driven expression-map workflows must converge on one dedicated expression-map editor window.
+UX-DR11: The Sequence instrument row must show which route-owned Expression Map is linked to the current instrument’s playback route, using the assigned map name or `--` as the bounded MVP user-facing state.
+UX-DR12: Instrument-driven and library-driven expression-map workflows must stay app-scoped and coordinated, with the Sequence row handing off to dedicated Expression Map Library and Expression Map Editor windows rather than expanding score-context panels into asset ownership surfaces.
 UX-DR13: Full plugin discovery, inventory health, and organisation must live in a dedicated app-scoped Plugin Manager window.
 UX-DR14: Contextual plugin and target pickers in instrument rows and panels must present a filtered, musician-friendly view of currently usable plugins and targets for the current routing task.
 UX-DR15: Panels must act as score-context relational surfaces, while windows must own app-scoped inventories, reusable assets, and deep editors.
@@ -875,24 +875,24 @@ So that playback realism is based on a coherent model rather than transient per-
 ### Story 6.2: Show Expression-Map Linkage In Score Context
 
 As a composer,
-I want to see whether my current routed instrument has an expression map and whether that linkage is healthy,
-So that I can understand how playback realism is being driven for the current score context.
+I want to see whether my current routed instrument has an Expression Map assigned,
+So that I can understand and adjust the current score-context linkage without leaving the instrument workflow.
 
 **Acceptance Criteria:**
 
 **Given** an instrument is associated with a playback route
-**When** I inspect the relevant score-context panel
-**Then** I can see which expression map is linked to that route, if any
-**And** I can tell whether the linkage is ready, missing, or incomplete
+**When** I inspect the instrument overview row
+**Then** I can see which Expression Map is linked to that route through a compact row control
+**And** `--` remains the truthful unassigned state
 
-**Given** expression maps are reusable assets rather than selection-owned data
+**Given** Expression Maps are reusable assets rather than selection-owned data
 **When** linkage is displayed in score context
-**Then** the panel shows the relationship to the current route
-**And** it does not behave like the panel owns the asset definition itself
+**Then** the row shows only the current route relationship and reassignment control
+**And** it does not imply that the row or bottom panel owns the map definition itself
 
 **Given** a linkage needs deeper work
-**When** I use the score-context surface
-**Then** Compose provides a contextual path into the dedicated expression-map editor
+**When** I use the instrument overview row
+**Then** Compose provides an adjacent edit affordance that opens the selected map in an app-scoped window shell
 **And** that escalation stays aligned with the panel-versus-window scope model
 
 ### Story 6.3: Create One Dedicated Expression-Map Editor Window
@@ -903,10 +903,10 @@ So that both instrument-driven fixes and library-driven authoring use the same d
 
 **Acceptance Criteria:**
 
-**Given** I enter expression-map work from a score-context panel or from an app-scoped library path
-**When** the editor is opened
-**Then** both entry paths converge on the same dedicated expression-map editor window
-**And** the editor owns the expression-map asset itself
+**Given** I enter expression-map work from the Sequence menu library path or from the instrument-row cog
+**When** the relevant window is opened
+**Then** both paths lead into the same dedicated Expression Map editing workflow
+**And** the selected-map editor owns the Expression Map asset itself
 
 **Given** expression-map work is a reusable playback-asset workflow
 **When** I use the dedicated editor
@@ -914,9 +914,9 @@ So that both instrument-driven fixes and library-driven authoring use the same d
 **And** the interface remains aligned with Compose’s existing design language
 
 **Given** expression-map editing is app-scoped
-**When** the editor window is used
-**Then** it behaves as a durable asset-management surface rather than a transient properties panel
-**And** it remains distinct from plugin-owned parameter editing
+**When** the library and editor windows are used
+**Then** the library behaves as the durable CRUD and browse surface while the editor behaves as the selected-map authoring surface
+**And** both remain distinct from score-context panels and plugin-owned parameter editing
 
 ### Story 6.4: Drive Initial Realistic Playback Through A Linked Expression Map
 
@@ -926,14 +926,14 @@ So that routed score playback sounds more musically meaningful than a raw defaul
 
 **Acceptance Criteria:**
 
-**Given** a routed instrument has an expression map configured through the supported MVP path
-**When** I audition or play supported written material
-**Then** the active expression-map behavior influences playback through the routed VST path
-**And** at least one active expression per instrument is supported through the defined model
+**Given** a routed instrument has an Expression Map configured through the supported MVP path
+**When** I start transport playback of supported written material
+**Then** the linked Expression Map influences playback through the existing routed VST transport path
+**And** at least one resolved winning expression rule per played note is supported through the defined model
 
 **Given** full score-linked expression sophistication may exceed MVP scope
 **When** the initial realistic playback path is implemented
-**Then** the supported behavior can be constrained to a bounded first-use case
+**Then** the supported behavior stays bounded to a first-use case based on articulation plus note length
 **And** it still proves the model can connect score meaning to playback behavior
 
 **Given** future realism work must build on this foundation rather than replace it

@@ -239,7 +239,7 @@ The desktop nature of the product is not incidental. It is central to the soluti
 
 The desktop architecture must preserve local control over plugin discovery, plugin loading, audio-device routing, and native transport execution. Playback and plugin hosting are backend-owned concerns, with the frontend acting as a control and visualization layer rather than the source of runtime truth. This is especially important because the audio engine must satisfy strict realtime requirements and cannot depend on UI-thread behavior for correctness.
 
-The same separation should apply to expression maps. The architecture should treat expression-map behavior as a first-class, score-aware domain model so later work can deliver a full score-linked system without reworking the playback foundation. If MVP scope requires a narrower proving path, the initial authoring or control UX may remain constrained, but the underlying model should not be designed as a manual-only dead end.
+The same separation should apply to expression maps. The architecture should treat expression-map behavior as a first-class, score-aware domain model so later work can deliver a full score-linked system without reworking the playback foundation. If MVP scope requires a narrower proving path, the initial authoring or control UX may remain constrained, the first audible proof may stay transport-only, and the underlying model should not be designed as a manual-only dead end.
 
 Because this is macOS-only in MVP, the implementation should prefer a clean platform-specific design over premature cross-platform abstraction. The PRD should explicitly allow macOS-native decisions where they simplify or harden the host/runtime path, while keeping later expansion possible if the product matures beyond the initial release target.
 
@@ -404,7 +404,7 @@ The main resource risk is allowing compatibility breadth or host-surface complet
 
 - FR18: Compose can translate written score instruments into playback-capable routes.
 - FR19: Composers can hear audible results from written score material without leaving the core score workflow.
-- FR20: Compose can support realistic playback through a defined expression-map model, with at least one active expression per instrument and a path to richer score-linked behavior.
+- FR20: Compose can support realistic playback through a defined expression-map model, with at least one resolved expression rule per played note and a path to richer score-linked behavior.
 - FR21: Compose can deliver an initial expression-map capability in MVP that links expression behavior to score data where feasible, or proves the concept through a constrained workflow where full linkage would add disproportionate scope.
 - FR22: Compose can expand expression-map behavior later into a fuller score-linked system without replacing the underlying playback foundation.
 
