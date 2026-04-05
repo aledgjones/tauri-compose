@@ -189,7 +189,7 @@ export const FlowPanelItem: FC<Props> = ({ flow, index }) => {
             ref={inputRef}
             onBlur={onBlur}
             readOnly={!editing}
-            value={title}
+            defaultValue={title}
             className={classNames(
               `truncate flex-1 bg-transparent outline-hidden`,
               fg,

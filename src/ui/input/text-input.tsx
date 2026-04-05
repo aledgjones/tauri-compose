@@ -36,7 +36,7 @@ export const TextInput: FC<TextInputProps> = ({
           placeholder={placeholder}
           readOnly={readOnly}
           type="text"
-          value={value}
+          defaultValue={value}
           onChange={(e) => {
             onChange(e.target.value);
           }}

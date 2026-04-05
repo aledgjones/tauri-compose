@@ -185,7 +185,7 @@ export const LayoutPanelItem: FC<Props> = ({ layout }) => {
           ref={inputRef}
           onBlur={onBlur}
           readOnly={!editing}
-          value={layoutName}
+          defaultValue={layoutName}
           className={classNames(
             `truncate flex-1 bg-transparent outline-hidden`,
             fg,

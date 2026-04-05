@@ -31,7 +31,7 @@ export const Textarea: FC<TextareaProps> = ({
         {label}
       </label>
       <textarea
-        value={value}
+        defaultValue={value}
         contentEditable={!readOnly}
         onInput={(e: React.FormEvent<HTMLTextAreaElement>) => {
           const target = e.target as HTMLTextAreaElement;
