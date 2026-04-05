@@ -92,17 +92,17 @@ export const BottomPanel: FC = () => {
               isDisabled={isCreatingSlot}
               title="Add slot"
             />
-            <div className="bg-neutral-900 flex flex-1 items-center px-2">
-              <Input
-                type="text"
-                variant="dark"
-                leadingIcon={mdiMagnify}
-                value={slotSearchTerm}
-                onChange={setSlotSearchTerm}
-                placeholder="Search plugins..."
-                className="flex-1"
-              />
-            </div>
+
+            <Input
+              type="text"
+              variant="dark"
+              leadingIcon={mdiMagnify}
+              value={slotSearchTerm}
+              onChange={setSlotSearchTerm}
+              placeholder="Search plugins..."
+              className="w-lg bg-neutral-900"
+            />
+            <div className="bg-neutral-900 flex flex-1 items-center" />
           </div>
         )}
         <div className="flex flex-1 justify-end gap-0.5">
