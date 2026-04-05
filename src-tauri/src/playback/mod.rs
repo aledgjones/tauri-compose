@@ -1,6 +1,7 @@
 pub mod audio;
 pub mod audition;
 pub mod engine;
+pub mod expression_maps;
 pub mod mixer;
 pub mod plugin_editor_poc;
 pub mod plugin_host_compatibility;

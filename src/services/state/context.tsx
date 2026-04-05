@@ -25,6 +25,7 @@ export const initialAppState: AppState = {
   is_window_focused: true,
   single_instrument_transport_ready: false,
   resolved_playback_route_by_instrument_id: {},
+  resolved_expression_map_by_instrument_id: {},
   route_target_options_by_slot_id: {},
   ui: {
     tab: Tab.Setup,

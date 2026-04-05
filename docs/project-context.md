@@ -172,6 +172,7 @@ The score page is rendered natively by Rust/Skia/Metal — all other UI (panels,
 - Version kept in sync across `package.json`, `Cargo.toml`, and `tauri.conf.json` (all currently 1.25.0)
 - Validate before committing: `npm run lint` + `npm run check-types` + `cargo clippy`
 - The app saves user projects as `.soloc` files — this is the application's native save format, not a source code or config format
+- Persist only stable expression-map references in `.soloc` route data; reusable expression-map definitions remain app-scoped, machine-local assets outside project payloads
 - Persisted-data migrations are authored in `src-tauri/src/migrations/next.rs` during development, promoted to a concrete version during `prepare-release:*`, and reseeded after `finalize-release`
 - Current tuplet migration stance: older non-tuplet releases do not need a dedicated tuplet migration because they produced no tuplet-bearing payloads; add one only if a released older format genuinely needs transformation
 - Tuplet regressions should stay close to the owning seam when local tests are enough: parser scenarios near parser logic, renderer regressions near draw/hit-test code, playback regressions near transport, and persistence regressions near file/load-save seams

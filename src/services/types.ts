@@ -144,6 +144,62 @@ export enum PlaybackRouteAddressMode {
   MidiChannel,
 }
 
+export type ExpressionMapCondition =
+  | {
+      type: "articulation";
+      articulation: Articulation;
+    }
+  | {
+      type: "written_note_length";
+      note_duration: NoteDuration;
+    };
+
+export type ExpressionMapAction =
+  | {
+      type: "keyswitch_note";
+      midi_note: number;
+      velocity: number;
+    }
+  | {
+      type: "control_change";
+      controller: number;
+      value: number;
+    }
+  | {
+      type: "no_op";
+    }
+  | {
+      type: "note_length_transform";
+      ratio_percent: number;
+    };
+
+export type ExpressionMapRule = {
+  conditions: ExpressionMapCondition[];
+  actions: ExpressionMapAction[];
+};
+
+export type ExpressionMap = {
+  id: string;
+  name: string;
+  rules: ExpressionMapRule[];
+};
+
+export type ExpressionMapLibraryState = {
+  order: string[];
+  by_id: Record<string, ExpressionMap>;
+};
+
+export enum ResolvedExpressionMapLinkStatus {
+  Unassigned = 0,
+  Assigned,
+}
+
+export type ResolvedExpressionMapLink = {
+  status: ResolvedExpressionMapLinkStatus;
+  expression_map_id: string | null;
+  expression_map_name: string | null;
+};
+
 export type PlaybackRouteAddress = {
   mode: PlaybackRouteAddressMode;
   index: number | null;
@@ -153,6 +209,7 @@ export type InstrumentPlaybackRoute = {
   slot_id: UniqueId;
   target: PlaybackRouteTarget;
   address: PlaybackRouteAddress;
+  expression_map_id?: string | null;
 };
 
 export type PlaybackRouteChoice = {
@@ -591,6 +648,10 @@ export type AppState = {
   resolved_playback_route_by_instrument_id: Record<
     UniqueId,
     ResolvedPlaybackRoute
+  >;
+  resolved_expression_map_by_instrument_id: Record<
+    UniqueId,
+    ResolvedExpressionMapLink
   >;
   route_target_options_by_slot_id: Record<UniqueId, PlaybackRouteChoice[]>;
   preferences: {

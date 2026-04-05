@@ -1079,6 +1079,7 @@ mod tests {
                     slot_id: 100,
                     target: PlaybackRouteTarget::plugin(),
                     address: PlaybackRouteAddress::root(),
+                    expression_map_id: None,
                 },
             )
             .expect("route assignment should succeed");
@@ -1089,6 +1090,7 @@ mod tests {
                 slot_id: 100,
                 target: PlaybackRouteTarget::plugin(),
                 address: PlaybackRouteAddress::root(),
+                expression_map_id: None,
             })
         );
     }
@@ -1115,6 +1117,7 @@ mod tests {
                         mode: super::super::playback::PlaybackRouteAddressMode::Part,
                         index: Some(0),
                     },
+                    expression_map_id: None,
                 },
             )
             .expect_err("unsupported target should fail");
@@ -1163,6 +1166,7 @@ mod tests {
                         mode: super::super::playback::PlaybackRouteAddressMode::Part,
                         index: Some(0),
                     },
+                    expression_map_id: None,
                 },
             )
             .expect_err("empty slots should reject non-root targets");
@@ -1193,6 +1197,7 @@ mod tests {
                     mode: super::super::playback::PlaybackRouteAddressMode::Part,
                     index: Some(2),
                 },
+                expression_map_id: None,
             });
 
         let resolved = score.resolved_playback_route_by_instrument_id(&available_plugin_ids);

@@ -1,6 +1,6 @@
 # Story 6.1: Model Expression Maps As Durable Playback Assets
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -16,32 +16,32 @@ so that playback realism is based on a coherent model rather than transient per-
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Add a durable backend-owned expression-map domain model under the existing score and playback seams (AC: 1, 3)
-  - [ ] Define a reusable expression-map asset with stable ID, editable display name, and zero-or-more rule entries.
-  - [ ] Define each rule as conditions plus actions so the model can stay generic rather than plugin-branded.
-  - [ ] Keep the initial condition model ready for at least articulation and written-note-length inputs without promising broader score semantics yet.
-  - [ ] Keep the initial action model ready for at least keyswitch-note, CC-message, no-op fallback, and note-length transformation outputs without promising arbitrary plugin-trigger breadth.
+- [x] Task 1: Add a durable backend-owned expression-map domain model under the existing score and playback seams (AC: 1, 3)
+  - [x] Define a reusable expression-map asset with stable ID, editable display name, and zero-or-more rule entries.
+  - [x] Define each rule as conditions plus actions so the model can stay generic rather than plugin-branded.
+  - [x] Keep the initial condition model ready for at least articulation and written-note-length inputs without promising broader score semantics yet.
+  - [x] Keep the initial action model ready for at least keyswitch-note, CC-message, no-op fallback, and note-length transformation outputs without promising arbitrary plugin-trigger breadth.
 
-- [ ] Task 2: Anchor linkage to the future-proof playback-address seam while keeping current UX simple (AC: 1, 2, 3)
-  - [ ] Extend the route-owned playback data model so an expression-map reference can be associated with the rack slot address concept, not only a transient selected instrument view.
-  - [ ] Preserve the current MVP mental model that users effectively experience this as the route's Expression Map until multi-address plugin workflows are shipped.
-  - [ ] Keep the data contract future-proof for multi-timbral plugins without claiming multi-instrument playback support in this story.
+- [x] Task 2: Anchor linkage to the future-proof playback-address seam while keeping current UX simple (AC: 1, 2, 3)
+  - [x] Extend the route-owned playback data model so an expression-map reference can be associated with the rack slot address concept, not only a transient selected instrument view.
+  - [x] Preserve the current MVP mental model that users effectively experience this as the route's Expression Map until multi-address plugin workflows are shipped.
+  - [x] Keep the data contract future-proof for multi-timbral plugins without claiming multi-instrument playback support in this story.
 
-- [ ] Task 3: Persist project intent by reference only, while keeping the reusable library app-scoped (AC: 1, 2, 3)
-  - [ ] Persist only stable expression-map references inside `.soloc` project data; do not embed the full reusable map definition in project files.
-  - [ ] Keep the reusable map library app-scoped and machine-local for MVP, with a clean seam for later sharing, import, and export workflows.
-  - [ ] Ensure a missing map reference clears to truthful unassigned behavior rather than preserving misleading UI state.
-  - [ ] Preserve the current default playback path when no expression map is assigned or when an assigned map has zero rules.
+- [x] Task 3: Persist project intent by reference only, while keeping the reusable library app-scoped (AC: 1, 2, 3)
+  - [x] Persist only stable expression-map references inside `.soloc` project data; do not embed the full reusable map definition in project files.
+  - [x] Keep the reusable map library app-scoped and machine-local for MVP, with a clean seam for later sharing, import, and export workflows.
+  - [x] Ensure a missing map reference clears to truthful unassigned behavior rather than preserving misleading UI state.
+  - [x] Preserve the current default playback path when no expression map is assigned or when an assigned map has zero rules.
 
-- [ ] Task 4: Establish backend and frontend contract seams for later Epic 6 stories without over-scoping 6.1 (AC: 2, 3)
-  - [ ] Add or extend Rust and TypeScript shared types so Story 6.2 can display route linkage honestly and Story 6.3 can own CRUD and library editing without reworking the persistence model.
-  - [ ] Reuse the existing app-scoped window pattern and score-context relationship model as the intended architecture, but do not add a minimal trust UI shell in this story.
-  - [ ] Keep Story 6.1 foundational only: no dedicated editor, no library-management workflow, and no audible playback changes yet.
+- [x] Task 4: Establish backend and frontend contract seams for later Epic 6 stories without over-scoping 6.1 (AC: 2, 3)
+  - [x] Add or extend Rust and TypeScript shared types so Story 6.2 can display route linkage honestly and Story 6.3 can own CRUD and library editing without reworking the persistence model.
+  - [x] Reuse the existing app-scoped window pattern and score-context relationship model as the intended architecture, but do not add a minimal trust UI shell in this story.
+  - [x] Keep Story 6.1 foundational only: no dedicated editor, no library-management workflow, and no audible playback changes yet.
 
-- [ ] Task 5: Add seam-local proof and documentation for the new persistence and ownership contract (AC: 1, 2, 3)
-  - [ ] Add backend tests proving expression maps serialize durably, project files store only references, and route linkage survives load and save correctly.
-  - [ ] Add regressions proving missing-map references clear to truthful unassigned state and empty maps fall back to current default playback semantics.
-  - [ ] Update architecture and persistence documentation to record the app-scoped library ownership, project-level reference persistence, and future-proof slot-address linkage model.
+- [x] Task 5: Add seam-local proof and documentation for the new persistence and ownership contract (AC: 1, 2, 3)
+  - [x] Add backend tests proving expression maps serialize durably, project files store only references, and route linkage survives load and save correctly.
+  - [x] Add regressions proving missing-map references clear to truthful unassigned state and empty maps fall back to current default playback semantics.
+  - [x] Update architecture and persistence documentation to record the app-scoped library ownership, project-level reference persistence, and future-proof slot-address linkage model.
 
 ## Dev Notes
 
@@ -226,6 +226,9 @@ GPT-5.4
 
 - 2026-04-05: Story prepared after reviewing Epic 6 planning, PRD direction, architecture ownership rules, UX scope rules, Story 5.5 handoff, current playback route and address seams, and recent repository history.
 - 2026-04-05: User clarification locked the key product boundaries: app-scoped reusable library, project-level reference persistence, route-address linkage, quiet missing-map UX, empty-map fallback, and a foundational-only Story 6.1.
+- 2026-04-05: Implemented `ExpressionMapLibraryContext` as the app-scoped machine-local persistence seam, added route-address `expression_map_id` references, emitted resolved linkage truth through `soloc://state/general`, and added a minimal non-UI command seam for future Story 6.3 library work.
+- 2026-04-05: Added seam-local coverage for durable expression map serialization, `.soloc` reference-only persistence, missing-map resolution, empty-map playback fallback, new frontend invoke shims, and completed repo validations (`cargo test`, full JS tests, TypeScript, ESLint, clippy).
+- 2026-04-05: Post-review follow-up simplified expression-map startup recovery: kept the single-lock general-state fix that unblocked startup and restored log-and-recover empty-library behavior with decode-recovery coverage.
 
 ### Completion Notes List
 
@@ -233,8 +236,42 @@ GPT-5.4
 - Story 6.1 is intentionally foundational only. CRUD/library UI and audible behavior remain deferred to later Epic 6 stories.
 - Durable rule shape clarified as conditions plus actions, bounded initially to articulation and note-length inputs with keyswitch, CC, no-op, and note-length transformation outputs.
 - Persistence contract clarified so `.soloc` stores stable map references only, not reusable map definitions.
+- Implemented the durable reusable expression map library under `src-tauri/src/playback/expression_maps.rs`, including app-config persistence, runtime emission, and quiet missing-map resolution to unassigned truth.
+- Extended `InstrumentPlaybackRoute` with `expression_map_id` and added `ResolvedExpressionMapLink` plus frontend mirror types so future score-context and editor stories can reuse the same persistence contract.
+- Added Tauri command seams `expression_maps_get_state` and `expression_maps_upsert`, plus frontend `actions.expressionMaps.*` wrappers and tests, without adding a visible editor or management UI.
+- Added file/load-save regression coverage proving `.soloc` payloads persist only stable references, and playback-preparation regression coverage proving empty maps preserve the current default playback path.
+- Updated architecture, data-model, development-guide, and project-context docs to record the new app-scoped library ownership and route-reference persistence split.
+- Repo validations passed: full Rust test suite, full JS test suite, TypeScript check, ESLint, and `cargo clippy --all-targets --all-features -- -D warnings`.
+- Follow-up cleanup simplified storage recovery: startup now logs storage issues, falls back to an empty reusable-library state, and allows immediate repopulation without introducing extra shared error-state wiring.
 
 ### File List
 
 - `_bmad-output/implementation-artifacts/6-1-model-expression-maps-as-durable-playback-assets.md`
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `docs/architecture.md`
+- `docs/data-models.md`
+- `docs/development-guide.md`
+- `docs/project-context.md`
+- `src/services/actions.test.ts`
+- `src/services/actions.ts`
+- `src/services/state/context.tsx`
+- `src/services/types.ts`
+- `src-tauri/src/files.rs`
+- `src-tauri/src/lib.rs`
+- `src-tauri/src/playback/expression_maps.rs`
+- `src-tauri/src/playback/mod.rs`
+- `src-tauri/src/playback/plugin_editor_poc.rs`
+- `src-tauri/src/playback/preparation.rs`
+- `src-tauri/src/playback/runtime_activation.rs`
+- `src-tauri/src/score/components/duration.rs`
+- `src-tauri/src/score/instruments/mod.rs`
+- `src-tauri/src/score/playback.rs`
+
+### Change Log
+
+- 2026-04-05: Implemented Story 6.1 durable expression map foundation, added route-address reference persistence and resolved linkage state, added seam-local backend and frontend contract coverage, and documented the new app-scoped library ownership model.
+
+### Review Findings
+
+- [x] [Review][Patch] Silent library-load fallback breaks the durability contract [src-tauri/src/playback/expression_maps.rs:75] — fixed by keeping startup truthful but lightweight: the library now logs storage failures, recovers to an empty reusable-library state, and includes decode-recovery regression coverage.
+- [x] [Review][Patch] Library upserts leave score-context linkage stale [src-tauri/src/lib.rs:499] — fixed by re-emitting `soloc://state/general` after successful expression-map upserts so route-linkage truth refreshes immediately in the same session.

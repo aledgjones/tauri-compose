@@ -9,6 +9,8 @@ import {
   BracketingApproach,
   BracketStyle,
   ClefDrawType,
+  ExpressionMap,
+  ExpressionMapLibraryState,
   KeySignatureMode,
   LayoutType,
   NoteDuration,
@@ -118,6 +120,14 @@ export const actions = {
         plugin_id,
         plugin_path: options?.plugin_path ?? null,
       });
+    },
+  },
+  expressionMaps: {
+    getState: () => {
+      return invoke<ExpressionMapLibraryState>("expression_maps_get_state");
+    },
+    upsert: (expression_map: ExpressionMap) => {
+      return invoke("expression_maps_upsert", { expression_map });
     },
   },
   ui: {

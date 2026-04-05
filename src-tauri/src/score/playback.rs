@@ -113,11 +113,47 @@ impl PlaybackRouteAddress {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize_repr, Deserialize_repr)]
+#[repr(u8)]
+pub enum ResolvedExpressionMapLinkStatus {
+    Unassigned = 0,
+    Assigned = 1,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ResolvedExpressionMapLink {
+    pub status: ResolvedExpressionMapLinkStatus,
+    pub expression_map_id: Option<String>,
+    pub expression_map_name: Option<String>,
+}
+
+impl ResolvedExpressionMapLink {
+    pub fn assigned(expression_map_id: String, expression_map_name: String) -> Self {
+        Self {
+            status: ResolvedExpressionMapLinkStatus::Assigned,
+            expression_map_id: Some(expression_map_id),
+            expression_map_name: Some(expression_map_name),
+        }
+    }
+}
+
+impl Default for ResolvedExpressionMapLink {
+    fn default() -> Self {
+        Self {
+            status: ResolvedExpressionMapLinkStatus::Unassigned,
+            expression_map_id: None,
+            expression_map_name: None,
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct InstrumentPlaybackRoute {
     pub slot_id: UniqueId,
     pub target: PlaybackRouteTarget,
     pub address: PlaybackRouteAddress,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub expression_map_id: Option<String>,
 }
 
 impl InstrumentPlaybackRoute {
@@ -127,6 +163,7 @@ impl InstrumentPlaybackRoute {
             slot_id,
             target: PlaybackRouteTarget::plugin(),
             address: PlaybackRouteAddress::root(),
+            expression_map_id: None,
         }
     }
 }
@@ -175,4 +212,35 @@ pub struct ResolvedPlaybackRoute {
     pub target: Option<PlaybackRouteTarget>,
     pub address: Option<PlaybackRouteAddress>,
     pub supported_mix_controls: SupportedPlaybackMixControls,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        InstrumentPlaybackRoute, PlaybackRouteAddress, PlaybackRouteTarget,
+        ResolvedExpressionMapLink, ResolvedExpressionMapLinkStatus,
+    };
+
+    #[test]
+    fn instrument_playback_route_serializes_expression_map_reference_when_present() {
+        let route = InstrumentPlaybackRoute {
+            slot_id: 100,
+            target: PlaybackRouteTarget::plugin(),
+            address: PlaybackRouteAddress::root(),
+            expression_map_id: Some(String::from("legato")),
+        };
+
+        let value = serde_json::to_value(route).unwrap();
+
+        assert_eq!(value["expression_map_id"], "legato");
+    }
+
+    #[test]
+    fn resolved_expression_map_link_defaults_to_unassigned() {
+        let link = ResolvedExpressionMapLink::default();
+
+        assert_eq!(link.status, ResolvedExpressionMapLinkStatus::Unassigned);
+        assert_eq!(link.expression_map_id, None);
+        assert_eq!(link.expression_map_name, None);
+    }
 }

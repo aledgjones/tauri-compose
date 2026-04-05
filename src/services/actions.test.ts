@@ -184,6 +184,43 @@ describe("actions.pluginInventory", () => {
   });
 });
 
+describe("actions.expressionMaps", () => {
+  it("getState calls invoke correctly", async () => {
+    await actions.expressionMaps.getState();
+    expect(mockInvoke).toHaveBeenCalledWith("expression_maps_get_state");
+  });
+
+  it("upsert calls invoke with expression_map payload", async () => {
+    const expressionMap = {
+      id: "legato",
+      name: "Legato",
+      rules: [
+        {
+          conditions: [
+            {
+              type: "articulation" as const,
+              articulation: Articulation.Accent,
+            },
+          ],
+          actions: [
+            {
+              type: "keyswitch_note" as const,
+              midi_note: 24,
+              velocity: 96,
+            },
+          ],
+        },
+      ],
+    };
+
+    await actions.expressionMaps.upsert(expressionMap);
+
+    expect(mockInvoke).toHaveBeenCalledWith("expression_maps_upsert", {
+      expression_map: expressionMap,
+    });
+  });
+});
+
 // ---------------------------------------------------------------------------
 // ui.*
 // ---------------------------------------------------------------------------

@@ -926,23 +926,9 @@ mod macos_host {
                     std::thread::sleep(Duration::from_millis(50));
                     let delayed_callback_window = delayed_window.clone();
                     if let Err(_error) = delayed_window.run_on_main_thread(move || {
-                        let content_size = delayed_callback_window
-                            .ns_window()
-                            .ok()
-                            .and_then(|ns_window| unsafe {
-                                Retained::retain(ns_window as *mut NSWindow)
-                            })
-                            .and_then(|ns_window| {
-                                ns_window.contentView().map(|content_view| {
-                                    let frame = content_view.frame();
-                                    (frame.size.width, frame.size.height)
-                                })
-                            });
-
-                        match content_size {
-                            Some((_current_width, _current_height)) => {}
-                            None => {}
-                        }
+                        let _ = delayed_callback_window.ns_window().ok().and_then(|ns_window| unsafe {
+                            Retained::retain(ns_window as *mut NSWindow)
+                        });
                     }) {}
                 });
                 Ok(())
@@ -2080,8 +2066,7 @@ mod macos_host {
             }
 
             let mut view_rect = view_rect_for_host_frame(host_frame);
-            let get_size_result = unsafe { view.getSize(&mut view_rect) };
-            if get_size_result == kResultOk {}
+            let _ = unsafe { view.getSize(&mut view_rect) };
 
             let plugin_can_resize = unsafe { view.canResize() } == kResultOk;
             if let Err(_error) = window.set_resizable(plugin_can_resize) {}
@@ -2683,9 +2668,7 @@ mod macos_host {
         factory: &ComPtr<IPluginFactory>,
         host_context: &ComPtr<FUnknown>,
     ) -> Option<tresult> {
-        let Some(factory3) = factory.cast::<IPluginFactory3>() else {
-            return None;
-        };
+        let factory3 = factory.cast::<IPluginFactory3>()?;
 
         let host_context_result = unsafe { factory3.setHostContext(host_context.as_ptr()) };
         Some(host_context_result)
@@ -3172,7 +3155,6 @@ mod macos_host {
             };
             let _ = unsafe { processor.setupProcessing(&mut setup) };
             let _ = unsafe { component.setActive(1) };
-        } else {
         }
 
         let CreatedController {
@@ -3284,7 +3266,6 @@ mod macos_host {
         if let Ok(mut active_session) = active_plugin_host_session().lock() {
             if let Some(session) = active_session.as_mut() {
                 session.prepare_for_window_close();
-            } else {
             }
         }
     }

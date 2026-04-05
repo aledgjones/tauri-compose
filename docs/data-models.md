@@ -419,6 +419,7 @@ pub struct InstrumentPlaybackRoute {
     pub slot_id: UniqueId,
     pub target: PlaybackRouteTarget,
     pub address: PlaybackRouteAddress,
+    pub expression_map_id: Option<String>,
 }
 
 pub struct PlaybackRouteTarget {
@@ -439,7 +440,34 @@ pub struct PlaybackRouteChoice {
 }
 ```
 
-Portable rack and route intent are distinct from machine-local readiness. A rack slot is a first-class score object and may exist before any plugin is assigned to it, which lets slot preparation, route authoring, and later runtime activation remain separate bounded workflows. The backend emits resolved score-context state separately through `soloc://state/general` so React can present one Rust-owned answer instead of re-deriving route health from scattered fields.
+Portable rack and route intent are distinct from machine-local readiness. A rack slot is a first-class score object and may exist before any plugin is assigned to it, which lets slot preparation, route authoring, and later runtime activation remain separate bounded workflows. `InstrumentPlaybackRoute.expression_map_id` extends that same durable route-address seam: the project stores only a stable reusable expression map reference on the route, not the full app-scoped map definition. The backend emits resolved score-context state separately through `soloc://state/general` so React can present one Rust-owned answer instead of re-deriving route health from scattered fields.
+
+The reusable expression map library is app-scoped and machine-local:
+
+```rust
+pub struct ExpressionMap {
+    pub id: String,
+    pub name: String,
+    pub rules: Vec<ExpressionMapRule>,
+}
+
+pub struct ExpressionMapRule {
+    pub conditions: Vec<ExpressionMapCondition>,
+    pub actions: Vec<ExpressionMapAction>,
+}
+
+pub struct ExpressionMapLibraryState {
+    pub order: Vec<String>,
+    pub by_id: FxHashMap<String, ExpressionMap>,
+}
+```
+
+The MVP rule vocabulary is intentionally bounded but extension-ready:
+
+- conditions: articulation, written note length
+- actions: keyswitch note, control change, no-op, note-length transform
+
+Missing reusable-map references do not create a separate broken-link persistence state. The score may still contain the stored reference, but the resolved score-context payload clears back to unassigned truth when the app-scoped library no longer contains that id.
 
 The first runtime layer for that split is intentionally non-persisted and same-session only:
 
@@ -465,7 +493,17 @@ pub struct ResolvedPlaybackRoute {
 }
 ```
 
+```rust
+pub struct ResolvedExpressionMapLink {
+    pub status: ResolvedExpressionMapLinkStatus, // Unassigned | Assigned
+    pub expression_map_id: Option<String>,
+    pub expression_map_name: Option<String>,
+}
+```
+
 `ResolvedPlaybackRoute` is availability-aware. `effective_plugin_id` is exposed only when the routed slot target currently resolves through the same-session backend activation runtime, so unrouted instruments, missing slots, slots with no assigned plugin, missing plugins, and deferred plugin-part or MIDI-channel workflows degrade to explicit `NeedsAttention` or `Unrouted` states instead of silently falling through legacy runtime paths. Multiple instruments can intentionally share one slot by pointing distinct `Instrument.playback_route` entries at the same `slot_id`.
+
+`ResolvedExpressionMapLink` is intentionally quieter than route readiness. Assigned reusable maps surface their id and current display name for future score-context UI, but missing-library references resolve to `Unassigned` instead of adding a separate warning state. Story 6.1 does not make empty maps audible; they remain valid reusable assets whose presence must preserve the current default playback path until later Epic 6 work consumes their rules during transport preparation.
 
 The ownership split is strict: the rack owns slot lifecycle, slots own plugin assignment, and instruments own only their explicit route into an existing slot. Removing or unrouting an instrument must not implicitly delete the referenced slot.
 

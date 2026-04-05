@@ -395,7 +395,8 @@ mod tests {
     use crate::score::instruments::{defs::InstrumentType, Instrument, Instruments};
     use crate::score::layouts::{Layout, LayoutType};
     use crate::score::playback::{
-        InstrumentPlaybackRoute, PlaybackSlotPluginState, ResolvedPlaybackRouteStatus,
+        InstrumentPlaybackRoute, PlaybackRouteAddress, PlaybackRouteTarget,
+        PlaybackSlotPluginState, ResolvedPlaybackRouteStatus,
     };
     use crate::score::players::{Player, PlayerType, Players};
     use crate::score::tracks::Track;
@@ -1833,6 +1834,68 @@ mod tests {
         assert_eq!(
             value["score"]["meta"]["app_version"],
             Value::String(test_app_version().to_string())
+        );
+    }
+
+    #[test]
+    fn soloc_project_payload_persists_expression_map_references_without_embedding_library_state() {
+        let mut score = build_score_with_visible_flows(&[30], &[30]);
+        score.players = Players {
+            order: vec![1],
+            by_id: FxHashMap::from_iter([(1, Player::new(1, PlayerType::Section))]),
+        };
+        score.players.by_id.get_mut(&1).unwrap().instrument_ids = vec![10];
+        score.instruments = Instruments {
+            by_id: FxHashMap::from_iter([(
+                10,
+                Instrument {
+                    id: 10,
+                    definition_id: String::from("strings.violin"),
+                    instrument_type: InstrumentType::Melodic,
+                    long_name: String::from("Violin"),
+                    short_name: String::from("Vln."),
+                    stave_ids: vec![],
+                    count: None,
+                    playback_route: Some(InstrumentPlaybackRoute {
+                        slot_id: 300,
+                        target: PlaybackRouteTarget::plugin(),
+                        address: PlaybackRouteAddress::root(),
+                        expression_map_id: Some(String::from("legato")),
+                    }),
+                    volume: 100,
+                    pan: 64,
+                    mute: false,
+                    solo: false,
+                },
+            )]),
+        };
+        score.create_playback_slot(300).unwrap();
+        score
+            .assign_plugin_to_slot(300, String::from("plugin-a"))
+            .unwrap();
+
+        let project_file = ProjectFile {
+            ui: Ui::new(),
+            score,
+            next_id: 500,
+        };
+        let container = build_soloc_payload_for_project(&project_file);
+        let (_, _, project_json) = project_json_from_container(&container);
+        let restored = round_trip_project_file(&project_file);
+
+        assert_eq!(
+            project_json["score"]["instruments"]["by_id"]["10"]["playback_route"]
+                ["expression_map_id"],
+            Value::String(String::from("legato"))
+        );
+        assert!(project_json.get("expression_maps").is_none());
+        assert!(project_json["score"].get("expression_maps").is_none());
+        assert_eq!(
+            restored.score.instruments.by_id[&10]
+                .playback_route
+                .as_ref()
+                .and_then(|route| route.expression_map_id.as_deref()),
+            Some("legato")
         );
     }
 

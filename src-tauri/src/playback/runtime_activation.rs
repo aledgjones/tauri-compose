@@ -684,6 +684,7 @@ mod tests {
                     mode: PlaybackRouteAddressMode::Part,
                     index: Some(0),
                 },
+                expression_map_id: None,
             });
 
         let runtime = PlaybackActivationRuntime::from_score_and_inventory(&score, &inventory);
@@ -981,6 +982,7 @@ mod tests {
                     mode: PlaybackRouteAddressMode::Part,
                     index: Some(0),
                 },
+                expression_map_id: None,
             });
 
         let runtime = PlaybackActivationRuntime::from_score_and_inventory(&score, &inventory);

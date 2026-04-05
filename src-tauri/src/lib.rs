@@ -15,6 +15,10 @@ use crate::playback::audio::{
 };
 use crate::playback::audition::playback_audition_tone;
 use crate::playback::engine::{sync_live_slot_targets, sync_slot_mix_states};
+use crate::playback::expression_maps::{
+    ExpressionMap, ExpressionMapLibraryContext, ExpressionMapLibraryContextState,
+    ExpressionMapLibraryState,
+};
 use crate::playback::plugin_editor_poc::{plugin_editor_poc_open, sync_slot_runtime_sessions};
 use crate::playback::plugin_inventory::{
     plugin_inventory_discover, PluginInventoryContext, PluginInventoryContextState,
@@ -99,7 +103,7 @@ use score::meta::{
     score_meta_lyricist_set, score_meta_other_information_set, score_meta_publisher_set,
     score_meta_subtitle_set, score_meta_title_set, score_meta_work_number_set,
 };
-use score::playback::ResolvedPlaybackRoute;
+use score::playback::{ResolvedExpressionMapLink, ResolvedPlaybackRoute};
 use score::players::{
     score_players_assign_instrument, score_players_create, score_players_move,
     score_players_remove, score_players_unassign_instrument,
@@ -141,6 +145,8 @@ struct AppStateGeneral {
     single_instrument_transport_ready: bool,
     resolved_playback_route_by_instrument_id:
         rustc_hash::FxHashMap<UniqueId, ResolvedPlaybackRoute>,
+    resolved_expression_map_by_instrument_id:
+        rustc_hash::FxHashMap<UniqueId, ResolvedExpressionMapLink>,
     route_target_options_by_slot_id:
         rustc_hash::FxHashMap<UniqueId, Vec<score::playback::PlaybackRouteChoice>>,
     preferences: Preferences,
@@ -385,6 +391,12 @@ impl AppContext {
         }
         self.render_with_recalculation(app, renderer, recalculation_request);
 
+        let expression_map_library_state = app.state::<ManagedExpressionMapLibraryContextState>();
+        let expression_map_library = expression_map_library_state.lock().unwrap();
+        let resolved_expression_map_by_instrument_id =
+            expression_map_library.resolved_expression_map_links_by_instrument_id(&self.score);
+        drop(expression_map_library);
+
         let general_state = AppStateGeneral {
             ui: self.ui.clone(),
             score: self.score.clone(),
@@ -395,6 +407,7 @@ impl AppContext {
             resolved_playback_route_by_instrument_id: self
                 .playback_activation_runtime
                 .resolved_playback_route_by_instrument_id(&self.score),
+            resolved_expression_map_by_instrument_id,
             route_target_options_by_slot_id: self.score.playback_route_choices_by_slot_id(),
             current_file_path: self.current_file_path.clone(),
             preferences: self.preferences.clone(),
@@ -445,6 +458,7 @@ impl AppContext {
 
 pub(crate) type AppContextState = Mutex<AppContext>;
 pub(crate) type AudioContextState = Mutex<AudioContext>;
+pub(crate) type ManagedExpressionMapLibraryContextState = ExpressionMapLibraryContextState;
 pub(crate) type ManagedPluginInventoryContextState = PluginInventoryContextState;
 pub(crate) type RendererContextState = Mutex<RendererContext>;
 
@@ -454,6 +468,12 @@ const APP_NAME: &str = "Solo Compose";
 fn get_general_state(app: AppHandle, state: State<'_, AppContextState>) -> AppStateGeneral {
     let mut state = state.lock().unwrap();
     state.refresh_playback_activation_runtime_from_app(&app);
+
+    let expression_map_library_state = app.state::<ManagedExpressionMapLibraryContextState>();
+    let expression_map_library = expression_map_library_state.lock().unwrap();
+    let resolved_expression_map_by_instrument_id =
+        expression_map_library.resolved_expression_map_links_by_instrument_id(&state.score);
+    drop(expression_map_library);
 
     AppStateGeneral {
         ui: state.ui.clone(),
@@ -465,10 +485,35 @@ fn get_general_state(app: AppHandle, state: State<'_, AppContextState>) -> AppSt
         resolved_playback_route_by_instrument_id: state
             .playback_activation_runtime
             .resolved_playback_route_by_instrument_id(&state.score),
+        resolved_expression_map_by_instrument_id,
         route_target_options_by_slot_id: state.score.playback_route_choices_by_slot_id(),
         preferences: state.preferences.clone(),
         current_file_path: state.current_file_path.clone(),
     }
+}
+
+#[tauri::command(rename_all = "snake_case")]
+fn expression_maps_get_state(
+    state: State<'_, ManagedExpressionMapLibraryContextState>,
+) -> ExpressionMapLibraryState {
+    state.lock().unwrap().snapshot()
+}
+
+#[tauri::command(rename_all = "snake_case")]
+fn expression_maps_upsert(
+    app: AppHandle,
+    state: State<'_, ManagedExpressionMapLibraryContextState>,
+    expression_map: ExpressionMap,
+) -> Result<(), String> {
+    let mut library = state.lock().unwrap();
+    library.upsert_expression_map(expression_map)?;
+    library.emit(&app);
+    drop(library);
+
+    let general_state = get_general_state(app.clone(), app.state::<AppContextState>());
+    app.emit("soloc://state/general", &general_state)
+        .map_err(|error| error.to_string())?;
+    Ok(())
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -477,6 +522,7 @@ fn initialize(
     state: State<'_, AppContextState>,
     renderer_state: State<'_, RendererContextState>,
     audio_state: State<'_, AudioContextState>,
+    expression_map_library_state: State<'_, ManagedExpressionMapLibraryContextState>,
     plugin_inventory_state: State<'_, ManagedPluginInventoryContextState>,
     transport_shared: State<'_, TransportSharedState>,
 ) {
@@ -494,6 +540,7 @@ fn initialize(
     drop(renderer);
 
     audio_state.lock().unwrap().emit(&app);
+    expression_map_library_state.lock().unwrap().emit(&app);
     plugin_inventory_state.lock().unwrap().emit(&app);
 }
 
@@ -559,6 +606,7 @@ pub fn run() {
             app.manage(AppContext::new(app_handle));
             app.manage(RendererContext::new());
             app.manage(AudioContext::new());
+            app.manage(ExpressionMapLibraryContext::new(app_handle));
             app.manage(PluginInventoryContext::new(app_handle));
 
             let (transport_ctx, transport_shared) = TransportContext::new();
@@ -715,6 +763,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             initialize,
             reset,
+            expression_maps_get_state,
+            expression_maps_upsert,
             save_project_to_file,
             load_project_from_file,
             get_current_file_path,
