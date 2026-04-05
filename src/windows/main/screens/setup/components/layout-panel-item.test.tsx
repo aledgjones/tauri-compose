@@ -304,4 +304,88 @@ describe("LayoutPanelItem", () => {
     renderWithProviders(<LayoutPanelItem layout={partLayout} />, { appState });
     expect(screen.getByDisplayValue("My Score")).toBeInTheDocument();
   });
+
+  it("shows the edited draft while typing", () => {
+    const appState = createAppState({
+      ui: {
+        screens: {
+          setup: {
+            selection: { id: 10, selection_type: SetupSelectionType.Layout },
+          },
+        },
+      } as never,
+      score: {
+        layouts: { order: [10], by_id: { 10: mockLayout } },
+      } as never,
+    });
+
+    renderWithProviders(<LayoutPanelItem layout={mockLayout} />, { appState });
+
+    fireEvent.click(screen.getAllByRole("button")[0]);
+    vi.clearAllMocks();
+
+    const input = screen.getByDisplayValue("My Score");
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: "Updated Score" } });
+
+    expect(screen.getByDisplayValue("Updated Score")).toBeInTheDocument();
+  });
+
+  it("commits the rename on blur", () => {
+    const appState = createAppState({
+      ui: {
+        screens: {
+          setup: {
+            selection: { id: 10, selection_type: SetupSelectionType.Layout },
+          },
+        },
+      } as never,
+      score: {
+        layouts: { order: [10], by_id: { 10: mockLayout } },
+      } as never,
+    });
+
+    renderWithProviders(<LayoutPanelItem layout={mockLayout} />, { appState });
+
+    fireEvent.click(screen.getAllByRole("button")[0]);
+    vi.clearAllMocks();
+
+    const input = screen.getByDisplayValue("My Score");
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: "Updated Score" } });
+    fireEvent.blur(input);
+
+    expect(actions.score.layout.rename).toHaveBeenCalledWith(
+      10,
+      "Updated Score",
+    );
+  });
+
+  it("reverts local edits on Escape without renaming", () => {
+    const appState = createAppState({
+      ui: {
+        screens: {
+          setup: {
+            selection: { id: 10, selection_type: SetupSelectionType.Layout },
+          },
+        },
+      } as never,
+      score: {
+        layouts: { order: [10], by_id: { 10: mockLayout } },
+      } as never,
+    });
+
+    renderWithProviders(<LayoutPanelItem layout={mockLayout} />, { appState });
+
+    fireEvent.click(screen.getAllByRole("button")[0]);
+    vi.clearAllMocks();
+
+    const input = screen.getByDisplayValue("My Score");
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: "Updated Score" } });
+    fireEvent.keyDown(input, { key: "Escape" });
+
+    expect(actions.score.layout.rename).not.toHaveBeenCalled();
+    expect(screen.getByDisplayValue("My Score")).toBeInTheDocument();
+  });
 });

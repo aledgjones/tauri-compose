@@ -15,6 +15,7 @@ export interface TextInputProps extends BaseInputProps {
   type: "text";
   value: string;
   onChange: (value: string) => void;
+  useLocalDraftWhileFocused?: boolean;
   onKeyDown?: (event: KeyboardEvent<HTMLInputElement>) => void;
   onBlur?: () => void;
   onEnter?: () => void;

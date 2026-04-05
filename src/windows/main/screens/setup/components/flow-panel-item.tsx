@@ -12,10 +12,10 @@ import { Checkbox } from "../../../../../ui/checkbox";
 import { useAppState } from "../../../../../services/state";
 import {
   FC,
-  FormEvent,
   KeyboardEvent,
   PointerEvent,
   useCallback,
+  useEffect,
   useRef,
   useState,
 } from "react";
@@ -46,9 +46,11 @@ type Props = {
 
 export const FlowPanelItem: FC<Props> = ({ flow, index }) => {
   const inputRef = useRef<HTMLInputElement>(null);
+  const savedValueRef = useRef(flow.title);
+  const skipBlurCommitRef = useRef(false);
 
   const state = useAppState();
-  const [savedValue, setSavedValue] = useState(flow.title);
+  const [draftTitle, setDraftTitle] = useState(flow.title);
   const [editing, setEditing] = useState(false);
 
   const isSelected = state.ui.screens.setup.selection?.id === flow.id;
@@ -60,13 +62,17 @@ export const FlowPanelItem: FC<Props> = ({ flow, index }) => {
   const fg = isSelected ? "text-black" : "text-white";
   const bg = isSelected ? "bg-sky-500" : "bg-neutral-800";
 
-  const title = editing ? flow.title : flow.title || "Untitled Flow";
+  useEffect(() => {
+    if (editing) {
+      inputRef.current?.focus();
+    }
+  }, [editing]);
+
+  const title = editing ? draftTitle : flow.title || "Untitled Flow";
 
   const onEdit = useCallback(() => {
-    if (inputRef.current) {
-      setSavedValue(flow.title);
-      inputRef.current.focus();
-    }
+    savedValueRef.current = flow.title;
+    setDraftTitle(flow.title);
     setEditing(true);
   }, [flow.title]);
 
@@ -74,37 +80,44 @@ export const FlowPanelItem: FC<Props> = ({ flow, index }) => {
     await actions.score.flow.remove(flow.id);
   }, [flow.id]);
 
+  const commitRename = useCallback(async () => {
+    setEditing(false);
+
+    if (draftTitle === savedValueRef.current) {
+      return;
+    }
+
+    await actions.score.flow.rename(flow.id, draftTitle);
+  }, [draftTitle, flow.id]);
+
   const onKeyDown = useCallback(
     async (e: KeyboardEvent<HTMLInputElement>) => {
       switch (e.key) {
         case "Enter":
-          // confirm
-          if (inputRef.current) {
-            inputRef.current.blur();
-          }
+          await commitRename();
+          inputRef.current?.blur();
           break;
         case "Escape":
-          // revert
-          await actions.score.flow.rename(flow.id, savedValue);
+          skipBlurCommitRef.current = true;
+          setDraftTitle(savedValueRef.current);
+          setEditing(false);
           inputRef.current?.blur();
           break;
         default:
           break;
       }
     },
-    [flow.id, savedValue],
+    [commitRename],
   );
 
-  const onInput = useCallback(
-    async (e: FormEvent<HTMLInputElement>) => {
-      await actions.score.flow.rename(flow.id, e.currentTarget.value);
-    },
-    [flow.id],
-  );
+  const onBlur = useCallback(async () => {
+    if (skipBlurCommitRef.current) {
+      skipBlurCommitRef.current = false;
+      return;
+    }
 
-  const onBlur = useCallback(() => {
-    setEditing(false);
-  }, []);
+    await commitRename();
+  }, [commitRename]);
 
   const onToggleAssigned = useCallback(
     async (checked: boolean) => {
@@ -189,13 +202,13 @@ export const FlowPanelItem: FC<Props> = ({ flow, index }) => {
             ref={inputRef}
             onBlur={onBlur}
             readOnly={!editing}
-            defaultValue={title}
+            value={title}
             className={classNames(
               `truncate flex-1 bg-transparent outline-hidden`,
               fg,
             )}
             onKeyDown={onKeyDown}
-            onInput={onInput}
+            onChange={(e) => setDraftTitle(e.currentTarget.value)}
           />
 
           {isSelected && (

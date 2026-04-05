@@ -6,6 +6,7 @@ import { Icon } from "../../ui/icon";
 export const TextInput: FC<TextInputProps> = ({
   value,
   onChange,
+  useLocalDraftWhileFocused = true,
   className,
   label,
   placeholder,
@@ -18,6 +19,9 @@ export const TextInput: FC<TextInputProps> = ({
   variant = "default",
 }) => {
   const [isFocused, setIsFocused] = useState(false);
+  const [draftValue, setDraftValue] = useState(value);
+  const displayValue =
+    useLocalDraftWhileFocused && isFocused ? draftValue : value;
 
   return (
     <div className={className}>
@@ -36,11 +40,16 @@ export const TextInput: FC<TextInputProps> = ({
           placeholder={placeholder}
           readOnly={readOnly}
           type="text"
-          defaultValue={value}
+          value={displayValue}
           onChange={(e) => {
-            onChange(e.target.value);
+            const nextValue = e.target.value;
+            setDraftValue(nextValue);
+            onChange(nextValue);
           }}
-          onFocus={() => setIsFocused(true)}
+          onFocus={() => {
+            setDraftValue(value);
+            setIsFocused(true);
+          }}
           onBlur={() => {
             setIsFocused(false);
             onBlur?.();

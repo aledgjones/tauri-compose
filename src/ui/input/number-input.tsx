@@ -110,6 +110,7 @@ export const NumberInput: FC<NumberInputProps> = ({
       type="text"
       value={display}
       onChange={setDisplay}
+      useLocalDraftWhileFocused={false}
       className={className}
       label={label}
       readOnly={readOnly}

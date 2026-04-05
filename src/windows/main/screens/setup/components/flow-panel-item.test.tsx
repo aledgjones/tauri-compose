@@ -367,4 +367,91 @@ describe("FlowPanelItem", () => {
     fireEvent.pointerDown(screen.getByDisplayValue("Symphony No. 1"));
     expect(actions.ui.screens.setup.select).not.toHaveBeenCalled();
   });
+
+  it("shows the edited draft while typing", () => {
+    const appState = createAppState({
+      ui: {
+        screens: {
+          setup: {
+            selection: { id: 1, selection_type: SetupSelectionType.Flow },
+          },
+        },
+      } as never,
+      score: {
+        flows: { order: [1], by_id: { 1: mockFlow } },
+      } as never,
+    });
+
+    renderWithProviders(<FlowPanelItem flow={mockFlow} index={0} />, {
+      appState,
+    });
+
+    fireEvent.click(screen.getAllByRole("button")[0]);
+    vi.clearAllMocks();
+
+    const input = screen.getByDisplayValue("Symphony No. 1");
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: "Symphony X" } });
+
+    expect(screen.getByDisplayValue("Symphony X")).toBeInTheDocument();
+  });
+
+  it("commits the rename on blur", async () => {
+    const appState = createAppState({
+      ui: {
+        screens: {
+          setup: {
+            selection: { id: 1, selection_type: SetupSelectionType.Flow },
+          },
+        },
+      } as never,
+      score: {
+        flows: { order: [1], by_id: { 1: mockFlow } },
+      } as never,
+    });
+
+    renderWithProviders(<FlowPanelItem flow={mockFlow} index={0} />, {
+      appState,
+    });
+
+    fireEvent.click(screen.getAllByRole("button")[0]);
+    vi.clearAllMocks();
+
+    const input = screen.getByDisplayValue("Symphony No. 1");
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: "Symphony X" } });
+    fireEvent.blur(input);
+
+    expect(actions.score.flow.rename).toHaveBeenCalledWith(1, "Symphony X");
+  });
+
+  it("reverts local edits on Escape without renaming", async () => {
+    const appState = createAppState({
+      ui: {
+        screens: {
+          setup: {
+            selection: { id: 1, selection_type: SetupSelectionType.Flow },
+          },
+        },
+      } as never,
+      score: {
+        flows: { order: [1], by_id: { 1: mockFlow } },
+      } as never,
+    });
+
+    renderWithProviders(<FlowPanelItem flow={mockFlow} index={0} />, {
+      appState,
+    });
+
+    fireEvent.click(screen.getAllByRole("button")[0]);
+    vi.clearAllMocks();
+
+    const input = screen.getByDisplayValue("Symphony No. 1");
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: "Symphony X" } });
+    fireEvent.keyDown(input, { key: "Escape" });
+
+    expect(actions.score.flow.rename).not.toHaveBeenCalled();
+    expect(screen.getByDisplayValue("Symphony No. 1")).toBeInTheDocument();
+  });
 });

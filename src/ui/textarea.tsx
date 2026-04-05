@@ -1,5 +1,5 @@
 import classNames from "classnames";
-import { FC, useState } from "react";
+import { FC, useRef, useState } from "react";
 
 interface TextareaProps {
   value: string;
@@ -19,6 +19,9 @@ export const Textarea: FC<TextareaProps> = ({
   lines,
 }) => {
   const [isFocused, setIsFocused] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [draftValue, setDraftValue] = useState(value);
+  const displayValue = isFocused ? draftValue : value;
 
   return (
     <div className={className}>
@@ -31,15 +34,20 @@ export const Textarea: FC<TextareaProps> = ({
         {label}
       </label>
       <textarea
-        defaultValue={value}
+        ref={textareaRef}
+        value={displayValue}
         contentEditable={!readOnly}
         onInput={(e: React.FormEvent<HTMLTextAreaElement>) => {
           const target = e.target as HTMLTextAreaElement;
+          setDraftValue(target.value);
           target.style.height = "1px";
           target.style.height = target.scrollHeight + 4 + "px";
           onChange?.(target.value);
         }}
-        onFocus={() => setIsFocused(true)}
+        onFocus={() => {
+          setDraftValue(value);
+          setIsFocused(true);
+        }}
         onBlur={() => setIsFocused(false)}
         className="block w-full h-9 bg-neutral-800 hover:bg-neutral-700 focus:bg-neutral-700 px-2 py-1.5 text-sm focus:outline-hidden border-2 border-neutral-800 focus:border-sky-500 text-white resize-none"
         style={{ minHeight: `${lines * 20 + 16}px` }}

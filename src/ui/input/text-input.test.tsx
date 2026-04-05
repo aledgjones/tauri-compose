@@ -77,29 +77,45 @@ describe("TextInput", () => {
     expect(screen.getByRole("textbox").className).toContain("bg-neutral-800");
   });
 
-  it("preserves the caret when inserting inside an existing value", () => {
+  it("shows local draft text while focused", async () => {
     const ControlledInput = () => {
       const [value, setValue] = useState("hello");
 
       return <TextInput type="text" value={value} onChange={setValue} />;
     };
 
+    const user = userEvent.setup();
     render(<ControlledInput />);
 
     const input = screen.getByRole("textbox") as HTMLInputElement;
-    input.focus();
-    input.setSelectionRange(1, 1);
+    await user.click(input);
+    await user.type(input, "X");
 
-    fireEvent.change(input, {
-      target: {
-        value: "hXello",
-        selectionStart: 2,
-        selectionEnd: 2,
-      },
-    });
+    expect(input).toHaveValue("helloX");
+  });
 
-    expect(input).toHaveValue("hXello");
-    expect(input.selectionStart).toBe(2);
-    expect(input.selectionEnd).toBe(2);
+  it("keeps the local draft visible while async parent state lags", async () => {
+    const AsyncControlledInput = () => {
+      const [value, setValue] = useState("hello");
+
+      return (
+        <TextInput
+          type="text"
+          value={value}
+          onChange={(nextValue) => {
+            setTimeout(() => setValue(nextValue), 0);
+          }}
+        />
+      );
+    };
+
+    const user = userEvent.setup();
+    render(<AsyncControlledInput />);
+
+    const input = screen.getByRole("textbox") as HTMLInputElement;
+    await user.click(input);
+    await user.type(input, "X");
+
+    expect(input).toHaveValue("helloX");
   });
 });
