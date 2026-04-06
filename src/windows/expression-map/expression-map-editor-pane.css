@@ -1,0 +1,18 @@
+.drag-expression-map-rule {
+  transition: none !important;
+  pointer-events: none;
+  z-index: 9999;
+  will-change: transform;
+}
+
+.ghost-expression-map-rule {
+  box-sizing: border-box;
+  border-width: 2px;
+  border-color: rgb(14 165 233 / var(--tw-bg-opacity, 1));
+  background-color: transparent;
+  border-style: dashed;
+}
+
+.ghost-expression-map-rule > * {
+  visibility: hidden;
+}

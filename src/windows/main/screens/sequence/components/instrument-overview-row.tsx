@@ -550,13 +550,13 @@ export const InstrumentOverviewRow: FC<InstrumentOverviewRowProps> = ({
             onClick={handleOpenExpressionMapWindow}
             aria-label={
               selectedExpressionMap
-                ? `Open expression map shell for ${selectedExpressionMap.name}`
-                : "Open expression map shell"
+                ? `Open expression map workflow for ${selectedExpressionMap.name}`
+                : "Open expression map workflow"
             }
             title={
               selectedExpressionMap
-                ? `Open expression map shell for ${selectedExpressionMap.name}`
-                : "Open expression map shell"
+                ? `Open expression map workflow for ${selectedExpressionMap.name}`
+                : "Open expression map workflow"
             }
           />
         </div>

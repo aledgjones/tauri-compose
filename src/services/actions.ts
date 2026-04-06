@@ -25,6 +25,7 @@ import {
   PlaybackRouteAddress,
   PlaybackRouteTarget,
   UniqueId,
+  ExpressionMapExportPayload,
 } from "./types";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 
@@ -66,6 +67,9 @@ export const actions = {
     const existing = await WebviewWindow.getByLabel("expression-map");
 
     if (existing) {
+      await existing.emit("soloc://expression-map/select", {
+        expression_map_id: "",
+      });
       await existing.show();
       await existing.setFocus();
 
@@ -79,8 +83,8 @@ export const actions = {
       hiddenTitle: true,
       titleBarStyle: "overlay",
       acceptFirstMouse: true,
-      height: 520,
-      width: 760,
+      height: 780,
+      width: 1280,
       theme: "dark",
     });
 
@@ -111,8 +115,8 @@ export const actions = {
       hiddenTitle: true,
       titleBarStyle: "overlay",
       acceptFirstMouse: true,
-      height: 520,
-      width: 760,
+      height: 780,
+      width: 1280,
       theme: "dark",
     });
 
@@ -185,8 +189,199 @@ export const actions = {
     getState: () => {
       return invoke<ExpressionMapLibraryState>("expression_maps_get_state");
     },
-    upsert: (expression_map: ExpressionMap) => {
-      return invoke("expression_maps_upsert", { expression_map });
+    create: (name?: string) => {
+      return invoke<ExpressionMap>("expression_maps_create", {
+        name: name ?? null,
+      });
+    },
+    duplicate: (expression_map_id: string) => {
+      return invoke<ExpressionMap>("expression_maps_duplicate", {
+        expression_map_id,
+      });
+    },
+    setName: (expression_map_id: string, name: string) => {
+      return invoke<ExpressionMap>("expression_maps_name_set", {
+        expression_map_id,
+        name,
+      });
+    },
+    setCreator: (expression_map_id: string, creator: string) => {
+      return invoke<ExpressionMap>("expression_maps_creator_set", {
+        expression_map_id,
+        creator,
+      });
+    },
+    setVersion: (expression_map_id: string, version: number) => {
+      return invoke<ExpressionMap>("expression_maps_version_set", {
+        expression_map_id,
+        version,
+      });
+    },
+    addRule: (expression_map_id: string) => {
+      return invoke<ExpressionMap>("expression_maps_rule_add", {
+        expression_map_id,
+      });
+    },
+    setRuleName: (expression_map_id: string, rule_id: string, name: string) => {
+      return invoke<ExpressionMap>("expression_maps_rule_name_set", {
+        expression_map_id,
+        rule_id,
+        name,
+      });
+    },
+    moveRule: (
+      expression_map_id: string,
+      rule_id: string,
+      to_index: number,
+    ) => {
+      return invoke<ExpressionMap>("expression_maps_rule_move", {
+        expression_map_id,
+        rule_id,
+        to_index,
+      });
+    },
+    removeRule: (expression_map_id: string, rule_id: string) => {
+      return invoke<ExpressionMap>("expression_maps_rule_remove", {
+        expression_map_id,
+        rule_id,
+      });
+    },
+    addCondition: (
+      expression_map_id: string,
+      rule_id: string,
+      condition_type: string,
+    ) => {
+      return invoke<ExpressionMap>("expression_maps_condition_add", {
+        expression_map_id,
+        rule_id,
+        condition_type,
+      });
+    },
+    setConditionType: (
+      expression_map_id: string,
+      rule_id: string,
+      condition_id: string,
+      condition_type: string,
+    ) => {
+      return invoke<ExpressionMap>("expression_maps_condition_set_type", {
+        expression_map_id,
+        rule_id,
+        condition_id,
+        condition_type,
+      });
+    },
+    updateCondition: (
+      expression_map_id: string,
+      rule_id: string,
+      condition: ExpressionMap["rules"][number]["conditions"][number],
+    ) => {
+      return invoke<ExpressionMap>("expression_maps_condition_update", {
+        expression_map_id,
+        rule_id,
+        condition,
+      });
+    },
+    removeCondition: (
+      expression_map_id: string,
+      rule_id: string,
+      condition_id: string,
+    ) => {
+      return invoke<ExpressionMap>("expression_maps_condition_remove", {
+        expression_map_id,
+        rule_id,
+        condition_id,
+      });
+    },
+    addAction: (
+      expression_map_id: string,
+      rule_id: string,
+      action_type: string,
+    ) => {
+      return invoke<ExpressionMap>("expression_maps_action_add", {
+        expression_map_id,
+        rule_id,
+        action_type,
+      });
+    },
+    setActionType: (
+      expression_map_id: string,
+      rule_id: string,
+      action_id: string,
+      action_type: string,
+    ) => {
+      return invoke<ExpressionMap>("expression_maps_action_set_type", {
+        expression_map_id,
+        rule_id,
+        action_id,
+        action_type,
+      });
+    },
+    updateAction: (
+      expression_map_id: string,
+      rule_id: string,
+      action: ExpressionMap["rules"][number]["actions"][number],
+    ) => {
+      return invoke<ExpressionMap>("expression_maps_action_update", {
+        expression_map_id,
+        rule_id,
+        action,
+      });
+    },
+    removeAction: (
+      expression_map_id: string,
+      rule_id: string,
+      action_id: string,
+    ) => {
+      return invoke<ExpressionMap>("expression_maps_action_remove", {
+        expression_map_id,
+        rule_id,
+        action_id,
+      });
+    },
+    delete: (expression_map_id: string) => {
+      return invoke("expression_maps_delete", {
+        expression_map_id,
+      });
+    },
+    importFromDialog: async () => {
+      const filePath = await open({
+        multiple: false,
+        title: "Import Expression Maps",
+        filters: [{ name: "JSON", extensions: ["json"] }],
+      });
+
+      if (filePath == null || Array.isArray(filePath)) {
+        return [];
+      }
+
+      return invoke<string[]>("expression_maps_import", {
+        file_path: filePath,
+      });
+    },
+    exportToDialog: async (expression_map_ids: string[]) => {
+      if (expression_map_ids.length === 0) {
+        return null;
+      }
+
+      const filePath = await save({
+        title: "Export Expression Maps",
+        defaultPath:
+          expression_map_ids.length === 1
+            ? `${expression_map_ids[0]}.expression-maps.json`
+            : "expression-maps.json",
+        filters: [{ name: "JSON", extensions: ["json"] }],
+      });
+
+      if (filePath == null) {
+        return null;
+      }
+
+      await invoke<ExpressionMapExportPayload>("expression_maps_export", {
+        file_path: filePath,
+        expression_map_ids,
+      });
+
+      return filePath;
     },
   },
   ui: {

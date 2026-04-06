@@ -161,6 +161,8 @@ describe("AppStateProvider", () => {
             legato: {
               id: "legato",
               name: "Legato",
+              creator: "",
+              version: 1,
               rules: [],
             },
           },

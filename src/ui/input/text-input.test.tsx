@@ -37,6 +37,11 @@ describe("TextInput", () => {
     expect(screen.getByRole("textbox")).toHaveAttribute("readonly");
   });
 
+  it("applies disabled to the input element", () => {
+    render(<TextInput type="text" value="ro" onChange={vi.fn()} disabled />);
+    expect(screen.getByRole("textbox")).toBeDisabled();
+  });
+
   it("fires onEnter when Enter key is pressed", async () => {
     const onEnter = vi.fn();
     const user = userEvent.setup();

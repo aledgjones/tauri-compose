@@ -136,11 +136,15 @@ describe("InstrumentOverviewRow", () => {
             legato: {
               id: "legato",
               name: "Legato",
+              creator: "",
+              version: 1,
               rules: [],
             },
             staccato: {
               id: "staccato",
               name: "Staccato",
+              creator: "",
+              version: 1,
               rules: [],
             },
           },
@@ -307,6 +311,8 @@ describe("InstrumentOverviewRow", () => {
             legato: {
               id: "legato",
               name: "Legato",
+              creator: "",
+              version: 1,
               rules: [],
             },
           },
@@ -415,6 +421,8 @@ describe("InstrumentOverviewRow", () => {
             legato: {
               id: "legato",
               name: "Legato",
+              creator: "",
+              version: 1,
               rules: [],
             },
           },
@@ -447,7 +455,7 @@ describe("InstrumentOverviewRow", () => {
     });
 
     expect(
-      screen.getByRole("button", { name: "Open expression map shell" }),
+      screen.getByRole("button", { name: "Open expression map workflow" }),
     ).toBeDisabled();
   });
 
@@ -523,6 +531,8 @@ describe("InstrumentOverviewRow", () => {
             legato: {
               id: "legato",
               name: "Legato",
+              creator: "",
+              version: 1,
               rules: [],
             },
           },
@@ -532,7 +542,7 @@ describe("InstrumentOverviewRow", () => {
 
     fireEvent.click(
       screen.getByRole("button", {
-        name: "Open expression map shell for Legato",
+        name: "Open expression map workflow for Legato",
       }),
     );
 

@@ -138,7 +138,7 @@ describe("NumberInput", () => {
     expect(onChange).not.toHaveBeenCalled();
   });
 
-  it("calls onChange with undefined when blurred with empty display", () => {
+  it("falls back to the current value when blurred with empty display", () => {
     const onChange = vi.fn();
     render(
       <NumberInput
@@ -152,7 +152,24 @@ describe("NumberInput", () => {
     const input = screen.getByRole("textbox");
     fireEvent.change(input, { target: { value: "" } });
     fireEvent.blur(input);
-    // toPrecision("") returns "" → toValue("") returns undefined
-    expect(onChange).toHaveBeenCalledWith(undefined);
+    expect(onChange).toHaveBeenCalledWith(5);
+  });
+
+  it("uses the provided default value when blurred with an empty display", () => {
+    const onChange = vi.fn();
+    render(
+      <NumberInput
+        type="number"
+        value={5}
+        defaultValue={24}
+        onChange={onChange}
+        step={1}
+        decimalPlaces={0}
+      />,
+    );
+    const input = screen.getByRole("textbox");
+    fireEvent.change(input, { target: { value: "" } });
+    fireEvent.blur(input);
+    expect(onChange).toHaveBeenCalledWith(24);
   });
 });

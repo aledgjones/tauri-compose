@@ -55,6 +55,7 @@ import {
   Tab,
   TimeSignatureDrawType,
   Tool,
+  ExpressionMapEqualityComparator,
 } from "./types";
 
 // ---------------------------------------------------------------------------
@@ -152,7 +153,7 @@ describe("actions.openExpressionMapWindow", () => {
     expect(windowMock.setFocus).toHaveBeenCalledTimes(1);
   });
 
-  it("reuses the existing expression map manager window without retargeting selection", async () => {
+  it("reuses the existing expression map manager window and resets it to the menu-owned selection", async () => {
     const existingWindow = {
       show: vi.fn(),
       setFocus: vi.fn(),
@@ -166,7 +167,10 @@ describe("actions.openExpressionMapWindow", () => {
     const result = await actions.openExpressionMapManager();
 
     expect(WebviewWindow).not.toHaveBeenCalled();
-    expect(existingWindow.emit).not.toHaveBeenCalled();
+    expect(existingWindow.emit).toHaveBeenCalledWith(
+      "soloc://expression-map/select",
+      { expression_map_id: "" },
+    );
     expect(existingWindow.show).toHaveBeenCalledTimes(1);
     expect(existingWindow.setFocus).toHaveBeenCalledTimes(1);
     expect(result).toBe(existingWindow);
@@ -281,33 +285,216 @@ describe("actions.expressionMaps", () => {
     expect(mockInvoke).toHaveBeenCalledWith("expression_maps_get_state");
   });
 
-  it("upsert calls invoke with expression_map payload", async () => {
-    const expressionMap = {
-      id: "legato",
+  it("create calls invoke with an optional name payload", async () => {
+    await actions.expressionMaps.create("Legato");
+
+    expect(mockInvoke).toHaveBeenCalledWith("expression_maps_create", {
       name: "Legato",
-      rules: [
-        {
-          conditions: [
-            {
-              type: "articulation" as const,
-              articulation: Articulation.Accent,
-            },
-          ],
-          actions: [
-            {
-              type: "keyswitch_note" as const,
-              midi_note: 24,
-              velocity: 96,
-            },
-          ],
+    });
+  });
+
+  it("duplicate calls invoke with expression_map_id payload", async () => {
+    await actions.expressionMaps.duplicate("legato");
+
+    expect(mockInvoke).toHaveBeenCalledWith("expression_maps_duplicate", {
+      expression_map_id: "legato",
+    });
+  });
+
+  it("metadata setters call invoke with expression_map_id payloads", async () => {
+    await actions.expressionMaps.setName("legato", "Legato Deluxe");
+    await actions.expressionMaps.setCreator("legato", "Aled");
+    await actions.expressionMaps.setVersion("legato", 4);
+
+    expect(mockInvoke).toHaveBeenCalledWith("expression_maps_name_set", {
+      expression_map_id: "legato",
+      name: "Legato Deluxe",
+    });
+    expect(mockInvoke).toHaveBeenCalledWith("expression_maps_creator_set", {
+      expression_map_id: "legato",
+      creator: "Aled",
+    });
+    expect(mockInvoke).toHaveBeenCalledWith("expression_maps_version_set", {
+      expression_map_id: "legato",
+      version: 4,
+    });
+  });
+
+  it("addRule calls invoke with expression_map_id payload", async () => {
+    await actions.expressionMaps.addRule("legato");
+
+    expect(mockInvoke).toHaveBeenCalledWith("expression_maps_rule_add", {
+      expression_map_id: "legato",
+    });
+  });
+
+  it("setRuleName calls invoke with expression_map_id, rule_id and name", async () => {
+    await actions.expressionMaps.setRuleName("legato", "rule-1", "Lead Accent");
+
+    expect(mockInvoke).toHaveBeenCalledWith("expression_maps_rule_name_set", {
+      expression_map_id: "legato",
+      rule_id: "rule-1",
+      name: "Lead Accent",
+    });
+  });
+
+  it("moveRule calls invoke with expression_map_id, rule_id and target index", async () => {
+    await actions.expressionMaps.moveRule("legato", "rule-1", 2);
+
+    expect(mockInvoke).toHaveBeenCalledWith("expression_maps_rule_move", {
+      expression_map_id: "legato",
+      rule_id: "rule-1",
+      to_index: 2,
+    });
+  });
+
+  it("removeRule calls invoke with expression_map_id and rule_id", async () => {
+    await actions.expressionMaps.removeRule("legato", "rule-1");
+
+    expect(mockInvoke).toHaveBeenCalledWith("expression_maps_rule_remove", {
+      expression_map_id: "legato",
+      rule_id: "rule-1",
+    });
+  });
+
+  it("nested condition and action commands use id-based payloads", async () => {
+    await actions.expressionMaps.addCondition(
+      "legato",
+      "rule-1",
+      "articulation",
+    );
+    await actions.expressionMaps.setConditionType(
+      "legato",
+      "rule-1",
+      "condition-1",
+      "written_note_length",
+    );
+    await actions.expressionMaps.updateCondition("legato", "rule-1", {
+      id: "condition-1",
+      type: "articulation",
+      comparator: ExpressionMapEqualityComparator.Equals,
+      articulation: Articulation.Accent,
+    });
+    await actions.expressionMaps.removeCondition(
+      "legato",
+      "rule-1",
+      "condition-1",
+    );
+    await actions.expressionMaps.addAction("legato", "rule-1", "no_op");
+    await actions.expressionMaps.setActionType(
+      "legato",
+      "rule-1",
+      "action-1",
+      "keyswitch_note",
+    );
+    await actions.expressionMaps.updateAction("legato", "rule-1", {
+      id: "action-1",
+      type: "keyswitch_note",
+      midi_note: 24,
+      velocity: 96,
+    });
+    await actions.expressionMaps.removeAction("legato", "rule-1", "action-1");
+
+    expect(mockInvoke).toHaveBeenCalledWith("expression_maps_condition_add", {
+      expression_map_id: "legato",
+      rule_id: "rule-1",
+      condition_type: "articulation",
+    });
+    expect(mockInvoke).toHaveBeenCalledWith(
+      "expression_maps_condition_set_type",
+      {
+        expression_map_id: "legato",
+        rule_id: "rule-1",
+        condition_id: "condition-1",
+        condition_type: "written_note_length",
+      },
+    );
+    expect(mockInvoke).toHaveBeenCalledWith(
+      "expression_maps_condition_update",
+      {
+        expression_map_id: "legato",
+        rule_id: "rule-1",
+        condition: {
+          id: "condition-1",
+          type: "articulation",
+          comparator: ExpressionMapEqualityComparator.Equals,
+          articulation: Articulation.Accent,
         },
-      ],
-    };
+      },
+    );
+    expect(mockInvoke).toHaveBeenCalledWith(
+      "expression_maps_condition_remove",
+      {
+        expression_map_id: "legato",
+        rule_id: "rule-1",
+        condition_id: "condition-1",
+      },
+    );
+    expect(mockInvoke).toHaveBeenCalledWith("expression_maps_action_add", {
+      expression_map_id: "legato",
+      rule_id: "rule-1",
+      action_type: "no_op",
+    });
+    expect(mockInvoke).toHaveBeenCalledWith("expression_maps_action_set_type", {
+      expression_map_id: "legato",
+      rule_id: "rule-1",
+      action_id: "action-1",
+      action_type: "keyswitch_note",
+    });
+    expect(mockInvoke).toHaveBeenCalledWith("expression_maps_action_update", {
+      expression_map_id: "legato",
+      rule_id: "rule-1",
+      action: {
+        id: "action-1",
+        type: "keyswitch_note",
+        midi_note: 24,
+        velocity: 96,
+      },
+    });
+    expect(mockInvoke).toHaveBeenCalledWith("expression_maps_action_remove", {
+      expression_map_id: "legato",
+      rule_id: "rule-1",
+      action_id: "action-1",
+    });
+  });
 
-    await actions.expressionMaps.upsert(expressionMap);
+  it("delete calls invoke with expression_map_id payload", async () => {
+    await actions.expressionMaps.delete("legato");
 
-    expect(mockInvoke).toHaveBeenCalledWith("expression_maps_upsert", {
-      expression_map: expressionMap,
+    expect(mockInvoke).toHaveBeenCalledWith("expression_maps_delete", {
+      expression_map_id: "legato",
+    });
+  });
+
+  it("importFromDialog opens a JSON picker and imports the selected file", async () => {
+    vi.mocked(open).mockResolvedValueOnce("/tmp/expression-maps.json");
+
+    await actions.expressionMaps.importFromDialog();
+
+    expect(open).toHaveBeenCalledWith(
+      expect.objectContaining({
+        multiple: false,
+        title: "Import Expression Maps",
+      }),
+    );
+    expect(mockInvoke).toHaveBeenCalledWith("expression_maps_import", {
+      file_path: "/tmp/expression-maps.json",
+    });
+  });
+
+  it("exportToDialog saves the selected expression maps as JSON", async () => {
+    vi.mocked(save).mockResolvedValueOnce("/tmp/expression-maps.json");
+
+    await actions.expressionMaps.exportToDialog(["legato", "staccato"]);
+
+    expect(save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "Export Expression Maps",
+      }),
+    );
+    expect(mockInvoke).toHaveBeenCalledWith("expression_maps_export", {
+      file_path: "/tmp/expression-maps.json",
+      expression_map_ids: ["legato", "staccato"],
     });
   });
 });

@@ -146,34 +146,58 @@ export enum PlaybackRouteAddressMode {
 
 export type ExpressionMapCondition =
   | {
+      id: string;
       type: "articulation";
-      articulation: Articulation;
+      comparator: ExpressionMapEqualityComparator;
+      articulation: Articulation | null;
     }
   | {
+      id: string;
       type: "written_note_length";
+      comparator: ExpressionMapNoteLengthComparator;
       note_duration: NoteDuration;
     };
 
+export enum ExpressionMapEqualityComparator {
+  Equals = "equals",
+  NotEquals = "not_equals",
+}
+
+export enum ExpressionMapNoteLengthComparator {
+  LessThan = "less_than",
+  LessThanOrEqual = "less_than_or_equal",
+  Exactly = "exactly",
+  NotEqual = "not_equal",
+  GreaterThanOrEqual = "greater_than_or_equal",
+  GreaterThan = "greater_than",
+}
+
 export type ExpressionMapAction =
   | {
+      id: string;
       type: "keyswitch_note";
       midi_note: number;
       velocity: number;
     }
   | {
+      id: string;
       type: "control_change";
       controller: number;
       value: number;
     }
   | {
+      id: string;
       type: "no_op";
     }
   | {
+      id: string;
       type: "note_length_transform";
       ratio_percent: number;
     };
 
 export type ExpressionMapRule = {
+  id: string;
+  name: string;
   conditions: ExpressionMapCondition[];
   actions: ExpressionMapAction[];
 };
@@ -181,12 +205,19 @@ export type ExpressionMapRule = {
 export type ExpressionMap = {
   id: string;
   name: string;
+  creator: string;
+  version: number;
   rules: ExpressionMapRule[];
 };
 
 export type ExpressionMapLibraryState = {
   order: string[];
   by_id: Record<string, ExpressionMap>;
+};
+
+export type ExpressionMapExportPayload = {
+  version: 1;
+  expression_maps: ExpressionMap[];
 };
 
 export enum ResolvedExpressionMapLinkStatus {

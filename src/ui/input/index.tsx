@@ -5,7 +5,9 @@ import { TextInput } from "./text-input";
 interface BaseInputProps {
   className?: string;
   label?: string;
+  ariaLabel?: string;
   readOnly?: boolean;
+  disabled?: boolean;
   placeholder?: string;
   leadingIcon?: string;
   variant?: "default" | "dark";
@@ -26,6 +28,7 @@ export interface NumberInputProps extends BaseInputProps {
   type: "number";
   value?: number;
   onChange: (value: number) => void;
+  defaultValue?: number;
   step: number;
   decimalPlaces: number;
   min?: number;
