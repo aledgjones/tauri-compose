@@ -48,6 +48,16 @@ The score itself is rendered natively by Rust/Skia/Metal — all other UI (panel
 
 ## State Management
 
+### Identity And Mutation Boundaries
+
+- Score-owned entities use `UniqueId`; app-scoped, machine-local, and external reusable entities use UUIDs unless a separate external system already defines identity.
+- Any mutable, persisted, reorderable, selectable, or independently addressable entity stored in a `Vec` or array must carry a stable id rather than relying on array position.
+- JavaScript does not own canonical state for backend-owned domains. React remains a control layer and display projection over Rust-owned truth.
+- Backend-owned durable data should prefer narrow domain commands over broad object replacement. Wide replacement seams are exceptions that need an explicit, strong justification.
+- Backend-owned state should normally be rendered from backend truth rather than through optimistic or deterministic frontend shadow copies.
+- Tauri commands should live with their owning domain by default. `src-tauri/src/lib.rs` should stay focused on application wiring, registration, and top-level setup.
+- Development-only or not-yet-shipped features should not accumulate compatibility residue, fallback behavior, or migration handling unless there is a real released-state or persisted-data contract to preserve.
+
 ### Rust Side (Source of Truth)
 
 - **`AppContext`** — Behind `Mutex`, holds `Ui`, `Score`, non-persisted same-session playback activation runtime, `Preferences`, `next_id`, `current_file_path`

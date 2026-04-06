@@ -1,7 +1,7 @@
 ---
 project_name: "compose"
 user_name: "Aled"
-date: "2026-03-04"
+date: "2026-04-07"
 sections_completed:
   [
     "technology_stack",
@@ -12,7 +12,7 @@ sections_completed:
     "anti_patterns",
   ]
 status: "complete"
-rule_count: 52
+rule_count: 59
 optimized_for_llm: true
 ---
 
@@ -69,6 +69,8 @@ _This file contains critical rules and patterns that AI agents must follow when 
 - All enums are numeric, mirroring Rust `serde_repr` enums — same variant names and integer values
 - Type properties use `snake_case` matching Rust struct fields (e.g. `flow_id`, `layout_type`, `by_id`) — NOT camelCase
 - `UniqueId = number`, `Tick = number`, `Ticks = number` — type aliases for semantic clarity
+- `UniqueId` is reserved for score-owned entities only; app-scoped, machine-local, and external reusable entities use UUIDs unless an external authority already defines their identity
+- Any mutable, persisted, reorderable, selectable, or independently addressable entity stored in a `Vec` or array must have a stable id; do not rely on array position as identity across backend, persistence, or React authoring flows
 - All FE→BE calls go through `invoke()` from `@tauri-apps/api/core` with snake_case parameter names
 - Rust `FxHashMap<K, V>` serializes to `Record<K, V>` in TypeScript
 - No `any` — ESLint warns on explicit any usage
@@ -77,6 +79,7 @@ _This file contains critical rules and patterns that AI agents must follow when 
 #### Rust
 
 - All Tauri commands: `#[tauri::command(rename_all = "snake_case")]`
+- Tauri commands should live near the domain they mutate or query; `src-tauri/src/lib.rs` is for app-wide wiring and setup unless a clear cross-domain reason justifies otherwise
 - `AppContext` behind `Mutex` — lock, mutate, call `emit()` to push state to all FE windows
 - Score uses `Space` unit system (staff spaces) — pixel conversion via `Converter::spaces_to_px()`
 - `Entry` is a tagged enum (`#[serde(tag = "type")]`) with 7 variants: Barline, Clef, KeySignature, Tempo, TimeSignature, Tone, Tuplet
@@ -92,6 +95,9 @@ _This file contains critical rules and patterns that AI agents must follow when 
 
 - All components are `FC<Props>` — no class components
 - State source of truth is Rust `AppContext` behind `Mutex` — FE is a display layer only
+- JavaScript must not own canonical state for backend-owned domains; React is a control layer and projection surface, not the owner of durable backend truth
+- For backend-owned durable data, prefer narrow domain commands over broad object replacement; any exception requires a very strong explicit justification
+- For backend-owned state, render from backend truth by default; optimistic or deterministic frontend shadow state is exceptional and must be justified rather than assumed
 - 4 React contexts: `AppContext`, `AudioContext`, `PluginInventoryContext`, `TransportContext` — each with a typed hook that throws outside its provider; `PluginInventoryContext` is the backend-owned machine-local VST3 inventory channel, including persisted `editor_host_validation` diagnostics from real maintainer host attempts
 - Slot-owned live plugin sessions are backend-only runtime objects keyed by `slot_id`; they own the real initialized VST instance for prepared slots, restore any portable `PlaybackSlotTarget.plugin_state` payload before editor-open, and remain the sole source from which `PlaybackActivationRuntime` readiness is derived
 - `src-tauri/src/playback/engine.rs` is the backend-owned realtime playback-plane seam: it tracks render-active slot sessions, consumes backend-owned event queues, and processes silent-safe blocks on the persistent audio callback so editor-open and audition can share the same runtime path without creating a second owner
@@ -175,6 +181,7 @@ The score page is rendered natively by Rust/Skia/Metal — all other UI (panels,
 - The app saves user projects as `.soloc` files — this is the application's native save format, not a source code or config format
 - Persist only stable expression-map references in `.soloc` route data; reusable expression-map definitions remain app-scoped, machine-local assets outside project payloads
 - Expression-map library metadata now expects explicit persisted fields such as `creator` and `version`; do not add compatibility defaults for omitted metadata unless a later migration plan explicitly restores that requirement
+- Do not add compatibility behavior, fallback residue, or migration handling for development-only or not-yet-shipped features unless there is a concrete released-state or persisted-data need
 - Persisted-data migrations are authored in `src-tauri/src/migrations/next.rs` during development, promoted to a concrete version during `prepare-release:*`, and reseeded after `finalize-release`
 - Current tuplet migration stance: older non-tuplet releases do not need a dedicated tuplet migration because they produced no tuplet-bearing payloads; add one only if a released older format genuinely needs transformation
 - Tuplet regressions should stay close to the owning seam when local tests are enough: parser scenarios near parser logic, renderer regressions near draw/hit-test code, playback regressions near transport, and persistence regressions near file/load-save seams
@@ -249,4 +256,4 @@ The score page is rendered natively by Rust/Skia/Metal — all other UI (panels,
 - Update when technology stack or conventions change
 - Review periodically — remove rules that become obvious over time
 
-Last Updated: 2026-04-04
+Last Updated: 2026-04-07
