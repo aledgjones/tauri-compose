@@ -65,11 +65,24 @@ export const Main = () => {
       )
       .filter((expressionMap) =>
         matchesExpressionMapSearch(expressionMap.name, searchTerm),
-      );
+      )
+      .sort((left, right) => {
+        const nameComparison = left.name.localeCompare(right.name, undefined, {
+          sensitivity: "base",
+        });
+
+        if (nameComparison !== 0) {
+          return nameComparison;
+        }
+
+        return left.id.localeCompare(right.id, undefined, {
+          sensitivity: "base",
+        });
+      });
   }, [expressionMapLibrary.by_id, expressionMapLibrary.order, searchTerm]);
 
   const effectiveSelectedExpressionMapId =
-    selectedExpressionMapId ?? expressionMapLibrary.order[0] ?? null;
+    selectedExpressionMapId ?? visibleExpressionMaps[0]?.id ?? null;
 
   const selectedExpressionMapFromStore =
     (effectiveSelectedExpressionMapId
@@ -162,9 +175,7 @@ export const Main = () => {
     }
 
     const updatedRules = updatedExpressionMap?.rules ?? [];
-    return updatedRules.length > 0
-      ? (updatedRules[updatedRules.length - 1]?.id ?? null)
-      : null;
+    return updatedRules[0]?.id ?? null;
   };
 
   const handleMoveRule = async (ruleId: string, newIndex: number) => {
@@ -203,7 +214,7 @@ export const Main = () => {
     await actions.expressionMaps.addCondition(
       selectedExpressionMap.id,
       ruleId,
-      "articulation",
+      "no_op",
     );
   };
 
@@ -307,6 +318,54 @@ export const Main = () => {
     );
   };
 
+  const handleAddDefaultAction = async () => {
+    if (!selectedExpressionMap) {
+      return;
+    }
+
+    await actions.expressionMaps.addDefaultAction(
+      selectedExpressionMap.id,
+      "no_op",
+    );
+  };
+
+  const handleSetDefaultActionType = async (
+    actionId: string,
+    actionType: ExpressionMapAction["type"],
+  ) => {
+    if (!selectedExpressionMap) {
+      return;
+    }
+
+    await actions.expressionMaps.setDefaultActionType(
+      selectedExpressionMap.id,
+      actionId,
+      actionType,
+    );
+  };
+
+  const handleUpdateDefaultAction = async (action: ExpressionMapAction) => {
+    if (!selectedExpressionMap) {
+      return;
+    }
+
+    await actions.expressionMaps.updateDefaultAction(
+      selectedExpressionMap.id,
+      action,
+    );
+  };
+
+  const handleRemoveDefaultAction = async (actionId: string) => {
+    if (!selectedExpressionMap) {
+      return;
+    }
+
+    await actions.expressionMaps.removeDefaultAction(
+      selectedExpressionMap.id,
+      actionId,
+    );
+  };
+
   return (
     <div className="grid h-dvh grid-rows-[28px_1fr] gap-0.5 overflow-hidden bg-neutral-950 p-0.75 text-white">
       <AppBar title="Expression Map" />
@@ -338,6 +397,10 @@ export const Main = () => {
           onSetActionType={handleSetActionType}
           onUpdateAction={handleUpdateAction}
           onRemoveAction={handleRemoveAction}
+          onAddDefaultAction={handleAddDefaultAction}
+          onSetDefaultActionType={handleSetDefaultActionType}
+          onUpdateDefaultAction={handleUpdateDefaultAction}
+          onRemoveDefaultAction={handleRemoveDefaultAction}
         />
       </div>
     </div>

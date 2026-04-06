@@ -929,17 +929,17 @@ So that routed score playback sounds more musically meaningful than a raw defaul
 **Given** a routed instrument has an Expression Map configured through the supported MVP path
 **When** I start transport playback of supported written material
 **Then** the linked Expression Map influences playback through the existing routed VST transport path
-**And** at least one resolved winning expression rule per played note is supported through the defined model
+**And** at least one resolved winning expression rule per played note is supported through the defined model using top-down first-match-wins playback semantics
 
 **Given** full score-linked expression sophistication may exceed MVP scope
 **When** the initial realistic playback path is implemented
 **Then** the supported behavior stays bounded to a first-use case based on articulation plus note length
-**And** it still proves the model can connect score meaning to playback behavior
+**And** it still proves the model can connect score meaning to playback behavior without widening into audition-specific expression handling or active-expression UI
 
 **Given** future realism work must build on this foundation rather than replace it
 **When** the initial expression-map path is delivered
 **Then** the underlying model remains extensible to richer score-linked expression behavior later
-**And** the implementation does not hard-code a one-off path that bypasses the durable asset model
+**And** the implementation does not hard-code a one-off path that bypasses the durable asset model, first-match fallback-to-plugin-default behavior, or the existing transport pipeline
 
 ## Epic 7: Prove A Release-Credible Support Baseline
 

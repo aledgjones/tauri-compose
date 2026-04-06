@@ -1,5 +1,5 @@
-use crate::score::components::articulation::Articulation;
-use crate::score::components::duration::NoteDuration;
+use crate::score::components::articulation::{Articulation, Articulations};
+use crate::score::components::duration::{NoteDuration, Ticks};
 use crate::score::playback::ResolvedExpressionMapLink;
 use crate::score::Score;
 use crate::utils::UniqueId;
@@ -37,6 +37,9 @@ pub enum ExpressionMapNoteLengthComparator {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ExpressionMapCondition {
+    NoOp {
+        id: String,
+    },
     Articulation {
         id: String,
         #[serde(default)]
@@ -54,7 +57,9 @@ pub enum ExpressionMapCondition {
 impl ExpressionMapCondition {
     fn id(&self) -> &str {
         match self {
-            Self::Articulation { id, .. } | Self::WrittenNoteLength { id, .. } => id.as_str(),
+            Self::NoOp { id }
+            | Self::Articulation { id, .. }
+            | Self::WrittenNoteLength { id, .. } => id.as_str(),
         }
     }
 }
@@ -107,7 +112,27 @@ pub struct ExpressionMap {
     pub name: String,
     pub creator: String,
     pub version: u32,
+    #[serde(default = "default_expression_map_actions")]
+    pub default_actions: Vec<ExpressionMapAction>,
     pub rules: Vec<ExpressionMapRule>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ExpressionMapPlaybackContext {
+    pub articulations: Articulations,
+    pub written_duration_ticks: Ticks,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum ResolvedExpressionMapPlaybackSource {
+    Rule { id: String },
+    FallbackDefault,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ResolvedExpressionMapPlayback {
+    pub source: ResolvedExpressionMapPlaybackSource,
+    pub actions: Vec<ExpressionMapAction>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
@@ -240,9 +265,7 @@ impl ExpressionMapLibraryContext {
         self.update_expression_map(expression_map_id, |expression_map| {
             expression_map
                 .rules
-                .push(create_default_expression_map_rule(next_default_rule_name(
-                    &expression_map.rules,
-                )));
+                .insert(0, create_default_expression_map_rule());
             Ok(())
         })
     }
@@ -437,6 +460,70 @@ impl ExpressionMapLibraryContext {
         })
     }
 
+    pub fn add_default_action(
+        &mut self,
+        expression_map_id: &str,
+        action_type: &str,
+    ) -> Result<ExpressionMap, String> {
+        self.update_expression_map(expression_map_id, |expression_map| {
+            expression_map
+                .default_actions
+                .push(create_expression_map_action(action_type)?);
+            Ok(())
+        })
+    }
+
+    pub fn set_default_action_type(
+        &mut self,
+        expression_map_id: &str,
+        action_id: &str,
+        action_type: &str,
+    ) -> Result<ExpressionMap, String> {
+        self.update_expression_map(expression_map_id, |expression_map| {
+            let action = find_default_action_mut(expression_map, action_id)?;
+            let id = action.id().to_string();
+            *action = create_expression_map_action_with_id(action_type, id)?;
+            Ok(())
+        })
+    }
+
+    pub fn update_default_action(
+        &mut self,
+        expression_map_id: &str,
+        action: ExpressionMapAction,
+    ) -> Result<ExpressionMap, String> {
+        self.update_expression_map(expression_map_id, |expression_map| {
+            let existing_action = find_default_action_mut(expression_map, action.id())?;
+            *existing_action = action;
+            Ok(())
+        })
+    }
+
+    pub fn remove_default_action(
+        &mut self,
+        expression_map_id: &str,
+        action_id: &str,
+    ) -> Result<ExpressionMap, String> {
+        self.update_expression_map(expression_map_id, |expression_map| {
+            if expression_map.default_actions.len() <= 1 {
+                return Err(String::from(
+                    "Expression maps must keep at least one default action.",
+                ));
+            }
+
+            let action_count_before = expression_map.default_actions.len();
+            expression_map
+                .default_actions
+                .retain(|action| action.id() != action_id);
+
+            if expression_map.default_actions.len() == action_count_before {
+                return Err(format!("Unknown default expression map action: {action_id}"));
+            }
+
+            Ok(())
+        })
+    }
+
     pub fn create_expression_map(&mut self, name: Option<String>) -> Result<ExpressionMap, String> {
         let map_name =
             normalize_name(name.as_deref()).unwrap_or_else(|| String::from("New Expression Map"));
@@ -445,6 +532,7 @@ impl ExpressionMapLibraryContext {
             name: map_name,
             creator: String::new(),
             version: 1,
+            default_actions: default_expression_map_actions(),
             rules: Vec::new(),
         };
 
@@ -500,6 +588,7 @@ impl ExpressionMapLibraryContext {
             name: duplicated_name,
             creator: source.creator,
             version: source.version,
+            default_actions: source.default_actions,
             rules: source.rules,
         };
 
@@ -634,6 +723,76 @@ impl ExpressionMapLibraryContext {
     }
 }
 
+fn expression_map_condition_matches(
+    condition: &ExpressionMapCondition,
+    context: &ExpressionMapPlaybackContext,
+) -> bool {
+    match condition {
+        ExpressionMapCondition::NoOp { .. } => false,
+        ExpressionMapCondition::Articulation {
+            comparator,
+            articulation,
+            ..
+        } => {
+            let Some(articulation) = articulation else {
+                return false;
+            };
+
+            let contains = context.articulations.contains(articulation);
+            match comparator {
+                ExpressionMapEqualityComparator::Equals => contains,
+                ExpressionMapEqualityComparator::NotEquals => !contains,
+            }
+        }
+        ExpressionMapCondition::WrittenNoteLength {
+            comparator,
+            note_duration,
+            ..
+        } => {
+            let written_ticks = context.written_duration_ticks;
+            let rule_ticks = note_duration.to_ticks();
+
+            match comparator {
+                ExpressionMapNoteLengthComparator::LessThan => written_ticks < rule_ticks,
+                ExpressionMapNoteLengthComparator::LessThanOrEqual => {
+                    written_ticks <= rule_ticks
+                }
+                ExpressionMapNoteLengthComparator::Exactly => written_ticks == rule_ticks,
+                ExpressionMapNoteLengthComparator::NotEqual => written_ticks != rule_ticks,
+                ExpressionMapNoteLengthComparator::GreaterThanOrEqual => {
+                    written_ticks >= rule_ticks
+                }
+                ExpressionMapNoteLengthComparator::GreaterThan => written_ticks > rule_ticks,
+            }
+        }
+    }
+}
+
+pub fn resolve_expression_map_playback(
+    expression_map: &ExpressionMap,
+    context: &ExpressionMapPlaybackContext,
+) -> ResolvedExpressionMapPlayback {
+    for rule in &expression_map.rules {
+        if rule
+            .conditions
+            .iter()
+            .all(|condition| expression_map_condition_matches(condition, context))
+        {
+            return ResolvedExpressionMapPlayback {
+                source: ResolvedExpressionMapPlaybackSource::Rule {
+                    id: rule.id.clone(),
+                },
+                actions: rule.actions.clone(),
+            };
+        }
+    }
+
+    ResolvedExpressionMapPlayback {
+        source: ResolvedExpressionMapPlaybackSource::FallbackDefault,
+        actions: expression_map.default_actions.clone(),
+    }
+}
+
 fn normalize_name(name: Option<&str>) -> Option<String> {
     name.and_then(|value| {
         let trimmed = value.trim();
@@ -667,10 +826,8 @@ fn generate_expression_map_action_id() -> String {
 }
 
 fn create_default_expression_map_condition() -> ExpressionMapCondition {
-    ExpressionMapCondition::Articulation {
+    ExpressionMapCondition::NoOp {
         id: generate_expression_map_condition_id(),
-        comparator: ExpressionMapEqualityComparator::Equals,
-        articulation: None,
     }
 }
 
@@ -686,6 +843,7 @@ fn create_expression_map_condition_with_id(
     id: String,
 ) -> Result<ExpressionMapCondition, String> {
     match condition_type {
+        "no_op" => Ok(ExpressionMapCondition::NoOp { id }),
         "articulation" => Ok(ExpressionMapCondition::Articulation {
             id,
             comparator: ExpressionMapEqualityComparator::Equals,
@@ -704,6 +862,10 @@ fn create_default_expression_map_action() -> ExpressionMapAction {
     ExpressionMapAction::NoOp {
         id: generate_expression_map_action_id(),
     }
+}
+
+fn default_expression_map_actions() -> Vec<ExpressionMapAction> {
+    vec![create_default_expression_map_action()]
 }
 
 fn create_expression_map_action(action_type: &str) -> Result<ExpressionMapAction, String> {
@@ -734,45 +896,13 @@ fn create_expression_map_action_with_id(
     }
 }
 
-fn create_default_expression_map_rule(name: String) -> ExpressionMapRule {
+fn create_default_expression_map_rule() -> ExpressionMapRule {
     ExpressionMapRule {
         id: generate_expression_map_rule_id(),
-        name,
+        name: String::new(),
         conditions: vec![create_default_expression_map_condition()],
         actions: vec![create_default_expression_map_action()],
     }
-}
-
-fn parse_default_rule_number(name: &str) -> Option<u32> {
-    let trimmed = name.trim();
-    let suffix = trimmed.strip_prefix("Rule")?;
-    let suffix = suffix.strip_prefix(' ').unwrap_or(suffix);
-
-    if suffix.is_empty()
-        || suffix.starts_with('0')
-        || !suffix.chars().all(|character| character.is_ascii_digit())
-    {
-        return None;
-    }
-
-    suffix.parse::<u32>().ok()
-}
-
-fn next_default_rule_name(rules: &[ExpressionMapRule]) -> String {
-    let mut used_rule_numbers = std::collections::HashSet::new();
-
-    for rule in rules {
-        if let Some(rule_number) = parse_default_rule_number(&rule.name) {
-            used_rule_numbers.insert(rule_number);
-        }
-    }
-
-    let mut candidate_rule_number = 1;
-    while used_rule_numbers.contains(&candidate_rule_number) {
-        candidate_rule_number += 1;
-    }
-
-    format!("Rule {candidate_rule_number}")
 }
 
 fn validate_expression_map_rule_ids(expression_map: &ExpressionMap) -> Result<(), String> {
@@ -826,6 +956,29 @@ fn validate_expression_map_rule_ids(expression_map: &ExpressionMap) -> Result<()
         }
     }
 
+    if expression_map.default_actions.is_empty() {
+        return Err(String::from(
+            "Expression maps must keep at least one default action.",
+        ));
+    }
+
+    let mut used_default_action_ids = std::collections::HashSet::new();
+    for action in &expression_map.default_actions {
+        let action_id = action.id().trim();
+
+        if action_id.is_empty() {
+            return Err(String::from(
+                "Expression map default actions must have ids.",
+            ));
+        }
+
+        if !used_default_action_ids.insert(action_id.to_string()) {
+            return Err(format!(
+                "Duplicate expression map default action id: {action_id}"
+            ));
+        }
+    }
+
     Ok(())
 }
 
@@ -860,6 +1013,17 @@ fn find_action_mut<'a>(
         .ok_or_else(|| format!("Unknown expression map action: {action_id}"))
 }
 
+fn find_default_action_mut<'a>(
+    expression_map: &'a mut ExpressionMap,
+    action_id: &str,
+) -> Result<&'a mut ExpressionMapAction, String> {
+    expression_map
+        .default_actions
+        .iter_mut()
+        .find(|action| action.id() == action_id)
+        .ok_or_else(|| format!("Unknown default expression map action: {action_id}"))
+}
+
 fn import_expression_maps_into_state(
     library: &mut ExpressionMapLibraryContext,
     maps: Vec<ExpressionMap>,
@@ -884,6 +1048,11 @@ fn import_expression_maps_into_state(
             name: map_name,
             creator: map.creator,
             version: map.version,
+            default_actions: if map.default_actions.is_empty() {
+                default_expression_map_actions()
+            } else {
+                map.default_actions
+            },
             rules: map.rules,
         };
 
@@ -909,10 +1078,14 @@ fn load_persisted_state(db: &Db) -> Result<Option<ExpressionMapLibraryState>, St
 #[cfg(test)]
 mod tests {
     use super::{
-        ExpressionMap, ExpressionMapAction, ExpressionMapCondition,
+        resolve_expression_map_playback, ExpressionMap, ExpressionMapAction,
+        ExpressionMapCondition, ExpressionMapPlaybackContext,
         ExpressionMapEqualityComparator, ExpressionMapLibraryContext,
         ExpressionMapNoteLengthComparator, ExpressionMapRule,
+        ResolvedExpressionMapPlaybackSource,
     };
+    use crate::score::components::articulation::{Articulation, Articulations};
+    use crate::score::components::duration::NoteDuration;
     use crate::score::instruments::{defs::InstrumentType, Instrument, Instruments};
     use crate::score::playback::{
         InstrumentPlaybackRoute, PlaybackRouteAddress, PlaybackRouteTarget,
@@ -932,6 +1105,9 @@ mod tests {
             name: name.to_string(),
             creator: String::new(),
             version: 1,
+            default_actions: vec![ExpressionMapAction::NoOp {
+                id: String::from("default-action"),
+            }],
             rules: vec![ExpressionMapRule {
                 id: String::from("accent-rule"),
                 name: String::new(),
@@ -948,6 +1124,54 @@ mod tests {
                     velocity: 96,
                 }],
             }],
+        }
+    }
+
+    fn staccato_expression_map() -> ExpressionMap {
+        ExpressionMap {
+            id: String::from("staccato-map"),
+            name: String::from("Staccato Map"),
+            creator: String::new(),
+            version: 1,
+            default_actions: vec![ExpressionMapAction::NoOp {
+                id: String::from("staccato-default-action"),
+            }],
+            rules: vec![
+                ExpressionMapRule {
+                    id: String::from("short-staccato"),
+                    name: String::from("Short staccato"),
+                    conditions: vec![
+                        ExpressionMapCondition::Articulation {
+                            id: String::from("short-staccato-articulation"),
+                            comparator: ExpressionMapEqualityComparator::Equals,
+                            articulation: Some(Articulation::Staccato),
+                        },
+                        ExpressionMapCondition::WrittenNoteLength {
+                            id: String::from("short-staccato-length"),
+                            comparator: ExpressionMapNoteLengthComparator::LessThanOrEqual,
+                            note_duration: NoteDuration::Eighth,
+                        },
+                    ],
+                    actions: vec![ExpressionMapAction::KeyswitchNote {
+                        id: String::from("short-staccato-keyswitch"),
+                        midi_note: 24,
+                        velocity: 96,
+                    }],
+                },
+                ExpressionMapRule {
+                    id: String::from("long-staccato"),
+                    name: String::from("Long staccato"),
+                    conditions: vec![ExpressionMapCondition::Articulation {
+                        id: String::from("long-staccato-articulation"),
+                        comparator: ExpressionMapEqualityComparator::Equals,
+                        articulation: Some(Articulation::Staccato),
+                    }],
+                    actions: vec![ExpressionMapAction::NoteLengthTransform {
+                        id: String::from("long-staccato-length-transform"),
+                        ratio_percent: 55,
+                    }],
+                },
+            ],
         }
     }
 
@@ -1155,7 +1379,7 @@ mod tests {
 
     #[test]
     fn expression_map_library_decodes_current_condition_payloads() {
-        let payload = r#"{"order":["legato"],"by_id":{"legato":{"id":"legato","name":"Legato","creator":"","version":1,"rules":[{"id":"accent-rule","conditions":[{"id":"condition-1","type":"articulation","comparator":"equals","articulation":4},{"id":"condition-2","type":"written_note_length","comparator":"exactly","note_duration":4}],"actions":[{"id":"action-1","type":"no_op"}]}]}}}"#;
+        let payload = r#"{"order":["legato"],"by_id":{"legato":{"id":"legato","name":"Legato","creator":"","version":1,"default_actions":[{"id":"default-action-1","type":"no_op"}],"rules":[{"id":"accent-rule","conditions":[{"id":"condition-1","type":"articulation","comparator":"equals","articulation":4},{"id":"condition-2","type":"written_note_length","comparator":"exactly","note_duration":4}],"actions":[{"id":"action-1","type":"no_op"}]}]}}}"#;
 
         let state = serde_json::from_str::<super::ExpressionMapLibraryState>(payload).unwrap();
         let rule = &state.by_id["legato"].rules[0];
@@ -1178,6 +1402,7 @@ mod tests {
                 note_duration: crate::score::components::duration::NoteDuration::Quarter,
             }
         );
+        assert_eq!(state.by_id["legato"].default_actions.len(), 1);
     }
 
     #[test]
@@ -1194,6 +1419,9 @@ mod tests {
             name: String::from("Legato"),
             creator: String::new(),
             version: 1,
+            default_actions: vec![ExpressionMapAction::NoOp {
+                id: String::from("default-action"),
+            }],
             rules: vec![ExpressionMapRule {
                 id: String::from("rule-2"),
                 name: String::from("Rule 2"),
@@ -1211,24 +1439,19 @@ mod tests {
         }]);
 
         let updated = library.add_default_rule("legato").unwrap();
-        let added_rule = updated.rules.last().unwrap();
+        let added_rule = updated.rules.first().unwrap();
 
-        assert_eq!(added_rule.name, "Rule 1");
+        assert_eq!(added_rule.name, "");
         assert!(!added_rule.id.is_empty());
         assert_ne!(added_rule.id, "rule-2");
+        assert_eq!(updated.rules[1].id, "rule-2");
         assert_eq!(added_rule.conditions.len(), 1);
         assert_eq!(added_rule.actions.len(), 1);
         match &added_rule.conditions[0] {
-            ExpressionMapCondition::Articulation {
-                id,
-                comparator,
-                articulation,
-            } => {
+            ExpressionMapCondition::NoOp { id } => {
                 assert!(!id.is_empty());
-                assert_eq!(*comparator, ExpressionMapEqualityComparator::Equals);
-                assert_eq!(*articulation, None);
             }
-            other => panic!("Expected articulation condition, got {other:?}"),
+            other => panic!("Expected no-op condition, got {other:?}"),
         }
         match &added_rule.actions[0] {
             ExpressionMapAction::NoOp { id } => {
@@ -1236,5 +1459,140 @@ mod tests {
             }
             other => panic!("Expected no-op action, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn resolve_expression_map_playback_uses_default_actions_when_no_rule_matches() {
+        let resolved = resolve_expression_map_playback(
+            &ExpressionMap {
+                id: String::from("piano-map"),
+                name: String::from("Piano"),
+                creator: String::new(),
+                version: 1,
+                default_actions: vec![ExpressionMapAction::KeyswitchNote {
+                    id: String::from("default-reset"),
+                    midi_note: 12,
+                    velocity: 100,
+                }],
+                rules: vec![],
+            },
+            &ExpressionMapPlaybackContext {
+                articulations: Articulations::new(),
+                written_duration_ticks: NoteDuration::Quarter.to_ticks(),
+            },
+        );
+
+        assert_eq!(
+            resolved.source,
+            ResolvedExpressionMapPlaybackSource::FallbackDefault
+        );
+        assert_eq!(
+            resolved.actions,
+            vec![ExpressionMapAction::KeyswitchNote {
+                id: String::from("default-reset"),
+                midi_note: 12,
+                velocity: 100,
+            }]
+        );
+    }
+
+    #[test]
+    fn resolve_expression_map_playback_treats_noop_conditions_as_non_matching_placeholders() {
+        let resolved = resolve_expression_map_playback(
+            &ExpressionMap {
+                id: String::from("placeholder-map"),
+                name: String::from("Placeholder"),
+                creator: String::new(),
+                version: 1,
+                default_actions: vec![ExpressionMapAction::KeyswitchNote {
+                    id: String::from("default-action"),
+                    midi_note: 36,
+                    velocity: 100,
+                }],
+                rules: vec![ExpressionMapRule {
+                    id: String::from("placeholder-rule"),
+                    name: String::from("Rule 1"),
+                    conditions: vec![ExpressionMapCondition::NoOp {
+                        id: String::from("placeholder-condition"),
+                    }],
+                    actions: vec![ExpressionMapAction::KeyswitchNote {
+                        id: String::from("rule-action"),
+                        midi_note: 24,
+                        velocity: 96,
+                    }],
+                }],
+            },
+            &ExpressionMapPlaybackContext {
+                articulations: Articulations::new(),
+                written_duration_ticks: NoteDuration::Quarter.to_ticks(),
+            },
+        );
+
+        assert_eq!(
+            resolved.source,
+            ResolvedExpressionMapPlaybackSource::FallbackDefault
+        );
+        assert_eq!(
+            resolved.actions,
+            vec![ExpressionMapAction::KeyswitchNote {
+                id: String::from("default-action"),
+                midi_note: 36,
+                velocity: 100,
+            }]
+        );
+    }
+
+    #[test]
+    fn resolve_expression_map_playback_uses_first_matching_rule_top_down() {
+        let mut articulations = Articulations::new();
+        articulations = articulations.toggle(Articulation::Staccato);
+
+        let resolved = resolve_expression_map_playback(
+            &staccato_expression_map(),
+            &ExpressionMapPlaybackContext {
+                articulations,
+                written_duration_ticks: NoteDuration::Eighth.to_ticks(),
+            },
+        );
+
+        assert_eq!(
+            resolved.source,
+            ResolvedExpressionMapPlaybackSource::Rule {
+                id: String::from("short-staccato"),
+            }
+        );
+        assert_eq!(
+            resolved.actions,
+            vec![ExpressionMapAction::KeyswitchNote {
+                id: String::from("short-staccato-keyswitch"),
+                midi_note: 24,
+                velocity: 96,
+            }]
+        );
+    }
+
+    #[test]
+    fn resolve_expression_map_playback_falls_back_to_plugin_default_when_no_rule_matches() {
+        let mut articulations = Articulations::new();
+        articulations = articulations.toggle(Articulation::Accent);
+
+        let resolved = resolve_expression_map_playback(
+            &staccato_expression_map(),
+            &ExpressionMapPlaybackContext {
+                articulations,
+                written_duration_ticks: NoteDuration::Quarter.to_ticks(),
+            },
+        );
+
+        assert_eq!(
+            resolved.source,
+            ResolvedExpressionMapPlaybackSource::FallbackDefault
+        );
+        assert_eq!(
+            resolved.actions,
+            vec![ExpressionMapAction::NoOp {
+                id: String::from("staccato-default-action"),
+            }]
+        );
     }
 }

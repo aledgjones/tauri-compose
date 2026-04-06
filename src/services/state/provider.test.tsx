@@ -163,6 +163,7 @@ describe("AppStateProvider", () => {
               name: "Legato",
               creator: "",
               version: 1,
+              default_actions: [{ id: "default-action", type: "no_op" }],
               rules: [],
             },
           },

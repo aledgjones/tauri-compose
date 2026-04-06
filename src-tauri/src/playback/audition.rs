@@ -1,5 +1,8 @@
 use crate::playback::engine::{queue_audition_note, set_slot_mix};
-use crate::playback::preparation::{prepare_supported_playback, PlaybackPreparation};
+use crate::playback::expression_maps::{ExpressionMapAction, ExpressionMapLibraryState};
+use crate::playback::preparation::{
+    prepare_supported_playback_with_expression_maps, PlaybackPreparation,
+};
 use crate::playback::runtime_activation::PlaybackActivationRuntime;
 use crate::score::playback::{
     PlaybackRouteAddress, PlaybackRouteTarget, ResolvedPlaybackRouteStatus,
@@ -11,6 +14,7 @@ use tauri::{AppHandle, State};
 
 pub const SUPPORTED_AUDITION_DURATION_MS: u32 = 500;
 pub const SUPPORTED_AUDITION_VELOCITY: u8 = 96;
+const SUPPORTED_AUDITION_RESET_DURATION_MS: u32 = 10;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum AuditionArticulation {
@@ -29,6 +33,7 @@ pub struct AuditionNote {
 pub struct PreparedAudition {
     pub preparation: PlaybackPreparation,
     pub slot_id: UniqueId,
+    pub reset_notes: Vec<AuditionNote>,
     pub note: AuditionNote,
 }
 
@@ -37,16 +42,19 @@ pub fn playback_audition_tone(
     _app: AppHandle,
     app_state: State<'_, AppContextState>,
     audio_state: State<'_, AudioContextState>,
+    expression_map_library_state: State<'_, crate::ManagedExpressionMapLibraryContextState>,
     instrument_id: UniqueId,
     pitch_int: u8,
 ) -> Result<(), String> {
     let (prepared, sample_rate) = {
         let sample_rate = audio_state.lock().unwrap().get_sample_rate();
+        let expression_map_library = expression_map_library_state.lock().unwrap().snapshot();
 
         let app_ctx = app_state.lock().unwrap();
-        let prepared = prepare_supported_audition(
+        let prepared = prepare_supported_audition_with_expression_maps(
             &app_ctx.score,
             &app_ctx.playback_activation_runtime,
+            &expression_map_library,
             sample_rate,
             instrument_id,
             pitch_int,
@@ -54,6 +62,14 @@ pub fn playback_audition_tone(
 
         (prepared, sample_rate)
     };
+
+    for reset_note in &prepared.reset_notes {
+        queue_audition_note(
+            prepared.slot_id,
+            prepared.preparation.sample_rate.max(sample_rate),
+            *reset_note,
+        );
+    }
 
     queue_audition_note(
         prepared.slot_id,
@@ -69,6 +85,7 @@ pub fn playback_audition_tone(
     Ok(())
 }
 
+#[cfg_attr(not(test), allow(dead_code))]
 pub fn prepare_supported_audition(
     score: &Score,
     playback_runtime: &PlaybackActivationRuntime,
@@ -76,7 +93,30 @@ pub fn prepare_supported_audition(
     instrument_id: UniqueId,
     pitch: u8,
 ) -> Result<PreparedAudition, String> {
-    let preparation = prepare_supported_playback(score, playback_runtime, sample_rate);
+    prepare_supported_audition_with_expression_maps(
+        score,
+        playback_runtime,
+        &ExpressionMapLibraryState::default(),
+        sample_rate,
+        instrument_id,
+        pitch,
+    )
+}
+
+pub fn prepare_supported_audition_with_expression_maps(
+    score: &Score,
+    playback_runtime: &PlaybackActivationRuntime,
+    expression_map_library: &ExpressionMapLibraryState,
+    sample_rate: u32,
+    instrument_id: UniqueId,
+    pitch: u8,
+) -> Result<PreparedAudition, String> {
+    let preparation = prepare_supported_playback_with_expression_maps(
+        score,
+        playback_runtime,
+        expression_map_library,
+        sample_rate,
+    );
 
     let Some(resolved_route) = preparation
         .resolved_playback_route_by_instrument_id
@@ -125,6 +165,11 @@ pub fn prepare_supported_audition(
     }
 
     Ok(PreparedAudition {
+        reset_notes: preparation
+            .supported_target_for_instrument(instrument_id)
+            .and_then(|target| target.expression_map.as_ref())
+            .map(expression_map_default_reset_notes)
+            .unwrap_or_default(),
         preparation,
         slot_id: route.slot_id,
         note: AuditionNote {
@@ -136,11 +181,39 @@ pub fn prepare_supported_audition(
     })
 }
 
+fn expression_map_default_reset_notes(
+    expression_map: &crate::playback::expression_maps::ExpressionMap,
+) -> Vec<AuditionNote> {
+    expression_map
+        .default_actions
+        .iter()
+        .filter_map(|action| match action {
+            ExpressionMapAction::KeyswitchNote {
+                midi_note,
+                velocity,
+                ..
+            } => Some(AuditionNote {
+                pitch: *midi_note,
+                duration_ms: SUPPORTED_AUDITION_RESET_DURATION_MS,
+                velocity: *velocity,
+                articulation: AuditionArticulation::Legato,
+            }),
+            ExpressionMapAction::ControlChange { .. }
+            | ExpressionMapAction::NoOp { .. }
+            | ExpressionMapAction::NoteLengthTransform { .. } => None,
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
-        prepare_supported_audition, AuditionArticulation, AuditionNote,
-        SUPPORTED_AUDITION_DURATION_MS, SUPPORTED_AUDITION_VELOCITY,
+        prepare_supported_audition, prepare_supported_audition_with_expression_maps,
+        AuditionArticulation, AuditionNote, SUPPORTED_AUDITION_DURATION_MS,
+        SUPPORTED_AUDITION_RESET_DURATION_MS, SUPPORTED_AUDITION_VELOCITY,
+    };
+    use crate::playback::expression_maps::{
+        ExpressionMap, ExpressionMapAction, ExpressionMapLibraryState,
     };
     use crate::playback::plugin_inventory::{
         PluginInventoryAvailability, PluginInventoryContext, PluginInventoryEntry,
@@ -208,6 +281,27 @@ mod tests {
         );
     }
 
+    fn expression_map_library_with_default_keyswitch() -> ExpressionMapLibraryState {
+        ExpressionMapLibraryState {
+            order: vec![String::from("default-map")],
+            by_id: FxHashMap::from_iter([(
+                String::from("default-map"),
+                ExpressionMap {
+                    id: String::from("default-map"),
+                    name: String::from("Default Map"),
+                    creator: String::new(),
+                    version: 1,
+                    default_actions: vec![ExpressionMapAction::KeyswitchNote {
+                        id: String::from("default-keyswitch"),
+                        midi_note: 24,
+                        velocity: 96,
+                    }],
+                    rules: vec![],
+                },
+            )]),
+        }
+    }
+
     #[test]
     fn prepare_supported_audition_reuses_supported_preparation_and_contract() {
         let inventory = PluginInventoryContext::with_entries_for_tests(vec![available_entry(
@@ -241,7 +335,50 @@ mod tests {
                 articulation: AuditionArticulation::Legato,
             }
         );
+        assert!(prepared.reset_notes.is_empty());
         assert_eq!(prepared.slot_id, 100);
+    }
+
+    #[test]
+    fn prepare_supported_audition_projects_default_keyswitch_reset_notes() {
+        let inventory = PluginInventoryContext::with_entries_for_tests(vec![available_entry(
+            "plugin-a",
+            "/Library/Audio/Plug-Ins/VST3/Plugin A.vst3",
+        )]);
+        let mut score = make_score();
+        assign_slot(&mut score, 100, "plugin-a");
+        score.instruments.by_id.get_mut(&10).unwrap().playback_route =
+            Some(InstrumentPlaybackRoute::direct(100));
+        score
+            .instruments
+            .by_id
+            .get_mut(&10)
+            .unwrap()
+            .playback_route
+            .as_mut()
+            .unwrap()
+            .expression_map_id = Some(String::from("default-map"));
+
+        let runtime = PlaybackActivationRuntime::from_score_and_inventory(&score, &inventory);
+        let prepared = prepare_supported_audition_with_expression_maps(
+            &score,
+            &runtime,
+            &expression_map_library_with_default_keyswitch(),
+            48_000,
+            10,
+            64,
+        )
+        .expect("expected linked-map audition preparation");
+
+        assert_eq!(
+            prepared.reset_notes,
+            vec![AuditionNote {
+                pitch: 24,
+                duration_ms: SUPPORTED_AUDITION_RESET_DURATION_MS,
+                velocity: 96,
+                articulation: AuditionArticulation::Legato,
+            }]
+        );
     }
 
     #[test]

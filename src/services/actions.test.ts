@@ -358,11 +358,7 @@ describe("actions.expressionMaps", () => {
   });
 
   it("nested condition and action commands use id-based payloads", async () => {
-    await actions.expressionMaps.addCondition(
-      "legato",
-      "rule-1",
-      "articulation",
-    );
+    await actions.expressionMaps.addCondition("legato", "rule-1", "no_op");
     await actions.expressionMaps.setConditionType(
       "legato",
       "rule-1",
@@ -398,7 +394,7 @@ describe("actions.expressionMaps", () => {
     expect(mockInvoke).toHaveBeenCalledWith("expression_maps_condition_add", {
       expression_map_id: "legato",
       rule_id: "rule-1",
-      condition_type: "articulation",
+      condition_type: "no_op",
     });
     expect(mockInvoke).toHaveBeenCalledWith(
       "expression_maps_condition_set_type",
@@ -456,6 +452,60 @@ describe("actions.expressionMaps", () => {
       rule_id: "rule-1",
       action_id: "action-1",
     });
+  });
+
+  it("default action commands use map-level payloads", async () => {
+    await actions.expressionMaps.addDefaultAction("legato", "no_op");
+    await actions.expressionMaps.setDefaultActionType(
+      "legato",
+      "default-action-1",
+      "keyswitch_note",
+    );
+    await actions.expressionMaps.updateDefaultAction("legato", {
+      id: "default-action-1",
+      type: "keyswitch_note",
+      midi_note: 24,
+      velocity: 96,
+    });
+    await actions.expressionMaps.removeDefaultAction(
+      "legato",
+      "default-action-1",
+    );
+
+    expect(mockInvoke).toHaveBeenCalledWith(
+      "expression_maps_default_action_add",
+      {
+        expression_map_id: "legato",
+        action_type: "no_op",
+      },
+    );
+    expect(mockInvoke).toHaveBeenCalledWith(
+      "expression_maps_default_action_set_type",
+      {
+        expression_map_id: "legato",
+        action_id: "default-action-1",
+        action_type: "keyswitch_note",
+      },
+    );
+    expect(mockInvoke).toHaveBeenCalledWith(
+      "expression_maps_default_action_update",
+      {
+        expression_map_id: "legato",
+        action: {
+          id: "default-action-1",
+          type: "keyswitch_note",
+          midi_note: 24,
+          velocity: 96,
+        },
+      },
+    );
+    expect(mockInvoke).toHaveBeenCalledWith(
+      "expression_maps_default_action_remove",
+      {
+        expression_map_id: "legato",
+        action_id: "default-action-1",
+      },
+    );
   });
 
   it("delete calls invoke with expression_map_id payload", async () => {

@@ -338,6 +338,38 @@ export const actions = {
         action_id,
       });
     },
+    addDefaultAction: (expression_map_id: string, action_type: string) => {
+      return invoke<ExpressionMap>("expression_maps_default_action_add", {
+        expression_map_id,
+        action_type,
+      });
+    },
+    setDefaultActionType: (
+      expression_map_id: string,
+      action_id: string,
+      action_type: string,
+    ) => {
+      return invoke<ExpressionMap>("expression_maps_default_action_set_type", {
+        expression_map_id,
+        action_id,
+        action_type,
+      });
+    },
+    updateDefaultAction: (
+      expression_map_id: string,
+      action: ExpressionMap["default_actions"][number],
+    ) => {
+      return invoke<ExpressionMap>("expression_maps_default_action_update", {
+        expression_map_id,
+        action,
+      });
+    },
+    removeDefaultAction: (expression_map_id: string, action_id: string) => {
+      return invoke<ExpressionMap>("expression_maps_default_action_remove", {
+        expression_map_id,
+        action_id,
+      });
+    },
     delete: (expression_map_id: string) => {
       return invoke("expression_maps_delete", {
         expression_map_id,

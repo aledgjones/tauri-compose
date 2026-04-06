@@ -8,11 +8,14 @@ import {
   ExpressionMapRule,
 } from "../../services/types";
 import { IconButton } from "../../ui/buttons/icon-button";
+import { ExpressionMapDefaultCard } from "./expression-map-default-card";
 import { Input } from "../../ui/input";
 import { ExpressionMapRuleCard } from "./expression-map-rule-card";
 import { getDefaultRuleFallbackName } from "./model";
 
 import "./expression-map-editor-pane.css";
+
+const DEFAULT_PLAYBACK_ENTRY_ID = "__default_playback__";
 
 type Props = {
   expressionMap: ExpressionMap | null;
@@ -42,6 +45,18 @@ type Props = {
   ) => void;
   onUpdateAction: (ruleId: string, action: ExpressionMapAction) => void;
   onRemoveAction: (ruleId: string, actionId: string) => void;
+  onAddDefaultAction: () => void;
+  onSetDefaultActionType: (
+    actionId: string,
+    actionType: ExpressionMapAction["type"],
+  ) => void;
+  onUpdateDefaultAction: (action: ExpressionMapAction) => void;
+  onRemoveDefaultAction: (actionId: string) => void;
+};
+
+type SelectionState = {
+  expressionMapId: string | null;
+  entryId: string | null;
 };
 
 export const ExpressionMapEditorPane: FC<Props> = ({
@@ -61,41 +76,60 @@ export const ExpressionMapEditorPane: FC<Props> = ({
   onSetActionType,
   onUpdateAction,
   onRemoveAction,
+  onAddDefaultAction,
+  onSetDefaultActionType,
+  onUpdateDefaultAction,
+  onRemoveDefaultAction,
 }) => {
   const ruleListRef = useRef<HTMLDivElement | null>(null);
-  const [selectedRuleState, setSelectedRuleState] = useState<{
-    expressionMapId: string | null;
-    ruleId: string | null;
-  }>({ expressionMapId: null, ruleId: null });
+  const [selectionState, setSelectionState] = useState<SelectionState>({
+    expressionMapId: null,
+    entryId: null,
+  });
 
   const expressionMapId = expressionMap?.id ?? null;
 
-  const selectedRuleId =
+  const selectedEntryId =
     expressionMapId != null &&
-    selectedRuleState.expressionMapId === expressionMapId
-      ? selectedRuleState.ruleId
+    selectionState.expressionMapId === expressionMapId
+      ? selectionState.entryId
       : null;
 
-  const selectedRuleReferenceIndex =
-    expressionMap == null || selectedRuleId == null
-      ? -1
-      : expressionMap.rules.findIndex((rule) => rule.id === selectedRuleId);
-
-  const effectiveSelectedRuleIndex =
-    expressionMap == null || expressionMap.rules.length === 0
+  const effectiveSelectedEntryId =
+    expressionMap == null
       ? null
-      : selectedRuleReferenceIndex >= 0
-        ? selectedRuleReferenceIndex
-        : 0;
+      : selectedEntryId === DEFAULT_PLAYBACK_ENTRY_ID
+        ? DEFAULT_PLAYBACK_ENTRY_ID
+        : selectedEntryId != null &&
+            expressionMap.rules.some((rule) => rule.id === selectedEntryId)
+          ? selectedEntryId
+          : (expressionMap.rules[0]?.id ?? DEFAULT_PLAYBACK_ENTRY_ID);
+
+  const selectedRuleId =
+    effectiveSelectedEntryId != null &&
+    effectiveSelectedEntryId !== DEFAULT_PLAYBACK_ENTRY_ID
+      ? effectiveSelectedEntryId
+      : null;
 
   const setSelectedRuleId = (ruleId: string | null) => {
     if (!expressionMap) {
       return;
     }
 
-    setSelectedRuleState({
+    setSelectionState({
       expressionMapId: expressionMap.id,
-      ruleId,
+      entryId: ruleId,
+    });
+  };
+
+  const setDefaultSelected = () => {
+    if (!expressionMap) {
+      return;
+    }
+
+    setSelectionState({
+      expressionMapId: expressionMap.id,
+      entryId: DEFAULT_PLAYBACK_ENTRY_ID,
     });
   };
 
@@ -107,16 +141,9 @@ export const ExpressionMapEditorPane: FC<Props> = ({
         return;
       }
 
-      const currentSelectedRuleId =
-        selectedRuleState.expressionMapId === expressionMap.id
-          ? selectedRuleState.ruleId
-          : effectiveSelectedRuleIndex == null
-            ? null
-            : (expressionMap.rules[effectiveSelectedRuleIndex]?.id ?? null);
-
-      setSelectedRuleState({
+      setSelectionState({
         expressionMapId: expressionMap.id,
-        ruleId: currentSelectedRuleId,
+        entryId: effectiveSelectedEntryId,
       });
 
       const movedRuleId = expressionMap.rules[oldIndex]?.id;
@@ -167,16 +194,24 @@ export const ExpressionMapEditorPane: FC<Props> = ({
   }
 
   const selectedRule =
-    effectiveSelectedRuleIndex == null
+    selectedRuleId == null
       ? null
-      : (expressionMap.rules[effectiveSelectedRuleIndex] ?? null);
+      : (expressionMap.rules.find((rule) => rule.id === selectedRuleId) ??
+        null);
 
-  const formatRuleLabel = (rule: ExpressionMapRule, index: number) => {
+  const effectiveSelectionKind: "default" | "rule" =
+    effectiveSelectedEntryId === DEFAULT_PLAYBACK_ENTRY_ID ? "default" : "rule";
+
+  const selectedRuleDisplayNumber =
+    selectedRule == null
+      ? null
+      : expressionMap.rules.findIndex((rule) => rule.id === selectedRule.id) +
+        1;
+
+  const formatRuleLabel = (rule: ExpressionMapRule) => {
     const trimmedName = rule.name.trim();
 
-    return trimmedName.length > 0
-      ? trimmedName
-      : getDefaultRuleFallbackName(expressionMap.rules, index);
+    return trimmedName.length > 0 ? trimmedName : getDefaultRuleFallbackName();
   };
 
   return (
@@ -250,63 +285,86 @@ export const ExpressionMapEditorPane: FC<Props> = ({
           </div>
 
           {expressionMap.rules.length === 0 ? (
-            <div className="flex min-h-48 items-center justify-center bg-neutral-900 px-6 text-center">
-              <div>
-                <div className="text-sm text-neutral-200">No rules yet.</div>
-                <div className="mt-2 text-sm text-neutral-400">
-                  Add a rule to start defining expression-map behavior.
+            <div className="px-6 py-6 text-center bg-neutral-900 text-sm text-neutral-400">
+              Add a rule when you need conditional behavior.
+            </div>
+          ) : null}
+
+          <div ref={ruleListRef} className="flex flex-col gap-0.5 pt-0.5">
+            {expressionMap.rules.map((rule, index) => {
+              const isSelected = rule.id === selectedRuleId;
+
+              return (
+                <div
+                  key={rule.id}
+                  className={`border-l-4 w-full pl-3 text-left ${
+                    isSelected
+                      ? "bg-neutral-800 border-sky-500"
+                      : "bg-neutral-900 hover:bg-neutral-800 border-transparent"
+                  }`}
+                >
+                  <div className="flex items-center gap-2 h-9">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedRuleId(rule.id)}
+                      className="min-w-0 flex-1 text-left"
+                    >
+                      <div className="text-sm text-white">
+                        {formatRuleLabel(rule)}
+                      </div>
+                    </button>
+                    {isSelected ? (
+                      <IconButton
+                        path={mdiDelete}
+                        variant="filled"
+                        onClick={() => onRemoveRule(rule.id)}
+                        onPointerDown={(event) => {
+                          event.stopPropagation();
+                        }}
+                        aria-label={`Remove rule ${index + 1} from list`}
+                        title="Remove Rule"
+                      />
+                    ) : null}
+                  </div>
                 </div>
+              );
+            })}
+          </div>
+
+          <div className="pt-0.5">
+            <div
+              className={`border-l-4 w-full pl-3 text-left ${
+                effectiveSelectionKind === "default"
+                  ? "bg-neutral-800 border-sky-500"
+                  : "bg-neutral-900 hover:bg-neutral-800 border-transparent"
+              }`}
+            >
+              <div className="flex items-center gap-2 h-9">
+                <button
+                  type="button"
+                  onClick={setDefaultSelected}
+                  className="min-w-0 flex-1 text-left"
+                >
+                  <div className="text-sm text-white">Default Rule</div>
+                </button>
               </div>
             </div>
-          ) : (
-            <div ref={ruleListRef} className="flex flex-col gap-0.5 pt-0.5">
-              {expressionMap.rules.map((rule, index) => {
-                const isSelected = index === effectiveSelectedRuleIndex;
-
-                return (
-                  <div
-                    key={rule.id}
-                    className={`border-l-4 w-full pl-3 text-left ${
-                      isSelected
-                        ? "bg-neutral-800 border-sky-500"
-                        : "bg-neutral-900 hover:bg-neutral-800 border-transparent"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 h-9">
-                      <button
-                        type="button"
-                        onClick={() => setSelectedRuleId(rule.id)}
-                        className="min-w-0 flex-1 text-left"
-                      >
-                        <div className="text-sm text-white">
-                          {formatRuleLabel(rule, index)}
-                        </div>
-                      </button>
-                      {isSelected ? (
-                        <IconButton
-                          path={mdiDelete}
-                          variant="filled"
-                          onClick={() => onRemoveRule(rule.id)}
-                          onPointerDown={(event) => {
-                            event.stopPropagation();
-                          }}
-                          aria-label={`Remove rule ${index + 1} from list`}
-                          title="Remove Rule"
-                        />
-                      ) : null}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+          </div>
         </div>
 
         <div className="min-w-0 flex flex-col gap-0.5">
-          {selectedRule && effectiveSelectedRuleIndex != null ? (
+          {effectiveSelectionKind === "default" ? (
+            <ExpressionMapDefaultCard
+              actions={expressionMap.default_actions}
+              onAddAction={onAddDefaultAction}
+              onSetActionType={onSetDefaultActionType}
+              onUpdateAction={onUpdateDefaultAction}
+              onRemoveAction={onRemoveDefaultAction}
+            />
+          ) : selectedRule && selectedRuleDisplayNumber != null ? (
             <ExpressionMapRuleCard
               key={selectedRule.id}
-              index={effectiveSelectedRuleIndex}
+              displayNumber={selectedRuleDisplayNumber}
               rule={selectedRule}
               onSetRuleName={onSetRuleName}
               onAddCondition={onAddCondition}

@@ -17,6 +17,7 @@ const windowMocks = vi.hoisted(() => ({
     name: "Legato",
     creator: "Solo Compose",
     version: 3,
+    default_actions: [{ id: "default-action", type: "no_op" }],
     rules: [
       {
         id: "accent-keyswitch",
@@ -59,6 +60,7 @@ const windowMocks = vi.hoisted(() => ({
     name: "New Expression Map",
     creator: "",
     version: 1,
+    default_actions: [{ id: "new-default-action", type: "no_op" }],
     rules: [],
   }),
   deleteMock: vi.fn().mockResolvedValue(undefined),
@@ -77,6 +79,10 @@ const windowMocks = vi.hoisted(() => ({
   setActionTypeMock: vi.fn().mockResolvedValue(undefined),
   updateActionMock: vi.fn().mockResolvedValue(undefined),
   removeActionMock: vi.fn().mockResolvedValue(undefined),
+  addDefaultActionMock: vi.fn().mockResolvedValue(undefined),
+  setDefaultActionTypeMock: vi.fn().mockResolvedValue(undefined),
+  updateDefaultActionMock: vi.fn().mockResolvedValue(undefined),
+  removeDefaultActionMock: vi.fn().mockResolvedValue(undefined),
   sortableCreateMock: vi.fn(),
   confirmMock: vi.fn().mockResolvedValue(true),
 }));
@@ -121,6 +127,10 @@ vi.mock("../../services/actions", () => ({
       setActionType: windowMocks.setActionTypeMock,
       updateAction: windowMocks.updateActionMock,
       removeAction: windowMocks.removeActionMock,
+      addDefaultAction: windowMocks.addDefaultActionMock,
+      setDefaultActionType: windowMocks.setDefaultActionTypeMock,
+      updateDefaultAction: windowMocks.updateDefaultActionMock,
+      removeDefaultAction: windowMocks.removeDefaultActionMock,
     },
   },
 }));
@@ -133,6 +143,7 @@ const expressionMapLibraryState: ExpressionMapLibraryState = {
       name: "Legato",
       creator: "Solo Compose",
       version: 3,
+      default_actions: [{ id: "default-action", type: "no_op" }],
       rules: [
         {
           id: "accent-keyswitch",
@@ -174,6 +185,7 @@ const expressionMapLibraryState: ExpressionMapLibraryState = {
       name: "Staccato",
       creator: "",
       version: 1,
+      default_actions: [{ id: "staccato-default-action", type: "no_op" }],
       rules: [],
     },
   },
@@ -192,6 +204,7 @@ describe("Expression Map Main", () => {
             name: "New Expression Map",
             creator: "",
             version: 1,
+            default_actions: [{ id: "new-default-action", type: "no_op" }],
             rules: [],
           };
         default:
@@ -218,15 +231,8 @@ describe("Expression Map Main", () => {
         ...expressionMapLibraryState.by_id.legato.rules,
         {
           id: "rule-1",
-          name: "Rule 1",
-          conditions: [
-            {
-              id: "rule-1-condition",
-              type: "articulation",
-              comparator: ExpressionMapEqualityComparator.Equals,
-              articulation: null,
-            },
-          ],
+          name: "",
+          conditions: [{ id: "rule-1-condition", type: "no_op" }],
           actions: [{ id: "rule-1-action", type: "no_op" }],
         },
       ],
@@ -274,6 +280,18 @@ describe("Expression Map Main", () => {
     windowMocks.removeActionMock.mockResolvedValue(
       expressionMapLibraryState.by_id.legato,
     );
+    windowMocks.addDefaultActionMock.mockResolvedValue(
+      expressionMapLibraryState.by_id.legato,
+    );
+    windowMocks.setDefaultActionTypeMock.mockResolvedValue(
+      expressionMapLibraryState.by_id.legato,
+    );
+    windowMocks.updateDefaultActionMock.mockResolvedValue(
+      expressionMapLibraryState.by_id.legato,
+    );
+    windowMocks.removeDefaultActionMock.mockResolvedValue(
+      expressionMapLibraryState.by_id.legato,
+    );
     window.history.replaceState({}, "", "/expression-map.html");
     vi.stubGlobal("prompt", vi.fn().mockReturnValue("Renamed Legato"));
   });
@@ -289,6 +307,38 @@ describe("Expression Map Main", () => {
     expect(screen.getByRole("textbox", { name: "Creator" })).toHaveValue(
       "Solo Compose",
     );
+    expect(screen.getByText("Default Rule")).toBeInTheDocument();
+  });
+
+  it("renders the expression map list in alphabetical order", () => {
+    renderWithProviders(<Main />, {
+      expressionMapLibraryState: {
+        order: ["staccato", "legato", "accent"],
+        by_id: {
+          ...expressionMapLibraryState.by_id,
+          accent: {
+            id: "accent",
+            name: "Accent",
+            creator: "Solo Compose",
+            version: 1,
+            default_actions: [{ id: "accent-default-action", type: "no_op" }],
+            rules: [],
+          },
+        },
+      },
+    });
+
+    const listButtons = screen.getAllByRole("button").filter((button) => {
+      const label = button.textContent?.trim() ?? "";
+      return ["Accent", "Legato", "Staccato"].includes(label);
+    });
+
+    expect(listButtons.map((button) => button.textContent?.trim())).toEqual([
+      "Accent",
+      "Legato",
+      "Staccato",
+    ]);
+    expect(screen.getByRole("textbox", { name: "Name" })).toHaveValue("Accent");
   });
 
   it("retargets the shared workflow window when the selection event arrives", async () => {
@@ -465,7 +515,7 @@ describe("Expression Map Main", () => {
       expect(windowMocks.addConditionMock).toHaveBeenCalledWith(
         "legato",
         "accent-keyswitch",
-        "articulation",
+        "no_op",
       );
     });
   });
@@ -506,13 +556,43 @@ describe("Expression Map Main", () => {
     expect(windowMocks.addConditionMock).toHaveBeenCalledWith(
       "legato",
       "accent-keyswitch",
-      "articulation",
+      "no_op",
     );
     expect(windowMocks.addActionMock).toHaveBeenCalledWith(
       "legato",
       "accent-keyswitch",
       "no_op",
     );
+  });
+
+  it("renders a no-op condition as a placeholder row without extra controls", () => {
+    renderWithProviders(<Main />, {
+      expressionMapLibraryState: {
+        order: ["noop-map"],
+        by_id: {
+          "noop-map": {
+            id: "noop-map",
+            name: "NoOp Map",
+            creator: "Solo Compose",
+            version: 1,
+            default_actions: [{ id: "noop-default-action", type: "no_op" }],
+            rules: [
+              {
+                id: "noop-rule",
+                name: "Rule 1",
+                conditions: [{ id: "noop-condition", type: "no_op" }],
+                actions: [{ id: "noop-action", type: "no_op" }],
+              },
+            ],
+          },
+        },
+      },
+    });
+
+    expect(
+      screen.getByRole("button", { name: "Rule 1 condition 1 type" }),
+    ).toHaveTextContent("--");
+    expect(screen.queryByText("Select articulation")).not.toBeInTheDocument();
   });
 
   it("reuses the smallest available default rule name after gaps", async () => {
@@ -525,6 +605,7 @@ describe("Expression Map Main", () => {
             name: "Gap Map",
             creator: "Solo Compose",
             version: 1,
+            default_actions: [{ id: "gap-default-action", type: "no_op" }],
             rules: [
               {
                 id: "gap-rule-2",
@@ -569,6 +650,7 @@ describe("Expression Map Main", () => {
             name: "Legacy Map",
             creator: "Solo Compose",
             version: 1,
+            default_actions: [{ id: "legacy-default-action", type: "no_op" }],
             rules: [
               {
                 id: "legacy-rule-1",
@@ -689,14 +771,69 @@ describe("Expression Map Main", () => {
     });
   });
 
+  it("renders blank rule names as Unnamed Rule in the rule list", () => {
+    renderWithProviders(<Main />, {
+      expressionMapLibraryState: {
+        order: ["unnamed-map"],
+        by_id: {
+          "unnamed-map": {
+            id: "unnamed-map",
+            name: "Unnamed Map",
+            creator: "Solo Compose",
+            version: 1,
+            default_actions: [{ id: "unnamed-default-action", type: "no_op" }],
+            rules: [
+              {
+                id: "unnamed-rule",
+                name: "",
+                conditions: [{ id: "unnamed-condition", type: "no_op" }],
+                actions: [{ id: "unnamed-action", type: "no_op" }],
+              },
+            ],
+          },
+        },
+      },
+    });
+
+    expect(screen.getByText("Unnamed Rule")).toBeInTheDocument();
+  });
+
   it("does not render a separate default rule block", () => {
     renderWithProviders(<Main />, {
       expressionMapLibraryState,
     });
 
-    expect(screen.queryByText("Default Rule")).not.toBeInTheDocument();
+    expect(screen.getByText("Default Rule")).toBeInTheDocument();
+  });
+
+  it("adds a default action from the fixed default playback card", async () => {
+    renderWithProviders(<Main />, {
+      expressionMapLibraryState,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Default Rule" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add Default Action" }));
+
+    await waitFor(() => {
+      expect(windowMocks.addDefaultActionMock).toHaveBeenCalledWith(
+        "legato",
+        "no_op",
+      );
+    });
+  });
+
+  it("only highlights default playback when the default entry is selected", () => {
+    renderWithProviders(<Main />, {
+      expressionMapLibraryState,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Default Rule" }));
+
     expect(
-      screen.queryByText(/Uses the plugin default playback path/i),
+      screen.queryByRole("button", { name: "Remove rule 1 from list" }),
     ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Add Default Action" }),
+    ).toBeInTheDocument();
   });
 });

@@ -147,6 +147,10 @@ export enum PlaybackRouteAddressMode {
 export type ExpressionMapCondition =
   | {
       id: string;
+      type: "no_op";
+    }
+  | {
+      id: string;
       type: "articulation";
       comparator: ExpressionMapEqualityComparator;
       articulation: Articulation | null;
@@ -207,6 +211,7 @@ export type ExpressionMap = {
   name: string;
   creator: string;
   version: number;
+  default_actions: ExpressionMapAction[];
   rules: ExpressionMapRule[];
 };
 

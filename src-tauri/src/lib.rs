@@ -819,6 +819,76 @@ fn expression_maps_action_remove(
 }
 
 #[tauri::command(rename_all = "snake_case")]
+fn expression_maps_default_action_add(
+    app: AppHandle,
+    state: State<'_, ManagedExpressionMapLibraryContextState>,
+    expression_map_id: String,
+    action_type: String,
+) -> Result<ExpressionMap, String> {
+    let (expression_map, library_state) = {
+        let mut library = state.lock().unwrap();
+        let expression_map = library.add_default_action(&expression_map_id, &action_type)?;
+        let library_state = library.snapshot();
+        (expression_map, library_state)
+    };
+    emit_expression_map_updates(&app, &library_state)?;
+    Ok(expression_map)
+}
+
+#[tauri::command(rename_all = "snake_case")]
+fn expression_maps_default_action_set_type(
+    app: AppHandle,
+    state: State<'_, ManagedExpressionMapLibraryContextState>,
+    expression_map_id: String,
+    action_id: String,
+    action_type: String,
+) -> Result<ExpressionMap, String> {
+    let (expression_map, library_state) = {
+        let mut library = state.lock().unwrap();
+        let expression_map =
+            library.set_default_action_type(&expression_map_id, &action_id, &action_type)?;
+        let library_state = library.snapshot();
+        (expression_map, library_state)
+    };
+    emit_expression_map_updates(&app, &library_state)?;
+    Ok(expression_map)
+}
+
+#[tauri::command(rename_all = "snake_case")]
+fn expression_maps_default_action_update(
+    app: AppHandle,
+    state: State<'_, ManagedExpressionMapLibraryContextState>,
+    expression_map_id: String,
+    action: crate::playback::expression_maps::ExpressionMapAction,
+) -> Result<ExpressionMap, String> {
+    let (expression_map, library_state) = {
+        let mut library = state.lock().unwrap();
+        let expression_map = library.update_default_action(&expression_map_id, action)?;
+        let library_state = library.snapshot();
+        (expression_map, library_state)
+    };
+    emit_expression_map_updates(&app, &library_state)?;
+    Ok(expression_map)
+}
+
+#[tauri::command(rename_all = "snake_case")]
+fn expression_maps_default_action_remove(
+    app: AppHandle,
+    state: State<'_, ManagedExpressionMapLibraryContextState>,
+    expression_map_id: String,
+    action_id: String,
+) -> Result<ExpressionMap, String> {
+    let (expression_map, library_state) = {
+        let mut library = state.lock().unwrap();
+        let expression_map = library.remove_default_action(&expression_map_id, &action_id)?;
+        let library_state = library.snapshot();
+        (expression_map, library_state)
+    };
+    emit_expression_map_updates(&app, &library_state)?;
+    Ok(expression_map)
+}
+
+#[tauri::command(rename_all = "snake_case")]
 fn expression_maps_delete(
     app: AppHandle,
     state: State<'_, ManagedExpressionMapLibraryContextState>,
@@ -1136,6 +1206,10 @@ pub fn run() {
             expression_maps_action_set_type,
             expression_maps_action_update,
             expression_maps_action_remove,
+            expression_maps_default_action_add,
+            expression_maps_default_action_set_type,
+            expression_maps_default_action_update,
+            expression_maps_default_action_remove,
             expression_maps_delete,
             expression_maps_import,
             expression_maps_export,

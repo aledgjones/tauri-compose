@@ -292,6 +292,8 @@ Two legitimate entry paths should exist. The first is the instrument-driven path
 
 Both paths should stay within one dedicated app-scoped Expression Map workflow window. That window should use a left library pane for search, browsing, and CRUD actions, and a right editor pane for the currently selected map. The right pane owns the map itself, while the Sequence row only owns the score-context relationship to the map.
 
+The first audible MVP proof remains intentionally non-visual. Compose should not add active-expression overlays, extra score-context panes, or audition-specific expression controls for this step. Instead, authored rules should resolve top-down on transport playback only, with the bounded proof centered on articulation plus note length so users hear a more appropriate sample path or shortened performed duration without learning a second UI model.
+
 ### 3.4 Plugin Inventory And Discovery
 
 Plugin selection during routing should stay contextual and score-focused. Instrument-row and instrument-panel pickers should present available plugins and targets as routing options for the current musical task, using a filtered and musician-friendly view of what Compose can currently use.

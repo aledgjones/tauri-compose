@@ -1,6 +1,6 @@
 # Story 6.4: Drive Initial Realistic Playback Through A Linked Expression Map
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -16,32 +16,32 @@ so that routed score playback sounds more musically meaningful than a raw defaul
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Extend the backend-owned playback preparation and transport path to resolve Expression Map rules for supported notes (AC: 1, 3)
-  - [ ] Reuse the existing Rust-owned preparation and transport seams rather than creating a parallel expression-playback path.
-  - [ ] Resolve the linked Expression Map for each supported routed instrument on the transport-owned playback path.
-  - [ ] Evaluate rules top-down, stop at the first match, and fall through to the fixed default rule when nothing else matches.
-  - [ ] Keep Expression Map playback truth backend-owned and derived from the durable linked asset model.
+- [x] Task 1: Extend the backend-owned playback preparation and transport path to resolve Expression Map rules for supported notes (AC: 1, 3)
+  - [x] Reuse the existing Rust-owned preparation and transport seams rather than creating a parallel expression-playback path.
+  - [x] Resolve the linked Expression Map for each supported routed instrument on the transport-owned playback path.
+  - [x] Evaluate rules top-down, stop at the first match, and fall through to the fixed default rule when nothing else matches.
+  - [x] Keep Expression Map playback truth backend-owned and derived from the durable linked asset model.
 
-- [ ] Task 2: Prove the bounded first-use case through articulation plus note-length rule matching (AC: 1, 2)
-  - [ ] Support the canonical proof case where short staccato notes resolve to a staccato sample path, while longer staccato notes resolve to a legato or default sample path with shortened performed duration.
-  - [ ] Restrict the first audible proof to transport playback only; do not widen 6.4 into a separate audition-specific expression system.
-  - [ ] Preserve the authored rule model from 6.3 so the audible proof comes from real linked Expression Map data rather than hard-coded transport exceptions.
+- [x] Task 2: Prove the bounded first-use case through articulation plus note-length rule matching (AC: 1, 2)
+  - [x] Support the canonical proof case where short staccato notes resolve to a staccato sample path, while longer staccato notes resolve to a legato or default sample path with shortened performed duration.
+  - [x] Restrict the first audible proof to transport playback only; do not widen 6.4 into a separate audition-specific expression system.
+  - [x] Preserve the authored rule model from 6.3 so the audible proof comes from real linked Expression Map data rather than hard-coded transport exceptions.
 
-- [ ] Task 3: Support the agreed MVP audible action set without over-claiming broader trigger coverage (AC: 1, 2, 3)
-  - [ ] Prove audible keyswitch-driven sample selection on the transport path.
-  - [ ] Prove audible note-length transformation on the transport path.
-  - [ ] Keep CC-authored rules structurally supported by the model without requiring 6.4 to prove every authored action type audibly if the bounded first-use case does not need them.
-  - [ ] When no authored rule matches, preserve the current plugin-default routed playback path through the fixed fallback rule.
+- [x] Task 3: Support the agreed MVP audible action set without over-claiming broader trigger coverage (AC: 1, 2, 3)
+  - [x] Prove audible keyswitch-driven sample selection on the transport path.
+  - [x] Prove audible note-length transformation on the transport path.
+  - [x] Keep CC-authored rules structurally supported by the model without requiring 6.4 to prove every authored action type audibly if the bounded first-use case does not need them.
+  - [x] When no authored rule matches, preserve the current plugin-default routed playback path through the fixed fallback rule.
 
-- [ ] Task 4: Preserve per-instrument independence when maps are shared across routed instruments (AC: 1, 3)
-  - [ ] Ensure multiple instruments can share the same Expression Map asset while still resolving different winning rules per note according to each instrument's written material.
-  - [ ] Ensure one instrument's resolved winning rule does not leak into another instrument's playback state.
-  - [ ] Keep the proof plugin-agnostic in product wording even if local validation uses a known-good BBC plugin setup.
+- [x] Task 4: Preserve per-instrument independence when maps are shared across routed instruments (AC: 1, 3)
+  - [x] Ensure multiple instruments can share the same Expression Map asset while still resolving different winning rules per note according to each instrument's written material.
+  - [x] Ensure one instrument's resolved winning rule does not leak into another instrument's playback state.
+  - [x] Keep the proof plugin-agnostic in product wording even if local validation uses a known-good BBC plugin setup.
 
-- [ ] Task 5: Keep 6.4 free of premature UI scope while adding strong transport-facing proof and docs (AC: 1, 2, 3)
-  - [ ] Do not add new active-expression UI, sequencer tracks, playback overlays, or extra score-context panels in this story.
-  - [ ] Add backend and integration tests proving linked maps affect transport playback through the existing routed VST path.
-  - [ ] Update planning and developer docs to record that the first Epic 6 audible proof is transport-only, first-match-wins, and bounded to the agreed articulation-plus-note-length case.
+- [x] Task 5: Keep 6.4 free of premature UI scope while adding strong transport-facing proof and docs (AC: 1, 2, 3)
+  - [x] Do not add new active-expression UI, sequencer tracks, playback overlays, or extra score-context panels in this story.
+  - [x] Add backend and integration tests proving linked maps affect transport playback through the existing routed VST path.
+  - [x] Update planning and developer docs to record that the first Epic 6 audible proof is transport-only, first-match-wins, and bounded to the agreed articulation-plus-note-length case.
 
 ## Dev Notes
 
@@ -208,12 +208,20 @@ GPT-5.4
 
 - 2026-04-05: Story prepared after reviewing Epic 6 planning, Stories 6.1 through 6.3, the current backend preparation and transport seams, and repo guidance that Epic 6 must extend the transport-owned audible path rather than replace it.
 - 2026-04-05: User clarification locked the 6.4 proof shape: transport-only, first-match-wins per played note, canonical staccato-plus-note-length proof case, keyswitch plus note-length transformation as the audible action set, no new UI, and per-instrument independence even when maps are shared.
+- 2026-04-06: Implemented durable expression-map playback resolution in `src-tauri/src/playback/expression_maps.rs`, linked-map capture in `src-tauri/src/playback/preparation.rs`, and transport-only keyswitch plus note-length action projection in `src-tauri/src/playback/transport.rs` using projected note semantics from `src-tauri/src/playback/tuplet_projection.rs`.
+- 2026-04-06: Validation completed with `npm run test:js`, `npm run check-types`, `npm run lint`, `cargo test --manifest-path src-tauri/Cargo.toml`, and `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features -- -D warnings`.
+- 2026-04-06: Post-review follow-up extended the reusable map model with map-owned `default_actions` and added a fixed `Default Playback` editor card so authors can express plugin-specific reset or single-sound defaults without inventing a sortable catch-all rule.
 
 ### Completion Notes List
 
 - Story context created and sprint status updated to ready-for-dev.
 - Story 6.4 stays intentionally bounded: one musical proof case on transport rather than full expressive playback scope.
 - Higher-level planning docs were updated to match the tighter Epic 6 story sequence and the row/library/editor/window decisions already made in this session.
+- Added backend-owned first-match-wins expression-map rule resolution with implicit plugin-default fallback and preparation-time linked-map capture for ready routed transport targets.
+- Extended the transport-only playback snapshot to resolve expression behavior per played note, emit keyswitch note events, shorten performed note duration through authored note-length transforms, and keep CC-authored actions structurally supported without widening audition scope.
+- Added seam-local Rust tests proving top-down rule resolution, linked-map capture, short-staccato keyswitch plus duration proof, plugin-default fallback when nothing matches, and per-instrument independence when two routed instruments share one expression map.
+- Updated planning and developer docs to record the shipped 6.4 boundary: transport-only proof, articulation-plus-note-length scope, top-down first-match-wins semantics, no active-expression UI, and implicit fallback to the plugin-default routed path.
+- Adjacent follow-up work replaced the implicit no-match fallback with an explicit map-owned default-action list that still seeds new maps with `NoOp`, and surfaced that fallback in the expression-map editor as a fixed `Default Playback` card outside the sortable rule list.
 
 ### File List
 
@@ -223,3 +231,32 @@ GPT-5.4
 - `_bmad-output/planning-artifacts/prd.md`
 - `_bmad-output/planning-artifacts/ux-design-specification.md`
 - `docs/development-guide.md`
+- `docs/data-models.md`
+- `src/services/actions.test.ts`
+- `src/services/actions.ts`
+- `src/services/state/provider.test.tsx`
+- `src/services/types.ts`
+- `src/windows/expression-map/expression-map-action-section.tsx`
+- `src/windows/expression-map/expression-map-default-card.tsx`
+- `src/windows/expression-map/expression-map-editor-pane.tsx`
+- `src/windows/expression-map/expression-map-rule-card.tsx`
+- `src/windows/expression-map/index.test.tsx`
+- `src/windows/expression-map/index.tsx`
+- `src/windows/main/screens/sequence/components/instrument-overview-row.test.tsx`
+- `src-tauri/src/playback/audition.rs`
+- `src-tauri/src/playback/engine.rs`
+- `src-tauri/src/playback/expression_maps.rs`
+- `src-tauri/src/playback/preparation.rs`
+- `src-tauri/src/playback/transport.rs`
+- `src-tauri/src/playback/tuplet_projection.rs`
+
+## Change Log
+
+- 2026-04-06: Implemented the bounded Story 6.4 transport-only expression-map proof, added backend transport regression coverage, and updated planning/developer docs for the shipped MVP scope.
+- 2026-04-06: Added explicit map-owned default playback actions plus a fixed editor card so no-match behavior and single-sound defaults are authorable without a fake catch-all rule.
+- 2026-04-06: Post-review follow-up made equal-offset live note dispatch stable in the engine and made audition queue linked-map default keyswitch resets before the auditioned note so repeated auditions return to the authored default sound.
+
+### Review Findings
+
+- [x] [Review][Patch] No-match fallback now runs authored default actions instead of preserving the plugin-default routed path [src-tauri/src/playback/expression_maps.rs:792] — user confirmed this is intended because VST plugins do not share a standard default-sound contract and the explicit default-rule system is required to express how the instrument returns to its baseline sound.
+- [x] [Review][Patch] Keyswitch and sounding note events are queued at the same sample offset, so unstable event ordering can bypass the intended articulation on the first matched note [src-tauri/src/playback/transport.rs:431]

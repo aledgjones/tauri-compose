@@ -2,8 +2,13 @@ use crate::playback::engine::{
     clear_transport_playback, queue_transport_note, set_slot_mix, set_transport_render_targets,
     transport_playback_has_pending_work,
 };
+use crate::playback::expression_maps::{
+    resolve_expression_map_playback, ExpressionMapAction, ExpressionMapLibraryState,
+    ExpressionMapPlaybackContext,
+};
 use crate::playback::preparation::{
-    effective_playback_mix_for_instrument, prepare_supported_playback, PlaybackPreparation,
+    effective_playback_mix_for_instrument, prepare_supported_playback_with_expression_maps,
+    PlaybackPreparation,
 };
 use crate::playback::tuplet_projection::{collect_track_playback_events, PlaybackTick};
 use crate::score::components::duration::Tick;
@@ -42,6 +47,7 @@ pub struct InstrumentMixParams {
 const TICKS_PER_QUARTER: u64 = 32;
 const TRANSPORT_LOOKAHEAD: std::time::Duration = std::time::Duration::from_millis(5);
 const TRANSPORT_WAIT_QUANTUM: std::time::Duration = std::time::Duration::from_millis(1);
+const EXPRESSION_MAP_KEYSWITCH_TICKS: Tick = 1;
 
 /// Seconds per tick at a given BPM
 fn seconds_per_tick(bpm: f64) -> f64 {
@@ -339,6 +345,14 @@ struct ScheduledNote {
     pitch: u8,
     velocity: u8,
     instrument_id: UniqueId,
+    keyswitches: Vec<ScheduledKeyswitch>,
+    duration_ratio_percent: u16,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct ScheduledKeyswitch {
+    pitch: u8,
+    velocity: u8,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -397,6 +411,45 @@ fn transport_event_sample_offset_frames(
         .min(usize::MAX as u64) as usize
 }
 
+fn scale_duration_frames(duration_frames: u64, ratio_percent: u16) -> u64 {
+    let scaled = ((duration_frames as u128 * ratio_percent as u128) + 50) / 100;
+    (scaled as u64).max(1)
+}
+
+fn scheduled_note_transport_events(
+    note: &ScheduledNote,
+    sample_rate: u32,
+    bpm: f64,
+    lead_frames: u64,
+) -> Vec<TransportQueuedNote> {
+    let sample_offset =
+        transport_event_sample_offset_frames(&note.start, sample_rate, bpm, lead_frames);
+    let mut events = Vec::with_capacity(note.keyswitches.len() + 1);
+
+    for keyswitch in &note.keyswitches {
+        events.push(TransportQueuedNote {
+            sample_offset,
+            duration_frames: playback_tick_duration_frames(
+                &PlaybackTick::from_tick(EXPRESSION_MAP_KEYSWITCH_TICKS),
+                sample_rate,
+                bpm,
+            ),
+            pitch: keyswitch.pitch,
+            velocity: keyswitch.velocity,
+        });
+    }
+
+    let duration_frames = playback_tick_duration_frames(&note.duration, sample_rate, bpm);
+    events.push(TransportQueuedNote {
+        sample_offset,
+        duration_frames: scale_duration_frames(duration_frames, note.duration_ratio_percent),
+        pitch: note.pitch,
+        velocity: note.velocity,
+    });
+
+    events
+}
+
 fn transport_events_for_tick(
     snapshot: &PlaybackSnapshot,
     current_tick: Tick,
@@ -414,17 +467,12 @@ fn transport_events_for_tick(
         events_by_slot_id
             .entry(note.slot_id)
             .or_default()
-            .push(TransportQueuedNote {
-                sample_offset: transport_event_sample_offset_frames(
-                    &note.start,
-                    sample_rate,
-                    bpm,
-                    lead_frames,
-                ),
-                duration_frames: playback_tick_duration_frames(&note.duration, sample_rate, bpm),
-                pitch: note.pitch,
-                velocity: note.velocity,
-            });
+            .extend(scheduled_note_transport_events(
+                note,
+                sample_rate,
+                bpm,
+                lead_frames,
+            ));
     }
 
     let mut slot_ids = events_by_slot_id.keys().copied().collect::<Vec<_>>();
@@ -496,6 +544,42 @@ fn collect_scheduled_notes(
                     };
 
                     for tone in collect_track_playback_events(track) {
+                        let mut keyswitches = Vec::new();
+                        let mut duration_ratio_percent = 100;
+
+                        if let Some(expression_map) = prepared_target.expression_map.as_ref() {
+                            let resolved = resolve_expression_map_playback(
+                                expression_map,
+                                &ExpressionMapPlaybackContext {
+                                    articulations: tone.articulations.clone(),
+                                    written_duration_ticks: tone.written_duration_ticks,
+                                },
+                            );
+
+                            for action in resolved.actions {
+                                match action {
+                                    ExpressionMapAction::KeyswitchNote {
+                                        midi_note,
+                                        velocity,
+                                        ..
+                                    } => {
+                                        keyswitches.push(ScheduledKeyswitch {
+                                            pitch: midi_note,
+                                            velocity,
+                                        });
+                                    }
+                                    ExpressionMapAction::NoteLengthTransform {
+                                        ratio_percent,
+                                        ..
+                                    } => {
+                                        duration_ratio_percent = ratio_percent;
+                                    }
+                                    ExpressionMapAction::ControlChange { .. }
+                                    | ExpressionMapAction::NoOp { .. } => {}
+                                }
+                            }
+                        }
+
                         notes_by_tick
                             .entry(tone.start.floor())
                             .or_default()
@@ -507,6 +591,8 @@ fn collect_scheduled_notes(
                                 pitch: tone.pitch,
                                 velocity: tone.velocity,
                                 instrument_id: *instrument_id,
+                                keyswitches,
+                                duration_ratio_percent,
                             });
                     }
                 }
@@ -538,9 +624,10 @@ struct PlaybackSnapshot {
     execution_mode: PlaybackExecutionMode,
 }
 
-fn build_supported_playback_snapshot(
+fn build_supported_playback_snapshot_with_expression_maps(
     app_ctx: &AppContext,
     current_tick: Tick,
+    expression_map_library: &ExpressionMapLibraryState,
     sample_rate: u32,
 ) -> Option<(PlaybackSnapshot, f64)> {
     let flow_id = active_flow_id(app_ctx)?;
@@ -555,9 +642,10 @@ fn build_supported_playback_snapshot(
         return None;
     }
 
-    let preparation = prepare_supported_playback(
+    let preparation = prepare_supported_playback_with_expression_maps(
         &app_ctx.score,
         &app_ctx.playback_activation_runtime,
+        expression_map_library,
         sample_rate,
     );
 
@@ -572,6 +660,20 @@ fn build_supported_playback_snapshot(
         },
         initial_tempo,
     ))
+}
+
+#[cfg_attr(not(test), allow(dead_code))]
+fn build_supported_playback_snapshot(
+    app_ctx: &AppContext,
+    current_tick: Tick,
+    sample_rate: u32,
+) -> Option<(PlaybackSnapshot, f64)> {
+    build_supported_playback_snapshot_with_expression_maps(
+        app_ctx,
+        current_tick,
+        &ExpressionMapLibraryState::default(),
+        sample_rate,
+    )
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -756,9 +858,10 @@ fn apply_transport_snapshot(
     }));
 }
 
-fn start_transport_from_current_tick(
+fn start_transport_from_current_tick_with_expression_maps(
     ctx: &mut TransportContext,
     app_state: &AppContextState,
+    expression_map_library: &ExpressionMapLibraryState,
     sample_rate: u32,
 ) -> Result<(), String> {
     let current_tick = ctx.shared.current_tick.load(Ordering::Relaxed);
@@ -766,7 +869,12 @@ fn start_transport_from_current_tick(
     let (snapshot, initial_tempo) = {
         let app_ctx = app_state.lock().unwrap();
 
-        match build_supported_playback_snapshot(&app_ctx, current_tick, sample_rate) {
+        match build_supported_playback_snapshot_with_expression_maps(
+            &app_ctx,
+            current_tick,
+            expression_map_library,
+            sample_rate,
+        ) {
             Some((snapshot, initial_tempo)) => (snapshot, initial_tempo),
             None => {
                 ctx.shared.playing.store(false, Ordering::Release);
@@ -787,9 +895,24 @@ fn start_transport_from_current_tick(
     Ok(())
 }
 
-fn transport_play_with_states(
+#[allow(dead_code)]
+fn start_transport_from_current_tick(
+    ctx: &mut TransportContext,
+    app_state: &AppContextState,
+    sample_rate: u32,
+) -> Result<(), String> {
+    start_transport_from_current_tick_with_expression_maps(
+        ctx,
+        app_state,
+        &ExpressionMapLibraryState::default(),
+        sample_rate,
+    )
+}
+
+fn transport_play_with_states_and_expression_maps(
     state: &Mutex<TransportContext>,
     app_state: &AppContextState,
+    expression_map_library: &ExpressionMapLibraryState,
     sample_rate: u32,
 ) -> Result<(), String> {
     let mut ctx = state.lock().unwrap();
@@ -800,14 +923,34 @@ fn transport_play_with_states(
     let stale_handle = ctx.thread_handle.take();
     join_transport_thread(stale_handle)?;
     clear_transport_playback();
-    start_transport_from_current_tick(&mut ctx, app_state, sample_rate)?;
+    start_transport_from_current_tick_with_expression_maps(
+        &mut ctx,
+        app_state,
+        expression_map_library,
+        sample_rate,
+    )?;
 
     Ok(())
 }
 
-fn transport_seek_with_states(
+#[cfg_attr(not(test), allow(dead_code))]
+fn transport_play_with_states(
     state: &Mutex<TransportContext>,
     app_state: &AppContextState,
+    sample_rate: u32,
+) -> Result<(), String> {
+    transport_play_with_states_and_expression_maps(
+        state,
+        app_state,
+        &ExpressionMapLibraryState::default(),
+        sample_rate,
+    )
+}
+
+fn transport_seek_with_states_and_expression_maps(
+    state: &Mutex<TransportContext>,
+    app_state: &AppContextState,
+    expression_map_library: &ExpressionMapLibraryState,
     sample_rate: u32,
     tick: Tick,
 ) -> Result<(), String> {
@@ -836,7 +979,28 @@ fn transport_seek_with_states(
         return Ok(());
     }
 
-    start_transport_from_current_tick(&mut ctx, app_state, sample_rate)
+    start_transport_from_current_tick_with_expression_maps(
+        &mut ctx,
+        app_state,
+        expression_map_library,
+        sample_rate,
+    )
+}
+
+#[cfg_attr(not(test), allow(dead_code))]
+fn transport_seek_with_states(
+    state: &Mutex<TransportContext>,
+    app_state: &AppContextState,
+    sample_rate: u32,
+    tick: Tick,
+) -> Result<(), String> {
+    transport_seek_with_states_and_expression_maps(
+        state,
+        app_state,
+        &ExpressionMapLibraryState::default(),
+        sample_rate,
+        tick,
+    )
 }
 
 fn transport_pause_with_states<F>(
@@ -892,6 +1056,7 @@ pub fn transport_play(
     app_state: State<'_, AppContextState>,
     audio_state: State<'_, AudioContextState>,
     renderer_state: State<'_, crate::RendererContextState>,
+    expression_map_library_state: State<'_, crate::ManagedExpressionMapLibraryContextState>,
 ) -> Result<(), String> {
     let sample_rate = {
         let audio = audio_state.lock().unwrap();
@@ -902,7 +1067,13 @@ pub fn transport_play(
         app_ctx.refresh_playback_activation_runtime_from_app(&app);
         Ok(())
     })?;
-    transport_play_with_states(state.inner(), app_state.inner(), sample_rate)?;
+    let expression_map_library = expression_map_library_state.lock().unwrap().snapshot();
+    transport_play_with_states_and_expression_maps(
+        state.inner(),
+        app_state.inner(),
+        &expression_map_library,
+        sample_rate,
+    )?;
 
     let mut app_ctx = app_state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
@@ -942,6 +1113,7 @@ pub fn transport_seek(
     app_state: State<'_, AppContextState>,
     audio_state: State<'_, AudioContextState>,
     renderer_state: State<'_, crate::RendererContextState>,
+    expression_map_library_state: State<'_, crate::ManagedExpressionMapLibraryContextState>,
     tick: u64,
 ) -> Result<(), String> {
     let sample_rate = {
@@ -953,7 +1125,14 @@ pub fn transport_seek(
         app_ctx.refresh_playback_activation_runtime_from_app(&app);
         Ok(())
     })?;
-    transport_seek_with_states(state.inner(), app_state.inner(), sample_rate, tick)?;
+    let expression_map_library = expression_map_library_state.lock().unwrap().snapshot();
+    transport_seek_with_states_and_expression_maps(
+        state.inner(),
+        app_state.inner(),
+        &expression_map_library,
+        sample_rate,
+        tick,
+    )?;
 
     let mut app_ctx = app_state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
@@ -987,11 +1166,17 @@ mod tests {
     use crate::playback::engine::{
         reset_continuous_render_engine_for_tests, transport_playback_debug_state,
     };
+    use crate::playback::expression_maps::{
+        ExpressionMap, ExpressionMapAction, ExpressionMapCondition,
+        ExpressionMapEqualityComparator, ExpressionMapLibraryState,
+        ExpressionMapNoteLengthComparator, ExpressionMapRule,
+    };
     use crate::playback::plugin_inventory::{
         PluginInventoryAvailability, PluginInventoryContext, PluginInventoryEntry,
     };
     use crate::playback::runtime_activation::PlaybackActivationRuntime;
     use crate::playback::runtime_activation::SingleInstrumentTrustGateBlocker;
+    use crate::score::components::articulation::{Articulation, Articulations};
     use crate::score::components::duration::NoteDuration;
     use crate::score::entries::{tempo::Tempo, Entry};
     use crate::score::flows::Flow;
@@ -1141,7 +1326,71 @@ mod tests {
     fn make_playback_preparation_for_score(score: &Score, sample_rate: u32) -> PlaybackPreparation {
         let runtime = make_playback_runtime_for_score(score);
 
-        prepare_supported_playback(score, &runtime, sample_rate)
+        crate::playback::preparation::prepare_supported_playback(score, &runtime, sample_rate)
+    }
+
+    fn staccato_articulations() -> Articulations {
+        Articulations::new().toggle(Articulation::Staccato)
+    }
+
+    fn proof_expression_map_library_state() -> ExpressionMapLibraryState {
+        ExpressionMapLibraryState {
+            order: vec![String::from("staccato-proof")],
+            by_id: FxHashMap::from_iter([(
+                String::from("staccato-proof"),
+                ExpressionMap {
+                    id: String::from("staccato-proof"),
+                    name: String::from("Staccato Proof"),
+                    creator: String::new(),
+                    version: 1,
+                    default_actions: vec![ExpressionMapAction::NoOp {
+                        id: String::from("default-proof-action"),
+                    }],
+                    rules: vec![
+                        ExpressionMapRule {
+                            id: String::from("short-staccato"),
+                            name: String::from("Short staccato"),
+                            conditions: vec![
+                                ExpressionMapCondition::Articulation {
+                                    id: String::from("short-staccato-articulation"),
+                                    comparator: ExpressionMapEqualityComparator::Equals,
+                                    articulation: Some(Articulation::Staccato),
+                                },
+                                ExpressionMapCondition::WrittenNoteLength {
+                                    id: String::from("short-staccato-length"),
+                                    comparator: ExpressionMapNoteLengthComparator::LessThanOrEqual,
+                                    note_duration: NoteDuration::Eighth,
+                                },
+                            ],
+                            actions: vec![
+                                ExpressionMapAction::KeyswitchNote {
+                                    id: String::from("short-staccato-keyswitch"),
+                                    midi_note: 24,
+                                    velocity: 96,
+                                },
+                                ExpressionMapAction::NoteLengthTransform {
+                                    id: String::from("short-staccato-length-transform"),
+                                    ratio_percent: 50,
+                                },
+                            ],
+                        },
+                        ExpressionMapRule {
+                            id: String::from("long-staccato"),
+                            name: String::from("Long staccato"),
+                            conditions: vec![ExpressionMapCondition::Articulation {
+                                id: String::from("long-staccato-articulation"),
+                                comparator: ExpressionMapEqualityComparator::Equals,
+                                articulation: Some(Articulation::Staccato),
+                            }],
+                            actions: vec![ExpressionMapAction::NoteLengthTransform {
+                                id: String::from("long-staccato-length-transform"),
+                                ratio_percent: 55,
+                            }],
+                        },
+                    ],
+                },
+            )]),
+        }
     }
 
     fn add_flow_with_tempos(
@@ -2007,6 +2256,137 @@ mod tests {
         assert_eq!(tick_events[1].slot_id, 201);
         assert_eq!(tick_events[1].events.len(), 1);
         assert_eq!(tick_events[1].events[0].pitch, 67);
+    }
+
+    #[test]
+    fn transport_events_for_tick_emit_keyswitch_and_shortened_note_for_short_staccato_matches() {
+        let mut track = Track::new(50);
+        track
+            .create_tone(80, 32, 16, 60, None, 96, Default::default(), None)
+            .unwrap();
+        track.apply_articulations_to_tick(32, &staccato_articulations());
+
+        let (mut score, flow_id) = make_flow_score_with_track(track);
+        score
+            .instruments
+            .by_id
+            .get_mut(&4)
+            .unwrap()
+            .playback_route
+            .as_mut()
+            .unwrap()
+            .expression_map_id = Some(String::from("staccato-proof"));
+
+        let app_ctx = make_app_context(score, Some(flow_id));
+        let expression_maps = proof_expression_map_library_state();
+        let (snapshot, _) = build_supported_playback_snapshot_with_expression_maps(
+            &app_ctx,
+            32,
+            &expression_maps,
+            48_000,
+        )
+        .expect("expected snapshot");
+
+        let tick_events = transport_events_for_tick(&snapshot, 32, 48_000, 120.0, 0);
+
+        assert_eq!(tick_events.len(), 1);
+        assert_eq!(tick_events[0].slot_id, 6);
+        assert_eq!(tick_events[0].events.len(), 2);
+        assert_eq!(tick_events[0].events[0].pitch, 24);
+        assert_eq!(tick_events[0].events[0].velocity, 96);
+        assert_eq!(tick_events[0].events[1].pitch, 60);
+        assert_eq!(tick_events[0].events[1].duration_frames, 6_000);
+    }
+
+    #[test]
+    fn transport_events_for_tick_preserve_plugin_default_path_when_no_expression_rule_matches() {
+        let mut track = Track::new(50);
+        track
+            .create_tone(80, 32, 32, 60, None, 96, Default::default(), None)
+            .unwrap();
+
+        let (mut score, flow_id) = make_flow_score_with_track(track);
+        score
+            .instruments
+            .by_id
+            .get_mut(&4)
+            .unwrap()
+            .playback_route
+            .as_mut()
+            .unwrap()
+            .expression_map_id = Some(String::from("staccato-proof"));
+
+        let app_ctx = make_app_context(score, Some(flow_id));
+        let expression_maps = proof_expression_map_library_state();
+        let (snapshot, _) = build_supported_playback_snapshot_with_expression_maps(
+            &app_ctx,
+            32,
+            &expression_maps,
+            48_000,
+        )
+        .expect("expected snapshot");
+
+        let tick_events = transport_events_for_tick(&snapshot, 32, 48_000, 120.0, 0);
+
+        assert_eq!(tick_events.len(), 1);
+        assert_eq!(tick_events[0].events.len(), 1);
+        assert_eq!(tick_events[0].events[0].pitch, 60);
+        assert_eq!(tick_events[0].events[0].duration_frames, 24_000);
+    }
+
+    #[test]
+    fn transport_events_for_tick_resolve_shared_expression_maps_per_instrument_without_leakage() {
+        let mut short_track = Track::new(50);
+        short_track
+            .create_tone(80, 32, 16, 60, None, 96, Default::default(), None)
+            .unwrap();
+        short_track.apply_articulations_to_tick(32, &staccato_articulations());
+
+        let mut long_track = Track::new(51);
+        long_track
+            .create_tone(81, 32, 32, 67, None, 96, Default::default(), None)
+            .unwrap();
+        long_track.apply_articulations_to_tick(32, &staccato_articulations());
+
+        let (mut score, flow_id, instrument_ids) = make_flow_score_with_tracks(vec![
+            (short_track, "plugin-a", false, false),
+            (long_track, "plugin-b", false, false),
+        ]);
+        for instrument_id in instrument_ids {
+            score
+                .instruments
+                .by_id
+                .get_mut(&instrument_id)
+                .unwrap()
+                .playback_route
+                .as_mut()
+                .unwrap()
+                .expression_map_id = Some(String::from("staccato-proof"));
+        }
+
+        let app_ctx = make_app_context(score, Some(flow_id));
+        let expression_maps = proof_expression_map_library_state();
+        let (snapshot, _) = build_supported_playback_snapshot_with_expression_maps(
+            &app_ctx,
+            32,
+            &expression_maps,
+            48_000,
+        )
+        .expect("expected snapshot");
+
+        let tick_events = transport_events_for_tick(&snapshot, 32, 48_000, 120.0, 0);
+
+        assert_eq!(tick_events.len(), 2);
+        assert_eq!(tick_events[0].slot_id, 200);
+        assert_eq!(tick_events[0].events.len(), 2);
+        assert_eq!(tick_events[0].events[0].pitch, 24);
+        assert_eq!(tick_events[0].events[1].pitch, 60);
+        assert_eq!(tick_events[0].events[1].duration_frames, 6_000);
+
+        assert_eq!(tick_events[1].slot_id, 201);
+        assert_eq!(tick_events[1].events.len(), 1);
+        assert_eq!(tick_events[1].events[0].pitch, 67);
+        assert_eq!(tick_events[1].events[0].duration_frames, 13_200);
     }
 
     #[test]

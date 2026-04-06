@@ -83,7 +83,7 @@ impl SlotRenderState {
     fn enqueue_event(&mut self, event: QueuedRenderEvent) {
         self.queued_events.push(event);
         self.queued_events
-            .sort_unstable_by_key(|queued| queued.frames_until_dispatch);
+            .sort_by_key(|queued| queued.frames_until_dispatch);
     }
 
     fn requeue_due_events(&mut self, events: Vec<QueuedRenderEvent>) {
@@ -92,7 +92,7 @@ impl SlotRenderState {
         }
 
         self.queued_events
-            .sort_unstable_by_key(|queued| queued.frames_until_dispatch);
+            .sort_by_key(|queued| queued.frames_until_dispatch);
     }
 
     fn has_queued_transport_events(&self) -> bool {
@@ -137,7 +137,7 @@ impl SlotRenderState {
         }
 
         self.queued_events = remaining_events;
-        due_events.sort_unstable_by_key(|event| event.frames_until_dispatch);
+        due_events.sort_by_key(|event| event.frames_until_dispatch);
         due_events
     }
 
@@ -923,6 +923,30 @@ mod tests {
                 .count(),
             2
         );
+    }
+
+    #[test]
+    fn equal_offset_transport_note_ons_preserve_enqueue_order() {
+        let mut engine = ContinuousRenderEngineState::default();
+        let backend = FakeRenderBackend::default();
+        let mut output = [0.0_f32; 8];
+
+        engine.sync_live_slots(&FxHashSet::from_iter([25]));
+        engine.set_transport_targets(&FxHashSet::from_iter([25]));
+        engine.queue_transport_note(25, 0, 4, 24, 96);
+        engine.queue_transport_note(25, 0, 4, 60, 100);
+
+        engine.process_block(&backend, &mut output, 2, 1_000);
+
+        let calls = backend.render_calls.borrow();
+        assert_eq!(calls.len(), 1);
+        let note_on_pitches = calls[0]
+            .events
+            .iter()
+            .filter(|event| event.kind == LiveRenderEventKind::NoteOn)
+            .map(|event| event.pitch)
+            .collect::<Vec<_>>();
+        assert_eq!(note_on_pitches, vec![24, 60]);
     }
 
     #[test]

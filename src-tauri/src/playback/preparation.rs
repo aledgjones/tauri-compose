@@ -1,3 +1,4 @@
+use crate::playback::expression_maps::{ExpressionMap, ExpressionMapLibraryState};
 use crate::playback::runtime_activation::{
     PlaybackActivationRuntime, SingleInstrumentTrustGateBlocker,
 };
@@ -124,6 +125,7 @@ pub struct PreparedPlaybackTarget {
     pub plugin_id: String,
     pub bundle_path: PathBuf,
     pub plugin_state: Option<PlaybackSlotPluginState>,
+    pub expression_map: Option<ExpressionMap>,
     pub target: PlaybackRouteTarget,
     pub address: PlaybackRouteAddress,
     pub supported_mix_controls: SupportedPlaybackMixControls,
@@ -163,6 +165,7 @@ impl PlaybackPreparation {
 fn prepared_supported_target_for_instrument(
     score: &Score,
     playback_runtime: &PlaybackActivationRuntime,
+    expression_map_library: &ExpressionMapLibraryState,
     resolved_playback_route_by_instrument_id: &FxHashMap<UniqueId, ResolvedPlaybackRoute>,
     instrument_id: UniqueId,
 ) -> Option<PreparedPlaybackTarget> {
@@ -185,6 +188,11 @@ fn prepared_supported_target_for_instrument(
     }
 
     let slot_target = playback_runtime.activated_slot_target(route.slot_id)?;
+    let expression_map = route
+        .expression_map_id
+        .as_deref()
+        .and_then(|expression_map_id| expression_map_library.by_id.get(expression_map_id))
+        .cloned();
 
     Some(PreparedPlaybackTarget {
         instrument_id,
@@ -192,6 +200,7 @@ fn prepared_supported_target_for_instrument(
         plugin_id: slot_target.plugin_id.clone(),
         bundle_path: slot_target.bundle_path.clone(),
         plugin_state: slot_target.plugin_state.clone(),
+        expression_map,
         target: route.target.clone(),
         address: route.address.clone(),
         supported_mix_controls: resolved_route.supported_mix_controls,
@@ -206,6 +215,7 @@ fn prepared_supported_target_for_instrument(
 fn supported_transport_targets(
     score: &Score,
     playback_runtime: &PlaybackActivationRuntime,
+    expression_map_library: &ExpressionMapLibraryState,
     resolved_playback_route_by_instrument_id: &FxHashMap<UniqueId, ResolvedPlaybackRoute>,
 ) -> Vec<PreparedPlaybackTarget> {
     let mut ready_instrument_ids = score
@@ -217,6 +227,7 @@ fn supported_transport_targets(
             prepared_supported_target_for_instrument(
                 score,
                 playback_runtime,
+                expression_map_library,
                 resolved_playback_route_by_instrument_id,
                 *instrument_id,
             )
@@ -231,6 +242,7 @@ fn supported_transport_targets(
             prepared_supported_target_for_instrument(
                 score,
                 playback_runtime,
+                expression_map_library,
                 resolved_playback_route_by_instrument_id,
                 instrument_id,
             )
@@ -238,9 +250,10 @@ fn supported_transport_targets(
         .collect()
 }
 
-pub fn prepare_supported_playback(
+pub fn prepare_supported_playback_with_expression_maps(
     score: &Score,
     playback_runtime: &PlaybackActivationRuntime,
+    expression_map_library: &ExpressionMapLibraryState,
     sample_rate: u32,
 ) -> PlaybackPreparation {
     let resolved_playback_route_by_instrument_id =
@@ -249,6 +262,7 @@ pub fn prepare_supported_playback(
     let supported_targets = supported_transport_targets(
         score,
         playback_runtime,
+        expression_map_library,
         &resolved_playback_route_by_instrument_id,
     );
 
@@ -260,11 +274,30 @@ pub fn prepare_supported_playback(
     }
 }
 
+#[cfg_attr(not(test), allow(dead_code))]
+pub fn prepare_supported_playback(
+    score: &Score,
+    playback_runtime: &PlaybackActivationRuntime,
+    sample_rate: u32,
+) -> PlaybackPreparation {
+    prepare_supported_playback_with_expression_maps(
+        score,
+        playback_runtime,
+        &ExpressionMapLibraryState::default(),
+        sample_rate,
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
-        effective_playback_mix_for_instrument, prepare_supported_playback, EffectivePlaybackMix,
+        effective_playback_mix_for_instrument, prepare_supported_playback,
+        prepare_supported_playback_with_expression_maps, EffectivePlaybackMix,
         PreparedPlaybackTarget,
+    };
+    use crate::playback::expression_maps::{
+        ExpressionMap, ExpressionMapAction, ExpressionMapCondition, ExpressionMapLibraryState,
+        ExpressionMapRule,
     };
     use crate::playback::plugin_inventory::{
         PluginInventoryAvailability, PluginInventoryContext, PluginInventoryEntry,
@@ -272,6 +305,8 @@ mod tests {
     use crate::playback::runtime_activation::{
         PlaybackActivationRuntime, SingleInstrumentTrustGateBlocker,
     };
+    use crate::score::components::articulation::Articulation;
+    use crate::score::components::duration::NoteDuration;
     use crate::score::instruments::{defs::InstrumentType, Instrument, Instruments};
     use crate::score::playback::{
         InstrumentPlaybackRoute, PlaybackRackSlot, PlaybackSlotPluginState, PlaybackSlotTarget,
@@ -339,6 +374,50 @@ mod tests {
         );
     }
 
+    fn expression_map_library_with_staccato_map() -> ExpressionMapLibraryState {
+        ExpressionMapLibraryState {
+            order: vec![String::from("staccato-map")],
+            by_id: FxHashMap::from_iter([(
+                String::from("staccato-map"),
+                ExpressionMap {
+                    id: String::from("staccato-map"),
+                    name: String::from("Staccato Map"),
+                    creator: String::new(),
+                    version: 1,
+                    default_actions: vec![ExpressionMapAction::NoOp {
+                        id: String::from("default-action"),
+                    }],
+                    rules: vec![ExpressionMapRule {
+                        id: String::from("staccato-rule"),
+                        name: String::from("Staccato"),
+                        conditions: vec![ExpressionMapCondition::Articulation {
+                            id: String::from("staccato-condition"),
+                            comparator: crate::playback::expression_maps::ExpressionMapEqualityComparator::Equals,
+                            articulation: Some(Articulation::Staccato),
+                        }],
+                        actions: vec![ExpressionMapAction::KeyswitchNote {
+                            id: String::from("staccato-action"),
+                            midi_note: 24,
+                            velocity: 96,
+                        }],
+                    }, ExpressionMapRule {
+                        id: String::from("fallback-note-length"),
+                        name: String::from("Fallback"),
+                        conditions: vec![ExpressionMapCondition::WrittenNoteLength {
+                            id: String::from("fallback-note-length-condition"),
+                            comparator: crate::playback::expression_maps::ExpressionMapNoteLengthComparator::GreaterThan,
+                            note_duration: NoteDuration::Eighth,
+                        }],
+                        actions: vec![ExpressionMapAction::NoteLengthTransform {
+                            id: String::from("fallback-note-length-action"),
+                            ratio_percent: 55,
+                        }],
+                    }],
+                },
+            )]),
+        }
+    }
+
     #[test]
     fn prepare_supported_playback_returns_single_ready_target_and_sample_rate() {
         let inventory = PluginInventoryContext::with_entries_for_tests(vec![available_entry(
@@ -372,6 +451,7 @@ mod tests {
                 plugin_state: Some(PlaybackSlotPluginState {
                     vst3_component_state_base64: String::from("AQID"),
                 }),
+                expression_map: None,
                 target: score
                     .instruments
                     .by_id
@@ -441,6 +521,45 @@ mod tests {
                 .unwrap()
                 .status,
             ResolvedPlaybackRouteStatus::Ready
+        );
+    }
+
+    #[test]
+    fn prepare_supported_playback_resolves_linked_expression_maps_for_ready_targets() {
+        let inventory = PluginInventoryContext::with_entries_for_tests(vec![available_entry(
+            "plugin-a",
+            "/Library/Audio/Plug-Ins/VST3/Plugin A.vst3",
+        )]);
+        let mut score = make_score();
+        assign_slot(&mut score, 100, "plugin-a");
+        score.instruments.by_id.get_mut(&10).unwrap().playback_route =
+            Some(InstrumentPlaybackRoute::direct(100));
+        score
+            .instruments
+            .by_id
+            .get_mut(&10)
+            .unwrap()
+            .playback_route
+            .as_mut()
+            .unwrap()
+            .expression_map_id = Some(String::from("staccato-map"));
+
+        let runtime = PlaybackActivationRuntime::from_score_and_inventory(&score, &inventory);
+        let expression_maps = expression_map_library_with_staccato_map();
+
+        let preparation = prepare_supported_playback_with_expression_maps(
+            &score,
+            &runtime,
+            &expression_maps,
+            48_000,
+        );
+
+        assert_eq!(
+            preparation
+                .supported_target_for_instrument(10)
+                .and_then(|target| target.expression_map.as_ref())
+                .map(|expression_map| expression_map.id.as_str()),
+            Some("staccato-map")
         );
     }
 
