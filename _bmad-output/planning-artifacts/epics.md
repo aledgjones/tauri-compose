@@ -82,6 +82,7 @@ NFR14: Validation must use explicit representative scenarios for transport, plug
 ### Additional Requirements
 
 - Preserve the existing brownfield Tauri + Rust + React + TypeScript + Vite foundation; implementation must extend the current app rather than reinitialize or replatform it.
+- Treat Compose as score-first composition software, not a DAW: the product goal is beautiful scores plus convincing-enough playback for composition, rehearsal/demo handoff, and eventual work with real musicians, so playback features should derive strong musical results from score intent rather than drift into manual performance authoring.
 - Treat Rust as the sole source of truth for plugin inventory, rack state, slot state, route state, playback preparation state, transport state, and persisted playback-domain state.
 - Keep `.soloc` portable by storing project intent and rack or route references only; machine-local plugin discovery and cache state must remain outside project files.
 - Split playback architecture into a Rust control plane and a realtime-safe playback plane where the audio path consumes precomputed, lock-safe state only.
@@ -991,6 +992,11 @@ So that the supported playback path is credible beyond isolated implementation s
 **Then** it reuses the real product seams rather than an unrelated one-off path
 **And** it is strong enough to support release review
 
+**Given** intermittent plugin UI hangs remain a credible support risk
+**When** representative native editor-host scenarios are validated
+**Then** the baseline explicitly records whether those hangs are reproducible, bounded, or unresolved
+**And** the MVP support verdict does not ignore host-lifecycle instability that would undermine release confidence
+
 ### Story 7.3: Validate Transport Trust Against Representative Composition Scenarios
 
 As a maintainer,
@@ -1036,3 +1042,160 @@ So that the team knows what can be shipped, what is known-good, and what remains
 **When** the verdict is published
 **Then** it feeds back into planning, QA, and product guidance
 **And** later compatibility expansion can build from the validated boundary rather than re-litigating MVP scope
+
+## Epic 8: Derive Playback From Score-Level Playing Techniques
+
+Composers can author playing-technique markings in the score, and Compose derives exclusive-group-aware technique context for notes so expression maps can drive more realistic playback from score meaning rather than note-local properties alone.
+
+### Story 8.1: Add Durable Playing-Technique Score Entries
+
+As a composer,
+I want to add playing-technique markings to the score,
+So that Compose stores durable technique intent as first-class score data rather than as hidden playback state.
+
+**Acceptance Criteria:**
+
+**Given** playing techniques are user-authored score markings
+**When** Compose introduces the first playing-technique entry type
+**Then** `PlayingTechnique` entries are persisted as first-class score data on stave master tracks at specific ticks
+**And** they are modeled as musical markings rather than plugin-specific playback instructions
+
+**Given** this story is a bounded proof of concept
+**When** the first playing-technique entry type is shipped
+**Then** the supported technique vocabulary is limited to `pizz` and `arco`
+**And** those first markings already use the same exclusive-group semantic structure intended for richer future technique sets rather than a one-off binary shortcut
+
+**Given** later playback realism will depend on these markings
+**When** the first playing-technique entry type is defined
+**Then** the data model remains extensible to multiple simultaneous technique markings at the same tick
+**And** it does not assume that technique meaning is limited to one note-local property at a time or that every future technique family will be a bespoke special case
+
+### Story 8.2: Render And Select Playing-Technique Markings Above The Stave
+
+As a composer,
+I want playing-technique markings to appear and be selectable in the score,
+So that the new score entries behave like real authored notation rather than invisible playback metadata.
+
+**Acceptance Criteria:**
+
+**Given** `PlayingTechnique` entries are stave-master-owned score markings
+**When** they are rendered in the score
+**Then** they appear above their owning stave using the same established visual text-positioning approach as tempo markings
+**And** they do not inherit tempo's flow-master ownership or top-stave-only behavior
+
+**Given** the user must be able to work with these markings like other score directives
+**When** a visible playing-technique marking is shown in the score
+**Then** it emits native renderer hit targets and participates in shared selection behavior
+**And** the selected state is owned by the same backend-driven score interaction model as other directive-style entries
+
+**Given** the first shipped scope is intentionally bounded
+**When** `pizz` and `arco` markings are displayed
+**Then** the rendered text is clear and notation-like
+**And** the draw path reuses proven text-rendering patterns instead of inventing a separate visual system for technique markings
+
+### Story 8.3: Add Playing-Technique Properties Panels
+
+As a composer,
+I want playing-technique markings to expose the shared properties workflow,
+So that the new entry type integrates with the existing score-editing model.
+
+**Acceptance Criteria:**
+
+**Given** a playing-technique marking can be selected in the score
+**When** it is the current selection
+**Then** the bottom-panel properties workflow shows a dedicated playing-technique properties surface
+**And** that surface stays consistent with the existing directive-style properties architecture
+
+**Given** the first properties scope should stay bounded
+**When** the initial properties panel is delivered
+**Then** it exposes the shared `Hidden` toggle only
+**And** it does not widen into technique-specific editing controls before later scope explicitly requires them
+
+**Given** hidden markings should remain consistent with other score directives
+**When** a playing technique is hidden through the properties workflow
+**Then** its render and hit-target behavior follow the existing hidden-entry rules
+**And** the persisted score truth remains aligned with the shared directive editing model
+
+### Story 8.4: Derive Effective Playing-Technique Context For Notes
+
+As a maintainer,
+I want Compose to derive active playing-technique context for notes,
+So that playback and later consumers can use score meaning that persists beyond a single tone.
+
+**Acceptance Criteria:**
+
+**Given** playing-technique entries may stay in effect across later notes
+**When** score meaning is prepared for playback-facing consumers
+**Then** Compose derives effective note-time technique context from the relevant master-track markings
+**And** notes are no longer limited to only immediate tone-local expression inputs such as articulation and written duration
+
+**Given** the first proof-of-concept technique family is an exclusive bowed-technique group
+**When** `pizz` and `arco` markings are resolved
+**Then** Compose treats them as mutually exclusive entries in the same semantic group
+**And** the derived note context exposes the effective playback-facing condition for that group rather than forcing expression maps to interpret raw cancellation logic
+
+**Given** a `PlayingTechnique` entry takes effect from the tick where it is defined
+**When** note context is resolved for tones that begin at the same tick
+**Then** those tones see the updated effective technique state immediately
+**And** later notes continue to inherit that state until a later marking in the same exclusive group changes it
+
+**Given** later technique families may be more complex than `pizz` and `arco`
+**When** the first derived context shape is introduced
+**Then** it establishes one scalable resolver pattern for exclusive technique groups
+**And** it stays deterministic enough for rule matching and testing
+
+**Given** semantic resolution should not be owned by transport timing code
+**When** active playing-technique context is derived
+**Then** that derivation happens in a backend-owned score-semantics or preparation seam before transport execution
+**And** transport consumes already-resolved note context rather than inventing persistent technique meaning on the fly
+
+### Story 8.5: Extend Expression Maps To Match Playing-Technique Context
+
+As a composer,
+I want expression maps to match derived playing-technique context,
+So that reusable maps can translate score-level technique meaning into library-specific switching behavior.
+
+**Acceptance Criteria:**
+
+**Given** expression maps already match bounded note-time context such as articulation and written duration
+**When** playing-technique semantics are added to the derived note context
+**Then** expression-map conditions can also match active playing techniques
+**And** they reuse the existing multi-condition and first-match-wins rule model rather than inventing a separate region-specific map system
+
+**Given** the playing-technique proof of concept is built on derived exclusive-group semantics rather than raw score markings
+**When** expression-map support is extended
+**Then** the Rust and TypeScript expression-map data structures, persistence contract, and editor authoring workflow are updated to support the new derived playing-technique condition family
+**And** the first implementation remains bounded to the conditions needed by the `pizz` and `arco` proof of concept
+
+**Given** multiple playing techniques may be active together
+**When** a rule is evaluated
+**Then** the condition system can combine technique matches with other context such as articulation or note length
+**And** more specific combined rules can be ordered above broader fallback rules
+
+**Given** expression maps are the user-authored bridge between musical meaning and plugin behavior
+**When** this condition family is introduced
+**Then** the map remains a translation layer over derived score meaning rather than becoming the owner of persistent score-technique state
+**And** the design stays compatible with multiple libraries that need different switching behavior for the same marking or future exclusive technique group
+
+### Story 8.6: Prove Technique-Driven Playback Through Derived Context
+
+As a composer,
+I want playing-technique markings to audibly influence routed playback through expression maps,
+So that score-authored technique intent can drive realistic sample selection beyond note-local expression cues.
+
+**Acceptance Criteria:**
+
+**Given** a routed instrument has an expression map that matches derived playing-technique context
+**When** I play supported score material through the existing transport-owned routed playback path
+**Then** the resolved active playing techniques contribute to the winning rule for each note
+**And** the resulting playback behavior comes from the existing backend preparation plus transport pipeline rather than a new one-off playback path
+
+**Given** `pizz` and `arco` are the first exclusive-group proof of concept
+**When** a `pizz` marking is placed at tick `t` and an `arco` marking is later placed at tick `u`
+**Then** notes beginning at tick `t` and later resolve the `pizz`-driven playback path until tick `u`
+**And** notes beginning at tick `u` and later immediately stop resolving that `pizz`-driven path because the same exclusive-group resolver has switched the effective technique state
+
+**Given** the user should author score markings rather than direct playback state
+**When** the first playing-technique-driven playback proof is delivered
+**Then** the system derives the audible result from score-authored technique markings plus the user-authored expression map
+**And** it does not require users to manually author hidden playback-state regions outside the score model or separately manage exclusive-group playback logic themselves

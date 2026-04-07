@@ -1,5 +1,5 @@
 # generated: 2026-03-25T00:12:37Z
-# last_updated: 2026-04-06T22:51:17Z
+# last_updated: 2026-04-07T00:01:17Z
 # project: compose
 # project_key: NOKEY
 # tracking_system: file-system
@@ -36,7 +36,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-03-25T00:12:37Z
-last_updated: 2026-04-06T22:51:17Z
+last_updated: 2026-04-07T00:01:17Z
 project: compose
 project_key: NOKEY
 tracking_system: file-system
@@ -97,3 +97,12 @@ development_status:
   7-3-validate-transport-trust-against-representative-composition-scenarios: backlog
   7-4-publish-the-mvp-support-verdict-and-boundaries: backlog
   epic-7-retrospective: optional
+
+  epic-8: backlog
+  8-1-add-durable-playing-technique-score-entries: backlog
+  8-2-render-and-select-playing-technique-markings-above-the-stave: backlog
+  8-3-add-playing-technique-properties-panels: backlog
+  8-4-derive-effective-playing-technique-context-for-notes: backlog
+  8-5-extend-expression-maps-to-match-playing-technique-context: backlog
+  8-6-prove-technique-driven-playback-through-derived-context: backlog
+  epic-8-retrospective: optional
