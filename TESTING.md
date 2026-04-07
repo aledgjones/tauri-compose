@@ -15,6 +15,19 @@ This project uses [Vitest](https://vitest.dev) as the test runner for TypeScript
 | `npm run test:js:logs:watch` | Watch mode with verbose logs           |
 | `npm run test:rust`          | Run all Rust tests (from `src-tauri/`) |
 
+## MVP playback support baseline
+
+`docs/playback-support-baseline.md` is the canonical source for Epic 7 playback-support claims.
+
+Use it for:
+
+- the concrete known-good and blocked bundle subset
+- the distinction between `known-good`, `blocked/unsupported for the bounded seam`, and `discovered but unvalidated`
+- the exact Story 7.2 discovery and bounded-host scenarios
+- the exact Story 7.3 transport-trust scenarios
+
+Keep this testing guide focused on commands, harnesses, and local execution mechanics. Do not duplicate the baseline matrix here.
+
 ## Single-instrument reset baseline
 
 Story 1.3 is the explicit release-style gate before Epic 4 audible-playback work can start, and Story 1.4 extends that gate with slot-owned live runtime sessions. Here, single-instrument means one playable instrument per VST instance, even if that instance exposes multiple articulations or expressions; HALion-style multi-slot or multi-part instances remain out of scope. Treat it as a narrow trust-restoration proof, not as evidence of multi-instrument playback or audible transport support.
@@ -48,9 +61,7 @@ Blocking rule:
 
 Use Story 2.4's bounded macOS editor-host claim, not a universal compatibility assumption.
 
-- Known-good bounded-host examples: `BBC Symphony Orchestra.vst3` remains the primary control case, and recent successful maintainer runs also include `Reverb.vst3`, `ProEQ.vst3`, and `Originals - Intimate Grand Piano.vst3`
-- Explicit unsupported targets in the current proof host: the current unsupported list includes `HALion Sonic.vst3`, `HALion Sonic SE.vst3`, `Groove Agent SE.vst3`, `Kontakt 7.vst3`, and `MT-PowerDrumKit.vst3`
-- Expected unsupported behavior: inventory still reports a successfully discovered bundle as available, but user-facing surfaces keep the score-context native-editor action unavailable for that target, maintainer-oriented inventory views continue to render it as `Unsupported`, and backend fallback protection still rejects direct requests without creating or reserving a plugin-host window for bundles on that unsupported list
+For the concrete bundle subset, blocked list, evidence meanings, and pass/fail criteria, follow `docs/playback-support-baseline.md`.
 
 Recommended validation commands for host-seam changes:
 
@@ -59,9 +70,9 @@ Recommended validation commands for host-seam changes:
 
 Recommended manual validation sequence for the bounded host seam:
 
-1. Open `BBC Symphony Orchestra.vst3` from the Sequence score-context rack action on the prepared slot and confirm the host window opens, attaches the editor, stays responsive, and can be closed and reopened in the same app session.
-2. If the control-case plugin reports resize support, verify resize remains coherent; otherwise confirm the host stays bounded without pretending unsupported resize capability.
-3. Confirm a bundle on the unsupported list such as a Steinberg-family plugin keeps the score-context native-editor action unavailable, still renders as `Unsupported` in the app-scoped inventory surfaces, and still cannot create a host window or stale reservation through a direct backend request.
+1. Run the concrete known-good and blocked bundle scenarios from `docs/playback-support-baseline.md`.
+2. Capture evidence through the owner seams named there, especially `editor_host_validation` and host lifecycle behavior.
+3. Treat any result outside that canonical matrix as `discovered but unvalidated`, not as part of the MVP support claim.
 
 ## Multi-flow performance characterization
 

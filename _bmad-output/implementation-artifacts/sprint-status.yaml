@@ -36,7 +36,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-03-25T00:12:37Z
-last_updated: 2026-04-07T00:01:17Z
+last_updated: 2026-04-07T08:14:23Z
 project: compose
 project_key: NOKEY
 tracking_system: file-system
@@ -91,8 +91,8 @@ development_status:
   6-4-drive-initial-realistic-playback-through-a-linked-expression-map: done
   epic-6-retrospective: done
 
-  epic-7: backlog
-  7-1-define-the-supported-plugin-and-scenario-baseline: backlog
+  epic-7: in-progress
+  7-1-define-the-supported-plugin-and-scenario-baseline: done
   7-2-validate-plugin-discovery-and-host-behavior-against-the-baseline: backlog
   7-3-validate-transport-trust-against-representative-composition-scenarios: backlog
   7-4-publish-the-mvp-support-verdict-and-boundaries: backlog
