@@ -37,12 +37,37 @@ Do not collapse these terms together. In particular, "discovered" does not mean 
 
 ### Release-baseline control bundles
 
-| Bundle                                  | Current posture                                      | Baseline role                                                                                                | Notes                                                                                                    |
-| --------------------------------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------- |
-| `BBC Symphony Orchestra.vst3`           | `known-good`                                         | Primary control bundle for discovery, bounded native editor-host validation, and routed playback validation. | This is the anchor control case for the current MVP support claim.                                       |
-| `Originals - Intimate Grand Piano.vst3` | `known-good` for the bounded native editor-host seam | Secondary real-library control bundle and the second concrete BBC/Spitfire-family target in the baseline.    | This is the concrete follow-through on the planning phrase "BBC Spitfire libraries."                     |
-| `Reverb.vst3`                           | `known-good` for the bounded native editor-host seam | Host-behavior control bundle only.                                                                           | Do not use this bundle to broaden the routed score-playback claim beyond the current transport baseline. |
-| `ProEQ.vst3`                            | `known-good` for the bounded native editor-host seam | Host-behavior control bundle only.                                                                           | Do not use this bundle to broaden the routed score-playback claim beyond the current transport baseline. |
+| Bundle                                  | Current posture                                      | Baseline role                                                                                                | Notes                                                                                                                                     |
+| --------------------------------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `BBC Symphony Orchestra.vst3`           | `discovered but unvalidated`                         | Primary control bundle for discovery, bounded native editor-host validation, and routed playback validation. | Story 7.2 manual host validation found intermittent open or hang behavior, so this bundle is not a bounded host `known-good` claim today. |
+| `Originals - Intimate Grand Piano.vst3` | `discovered but unvalidated`                         | Secondary real-library control bundle and the second concrete BBC/Spitfire-family target in the baseline.    | Story 7.2 manual host validation found the same intermittent host instability as the BBC control bundle.                                  |
+| `Reverb.vst3`                           | `known-good` for the bounded native editor-host seam | Host-behavior control bundle only.                                                                           | Do not use this bundle to broaden the routed score-playback claim beyond the current transport baseline.                                  |
+| `ProEQ.vst3`                            | `known-good` for the bounded native editor-host seam | Host-behavior control bundle only.                                                                           | Do not use this bundle to broaden the routed score-playback claim beyond the current transport baseline.                                  |
+
+## Story 7.2 Validation Results
+
+Story 7.2 reuses this baseline as the only support matrix. The results below capture the evidence gathered so far without creating a second compatibility taxonomy.
+
+### Discovery and rescan results
+
+| Scenario                                         | Story 7.2 result | Evidence                                                                                                                                  | Support consequence                                                                                                     |
+| ------------------------------------------------ | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| Startup cache reuse                              | Passed           | `cargo test plugin_inventory --lib -- --nocapture` passed, including startup cache reuse, empty-cache-present, and blocked-posture tests. | Startup remains bounded to cached-state validation and keeps blocked editor-host posture separate from bundle validity. |
+| Startup cheap root sweep for newly added bundles | Passed           | `plugin_inventory_startup_discovers_new_uncached_bundles_during_bounded_sweep()` passed.                                                  | Startup can surface newly seen uncached bundles without widening into a full manual refresh path.                       |
+| Manual refresh / full reprobe                    | Passed           | `manual_full_rescan_replaces_bounded_startup_snapshot_and_persists_new_truth()` passed.                                                   | Manual refresh remains the broader reprobe seam and preserves valid entries while refreshing machine-local truth.       |
+
+Task 1 conclusion: existing seam-local inventory coverage was already sufficient. Story 7.2 did not add a second harness or broaden startup semantics.
+
+### Bounded native editor-host results
+
+| Bundle or scenario                                              | Story 7.2 result       | Evidence                                                                                                                                                                                         | Support consequence                                                                                                                  |
+| --------------------------------------------------------------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `BBC Symphony Orchestra.vst3` open/focus/close/reopen           | Unresolved instability | Maintainer manual validation on 2026-04-07 reported intermittent behavior: sometimes the editor opens, sometimes the UI hangs.                                                                   | Do not treat BBC Symphony Orchestra as `known-good` for the bounded host seam until the lifecycle instability is resolved.           |
+| `Originals - Intimate Grand Piano.vst3` open/focus/close/reopen | Unresolved instability | Maintainer manual validation on 2026-04-07 reported the same intermittent behavior as the BBC control bundle.                                                                                    | Do not treat Originals - Intimate Grand Piano as `known-good` for the bounded host seam until the lifecycle instability is resolved. |
+| Blocked bundle rejection                                        | Passed                 | Maintainer manually verified rejection for `HALion Sonic.vst3`, `HALion Sonic SE.vst3`, `Groove Agent SE.vst3`, `Kontakt 7.vst3`, and `MT-PowerDrumKit.vst3`; seam-local policy tests also pass. | The bounded seam still rejects these bundles before host attachment or visible host-window creation.                                 |
+| Policy-gate and reservation semantics                           | Passed                 | `cargo test plugin_editor_poc --lib -- --nocapture` passed for blocked-target rejection, reservation cleanup, and reopen ownership tests.                                                        | Backend-owned host lifecycle evidence remains seam-local and is strong enough to support release review discussion.                  |
+
+Story 7.2 hang verdict: unresolved. Intermittent hangs remain credible on the concrete BBC and Originals control bundles, and the MVP support claim must not ignore that instability.
 
 ### Concrete BBC / Spitfire library coverage note
 
@@ -128,6 +153,7 @@ A release-facing support claim is valid only when all of the following are true:
 - the relevant discovery, host, or transport scenario has been executed against that bundle where required
 - the evidence matches the owner seam named in this document
 - no scenario result depends on frontend-owned fallback state or a second compatibility taxonomy
+- any host verdict that shows unresolved instability is recorded explicitly instead of being rounded up to `known-good`
 
 Reject an MVP support claim when any of the following is true:
 
