@@ -1,5 +1,5 @@
 # generated: 2026-03-25T00:12:37Z
-# last_updated: 2026-04-07T00:01:17Z
+# last_updated: 2026-04-08T16:38:29Z
 # project: compose
 # project_key: NOKEY
 # tracking_system: file-system
@@ -36,7 +36,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-03-25T00:12:37Z
-last_updated: 2026-04-08T16:34:08Z
+last_updated: 2026-04-08T16:38:29Z
 project: compose
 project_key: NOKEY
 tracking_system: file-system
@@ -91,13 +91,13 @@ development_status:
   6-4-drive-initial-realistic-playback-through-a-linked-expression-map: done
   epic-6-retrospective: done
 
-  epic-7: in-progress
+  epic-7: done
   7-1-define-the-supported-plugin-and-scenario-baseline: done
   7-2-validate-plugin-discovery-and-host-behavior-against-the-baseline: done
   7-2a-stabilize-bounded-native-editor-host-for-real-library-control-bundles: done
   7-3-validate-transport-trust-against-representative-composition-scenarios: done
   7-4-publish-the-mvp-support-verdict-and-boundaries: done
-  epic-7-retrospective: optional
+  epic-7-retrospective: done
 
   epic-8: backlog
   8-1-add-durable-playing-technique-score-entries: backlog
