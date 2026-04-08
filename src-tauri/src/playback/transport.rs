@@ -1618,6 +1618,32 @@ mod tests {
         (score, flow_id, instrument_ids)
     }
 
+    fn make_flow_score_with_tracks_and_tempos(
+        tracks: Vec<(Track, &'static str, bool, bool)>,
+        tempos: &[(Tick, u16)],
+    ) -> (Score, UniqueId, Vec<UniqueId>) {
+        let (mut score, flow_id, instrument_ids) = make_flow_score_with_tracks(tracks);
+        let master_id = score.flows.by_id.get(&flow_id).unwrap().master_id;
+        let mut flow_length = score.flows.by_id.get(&flow_id).unwrap().length;
+
+        {
+            let master_track = score.tracks.by_id.get_mut(&master_id).unwrap();
+
+            for (index, (tick, bpm)) in tempos.iter().enumerate() {
+                master_track.insert_entry(Entry::Tempo(make_tempo(
+                    300 + index as UniqueId,
+                    *tick,
+                    *bpm,
+                )));
+                flow_length = flow_length.max(*tick + 1);
+            }
+        }
+
+        score.flows.by_id.get_mut(&flow_id).unwrap().length = flow_length;
+
+        (score, flow_id, instrument_ids)
+    }
+
     fn flatten_scheduled_starts(
         scheduled: &FxHashMap<Tick, Vec<ScheduledNote>>,
     ) -> Vec<PlaybackTick> {
@@ -2391,6 +2417,7 @@ mod tests {
 
     #[test]
     fn transport_pause_with_states_republishes_tempo_at_the_paused_tick_and_joins_the_thread() {
+        let _guard = transport_test_mutex().lock().unwrap();
         reset_continuous_render_engine_for_tests();
         let shared = Arc::new(make_transport_shared());
         shared.current_tick.store(80, Ordering::Relaxed);
@@ -2431,6 +2458,8 @@ mod tests {
 
         assert!(joined.load(Ordering::Acquire));
         assert_eq!(flush_count.load(Ordering::Relaxed), 1);
+
+        reset_continuous_render_engine_for_tests();
     }
 
     #[test]
@@ -2597,6 +2626,154 @@ mod tests {
 
             assert!(transport_engine_work_is_cleared(6));
         }
+
+        reset_continuous_render_engine_for_tests();
+    }
+
+    #[test]
+    fn representative_transport_scenario_rebases_expression_map_playback_without_widening_route_truth(
+    ) {
+        let _guard = transport_test_mutex().lock().unwrap();
+
+        reset_continuous_render_engine_for_tests();
+
+        let mut staccato_track = Track::new(50);
+        staccato_track
+            .create_tone(80, 32, 16, 60, None, 96, Default::default(), None)
+            .unwrap();
+        staccato_track.apply_articulations_to_tick(32, &staccato_articulations());
+
+        let mut sustained_track = Track::new(51);
+        sustained_track
+            .create_tone(81, 96, 16, 67, None, 96, Default::default(), None)
+            .unwrap();
+
+        let mut unresolved_track = Track::new(52);
+        unresolved_track
+            .create_tone(82, 32, 16, 72, None, 96, Default::default(), None)
+            .unwrap();
+        unresolved_track
+            .create_tone(83, 96, 16, 74, None, 96, Default::default(), None)
+            .unwrap();
+
+        let (mut score, flow_id, instrument_ids) = make_flow_score_with_tracks_and_tempos(
+            vec![
+                (staccato_track, "plugin-a", false, false),
+                (sustained_track, "plugin-b", false, false),
+                (unresolved_track, "plugin-c", false, false),
+            ],
+            &[(0, 96), (64, 144)],
+        );
+        score
+            .instruments
+            .by_id
+            .get_mut(&instrument_ids[0])
+            .unwrap()
+            .playback_route
+            .as_mut()
+            .unwrap()
+            .expression_map_id = Some(String::from("staccato-proof"));
+        let unresolved_slot_id = score
+            .instruments
+            .by_id
+            .get(&instrument_ids[2])
+            .and_then(|instrument| instrument.playback_route.as_ref())
+            .map(|route| route.slot_id)
+            .expect("expected unresolved slot id");
+        score
+            .playback
+            .rack
+            .by_id
+            .get_mut(&unresolved_slot_id)
+            .unwrap()
+            .target = None;
+
+        let expression_maps = proof_expression_map_library_state();
+        let app_state = Mutex::new(make_app_context(score, Some(flow_id)));
+
+        {
+            let app_ctx = app_state.lock().unwrap();
+            let (snapshot, initial_tempo) = build_supported_playback_snapshot_with_expression_maps(
+                &app_ctx,
+                32,
+                &expression_maps,
+                48_000,
+            )
+            .expect("expected snapshot");
+
+            assert_eq!(initial_tempo, 96.0);
+            assert_eq!(
+                snapshot
+                    .preparation
+                    .supported_targets
+                    .iter()
+                    .map(|target| target.instrument_id)
+                    .collect::<Vec<_>>(),
+                vec![instrument_ids[0], instrument_ids[1]]
+            );
+            assert_eq!(
+                snapshot
+                    .preparation
+                    .supported_target_for_instrument(instrument_ids[0])
+                    .and_then(|target| target.expression_map.as_ref())
+                    .map(|expression_map| expression_map.id.as_str()),
+                Some("staccato-proof")
+            );
+            assert!(snapshot
+                .preparation
+                .supported_target_for_instrument(instrument_ids[2])
+                .is_none());
+
+            let opening_events = transport_events_for_tick(&snapshot, 32, 48_000, 96.0, 0);
+            assert_eq!(opening_events.len(), 1);
+            assert_eq!(opening_events[0].slot_id, 200);
+            assert_eq!(opening_events[0].events.len(), 2);
+            assert_eq!(opening_events[0].events[0].pitch, 24);
+            assert_eq!(opening_events[0].events[1].pitch, 60);
+        }
+
+        let transport_state = make_transport_context_state();
+        {
+            let ctx = transport_state.lock().unwrap();
+            ctx.shared.current_tick.store(32, Ordering::Relaxed);
+        }
+
+        transport_play_with_states_and_expression_maps(
+            &transport_state,
+            &app_state,
+            &expression_maps,
+            48_000,
+        )
+        .unwrap();
+        wait_for_transport_engine_work(&[200]);
+
+        assert!(transport_playback_debug_state(202).is_none());
+
+        transport_seek_with_states_and_expression_maps(
+            &transport_state,
+            &app_state,
+            &expression_maps,
+            48_000,
+            96,
+        )
+        .unwrap();
+        wait_for_transport_engine_work(&[201]);
+
+        let ctx = transport_state.lock().unwrap();
+        assert!(ctx.shared.playing.load(Ordering::Acquire));
+        assert_eq!(ctx.shared.current_tick.load(Ordering::Relaxed), 96);
+        assert_eq!(ctx.shared.last_queued_tick.load(Ordering::Relaxed), 96);
+        assert_eq!(ctx.shared.get_tempo(), 144.0);
+        drop(ctx);
+
+        assert!(transport_playback_debug_state(201).is_some());
+        assert!(transport_playback_debug_state(202).is_none());
+
+        transport_pause_with_states(&transport_state, &app_state, || {}).unwrap();
+
+        assert!(transport_engine_work_is_cleared(200));
+        assert!(transport_engine_work_is_cleared(201));
+        assert!(transport_playback_debug_state(202).is_none());
 
         reset_continuous_render_engine_for_tests();
     }

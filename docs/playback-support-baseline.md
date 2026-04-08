@@ -69,6 +69,8 @@ Task 1 conclusion: existing seam-local inventory coverage was already sufficient
 
 Story 7.2 hang verdict: structural fixes applied by Story 7.2a. Three root causes were identified and fixed in the owner seam (`plugin_editor_poc.rs`): (1) component stayed active after detach, poisoning reopen; (2) no per-bundle session uniqueness, allowing duplicate sessions that crash in `createView`; (3) container views stacked up across attach cycles. The hang verdict moves from "unresolved" to "structurally addressed — awaiting maintainer manual revalidation" on the concrete BBC and Originals control bundles.
 
+Story 7.3 adds backend-owned transport-trust evidence for the routed transport contract itself, but it does not add new bundle-specific maintainer proof for `BBC Symphony Orchestra.vst3` or `Originals - Intimate Grand Piano.vst3`. Keep both bundles at `discovered but unvalidated` until a maintainer runs the Story 7.3 matrix against those concrete bundles and records explicit pass evidence for the bounded host-plus-transport path.
+
 ### Story 7.2a Structural Lifecycle Fixes
 
 Story 7.2a investigated the intermittent hangs reported in Story 7.2 and applied five structural fixes to the bounded native editor-host owner seam in `src-tauri/src/playback/plugin_editor_poc.rs`:
@@ -158,6 +160,43 @@ The baseline is repeatable only if each scenario names its owner seam, evidence 
 | Seek during stopped or active playback                       | `src-tauri/src/playback/transport.rs`                                              | Seek while stopped, then seek during active playback.                                                                    | Tick/tempo truth after seek and transport reset behavior.                                                   | Stopped seek only republishes truthful tick/tempo, and active seek clears old work then resumes only from a fresh supported snapshot.                            | Seek leaves stale notes queued, loses tick truth, or keeps playing from the old timeline.                                          |
 | Bounded edit-during-playback                                 | `src-tauri/src/playback/transport.rs` plus `src-tauri/src/playback/preparation.rs` | During active playback, change `volume`, `pan`, `mute`, or `solo`; separately change score content or playback topology. | Audible mix response for supported live controls and deferred-effect behavior for structure/topology edits. | Live mix controls update immediately on already-ready supported routes, while score/topology edits defer to the next transport-owned reset boundary.             | Unsupported mid-pass rewrites happen, or live mix edits fail to reach the engine seam.                                             |
 | Expression-map-aware routed playback on the current MVP path | `src-tauri/src/playback/preparation.rs` plus `src-tauri/src/playback/transport.rs` | Use a routed baseline bundle with a linked expression map on the currently supported transport path.                     | Play-start preparation snapshot and per-note action resolution behavior.                                    | The current bounded expression-map path remains transport-owned and uses the existing routed playback baseline without broadening the support claim.             | Expression-map playback creates a second playback model or obscures whether the underlying routed transport path is still trusted. |
+
+## Story 7.3 Validation Results
+
+Story 7.3 reuses this baseline as the only transport-trust matrix. The results below capture the backend-owned automated evidence gathered on 2026-04-08 without creating a second validation checklist.
+
+| Scenario                                          | Story 7.3 result          | Evidence                                                                                                                                                                                                                                                                                                                          | Support consequence                                                                                                                                                      |
+| ------------------------------------------------- | ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Routed play start on supported targets            | Passed                    | `cargo test transport_ --lib -- --nocapture` and `cargo test prepare_supported_playback --lib -- --nocapture` passed, including `representative_transport_scenario_rebases_expression_map_playback_without_widening_route_truth()` and the existing supported-target snapshot regressions in `transport.rs` and `preparation.rs`. | Backend-owned play-start snapshots remain trustworthy on the current MVP path, and routes outside `supported_targets` stay explicit no-ops instead of fallback playback. |
+| Pause and resume from backend snapshot boundaries | Passed                    | `cargo test transport_ --lib -- --nocapture` passed, including repeated cycle, paused-tempo republish, and fresh-snapshot resume regressions in `src-tauri/src/playback/transport.rs`.                                                                                                                                            | Pause and resume behavior is stronger than a demo-only proof for the bounded backend-owned transport seam.                                                               |
+| Seek during stopped or active playback            | Passed                    | `cargo test transport_ --lib -- --nocapture` passed, including stopped-seek truth, active-seek rebasing, unresolved-route no-op coverage, and the representative multi-track scenario with a live seek boundary.                                                                                                                  | Stopped seek republishes truthful tick and tempo only, and active seek clears old timeline work before restarting from a fresh snapshot.                                 |
+| Bounded edit-during-playback                      | Passed with bounded scope | `cargo test transport_ --lib -- --nocapture` and `cargo test playback::engine --lib -- --nocapture` passed, including deferred score-structure refresh coverage in `transport.rs` plus in-flight mix update coverage in `engine.rs`.                                                                                              | Immediate audible edits remain limited to supported live mix controls on ready routes; score-content and topology edits still defer to reset boundaries.                 |
+| Expression-map-aware routed playback              | Passed with bounded scope | `cargo test expression_maps --lib -- --nocapture`, `cargo test prepare_supported_playback --lib -- --nocapture`, and `cargo test transport_ --lib -- --nocapture` passed, including linked-map preparation, per-instrument rule isolation, and the representative transport scenario.                                             | Expression-map playback remains transport-owned on the existing routed path; Story 7.3 does not widen into a second playback model.                                      |
+| Audio rebuild reset boundary                      | Passed                    | `cargo test transport_ --lib -- --nocapture` and `cargo test playback::engine --lib -- --nocapture` passed, including the rebuild reset regressions in `transport.rs` and `audio.rs`.                                                                                                                                             | Audio rebuilds remain hard transport-owned reset boundaries that require a fresh snapshot and keep queue-state truth aligned with backend-owned timing.                  |
+
+Story 7.3 automated verdict: the backend-owned transport contract is composition-trustworthy for the bounded scenario matrix above. Release posture is still narrower than a blanket go verdict, because the concrete BBC/Spitfire control bundles do not gain `known-good` status from backend automation alone.
+
+### Bundle-level release boundary after Story 7.3
+
+- `BBC Symphony Orchestra.vst3` remains `discovered but unvalidated`.
+- `Originals - Intimate Grand Piano.vst3` remains `discovered but unvalidated`.
+- Automated Story 7.3 evidence shows the backend-owned transport contract holds under representative composition-shaped scenarios, so the path is no longer merely demo-capable at the seam level.
+- Maintainer manual validation on those concrete bundles is still required before any release-facing bundle promotion or broader support claim is credible.
+
+### Repo-wide validation run for Story 7.3
+
+The implementation and evidence pass were validated with:
+
+- `cargo test transport_ --lib -- --nocapture`
+- `cargo test prepare_supported_playback --lib -- --nocapture`
+- `cargo test expression_maps --lib -- --nocapture`
+- `cargo test playback::engine --lib -- --nocapture`
+- `npm run lint`
+- `npm run check-types`
+- `npm run test:js`
+- `npm run test:rust`
+
+All of those commands passed on 2026-04-08. Some existing JavaScript tests still emit non-failing stderr noise during execution, but the suites completed green and no new Story 7.3 validation failures remained.
 
 ## Evidence Rules For Release Decisions
 

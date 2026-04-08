@@ -3,8 +3,8 @@ use crate::playback::mixer::{self, MixerHandle};
 use crate::playback::transport::{
     stop_transport_playback, sync_transport_to_app_state, TransportContext, TransportSharedState,
 };
-use crate::{AppContext, AppContextState};
 use crate::AudioContextState;
+use crate::{AppContext, AppContextState};
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{Device, Host, Stream};
 use rustc_hash::FxHashSet;
@@ -350,6 +350,35 @@ mod tests {
     }
 
     #[test]
+    fn reset_transport_for_audio_rebuild_keeps_the_rewound_stop_boundary_tick_over_stale_last_queued_tick(
+    ) {
+        let (_transport_state, transport_shared) = TransportContext::new();
+        transport_shared.current_tick.store(63, Ordering::Relaxed);
+        transport_shared
+            .last_queued_tick
+            .store(80, Ordering::Relaxed);
+        transport_shared.playing.store(false, Ordering::Release);
+        transport_shared.set_tempo(72.0);
+
+        let app_state = make_app_context_with_tempo(1, 64, 144);
+        let shared_for_stop = transport_shared.clone();
+
+        reset_transport_for_audio_rebuild_with_stop(
+            &app_state,
+            move || Ok(shared_for_stop.clone()),
+            |_| Ok(()),
+        )
+        .unwrap();
+
+        assert_eq!(transport_shared.current_tick.load(Ordering::Relaxed), 63);
+        assert_eq!(
+            transport_shared.last_queued_tick.load(Ordering::Relaxed),
+            63
+        );
+        assert_eq!(transport_shared.get_tempo(), 120.0);
+    }
+
+    #[test]
     fn reset_transport_for_audio_rebuild_reconciles_pending_topology_refresh_before_clearing() {
         let (_transport_state, transport_shared) = TransportContext::new();
         let app_state = make_app_context_with_tempo(1, 64, 144);
@@ -384,7 +413,8 @@ mod tests {
     }
 
     #[test]
-    fn reset_transport_for_audio_rebuild_clears_score_structure_refresh_without_topology_runtime_work() {
+    fn reset_transport_for_audio_rebuild_clears_score_structure_refresh_without_topology_runtime_work(
+    ) {
         let (_transport_state, transport_shared) = TransportContext::new();
         let app_state = make_app_context_with_tempo(1, 64, 144);
         {
@@ -486,7 +516,12 @@ pub fn audio_device_sample_rate_set(
         ctx.active_device.device.clone()
     };
 
-    reset_transport_for_audio_rebuild(&app, transport_state.inner(), state.inner(), app_state.inner())?;
+    reset_transport_for_audio_rebuild(
+        &app,
+        transport_state.inner(),
+        state.inner(),
+        app_state.inner(),
+    )?;
 
     let (mixer_handle, stream) = AudioContext::build_stream(&device, sample_rate);
 

@@ -1061,6 +1061,29 @@ mod tests {
     }
 
     #[test]
+    fn pending_transport_work_tracks_multiple_slots_until_transport_cleanup_runs() {
+        let mut engine = ContinuousRenderEngineState::default();
+        let backend = FakeRenderBackend::default();
+        let mut output = [0.0_f32; 8];
+
+        engine.sync_live_slots(&FxHashSet::from_iter([19, 20]));
+        engine.set_transport_targets(&FxHashSet::from_iter([19, 20]));
+        engine.queue_transport_note(19, 0, 8, 60, 100);
+        engine.queue_transport_note(20, 64, 8, 67, 100);
+
+        assert!(engine.has_pending_transport_work());
+
+        engine.process_block(&backend, &mut output, 2, 1_000);
+
+        assert!(engine.has_pending_transport_work());
+
+        let slots_to_stop = engine.clear_transport_playback();
+
+        assert_eq!(slots_to_stop, vec![19, 20]);
+        assert!(!engine.has_pending_transport_work());
+    }
+
+    #[test]
     fn clearing_transport_playback_drops_transport_queue_and_stops_active_transport_slots() {
         let mut engine = ContinuousRenderEngineState::default();
         let backend = FakeRenderBackend::default();
