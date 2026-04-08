@@ -12,6 +12,43 @@ Use this artifact to answer three questions:
 
 This baseline is intentionally narrower than "VST3 compatibility" in general. It is evidence-driven, macOS-only, VST3-only, and limited to rack-first routed playback through the current backend-owned transport path.
 
+## Story 7.4 MVP Support Verdict
+
+Compose is trustworthy enough to support real composition work for one bounded MVP playback subset, but not for a broad real-library or cross-platform support claim.
+
+The trustworthy subset is the backend-owned macOS VST3 routed-playback path itself: rack-first playback on direct-plugin root routes, prepared through `prepare_supported_playback_with_expression_maps(...)` and started through `transport_play`, limited to the representative Story 7.3 scenario matrix recorded in this document.
+
+This is a ship-with-boundaries verdict, not a blanket plugin-compatibility verdict:
+
+- The routed transport seam is no longer demo-only. For the validated scenario matrix, it is composition-trustworthy.
+- The release claim must stay narrower than "Compose supports sensible VST3 libraries" because this pass does not promote any concrete real-library control bundle to `known-good`.
+- Compose can ship only with this explicit bounded statement: trust the validated MVP seam, keep concrete bundle posture exactly as recorded here, and do not imply broader plugin, platform, or workflow support than the evidence justifies.
+
+## Supported Subset In This Verdict
+
+- Platform: macOS only
+- Plugin format: VST3 only
+- Playback topology: rack-first routed playback on direct-plugin root routes
+- Transport ownership: backend-owned `prepare_supported_playback_with_expression_maps(...)` plus `transport_play`
+- Scenario coverage: routed play start, pause and resume, stopped and active seek, bounded edit-during-playback for `volume` / `pan` / `mute` / `solo`, expression-map-aware routed playback on the same transport path, and audio rebuild reset boundaries
+- Concrete bundle posture in this release verdict: `Reverb.vst3` and `ProEQ.vst3` remain `known-good` only for the bounded native editor-host seam; `BBC Symphony Orchestra.vst3` and `Originals - Intimate Grand Piano.vst3` remain `discovered but unvalidated`; blocked bundles remain outside the bounded seam
+
+## Unsupported, Unproven, And Future-Expansion Boundary
+
+Do not describe the current MVP verdict more broadly than the evidence supports.
+
+- `BBC Symphony Orchestra.vst3` and `Originals - Intimate Grand Piano.vst3` are still outside the `known-good` release subset until a maintainer captures post-Story-7.2a repeated open/focus/close/reopen evidence plus routed-playback proof on those concrete bundles.
+- `Reverb.vst3` and `ProEQ.vst3` are host-behavior control bundles, not routed score-playback proof.
+- The blocked editor-host bundles listed below remain `blocked/unsupported for the bounded seam`; Story 7.4 does not soften or reinterpret that posture.
+- Any other discovered VST3 bundle remains `discovered but unvalidated` unless this document explicitly says otherwise.
+- AU, Windows, Linux, broader plugin families, multi-timbral or multi-slot workflows, and richer expression-map realism beyond the validated MVP path remain outside the current support claim.
+
+## Planning, QA, And Maintainer Guidance
+
+- This document remains the only canonical Epic 7 release-verdict surface. `TESTING.md`, `docs/development-guide.md`, `README.md`, and `releases.md` should point here rather than duplicate this matrix.
+- QA and maintainer validation should keep using the owner-seam evidence and scenario matrix recorded here when deciding whether a candidate stays inside the bounded MVP claim.
+- Later compatibility expansion should start from this validated edge: first add explicit bundle-level proof for BBC, Originals, or another concrete candidate, then update this baseline. Do not re-litigate the current MVP seam scope from scratch.
+
 ## Scope
 
 - Platform: macOS only
