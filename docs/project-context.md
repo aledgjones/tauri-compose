@@ -1,7 +1,7 @@
 ---
 project_name: "compose"
 user_name: "Aled"
-date: "2026-03-04"
+date: "2026-04-07"
 sections_completed:
   [
     "technology_stack",
@@ -12,7 +12,7 @@ sections_completed:
     "anti_patterns",
   ]
 status: "complete"
-rule_count: 52
+rule_count: 59
 optimized_for_llm: true
 ---
 
@@ -28,7 +28,7 @@ _This file contains critical rules and patterns that AI agents must follow when 
 
 - React 19.2.4 — functional components, hooks only
 - TypeScript 5.9.3 — strict mode enabled (`noUnusedLocals`, `noUnusedParameters`, `noFallthroughCasesInSwitch`)
-- Vite 7.3.1 — multi-page app with 8 HTML entry points
+- Vite 7.3.1 — multi-page app with 9 HTML entry points
 - Tailwind CSS 4.2.0 — via `@tailwindcss/postcss` plugin
 - @mdi/js 7.4.47 + @mdi/react 1.6.1 — Material Design Icons
 - classnames 2.5.1 — conditional CSS class composition
@@ -69,6 +69,8 @@ _This file contains critical rules and patterns that AI agents must follow when 
 - All enums are numeric, mirroring Rust `serde_repr` enums — same variant names and integer values
 - Type properties use `snake_case` matching Rust struct fields (e.g. `flow_id`, `layout_type`, `by_id`) — NOT camelCase
 - `UniqueId = number`, `Tick = number`, `Ticks = number` — type aliases for semantic clarity
+- `UniqueId` is reserved for score-owned entities only; app-scoped, machine-local, and external reusable entities use UUIDs unless an external authority already defines their identity
+- Any mutable, persisted, reorderable, selectable, or independently addressable entity stored in a `Vec` or array must have a stable id; do not rely on array position as identity across backend, persistence, or React authoring flows
 - All FE→BE calls go through `invoke()` from `@tauri-apps/api/core` with snake_case parameter names
 - Rust `FxHashMap<K, V>` serializes to `Record<K, V>` in TypeScript
 - No `any` — ESLint warns on explicit any usage
@@ -77,6 +79,7 @@ _This file contains critical rules and patterns that AI agents must follow when 
 #### Rust
 
 - All Tauri commands: `#[tauri::command(rename_all = "snake_case")]`
+- Tauri commands should live near the domain they mutate or query; `src-tauri/src/lib.rs` is for app-wide wiring and setup unless a clear cross-domain reason justifies otherwise
 - `AppContext` behind `Mutex` — lock, mutate, call `emit()` to push state to all FE windows
 - Score uses `Space` unit system (staff spaces) — pixel conversion via `Converter::spaces_to_px()`
 - `Entry` is a tagged enum (`#[serde(tag = "type")]`) with 7 variants: Barline, Clef, KeySignature, Tempo, TimeSignature, Tone, Tuplet
@@ -92,14 +95,24 @@ _This file contains critical rules and patterns that AI agents must follow when 
 
 - All components are `FC<Props>` — no class components
 - State source of truth is Rust `AppContext` behind `Mutex` — FE is a display layer only
-- 4 React contexts: `AppContext`, `AudioContext`, `SamplerContext`, `TransportContext` — each with a typed hook that throws outside its provider
-- State pushed to FE via Tauri events (`soloc://state/general`, `soloc://state/audio`, `soloc://state/sampler`)
+- JavaScript must not own canonical state for backend-owned domains; React is a control layer and projection surface, not the owner of durable backend truth
+- For backend-owned durable data, prefer narrow domain commands over broad object replacement; any exception requires a very strong explicit justification
+- For backend-owned state, render from backend truth by default; optimistic or deterministic frontend shadow state is exceptional and must be justified rather than assumed
+- 4 React contexts: `AppContext`, `AudioContext`, `PluginInventoryContext`, `TransportContext` — each with a typed hook that throws outside its provider; `PluginInventoryContext` is the backend-owned machine-local VST3 inventory channel, including persisted `editor_host_validation` diagnostics from real maintainer host attempts
+- Slot-owned live plugin sessions are backend-only runtime objects keyed by `slot_id`; they own the real initialized VST instance for prepared slots, restore any portable `PlaybackSlotTarget.plugin_state` payload before editor-open, and remain the sole source from which `PlaybackActivationRuntime` readiness is derived
+- `src-tauri/src/playback/engine.rs` is the backend-owned realtime playback-plane seam: it tracks render-active slot sessions, consumes backend-owned event queues, and processes silent-safe blocks on the persistent audio callback so editor-open and audition can share the same runtime path without creating a second owner
+- Backend route truth now also owns score-context mix honesty: `resolved_playback_route_by_instrument_id` may expose `supported_mix_controls`, and the current MVP treats `volume`, `mute`, `solo`, and `pan` as honest on ready direct-plugin root routes only because the same backend seam now proves them end-to-end
+- State pushed to FE via Tauri events (`soloc://state/general`, `soloc://state/audio`, `soloc://state/plugin_inventory`)
+- Keep plugin bundle validity separate from bounded native-editor posture: `validation_failure` is for bundle/discovery failures, while editor-host policy blocks and real host-attempt diagnostics belong in `editor_host_validation`
 - Transport polling uses `requestAnimationFrame` loop — no events during playback to keep transport thread silent
-- Multi-window app: 8 HTML entry points, each mounts its own `AppStateProvider` in `boot.tsx`
+- Multi-window app: 9 HTML entry points, each mounts its own `AppStateProvider` in `boot.tsx`; the Sequence-menu `Plugin Manager...` window is the canonical app-scoped inventory browser, while the backend-owned `plugin-host-poc` window remains the bounded macOS native-editor handoff used from the Sequence score-context rack surface and the Sequence `Instruments` bottom panel is the score-context current-rack surface
+- The Expression Map workflow is likewise app-scoped and window-owned: both the Sequence menu entry and the instrument-row launch affordance reuse one dedicated `expression-map` window, the left pane owns reusable-map search, selection, create, and delete behavior, and the right pane owns selected-map authoring, rename, and metadata edits with immediate auto-save rather than a separate save/apply flow
 - All mutations go through the `actions` object in `actions.ts` via `invoke()` — never manipulate state directly
 - `ui.flow_id` is the one authoritative active-flow slot for score, Sequence, miniature piano rolls, and transport-derived tempo state; deliberate score-object selection may update it, but pan/zoom/hover/miss-to-clear must not
 - Shipped MVP tuplets remain triplet-first and popover-first: create the container through the existing popover flow, then edit owned tones through the shared backend seams rather than inventing a second tuplet-construction workflow in React
 - The shared top bar is reserved for universal controls (tabs, layout, transport, tools); workflow-specific single-flow switching belongs inside the owning workflow surface such as Sequence
+- Keep backend playback-route truth richer than the warning UI. `resolved_playback_route_by_instrument_id` may honestly distinguish `Unrouted`, empty-slot, missing-plugin, and other non-ready states, but the Sequence route picker must stay intentionally minimal: no warning badge for plain `--` or `N. --`, and compact warning chrome only for broken assigned plugin routes that need repair.
+- Keep compact score-context playback controls legible without color alone. Icon-only transport buttons, Sequence panel tabs, and bounded mix toggles should expose explicit labels/titles and semantic pressed-state cues instead of relying on accent color as the only state signal.
 - UI styling: Tailwind utility classes + `classnames` — dark theme (neutral-900 base, sky-500 accents, transparent backgrounds)
 
 #### Score Render Pipeline
@@ -142,7 +155,7 @@ The score page is rendered natively by Rust/Skia/Metal — all other UI (panels,
 - `src-tauri/src/score/` — score data model (players, instruments, flows, tracks, entries, layouts, engraves, components)
 - `src-tauri/src/instructions/` — parse/ + draw/ for the render pipeline
 - `src-tauri/src/renderer/` — Metal backend, converter, fonts, hit-test
-- `src-tauri/src/playback/` — audio, mixer, sampler, transport, SCVI format, streamer
+- `src-tauri/src/playback/` — audio, mixer, plugin inventory, runtime activation, transport, VST3 support
 
 #### Formatting & Linting
 
@@ -166,6 +179,9 @@ The score page is rendered natively by Rust/Skia/Metal — all other UI (panels,
 - Version kept in sync across `package.json`, `Cargo.toml`, and `tauri.conf.json` (all currently 1.25.0)
 - Validate before committing: `npm run lint` + `npm run check-types` + `cargo clippy`
 - The app saves user projects as `.soloc` files — this is the application's native save format, not a source code or config format
+- Persist only stable expression-map references in `.soloc` route data; reusable expression-map definitions remain app-scoped, machine-local assets outside project payloads
+- Expression-map library metadata now expects explicit persisted fields such as `creator` and `version`; do not add compatibility defaults for omitted metadata unless a later migration plan explicitly restores that requirement
+- Do not add compatibility behavior, fallback residue, or migration handling for development-only or not-yet-shipped features unless there is a concrete released-state or persisted-data need
 - Persisted-data migrations are authored in `src-tauri/src/migrations/next.rs` during development, promoted to a concrete version during `prepare-release:*`, and reseeded after `finalize-release`
 - Current tuplet migration stance: older non-tuplet releases do not need a dedicated tuplet migration because they produced no tuplet-bearing payloads; add one only if a released older format genuinely needs transformation
 - Tuplet regressions should stay close to the owning seam when local tests are enough: parser scenarios near parser logic, renderer regressions near draw/hit-test code, playback regressions near transport, and persistence regressions near file/load-save seams
@@ -204,10 +220,24 @@ The score page is rendered natively by Rust/Skia/Metal — all other UI (panels,
 #### Audio Gotchas
 
 - Transport state uses RAF polling during playback — never add event-based transport state updates, it will cause the transport thread to emit during playback
+- Supported `transport_play` is now a backend-owned audible score path on the product surface: it advances tick and tempo state whenever the active flow and tick are valid, snapshots supported direct-plugin root targets once at play-start, and submits score-derived note events into the continuous render engine only for those supported routes, without any sampler or SCVI fallback path
+- Transport clocking must stay backend-owned and bounded: do not revert to one naive full-tick sleep loop. Keep the short queue window, short wait quantum, and explicit lead-frame scheduling model so the transport thread can absorb moderate scheduler jitter without rebuilding timing truth in the frontend.
+- Pause is still backend-owned transport cleanup, not a second pause mode: clear the transport render target, flush active audio, join any prior transport thread, and republish truthful tempo for the paused tick before the next play or resume.
+- Seek is part of that same backend-owned transport contract: active seek must clamp against the score's active flow, clear queued transport events plus active transport-owned notes from the old timeline, and resume only from a fresh preparation snapshot, while stopped seek must update truthful tick and tempo without starting playback.
+- Treat stop, pause, and transport teardown as hard-reset paths over the same engine-owned transport work: clear queued transport events, retire active transport notes deterministically, and never let stale transport work survive into the next play-start.
+- Blocked `transport_play` attempts must stay explicit backend no-ops: clear stale stop-signal state, leave transport stopped, and preserve backend route truth rather than inventing fallback playback, frontend-owned readiness, or compatibility-residue transport state.
+- The continuous render engine now owns live slot processing on the audio callback. Transport may submit score-derived engine work and manage scheduling, but it must not take ownership of OS output-stream lifetime or become the canonical live processor seam.
+- Keep score-owned mix intent and live mix capability separate: persisted `volume`, `pan`, `mute`, and `solo` remain the intent source, but frontend controls must follow backend-exposed route capability rather than assuming every persisted field is live and audible.
+- Supported live mix edits must update the actual engine mix state used by in-flight playback, not only a transport-side mirror; solo changes in particular must recompute the effective mix truth for every supported route.
+- Treat active playback as a bounded snapshot contract. Only `volume`, `pan`, `mute`, and `solo` on already-ready direct-plugin root routes are immediate in the current pass; tone-content edits, notation edits, and playback-topology edits must persist score intent immediately but defer audibility until pause, seek restart, stopped play-start, natural-end replay, or another transport-owned reset boundary.
+- Audio device and sample-rate rebuilds are transport-owned reset events: stop transport playback first, clear engine transport work, republish tick and tempo from current score truth, and require the next play-start to rebuild its preparation snapshot at the new stream settings.
+- Audio device and sample-rate rebuilds are transport-owned reset events: stop transport playback first, clear engine transport work, republish tick and tempo from current score truth, rebase backend queue timing state such as `last_queued_tick`, and require the next play-start to rebuild its preparation snapshot at the new stream settings.
+- `prepare_supported_playback(...)` now treats `supported_targets` as the canonical public transport snapshot. If a caller needs one instrument-specific prepared target, use `supported_target_for_instrument(...)`; do not add a new public single-target compatibility field.
+- Epic 4 audible-playback work now builds on the completed Story 1.3 single-instrument-VST-instance trust gate and the Story 1.4 through 1.6 slot-owned runtime-session foundation: one routed direct plugin route into a VST instance that hosts one playable instrument at a time, transport-readiness-only status at the gate itself, no legacy fallback ownership, slot-owned runtime sessions rebuilt from portable saved intent rather than persisted live runtime state, and completed maintainer manual proof on that architecture. Do not treat that completed gate as evidence of HALion-style multi-slot or other multi-timbral readiness, multi-instrument readiness, or already-shipped first-audible-playback behavior.
 - Playback is another consumer of the shared tuplet model, not a second semantics engine. Transport code may implement scheduling mechanics, but it must not locally infer tuplet ownership, boundary meaning, projection, or continuity; if playback exposes a gap, extend the shared semantic seam instead of patching transport in isolation
-- Sample attack alignment is backend-owned playback metadata. Derive and persist `attack_offset_frames` in SCVI/sample seams, thread it through sampler and transport requests, and trim in the streamer before resample/pitch processing instead of inventing frontend timing offsets or per-instrument transport hacks
 - Nested tuplets, broader arbitrary ratios, and generalized sequencer-native tuplet editing remain explicit post-MVP work. Do not normalize them into current rules or documentation.
-- Custom binary instrument format (SCVI) — instruments are compressed/inspected via dedicated Rust CLI binaries, not runtime code
+- Legacy sampler and SCVI runtime ownership have been removed from the product path. Do not reintroduce them as fallback playback, audition, or hidden readiness logic.
+- Native editor opens from score-context rack surfaces must resolve through slot identity as well as bundle path so same-bundle slots remain distinct backend-owned targets during close, reopen, and teardown, and so editor attach remains a transient view over the slot-owned runtime session instead of replacing that ownership.
 
 ---
 
@@ -226,4 +256,4 @@ The score page is rendered natively by Rust/Skia/Metal — all other UI (panels,
 - Update when technology stack or conventions change
 - Review periodically — remove rules that become obvious over time
 
-Last Updated: 2026-03-18
+Last Updated: 2026-04-07

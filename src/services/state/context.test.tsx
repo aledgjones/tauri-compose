@@ -3,15 +3,12 @@ import { renderHook } from "@testing-library/react";
 import {
   useAppState,
   useAudioState,
-  useSamplerState,
   useTransportState,
   AppContext,
   AudioContext,
-  SamplerContext,
   TransportContext,
   initialAppState,
   initialAudioState,
-  initialSamplerState,
   initialTransportState,
 } from "./context";
 
@@ -63,25 +60,6 @@ describe("useAudioState", () => {
       ),
     });
     expect(result.current).toEqual(initialAudioState);
-  });
-});
-
-describe("useSamplerState", () => {
-  it("throws with correct message when used outside SamplerContext.Provider", () => {
-    expect(() => renderHook(() => useSamplerState())).toThrow(
-      "useSamplerState must be used within an AppStateProvider",
-    );
-  });
-
-  it("returns state when rendered inside SamplerContext.Provider", () => {
-    const { result } = renderHook(() => useSamplerState(), {
-      wrapper: ({ children }) => (
-        <SamplerContext.Provider value={initialSamplerState}>
-          {children}
-        </SamplerContext.Provider>
-      ),
-    });
-    expect(result.current).toEqual(initialSamplerState);
   });
 });
 

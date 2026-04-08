@@ -1,851 +1,917 @@
 ---
 stepsCompleted:
-  - step-01-context
-  - step-02-brownfield-analysis
-  - step-03-core-model
-  - step-04-boundaries
-  - step-05-migration
-  - step-06-regression
+  - 1
+  - 2
+  - 3
+  - 4
+  - 5
+  - 6
+  - 7
+  - 8
 inputDocuments:
-  - _bmad-output/planning-artifacts/prd.md
-  - _bmad-output/planning-artifacts/archive/2026-03-multi-flow-score/prd.md
-  - docs/architecture.md
-  - docs/data-models.md
-  - docs/development-guide.md
-  - docs/project-context.md
-  - _bmad-output/implementation-artifacts/archive/2026-03-multi-flow-score/tech-spec-compound-meter-written-duration-and-beaming-support.md
-  - _bmad-output/implementation-artifacts/archive/2026-03-multi-flow-score/notation-edge-cases-written-durations.md
-  - src-tauri/src/score/components/duration.rs
-  - src-tauri/src/score/entries/mod.rs
-  - src-tauri/src/score/entries/tone.rs
-  - src-tauri/src/score/entries/time_signature.rs
-  - src-tauri/src/score/entries/tempo.rs
-  - src-tauri/src/score/tracks.rs
-  - src-tauri/src/files.rs
-  - src-tauri/src/soloc.rs
-  - src-tauri/src/playback/transport.rs
-  - src-tauri/src/ui/sequencer.rs
-  - src-tauri/src/instructions/parse/get_written_durations.rs
-  - src-tauri/src/instructions/parse/get_beams.rs
-  - src-tauri/src/instructions/parse/get_horizontal_spacing.rs
+  - "_bmad-output/planning-artifacts/prd.md"
+  - "_bmad-output/planning-artifacts/epics.md"
+  - "_bmad-output/planning-artifacts/ux-design-specification.md"
+  - "_bmad-output/planning-artifacts/sprint-change-proposal-2026-03-24.md"
+  - "docs/index.md"
+  - "docs/project-context.md"
+  - "_bmad-output/implementation-artifacts/epic-3-retro-2026-03-24.md"
 workflowType: "architecture"
+lastStep: 8
+status: "complete"
+completedAt: "2026-03-24"
 project_name: "compose"
 user_name: "Aled"
-date: "2026-03-12"
-status: "draft"
-classification:
-  projectType: desktop_app
-  domain: music_notation
-  complexity: high
-  projectContext: brownfield
-lastEdited: "2026-03-12"
+date: "2026-03-24"
 ---
 
-# Architecture Decision Document - Foundational Tuplet Support
+# Architecture Decision Document
 
-`_bmad-output/planning-artifacts/prd.md` is the active requirements source for this document. `_bmad-output/planning-artifacts/archive/2026-03-multi-flow-score/prd.md` remains completed background context only.
+_This document builds collaboratively through step-by-step discovery. Sections are appended as we work through each architectural decision together._
 
-## Executive Summary
+## Project Context Analysis
 
-The recommended architecture for foundational tuplet support uses a track-local container model.
+### Requirements Overview
 
-A tuplet is a first-class entry on an instrument track that consumes a host-track span and contains a local child track-like event stream. Child content keeps normal written values. The tuplet wrapper retains the musical context that makes those written values meaningful inside warped time:
+**Functional Requirements:**
+The loaded planning set defines 41 functional requirements, 14 explicit non-functional requirements, and 18 UX design requirements for a macOS-first VST3 playback initiative inside an existing desktop notation product. Architecturally, the work breaks into several capability groups: plugin discovery and inventory, rack-slot-route state, plugin lifecycle and editor hosting, score-to-playback translation, transport behavior, mixer control, persistence and recovery, expression-map realism, and release validation.
 
-- consumed host duration
-- local printed duration
-- base written unit
-- grouping metadata
+The core functional demand is not merely "play sound through plugins." The real product requirement is a trustworthy score-first playback workflow that stays inside Compose and lets users compose against playback rather than treat it as a fragile preview mode. This means the architecture must support fast routing, audible playback, transport trust, recovery from missing plugins, and eventual score-linked realism without turning the product into a DAW-shaped control surface.
 
-This preserves the current Compose mental model of tracks as streams of events, keeps Rust as the source of truth, avoids frontend-owned rhythmic state, and limits exact fractional math to projection seams instead of forcing every persisted note in the score to adopt a new global duration primitive.
+The project context also includes a now-completed course correction. The original forward plan paused before Epic 4, then the team used Stories 1.3 through 1.6 plus the routed-workflow hardening in Epics 2 and 3 to stabilize the single-instrument VST foundation, slot-owned runtime sessions, score-context routing, and same-session behavior. A minor follow-up correction was needed to fully solidify that path, but the trust-restoration gate and required maintainer proof are now satisfied. The architecture can therefore treat Epic 4 as the resumed next execution phase rather than as a still-blocked target.
 
-## Brownfield Problem Statement
+This introduces an important architectural fact: the current epic breakdown must describe the corrected sequence explicitly. The course correction no longer represents a pending insertion before first audible playback; it is the completed bridge that made Epic 4 viable. The architecture therefore has to preserve that history clearly enough that future planning does not regress into the abandoned pre-correction narrative.
 
-Compose currently assumes one flat tick space with `32 ticks per quarter` and uses that same timing lattice for:
+**Non-Functional Requirements:**
+The strongest non-functional requirements are lock-free audio-thread behavior, zero-dropout representative transport regressions, coherent repeated play/pause/resume/seek behavior, bounded edit-during-playback behavior, and resilient reopen or recovery semantics. These are hard architectural constraints, not implementation polish. They directly constrain ownership, concurrency, scheduler design, communication patterns, and state modeling.
 
-- persisted tone positions and durations
-- parser derivation of written durations
-- spacing calculations
-- hit-testing references
-- playback stepping
+Reliability and recoverability are equally strong. The system must preserve score continuity when plugins are missing, degrade safely to explicit recoverable unrouted states, and restore valid routes when plugins are available. Because `.soloc` files must remain portable and machine-local plugin discovery must remain outside project files, persistence boundaries are central to the architecture.
 
-That is sufficient for binary notation and unsafe for exact triplets. Foundational tuplet support must solve exact musical timing without turning tuplets into visual decoration or approximate playback hacks.
+A further non-functional requirement emerges from the course-correction material: deletion discipline. Once VST-owned seams replace sampler-era or SCVI-era behavior, those obsolete product paths must not remain as tolerated parallel ownership. The architecture has to treat legacy seam preservation as a defect, not as acceptable scaffolding, except where a bounded temporary bridge is explicitly approved.
 
-The agreed direction is to keep the underlying data model tick-based while introducing a clean tuplet-span structure that expresses tuplets as bounded local metric containers inside a host track while still owning child tone entries.
+UX also creates non-functional pressure. Score-context playback surfaces must remain compact and direct, while app-scoped inventories and deep editors belong in dedicated windows. This is not just a design preference; it is an architectural boundary that determines which layer owns route state, plugin inventory, expression-map assets, and native editor-host interactions.
 
-## Agreed Model Invariants
+**Scale & Complexity:**
+This is a high-complexity brownfield desktop architecture effort.
 
-These are the core rules the architecture now depends on.
+- Primary domain: native desktop notation and playback tooling
+- Complexity level: high
+- Estimated architectural components: 9 to 11 major decision areas
 
-## Non-Negotiable Rules
+The complexity comes from having to satisfy several hard constraints at once: native VST3 hosting on macOS, realtime-safe playback, transport trust, score-semantic translation, local persistence and recovery, compact score-first UX, and explicit deletion of obsolete playback seams during a live foundation reset.
 
-- One tone is always represented by exactly one stored event.
-- A tone is owned by where it starts.
-- If a tone starts inside a tuplet span, it is stored in that tuplet's child `entries`.
-- If a tone starts outside a tuplet span, it is stored on the host track, even if it extends into the tuplet.
-- A host-track tone may not start at a tick already occupied by a tuplet span.
-- Crossing a tuplet boundary never by itself forces a storage split.
-- Boundary splits are introduced only by notation, rendering, or playback derivation.
-- If a tone's start position moves across the tuplet boundary, ownership moves with that start position, but the tone still remains one stored event.
+### Technical Constraints & Dependencies
 
-## Ownership Decision Table
+The existing product foundation is fixed: Tauri 2 desktop shell, Rust-owned state and runtime logic, React and TypeScript UI, and native score rendering via Skia and Metal. The architecture must extend this brownfield shape rather than reinitialize or replatform it.
 
-| Case                                               | Where tone starts                          | Where it is stored                                                  | What derivation does                                                                |
-| -------------------------------------------------- | ------------------------------------------ | ------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| Tone fully outside tuplet                          | Host track                                 | Host track                                                          | Draws normally; no tuplet split needed                                              |
-| Tone starts outside and extends into tuplet        | Host track                                 | Host track                                                          | Splits only in derived notation/playback at the tuplet boundary                     |
-| Tone starts inside tuplet and stays inside         | Tuplet child `entries`                     | Tuplet child `entries`                                              | Draws normally inside the tuplet                                                    |
-| Tone starts inside tuplet and extends out          | Tuplet child `entries`                     | Tuplet child `entries`                                              | Splits only in derived notation/playback at the tuplet boundary                     |
-| Tone start is moved across the boundary by editing | Whichever side now owns the new start tick | Ownership changes to the new start side, but still one stored event | Derivation follows the new ownership and still introduces any needed boundary split |
+The approved reset direction tightens several constraints. The active playback path must become truly VST-owned, not VST-shaped on top of sampler-era or SCVI-era compatibility residue. `SamplerContext`, `soloc://state/sampler`, and related sampler-era action seams are legacy seams and must not remain accepted owners for the supported product path once VST replacements exist.
 
-Plain-language summary:
+Platform scope remains intentionally narrow: macOS only, VST3 only, offline-first, local desktop persistence, local plugin discovery, and local editor hosting. This is useful simplification and should not be abstracted away prematurely.
 
-- Start position decides ownership.
-- Duration crossing a tuplet boundary leaves ownership unchanged.
-- Drawing and scheduling introduce boundary-aware fragments from a single stored tone.
+Another key dependency is planning integrity. The PRD and UX documents are still usable inputs, but they now sit alongside a retrospective and approved change proposal that record how the foundation was stabilized before Epic 4 resumed. The architecture therefore depends on keeping that corrected sequencing explicit enough that future stories do not drift back into evolutionary compatibility language, obsolete blocker wording, or acceptance-criteria-driven UI bloat.
 
-### 1. Tuplet Governs A Host-Track Window As A Container
+### Cross-Cutting Concerns Identified
 
-A tuplet is a first-class container entry that marks a host-time window and owns child content inside that window. Host ticks keep their ordinary global meaning throughout the track, including inside the tuplet span.
+The leading cross-cutting concern is authoritative playback ownership. Rust must remain the sole owner of plugin inventory truth, rack and slot state, route state, playback-preparation state, transport state, and persisted playback-domain truth. React can present and trigger, but it cannot become a second topology or playback owner.
 
-Implications:
+The next concern is deletion of obsolete seams. The architecture must prevent sampler-era or SCVI-era product-path behavior from lingering as quiet fallback or parallel ownership once VST-owned seams exist. This is now a first-class architectural rule.
 
-- A tuplet entry governs a host-track time interval.
-- Host ticks retain the same meaning inside and outside the tuplet, and the track keeps one global length model.
-- Tuplets contain child tone entries for tones whose start position lies inside the governed interval.
-- Ordinary same-track note entry may not start on the host track at a tick occupied by a tuplet span; if the tone starts there, it must be created in the tuplet child frame.
-- Notes may extend into or out of the interval, with boundary splitting and tie continuity handled the same way tones are split across barlines.
-- Creating a tuplet over existing material establishes the tuplet span first; ownership of every tone entry is then determined by the tick where that tone starts, while any needed boundary split is deferred to derivation.
+Realtime safety and transport trust are the next major concerns. The playback system must protect the audio path from locks, event chatter, and UI-driven state noise while supporting coherent play, pause, resume, seek, and bounded editing behavior. Any architecture that achieves sound generation but not dependable navigation still fails the product.
 
-### 1a. Storage Rule For Boundary-Crossing Tones
+A fourth concern is score-context versus app-scoped UX ownership. Routing, readiness, and recovery belong in score-context surfaces. Plugin inventory, expression-map libraries, and deep editing belong in app-scoped windows. The architecture must preserve that split so the product stays direct instead of sprawling.
 
-This rule should be explicit because it is easy to describe imprecisely.
+A fifth concern is persistence and recovery. `.soloc` must store portable project intent, not machine-local inventory state. Reopen behavior must resolve saved intent against current local inventory and degrade to explicit recoverable states when restoration fails.
 
-- Each tone is represented by exactly one stored event.
-- A tone is owned by the context where it starts.
-- If a tone starts inside the tuplet, it belongs in the tuplet child `entries`, even if its duration extends out of the tuplet.
-- If a tone starts outside the tuplet, it remains a host-track tone, even if its duration extends into the tuplet.
-- Crossing the tuplet boundary never by itself forces a storage split.
-- The split is introduced only when notation, rendering, or playback derives boundary-aware fragments from that persisted tone.
+Finally, validation is cross-cutting. Representative plugin compatibility, transport-trust scenarios, and trust-restoration gates must be architected as explicit seams. The product is blocked precisely because seam-local checks alone were not enough to establish trust, so the architecture has to support stronger evidence than "this slice passed its local tests."
 
-This keeps the track model simple while still allowing the score and transport to respect the tuplet boundary musically.
+## Starter Template Evaluation
 
-### 2. Tuplet Containers Behave Like Local Metric Frames
+### Primary Technology Domain
 
-The tuplet container should feel like a small local metric frame for derivation purposes:
+Desktop application within an existing brownfield codebase.
 
-- it has a local tick space
-- it has a local printed length
-- it stores child tone entries in a track-like event stream
-- it defines local grouping rules over that child content
-- rests remain derived from absence of tones inside the governed local slots
+Compose already runs on the intended foundation: Tauri 2 desktop shell, Rust-owned backend and runtime logic, React and TypeScript UI, Vite frontend build, and native score rendering via Skia and Metal. The project is not selecting a new starter template. It is resetting architecture around a cleaner VST-only playback foundation inside the current repository.
 
-This keeps the model familiar while still letting tuplets own the notes that musically belong inside them.
+### Starter Evaluation Outcome
 
-### 3. Written Values Stay Written Values
+Starter-template selection is not an active architecture decision for this workflow.
 
-A note value follows the same literal tick-to-written-duration mapping on both sides of a tuplet boundary.
+The relevant architectural decision is to preserve the current Tauri + Rust + React + TypeScript + Vite foundation and explicitly avoid reinitialization, replatforming, or starter-driven churn during the playback reset.
 
-Examples:
+### Canonical Foundation
 
-- a written eighth inside a triplet remains a written eighth
-- a written quarter inside a triplet remains a written quarter
+The current canonical base remains:
 
-Literal mapping rule:
+- Tauri 2 for desktop shell and windowing
+- Rust for backend ownership, runtime logic, persistence, and performance-sensitive playback behavior
+- React 19 and TypeScript 5.9 for the frontend display and control layer
+- Vite 7 for frontend development and build workflow
+- Tailwind-based existing Compose design system for UI styling
 
-- `16` ticks is always an eighth-note worth of written duration
-- `32` ticks is always a quarter-note worth of written duration
-- the tuplet changes how those ticks project through musical time, not how those tick counts map to written note values
+### Reference-Only Initialization Equivalents
 
-Refinement:
+If this architecture ever needed to be described in scaffold terms, the closest official equivalent would still be the Tauri React + TypeScript path, either through `create-tauri-app` or through manual Vite + Tauri CLI setup.
 
-- existing written values are preserved unchanged when structurally valid inside the child frame
-- if a note crosses a tuplet boundary, it must still be split at that boundary
-- the in-tuplet segment is represented as normal notation inside the child frame and the out-of-tuplet segment remains in its owning context
+Those commands are reference-only and must not be treated as implementation work for this project.
 
-This preserves both simplicity and musical correctness.
+### Architectural Implication
 
-### 4. Tuplet Must Retain Musical Context Explicitly
+The reset effort must focus on foundation cleanup, ownership clarification, and deletion of obsolete playback seams inside the existing codebase.
 
-Tuplets retain musical intent and provide the local metric context needed for derivation.
+Project initialization is not an implementation story.
+Starter choice is not an open decision.
+The architecture should treat the current foundation as fixed and spend decision-making effort on playback ownership, persistence boundaries, runtime safety, and seam deletion instead.
 
-The wrapper must retain enough information to answer:
+## Core Architectural Decisions
 
-- what span it consumes in host time
-- what printed span it represents locally
-- what the base written unit is
-- how the local grouping should behave
+### Decision Priority Analysis
 
-### 5. `tone_id` Remains Authoritative For Tones
-
-Tone selection and mutation authority remains tone-id based. Local tick and other nested location data are lookup aids, not identity.
-
-### 6. Host-Level Directives Stay Out Of MVP Tuplet Spans
-
-For MVP:
-
-- tempo, clef, key-signature, and time-signature entries remain host-level concerns
-- host-level directive support at inner tuplet positions is deferred
-- this is a refinement problem for later work, not a model-breaking flaw
-
-### 7. Barlines Are Parse-Time Structure, Not Storage Structure
-
-Tracks remain event streams. Cross-barline tuplets are therefore not a storage-model contradiction. They are a future parse and notation problem.
-
-## Recommended Persisted Data Model
-
-## Tuplet As A New Track Entry Variant
-
-Add a new persisted entry variant on instrument tracks:
-
-```rust
-Entry::Tuplet(Tuplet)
-```
-
-Recommended persisted shape:
-
-```rust
-pub struct Tuplet {
-    pub id: UniqueId,
-    pub tick: Tick,
-    pub consumed_ticks: Ticks,
-    pub local_length_ticks: Ticks,
-    pub base_note_value: NoteDuration,
-    pub groupings: Vec<u8>,
-  pub entries: Entries,
-}
-```
-
-Where:
-
-- `tick` is the host-track start position
-- `consumed_ticks` is the host-track duration the tuplet governs as a local rhythmic window
-- `local_length_ticks` is the printed local duration inside that tuplet frame
-- `base_note_value` retains the musical unit the tuplet is built from
-- `groupings` expresses the local metric grouping, with sensible defaults
-- `entries` stores the child tone stream for tones whose start position lies inside the tuplet span
-
-Authoritative note entries remain in their owning context: host track for tones that start outside tuplets and child `entries` for tones that start inside tuplets. A tone may cross a tuplet boundary without being storage-split. The tuplet entry supplies the local rhythmic context used when preparing note entry, deriving notation fragments, hit targets, ties, and playback timing.
-
-### Example: Eighth-Note Triplet
-
-For an eighth-note triplet in the time of two eighths:
-
-- `tick = 32` if it starts on beat 2 in `2/4`
-- `consumed_ticks = 32`
-- `local_length_ticks = 48`
-- `base_note_value = Eighth`
-- `groupings = [3]`
-
-This means the tuplet frame contains `48` local ticks of printed notation that map into `32` host ticks of performed time.
-
-## Why This Model Fits Compose
-
-This model preserves several existing Compose strengths:
-
-- tracks remain streams of entries
-- rests remain derived from absence of tones
-- notation stays derived from musical structure
-- score truth remains backend-owned
-- tuplets become first-class structural entries rather than renderer annotations
-
-It also avoids a repo-wide rewrite of all persisted note timing into global rational durations.
-
-## Child Track Shape
-
-The child should mirror the current track mental model closely enough that parser logic can recurse into it without needing a totally separate notation worldview.
-
-Recommended MVP child-content scope:
-
-- tones
-- anything naturally attached to tones such as articulations through the tone itself
-
-Deferred from MVP child content:
-
-- clefs
-- key signatures
-- tempo entries
-- time signatures
-
-For MVP, tuplet-owned child content is intentionally single-level: nested `Tuplet` entries are not part of the supported structure. This keeps MVP simple and removes avoidable defensive branching from note-entry, parsing, and validation work.
-
-## Projection Model
-
-Tuplets do not remove fractional calculations completely. They localize them.
-
-Inside the child:
-
-- all timing is ordinary local tick timing
-- parser logic can think in written values and local spacing
-
-At the boundary:
-
-- child local positions are projected into consumed host time
-
-Projection formula:
-
-$$
-projected\_host\_tick = tuplet.tick + local\_tick \times \frac{consumed\_ticks}{local\_length\_ticks}
-$$
-
-For the eighth-note triplet example:
-
-$$
-projected\_host\_tick = tuplet.tick + local\_tick \times \frac{32}{48} = tuplet.tick + local\_tick \times \frac{2}{3}
-$$
-
-This means the system stays tick-based in storage, but exact arithmetic is still required when flattening tuplet internals into host musical time for playback and certain parser decisions.
-
-## Creation And Reconciliation Rules
-
-## Tuplet Creation Adds A Container And Assigns Ownership By Start Position
-
-Creating a tuplet over existing same-track material adds the tuplet span and assigns storage ownership by tone start position.
-
-Agreed MVP behavior:
-
-- tuplets govern host-track material in their span
-- notes whose start position lies inside the tuplet are stored in the child frame
-- existing written values are preserved unchanged when possible
-- content beyond the tuplet span remains outside unchanged
-- new note entry inside the span prepares onsets and durations through the active tuplet multiplier, similar to how tempo context affects later projection without changing the musical intent of the prepared note
-- user-facing duration edits may pass across the tuplet boundary as one continuous drag gesture, with the system reconciling ownership under the hood
-
-Ownership rule for MVP:
-
-- each tone remains one stored event
-- the owning context is chosen by the tone's start position
-- derivation introduces any needed boundary-aware fragments
-
-### Cross-Boundary Notes
-
-If a note crosses the tuplet boundary, the authoritative persisted tone remains one continuous tone with one duration. The split happens when notation, rendering, or playback derives the tone through the tuplet boundary, preserving continuity through ties and projection.
-
-Agreed example:
-
-- in `2/4`, a half note beginning at bar start and a triplet created on beat 2
-- keep the tone persisted as one continuous host-track tone
-- derive one fragment before the tuplet and one fragment inside the tuplet when drawing or scheduling
-- let the remaining local tuplet space derive to rest(s)
-
-Symmetric rule:
-
-- if a tone starts inside the tuplet and extends outward, it remains one child entry inside the tuplet
-- derivation then creates the in-tuplet and out-of-tuplet fragments from that single child entry
-
-The parser, renderer, and playback projection perform the same kind of boundary-aware split Compose already uses around barlines and ties, with tuplet spans acting as another local metric boundary. A user can drag a tone duration across the tuplet area as one interaction while persisted storage remains one continuous tone.
-
-The important implementation consequence is:
-
-- track storage answers "what tone exists and how long is it?"
-- storage ownership answers "where does this tone start?"
-- derivation answers "how should that tone be shown or scheduled when it crosses a tuplet boundary?"
-
-### Derivation Rules
-
-- derivation preserves visible written values for any segment that already fits its owning context
-- derivation introduces splits at metric boundaries such as tuplet edges and barlines
-- boundary splitting changes which derived fragment belongs to which context
-- prepared written durations keep the same musical meaning inside and outside the tuplet
-- tuplet context changes projection through time, while tick counts keep the same written-duration mapping
-
-Concrete implication:
-
-- if a crossing tone leaves `16` ticks of remainder inside the tuplet, that remainder is drawn as an eighth
-
-Edit-time storage rule:
-
-- edit commit preserves one stored event per tone
-- ownership changes only when the tone's start position crosses the tuplet boundary
-
-## Sequencer UX Contract
-
-Tuplet creation is not complete at the container-creation seam alone. The backend and sequencer must together provide a deterministic handoff from popover confirmation into sequencer-local editing.
-
-Required sequencer contract for MVP:
-
-- confirming tuplet creation reveals the governed region immediately on the active track
-- the created tuplet container becomes the active selection on completion
-- the visible region stays bounded and legible before any child notes are entered
-- the region includes a centered `3:2` annotation, anchored to the governed span and allowed to remain sticky at the top of the sequencer viewport while that span is in view
-- the annotation must not rely on a solid occluding background that hides notes underneath it
-- the sequencer shows slightly compressed internal tick markers inside the governed span so tuplet-local slot structure is visible without changing the meaning of surrounding host ticks
-- empty local slots remain targetable and visually quieter than real notes, but they must not collapse away after creation or after deleting a child tone
-
-These are product obligations, not optional polish. They define how the tuplet container becomes actionable in the current sequencer-first workflow.
-
-## Focus, Feedback, And Accessibility Contract
-
-Rust remains authoritative for score truth and edit validation, but some tuplet UX requirements are intentionally frontend-local and ephemeral.
-
-Required interaction contract for MVP:
-
-- popover focus lands on the ratio field when the tuplet popover opens
-- the popover closes cleanly on accepted input, blur, or Escape
-- unsupported tuplet edits follow the product's existing rejection behavior and surface local inline feedback at the interaction point; MVP does not require a tuplet-specific global error flow
-- sequencer selection states for tuplet container, child note, and empty slot must remain distinguishable through boundary or placement treatment in addition to color so the active target is still understandable under accessibility tooling and reduced-color perception
-
-This keeps backend ownership intact while making the UX contract explicit enough that implementation does not drift into hidden focus jumps or color-only state communication.
-
-## Worked Example: `2/4` Half Note Crossing A Beat-2 Triplet
-
-This example pressure-tests the agreed model with a concrete case.
-
-### Musical Setup
-
-- bar context: `2/4`
-- host tick lattice: `32 ticks per quarter`
-- user creates an eighth-note triplet on beat 2
-- user intent includes a half note beginning at bar start
-
-The key agreed UX rule for this case is:
-
-- split at the tuplet boundary during derivation
-- preserve written values inside the tuplet when structurally valid
-- let the tuplet container context provide the musical meaning of the derived local content
-
-Related example:
-
-- if a quarter note is moved right by an eighth so only `16` ticks remain before the tuplet boundary and `16` ticks continue inside the tuplet
-- the derived notation should read as an eighth rest, then an eighth note tied to a triplet eighth note, then two triplet eighth rests
-- this follows the literal tick-mapping rule
-
-### State Before Tuplet Creation
-
-Host track entries:
+**Critical Decisions (Block Implementation):**
+
+- Rust remains the sole authoritative owner of plugin inventory truth, rack state, slot state, route state, playback-preparation state, transport state, and persisted playback-domain state.
+- The active playback product path must be truly VST-owned. Sampler-era and SCVI-era seams must not remain active product-path owners once equivalent VST seams exist.
+- `.soloc` persists portable project intent and playback references only; machine-local plugin discovery, validation, cache state, and live runtime host objects remain outside project files. The current reset foundation may persist a minimal portable slot-target restore blob when a plugin exposes transferable component state, but that payload is still intent for rebuilding a slot-owned runtime session rather than serialized live runtime ownership.
+- The playback runtime is split into a Rust control plane and a realtime-safe playback plane, with the audio path consuming precomputed, lock-safe state only.
+- Stable, trustable transport behavior is a hard architectural gate, not a later polish concern.
+- The score-context versus app-scoped UX boundary is architectural, not cosmetic: score-context surfaces own routing, readiness, and recovery relationships, while app-scoped windows own plugin inventory, reusable playback assets, and deep editors.
+- Reinitialization or replatforming is out of scope. The existing Tauri + Rust + React + TypeScript + Vite foundation remains canonical.
+
+**Important Decisions (Shape Architecture):**
+
+- No product-level authentication or cloud identity model is introduced for MVP.
+- VST3 plugins are treated as untrusted third-party code from a host-safety perspective.
+- Native plugin editor hosting remains a bounded backend-owned seam, secondary to Compose-owned playback UX.
+- Native editor attach, focus, resize, detach, and teardown are editor-host responsibilities, but that seam must not become the creator of canonical slot runtime state.
+- The current reset phase is intentionally single-instrument-VST-instance and single-target trust-first; richer multi-target or HALion-style multi-timbral workflows are explicitly deferred until the base path is trustworthy.
+- Validation and trust-restoration criteria must be explicit architectural seams, because seam-local tests alone are not enough to claim product trust.
+
+**Deferred Decisions (Post-MVP or Post-Reset):**
+
+- Broader plugin compatibility heuristics for problematic or partially compliant plugins
+- Richer multi-target routing and shared-slot sophistication
+- Expanded diagnostics polish and maintainability tooling
+- Broader expression-map sophistication beyond the first durable model
+- Any future platform expansion beyond macOS MVP
+
+### Data Architecture
+
+- Rust owns the canonical domain model for:
+  - plugin inventory truth
+  - rack, slot, target, address, and route state
+  - playback-preparation state
+  - transport state
+  - persisted playback-domain truth
+- `.soloc` stores portable score and playback rehydration intent for the current rack-first reset foundation, including any minimal restorable slot-target plugin state needed to rebuild the intended running instrument, but not machine-local discovery, cache, or live runtime state.
+- Slot-owned live plugin sessions are runtime-only backend objects keyed by slot identity and rebuilt from portable saved intent during assignment, preparation, or project load.
+- Machine-local plugin inventory, plugin validation results, editor-host validation results, and related environment-specific metadata live in app-local storage outside project files.
+- Missing or invalid plugin restoration degrades to explicit recoverable unrouted or attention-needed states instead of silent fallback.
+- Persisted-data changes continue to follow the existing migration discipline in `src-tauri/src/migrations/next.rs` until human release preparation promotes them.
+
+**Rationale:**
+This preserves file portability, prevents environment-specific corruption of project data, and keeps playback truth in one backend-owned domain instead of splitting it between project files, local cache, and frontend-derived state.
+
+### Authentication & Security
+
+- No product-level authentication is introduced.
+- No app-internal authorization layer is introduced beyond local desktop access.
+- Security focus is local-desktop integrity, host-safety boundaries, and persisted-data integrity.
+- VST3 plugins are treated as untrusted code:
+  - host failures must degrade predictably
+  - plugin/editor failures must not silently mutate project truth
+  - plugin-related instability must not become accepted transport behavior
+- Discovery remains limited to expected local VST3 locations and user-opened project data.
+
+**Rationale:**
+The real security problem in this product is not identity. It is safe local execution, host containment, and reliable persistence under third-party plugin behavior.
+
+### API & Communication Patterns
+
+- Internal FE/BE mutations remain command-oriented through typed Tauri command boundaries.
+- Shared FE/BE payloads keep snake_case field names aligned with Rust-owned models.
+- React does not own a second playback topology model, route model, or transport model.
+- Playback-critical runtime state avoids event-heavy chatter; snapshot, polling, or other lock-safe state-consumption paths remain preferred where required by the transport model.
+- MCP and automation surfaces must reuse the same backend-owned seams rather than creating parallel logic.
+- Error handling is standardized around backend-owned categories such as:
+  - recoverable routing issues
+  - missing or unavailable plugins
+  - plugin host/editor failures
+  - persistence and migration validation failures
+  - transport/runtime trust failures
+
+**Rationale:**
+The system already suffers from ambiguity when ownership drifts. These communication rules keep truth concentrated in Rust and reduce the risk of frontend drift or automation-only shortcuts.
+
+### Frontend Architecture
+
+- React remains a thin display and control layer.
+- Local frontend state is limited to transient presentation concerns such as open/closed state, hover, draft input, and window-local affordances.
+- Score-context surfaces own:
+  - route visibility
+  - readiness summary
+  - contextual recovery
+  - contextual handoff into deeper windows
+- App-scoped windows own:
+  - plugin inventory management
+  - reusable expression-map assets
+  - deep editing workflows
+- Native plugin UI is a secondary handoff surface, not the primary home of Compose-owned playback semantics.
+- Compact user-facing readiness states remain presentation summaries over deeper backend truth, not replacements for it.
+- UI added solely to prove acceptance criteria separately is an architectural anti-pattern unless it creates real product value.
+
+**Rationale:**
+The user’s main complaint was not lack of controls. It was too much literalized UI growing around the wrong seams. These decisions keep the product direct and reduce the chance of future AC-driven bloat.
+
+### Infrastructure & Deployment
+
+- The app remains a local macOS desktop product delivered through the existing Tauri packaging and release process.
+- There is no hosted backend or cloud runtime in MVP.
+- CI and validation focus on:
+  - build integrity
+  - lint and type checks
+  - Rust quality gates
+  - persistence and migration safety
+  - playback/trust regression evidence
+- Release actions remain human-controlled.
+- Diagnostics and observability focus on:
+  - plugin discovery and validation
+  - route resolution
+  - transport behavior
+  - editor-host lifecycle
+  - persistence and reopen recovery
+- Trust-restoration verification for the reset phase must be explicit and product-facing, not only seam-local.
+
+**Rationale:**
+This keeps operations aligned with the actual product shape: a local desktop tool whose success depends on playback credibility, not service deployment complexity.
+
+### Decision Impact Analysis
+
+**Implementation Sequence:**
+
+1. Preserve the existing desktop foundation and avoid replatforming or starter churn.
+2. Remove or disconnect obsolete sampler-era and SCVI-era product-path ownership.
+3. Formalize the VST-owned data model for inventory, rack, slot, route, and recovery state.
+4. Reassert the control-plane versus realtime-playback-plane split.
+5. Keep frontend surfaces aligned to score-context versus app-scoped ownership rules.
+6. Define trust-restoration and validation seams before resuming first-audible-playback work.
+
+**Cross-Component Dependencies:**
+
+- Data architecture constrains persistence, reopen recovery, and route UX.
+- Communication patterns depend on Rust remaining the sole playback-domain owner.
+- Frontend architecture depends on the data model and score-context versus app-scoped split being explicit.
+- Security and host-safety rules depend on bounded plugin/editor ownership and predictable failure handling.
+- Validation architecture depends on all of the above being explicit enough to test as product behavior rather than only as local implementation slices.
+
+## Implementation Patterns & Consistency Rules
+
+### Pattern Categories Defined
+
+**Critical Conflict Points Identified:**
+The highest-risk conflict areas are:
+
+- state ownership boundaries between Rust, persisted project data, machine-local app state, and React UI state
+- naming consistency across Rust structs, TypeScript mirrors, Tauri commands, and automation-facing seams
+- placement of playback, plugin-host, transport, persistence, and recovery logic
+- degraded-state and failure-handling behavior for missing plugins, host issues, and transport-trust failures
+- score-context versus app-scoped UI ownership
+- validation and diagnostics patterns for trust-restoration work
+- deletion discipline for obsolete sampler-era or SCVI-era seams
+
+### Naming Patterns
+
+**Shared Model Naming Conventions:**
+
+- Any model crossing the Rust ↔ TypeScript boundary uses `snake_case` field names.
+- Persisted `.soloc` payload fields must match Rust-owned field names directly.
+- TypeScript mirrors of persisted or command-bound structures must preserve Rust names exactly.
+- Tauri commands remain `snake_case`.
+
+**Examples:**
+
+- `flow_id`, `track_id`, `slot_id`, `route_id`, `plugin_id`
+- `transport_get_state`
+- `plugin_inventory_rescan_full`
+
+**Code Naming Conventions:**
+
+- Rust files and functions follow existing Rust conventions.
+- TypeScript and TSX filenames remain kebab-case.
+- React component exports remain PascalCase.
+- Do not introduce a playback-specific naming dialect that differs from the rest of the repo.
+
+**Examples:**
+
+- file: `plugin-manager-window.tsx`
+- component: `PluginManagerWindow`
+- Rust file: `transport.rs`
+- Rust function: `resolve_route_state`
+
+**Domain Naming Rules:**
+
+- Use `rack` for the score-context playback container.
+- Use `slot` for one hosted plugin instance in that rack.
+- Treat the slot as the authoritative owner of one live initialized plugin session keyed by slot identity, not merely as an inventory reference or readiness token.
+- Use `route` for the relationship from score instrument to playback destination.
+- Use `target` for the product-facing playback destination.
+- Use `address` only for engine-level or plugin-level addressing payloads.
+- Use `inventory` for machine-local discovered plugin availability.
+- Use `recovery` for reopen and re-resolution behavior against current local inventory.
+- Use `unrouted`, `needs_attention`, and `unavailable` as presentation summaries over deeper backend truth.
+- Native plugin editor windows attach to and detach from slot-owned sessions; they do not create or destroy the canonical runtime instance.
+- Do not reuse sampler-era or SCVI-era terms for VST-owned seams.
+
+### Structure Patterns
+
+**Project Organization:**
+
+- Rust owns:
+  - plugin inventory truth
+  - rack/slot/route domain logic
+  - playback preparation
+  - transport behavior
+  - persistence and migration logic
+  - host/editor lifecycle
+- React owns:
+  - display
+  - contextual controls
+  - window surfaces
+  - transient UI state only
+- Native-rendered score behavior remains backend-owned.
+- Do not place new playback-domain truth in React contexts or frontend utility folders.
+
+**Placement Rules:**
+
+- Persisted score/playback-domain logic belongs in backend score/files/migrations seams.
+- Playback runtime logic belongs under `src-tauri/src/playback/`.
+- FE→BE mutation entry points remain in `src/services/actions.ts`.
+- Rust-aligned TypeScript mirrors remain in `src/services/types.ts`.
+- Score-context playback UI belongs in score-owned surfaces.
+- App-scoped inventory and deep-editor UI belongs in dedicated windows.
+- Do not solve architectural uncertainty by adding parallel adapter layers in both frontend and backend.
+
+**Tests and Validation Placement:**
+
+- Keep regression coverage close to the owning seam.
+- Persistence regressions live near load/save and migration seams.
+- Playback regressions live near playback and transport seams.
+- UI-only behavior lives in frontend tests when that test surface exists.
+- Trust-restoration validation may span seams, but should still reuse local owning seams rather than invent a parallel framework.
+
+### Format Patterns
+
+**Persistence Format Rules:**
+
+- `.soloc` stores portable project intent and playback references only.
+- Machine-local discovery, validation, cache state, and environment-specific metadata must remain outside `.soloc`.
+- Persisted playback failure or restoration state should preserve user intent, not overwrite it with guessed replacements.
+
+**Error Format Rules:**
+
+- Backend-owned error categories should distinguish:
+  - recoverable routing issues
+  - missing/unavailable plugins
+  - host/editor failures
+  - persistence or migration validation failures
+  - transport/runtime trust failures
+- UI may summarize those categories, but must not invent a second incompatible taxonomy.
+
+**Diagnostic Format Rules:**
+
+- Diagnostics intended for maintainers or tooling should use structured backend-owned payloads, not ad hoc string logging alone.
+- Reset or cleared states should be represented explicitly with null-safe structured payloads rather than frontend fallback invention.
+- Trust-restoration checks must record product-facing outcomes, not only local implementation pass/fail states.
+
+### Communication Patterns
+
+**Frontend ↔ Backend Communication Rules:**
+
+- All authoritative mutations go through backend-owned command seams.
+- Frontend must not derive or cache a second source of route, transport, or playback truth.
+- Playback-critical runtime state avoids high-frequency event chatter.
+- Use polling, snapshots, or other lock-safe state-consumption paths where the transport model requires them.
+
+**Automation/MCP Rules:**
+
+- Automation must reuse the same backend seams as the product UI whenever practical.
+- Do not create an automation-only playback domain path.
+- Tool-facing adapters may reshape parameters, but domain logic remains shared.
+
+**State Ownership Rules:**
+
+- Rust owns:
+  - plugin inventory truth
+  - rack/slot/route truth
+  - playback-preparation truth
+  - transport truth
+  - persisted playback-domain truth
+- machine-local app storage owns:
+  - discovery cache
+  - validation cache
+  - environment-specific inventory metadata
+- React local state owns:
+  - transient presentation state
+  - panel/window affordance state
+  - draft inputs that are not domain truth
+
+### Process Patterns
+
+**Error Handling Patterns:**
+
+- Missing plugins degrade to explicit recoverable unrouted or attention-needed states.
+- Host/editor failure must not silently rewrite playback intent.
+- Transport-trust failures are architectural defects, not ordinary UI warnings.
+- When a VST-owned seam exists, legacy sampler-era or SCVI-era fallback must be removed or disconnected rather than quietly preserved.
+
+**Loading and Recovery Patterns:**
+
+- Reopen resolves persisted playback intent against current machine-local inventory.
+- If resolution fails, preserve user intent and expose recoverable unresolved state.
+- Never silently remap to a different plugin unless an explicit product rule authorizes it.
+- Same-session activation behavior and cross-session reopen behavior remain separate concerns and should not be conflated.
+
+**UI Scope Patterns:**
+
+- Score-context surfaces explain relationships, readiness, and next actions.
+- App-scoped windows own reusable inventories, assets, and deep editing.
+- Do not add extra controls purely to make acceptance criteria separately visible.
+- If one compact control expresses the useful product action, prefer it over multi-control proof surfaces.
+
+**Deletion Patterns:**
+
+- When replacing sampler-era or SCVI-era behavior, agents must remove or disconnect obsolete product-path ownership.
+- Temporary bridging is allowed only when explicitly approved and must be named as temporary.
+- Legacy seams must not be preserved as hidden compatibility residue after the replacement seam is accepted.
+
+### Enforcement Guidelines
+
+**All AI Agents MUST:**
+
+- preserve Rust as the sole playback-domain owner
+- keep `.soloc` portable and machine-local discovery state separate
+- avoid introducing frontend-owned parallel playback truth
+- follow existing snake_case shared-model conventions
+- preserve score-context versus app-scoped UI boundaries
+- keep validation near the owning seam
+- treat stable transport and trust-restoration as release-gating architecture concerns
+- delete or disconnect obsolete legacy playback paths once a VST-owned replacement exists
+
+**Pattern Enforcement:**
+
+- Review persisted-field additions against migration rules and portable-data boundaries.
+- Review new frontend state against ownership rules before accepting it as domain state.
+- Review new playback and transport logic for event chatter, lock-safety violations, and fallback ambiguity.
+- Treat any parallel truth between Rust and React as an architectural defect unless explicitly justified.
+
+### Pattern Examples
+
+**Good Examples:**
+
+- Persisting route and slot references in `.soloc` while keeping plugin discovery cache outside the file
+- Using one backend command to mutate route state and returning updated Rust-owned state to the UI
+- Showing `Ready`, `Needs Attention`, or `Unavailable` in the UI while preserving richer backend reason codes
+- Opening Plugin Manager for app-scoped inventory work while keeping rerouting entry points inside score-context surfaces
+- Removing legacy sampler-owned runtime wiring once the equivalent VST-owned seam is established
+
+**Anti-Patterns:**
+
+- storing machine-local plugin discovery or host validation cache inside project files
+- adding React-owned copies of rack, route, or transport truth
+- using sampler-era names or contracts for new VST-owned seams
+- silently falling back to legacy SCVI or sampler logic when a VST path fails
+- adding explanatory UI panels or multiple overlapping controls just to prove acceptance criteria
+- inventing automation-only domain seams that bypass product logic
+
+## Project Structure & Boundaries
+
+### Complete Project Directory Structure
 
 ```text
-Tone 101
-- tick: 0
-- duration: 64
-- meaning: written half note from bar start
+compose/
+├── package.json
+├── vite.config.ts
+├── eslint.config.js
+├── postcss.config.js
+├── tsconfig.json
+├── tsconfig.node.json
+├── styles.css
+├── README.md
+├── TESTING.md
+├── releases.md
+├── docs/
+│   ├── index.md
+│   ├── architecture.md
+│   ├── component-inventory.md
+│   ├── data-models.md
+│   ├── development-guide.md
+│   ├── performance-baselines.md
+│   ├── project-context.md
+│   ├── project-overview.md
+│   ├── project-scan-report.json
+│   └── source-tree-analysis.md
+├── src/
+│   ├── __mocks__/
+│   ├── assets/
+│   ├── components/                 # shared app-level React components
+│   ├── instruments/
+│   ├── services/
+│   │   ├── actions.ts              # FE→BE command seam
+│   │   ├── types.ts                # Rust-aligned TS model mirrors
+│   │   ├── state/                  # provider/context layer over Rust-owned state
+│   │   ├── test-utils.tsx
+│   │   └── *.test.ts(x)            # seam-local frontend tests
+│   ├── ui/                         # low-level reusable UI primitives
+│   ├── utils/
+│   ├── windows/
+│   │   ├── main/
+│   │   │   ├── boot.tsx
+│   │   │   ├── index.tsx
+│   │   │   ├── components/
+│   │   │   ├── hooks/
+│   │   │   ├── screens/
+│   │   │   │   ├── setup/
+│   │   │   │   ├── write/
+│   │   │   │   └── sequence/
+│   │   │   └── utils/
+│   │   ├── debugger/
+│   │   ├── instrument-picker/
+│   │   ├── layout-settings/
+│   │   ├── player-settings/
+│   │   ├── plugin-host-poc/
+│   │   ├── plugin-manager/
+│   │   ├── plugin-settings/
+│   │   ├── preferences/
+│   │   └── project-settings/
+│   ├── test-setup.ts
+│   └── vite-env.d.ts
+├── src-tauri/
+│   ├── Cargo.toml
+│   ├── build.rs
+│   ├── tauri.conf.json
+│   └── src/
+│       ├── main.rs
+│       ├── lib.rs                  # app wiring and managed state
+│       ├── files.rs                # load/save/open seams
+│       ├── soloc.rs
+│       ├── preferences.rs
+│       ├── utils.rs
+│       ├── automation/
+│       ├── bin/
+│       ├── instructions/
+│       │   ├── draw/
+│       │   ├── parse/
+│       │   ├── render_plan.rs
+│       │   └── mod.rs
+│       ├── migrations/
+│       │   ├── next.rs
+│       │   └── versioned migrations
+│       ├── playback/
+│       │   ├── audio.rs
+│       │   ├── mixer.rs
+│       │   ├── plugin_editor_poc.rs
+│       │   ├── plugin_host_compatibility.rs
+│       │   ├── plugin_inventory.rs
+│       │   ├── runtime_activation.rs
+│       │   ├── sampler.rs
+│       │   ├── scvi.rs
+│       │   ├── streamer.rs
+│       │   ├── transport.rs
+│       │   ├── tuplet_projection.rs
+│       │   ├── vst3.rs
+│       │   └── mod.rs
+│       ├── renderer/
+│       │   ├── backend.rs
+│       │   ├── backends/
+│       │   ├── converter.rs
+│       │   ├── fonts.rs
+│       │   ├── hit_test.rs
+│       │   ├── text_measurer.rs
+│       │   └── mod.rs
+│       ├── score/
+│       │   ├── components/
+│       │   ├── entries/
+│       │   ├── instruments/
+│       │   ├── config.rs
+│       │   ├── engraves.rs
+│       │   ├── flows.rs
+│       │   ├── layouts.rs
+│       │   ├── meta.rs
+│       │   ├── playback.rs
+│       │   ├── players.rs
+│       │   ├── staves.rs
+│       │   ├── tracks.rs
+│       │   └── mod.rs
+│       └── ui/
+├── tests/                          # currently empty; no separate global test tree in active use
+└── _bmad-output/
+    ├── planning-artifacts/
+    └── implementation-artifacts/
 ```
 
-At this point there is no tuplet entry. The track is a normal flat event stream.
+### Architectural Boundaries
+
+**Runtime and Domain Boundaries:**
+
+- `src-tauri/src/score/` is the canonical persisted score and playback-intent domain.
+- `src-tauri/src/playback/` owns plugin inventory truth, runtime activation, playback preparation, transport behavior, mixer behavior, host integration, and recovery-facing playback logic.
+- `src-tauri/src/files.rs`, `src-tauri/src/soloc.rs`, and `src-tauri/src/migrations/` own load/save/file-format/migration boundaries.
+- `src-tauri/src/renderer/` and `src-tauri/src/instructions/` own native score rendering and render planning.
+- `src-tauri/src/ui/` may expose Rust-owned UI-facing state, but it must not become a second playback-domain owner.
+
+**Frontend Boundaries:**
 
-### User Action
+- `src/services/actions.ts` is the canonical FE→BE mutation entry point.
+- `src/services/types.ts` mirrors Rust-owned models and must not define competing playback truth.
+- `src/services/state/` provides React contexts over backend-owned state.
+- `src/windows/main/screens/sequence/`, `write/`, and related main-window surfaces own score-context playback visibility and interaction.
+- `src/windows/plugin-manager/` and future app-scoped playback windows own inventory and reusable asset management, not score-context routing truth.
+- `src/windows/plugin-host-poc/` remains a bounded editor-host proof seam, not the future owner of general playback semantics.
+
+**Legacy-Seam Boundary:**
 
-Create an eighth-note triplet at beat 2.
+- `src-tauri/src/playback/sampler.rs` and `src-tauri/src/playback/scvi.rs` are legacy seams and reset targets.
+- The reset architecture does not extend them as active product-path owners.
+- Any remaining dependency on them must be treated as temporary bridging and named explicitly.
 
-Tuplet definition:
+### Requirements to Structure Mapping
 
-- host `tick = 32`
-- `consumed_ticks = 32`
-- `local_length_ticks = 48`
-- `base_note_value = Eighth`
-- `groupings = [3]`
+**Foundation Reset / Stabilization Mapping:**
 
-This means:
+- Legacy seam deletion and VST-only ownership:
+  - `src-tauri/src/playback/`
+  - `src-tauri/src/files.rs`
+  - `src/services/state/`
+  - `src/services/actions.ts`
+  - score-context playback windows under `src/windows/main/`
+- Trust-restoration criteria and diagnostics:
+  - `src-tauri/src/playback/`
+  - `docs/performance-baselines.md`
+  - `TESTING.md`
+  - planning artifacts under `_bmad-output/`
 
-- the tuplet consumes the second quarter of the bar in host time
-- the child behaves like a local printed span of three eighths
+**Plugin Discovery and Inventory:**
 
-### Reconciliation Rule Applied
+- Backend truth:
+  - `src-tauri/src/playback/plugin_inventory.rs`
+  - related persistence/config seams in backend
+- Frontend surfaces:
+  - `src/windows/plugin-manager/`
+  - filtered contextual consumers in `src/windows/main/`
 
-The original half note crosses the tuplet boundary at host tick `32`, so derivation must split it at that boundary even though persisted track state keeps one continuous tone.
+**Rack, Slot, Route, and Recovery:**
 
-Persisted state:
+- Backend truth:
+  - `src-tauri/src/score/playback.rs`
+  - `src-tauri/src/playback/runtime_activation.rs`
+  - `src-tauri/src/playback/vst3.rs`
+  - `src-tauri/src/files.rs`
+- Frontend score-context surfaces:
+  - `src/windows/main/screens/sequence/`
+  - `src/windows/main/screens/write/`
 
-```text
-Host track
-- Tone 101: tick 0, duration 64
-- Tuplet 201: tick 32, consumed_ticks 32, local_length_ticks 48,
-  base_note_value Eighth, groupings [3]
-```
+**Transport and Audible Playback:**
 
-Notes:
+- Backend:
+  - `src-tauri/src/playback/transport.rs`
+  - `audio.rs`
+  - `streamer.rs`
+  - `mixer.rs`
+- Frontend:
+  - main-window transport and playback controls in `src/windows/main/`
 
-- persisted track state contains one half-note tone with one duration
-- derivation produces a quarter-note fragment before the tuplet and a quarter-note fragment inside the tuplet frame
-- the final local eighth of the tuplet frame is empty and therefore derives to rest during parsing
+**Expression Maps and Reusable Playback Assets:**
 
-Derived result facts:
+- Backend domain:
+  - score/playback-related seams under `src-tauri/src/score/` and `src-tauri/src/playback/`
+- Frontend:
+  - app-scoped window surfaces, not selection-owned panels
+- Current implication:
+  - new reusable-asset editors should be added as dedicated windows alongside existing app-scoped windows
 
-- storage remains one tone across the boundary
-- the tuplet-side note value is a quarter
-- the tuplet-side rest is derived from absence of tone content
+### Integration Points
 
-### Derived Notation Result
+**Internal Communication:**
 
-The resulting notation should read as:
+- React issues mutations through `src/services/actions.ts`.
+- Rust mutates authoritative state and emits or exposes updated state through the existing state providers and transport-safe channels.
+- Playback-critical state must avoid high-frequency event chatter and use the transport-safe patterns already established.
 
-```text
-beat 1: quarter note
-beat 2 tuplet: quarter note tied from beat 1, then eighth rest
-```
+**External Integrations:**
 
-Inside the tuplet frame:
+- VST3 discovery and loading integrate through backend-owned local desktop seams in `src-tauri/src/playback/`.
+- Native editor-host behavior integrates through backend/runtime ownership plus bounded frontend triggers.
+- Automation surfaces under `src-tauri/src/automation/` must reuse the same backend logic paths as the product.
 
-- the derived written quarter occupies the first two local eighth slots
-- the final local eighth slot is empty and therefore renders as rest
-- the tuplet bracket/number expresses that these three local eighth slots occupy one host quarter beat
+**Data Flow:**
 
-### Parser Interpretation
+1. User acts in score-context or app-scoped React UI.
+2. Frontend calls backend command through `actions.ts`.
+3. Rust mutates canonical score, playback, or machine-local inventory state.
+4. Rust persists only portable project intent to `.soloc`.
+5. Rust exposes updated UI state back to the frontend.
+6. The realtime playback plane consumes precomputed lock-safe state, not ad hoc UI-driven state.
 
-The parser handles this in two layers.
+### File Organization Patterns
 
-Host layer:
+**Configuration Files:**
 
-- sees a half note beginning at bar start
-- sees a tuplet container beginning at host tick `32`
+- Root config files stay at the repo root for frontend/build/tooling concerns.
+- Tauri and Rust build configuration stays under `src-tauri/`.
+- Planning and architectural rules live in `docs/` and `_bmad-output/`.
 
-Tuplet-aware derivation layer:
+**Source Organization:**
 
-- evaluates the continuous tone against the tuplet boundary
-- derives a written quarter from the tone portion that projects through local duration `0..32`
-- derives a final local eighth rest from the empty tail span `32..48`
+- Backend truth stays under `src-tauri/src/`.
+- Frontend UI stays under `src/`.
+- Shared UI primitives stay under `src/ui/`.
+- Shared app-level components stay under `src/components/`.
+- Multi-window code stays under `src/windows/`.
+- Do not move domain logic into frontend convenience modules.
 
-The parser derives two notation fragments from one stored tone because the tuplet boundary requires that reading.
+**Test Organization:**
 
-Flattened result:
+- The repo currently favors co-located frontend tests near the owning files.
+- The top-level `tests/` directory is not the active home of core product tests today.
+- Backend seam validation should remain close to backend seams rather than depending on a new cross-cutting test harness by default.
 
-- host quarter notation before the tuplet
-- tuplet-side quarter notation plus tuplet-side rest notation inside the tuplet frame
-- tie continuity preserved across the host-to-tuplet boundary as a parser result over one persisted tone and two derived fragments
+**Asset Organization:**
 
-### Spacing Interpretation
+- Frontend static assets remain under `src/assets/`.
+- Machine-local runtime caches and plugin inventory metadata must remain outside source-controlled project assets.
+- Persisted project payloads remain `.soloc`, with migrations handled in backend migration seams.
 
-Ambient host spacing provides width for the consumed second beat.
+### Development Workflow Integration
 
-Tuplet-local spacing then computes child requirements for:
+**Development Server Structure:**
 
-- one written quarter occupying two child eighth slots
-- one derived child eighth rest in the final slot
-- tuplet bracket and number
+- Frontend development continues through Vite-backed multi-window entry points under `src/windows/`.
+- Backend development continues through Tauri/Cargo with `src-tauri/src/lib.rs` as the central wiring point.
 
-The final width rule is:
+**Build Process Structure:**
 
-- if the child notation plus bracket needs more width than the ambient consumed host span, host spacing expands
-- if surrounding host spacing is already wider, the child local x positions stretch to fill the available width
+- Vite builds the frontend entry points.
+- Cargo/Tauri builds the desktop runtime and native integrations.
+- Migration work stays inside `src-tauri/src/migrations/`.
+- Release workflows remain human-controlled and should not be encoded as autonomous agent behavior.
 
-This is the same widest-needed-spacing principle already used in the host score.
+**Deployment Structure:**
 
-### Selection Interpretation
+- The structure supports a local macOS desktop app with:
+  - offline-first project use
+  - local VST3 discovery
+  - native plugin-host and renderer integration
+  - portable project persistence
+- No cloud deployment structure is required for MVP.
 
-Selection stays authority-first.
+## Architecture Validation Results
 
-Host-side fragment:
+### Coherence Validation
 
-- authoritative identity: `tone_id = 101`
+**Decision Compatibility:**
+The architectural decisions are internally coherent. The preserved Tauri + Rust + React + TypeScript + Vite foundation aligns with the current brownfield codebase and with the approved reset direction. Ownership boundaries, persistence rules, communication rules, and UI-scope rules all reinforce the same model: Rust owns playback-domain truth, React presents and triggers, and obsolete sampler-era or SCVI-era ownership must be removed rather than tolerated.
 
-Tuplet-side fragment:
+Technology-version coherence is also sound. The current stack remains aligned with the validated project context: React 19.x, Vite 7.x, Tailwind 4.x, and Tauri 2.x all fit the architecture described here because this document is not proposing a framework pivot.
 
-- authoritative identity: `tone_id = 101`
-- lookup context: `track_id`, `tuplet_path = [201]`, `local_tick = 0`, fragment boundary at host tick `32`
+**Pattern Consistency:**
+The implementation patterns support the architectural decisions well. Shared-model naming rules, command-boundary rules, portability rules for `.soloc`, score-context versus app-scoped UI rules, and deletion patterns all reinforce the main objective of the reset: eliminate ambiguity and prevent future agents from reintroducing parallel truth or legacy-residue ownership.
 
-Derived child rest:
+The strongest consistency success is that the architecture now treats seam deletion as a first-class rule rather than a vague cleanup preference.
 
-- no persisted tone id
-- lookup context only: `track_id`, `tuplet_path = [201]`, `local_tick = 32`
+**Structure Alignment:**
+The project structure section aligns with the architecture because it maps decisions onto the real repository rather than a hypothetical future layout. Backend playback and persistence seams, frontend action/state layers, main score-context windows, and app-scoped windows all have concrete homes in the current repo. This should make the architecture implementation-guiding rather than aspirational.
 
-Tuplet container:
+### Requirements Coverage Validation
 
-- authoritative identity: `tuplet_id = 201`
+**Feature and Epic Coverage:**
+The architecture supports the product capabilities described in the PRD and UX spec: plugin discovery, inventory management, rack/slot/route ownership, transport behavior, persistence and reopen recovery, bounded editor hosting, and future reusable playback assets.
 
-### Playback Interpretation
+The earlier planning mismatch has now been resolved in the living artifact set: the approved 2026-03-24 and 2026-03-25 course-correction work is represented as completed stabilization history, and Epic 4 is restored as the next execution epic on top of that foundation.
 
-Playback remains host-time based, but note preparation and projection are tuplet-aware.
+**Functional Requirements Coverage:**
+The architecture provides explicit support for:
 
-Projection formula:
+- plugin inventory and discovery
+- score-context routing and readiness
+- bounded plugin lifecycle and editor hosting
+- score-to-playback preparation
+- transport-safe playback architecture
+- reopen and recovery behavior
+- durable future playback-asset seams such as expression maps
+- release-trust validation
 
-$$
-projected\_host\_tick = 32 + local\_tick \times \frac{32}{48}
-$$
+The most important change is that the architecture now also covers an implicit but critical requirement discovered through course correction: once VST-owned seams exist, obsolete sampler-era or SCVI-era product-path ownership must be removed.
 
-For the derived tuplet-side quarter-note fragment:
+**Non-Functional Requirements Coverage:**
+The architecture addresses the strongest NFRs:
 
-- onset: local tick `0` projects to host tick `32`
-- duration: local duration `32` projects to host duration $32 \times \frac{32}{48} = \frac{64}{3}$ host ticks
+- lock-safe realtime playback boundaries
+- transport trust and coherence
+- portable persisted data
+- local machine-specific inventory separation
+- predictable degraded states
+- host-safety boundaries for VST3 plugins
+- compact score-first UI boundaries
+- trust-restoration and validation seams
 
-For the derived tuplet-side rest:
+### Implementation Readiness Validation
 
-- onset: local tick `32` projects to host tick $32 + \frac{64}{3}$
-- duration: local duration `16` projects to host duration $16 \times \frac{32}{48} = \frac{32}{3}$ host ticks
+**Decision Completeness:**
+Critical architectural decisions are now explicit enough to guide implementation. The document does not waste time re-deciding irrelevant greenfield concerns such as starter choice, cloud hosting, or auth models that do not apply to this product. Instead, it centers the real blocking decisions: ownership, persistence, runtime boundaries, UI scope boundaries, and deletion rules.
 
-So playback sees the second beat as:
+**Structure Completeness:**
+The project structure section is sufficiently concrete for a brownfield implementation guide. It maps the current repository to backend playback seams, persistence seams, rendering seams, score-context surfaces, and app-scoped windows without inventing unnecessary reorganization.
 
-- sounded continuation over the first two triplet eighths
-- silence over the final triplet eighth
+**Pattern Completeness:**
+The implementation patterns address the most likely future agent-conflict points:
 
-This demonstrates the main architectural point:
+- shared-model naming drift
+- React-side parallel truth
+- hidden legacy fallback
+- misplaced playback logic
+- acceptance-criteria-driven UI sprawl
+- automation-only divergence
+- ambiguous recovery behavior
 
-- derived notation can stay in ordinary written values
-- exact fractional math is still required when projecting tuplet-governed fragments back into host musical time
+### Gap Analysis Results
 
-### Why This Example Matters
+**Critical Gaps:**
+No critical architectural gaps were found that would block implementation planning.
 
-This example validates that the agreed model can express all of the following without changing the core rules:
+**Important Gaps:**
 
-- tuplets govern host-track space through a bounded local metric container
-- tuplet-local derivation stays track-like
-- written values are preserved when possible
-- rests remain derived from absence of tones
-- selection remains tone-id authoritative
-- spacing can either expand or fit ambient width
-- playback remains exact by projection rather than by flattening the entire data model into global rational storage
+- The historical change-proposal artifacts still describe the gate as a live blocker because they are records of the decision point; they need clear resolved-status cues so readers do not mistake them for current sequencing.
+- The trust-restoration criteria are now satisfied, but Epic 4 story preparation should continue to cite that gate evidence explicitly so later playback work does not accidentally broaden what the gate proved.
 
-## Deletion Rule
+**Nice-to-Have Gaps:**
 
-Agreed MVP deletion behavior:
+- A more formal plugin identity and re-resolution scheme could be documented later if reopen/recovery work needs finer precision.
+- A more explicit backend error taxonomy could be added later if implementation complexity grows.
+- A future expression-map asset/editor seam diagram may help once that scope becomes near-term again.
 
-- deleting the tuplet deletes everything inside it
+### Validation Issues Addressed
 
-No dissolve-back-to-host-time behavior is required for MVP.
+The main validation issue was whether the architecture was still silently inheriting stale planning assumptions from the pre-course-correction epic breakdown or from the temporary post-correction blocker wording. That has now been addressed by recording the stabilization/reset phase as completed history and by restoring Epic 4 as the next execution phase.
 
-## Parser Architecture
+### Architecture Completeness Checklist
 
-## Local Parse, Then Flatten
+**Requirements Analysis**
 
-The parser should treat MVP tuplets as local notation frames without requiring nested tuplet recursion.
+- [x] Project context thoroughly analyzed
+- [x] Scale and complexity assessed
+- [x] Technical constraints identified
+- [x] Cross-cutting concerns mapped
 
-Recommended flow:
+**Architectural Decisions**
 
-1. Parse the host track as an event stream.
-2. When a `Tuplet` entry is encountered, parse its child `Entries` inside the local frame defined by:
-   - `local_length_ticks`
-   - `base_note_value`
-   - `groupings`
-3. Produce normal local notations from that child event stream.
-4. Flatten the result back into host ordering with tuplet context and projected timing.
+- [x] Critical decisions documented
+- [x] Canonical foundation confirmed
+- [x] Integration patterns defined
+- [x] Performance and trust constraints addressed
 
-This avoids a special-case “triplet parser” while still preserving the existing notation pipeline shape.
+**Implementation Patterns**
 
-## Local Metric Frame
+- [x] Naming conventions established
+- [x] Structure patterns defined
+- [x] Communication patterns specified
+- [x] Process and deletion patterns documented
 
-Tuplets should conceptually behave like small isolated bars for notation purposes, but not literally embed full flow-level time-signature semantics.
+**Project Structure**
 
-Recommended local-frame semantics for MVP:
+- [x] Concrete directory structure defined
+- [x] Component and seam boundaries established
+- [x] Integration points mapped
+- [x] Requirements-to-structure mapping completed
 
-- local length
-- local grouping boundaries
-- base written unit
+### Architecture Readiness Assessment
 
-This is enough to support:
+**Overall Status:** READY FOR IMPLEMENTATION PLANNING
 
-- written-duration interpretation
-- beaming decisions
-- spacing layout
-- single-level MVP tuplets cleanly
+**Confidence Level:** High
 
-## Rests
+**Key Strengths:**
 
-Rests remain derived from absence of tones inside the child frame, exactly as they do on host tracks.
+- strong alignment with the actual brownfield repo
+- explicit Rust-owned playback-domain model
+- explicit deletion-first treatment of obsolete seams
+- score-context versus app-scoped UX boundary clarified
+- persistence portability and machine-local inventory separation made explicit
+- architecture now reflects the completed course-corrected sequence and restored Epic 4 readiness
 
-That means no explicit rest entries are required in tuplet storage.
+**Areas for Future Enhancement:**
 
-## Rendering Architecture
+- keep Epic 4 and later playback stories anchored to the completed trust-restoration evidence
+- add clear resolved-status cues to historical change-proposal artifacts when they remain part of active planning context
+- add more explicit reopen identity/re-resolution rules if needed during implementation planning
+- expand reusable playback-asset architecture when expression-map work becomes active again
 
-## Tuplet Rendering
+### Implementation Handoff
 
-Rendering should continue to be fully backend-owned.
+**AI Agent Guidelines:**
 
-Recommended render behavior:
+- preserve Rust as the only authoritative playback-domain owner
+- do not preserve legacy sampler-era or SCVI-era product-path ownership once VST-owned seams exist
+- keep `.soloc` portable and machine-local inventory state separate
+- keep score-context and app-scoped UI responsibilities distinct
+- treat transport trust and trust-restoration as hard gating concerns, not polish
 
-- derive child notation and child local spacing normally
-- map child local x positions into the consumed host span
-- draw tuplet number and bracket from wrapper metadata
-- preserve current note/chord rendering semantics inside the child frame
-
-Tuplets are therefore not a separate visual layer. They are normal notation rendered inside a warped container.
-
-## Spacing Strategy
-
-The current host spacing model already behaves like a widest-needed-spacing system. Tuplets can fit that model.
-
-Recommended spacing flow:
-
-1. Build a local spacing grid for the child frame using child notation.
-2. Compute the child’s total required width.
-3. Compare that width to the ambient host width across the consumed span.
-4. If child width exceeds host width, expand host spacing.
-5. If host width is already wider, stretch the child layout to fit.
-
-This matches the agreed requirement that a triplet may either:
-
-- demand more width than the default host span
-- or fit naturally inside already-wide ambient spacing
-
-## Selection And Hit Testing
-
-## Tone Selection
-
-Tone identity remains `tone_id`.
-
-Recommended tone selection payload shape for MVP tuplets:
-
-- `track_id`
-- `tuplet_path`
-- `tone_id`
-- optional `local_tick` for lookup and anchoring
-
-Where:
-
-- `tuplet_path` is a lookup aid only if retained by the implementation
-- `local_tick` is not authoritative identity
-
-## Tuplet Selection
-
-Tuplets themselves should be selectable by `tuplet_id`.
-
-Recommended container selection payload:
-
-- `track_id`
-- `tuplet_path`
-- `tuplet_id`
-
-This supports native hit-testing for brackets and numbers without replacing tone-id-based authority.
-
-## Playback Architecture
-
-## MVP Playback Direction
-
-Playback should continue to think in host musical time, but tuplet child note events must be projected into host time before scheduling.
-
-Recommended MVP playback seam:
-
-- collect child note events from tuplets together with host note events outside tuplets
-- project their local onsets and durations into host time using the tuplet warp
-- order them alongside host events by projected host position
-
-This keeps tempo handling naturally host-level.
-
-## Tempo And Future Ramps
-
-Tempo remains pinned to host timeline positions.
-
-This is the correct separation of concerns:
-
-- tuplets map local notation time into host musical time
-- tempo maps host musical time into wall-clock time
-
-That architecture is compatible with future first-class ritardando and accelerando work because tempo curves remain a host-time concern rather than something owned by tuplet-local notation frames.
-
-## Host-Level Directives Beyond MVP
-
-The agreed direction is:
-
-- do not solve nested attachment of host-level directives in MVP
-- do not treat that as a model failure
-- revisit it later as a refinement problem
-
-Important future example:
-
-- clef changes remain host-level in effect because they apply across instrument tracks and voices
-- later, a clef may need to attach at an inner tuplet beat even though it remains host-level in scope
-
-This future problem should be deferred. The current tuplet container model does not block it.
-
-## Migration Impact Analysis
-
-Migration is still required, but the scope is narrower than a repo-wide exact-duration rewrite.
-
-Required persisted changes for MVP:
-
-- add `Entry::Tuplet`
-- add `Tuplet` serialization
-- add child `Entries` serialization for notes authored wholly inside tuplets
-- update load/save behavior to support tuplet metadata plus continuous cross-boundary tones
-
-The intended persisted invariant is:
-
-- child `entries` are for tones whose start position lies inside the tuplet
-- host track entries are for tones whose start position lies outside the tuplet
-- every tone remains one stored event
-- load/save must not force a crossing tone into multiple stored tones merely because a tuplet boundary intersects it
-
-Not required for MVP:
-
-- rewriting every persisted host tone duration into a new global rational type
-- redesigning host-level directive locations
-
-Recommended `src-tauri/src/migrations/next.rs` work during implementation:
-
-- additive schema support for tuplet entries
-- no-op migration for legacy files that do not contain tuplets
-- validation that tuplet child content deserializes under the MVP single-level invariant
-- validation that cross-boundary continuous tones remain intact through load/save
-
-## Regression Strategy
-
-Regression coverage must protect both new tuplet behavior and existing non-tuplet behavior.
-
-## Parser Regressions
-
-Add explicit parser scenarios for:
-
-- isolated eighth-note triplets
-- isolated quarter-note triplets
-- host-note consumption into triplet child space
-- boundary splitting where a host note crosses into a tuplet
-- unchanged current simple-meter and compound-meter behavior outside tuplets
-
-## Spacing Regressions
-
-Add spacing tests that prove:
-
-- tuplet-local width can expand host spacing when required
-- tuplet-local layout can stretch to ambient host width when host spacing is already larger
-
-## Rendering Regressions
-
-Add renderer and hit-test coverage for:
-
-- tuplet bracket and number draw instructions
-- note positions projected correctly within the tuplet-governed host span
-- `Tuplet` hit targets
-- tone hit targets still authoritative by `tone_id`
-
-## Playback Regressions
-
-Add transport coverage for:
-
-- triplet onsets projected exactly into host musical time
-- triplet durations scheduled correctly under host tempos
-- no drift relative to surrounding host notes
-
-## Persistence Regressions
-
-Add load/save coverage for:
-
-- tuplet entries round-tripping through `.soloc`
-- tuplet span metadata and child entries deserializing correctly
-- cross-boundary continuous tones round-tripping without forced storage splits
-- legacy non-tuplet files loading unchanged
-
-## MVP Boundaries
-
-In scope for MVP:
-
-- track-local tuplets on instrument tracks
-- tuplet-container creation behavior
-- self-contained triplets
-- single-level tuplet child content
-- tone-owned properties inside tuplets
-- rendering, spacing, hit-testing, and playback support for tuplet-governed notation and timing
-
-Out of scope for MVP:
-
-- nested tuplet behavior and nested `Tuplet` child content
-- host-level directives at inner tuplet positions
-- cross-barline tuplets as a fully supported notation behavior
-- delete-and-dissolve behavior
-- generalized inner-span directive ecosystem inside tuplets
-
-## Final Recommendation
-
-Proceed with foundational tuplet support using a tuplet-container entry model.
-
-The authoritative architectural statement is:
-
-- tuplets are host-track entries that govern host time through a bounded local metric container and may own child tone entries
-- authoritative tone events are always stored as single entries, with ownership determined by where they start
-- boundary splitting changes derived ownership at the tuplet edge, not the written meaning of equal-duration segments on either side of that edge
-- the wrapper retains musical context through governed span, local span, base notation, and grouping metadata
-- parser, renderer, spacing, selection, and playback all operate by deriving tuplet-local fragments from persisted tones and child content, then projecting them back into host musical time
-
-The simplest statement of the rule is:
-
-- the track stores tones
-- tuplets store container context plus child content for tones that start inside them
-- drawing and scheduling are where crossing tones get split into boundary-aware fragments
-
-This matches the agreed UX direction, preserves Compose’s event-stream model, and avoids a technical dead end without over-solving future directive-location work today.
+**First Implementation Priority:**
+Begin Epic 4 by translating routed score instruments into playback preparation on top of the completed stabilization foundation: preserve the slot-owned runtime-session model, keep audible playback bounded to the proven single-target-first path, and continue deleting any legacy playback-path ownership that would undermine that foundation.

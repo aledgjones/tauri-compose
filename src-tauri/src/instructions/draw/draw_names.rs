@@ -95,6 +95,7 @@ mod tests {
     use crate::instructions::parse::get_vertical_spacing::{VerticalPosition, VerticalSpacing};
     use crate::renderer::test_helpers::make_test_renderer;
     use crate::renderer::DrawInstruction;
+    use crate::score::engraves::Engrave;
     use crate::score::engraves::Engraves;
     use crate::score::instruments::defs::InstrumentType;
     use crate::score::layouts::LayoutType;
@@ -110,7 +111,7 @@ mod tests {
             short_name: String::from(name),
             stave_ids: vec![],
             count: None,
-            assigned_plugin_id: None,
+            playback_route: None,
             volume: 100,
             pan: 64,
             mute: false,
@@ -118,7 +119,7 @@ mod tests {
         }
     }
 
-    fn make_engrave() -> crate::score::engraves::Engrave {
+    fn make_engrave() -> Engrave {
         Engraves::new()
             .by_layout_type
             .remove(&LayoutType::FullScore)

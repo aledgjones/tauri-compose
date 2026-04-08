@@ -2,7 +2,7 @@ import { BottomPanel } from "./components/bottom-panel";
 import { useAppState } from "../../../../services/state";
 import { actions } from "../../../../services/actions";
 import { mdiChevronDown, mdiChevronUp } from "@mdi/js";
-import MdiIcon from "@mdi/react";
+import { Icon as MdiIcon } from "@mdi/react";
 import { SelectedToneInfoDisplay } from "../../components/selected-tone-info-display";
 import { InstrumentOverview } from "./components/instrument-overview";
 import { useKeyboardShortcuts } from "../../hooks/use-keyboard-shortcuts";

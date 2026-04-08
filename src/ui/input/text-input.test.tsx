@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
+import { useState } from "react";
 import userEvent from "@testing-library/user-event";
 import { TextInput } from "./text-input";
 
@@ -34,6 +35,11 @@ describe("TextInput", () => {
   it("applies readOnly to the input element", () => {
     render(<TextInput type="text" value="ro" onChange={vi.fn()} readOnly />);
     expect(screen.getByRole("textbox")).toHaveAttribute("readonly");
+  });
+
+  it("applies disabled to the input element", () => {
+    render(<TextInput type="text" value="ro" onChange={vi.fn()} disabled />);
+    expect(screen.getByRole("textbox")).toBeDisabled();
   });
 
   it("fires onEnter when Enter key is pressed", async () => {
@@ -74,5 +80,47 @@ describe("TextInput", () => {
       <TextInput type="text" value="" onChange={vi.fn()} variant="default" />,
     );
     expect(screen.getByRole("textbox").className).toContain("bg-neutral-800");
+  });
+
+  it("shows local draft text while focused", async () => {
+    const ControlledInput = () => {
+      const [value, setValue] = useState("hello");
+
+      return <TextInput type="text" value={value} onChange={setValue} />;
+    };
+
+    const user = userEvent.setup();
+    render(<ControlledInput />);
+
+    const input = screen.getByRole("textbox") as HTMLInputElement;
+    await user.click(input);
+    await user.type(input, "X");
+
+    expect(input).toHaveValue("helloX");
+  });
+
+  it("keeps the local draft visible while async parent state lags", async () => {
+    const AsyncControlledInput = () => {
+      const [value, setValue] = useState("hello");
+
+      return (
+        <TextInput
+          type="text"
+          value={value}
+          onChange={(nextValue) => {
+            setTimeout(() => setValue(nextValue), 0);
+          }}
+        />
+      );
+    };
+
+    const user = userEvent.setup();
+    render(<AsyncControlledInput />);
+
+    const input = screen.getByRole("textbox") as HTMLInputElement;
+    await user.click(input);
+    await user.type(input, "X");
+
+    expect(input).toHaveValue("helloX");
   });
 });

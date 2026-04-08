@@ -113,6 +113,7 @@ fn recompute_spacing_positions(spacing: &mut HorizontalSpacing, include_final_ba
     };
 }
 
+#[allow(clippy::too_many_arguments)]
 fn collect_notation_spacing_updates(
     notation: &NotationTrack,
     anchored_tracks: &[AnchoredNotationTrack],
@@ -856,6 +857,7 @@ fn collect_anchored_track_opening_spacing_updates(
     updates
 }
 
+#[allow(clippy::too_many_arguments)]
 fn extend_anchored_layout_tail_spacing(
     anchored_layout: &mut AnchoredTrackLayout,
     anchored_track: &AnchoredNotationTrack,
@@ -1034,7 +1036,11 @@ pub fn get_horizontal_spacing_with_anchored_layouts(
             for entry in stave_master.entries.by_id.values() {
                 if let Entry::Clef(clef) = entry {
                     let metrics = clef.metrics(clef.tick == 0);
-                    spacings.set_width(clef.tick, Slot::Clef, metrics.total_width());
+                    let current = spacings.get(clef.tick, Slot::Clef).width;
+
+                    if metrics.total_width() > current {
+                        spacings.set_width(clef.tick, Slot::Clef, metrics.total_width());
+                    }
                 }
             }
         }
@@ -1166,6 +1172,7 @@ pub fn get_horizontal_spacing_with_anchored_layouts(
 mod tests {
     use super::*;
     use crate::instructions::parse::get_measures::get_measures;
+    use crate::instructions::parse::get_written_durations::HostSpan;
 
     #[test]
     fn slot_count_reflects_all_variants() {
@@ -1274,8 +1281,7 @@ mod tests {
         use crate::score::entries::key_signature::{KeySignature, KeySignatureMode};
         use crate::score::entries::time_signature::{TimeSignature, TimeSignatureDrawType};
         use crate::score::entries::Entry;
-        use crate::score::instruments::defs::InstrumentType;
-        use crate::score::instruments::Instrument;
+        use crate::score::instruments::{defs::InstrumentType, Instrument};
         use crate::score::layouts::LayoutType;
         use crate::score::staves::Stave;
         use crate::score::tracks::{Track, Tracks};
@@ -1302,7 +1308,7 @@ mod tests {
             short_name: String::from("Sn."),
             stave_ids: vec![10],
             count: None,
-            assigned_plugin_id: None,
+            playback_route: None,
             volume: 100,
             pan: 64,
             mute: false,
@@ -1314,7 +1320,7 @@ mod tests {
             1,
             0,
             4,
-            crate::score::components::duration::NoteDuration::Quarter,
+            NoteDuration::Quarter,
             TimeSignatureDrawType::Regular,
             None,
         )));
@@ -1369,8 +1375,7 @@ mod tests {
         use crate::score::entries::key_signature::{KeySignature, KeySignatureMode};
         use crate::score::entries::time_signature::{TimeSignature, TimeSignatureDrawType};
         use crate::score::entries::Entry;
-        use crate::score::instruments::defs::InstrumentType;
-        use crate::score::instruments::Instrument;
+        use crate::score::instruments::{defs::InstrumentType, Instrument};
         use crate::score::layouts::LayoutType;
         use crate::score::staves::Stave;
         use crate::score::tracks::{Track, Tracks};
@@ -1397,7 +1402,7 @@ mod tests {
             short_name: String::from("Vln."),
             stave_ids: vec![10],
             count: None,
-            assigned_plugin_id: None,
+            playback_route: None,
             volume: 100,
             pan: 64,
             mute: false,
@@ -1409,7 +1414,7 @@ mod tests {
             1,
             0,
             4,
-            crate::score::components::duration::NoteDuration::Quarter,
+            NoteDuration::Quarter,
             TimeSignatureDrawType::Regular,
             None,
         )));
@@ -1460,6 +1465,120 @@ mod tests {
         .0;
 
         assert!(spacing.get(64, Slot::KeySignature).width > 0.0);
+    }
+
+    #[test]
+    fn start_clef_spacing_uses_max_width_across_staves_when_last_stave_is_hidden() {
+        use crate::score::components::pitch::{Accidental, Pitch};
+        use crate::score::engraves::Engraves;
+        use crate::score::entries::clef::{Clef, ClefDrawType};
+        use crate::score::entries::time_signature::{TimeSignature, TimeSignatureDrawType};
+        use crate::score::entries::Entry;
+        use crate::score::instruments::{defs::InstrumentType, Instrument};
+        use crate::score::layouts::LayoutType;
+        use crate::score::staves::Stave;
+        use crate::score::tracks::{Track, Tracks};
+        use rustc_hash::{FxHashMap, FxHashSet};
+
+        let mut flow = Flow::new(1, 100);
+        flow.player_ids = FxHashSet::default();
+        flow.length = 32;
+        flow.staves.by_id.insert(
+            10,
+            Stave {
+                id: 10,
+                lines: vec![1, 1, 1, 1, 1],
+                master_id: 200,
+                track_ids: vec![],
+            },
+        );
+        flow.staves.by_id.insert(
+            11,
+            Stave {
+                id: 11,
+                lines: vec![1, 1, 1, 1, 1],
+                master_id: 201,
+                track_ids: vec![],
+            },
+        );
+
+        let instrument = Instrument {
+            id: 20,
+            definition_id: String::from("strings.violin"),
+            instrument_type: InstrumentType::Melodic,
+            long_name: String::from("Violin"),
+            short_name: String::from("Vln."),
+            stave_ids: vec![10, 11],
+            count: None,
+            playback_route: None,
+            volume: 100,
+            pan: 64,
+            mute: false,
+            solo: false,
+        };
+
+        let mut flow_master = Track::new(100);
+        flow_master.insert_entry(Entry::TimeSignature(TimeSignature::new(
+            1,
+            0,
+            4,
+            NoteDuration::Quarter,
+            TimeSignatureDrawType::Regular,
+            None,
+        )));
+
+        let mut visible_clef = Clef::new(
+            300,
+            0,
+            Pitch::new(67, Accidental::Natural),
+            2,
+            ClefDrawType::G,
+        );
+        visible_clef.hidden = false;
+
+        let mut hidden_clef = Clef::new(
+            301,
+            0,
+            Pitch::new(67, Accidental::Natural),
+            2,
+            ClefDrawType::G,
+        );
+        hidden_clef.hidden = true;
+
+        let visible_width = visible_clef.metrics(true).total_width();
+
+        let mut first_stave_master = Track::new(200);
+        first_stave_master.insert_entry(Entry::Clef(visible_clef));
+
+        let mut second_stave_master = Track::new(201);
+        second_stave_master.insert_entry(Entry::Clef(hidden_clef));
+
+        let mut tracks = Tracks::new();
+        tracks.by_id = FxHashMap::default();
+        tracks.by_id.insert(100, flow_master);
+        tracks.by_id.insert(200, first_stave_master);
+        tracks.by_id.insert(201, second_stave_master);
+
+        let engraves = Engraves::new();
+        let engrave = engraves.by_layout_type.get(&LayoutType::FullScore).unwrap();
+
+        let spacing = get_horizontal_spacing_with_anchored_layouts(
+            &flow,
+            &vec![&instrument],
+            &tracks,
+            &get_measures(&flow, &tracks),
+            &NotationByTrack::default(),
+            &Barlines::default(),
+            &ShuntsByTrack::default(),
+            &BeamsByTrack::default(),
+            &AccidentalsByTrack::default(),
+            &AnchoredAccidentalsByTrack::default(),
+            &ToneVerticalOffsets::default(),
+            engrave,
+        )
+        .0;
+
+        assert!((spacing.get(0, Slot::Clef).width - visible_width).abs() < f32::EPSILON);
     }
 
     #[test]
@@ -1529,11 +1648,11 @@ mod tests {
     #[test]
     fn horizontal_spacing_empty_nine_eight_bar_is_wider_than_empty_six_eight_bar() {
         use crate::score::components::duration::NoteDuration;
+        use crate::score::engraves::Engraves;
         use crate::score::entries::time_signature::{TimeSignature, TimeSignatureDrawType};
         use crate::score::entries::Entry;
         use crate::score::flows::Flow;
-        use crate::score::instruments::defs::InstrumentType;
-        use crate::score::instruments::Instrument;
+        use crate::score::instruments::{defs::InstrumentType, Instrument};
         use crate::score::layouts::LayoutType;
         use crate::score::staves::Stave;
         use crate::score::tracks::{Track, Tracks};
@@ -1561,7 +1680,7 @@ mod tests {
                 short_name: String::from("Vln."),
                 stave_ids: vec![10],
                 count: None,
-                assigned_plugin_id: None,
+                playback_route: None,
                 volume: 100,
                 pan: 64,
                 mute: false,
@@ -1576,7 +1695,7 @@ mod tests {
             tracks.by_id.insert(100, flow_master);
             tracks.by_id.insert(200, Track::new(200));
 
-            let engraves = crate::score::engraves::Engraves::new();
+            let engraves = Engraves::new();
             let engrave = engraves.by_layout_type.get(&LayoutType::FullScore).unwrap();
             let measures = get_measures(&flow, &tracks);
 
@@ -1731,7 +1850,7 @@ mod tests {
 
         let anchored_track = AnchoredNotationTrack {
             owner_id: 77,
-            host_span: crate::instructions::parse::get_written_durations::HostSpan {
+            host_span: HostSpan {
                 start_tick: 0,
                 end_tick: eighth * 2,
             },
@@ -1841,7 +1960,7 @@ mod tests {
             .collect(),
         );
 
-        let shared_host_span = crate::instructions::parse::get_written_durations::HostSpan {
+        let shared_host_span = HostSpan {
             start_tick: 0,
             end_tick: 2,
         };
@@ -1962,7 +2081,7 @@ mod tests {
                 track: FxHashMap::default(),
                 anchored_tracks: vec![AnchoredNotationTrack {
                     owner_id: 401,
-                    host_span: crate::instructions::parse::get_written_durations::HostSpan {
+                    host_span: HostSpan {
                         start_tick: 0,
                         end_tick: 2,
                     },
@@ -1977,7 +2096,7 @@ mod tests {
                 track: FxHashMap::default(),
                 anchored_tracks: vec![AnchoredNotationTrack {
                     owner_id: 402,
-                    host_span: crate::instructions::parse::get_written_durations::HostSpan {
+                    host_span: HostSpan {
                         start_tick: 1,
                         end_tick: 3,
                     },
@@ -2008,7 +2127,11 @@ mod tests {
 
     #[test]
     fn consecutive_tuplets_use_next_tuplet_opening_as_forward_successor() {
+        use crate::instructions::parse::get_accidentals::AnchoredAccidentals;
         use crate::instructions::parse::get_tone_offset_info::ToneOffsetInfo;
+        use crate::instructions::parse::get_written_durations::{
+            HostSpan, Notation, NotationTrack,
+        };
         use crate::score::components::duration::NoteDuration;
         use crate::score::components::pitch::{Accidental, Pitch};
         use crate::score::components::velocity::Velocity;
@@ -2018,8 +2141,7 @@ mod tests {
         use crate::score::entries::tuplet::Tuplet;
         use crate::score::entries::Entry;
         use crate::score::flows::Flow;
-        use crate::score::instruments::defs::InstrumentType;
-        use crate::score::instruments::Instrument;
+        use crate::score::instruments::{defs::InstrumentType, Instrument};
         use crate::score::layouts::LayoutType;
         use crate::score::staves::Stave;
         use crate::score::tracks::{Track, Tracks};
@@ -2053,7 +2175,7 @@ mod tests {
                 short_name: String::from("Vln."),
                 stave_ids: vec![10],
                 count: None,
-                assigned_plugin_id: None,
+                playback_route: None,
                 volume: 100,
                 pan: 64,
                 mute: false,
@@ -2095,8 +2217,7 @@ mod tests {
             tracks.by_id.insert(300, track_master);
 
             let mut first_local_track = NotationTrack::new(e * 3);
-            let mut first_entry =
-                crate::instructions::parse::get_written_durations::Notation::new(e * 2, e);
+            let mut first_entry = Notation::new(e * 2, e);
             first_entry.tones.push(Tone::new(
                 first_tone_id,
                 e * 2,
@@ -2113,8 +2234,7 @@ mod tests {
             first_local_track.track.insert(e * 2, first_entry);
 
             let mut second_local_track = NotationTrack::new(e * 3);
-            let mut second_entry =
-                crate::instructions::parse::get_written_durations::Notation::new(0, e);
+            let mut second_entry = Notation::new(0, e);
             second_entry.tones.push(Tone::new(
                 second_tone_id,
                 0,
@@ -2136,7 +2256,7 @@ mod tests {
                 anchored_tracks: vec![
                     AnchoredNotationTrack {
                         owner_id: first_tuplet_id,
-                        host_span: crate::instructions::parse::get_written_durations::HostSpan {
+                        host_span: HostSpan {
                             start_tick: 0,
                             end_tick: e * 2,
                         },
@@ -2144,7 +2264,7 @@ mod tests {
                     },
                     AnchoredNotationTrack {
                         owner_id: second_tuplet_id,
-                        host_span: crate::instructions::parse::get_written_durations::HostSpan {
+                        host_span: HostSpan {
                             start_tick: e * 2,
                             end_tick: e * 4,
                         },
@@ -2176,8 +2296,7 @@ mod tests {
                 second_anchored_accidentals.slots_by_tick.insert(0, 1);
             }
 
-            let mut anchored_accidentals =
-                crate::instructions::parse::get_accidentals::AnchoredAccidentals::default();
+            let mut anchored_accidentals = AnchoredAccidentals::default();
             anchored_accidentals.insert(first_tuplet_id, Accidentals::new());
             anchored_accidentals.insert(second_tuplet_id, second_anchored_accidentals);
 

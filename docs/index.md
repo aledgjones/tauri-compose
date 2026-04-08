@@ -25,6 +25,7 @@
 - [Component Inventory](./component-inventory.md) — UI primitives, app components, screen components
 - [Development Guide](./development-guide.md) — Setup, commands, versioning, build config
 - [Render Performance Baselines](./performance-baselines.md) — Historical render benchmark snapshots and comparison guidance
+- [MVP Playback Support Baseline](./playback-support-baseline.md) — Canonical bounded plugin, scenario, and evidence baseline for Epic 7 release decisions
 
 ---
 

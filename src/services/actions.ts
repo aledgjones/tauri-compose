@@ -9,6 +9,8 @@ import {
   BracketingApproach,
   BracketStyle,
   ClefDrawType,
+  ExpressionMap,
+  ExpressionMapLibraryState,
   KeySignatureMode,
   LayoutType,
   NoteDuration,
@@ -20,7 +22,10 @@ import {
   TimeSignatureDrawType,
   Tool,
   TransportState,
+  PlaybackRouteAddress,
+  PlaybackRouteTarget,
   UniqueId,
+  ExpressionMapExportPayload,
 } from "./types";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 
@@ -31,6 +36,95 @@ export const actions = {
   reset: () => {
     return invoke("reset");
   },
+  openPluginManager: async () => {
+    const existing = await WebviewWindow.getByLabel("plugin-manager");
+
+    if (existing) {
+      await existing.show();
+      await existing.setFocus();
+
+      return existing;
+    }
+
+    const webview = new WebviewWindow("plugin-manager", {
+      url: "/plugin-manager.html",
+      title: "Plugin Manager",
+      visible: false,
+      hiddenTitle: true,
+      titleBarStyle: "overlay",
+      acceptFirstMouse: true,
+      height: 720,
+      width: 1100,
+      theme: "dark",
+    });
+
+    await webview.show();
+    await webview.setFocus();
+
+    return webview;
+  },
+  openExpressionMapManager: async () => {
+    const existing = await WebviewWindow.getByLabel("expression-map");
+
+    if (existing) {
+      await existing.emit("soloc://expression-map/select", {
+        expression_map_id: "",
+      });
+      await existing.show();
+      await existing.setFocus();
+
+      return existing;
+    }
+
+    const webview = new WebviewWindow("expression-map", {
+      url: "/expression-map.html",
+      title: "Expression Map",
+      visible: false,
+      hiddenTitle: true,
+      titleBarStyle: "overlay",
+      acceptFirstMouse: true,
+      height: 780,
+      width: 1280,
+      theme: "dark",
+    });
+
+    await webview.show();
+    await webview.setFocus();
+
+    return webview;
+  },
+  openExpressionMapWindow: async (expression_map_id: string) => {
+    const existing = await WebviewWindow.getByLabel("expression-map");
+
+    if (existing) {
+      await existing.emit("soloc://expression-map/select", {
+        expression_map_id,
+      });
+      await existing.show();
+      await existing.setFocus();
+
+      return existing;
+    }
+
+    const webview = new WebviewWindow("expression-map", {
+      url: `/expression-map.html?expression_map_id=${encodeURIComponent(
+        expression_map_id,
+      )}`,
+      title: "Expression Map",
+      visible: false,
+      hiddenTitle: true,
+      titleBarStyle: "overlay",
+      acceptFirstMouse: true,
+      height: 780,
+      width: 1280,
+      theme: "dark",
+    });
+
+    await webview.show();
+    await webview.setFocus();
+
+    return webview;
+  },
   pickAnInstrument: () => {
     return new Promise<string | null>((resolve) => {
       (async () => {
@@ -38,6 +132,7 @@ export const actions = {
           url: "/instrument-picker.html",
           title: "Instrument Picker",
           visible: false,
+          hiddenTitle: true,
           titleBarStyle: "overlay",
           acceptFirstMouse: true,
           height: 500,
@@ -77,27 +172,248 @@ export const actions = {
     },
     refreshDevices: () => invoke("audio_devices_refresh"),
   },
-  sampler: {
-    rescanPlugins: async () => {
-      return invoke("sampler_rescan_plugins");
-    },
-    syncWithInstruments: (assigned_plugin_ids: string[]) => {
-      return invoke("sampler_sync_with_instruments", { assigned_plugin_ids });
-    },
-    audition: (
+  pluginInventory: {
+    discover: () => invoke("plugin_inventory_discover"),
+    openEditorPoc: (
       plugin_id: string,
-      note: number,
-      velocity: number = 100,
-      articulation_id?: string,
-      duration_ms: number = 250,
+      options?: { plugin_path?: string | null; slot_id?: UniqueId | null },
     ) => {
-      return invoke("sampler_audition", {
+      return invoke("plugin_editor_poc_open", {
+        slot_id: options?.slot_id ?? null,
         plugin_id,
-        note,
-        velocity,
-        articulation_id: articulation_id ?? null,
-        duration_ms,
+        plugin_path: options?.plugin_path ?? null,
       });
+    },
+  },
+  expressionMaps: {
+    getState: () => {
+      return invoke<ExpressionMapLibraryState>("expression_maps_get_state");
+    },
+    create: (name?: string) => {
+      return invoke<ExpressionMap>("expression_maps_create", {
+        name: name ?? null,
+      });
+    },
+    duplicate: (expression_map_id: string) => {
+      return invoke<ExpressionMap>("expression_maps_duplicate", {
+        expression_map_id,
+      });
+    },
+    setName: (expression_map_id: string, name: string) => {
+      return invoke<ExpressionMap>("expression_maps_name_set", {
+        expression_map_id,
+        name,
+      });
+    },
+    setCreator: (expression_map_id: string, creator: string) => {
+      return invoke<ExpressionMap>("expression_maps_creator_set", {
+        expression_map_id,
+        creator,
+      });
+    },
+    setVersion: (expression_map_id: string, version: number) => {
+      return invoke<ExpressionMap>("expression_maps_version_set", {
+        expression_map_id,
+        version,
+      });
+    },
+    addRule: (expression_map_id: string) => {
+      return invoke<ExpressionMap>("expression_maps_rule_add", {
+        expression_map_id,
+      });
+    },
+    setRuleName: (expression_map_id: string, rule_id: string, name: string) => {
+      return invoke<ExpressionMap>("expression_maps_rule_name_set", {
+        expression_map_id,
+        rule_id,
+        name,
+      });
+    },
+    moveRule: (
+      expression_map_id: string,
+      rule_id: string,
+      to_index: number,
+    ) => {
+      return invoke<ExpressionMap>("expression_maps_rule_move", {
+        expression_map_id,
+        rule_id,
+        to_index,
+      });
+    },
+    removeRule: (expression_map_id: string, rule_id: string) => {
+      return invoke<ExpressionMap>("expression_maps_rule_remove", {
+        expression_map_id,
+        rule_id,
+      });
+    },
+    addCondition: (
+      expression_map_id: string,
+      rule_id: string,
+      condition_type: string,
+    ) => {
+      return invoke<ExpressionMap>("expression_maps_condition_add", {
+        expression_map_id,
+        rule_id,
+        condition_type,
+      });
+    },
+    setConditionType: (
+      expression_map_id: string,
+      rule_id: string,
+      condition_id: string,
+      condition_type: string,
+    ) => {
+      return invoke<ExpressionMap>("expression_maps_condition_set_type", {
+        expression_map_id,
+        rule_id,
+        condition_id,
+        condition_type,
+      });
+    },
+    updateCondition: (
+      expression_map_id: string,
+      rule_id: string,
+      condition: ExpressionMap["rules"][number]["conditions"][number],
+    ) => {
+      return invoke<ExpressionMap>("expression_maps_condition_update", {
+        expression_map_id,
+        rule_id,
+        condition,
+      });
+    },
+    removeCondition: (
+      expression_map_id: string,
+      rule_id: string,
+      condition_id: string,
+    ) => {
+      return invoke<ExpressionMap>("expression_maps_condition_remove", {
+        expression_map_id,
+        rule_id,
+        condition_id,
+      });
+    },
+    addAction: (
+      expression_map_id: string,
+      rule_id: string,
+      action_type: string,
+    ) => {
+      return invoke<ExpressionMap>("expression_maps_action_add", {
+        expression_map_id,
+        rule_id,
+        action_type,
+      });
+    },
+    setActionType: (
+      expression_map_id: string,
+      rule_id: string,
+      action_id: string,
+      action_type: string,
+    ) => {
+      return invoke<ExpressionMap>("expression_maps_action_set_type", {
+        expression_map_id,
+        rule_id,
+        action_id,
+        action_type,
+      });
+    },
+    updateAction: (
+      expression_map_id: string,
+      rule_id: string,
+      action: ExpressionMap["rules"][number]["actions"][number],
+    ) => {
+      return invoke<ExpressionMap>("expression_maps_action_update", {
+        expression_map_id,
+        rule_id,
+        action,
+      });
+    },
+    removeAction: (
+      expression_map_id: string,
+      rule_id: string,
+      action_id: string,
+    ) => {
+      return invoke<ExpressionMap>("expression_maps_action_remove", {
+        expression_map_id,
+        rule_id,
+        action_id,
+      });
+    },
+    addDefaultAction: (expression_map_id: string, action_type: string) => {
+      return invoke<ExpressionMap>("expression_maps_default_action_add", {
+        expression_map_id,
+        action_type,
+      });
+    },
+    setDefaultActionType: (
+      expression_map_id: string,
+      action_id: string,
+      action_type: string,
+    ) => {
+      return invoke<ExpressionMap>("expression_maps_default_action_set_type", {
+        expression_map_id,
+        action_id,
+        action_type,
+      });
+    },
+    updateDefaultAction: (
+      expression_map_id: string,
+      action: ExpressionMap["default_actions"][number],
+    ) => {
+      return invoke<ExpressionMap>("expression_maps_default_action_update", {
+        expression_map_id,
+        action,
+      });
+    },
+    removeDefaultAction: (expression_map_id: string, action_id: string) => {
+      return invoke<ExpressionMap>("expression_maps_default_action_remove", {
+        expression_map_id,
+        action_id,
+      });
+    },
+    delete: (expression_map_id: string) => {
+      return invoke("expression_maps_delete", {
+        expression_map_id,
+      });
+    },
+    importFromDialog: async () => {
+      const filePath = await open({
+        multiple: false,
+        title: "Import Expression Maps",
+        filters: [{ name: "JSON", extensions: ["json"] }],
+      });
+
+      if (filePath == null || Array.isArray(filePath)) {
+        return [];
+      }
+
+      return invoke<string[]>("expression_maps_import", {
+        file_path: filePath,
+      });
+    },
+    exportToDialog: async (expression_map_ids: string[]) => {
+      if (expression_map_ids.length === 0) {
+        return null;
+      }
+
+      const filePath = await save({
+        title: "Export Expression Maps",
+        defaultPath:
+          expression_map_ids.length === 1
+            ? `${expression_map_ids[0]}.expression-maps.json`
+            : "expression-maps.json",
+        filters: [{ name: "JSON", extensions: ["json"] }],
+      });
+
+      if (filePath == null) {
+        return null;
+      }
+
+      await invoke<ExpressionMapExportPayload>("expression_maps_export", {
+        file_path: filePath,
+        expression_map_ids,
+      });
+
+      return filePath;
     },
   },
   ui: {
@@ -528,10 +844,33 @@ export const actions = {
           instrument_id,
         });
       },
-      assignPlugin: (instrument_id: number, plugin_id: string | null) => {
-        return invoke<void>("score_instruments_assign_plugin", {
+      assignSlotRoute: (
+        instrument_id: number,
+        slot_id: number,
+        target: PlaybackRouteTarget,
+        address: PlaybackRouteAddress,
+      ) => {
+        return invoke<void>("score_instruments_assign_slot_route", {
           instrument_id,
-          plugin_id,
+          route: {
+            slot_id,
+            target,
+            address,
+          },
+        });
+      },
+      unassignRoute: (instrument_id: number) => {
+        return invoke<void>("score_instruments_unassign_route", {
+          instrument_id,
+        });
+      },
+      setExpressionMap: (
+        instrument_id: number,
+        expression_map_id: string | null,
+      ) => {
+        return invoke<void>("score_instruments_set_expression_map", {
+          instrument_id,
+          expression_map_id,
         });
       },
       setVolume: (instrument_id: number, volume: number) => {
@@ -557,6 +896,29 @@ export const actions = {
           instrument_id,
           solo,
         });
+      },
+    },
+    playback: {
+      slot: {
+        create: () => {
+          return invoke<number>("score_playback_slots_create");
+        },
+        remove: (slot_id: number) => {
+          return invoke<void>("score_playback_slots_remove", {
+            slot_id,
+          });
+        },
+        assignPlugin: (slot_id: number, plugin_id: string) => {
+          return invoke<void>("score_playback_slots_assign_plugin", {
+            slot_id,
+            plugin_id,
+          });
+        },
+        unassignPlugin: (slot_id: number) => {
+          return invoke<void>("score_playback_slots_unassign_plugin", {
+            slot_id,
+          });
+        },
       },
     },
     config: {
@@ -1116,5 +1478,7 @@ export const actions = {
     pause: () => invoke("transport_pause"),
     seek: (tick: number) => invoke("transport_seek", { tick }),
     getState: () => invoke<TransportState>("transport_get_state"),
+    auditionTone: (instrument_id: UniqueId, pitch_int: number) =>
+      invoke("playback_audition_tone", { instrument_id, pitch_int }),
   },
 };

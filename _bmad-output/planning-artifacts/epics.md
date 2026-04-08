@@ -1,1055 +1,1201 @@
 ---
 stepsCompleted:
-  - step-01-validate-prerequisites
-  - step-02-design-epics
-  - step-03-create-stories
-  - step-04-final-validation
+  - "step-01-validate-prerequisites"
+  - "step-02-design-epics"
+  - "step-03-create-stories"
 inputDocuments:
-  - _bmad-output/planning-artifacts/prd.md
-  - _bmad-output/planning-artifacts/architecture.md
+  - "/Users/aledjones/compose/_bmad-output/planning-artifacts/prd.md"
+  - "/Users/aledjones/compose/_bmad-output/planning-artifacts/architecture.md"
+  - "/Users/aledjones/compose/_bmad-output/planning-artifacts/ux-design-specification.md"
+  - "/Users/aledjones/compose/_bmad-output/planning-artifacts/sprint-change-proposal-2026-03-24.md"
 ---
 
 # compose - Epic Breakdown
 
 ## Overview
 
-This document provides the complete epic and story breakdown for compose, decomposing the requirements from the PRD and Architecture requirements into implementable stories for foundational tuplet support.
+This document provides the complete epic and story breakdown scaffold for compose, decomposing the requirements from the PRD, UX Design, Architecture, and the approved 2026-03-24 sprint course correction into implementable stories.
 
 ## Requirements Inventory
 
 ### Functional Requirements
 
-FR1: Composers can create triplet-authored passages whose performed timing is stored exactly rather than approximated through binary tick rounding.
-FR2: The product can represent supported triplet groups as first-class score data rather than as renderer-only annotations.
-FR3: The product can associate triplet groups with their member notes and rests while preserving each member's existing flow, track, and selection ownership.
-FR4: The product can persist enough tuplet metadata to round-trip triplet grouping, display intent, and exact rhythmic meaning across save and reopen.
-FR5: The product can support a persisted triplet representation that does not require a second schema reset when broader tuplet ratios are added later, unless architecture review proves that a triplet-specific schema is materially safer.
-FR6: Composers can create supported triplet groups from a focused tuplet popover in the existing workflow without manual approximation of timing values.
-FR7: Composers can select and edit individual triplet members while the product preserves valid triplet grouping where musically possible.
-FR8: Composers can edit pitch, duration, and position of notes inside a triplet without the product silently converting the passage into approximate non-tuplet timing.
-FR9: Composers can insert rests within supported triplet groups and preserve correct triplet duration accounting.
-FR10: Composers can delete or slice triplet members and receive predictable group-preservation, repair, or dissolve behavior according to documented editing rules.
-FR11: The product can expose triplet-aware popover creation and sequencer note-entry affordances that fit the existing primary note-entry workflow instead of introducing a disconnected rhythm-authoring mode.
-FR12: The product can preserve the current authoritative ui.flow_id behavior while tuplets are edited in score and related workflow surfaces.
-FR13: The product can derive written triplet notation from backend-owned rhythmic data without relying on frontend reconstruction.
-FR14: The product can render triplet numbers and brackets where required for readability and can omit unnecessary bracket chrome where notation standards do not require it.
-FR15: The product can beam supported triplet groups in ways that reinforce the tuplet grouping rather than contradict it.
-FR16: The product can render supported triplet rests, ties, and chords with notation semantics consistent with the product's Gould-driven rules.
-FR17: The product can handle triplets that begin or end adjacent to non-tuplet material without breaking surrounding spacing, hit targets, or selection behavior.
-FR18: The product can keep triplet rendering legible within the existing native score surface, including number placement and collision avoidance sufficient for MVP correctness.
-FR19: Composers can play back triplet-authored material and hear exact timing that matches the persisted rhythmic intent.
-FR20: The product can resolve playback timing for tuplets from the same source-of-truth timing model used by notation and persistence.
-FR21: Existing non-tuplet playback behavior remains correct after triplet support is introduced.
-FR22: The product can preserve single-flow playback semantics for MVP even when tuplets exist in the active flow.
-FR23: macOS users can save and reopen projects containing triplets without loss of exact timing, grouping semantics, or visible notation intent.
-FR24: The product can migrate older projects safely if exact triplet support requires a persisted timing-lattice or score-schema change.
-FR25: The product can distinguish between files that require structural upgrade and files that can remain semantically unchanged under the new model.
-FR26: The product can keep .soloc header versioning, score.meta.app_version, and migration registration consistent with the repo's release-flow rules when tuplets alter persisted behavior.
-FR27: Maintainers can implement any required pending migration in src-tauri/src/migrations/next.rs before release preparation, rather than embedding migration logic ad hoc in unrelated load paths.
-FR28: Maintainers can validate supported triplet behavior through explicit parser, renderer, playback, persistence, and migration regression coverage.
-FR29: Maintainers can validate that existing non-tuplet notation behavior remains unchanged unless explicitly revised by a separate notation initiative.
-FR30: The product can document supported triplet scope, editing semantics, persistence impact, and migration expectations in developer-facing docs.
-FR31: The product can update AI-agent and developer instructions when this work establishes durable new project rules for timing representation, persistence, or notation testing.
-FR32: The product can introduce triplet support without moving score-owned rhythmic truth into frontend-only state.
-FR33: The product can keep tuplets compatible with the current parser and renderer pipeline structure rather than requiring a parallel notation system.
-FR34: The product can keep save/load, playback, and notation derivation behavior aligned under one exact timing model.
-FR35: The product can preserve offline-first desktop behavior while tuplets are authored, rendered, saved, and reopened.
+FR1: Composers can use Compose with a VST3-based playback environment on macOS.
+FR2: Composers can access a discovered inventory of available VST3 plugins from within Compose.
+FR3: Composers can use a cached plugin inventory so previously discovered plugins remain available without a full probe on every launch, while empty-cache startup still performs initial discovery.
+FR4: Composers can trigger a full plugin rescan when they need Compose to refresh the available VST3 inventory.
+FR5: Compose can distinguish between discovered plugins that are currently usable and plugins that cannot currently be used.
+FR6: Maintainers can validate plugin discovery and rescan behavior against representative installed plugin libraries.
+FR7: Composers can route a playable VST-backed slot target to score instruments.
+FR8: Compose can keep new score instruments on the explicit manual-routing path until the user assigns playback.
+FR9: Compose can leave an instrument unrouted when no suitable playback mapping is available.
+FR10: Composers can identify which score instruments are routed, unrouted, or no longer resolvable.
+FR11: Composers can change the playback route for an instrument without restructuring the score.
+FR12: Compose can support single-target VST instrument workflows in the current MVP while preserving a clean path for later multi-target or channel-addressed expansion.
+FR13: Composers can load routed VST3 rack slots into the playback environment.
+FR14: Compose can maintain usable plugin instance lifecycle behavior across playback sessions within the app.
+FR15: Composers can open and use plugin-provided editor interfaces for supported VST3 instruments.
+FR16: Compose can preserve playback usability even when some plugin editor interactions are unavailable or limited.
+FR17: Maintainers can validate plugin-host behavior against a representative known-good plugin set.
+FR18: Compose can translate written score instruments into playback-capable routes.
+FR19: Composers can hear audible results from written score material without leaving the core score workflow.
+FR20: Compose can support realistic playback through a defined expression-map model, with at least one resolved expression rule per played note and a path to richer score-linked behavior.
+FR21: Compose can deliver an initial expression-map capability in MVP that links expression behavior to score data where feasible, or proves the concept through a constrained workflow where full linkage would add disproportionate scope.
+FR22: Compose can expand expression-map behavior later into a fuller score-linked system without replacing the underlying playback foundation.
+FR23: Composers can start playback of their score through routed VST instruments.
+FR24: Composers can pause and resume playback without losing trust in playback state.
+FR25: Composers can seek to different score positions and hear playback continue from the selected location.
+FR26: Compose can keep playback state coherent across repeated play, pause, resume, and seek actions.
+FR27: Compose can support transport-driven playback that composers can use as part of iterative writing and revision.
+FR28: Compose can represent playback failure states in ways that allow users to recover without abandoning score work.
+FR29: Composers can control basic route-first playback mix settings within Compose.
+FR30: Compose can apply basic playback control settings during score playback according to real VST3-exposed route capability.
+FR31: Compose can retain a basic mixer model that keeps the user experience route-based while allowing slot-level semantics where the VST3 boundary requires them.
+FR32: Compose can persist playback-relevant project state for reopening later in the same product model.
+FR33: Compose can restore rack slots and instrument routes when reopening a project if the required plugins are available.
+FR34: Compose can degrade missing or unavailable plugin routes to recoverable unrouted states when reopening a project.
+FR35: Composers can continue working on a score even when some playback routes cannot be restored.
+FR36: Compose can remove SCVI from the project's active playback path by MVP completion.
+FR37: Maintainers can evaluate Compose playback against representative transport regression scenarios.
+FR38: Maintainers can evaluate Compose playback against representative real-world VST instrument libraries, including the user's existing library.
+FR39: Compose can support a release-credible playback workflow for a known-good subset of sensible, spec-aligned VST3 plugins.
+FR40: Maintainers can determine whether playback is trustworthy enough to support real composition work rather than demonstration-only playback.
+FR41: Composers can continue editing and updating the score during playback without the workflow collapsing into a blocked or invalid state.
 
 ### NonFunctional Requirements
 
-NFR1: Triplet support must not materially regress normal non-tuplet score editing or unchanged-score rendering performance.
-NFR2: In representative triplet editing scenarios, local score updates should remain fast enough to feel immediate in normal desktop use, with performance characterization added where the timing-model change materially affects parser or playback work.
-NFR3: Any broader timing-resolution change introduced for triplets must remain operationally practical across current project sizes and must not impose disproportionate overhead on non-tuplet projects.
-NFR4: Supported triplet timing must be exact; the system must not depend on lossy rounding or hidden approximation.
-NFR5: Non-tuplet projects must continue to load, save, and render correctly after tuplets ship.
-NFR6: Tuplet save/load behavior must be deterministic and round-trip stable.
-NFR7: Parser, rendering, playback, and persistence layers must not disagree about the rhythmic meaning of the same tuplet passage.
-NFR8: Migration behavior must preserve score integrity and fail explicitly if an unsupported persisted state is encountered.
-NFR9: The implementation must be structured so future non-triplet tuplets can extend the same timing and persisted-model foundation rather than bypass it.
-NFR10: Regression coverage for tuplets must live close to the relevant parser, renderer, playback, and persistence modules rather than in a disconnected test harness that obscures ownership.
-NFR11: Documentation of tuplets, persistence impact, and migration rules must be kept current with the shipped behavior.
-NFR12: Core desktop document workflows for open, save, reopen, and recent-file behavior must remain intact for tuplet-authored files.
-NFR13: Offline use must remain first-class; tuplets must introduce no network dependency into composition, playback, or file workflows.
-NFR14: Tuplet authoring and editing affordances should remain consistent with the product's existing expert-focused UI model and should not require hidden mode knowledge to perform common triplet tasks.
-NFR15: Hit targets, selection cues, and popover anchoring for triplet members and tuplet adornments must remain visually and behaviorally coherent in the native score surface.
+NFR1: The audio thread must remain lock-free during playback.
+NFR2: Representative transport regression scenarios must complete with zero audio dropouts.
+NFR3: Playback must remain stable through repeated play, pause, resume, and seek operations in representative composition scenarios.
+NFR4: Cached plugin discovery, manual full rescan, route-to-first-audible-playback, and project reopen behavior must have explicit measurable performance targets.
+NFR5: Rendering and other non-audio activity must not introduce audible glitches or playback instability.
+NFR6: Playback state must remain coherent and recoverable without hangs, stuck notes, or corrupted session behavior.
+NFR7: Project reopen must restore valid rack slots and routes correctly when plugins are available.
+NFR8: Missing or unusable plugins must degrade to clear, recoverable unrouted states rather than breaking score access.
+NFR9: The MVP must support a release-credible known-good subset of sensible, spec-aligned VST3 plugins on macOS.
+NFR10: Plugin discovery and loading must operate within local desktop permissions and only access required local VST3 and project data paths.
+NFR11: Playback-related project data must preserve integrity across save, close, and reopen flows.
+NFR12: The system must integrate reliably with local VST3 installation paths, cached discovery, manual rescan, audio-device settings, score workflow routing, project persistence, and native plugin editor hosting.
+NFR13: Compatibility evaluation must be grounded in sensible adherence to the VST3 specification rather than blanket support for out-of-spec plugins.
+NFR14: Validation must use explicit representative scenarios for transport, plugin compatibility, project reopen and recovery, cached discovery and rescan behavior, and realistic score playback conditions.
 
 ### Additional Requirements
 
-- Implement foundational tuplet support as a tuplet-container model that supports both child tone entries and continuous cross-boundary tones rather than a global timing-model rewrite.
-- Carry the Story 2.4 and Story 2.5 boundary/projection rules forward into notation, rendering, spacing, and playback as the `tuplet carry-forward invariants` rather than restating or reinterpreting them separately in each later story.
-- Add a new persisted Entry::Tuplet variant on instrument tracks with wrapper-owned rhythmic context: host tick, governed host span, local printed span, base note value, grouping metadata, and child entries where needed.
-- Keep tuplets backend-owned in Rust and prohibit any frontend-owned parallel tuplet state model.
-- Treat tuplets as host-track entries that govern a local metric window; new same-track note entry starting inside that window goes into the child frame through tuplet-aware entry rules, while continuous cross-boundary tones remain single persisted tones owned by where they start.
-- Reconcile tuplet creation by adding the tuplet container, placing tones into host or child storage according to where they start, and deriving boundary splits only where notation or playback requires them.
-- Treat boundary splitting as a derivation concern by default: crossing a tuplet edge does not itself require rewriting one persisted tone into multiple stored tones.
-- Preserve written note values when structurally valid instead of proactively respelling them during reconciliation or derivation.
-- Keep tuplet-local rests derived from absence of tones in the child frame rather than explicit persisted rest entries.
-- Defer host-level directives inside MVP tuplet spans; tempo, clef, key signature, and time signature remain host-level concerns for this phase.
-- Implement tuplet-local parse and projection so parser, renderer, spacing, selection, and playback all consume child content through the tuplet wrapper without collapsing local semantic address, written duration, and projected host occupancy into one host-only tick model.
-- Treat the tuplet frame as the local writable-notation context: empty or partially filled tuplets derive base-note-value rests in their governed local slots rather than host-projected binary rest values.
-- Keep playback host-time based, projecting tuplet child onsets and durations into host time before scheduling so tempo remains a host-level concern.
-- Extend rendering through the existing parse/draw pipeline rather than ad hoc overlay rendering, including tuplet number and bracket draw instructions, tuplet-local note projection, and tuplet hit targets.
-- Use a widest-needed spacing strategy that first compares the ambient host span width against the tuplet-required local width, then either expands the governed host ticks evenly or stretches the tuplet-local ticks evenly depending on which side is wider.
-- Preserve tone_id as the authoritative tone identity and use tuplet-aware lookup context such as tuplet_path and local_tick only as selection and anchoring aids.
-- Scope MVP deletion behavior so deleting a tuplet deletes its contained content; dissolve-back-to-host-time behavior is deferred.
-- Add additive migration support in src-tauri/src/migrations/next.rs for tuplet serialization and child-entry support, with legacy non-tuplet files loading unchanged.
-- Cover isolated eighth-note and quarter-note triplets, boundary splitting, hit testing, spacing expansion, playback projection, load/save round-trips, and legacy-file safety with explicit regression tests.
-- Simplify MVP tuplet child content so tuplet-owned content cannot contain nested `Tuplet` entries, while still treating broader directive attachment, cross-barline support, and generalized child directives as post-MVP work.
+- Preserve the existing brownfield Tauri + Rust + React + TypeScript + Vite foundation; implementation must extend the current app rather than reinitialize or replatform it.
+- Treat Compose as score-first composition software, not a DAW: the product goal is beautiful scores plus convincing-enough playback for composition, rehearsal/demo handoff, and eventual work with real musicians, so playback features should derive strong musical results from score intent rather than drift into manual performance authoring.
+- Treat Rust as the sole source of truth for plugin inventory, rack state, slot state, route state, playback preparation state, transport state, and persisted playback-domain state.
+- Keep `.soloc` portable by storing project intent and rack or route references only; machine-local plugin discovery and cache state must remain outside project files.
+- Split playback architecture into a Rust control plane and a realtime-safe playback plane where the audio path consumes precomputed, lock-safe state only.
+- Keep playback-critical communication backend-owned and command-oriented; avoid high-frequency event chatter on transport and playback-critical paths.
+- Treat stable, jitter-free playback as a hard architectural and release gate for all implementation choices.
+- Model missing plugin resolution as explicit, recoverable unrouted states rather than silent fallback or corrupted project state.
+- Treat VST3 plugins as untrusted third-party code from a host-safety perspective and contain host failures without destabilizing playback or project data.
+- Keep score-context playback relationships in contextual panels, and app-scoped playback assets or inventories in dedicated windows.
+- Reuse backend seams for UI and MCP or automation flows rather than introducing parallel implementation paths.
+- Keep validation and regression coverage close to the owning seam rather than creating broad duplicate harnesses.
+- Formalize plugin inventory, identity, rack, slot, target, address, route, and recovery models before broader transport and workflow integration.
+- Treat basic VST3 support in the current MVP as explicitly single-target-first. Preserve the rack-first route model so later multi-target or channel-addressed expansion remains possible, but do not require shared-slot workflows before first-audible playback is working.
+- Respect the project’s release and persistence discipline: any persisted-data change must assess migration impact and update pending migrations in `src-tauri/src/migrations/next.rs`.
+- Treat the first implementation work as foundation-building on the existing app, not starter setup; Epic 1 Story 1 must not be project initialization.
+- Treat native VST editor hosting as a narrow macOS-only seam first: one explicit editor-host path, one window label, one open command, and one close path before broader host abstraction.
+- Keep native VST editor lifecycle backend-owned, with the frontend limited to a thin trigger through existing action and secondary-window patterns.
+- Prefer direct AppKit subview attachment inside a dedicated Tauri-managed host window over HTML or React embedding for native plugin UI hosting.
+- Keep the native editor host seam separate from transport, score-routing lifecycle, preset management, automation, and broader production-host concerns until the proof is validated.
+- Preserve the existing HTML plugin-settings workflow unless a deliberate incremental story chooses to replace or converge it; do not conflate metadata or audition UI with native editor hosting.
+- Treat focus, resize, close, reopen, and teardown behavior of the native editor host as explicit acceptance concerns, not incidental implementation details.
+- Require manual macOS runbook validation alongside unit and frontend coverage for the native editor host proof.
+- Allow a fallback host-windowing route only if direct Tauri and AppKit parenting proves insufficient; record that as a tested architectural outcome rather than assuming it up front.
+- Treat the remaining SCVI sampler and runtime code as temporary legacy scaffolding only. Downstream stories must build clean VST-owned seams rather than extending sampler-era contracts.
+- Once a VST-owned seam replaces a sampler or SCVI-era product path, the superseded path must be removed from active product behavior rather than preserved as parallel runtime or compatibility ownership.
+- Before first-audible-playback stories begin, the plan must establish a trustworthy single-instrument-VST-instance foundation with no active sampler or SCVI-era product-path interference.
+- The approved 2026-03-24 course correction inserts a stabilization or reset epic before first audible playback; the prior direct progression from Epic 3 into audible playback is no longer authoritative sequencing.
+- Epic 3 should be treated as rack-first model discovery and partial runway, not as a production-trustworthy playback foundation.
+- Story implementation must prefer the simplest useful user-facing control surface for the product model; UI added solely to make individual acceptance criteria separately visible is considered scope failure unless it creates clear user value.
+- The planning reset must explicitly preserve the rack-first product model while reclassifying unproven richer multi-instrument or multi-timbral VST-instance support as future capability rather than near-ready scope.
+
+### UX Design Requirements
+
+UX-DR1: Instrument rows must expose a compact direct routing control that shows the current playback route with minimal indirection.
+UX-DR2: Instrument rows must expose a compact readiness or health signal so users can tell at a glance whether playback is ready, needs attention, or is unavailable.
+UX-DR3: The expanded instrument panel must reflect the same routing model as the row while adding metadata, richer status explanation, and deeper contextual controls.
+UX-DR4: Compact score-context playback state must collapse into the three user-facing states Ready, Needs Attention, and Unavailable.
+UX-DR5: Non-ready states must provide one primary contextual recovery action that opens the relevant rack or route panel in the current score context.
+UX-DR6: Playback routing must remain a score-first workflow that feels like choosing a usable sound path for a musical part rather than configuring host topology.
+UX-DR7: The common routing and playback workflow must preserve a direct single-target, score-first mental model for the current MVP, with any future multi-target expansion added later without changing that core interaction.
+UX-DR8: Native plugin editors must be available as deliberate secondary handoff surfaces for plugin-specific control, not as the default answer to routine playback tasks.
+UX-DR9: The system must provide explicit score-context entry points to open the native plugin editor from relevant playback surfaces.
+UX-DR10: Expression maps must be represented as durable, reusable playback assets rather than transient properties of whichever score object is selected.
+UX-DR11: The Sequence instrument row must show which route-owned Expression Map is linked to the current instrument’s playback route, using the assigned map name or `--` as the bounded MVP user-facing state.
+UX-DR12: Instrument-driven and library-driven expression-map workflows must stay app-scoped and coordinated, with the Sequence row handing off to one dedicated Expression Map workflow window that combines a library pane and an editor pane rather than expanding score-context panels into asset ownership surfaces.
+UX-DR13: Full plugin discovery, inventory health, and organisation must live in a dedicated app-scoped Plugin Manager window.
+UX-DR14: Contextual plugin and target pickers in instrument rows and panels must present a filtered, musician-friendly view of currently usable plugins and targets for the current routing task.
+UX-DR15: Panels must act as score-context relational surfaces, while windows must own app-scoped inventories, reusable assets, and deep editors.
+UX-DR16: Canonical app-scoped entry points for Plugin Manager and the Expression Map workflow window must exist in the system app menu, with contextual launch paths also available from score workflows.
+UX-DR17: Playback UI must preserve Compose’s existing custom design system, compact density, current blue-highlight language, and familiar panel and window grammar rather than introducing a parallel design language.
+UX-DR18: Playback status must never rely on color alone and must combine text, iconography, and consistent placement for accessibility.
+UX-DR19: For score-context playback workflows, compact direct controls are preferred over explanatory or multi-control proof surfaces.
+UX-DR20: The rack-first model is the canonical playback mental model for Compose; future stories must align to it directly rather than preserving assignment-first or legacy-sampler interaction assumptions.
 
 ### FR Coverage Map
 
-FR1: Epic 1 - exact triplet timing stored in score data
-FR2: Epic 1 - triplets as first-class score data
-FR3: Epic 1 - member ownership preserved inside triplet groups
-FR4: Epic 1 - persisted tuplet metadata round-trips
-FR5: Epic 1 - future-aware persisted representation
-FR6: Epic 1 - triplet creation from the write workflow
-FR7: Epic 2 - editable individual triplet members
-FR8: Epic 2 - edits do not silently collapse into approximate timing
-FR9: Epic 2 - rests can be inserted within triplet groups
-FR10: Epic 2 - predictable delete and slice behavior
-FR11: Epic 1 - triplet-aware entry fits the existing workflow
-FR12: Epic 2 - preserve authoritative ui.flow_id behavior during editing
-FR13: Epic 3 - backend-owned notation derivation
-FR14: Epic 3 - render correct tuplet numbers and brackets
-FR15: Epic 3 - beam tuplets coherently
-FR16: Epic 3 - render rests, ties, and chords correctly in tuplets
-FR17: Epic 2 - handle adjacency to non-tuplet material without breaking interaction
-FR18: Epic 3 - keep triplet rendering legible in the score surface
-FR19: Epic 4 - exact playback of triplet-authored material
-FR20: Epic 4 - playback resolves from the same source-of-truth timing model
-FR21: Epic 4 - preserve existing non-tuplet playback behavior
-FR22: Epic 4 - preserve single-flow playback semantics for MVP
-FR23: Epic 1 - save and reopen triplet projects safely
-FR24: Epic 1 - migrate older projects safely if schema changes
-FR25: Epic 1 - distinguish structural-upgrade files from unchanged files
-FR26: Epic 1 - keep .soloc versioning and app-version rules consistent
-FR27: Epic 1 - implement pending migration in src-tauri/src/migrations/next.rs
-FR28: Epic 5 - regression coverage across parser, renderer, playback, persistence, migration
-FR29: Epic 5 - protect existing non-tuplet notation behavior
-FR30: Epic 5 - document tuplet scope, editing semantics, and persistence impact
-FR31: Epic 5 - update AI-agent and developer instructions
-FR32: Epic 1 - preserve backend-owned truth and existing flow ownership model
-FR33: Epic 3 - stay within the current parser and renderer pipeline shape
-FR34: Epic 1 - align save/load, playback, and notation under one exact model
-FR35: Epic 1 - preserve offline-first desktop behavior for tuplet workflows
-
-### NFR Coverage Map
-
-NFR1: Epic 2 and Epic 3 - preserve acceptable editing and rendering performance in tuplet-aware paths
-NFR2: Epic 1 and Epic 2 - keep tuplet entry and edit updates immediate in normal desktop use
-NFR3: Epic 1 and Epic 4 - keep the exact timing approach operationally practical across storage and playback projection
-NFR4: Epic 1, Epic 2, and Epic 4 - preserve exact timing across authoring, editing, and playback
-NFR5: Epic 3, Epic 4, and Epic 5 - protect existing non-tuplet render and playback behavior
-NFR6: Epic 1 - guarantee deterministic tuplet save/load round-trips
-NFR7: Epic 1, Epic 3, Epic 4, and Epic 5 - keep parser, rendering, playback, and persistence aligned
-NFR8: Epic 1 - keep migration behavior explicit and safe
-NFR9: Epic 1 - preserve a future-extensible tuplet foundation
-NFR10: Epic 5 - keep regression coverage near owning modules
-NFR11: Epic 5 - keep documentation and project instructions current with shipped behavior
-NFR12: Epic 1 - preserve desktop open, save, and reopen workflows
-NFR13: Epic 1 - preserve offline-first workflows
-NFR14: Epic 1 and Epic 2 - preserve keyboard-operable, focus-stable, expert-oriented editing affordances
-NFR15: Epic 1, Epic 2, and Epic 3 - preserve coherent hit targets, selection cues, and visual anchoring
+FR1: Epic 1 - establish one VST-only playback environment on macOS.
+FR2: Epic 2 - expose a discovered inventory of available VST3 plugins from within Compose.
+FR3: Epic 2 - preserve cached plugin inventory across launches while still supporting empty-cache discovery.
+FR4: Epic 2 - support manual full plugin rescans.
+FR5: Epic 2 - distinguish usable plugins from unavailable ones.
+FR6: Epic 7 - validate discovery and rescan behavior against representative installed libraries.
+FR7: Epic 3 - route a playable VST-backed slot target to score instruments.
+FR8: Epic 3 - keep new score instruments on the explicit manual-routing path until playback is assigned.
+FR9: Epic 3 - preserve explicit unrouted state when no suitable mapping exists.
+FR10: Epic 3 - identify routed, unrouted, and unresolved instruments.
+FR11: Epic 3 - change playback route without restructuring the score.
+FR12: Epic 3 - keep the MVP single-target while preserving future extensibility.
+FR13: Epic 3 - load routed VST3 rack slots into the playback environment.
+FR14: Epic 3 - maintain usable plugin instance lifecycle behavior across app sessions.
+FR15: Epic 2 - open and use supported plugin editor interfaces.
+FR16: Epic 2 - preserve playback usability when plugin editor interactions are limited or unavailable.
+FR17: Epic 7 - validate plugin-host behavior against a representative known-good plugin set.
+FR18: Epic 4 - translate written score instruments into playback-capable routes for audible playback.
+FR19: Epic 4 - hear written score material without leaving the core score workflow.
+FR20: Epic 6 - support a defined expression-map model with initial realistic playback behavior.
+FR21: Epic 6 - deliver an initial MVP expression-map capability linked to score data where feasible.
+FR22: Epic 6 - preserve a path to richer score-linked expression behavior later.
+FR23: Epic 5 - start score playback through routed VST instruments.
+FR24: Epic 5 - pause and resume playback without losing trust in playback state.
+FR25: Epic 5 - seek to different score positions and continue playback coherently.
+FR26: Epic 5 - keep playback state coherent across repeated transport actions.
+FR27: Epic 5 - support transport-driven playback for iterative writing and revision.
+FR28: Epic 5 - represent playback failure states in recoverable ways.
+FR29: Epic 4 - control basic route-first playback mix settings within Compose.
+FR30: Epic 4 - apply playback control settings during score playback according to real route capability.
+FR31: Epic 4 - retain a route-first mixer model while allowing necessary slot-level semantics.
+FR32: Epic 5 - persist playback-relevant project state for reopening.
+FR33: Epic 5 - restore rack slots and instrument routes on reopen when plugins are available.
+FR34: Epic 5 - degrade missing or unavailable plugin routes to recoverable unrouted states.
+FR35: Epic 5 - continue score work even when some playback routes cannot be restored.
+FR36: Epic 1 - remove SCVI from the active playback path by MVP completion.
+FR37: Epic 7 - evaluate playback against representative transport regression scenarios.
+FR38: Epic 7 - evaluate playback against representative real-world VST instrument libraries.
+FR39: Epic 7 - establish a release-credible workflow for a known-good subset of sensible, spec-aligned VST3 plugins.
+FR40: Epic 7 - determine whether playback is trustworthy enough to support real composition work.
+FR41: Epic 5 - support editing during playback without collapsing the workflow.
 
 ## Epic List
 
-### Epic 1: Author and Preserve Exact Triplets
+### Epic 1: Trust One VST-Only Playback Foundation
 
-Composers can create triplet passages in the normal write workflow and trust that the underlying score data, save/load behavior, and migration path preserve exact rhythmic meaning.
-**FRs covered:** FR1, FR2, FR3, FR4, FR5, FR6, FR11, FR23, FR24, FR25, FR26, FR27, FR32, FR34, FR35
-**NFRs covered:** NFR2, NFR3, NFR4, NFR6, NFR7, NFR8, NFR9, NFR12, NFR13, NFR14, NFR15
+Composers and maintainers can rely on a single VST-owned playback path, with SCVI removed from active behavior and the reset foundation treated as trustworthy enough to build on.
+**FRs covered:** FR1, FR36
 
-### Epic 2: Edit Tuplets Without Breaking Musical Intent
+### Epic 2: Find And Prepare Usable Plugins
 
-Composers can select, modify, rest-fill, slice, and delete tuplet content predictably while the product preserves valid tuplet semantics and clear interaction ownership.
-**FRs covered:** FR7, FR8, FR9, FR10, FR12, FR17
+Composers can discover, rescan, inspect, and open supported VST plugins from inside Compose so playback setup starts in the app instead of outside it.
+**FRs covered:** FR2, FR3, FR4, FR5, FR15, FR16
 
-### Epic 3: Read Tuplets as Real Notation
+### Epic 3: Route Score Instruments With Rack-First Clarity
 
-Composers can see tuplets rendered as correct musical notation derived from backend-owned rhythmic data.
-**FRs covered:** FR13, FR14, FR15, FR16, FR18, FR33
+Composers can assign instruments to rack-first playback targets, understand readiness or unrouted state, and keep usable route and plugin session behavior without restructuring the score.
+**FRs covered:** FR7, FR8, FR9, FR10, FR11, FR12, FR13, FR14
 
-### Epic 4: Hear Tuplets Played Back Correctly
+### Epic 4: Hear The Score Through Routed Instruments
 
-Composers can play tuplet-authored material and hear timing that matches the same exact backend-owned rhythmic intent.
-**FRs covered:** FR19, FR20, FR21, FR22
+Composers can move from written notation to first audible VST-backed playback, with basic route-first mix control inside the core score workflow.
+**FRs covered:** FR18, FR19, FR29, FR30, FR31
 
-### Epic 5: Ship Tuplet Support Safely in a Brownfield Codebase
+### Epic 5: Trust Playback During Real Composition
 
-Maintainers can harden and document foundational tuplet support with regression protection and architectural guardrails that keep existing notation behavior stable and leave room for future tuplets.
-**FRs covered:** FR28, FR29, FR30, FR31
+Composers can start real transport-driven score playback, then pause, resume, seek, edit during playback, reopen projects, and recover from missing routes without losing trust in the score workflow.
+**FRs covered:** FR23, FR24, FR25, FR26, FR27, FR28, FR32, FR33, FR34, FR35, FR41
 
-## Epic 1: Author and Preserve Exact Triplets
+### Epic 6: Shape Playback With Score-Linked Expression Maps
 
-Composers can create triplet passages in the normal write workflow and trust that the underlying score data, save/load behavior, and migration path preserve exact rhythmic meaning.
+Composers can use an initial durable expression-map model to make playback more realistic now, while preserving a clean path to richer score-linked behavior later.
+**FRs covered:** FR20, FR21, FR22
 
-### Story 1.1: Add Persisted Tuplet Container Entries
+### Epic 7: Prove A Release-Credible Support Baseline
+
+Maintainers can validate discovery, plugin-host behavior, transport trust, and representative plugin-library coverage so the supported VST subset is explicit and shippable.
+**FRs covered:** FR6, FR17, FR37, FR38, FR39, FR40
+
+## Epic 1: Trust One VST-Only Playback Foundation
+
+Composers and maintainers can rely on a single VST-owned playback path, with SCVI removed from active behavior and the reset foundation treated as trustworthy enough to build on.
+
+### Story 1.1: Remove Legacy Playback Path Ownership
 
 As a composer,
-I want triplets represented as first-class score entries,
-So that the score model can preserve exact tuplet structure instead of treating it as renderer-only decoration.
-
-**FRs implemented:** FR2, FR4, FR5, FR32
-**NFRs implemented:** NFR3, NFR4, NFR9
+I want Compose to use only the supported VST-owned playback path,
+So that playback behavior is predictable and no hidden sampler or SCVI path changes what I hear.
 
 **Acceptance Criteria:**
 
-**Given** the existing persisted instrument-track entry model
-**When** foundational tuplet support is introduced
-**Then** the score model supports a persisted Entry::Tuplet-style container entry with its own identity
-**And** the container stores host start tick, governed host duration, local printed duration, base note value, grouping metadata, and child entries where tones start inside the tuplet span
+**Given** the app contains sampler-era or SCVI-era playback entry points, state surfaces, or routing hooks in the active product path
+**When** the VST playback path is invoked through the supported UI and backend actions
+**Then** the active playback flow uses only VST-owned runtime seams
+**And** superseded sampler or SCVI product-path behavior is deleted or disconnected rather than preserved as fallback ownership
 
-**Given** a persisted tuplet container entry
-**When** it is loaded into Rust-owned score state
-**Then** the backend treats it as authoritative score data
-**And** no frontend-owned parallel tuplet state is required to reconstruct its rhythmic meaning
+**Given** existing score and playback actions call backend playback seams
+**When** those actions are executed after the reset
+**Then** they resolve through one authoritative VST-owned backend path
+**And** no frontend-facing action or state surface continues to present legacy playback ownership as active behavior
 
-**Given** future non-triplet tuplets are considered later
-**When** this persisted shape is reviewed
-**Then** the MVP representation is not hard-coded to a dead-end triplet-only schema
-**And** the model retains a viable extension path unless a more general shape is proven materially less safe
+**Given** legacy removal changes persisted or shared playback-domain structures
+**When** the implementation changes load or save semantics or persisted data shape
+**Then** migration impact is assessed and pending migration steps are updated as required
+**And** portable project intent remains intact
 
-### Story 1.2: Create Tuplet Containers Through a Tuplet Popover
-
-As a composer,
-I want to create a triplet from a focused popover in the existing workflow,
-So that I can declare the tuplet structure before entering notes.
-
-**FRs implemented:** FR1, FR3, FR6, FR11
-**NFRs implemented:** NFR4, NFR14
-
-**Implementation slices:**
-
-- Trigger, placement, and backend container-creation handshake
-- Ratio and base-note input behavior, including invalid-input handling
-- Focus entry and close behavior for the popover interaction
-
-**Acceptance Criteria:**
-
-**Given** a supported note-entry context on an instrument track
-**When** a composer opens the tuplet popover and confirms a supported triplet shape
-**Then** the product creates a tuplet container for the targeted host-track span
-**And** the container is inserted as backend-owned score data rather than a temporary UI annotation
-
-**Given** the composer invokes tuplet creation from the primary note-entry workflow
-**When** the MVP popover opens
-**Then** the hotkey trigger is `;`
-**And** the popover opens at the current selection tick
-
-**Given** the MVP tuplet popover is shown
-**When** the composer configures a supported triplet
-**Then** the main input uses an explicit learned syntax such as `3e/2` to encode both the triplet ratio and the written base note in one text field
-
-**Given** the composer enters an invalid popover value
-**When** the popover is submitted
-**Then** the invalid value is ignored using the same pattern as other current popovers
-**And** the product does not introduce a special tuplet-only invalid-input flow for MVP
-
-**Given** the composer invokes tuplet creation from the primary note-entry workflow
-**When** the current selection is not a tone or rest with direct instrument-track ownership data
-**Then** tuplet confirmation does not create a container
-**And** the product does not guess a fallback target from unrelated UI context
-
-**Given** the popover is opened from keyboard or score-attached interaction
-**When** it becomes active
-**Then** focus lands on the ratio input first
-**And** the popover closes cleanly on accepted input, blur, or Escape
-
-### Story 1.3: Reveal and Select the Created Tuplet Region in the Sequencer
-
-As a composer,
-I want a newly created triplet to appear immediately as a clear sequencer region,
-So that the handoff from popover creation into note entry feels continuous.
-
-**FRs implemented:** FR6, FR11
-**NFRs implemented:** NFR14, NFR15
-
-**Acceptance Criteria:**
-
-**Given** triplet creation is confirmed from the popover
-**When** the creation flow completes
-**Then** the created tuplet span is immediately revealed as one visibly bounded region in the sequencer on the active track
-**And** the interaction hands off directly into sequencer note entry rather than forcing the user to rediscover the new region manually
-
-**Given** a tuplet has just been created
-**When** the creation flow completes
-**Then** the newly created tuplet container is selected immediately
-**And** the selection behavior matches other existing creation patterns for score entries
-
-**Given** the created tuplet span is revealed in the sequencer
-**When** the user reads the new region
-**Then** it includes a horizontal line spanning the consumed host ticks together with a compact `3:2` tuplet annotation
-**And** the region is visually distinct from ordinary host-track space before any notes are entered
-
-**Given** the tuplet annotation is shown in the sequencer
-**When** the user works within the tuplet region
-**Then** the `3:2` annotation remains centered over the region and sticky at the top of the sequencer view
-**And** it does not use a solid background that obscures tones underneath it
-
-**Given** the created tuplet span is visible in the sequencer
-**When** the user inspects its internal timing structure
-**Then** the vertical tick indicators inside the region appear slightly compressed to show tuplet warping
-**And** the local triplet slots read as narrower than ordinary host-track spacing without destabilizing the broader sequencer layout
-
-**Given** the created tuplet container has no entered notes yet
-**When** it is first shown in the sequencer
-**Then** the grouped tuplet region remains visible and targetable as empty content rather than collapsing away
-**And** the empty local slots remain legible as available tuplet positions
-
-### Story 1.3A: Simplify Tuplet Child Content for Non-Nestable MVP
+### Story 1.2: Reassert Rust-Owned Playback Domain Boundaries
 
 As a maintainer,
-I want MVP tuplet child content constrained to one structural level,
-So that upcoming tuplet note-entry work does not accumulate defensive nested-tuplet checks.
-
-**FRs implemented:** FR3, FR11, FR32
-**NFRs implemented:** NFR2, NFR4, NFR9
+I want the playback domain to have one authoritative backend-owned model,
+So that downstream work does not reintroduce parallel truth or unclear ownership.
 
 **Acceptance Criteria:**
 
-**Given** the existing backend-owned tuplet container model
-**When** MVP tuplets are prepared for note-entry and editing work
-**Then** tuplet-owned child content cannot contain nested `Tuplet` entries
-**And** the active implementation model exposes a single-level tuplet invariant for MVP paths
+**Given** playback inventory, rack, slot, route, transport, and recovery data cross backend and frontend boundaries
+**When** the Epic 1 foundation reset is complete
+**Then** Rust remains the sole source of truth for active playback-domain state
+**And** frontend state is limited to transient presentation concerns
 
-**Given** a tuplet-related action would otherwise require creating or persisting a nested tuplet
-**When** that action is evaluated in MVP code paths
-**Then** the product rejects or defers the nested outcome
-**And** it does not preserve nested tuplet structure internally as an active MVP behavior
+**Given** project files and machine-local plugin state have different responsibilities
+**When** playback-related state is saved or restored
+**Then** `.soloc` stores portable project intent and references only
+**And** machine-local discovery, cache, and validation state remain outside project files
 
-**Given** Story 1.4 and later tuplet stories build on the model
-**When** they implement note entry, reconciliation, parsing, and validation behavior
-**Then** they can rely on the non-nestable child-content rule
-**And** they do not need repeated defensive "not at this level" checks for nested tuplets
+**Given** backend-owned playback models are exposed to the frontend
+**When** commands and shared payloads are updated
+**Then** naming and ownership stay aligned with the architecture rules
+**And** no new sampler-era terminology or parallel adapter model is introduced for the supported path
 
-### Story 1.4: Enter Tuplet Notes in the Sequencer
-
-As a composer,
-I want to add notes for a created triplet directly in the sequencer,
-So that tuplets fit the same primary note-entry workflow I already use.
-
-**FRs implemented:** FR1, FR3, FR11, FR12
-**NFRs implemented:** NFR2, NFR4, NFR14
-
-**Acceptance Criteria:**
-
-**Given** a tuplet container has been created on the active track
-**When** the composer enters notes in the sequencer within that tuplet span
-**Then** those notes are written into the tuplet child event stream through the active tuplet multiplier rather than plain host-time entry rules
-**And** their stored timing remains exact while the written value stays musically intelligible inside the tuplet frame
-
-**Given** a sequencer view showing a track with a tuplet container
-**When** the composer targets note entry inside the tuplet span
-**Then** the sequencer exposes a tuplet-aware entry region that maps input to valid child positions
-**And** the user does not need to calculate approximate binary timing values manually
-
-**Given** a composer prepares a note inside the tuplet span
-**When** the entry is committed
-**Then** the system checks the active tuplet multiplier in the same way other contextual directives affect interpretation
-**And** the resulting note is stored with exact backend timing rather than approximate binary rounding
-
-**Given** tuplet notes are entered through the sequencer
-**When** the resulting score state is inspected
-**Then** flow, track, and tone ownership remain unambiguous
-**And** the current authoritative ui.flow_id behavior remains intact
-
-**Given** entered tuplet notes coexist with empty local space in the same region
-**When** the sequencer refreshes after note entry
-**Then** entered notes remain legible as members of the tuplet container
-**And** any remaining empty local slots stay targetable for later entry
-
-**Given** the composer is already working inside an MVP tuplet span
-**When** an action would require creating another tuplet inside that governed local frame
-**Then** the product rejects or defers that action
-**And** MVP does not create nested tuplets
-
-### Story 1.5: Create Tuplets Over Existing Material Without Losing Ownership
-
-As a composer,
-I want creating a tuplet over existing notes to preserve valid ownership and written intent,
-So that the new tuplet structure does not scramble already-authored material.
-
-**FRs implemented:** FR3
-**NFRs implemented:** NFR4, NFR7
-
-**Acceptance Criteria:**
-
-**Given** ordinary same-track material exists in the consumed span
-**When** tuplet creation is confirmed through the popover
-**Then** the product records the tuplet span as a bounded rhythmic container over that host window
-**And** any tone whose start lies inside that window is represented in the tuplet child entries while crossing tones remain single persisted tones owned by their start position
-
-**Given** existing notes are structurally valid across or inside the tuplet frame
-**When** reconciliation and tuplet-aware derivation evaluate them
-**Then** their written values are preserved rather than proactively respelled
-**And** only boundary-driven normalization is applied
-
-**Given** notes cross into or sit inside a tuplet-governed span
-**When** the updated score state is inspected
-**Then** tones that start inside the tuplet live in child entries while a crossing tone remains one persisted tone owned by where it starts, with derived rests from absence of tones in local tuplet slots
-**And** tone ownership and lookup remain compatible with existing flow, track, and selection expectations
-
-**Given** a created tuplet contains empty local time after reconciliation or partial sequencer entry
-**When** the score state is inspected after creation
-**Then** the empty span remains represented by absence of tones rather than newly persisted rest entries
-**And** the tuplet model stays consistent with the current event-stream mental model
-
-**Given** the target span already falls inside an existing tuplet-governed region or would require nested tuplet structure
-**When** tuplet creation or reconciliation is attempted
-**Then** MVP does not create the new tuplet
-**And** tuplet-owned child content remains single-level
-
-### Story 1.6: Round-Trip Tuplet Data Through Save, Load, and Migration
-
-As a desktop document user,
-I want triplet-authored scores to save and reopen safely,
-So that exact rhythmic meaning survives normal file workflows and older files remain safe.
-
-**FRs implemented:** FR4, FR23, FR24, FR25, FR27, FR34
-**NFRs implemented:** NFR6, NFR7, NFR8
-
-**Implementation slices:**
-
-- Tuplet serialization and deterministic save/load round-trip behavior
-- Pending migration registration and upgraded load-path behavior
-- Legacy-file pass-through and structural-upgrade differentiation
-
-**Acceptance Criteria:**
-
-**Given** a score containing supported tuplets entered through the popover and sequencer workflow
-**When** the project is saved and reopened
-**Then** the tuplet container, child entries where present, grouping semantics, continuous cross-boundary tones, and exact rhythmic intent round-trip without loss
-**And** visible notation intent remains recoverable from the persisted data
-
-**Given** foundational tuplet support changes persisted score shape or load/save semantics
-**When** implementation lands
-**Then** pending migration support is added in src-tauri/src/migrations/next.rs
-**And** migration handling is not embedded ad hoc in unrelated load paths
-
-**Given** a legacy non-tuplet file
-**When** it is opened under the new model
-**Then** it loads correctly without requiring a semantic tuplet upgrade
-**And** files that truly need structural upgrade are distinguishable from files that can remain unchanged
-
-### Story 1.7: Keep Versioning and Offline Desktop Behavior Intact for Tuplet Files
+### Story 1.3: Establish A Trusted Single-Instrument Reset Baseline
 
 As a maintainer,
-I want tuplet-enabled files to follow existing versioning and desktop workflow rules,
-So that the feature ships without destabilizing Compose's document and offline guarantees.
+I want explicit trust-restoration checks for the reset playback path,
+So that later audible-playback work starts from a verified single-instrument VST-only baseline instead of assumed progress.
 
-**FRs implemented:** FR26, FR34, FR35
-**NFRs implemented:** NFR12, NFR13
-
-**Acceptance Criteria:**
-
-**Given** tuplets alter persisted behavior
-**When** tuplet-authored files are produced
-**Then** .soloc header versioning, score.meta.app_version, and migration registration remain consistent with repo release-flow rules
-**And** the implementation does not bypass the project's documented migration discipline
-
-**Given** tuplet support is available
-**When** a composer uses standard desktop open, save, and reopen workflows offline
-**Then** the full tuplet authoring path of popover creation plus sequencer note entry works without network dependency
-**And** offline-first desktop behavior remains unchanged for the supported MVP workflow
-
-**Given** this epic is complete
-**When** later editing and rendering epics build on it
-**Then** they rely on one exact backend-owned timing model shared across save/load, notation derivation, and playback
-**And** no separate frontend truth layer is introduced
-
-## Epic 2: Edit Tuplets Without Breaking Musical Intent
-
-Composers can select, modify, rest-fill, slice, and delete tuplet content predictably while the product preserves valid tuplet semantics and clear interaction ownership.
-
-**NFRs covered:** NFR1, NFR2, NFR4, NFR14, NFR15
-
-### Story 2.1: Target Tuplet Containers and Members Reliably
-
-As a composer,
-I want tuplet containers and tuplet notes to resolve to the correct target,
-So that I can edit tuplets without ambiguity about what I selected.
-
-**FRs implemented:** FR7, FR12, FR17
-**NFRs implemented:** NFR14, NFR15
+For this story, "single-instrument" means a VST instance that hosts one playable instrument at a time, even if that instrument exposes multiple articulations or expressions. HALion-style multi-slot or multi-part instances remain outside this baseline.
 
 **Acceptance Criteria:**
 
-**Given** a track containing a tuplet container and one or more tuplet notes
-**When** the composer targets a tuplet note in the sequencer
-**Then** the product selects the correct note inside the tuplet region
-**And** selection does not fall through to surrounding host-track material
-
-**Given** a visible tuplet container affordance
-**When** the composer targets the container rather than a note inside the span
-**Then** the product can distinguish container selection from member selection
-**And** the resulting selection state is unambiguous
-
-**Given** a tuplet region contains both notes and empty slots
-**When** the composer hovers or selects within that region
-**Then** the sequencer visually distinguishes container selection, note selection, and empty-slot targeting
-**And** the user can tell whether they are acting on the tuplet boundary or on content inside it
-
-**Given** the tuplet container itself is selected
-**When** the sequencer updates its visual state
-**Then** the bracket or region-level container treatment is highlighted in blue like other selected entries
-**And** inner notes are not implicitly selected as part of container selection
-
-**Given** a tuplet note is selected
-**When** the sequencer updates its visual state
-**Then** that note is highlighted in blue like any other selected note
-**And** the container remains visually distinct from the note-selection state
-
-**Given** a tuplet note is selected
-**When** selection metadata is shown in the bottom bar or equivalent selection-summary surface
-**Then** the product shows the selected tone's pitch, instrument, and stave/voice context using the same descriptive contract as host-track tone selection
-**And** tuplet membership does not cause the selection summary to fall back to "No selection" or omit note identity details
-**And** write-screen note-value controls such as the left-panel duration buttons reflect the selected tuplet child's literal stored duration the same way they do for host-track tones
-**And** actually mutating tuplet-child duration through those controls remains later edit-story scope rather than part of this selection-hardening story
-
-**Given** an empty tuplet slot is targeted as rest content
-**When** the selection state is shown
-**Then** it uses the product's existing rest-selection behavior
-**And** the product does not introduce a separate custom empty-slot selection style for MVP
-
-**Given** container, note, and empty-slot states are shown together
-**When** the sequencer communicates the current target
-**Then** those states remain distinguishable through boundary, placement, or shape cues in addition to color
-**And** the user can identify the active target without relying on blue highlight alone
-
-**Given** tuplet selection changes on the active track
-**When** the edit state updates
-**Then** the authoritative ui.flow_id remains correct
-**And** no separate frontend-owned active-flow state is introduced for tuplets
-
-**Given** MVP tuplets are explicitly non-nestable
-**When** selection behavior is implemented for tuplet content
-**Then** targeting only needs to distinguish one container depth plus its members and empty slots
-**And** MVP does not require nested container-selection semantics
-
-### Story 2.2: Edit Pitch Inside a Tuplet Without Changing Timing
-
-As a composer,
-I want to change pitches of notes inside a tuplet,
-So that I can refine musical content without disturbing the tuplet rhythm.
-
-**FRs implemented:** FR7, FR8, FR17
-**NFRs implemented:** NFR4
-
-**Acceptance Criteria:**
-
-**Given** a valid tuplet with one or more notes
-**When** the composer changes the pitch of a selected tuplet note
-**Then** the note pitch is updated
-**And** its local timing and tuplet membership remain unchanged
-
-**Given** adjacent non-tuplet material surrounds the tuplet
-**When** a pitch edit is applied inside the tuplet
-**Then** no surrounding host-track ownership changes occur
-**And** boundary behavior remains stable
-
-### Story 2.3: Add and Remove Notes Within Tuplet Slots
-
-As a composer,
-I want to add notes into empty tuplet space and remove notes from occupied tuplet space,
-So that I can shape real triplet patterns inside one rhythmic container.
-
-**FRs implemented:** FR7, FR9, FR10
-**NFRs implemented:** NFR4, NFR15
-
-**Acceptance Criteria:**
-
-**Given** a valid tuplet container with empty local space
-**When** the composer enters a note into an available tuplet position
-**Then** the note is stored through tuplet-aware exact timing on the authoritative track model
-**And** the tuplet remains structurally valid
-
-**Given** a tuplet note is removed by the composer
-**When** the removal is applied
-**Then** the sounding content is removed from that local span
-**And** the remaining empty span is represented by absence of tones rather than an explicit persisted rest entry
-
-**Given** a tuplet note has been removed from the sequencer
-**When** the region refreshes
-**Then** the vacated local slot remains visibly targetable inside the tuplet region
-**And** the tuplet does not visually collapse into ordinary host-track space
-
-**Given** a partially filled tuplet
-**When** the score state is re-evaluated after note removal
-**Then** the container remains intact
-**And** the empty region is available for later note entry
-
-**Given** an add or remove action would require nested tuplet insertion or repair
-**When** the action is evaluated
-**Then** MVP rejects or defers that outcome
-**And** slot operations remain limited to single-level tuplet content
-
-### Story 2.4: Reposition, Re-pitch, or Resize Tuplet Notes Within Supported Bounds
-
-As a composer,
-I want to drag tuplet notes to move, re-pitch, or resize them within the tuplet frame,
-So that I can refine melodic and rhythmic shape without breaking exact tuplet semantics.
-
-**FRs implemented:** FR8, FR10, FR17
-**NFRs implemented:** NFR1, NFR2, NFR4, NFR15
-
-**Acceptance Criteria:**
-
-**Given** a tuplet note is edited for position or duration inside the tuplet
-**When** the requested edit remains within the tuplet's supported local frame rules
-**Then** the change is applied using exact local timing
-**And** the result remains a valid tuplet state
-
-**Given** a tuplet note is dragged vertically using an existing pitch-drag gesture
-**When** the requested edit stays within supported MVP bounds
-**Then** the product updates pitch using the same pitch-targeting rules used for ordinary track tones
-**And** tuplet membership remains an implementation detail rather than a separate drag behavior model
-
-**Given** a drag gesture changes pitch together with position or duration in a supported MVP case
-**When** the edit is committed
-**Then** the product preserves the same user-facing drag semantics expected outside tuplets while applying the correct tuplet-local timing and ownership rules underneath
-**And** the gesture is not limited to timewise movement only
-
-**Given** a tone duration is dragged across a tuplet boundary in a supported MVP case
-**When** the edit is committed
-**Then** the product preserves one continuous persisted tone and derives the boundary split at render or playback time
-**And** the user-facing gesture remains one continuous duration edit rather than a manual delete-and-recreate workflow
-
-**Given** a tone's start position is dragged across the tuplet boundary
-**When** the edit is committed
-**Then** ownership moves to the context where the tone now starts
-**And** the tone still remains exactly one stored event
-
-**Given** an edit would create unsupported overlap or otherwise violate MVP rules
-**When** the composer attempts that edit
-**Then** the product rejects the unsupported outcome explicitly
-**And** it does not silently convert the passage into approximate non-tuplet timing
-
-**Given** the user attempts an unsupported tuplet edit in the sequencer
-**When** the edit is rejected
-**Then** the product follows the existing product rejection behavior without introducing tuplet-specific error messaging
-**And** the tuplet region remains visually stable enough for the user to recover without losing orientation
-
-**Given** a tuplet sits next to non-tuplet material
-**When** a supported move or resize occurs near the boundary
-**Then** ownership across the boundary remains explicit
-**And** hit targeting and selection remain stable
-
-**Given** a tone already exists before a tuplet is created and the composer later extends it across the tuplet area
-**When** the resize completes
-**Then** the resulting host and tuplet segments preserve one coherent musical intent across the boundary
-**And** the tuplet's visible inner beats and boundary remain legible during and after the edit
-
-**Given** an edit would require nested tuplet structure to remain musically valid
-**When** the composer attempts that edit
-**Then** MVP rejects or defers the edit rather than creating nested tuplets implicitly
-
-### Story 2.5: Apply Explicit MVP Delete and Slice Rules for Tuplet Members and Containers
-
-As a composer,
-I want delete and slice behavior for tuplets to follow clear rules,
-So that correction workflows are predictable.
-
-**FRs implemented:** FR10
-**NFRs implemented:** NFR4
-
-**Acceptance Criteria:**
-
-**Given** the composer deletes a tuplet member
-**When** the action is applied
-**Then** only that note is removed
-**And** the tuplet container remains in place with the vacated span becoming empty local tuplet space
-
-**Given** the composer deletes the tuplet container
-**When** the action is confirmed
-**Then** the tuplet and all notes authored inside that tuplet span are removed together
-**And** MVP does not attempt dissolve-back-to-host-time behavior
-
-**Given** the composer slices a tone that is fully inside a tuplet or crosses a tuplet boundary
-**When** the slice action is applied in a supported MVP case
-**Then** the result remains governed by the one-stored-event-per-tone ownership rule for the resulting tones after the edit
-**And** any tuplet-boundary fragment needed for notation or playback remains a derived result rather than an extra persisted split introduced solely by the boundary
-
-**Given** a delete action would otherwise require unsupported repair behavior
-**When** the action is processed
-**Then** the product applies the defined MVP rule above rather than inventing a new structural interpretation
-**And** no overlapping host and child ownership remains afterward
-
-**Given** a delete or slice path would require nested tuplet repair behavior
-**When** the action is evaluated
-**Then** MVP does not create or preserve nested tuplet structure as part of the repair
-**And** the single-level tuplet invariant remains intact
-
-## Epic 3: Read Tuplets as Real Notation
-
-Composers can see tuplets rendered as correct musical notation derived from backend-owned rhythmic data.
-
-**NFRs covered:** NFR1, NFR5, NFR7, NFR15
-
-### Story 3.1: Parse Tuplet-Spanned Content Into Backend-Owned Notation
-
-As a composer,
-I want tuplet content to derive notation from the backend model,
-So that the score reads from real rhythmic structure instead of frontend reconstruction.
-
-**FRs implemented:** FR13, FR33
-**NFRs implemented:** NFR5, NFR7
-
-**Acceptance Criteria:**
-
-**Given** a score containing supported tuplets
-**When** notation derivation runs
-**Then** the parser evaluates authoritative track content through the tuplet's local frame
-**And** the resulting notation is produced from backend-owned rhythmic data in a form the existing parser and renderer pipeline can consume without a frontend reconstruction layer
-
-**Given** notation is derived inside a tuplet-governed local frame
-**When** the parser emits tuplet-aware output
-**Then** the contract preserves local semantic address, written duration, and projected host-space occupancy as distinct concepts
-**And** downstream renderer and spacing consumers do not have to recover tuplet meaning from one overloaded host-tick-plus-duration pair
-
-**Given** a supported tuplet is derived as notation
-**When** the parser emits its tuplet-aware result
-**Then** the result remains an isolated anchored local `NotationTrack` with a host-span anchor
-**And** later renderer and spacing stories can consume that block without redesigning the parser contract
-
-**Given** empty spans exist inside a tuplet-governed local frame
-**When** notation is derived
-**Then** rests are inferred from absence of projected sounding content in the governed local tuplet slots, including host-owned crossing tones and tuplet-child tones
-**And** no frontend reconstruction layer is required to invent missing rhythmic structure
-**And** those empty local spans normalize to base-note-value rest spelling for the tuplet frame
-
-**Given** supported tuplet derivation scenarios are exercised in automated tests
-**When** the parser-local notation suite runs
-**Then** the expected derived notation output is asserted directly for grouped tuplet content, inferred rests, empty-tuplet rest spelling, and boundary-crossing fragments
-**And** Story 3.1 can be validated without relying on score-surface rendering
-
-**Given** tuplets are introduced into the parse path
-**When** existing non-tuplet passages are derived
-**Then** current non-tuplet notation behavior remains unchanged
-**And** the implementation stays within the current parser and renderer pipeline shape
-
-**Given** MVP tuplets are structurally non-nestable
-**When** parser support is implemented
-**Then** the notation path only needs to cover single-level tuplets
-**And** nested tuplet parser behavior is not part of MVP scope
-
-### Story 3.2: Render Tuplet Brackets and Numbers Correctly
-
-As an engraving-sensitive composer,
-I want tuplets to display the right bracket and number treatment,
-So that the score reads like real notation rather than placeholder annotation.
-
-**FRs implemented:** FR14, FR18
-**NFRs implemented:** NFR7, NFR15
-
-**Acceptance Criteria:**
-
-**Given** a derived tuplet notation result that requires visible tuplet marking
-**When** the score is rendered
-**Then** the tuplet number is drawn in the correct relationship to its grouped content
-**And** bracket visibility follows the supported MVP readability rules while consuming the derived parser output rather than recomputing tuplet structure in a parallel renderer-only path
-**And** bracket anchoring is resolved from the parser's local tuplet unit and host-span projection rather than from host `tick + duration` arithmetic alone
-
-**Given** a supported case where bracket chrome is not required for clarity
-**When** the score is rendered
-**Then** the number remains legible
-**And** unnecessary bracket rendering is omitted according to the product's supported default notation rules
-
-**Given** tuplets are rendered beside surrounding notation
-**When** the score surface refreshes
-**Then** tuplet markings remain visually attached to the correct content
-**And** they do not resolve as unrelated overlay annotations
-
-**Given** a derived passage crosses a tuplet start or end boundary
-**When** tuplet markings are rendered
-**Then** the renderer consumes notation already split at the tuplet boundary using the same metric-boundary discipline Compose applies at barlines
-**And** the tuplet span is treated as one isolated grouped unit for bracket and number placement
-
-### Story 3.3: Render Tuplet Notes, Rests, Ties, and Beams Coherently
-
-As an engraving-sensitive composer,
-I want tuplet note grouping to read correctly,
-So that beams, rests, and ties reinforce the tuplet instead of contradicting it.
-
-**FRs implemented:** FR15, FR16
-**NFRs implemented:** NFR7
-
-**Acceptance Criteria:**
-
-**Given** supported tuplet note groupings
-**When** notation is rendered
-**Then** beam decisions reinforce the tuplet grouping
-**And** the rendered result does not contradict the tuplet's rhythmic structure
-
-**Given** tuplets contain rests or partially filled spans
-**When** the score is rendered
-**Then** rests appear in positions consistent with the derived tuplet structure
-**And** the result remains legible within MVP engraving scope
-**And** empty governed slots read as base-note-value rests in the local tuplet frame
-
-**Given** a created tuplet container has no entered notes yet
-**When** the score is rendered
-**Then** the governed local span reads as empty rest-bearing tuplet content
-**And** the bracket and number treatment remain coherent with the derived tuplet rests
-
-**Given** a tie enters, exits, or passes through supported tuplet content
-**When** the score is rendered
-**Then** tie presentation remains musically coherent
-**And** the rendering does not imply approximate binary timing
-**And** tie continuity follows parser-derived fragment adjacency rather than assuming the continuation lies at host `tick + duration`
-
-**Given** a tone crosses into or out of a tuplet boundary
-**When** notation is rendered
-**Then** the boundary split is represented with the same musical logic Compose uses around barlines and ties
-**And** the tuplet remains readable as one coherent rhythmic unit
-
-**Given** tuplet notes, rests, ties, and beams are rendered after derivation
-**When** the renderer consumes the passage
-**Then** tuplet start and end boundaries are treated as isolated metric split points in the same way barlines constrain grouping decisions
-**And** beaming, rest placement, and tie continuity are resolved from that isolated tuplet unit rather than from a continuous unsplit host view
-
-**Given** MVP tuplets are non-nestable
-**When** rendering support is implemented
-**Then** rendering only needs to cover single-level tuplet content
-**And** nested tuplet rendering behavior is deferred
-
-### Story 3.4: Lay Out Tuplets Legibly Within the Existing Score Surface
-
-As a composer,
-I want tuplets to fit cleanly into the score layout,
-So that numbers, brackets, and notes stay readable in normal work.
-
-**FRs implemented:** FR18
-**NFRs implemented:** NFR1, NFR15
-
-**Acceptance Criteria:**
-
-**Given** a score containing supported tuplets
-**When** spacing is calculated
-**Then** the implementation compares the ambient host spacing already implied across the governed span against the width required by the tuplet's local content
-**And** the wider of those two widths becomes the rendered span width
-
-**Given** tuplets are laid out inside the existing score spacing system
-**When** spacing slots are assigned
-**Then** the implementation reuses the existing slot patterns and spreads them across the tuplet-governed span rather than adding new tuplet-specific slots unless absolutely necessary
-**And** any new slot requires explicit justification because tuplets should normally fit the current slot model
-
-**Given** the tuplet-required local width is greater than the ambient host spacing across the governed span
-**When** the tuplet is laid out
-**Then** the extra width is distributed evenly across the governed host ticks
-**And** surrounding tracks remain aligned through that widened base spacing
-
-**Given** the ambient host spacing across the governed span is already wider than the tuplet-required local width
-**When** the tuplet is laid out
-**Then** the excess width is distributed evenly across the tuplet-local ticks
-**And** the notation remains aligned with the surrounding score surface
-
-**Given** tuplets begin or end next to non-tuplet material
-**When** layout and hit targets are refreshed
-**Then** number placement, collision avoidance, and targeting remain legible and stable
-**And** the adjacent material remains distinguishable
-
-## Epic 4: Hear Tuplets Played Back Correctly
-
-Composers can play tuplet-authored material and hear timing that matches the same exact backend-owned rhythmic intent.
-
-**NFRs covered:** NFR3, NFR4, NFR5, NFR7
-
-### Story 4.1: Project Tuplet Timing Into Host Musical Time
-
-As a composer,
-I want tuplet playback timing to come from the same exact model as notation and persistence,
-So that playback reflects the real rhythmic structure I entered.
-
-**FRs implemented:** FR19, FR20
-**NFRs implemented:** NFR3, NFR4, NFR7
-
-**Acceptance Criteria:**
-
-**Given** a score containing supported tuplets
-**When** playback scheduling is prepared
-**Then** tuplet child onsets and durations are projected into host musical time from the tuplet container's local frame
-**And** the projection preserves exact timing rather than binary-tick approximation
-
-**Given** a tuplet contains multiple notes at different local positions
-**When** their playback timing is resolved
-**Then** each onset and duration is computed from the same backend-owned timing model used by save/load and notation derivation
-**And** no separate playback-only timing interpretation is introduced
-
-**Given** a tone extends into or out of a tuplet across a supported boundary
-**When** playback timing is resolved
-**Then** each owned segment is scheduled in the correct context with preserved continuity across the boundary
-**And** the result remains rhythmically exact relative to surrounding non-tuplet material
-
-**Given** MVP tuplets are structurally non-nestable
-**When** playback projection is implemented
-**Then** host-time projection only needs to support single-level tuplet content
-**And** nested tuplet timing projection is deferred
-
-### Story 4.2: Schedule Tuplet Playback Correctly Beside Non-Tuplet Material
-
-As a composer,
-I want tuplets to play in the right relationship to surrounding notes,
-So that mixed passages sound rhythmically correct.
-
-**FRs implemented:** FR19, FR20, FR21
-**NFRs implemented:** NFR4, NFR7
-
-**Acceptance Criteria:**
-
-**Given** tuplet material appears before, after, or between ordinary non-tuplet notes
-**When** transport ordering is resolved
-**Then** tuplet events are scheduled in the correct host-time order relative to surrounding material
-**And** adjacent non-tuplet playback remains rhythmically correct
-
-**Given** a passage mixes tuplets and non-tuplet material on the same supported playback path
-**When** playback runs
-**Then** the tuplet timing does not drift relative to neighboring events
-**And** the result matches the persisted rhythmic intent
-
-### Story 4.3: Preserve Existing Non-Tuplet Playback Behavior
-
-As a composer,
-I want existing playback to keep working after tuplets are added,
-So that the new timing support does not regress older scores.
-
-**FRs implemented:** FR21
-**NFRs implemented:** NFR5
-
-**Acceptance Criteria:**
-
-**Given** a score with no tuplets
-**When** playback runs after foundational tuplet support is introduced
-**Then** existing non-tuplet playback behavior remains correct
-**And** the added tuplet timing path does not alter legacy rhythmic output
-
-**Given** tuplets are added to the playback implementation
-**When** the transport handles existing non-tuplet scenarios
-**Then** it continues to use the correct current behavior for those passages
-**And** the feature does not force unrelated playback changes
-
-### Story 4.4: Keep MVP Playback Scoped to the Active Flow
-
-As a composer,
-I want tuplets to play back correctly in the active flow without expanding MVP playback scope,
-So that the feature ships with the right boundaries.
-
-**FRs implemented:** FR22
-**NFRs implemented:** NFR5
-
-**Acceptance Criteria:**
-
-**Given** MVP playback remains single-flow oriented
-**When** tuplets exist in the active flow
-**Then** playback works correctly for that flow
-**And** the feature does not require broader cross-flow playback changes
-
-**Given** tuplets are implemented for active-flow playback
-**When** the playback story is completed
-**Then** the system honors the current single-flow playback boundary
-**And** later playback expansion remains a separate concern
-
-## Epic 5: Ship Tuplet Support Safely in a Brownfield Codebase
-
-Maintainers can harden and document foundational tuplet support with regression protection and architectural guardrails that keep existing notation behavior stable and leave room for future tuplets.
-
-**NFRs covered:** NFR5, NFR10, NFR11
-
-### Story 5.1: Add Targeted Regression Coverage for Each Tuplet Seam
+**Given** the legacy path has been removed from active behavior and backend ownership has been clarified
+**When** the reset baseline is evaluated
+**Then** the project has explicit checks for single-instrument-VST-instance activation and runtime coherence
+**And** those checks are strong enough to block downstream epic work if the foundation is still untrusted
+
+**Given** the reset baseline is now the gate before first-audible-playback work
+**When** trust-restoration criteria are documented
+**Then** they define what must be true before Epic 4 style audible-playback stories can begin
+**And** they do not overclaim unsupported multi-instrument, multi-timbral, or richer runtime capability
+
+**Given** this reset affects developer expectations and planning artifacts
+**When** the baseline is finalized
+**Then** the relevant documentation and planning guidance reflect the VST-only foundation and deletion rules
+**And** the historical Epic 3 runway is not described as a production-trustworthy playback base
+
+**Planning Note:** Story 1.3 established the explicit trust-restoration baseline, and follow-up Stories 1.4 through 1.6 plus the required maintainer manual proof completed that gate on the corrected slot-owned-session architecture. Epic 4 is now the next execution epic. Epic 3 then exercised that stabilized foundation through compact routing, explicit recovery states, and same-session stability work rather than serving as a separate blocker.
+
+### Story 1.4: Make Rack Slots Own Live Plugin Sessions
 
 As a maintainer,
-I want targeted regression coverage across parser, rendering, playback, persistence, and migration seams,
-So that tuplet support is protected where it can actually fail.
-
-**FRs implemented:** FR28
-**NFRs implemented:** NFR10
+I want each routed playback slot to own one real initialized VST instance at runtime,
+So that playback and plugin state no longer depend on editor-window lifetime while project files remain portable.
 
 **Acceptance Criteria:**
 
-**Given** the implemented tuplet feature set across earlier epics
-**When** regression coverage is added
-**Then** the suite includes explicit tests for parser, rendering, playback, persistence, and migration behavior relevant to supported tuplets
-**And** the coverage lives close to the owning modules rather than in a disconnected repo-wide framework
+**Given** a slot is assigned to an available plugin
+**When** the backend prepares or restores that slot
+**Then** Rust creates or restores a slot-owned runtime session keyed by `slot_id`
+**And** that session is the authoritative live plugin ownership seam for the slot
 
-**Given** supported triplet cases and representative boundary cases
-**When** the regression corpus is run
-**Then** it exercises isolated triplets, partially filled tuplets, boundary splitting, projection-driven playback timing, and load/save round-trips
-**And** failures identify the relevant ownership seam clearly enough to debug
+**Given** a slot-owned session exists
+**When** playback or score-context workflows query readiness
+**Then** they reflect that real runtime ownership instead of editor-created approximation
+**And** they do not treat editor-open as the act that creates canonical runtime state
 
-**Given** MVP tuplets are non-nestable
-**When** the regression corpus is defined
-**Then** nested tuplet coverage is excluded from MVP expectations
-**And** tests assume the single-level child-content invariant
+**Given** a slot is unassigned, removed, or the project closes
+**When** ownership ends
+**Then** the slot-owned session is torn down at that ownership boundary rather than at editor close
+**And** the teardown leaves persisted user intent consistent
 
-### Story 5.2: Protect Existing Non-Tuplet Behavior From Tuplet Regressions
+**Given** a project is saved
+**When** playback state is persisted
+**Then** `.soloc` stores only the portable plugin intent and the minimum data needed to rehydrate the slot-owned session later
+**And** it does not persist live host-session objects or machine-local runtime cache state
+
+### Story 1.5: Make Native Plugin Editors Transient Views On Slot-Owned Sessions
+
+As a composer,
+I want the native plugin editor to open against the running instance already owned by a slot,
+So that opening or closing the editor does not create, destroy, or swap the real playback instance.
+
+**Acceptance Criteria:**
+
+**Given** a slot-owned runtime session already exists
+**When** I open the editor
+**Then** Compose attaches the editor to that existing slot-owned session rather than creating a second canonical instance
+**And** the attach flow preserves the slot's current plugin state
+
+**Given** the editor is closed
+**When** the slot still exists
+**Then** the editor detaches without destroying the slot-owned runtime session
+**And** the slot remains playback-ready according to backend-owned truth
+
+**Given** multiple slots host the same plugin bundle
+**When** I open or reopen editors across them
+**Then** each editor targets the exact slot-owned instance rather than a bundle-level approximation
+**And** same-bundle slots remain distinct backend-owned editor targets
+
+### Story 1.6: Initialize And Restore Slot-Owned Sessions On Assignment And Reopen
+
+As a composer,
+I want assigned slots to initialize their plugin instances during assignment, preparation, or project reopen from portable saved intent, including restorable plugin configuration,
+So that the plugin is already the intended running instrument before I ever open its editor.
+
+**Acceptance Criteria:**
+
+**Given** I assign a plugin to a slot
+**When** the backend accepts the assignment
+**Then** the slot enters an explicit initialization or recovery path that can produce a real running slot-owned session without requiring editor-open
+**And** the resulting state is surfaced through backend-owned readiness semantics
+
+**Given** a project is reopened and the plugin is available
+**When** slot and route intent are restored
+**Then** the slot-owned session is restored or reinitialized before editor-open and without rewriting project intent
+**And** the restored session reflects the portable saved intent recorded in `.soloc`, including the previously selected restorable instrument or patch state needed for the intended running instrument
+
+**Given** the plugin cannot be initialized or restored
+**When** the backend surfaces state
+**Then** Compose reports an explicit recoverable non-ready condition rather than silently pretending the slot is initialized
+**And** the score remains usable
+
+**Given** `.soloc` is loaded
+**When** slot and plugin configuration are rehydrated
+**Then** the backend uses the portable saved intent to rebuild the slot-owned runtime session, including slot-to-plugin relationships and any restorable plugin configuration required to recover the intended instrument selection
+**And** the file is not required to contain live runtime state
+
+## Epic 2: Find And Prepare Usable Plugins
+
+Composers can discover, rescan, inspect, and open supported VST plugins from inside Compose so playback setup starts in the app instead of outside it.
+
+### Story 2.1: Build The App-Scoped Plugin Inventory Window
+
+As a composer,
+I want an app-scoped Plugin Manager that shows discovered VST plugins and their current health,
+So that I can understand what Compose can use before I try routing playback.
+
+**Acceptance Criteria:**
+
+**Given** Compose has a machine-local plugin inventory source
+**When** I open the Plugin Manager from its canonical app-scoped entry point
+**Then** I can see the discovered VST plugin inventory in a dedicated window
+**And** each entry shows enough status to distinguish usable plugins from unavailable or attention-needed ones
+
+**Given** plugin inventory state is machine-local rather than project-owned
+**When** the Plugin Manager is opened
+**Then** it reflects backend-owned current inventory truth
+**And** it does not imply that plugin availability is stored inside the project file
+
+**Given** the product uses score-context panels and app-scoped windows for different responsibilities
+**When** I inspect plugin inventory and scan health
+**Then** that work happens in the Plugin Manager window rather than a score-context panel
+**And** the window aligns with the existing Compose design system and scope model
+
+### Story 2.2: Support Cached Discovery And Manual Rescan
+
+As a composer,
+I want Compose to load known plugins quickly and let me rescan when needed,
+So that startup stays fast without preventing me from refreshing my installed inventory.
+
+**Acceptance Criteria:**
+
+**Given** Compose has a previously built plugin inventory cache
+**When** the app starts
+**Then** previously discovered plugins are available from the cached inventory without a full probe on every launch
+**And** empty-cache startup still performs the required initial discovery path
+
+**Given** I install, remove, or troubleshoot local plugins
+**When** I trigger a manual full rescan from the supported inventory workflow
+**Then** Compose refreshes the plugin inventory from the local VST3 locations
+**And** the resulting inventory state is reflected in the Plugin Manager
+
+**Given** discovery behavior has explicit performance and validation expectations
+**When** cached discovery and manual rescan are implemented
+**Then** the work includes measurable behavior or checks for startup and rescan expectations
+**And** discovery remains limited to required local desktop paths and permissions
+
+### Story 2.3: Expose Musician-Friendly Plugin Selection Inputs
+
+As a composer,
+I want score workflows to show only usable plugin choices in a clear musical form,
+So that I can choose playback options without dealing with raw host-inventory complexity.
+
+**Acceptance Criteria:**
+
+**Given** Compose has a backend-owned plugin inventory with health status
+**When** a score-context routing surface needs plugin choices
+**Then** it receives a filtered view of currently usable plugins and targets
+**And** unavailable or invalid inventory entries are not presented as ordinary ready-to-route choices
+
+**Given** inventory management is app-scoped but routing is score-context
+**When** I need more information about missing or unavailable options
+**Then** the score-context surface can direct me to the Plugin Manager
+**And** it does not duplicate the full inventory-management workflow locally
+
+**Given** the rack-first model is the canonical playback mental model
+**When** plugin options are presented in contextual pickers
+**Then** they are framed as usable musical playback choices rather than host-topology internals
+**And** the UI stays compact rather than expanding into proof-oriented control sprawl
+
+### Story 2.4: Open Supported Native Plugin Editors Through A Bounded Host Seam
+
+As a composer,
+I want to open a supported plugin’s native editor from Compose,
+So that I can adjust plugin-specific controls without Compose taking over that responsibility.
+
+**Acceptance Criteria:**
+
+**Given** a supported VST plugin is available through the bounded native editor-host seam
+**When** I invoke the supported open-editor action from Compose
+**Then** the plugin’s native editor opens through the backend-owned host path
+**And** Compose treats it as a secondary handoff surface rather than a primary playback workflow
+
+**Given** native editor support may be limited for some plugins or scenarios
+**When** the editor cannot be opened or a supported interaction is unavailable
+**Then** Compose preserves overall playback usability
+**And** the product reports the limitation without implying that core routing or inventory state is lost
+
+**Given** the native editor host seam has explicit lifecycle expectations
+**When** the editor is opened, focused, resized, closed, or reopened
+**Then** the supported lifecycle behavior follows the bounded host design
+**And** it does not expand scope into transport, routing, preset-management, or broader production-host ownership
+
+## Epic 3: Route Score Instruments With Rack-First Clarity
+
+Composers can assign instruments to rack-first playback targets, understand readiness or unrouted state, and keep usable route and plugin session behavior without restructuring the score.
+
+### Story 3.1: Show Compact Rack-First Route State On Instruments
+
+As a composer,
+I want each score instrument to show its current playback route and readiness in a compact form,
+So that I can tell at a glance whether it is ready, needs attention, or is unrouted.
+
+**Acceptance Criteria:**
+
+**Given** a score contains instruments with different playback situations
+**When** I view the score-context instrument surfaces
+**Then** each instrument shows a compact route summary and a compact readiness state
+**And** the user-facing readiness model collapses into Ready, Needs Attention, or Unavailable
+
+**Given** a route is missing, unresolved, or explicitly absent
+**When** the instrument state is displayed
+**Then** the UI distinguishes that condition from a ready route
+**And** it does so without relying on color alone
+
+**Given** the rack-first model is the canonical interaction
+**When** instrument playback state is presented
+**Then** the UI frames the relationship as instrument-to-playback-route
+**And** it avoids extra explanatory or proof-oriented controls that do not add user value
+
+### Story 3.2: Assign And Change Single-Target Playback Routes
+
+As a composer,
+I want to assign or change a single-target playback route for an instrument,
+So that I can connect musical parts to usable VST-backed playback without restructuring the score.
+
+**Acceptance Criteria:**
+
+**Given** an instrument has no playback route or an existing route
+**When** I use the supported score-context routing control
+**Then** I can assign or change the instrument’s single-target playback route
+**And** the route is expressed through the rack-first model rather than legacy assignment or sampler language
+
+**Given** only some plugins or targets are currently usable
+**When** I select a playback route
+**Then** the control presents only the valid contextual choices supplied by the backend
+**And** invalid or unavailable options are not presented as ordinary ready choices
+
+**Given** the MVP is single-target-first
+**When** a route is assigned in this epic
+**Then** the supported workflow remains bounded to one target per instrument
+**And** the underlying model does not block later multi-target expansion
+
+### Story 3.3: Preserve Explicit Unrouted And Recovery States
+
+As a composer,
+I want unrouted and unresolved instruments to remain explicit and recoverable,
+So that missing playback setup does not break my score or force hidden fallback behavior.
+
+**Acceptance Criteria:**
+
+**Given** an instrument has no suitable playback mapping or a previously valid route cannot currently resolve
+**When** Compose evaluates its playback state
+**Then** the instrument remains explicitly unrouted or attention-needed instead of silently falling back
+**And** the score remains usable
+
+**Given** a non-ready instrument is shown in score-context surfaces
+**When** I inspect its state
+**Then** the UI provides one primary contextual recovery path into the relevant rack or route workflow
+**And** that recovery path stays inside the score-context model unless deeper app-scoped inventory work is needed
+
+**Given** playback readiness is a backend-owned domain state
+**When** unresolved or missing-route states are surfaced
+**Then** they preserve user intent and route truth
+**And** they do not invent frontend-only fallback state
+
+### Story 3.4: Keep Route And Plugin Session Behavior Stable In-App
+
+As a composer,
+I want routed instruments and their plugin sessions to remain stable while I work,
+So that changing routes or reopening relevant playback surfaces does not make the workflow feel fragile.
+
+**Acceptance Criteria:**
+
+**Given** an instrument has a valid routed playback target
+**When** I continue using the score workflow in the same app session
+**Then** the route remains associated with the intended rack and slot state
+**And** the plugin session behavior remains usable for that routed instrument
+
+**Given** I change a route for an existing instrument
+**When** the new route is applied
+**Then** the old and new route state transitions remain coherent
+**And** the score does not need restructuring to accommodate the change
+
+**Given** route and plugin session state are backend-owned
+**When** score-context routing workflows are used repeatedly in the same session
+**Then** the frontend continues reflecting backend truth
+**And** no parallel route-state ownership is introduced in the UI
+
+**Planning Note:** Story 3.4 assumes Stories 1.4 through 1.6 have already established slot-owned runtime-session ownership and transient editor attachment. It does not replace that Epic 1 foundation work.
+
+## Epic 4: Hear The Score Through Routed Instruments
+
+Readiness Note: The Story 1.3 through 1.6 trust-restoration gate and the required maintainer manual proof are complete on the corrected slot-owned-session architecture. Epic 4 is now ready to begin.
+
+Composers can move from written notation to first audible VST-backed playback, with basic route-first mix control inside the core score workflow.
+
+### Story 4.1: Translate Routed Score Instruments Into Playback Preparation
+
+As a composer,
+I want routed score instruments to prepare a playback-capable path from notation into the VST runtime,
+So that written music can become audible without leaving the score workflow.
+
+**Acceptance Criteria:**
+
+**Given** a score instrument has a valid routed playback target
+**When** Compose prepares the score for playback or audition
+**Then** the written instrument is translated into the backend playback path required for the routed VST target
+**And** that preparation remains backend-owned rather than recreated in frontend state
+
+**Given** an instrument is unrouted or unresolved
+**When** playback preparation runs
+**Then** Compose preserves the explicit non-ready state for that instrument
+**And** it does not invent hidden fallback playback behavior
+
+**Given** the current MVP is single-target-first
+**When** playback preparation resolves routed instruments
+**Then** the supported preparation path stays bounded to the current single-target model
+**And** the model remains compatible with later expansion
+
+### Story 4.2: Prove First Audible Playback Through Auditioning
+
+As a composer,
+I want to audition routed written material from the score workflow,
+So that Compose can prove the first audible playback path before full transport behavior is introduced.
+
+For this story, auditioning means playing one specific pitch for 1 second at a moderate velocity using a default legato articulation so the user can hear pitches in the instrument voice while interacting with the score.
+
+**Acceptance Criteria:**
+
+**Given** at least one score instrument has a valid routed playback target
+**When** I invoke the supported audition workflow from the score context
+**Then** Compose plays the targeted score pitch for 1 second through the routed VST-backed instrument voice at a moderate velocity with a default legato articulation
+**And** the audible result comes from score-derived musical content rather than a separate plugin-only test path
+
+**Given** some instruments are routed and others are not
+**When** auditioning begins for the currently targeted tone
+**Then** the selected tone's routed instrument can sound through the supported playback path
+**And** unrouted instruments remain explicitly non-ready rather than blocking the workflow
+
+**Given** Epic 4 is proving playback basics rather than full transport trust
+**When** this story is completed
+**Then** the result demonstrates a trustworthy first-audible path through auditioning
+**And** it does not require play, pause, resume, or seek behavior that belongs to later transport stories
+
+**Given** the user is interacting with score tones
+**When** a tone is selected through the renderer or sequencer, its pitch is changed through keyboard commands or sequencer vertical dragging, or its accidental is changed through the left-panel control or keyboard command
+**Then** Compose triggers the supported one-second audition for the affected pitch through the same routed score-context playback path
+
+### Story 4.3: Establish A Continuous Render Path For Slot-Owned Sessions
+
+As a composer,
+I want mounted routed plugin sessions to stay connected to a continuous playback render path,
+So that auditioning, plugin-UI interaction, and later transport work all use the same trustworthy audio foundation.
+
+**Acceptance Criteria:**
+
+**Given** a routed slot-owned plugin session exists and is render-active
+**When** Compose's audio engine is running
+**Then** the session is processed through a continuous backend-owned render path rather than only through burst audition rendering
+**And** silence-safe buffers continue to flow even when no notes are currently scheduled
+
+**Given** the user opens a native plugin editor for a mounted routed session
+**When** the plugin exposes its own playable UI such as a built-in keyboard
+**Then** that interaction can sound through the same continuous render path
+**And** the editor window remains a transient view over the already-running slot-owned session rather than a second playback owner
+
+**Given** transport trust work is still upcoming
+**When** this render path is introduced
+**Then** transport remains responsible for scheduling and transport-state transitions rather than audio-stream ownership
+**And** the OS output stream, mixer lifetime, and live plugin processing stay outside transport
+
+**Given** Compose must stay realtime-safe and rack-first
+**When** the correction story is implemented
+**Then** the audio path consumes precomputed lock-safe state and backend-owned event queues
+**And** the implementation does not reintroduce sampler-style fallbacks, frontend-owned playback truth, or plugin-only side seams
+
+**Planning Note:** This is a correction story inserted after Story 4.2 so the concrete implementation matches the already-approved architecture requirement for a realtime-safe playback plane before mix-control and transport-trust expansion continue.
+
+### Story 4.4: Apply Basic Route-First Mix Controls During Audition And Playback
+
+As a composer,
+I want basic route-first mix controls to affect audible output,
+So that I can make bounded playback adjustments within Compose while keeping the user model tied to routes.
+
+**Acceptance Criteria:**
+
+**Given** a routed instrument participates in auditioning or supported score playback
+**When** I adjust a supported basic mix control in Compose
+**Then** the control affects audible output according to the real route capability exposed by the active VST path
+**And** the user-facing control remains route-first in meaning
+
+**Given** some control semantics may still cross slot boundaries internally
+**When** mix behavior is implemented
+**Then** the product preserves the route-first user model
+**And** any required slot-level mechanics remain behind the scenes
+
+**Given** a requested mix control is not truly supported by the active route capability
+**When** the playback surface is shown
+**Then** Compose does not pretend the control is available
+**And** the bounded MVP mixer surface remains aligned with actual supported behavior
+
+### Story 4.5: Keep First Audible Playback Compact And Score-First
+
+As a composer,
+I want the first audible playback workflow to stay compact and tied to score-context controls,
+So that hearing the score feels like part of composition instead of a detour into playback tooling.
+
+**Acceptance Criteria:**
+
+**Given** first audible playback is being proved through score-context auditioning and related controls
+**When** the UI for this epic is implemented
+**Then** the useful workflow is available through compact score-context controls
+**And** the design avoids extra explanatory surfaces or duplicate controls that exist mainly to prove acceptance criteria
+
+**Given** deeper inventory and plugin editing already belong to app-scoped windows
+**When** first audible playback is used
+**Then** the core audible workflow stays in the score context
+**And** it escalates outward only when a real user need requires it
+
+**Given** Compose uses a custom compact design language
+**When** first audible playback surfaces are added or refined
+**Then** they preserve the existing panel and window grammar
+**And** readiness and control states remain legible without relying on color alone
+
+## Epic 5: Trust Playback During Real Composition
+
+Composers can start real transport-driven score playback, then pause, resume, seek, edit during playback, reopen projects, and recover from missing routes without losing trust in the score workflow.
+
+### Story 5.0: Make Transport Drive Audible Routed Score Playback
+
+As a composer,
+I want the existing score transport to drive actual audible routed playback,
+So that transport becomes the real composition playback path before later trust and realism features extend it.
+
+**Acceptance Criteria:**
+
+**Given** the active flow contains score-derived notes and at least one supported direct-plugin route is transport-ready
+**When** I start playback from the supported transport surface
+**Then** Compose emits audible score-derived note output through the routed VST-backed session rather than advancing timing-only transport state
+**And** the resulting sound comes from the backend-owned transport plus engine path rather than an audition-only or plugin-proof seam
+
+**Given** the current MVP remains single-target-first and some score instruments may still be unresolved
+**When** transport playback starts from the current tick
+**Then** the one supported ready route can sound through the product path
+**And** explicit `Unrouted` and `NeedsAttention` routes remain recoverable backend truth rather than blocking the ready route or triggering hidden fallback playback
+
+**Given** Epic 6 will later shape playback realism through expression maps
+**When** this story introduces audible transport playback
+**Then** it reuses the existing backend preparation, runtime-activation, and continuous-engine seams
+**And** it stops short of introducing expression-map logic, multi-target transport scope, or a second frontend-owned transport model
+
+### Story 5.1: Start, Pause, And Resume Trusted Score Playback
+
+As a composer,
+I want playback to start, pause, and resume coherently,
+So that I can re-audition my score during composition without losing trust in playback state.
+
+**Acceptance Criteria:**
+
+**Given** Story 5.0 established a supported audible transport playback path
+**When** I start, pause, and resume playback from the supported workflow
+**Then** playback state transitions remain coherent
+**And** the app avoids hangs, stuck notes, or corrupted session behavior during those actions
+
+**Given** repeated transport actions are common during composition
+**When** I perform multiple start, pause, and resume cycles
+**Then** the supported playback path remains stable
+**And** the behavior is suitable for representative regression validation rather than one-off demos
+
+**Given** some score instruments may still be non-ready
+**When** playback is started or resumed
+**Then** ready routes continue through the supported playback path
+**And** missing or unresolved routes remain recoverable without collapsing the session
+
+### Story 5.2: Seek To Score Positions Without Losing Playback Trust
+
+As a composer,
+I want to seek to another score position and continue playback coherently,
+So that I can navigate the piece freely while composing.
+
+**Acceptance Criteria:**
+
+**Given** Story 5.0 established a supported audible transport playback path
+**When** I seek to another supported position and continue playback
+**Then** playback resumes from the intended location through the routed VST path
+**And** the transport state remains coherent across repeated seek operations
+
+**Given** seek behavior is a trust-critical transition
+**When** representative seek scenarios are exercised
+**Then** the system avoids dropouts, hangs, and stale playback state
+**And** the resulting behavior is strong enough to support composition rather than audition-only proof
+
+**Given** the product remains score-first
+**When** seek is used in the main workflow
+**Then** the user experience stays tied to score navigation rather than host internals
+**And** transport state remains backend-owned
+
+### Story 5.3: Define Bounded Editing During Playback
+
+As a composer,
+I want clear rules for what score edits apply during playback and when,
+So that editing while listening feels predictable rather than fragile.
+
+**Acceptance Criteria:**
+
+**Given** Story 5.0 established a supported audible transport playback path
+**And** I make supported score edits during active playback
+**When** the system evaluates those edits
+**Then** it applies them immediately or defers them to a safe boundary according to explicit documented rules
+**And** the workflow remains valid rather than collapsing into a blocked state
+
+**Given** some edits are not safe to apply immediately
+**When** they occur during playback
+**Then** Compose preserves playback coherence and user intent
+**And** it communicates the bounded update behavior without forcing a debugging mindset
+
+**Given** edit-during-playback is part of real composition work
+**When** representative scenarios are exercised
+**Then** the supported behaviors are consistent and testable
+**And** unsupported live-edit behavior is bounded rather than left ambiguous
+
+### Story 5.4: Restore Playback State On Project Reopen
+
+As a composer,
+I want valid playback routes and rack state to restore when I reopen a project,
+So that playback remains part of the normal project lifecycle.
+
+**Acceptance Criteria:**
+
+**Given** Story 5.0 established a supported audible transport playback path
+**And** a saved project contains valid playback intent and the required plugins are available
+**When** I reopen the project
+**Then** Compose restores the relevant rack slots and instrument routes
+**And** playback-relevant state remains coherent with the backend-owned model
+
+**Given** project files must remain portable
+**When** reopen restoration occurs
+**Then** restoration resolves saved project intent against machine-local plugin inventory
+**And** project files do not contain machine-local cache or discovery truth
+
+**Given** reopened playback state is part of trusted composition workflow
+**When** reopen scenarios are validated
+**Then** state integrity across save, close, and reopen is preserved
+**And** restoration behavior is suitable for regression validation
+
+### Story 5.5: Recover Gracefully From Missing Or Unavailable Routes
+
+As a composer,
+I want missing plugins or unavailable routes to degrade into recoverable states,
+So that I can continue working even when playback assets are unavailable.
+
+**Acceptance Criteria:**
+
+**Given** Story 5.0 established a supported audible transport playback path
+**And** a previously saved or expected route cannot currently resolve
+**When** Compose restores or evaluates playback state
+**Then** the route degrades to an explicit recoverable non-ready state
+**And** the score remains usable
+
+**Given** some routes are recoverable and others are ready
+**When** I continue working in the project
+**Then** ready routes keep working through the supported playback path
+**And** unresolved routes do not block score access or force hidden substitutions
+
+**Given** recovery behavior is part of user trust
+**When** missing-plugin and unavailable-route scenarios are surfaced
+**Then** Compose preserves user intent and offers a clear recovery path
+**And** it avoids silent fallback or corrupted playback truth
+
+## Epic 6: Shape Playback With Score-Linked Expression Maps
+
+Composers can use an initial durable expression-map model to make playback more realistic now, while preserving a clean path to richer score-linked behavior later.
+
+### Story 6.1: Model Expression Maps As Durable Playback Assets
+
+As a composer,
+I want expression maps to exist as durable reusable playback assets,
+So that playback realism is based on a coherent model rather than transient per-selection settings.
+
+**Acceptance Criteria:**
+
+**Given** expression behavior is part of playback realism
+**When** Compose introduces the initial expression-map capability
+**Then** expression maps are modeled as durable reusable assets rather than transient UI-only state
+**And** the model preserves a path to richer score-linked behavior later
+
+**Given** score-context panels and app-scoped windows have different responsibilities
+**When** expression-map architecture is surfaced in the product
+**Then** score-context surfaces show route linkage and current status
+**And** the expression-map asset itself is owned outside transient selection context
+
+**Given** the MVP may need a bounded first implementation
+**When** the initial model is defined
+**Then** it can support a constrained first-use path
+**And** it does not lock the product into a manual-only dead end
+
+### Story 6.2: Show Expression-Map Linkage In Score Context
+
+As a composer,
+I want to see whether my current routed instrument has an Expression Map assigned,
+So that I can understand and adjust the current score-context linkage without leaving the instrument workflow.
+
+**Acceptance Criteria:**
+
+**Given** an instrument is associated with a playback route
+**When** I inspect the instrument overview row
+**Then** I can see which Expression Map is linked to that route through a compact row control
+**And** `--` remains the truthful unassigned state
+
+**Given** Expression Maps are reusable assets rather than selection-owned data
+**When** linkage is displayed in score context
+**Then** the row shows only the current route relationship and reassignment control
+**And** it does not imply that the row or bottom panel owns the map definition itself
+
+**Given** a linkage needs deeper work
+**When** I use the instrument overview row
+**Then** Compose provides an adjacent edit affordance that opens the selected map in an app-scoped window shell
+**And** that escalation stays aligned with the panel-versus-window scope model
+
+### Story 6.3: Create One Dedicated Expression-Map Editor Window
+
+As a composer,
+I want one dedicated editor for expression maps,
+So that both instrument-driven fixes and library-driven authoring use the same durable workflow.
+
+**Acceptance Criteria:**
+
+**Given** I enter expression-map work from the Sequence menu library path or from the instrument-row cog
+**When** the relevant window is opened
+**Then** both paths lead into the same dedicated Expression Map editing workflow
+**And** the selected-map editor owns the Expression Map asset itself
+
+**Given** expression-map work is a reusable playback-asset workflow
+**When** I use the dedicated editor
+**Then** the workflow is framed in musical playback terms rather than low-level host internals
+**And** the interface remains aligned with Compose’s existing design language
+
+**Given** expression-map editing is app-scoped
+**When** the library and editor windows are used
+**Then** the library behaves as the durable CRUD and browse surface while the editor behaves as the selected-map authoring surface
+**And** both remain distinct from score-context panels and plugin-owned parameter editing
+
+### Story 6.4: Drive Initial Realistic Playback Through A Linked Expression Map
+
+As a composer,
+I want an initial linked expression-map behavior to affect playback,
+So that routed score playback sounds more musically meaningful than a raw default trigger path.
+
+**Acceptance Criteria:**
+
+**Given** a routed instrument has an Expression Map configured through the supported MVP path
+**When** I start transport playback of supported written material
+**Then** the linked Expression Map influences playback through the existing routed VST transport path
+**And** at least one resolved winning expression rule per played note is supported through the defined model using top-down first-match-wins playback semantics
+
+**Given** full score-linked expression sophistication may exceed MVP scope
+**When** the initial realistic playback path is implemented
+**Then** the supported behavior stays bounded to a first-use case based on articulation plus note length
+**And** it still proves the model can connect score meaning to playback behavior without widening into audition-specific expression handling or active-expression UI
+
+**Given** future realism work must build on this foundation rather than replace it
+**When** the initial expression-map path is delivered
+**Then** the underlying model remains extensible to richer score-linked expression behavior later
+**And** the implementation does not hard-code a one-off path that bypasses the durable asset model, first-match fallback-to-plugin-default behavior, or the existing transport pipeline
+
+## Epic 7: Prove A Release-Credible Support Baseline
+
+Maintainers can validate discovery, plugin-host behavior, transport trust, and representative plugin-library coverage so the supported VST subset is explicit and shippable.
+
+### Story 7.1: Define The Supported Plugin And Scenario Baseline
 
 As a maintainer,
-I want non-tuplet notation and playback behavior protected while tuplets are added,
-So that the new feature does not silently degrade existing musical output.
-
-**FRs implemented:** FR29
-**NFRs implemented:** NFR5
+I want an explicit known-good plugin and scenario baseline,
+So that Compose has a concrete definition of what supported and shippable means for MVP playback.
 
 **Acceptance Criteria:**
 
-**Given** existing non-tuplet notation behavior relied on by the product
-**When** tuplets are introduced into parser, renderer, and playback paths
-**Then** regression checks cover representative non-tuplet scenarios
-**And** unchanged behavior remains explicitly protected rather than assumed
+**Given** MVP support is intentionally best-effort and bounded
+**When** the support baseline is defined
+**Then** it identifies the representative plugin set, scenario set, and compatibility expectations used for release decisions
+**And** it does not claim blanket support for out-of-spec or unvalidated plugins
 
-**Given** future tuplet work expands beyond MVP
-**When** new changes are made later
-**Then** the regression baseline established here still distinguishes intended tuplet changes from accidental regressions in older notation behavior
-**And** existing non-tuplet correctness remains a protected product contract
+**Given** the product must be validated against representative real-world libraries
+**When** the baseline is documented
+**Then** it includes the user's real plugin library coverage expectations, including the relevant BBC Spitfire libraries
+**And** it distinguishes known-good support from future compatibility expansion
 
-### Story 5.3: Document Tuplet Scope, Editing Rules, and Persistence Impact
+**Given** release claims need explicit evidence
+**When** the baseline is approved
+**Then** the scenarios and supported subset are specific enough to drive repeatable validation
+**And** they can be used to reject unsupported overclaims
+
+### Story 7.2: Validate Plugin Discovery And Host Behavior Against The Baseline
 
 As a maintainer,
-I want the shipped tuplet behavior documented clearly,
-So that future contributors understand the supported scope and do not reintroduce ambiguity.
-
-**FRs implemented:** FR30
-**NFRs implemented:** NFR11
+I want discovery, loading, and bounded editor-host behavior validated against representative plugins,
+So that the supported playback path is credible beyond isolated implementation slices.
 
 **Acceptance Criteria:**
 
-**Given** foundational tuplet support is implemented
-**When** developer-facing documentation is updated
-**Then** it describes supported tuplet scope, popover-plus-sequencer entry flow, editing rules, notation boundaries, playback boundaries, and persistence impact
-**And** migration expectations are documented wherever persisted behavior changed
+**Given** the representative plugin baseline is defined
+**When** discovery, loading, and bounded editor-host scenarios are exercised
+**Then** Compose can show which validated plugins are usable through the supported path
+**And** failures or unsupported behaviors are recorded without broadening the support claim
 
-**Given** the MVP intentionally excludes some broader tuplet behaviors
-**When** the documentation is reviewed
-**Then** deferred areas such as broader ratios, advanced sequencer manipulation, or other post-MVP concerns are called out clearly
-**And** the docs do not imply support beyond the implemented scope
+**Given** plugin-host behavior is part of the release story
+**When** representative known-good plugins are tested
+**Then** loading, basic usability, and bounded native editor-host behavior are evaluated as part of the support baseline
+**And** unsupported plugins or interactions remain outside the MVP support claim unless explicitly validated
 
-**Given** nested tuplets are explicitly out of scope for MVP
-**When** documentation is updated
-**Then** it states that tuplets are non-nestable in shipped MVP behavior
-**And** it does not present recursive child-content support as active user-facing capability
+**Given** inventory and host validation are backend-owned concerns with user-facing consequences
+**When** validation evidence is collected
+**Then** it reuses the real product seams rather than an unrelated one-off path
+**And** it is strong enough to support release review
 
-### Story 5.4: Update Project Guardrails for Future Tuplet Work
+**Given** intermittent plugin UI hangs remain a credible support risk
+**When** representative native editor-host scenarios are validated
+**Then** the baseline explicitly records whether those hangs are reproducible, bounded, or unresolved
+**And** the MVP support verdict does not ignore host-lifecycle instability that would undermine release confidence
+
+### Story 7.3: Validate Transport Trust Against Representative Composition Scenarios
 
 As a maintainer,
-I want AI-agent and developer instructions updated for the new tuplet architecture,
-So that future work follows the same timing, persistence, and testing rules.
-
-**FRs implemented:** FR31
-**NFRs implemented:** NFR11
+I want transport trust validated through representative score scenarios,
+So that release decisions are based on composition-grade behavior rather than isolated happy paths.
 
 **Acceptance Criteria:**
 
-**Given** foundational tuplet support establishes durable project rules
-**When** project instructions are updated
-**Then** they reflect the backend-owned timing model, migration discipline, and test-placement expectations introduced by this feature
-**And** future contributors are guided away from frontend-owned parallel state or ad hoc persistence fixes
+**Given** the supported playback path now includes real transport behavior
+**When** representative play, pause, resume, seek, and edit-during-playback scenarios are exercised
+**Then** the resulting validation shows whether playback remains coherent, dropout-free, and trustworthy
+**And** the checks are strong enough to catch regressions that matter to composition work
 
-**Given** the repo already has explicit migration and documentation rules
-**When** tuplet-specific guidance is added
-**Then** it extends those rules consistently rather than inventing a conflicting process
-**And** future tuplets work has a clear architectural baseline to build on
+**Given** transport trust is release-gating
+**When** the validation set is run
+**Then** the results distinguish between demo-capable behavior and composition-trustworthy behavior
+**And** the product is not considered release-credible if the representative scenarios fail
 
-**Given** the MVP implementation simplifies tuplet-owned child content to one level
-**When** project guardrails are updated
-**Then** they state that nested `Tuplet` child entries are intentionally disallowed in MVP
-**And** any future reintroduction would require explicit post-MVP planning
+**Given** transport validation must be explicit rather than anecdotal
+**When** the scenarios are documented and executed
+**Then** the scenario set is repeatable and specific
+**And** it can be reused as an ongoing regression baseline
+
+### Story 7.4: Publish The MVP Support Verdict And Boundaries
+
+As a maintainer,
+I want a clear support verdict and boundary statement for MVP playback,
+So that the team knows what can be shipped, what is known-good, and what remains outside scope.
+
+**Acceptance Criteria:**
+
+**Given** the representative plugin, host, and transport validations have been completed
+**When** the MVP support verdict is produced
+**Then** it states whether Compose is trustworthy enough to support real composition work for the validated subset
+**And** it names the actual scope of that supported subset
+
+**Given** some behaviors or plugins may remain outside the validated baseline
+**When** the support verdict is documented
+**Then** unsupported or unproven areas are called out explicitly
+**And** they are not described in a way that implies broader support than the evidence justifies
+
+**Given** the release baseline affects future planning as well as release confidence
+**When** the verdict is published
+**Then** it feeds back into planning, QA, and product guidance
+**And** later compatibility expansion can build from the validated boundary rather than re-litigating MVP scope
+
+## Epic 8: Derive Playback From Score-Level Playing Techniques
+
+Composers can author playing-technique markings in the score, and Compose derives exclusive-group-aware technique context for notes so expression maps can drive more realistic playback from score meaning rather than note-local properties alone.
+
+### Story 8.1: Add Durable Playing-Technique Score Entries
+
+As a composer,
+I want to add playing-technique markings to the score,
+So that Compose stores durable technique intent as first-class score data rather than as hidden playback state.
+
+**Acceptance Criteria:**
+
+**Given** playing techniques are user-authored score markings
+**When** Compose introduces the first playing-technique entry type
+**Then** `PlayingTechnique` entries are persisted as first-class score data on stave master tracks at specific ticks
+**And** they are modeled as musical markings rather than plugin-specific playback instructions
+
+**Given** this story is a bounded proof of concept
+**When** the first playing-technique entry type is shipped
+**Then** the supported technique vocabulary is limited to `pizz` and `arco`
+**And** those first markings already use the same exclusive-group semantic structure intended for richer future technique sets rather than a one-off binary shortcut
+
+**Given** later playback realism will depend on these markings
+**When** the first playing-technique entry type is defined
+**Then** the data model remains extensible to multiple simultaneous technique markings at the same tick
+**And** it does not assume that technique meaning is limited to one note-local property at a time or that every future technique family will be a bespoke special case
+
+### Story 8.2: Render And Select Playing-Technique Markings Above The Stave
+
+As a composer,
+I want playing-technique markings to appear and be selectable in the score,
+So that the new score entries behave like real authored notation rather than invisible playback metadata.
+
+**Acceptance Criteria:**
+
+**Given** `PlayingTechnique` entries are stave-master-owned score markings
+**When** they are rendered in the score
+**Then** they appear above their owning stave using the same established visual text-positioning approach as tempo markings
+**And** they do not inherit tempo's flow-master ownership or top-stave-only behavior
+
+**Given** the user must be able to work with these markings like other score directives
+**When** a visible playing-technique marking is shown in the score
+**Then** it emits native renderer hit targets and participates in shared selection behavior
+**And** the selected state is owned by the same backend-driven score interaction model as other directive-style entries
+
+**Given** the first shipped scope is intentionally bounded
+**When** `pizz` and `arco` markings are displayed
+**Then** the rendered text is clear and notation-like
+**And** the draw path reuses proven text-rendering patterns instead of inventing a separate visual system for technique markings
+
+### Story 8.3: Add Playing-Technique Properties Panels
+
+As a composer,
+I want playing-technique markings to expose the shared properties workflow,
+So that the new entry type integrates with the existing score-editing model.
+
+**Acceptance Criteria:**
+
+**Given** a playing-technique marking can be selected in the score
+**When** it is the current selection
+**Then** the bottom-panel properties workflow shows a dedicated playing-technique properties surface
+**And** that surface stays consistent with the existing directive-style properties architecture
+
+**Given** the first properties scope should stay bounded
+**When** the initial properties panel is delivered
+**Then** it exposes the shared `Hidden` toggle only
+**And** it does not widen into technique-specific editing controls before later scope explicitly requires them
+
+**Given** hidden markings should remain consistent with other score directives
+**When** a playing technique is hidden through the properties workflow
+**Then** its render and hit-target behavior follow the existing hidden-entry rules
+**And** the persisted score truth remains aligned with the shared directive editing model
+
+### Story 8.4: Derive Effective Playing-Technique Context For Notes
+
+As a maintainer,
+I want Compose to derive active playing-technique context for notes,
+So that playback and later consumers can use score meaning that persists beyond a single tone.
+
+**Acceptance Criteria:**
+
+**Given** playing-technique entries may stay in effect across later notes
+**When** score meaning is prepared for playback-facing consumers
+**Then** Compose derives effective note-time technique context from the relevant master-track markings
+**And** notes are no longer limited to only immediate tone-local expression inputs such as articulation and written duration
+
+**Given** the first proof-of-concept technique family is an exclusive bowed-technique group
+**When** `pizz` and `arco` markings are resolved
+**Then** Compose treats them as mutually exclusive entries in the same semantic group
+**And** the derived note context exposes the effective playback-facing condition for that group rather than forcing expression maps to interpret raw cancellation logic
+
+**Given** a `PlayingTechnique` entry takes effect from the tick where it is defined
+**When** note context is resolved for tones that begin at the same tick
+**Then** those tones see the updated effective technique state immediately
+**And** later notes continue to inherit that state until a later marking in the same exclusive group changes it
+
+**Given** later technique families may be more complex than `pizz` and `arco`
+**When** the first derived context shape is introduced
+**Then** it establishes one scalable resolver pattern for exclusive technique groups
+**And** it stays deterministic enough for rule matching and testing
+
+**Given** semantic resolution should not be owned by transport timing code
+**When** active playing-technique context is derived
+**Then** that derivation happens in a backend-owned score-semantics or preparation seam before transport execution
+**And** transport consumes already-resolved note context rather than inventing persistent technique meaning on the fly
+
+### Story 8.5: Extend Expression Maps To Match Playing-Technique Context
+
+As a composer,
+I want expression maps to match derived playing-technique context,
+So that reusable maps can translate score-level technique meaning into library-specific switching behavior.
+
+**Acceptance Criteria:**
+
+**Given** expression maps already match bounded note-time context such as articulation and written duration
+**When** playing-technique semantics are added to the derived note context
+**Then** expression-map conditions can also match active playing techniques
+**And** they reuse the existing multi-condition and first-match-wins rule model rather than inventing a separate region-specific map system
+
+**Given** the playing-technique proof of concept is built on derived exclusive-group semantics rather than raw score markings
+**When** expression-map support is extended
+**Then** the Rust and TypeScript expression-map data structures, persistence contract, and editor authoring workflow are updated to support the new derived playing-technique condition family
+**And** the first implementation remains bounded to the conditions needed by the `pizz` and `arco` proof of concept
+
+**Given** multiple playing techniques may be active together
+**When** a rule is evaluated
+**Then** the condition system can combine technique matches with other context such as articulation or note length
+**And** more specific combined rules can be ordered above broader fallback rules
+
+**Given** expression maps are the user-authored bridge between musical meaning and plugin behavior
+**When** this condition family is introduced
+**Then** the map remains a translation layer over derived score meaning rather than becoming the owner of persistent score-technique state
+**And** the design stays compatible with multiple libraries that need different switching behavior for the same marking or future exclusive technique group
+
+### Story 8.6: Prove Technique-Driven Playback Through Derived Context
+
+As a composer,
+I want playing-technique markings to audibly influence routed playback through expression maps,
+So that score-authored technique intent can drive realistic sample selection beyond note-local expression cues.
+
+**Acceptance Criteria:**
+
+**Given** a routed instrument has an expression map that matches derived playing-technique context
+**When** I play supported score material through the existing transport-owned routed playback path
+**Then** the resolved active playing techniques contribute to the winning rule for each note
+**And** the resulting playback behavior comes from the existing backend preparation plus transport pipeline rather than a new one-off playback path
+
+**Given** `pizz` and `arco` are the first exclusive-group proof of concept
+**When** a `pizz` marking is placed at tick `t` and an `arco` marking is later placed at tick `u`
+**Then** notes beginning at tick `t` and later resolve the `pizz`-driven playback path until tick `u`
+**And** notes beginning at tick `u` and later immediately stop resolving that `pizz`-driven path because the same exclusive-group resolver has switched the effective technique state
+
+**Given** the user should author score markings rather than direct playback state
+**When** the first playing-technique-driven playback proof is delivered
+**Then** the system derives the audible result from score-authored technique markings plus the user-authored expression map
+**And** it does not require users to manually author hidden playback-state regions outside the score model or separately manage exclusive-group playback logic themselves

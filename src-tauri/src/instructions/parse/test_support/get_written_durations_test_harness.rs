@@ -307,7 +307,7 @@ fn make_parser_fixture_with_length_and_tuplets_and_barlines(
         short_name: String::from("Test"),
         stave_ids: vec![stave_id],
         count: None,
-        assigned_plugin_id: None,
+        playback_route: None,
         volume: 100,
         pan: 64,
         mute: false,

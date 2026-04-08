@@ -1,4 +1,4 @@
-import MdiIcon from "@mdi/react";
+import { Icon as MdiIcon } from "@mdi/react";
 import { IconProps } from "@mdi/react/dist/IconProps";
 import classNames from "classnames";
 import { FC, PointerEvent } from "react";
@@ -21,12 +21,20 @@ export const IconButton: FC<IconProps & Props> = ({
   onPointerDown,
   isDisabled = false,
   isSelected,
+  title,
+  "aria-label": ariaLabel,
   ...props
 }) => {
   return (
     <button
+      type="button"
       onClick={onClick}
       onPointerDown={onPointerDown}
+      disabled={isDisabled}
+      aria-disabled={isDisabled}
+      aria-label={ariaLabel ?? undefined}
+      aria-pressed={isSelected}
+      title={title ?? undefined}
       className={classNames(
         "flex items-center justify-center h-9 w-9",
         getTheme(variant, isSelected),

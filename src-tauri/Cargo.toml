@@ -16,18 +16,6 @@ name = "compose_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [[bin]]
-name = "scvi-compress"
-path = "src/bin/scvi_compress.rs"
-
-[[bin]]
-name = "scvi-inspect"
-path = "src/bin/scvi_inspect.rs"
-
-[[bin]]
-name = "build-fixtures"
-path = "src/bin/build_fixtures.rs"
-
-[[bin]]
 name = "performance"
 path = "src/bin/performance.rs"
 
@@ -48,17 +36,17 @@ tauri = { version = "2.10.3", features = ["protocol-asset", "macos-private-api"]
 tauri-plugin-opener = "2.5.3"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"
-serde_with = "3.12.0"
+serde_with = "3.18.0"
 serde_repr = "0.1.20"
-rustc-hash = "2.1.1"
+rustc-hash = "2.1.2"
 skia-safe = { version = "0.93.1", features = ["metal"] }
 lazy_static = "1.5.0"
 rayon = "1.10"
 roman = "0.1.6"
-tokio = { version = "1.50.0", features = ["io-std", "io-util", "macros", "net", "rt-multi-thread", "sync", "time"] }
-tauri-plugin-devtools = "2.0.1"
-tauri-plugin-dialog = "2.6.0"
-tauri-plugin-fs = "2.4.5"
+tokio = { version = "1.51.0", features = ["io-std", "io-util", "macros", "net", "rt-multi-thread", "sync", "time"] }
+tauri-plugin-devtools = "2.1.0"
+tauri-plugin-dialog = "2.7.0"
+tauri-plugin-fs = "2.5.0"
 tauri-plugin-store = "2.4.2"
 flate2 = "1.1.9"
 objc2 = "0.6.4"
@@ -67,25 +55,30 @@ base64 = "0.22.1"
 objc2-foundation = "0.3.2"
 objc2-quartz-core = "0.3.2"
 objc2-metal = "0.3.2"
-semver = "1.0.27"
+semver = "1.0.28"
 sled = "0.34.7"
 cpal = "0.17.3"
 symphonia = { version = "0.5.5", features = ["flac"] }
-rubato = "1.0.1"
-audioadapter-buffers = "2.0.0"
+rubato = "2.0.0"
+audioadapter-buffers = "3.0.0"
 dirs = "6.0.0"
 regex = "1.12.3"
 rtrb = "0.3.3"
 rand = "0.10.0"
-blake3 = "1.8.2"
+blake3 = "1.8.4"
 rmp-serde = "1.3.0"
+libloading = "0.9.0"
+vst3 = "0.3.0"
+uuid = { version = "1.23.0", features = ["v4"] }
+core-foundation = "0.10.1"
+core-foundation-sys = "0.8.7"
 
 [profile.release]
 # less code to include into binary
 panic = 'abort'
 # optimization over all codebase ( better optimization, slower build )
 codegen-units = 1
-# link time optimization using using whole-program analysis
+# link time optimization using whole-program analysis
 lto = "fat"
 # optimize for speed
 opt-level = 3
@@ -95,5 +88,4 @@ debug = false
 strip = true
 # enable overflow checks in release (remove if causing issues)
 overflow-checks = false
-# enable vectorization
 rpath = false

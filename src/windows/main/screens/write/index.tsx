@@ -4,7 +4,7 @@ import { ZoomWidget } from "../../components/zoom-widget";
 import { useAppState } from "../../../../services/state";
 import { actions } from "../../../../services/actions";
 import { LeftPanel } from "./components/left-panel";
-import MdiIcon from "@mdi/react";
+import { Icon as MdiIcon } from "@mdi/react";
 import { mdiChevronDown, mdiChevronUp } from "@mdi/js";
 import classNames from "classnames";
 import { SelectedToneInfoDisplay } from "../../components/selected-tone-info-display";

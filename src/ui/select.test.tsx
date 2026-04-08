@@ -12,6 +12,23 @@ const OPTIONS: SelectOption<Letter>[] = [
   { value: "c", label: "Cherry" },
 ];
 
+const OPTIONS_WITH_DISABLED: SelectOption<Letter>[] = [
+  { value: "a", label: "Apple" },
+  { value: "b", label: "Banana", disabled: true },
+  { value: "c", label: "Cherry" },
+];
+
+const OPTIONS_WITH_END_ADORNMENT: SelectOption<Letter>[] = [
+  { value: "a", label: "Apple" },
+  {
+    value: "b",
+    label: "Banana",
+    disabled: true,
+    endAdornment: <span title="Needs attention">!</span>,
+  },
+  { value: "c", label: "Cherry" },
+];
+
 describe("Select", () => {
   it("renders with placeholder when value is null", () => {
     render(
@@ -133,5 +150,76 @@ describe("Select", () => {
     );
     await user.click(screen.getByRole("button"));
     expect(screen.queryByRole("option")).not.toBeInTheDocument();
+  });
+
+  it("renders a non-interactive end adornment inside the select button", () => {
+    render(
+      <Select
+        value="a"
+        options={OPTIONS}
+        onChange={vi.fn()}
+        variant="standard"
+        endAdornment={<span title="Needs attention">!</span>}
+      />,
+    );
+
+    const button = screen.getByRole("button", { name: /apple/i });
+
+    expect(button).toContainElement(screen.getByTitle("Needs attention"));
+  });
+
+  it("marks disabled options as unavailable in the open list", async () => {
+    const user = userEvent.setup();
+    render(
+      <Select
+        value="a"
+        options={OPTIONS_WITH_DISABLED}
+        onChange={vi.fn()}
+        variant="standard"
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /apple/i }));
+
+    expect(screen.getByRole("option", { name: "Banana" })).toBeDisabled();
+  });
+
+  it("does not call onChange when a disabled option is clicked", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+
+    render(
+      <Select
+        value="a"
+        options={OPTIONS_WITH_DISABLED}
+        onChange={onChange}
+        variant="standard"
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /apple/i }));
+    await user.click(screen.getByRole("option", { name: "Banana" }));
+
+    expect(onChange).not.toHaveBeenCalled();
+    expect(screen.getByRole("option", { name: "Banana" })).toBeInTheDocument();
+  });
+
+  it("renders option adornments inside the open list", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <Select
+        value="a"
+        options={OPTIONS_WITH_END_ADORNMENT}
+        onChange={vi.fn()}
+        variant="standard"
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /apple/i }));
+
+    const bananaOption = screen.getByRole("option", { name: /banana/i });
+
+    expect(bananaOption).toContainElement(screen.getByTitle("Needs attention"));
   });
 });

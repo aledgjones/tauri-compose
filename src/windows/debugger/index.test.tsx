@@ -7,6 +7,12 @@ const { mockToggleDebug } = vi.hoisted(() => ({
   mockToggleDebug: vi.fn(),
 }));
 
+const { mockObjectInspector } = vi.hoisted(() => ({
+  mockObjectInspector: vi.fn((_props: unknown) => (
+    <div data-testid="object-inspector" />
+  )),
+}));
+
 vi.mock("@tauri-apps/api/window", () => ({
   getCurrentWindow: () => ({ show: vi.fn(), setTitle: vi.fn() }),
 }));
@@ -16,7 +22,7 @@ vi.mock("@tauri-apps/api/event", () => ({
 }));
 
 vi.mock("react-inspector", () => ({
-  ObjectInspector: () => <div data-testid="object-inspector" />,
+  ObjectInspector: mockObjectInspector,
   chromeDark: {},
 }));
 
@@ -35,6 +41,10 @@ vi.mock("./components/performance-timings", () => ({
 }));
 
 describe("Debugger Main", () => {
+  beforeEach(() => {
+    mockObjectInspector.mockClear();
+  });
+
   it("renders the app bar drag region", () => {
     const { container } = renderWithProviders(<Main />);
     expect(

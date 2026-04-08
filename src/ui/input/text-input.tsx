@@ -1,4 +1,4 @@
-import { FC, useState, useEffect } from "react";
+import { FC, useState } from "react";
 import { TextInputProps } from ".";
 import classNames from "classnames";
 import { Icon } from "../../ui/icon";
@@ -6,10 +6,13 @@ import { Icon } from "../../ui/icon";
 export const TextInput: FC<TextInputProps> = ({
   value,
   onChange,
+  useLocalDraftWhileFocused = true,
   className,
   label,
+  ariaLabel,
   placeholder,
   readOnly,
+  disabled,
   onKeyDown,
   onBlur,
   onEnter,
@@ -18,11 +21,9 @@ export const TextInput: FC<TextInputProps> = ({
   variant = "default",
 }) => {
   const [isFocused, setIsFocused] = useState(false);
-  const [internalValue, setInternalValue] = useState(value);
-
-  useEffect(() => {
-    setInternalValue(value);
-  }, [value]);
+  const [draftValue, setDraftValue] = useState(value);
+  const displayValue =
+    useLocalDraftWhileFocused && isFocused ? draftValue : value;
 
   return (
     <div className={className}>
@@ -38,15 +39,21 @@ export const TextInput: FC<TextInputProps> = ({
       )}
       <div className="relative">
         <input
+          aria-label={ariaLabel}
           placeholder={placeholder}
           readOnly={readOnly}
+          disabled={disabled}
           type="text"
-          value={internalValue}
+          value={displayValue}
           onChange={(e) => {
-            setInternalValue(e.target.value);
-            onChange(e.target.value);
+            const nextValue = e.target.value;
+            setDraftValue(nextValue);
+            onChange(nextValue);
           }}
-          onFocus={() => setIsFocused(true)}
+          onFocus={() => {
+            setDraftValue(value);
+            setIsFocused(true);
+          }}
           onBlur={() => {
             setIsFocused(false);
             onBlur?.();
@@ -58,6 +65,12 @@ export const TextInput: FC<TextInputProps> = ({
                 variant === "default",
               "bg-neutral-900 hover:bg-neutral-800 focus:bg-neutral-800":
                 variant === "dark",
+            },
+            {
+              "cursor-not-allowed opacity-50 hover:bg-neutral-900 focus:bg-neutral-900":
+                disabled && variant === "dark",
+              "cursor-not-allowed opacity-50 hover:bg-neutral-800 focus:bg-neutral-800":
+                disabled && variant === "default",
             },
             { "pr-2": units },
             { "pl-9": leadingIcon },

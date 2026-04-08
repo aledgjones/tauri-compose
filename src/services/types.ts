@@ -127,6 +127,180 @@ export enum InstrumentType {
   Percussive,
 }
 
+export enum PlaybackRouteTargetMode {
+  Plugin = 0,
+  PluginPart,
+  MidiChannel,
+}
+
+export type PlaybackRouteTarget = {
+  mode: PlaybackRouteTargetMode;
+  index: number | null;
+};
+
+export enum PlaybackRouteAddressMode {
+  Root = 0,
+  Part,
+  MidiChannel,
+}
+
+export type ExpressionMapCondition =
+  | {
+      id: string;
+      type: "no_op";
+    }
+  | {
+      id: string;
+      type: "articulation";
+      comparator: ExpressionMapEqualityComparator;
+      articulation: Articulation | null;
+    }
+  | {
+      id: string;
+      type: "written_note_length";
+      comparator: ExpressionMapNoteLengthComparator;
+      note_duration: NoteDuration;
+    };
+
+export enum ExpressionMapEqualityComparator {
+  Equals = "equals",
+  NotEquals = "not_equals",
+}
+
+export enum ExpressionMapNoteLengthComparator {
+  LessThan = "less_than",
+  LessThanOrEqual = "less_than_or_equal",
+  Exactly = "exactly",
+  NotEqual = "not_equal",
+  GreaterThanOrEqual = "greater_than_or_equal",
+  GreaterThan = "greater_than",
+}
+
+export type ExpressionMapAction =
+  | {
+      id: string;
+      type: "keyswitch_note";
+      midi_note: number;
+      velocity: number;
+    }
+  | {
+      id: string;
+      type: "control_change";
+      controller: number;
+      value: number;
+    }
+  | {
+      id: string;
+      type: "no_op";
+    }
+  | {
+      id: string;
+      type: "note_length_transform";
+      ratio_percent: number;
+    };
+
+export type ExpressionMapRule = {
+  id: string;
+  name: string;
+  conditions: ExpressionMapCondition[];
+  actions: ExpressionMapAction[];
+};
+
+export type ExpressionMap = {
+  id: string;
+  name: string;
+  creator: string;
+  version: number;
+  default_actions: ExpressionMapAction[];
+  rules: ExpressionMapRule[];
+};
+
+export type ExpressionMapLibraryState = {
+  order: string[];
+  by_id: Record<string, ExpressionMap>;
+};
+
+export type ExpressionMapExportPayload = {
+  version: 1;
+  expression_maps: ExpressionMap[];
+};
+
+export enum ResolvedExpressionMapLinkStatus {
+  Unassigned = 0,
+  Assigned,
+}
+
+export type ResolvedExpressionMapLink = {
+  status: ResolvedExpressionMapLinkStatus;
+  expression_map_id: string | null;
+  expression_map_name: string | null;
+};
+
+export type PlaybackRouteAddress = {
+  mode: PlaybackRouteAddressMode;
+  index: number | null;
+};
+
+export type InstrumentPlaybackRoute = {
+  slot_id: UniqueId;
+  target: PlaybackRouteTarget;
+  address: PlaybackRouteAddress;
+  expression_map_id?: string | null;
+};
+
+export type PlaybackRouteChoice = {
+  key: string;
+  label: string;
+  target: PlaybackRouteTarget;
+  address: PlaybackRouteAddress;
+};
+
+export type PlaybackSlotTarget = {
+  plugin_id: string;
+  plugin_state?: PlaybackSlotPluginState | null;
+};
+
+export type PlaybackSlotPluginState = {
+  vst3_component_state_base64: string;
+};
+
+export type PlaybackRackSlot = {
+  id: UniqueId;
+  target: PlaybackSlotTarget | null;
+};
+
+export type PlaybackRack = {
+  order: UniqueId[];
+  by_id: Record<UniqueId, PlaybackRackSlot>;
+};
+
+export type ScorePlayback = {
+  rack: PlaybackRack;
+};
+
+export enum ResolvedPlaybackRouteStatus {
+  Unrouted = 0,
+  Ready,
+  NeedsAttention,
+}
+
+export type SupportedPlaybackMixControls = {
+  volume: boolean;
+  pan: boolean;
+  mute: boolean;
+  solo: boolean;
+};
+
+export type ResolvedPlaybackRoute = {
+  status: ResolvedPlaybackRouteStatus;
+  slot_id: UniqueId | null;
+  slot_target: PlaybackSlotTarget | null;
+  effective_plugin_id: string | null;
+  target: PlaybackRouteTarget | null;
+  address: PlaybackRouteAddress | null;
+  supported_mix_controls?: SupportedPlaybackMixControls;
+};
+
 export type Instrument = {
   id: UniqueId;
   definition_id: string;
@@ -135,7 +309,7 @@ export type Instrument = {
   short_name: string;
   stave_ids: UniqueId[];
   count: string | null;
-  assigned_plugin_id: string | null;
+  playback_route?: InstrumentPlaybackRoute | null;
   volume: number;
   pan: number;
   mute: boolean;
@@ -456,6 +630,9 @@ export type Selection =
   | TupletSelection;
 
 export type AppState = {
+  single_instrument_transport_ready?: boolean;
+  is_project_loading: boolean;
+  is_window_focused: boolean;
   ui: {
     tab: Tab;
     layout_id: UniqueId | null;
@@ -497,12 +674,22 @@ export type AppState = {
     players: Players;
     config: Config;
     meta: Meta;
+    playback?: ScorePlayback;
     instruments: Instruments;
     flows: Flows;
     tracks: Tracks;
     layouts: Layouts;
     engraves: Engraves;
   };
+  resolved_playback_route_by_instrument_id: Record<
+    UniqueId,
+    ResolvedPlaybackRoute
+  >;
+  resolved_expression_map_by_instrument_id: Record<
+    UniqueId,
+    ResolvedExpressionMapLink
+  >;
+  route_target_options_by_slot_id: Record<UniqueId, PlaybackRouteChoice[]>;
   preferences: {
     audition: boolean;
   };
@@ -523,25 +710,72 @@ export type AudioState = {
   current_sample_rate: number;
 };
 
-export type ArticulationInfo = {
-  id: string;
-  name: string;
-  range: Array<[number, number]>;
+export type PluginInventoryAvailability = "available" | "unavailable";
+
+export type PluginInventoryFailureKind =
+  | "invalid_bundle"
+  | "missing_bundle_binary"
+  | "unsupported_editor_host"
+  | "io_error"
+  | "storage_error";
+
+export type PluginInventoryFailure = {
+  kind: PluginInventoryFailureKind;
+  message: string;
 };
 
-export type PluginInfo = {
-  id: string;
-  name: string;
-  path: string;
-  author: string;
-  version: string;
-  cover_image?: string;
-  articulations: ArticulationInfo[];
+export type PluginEditorHostValidationStatus =
+  | "blocked"
+  | "failed"
+  | "attached";
+
+export type PluginEditorHostValidationPhase =
+  | "policy_gate"
+  | "module_load"
+  | "factory_create"
+  | "host_context"
+  | "component_create"
+  | "component_initialize"
+  | "controller_create"
+  | "controller_set_component_handler_pre_init"
+  | "controller_initialize"
+  | "component_state_sync"
+  | "controller_set_component_handler"
+  | "connection_point_handshake"
+  | "view_create"
+  | "view_set_frame"
+  | "view_attach"
+  | "attached";
+
+export type PluginCapabilityEvidenceStatus = "not_proven";
+
+export type PluginCapabilityEvidence = {
+  status: PluginCapabilityEvidenceStatus;
+  message: string;
 };
 
-export type SamplerState = {
-  plugins: PluginInfo[];
-  loaded_plugin_ids: string[];
+export type PluginEditorHostValidation = {
+  status: PluginEditorHostValidationStatus;
+  phase: PluginEditorHostValidationPhase;
+  message: string;
+  capability_evidence: PluginCapabilityEvidence | null;
+};
+
+export type PluginInventoryEntry = {
+  id: string;
+  name: string;
+  bundle_path: string;
+  binary_path: string | null;
+  source_root: string;
+  availability: PluginInventoryAvailability;
+  validation_failure: PluginInventoryFailure | null;
+  editor_host_validation: PluginEditorHostValidation | null;
+};
+
+export type PluginInventoryState = {
+  entries: PluginInventoryEntry[];
+  errors: PluginInventoryFailure[];
+  last_discovered_at_ms: number | null;
 };
 
 export type TransportState = {

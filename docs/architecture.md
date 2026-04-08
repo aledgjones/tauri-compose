@@ -18,13 +18,14 @@ The score itself is rendered natively by Rust/Skia/Metal — all other UI (panel
 │  │   React Frontend       │    │       Rust Backend            │  │
 │  │                        │    │                               │  │
 │  │  ┌──────────────────┐  │    │  ┌─────────────────────────┐ │  │
-│  │  │ 8 HTML Windows   │  │    │  │ AppContext (Mutex)       │ │  │
+│  │  │ 9 HTML Windows   │  │    │  │ AppContext (Mutex)       │ │  │
 │  │  │  - main          │  │    │  │  ├── Ui                  │ │  │
 │  │  │  - debugger      │◄─┼─emit──┤  ├── Score               │ │  │
 │  │  │  - inst-picker   │  │    │  │  ├── Preferences         │ │  │
 │  │  │  - layout-settings│ │    │  │  └── next_id             │ │  │
 │  │  │  - player-settings│ │    │  └─────────────────────────┘ │  │
-│  │  │  - plugin-settings│ │    │                               │  │
+│  │  │  - plugin-host-poc│ │    │                               │  │
+│  │  │  - plugin-manager │ │    │                               │  │
 │  │  │  - preferences   │  │    │  ┌─────────────────────────┐ │  │
 │  │  │  - project-settings│ │   │  │ RendererContext (Mutex)  │ │  │
 │  │  └──────────────────┘  │    │  │  ├── MetalRenderer       │ │  │
@@ -34,9 +35,8 @@ The score itself is rendered natively by Rust/Skia/Metal — all other UI (panel
 │  │           ▼             │    │  └─────────────────────────┘ │  │
 │  │  ┌──────────────────┐  │    │                               │  │
 │  │  │ actions.ts       │──┼────┤  ┌─────────────────────────┐ │  │
-│  │  │ (all mutations)  │  │    │  │ Audio / Sampler / Transport│ │
+│  │  │ (all mutations)  │  │    │  │ Audio / Transport        │ │  │
 │  │  └──────────────────┘  │    │  │  ├── AudioContext        │ │  │
-│  │                        │    │  │  ├── SamplerContext       │ │  │
 │  └────────────────────────┘    │  │  ├── TransportContext     │ │  │
 │                                │  │  └── TransportShared (Arc)│ │  │
 │                                │  └─────────────────────────┘ │  │
@@ -48,32 +48,65 @@ The score itself is rendered natively by Rust/Skia/Metal — all other UI (panel
 
 ## State Management
 
+### Identity And Mutation Boundaries
+
+- Score-owned entities use `UniqueId`; app-scoped, machine-local, and external reusable entities use UUIDs unless a separate external system already defines identity.
+- Any mutable, persisted, reorderable, selectable, or independently addressable entity stored in a `Vec` or array must carry a stable id rather than relying on array position.
+- JavaScript does not own canonical state for backend-owned domains. React remains a control layer and display projection over Rust-owned truth.
+- Backend-owned durable data should prefer narrow domain commands over broad object replacement. Wide replacement seams are exceptions that need an explicit, strong justification.
+- Backend-owned state should normally be rendered from backend truth rather than through optimistic or deterministic frontend shadow copies.
+- Tauri commands should live with their owning domain by default. `src-tauri/src/lib.rs` should stay focused on application wiring, registration, and top-level setup.
+- Development-only or not-yet-shipped features should not accumulate compatibility residue, fallback behavior, or migration handling unless there is a real released-state or persisted-data contract to preserve.
+
 ### Rust Side (Source of Truth)
 
-- **`AppContext`** — Behind `Mutex`, holds `Ui`, `Score`, `Preferences`, `next_id`, `current_file_path`
+- **`AppContext`** — Behind `Mutex`, holds `Ui`, `Score`, non-persisted same-session playback activation runtime, `Preferences`, `next_id`, `current_file_path`
 - **`RendererContext`** — Behind `Mutex`, holds `MetalRenderer`, `DrawInstruction[]`, `HitTarget[]`, `Converter`
 - **`AudioContext`** — Behind `Mutex`, holds `cpal` host/device/stream, `MixerHandle`
-- **`SamplerContext`** — Behind `Mutex`, holds plugin metadata, `Cache` (decoded instrument data)
+- **`PluginInventoryContext`** — Behind `Mutex`, holds the machine-local VST3 discovery inventory persisted under the app config directory, reuses that cached inventory during startup, revalidates cached entries, does one bounded root sweep for uncached bundle paths, probes only newly seen bundles, and reserves full root-wide reprobe for the explicit `plugin_inventory_discover` maintenance workflow before emitting refreshed backend-owned inventory truth to the frontend
+- **`ExpressionMapLibraryContext`** — Behind `Mutex`, holds the machine-local reusable expression map library persisted under the app config directory, emits library state on `soloc://state/expression_maps`, and stays app-scoped rather than project-scoped so `.soloc` files only keep stable references into the library
 - **`TransportContext`** — Behind `Mutex` + `TransportShared` (Arc with atomics for lock-free polling)
-- **Sample attack alignment path** — SCVI SIDX metadata -> `SampleIndex` -> sampler `CacheSample` -> transport `StreamRequest` -> streamer trim-before-resample
+
+Score-instrument playback topology is now split into three backend-owned layers:
+
+- persisted `Score.playback.rack` plus per-instrument `Instrument.playback_route` on the score domain store portable rack and route intent only
+- persisted `Instrument.playback_route.expression_map_id` stores only the stable reusable expression map reference for that route address; the reusable map definition itself remains app-scoped and machine-local in `ExpressionMapLibraryContext`
+- non-persisted slot-owned live plugin sessions on the backend playback domain are keyed by `slot_id`, hold the real initialized VST runtime objects for prepared slots, restore any portable `PlaybackSlotTarget.plugin_state` payload before editor-open, are rebuilt from portable saved intent plus machine-local inventory truth, and are torn down at slot unassign, slot removal, inventory invalidation, reset, or project replacement instead of editor-window close
+- non-persisted continuous render state in `src-tauri/src/playback/engine.rs` is the realtime playback-plane seam: it tracks which live slot sessions are render-active, owns backend event queues for immediate audition and later transport state handoff, and keeps empty blocks flowing through already-mounted sessions so editor-playable plugins can sound without turning the editor seam into the playback owner
+- non-persisted `PlaybackActivationRuntime` on `AppContext` is a readiness snapshot derived from those live slot sessions; it is rebuilt after slot assignment, slot unassignment, slot removal, route assignment, route clearing, project load, inventory refresh, and reset without being written into `.soloc`
+- non-persisted playback preparation in `src-tauri/src/playback/preparation.rs` is the canonical transport and audition handoff: it combines the current `PlaybackActivationRuntime`, the explicit resolved route states, and the active audio sample rate into one backend-owned preparation artifact, snapshots the supported direct-plugin root targets once per play-start, and remains reusable without creating frontend-owned or probe-owned playback truth. For the current audition story, that handoff still drives a bounded pitch-preview contract: one score-derived pitch, 500ms duration, moderate velocity, default legato articulation, and score-context triggers only.
+- emitted `resolved_playback_route_by_instrument_id` on `soloc://state/general` stores the backend-computed score-context status (`Unrouted`, `Ready`, `NeedsAttention`) plus the currently activated effective plugin id, resolved slot target, and explicit route metadata needed by later stories
+- emitted `resolved_expression_map_by_instrument_id` on `soloc://state/general` stores the quiet score-context linkage truth for later Sequence surfaces: assigned links expose map id and display name, while missing references deliberately resolve back to unassigned `--` truth instead of a warning state machine
+- emitted `route_target_options_by_slot_id` on `soloc://state/general` tells Sequence which explicit route targets are currently valid for each prepared slot so React does not invent plugin-part or MIDI-channel choices locally
+
+That split is deliberate. `.soloc` files must stay portable and must not persist machine-local inventory truth or app-scoped reusable expression map definitions, while React score surfaces must still receive one authoritative backend answer instead of inventing local route-health rules. The rack owns slot lifecycle, slots may exist without an assigned plugin, and instruments only own routes to already-existing slots. Expression map linkage follows that same rack-first rule: the project persists only the route-address reference, the app-scoped library owns the reusable rule payload, missing library references resolve quietly back to unassigned truth, and empty maps preserve the current default playback path until later Epic 6 stories add audible behavior. When a plugin exposes transferable component state, Compose persists only that minimal portable restore blob alongside the slot target so the runtime session can be rebuilt to the intended instrument or patch selection without serializing live host objects. Story 3.8 narrows same-session runtime preparation to currently supported single-target routes only: a routed instrument is `Ready` only when its referenced slot target has an active backend-owned runtime destination in the current app session. Routed-to-empty-slot, missing-slot, unavailable-plugin, and deferred multi-target route cases remain explicit backend-owned `NeedsAttention` or `Unrouted` states. Story 5.4 completes the reopen side of that contract: project load restores portable rack and route intent, clears stale deferred playback-refresh state, re-syncs transport truth to the reopened score, and rebuilds runtime readiness from current machine-local inventory without persisting active transport playback, queued work, or live runtime host objects.
+
+The Epic 1 ownership correction is now part of the active architecture: `PlaybackActivationRuntime` is readiness and targeting metadata, not the long-lived live plugin-session registry. Each prepared slot owns one runtime-only live plugin session keyed by slot identity and rebuilt from portable saved intent rather than persisted live runtime state. Native editor windows attach to or detach from that existing slot-owned session instead of creating the canonical instance on open.
 
 ### Frontend Side (Display Layer)
 
 Four React contexts mirror the backend state:
 
-| Context            | Event Channel                         | Hook                  | Purpose                           |
-| ------------------ | ------------------------------------- | --------------------- | --------------------------------- |
-| `AppContext`       | `soloc://state/general`               | `useAppState()`       | UI state, score data, preferences |
-| `AudioContext`     | `soloc://state/audio`                 | `useAudioState()`     | Device list, active device        |
-| `SamplerContext`   | `soloc://state/sampler`               | `useSamplerState()`   | Plugin list, loaded plugins       |
-| `TransportContext` | RAF polling via `transport_get_state` | `useTransportState()` | Playing, tick, tempo              |
+| Context                       | Event Channel                         | Hook                             | Purpose                                                          |
+| ----------------------------- | ------------------------------------- | -------------------------------- | ---------------------------------------------------------------- |
+| `AppContext`                  | `soloc://state/general`               | `useAppState()`                  | UI state, score data, resolved playback route state, preferences |
+| `AudioContext`                | `soloc://state/audio`                 | `useAudioState()`                | Device list, active device                                       |
+| `PluginInventoryContext`      | `soloc://state/plugin_inventory`      | `usePluginInventoryState()`      | Machine-local VST3 inventory                                     |
+| `ExpressionMapLibraryContext` | `soloc://state/expression_maps`       | `useExpressionMapLibraryState()` | App-scoped reusable expression-map library                       |
+| `TransportContext`            | RAF polling via `transport_get_state` | `useTransportState()`            | Playing, tick, tempo                                             |
+
+The dedicated plugin inventory state is now the backend-owned machine-local VST3 discovery seam. Startup reuses the persisted inventory immediately, revalidates cached entries, performs one cheap directory sweep to spot uncached bundles, probes only those newly seen bundles, and still leaves full root-wide reprobe behavior to the explicit manual refresh workflow. Inventory refresh and ordinary score playback mutations rebuild the same-session runtime activation state first, and both general readiness plus the audible transport snapshot consume that VST-owned backend answer instead of carrying a second availability resolver. The canonical app-scoped browse surface for that inventory is now the dedicated Plugin Manager window opened from the Sequence menu, where the shared `Refresh plugin inventory` control surfaces refresh-in-progress and refreshed-state feedback. Epic 2 through Epic 6 must continue building VST-owned assignment, runtime, and transport-adjacent contracts rather than reintroducing frontend-owned playback truth or a second legacy runtime path.
+The Sequence bottom panel now owns the current score rack display and score-context slot preparation. It shows backend-owned score-context slots as horizontally stacked rack cards, creates empty slots from an in-panel add control, and assigns or updates each slot's plugin through a slot-local picker backed by the Rust-owned usable inventory seam. Instrument overview rows expose the bounded route-authoring workflow directly as a slot picker, while the rack cards stay focused on slot preparation. When a route still points at an existing empty slot, the row keeps that slot identity visible as a numbered empty label such as `1. --` instead of collapsing back to the unrouted `--` state, and only unusable assigned-plugin routes surface the needs-attention badge. Plugin Manager remains the app-scoped inventory browser rather than the default answer for routine score-route repair or ordinary slot preparation.
+Story 6.2 extends that same compact row surface with route-linked Expression Map selection. The user-facing row contract stays intentionally narrow: it shows only the assigned map name or `--`, allows assignment or clearing from the reusable app-scoped library through the row dropdown, and exposes an adjacent launch affordance that opens the app-scoped Expression Map workflow window. The Sequence `PlaybackRackPanel` still does not own Expression Map UI, and the real editor workflow remains a dedicated app-scoped surface rather than a score-context panel.
+Story 6.3 turns that handoff into one real reusable workflow window. The Sequence menu `Expression Map...` entry and the instrument-row launch action now reuse the same `expression-map` window label and converge on the same split-pane surface: the left pane owns search, selection, create, and delete for reusable maps, while the right pane owns one selected map's authoring experience with immediate auto-save, including rename and metadata edits. Rule evaluation is explicit and backend-aligned: authored rules stay ordered top-down, matching stops at the first rule, conditions inside a rule are logical AND, overlapping rules are allowed in MVP, and the current editor represents compound intent through multiple primitive condition rows rather than compound multiselect or range widgets.
+Those compact score-context playback surfaces must also remain legible without color alone: icon-only tabs, transport buttons, and bounded mix toggles should carry explicit names/tooltips and semantic selected-state cues instead of depending on accent color as the primary signal.
 
 ### State Flow
 
 1. User interacts with React UI
 2. `actions.ts` calls `invoke("command_name", { params })` — all params use `snake_case`
 3. Rust command locks `AppContext`, mutates state
-4. Rust calls `state.emit()` → serializes state → `app.emit("soloc://state/general")` to ALL windows
+4. Rust calls `state.emit()` → serializes state, including backend-resolved playback route status → `app.emit("soloc://state/general")` to ALL windows
 5. Each window's `AppStateProvider` receives event via `listen()`, calls `setState()`
 6. React re-renders
 
@@ -85,13 +118,6 @@ Four React contexts mirror the backend state:
 - Explicit Sequence-local flow switching updates `ui.flow_id` directly; the shared top bar does not own a workflow-specific flow selector.
 - Deliberate score-object selection may hand off `ui.flow_id` to the selected object's flow through the backend selection seam.
 - Passive score interactions such as pan, zoom, hover, and miss-to-clear do not change `ui.flow_id`.
-
-### Sample attack alignment
-
-- Per-sample playback alignment is backend-owned metadata, not a transport scheduling hack and not frontend timing state.
-- `scvi_compress.rs` derives `attack_offset_frames` during SCVI builds with a build-time onset detector that uses a short-window RMS envelope plus a local baseline estimate, then stores the first meaningful RMS crossing as the onset so slow blooms and bow noise are kept at the start of the audible bloom instead of trimmed to a later high-energy point.
-- `ScviContainer::open()` loads that offset into `SampleIndex`, the sampler cache carries it through `CacheSample`, transport threads it into `StreamRequest`, and `streamer.rs` discards those leading source frames before resampling or pitch work.
-- Older SCVI containers remain readable because a zero-filled offset decodes to `attack_offset_frames = 0`; rebuilt SCVI assets are required to benefit from alignment.
 
 ---
 
@@ -238,42 +264,45 @@ type AnchoredNotationTrack = {
 
 ## Audio Pipeline
 
+Supported `transport_play` is now score-driven and audible on the product path for the bounded MVP route shape. It advances tick and tempo state from a play-start score snapshot, reuses the backend-owned playback preparation artifact derived from `PlaybackActivationRuntime` and the current audio sample rate, and submits projected score note events into the continuous render engine for the snapshot's supported direct-plugin root targets without any sampler or SCVI fallback path. Transport start is gated only by valid flow and tick state; unsupported or non-ready routes fall through as scheduling no-ops inside that prebuilt snapshot rather than blocking the transport clock itself. Story 5.2a hardens that path with a bounded backend-owned queue window so the transport thread waits in short quanta, can queue near-future ticks with explicit lead-frame offsets, and can catch up overdue ticks without falling back to one naive full-tick sleep loop.
+
+Story 5.1 tightens the reset contract on that same path. `transport_pause`, stop/reset flows, and natural transport teardown now hard-reset engine-owned transport work: queued transport events are cleared, transport-active slot state is disarmed, active transport notes are retired deterministically, and resume always restarts from the paused tick through a fresh `prepare_supported_playback(...)` snapshot instead of reusing stale render-target or queue state. Story 5.2a makes the backend timing reset explicit too: reset paths now rebase `current_tick` and `last_queued_tick` together after the thread joins, and audio device and sample-rate rebuilds also reuse that transport-owned reset path before the next play-start so stale timing assumptions cannot survive a stream rebuild, while score-context `volume`, `pan`, `mute`, and `solo` mutations continue to flow through the backend-owned effective-mix seam into the live engine state during playback.
+
+Story 5.3 defines the bounded edit-during-playback contract on top of that transport path. The play-start snapshot remains authoritative for the active audible pass, so score-structure edits and playback-topology edits persist immediately in canonical score state but defer their audible effect until the next safe backend boundary. The only edits that stay immediate in the current pass are `volume`, `pan`, `mute`, and `solo` on already-ready direct-plugin root routes proven through the existing live mix seam. Tone creation, deletion, slicing, retiming, repitching, accidental or articulation changes, tuplet ownership changes, route changes, slot changes, and plugin assignment changes must not rewrite queued transport work mid-pass. Instead, Rust keeps a compact backend-only deferred-refresh flag so pause, seek restart, stopped play-start, natural-end replay, and explicit transport resets are the supported points where the next snapshot picks up the updated score truth.
+That deferred-refresh kind now lives with transport ownership, and command handlers no longer branch on transport state locally. Backend edit commands classify the mutation as score-structure or playback-topology work and hand off to a centralized `AppContext` playback-edit helper, which is the single place that decides whether the current pass can use the normal general-state path or must defer runtime refresh until a transport-safe boundary.
+
+Story 4.3 makes the realtime playback plane concrete without widening transport scope. The persistent output stream in `src-tauri/src/playback/audio.rs` now calls into a backend-owned continuous render engine before draining any legacy mixer voices. That engine owns render-active slot state, backend event queues, and per-block processing for slot-owned `PluginHostSession`s, while transport owns only score-derived scheduling/state transitions and feeds note events into that engine instead of taking over stream lifetime or plugin-session ownership. The native editor remains a transient attachment over the already-running slot session.
+
+Story 1.3 added an explicit single-instrument reset trust gate on top of that path, and Stories 1.4 through 1.6 plus maintainer manual proof completed it. Here, single-instrument means a VST instance that hosts one playable instrument at a time, even if that instance exposes multiple articulations, expressions, or mic mixes; HALion-style multi-slot or multi-part instances remain out of scope. The backend still exposes that trust gate as explicit readiness truth through `PlaybackActivationRuntime`, but transport no longer treats it as a hard start gate: it snapshots every currently ready direct-plugin root route on play-start and sounds those routes together by feeding projected score events into the continuous engine. Later Epic 5 trust work and Epic 6 expression maps extend this transport-owned audible path rather than replacing it.
+
 ```
-┌──────────────┐     ┌──────────────────────────────────┐
-│  Transport   │     │  Streamer (per note-on)           │
-│  Thread      │────►│                                   │
-│              │     │  1. Read FLAC from .scvi container │
-│  Walks score │     │  2. Decode via symphonia           │
-│  tick by tick│     │  3. Resample via rubato            │
-│              │     │  4. Pitch-shift, envelope,         │
-│              │     │     volume/pan                     │
-│              │     │  5. Push to StreamBuffer           │
-└──────────────┘     └───────────────┬──────────────────┘
-                                     │
-                                     ▼
-                     ┌──────────────────────────────────┐
-                     │  Mixer (audio callback thread)    │
-                     │                                   │
-                     │  64-slot lock-free voice list      │
-                     │  Drains StreamBuffers → output     │
-                     │  via cpal audio device             │
-                     └──────────────────────────────────┘
+┌──────────────┐
+│  Transport   │
+│  Thread      │
+│              │
+│  Walks score │
+│  tick by tick│
+│              │
+└──────────────┘
 ```
 
 ### Key Components
 
 - **Transport** — Uses atomics (`AtomicBool`, `AtomicU64`) for lock-free state sharing; instrument mix params via `RwLock<FxHashMap>`
 - **Tempo resolution** — Playback snapshots the score's flow master-track tempo data at play/resume start, resolves the active BPM once per tick via a bounded resolver, and silently falls back to 120 BPM when no score tempo applies
-- **Streamer** — Per-packet disk streaming (FLAC decode → resample → push to `StreamBuffer`); pre-allocates ~0.5s stereo buffer
-- **Mixer** — Fixed 64-slot voice array, lock-free slot claiming via `AtomicBool`; runs in cpal audio callback
-- **SCVI Format** — Custom binary container: `MAGIC(4)` + `Header` + `META(MessagePack)` + `SIDX(sample index)` + `SDAT(FLAC data)`
+- **Playback preparation** — `prepare_supported_playback(...)` is the canonical backend seam for transport and audition work; it preserves explicit `Unrouted` and `NeedsAttention` states, captures the active audio sample rate, exposes route-backed `supported_mix_controls`, and snapshots the currently supported direct-plugin root targets once per play-start so transport can fan score events out without rechecking readiness inside the render loop. The public multi-target `supported_targets` list is the canonical transport contract; if a caller needs one instrument-specific prepared target, derive it explicitly rather than restoring a public single-target fallback field.
+- **Continuous render engine** — `src-tauri/src/playback/engine.rs` keeps render-active slot sessions alive on the audio callback with backend-owned event queues and silent-safe blocks, applies the prepared effective route mix for the active slot, and lets audition, mounted plugin UI interaction, and transport-driven score playback share one playback-plane seam
+- **Audition contract** — the first-audible audition workflow is intentionally narrow: it previews one score-derived pitch for 500ms at moderate velocity using a default legato articulation, injects note events into the continuous engine, and is triggered only from score-context tone selection, pitch edits, or accidental edits rather than from transport-like phrase playback
+- **Current MVP score-context mix controls** — `volume`, `mute`, `solo`, and `pan` are exposed as honest controls when the active resolved route is a ready direct-plugin root path; pan currently behaves as a backend-owned stereo balance control on the rendered slot output and solo suppresses other ready supported routes through the same effective-mix seam
 
 ### Transport tempo semantics
 
 - Playback start resolves tempo from the latest immediate absolute tempo at-or-before the current tick before the transport thread starts, so mid-flow starts report the correct inherited BPM immediately.
 - The transport thread re-resolves tempo once per playback tick from its play-start score snapshot, applies tempo changes exactly on the matching tick boundary, and accumulates tick deadlines from prior timing state to reduce drift.
 - `transport_get_state()` reports truthful stopped-state tempo for the current tick as well, so stopped seek and stop-to-tick-0 transitions show the effective score tempo instead of stale playback tempo.
-- Pause/resume behaves like a fresh playback start from the current tick: pause retires the old thread, and resume re-snapshots score tempo data so edits made while paused are reflected.
+- Pause/resume behaves like a fresh playback start from the current tick: pause clears the transport render target, flushes active audio, joins any prior transport thread, republishes truthful tempo for the paused tick, and resume re-snapshots score tempo data so edits made while paused are reflected.
+- Seek uses that same transport-owned reset model instead of an in-thread cursor jump: active seek clamps through `ui.flow_id`, cancels queued transport events and active transport-owned notes from the old timeline, then restarts from the target tick on a fresh play-start snapshot, while stopped seek only republishes truthful tick and tempo.
+- Blocked transport starts remain explicit backend no-ops: if the shared preparation seam cannot produce a supported target, transport stays stopped, clears stale stop-signal state, and does not invent fallback playback or mutate resolved route truth.
 - Live edits during active playback still do not affect the in-flight run; a fresh play/resume cycle is required because transport playback uses a play-start score snapshot.
 - Tuplet playback consumes the same shared tuplet model used by persistence and notation, and shipped MVP playback remains scoped to the active flow selected through `ui.flow_id`; tuplets do not widen playback to inactive flows.
 - Tempo property editing also changes persisted tempo load/save semantics: `Tempo.text` is now stored as a required string, and migration `1.25.0` normalizes older `text: null` payloads to `""` during project load.
@@ -282,13 +311,15 @@ type AnchoredNotationTrack = {
 
 ## Multi-Window Architecture
 
-Each of the 8 windows has:
+Each of the 9 windows has:
 
 - Its own HTML entry point (e.g., `instrument-picker.html`)
 - Its own `boot.tsx` mounting `AppStateProvider`
 - Independent React tree receiving state via `app.emit()` to all windows
 
 Secondary windows (instrument-picker, preferences, etc.) close on blur via `tauri://blur` event listener. New windows are opened via `WebviewWindow` from `@tauri-apps/api/webviewWindow`.
+
+The backend-owned `plugin-host-poc` window is the one exception to the normal frontend-owned open flow: React triggers a thin backend command from the Sequence score-context rack action, and Rust creates or focuses the host window so the backend can own macOS-native attachment and teardown. Plugin Manager no longer carries editor-launch responsibility; instead, the target resolves in Rust from the backend-owned machine-local inventory first, then from an explicit request, then `SOLOC_PLUGIN_EDITOR_POC_VST3_PATH`, then the standard macOS VST3 install roots under `~/Library/Audio/Plug-Ins/VST3` and `/Library/Audio/Plug-Ins/VST3`. Story 1.3 hardens the score-context rack path further: rack-originated editor opens resolve through the score-owned slot id as well as the bundle path, so multiple slots using the same plugin bundle remain distinct native-host targets instead of collapsing into one bundle-level reservation. Rust now keeps one authoritative host lifecycle reservation for one active plugin target in the app session, promotes that reservation to an attached session only after the native host session is stored, marks close as an explicit teardown phase, and clears stale reservations when no host window remains. It validates that the chosen target is a local `.vst3` bundle, loads the bundle binary in Rust, creates a minimal VST3 component/controller/editor stack, synchronizes component state into the controller when needed, connects component/controller `IConnectionPoint` pairs when the plugin exposes them, and attaches the returned `IPlugView` to a native AppKit subview in the Tauri content hierarchy. Resize remains capability-driven: the host window stays bounded unless the plugin editor reports `canResize()`, and focus/resize sync stays backend-owned on the main thread. This is now the supported bounded native-editor handoff for plugin-specific depth inside Compose, but it is still not the canonical inventory surface and not the template for long-term frontend-owned VST workflows.
 
 ---
 
@@ -300,17 +331,18 @@ Secondary windows (instrument-picker, preferences, etc.) close on blur via `taur
 - **Tuplet persistence contract:** Tuplet-bearing scores use that same single `.soloc` transport and typed deserialize path. Load does not create a parallel tuplet repair layer, split crossing tones into extra stored events, or normalize ownership away from the rule that tones live where they start.
 - **Desktop file-workflow contract:** Tuplet-bearing projects keep the same offline-first local open, save, reopen, current-file-path, recent-file, and transport-resync path as non-tuplet projects through the existing Tauri file commands; no network-backed persistence or alternate frontend-owned file state is introduced.
 - **Current migration stance for tuplets:** No tuplet-specific step is present in `src-tauri/src/migrations/next.rs` because pre-tuplet releases produced no tuplet-bearing payloads. Legacy non-tuplet files still validate and migrate exactly as before; add a tuplet migration only if a released older persisted format requires a real compatibility transform.
-- **Instrument plugins:** Discovered at runtime from `$DATA_DIR/Solo Compose/plugins/` — each is an SCVI binary container
+- **Machine-local VST3 inventory:** Stored outside `.soloc` files in a `sled` database under the app config directory; this backend-owned inventory is machine-local discovery state, not portable project data. Startup reuses that cache, degrades stale cached entries in place, and can append newly seen bundles from one bounded root sweep, while explicit manual refresh remains the seam that may perform broader discovery work.
+- **Experimental editor-host target:** The native plugin-host POC does not reuse the SCVI instrument catalog. It resolves a local VST3 bundle from the backend-owned machine-local VST3 inventory when a plugin-backed request provides a plugin id, otherwise from an explicit request, `SOLOC_PLUGIN_EDITOR_POC_VST3_PATH`, or the standard macOS VST3 install roots. Compose now maintains that inventory as the authoritative discovery seam, while the editor-host POC keeps a separate backend-owned single-session lifecycle reservation so close, destroy, and reopen stay local to that bounded native host seam rather than widening into transport or assignment state.
 
 ---
 
 ## Managed State Summary (Tauri)
 
-| State                   | Type                      | Purpose                     |
-| ----------------------- | ------------------------- | --------------------------- |
-| `AppContextState`       | `Mutex<AppContext>`       | Core app state              |
-| `RendererContextState`  | `Mutex<RendererContext>`  | Score rendering             |
-| `AudioContextState`     | `Mutex<AudioContext>`     | Audio device I/O            |
-| `SamplerContextState`   | `Mutex<SamplerContext>`   | Instrument cache            |
-| `TransportContextState` | `Mutex<TransportContext>` | Playback control            |
-| `TransportSharedState`  | `Arc<TransportShared>`    | Lock-free transport polling |
+| State                         | Type                            | Purpose                      |
+| ----------------------------- | ------------------------------- | ---------------------------- |
+| `AppContextState`             | `Mutex<AppContext>`             | Core app state               |
+| `RendererContextState`        | `Mutex<RendererContext>`        | Score rendering              |
+| `AudioContextState`           | `Mutex<AudioContext>`           | Audio device I/O             |
+| `PluginInventoryContextState` | `Mutex<PluginInventoryContext>` | Machine-local VST3 inventory |
+| `TransportContextState`       | `Mutex<TransportContext>`       | Playback control             |
+| `TransportSharedState`        | `Arc<TransportShared>`          | Lock-free transport polling  |

@@ -1,15 +1,15 @@
 use crate::instructions::FlowRenderRecalculationRequest;
 use crate::migrations::{MigrationKind, MIGRATIONS};
-use crate::playback::sampler::sync_sampler_with_score;
+use crate::playback::plugin_editor_poc::sync_score_slot_targets_with_runtime_state;
 use crate::playback::transport::{
-    stop_transport_playback, sync_transport_to_app_state, TransportContext,
+    stop_transport_playback, sync_transport_to_app_state, TransportContext, TransportSharedState,
 };
 use crate::score::Score;
 use crate::soloc::*;
 use crate::ui::sequencer::Tool;
 use crate::ui::Ui;
 use crate::utils::UniqueId;
-use crate::{AppContextState, AudioContextState, RendererContextState, SamplerContextState};
+use crate::{AppContextState, AudioContextState, RendererContextState};
 use semver::Version;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -123,6 +123,50 @@ fn build_project_file(state: &crate::AppContext) -> ProjectFile {
         score,
         next_id: state.next_id,
     }
+}
+
+fn load_project_file(file_path: &str) -> Result<ProjectFile, String> {
+    let file_data = fs::read(file_path).map_err(|e| format!("Failed to read file: {}", e))?;
+    let parsed_container = parse_soloc_container(&file_data)?;
+    let json_data = decompress_project_payload(
+        parsed_container.project_payload,
+        parsed_container.project_chunk_flags,
+    )?;
+    let project_data: Value = serde_json::from_slice(&json_data)
+        .map_err(|e| format!("Failed to parse project JSON: {}", e))?;
+    validate_project_version_match(&parsed_container.app_version, &project_data)?;
+
+    let project_data = migrate_project_data(project_data, &parsed_container.app_version)
+        .map_err(|e| format!("Failed to migrate project data: {}", e))?;
+    let mut project_file: ProjectFile = serde_json::from_value(project_data)
+        .map_err(|e| format!("Failed to deserialize project file: {}", e))?;
+    project_file.score.meta.app_version = CURRENT_APP_VERSION.to_string();
+
+    Ok(project_file)
+}
+
+fn apply_loaded_project_with_runtime_refresh<F>(
+    state: &mut crate::AppContext,
+    transport_shared: &TransportSharedState,
+    project_file: ProjectFile,
+    file_path: String,
+    refresh_runtime: F,
+) where
+    F: FnOnce(&mut crate::AppContext),
+{
+    state.ui = project_file.ui;
+
+    // Reset ephemeral state
+    state.ui.sequencer.tool = Tool::Select;
+    state.ui.screens.setup.selection = None;
+    state.ui.sequencer.selection = None;
+
+    state.score = project_file.score;
+    state.next_id = project_file.next_id;
+    state.current_file_path = Some(file_path);
+    state.clear_pending_playback_refresh();
+    sync_transport_to_app_state(transport_shared, state, 0);
+    refresh_runtime(state);
 }
 
 fn parse_chunk_entry(file_data: &[u8], offset: usize) -> ChunkEntry {
@@ -325,7 +369,16 @@ mod tests {
     use super::*;
     use crate::instructions::{prepare_flow_render_plan, FlowRenderRecalculationRequest};
     use crate::migrations::{MigrationKind, MIGRATIONS};
-    use crate::playback::transport::{sync_transport_to_app_state, TransportContext};
+    use crate::playback::engine::{
+        clear_transport_playback, queue_transport_note, set_transport_render_targets,
+        transport_playback_has_pending_work,
+    };
+    use crate::playback::plugin_inventory::{
+        PluginInventoryAvailability, PluginInventoryContext, PluginInventoryEntry,
+    };
+    use crate::playback::preparation::prepare_supported_playback;
+    use crate::playback::runtime_activation::PlaybackActivationRuntime;
+    use crate::playback::transport::{DeferredPlaybackRefreshKind, TransportContext};
     use crate::preferences::Preferences;
     use crate::score::components::{
         articulation::Articulations,
@@ -339,9 +392,16 @@ mod tests {
         Entry,
     };
     use crate::score::flows::Flow;
+    use crate::score::instruments::{defs::InstrumentType, Instrument, Instruments};
     use crate::score::layouts::{Layout, LayoutType};
+    use crate::score::playback::{
+        InstrumentPlaybackRoute, PlaybackRouteAddress, PlaybackRouteTarget,
+        PlaybackSlotPluginState, ResolvedPlaybackRouteStatus,
+    };
+    use crate::score::players::{Player, PlayerType, Players};
     use crate::score::tracks::Track;
     use crate::{score::Score, ui::Ui, AppContext};
+    use rustc_hash::FxHashMap;
     use serde_json::json;
 
     fn test_app_version() -> &'static str {
@@ -487,24 +547,985 @@ mod tests {
     fn restore_loaded_project_for_test(
         state: &mut AppContext,
         transport_context: &std::sync::Arc<crate::playback::transport::TransportShared>,
+        inventory: &PluginInventoryContext,
         project_file: ProjectFile,
         file_path: String,
     ) {
-        state.ui = project_file.ui;
-        state.ui.sequencer.tool = Tool::Select;
-        state.ui.screens.setup.selection = None;
-        state.ui.sequencer.selection = None;
+        transport_context
+            .playing
+            .store(false, std::sync::atomic::Ordering::Release);
+        transport_context
+            .stop_signal
+            .store(false, std::sync::atomic::Ordering::Release);
+        transport_context
+            .last_queued_tick
+            .store(0, std::sync::atomic::Ordering::Relaxed);
+        clear_transport_playback();
 
-        state.score = project_file.score;
-        state.next_id = project_file.next_id;
-        state.current_file_path = Some(file_path);
-        sync_transport_to_app_state(transport_context, state, 0);
+        apply_loaded_project_with_runtime_refresh(
+            state,
+            transport_context,
+            project_file,
+            file_path,
+            |state| {
+                state.refresh_playback_activation_runtime_with_inventory(inventory, |expected| {
+                    expected.clone()
+                });
+            },
+        );
+    }
+
+    fn available_inventory_entry(plugin_id: &str) -> PluginInventoryEntry {
+        PluginInventoryEntry {
+            id: plugin_id.to_string(),
+            name: plugin_id.to_string(),
+            bundle_path: format!("/Library/Audio/Plug-Ins/VST3/{plugin_id}.vst3"),
+            binary_path: Some(format!(
+                "/Library/Audio/Plug-Ins/VST3/{plugin_id}.vst3/Contents/MacOS/{plugin_id}"
+            )),
+            source_root: String::from("/Library/Audio/Plug-Ins/VST3"),
+            availability: PluginInventoryAvailability::Available,
+            validation_failure: None,
+            editor_host_validation: None,
+        }
     }
 
     fn legacy_non_tuplet_fixture_payload() -> Value {
-        let mut fixture = serde_json::from_str::<Value>(include_str!(
-            "../../tests/fixtures/source/tempo/tempo.json"
-        ))
+        let mut fixture = serde_json::from_str::<Value>(
+            r#"{
+    "next_id": 300,
+    "score": {
+        "config": {
+            "auto_count_styles": {
+                "section": 1,
+                "solo": 0
+            }
+        },
+        "engraves": {
+            "by_layout_type": {
+                "0": {
+                    "base_note_space": 4,
+                    "bracket_single_staves": false,
+                    "bracket_style": 1,
+                    "bracketing_approach": 1,
+                    "frame_padding": {
+                        "bottom": 20,
+                        "left": 0,
+                        "right": 0,
+                        "top": 20
+                    },
+                    "instrument_name_font": {
+                        "align": 1,
+                        "family": 1,
+                        "justify": 2,
+                        "size": 1.75
+                    },
+                    "instrument_name_spacing": 2,
+                    "instrument_spacing": 8,
+                    "maximum_beam_slant": 0.5,
+                    "minimum_note_space": 0.8999999761581421,
+                    "minimum_tie_space": 1.600000023841858,
+                    "note_space_ratio": 1.409999966621399,
+                    "page_padding": {
+                        "bottom": 30,
+                        "left": 20,
+                        "right": 20,
+                        "top": 30
+                    },
+                    "space": 1.5,
+                    "stave_spacing": 6,
+                    "system_start_padding": 0.75,
+                    "systemic_barline_single_instrument_system": true
+                },
+                "1": {
+                    "base_note_space": 4,
+                    "bracket_single_staves": false,
+                    "bracket_style": 1,
+                    "bracketing_approach": 1,
+                    "frame_padding": {
+                        "bottom": 20,
+                        "left": 0,
+                        "right": 0,
+                        "top": 20
+                    },
+                    "instrument_name_font": {
+                        "align": 1,
+                        "family": 1,
+                        "justify": 2,
+                        "size": 1.75
+                    },
+                    "instrument_name_spacing": 2,
+                    "instrument_spacing": 8,
+                    "maximum_beam_slant": 0.5,
+                    "minimum_note_space": 0.8999999761581421,
+                    "minimum_tie_space": 1.600000023841858,
+                    "note_space_ratio": 1.409999966621399,
+                    "page_padding": {
+                        "bottom": 30,
+                        "left": 20,
+                        "right": 20,
+                        "top": 30
+                    },
+                    "space": 2,
+                    "stave_spacing": 6,
+                    "system_start_padding": 0.75,
+                    "systemic_barline_single_instrument_system": false
+                }
+            }
+        },
+        "flows": {
+            "order": [5, 14, 23, 32],
+            "by_id": {
+                "5": {
+                    "id": 5,
+                    "title": "Tick 0 Allegro",
+                    "player_ids": [1],
+                    "length": 256,
+                    "master_id": 6,
+                    "staves": {
+                        "by_id": {
+                            "3": {
+                                "id": 3,
+                                "lines": [1, 1, 1, 1, 1],
+                                "master_id": 8,
+                                "track_ids": [10]
+                            },
+                            "4": {
+                                "id": 4,
+                                "lines": [1, 1, 1, 1, 1],
+                                "master_id": 11,
+                                "track_ids": [13]
+                            }
+                        }
+                    }
+                },
+                "14": {
+                    "id": 14,
+                    "title": "Tick 0 Allegro q=120",
+                    "player_ids": [1],
+                    "length": 256,
+                    "master_id": 15,
+                    "staves": {
+                        "by_id": {
+                            "3": {
+                                "id": 3,
+                                "lines": [1, 1, 1, 1, 1],
+                                "master_id": 17,
+                                "track_ids": [19]
+                            },
+                            "4": {
+                                "id": 4,
+                                "lines": [1, 1, 1, 1, 1],
+                                "master_id": 20,
+                                "track_ids": [22]
+                            }
+                        }
+                    }
+                },
+                "23": {
+                    "id": 23,
+                    "title": "Tick 0 Allegro (q=120)",
+                    "player_ids": [1],
+                    "length": 256,
+                    "master_id": 24,
+                    "staves": {
+                        "by_id": {
+                            "3": {
+                                "id": 3,
+                                "lines": [1, 1, 1, 1, 1],
+                                "master_id": 26,
+                                "track_ids": [28]
+                            },
+                            "4": {
+                                "id": 4,
+                                "lines": [1, 1, 1, 1, 1],
+                                "master_id": 29,
+                                "track_ids": [31]
+                            }
+                        }
+                    }
+                },
+                "32": {
+                    "id": 32,
+                    "title": "Metronome + Mid-flow Changes",
+                    "player_ids": [1],
+                    "length": 256,
+                    "master_id": 33,
+                    "staves": {
+                        "by_id": {
+                            "3": {
+                                "id": 3,
+                                "lines": [1, 1, 1, 1, 1],
+                                "master_id": 35,
+                                "track_ids": [37]
+                            },
+                            "4": {
+                                "id": 4,
+                                "lines": [1, 1, 1, 1, 1],
+                                "master_id": 38,
+                                "track_ids": [40]
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "instruments": {
+            "by_id": {
+                "2": {
+                    "id": 2,
+                    "definition_id": "keyboard.piano",
+                    "instrument_type": 0,
+                    "long_name": "Piano",
+                    "short_name": "Pno.",
+                    "stave_ids": [3, 4],
+                    "count": null,
+                    "assigned_plugin_id": null,
+                    "volume": 100,
+                    "pan": 64,
+                    "mute": false,
+                    "solo": false
+                }
+            }
+        },
+        "layouts": {
+            "by_id": {
+                "0": {
+                    "id": 0,
+                    "layout_type": 0,
+                    "title": "",
+                    "player_ids": [1],
+                    "flow_ids": [5, 14, 23, 32]
+                }
+            },
+            "order": [0]
+        },
+        "meta": {
+            "app_version": "1.23.3",
+            "arranger": "",
+            "artist": "",
+            "composer": "",
+            "composer_dates": "",
+            "composition_year": "",
+            "copyist": "",
+            "copyright": "",
+            "created": 1772928000000,
+            "dedication": "",
+            "editor": "",
+            "lyricist": "",
+            "other_information": "",
+            "publisher": "",
+            "subtitle": "Visual Regression Fixture",
+            "title": "Tempo Markings",
+            "work_number": ""
+        },
+        "players": {
+            "order": [1],
+            "by_id": {
+                "1": {
+                    "id": 1,
+                    "player_type": 0,
+                    "instrument_ids": [2]
+                }
+            }
+        },
+        "tracks": {
+            "by_id": {
+                "6": {
+                    "id": 6,
+                    "entries": {
+                        "by_tick": {
+                            "0": [7, 70]
+                        },
+                        "by_id": {
+                            "7": {
+                                "type": "TimeSignature",
+                                "id": 7,
+                                "tick": 0,
+                                "beats": 4,
+                                "beat_type": 4,
+                                "draw_type": 1,
+                                "groupings": [2, 2],
+                                "hidden": false
+                            },
+                            "70": {
+                                "type": "Tempo",
+                                "id": 70,
+                                "tick": 0,
+                                "text": "Allegro",
+                                "beat_type": 4,
+                                "dots": 0,
+                                "bpm": 130,
+                                "hidden": false,
+                                "show_text": true,
+                                "show_metronome": false,
+                                "parenthesized": false
+                            }
+                        }
+                    }
+                },
+                "8": {
+                    "id": 8,
+                    "entries": {
+                        "by_tick": {
+                            "0": [9]
+                        },
+                        "by_id": {
+                            "9": {
+                                "type": "Clef",
+                                "id": 9,
+                                "tick": 0,
+                                "draw_as": 1,
+                                "pitch": {
+                                    "int": 67,
+                                    "accidental": 0
+                                },
+                                "offset": 2,
+                                "hidden": false
+                            }
+                        }
+                    }
+                },
+                "10": {
+                    "id": 10,
+                    "entries": {
+                        "by_tick": {
+                            "0": [100],
+                            "32": [101],
+                            "64": [102],
+                            "96": [103]
+                        },
+                        "by_id": {
+                            "100": {
+                                "type": "Tone",
+                                "id": 100,
+                                "tick": 0,
+                                "duration": 32,
+                                "pitch": {
+                                    "int": 60,
+                                    "accidental": 0
+                                },
+                                "velocity": {
+                                    "int": 90
+                                },
+                                "articulations": []
+                            },
+                            "101": {
+                                "type": "Tone",
+                                "id": 101,
+                                "tick": 32,
+                                "duration": 32,
+                                "pitch": {
+                                    "int": 62,
+                                    "accidental": 0
+                                },
+                                "velocity": {
+                                    "int": 90
+                                },
+                                "articulations": []
+                            },
+                            "102": {
+                                "type": "Tone",
+                                "id": 102,
+                                "tick": 64,
+                                "duration": 32,
+                                "pitch": {
+                                    "int": 64,
+                                    "accidental": 0
+                                },
+                                "velocity": {
+                                    "int": 90
+                                },
+                                "articulations": []
+                            },
+                            "103": {
+                                "type": "Tone",
+                                "id": 103,
+                                "tick": 96,
+                                "duration": 32,
+                                "pitch": {
+                                    "int": 65,
+                                    "accidental": 0
+                                },
+                                "velocity": {
+                                    "int": 90
+                                },
+                                "articulations": []
+                            }
+                        }
+                    }
+                },
+                "11": {
+                    "id": 11,
+                    "entries": {
+                        "by_tick": {
+                            "0": [12]
+                        },
+                        "by_id": {
+                            "12": {
+                                "type": "Clef",
+                                "id": 12,
+                                "tick": 0,
+                                "draw_as": 2,
+                                "pitch": {
+                                    "int": 53,
+                                    "accidental": 0
+                                },
+                                "offset": -2,
+                                "hidden": false
+                            }
+                        }
+                    }
+                },
+                "13": {
+                    "id": 13,
+                    "entries": {
+                        "by_tick": {},
+                        "by_id": {}
+                    }
+                },
+                "15": {
+                    "id": 15,
+                    "entries": {
+                        "by_tick": {
+                            "0": [16, 71]
+                        },
+                        "by_id": {
+                            "16": {
+                                "type": "TimeSignature",
+                                "id": 16,
+                                "tick": 0,
+                                "beats": 4,
+                                "beat_type": 4,
+                                "draw_type": 1,
+                                "groupings": [2, 2],
+                                "hidden": false
+                            },
+                            "71": {
+                                "type": "Tempo",
+                                "id": 71,
+                                "tick": 0,
+                                "text": "Allegro",
+                                "beat_type": 4,
+                                "dots": 0,
+                                "bpm": 120,
+                                "hidden": false,
+                                "show_text": true,
+                                "show_metronome": true,
+                                "parenthesized": false
+                            }
+                        }
+                    }
+                },
+                "17": {
+                    "id": 17,
+                    "entries": {
+                        "by_tick": {
+                            "0": [18]
+                        },
+                        "by_id": {
+                            "18": {
+                                "type": "Clef",
+                                "id": 18,
+                                "tick": 0,
+                                "draw_as": 1,
+                                "pitch": {
+                                    "int": 67,
+                                    "accidental": 0
+                                },
+                                "offset": 2,
+                                "hidden": false
+                            }
+                        }
+                    }
+                },
+                "19": {
+                    "id": 19,
+                    "entries": {
+                        "by_tick": {
+                            "0": [104],
+                            "32": [105],
+                            "64": [106],
+                            "96": [107]
+                        },
+                        "by_id": {
+                            "104": {
+                                "type": "Tone",
+                                "id": 104,
+                                "tick": 0,
+                                "duration": 32,
+                                "pitch": {
+                                    "int": 67,
+                                    "accidental": 0
+                                },
+                                "velocity": {
+                                    "int": 90
+                                },
+                                "articulations": []
+                            },
+                            "105": {
+                                "type": "Tone",
+                                "id": 105,
+                                "tick": 32,
+                                "duration": 32,
+                                "pitch": {
+                                    "int": 69,
+                                    "accidental": 0
+                                },
+                                "velocity": {
+                                    "int": 90
+                                },
+                                "articulations": []
+                            },
+                            "106": {
+                                "type": "Tone",
+                                "id": 106,
+                                "tick": 64,
+                                "duration": 32,
+                                "pitch": {
+                                    "int": 71,
+                                    "accidental": 0
+                                },
+                                "velocity": {
+                                    "int": 90
+                                },
+                                "articulations": []
+                            },
+                            "107": {
+                                "type": "Tone",
+                                "id": 107,
+                                "tick": 96,
+                                "duration": 32,
+                                "pitch": {
+                                    "int": 72,
+                                    "accidental": 0
+                                },
+                                "velocity": {
+                                    "int": 90
+                                },
+                                "articulations": []
+                            }
+                        }
+                    }
+                },
+                "20": {
+                    "id": 20,
+                    "entries": {
+                        "by_tick": {
+                            "0": [21]
+                        },
+                        "by_id": {
+                            "21": {
+                                "type": "Clef",
+                                "id": 21,
+                                "tick": 0,
+                                "draw_as": 2,
+                                "pitch": {
+                                    "int": 53,
+                                    "accidental": 0
+                                },
+                                "offset": -2,
+                                "hidden": false
+                            }
+                        }
+                    }
+                },
+                "22": {
+                    "id": 22,
+                    "entries": {
+                        "by_tick": {},
+                        "by_id": {}
+                    }
+                },
+                "24": {
+                    "id": 24,
+                    "entries": {
+                        "by_tick": {
+                            "0": [25, 72]
+                        },
+                        "by_id": {
+                            "25": {
+                                "type": "TimeSignature",
+                                "id": 25,
+                                "tick": 0,
+                                "beats": 4,
+                                "beat_type": 4,
+                                "draw_type": 1,
+                                "groupings": [2, 2],
+                                "hidden": false
+                            },
+                            "72": {
+                                "type": "Tempo",
+                                "id": 72,
+                                "tick": 0,
+                                "text": "Allegro",
+                                "beat_type": 4,
+                                "dots": 0,
+                                "bpm": 120,
+                                "hidden": false,
+                                "show_text": true,
+                                "show_metronome": true,
+                                "parenthesized": true
+                            }
+                        }
+                    }
+                },
+                "26": {
+                    "id": 26,
+                    "entries": {
+                        "by_tick": {
+                            "0": [27]
+                        },
+                        "by_id": {
+                            "27": {
+                                "type": "Clef",
+                                "id": 27,
+                                "tick": 0,
+                                "draw_as": 1,
+                                "pitch": {
+                                    "int": 67,
+                                    "accidental": 0
+                                },
+                                "offset": 2,
+                                "hidden": false
+                            }
+                        }
+                    }
+                },
+                "28": {
+                    "id": 28,
+                    "entries": {
+                        "by_tick": {
+                            "0": [108],
+                            "32": [109],
+                            "64": [110],
+                            "96": [111]
+                        },
+                        "by_id": {
+                            "108": {
+                                "type": "Tone",
+                                "id": 108,
+                                "tick": 0,
+                                "duration": 32,
+                                "pitch": {
+                                    "int": 72,
+                                    "accidental": 0
+                                },
+                                "velocity": {
+                                    "int": 90
+                                },
+                                "articulations": []
+                            },
+                            "109": {
+                                "type": "Tone",
+                                "id": 109,
+                                "tick": 32,
+                                "duration": 32,
+                                "pitch": {
+                                    "int": 74,
+                                    "accidental": 0
+                                },
+                                "velocity": {
+                                    "int": 90
+                                },
+                                "articulations": []
+                            },
+                            "110": {
+                                "type": "Tone",
+                                "id": 110,
+                                "tick": 64,
+                                "duration": 32,
+                                "pitch": {
+                                    "int": 76,
+                                    "accidental": 0
+                                },
+                                "velocity": {
+                                    "int": 90
+                                },
+                                "articulations": []
+                            },
+                            "111": {
+                                "type": "Tone",
+                                "id": 111,
+                                "tick": 96,
+                                "duration": 32,
+                                "pitch": {
+                                    "int": 77,
+                                    "accidental": 0
+                                },
+                                "velocity": {
+                                    "int": 90
+                                },
+                                "articulations": []
+                            }
+                        }
+                    }
+                },
+                "29": {
+                    "id": 29,
+                    "entries": {
+                        "by_tick": {
+                            "0": [30]
+                        },
+                        "by_id": {
+                            "30": {
+                                "type": "Clef",
+                                "id": 30,
+                                "tick": 0,
+                                "draw_as": 2,
+                                "pitch": {
+                                    "int": 53,
+                                    "accidental": 0
+                                },
+                                "offset": -2,
+                                "hidden": false
+                            }
+                        }
+                    }
+                },
+                "31": {
+                    "id": 31,
+                    "entries": {
+                        "by_tick": {},
+                        "by_id": {}
+                    }
+                },
+                "33": {
+                    "id": 33,
+                    "entries": {
+                        "by_tick": {
+                            "0": [34, 73],
+                            "64": [76],
+                            "128": [74],
+                            "192": [75]
+                        },
+                        "by_id": {
+                            "34": {
+                                "type": "TimeSignature",
+                                "id": 34,
+                                "tick": 0,
+                                "beats": 4,
+                                "beat_type": 4,
+                                "draw_type": 1,
+                                "groupings": [2, 2],
+                                "hidden": false
+                            },
+                            "73": {
+                                "type": "Tempo",
+                                "id": 73,
+                                "tick": 0,
+                                "text": null,
+                                "beat_type": 4,
+                                "dots": 0,
+                                "bpm": 120,
+                                "hidden": false,
+                                "show_text": false,
+                                "show_metronome": true,
+                                "parenthesized": false
+                            },
+                            "74": {
+                                "type": "Tempo",
+                                "id": 74,
+                                "tick": 128,
+                                "text": "Moderato",
+                                "beat_type": 4,
+                                "dots": 0,
+                                "bpm": 110,
+                                "hidden": false,
+                                "show_text": true,
+                                "show_metronome": false,
+                                "parenthesized": false
+                            },
+                            "75": {
+                                "type": "Tempo",
+                                "id": 75,
+                                "tick": 192,
+                                "text": "Presto",
+                                "beat_type": 4,
+                                "dots": 0,
+                                "bpm": 180,
+                                "hidden": false,
+                                "show_text": true,
+                                "show_metronome": false,
+                                "parenthesized": false
+                            },
+                            "76": {
+                                "type": "Tempo",
+                                "id": 76,
+                                "tick": 64,
+                                "text": "Largo",
+                                "beat_type": 4,
+                                "dots": 0,
+                                "bpm": 50,
+                                "hidden": false,
+                                "show_text": true,
+                                "show_metronome": false,
+                                "parenthesized": false
+                            }
+                        }
+                    }
+                },
+                "35": {
+                    "id": 35,
+                    "entries": {
+                        "by_tick": {
+                            "0": [36]
+                        },
+                        "by_id": {
+                            "36": {
+                                "type": "Clef",
+                                "id": 36,
+                                "tick": 0,
+                                "draw_as": 1,
+                                "pitch": {
+                                    "int": 67,
+                                    "accidental": 0
+                                },
+                                "offset": 2,
+                                "hidden": false
+                            }
+                        }
+                    }
+                },
+                "37": {
+                    "id": 37,
+                    "entries": {
+                        "by_tick": {
+                            "0": [112],
+                            "64": [113],
+                            "128": [114],
+                            "192": [115]
+                        },
+                        "by_id": {
+                            "112": {
+                                "type": "Tone",
+                                "id": 112,
+                                "tick": 0,
+                                "duration": 32,
+                                "pitch": {
+                                    "int": 60,
+                                    "accidental": 0
+                                },
+                                "velocity": {
+                                    "int": 90
+                                },
+                                "articulations": []
+                            },
+                            "113": {
+                                "type": "Tone",
+                                "id": 113,
+                                "tick": 64,
+                                "duration": 32,
+                                "pitch": {
+                                    "int": 64,
+                                    "accidental": 0
+                                },
+                                "velocity": {
+                                    "int": 90
+                                },
+                                "articulations": []
+                            },
+                            "114": {
+                                "type": "Tone",
+                                "id": 114,
+                                "tick": 128,
+                                "duration": 32,
+                                "pitch": {
+                                    "int": 67,
+                                    "accidental": 0
+                                },
+                                "velocity": {
+                                    "int": 90
+                                },
+                                "articulations": []
+                            },
+                            "115": {
+                                "type": "Tone",
+                                "id": 115,
+                                "tick": 192,
+                                "duration": 32,
+                                "pitch": {
+                                    "int": 72,
+                                    "accidental": 0
+                                },
+                                "velocity": {
+                                    "int": 90
+                                },
+                                "articulations": []
+                            }
+                        }
+                    }
+                },
+                "38": {
+                    "id": 38,
+                    "entries": {
+                        "by_tick": {
+                            "0": [39]
+                        },
+                        "by_id": {
+                            "39": {
+                                "type": "Clef",
+                                "id": 39,
+                                "tick": 0,
+                                "draw_as": 2,
+                                "pitch": {
+                                    "int": 53,
+                                    "accidental": 0
+                                },
+                                "offset": -2,
+                                "hidden": false
+                            }
+                        }
+                    }
+                },
+                "40": {
+                    "id": 40,
+                    "entries": {
+                        "by_tick": {},
+                        "by_id": {}
+                    }
+                }
+            }
+        }
+    },
+    "ui": {
+        "flow_id": 5,
+        "layout_id": 0,
+        "renderer": {
+            "debug": false,
+            "pan_x": 100,
+            "pan_y": 100,
+            "zoom": 100
+        },
+        "screens": {
+            "sequence": {
+                "bottom_panel_minimized": false,
+                "bottom_panel_tab": 1,
+                "show_active_only": true
+            },
+            "setup": {
+                "expanded": [],
+                "selection": null
+            },
+            "write": {
+                "bottom_panel_minimized": false,
+                "bottom_panel_tab": 1
+            }
+        },
+        "sequencer": {
+            "flow": null,
+            "instrument": null,
+            "selection": null,
+            "snap": 8,
+            "tool": 0,
+            "track": null,
+            "x": 0,
+            "y": 1008
+        },
+        "tab": 1
+    }
+}"#,
+        )
         .unwrap();
 
         fixture["score"]["tracks"]["by_id"]["6"]["entries"]["by_id"]["70"]["text"] = Value::Null;
@@ -794,6 +1815,8 @@ mod tests {
         let state = AppContext {
             ui,
             score,
+            playback_activation_runtime: PlaybackActivationRuntime::default(),
+            pending_playback_refresh: None,
             preferences: make_preferences(),
             next_id: 42,
             current_file_path: Some("/tmp/example.soloc".to_string()),
@@ -811,6 +1834,68 @@ mod tests {
         assert_eq!(
             value["score"]["meta"]["app_version"],
             Value::String(test_app_version().to_string())
+        );
+    }
+
+    #[test]
+    fn soloc_project_payload_persists_expression_map_references_without_embedding_library_state() {
+        let mut score = build_score_with_visible_flows(&[30], &[30]);
+        score.players = Players {
+            order: vec![1],
+            by_id: FxHashMap::from_iter([(1, Player::new(1, PlayerType::Section))]),
+        };
+        score.players.by_id.get_mut(&1).unwrap().instrument_ids = vec![10];
+        score.instruments = Instruments {
+            by_id: FxHashMap::from_iter([(
+                10,
+                Instrument {
+                    id: 10,
+                    definition_id: String::from("strings.violin"),
+                    instrument_type: InstrumentType::Melodic,
+                    long_name: String::from("Violin"),
+                    short_name: String::from("Vln."),
+                    stave_ids: vec![],
+                    count: None,
+                    playback_route: Some(InstrumentPlaybackRoute {
+                        slot_id: 300,
+                        target: PlaybackRouteTarget::plugin(),
+                        address: PlaybackRouteAddress::root(),
+                        expression_map_id: Some(String::from("legato")),
+                    }),
+                    volume: 100,
+                    pan: 64,
+                    mute: false,
+                    solo: false,
+                },
+            )]),
+        };
+        score.create_playback_slot(300).unwrap();
+        score
+            .assign_plugin_to_slot(300, String::from("plugin-a"))
+            .unwrap();
+
+        let project_file = ProjectFile {
+            ui: Ui::new(),
+            score,
+            next_id: 500,
+        };
+        let container = build_soloc_payload_for_project(&project_file);
+        let (_, _, project_json) = project_json_from_container(&container);
+        let restored = round_trip_project_file(&project_file);
+
+        assert_eq!(
+            project_json["score"]["instruments"]["by_id"]["10"]["playback_route"]
+                ["expression_map_id"],
+            Value::String(String::from("legato"))
+        );
+        assert!(project_json.get("expression_maps").is_none());
+        assert!(project_json["score"].get("expression_maps").is_none());
+        assert_eq!(
+            restored.score.instruments.by_id[&10]
+                .playback_route
+                .as_ref()
+                .and_then(|route| route.expression_map_id.as_deref()),
+            Some("legato")
         );
     }
 
@@ -1082,9 +2167,12 @@ mod tests {
     #[test]
     fn applying_loaded_tuplet_project_resets_ephemeral_state_and_updates_transport() {
         let (_transport_state, transport_shared) = TransportContext::new();
+        let inventory = PluginInventoryContext::with_entries_for_tests(vec![]);
         let mut state = AppContext {
             ui: Ui::new(),
             score: build_score_with_visible_flows(&[30], &[30]),
+            playback_activation_runtime: PlaybackActivationRuntime::default(),
+            pending_playback_refresh: None,
             preferences: make_preferences(),
             next_id: 5,
             current_file_path: None,
@@ -1105,10 +2193,23 @@ mod tests {
             }))
             .unwrap(),
         );
+        transport_shared
+            .playing
+            .store(true, std::sync::atomic::Ordering::Release);
+        transport_shared
+            .stop_signal
+            .store(true, std::sync::atomic::Ordering::Release);
+        transport_shared
+            .last_queued_tick
+            .store(17, std::sync::atomic::Ordering::Relaxed);
+        set_transport_render_targets([99]);
+        queue_transport_note(99, 0, 8, 64, 100);
+        assert!(transport_playback_has_pending_work());
 
         restore_loaded_project_for_test(
             &mut state,
             &transport_shared,
+            &inventory,
             make_round_trip_tuplet_project(),
             "/tmp/tuplets.soloc".to_string(),
         );
@@ -1135,7 +2236,460 @@ mod tests {
                 .load(std::sync::atomic::Ordering::Relaxed),
             0
         );
+        assert!(!transport_shared
+            .playing
+            .load(std::sync::atomic::Ordering::Acquire));
+        assert!(!transport_shared
+            .stop_signal
+            .load(std::sync::atomic::Ordering::Acquire));
+        assert_eq!(
+            transport_shared
+                .last_queued_tick
+                .load(std::sync::atomic::Ordering::Relaxed),
+            0
+        );
         assert!(transport_shared.get_tempo() > 0.0);
+        assert!(!transport_playback_has_pending_work());
+    }
+
+    #[test]
+    fn applying_loaded_project_can_refresh_single_target_runtime_activation() {
+        let (_transport_state, transport_shared) = TransportContext::new();
+        let inventory =
+            PluginInventoryContext::with_entries_for_tests(vec![available_inventory_entry(
+                "plugin-a",
+            )]);
+        let mut score = build_score_with_visible_flows(&[30], &[30]);
+        score.players = Players {
+            order: vec![1],
+            by_id: FxHashMap::from_iter([(1, Player::new(1, PlayerType::Section))]),
+        };
+        score.players.by_id.get_mut(&1).unwrap().instrument_ids = vec![10];
+        score.instruments = Instruments {
+            by_id: FxHashMap::from_iter([(
+                10,
+                Instrument {
+                    id: 10,
+                    definition_id: String::from("strings.violin"),
+                    instrument_type: InstrumentType::Melodic,
+                    long_name: String::from("Violin"),
+                    short_name: String::from("Vln."),
+                    stave_ids: vec![],
+                    count: None,
+                    playback_route: None,
+                    volume: 100,
+                    pan: 64,
+                    mute: false,
+                    solo: false,
+                },
+            )]),
+        };
+        score.create_playback_slot(300).unwrap();
+        score
+            .assign_plugin_to_slot(300, String::from("plugin-a"))
+            .unwrap();
+        score
+            .playback
+            .rack
+            .by_id
+            .get_mut(&300)
+            .unwrap()
+            .target
+            .as_mut()
+            .unwrap()
+            .plugin_state = Some(PlaybackSlotPluginState {
+            vst3_component_state_base64: String::from("AQID"),
+        });
+        score.assign_instrument_route_to_slot(10, 300).unwrap();
+        let project_file = ProjectFile {
+            ui: Ui::new(),
+            score,
+            next_id: 500,
+        };
+        let mut state = AppContext {
+            ui: Ui::new(),
+            score: Score::new(),
+            playback_activation_runtime: PlaybackActivationRuntime::default(),
+            pending_playback_refresh: None,
+            preferences: make_preferences(),
+            next_id: 1,
+            current_file_path: None,
+        };
+
+        restore_loaded_project_for_test(
+            &mut state,
+            &transport_shared,
+            &inventory,
+            project_file,
+            "/tmp/runtime-refresh.soloc".to_string(),
+        );
+
+        let resolved = state
+            .playback_activation_runtime
+            .resolved_playback_route_by_instrument_id(&state.score);
+        let trust_gate = state
+            .playback_activation_runtime
+            .single_instrument_trust_gate(&state.score);
+
+        assert_eq!(
+            resolved.get(&10).unwrap().status,
+            ResolvedPlaybackRouteStatus::Ready
+        );
+        assert_eq!(
+            resolved.get(&10).unwrap().effective_plugin_id.as_deref(),
+            Some("plugin-a")
+        );
+        assert_eq!(
+            state.current_file_path.as_deref(),
+            Some("/tmp/runtime-refresh.soloc")
+        );
+        assert!(trust_gate.is_transport_ready());
+    }
+
+    #[test]
+    fn applying_loaded_project_clears_deferred_playback_refresh_and_prepares_supported_playback() {
+        let (_transport_state, transport_shared) = TransportContext::new();
+        let inventory =
+            PluginInventoryContext::with_entries_for_tests(vec![available_inventory_entry(
+                "plugin-a",
+            )]);
+        let mut score = build_score_with_visible_flows(&[30], &[30]);
+        score.players = Players {
+            order: vec![1],
+            by_id: FxHashMap::from_iter([(1, Player::new(1, PlayerType::Section))]),
+        };
+        score.players.by_id.get_mut(&1).unwrap().instrument_ids = vec![10];
+        score.instruments = Instruments {
+            by_id: FxHashMap::from_iter([(
+                10,
+                Instrument {
+                    id: 10,
+                    definition_id: String::from("strings.violin"),
+                    instrument_type: InstrumentType::Melodic,
+                    long_name: String::from("Violin"),
+                    short_name: String::from("Vln."),
+                    stave_ids: vec![],
+                    count: None,
+                    playback_route: None,
+                    volume: 100,
+                    pan: 64,
+                    mute: false,
+                    solo: false,
+                },
+            )]),
+        };
+        score.create_playback_slot(300).unwrap();
+        score
+            .assign_plugin_to_slot(300, String::from("plugin-a"))
+            .unwrap();
+        score
+            .playback
+            .rack
+            .by_id
+            .get_mut(&300)
+            .unwrap()
+            .target
+            .as_mut()
+            .unwrap()
+            .plugin_state = Some(PlaybackSlotPluginState {
+            vst3_component_state_base64: String::from("AQID"),
+        });
+        score.assign_instrument_route_to_slot(10, 300).unwrap();
+
+        let project_file = round_trip_project_file(&ProjectFile {
+            ui: Ui::new(),
+            score,
+            next_id: 500,
+        });
+        let mut state = AppContext {
+            ui: Ui::new(),
+            score: Score::new(),
+            playback_activation_runtime: PlaybackActivationRuntime::default(),
+            pending_playback_refresh: Some(DeferredPlaybackRefreshKind::PlaybackTopology),
+            preferences: make_preferences(),
+            next_id: 1,
+            current_file_path: None,
+        };
+
+        restore_loaded_project_for_test(
+            &mut state,
+            &transport_shared,
+            &inventory,
+            project_file,
+            "/tmp/runtime-ready.soloc".to_string(),
+        );
+
+        let preparation =
+            prepare_supported_playback(&state.score, &state.playback_activation_runtime, 48_000);
+
+        assert_eq!(state.pending_playback_refresh_kind(), None);
+        assert!(preparation.blockers.is_empty());
+        assert_eq!(preparation.supported_targets.len(), 1);
+        assert_eq!(
+            preparation
+                .supported_target_for_instrument(10)
+                .map(|target| (target.slot_id, target.plugin_id.as_str())),
+            Some((300, "plugin-a"))
+        );
+        assert_eq!(
+            preparation
+                .supported_target_for_instrument(10)
+                .and_then(|target| target.plugin_state.as_ref()),
+            Some(&PlaybackSlotPluginState {
+                vst3_component_state_base64: String::from("AQID"),
+            })
+        );
+    }
+
+    #[test]
+    fn persisted_playback_intent_round_trips_while_runtime_degrades_against_unavailable_inventory()
+    {
+        let (_transport_state, transport_shared) = TransportContext::new();
+        let inventory = PluginInventoryContext::with_entries_for_tests(vec![]);
+        let mut score = build_score_with_visible_flows(&[30], &[30]);
+        score.players = Players {
+            order: vec![1],
+            by_id: FxHashMap::from_iter([(1, Player::new(1, PlayerType::Section))]),
+        };
+        score.players.by_id.get_mut(&1).unwrap().instrument_ids = vec![10];
+        score.instruments = Instruments {
+            by_id: FxHashMap::from_iter([(
+                10,
+                Instrument {
+                    id: 10,
+                    definition_id: String::from("strings.violin"),
+                    instrument_type: InstrumentType::Melodic,
+                    long_name: String::from("Violin"),
+                    short_name: String::from("Vln."),
+                    stave_ids: vec![],
+                    count: None,
+                    playback_route: None,
+                    volume: 100,
+                    pan: 64,
+                    mute: false,
+                    solo: false,
+                },
+            )]),
+        };
+        score.create_playback_slot(300).unwrap();
+        score
+            .assign_plugin_to_slot(300, String::from("plugin-a"))
+            .unwrap();
+        score
+            .playback
+            .rack
+            .by_id
+            .get_mut(&300)
+            .unwrap()
+            .target
+            .as_mut()
+            .unwrap()
+            .plugin_state = Some(PlaybackSlotPluginState {
+            vst3_component_state_base64: String::from("AQID"),
+        });
+        score.assign_instrument_route_to_slot(10, 300).unwrap();
+
+        let project_file = round_trip_project_file(&ProjectFile {
+            ui: Ui::new(),
+            score,
+            next_id: 500,
+        });
+        let mut state = AppContext {
+            ui: Ui::new(),
+            score: Score::new(),
+            playback_activation_runtime: PlaybackActivationRuntime::default(),
+            pending_playback_refresh: None,
+            preferences: make_preferences(),
+            next_id: 1,
+            current_file_path: None,
+        };
+
+        restore_loaded_project_for_test(
+            &mut state,
+            &transport_shared,
+            &inventory,
+            project_file,
+            "/tmp/runtime-degraded.soloc".to_string(),
+        );
+
+        let resolved = state
+            .playback_activation_runtime
+            .resolved_playback_route_by_instrument_id(&state.score);
+        let trust_gate = state
+            .playback_activation_runtime
+            .single_instrument_trust_gate(&state.score);
+        let preparation =
+            prepare_supported_playback(&state.score, &state.playback_activation_runtime, 48_000);
+
+        assert_eq!(
+            state.score.instruments.by_id[&10].playback_route,
+            Some(InstrumentPlaybackRoute::direct(300))
+        );
+        assert_eq!(
+            state.score.playback.rack.by_id[&300]
+                .target
+                .as_ref()
+                .map(|target| target.plugin_id.as_str()),
+            Some("plugin-a")
+        );
+        assert_eq!(
+            state.score.playback.rack.by_id[&300]
+                .target
+                .as_ref()
+                .and_then(|target| target.plugin_state.as_ref()),
+            Some(&PlaybackSlotPluginState {
+                vst3_component_state_base64: String::from("AQID"),
+            })
+        );
+        assert_eq!(
+            resolved.get(&10).unwrap().status,
+            ResolvedPlaybackRouteStatus::NeedsAttention
+        );
+        assert_eq!(resolved.get(&10).unwrap().effective_plugin_id, None);
+        assert!(preparation.supported_targets.is_empty());
+        assert_eq!(
+            preparation
+                .resolved_playback_route_by_instrument_id
+                .get(&10)
+                .unwrap()
+                .status,
+            ResolvedPlaybackRouteStatus::NeedsAttention
+        );
+        assert!(!trust_gate.is_transport_ready());
+    }
+
+    #[test]
+    fn restored_mixed_ready_and_degraded_routes_keep_ready_targets_playable() {
+        let (_transport_state, transport_shared) = TransportContext::new();
+        let inventory =
+            PluginInventoryContext::with_entries_for_tests(vec![PluginInventoryEntry {
+                id: String::from("plugin-a"),
+                name: String::from("Plugin A"),
+                bundle_path: String::from("/Library/Audio/Plug-Ins/VST3/Plugin A.vst3"),
+                binary_path: Some(String::from(
+                    "/Library/Audio/Plug-Ins/VST3/Plugin A.vst3/Contents/MacOS/Plugin A",
+                )),
+                source_root: String::from("/Library/Audio/Plug-Ins/VST3"),
+                availability: PluginInventoryAvailability::Available,
+                validation_failure: None,
+                editor_host_validation: None,
+            }]);
+        let mut score = build_score_with_visible_flows(&[30], &[30]);
+        score.players = Players {
+            order: vec![1],
+            by_id: FxHashMap::from_iter([(1, Player::new(1, PlayerType::Section))]),
+        };
+        score.players.by_id.get_mut(&1).unwrap().instrument_ids = vec![10, 11];
+        score.instruments = Instruments {
+            by_id: FxHashMap::from_iter([
+                (
+                    10,
+                    Instrument {
+                        id: 10,
+                        definition_id: String::from("strings.violin"),
+                        instrument_type: InstrumentType::Melodic,
+                        long_name: String::from("Violin"),
+                        short_name: String::from("Vln."),
+                        stave_ids: vec![],
+                        count: None,
+                        playback_route: None,
+                        volume: 100,
+                        pan: 64,
+                        mute: false,
+                        solo: false,
+                    },
+                ),
+                (
+                    11,
+                    Instrument {
+                        id: 11,
+                        definition_id: String::from("strings.viola"),
+                        instrument_type: InstrumentType::Melodic,
+                        long_name: String::from("Viola"),
+                        short_name: String::from("Vla."),
+                        stave_ids: vec![],
+                        count: None,
+                        playback_route: None,
+                        volume: 100,
+                        pan: 64,
+                        mute: false,
+                        solo: false,
+                    },
+                ),
+            ]),
+        };
+        score.create_playback_slot(300).unwrap();
+        score.create_playback_slot(301).unwrap();
+        score
+            .assign_plugin_to_slot(300, String::from("plugin-a"))
+            .unwrap();
+        score
+            .assign_plugin_to_slot(301, String::from("plugin-b"))
+            .unwrap();
+        score.assign_instrument_route_to_slot(10, 300).unwrap();
+        score.assign_instrument_route_to_slot(11, 301).unwrap();
+
+        let project_file = round_trip_project_file(&ProjectFile {
+            ui: Ui::new(),
+            score,
+            next_id: 500,
+        });
+        let mut state = AppContext {
+            ui: Ui::new(),
+            score: Score::new(),
+            playback_activation_runtime: PlaybackActivationRuntime::default(),
+            pending_playback_refresh: None,
+            preferences: make_preferences(),
+            next_id: 1,
+            current_file_path: None,
+        };
+
+        restore_loaded_project_for_test(
+            &mut state,
+            &transport_shared,
+            &inventory,
+            project_file,
+            "/tmp/runtime-mixed-readiness.soloc".to_string(),
+        );
+
+        let resolved = state
+            .playback_activation_runtime
+            .resolved_playback_route_by_instrument_id(&state.score);
+        let preparation =
+            prepare_supported_playback(&state.score, &state.playback_activation_runtime, 48_000);
+
+        assert_eq!(
+            state.score.instruments.by_id[&10].playback_route,
+            Some(InstrumentPlaybackRoute::direct(300))
+        );
+        assert_eq!(
+            state.score.instruments.by_id[&11].playback_route,
+            Some(InstrumentPlaybackRoute::direct(301))
+        );
+        assert_eq!(
+            state.score.playback.rack.by_id[&301]
+                .target
+                .as_ref()
+                .map(|target| target.plugin_id.as_str()),
+            Some("plugin-b")
+        );
+        assert_eq!(
+            resolved.get(&10).unwrap().status,
+            ResolvedPlaybackRouteStatus::Ready
+        );
+        assert_eq!(
+            resolved.get(&11).unwrap().status,
+            ResolvedPlaybackRouteStatus::NeedsAttention
+        );
+        assert_eq!(preparation.supported_targets.len(), 1);
+        assert_eq!(
+            preparation
+                .supported_target_for_instrument(10)
+                .map(|target| (target.slot_id, target.plugin_id.as_str())),
+            Some((300, "plugin-a"))
+        );
+        assert_eq!(preparation.supported_target_for_instrument(11), None);
+        assert!(!preparation.blocks_supported_transport_start());
     }
 
     #[test]
@@ -1210,6 +2764,7 @@ pub fn save_project_to_file(
 ) -> Result<(), String> {
     let mut state = state.lock().unwrap();
     state.score.meta.app_version = CURRENT_APP_VERSION.to_string();
+    sync_score_slot_targets_with_runtime_state(&app, &mut state.score)?;
 
     let project_file = build_project_file(&state);
     let json_data = serde_json::to_vec(&project_file)
@@ -1229,51 +2784,31 @@ pub fn save_project_to_file(
 
 #[tauri::command(rename_all = "snake_case")]
 #[allow(clippy::too_many_arguments)] // Tauri command wiring requires separate managed state parameters here.
-pub fn load_project_from_file(
+pub async fn load_project_from_file(
     app: AppHandle,
     state: State<'_, AppContextState>,
     renderer_state: State<'_, RendererContextState>,
-    sampler_state: State<'_, SamplerContextState>,
     audio_state: State<'_, AudioContextState>,
     transport_state: State<'_, Mutex<TransportContext>>,
     file_path: String,
 ) -> Result<(), String> {
     let transport_shared = stop_transport_playback(transport_state.inner(), audio_state.inner())?;
-
-    let file_data = fs::read(&file_path).map_err(|e| format!("Failed to read file: {}", e))?;
-    let parsed_container = parse_soloc_container(&file_data)?;
-    let json_data = decompress_project_payload(
-        parsed_container.project_payload,
-        parsed_container.project_chunk_flags,
-    )?;
-    let project_data: Value = serde_json::from_slice(&json_data)
-        .map_err(|e| format!("Failed to parse project JSON: {}", e))?;
-    validate_project_version_match(&parsed_container.app_version, &project_data)?;
-
-    let project_data = migrate_project_data(project_data, &parsed_container.app_version)
-        .map_err(|e| format!("Failed to migrate project data: {}", e))?;
-    let mut project_file: ProjectFile = serde_json::from_value(project_data)
-        .map_err(|e| format!("Failed to deserialize project file: {}", e))?;
-    project_file.score.meta.app_version = CURRENT_APP_VERSION.to_string();
+    let file_path_for_load = file_path.clone();
+    let project_file =
+        tauri::async_runtime::spawn_blocking(move || load_project_file(&file_path_for_load))
+            .await
+            .map_err(|error| format!("Failed to join project-load task: {error}"))??;
 
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
 
-    state.ui = project_file.ui;
-
-    // Reset ephemral state
-    state.ui.sequencer.tool = Tool::Select;
-    state.ui.screens.setup.selection = None;
-    state.ui.sequencer.selection = None;
-
-    state.score = project_file.score;
-    state.next_id = project_file.next_id;
-
-    // Update the current file path
-    state.current_file_path = Some(file_path);
-    sync_transport_to_app_state(&transport_shared, &state, 0);
-
-    let score = state.score.clone();
+    apply_loaded_project_with_runtime_refresh(
+        &mut state,
+        &transport_shared,
+        project_file,
+        file_path,
+        |state| state.refresh_playback_activation_runtime_from_app(&app),
+    );
 
     // Emit the updated state
     state.emit_general_state(
@@ -1282,17 +2817,9 @@ pub fn load_project_from_file(
         Some(FlowRenderRecalculationRequest::full_visible_flows()),
     );
 
-    // Drop state locks before potentially slow sampler sync
+    // Drop state locks before emitting side-channel menu events
     drop(state);
     drop(renderer);
-
-    sync_sampler_with_score(
-        &app,
-        &score,
-        sampler_state.inner(),
-        audio_state.inner(),
-        "after load",
-    );
 
     // Emit event to trigger menu refresh
     app.emit("soloc://recents-changed", ()).ok();

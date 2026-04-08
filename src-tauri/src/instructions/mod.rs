@@ -18,6 +18,7 @@ use crate::score::entries::barline::BarlineDrawType;
 use crate::score::entries::clef::Clef;
 use crate::score::entries::tempo::TEMPO_STAVE_OFFSET;
 use crate::score::entries::tuplet::Tuplet;
+use crate::ui::sequencer::Selection;
 use crate::AppContext;
 use draw::draw_accidentals::draw_accidental;
 use draw::draw_articulations::draw_articulations;
@@ -394,6 +395,10 @@ fn draw_notation_symbols(
         }
 
         if let Some(tick_dots) = dots.get(tick) {
+            let highlight_dots = notation.tones.iter().any(
+                |tone| matches!(selection, Some(Selection::Tone { tone_id, .. }) if *tone_id == tone.id),
+            );
+
             draw_dots(
                 &Point {
                     x: origin.x + x,
@@ -403,6 +408,7 @@ fn draw_notation_symbols(
                 glyph_width,
                 has_post_shunt,
                 has_up_stem_flag,
+                highlight_dots,
                 renderer,
             );
         }
@@ -1337,6 +1343,7 @@ mod tests {
     use crate::instructions::parse::get_stem_directions::get_stem_directions;
     use crate::instructions::parse::get_tone_offsets::get_tone_offsets;
     use crate::instructions::parse::get_written_durations::get_written_durations;
+    use crate::playback::runtime_activation::PlaybackActivationRuntime;
     use crate::renderer::converter::Converter;
     use crate::renderer::RendererContext;
     use crate::renderer::{DrawInstruction, HitTarget};
@@ -1386,7 +1393,7 @@ mod tests {
                 short_name: String::from("Vln."),
                 stave_ids: vec![stave_id],
                 count: None,
-                assigned_plugin_id: None,
+                playback_route: None,
                 volume: 100,
                 pan: 64,
                 mute: false,
@@ -1397,6 +1404,8 @@ mod tests {
         let mut app = AppContext {
             ui: Ui::new(),
             score,
+            playback_activation_runtime: PlaybackActivationRuntime::default(),
+            pending_playback_refresh: None,
             preferences: serde_json::from_str(r#"{"audition":true}"#).unwrap(),
             next_id: 100,
             current_file_path: None,

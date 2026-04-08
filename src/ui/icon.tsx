@@ -1,4 +1,4 @@
-import MdiIcon from "@mdi/react";
+import { Icon as MdiIcon } from "@mdi/react";
 import { IconProps } from "@mdi/react/dist/IconProps";
 import { FC } from "react";
 

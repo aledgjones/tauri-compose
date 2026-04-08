@@ -1,13 +1,16 @@
 #![allow(dead_code, unused_imports, clippy::items_after_test_module)]
 
 use std::sync::Mutex;
+use tauri::Manager;
 
 #[path = "../renderer/mod.rs"]
 mod renderer;
+
 #[path = "../score/mod.rs"]
 mod score;
 #[path = "../ui/mod.rs"]
 mod ui;
+
 #[path = "../utils.rs"]
 mod utils;
 
@@ -21,19 +24,238 @@ mod preferences {
 }
 
 mod playback {
-    pub mod sampler {
-        use tauri::AppHandle;
+    pub mod engine {
+        use rustc_hash::FxHashMap;
 
-        use crate::score::Score;
-        use crate::{AudioContextState, SamplerContextState};
+        use crate::playback::preparation::EffectivePlaybackMix;
+        use crate::utils::UniqueId;
 
-        pub fn sync_sampler_with_score(
-            _app: &AppHandle,
-            _score: &Score,
-            _sampler_state: &SamplerContextState,
-            _audio_state: &AudioContextState,
-            _error_context: &str,
+        pub(crate) fn sync_slot_mix_states(
+            _slot_mix_by_slot_id: FxHashMap<UniqueId, EffectivePlaybackMix>,
         ) {
+        }
+    }
+
+    pub mod plugin_inventory {
+        use rustc_hash::FxHashMap;
+        use std::path::PathBuf;
+
+        #[derive(Clone, Debug, Default, PartialEq, Eq)]
+        pub enum PluginInventoryAvailability {
+            #[default]
+            Available,
+        }
+
+        #[derive(Clone, Debug, Default, PartialEq, Eq)]
+        pub struct PluginInventoryEntry {
+            pub id: String,
+            pub name: String,
+            pub bundle_path: String,
+            pub binary_path: Option<String>,
+            pub source_root: String,
+            pub availability: PluginInventoryAvailability,
+            pub validation_failure: Option<String>,
+            pub editor_host_validation: Option<String>,
+        }
+
+        #[derive(Clone, Debug, Default, PartialEq, Eq)]
+        pub struct PluginInventoryContext {
+            entries_by_id: FxHashMap<String, PluginInventoryEntry>,
+        }
+
+        impl PluginInventoryContext {
+            pub fn with_entries_for_tests(entries: Vec<PluginInventoryEntry>) -> Self {
+                Self {
+                    entries_by_id: entries
+                        .into_iter()
+                        .map(|entry| (entry.id.clone(), entry))
+                        .collect(),
+                }
+            }
+
+            pub fn resolve_available_bundle_path(&self, plugin_id: &str) -> Result<PathBuf, ()> {
+                let entry = self.entries_by_id.get(plugin_id).ok_or(())?;
+
+                match entry.availability {
+                    PluginInventoryAvailability::Available => Ok(PathBuf::from(&entry.bundle_path)),
+                }
+            }
+        }
+    }
+
+    pub mod runtime_activation {
+        use rustc_hash::FxHashMap;
+
+        use crate::playback::plugin_inventory::PluginInventoryContext;
+        use crate::score::playback::{
+            InstrumentPlaybackRoute, PlaybackRouteAddress, PlaybackRouteTarget,
+            ResolvedPlaybackRoute, ResolvedPlaybackRouteStatus,
+        };
+        use crate::score::Score;
+        use crate::utils::UniqueId;
+
+        #[derive(Clone, Debug, PartialEq, Eq)]
+        struct ActivatedSlotTarget {
+            plugin_id: String,
+        }
+
+        #[derive(Clone, Debug, PartialEq, Eq)]
+        struct ActivatedInstrumentRoute {
+            plugin_id: String,
+        }
+
+        #[derive(Clone, Debug, Default, PartialEq, Eq)]
+        pub struct PlaybackActivationRuntime {
+            activated_slot_target_by_slot_id: FxHashMap<UniqueId, ActivatedSlotTarget>,
+            activated_instrument_route_by_instrument_id:
+                FxHashMap<UniqueId, ActivatedInstrumentRoute>,
+        }
+
+        impl PlaybackActivationRuntime {
+            fn slot_route_reference_counts(score: &Score) -> FxHashMap<UniqueId, usize> {
+                score
+                    .instruments
+                    .by_id
+                    .values()
+                    .filter_map(|instrument| {
+                        instrument
+                            .playback_route
+                            .as_ref()
+                            .map(|route| route.slot_id)
+                    })
+                    .fold(FxHashMap::default(), |mut counts, slot_id| {
+                        *counts.entry(slot_id).or_insert(0) += 1;
+                        counts
+                    })
+            }
+
+            pub fn from_score_and_inventory(
+                score: &Score,
+                inventory: &PluginInventoryContext,
+            ) -> Self {
+                let activated_slot_target_by_slot_id = score
+                    .playback
+                    .rack
+                    .by_id
+                    .iter()
+                    .filter_map(|(slot_id, slot)| {
+                        let target = slot.target.as_ref()?;
+                        inventory
+                            .resolve_available_bundle_path(&target.plugin_id)
+                            .ok()?;
+
+                        Some((
+                            *slot_id,
+                            ActivatedSlotTarget {
+                                plugin_id: target.plugin_id.clone(),
+                            },
+                        ))
+                    })
+                    .collect::<FxHashMap<_, _>>();
+
+                let activated_instrument_route_by_instrument_id = score
+                    .instruments
+                    .by_id
+                    .iter()
+                    .filter_map(|(instrument_id, instrument)| {
+                        let route = instrument.playback_route.as_ref()?;
+                        if !Self::supports_single_target_activation(route) {
+                            return None;
+                        }
+
+                        let activated_slot_target =
+                            activated_slot_target_by_slot_id.get(&route.slot_id)?;
+
+                        Some((
+                            *instrument_id,
+                            ActivatedInstrumentRoute {
+                                plugin_id: activated_slot_target.plugin_id.clone(),
+                            },
+                        ))
+                    })
+                    .collect::<FxHashMap<_, _>>();
+
+                Self {
+                    activated_slot_target_by_slot_id,
+                    activated_instrument_route_by_instrument_id,
+                }
+            }
+
+            pub fn resolved_playback_route_by_instrument_id(
+                &self,
+                score: &Score,
+            ) -> FxHashMap<UniqueId, ResolvedPlaybackRoute> {
+                let slot_route_reference_counts = Self::slot_route_reference_counts(score);
+
+                score
+                    .instruments
+                    .by_id
+                    .iter()
+                    .map(|(instrument_id, instrument)| {
+                        let resolved = match instrument.playback_route.as_ref() {
+                            None => ResolvedPlaybackRoute {
+                                status: ResolvedPlaybackRouteStatus::Unrouted,
+                                slot_id: None,
+                                slot_target: None,
+                                effective_plugin_id: None,
+                                target: None,
+                                address: None,
+                                supported_mix_controls: Default::default(),
+                            },
+                            Some(route) => match score.playback.rack.by_id.get(&route.slot_id) {
+                                None => ResolvedPlaybackRoute {
+                                    status: ResolvedPlaybackRouteStatus::Unrouted,
+                                    slot_id: None,
+                                    slot_target: None,
+                                    effective_plugin_id: None,
+                                    target: None,
+                                    address: None,
+                                    supported_mix_controls: Default::default(),
+                                },
+                                Some(slot) => {
+                                    let activated_route = self
+                                        .activated_instrument_route_by_instrument_id
+                                        .get(instrument_id);
+                                    let status = if slot.target.is_none() {
+                                        ResolvedPlaybackRouteStatus::NeedsAttention
+                                    } else if activated_route.is_some() {
+                                        ResolvedPlaybackRouteStatus::Ready
+                                    } else {
+                                        ResolvedPlaybackRouteStatus::NeedsAttention
+                                    };
+
+                                    ResolvedPlaybackRoute {
+                                        status,
+                                        slot_id: Some(route.slot_id),
+                                        slot_target: slot.target.clone(),
+                                        effective_plugin_id: activated_route
+                                            .map(|activated| activated.plugin_id.clone()),
+                                        target: Some(route.target.clone()),
+                                        address: Some(route.address.clone()),
+                                        supported_mix_controls: if status
+                                            == ResolvedPlaybackRouteStatus::Ready
+                                            && Self::supports_single_target_activation(route)
+                                            && slot_route_reference_counts.get(&route.slot_id)
+                                                == Some(&1)
+                                        {
+                                            crate::score::playback::SupportedPlaybackMixControls::direct_plugin_root()
+                                        } else {
+                                            Default::default()
+                                        },
+                                    }
+                                }
+                            },
+                        };
+
+                        (*instrument_id, resolved)
+                    })
+                    .collect()
+            }
+
+            fn supports_single_target_activation(route: &InstrumentPlaybackRoute) -> bool {
+                route.target == PlaybackRouteTarget::plugin()
+                    && route.address == PlaybackRouteAddress::root()
+            }
         }
     }
 
@@ -52,6 +274,12 @@ mod playback {
             pub pan: u8,
             pub mute: bool,
             pub solo: bool,
+        }
+
+        #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+        pub enum DeferredPlaybackRefreshKind {
+            ScoreStructure,
+            PlaybackTopology,
         }
 
         pub struct TransportShared {
@@ -93,15 +321,112 @@ mod playback {
             bpm
         }
     }
+
+    pub mod preparation {
+        use rustc_hash::FxHashMap;
+
+        use crate::playback::runtime_activation::PlaybackActivationRuntime;
+        use crate::score::playback::{ResolvedPlaybackRoute, ResolvedPlaybackRouteStatus};
+        use crate::score::Score;
+        use crate::utils::UniqueId;
+
+        #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+        pub struct EffectivePlaybackMix {
+            pub volume: u8,
+            pub pan: u8,
+            pub muted: bool,
+        }
+
+        pub fn effective_playback_mix_for_instrument(
+            score: &Score,
+            resolved_playback_route_by_instrument_id: &FxHashMap<UniqueId, ResolvedPlaybackRoute>,
+            instrument_id: UniqueId,
+        ) -> EffectivePlaybackMix {
+            let Some(instrument) = score.instruments.by_id.get(&instrument_id) else {
+                return EffectivePlaybackMix {
+                    volume: 127,
+                    pan: 64,
+                    muted: false,
+                };
+            };
+
+            let supported_mix_controls = resolved_playback_route_by_instrument_id
+                .get(&instrument_id)
+                .map(|route| route.supported_mix_controls)
+                .unwrap_or_default();
+            let supported_solo_active = score.instruments.by_id.iter().any(
+                |(candidate_instrument_id, candidate_instrument)| {
+                    let Some(resolved_route) =
+                        resolved_playback_route_by_instrument_id.get(candidate_instrument_id)
+                    else {
+                        return false;
+                    };
+
+                    resolved_route.status == ResolvedPlaybackRouteStatus::Ready
+                        && resolved_route.supported_mix_controls.solo
+                        && candidate_instrument.solo
+                },
+            );
+            let instrument_is_supported_solo = supported_mix_controls.solo && instrument.solo;
+
+            EffectivePlaybackMix {
+                volume: if supported_mix_controls.volume {
+                    instrument.volume
+                } else {
+                    127
+                },
+                pan: if supported_mix_controls.pan {
+                    instrument.pan
+                } else {
+                    64
+                },
+                muted: (supported_mix_controls.mute && instrument.mute)
+                    || (supported_solo_active && !instrument_is_supported_solo),
+            }
+        }
+
+        pub fn effective_playback_mix_by_slot_id(
+            score: &Score,
+            playback_runtime: &PlaybackActivationRuntime,
+        ) -> FxHashMap<UniqueId, EffectivePlaybackMix> {
+            let resolved_playback_route_by_instrument_id =
+                playback_runtime.resolved_playback_route_by_instrument_id(score);
+
+            score
+                .instruments
+                .by_id
+                .iter()
+                .filter_map(|(instrument_id, instrument)| {
+                    let slot_id = instrument.playback_route.as_ref()?.slot_id;
+                    let resolved_route =
+                        resolved_playback_route_by_instrument_id.get(instrument_id)?;
+
+                    if resolved_route.status != ResolvedPlaybackRouteStatus::Ready {
+                        return None;
+                    }
+
+                    Some((
+                        slot_id,
+                        effective_playback_mix_for_instrument(
+                            score,
+                            &resolved_playback_route_by_instrument_id,
+                            *instrument_id,
+                        ),
+                    ))
+                })
+                .collect()
+        }
+    }
 }
 
 struct AudioContext;
-struct SamplerContext;
 
 #[derive(Clone)]
 struct AppContext {
     ui: ui::Ui,
     score: score::Score,
+    playback_activation_runtime: playback::runtime_activation::PlaybackActivationRuntime,
+    pending_playback_refresh: Option<playback::transport::DeferredPlaybackRefreshKind>,
     preferences: preferences::Preferences,
     next_id: utils::UniqueId,
     current_file_path: Option<String>,
@@ -110,9 +435,72 @@ struct AppContext {
 type AppContextState = Mutex<AppContext>;
 type RendererContextState = Mutex<renderer::RendererContext>;
 type AudioContextState = Mutex<AudioContext>;
-type SamplerContextState = Mutex<SamplerContext>;
 
 impl AppContext {
+    fn refresh_playback_activation_runtime_from_app(&mut self, _app: &tauri::AppHandle) {}
+
+    fn defer_playback_refresh(&mut self, kind: playback::transport::DeferredPlaybackRefreshKind) {
+        self.pending_playback_refresh = Some(match (self.pending_playback_refresh, kind) {
+            (Some(playback::transport::DeferredPlaybackRefreshKind::PlaybackTopology), _)
+            | (_, playback::transport::DeferredPlaybackRefreshKind::PlaybackTopology) => {
+                playback::transport::DeferredPlaybackRefreshKind::PlaybackTopology
+            }
+            _ => playback::transport::DeferredPlaybackRefreshKind::ScoreStructure,
+        });
+    }
+
+    fn clear_pending_playback_refresh(&mut self) {
+        self.pending_playback_refresh = None;
+    }
+
+    fn pending_playback_refresh_kind(
+        &self,
+    ) -> Option<playback::transport::DeferredPlaybackRefreshKind> {
+        self.pending_playback_refresh
+    }
+
+    fn transport_is_playing(app: &tauri::AppHandle) -> bool {
+        app.state::<playback::transport::TransportSharedState>()
+            .playing
+            .load(std::sync::atomic::Ordering::Acquire)
+    }
+
+    fn emit_after_playback_edit(
+        &mut self,
+        app: &tauri::AppHandle,
+        renderer: &mut renderer::RendererContext,
+        kind: playback::transport::DeferredPlaybackRefreshKind,
+        recalculation_request: Option<instructions::FlowRenderRecalculationRequest>,
+    ) {
+        let playing = Self::transport_is_playing(app);
+
+        if playing {
+            self.defer_playback_refresh(kind);
+        }
+
+        if playing && kind == playback::transport::DeferredPlaybackRefreshKind::PlaybackTopology {
+            self.emit_general_state_without_runtime_refresh(app, renderer, recalculation_request);
+        } else {
+            self.emit_general_state(app, renderer, recalculation_request);
+        }
+    }
+
+    fn emit_affected_track_after_playback_edit(
+        &mut self,
+        app: &tauri::AppHandle,
+        renderer: &mut renderer::RendererContext,
+        track_id: utils::UniqueId,
+        kind: playback::transport::DeferredPlaybackRefreshKind,
+    ) {
+        let recalculation_request = if let Some(flow_id) = self.flow_id_for_track(track_id) {
+            instructions::FlowRenderRecalculationRequest::for_flow_ids(&[flow_id])
+        } else {
+            Some(instructions::FlowRenderRecalculationRequest::full_visible_flows())
+        };
+
+        self.emit_after_playback_edit(app, renderer, kind, recalculation_request);
+    }
+
     fn flow_id_for_track(&self, track_id: utils::UniqueId) -> Option<utils::UniqueId> {
         self.score.flows.by_id.values().find_map(|flow| {
             if flow.master_id == track_id {
@@ -132,6 +520,14 @@ impl AppContext {
     fn render_only(&mut self, _app: &tauri::AppHandle, _renderer: &mut renderer::RendererContext) {}
 
     fn emit_general_state(
+        &mut self,
+        _app: &tauri::AppHandle,
+        _renderer: &mut renderer::RendererContext,
+        _recalculation_request: Option<instructions::FlowRenderRecalculationRequest>,
+    ) {
+    }
+
+    fn emit_general_state_without_runtime_refresh(
         &mut self,
         _app: &tauri::AppHandle,
         _renderer: &mut renderer::RendererContext,
@@ -444,6 +840,8 @@ mod instructions {
         let mut app = crate::AppContext {
             ui: Ui::new(),
             score: Score::new(),
+            playback_activation_runtime: Default::default(),
+            pending_playback_refresh: None,
             preferences: Preferences { audition: true },
             next_id: 1000,
             current_file_path: None,
@@ -473,7 +871,7 @@ mod instructions {
                     short_name: format!("V{}", instrument_index + 1),
                     stave_ids: vec![stave_id],
                     count: None,
-                    assigned_plugin_id: None,
+                    playback_route: None,
                     volume: 100,
                     pan: 64,
                     mute: false,

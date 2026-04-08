@@ -16,10 +16,10 @@ import { IconButton } from "../../../../../ui/buttons/icon-button";
 import { actions } from "../../../../../services/actions";
 import {
   FC,
-  FormEvent,
   KeyboardEvent,
   PointerEvent,
   useCallback,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -59,30 +59,36 @@ type Props = {
 
 export const LayoutPanelItem: FC<Props> = ({ layout }) => {
   const inputRef = useRef<HTMLInputElement>(null);
+  const savedValueRef = useRef(layout.title);
+  const skipBlurCommitRef = useRef(false);
 
   const state = useAppState();
   const isSelected = state.ui.screens.setup.selection?.id === layout.id;
   const isAssigned = getIsAssigned(state, layout.id);
   const isAssignable = getIsAssignable(state);
-  const [savedValue, setSavedValue] = useState(layout.title);
+  const [draftTitle, setDraftTitle] = useState(layout.title);
   const [editing, setEditing] = useState(false);
 
   const fg = isSelected ? "text-black" : "text-white";
   const bg = isSelected ? "bg-sky-500" : "bg-neutral-800";
 
+  useEffect(() => {
+    if (editing) {
+      inputRef.current?.focus();
+    }
+  }, [editing]);
+
   const layoutName = useMemo(() => {
     if (editing) {
-      return layout.title;
+      return draftTitle;
     }
 
     return getLayoutName(state, layout.id);
-  }, [editing, state, layout.id, layout.title]);
+  }, [draftTitle, editing, state, layout.id]);
 
   const onEdit = useCallback(() => {
-    if (inputRef.current) {
-      setSavedValue(layout.title);
-      inputRef.current.focus();
-    }
+    savedValueRef.current = layout.title;
+    setDraftTitle(layout.title);
     setEditing(true);
   }, [layout.title]);
 
@@ -90,37 +96,44 @@ export const LayoutPanelItem: FC<Props> = ({ layout }) => {
     await actions.score.layout.remove(layout.id);
   }, [layout.id]);
 
+  const commitRename = useCallback(async () => {
+    setEditing(false);
+
+    if (draftTitle === savedValueRef.current) {
+      return;
+    }
+
+    await actions.score.layout.rename(layout.id, draftTitle);
+  }, [draftTitle, layout.id]);
+
   const onKeyDown = useCallback(
     async (e: KeyboardEvent<HTMLInputElement>) => {
       switch (e.key) {
         case "Enter":
-          // confirm
-          if (inputRef.current) {
-            inputRef.current.blur();
-          }
+          await commitRename();
+          inputRef.current?.blur();
           break;
         case "Escape":
-          // revert
-          await actions.score.layout.rename(layout.id, savedValue);
+          skipBlurCommitRef.current = true;
+          setDraftTitle(savedValueRef.current);
+          setEditing(false);
           inputRef.current?.blur();
           break;
         default:
           break;
       }
     },
-    [layout.id, savedValue],
+    [commitRename],
   );
 
-  const onInput = useCallback(
-    async (e: FormEvent<HTMLInputElement>) => {
-      await actions.score.layout.rename(layout.id, e.currentTarget.value);
-    },
-    [layout.id],
-  );
+  const onBlur = useCallback(async () => {
+    if (skipBlurCommitRef.current) {
+      skipBlurCommitRef.current = false;
+      return;
+    }
 
-  const onBlur = useCallback(() => {
-    setEditing(false);
-  }, []);
+    await commitRename();
+  }, [commitRename]);
 
   const onAssignmentChange = useCallback(
     async (checked: boolean) => {
@@ -191,7 +204,7 @@ export const LayoutPanelItem: FC<Props> = ({ layout }) => {
             fg,
           )}
           onKeyDown={onKeyDown}
-          onInput={onInput}
+          onChange={(e) => setDraftTitle(e.currentTarget.value)}
         />
 
         {isSelected && (

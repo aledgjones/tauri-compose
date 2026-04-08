@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { screen, fireEvent } from "@testing-library/react";
+import { screen, fireEvent, waitFor } from "@testing-library/react";
 import { renderWithProviders } from "../../../services/test-utils";
 import { PluginsToolbar, Plugins } from "./plugins";
 
@@ -8,18 +8,11 @@ vi.mock("@tauri-apps/api/core", () => ({
   convertFileSrc: vi.fn((p: string) => `asset://${p}`),
 }));
 
-vi.mock("@tauri-apps/api/webviewWindow", () => ({
-  WebviewWindow: vi.fn().mockImplementation(() => ({
-    setFocus: vi.fn(),
-    once: vi.fn().mockResolvedValue(vi.fn()),
-  })),
-}));
-
 vi.mock("../../../services/actions", () => ({
   actions: {
-    sampler: {
-      rescanPlugins: vi.fn().mockResolvedValue(undefined),
-      audition: vi.fn(),
+    pluginInventory: {
+      discover: vi.fn().mockResolvedValue(undefined),
+      openEditorPoc: vi.fn().mockResolvedValue(undefined),
     },
   },
 }));
@@ -27,12 +20,15 @@ vi.mock("../../../services/actions", () => ({
 import { actions } from "../../../services/actions";
 
 const makePlugin = (overrides = {}) => ({
-  id: "com.vendor.piano",
+  id: "vst3:/Library/Audio/Plug-Ins/VST3/Grand Piano.vst3",
   name: "Grand Piano",
-  path: "/plugins/grand-piano",
-  author: "VendorCo",
-  version: "1.0.0",
-  articulations: [],
+  bundle_path: "/Library/Audio/Plug-Ins/VST3/Grand Piano.vst3",
+  binary_path:
+    "/Library/Audio/Plug-Ins/VST3/Grand Piano.vst3/Contents/MacOS/Grand Piano",
+  source_root: "/Library/Audio/Plug-Ins/VST3",
+  availability: "available" as const,
+  validation_failure: null,
+  editor_host_validation: null,
   ...overrides,
 });
 
@@ -44,7 +40,10 @@ describe("PluginsToolbar", () => {
     onShowActiveOnlyChange: vi.fn(),
   };
 
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.stubGlobal("alert", vi.fn());
+  });
 
   it("renders without crashing", () => {
     const { container } = renderWithProviders(<PluginsToolbar {...defaults} />);
@@ -53,19 +52,95 @@ describe("PluginsToolbar", () => {
 
   it("renders the refresh button", () => {
     renderWithProviders(<PluginsToolbar {...defaults} />);
-    expect(screen.getAllByRole("button").length).toBeGreaterThanOrEqual(1);
+    expect(
+      screen.getByRole("button", { name: "Refresh plugin inventory" }),
+    ).toBeInTheDocument();
   });
 
-  it("renders Active only label", () => {
+  it("renders Available only label", () => {
     renderWithProviders(<PluginsToolbar {...defaults} />);
-    expect(screen.getByText("Active only")).toBeInTheDocument();
+    expect(screen.getByText("Available only")).toBeInTheDocument();
   });
 
-  it("calls rescanPlugins when refresh button is clicked", async () => {
+  it("calls discover when refresh button is clicked", async () => {
     renderWithProviders(<PluginsToolbar {...defaults} />);
-    const buttons = screen.getAllByRole("button");
-    fireEvent.click(buttons[0]);
-    expect(actions.sampler.rescanPlugins).toHaveBeenCalled();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Refresh plugin inventory" }),
+    );
+    await waitFor(() => {
+      expect(actions.pluginInventory.discover).toHaveBeenCalled();
+    });
+  });
+
+  it("disables the refresh button while discovery is running", async () => {
+    let resolveDiscover: (() => void) | undefined;
+
+    vi.mocked(actions.pluginInventory.discover).mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        resolveDiscover = resolve;
+      }),
+    );
+
+    renderWithProviders(<PluginsToolbar {...defaults} />);
+
+    const refreshButton = screen.getByRole("button", {
+      name: "Refresh plugin inventory",
+    });
+
+    fireEvent.click(refreshButton);
+
+    expect(refreshButton).toBeDisabled();
+
+    resolveDiscover?.();
+
+    await waitFor(() => {
+      expect(refreshButton).not.toBeDisabled();
+    });
+  });
+
+  it("ignores repeated refresh activation while discovery is already running", async () => {
+    let resolveDiscover: (() => void) | undefined;
+
+    vi.mocked(actions.pluginInventory.discover).mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        resolveDiscover = resolve;
+      }),
+    );
+
+    renderWithProviders(<PluginsToolbar {...defaults} />);
+
+    const refreshButton = screen.getByRole("button", {
+      name: "Refresh plugin inventory",
+    });
+
+    fireEvent.click(refreshButton);
+    fireEvent.click(refreshButton);
+
+    expect(actions.pluginInventory.discover).toHaveBeenCalledTimes(1);
+
+    resolveDiscover?.();
+
+    await waitFor(() => {
+      expect(refreshButton).not.toBeDisabled();
+    });
+  });
+
+  it("shows a dialog when the manual rescan command rejects", async () => {
+    vi.mocked(actions.pluginInventory.discover).mockRejectedValueOnce(
+      new Error("refresh failed"),
+    );
+
+    renderWithProviders(<PluginsToolbar {...defaults} />);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Refresh plugin inventory" }),
+    );
+
+    await waitFor(() => {
+      expect(globalThis.alert).toHaveBeenCalledWith(
+        "Plugin inventory refresh failed.",
+      );
+    });
   });
 
   it("calls onShowActiveOnlyChange when Active only switch is toggled", () => {
@@ -88,91 +163,381 @@ describe("PluginsToolbar", () => {
       screen.getByPlaceholderText("Search plugins..."),
     ).toBeInTheDocument();
   });
+
+  it("lets the search input expand to the remaining toolbar width", () => {
+    renderWithProviders(<PluginsToolbar {...defaults} />);
+
+    expect(
+      screen.getByPlaceholderText("Search plugins...").closest("div")
+        ?.parentElement?.className,
+    ).toContain("flex-1");
+  });
 });
 
 describe("Plugins", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it("renders 'No instruments found' when sampler has no plugins", () => {
+  it("renders 'No plugins discovered yet' when inventory is empty", () => {
     renderWithProviders(<Plugins searchTerm="" showActiveOnly={false} />);
-    expect(screen.getByText("No instruments found")).toBeInTheDocument();
+    expect(screen.getByText("No plugins discovered yet")).toBeInTheDocument();
   });
 
   it("renders plugin names when plugins exist", () => {
     renderWithProviders(<Plugins searchTerm="" showActiveOnly={false} />, {
-      samplerState: {
-        plugins: [makePlugin()],
-        loaded_plugin_ids: [],
+      pluginInventoryState: {
+        entries: [makePlugin()],
       },
     });
     expect(screen.getByText("Grand Piano")).toBeInTheDocument();
+    expect(screen.getByText("Available")).toBeInTheDocument();
+    expect(screen.getByLabelText("Status: Available")).toBeInTheDocument();
+    expect(screen.getByLabelText("Status: Available").className).toContain(
+      "bg-emerald-500/10",
+    );
   });
 
-  it("shows 'No instruments match' when search term filters all plugins", () => {
+  it("shows 'No plugins match' when search term filters all plugins", () => {
     renderWithProviders(
       <Plugins searchTerm="xyznothing" showActiveOnly={false} />,
       {
-        samplerState: {
-          plugins: [makePlugin()],
-          loaded_plugin_ids: [],
+        pluginInventoryState: {
+          entries: [makePlugin()],
         },
       },
     );
     expect(
-      screen.getByText("No instruments match your filters"),
+      screen.getByText("No plugins match your filters"),
     ).toBeInTheDocument();
   });
 
-  it("shows 'No instruments match' when showActiveOnly=true and none loaded", () => {
+  it("shows 'No plugins match' when showActiveOnly=true and none are available", () => {
     renderWithProviders(<Plugins searchTerm="" showActiveOnly={true} />, {
-      samplerState: {
-        plugins: [makePlugin({ id: "com.vendor.piano" })],
-        loaded_plugin_ids: [],
+      pluginInventoryState: {
+        entries: [
+          makePlugin({
+            availability: "unavailable",
+            binary_path: null,
+            validation_failure: {
+              kind: "missing_bundle_binary",
+              message: "Missing Contents/MacOS binary",
+            },
+          }),
+        ],
       },
     });
     expect(
-      screen.getByText("No instruments match your filters"),
+      screen.getByText("No plugins match your filters"),
     ).toBeInTheDocument();
   });
 
-  it("shows plugin when showActiveOnly=true and plugin is loaded", () => {
+  it("filters editor-blocked plugins out when showActiveOnly=true", () => {
     renderWithProviders(<Plugins searchTerm="" showActiveOnly={true} />, {
-      samplerState: {
-        plugins: [makePlugin({ id: "com.vendor.piano" })],
-        loaded_plugin_ids: ["com.vendor.piano"],
+      pluginInventoryState: {
+        entries: [
+          makePlugin({
+            name: "HALion Sonic",
+            editor_host_validation: {
+              status: "blocked",
+              phase: "policy_gate",
+              message:
+                "Blocked for the bounded native editor host by recorded compatibility evidence.",
+              capability_evidence: null,
+            },
+          }),
+        ],
+      },
+    });
+
+    expect(
+      screen.getByText("No plugins match your filters"),
+    ).toBeInTheDocument();
+  });
+
+  it("does not render a plugin-settings entry point on plugin tiles", () => {
+    renderWithProviders(<Plugins searchTerm="" showActiveOnly={false} />, {
+      pluginInventoryState: {
+        entries: [makePlugin()],
+      },
+    });
+
+    expect(
+      screen.queryByRole("button", {
+        name: /plugin settings|open settings|open plugin/i,
+      }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("keeps the native editor trigger hidden outside the maintainer flow", () => {
+    renderWithProviders(<Plugins searchTerm="" showActiveOnly={false} />, {
+      pluginInventoryState: {
+        entries: [makePlugin()],
+      },
+    });
+
+    expect(
+      screen.queryByRole("button", {
+        name: "Open native editor host for Grand Piano",
+      }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("does not surface maintainer-only native editor UI for available plugins", () => {
+    renderWithProviders(<Plugins searchTerm="" showActiveOnly={false} />, {
+      pluginInventoryState: {
+        entries: [makePlugin()],
+      },
+    });
+
+    expect(
+      screen.queryByRole("button", {
+        name: "Open native editor host for Grand Piano",
+      }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Maintainer preview")).not.toBeInTheDocument();
+  });
+
+  it("does not surface maintainer-only native editor UI for blocked plugins", () => {
+    renderWithProviders(<Plugins searchTerm="" showActiveOnly={false} />, {
+      pluginInventoryState: {
+        entries: [
+          makePlugin({
+            editor_host_validation: {
+              status: "blocked",
+              phase: "policy_gate",
+              message:
+                "Blocked for the bounded native editor host by recorded compatibility evidence.",
+              capability_evidence: null,
+            },
+          }),
+        ],
+      },
+    });
+
+    expect(screen.getByLabelText("Status: Not supported")).toBeInTheDocument();
+    expect(
+      screen.getByText(/Contents\/MacOS\/Grand Piano/),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/Native editor status:/i),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Maintainer preview")).not.toBeInTheDocument();
+  });
+
+  it("renders a distinct not-supported badge for explicitly blocked plugins", () => {
+    renderWithProviders(<Plugins searchTerm="" showActiveOnly={false} />, {
+      pluginInventoryState: {
+        entries: [
+          makePlugin({
+            name: "HALion Sonic",
+            editor_host_validation: {
+              status: "blocked",
+              phase: "policy_gate",
+              message:
+                "Blocked for the bounded native editor host by recorded compatibility evidence.",
+              capability_evidence: null,
+            },
+          }),
+        ],
+      },
+    });
+
+    expect(screen.getByText("HALion Sonic")).toBeInTheDocument();
+    expect(screen.getByText("Not supported")).toBeInTheDocument();
+    expect(screen.getByLabelText("Status: Not supported")).toBeInTheDocument();
+    expect(screen.getByLabelText("Status: Not supported").className).toContain(
+      "bg-neutral-500/10",
+    );
+  });
+
+  it("shows plugin when showActiveOnly=true and plugin is available", () => {
+    renderWithProviders(<Plugins searchTerm="" showActiveOnly={true} />, {
+      pluginInventoryState: {
+        entries: [makePlugin()],
       },
     });
     expect(screen.getByText("Grand Piano")).toBeInTheDocument();
   });
 
-  it("renders plugin version", () => {
-    renderWithProviders(<Plugins searchTerm="" showActiveOnly={false} />, {
-      samplerState: {
-        plugins: [makePlugin({ version: "2.3.1" })],
-        loaded_plugin_ids: [],
+  it("sorts supported available plugins first and alphabetizes each group", () => {
+    const { container } = renderWithProviders(
+      <Plugins searchTerm="" showActiveOnly={false} />,
+      {
+        pluginInventoryState: {
+          entries: [
+            makePlugin({
+              id: "unsupported-zebra",
+              name: "Zebra Synth",
+              editor_host_validation: {
+                status: "blocked",
+                phase: "policy_gate",
+                message:
+                  "Blocked for the bounded native editor host by recorded compatibility evidence.",
+                capability_evidence: null,
+              },
+            }),
+            makePlugin({
+              id: "available-strings",
+              name: "Amber Strings",
+            }),
+            makePlugin({
+              id: "unavailable-broken",
+              name: "Broken Plugin",
+              bundle_path: "/Library/Audio/Plug-Ins/VST3/Broken.vst3",
+              binary_path: null,
+              availability: "unavailable",
+              validation_failure: {
+                kind: "missing_bundle_binary",
+                message: "Missing Contents/MacOS binary",
+              },
+            }),
+            makePlugin({
+              id: "available-piano",
+              name: "Grand Piano",
+            }),
+          ],
+        },
       },
-    });
-    expect(screen.getByText("v2.3.1")).toBeInTheDocument();
+    );
+
+    const renderedNames = Array.from(
+      container.querySelectorAll(".text-white.text-sm.truncate.font-semibold"),
+    ).map((element) => element.textContent);
+
+    expect(renderedNames).toEqual([
+      "Amber Strings",
+      "Grand Piano",
+      "Zebra Synth",
+      "Broken Plugin",
+    ]);
   });
 
-  it("renders plugin author", () => {
+  it("renders plugin binary path", () => {
     renderWithProviders(<Plugins searchTerm="" showActiveOnly={false} />, {
-      samplerState: {
-        plugins: [makePlugin({ author: "AcmeSounds" })],
-        loaded_plugin_ids: [],
+      pluginInventoryState: {
+        entries: [makePlugin()],
       },
     });
-    expect(screen.getByText("by AcmeSounds")).toBeInTheDocument();
+    expect(
+      screen.getByText(/Contents\/MacOS\/Grand Piano/),
+    ).toBeInTheDocument();
+  });
+
+  it("renders the shared compact plugin row", () => {
+    renderWithProviders(<Plugins searchTerm="" showActiveOnly={false} />, {
+      pluginInventoryState: {
+        entries: [makePlugin()],
+      },
+    });
+
+    expect(screen.getByText("Grand Piano")).toBeInTheDocument();
+    expect(
+      screen.getByText(/Contents\/MacOS\/Grand Piano/),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByTestId(
+        "plugin-badge-vst3:/Library/Audio/Plug-Ins/VST3/Grand Piano.vst3",
+      ),
+    ).toHaveTextContent("GP");
+    expect(screen.queryByText("Root")).not.toBeInTheDocument();
+    expect(screen.queryByText("Binary")).not.toBeInTheDocument();
+    expect(screen.getByTestId("plugins-list-filler").className).toContain(
+      "bg-neutral-900",
+    );
+  });
+
+  it("shows the plugin path for unavailable plugins", () => {
+    renderWithProviders(<Plugins searchTerm="" showActiveOnly={false} />, {
+      pluginInventoryState: {
+        entries: [
+          makePlugin({
+            id: "vst3:/Library/Audio/Plug-Ins/VST3/Broken.vst3",
+            name: "Broken Plugin",
+            bundle_path: "/Library/Audio/Plug-Ins/VST3/Broken.vst3",
+            availability: "unavailable",
+            binary_path: null,
+            validation_failure: {
+              kind: "missing_bundle_binary",
+              message: "Missing Contents/MacOS binary",
+            },
+          }),
+        ],
+      },
+    });
+
+    expect(
+      screen.getByText("/Library/Audio/Plug-Ins/VST3/Broken.vst3"),
+    ).toBeInTheDocument();
+  });
+
+  it("uses a square plugin-name badge", () => {
+    renderWithProviders(<Plugins searchTerm="" showActiveOnly={false} />, {
+      pluginInventoryState: {
+        entries: [makePlugin({ id: "a", name: "Alpha" })],
+      },
+    });
+
+    const badge = screen.getByTestId("plugin-badge-a");
+
+    expect(badge).toHaveTextContent("AL");
+    expect(badge.className).toContain("h-10");
+    expect(badge.className).toContain("w-10");
+  });
+
+  it("ignores punctuation when deriving badge initials", () => {
+    renderWithProviders(<Plugins searchTerm="" showActiveOnly={false} />, {
+      pluginInventoryState: {
+        entries: [
+          makePlugin({ id: "a", name: "Originals - Piano" }),
+          makePlugin({ id: "b", name: "Originals Piano" }),
+          makePlugin({ id: "c", name: "OriginalsPiano" }),
+          makePlugin({ id: "d", name: "Originals ! -" }),
+          makePlugin({ id: "e", name: " ! - " }),
+        ],
+      },
+    });
+
+    expect(screen.getByTestId("plugin-badge-a")).toHaveTextContent("OP");
+    expect(screen.getByTestId("plugin-badge-b")).toHaveTextContent("OP");
+    expect(screen.getByTestId("plugin-badge-c")).toHaveTextContent("OR");
+    expect(screen.getByTestId("plugin-badge-d")).toHaveTextContent("OR");
+    expect(screen.getByTestId("plugin-badge-e")).toHaveTextContent("?");
+  });
+
+  it("renders plugin issue details for problematic bundles", () => {
+    renderWithProviders(<Plugins searchTerm="" showActiveOnly={false} />, {
+      pluginInventoryState: {
+        entries: [
+          makePlugin({
+            id: "vst3:/Library/Audio/Plug-Ins/VST3/Broken.vst3",
+            name: "Broken Plugin",
+            bundle_path: "/Library/Audio/Plug-Ins/VST3/Broken.vst3",
+            availability: "unavailable",
+            binary_path: null,
+            validation_failure: {
+              kind: "missing_bundle_binary",
+              message: "Missing Contents/MacOS binary",
+            },
+          }),
+        ],
+      },
+    });
+    expect(screen.getByText("Unavailable")).toBeInTheDocument();
+    expect(screen.getByLabelText("Status: Unavailable")).toBeInTheDocument();
+    expect(screen.getByLabelText("Status: Unavailable").className).toContain(
+      "bg-rose-500/10",
+    );
+    expect(
+      screen.getByText("/Library/Audio/Plug-Ins/VST3/Broken.vst3"),
+    ).toBeInTheDocument();
   });
 
   it("renders multiple plugins", () => {
     renderWithProviders(<Plugins searchTerm="" showActiveOnly={false} />, {
-      samplerState: {
-        plugins: [
+      pluginInventoryState: {
+        entries: [
           makePlugin({ id: "a", name: "Alpha Synth" }),
           makePlugin({ id: "b", name: "Beta Bass" }),
         ],
-        loaded_plugin_ids: [],
       },
     });
     expect(screen.getByText("Alpha Synth")).toBeInTheDocument();

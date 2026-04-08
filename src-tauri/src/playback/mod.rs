@@ -1,7 +1,13 @@
 pub mod audio;
+pub mod audition;
+pub mod engine;
+pub mod expression_maps;
 pub mod mixer;
-pub mod sampler;
-pub mod scvi;
-pub mod streamer;
+pub mod plugin_editor_poc;
+pub mod plugin_host_compatibility;
+pub mod plugin_inventory;
+pub mod preparation;
+pub mod runtime_activation;
 pub mod transport;
 pub mod tuplet_projection;
+pub mod vst3;

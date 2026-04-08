@@ -24,9 +24,22 @@ describe("Transport", () => {
     renderWithProviders(<Transport />, {
       transportState: { playing: false, current_tick: 0, tempo: 120 },
     });
-    // The play button renders an SVG icon — we check buttons are rendered
-    const buttons = screen.getAllByRole("button");
-    expect(buttons.length).toBe(2);
+    expect(
+      screen.getByRole("button", { name: "Return transport to start" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Start playback" }),
+    ).toBeInTheDocument();
+  });
+
+  it("renames the transport toggle action when playback is active", () => {
+    renderWithProviders(<Transport />, {
+      transportState: { playing: true, current_tick: 0, tempo: 120 },
+    });
+
+    expect(
+      screen.getByRole("button", { name: "Pause playback" }),
+    ).toBeInTheDocument();
   });
 
   it("renders current position display", () => {
@@ -41,9 +54,7 @@ describe("Transport", () => {
     renderWithProviders(<Transport />, {
       transportState: { playing: false, current_tick: 0, tempo: 120 },
     });
-    const buttons = screen.getAllByRole("button");
-    // play/pause button is the 2nd button (index 1 after skip-previous)
-    fireEvent.click(buttons[1]);
+    fireEvent.click(screen.getByRole("button", { name: "Start playback" }));
     expect(actions.transport.play).toHaveBeenCalledOnce();
   });
 
@@ -51,8 +62,7 @@ describe("Transport", () => {
     renderWithProviders(<Transport />, {
       transportState: { playing: true, current_tick: 0, tempo: 120 },
     });
-    const buttons = screen.getAllByRole("button");
-    fireEvent.click(buttons[1]);
+    fireEvent.click(screen.getByRole("button", { name: "Pause playback" }));
     expect(actions.transport.pause).toHaveBeenCalledOnce();
   });
 
@@ -60,8 +70,9 @@ describe("Transport", () => {
     renderWithProviders(<Transport />, {
       transportState: { playing: false, current_tick: 128, tempo: 120 },
     });
-    const buttons = screen.getAllByRole("button");
-    fireEvent.click(buttons[0]); // skip-previous is the first button
+    fireEvent.click(
+      screen.getByRole("button", { name: "Return transport to start" }),
+    );
     expect(actions.transport.seek).toHaveBeenCalledWith(0);
   });
 

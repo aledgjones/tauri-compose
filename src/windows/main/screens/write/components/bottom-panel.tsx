@@ -50,7 +50,12 @@ export const BottomPanel: FC = () => {
           />
         )}
         {tab === BottomPanelTab.Mixer && (
-          <MixerToolbar instruments={instruments} />
+          <MixerToolbar
+            instruments={instruments}
+            resolvedPlaybackRouteByInstrumentId={
+              state.resolved_playback_route_by_instrument_id
+            }
+          />
         )}
         <div className="flex flex-1 justify-end gap-0.5">
           <div className="bg-neutral-900 flex-1" />
@@ -77,7 +82,14 @@ export const BottomPanel: FC = () => {
         />
       )}
       {tab === BottomPanelTab.Properties && <PropertiesPanel />}
-      {tab === BottomPanelTab.Mixer && <Mixer instruments={instruments} />}
+      {tab === BottomPanelTab.Mixer && (
+        <Mixer
+          instruments={instruments}
+          resolvedPlaybackRouteByInstrumentId={
+            state.resolved_playback_route_by_instrument_id
+          }
+        />
+      )}
     </div>
   );
 };

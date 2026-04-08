@@ -321,7 +321,9 @@ pub fn score_flows_remove(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::playback::runtime_activation::PlaybackActivationRuntime;
     use crate::preferences::Preferences;
+    use crate::score::entries::clef::ClefDrawType;
     use crate::score::instruments::{Instrument, Instruments};
     use crate::score::layouts::Layouts;
     use crate::score::players::{Player, PlayerType, Players};
@@ -357,7 +359,7 @@ mod tests {
             short_name,
             stave_ids,
             count: None,
-            assigned_plugin_id: None,
+            playback_route: None,
             volume: 100,
             pan: 64,
             mute: false,
@@ -393,6 +395,8 @@ mod tests {
         AppContext {
             ui: Ui::new(),
             score,
+            playback_activation_runtime: PlaybackActivationRuntime::default(),
+            pending_playback_refresh: None,
             preferences: serde_json::from_str::<Preferences>(r#"{"audition":true}"#).unwrap(),
             next_id: 1,
             current_file_path: None,
@@ -469,10 +473,7 @@ mod tests {
 
         let clef = app.get_default_clef_for_stave(100).unwrap();
 
-        assert_eq!(
-            clef.draw_as as u8,
-            crate::score::entries::clef::ClefDrawType::G as u8
-        );
+        assert_eq!(clef.draw_as as u8, ClefDrawType::G as u8);
         assert_eq!(clef.offset, 2);
     }
 
@@ -484,14 +485,8 @@ mod tests {
         let top_clef = app.get_default_clef_for_stave(100).unwrap();
         let bottom_clef = app.get_default_clef_for_stave(101).unwrap();
 
-        assert_eq!(
-            top_clef.draw_as as u8,
-            crate::score::entries::clef::ClefDrawType::G as u8
-        );
-        assert_eq!(
-            bottom_clef.draw_as as u8,
-            crate::score::entries::clef::ClefDrawType::F as u8
-        );
+        assert_eq!(top_clef.draw_as as u8, ClefDrawType::G as u8);
+        assert_eq!(bottom_clef.draw_as as u8, ClefDrawType::F as u8);
     }
 
     #[test]

@@ -13,13 +13,22 @@ mod utils;
 use crate::playback::audio::{
     audio_device_sample_rate_set, audio_device_set, audio_devices_refresh, AudioContext,
 };
-use crate::playback::sampler::{
-    sampler_audition, sampler_load_plugin, sampler_rescan_plugins, sampler_sync_with_instruments,
-    SamplerContext,
+use crate::playback::audition::playback_audition_tone;
+use crate::playback::engine::{sync_live_slot_targets, sync_slot_mix_states};
+use crate::playback::expression_maps::{
+    ExpressionMap, ExpressionMapLibraryContext, ExpressionMapLibraryContextState,
+    ExpressionMapLibraryState,
 };
+use crate::playback::plugin_editor_poc::{plugin_editor_poc_open, sync_slot_runtime_sessions};
+use crate::playback::plugin_inventory::{
+    plugin_inventory_discover, PluginInventoryContext, PluginInventoryContextState,
+};
+use crate::playback::preparation::effective_playback_mix_by_slot_id;
+use crate::playback::runtime_activation::{ActivatedSlotTarget, PlaybackActivationRuntime};
 use crate::playback::transport::{
     stop_transport_playback, sync_transport_to_app_state, transport_get_state, transport_pause,
-    transport_play, transport_seek, TransportContext, TransportSharedState,
+    transport_play, transport_seek, DeferredPlaybackRefreshKind, TransportContext,
+    TransportSharedState,
 };
 use crate::renderer::backends::metal::MetalRenderer;
 use files::{
@@ -76,9 +85,11 @@ use score::flows::{
 };
 use score::instruments::defs::score_instruments_get_all_definitions;
 use score::instruments::{
-    score_instruments_assign_plugin, score_instruments_create, score_instruments_move,
-    score_instruments_remove, score_instruments_set_mute, score_instruments_set_pan,
-    score_instruments_set_solo, score_instruments_set_volume,
+    score_instruments_assign_slot_route, score_instruments_create, score_instruments_move,
+    score_instruments_remove, score_instruments_set_expression_map, score_instruments_set_mute,
+    score_instruments_set_pan, score_instruments_set_solo, score_instruments_set_volume,
+    score_instruments_unassign_route, score_playback_slots_assign_plugin,
+    score_playback_slots_create, score_playback_slots_remove, score_playback_slots_unassign_plugin,
 };
 use score::layouts::{
     score_layouts_assign_flow, score_layouts_assign_player, score_layouts_create,
@@ -92,16 +103,18 @@ use score::meta::{
     score_meta_lyricist_set, score_meta_other_information_set, score_meta_publisher_set,
     score_meta_subtitle_set, score_meta_title_set, score_meta_work_number_set,
 };
+use score::playback::{ResolvedExpressionMapLink, ResolvedPlaybackRoute};
 use score::players::{
     score_players_assign_instrument, score_players_create, score_players_move,
     score_players_remove, score_players_unassign_instrument,
 };
 use score::Score;
 use serde::{Deserialize, Serialize};
+use std::sync::atomic::Ordering;
 use std::sync::Mutex;
 use std::time::Instant;
 use tauri::menu::{AboutMetadata, Menu, MenuItem, PredefinedMenuItem, Submenu};
-use tauri::{AppHandle, Emitter, Manager, State};
+use tauri::{include_image, AppHandle, Emitter, Manager, State};
 use ui::renderer::{
     ui_renderer_bounds_set, ui_renderer_debug_toggle, ui_renderer_pan_set, ui_renderer_zoom_set,
 };
@@ -129,6 +142,13 @@ use utils::UniqueId;
 struct AppStateGeneral {
     ui: Ui,
     score: Score,
+    single_instrument_transport_ready: bool,
+    resolved_playback_route_by_instrument_id:
+        rustc_hash::FxHashMap<UniqueId, ResolvedPlaybackRoute>,
+    resolved_expression_map_by_instrument_id:
+        rustc_hash::FxHashMap<UniqueId, ResolvedExpressionMapLink>,
+    route_target_options_by_slot_id:
+        rustc_hash::FxHashMap<UniqueId, Vec<score::playback::PlaybackRouteChoice>>,
     preferences: Preferences,
     current_file_path: Option<String>,
 }
@@ -137,6 +157,8 @@ struct AppStateGeneral {
 struct AppContext {
     ui: Ui,
     score: Score,
+    playback_activation_runtime: PlaybackActivationRuntime,
+    pending_playback_refresh: Option<DeferredPlaybackRefreshKind>,
     preferences: Preferences,
     next_id: UniqueId,
     current_file_path: Option<String>,
@@ -147,10 +169,62 @@ impl AppContext {
         Mutex::new(Self {
             ui: Ui::new(),
             score: Score::new(),
+            playback_activation_runtime: PlaybackActivationRuntime::default(),
+            pending_playback_refresh: None,
             preferences: Preferences::new(app_handle),
             next_id: 1,
             current_file_path: None,
         })
+    }
+
+    pub(crate) fn apply_live_slot_targets(
+        &mut self,
+        live_slot_targets: rustc_hash::FxHashMap<UniqueId, ActivatedSlotTarget>,
+    ) {
+        sync_live_slot_targets(live_slot_targets.keys().copied());
+        self.playback_activation_runtime =
+            PlaybackActivationRuntime::from_live_slot_targets(&self.score, live_slot_targets);
+        sync_slot_mix_states(effective_playback_mix_by_slot_id(
+            &self.score,
+            &self.playback_activation_runtime,
+        ));
+    }
+
+    pub(crate) fn refresh_playback_activation_runtime_with_inventory<F>(
+        &mut self,
+        inventory: &PluginInventoryContext,
+        sync_slot_targets: F,
+    ) where
+        F: FnOnce(
+            &rustc_hash::FxHashMap<UniqueId, ActivatedSlotTarget>,
+        ) -> rustc_hash::FxHashMap<UniqueId, ActivatedSlotTarget>,
+    {
+        let expected_slot_targets =
+            PlaybackActivationRuntime::expected_slot_targets_from_score_and_inventory(
+                &self.score,
+                inventory,
+            );
+        let live_slot_targets = sync_slot_targets(&expected_slot_targets);
+        self.apply_live_slot_targets(live_slot_targets);
+    }
+
+    pub(crate) fn refresh_playback_activation_runtime(
+        &mut self,
+        app: &AppHandle,
+        plugin_inventory_state: &ManagedPluginInventoryContextState,
+    ) {
+        let inventory = plugin_inventory_state.lock().unwrap();
+        self.refresh_playback_activation_runtime_with_inventory(
+            &inventory,
+            |expected_slot_targets| sync_slot_runtime_sessions(app, expected_slot_targets),
+        );
+    }
+
+    pub(crate) fn refresh_playback_activation_runtime_from_app(&mut self, app: &AppHandle) {
+        self.refresh_playback_activation_runtime(
+            app,
+            app.state::<ManagedPluginInventoryContextState>().inner(),
+        );
     }
 
     pub(crate) fn flow_id_for_track(&self, track_id: UniqueId) -> Option<UniqueId> {
@@ -167,6 +241,66 @@ impl AppContext {
                 }
             })
         })
+    }
+
+    pub(crate) fn defer_playback_refresh(&mut self, kind: DeferredPlaybackRefreshKind) {
+        self.pending_playback_refresh = Some(match (self.pending_playback_refresh, kind) {
+            (Some(DeferredPlaybackRefreshKind::PlaybackTopology), _)
+            | (_, DeferredPlaybackRefreshKind::PlaybackTopology) => {
+                DeferredPlaybackRefreshKind::PlaybackTopology
+            }
+            _ => DeferredPlaybackRefreshKind::ScoreStructure,
+        });
+    }
+
+    pub(crate) fn clear_pending_playback_refresh(&mut self) {
+        self.pending_playback_refresh = None;
+    }
+
+    pub(crate) fn pending_playback_refresh_kind(&self) -> Option<DeferredPlaybackRefreshKind> {
+        self.pending_playback_refresh
+    }
+
+    fn transport_is_playing(app: &tauri::AppHandle) -> bool {
+        app.state::<TransportSharedState>()
+            .playing
+            .load(Ordering::Acquire)
+    }
+
+    pub(crate) fn emit_after_playback_edit(
+        &mut self,
+        app: &tauri::AppHandle,
+        renderer: &mut RendererContext,
+        kind: DeferredPlaybackRefreshKind,
+        recalculation_request: Option<FlowRenderRecalculationRequest>,
+    ) {
+        let playing = Self::transport_is_playing(app);
+
+        if playing {
+            self.defer_playback_refresh(kind);
+        }
+
+        if playing && kind == DeferredPlaybackRefreshKind::PlaybackTopology {
+            self.emit_general_state_without_runtime_refresh(app, renderer, recalculation_request);
+        } else {
+            self.emit_general_state(app, renderer, recalculation_request);
+        }
+    }
+
+    pub(crate) fn emit_affected_track_after_playback_edit(
+        &mut self,
+        app: &tauri::AppHandle,
+        renderer: &mut RendererContext,
+        track_id: UniqueId,
+        kind: DeferredPlaybackRefreshKind,
+    ) {
+        let recalculation_request = if let Some(flow_id) = self.flow_id_for_track(track_id) {
+            FlowRenderRecalculationRequest::for_flow_ids(&[flow_id])
+        } else {
+            Some(FlowRenderRecalculationRequest::full_visible_flows())
+        };
+
+        self.emit_after_playback_edit(app, renderer, kind, recalculation_request);
     }
 
     fn render_with_recalculation(
@@ -245,17 +379,36 @@ impl AppContext {
         self.render_with_recalculation(app, renderer, None);
     }
 
-    pub(crate) fn emit_general_state(
+    fn emit_general_state_with_runtime_refresh(
         &mut self,
         app: &tauri::AppHandle,
         renderer: &mut RendererContext,
         recalculation_request: Option<FlowRenderRecalculationRequest>,
+        refresh_playback_runtime: bool,
     ) {
+        if refresh_playback_runtime {
+            self.refresh_playback_activation_runtime_from_app(app);
+        }
         self.render_with_recalculation(app, renderer, recalculation_request);
+
+        let expression_map_library_state = app.state::<ManagedExpressionMapLibraryContextState>();
+        let expression_map_library = expression_map_library_state.lock().unwrap();
+        let resolved_expression_map_by_instrument_id =
+            expression_map_library.resolved_expression_map_links_by_instrument_id(&self.score);
+        drop(expression_map_library);
 
         let general_state = AppStateGeneral {
             ui: self.ui.clone(),
             score: self.score.clone(),
+            single_instrument_transport_ready: self
+                .playback_activation_runtime
+                .single_instrument_trust_gate(&self.score)
+                .is_transport_ready(),
+            resolved_playback_route_by_instrument_id: self
+                .playback_activation_runtime
+                .resolved_playback_route_by_instrument_id(&self.score),
+            resolved_expression_map_by_instrument_id,
+            route_target_options_by_slot_id: self.score.playback_route_choices_by_slot_id(),
             current_file_path: self.current_file_path.clone(),
             preferences: self.preferences.clone(),
         };
@@ -263,6 +416,24 @@ impl AppContext {
         if let Err(e) = app.emit("soloc://state/general", &general_state) {
             eprintln!("Failed to emit general state: {:?}", e);
         }
+    }
+
+    pub(crate) fn emit_general_state(
+        &mut self,
+        app: &tauri::AppHandle,
+        renderer: &mut RendererContext,
+        recalculation_request: Option<FlowRenderRecalculationRequest>,
+    ) {
+        self.emit_general_state_with_runtime_refresh(app, renderer, recalculation_request, true);
+    }
+
+    pub(crate) fn emit_general_state_without_runtime_refresh(
+        &mut self,
+        app: &tauri::AppHandle,
+        renderer: &mut RendererContext,
+        recalculation_request: Option<FlowRenderRecalculationRequest>,
+    ) {
+        self.emit_general_state_with_runtime_refresh(app, renderer, recalculation_request, false);
     }
 
     pub(crate) fn emit_affected_flows(
@@ -278,23 +449,6 @@ impl AppContext {
         );
     }
 
-    pub(crate) fn emit_affected_track(
-        &mut self,
-        app: &tauri::AppHandle,
-        renderer: &mut RendererContext,
-        track_id: UniqueId,
-    ) {
-        if let Some(flow_id) = self.flow_id_for_track(track_id) {
-            self.emit_affected_flows(app, renderer, &[flow_id]);
-        } else {
-            self.emit_general_state(
-                app,
-                renderer,
-                Some(FlowRenderRecalculationRequest::full_visible_flows()),
-            );
-        }
-    }
-
     pub fn generate_id(&mut self) -> UniqueId {
         let id = self.next_id;
         self.next_id += 1;
@@ -304,21 +458,476 @@ impl AppContext {
 
 pub(crate) type AppContextState = Mutex<AppContext>;
 pub(crate) type AudioContextState = Mutex<AudioContext>;
+pub(crate) type ManagedExpressionMapLibraryContextState = ExpressionMapLibraryContextState;
+pub(crate) type ManagedPluginInventoryContextState = PluginInventoryContextState;
 pub(crate) type RendererContextState = Mutex<RendererContext>;
-pub(crate) type SamplerContextState = Mutex<SamplerContext>;
 
 const APP_NAME: &str = "Solo Compose";
 
 #[tauri::command(rename_all = "snake_case")]
-fn get_general_state(state: State<'_, AppContextState>) -> AppStateGeneral {
-    let state = state.lock().unwrap();
+fn get_general_state(app: AppHandle, state: State<'_, AppContextState>) -> AppStateGeneral {
+    let mut state = state.lock().unwrap();
+    state.refresh_playback_activation_runtime_from_app(&app);
+
+    let expression_map_library_state = app.state::<ManagedExpressionMapLibraryContextState>();
+    let expression_map_library = expression_map_library_state.lock().unwrap();
+    let resolved_expression_map_by_instrument_id =
+        expression_map_library.resolved_expression_map_links_by_instrument_id(&state.score);
+    drop(expression_map_library);
 
     AppStateGeneral {
         ui: state.ui.clone(),
         score: state.score.clone(),
+        single_instrument_transport_ready: state
+            .playback_activation_runtime
+            .single_instrument_trust_gate(&state.score)
+            .is_transport_ready(),
+        resolved_playback_route_by_instrument_id: state
+            .playback_activation_runtime
+            .resolved_playback_route_by_instrument_id(&state.score),
+        resolved_expression_map_by_instrument_id,
+        route_target_options_by_slot_id: state.score.playback_route_choices_by_slot_id(),
         preferences: state.preferences.clone(),
         current_file_path: state.current_file_path.clone(),
     }
+}
+
+#[tauri::command(rename_all = "snake_case")]
+fn expression_maps_get_state(
+    state: State<'_, ManagedExpressionMapLibraryContextState>,
+) -> ExpressionMapLibraryState {
+    state.lock().unwrap().snapshot()
+}
+
+fn emit_expression_map_updates(
+    app: &AppHandle,
+    library_state: &ExpressionMapLibraryState,
+) -> Result<(), String> {
+    app.emit("soloc://state/expression_maps", library_state)
+        .map_err(|error| error.to_string())?;
+    let general_state = get_general_state(app.clone(), app.state::<AppContextState>());
+    app.emit("soloc://state/general", &general_state)
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command(rename_all = "snake_case")]
+fn expression_maps_create(
+    app: AppHandle,
+    state: State<'_, ManagedExpressionMapLibraryContextState>,
+    name: Option<String>,
+) -> Result<ExpressionMap, String> {
+    let (expression_map, library_state) = {
+        let mut library = state.lock().unwrap();
+        let expression_map = library.create_expression_map(name)?;
+        let library_state = library.snapshot();
+        (expression_map, library_state)
+    };
+    emit_expression_map_updates(&app, &library_state)?;
+    Ok(expression_map)
+}
+
+#[tauri::command(rename_all = "snake_case")]
+fn expression_maps_duplicate(
+    app: AppHandle,
+    state: State<'_, ManagedExpressionMapLibraryContextState>,
+    expression_map_id: String,
+) -> Result<ExpressionMap, String> {
+    let (expression_map, library_state) = {
+        let mut library = state.lock().unwrap();
+        let expression_map = library.duplicate_expression_map(&expression_map_id)?;
+        let library_state = library.snapshot();
+        (expression_map, library_state)
+    };
+    emit_expression_map_updates(&app, &library_state)?;
+    Ok(expression_map)
+}
+
+#[tauri::command(rename_all = "snake_case")]
+fn expression_maps_name_set(
+    app: AppHandle,
+    state: State<'_, ManagedExpressionMapLibraryContextState>,
+    expression_map_id: String,
+    name: String,
+) -> Result<ExpressionMap, String> {
+    let (expression_map, library_state) = {
+        let mut library = state.lock().unwrap();
+        let expression_map = library.set_expression_map_name(&expression_map_id, name)?;
+        let library_state = library.snapshot();
+        (expression_map, library_state)
+    };
+    emit_expression_map_updates(&app, &library_state)?;
+    Ok(expression_map)
+}
+
+#[tauri::command(rename_all = "snake_case")]
+fn expression_maps_creator_set(
+    app: AppHandle,
+    state: State<'_, ManagedExpressionMapLibraryContextState>,
+    expression_map_id: String,
+    creator: String,
+) -> Result<ExpressionMap, String> {
+    let (expression_map, library_state) = {
+        let mut library = state.lock().unwrap();
+        let expression_map = library.set_expression_map_creator(&expression_map_id, creator)?;
+        let library_state = library.snapshot();
+        (expression_map, library_state)
+    };
+    emit_expression_map_updates(&app, &library_state)?;
+    Ok(expression_map)
+}
+
+#[tauri::command(rename_all = "snake_case")]
+fn expression_maps_version_set(
+    app: AppHandle,
+    state: State<'_, ManagedExpressionMapLibraryContextState>,
+    expression_map_id: String,
+    version: u32,
+) -> Result<ExpressionMap, String> {
+    let (expression_map, library_state) = {
+        let mut library = state.lock().unwrap();
+        let expression_map = library.set_expression_map_version(&expression_map_id, version)?;
+        let library_state = library.snapshot();
+        (expression_map, library_state)
+    };
+    emit_expression_map_updates(&app, &library_state)?;
+    Ok(expression_map)
+}
+
+#[tauri::command(rename_all = "snake_case")]
+fn expression_maps_rule_add(
+    app: AppHandle,
+    state: State<'_, ManagedExpressionMapLibraryContextState>,
+    expression_map_id: String,
+) -> Result<ExpressionMap, String> {
+    let (expression_map, library_state) = {
+        let mut library = state.lock().unwrap();
+        let expression_map = library.add_default_rule(&expression_map_id)?;
+        let library_state = library.snapshot();
+        (expression_map, library_state)
+    };
+    emit_expression_map_updates(&app, &library_state)?;
+    Ok(expression_map)
+}
+
+#[tauri::command(rename_all = "snake_case")]
+fn expression_maps_rule_name_set(
+    app: AppHandle,
+    state: State<'_, ManagedExpressionMapLibraryContextState>,
+    expression_map_id: String,
+    rule_id: String,
+    name: String,
+) -> Result<ExpressionMap, String> {
+    let (expression_map, library_state) = {
+        let mut library = state.lock().unwrap();
+        let expression_map = library.set_rule_name(&expression_map_id, &rule_id, name)?;
+        let library_state = library.snapshot();
+        (expression_map, library_state)
+    };
+    emit_expression_map_updates(&app, &library_state)?;
+    Ok(expression_map)
+}
+
+#[tauri::command(rename_all = "snake_case")]
+fn expression_maps_rule_move(
+    app: AppHandle,
+    state: State<'_, ManagedExpressionMapLibraryContextState>,
+    expression_map_id: String,
+    rule_id: String,
+    to_index: usize,
+) -> Result<ExpressionMap, String> {
+    let (expression_map, library_state) = {
+        let mut library = state.lock().unwrap();
+        let expression_map = library.move_rule(&expression_map_id, &rule_id, to_index)?;
+        let library_state = library.snapshot();
+        (expression_map, library_state)
+    };
+    emit_expression_map_updates(&app, &library_state)?;
+    Ok(expression_map)
+}
+
+#[tauri::command(rename_all = "snake_case")]
+fn expression_maps_rule_remove(
+    app: AppHandle,
+    state: State<'_, ManagedExpressionMapLibraryContextState>,
+    expression_map_id: String,
+    rule_id: String,
+) -> Result<ExpressionMap, String> {
+    let (expression_map, library_state) = {
+        let mut library = state.lock().unwrap();
+        let expression_map = library.remove_rule(&expression_map_id, &rule_id)?;
+        let library_state = library.snapshot();
+        (expression_map, library_state)
+    };
+    emit_expression_map_updates(&app, &library_state)?;
+    Ok(expression_map)
+}
+
+#[tauri::command(rename_all = "snake_case")]
+fn expression_maps_condition_add(
+    app: AppHandle,
+    state: State<'_, ManagedExpressionMapLibraryContextState>,
+    expression_map_id: String,
+    rule_id: String,
+    condition_type: String,
+) -> Result<ExpressionMap, String> {
+    let (expression_map, library_state) = {
+        let mut library = state.lock().unwrap();
+        let expression_map = library.add_condition(&expression_map_id, &rule_id, &condition_type)?;
+        let library_state = library.snapshot();
+        (expression_map, library_state)
+    };
+    emit_expression_map_updates(&app, &library_state)?;
+    Ok(expression_map)
+}
+
+#[tauri::command(rename_all = "snake_case")]
+fn expression_maps_condition_set_type(
+    app: AppHandle,
+    state: State<'_, ManagedExpressionMapLibraryContextState>,
+    expression_map_id: String,
+    rule_id: String,
+    condition_id: String,
+    condition_type: String,
+) -> Result<ExpressionMap, String> {
+    let (expression_map, library_state) = {
+        let mut library = state.lock().unwrap();
+        let expression_map = library.set_condition_type(
+            &expression_map_id,
+            &rule_id,
+            &condition_id,
+            &condition_type,
+        )?;
+        let library_state = library.snapshot();
+        (expression_map, library_state)
+    };
+    emit_expression_map_updates(&app, &library_state)?;
+    Ok(expression_map)
+}
+
+#[tauri::command(rename_all = "snake_case")]
+fn expression_maps_condition_update(
+    app: AppHandle,
+    state: State<'_, ManagedExpressionMapLibraryContextState>,
+    expression_map_id: String,
+    rule_id: String,
+    condition: crate::playback::expression_maps::ExpressionMapCondition,
+) -> Result<ExpressionMap, String> {
+    let (expression_map, library_state) = {
+        let mut library = state.lock().unwrap();
+        let expression_map = library.update_condition(&expression_map_id, &rule_id, condition)?;
+        let library_state = library.snapshot();
+        (expression_map, library_state)
+    };
+    emit_expression_map_updates(&app, &library_state)?;
+    Ok(expression_map)
+}
+
+#[tauri::command(rename_all = "snake_case")]
+fn expression_maps_condition_remove(
+    app: AppHandle,
+    state: State<'_, ManagedExpressionMapLibraryContextState>,
+    expression_map_id: String,
+    rule_id: String,
+    condition_id: String,
+) -> Result<ExpressionMap, String> {
+    let (expression_map, library_state) = {
+        let mut library = state.lock().unwrap();
+        let expression_map = library.remove_condition(&expression_map_id, &rule_id, &condition_id)?;
+        let library_state = library.snapshot();
+        (expression_map, library_state)
+    };
+    emit_expression_map_updates(&app, &library_state)?;
+    Ok(expression_map)
+}
+
+#[tauri::command(rename_all = "snake_case")]
+fn expression_maps_action_add(
+    app: AppHandle,
+    state: State<'_, ManagedExpressionMapLibraryContextState>,
+    expression_map_id: String,
+    rule_id: String,
+    action_type: String,
+) -> Result<ExpressionMap, String> {
+    let (expression_map, library_state) = {
+        let mut library = state.lock().unwrap();
+        let expression_map = library.add_action(&expression_map_id, &rule_id, &action_type)?;
+        let library_state = library.snapshot();
+        (expression_map, library_state)
+    };
+    emit_expression_map_updates(&app, &library_state)?;
+    Ok(expression_map)
+}
+
+#[tauri::command(rename_all = "snake_case")]
+fn expression_maps_action_set_type(
+    app: AppHandle,
+    state: State<'_, ManagedExpressionMapLibraryContextState>,
+    expression_map_id: String,
+    rule_id: String,
+    action_id: String,
+    action_type: String,
+) -> Result<ExpressionMap, String> {
+    let (expression_map, library_state) = {
+        let mut library = state.lock().unwrap();
+        let expression_map = library.set_action_type(
+            &expression_map_id,
+            &rule_id,
+            &action_id,
+            &action_type,
+        )?;
+        let library_state = library.snapshot();
+        (expression_map, library_state)
+    };
+    emit_expression_map_updates(&app, &library_state)?;
+    Ok(expression_map)
+}
+
+#[tauri::command(rename_all = "snake_case")]
+fn expression_maps_action_update(
+    app: AppHandle,
+    state: State<'_, ManagedExpressionMapLibraryContextState>,
+    expression_map_id: String,
+    rule_id: String,
+    action: crate::playback::expression_maps::ExpressionMapAction,
+) -> Result<ExpressionMap, String> {
+    let (expression_map, library_state) = {
+        let mut library = state.lock().unwrap();
+        let expression_map = library.update_action(&expression_map_id, &rule_id, action)?;
+        let library_state = library.snapshot();
+        (expression_map, library_state)
+    };
+    emit_expression_map_updates(&app, &library_state)?;
+    Ok(expression_map)
+}
+
+#[tauri::command(rename_all = "snake_case")]
+fn expression_maps_action_remove(
+    app: AppHandle,
+    state: State<'_, ManagedExpressionMapLibraryContextState>,
+    expression_map_id: String,
+    rule_id: String,
+    action_id: String,
+) -> Result<ExpressionMap, String> {
+    let (expression_map, library_state) = {
+        let mut library = state.lock().unwrap();
+        let expression_map = library.remove_action(&expression_map_id, &rule_id, &action_id)?;
+        let library_state = library.snapshot();
+        (expression_map, library_state)
+    };
+    emit_expression_map_updates(&app, &library_state)?;
+    Ok(expression_map)
+}
+
+#[tauri::command(rename_all = "snake_case")]
+fn expression_maps_default_action_add(
+    app: AppHandle,
+    state: State<'_, ManagedExpressionMapLibraryContextState>,
+    expression_map_id: String,
+    action_type: String,
+) -> Result<ExpressionMap, String> {
+    let (expression_map, library_state) = {
+        let mut library = state.lock().unwrap();
+        let expression_map = library.add_default_action(&expression_map_id, &action_type)?;
+        let library_state = library.snapshot();
+        (expression_map, library_state)
+    };
+    emit_expression_map_updates(&app, &library_state)?;
+    Ok(expression_map)
+}
+
+#[tauri::command(rename_all = "snake_case")]
+fn expression_maps_default_action_set_type(
+    app: AppHandle,
+    state: State<'_, ManagedExpressionMapLibraryContextState>,
+    expression_map_id: String,
+    action_id: String,
+    action_type: String,
+) -> Result<ExpressionMap, String> {
+    let (expression_map, library_state) = {
+        let mut library = state.lock().unwrap();
+        let expression_map =
+            library.set_default_action_type(&expression_map_id, &action_id, &action_type)?;
+        let library_state = library.snapshot();
+        (expression_map, library_state)
+    };
+    emit_expression_map_updates(&app, &library_state)?;
+    Ok(expression_map)
+}
+
+#[tauri::command(rename_all = "snake_case")]
+fn expression_maps_default_action_update(
+    app: AppHandle,
+    state: State<'_, ManagedExpressionMapLibraryContextState>,
+    expression_map_id: String,
+    action: crate::playback::expression_maps::ExpressionMapAction,
+) -> Result<ExpressionMap, String> {
+    let (expression_map, library_state) = {
+        let mut library = state.lock().unwrap();
+        let expression_map = library.update_default_action(&expression_map_id, action)?;
+        let library_state = library.snapshot();
+        (expression_map, library_state)
+    };
+    emit_expression_map_updates(&app, &library_state)?;
+    Ok(expression_map)
+}
+
+#[tauri::command(rename_all = "snake_case")]
+fn expression_maps_default_action_remove(
+    app: AppHandle,
+    state: State<'_, ManagedExpressionMapLibraryContextState>,
+    expression_map_id: String,
+    action_id: String,
+) -> Result<ExpressionMap, String> {
+    let (expression_map, library_state) = {
+        let mut library = state.lock().unwrap();
+        let expression_map = library.remove_default_action(&expression_map_id, &action_id)?;
+        let library_state = library.snapshot();
+        (expression_map, library_state)
+    };
+    emit_expression_map_updates(&app, &library_state)?;
+    Ok(expression_map)
+}
+
+#[tauri::command(rename_all = "snake_case")]
+fn expression_maps_delete(
+    app: AppHandle,
+    state: State<'_, ManagedExpressionMapLibraryContextState>,
+    expression_map_id: String,
+) -> Result<(), String> {
+    let library_state = {
+        let mut library = state.lock().unwrap();
+        library.delete_expression_map(&expression_map_id)?;
+        library.snapshot()
+    };
+    emit_expression_map_updates(&app, &library_state)
+}
+
+#[tauri::command(rename_all = "snake_case")]
+fn expression_maps_import(
+    app: AppHandle,
+    state: State<'_, ManagedExpressionMapLibraryContextState>,
+    file_path: String,
+) -> Result<Vec<String>, String> {
+    let (imported_ids, library_state) = {
+        let mut library = state.lock().unwrap();
+        let imported_ids = library.import_expression_maps(std::path::Path::new(&file_path))?;
+        let library_state = library.snapshot();
+        (imported_ids, library_state)
+    };
+    emit_expression_map_updates(&app, &library_state)?;
+    Ok(imported_ids)
+}
+
+#[tauri::command(rename_all = "snake_case")]
+fn expression_maps_export(
+    state: State<'_, ManagedExpressionMapLibraryContextState>,
+    file_path: String,
+    expression_map_ids: Vec<String>,
+) -> Result<crate::playback::expression_maps::ExpressionMapExportPayload, String> {
+    state
+        .lock()
+        .unwrap()
+        .export_expression_maps(std::path::Path::new(&file_path), &expression_map_ids)
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -327,13 +936,12 @@ fn initialize(
     state: State<'_, AppContextState>,
     renderer_state: State<'_, RendererContextState>,
     audio_state: State<'_, AudioContextState>,
-    sampler_state: State<'_, SamplerContextState>,
+    expression_map_library_state: State<'_, ManagedExpressionMapLibraryContextState>,
+    plugin_inventory_state: State<'_, ManagedPluginInventoryContextState>,
     transport_shared: State<'_, TransportSharedState>,
 ) {
     let mut state = state.lock().unwrap();
     let mut renderer = renderer_state.lock().unwrap();
-    let audio = audio_state.lock().unwrap();
-    let sampler = sampler_state.lock().unwrap();
 
     sync_transport_to_app_state(transport_shared.inner(), &state, 0);
     state.emit_general_state(
@@ -341,8 +949,13 @@ fn initialize(
         &mut renderer,
         Some(FlowRenderRecalculationRequest::full_visible_flows()),
     );
-    audio.emit(&app);
-    sampler.emit(&app);
+
+    drop(state);
+    drop(renderer);
+
+    audio_state.lock().unwrap().emit(&app);
+    expression_map_library_state.lock().unwrap().emit(&app);
+    plugin_inventory_state.lock().unwrap().emit(&app);
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -350,7 +963,6 @@ fn reset(
     app: AppHandle,
     state: State<'_, AppContextState>,
     renderer_state: State<'_, RendererContextState>,
-    sampler_state: State<'_, SamplerContextState>,
     audio_state: State<'_, AudioContextState>,
     transport_state: State<'_, Mutex<TransportContext>>,
 ) -> Result<(), String> {
@@ -363,6 +975,7 @@ fn reset(
     state.score = Score::new();
     state.next_id = 1;
     state.current_file_path = None;
+    state.refresh_playback_activation_runtime_from_app(&app);
 
     sync_transport_to_app_state(&transport_shared, &state, 0);
 
@@ -374,47 +987,23 @@ fn reset(
         Some(FlowRenderRecalculationRequest::full_visible_flows()),
     );
 
-    // Drop state locks before sampler sync
-    drop(state);
-    drop(renderer);
-
-    // Sync sampler — new score has no instruments, so this unloads everything
-    let mut sampler = sampler_state.lock().unwrap();
-    let audio = audio_state.lock().unwrap();
-    let sample_rate = audio.get_sample_rate();
-    drop(audio);
-
-    if let Err(e) = sampler.sync_with_instruments(&[], sample_rate) {
-        eprintln!("Failed to sync sampler after reset: {}", e);
-    }
-    sampler.emit(&app);
-
     Ok(())
 }
 
-pub(crate) fn get_general_state_snapshot(state: State<'_, AppContextState>) -> AppStateGeneral {
-    get_general_state(state)
+pub(crate) fn get_general_state_snapshot(app: &AppHandle) -> AppStateGeneral {
+    get_general_state(app.clone(), app.state::<AppContextState>())
 }
 
 pub(crate) fn reset_app_state(
     app: AppHandle,
     state: State<'_, AppContextState>,
     renderer_state: State<'_, RendererContextState>,
-    sampler_state: State<'_, SamplerContextState>,
     audio_state: State<'_, AudioContextState>,
     transport_state: State<'_, Mutex<TransportContext>>,
 ) -> Result<(), String> {
-    reset(
-        app,
-        state,
-        renderer_state,
-        sampler_state,
-        audio_state,
-        transport_state,
-    )
+    reset(app, state, renderer_state, audio_state, transport_state)
 }
 
-#[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let mut builder = tauri::Builder::default();
 
@@ -431,7 +1020,8 @@ pub fn run() {
             app.manage(AppContext::new(app_handle));
             app.manage(RendererContext::new());
             app.manage(AudioContext::new());
-            app.manage(SamplerContext::new());
+            app.manage(ExpressionMapLibraryContext::new(app_handle));
+            app.manage(PluginInventoryContext::new(app_handle));
 
             let (transport_ctx, transport_shared) = TransportContext::new();
             app.manage(transport_ctx);
@@ -451,6 +1041,7 @@ pub fn run() {
                     version: Some(app.package_info().version.to_string()),
                     authors: Some(vec!["Aled Jones <aledjones.viola@gmail.com>".to_string()]),
                     copyright: Some("© 2025".to_string()),
+                    icon: Some(include_image!("./icons/32x32.png")),
                     ..Default::default()
                 }),
             )?;
@@ -465,6 +1056,20 @@ pub fn run() {
                 "Preferences...",
                 true,
                 Some("CmdOrCtrl+,"),
+            )?;
+            let plugin_manager = MenuItem::with_id(
+                app,
+                "plugin_manager",
+                "Plugin Manager...",
+                true,
+                None::<&str>,
+            )?;
+            let expression_map_manager = MenuItem::with_id(
+                app,
+                "expression_map_manager",
+                "Expression Maps Manager...",
+                true,
+                None::<&str>,
             )?;
 
             let app_menu = Submenu::with_items(
@@ -507,8 +1112,16 @@ pub fn run() {
                 &[&new, &open, &open_recent, &separator, &save, &save_as],
             )?;
 
-            // Create main menu with app menu first, then File menu
-            let menu = Menu::with_items(app, &[&app_menu, &file_menu])?;
+            let sequence_menu = Submenu::with_id_and_items(
+                app,
+                "sequence_menu",
+                "Sequence",
+                true,
+                &[&plugin_manager, &expression_map_manager],
+            )?;
+
+            // Create main menu with app menu first, then File and Sequence menus
+            let menu = Menu::with_items(app, &[&app_menu, &file_menu, &sequence_menu])?;
 
             // Set the menu
             app.set_menu(menu)?;
@@ -536,6 +1149,14 @@ pub fn run() {
                     "preferences" => {
                         // Trigger preferences window
                         let _ = app.emit("soloc://menu/preferences", ());
+                    }
+                    "plugin_manager" => {
+                        // Trigger plugin manager window
+                        let _ = app.emit("soloc://menu/plugin-manager", ());
+                    }
+                    "expression_map_manager" => {
+                        // Trigger expression map manager window
+                        let _ = app.emit("soloc://menu/expression-map-manager", ());
                     }
                     "clear_recent_files" => {
                         // Clear recent files
@@ -567,6 +1188,31 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             initialize,
             reset,
+            expression_maps_get_state,
+            expression_maps_create,
+            expression_maps_duplicate,
+            expression_maps_name_set,
+            expression_maps_creator_set,
+            expression_maps_version_set,
+            expression_maps_rule_add,
+            expression_maps_rule_name_set,
+            expression_maps_rule_move,
+            expression_maps_rule_remove,
+            expression_maps_condition_add,
+            expression_maps_condition_set_type,
+            expression_maps_condition_update,
+            expression_maps_condition_remove,
+            expression_maps_action_add,
+            expression_maps_action_set_type,
+            expression_maps_action_update,
+            expression_maps_action_remove,
+            expression_maps_default_action_add,
+            expression_maps_default_action_set_type,
+            expression_maps_default_action_update,
+            expression_maps_default_action_remove,
+            expression_maps_delete,
+            expression_maps_import,
+            expression_maps_export,
             save_project_to_file,
             load_project_from_file,
             get_current_file_path,
@@ -578,10 +1224,9 @@ pub fn run() {
             audio_device_set,
             audio_device_sample_rate_set,
             audio_devices_refresh,
-            sampler_load_plugin,
-            sampler_rescan_plugins,
-            sampler_sync_with_instruments,
-            sampler_audition,
+            plugin_inventory_discover,
+            plugin_editor_poc_open,
+            playback_audition_tone,
             transport_play,
             transport_pause,
             transport_seek,
@@ -642,11 +1287,17 @@ pub fn run() {
             score_instruments_get_all_definitions,
             score_instruments_move,
             score_instruments_remove,
-            score_instruments_assign_plugin,
+            score_instruments_assign_slot_route,
+            score_instruments_unassign_route,
+            score_instruments_set_expression_map,
             score_instruments_set_volume,
             score_instruments_set_pan,
             score_instruments_set_mute,
             score_instruments_set_solo,
+            score_playback_slots_create,
+            score_playback_slots_remove,
+            score_playback_slots_assign_plugin,
+            score_playback_slots_unassign_plugin,
             score_layouts_create,
             score_layouts_rename,
             score_layouts_assign_flow,

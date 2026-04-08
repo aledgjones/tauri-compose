@@ -1,12 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { AppBar } from "./app-bar";
-import { renderWithProviders, createAppState } from "../services/test-utils";
-
-// Mock Tauri window API
-const setTitle = vi.fn();
-vi.mock("@tauri-apps/api/window", () => ({
-  getCurrentWindow: () => ({ setTitle }),
-}));
+import {
+  renderWithProviders,
+  createAppState,
+  screen,
+} from "../services/test-utils";
 
 describe("AppBar", () => {
   beforeEach(() => {
@@ -18,26 +16,73 @@ describe("AppBar", () => {
     expect(
       container.querySelector("[data-tauri-drag-region]"),
     ).toBeInTheDocument();
+    expect(screen.getByTestId("app-bar-custom-title")).toHaveTextContent(
+      "Compose",
+    );
   });
 
-  it("calls setTitle with formatted title on mount", async () => {
+  it("keeps the title row transparent to pointer input so dragging works", () => {
+    const { container } = renderWithProviders(<AppBar title="Compose" />);
+
+    expect(container.firstElementChild?.firstElementChild).toHaveClass(
+      "pointer-events-none",
+      "select-none",
+    );
+  });
+
+  it("centers the title row", () => {
+    const { container } = renderWithProviders(<AppBar title="Compose" />);
+
+    expect(container.firstElementChild?.firstElementChild).toHaveClass(
+      "justify-center",
+    );
+  });
+
+  it("shows only the custom title when no file is open", () => {
     renderWithProviders(<AppBar title="Compose" />);
-    // Let the async effect run
-    await vi.runAllTimersAsync().catch(() => {});
-    expect(setTitle).toHaveBeenCalledWith(expect.stringContaining("Compose"));
+
+    expect(screen.getByTestId("app-bar-custom-title")).toHaveTextContent(
+      "Compose",
+    );
+    expect(screen.queryByTestId("app-bar-filename")).toBeNull();
   });
 
-  it("includes filename in title when current_file_path is set", async () => {
-    renderWithProviders(<AppBar title="Compose" />, {
+  it("includes filename when current_file_path is set", () => {
+    renderWithProviders(<AppBar title="Compose" showFilename />, {
       appState: createAppState({ current_file_path: "/home/user/song.sco" }),
     });
-    await vi.runAllTimersAsync().catch(() => {});
-    expect(setTitle).toHaveBeenCalledWith(expect.stringContaining("song.sco"));
+
+    expect(screen.getByTestId("app-bar-custom-title")).toHaveTextContent(
+      "Compose",
+    );
+    expect(screen.getByTestId("app-bar-filename")).toHaveTextContent(
+      "song.sco",
+    );
   });
 
-  it("uses 'Untitled' when current_file_path is null", async () => {
-    renderWithProviders(<AppBar title="Compose" />);
-    await vi.runAllTimersAsync().catch(() => {});
-    expect(setTitle).toHaveBeenCalledWith(expect.stringContaining("Untitled"));
+  it("renders an Untitled filename pill when current_file_path is null", () => {
+    renderWithProviders(<AppBar title="Compose" showFilename />);
+
+    expect(screen.getByTestId("app-bar-filename")).toHaveTextContent(
+      "Untitled",
+    );
+  });
+
+  it("does not render a filename in secondary windows even when a file is open", () => {
+    renderWithProviders(<AppBar title="Debugger" />, {
+      appState: createAppState({ current_file_path: "/home/user/song.sco" }),
+    });
+
+    expect(screen.queryByTestId("app-bar-filename")).toBeNull();
+  });
+
+  it("fades the custom title when the window is unfocused", () => {
+    renderWithProviders(<AppBar title="Compose" />, {
+      appState: createAppState({ is_window_focused: false }),
+    });
+
+    expect(screen.getByTestId("app-bar-custom-title").className).toContain(
+      "text-neutral-100/35",
+    );
   });
 });

@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { screen, fireEvent } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { screen, fireEvent, waitFor } from "@testing-library/react";
 import {
   renderWithProviders,
   createAppState,
@@ -18,13 +18,25 @@ vi.mock("../../../../../services/actions", () => ({
         removeArticulation: vi.fn(),
       },
     },
+    transport: {
+      auditionTone: vi.fn(),
+    },
   },
 }));
 
 import { actions } from "../../../../../services/actions";
 
 describe("LeftPanel", () => {
-  beforeEach(() => vi.clearAllMocks());
+  let consoleError: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    consoleError.mockRestore();
+  });
 
   it("renders all duration buttons", () => {
     renderWithProviders(<LeftPanel spanRow={false} />);
@@ -282,12 +294,71 @@ describe("LeftPanel", () => {
     expect(vi.mocked(actions.score.tone.setDuration)).toHaveBeenCalled();
   });
 
-  it("calls setAccidental when an accidental button is clicked with tone selected", () => {
+  it("calls setAccidental when an accidental button is clicked with tone selected", async () => {
     renderWithProviders(<LeftPanel spanRow={false} />, {
-      appState: makeStateWithTone(),
+      appState: {
+        ...makeStateWithTone(),
+        single_instrument_transport_ready: true,
+        resolved_playback_route_by_instrument_id: {
+          0: {
+            status: 1,
+            slot_id: 77,
+            slot_target: { plugin_id: "plugin-abc" },
+            effective_plugin_id: "plugin-abc",
+            target: null,
+            address: null,
+          },
+        },
+      },
     });
+    vi.mocked(actions.score.tone.setAccidental).mockResolvedValueOnce(61);
+
     fireEvent.click(screen.getByTitle("Sharp"));
+
     expect(vi.mocked(actions.score.tone.setAccidental)).toHaveBeenCalled();
+
+    await waitFor(() => {
+      expect(vi.mocked(actions.transport.auditionTone)).toHaveBeenCalledWith(
+        0,
+        61,
+      );
+    });
+  });
+
+  it("logs audition failures when accidental previews reject", async () => {
+    const error = new Error("audition failed");
+    vi.mocked(actions.score.tone.setAccidental).mockResolvedValueOnce(61);
+    vi.mocked(actions.transport.auditionTone).mockRejectedValueOnce(error);
+
+    renderWithProviders(<LeftPanel spanRow={false} />, {
+      appState: {
+        ...makeStateWithTone(),
+        single_instrument_transport_ready: true,
+        resolved_playback_route_by_instrument_id: {
+          0: {
+            status: 1,
+            slot_id: 77,
+            slot_target: { plugin_id: "plugin-abc" },
+            effective_plugin_id: "plugin-abc",
+            target: null,
+            address: null,
+          },
+        },
+      },
+    });
+
+    fireEvent.click(screen.getByTitle("Sharp"));
+
+    await waitFor(() => {
+      expect(vi.mocked(actions.score.tone.setAccidental)).toHaveBeenCalled();
+    });
+
+    await waitFor(() => {
+      expect(consoleError).toHaveBeenCalledWith(
+        "Failed to audition tone",
+        error,
+      );
+    });
   });
 
   it("calls setArticulation when an articulation button is clicked with tone selected", () => {

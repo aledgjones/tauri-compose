@@ -1,413 +1,499 @@
 ---
 stepsCompleted:
-  - step-01-init
-  - step-02-discovery
-  - step-02b-vision
-  - step-02c-executive-summary
-  - step-03-success
-  - step-04-journeys
-  - step-05-domain
-  - step-06-innovation
-  - step-07-project-type
-  - step-08-scoping
-  - step-09-functional
-  - step-10-nonfunctional
-  - step-11-polish
-  - step-12-complete
+  - "step-01-init.md"
+  - "step-02-discovery.md"
+  - "step-02b-vision.md"
+  - "step-02c-executive-summary.md"
+  - "step-03-success.md"
+  - "step-04-journeys.md"
+  - "step-05-domain.md"
+  - "step-06-innovation.md"
+  - "step-07-project-type.md"
+  - "step-08-scoping.md"
+  - "step-09-functional.md"
+  - "step-10-nonfunctional.md"
+  - "step-11-polish.md"
+  - "step-12-complete.md"
 inputDocuments:
-  - docs/index.md
-  - docs/project-context.md
-  - docs/architecture.md
-  - docs/project-overview.md
-  - docs/data-models.md
-  - docs/component-inventory.md
-  - docs/development-guide.md
-  - _bmad-output/implementation-artifacts/archive/2026-03-multi-flow-score/notation-edge-cases-written-durations.md
-  - _bmad-output/implementation-artifacts/archive/2026-03-multi-flow-score/tech-spec-compound-meter-written-duration-and-beaming-support.md
-workflowType: "prd"
-workflow: "create"
+  - "docs/project-context.md"
+  - "docs/architecture.md"
+  - "docs/development-guide.md"
+  - "docs/project-overview.md"
+  - "_bmad-output/implementation-artifacts/tech-spec-macos-native-plugin-editor-host-poc.md"
 documentCounts:
-  productBriefs: 0
-  research: 0
-  brainstorming: 0
-  projectDocs: 9
+  briefCount: 0
+  researchCount: 0
+  brainstormingCount: 0
+  projectDocsCount: 5
 classification:
-  projectType: desktop_app
-  domain: music_notation
-  complexity: high
-  projectContext: brownfield
-lastEdited: "2026-03-12"
-editHistory:
-  - date: "2026-03-12"
-    changes: "Created PRD for foundational tuplet support with triplet timing, rendering, editing, persistence, and migration requirements."
+  projectType: "desktop_app"
+  domain: "general"
+  complexity: "high"
+  projectContext: "brownfield"
+workflowType: "prd"
 ---
 
-# Product Requirements Document - Compose Foundational Tuplet Support
+# Product Requirements Document - compose
 
 **Author:** Aled
-**Date:** 2026-03-12
+**Date:** 2026-03-20
 
 ## Executive Summary
 
-Compose currently provides exact integer timing for standard note values and increasingly capable rule-driven notation, but it does not yet support tuplets. That gap is now structural rather than cosmetic. The current score model stores tone positions and durations on a fixed lattice of 32 ticks per quarter note, which is sufficient for binary subdivisions but cannot represent exact triplet timing without rounding. As a result, triplet authoring, rendering, playback, persistence, and editing cannot be added safely as a thin renderer feature. They require a deliberate brownfield notation initiative.
+Compose is a brownfield macOS desktop notation application evolving from an experimental SCVI-based playback path into a VST3-based audio engine. The goal of this initiative is to replace SCVI entirely and make realistic playback a native part of the score-writing workflow rather than a separate technical setup task. The product outcome is immediate, transport-stable, realistic audio feedback from written scores, with VST3 support treated as a first-class platform capability rather than a peripheral integration.
 
-This PRD defines a foundational tuplet project centered on **triplets first** while forcing the architecture to stop pretending tuplets are a purely visual concern. The goal is to let composers create, edit, render, save, reopen, and play back triplet notation accurately in Compose while establishing durable data structures and persistence rules that do not need to be replaced when broader tuplet families are added later.
+The primary users are score authors who want more realistic playback and faster creative feedback without leaving their notation environment. The deeper problem is not only weak playback realism, but the loss of compositional momentum when playback setup becomes engineering work. This initiative therefore combines three linked concerns into one product effort: robust VST3 support on macOS, a realtime-safe transport-driven playback engine, and a simpler score-first rack-and-routing model that brings instruments into the workflow with less friction.
 
-The product goal is not “draw a 3 above some notes.” The product goal is to make tuplets feel like real musical structure inside Compose's Rust-owned model: exact rhythmic timing, correct notation semantics, predictable editing behavior, reliable save/load round-tripping, and migration safety for an existing user base with `.soloc` files that were created before tuplet support existed.
+The MVP target is stable transport-driven playback through VST3 with coordinated play, pause, seek, and timing behavior. Discovery, rack-slot loading, routing, single-tone production, and editor hosting are important precursor milestones, but they exist in service of proving dependable transport playback. The engine must meet a high technical bar: no locks on the audio thread, strong isolation between rendering and audio execution, and jitter-free behavior under normal composition use. Because the product is unreleased, no backward compatibility or migration path from SCVI is required; SCVI should be removed rather than carried forward.
 
 ### What Makes This Special
 
-The important opportunity here is that Compose can add tuplets without collapsing into the common trap of separating playback timing, visible notation, and editing behavior into contradictory systems. Because the app already aims to derive notation from musical data rather than treating the score as hand-drawn graphics, foundational tuplet support can strengthen that philosophy if it is implemented cleanly.
+Compose’s differentiator is not merely that it supports VST3 plugins. It is that it aims to make industry-standard playback feel native inside a score-first composition tool with a simpler, more opinionated UX than workflows that force the user to think like an audio engineer. Users should not have to jump through hoops to bring VST instruments into their workflow just to hear a realistic mockup of their music.
 
-This initiative is also a discipline test for the brownfield architecture. Tuplets touch the timing grid, parser logic, beaming, spacing, hit targets, selection semantics, playback timing, persistence, and migrations. If Compose can absorb that change while preserving existing notation trust and desktop document reliability, it materially raises confidence in the product's long-term notation roadmap.
+The core product promise is immediate, realistic audio representation of written scores with minimal playback setup friction. That positions Compose against the common failure mode in notation playback tools: believable audio often exists only after cumbersome configuration, fragmented tooling, or a split notation-plus-DAW workflow. Compose should instead make preparing rack slots, routing instruments, hearing results, and iterating on orchestration feel direct and coherent.
+
+This initiative is also timely. SCVI proved useful as an experiment, but VST3 already solves the broader ecosystem and compatibility problem and is the industry standard. The product should therefore stop investing in a proprietary playback path and instead build a dependable VST3-hosted engine that can later expand toward richer capabilities such as expression maps and more flexible routing without losing its opinionated core UX.
 
 ## Project Classification
 
-- Project Type: Desktop application
-- Domain: Music notation and composition tooling
+- Project Type: Desktop app
+- Domain: General software, specifically creative audio and notation playback tooling
 - Complexity: High
-- Project Context: Brownfield existing system
+- Project Context: Brownfield
 
 ## Success Criteria
 
 ### User Success
 
-Composers can enter triplets in normal writing workflows without fighting the current binary timing model. They can see correct notation immediately, including appropriate tuplet numbers and brackets, edit individual members without unpredictable breakage, and trust that playback matches what they wrote.
+Users can trust playback as part of composition rather than treating it as a fragile preview mode. The product succeeds when three user outcomes all hold together: users can get from an empty score to meaningful playback quickly, users can change the music and hear the result with little friction, and users can rely on playback strongly enough to compose against it.
 
-Success is not merely that triplets can exist. Success is that triplets behave like ordinary first-class notation in Compose: selectable, editable, visually clear, and stable after save/reopen.
+The defining user-success moment is the ability to seek around a score and get stable, realistic playback without glitches. That is the clearest proof that the playback engine is not only producing sound, but behaving like a dependable musical tool. Users should be able to revise notation, re-audition, and navigate through the score without losing momentum or feeling they are entering a separate technical setup workflow.
+
+User-facing failure includes transport behavior that feels unreliable, even if the sound quality is high, and any workflow where realistic playback is available only through awkward or overly technical setup. Simpler UX is therefore part of the product outcome, not just a design preference.
 
 ### Business Success
 
-For this project, business success means product maturity and notation credibility. Tuplets are a threshold feature for serious score writing. Shipping a correct triplet foundation closes an obvious capability gap, improves trust with notation-sensitive users, and creates leverage for later rhythmic features such as broader tuplet ratios, nested tuplets, richer beaming logic, and interoperability work.
+This initiative is successful for the product if it moves playback from a foundational risk area to a credible release capability. In the near term, success means future playback features become incremental extensions instead of requiring more foundational rewrites. The work is worthwhile if it replaces SCVI with a clean-slate VST3-based foundation that no longer blocks the broader product direction.
 
-This project is also successful if it prevents a future rewrite. A good outcome is that Compose ends this initiative with an exact timing and persistence model that can extend beyond triplets without invalidating saved work or forcing a second data-model reset.
+Over the longer horizon, success means Compose has a credible release story as a serious composition tool. The playback engine should no longer feel experimental or provisional. Instead, it should support a believable claim that Compose can provide realistic, score-first playback on industry-standard technology and evolve further from that base.
 
 ### Technical Success
 
-The system must support exact triplet timing without lossy rounding and without introducing contradictory state between score data, notation derivation, playback timing, and persisted `.soloc` documents. Existing non-tuplet scores must continue to load and behave correctly.
+Technical success has three equally mandatory gates. First, the architecture must be safe on the realtime path: no locks on the audio thread, no rendering interference that causes audible glitches, and zero audio dropouts in defined transport regression scenarios. Second, transport behavior must be correct and trustworthy: play, pause, resume, and seek must behave consistently, preserve timing integrity, and avoid hangs, stuck notes, or unstable state transitions. Third, the VST3 host layer must be credible: discovery, loading, retained rack and route intent, playback, and editor integration must work in a best-effort but spec-aligned way for sensible, compliant plugins.
 
-Technical success also means preserving current architectural principles: Rust remains the source of truth, the renderer and parser consume backend-owned data, and migration handling remains explicit and versioned rather than hidden in ad hoc repair code.
+No single one of these gates can compensate for failure in the others. High realism without trustworthy transport is a failure. Technically correct transport with awkward or partial plugin integration is a failure. Broad plugin support with unsafe realtime behavior is a failure.
+
+The compatibility posture for MVP should be best-effort, grounded in sensible adherence to the VST3 specification rather than defensive accommodation of out-of-spec plugins. The host should be evaluated against representative real-world instrument plugins, including the user's existing library and specifically the BBC Spitfire libraries, while avoiding a blanket promise that every arbitrary plugin will work regardless of spec compliance.
 
 ### Measurable Outcomes
 
-- Composers can create and edit triplet groups in the write workflow and see correct notation without manual workaround patterns.
-- Triplet-authored scores round-trip through save and reopen without timing drift, missing metadata, or broken notation grouping.
-- Playback of triplet-authored material is rhythmically exact relative to the product's timing model, with no rounding artifacts introduced by UI or persistence layers.
-- Existing non-tuplet projects open without migration regressions or visible notation changes unrelated to this feature.
-- Parser, renderer, playback, persistence, and migration regression coverage exists for the supported triplet corpus.
-- The solution establishes data-model headroom for future non-triplet tuplets without requiring immediate delivery of those later ratios.
+The MVP should be evaluated against defined representative transport regression scenarios and representative instrument/plugin scenarios rather than anecdotal manual testing alone. Zero audio dropouts in those defined transport scenarios is non-negotiable. The measurable bar should include repeated play, pause, resume, and seek operations across representative scores and plugin routes without glitches, hangs, drift, or stuck playback state.
+
+Acceptance must be judged against explicit targets for:
+
+- representative score and instrument scenarios for transport regression testing
+- representative seek and playback-navigation scenarios
+- acceptable startup behavior with cached plugin discovery
+- acceptable manual full rescan behavior
+- route-to-first-audible-playback expectations
+- project reopen behavior with valid and missing plugins
+
+Exact numbers can be calibrated during architecture and validation planning, but MVP sign-off must use explicit targets rather than vague "feels fast" or "seems stable" claims.
 
 ## Product Scope
 
 ### MVP - Minimum Viable Product
 
-Deliver **foundational triplet support** across the Rust-owned score model, parser, renderer, editing flows, playback timing, persistence, and migrations. MVP must include exact timing representation, persisted triplet grouping semantics, triplet notation rendering, popover-based tuplet creation, sequencer-based note entry inside tuplets, correct round-trip save/load behavior, and safe migration planning for any persisted-data change required to make triplets exact.
-
-The MVP is intentionally triplet-first, but the underlying persisted model must not hard-code a dead-end “triplets only” shape if a more general tuplet representation is practical without major extra complexity.
-
-For MVP, tuplets are explicitly non-nestable. Tuplet creation, note entry, editing, parsing, rendering, playback, and validation only need to support single-level tuplets, and the implementation should enforce that boundary directly rather than relying on nested-capable structures plus repeated rejection logic.
+- Full replacement of SCVI with a macOS-only VST3 playback path
+- Clean-slate implementation direction with SCVI removed by MVP completion
+- Cache-first VST3 startup with bounded cached-entry validation, one cheap sweep for newly added uncached bundles, initial discovery when the cache is empty, plus manual full rescan
+- Rack-slot and routing workflow integrated into the main score workflow
+- Explicit support for single-target plugin workflows in the current MVP, with multi-target or channel-addressed routing deferred until after first-audible-playback is working
+- Explicit manual routing for score instruments, with unrouted fallback when no mapping exists
+- Stable slot-owned plugin instance loading and retained per-project rack and route intent, where a rack slot owns one real initialized VST instance at runtime, `.soloc` stores only the portable rehydration intent needed to rebuild that state on load today, and editor windows are transient surfaces on that running instance
+- Single-tone playback as an enabling milestone
+- Basic mixer behavior using a route-first UX, with route-level controls shown when VST3-exposed separability makes them real and slot-level semantics retained underneath where needed
+- Stable transport-driven playback with dependable play, pause, resume, and seek behavior
+- Bounded edit-during-playback behavior with explicit update rules for when score changes apply immediately versus at a safe defer point
+- Realtime-safe audio architecture with no locks on the audio thread
+- Best-effort VST3 support aligned with the specification for sensible plugin integration
+- Practical compatibility validation against the user's real VST instrument set, especially BBC Spitfire libraries
+- Foundational expression-map support by the end of MVP, designed to grow into a full system and linked to score data where that can be achieved without disproportionate scope
+- VST instruments playing back reliably by the end of MVP
 
 ### Growth Features (Post-MVP)
 
-Extend the same foundation to non-triplet tuplets such as quintuplets and septuplets, add nested tuplets where musically justified, support richer display overrides for bracket and number presentation, and broaden advanced tuplet authoring and manipulation workflows in the sequencer or other editing surfaces beyond the MVP triplet-entry path.
-
-Growth work can also expand notation intelligence around tuplet-rest conventions, beam exceptions, cross-bar tuplets, and import/export semantics such as MusicXML.
+- Broader plugin compatibility beyond the validated MVP baseline
+- More sophisticated instance-sharing, multi-target routing, and routing flexibility
+- Improved default mappings and routing ergonomics
+- Richer mixer capabilities beyond the current basic scope
+- Stronger diagnostics and recovery behavior around missing or problematic plugins
+- Deeper automation and articulation-aware playback behavior built on the foundational expression-map model
 
 ### Vision (Future)
 
-Compose should eventually treat tuplets as an ordinary part of musical structure rather than a special case. Users should be able to think in musical rhythm, with the product reliably encoding timing, notation, and playback across simple, compound, and irregular subdivisions. This triplet initiative is the first durable step toward that goal.
+- A full expression-map system with score-linked behavior and more automatic score-to-playback interpretation
+- More flexible routing without turning Compose into an open-ended DAW environment
+- Expanded playback intelligence while preserving a simpler score-first UX
+- Higher playback sophistication as an extension of the same foundation rather than another architecture reset
 
 ## User Journeys
 
-### Journey 1: Primary Composer - Entering a Triplet Naturally
+### Journey 1: Composer Gets From Empty Score To Trustworthy Playback
 
-A composer is writing in a simple meter and needs an eighth-note triplet in the middle of otherwise ordinary notation. They expect to create the tuplet through a focused popover and then enter the notes through the sequencer, not by calculating approximations or constructing tied fake rhythms. The journey succeeds when the composer can invoke triplet creation, enter the notes in the primary note-entry surface, and immediately see a coherent tuplet number and grouping that reads correctly in context.
+A composer starts a new score because they want immediate feedback on an idea, not a long playback setup session. They add instruments, route them explicitly when needed, and accept that some instruments may remain unrouted when no valid mapping exists yet. Their first expectation is not deep control. It is hearing something believable quickly enough that playback becomes part of the act of writing.
 
-This journey implies exact triplet timing, a popover affordance for tuplet creation, sequencer-native note entry inside the created tuplet span, and notation rendering that feels native to the existing score surface.
+As they route or confirm instruments, the product discovers available VST3 options through its cached registry and keeps the workflow inside the main score environment instead of forcing them into a technical side path. They enter a few bars of music, press play, and expect audible results that are realistic enough to judge pacing, texture, and orchestration choices. The critical delivery moment is not just hearing sound; it is hearing a believable mockup without having to think about plugin-hosting mechanics.
 
-### Journey 2: Primary Composer - Editing an Existing Triplet Without Breaking It
+The journey succeeds when the composer feels that playback is now part of the same creative loop as notation. The journey fails if the path from empty score to first useful playback is slow, confusing, or dependent on technical knowledge that most score authors do not want to exercise.
 
-The composer later adjusts pitch, duration, or position inside a triplet group. They may delete one member, replace it with a rest, shorten one note, or extend another up to a valid group boundary. They expect Compose to preserve the triplet's musical meaning when possible, surface invalid states clearly when not possible, and never silently turn the passage into approximate binary timing.
+Capabilities revealed by this journey:
 
-This journey implies group-aware editing rules, exact selection and hit targets for tuplet members and tuplet adornments, and predictable repair or dissolve rules when an edit invalidates a triplet group.
+- cache-first VST3 discovery, startup availability, and empty-cache fallback discovery
+- explicit manual routing with unrouted fallback
+- routing UX inside the main composition flow
+- fast path from score creation to first believable playback
+- realistic enough default playback to support composition decisions
 
-### Journey 3: Engraving-Sensitive User - Trusting the Displayed Notation
+### Journey 2: Composer Revises Music And Trusts Seek-Based Playback
 
-An expert user reviews the score and expects the triplet to look like real notation rather than placeholder annotation. They care about whether the number is shown when needed, whether brackets appear in the right contexts, whether beams and rests reflect the tuplet grouping, and whether ties and spacing remain readable.
+A composer is actively working inside an existing score and is making iterative musical changes. They alter orchestration, revise notes, move around the score, and repeatedly re-audition the result. Their need is not just playback realism; it is trust. They need to believe that what they hear after a seek, pause, or restart reflects the written score without transport weirdness or brittle state.
 
-This journey succeeds when triplets are legible and consistent with the product's Gould-driven notation standards, without introducing awkward spacing or contradictory grouping cues.
+They seek to a point in the score, press play, pause, edit a passage, and resume from another location. This happens repeatedly during real composition work. The emotional bar here is higher than in the first journey: the user is no longer evaluating whether Compose can produce sound, but whether Compose is dependable enough to compose against.
 
-### Journey 4: Desktop Document User - Saving and Reopening Tuplet Scores Safely
+That trust now includes bounded editing during playback. Users do not need every possible edit to propagate instantly, but they do need a clear and consistent rule for what updates immediately, what updates at the next safe playback boundary, and what requires a restart of the current pass. The workflow should stay musically legible rather than surprising.
 
-The user saves a project containing triplets, closes the app, and reopens the file later or on a newer build. They expect the tuplet passage to remain exact, visually identical in intent, and musically equivalent in playback. They should not need repair prompts for the normal migration path.
+The climax of this journey is stable, realistic playback after arbitrary navigation. If seek, play, and pause all behave correctly without glitches, stuck notes, or inconsistent state, the composer starts to trust the playback engine as part of their craft. If transport behavior feels unreliable, the product fails even if individual instrument sounds are impressive.
 
-This journey implies persisted tuplet-aware data, exact round-trip serialization, and versioned migrations if the existing timing or score schema changes.
+Capabilities revealed by this journey:
 
-### Journey 5: Maintainer - Evolving Rhythm Support Without Breaking Old Files
+- deterministic play, pause, resume, and seek behavior
+- bounded live-edit behavior with explicit immediate-versus-deferred update rules
+- stable transport state transitions
+- zero-dropout playback in representative transport scenarios
+- reliable project state after iterative edits
+- playback that remains composition-trustworthy rather than demo-only
 
-A maintainer implements triplet support in a codebase that already contains parser scenario tests, renderer logic, playback timing, and a concrete `.soloc` migration policy. They need a clear requirements contract for where timing truth lives, how old files are upgraded, and what regression corpus protects existing simple-meter behavior.
+### Journey 3: Composer Works Around Missing Or Incomplete Plugin Mapping Without Losing Momentum
 
-This journey succeeds when tuplets can be implemented incrementally with explicit migration rules, scenario tests, and documentation updates rather than hidden assumptions.
+A composer opens a score or creates an instrument and discovers that a preferred mapping is not available. A plugin may be missing, a default mapping may not exist, or a previously used instrument may now be unavailable. The user should not be punished with a broken project or an unrecoverable playback state.
 
-## Domain-Specific Requirements
+Instead, Compose leaves the instrument unrouted, makes that state clear, and allows the composer to continue working. They can choose a replacement plugin, continue with partial playback, or defer routing until later. The product should degrade gracefully rather than forcing immediate technical repair. The emotional goal is resilience: the user stays in control and keeps moving.
 
-### Notation Standards and Musical Correctness
+The journey succeeds when missing playback assets are handled as recoverable workflow conditions rather than session-breaking failures. It fails if the user feels trapped in repair work, cannot understand why playback is missing, or cannot recover without specialist knowledge.
 
-Tuplet behavior must be evaluated against established engraving practice, with Elaine Gould's _Behind Bars_ remaining the product's notation authority. The feature should not reduce tuplets to “arbitrary note groups with a label.” Tuplets affect grouping, beaming, rests, spacing, tie readability, and when bracket display is required for clarity.
+Capabilities revealed by this journey:
 
-Triplet support should therefore be treated as notation semantics, not mere display. The product must preserve the distinction between performed duration, written grouping, and visual adornment while keeping those layers coherent.
+- clear unrouted-instrument state
+- recoverable rerouting workflow
+- project reopen behavior that tolerates missing plugins
+- graceful degradation rather than broken-session playback
+- persistence model that separates score continuity from plugin availability
 
-### Brownfield Timing Constraints
+### Journey 4: Maintainer Validates The Playback Engine As Release-Credible Infrastructure
 
-The current timing system uses integer `Tick` and `Ticks` values with 32 ticks per quarter note. That model cannot encode exact quarter-note or eighth-note triplets without rounding. This is the central brownfield fact for the initiative.
+A maintainer or advanced internal user is not just composing; they are validating whether the playback system is good enough to ship. They rescan plugins, verify the cached registry, check that representative instrument libraries load, confirm playback on known-good plugins such as BBC Spitfire libraries, and run representative transport regression scenarios.
 
-The project must therefore introduce an exact triplet-capable timing approach. The requirement is outcome-focused rather than prescriptive: Compose may adopt a higher-resolution lattice, a rational-duration representation, or another exact backend-owned model, but it must eliminate triplet rounding and keep persisted score timing exact.
+Their concern is not musical delight first. It is whether the system is architecturally trustworthy: no locks on the audio thread, no rendering interference causing glitches, no regressions in play/pause/seek behavior, and no evidence that future playback features will require another foundational rewrite. They are effectively asking whether the product now has a credible playback platform instead of an experiment.
 
-### Data Model and Persistence Stakes
+The reset baseline for that verdict was intentionally narrow, and that gate is now satisfied. Maintainers proved one routed path through a slot-owned single-instrument VST instance is transport-ready, editor-host lifecycle-stable, durable across a `.soloc` save or reopen pass, independent of whether the native editor window is currently open, and rehydrated from portable saved intent rather than persisted live runtime state. Here, single-instrument means one playable instrument per VST instance, even if that instance exposes articulations or expressions; HALion-style multi-slot or multi-part instances remain out of scope. That gate unlocked Epic 4, but it is still explicitly not a claim about multi-instrument behavior or already-shipped audible playback.
 
-Current tone entries persist `tick` and `duration` only, with no tuplet grouping object in the score model. Foundational triplet support must define how a tuplet span is represented in persisted score data and how that representation relates to child tone entries, rests, parser derivation, rendering, and playback.
+The journey succeeds when the maintainer can validate sensible VST3 integration, stable transport behavior, and a clean enough architecture that future features such as expression maps feel incremental. It fails if playback appears to work only in narrow happy paths, if plugin support feels ad hoc, or if regressions suggest the architecture will collapse under future scope.
 
-The product direction is that tuplet spans behave like bounded containers that may own child tone entries rather than acting as a second overlapping note layer. Host ticks keep their ordinary global meaning before, inside, and after the tuplet span; tuplets must not imply tracks of different effective lengths. In practical terms, the persisted model must let track-to-notation split and tie boundary-crossing material the same way it already does around barlines, while keeping the underlying musical duration semantics literal.
+Capabilities revealed by this journey:
 
-The intended rule is straightforward even if the mechanics are subtle: each tone is persisted as exactly one event, that event is owned by where the tone starts, tuplets persist container context plus child content for tones that start inside them, and the draw/playback path introduces any boundary-aware split needed to read that music correctly.
+- manual full rescan
+- representative compatibility validation against real plugin sets
+- defined transport regression scenarios
+- clear architecture constraints around realtime safety
+- observability and validation criteria sufficient for release confidence
+- explicit manual proof for the single-instrument-VST-instance reset baseline that unlocked audible-playback implementation
 
-Implementation summary:
+### Journey Requirements Summary
 
-- Start position determines storage ownership.
-- Host-track tones may extend through a tuplet without becoming multiple stored tones.
-- Tuplet-owned tones may extend out of the tuplet without becoming multiple stored tones.
-- Derived notation and playback may still split those tones at the tuplet boundary to read correctly.
-- Literal tick counts keep their written-duration meaning on both sides of the boundary.
+These journeys reveal six core capability groups:
 
-This project must explicitly assess whether the new persisted structure should be triplet-specific or a more general tuplet container. The default should be to avoid a throwaway triplet-only schema if a modestly more general tuplet representation can be introduced without destabilizing the codebase.
+- playback onboarding through cached plugin discovery, explicit manual routing, and main-flow instrument routing
+- bounded live-edit trust through explicit update rules for score changes during active playback
+- transport trust through stable play, pause, resume, and seek behavior with zero-dropout representative regressions
+- resilience and recovery through unrouted fallback states, missing-plugin recovery, and stable reopen behavior
+- VST3 platform credibility through best-effort spec-aligned host behavior, validation against representative real-world libraries, and usable editor/lifecycle support
+- maintainable foundation through lock-free audio-thread execution, rendering isolation from audio, and an architecture that allows future playback features to remain incremental
 
-### Editing Semantics
+This journey set is strong enough to drive the later functional requirements, because it covers:
 
-Tuplet editing rules must be explicit. A triplet group should behave as one rhythmic container with individually editable members. When a user changes notes inside the group, the system must either preserve a valid tuplet state or resolve the invalidity in a predictable, documented way. Silent drift into approximate non-tuplet timing is unacceptable.
+- primary user success path
+- primary user trust and edge-case path
+- recovery and degraded-state path
+- maintainer / operations validation path
 
-For MVP, tuplets are non-nestable as a product rule. If an interaction would require creating or preserving a tuplet inside another tuplet, the product should reject or defer that path rather than invent nested behavior.
-
-Tuplet entry and editing must also be context-aware. When the user prepares a note inside a tuplet span, the system must apply the active tuplet multiplier the same way other contextual musical directives, such as tempo, affect downstream interpretation. Users should choose written values musically; Compose should handle the tuplet-aware mapping to exact backend timing.
-
-MVP must explicitly support tones that extend into or out of tuplet boundaries. That means boundary crossing is not a post-MVP refinement: the product must preserve one persisted tone event per tone, derive the visual or playback split at the tuplet edge, preserve the intended written values when structurally valid, and render or play the resulting continuity coherently.
-
-Written values remain literal under that rule: an eighth worth of ticks remains an eighth worth of notation even when the remainder is being drawn inside a tuplet.
-
-This also applies to direct sequencer manipulation. If a user drags a tone duration across a tuplet area, the gesture should remain continuous from the user's perspective while the product derives any needed host and tuplet fragments internally at draw or playback time. Ownership should change only if the tone's start position changes sides.
-
-Editing semantics must also cover rests, ties into and out of tuplets, slice behavior, selection behavior, and whether deletion removes one member, replaces it with rest space, or dissolves the group based on context.
-
-### Persistence and Migration Requirements
-
-This initiative must treat migration analysis as first-class product scope. If triplet support changes persisted score timing, score schema, `.soloc` payload semantics, or load/save behavior, a pending migration must be added in `src-tauri/src/migrations/next.rs` during implementation. Old projects must continue to load correctly.
-
-The migration plan must explicitly state whether existing documents are merely passed through unchanged, structurally upgraded to a new timing lattice, or normalized to a new tuplet-aware persisted shape on load.
-
-### Domain Risks and Mitigations
-
-The highest-risk failure mode is creating “visual triplets” with inexact timing. That would break trust across playback, editing, and persistence even if the score looks plausible. The mitigation is to require exact backend timing as a non-negotiable product requirement.
-
-Another risk is introducing a persisted shape that only works for triplets and must be replaced for future tuplets. The mitigation is to require future-aware schema review during architecture work, even though MVP delivery remains triplet-focused.
-
-A third risk is destabilizing existing notation behavior. The mitigation is scenario-based regression protection for non-tuplet notation and explicit migration tests for persisted data.
-
-## Innovation & Novel Patterns
-
-### Detected Innovation Areas
-
-The innovation opportunity is not that tuplets exist. It is that Compose can present tuplets as a coherent semantic feature across notation, playback, and editing instead of leaving users to reconcile conflicting models themselves.
-
-Compose can also differentiate itself by making tuplet editing understandable. In many notation tools, tuplets are possible but structurally opaque. A well-designed Compose implementation can make the tuplet container legible in both UI behavior and data model consequences.
-
-### Market and Product Positioning
-
-Tuplets are expected capability in serious notation software. Compose is not trying to make tuplets novel; it is trying to make them exact, trustworthy, and architecturally coherent in a native desktop environment. The value is therefore product credibility and future leverage, not novelty for its own sake.
-
-### Validation Approach
-
-Validation should focus on whether expert users can trust the feature. The core questions are whether triplets round-trip exactly, whether editing feels predictable, whether playback timing matches the written result, and whether the feature clearly raises the product's notation maturity.
-
-## Desktop Application Specific Requirements
+## Desktop App Specific Requirements
 
 ### Project-Type Overview
 
-Compose is a macOS-first native desktop application with offline-first document workflows. Tuplet support must integrate into that context: local files, native rendering, native playback, and deterministic save/reopen behavior remain core expectations.
+Compose is a macOS-first native desktop application with a Rust-owned backend and a React/Tauri UI shell. This initiative keeps that overall product type intact while replacing the playback subsystem with a VST3-based audio engine. The app remains a local, offline-capable score-writing tool rather than a cloud-dependent playback service or browser-hosted experience.
+
+The desktop nature of the product is not incidental. It is central to the solution because the product must integrate with local audio devices, locally installed VST3 plugins, native plugin editor windows, and realtime playback constraints that are not appropriately framed as web-first requirements.
 
 ### Technical Architecture Considerations
 
-The implementation must preserve the Rust-owned state model. Tuplet truth must live in backend-owned score and timing data, not in frontend-only reconstruction state. The renderer, UI, playback, and persistence layers must all consume the same tuplet-aware source of truth.
+The desktop architecture must preserve local control over plugin discovery, plugin loading, audio-device routing, and native transport execution. Playback and plugin hosting are backend-owned concerns, with the frontend acting as a control and visualization layer rather than the source of runtime truth. This is especially important because the audio engine must satisfy strict realtime requirements and cannot depend on UI-thread behavior for correctness.
 
-### System Integration
+The same separation should apply to expression maps. The architecture should treat expression-map behavior as a first-class, score-aware domain model so later work can deliver a full score-linked system without reworking the playback foundation. If MVP scope requires a narrower proving path, the initial authoring or control UX may remain constrained, the first audible proof may stay transport-only, and the underlying model should not be designed as a manual-only dead end. The current bounded proof is top-down first-match-wins resolution on the existing routed transport path for an articulation-plus-note-length case that can emit keyswitch selection, shorten performed note length, and otherwise fall back cleanly to the plugin-default routed path.
 
-Tuplet-enabled files must continue to participate in standard open/save workflows. Any persisted-data upgrade required for tuplets must be invisible to ordinary users except where version compatibility genuinely requires messaging.
+Because this is macOS-only in MVP, the implementation should prefer a clean platform-specific design over premature cross-platform abstraction. The PRD should explicitly allow macOS-native decisions where they simplify or harden the host/runtime path, while keeping later expansion possible if the product matures beyond the initial release target.
+
+The architecture must also preserve the app's offline-first desktop workflow. Users should be able to discover plugins, route instruments, open projects, and work with playback locally without requiring network services. Plugin inventory, project rack and route state, and playback behavior should remain local desktop concerns.
+
+### Platform Support
+
+The MVP targets macOS only. Windows and Linux support are out of scope for this PRD. The supported plugin format is VST3 only. AU support is intentionally excluded even though the product is macOS-first, because the immediate goal is reducing architectural scope and building a credible playback foundation on one plugin standard.
+
+This means platform-specific validation should focus on:
+
+- macOS-native audio-device behavior
+- macOS VST3 discovery paths and cache behavior
+- macOS-native editor hosting and lifecycle
+- representative validation against the user's real plugin library on macOS
+
+### System Integration Requirements
+
+The playback engine must integrate with:
+
+- local VST3 installation paths and cached plugin discovery
+- the existing audio device selection and settings flow
+- the main score workflow for instrument creation and routing
+- project persistence for rack, route, and playback state
+- native transport and mixer behavior within the app
+
+System integration should remain opinionated. The app should not initially expose arbitrary DAW-style routing or effects-chain complexity. The purpose of system integration is to make realistic playback easier to access from a score-first workflow, not to turn Compose into a general-purpose production host.
 
 ### Offline Capabilities
 
-Triplet authoring, editing, rendering, playback, save, and reopen must all work with no network dependency.
+The app must remain usable as an offline local desktop tool. Plugin discovery, cached registry use, project open/save, playback preparation, and score-to-playback routing must not depend on remote services. Missing plugins should degrade to unrouted states rather than breaking the project model or blocking score access.
+
+Offline-first behavior also means the app must own enough local state to reopen projects consistently, recover from missing plugins sensibly, and allow the user to continue composing even when some playback assets are unavailable.
+
+### Implementation Considerations
+
+The product-type-specific implementation burden is concentrated in native desktop seams:
+
+- native plugin discovery and caching
+- native plugin editor hosting
+- audio-device and transport coordination
+- local persistence and reopen behavior
+- safe separation of UI work from realtime playback execution
+
+For this project type, the key architectural risk is not browser compatibility or responsive design. It is whether a desktop-native plugin/audio stack can be integrated in a way that feels simple to users while remaining safe and stable at runtime. That desktop-specific requirement should stay explicit throughout the PRD.
 
 ## Project Scoping & Phased Development
 
 ### MVP Strategy & Philosophy
 
-**MVP Approach:** exact triplet foundation before broad tuplet breadth
+**MVP Approach:** Platform replacement with direct user value.
+This MVP is not a market-test stub and not a narrow technology proof. It is the minimum complete replacement of the playback foundation that allows Compose to become a credible score-first composition tool. The MVP must solve the core user problem, which is not merely producing audio, but making realistic playback trustworthy and simple enough to support active composition.
 
-This project should deliver the smallest feature set that still solves tuplets correctly end to end. That means exact triplet timing, persisted tuplet semantics, popover-based tuplet creation, sequencer-based note entry in the primary workflow, correct notation derivation, playback alignment, and migration safety. It explicitly does not mean rushing to every ratio before the timing and persistence model are sound.
+**Resource Requirements:**
+This work requires strong Rust systems/audio implementation, native desktop integration on macOS, VST3 host/runtime work, and enough product/UI attention to keep routing and playback flows simple. The critical skill mix is:
+
+- realtime/audio engine engineering
+- native plugin-host integration
+- Rust desktop/backend architecture
+- score/workflow UX refinement
+- regression validation with representative plugin libraries and transport scenarios
 
 ### MVP Feature Set (Phase 1)
 
 **Core User Journeys Supported:**
 
-- Primary composer entering a triplet naturally
-- Primary composer editing an existing triplet without breaking it
-- Engraving-sensitive user trusting the displayed notation
-- Desktop document user saving and reopening tuplet scores safely
-- Maintainer evolving rhythm support without breaking old files
+- composer gets from empty score to believable playback
+- composer changes music and trusts what they hear after play/pause/seek
+- composer can recover from missing/unmapped plugin situations without breaking score work
+- maintainer can validate the engine against real plugin libraries and transport regressions
 
 **Must-Have Capabilities:**
 
-- Exact backend timing representation for supported triplets
-- Persisted triplet grouping semantics in score data and `.soloc` round-trips
-- Triplet creation through a focused popover in the existing workflow
-- Sequencer-based note entry and editing inside supported triplet groups
-- Tuplet-aware parser, beaming, spacing, rests, ties, and rendering for supported triplet cases
-- Playback timing that matches triplet-authored score data exactly
-- Migration handling for any persisted-data or timing-lattice changes
-- Documentation and regression coverage for notation, persistence, and migration behavior
-
-**Explicitly Out of Scope for MVP:**
-
-- Arbitrary non-triplet ratios such as quintuplets and septuplets
-- Nested tuplets, including any authoring, editing, parsing, rendering, playback, or validation behavior that depends on nested tuplet support
-- MusicXML tuplets import/export
-- User-facing custom bracket/number engraving overrides beyond what is necessary for correct default notation
-- A brand-new repo-wide notation test framework when parser-local support remains sufficient
-- Reworking unrelated multi-voice or cross-flow architecture as part of this project
+- SCVI replacement path established and SCVI removed by MVP completion
+- macOS-only VST3 discovery with cache-first startup, bounded cached-entry validation plus a cheap uncached-bundle sweep, and empty-cache fallback discovery
+- manual full rescan
+- main-flow instrument routing
+- explicit support for single-target plugin workflows in the current MVP; multi-target or channel-addressed routing is deferred until after the manual playback path is proven
+- explicit manual routing with unrouted fallback when no suitable mapping exists
+- stable slot-owned plugin instance loading and retained rack and route state, rebuilt from portable saved intent rather than persisted live runtime state
+- single-tone production as an enabling milestone
+- stable transport-driven playback with dependable play, pause, resume, and seek
+- explicit edit-during-playback rules for supported score changes, including when updates apply immediately and when they defer to a safe playback boundary
+- zero-dropout transport regression performance in defined scenarios
+- no locks on the audio thread
+- rendering isolated from causing audio glitches
+- best-effort spec-aligned VST3 support for sensible plugins
+- validation against the user's real plugin set, especially BBC Spitfire libraries
+- basic mixer support through the existing UI/control surface
+- foundational expression-map capability by the end of MVP, with score-linked behavior where it fits MVP scope and proof-of-concept behavior where full linkage would add disproportionate scope
+- sufficient VST editor hosting to make the workflow practically usable, while not allowing host perfection work to displace transport and playback goals
 
 ### Post-MVP Features
 
 **Phase 2 (Post-MVP):**
 
-- Additional tuplet ratios beyond triplets
-- More advanced rest and beam exceptions within tuplets
-- Advanced sequencer-native tuplet authoring and manipulation beyond the MVP popover-plus-entry path
-- Display controls for ratio style, bracket visibility, and advanced engraving cases
+- broader VST3 compatibility coverage beyond validated MVP baseline
+- improved default mappings and routing ergonomics
+- more flexible instance-sharing and routing behavior
+- stronger diagnostics and recovery behavior for problematic plugins
+- richer mixer capabilities beyond the basic control model
+- more robust editor-host coverage across a wider plugin set
 
 **Phase 3 (Expansion):**
 
-- Nested tuplets
-- Import/export interoperability for tuplet semantics
-- Richer tuplets in compound and more irregular metric contexts
-- Tuplet-aware page-layout and print-polish refinements where needed
+- more advanced expression-map workflows
+- more automatic articulation/expression switching
+- deeper playback intelligence tied to score intent
+- broader routing flexibility without becoming DAW-like
+- richer automation capabilities that build naturally from expression/articulation work
 
 ### Risk Mitigation Strategy
 
-**Technical Risks:** The main technical risk is changing timing representation in a way that breaks save/load compatibility or creates mixed exact/inexact rhythm behavior. Mitigation requires explicit migration planning, exact timing requirements, and end-to-end regression coverage.
+**Technical Risks:**
+The highest risks are realtime safety, transport correctness, and practical VST3 host compatibility. Mitigation should center on:
 
-**Product Risks:** The main product risk is shipping triplets that technically exist but feel fragile or confusing to edit. Mitigation requires group-aware editing rules and a constrained MVP scope.
+- keeping the audio thread lock-free
+- defining explicit transport regression scenarios early
+- validating against representative real plugin libraries from the start
+- treating discovery, routing, single-note playback, transport playback, and expression switching as dependency-ordered milestones rather than parallel wish lists
 
-**Resource Risks:** If scope pressure appears, later tuplet ratios and advanced display overrides should be cut first. Exact triplet timing, persistence, migration, and reliable editing are the irreducible core.
+**Market Risks:**
+The biggest market risk is building a technically impressive playback stack that still feels too awkward to use. The MVP mitigates this by making simpler score-first UX a success condition rather than a secondary polish task.
+
+**Resource Risks:**
+The main resource risk is allowing compatibility breadth or host-surface completeness to expand faster than the foundation can support. The mitigation is to keep the MVP promise focused on:
+
+- trusted playback
+- best-effort spec-aligned integration
+- known-good representative plugin coverage
+- a foundational expression-map model that stays compatible with a fuller score-linked system before deeper automation breadth
 
 ## Functional Requirements
 
-Requirement identifiers in the Functional Requirements and Non-Functional Requirements sections were normalized on 2026-03-12 to support downstream traceability.
+### Playback Environment & Plugin Discovery
 
-### Timing Model and Tuplet Data Structures
+- FR1: Composers can use Compose with a VST3-based playback environment on macOS.
+- FR2: Composers can access a discovered inventory of available VST3 plugins from within Compose.
+- FR3: Composers can use a cached plugin inventory so previously discovered plugins remain available without a full probe on every launch, while empty-cache startup still performs initial discovery.
+- FR4: Composers can trigger a full plugin rescan when they need Compose to refresh the available VST3 inventory.
+- FR5: Compose can distinguish between discovered plugins that are currently usable and plugins that cannot currently be used.
+- FR6: Maintainers can validate plugin discovery and rescan behavior against representative installed plugin libraries.
 
-- FR1: Composers can create triplet-authored passages whose performed timing is stored exactly rather than approximated through binary tick rounding.
-- FR2: The product can represent supported triplet groups as first-class score data rather than as renderer-only annotations.
-- FR3: The product can associate triplet groups with their member notes and rests while preserving each member's existing flow, track, and selection ownership.
-- FR4: The product can persist enough tuplet metadata to round-trip triplet grouping, display intent, and exact rhythmic meaning across save and reopen.
-- FR5: The product can support a persisted triplet representation that does not require a second schema reset when broader tuplet ratios are added later, unless architecture review proves that a triplet-specific schema is materially safer.
+### Instrument Routing & Playback Setup
 
-### Authoring and Editing Behavior
+- FR7: Composers can route a playable VST-backed slot target to score instruments.
+- FR8: Compose can keep new score instruments on the explicit manual-routing path until the user assigns playback.
+- FR9: Compose can leave an instrument unrouted when no suitable playback mapping is available.
+- FR10: Composers can identify which score instruments are routed, unrouted, or no longer resolvable.
+- FR11: Composers can change the playback route for an instrument without restructuring the score.
+- FR12: Compose can support single-target VST instrument workflows in the current MVP while preserving a clean path for later multi-target or channel-addressed expansion.
 
-- FR6: Composers can create supported triplet groups from a focused tuplet popover in the existing workflow without manual approximation of timing values.
-- FR7: Composers can select and edit individual triplet members while the product preserves valid triplet grouping where musically possible.
-- FR8: Composers can edit pitch, duration, and position of notes inside a triplet without the product silently converting the passage into approximate non-tuplet timing.
-- FR9: Composers can insert rests within supported triplet groups and preserve correct triplet duration accounting.
-- FR10: Composers can delete or slice triplet members and receive predictable group-preservation, repair, or dissolve behavior according to documented editing rules.
-- FR11: The product can expose triplet-aware popover creation and sequencer note-entry affordances that fit the existing primary note-entry workflow, including predictable keyboard focus behavior across popover open and return to the sequencer, instead of introducing a disconnected rhythm-authoring mode.
-- FR12: The product can preserve the current authoritative `ui.flow_id` behavior while tuplets are edited in score and related workflow surfaces.
+### Plugin Lifecycle & Editing
 
-### Notation Semantics and Rendering
+- FR13: Composers can load routed VST3 rack slots into the playback environment.
+- FR14: Compose can maintain usable plugin instance lifecycle behavior across playback sessions within the app.
+- FR15: Composers can open and use plugin-provided editor interfaces for supported VST3 instruments.
+- FR16: Compose can preserve playback usability even when some plugin editor interactions are unavailable or limited.
+- FR17: Maintainers can validate plugin-host behavior against a representative known-good plugin set.
 
-- FR13: The product can derive written triplet notation from backend-owned rhythmic data without relying on frontend reconstruction.
-- FR14: The product can render triplet numbers and brackets where required for readability and can omit unnecessary bracket chrome where notation standards do not require it.
-- FR15: The product can beam supported triplet groups in ways that reinforce the tuplet grouping rather than contradict it.
-- FR16: The product can render supported triplet rests, ties, and chords with notation semantics consistent with the product's Gould-driven rules.
-- FR17: The product can handle triplets that begin or end adjacent to non-tuplet material without breaking surrounding spacing, hit targets, or selection behavior.
-- FR18: The product can keep triplet rendering legible within the existing native score surface, including number placement and collision avoidance sufficient for MVP correctness.
+### Score-To-Playback Mapping
 
-### Playback and Sequencing Integrity
+- FR18: Compose can translate written score instruments into playback-capable routes.
+- FR19: Composers can hear audible results from written score material without leaving the core score workflow.
+- FR20: Compose can support realistic playback through a defined expression-map model, with at least one resolved expression rule per played note and a path to richer score-linked behavior.
+- FR21: Compose can deliver an initial expression-map capability in MVP that links expression behavior to score data where feasible, or proves the concept through a constrained workflow where full linkage would add disproportionate scope.
+- FR22: Compose can expand expression-map behavior later into a fuller score-linked system without replacing the underlying playback foundation.
 
-- FR19: Composers can play back triplet-authored material and hear exact timing that matches the persisted rhythmic intent.
-- FR20: The product can resolve playback timing for tuplets from the same source-of-truth timing model used by notation and persistence.
-- FR21: Existing non-tuplet playback behavior remains correct after triplet support is introduced.
-- FR22: The product can preserve single-flow playback semantics for MVP even when tuplets exist in the active flow.
+### Transport Playback
 
-### Persistence, Load/Save, and Migration
+- FR23: Composers can start playback of their score through routed VST instruments.
+- FR24: Composers can pause and resume playback without losing trust in playback state.
+- FR25: Composers can seek to different score positions and hear playback continue from the selected location.
+- FR26: Compose can keep playback state coherent across repeated play, pause, resume, and seek actions.
+- FR27: Compose can support transport-driven playback that composers can use as part of iterative writing and revision.
+- FR28: Compose can represent playback failure states in ways that allow users to recover without abandoning score work.
 
-- FR23: macOS users can save and reopen projects containing triplets without loss of exact timing, grouping semantics, or visible notation intent.
-- FR24: The product can migrate older projects safely if exact triplet support requires a persisted timing-lattice or score-schema change.
-- FR25: The product can distinguish between files that require structural upgrade and files that can remain semantically unchanged under the new model.
-- FR26: The product can keep `.soloc` header versioning, `score.meta.app_version`, and migration registration consistent with the repo's release-flow rules when tuplets alter persisted behavior.
-- FR27: Maintainers can implement any required pending migration in `src-tauri/src/migrations/next.rs` before release preparation, rather than embedding migration logic ad hoc in unrelated load paths.
+### Mixer & Playback Control
 
-### Regression Safety and Documentation
+- FR29: Composers can control basic route-first playback mix settings within Compose.
+- FR30: Compose can apply basic playback control settings during score playback according to real VST3-exposed route capability.
+- FR31: Compose can retain a basic mixer model that keeps the user experience route-based while allowing slot-level semantics where the VST3 boundary requires them.
 
-- FR28: Maintainers can validate supported triplet behavior through explicit parser, renderer, playback, persistence, and migration regression coverage.
-- FR29: Maintainers can validate that existing non-tuplet notation behavior remains unchanged unless explicitly revised by a separate notation initiative.
-- FR30: The product can document supported triplet scope, editing semantics, persistence impact, and migration expectations in developer-facing docs.
-- FR31: The product can update AI-agent and developer instructions when this work establishes durable new project rules for timing representation, persistence, or notation testing.
+### Project Persistence & Recovery
 
-### Brownfield Architectural Boundaries
+- FR32: Compose can persist playback-relevant project state for reopening later in the same product model.
+- FR33: Compose can restore rack slots and instrument routes when reopening a project if the required plugins are available.
+- FR34: Compose can degrade missing or unavailable plugin routes to recoverable unrouted states when reopening a project.
+- FR35: Composers can continue working on a score even when some playback routes cannot be restored.
+- FR36: Compose can remove SCVI from the project's active playback path by MVP completion.
 
-- FR32: The product can introduce triplet support without moving score-owned rhythmic truth into frontend-only state.
-- FR33: The product can keep tuplets compatible with the current parser and renderer pipeline structure rather than requiring a parallel notation system.
-- FR34: The product can keep save/load, playback, and notation derivation behavior aligned under one exact timing model.
-- FR35: The product can preserve offline-first desktop behavior while tuplets are authored, rendered, saved, and reopened.
+### Validation & Release Readiness
+
+- FR37: Maintainers can evaluate Compose playback against representative transport regression scenarios.
+- FR38: Maintainers can evaluate Compose playback against representative real-world VST instrument libraries, including the user's existing library.
+- FR39: Compose can support a release-credible playback workflow for a known-good subset of sensible, spec-aligned VST3 plugins.
+- FR40: Maintainers can determine whether playback is trustworthy enough to support real composition work rather than demonstration-only playback.
+
+### Editing During Playback
+
+- FR41: Composers can continue editing and updating the score during playback without the workflow collapsing into a blocked or invalid state.
 
 ## Non-Functional Requirements
 
 ### Performance
 
-- NFR1: Triplet support must not materially regress normal non-tuplet score editing or unchanged-score rendering performance.
-- NFR2: In representative triplet editing scenarios, local score updates should remain fast enough to feel immediate in normal desktop use, with performance characterization added where the timing-model change materially affects parser or playback work.
-- NFR3: Any broader timing-resolution change introduced for triplets must remain operationally practical across current project sizes and must not impose disproportionate overhead on non-tuplet projects.
+Playback must satisfy realtime-safe execution constraints appropriate for a score-first composition product using VST3 instruments. The audio thread must not take locks, and the system must avoid audio dropouts in defined transport regression scenarios. This requirement is release-critical.
 
-### Reliability and Correctness
+Transport playback must remain stable under representative composition scenarios that include repeated play, pause, resume, and seek operations across routed VST targets. Performance targets should be validated against explicit test scenarios rather than subjective assessment.
 
-- NFR4: Supported triplet timing must be exact; the system must not depend on lossy rounding or hidden approximation.
-- NFR5: Non-tuplet projects must continue to load, save, and render correctly after tuplets ship.
-- NFR6: Tuplet save/load behavior must be deterministic and round-trip stable.
-- NFR7: Parser, rendering, playback, and persistence layers must not disagree about the rhythmic meaning of the same tuplet passage.
-- NFR8: Migration behavior must preserve score integrity and fail explicitly if an unsupported persisted state is encountered.
+Plugin discovery and routing workflows must be fast enough to preserve creative momentum. MVP acceptance must define explicit target thresholds for:
 
-### Maintainability
+- cached startup discovery behavior
+- manual full rescan duration
+- route-to-first-audible-playback latency
+- representative project reopen behavior
 
-- NFR9: The implementation must be structured so future non-triplet tuplets can extend the same timing and persisted-model foundation rather than bypass it.
-- NFR10: Regression coverage for tuplets must live close to the relevant parser, renderer, playback, and persistence modules rather than in a disconnected test harness that obscures ownership.
-- NFR11: Documentation of tuplets, persistence impact, and migration rules must be kept current with the shipped behavior.
+Rendering and other non-audio activity must not introduce audible playback instability. The system must isolate rendering and other UI-side work from causing glitches during transport playback.
 
-### Desktop Integration Quality
+### Reliability
 
-- NFR12: Core desktop document workflows for open, save, reopen, and recent-file behavior must remain intact for tuplet-authored files.
-- NFR13: Offline use must remain first-class; tuplets must introduce no network dependency into composition, playback, or file workflows.
+Compose must provide dependable transport behavior that users can trust during active composition. Repeated play, pause, resume, and seek actions must preserve coherent playback state and avoid hangs, stuck notes, corrupted session behavior, or degraded recovery paths.
 
-### Accessibility and UX Clarity
+Project reopen behavior must remain resilient. When required plugins are available, playback routes must restore correctly. When plugins are missing or unusable, the system must degrade to clear recoverable unrouted states rather than breaking the project or blocking score work.
 
-- NFR14: Tuplet authoring and editing affordances should remain consistent with the product's existing expert-focused UI model and should not require hidden mode knowledge to perform common triplet tasks. Tuplet popover and sequencer flows must remain keyboard-operable, return focus predictably after popover use, and communicate key target states without relying only on color.
-- NFR15: Hit targets, selection cues, and popover anchoring for triplet members and tuplet adornments must remain visually and behaviorally coherent in the native score surface.
+The playback environment must remain stable enough to support a release-credible known-good subset of spec-aligned VST3 plugins on macOS. Reliability is judged not only by whether playback can start, but whether it remains trustworthy through realistic composition workflows.
 
-## Architecture Constraints
+### Security
 
-These are implementation principles rather than measurable quality attributes. They provide context for architecture and implementation planning.
+The product must safely handle local plugin discovery, plugin loading, and project persistence without introducing unnecessary security exposure through this initiative. Security scope remains local-desktop focused because this work does not involve payments, multi-tenant services, or regulated personal data.
 
-- AC1: Exact tuplet timing must be owned by Rust and shared across notation derivation, playback, and persistence.
-- AC2: The implementation must not introduce a frontend-owned parallel tuplet state model.
-- AC3: If persisted score shape changes, migration work must be implemented in `src-tauri/src/migrations/next.rs` before any release preparation activity.
-- AC4: The project should prefer the smallest exact timing-model change that solves triplets correctly while preserving a viable path to broader tuplets.
-- AC5: Parser-local written-duration support and scenario coverage should stay near `get_written_durations.rs` and existing parser test-support utilities unless a clearly justified broader framework becomes necessary.
-- AC6: Tuplet rendering should extend the existing parse/draw pipeline rather than bypassing it with ad hoc overlay rendering.
-- AC7: Save/load semantics, `.soloc` schema expectations, and migration behavior must be documented whenever tuplets change persisted behavior.
-- AC8: Existing non-tuplet notation rules are protected product behavior and must not be casually rewritten as part of this initiative.
+The system must preserve the integrity of persisted playback-related project data across save, close, and reopen flows, validated through regression coverage for playback-state persistence and recovery. Plugin discovery and loading must operate within normal application permissions and only access local VST3 locations and user-opened project data required for playback.
+
+Security requirements for this initiative center on safe local execution boundaries and data integrity rather than enterprise compliance controls that are not relevant to the product scope.
+
+### Integration
+
+Compose must integrate reliably with:
+
+- local VST3 installation paths on macOS
+- cached plugin discovery and manual rescan flows
+- the existing audio-device selection and playback settings surfaces
+- the main score workflow for instrument creation and routing
+- project persistence and reopen behavior
+- native plugin editor hosting where required for usable playback workflows
+
+Integration quality should be judged against sensible adherence to the VST3 specification for compliant plugins rather than blanket accommodation of out-of-spec behavior. The system should be validated against the user's real plugin library, including BBC Spitfire libraries, as part of representative integration testing.
+
+### Measurement & Validation
+
+Non-functional requirements must be validated through explicit representative regression scenarios rather than vague statements of quality. At minimum, the PRD should require defined scenarios for:
+
+- transport regression behavior
+- plugin compatibility validation
+- project reopen and recovery behavior
+- cached discovery and full rescan behavior
+- representative score playback under realistic composition conditions

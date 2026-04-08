@@ -1,10 +1,10 @@
 // BEGIN GENERATED MIGRATIONS
+#[path = "next.rs"]
+mod next;
 #[path = "1.25.0.rs"]
 mod v1_25_0;
 #[path = "1.25.2.rs"]
 mod v1_25_2;
-#[path = "next.rs"]
-mod next;
 
 // BEGIN SUPPORT MODULES
 // Add non-version helper modules here. The release tool preserves this section.

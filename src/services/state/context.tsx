@@ -6,11 +6,12 @@ import {
   BottomPanelTab,
   BracketingApproach,
   BracketStyle,
+  ExpressionMapLibraryState,
   FontFamily,
   Justify,
   LayoutType,
   NoteDuration,
-  SamplerState,
+  PluginInventoryState,
   Tab,
   Tool,
   TransportState,
@@ -21,6 +22,12 @@ export const DEFAULT_TRANSPORT_TEMPO = 120;
 
 export const initialAppState: AppState = {
   current_file_path: null,
+  is_project_loading: false,
+  is_window_focused: true,
+  single_instrument_transport_ready: false,
+  resolved_playback_route_by_instrument_id: {},
+  resolved_expression_map_by_instrument_id: {},
+  route_target_options_by_slot_id: {},
   ui: {
     tab: Tab.Setup,
     layout_id: null,
@@ -59,6 +66,9 @@ export const initialAppState: AppState = {
     audition: true,
   },
   score: {
+    playback: {
+      rack: { order: [], by_id: {} },
+    },
     layouts: { order: [], by_id: {} },
     flows: { order: [], by_id: {} },
     players: { order: [], by_id: {} },
@@ -164,12 +174,22 @@ export const initialAudioState: AudioState = {
 
 export const AudioContext = createContext<AudioState | null>(null);
 
-export const initialSamplerState: SamplerState = {
-  plugins: [],
-  loaded_plugin_ids: [],
+export const initialPluginInventoryState: PluginInventoryState = {
+  entries: [],
+  errors: [],
+  last_discovered_at_ms: null,
 };
 
-export const SamplerContext = createContext<SamplerState | null>(null);
+export const PluginInventoryContext =
+  createContext<PluginInventoryState | null>(null);
+
+export const initialExpressionMapLibraryState: ExpressionMapLibraryState = {
+  order: [],
+  by_id: {},
+};
+
+export const ExpressionMapLibraryContext =
+  createContext<ExpressionMapLibraryState | null>(null);
 
 export const initialTransportState: TransportState = {
   playing: false,
@@ -199,11 +219,25 @@ export const useAudioState = () => {
   return context;
 };
 
-export const useSamplerState = () => {
-  const context = useContext(SamplerContext);
+export const usePluginInventoryState = () => {
+  const context = useContext(PluginInventoryContext);
 
   if (!context) {
-    throw new Error("useSamplerState must be used within an AppStateProvider");
+    throw new Error(
+      "usePluginInventoryState must be used within an AppStateProvider",
+    );
+  }
+
+  return context;
+};
+
+export const useExpressionMapLibraryState = () => {
+  const context = useContext(ExpressionMapLibraryContext);
+
+  if (!context) {
+    throw new Error(
+      "useExpressionMapLibraryState must be used within an AppStateProvider",
+    );
   }
 
   return context;

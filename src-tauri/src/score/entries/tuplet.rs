@@ -262,7 +262,12 @@ pub fn score_entries_tuplet_create(
         groupings,
     )?;
 
-    state.emit_affected_track(&app, &mut renderer, track_id);
+    state.emit_affected_track_after_playback_edit(
+        &app,
+        &mut renderer,
+        track_id,
+        crate::playback::transport::DeferredPlaybackRefreshKind::ScoreStructure,
+    );
 
     Ok(tuplet_id)
 }
@@ -288,7 +293,12 @@ pub fn score_entries_tuplet_remove(
     track.remove_tuplet(tuplet_id)?;
 
     state.ui.sequencer.selection = None;
-    state.emit_affected_track(&app, &mut renderer, track_id);
+    state.emit_affected_track_after_playback_edit(
+        &app,
+        &mut renderer,
+        track_id,
+        crate::playback::transport::DeferredPlaybackRefreshKind::ScoreStructure,
+    );
 
     Ok(())
 }

@@ -26,7 +26,6 @@ const buildState = () =>
             short_name: "Pno.",
             stave_ids: [100],
             count: null,
-            assigned_plugin_id: null,
             volume: 100,
             pan: 0,
             mute: false,
@@ -224,7 +223,6 @@ describe("useBottomPanelState", () => {
               short_name: "Pno.",
               stave_ids: [100],
               count: null,
-              assigned_plugin_id: null,
               volume: 100,
               pan: 0,
               mute: false,
@@ -267,7 +265,6 @@ describe("useBottomPanelState", () => {
               short_name: "Pno.",
               stave_ids: [999], // ← stave 999, not in flow staves
               count: null,
-              assigned_plugin_id: null,
               volume: 100,
               pan: 0,
               mute: false,

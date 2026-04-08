@@ -1,4 +1,4 @@
-import MdiIcon from "@mdi/react";
+import { Icon as MdiIcon } from "@mdi/react";
 import { mdiPlus, mdiMinus, mdiMagnify, mdiChevronDown } from "@mdi/js";
 import { useAppState } from "../../../services/state";
 import { actions } from "../../../services/actions";

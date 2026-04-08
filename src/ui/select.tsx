@@ -1,18 +1,21 @@
 import { mdiChevronDown } from "@mdi/js";
-import Icon from "@mdi/react";
+import { Icon as MdiIcon } from "@mdi/react";
 import classNames from "classnames";
-import { Key, useEffect, useRef, useState } from "react";
+import { Key, ReactNode, useEffect, useRef, useState } from "react";
 import { TokenizedText } from "./text";
 
 export type SelectOption<T> = {
   value: T;
   label: string;
+  disabled?: boolean;
+  endAdornment?: ReactNode;
 };
 
 type SelectProps<T> = {
   value: T | null;
   options: SelectOption<T>[];
   onChange: (value: T) => void;
+  ariaLabel?: string;
   direction?: "up" | "down";
   className?: string;
   variant: "standard" | "filled";
@@ -21,12 +24,16 @@ type SelectProps<T> = {
   disabled?: boolean;
   icon?: string;
   iconSize?: number;
+  endAdornment?: ReactNode;
+  buttonClassName?: string;
+  showChevron?: boolean;
 };
 
 export const Select = <T extends Key>({
   value,
   options,
   onChange,
+  ariaLabel,
   direction = "down",
   className,
   variant,
@@ -35,6 +42,9 @@ export const Select = <T extends Key>({
   disabled,
   icon,
   iconSize = 1,
+  endAdornment,
+  buttonClassName,
+  showChevron = true,
 }: SelectProps<T>) => {
   const [isOpen, setIsOpen] = useState(false);
   const selectRef = useRef<HTMLDivElement>(null);
@@ -55,7 +65,11 @@ export const Select = <T extends Key>({
     };
   }, []);
 
-  const handleOptionClick = (optionValue: T) => {
+  const handleOptionClick = (optionValue: T, optionDisabled?: boolean) => {
+    if (optionDisabled) {
+      return;
+    }
+
     onChange(optionValue);
     setIsOpen(false);
   };
@@ -77,23 +91,25 @@ export const Select = <T extends Key>({
         </label>
       )}
       <button
+        aria-label={ariaLabel}
         disabled={disabled}
         onClick={() => setIsOpen((prev) => !prev)}
         className={classNames(
-          "h-9 flex items-center w-full min-w-0 text-left text-white text-sm px-3 border-2",
+          "h-9 flex items-center w-full min-w-0 text-left text-white text-sm px-2 border-2",
+          buttonClassName,
           {
-            "bg-neutral-900 hover:bg-neutral-800 border-transparent":
-              !isOpen && isStandard,
-            "bg-neutral-800 border-transparent": isOpen && isStandard,
-            "bg-neutral-800 hover:bg-neutral-700 border-transparent":
-              !isOpen && !isStandard,
+            "bg-neutral-900 border-transparent": !isOpen && isStandard,
+            "bg-neutral-800 border-transparent":
+              (isOpen && isStandard) || (!isOpen && !isStandard),
             "bg-neutral-700 border-sky-500": isOpen && !isStandard,
+            "hover:bg-neutral-800": !disabled && !isOpen && isStandard,
+            "hover:bg-neutral-700": !disabled && !isOpen && !isStandard,
           },
         )}
       >
         {icon && (
           <div className="flex items-center pr-2 pointer-events-none">
-            <Icon path={icon} size={iconSize} className="text-neutral-300" />
+            <MdiIcon path={icon} size={iconSize} className="text-neutral-300" />
           </div>
         )}
         <span
@@ -109,16 +125,22 @@ export const Select = <T extends Key>({
           </span>
         </span>
 
-        <div className="flex items-center pointer-events-none pl-3">
-          <Icon
-            path={mdiChevronDown}
-            size={0.75}
-            className={classNames(
-              "text-neutral-300 transform transition-transform",
-              { "rotate-180": isOpen },
-            )}
-          />
-        </div>
+        {endAdornment ? (
+          <div className="ml-2 flex shrink-0 items-center">{endAdornment}</div>
+        ) : null}
+
+        {showChevron ? (
+          <div className="flex items-center pointer-events-none pl-3">
+            <MdiIcon
+              path={mdiChevronDown}
+              size={0.75}
+              className={classNames(
+                "text-neutral-300 transform transition-transform",
+                { "rotate-180": isOpen },
+              )}
+            />
+          </div>
+        ) : null}
       </button>
 
       {isOpen && (
@@ -137,18 +159,29 @@ export const Select = <T extends Key>({
             return (
               <li key={option.value}>
                 <button
-                  onClick={() => handleOptionClick(option.value)}
+                  disabled={option.disabled}
+                  onClick={() =>
+                    handleOptionClick(option.value, option.disabled)
+                  }
                   role="option"
                   aria-selected={option.value === value}
                   className={classNames(
-                    "w-full text-left px-3 py-2 cursor-pointer",
+                    "flex w-full items-center gap-2 px-3 py-2 text-left",
                     {
-                      "hover:bg-neutral-700": isStandard,
-                      "hover:bg-neutral-600": !isStandard,
+                      "cursor-pointer hover:bg-neutral-700":
+                        isStandard && !option.disabled,
+                      "cursor-pointer hover:bg-neutral-600":
+                        !isStandard && !option.disabled,
+                      "cursor-not-allowed text-neutral-500": option.disabled,
                     },
                   )}
                 >
-                  <TokenizedText>{option.label}</TokenizedText>
+                  <span className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap">
+                    <TokenizedText>{option.label}</TokenizedText>
+                  </span>
+                  {option.endAdornment ? (
+                    <span className="shrink-0">{option.endAdornment}</span>
+                  ) : null}
                 </button>
               </li>
             );

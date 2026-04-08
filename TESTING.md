@@ -15,6 +15,65 @@ This project uses [Vitest](https://vitest.dev) as the test runner for TypeScript
 | `npm run test:js:logs:watch` | Watch mode with verbose logs           |
 | `npm run test:rust`          | Run all Rust tests (from `src-tauri/`) |
 
+## MVP playback support baseline
+
+`docs/playback-support-baseline.md` is the canonical source for Epic 7 playback-support claims.
+
+Use it for:
+
+- the concrete known-good and blocked bundle subset
+- the distinction between `known-good`, `blocked/unsupported for the bounded seam`, and `discovered but unvalidated`
+- the exact Story 7.2 discovery and bounded-host scenarios
+- the exact Story 7.3 transport-trust scenarios
+
+Keep this testing guide focused on commands, harnesses, and local execution mechanics. Do not duplicate the baseline matrix here.
+
+## Single-instrument reset baseline
+
+Story 1.3 is the explicit release-style gate before Epic 4 audible-playback work can start, and Story 1.4 extends that gate with slot-owned live runtime sessions. Here, single-instrument means one playable instrument per VST instance, even if that instance exposes multiple articulations or expressions; HALion-style multi-slot or multi-part instances remain out of scope. Treat it as a narrow trust-restoration proof, not as evidence of multi-instrument playback or audible transport support.
+
+Story 1.6 extends that same gate with pre-editor restore behavior: when a slot target carries portable restorable plugin state, Compose must rebuild the slot-owned runtime session from that saved intent before any native editor window is opened. The project file may store the minimal portable component-state blob required to recover the intended running instrument, but it must never store live host/runtime objects or machine-local inventory state.
+
+Automated evidence required for the current baseline:
+
+- `cd src-tauri && cargo test runtime_activation -- --nocapture`
+- `cd src-tauri && cargo test plugin_editor_poc -- --nocapture`
+- `cd src-tauri && cargo test files::tests:: -- --nocapture`
+- `npm run check-types`
+- `npm run lint`
+
+Manual proof required before Epic 4 stories are unblocked:
+
+1. Prepare one routed score instrument against a supported single-instrument VST instance on the VST-only rack path.
+2. Open the app and confirm the route resolves as transport-ready through the existing score-context or maintainer-facing diagnostics surfaces before any native editor window is opened.
+3. Open the native editor from the routed rack slot, verify the host window and embedded editor stay in sync during resize behavior, close it, and reopen it in the same session without hangs while the slot remains transport-ready across the close/reopen cycle.
+4. If two rack slots point at the same bundle, confirm the slot-scoped open action targets the intended slot identity rather than reusing the other slot's editor target.
+5. Unassign or remove the routed slot and confirm the readiness state drops immediately instead of persisting until editor close.
+6. Save the score, reopen the `.soloc` file, and confirm portable route intent plus any saved restorable plugin state persist while runtime readiness is re-resolved from current machine-local inventory rather than from serialized live host state.
+7. Confirm reopen is still a hard reset boundary: playback is stopped after load, tick and tempo are republished from the reopened score truth, and no active transport playback or queued transport work resumes from the prior session.
+8. If the plugin supports transferable state and you changed the intended instrument or patch before saving, confirm the restored slot is already back on that intended running instrument before opening the native editor.
+
+Blocking rule:
+
+- Epic 4 audible-playback implementation stays blocked until both the automated checks above pass and the manual proof flow has been completed with a go verdict.
+
+## Native editor host validation subset
+
+Use Story 2.4's bounded macOS editor-host claim, not a universal compatibility assumption.
+
+For the concrete bundle subset, blocked list, evidence meanings, and pass/fail criteria, follow `docs/playback-support-baseline.md`.
+
+Recommended validation commands for host-seam changes:
+
+- `cd src-tauri && cargo test --lib plugin_editor_poc`
+- `cd src-tauri && cargo clippy --lib -- -D warnings`
+
+Recommended manual validation sequence for the bounded host seam:
+
+1. Run the concrete known-good and blocked bundle scenarios from `docs/playback-support-baseline.md`.
+2. Capture evidence through the owner seams named there, especially `editor_host_validation` and host lifecycle behavior.
+3. Treat any result outside that canonical matrix as `discovered but unvalidated`, not as part of the MVP support claim.
+
 ## Multi-flow performance characterization
 
 Use the existing Rust-owned debugger diagnostics as the primary evidence path for multi-flow performance work. Do not add ad hoc console logging or frontend-owned benchmark state when validating render scope.
@@ -130,7 +189,7 @@ vi.mocked(invoke).mockResolvedValueOnce({ bpm: 120 });
 
 ## Context-Aware Component Tests (renderWithProviders)
 
-Components that call `useAppState()`, `useAudioState()`, `useSamplerState()`, or `useTransportState()` need all four React contexts. Use `renderWithProviders` from `src/services/test-utils.tsx`:
+Components that call `useAppState()`, `useAudioState()`, `usePluginInventoryState()`, or `useTransportState()` need the shared app providers. Use `renderWithProviders` from `src/services/test-utils.tsx`:
 
 ```tsx
 import { renderWithProviders, createAppState } from '../../../services/test-utils';
@@ -194,6 +253,21 @@ it("calls play on click", async () => {
 ## Rust Tests
 
 Tests are co-located in `#[cfg(test)] mod tests {}` blocks at the bottom of each source file. Run them with `cargo test` from the `src-tauri/` directory.
+
+Playback ownership regressions should stay seam-local. When validating playback readiness or recovery, derive results through `PlaybackActivationRuntime::from_score_and_inventory(...)` and adjacent file/load seams rather than adding score-local duplicate readiness logic in tests.
+
+For bounded edit-during-playback changes, keep regressions close to the owning playback seams. Prefer `src-tauri/src/playback/transport.rs` for snapshot-boundary and active-pass coherence checks, `src-tauri/src/playback/runtime_activation.rs` or route-owning seams for stale-runtime truthfulness checks, and only extend frontend transport tests when the backend-owned pending-refresh message or transport semantics visibly change.
+
+Recommended validation commands for bounded live-edit changes:
+
+- `cargo test --manifest-path src-tauri/Cargo.toml transport_ --lib`
+- `cargo test --manifest-path src-tauri/Cargo.toml runtime_activation --lib`
+- `npm run test:js -- src/windows/main/components/transport.test.tsx`
+- `npm run lint`
+- `npm run check-types`
+- `cargo test --manifest-path src-tauri/Cargo.toml --lib`
+
+For the Story 1.3 reset baseline specifically, use `PlaybackActivationRuntime::single_instrument_trust_gate(...)` as the backend-owned trust seam. It is transport-readiness-only and should not be used to imply audible playback, multi-instrument support, or broader plugin-host compatibility than the currently supported single-instrument subset.
 
 ```rust
 // src-tauri/src/renderer/converter.rs

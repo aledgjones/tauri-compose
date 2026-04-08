@@ -1,3 +1,4 @@
+use crate::score::components::articulation::Articulations;
 use crate::score::components::duration::{Tick, Ticks};
 use crate::score::entries::tone::Tone;
 use crate::score::entries::tuplet::{Tuplet, TupletEntry};
@@ -29,14 +30,6 @@ impl PlaybackTick {
 
     pub fn floor(&self) -> Tick {
         self.numerator / self.denominator
-    }
-
-    pub fn to_f64(&self) -> f64 {
-        self.numerator as f64 / self.denominator as f64
-    }
-
-    pub fn fractional_within_tick(&self) -> Self {
-        Self::new(self.numerator % self.denominator, self.denominator)
     }
 
     fn add(&self, other: &Self) -> Self {
@@ -78,6 +71,8 @@ pub struct PlaybackToneEvent {
     pub duration: PlaybackTick,
     pub pitch: u8,
     pub velocity: u8,
+    pub articulations: Articulations,
+    pub written_duration_ticks: Ticks,
 }
 
 #[derive(Clone, Copy)]
@@ -155,6 +150,8 @@ fn push_tone_event(
             duration,
             pitch: tone.pitch.int,
             velocity: tone.velocity.int(),
+            articulations: tone.articulations.clone(),
+            written_duration_ticks: tone.duration,
         });
     }
 }
@@ -283,6 +280,22 @@ mod tests {
         }))
     }
 
+    fn expected_event(
+        start: PlaybackTick,
+        duration: PlaybackTick,
+        pitch: u8,
+        written_duration_ticks: Ticks,
+    ) -> PlaybackToneEvent {
+        PlaybackToneEvent {
+            start,
+            duration,
+            pitch,
+            velocity: 96,
+            articulations: Articulations::new(),
+            written_duration_ticks,
+        }
+    }
+
     #[test]
     fn projects_triplet_child_onsets_and_durations_exactly_into_host_time() {
         let mut track = Track::new(1);
@@ -296,24 +309,14 @@ mod tests {
         assert_eq!(
             events,
             vec![
-                PlaybackToneEvent {
-                    start: PlaybackTick::from_tick(96),
-                    duration: PlaybackTick::new(32, 3),
-                    pitch: 60,
-                    velocity: 96,
-                },
-                PlaybackToneEvent {
-                    start: PlaybackTick::new(320, 3),
-                    duration: PlaybackTick::new(32, 3),
-                    pitch: 62,
-                    velocity: 96,
-                },
-                PlaybackToneEvent {
-                    start: PlaybackTick::new(352, 3),
-                    duration: PlaybackTick::new(32, 3),
-                    pitch: 64,
-                    velocity: 96,
-                },
+                expected_event(
+                    PlaybackTick::from_tick(96),
+                    PlaybackTick::new(32, 3),
+                    60,
+                    16
+                ),
+                expected_event(PlaybackTick::new(320, 3), PlaybackTick::new(32, 3), 62, 16),
+                expected_event(PlaybackTick::new(352, 3), PlaybackTick::new(32, 3), 64, 16),
             ]
         );
     }
@@ -328,18 +331,13 @@ mod tests {
         assert_eq!(
             events,
             vec![
-                PlaybackToneEvent {
-                    start: PlaybackTick::from_tick(96),
-                    duration: PlaybackTick::new(32, 3),
-                    pitch: 60,
-                    velocity: 96,
-                },
-                PlaybackToneEvent {
-                    start: PlaybackTick::new(352, 3),
-                    duration: PlaybackTick::new(32, 3),
-                    pitch: 64,
-                    velocity: 96,
-                },
+                expected_event(
+                    PlaybackTick::from_tick(96),
+                    PlaybackTick::new(32, 3),
+                    60,
+                    16
+                ),
+                expected_event(PlaybackTick::new(352, 3), PlaybackTick::new(32, 3), 64, 16),
             ]
         );
     }
@@ -354,12 +352,12 @@ mod tests {
 
         assert_eq!(
             events,
-            vec![PlaybackToneEvent {
-                start: PlaybackTick::from_tick(80),
-                duration: PlaybackTick::from_tick(48),
-                pitch: 60,
-                velocity: 96,
-            },]
+            vec![expected_event(
+                PlaybackTick::from_tick(80),
+                PlaybackTick::from_tick(48),
+                60,
+                64,
+            ),]
         );
     }
 
@@ -372,12 +370,12 @@ mod tests {
 
         assert_eq!(
             events,
-            vec![PlaybackToneEvent {
-                start: PlaybackTick::new(352, 3),
-                duration: PlaybackTick::new(80, 3),
-                pitch: 60,
-                velocity: 96,
-            },]
+            vec![expected_event(
+                PlaybackTick::new(352, 3),
+                PlaybackTick::new(80, 3),
+                60,
+                32,
+            ),]
         );
     }
 
@@ -419,18 +417,18 @@ mod tests {
         assert_eq!(
             events,
             vec![
-                PlaybackToneEvent {
-                    start: PlaybackTick::from_tick(32),
-                    duration: PlaybackTick::from_tick(16),
-                    pitch: 60,
-                    velocity: 96,
-                },
-                PlaybackToneEvent {
-                    start: PlaybackTick::from_tick(48),
-                    duration: PlaybackTick::from_tick(32),
-                    pitch: 64,
-                    velocity: 96,
-                },
+                expected_event(
+                    PlaybackTick::from_tick(32),
+                    PlaybackTick::from_tick(16),
+                    60,
+                    16
+                ),
+                expected_event(
+                    PlaybackTick::from_tick(48),
+                    PlaybackTick::from_tick(32),
+                    64,
+                    32
+                ),
             ]
         );
     }
@@ -447,24 +445,24 @@ mod tests {
         assert_eq!(
             events,
             vec![
-                PlaybackToneEvent {
-                    start: PlaybackTick::from_tick(32),
-                    duration: PlaybackTick::from_tick(16),
-                    pitch: 60,
-                    velocity: 96,
-                },
-                PlaybackToneEvent {
-                    start: PlaybackTick::from_tick(80),
-                    duration: PlaybackTick::from_tick(24),
-                    pitch: 64,
-                    velocity: 96,
-                },
-                PlaybackToneEvent {
-                    start: PlaybackTick::from_tick(111),
-                    duration: PlaybackTick::from_tick(16),
-                    pitch: 67,
-                    velocity: 96,
-                },
+                expected_event(
+                    PlaybackTick::from_tick(32),
+                    PlaybackTick::from_tick(16),
+                    60,
+                    16
+                ),
+                expected_event(
+                    PlaybackTick::from_tick(80),
+                    PlaybackTick::from_tick(24),
+                    64,
+                    24
+                ),
+                expected_event(
+                    PlaybackTick::from_tick(111),
+                    PlaybackTick::from_tick(16),
+                    67,
+                    16
+                ),
             ]
         );
 

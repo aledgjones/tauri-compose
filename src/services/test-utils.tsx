@@ -4,14 +4,22 @@ import userEvent from "@testing-library/user-event";
 import {
   AppContext,
   AudioContext,
-  SamplerContext,
+  ExpressionMapLibraryContext,
+  PluginInventoryContext,
   TransportContext,
   initialAppState,
   initialAudioState,
-  initialSamplerState,
+  initialExpressionMapLibraryState,
+  initialPluginInventoryState,
   initialTransportState,
 } from "./state/context";
-import { AppState, AudioState, SamplerState, TransportState } from "./types";
+import {
+  AppState,
+  AudioState,
+  ExpressionMapLibraryState,
+  PluginInventoryState,
+  TransportState,
+} from "./types";
 
 export { screen, within, waitFor, userEvent };
 
@@ -59,7 +67,8 @@ export function createAppState(overrides?: Partial<AppState>): AppState {
 export type RenderOptions = {
   appState?: Partial<AppState>;
   audioState?: Partial<AudioState>;
-  samplerState?: Partial<SamplerState>;
+  expressionMapLibraryState?: Partial<ExpressionMapLibraryState>;
+  pluginInventoryState?: Partial<PluginInventoryState>;
   transportState?: Partial<TransportState>;
 };
 
@@ -75,9 +84,19 @@ export function renderWithProviders(
     ? { ...structuredClone(initialAudioState), ...options.audioState }
     : structuredClone(initialAudioState);
 
-  const samplerState = options?.samplerState
-    ? { ...structuredClone(initialSamplerState), ...options.samplerState }
-    : structuredClone(initialSamplerState);
+  const pluginInventoryState = options?.pluginInventoryState
+    ? {
+        ...structuredClone(initialPluginInventoryState),
+        ...options.pluginInventoryState,
+      }
+    : structuredClone(initialPluginInventoryState);
+
+  const expressionMapLibraryState = options?.expressionMapLibraryState
+    ? {
+        ...structuredClone(initialExpressionMapLibraryState),
+        ...options.expressionMapLibraryState,
+      }
+    : structuredClone(initialExpressionMapLibraryState);
 
   const transportState = options?.transportState
     ? { ...structuredClone(initialTransportState), ...options.transportState }
@@ -87,11 +106,15 @@ export function renderWithProviders(
     return (
       <AppContext.Provider value={appState}>
         <AudioContext.Provider value={audioState}>
-          <SamplerContext.Provider value={samplerState}>
-            <TransportContext.Provider value={transportState}>
-              {children}
-            </TransportContext.Provider>
-          </SamplerContext.Provider>
+          <PluginInventoryContext.Provider value={pluginInventoryState}>
+            <ExpressionMapLibraryContext.Provider
+              value={expressionMapLibraryState}
+            >
+              <TransportContext.Provider value={transportState}>
+                {children}
+              </TransportContext.Provider>
+            </ExpressionMapLibraryContext.Provider>
+          </PluginInventoryContext.Provider>
         </AudioContext.Provider>
       </AppContext.Provider>
     );
@@ -114,9 +137,19 @@ export function createWrapper(
     ? { ...structuredClone(initialAudioState), ...options.audioState }
     : structuredClone(initialAudioState);
 
-  const samplerState = options?.samplerState
-    ? { ...structuredClone(initialSamplerState), ...options.samplerState }
-    : structuredClone(initialSamplerState);
+  const pluginInventoryState = options?.pluginInventoryState
+    ? {
+        ...structuredClone(initialPluginInventoryState),
+        ...options.pluginInventoryState,
+      }
+    : structuredClone(initialPluginInventoryState);
+
+  const expressionMapLibraryState = options?.expressionMapLibraryState
+    ? {
+        ...structuredClone(initialExpressionMapLibraryState),
+        ...options.expressionMapLibraryState,
+      }
+    : structuredClone(initialExpressionMapLibraryState);
 
   const transportState = options?.transportState
     ? { ...structuredClone(initialTransportState), ...options.transportState }
@@ -126,11 +159,15 @@ export function createWrapper(
     return (
       <AppContext.Provider value={appState}>
         <AudioContext.Provider value={audioState}>
-          <SamplerContext.Provider value={samplerState}>
-            <TransportContext.Provider value={transportState}>
-              {children}
-            </TransportContext.Provider>
-          </SamplerContext.Provider>
+          <PluginInventoryContext.Provider value={pluginInventoryState}>
+            <ExpressionMapLibraryContext.Provider
+              value={expressionMapLibraryState}
+            >
+              <TransportContext.Provider value={transportState}>
+                {children}
+              </TransportContext.Provider>
+            </ExpressionMapLibraryContext.Provider>
+          </PluginInventoryContext.Provider>
         </AudioContext.Provider>
       </AppContext.Provider>
     );

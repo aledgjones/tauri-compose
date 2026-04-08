@@ -303,7 +303,6 @@ describe("Sequencer", () => {
               short_name: "Pno.",
               stave_ids: [20],
               count: null,
-              assigned_plugin_id: null,
               volume: 0,
               pan: 0,
               mute: false,

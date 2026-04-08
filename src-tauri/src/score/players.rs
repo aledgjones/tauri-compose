@@ -1,10 +1,7 @@
 use super::layouts::LayoutType;
 use crate::instructions::FlowRenderRecalculationRequest;
-use crate::playback::sampler::sync_sampler_with_score;
 use crate::utils::UniqueId;
-use crate::{
-    AppContext, AppContextState, AudioContextState, RendererContextState, SamplerContextState,
-};
+use crate::{AppContext, AppContextState, RendererContextState};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
@@ -153,8 +150,6 @@ pub fn score_players_unassign_instrument(
     app: tauri::AppHandle,
     state: State<'_, AppContextState>,
     renderer_state: State<'_, RendererContextState>,
-    sampler_state: State<'_, SamplerContextState>,
-    audio_state: State<'_, AudioContextState>,
     player_id: UniqueId,
     instrument_id: UniqueId,
 ) {
@@ -172,14 +167,7 @@ pub fn score_players_unassign_instrument(
     }
 
     state.score.update_counts();
-
-    sync_sampler_with_score(
-        &app,
-        &state.score,
-        sampler_state.inner(),
-        audio_state.inner(),
-        "after player instrument unassignment",
-    );
+    state.refresh_playback_activation_runtime_from_app(&app);
 
     state.emit_general_state(
         &app,
@@ -193,8 +181,6 @@ pub fn score_players_remove(
     app: tauri::AppHandle,
     state: State<'_, AppContextState>,
     renderer_state: State<'_, RendererContextState>,
-    sampler_state: State<'_, SamplerContextState>,
-    audio_state: State<'_, AudioContextState>,
     player_id: UniqueId,
 ) {
     let mut state = state.lock().unwrap();
@@ -231,14 +217,7 @@ pub fn score_players_remove(
     }
 
     state.score.update_counts();
-
-    sync_sampler_with_score(
-        &app,
-        &state.score,
-        sampler_state.inner(),
-        audio_state.inner(),
-        "after player removal",
-    );
+    state.refresh_playback_activation_runtime_from_app(&app);
 
     state.emit_general_state(
         &app,
@@ -250,6 +229,7 @@ pub fn score_players_remove(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::playback::runtime_activation::PlaybackActivationRuntime;
     use crate::preferences::Preferences;
     use crate::score::flows::{Flow, Flows};
     use crate::score::layouts::{Layout, LayoutType, Layouts};
@@ -287,6 +267,8 @@ mod tests {
         AppContext {
             ui: Ui::new(),
             score,
+            playback_activation_runtime: PlaybackActivationRuntime::default(),
+            pending_playback_refresh: None,
             preferences: serde_json::from_str::<Preferences>(r#"{"audition":true}"#).unwrap(),
             next_id: 1,
             current_file_path: None,

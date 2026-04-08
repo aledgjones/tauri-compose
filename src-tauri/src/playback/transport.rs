@@ -1,13 +1,23 @@
-use crate::playback::mixer::MixerHandle;
-use crate::playback::sampler::{Cache, CacheArticulation};
-use crate::playback::streamer::{self, StreamBuffer, StreamRequest};
+use crate::playback::engine::{
+    clear_transport_playback, queue_transport_note, set_slot_mix, set_transport_render_targets,
+    transport_playback_has_pending_work,
+};
+use crate::playback::expression_maps::{
+    resolve_expression_map_playback, ExpressionMapAction, ExpressionMapLibraryState,
+    ExpressionMapPlaybackContext,
+};
+use crate::playback::preparation::{
+    effective_playback_mix_for_instrument, prepare_supported_playback_with_expression_maps,
+    PlaybackPreparation,
+};
 use crate::playback::tuplet_projection::{collect_track_playback_events, PlaybackTick};
 use crate::score::components::duration::Tick;
 use crate::score::entries::tempo::{EffectiveTempoResolver, DEFAULT_TEMPO_BPM};
+use crate::score::instruments::Instrument;
+use crate::score::playback::ResolvedPlaybackRoute;
 use crate::score::Score;
 use crate::utils::UniqueId;
-use crate::{AppContext, AppContextState, AudioContextState, SamplerContextState};
-use rand::RngExt;
+use crate::{AppContext, AppContextState, AudioContextState};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering as CmpOrdering;
@@ -15,8 +25,16 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, RwLock};
 use tauri::State;
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DeferredPlaybackRefreshKind {
+    ScoreStructure,
+    PlaybackTopology,
+}
+
 /// Live instrument mix parameters shared between the UI thread and the transport thread.
 /// Updated in real-time by volume/pan/mute/solo commands.
+#[cfg_attr(not(test), allow(dead_code))]
 #[derive(Clone)]
 pub struct InstrumentMixParams {
     pub volume: u8,
@@ -27,6 +45,9 @@ pub struct InstrumentMixParams {
 
 /// Ticks per quarter note
 const TICKS_PER_QUARTER: u64 = 32;
+const TRANSPORT_LOOKAHEAD: std::time::Duration = std::time::Duration::from_millis(5);
+const TRANSPORT_WAIT_QUANTUM: std::time::Duration = std::time::Duration::from_millis(1);
+const EXPRESSION_MAP_KEYSWITCH_TICKS: Tick = 1;
 
 /// Seconds per tick at a given BPM
 fn seconds_per_tick(bpm: f64) -> f64 {
@@ -120,22 +141,81 @@ fn accumulate_tick_deadline(
     next_tick_deadline + std::time::Duration::from_secs_f64(seconds_per_tick(bpm))
 }
 
+fn transport_wait_duration_until_queue_window(
+    remaining_until_tick_deadline: std::time::Duration,
+) -> Option<std::time::Duration> {
+    if remaining_until_tick_deadline <= TRANSPORT_LOOKAHEAD {
+        None
+    } else {
+        Some(
+            remaining_until_tick_deadline
+                .saturating_sub(TRANSPORT_LOOKAHEAD)
+                .min(TRANSPORT_WAIT_QUANTUM),
+        )
+    }
+}
+
+fn duration_to_frames(duration: std::time::Duration, sample_rate: u32) -> u64 {
+    (duration.as_secs_f64() * sample_rate as f64).round() as u64
+}
+
+fn wait_for_transport_work_to_drain(shared: &TransportSharedState) -> bool {
+    while transport_playback_has_pending_work() {
+        if shared.stop_signal.load(Ordering::Acquire) {
+            return false;
+        }
+
+        std::thread::sleep(TRANSPORT_WAIT_QUANTUM);
+    }
+
+    true
+}
+
 fn playback_can_start(current_tick: Tick, flow_length: Tick) -> bool {
     current_tick < flow_length
 }
 
-/// Map the score Articulation enum to the sampler articulation ID string.
-fn find_articulation_id(
-    articulations: &rustc_hash::FxHashMap<String, CacheArticulation>,
-) -> Option<String> {
-    // TODO: convert this mapping into a dynamic mapping in the manifest,
-    // e.g. via a "default_articulation" field or similar — this would allow
-    // non-standard articulations and more flexible mappings in the future.
-    if articulations.contains_key("sustain") {
-        return Some("sustain".to_string());
-    }
+#[cfg_attr(not(test), allow(dead_code))]
+pub(crate) fn effective_mix_params_for_instrument(
+    score: &Score,
+    playback_runtime: &crate::playback::runtime_activation::PlaybackActivationRuntime,
+    instrument_id: UniqueId,
+) -> Option<InstrumentMixParams> {
+    let resolved_playback_route_by_instrument_id =
+        playback_runtime.resolved_playback_route_by_instrument_id(score);
+    let instrument = score.instruments.by_id.get(&instrument_id)?;
 
-    articulations.keys().next().cloned()
+    Some(effective_mix_params_from_route(
+        score,
+        instrument,
+        &resolved_playback_route_by_instrument_id,
+    ))
+}
+
+fn effective_mix_params_from_route(
+    score: &Score,
+    instrument: &Instrument,
+    resolved_playback_route_by_instrument_id: &rustc_hash::FxHashMap<
+        UniqueId,
+        ResolvedPlaybackRoute,
+    >,
+) -> InstrumentMixParams {
+    let effective_mix = effective_playback_mix_for_instrument(
+        score,
+        resolved_playback_route_by_instrument_id,
+        instrument.id,
+    );
+    let supported_mix_controls = resolved_playback_route_by_instrument_id
+        .get(&instrument.id)
+        .map(|route| route.supported_mix_controls)
+        .unwrap_or_default();
+
+    InstrumentMixParams {
+        volume: effective_mix.volume,
+        pan: effective_mix.pan,
+        mute: effective_mix.muted,
+        solo: supported_mix_controls.solo && instrument.solo,
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -151,6 +231,7 @@ pub struct TransportState {
 pub struct TransportShared {
     pub playing: AtomicBool,
     pub current_tick: AtomicU64,
+    pub last_queued_tick: AtomicU64,
     pub stop_signal: AtomicBool,
     /// Tempo stored as f64 bits via AtomicU64 for lock-free reads
     pub tempo_bits: AtomicU64,
@@ -183,6 +264,7 @@ impl TransportContext {
         let shared = Arc::new(TransportShared {
             playing: AtomicBool::new(false),
             current_tick: AtomicU64::new(0),
+            last_queued_tick: AtomicU64::new(0),
             stop_signal: AtomicBool::new(false),
             tempo_bits: AtomicU64::new(f64::from(DEFAULT_TEMPO_BPM).to_bits()),
             mix_params: RwLock::new(FxHashMap::default()),
@@ -194,6 +276,18 @@ impl TransportContext {
         });
 
         (ctx, shared)
+    }
+}
+
+fn paused_tick_after_transport_stop(shared: &TransportSharedState) -> Tick {
+    let current_tick = shared.current_tick.load(Ordering::Relaxed);
+    if transport_playback_has_pending_work() {
+        shared
+            .last_queued_tick
+            .load(Ordering::Relaxed)
+            .min(current_tick)
+    } else {
+        current_tick
     }
 }
 
@@ -211,10 +305,21 @@ pub(crate) fn stop_transport_playback(
     };
 
     join_transport_thread(handle)?;
-    flush_active_audio(audio_state);
-    shared.stop_signal.store(false, Ordering::Release);
+    let paused_tick = paused_tick_after_transport_stop(&shared);
+    reset_transport_runtime_state(&shared, paused_tick, || flush_active_audio(audio_state));
 
     Ok(shared)
+}
+
+fn reset_transport_runtime_state<F>(shared: &TransportSharedState, reset_tick: Tick, flush_audio: F)
+where
+    F: FnOnce(),
+{
+    shared.current_tick.store(reset_tick, Ordering::Relaxed);
+    shared.last_queued_tick.store(reset_tick, Ordering::Relaxed);
+    clear_transport_playback();
+    flush_audio();
+    shared.stop_signal.store(false, Ordering::Release);
 }
 
 fn flush_active_audio(audio_state: &AudioContextState) {
@@ -231,143 +336,37 @@ pub(crate) fn sync_transport_to_app_state(
     publish_app_tempo(shared, app_ctx, tick)
 }
 
-/// Render a single note by spawning a disk-streaming thread and submitting
-/// the voice to the mixer. The streamer decodes from disk, applies pitch
-/// shifting, envelope, and volume/pan, then pushes audio into a shared
-/// buffer that the mixer drains in the audio callback.
-#[allow(clippy::too_many_arguments)]
-fn render_note(
-    cache: &Cache,
-    articulation_id: &str,
-    pitch: u8,
-    velocity: u8,
-    duration_seconds: f64,
-    sample_rate: u32,
-    mixer_handle: &MixerHandle,
-    volume: u8,
-    pan: u8,
-) {
-    let articulation = match cache.articulations.get(articulation_id) {
-        Some(a) => a,
-        None => return,
-    };
-
-    let velocity = velocity.clamp(1, 127);
-
-    let is_percussion = matches!(
-        cache.meta.r#type,
-        crate::playback::sampler::InstrumentType::Percussion
-    );
-
-    // Find nearest zone
-    let (zone, pitch_offset) = {
-        if articulation.zones.is_empty() {
-            return;
-        }
-
-        if is_percussion {
-            // For percussion, only exact matches
-            if let Some(zone) = articulation.zones.iter().find(|z| z.pitch == pitch) {
-                (zone, 0)
-            } else {
-                return;
-            }
-        } else {
-            // For pitched instruments, find nearest
-            let mut nearest = &articulation.zones[0];
-            let mut min_dist = (nearest.pitch as i32 - pitch as i32).abs();
-
-            for zone in &articulation.zones[1..] {
-                let dist = (zone.pitch as i32 - pitch as i32).abs();
-                if dist < min_dist {
-                    min_dist = dist;
-                    nearest = zone;
-                }
-            }
-
-            let offset = pitch as i32 - nearest.pitch as i32;
-            (nearest, offset)
-        }
-    };
-
-    // Find velocity layer
-    let velocity_layer = match zone
-        .velocity_layers
-        .iter()
-        .find(|vl| velocity >= vl.range[0] && velocity <= vl.range[1])
-    {
-        Some(vl) => vl,
-        None => return,
-    };
-
-    if velocity_layer.samples.is_empty() {
-        return;
-    }
-
-    // Random round-robin
-    let sample_index = if velocity_layer.samples.len() > 1 {
-        rand::rng().random_range(0..velocity_layer.samples.len())
-    } else {
-        0
-    };
-
-    let sample = &velocity_layer.samples[sample_index].sample;
-    let (request, stream_buffer, channels) = build_stream_request(
-        sample,
-        pitch_offset,
-        duration_seconds,
-        sample_rate,
-        volume,
-        pan,
-    );
-
-    streamer::start_stream(request);
-    mixer_handle.play(stream_buffer, channels);
-}
-
-fn build_stream_request(
-    sample: &crate::playback::sampler::CacheSample,
-    pitch_offset: i32,
-    duration_seconds: f64,
-    sample_rate: u32,
-    volume: u8,
-    pan: u8,
-) -> (StreamRequest, Arc<StreamBuffer>, usize) {
-    let channels = sample.channels as usize;
-    let duration_frames = (duration_seconds * sample_rate as f64).ceil() as usize;
-    let release_frames = (sample_rate as f64 * 0.15).ceil() as usize;
-    let max_frames = duration_frames + release_frames;
-    let (vol_gain, pan_left, pan_right) = instrument_gain_and_pan(volume, pan);
-    let stream_buffer = Arc::new(StreamBuffer::new());
-
-    let request = StreamRequest {
-        container_path: sample.container_path.clone(),
-        flac_offset: sample.flac_offset,
-        flac_length: sample.flac_length,
-        source_sample_rate: sample.source_sample_rate,
-        target_sample_rate: sample_rate,
-        channels,
-        attack_offset_frames: sample.attack_offset_frames,
-        pitch_offset,
-        max_output_frames: max_frames,
-        fade_start_frame: duration_frames,
-        volume_gain: vol_gain,
-        pan_left,
-        pan_right,
-        stream_buffer: stream_buffer.clone(),
-    };
-
-    (request, stream_buffer, channels)
-}
-
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct ScheduledNote {
     start: PlaybackTick,
     duration: PlaybackTick,
+    slot_id: UniqueId,
     plugin_id: String,
     pitch: u8,
     velocity: u8,
     instrument_id: UniqueId,
+    keyswitches: Vec<ScheduledKeyswitch>,
+    duration_ratio_percent: u16,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct ScheduledKeyswitch {
+    pitch: u8,
+    velocity: u8,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct TransportQueuedNote {
+    sample_offset: usize,
+    duration_frames: u64,
+    pitch: u8,
+    velocity: u8,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct TransportTickEvents {
+    slot_id: UniqueId,
+    events: Vec<TransportQueuedNote>,
 }
 
 /// Keep transport ordering aligned to projected host musical time. When notes share an exact
@@ -383,21 +382,107 @@ fn compare_scheduled_notes(left: &ScheduledNote, right: &ScheduledNote) -> CmpOr
         .then(left.plugin_id.cmp(&right.plugin_id))
 }
 
-fn filter_audible_scheduled_notes<'a>(
-    notes: &'a [ScheduledNote],
-    local_mix: &'a FxHashMap<UniqueId, InstrumentMixParams>,
-    has_solo: bool,
-) -> Vec<(&'a ScheduledNote, &'a InstrumentMixParams)> {
-    notes
-        .iter()
-        .filter_map(|note| {
-            let params = local_mix.get(&note.instrument_id)?;
+fn playback_tick_to_f64(tick: &PlaybackTick) -> f64 {
+    tick.numerator as f64 / tick.denominator as f64
+}
 
-            if params.mute || (has_solo && !params.solo) {
-                return None;
-            }
+fn playback_tick_fractional_within_tick(tick: &PlaybackTick) -> f64 {
+    (tick.numerator % tick.denominator) as f64 / tick.denominator as f64
+}
 
-            Some((note, params))
+fn playback_tick_duration_frames(tick: &PlaybackTick, sample_rate: u32, bpm: f64) -> u64 {
+    ((playback_tick_to_f64(tick) * seconds_per_tick(bpm) * sample_rate as f64).round() as u64)
+        .max(1)
+}
+
+fn playback_tick_sample_offset_frames(tick: &PlaybackTick, sample_rate: u32, bpm: f64) -> usize {
+    (playback_tick_fractional_within_tick(tick) * seconds_per_tick(bpm) * sample_rate as f64)
+        .round() as usize
+}
+
+fn transport_event_sample_offset_frames(
+    tick: &PlaybackTick,
+    sample_rate: u32,
+    bpm: f64,
+    lead_frames: u64,
+) -> usize {
+    lead_frames
+        .saturating_add(playback_tick_sample_offset_frames(tick, sample_rate, bpm) as u64)
+        .min(usize::MAX as u64) as usize
+}
+
+fn scale_duration_frames(duration_frames: u64, ratio_percent: u16) -> u64 {
+    let scaled = ((duration_frames as u128 * ratio_percent as u128) + 50) / 100;
+    (scaled as u64).max(1)
+}
+
+fn scheduled_note_transport_events(
+    note: &ScheduledNote,
+    sample_rate: u32,
+    bpm: f64,
+    lead_frames: u64,
+) -> Vec<TransportQueuedNote> {
+    let sample_offset =
+        transport_event_sample_offset_frames(&note.start, sample_rate, bpm, lead_frames);
+    let mut events = Vec::with_capacity(note.keyswitches.len() + 1);
+
+    for keyswitch in &note.keyswitches {
+        events.push(TransportQueuedNote {
+            sample_offset,
+            duration_frames: playback_tick_duration_frames(
+                &PlaybackTick::from_tick(EXPRESSION_MAP_KEYSWITCH_TICKS),
+                sample_rate,
+                bpm,
+            ),
+            pitch: keyswitch.pitch,
+            velocity: keyswitch.velocity,
+        });
+    }
+
+    let duration_frames = playback_tick_duration_frames(&note.duration, sample_rate, bpm);
+    events.push(TransportQueuedNote {
+        sample_offset,
+        duration_frames: scale_duration_frames(duration_frames, note.duration_ratio_percent),
+        pitch: note.pitch,
+        velocity: note.velocity,
+    });
+
+    events
+}
+
+fn transport_events_for_tick(
+    snapshot: &PlaybackSnapshot,
+    current_tick: Tick,
+    sample_rate: u32,
+    bpm: f64,
+    lead_frames: u64,
+) -> Vec<TransportTickEvents> {
+    let Some(scheduled_notes) = snapshot.scheduled_notes.get(&current_tick) else {
+        return Vec::new();
+    };
+
+    let mut events_by_slot_id: FxHashMap<UniqueId, Vec<TransportQueuedNote>> = FxHashMap::default();
+
+    for note in scheduled_notes {
+        events_by_slot_id
+            .entry(note.slot_id)
+            .or_default()
+            .extend(scheduled_note_transport_events(
+                note,
+                sample_rate,
+                bpm,
+                lead_frames,
+            ));
+    }
+
+    let mut slot_ids = events_by_slot_id.keys().copied().collect::<Vec<_>>();
+    slot_ids.sort_unstable();
+
+    slot_ids
+        .into_iter()
+        .map(|slot_id| TransportTickEvents {
+            slot_id,
+            events: events_by_slot_id.remove(&slot_id).unwrap_or_default(),
         })
         .collect()
 }
@@ -407,8 +492,17 @@ fn filter_audible_scheduled_notes<'a>(
 fn collect_scheduled_notes(
     score: &Score,
     flow_id: UniqueId,
+    preparation: &PlaybackPreparation,
 ) -> FxHashMap<Tick, Vec<ScheduledNote>> {
     let mut notes_by_tick: FxHashMap<Tick, Vec<ScheduledNote>> = FxHashMap::default();
+    let supported_targets_by_instrument_id = preparation
+        .supported_targets
+        .iter()
+        .map(|target| (target.instrument_id, target))
+        .collect::<FxHashMap<_, _>>();
+    if supported_targets_by_instrument_id.is_empty() {
+        return notes_by_tick;
+    }
 
     let flow = match score.flows.by_id.get(&flow_id) {
         Some(f) => f,
@@ -423,15 +517,17 @@ fn collect_scheduled_notes(
         };
 
         for instrument_id in &player.instrument_ids {
+            let Some(prepared_target) = supported_targets_by_instrument_id.get(instrument_id)
+            else {
+                continue;
+            };
+
             let instrument = match score.instruments.by_id.get(instrument_id) {
                 Some(i) => i,
                 None => continue,
             };
 
-            let plugin_id = match &instrument.assigned_plugin_id {
-                Some(id) => id.clone(),
-                None => continue,
-            };
+            let plugin_id = prepared_target.plugin_id.clone();
 
             // Find staves for this instrument in this flow
             for stave_id in &instrument.stave_ids {
@@ -448,16 +544,55 @@ fn collect_scheduled_notes(
                     };
 
                     for tone in collect_track_playback_events(track) {
+                        let mut keyswitches = Vec::new();
+                        let mut duration_ratio_percent = 100;
+
+                        if let Some(expression_map) = prepared_target.expression_map.as_ref() {
+                            let resolved = resolve_expression_map_playback(
+                                expression_map,
+                                &ExpressionMapPlaybackContext {
+                                    articulations: tone.articulations.clone(),
+                                    written_duration_ticks: tone.written_duration_ticks,
+                                },
+                            );
+
+                            for action in resolved.actions {
+                                match action {
+                                    ExpressionMapAction::KeyswitchNote {
+                                        midi_note,
+                                        velocity,
+                                        ..
+                                    } => {
+                                        keyswitches.push(ScheduledKeyswitch {
+                                            pitch: midi_note,
+                                            velocity,
+                                        });
+                                    }
+                                    ExpressionMapAction::NoteLengthTransform {
+                                        ratio_percent,
+                                        ..
+                                    } => {
+                                        duration_ratio_percent = ratio_percent;
+                                    }
+                                    ExpressionMapAction::ControlChange { .. }
+                                    | ExpressionMapAction::NoOp { .. } => {}
+                                }
+                            }
+                        }
+
                         notes_by_tick
                             .entry(tone.start.floor())
                             .or_default()
                             .push(ScheduledNote {
                                 start: tone.start,
                                 duration: tone.duration,
+                                slot_id: prepared_target.slot_id,
                                 plugin_id: plugin_id.clone(),
                                 pitch: tone.pitch,
                                 velocity: tone.velocity,
                                 instrument_id: *instrument_id,
+                                keyswitches,
+                                duration_ratio_percent,
                             });
                     }
                 }
@@ -472,30 +607,73 @@ fn collect_scheduled_notes(
     notes_by_tick
 }
 
-/// Get volume and pan for an instrument. Volume is 0-127 mapped to 0.0-1.0 gain.
-/// Pan is 0-127 where 64 is center, mapped to left/right gain multipliers.
-fn instrument_gain_and_pan(volume: u8, pan: u8) -> (f32, f32, f32) {
-    let gain = volume as f32 / 127.0;
-    // Pan: 0=left, 64=center, 127=right
-    // Use constant-power panning
-    let pan_norm = pan as f32 / 127.0; // 0..1
-    let angle = pan_norm * std::f32::consts::FRAC_PI_2; // 0..PI/2
-    let left_gain = angle.cos();
-    let right_gain = angle.sin();
-    (gain, left_gain, right_gain)
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum PlaybackExecutionMode {
+    TransportOnly,
 }
 
-/// The transport playback thread. Walks through ticks at tempo rate,
-/// collects notes, renders them, and submits to the mixer.
-/// A snapshot of all data the transport thread needs for playback.
-/// Cloned once at play-start so the thread never locks AppContextState or SamplerContextState.
+/// A snapshot of all data the transport thread needs for supported playback.
+/// Cloned once at play-start so the thread never locks AppContextState.
 struct PlaybackSnapshot {
     score: Score,
-    sampler_cache: FxHashMap<String, Cache>,
+    #[cfg_attr(not(test), allow(dead_code))]
+    preparation: PlaybackPreparation,
     scheduled_notes: FxHashMap<Tick, Vec<ScheduledNote>>,
     flow_length: u64,
-    sample_rate: u32,
     tempo_resolver: EffectiveTempoResolver,
+    execution_mode: PlaybackExecutionMode,
+}
+
+fn build_supported_playback_snapshot_with_expression_maps(
+    app_ctx: &AppContext,
+    current_tick: Tick,
+    expression_map_library: &ExpressionMapLibraryState,
+    sample_rate: u32,
+) -> Option<(PlaybackSnapshot, f64)> {
+    let flow_id = active_flow_id(app_ctx)?;
+    let flow =
+        app_ctx.score.flows.by_id.get(&flow_id).unwrap_or_else(|| {
+            panic!("Missing flow {} while starting transport playback", flow_id)
+        });
+    let tempo_resolver = flow_tempo_resolver(&app_ctx.score, flow_id);
+    let initial_tempo = tempo_resolver.resolve(current_tick).bpm_f64();
+
+    if !playback_can_start(current_tick, flow.length) {
+        return None;
+    }
+
+    let preparation = prepare_supported_playback_with_expression_maps(
+        &app_ctx.score,
+        &app_ctx.playback_activation_runtime,
+        expression_map_library,
+        sample_rate,
+    );
+
+    Some((
+        PlaybackSnapshot {
+            score: app_ctx.score.clone(),
+            preparation: preparation.clone(),
+            scheduled_notes: collect_scheduled_notes(&app_ctx.score, flow_id, &preparation),
+            flow_length: flow.length,
+            tempo_resolver,
+            execution_mode: PlaybackExecutionMode::TransportOnly,
+        },
+        initial_tempo,
+    ))
+}
+
+#[cfg_attr(not(test), allow(dead_code))]
+fn build_supported_playback_snapshot(
+    app_ctx: &AppContext,
+    current_tick: Tick,
+    sample_rate: u32,
+) -> Option<(PlaybackSnapshot, f64)> {
+    build_supported_playback_snapshot_with_expression_maps(
+        app_ctx,
+        current_tick,
+        &ExpressionMapLibraryState::default(),
+        sample_rate,
+    )
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -532,11 +710,7 @@ impl TickScheduleState {
     }
 }
 
-fn transport_thread(
-    shared: Arc<TransportShared>,
-    snapshot: PlaybackSnapshot,
-    mixer_handle: crate::playback::mixer::MixerHandle,
-) {
+fn transport_thread(shared: Arc<TransportShared>, snapshot: PlaybackSnapshot) {
     let mut tick_origin = std::time::Instant::now();
     let mut schedule_state = TickScheduleState::new();
 
@@ -557,67 +731,56 @@ fn transport_thread(
             tick_origin = std::time::Instant::now();
         }
 
-        let bpm = publish_resolved_tempo(&shared, &snapshot.tempo_resolver, current_tick);
-        let spt = seconds_per_tick(bpm);
+        let next_tick_deadline = tick_origin + schedule_state.next_tick_offset;
+        let lead_duration = loop {
+            if shared.stop_signal.load(Ordering::Acquire) {
+                break None;
+            }
 
-        // Snapshot the live mix params into a local copy — hold the lock as briefly as possible
-        // so that the heavy render_note work below is entirely lock-free.
-        let (local_mix, has_solo) = {
-            let mix = shared.mix_params.read().unwrap();
-            let has_solo = mix.values().any(|p| p.solo);
-            (mix.clone(), has_solo)
+            let now = std::time::Instant::now();
+            let remaining_until_tick_deadline = next_tick_deadline.saturating_duration_since(now);
+
+            match transport_wait_duration_until_queue_window(remaining_until_tick_deadline) {
+                Some(wait_duration) => std::thread::sleep(wait_duration),
+                None => break Some(remaining_until_tick_deadline),
+            }
         };
 
-        let tick_start_deadline = tick_origin + schedule_state.next_tick_offset;
-        let raw_notes = snapshot
-            .scheduled_notes
-            .get(&current_tick)
-            .cloned()
-            .unwrap_or_default();
-        let audible_notes = filter_audible_scheduled_notes(&raw_notes, &local_mix, has_solo);
+        let Some(lead_duration) = lead_duration else {
+            break;
+        };
 
-        // Render and submit each note
-        for (note, params) in audible_notes {
-            let note_deadline = tick_start_deadline
-                + std::time::Duration::from_secs_f64(
-                    note.start.fractional_within_tick().to_f64() * spt,
-                );
-            let now = std::time::Instant::now();
+        let bpm = publish_resolved_tempo(&shared, &snapshot.tempo_resolver, current_tick);
 
-            if note_deadline > now {
-                std::thread::sleep(note_deadline - now);
-            }
-
-            if shared.stop_signal.load(Ordering::Acquire)
-                || shared.current_tick.load(Ordering::Relaxed) != current_tick
-            {
-                break;
-            }
-
-            let duration_seconds = note.duration.to_f64() * spt;
-
-            // Look up the sampler cache from the snapshot
-            let cache = match snapshot.sampler_cache.get(&note.plugin_id) {
-                Some(c) => c,
-                None => continue,
-            };
-
-            let art_id = match find_articulation_id(&cache.articulations) {
-                Some(id) => id,
-                None => continue,
-            };
-
-            render_note(
-                cache,
-                &art_id,
-                note.pitch,
-                note.velocity,
-                duration_seconds,
-                snapshot.sample_rate,
-                &mixer_handle,
-                params.volume,
-                params.pan,
+        if matches!(
+            snapshot.execution_mode,
+            PlaybackExecutionMode::TransportOnly
+        ) {
+            let tick_events = transport_events_for_tick(
+                &snapshot,
+                current_tick,
+                snapshot.preparation.sample_rate,
+                bpm,
+                duration_to_frames(lead_duration, snapshot.preparation.sample_rate),
             );
+
+            if !tick_events.is_empty() {
+                shared
+                    .last_queued_tick
+                    .store(current_tick, Ordering::Relaxed);
+            }
+
+            for tick_events in tick_events {
+                for event in tick_events.events {
+                    queue_transport_note(
+                        tick_events.slot_id,
+                        event.sample_offset,
+                        event.duration_frames,
+                        event.pitch,
+                        event.velocity,
+                    );
+                }
+            }
         }
 
         if shared.stop_signal.load(Ordering::Acquire) {
@@ -634,174 +797,346 @@ fn transport_thread(
             .current_tick
             .store(current_tick + 1, Ordering::Relaxed);
         schedule_state.advance(current_tick, bpm);
-
-        let next_tick_deadline = tick_origin + schedule_state.next_tick_offset;
-
-        // Sleep until the next tick deadline — accounts for time spent rendering
-        let now = std::time::Instant::now();
-        if next_tick_deadline > now {
-            std::thread::sleep(next_tick_deadline - now);
-        }
     }
 
-    // Playback ended — mark as not playing unless an external shutdown path did so already.
     if !shared.stop_signal.load(Ordering::Acquire) {
-        shared.playing.store(false, Ordering::Release);
+        if wait_for_transport_work_to_drain(&shared) {
+            clear_transport_playback();
+        }
+
+        if !shared.stop_signal.load(Ordering::Acquire) {
+            shared.playing.store(false, Ordering::Release);
+        }
     }
 }
 
-// -- Tauri Commands --
-
-#[tauri::command(rename_all = "snake_case")]
-pub fn transport_play(
-    state: State<'_, Mutex<TransportContext>>,
-    app_state: State<'_, AppContextState>,
-    sampler_state: State<'_, SamplerContextState>,
-    audio_state: State<'_, AudioContextState>,
-) -> Result<(), String> {
-    let (shared, stale_handle) = {
-        let mut ctx = state.lock().unwrap();
-
-        if ctx.shared.playing.load(Ordering::Acquire) {
-            return Ok(());
-        }
-
-        (ctx.shared.clone(), ctx.thread_handle.take())
-    };
-
-    join_transport_thread(stale_handle)?;
-
-    // Build a snapshot of everything the thread needs — snapshot locks are brief and one-time
-    let (snapshot, mixer_handle, initial_tempo) = {
-        let app_ctx = app_state.lock().unwrap();
-        let flow_id = active_flow_id(&app_ctx);
-
-        let flow_id = match flow_id {
-            Some(id) => id,
-            None => {
-                shared.set_tempo(f64::from(DEFAULT_TEMPO_BPM));
-                return Ok(());
-            }
-        };
-
-        let flow = app_ctx.score.flows.by_id.get(&flow_id).unwrap_or_else(|| {
-            panic!("Missing flow {} while starting transport playback", flow_id)
-        });
-        let tempo_resolver = flow_tempo_resolver(&app_ctx.score, flow_id);
-        let current_tick = shared.current_tick.load(Ordering::Relaxed);
-        let initial_tempo = tempo_resolver.resolve(current_tick).bpm_f64();
-
-        if !playback_can_start(current_tick, flow.length) {
-            shared.set_tempo(initial_tempo);
-            return Ok(());
-        }
-
-        let sampler = sampler_state.lock().unwrap();
-        let sampler_cache = sampler.clone_cache();
-        drop(sampler);
-
-        let audio = audio_state.lock().unwrap();
-        let sample_rate = audio.get_sample_rate();
-        let mixer_handle = audio.get_mixer_handle().clone();
-        drop(audio);
-
-        let snapshot = PlaybackSnapshot {
-            score: app_ctx.score.clone(),
-            sampler_cache,
-            scheduled_notes: collect_scheduled_notes(&app_ctx.score, flow_id),
-            flow_length: flow.length,
-            sample_rate,
-            tempo_resolver,
-        };
-
-        (snapshot, mixer_handle, initial_tempo)
-    };
-
-    let mut ctx = state.lock().unwrap();
-
-    // Populate live mix params from the score
+fn apply_transport_snapshot(
+    ctx: &mut TransportContext,
+    snapshot: PlaybackSnapshot,
+    initial_tempo: f64,
+) {
     {
         let mut mix = ctx.shared.mix_params.write().unwrap();
         mix.clear();
         for (id, inst) in &snapshot.score.instruments.by_id {
             mix.insert(
                 *id,
-                InstrumentMixParams {
-                    volume: inst.volume,
-                    pan: inst.pan,
-                    mute: inst.mute,
-                    solo: inst.solo,
-                },
+                effective_mix_params_from_route(
+                    &snapshot.score,
+                    inst,
+                    &snapshot
+                        .preparation
+                        .resolved_playback_route_by_instrument_id,
+                ),
             );
         }
     }
 
-    // Drop any old finished thread handle
-    // Reset stop signal
     ctx.shared.stop_signal.store(false, Ordering::Release);
     ctx.shared.playing.store(true, Ordering::Release);
     ctx.shared.set_tempo(initial_tempo);
+    ctx.shared.last_queued_tick.store(
+        ctx.shared.current_tick.load(Ordering::Relaxed),
+        Ordering::Relaxed,
+    );
+
+    for target in &snapshot.preparation.supported_targets {
+        set_slot_mix(target.slot_id, target.effective_mix);
+    }
+
+    set_transport_render_targets(
+        snapshot
+            .preparation
+            .supported_targets
+            .iter()
+            .map(|target| target.slot_id),
+    );
 
     let shared = ctx.shared.clone();
-
     ctx.thread_handle = Some(std::thread::spawn(move || {
-        transport_thread(shared, snapshot, mixer_handle);
+        transport_thread(shared, snapshot);
     }));
+}
+
+fn start_transport_from_current_tick_with_expression_maps(
+    ctx: &mut TransportContext,
+    app_state: &AppContextState,
+    expression_map_library: &ExpressionMapLibraryState,
+    sample_rate: u32,
+) -> Result<(), String> {
+    let current_tick = ctx.shared.current_tick.load(Ordering::Relaxed);
+
+    let (snapshot, initial_tempo) = {
+        let app_ctx = app_state.lock().unwrap();
+
+        match build_supported_playback_snapshot_with_expression_maps(
+            &app_ctx,
+            current_tick,
+            expression_map_library,
+            sample_rate,
+        ) {
+            Some((snapshot, initial_tempo)) => (snapshot, initial_tempo),
+            None => {
+                ctx.shared.playing.store(false, Ordering::Release);
+                reset_transport_runtime_state(&ctx.shared, current_tick, || {});
+                let flow_id = active_flow_id(&app_ctx);
+                ctx.shared.set_tempo(resolve_score_tempo_bpm(
+                    &app_ctx.score,
+                    flow_id,
+                    current_tick,
+                ));
+                return Ok(());
+            }
+        }
+    };
+
+    apply_transport_snapshot(ctx, snapshot, initial_tempo);
+
+    Ok(())
+}
+
+#[allow(dead_code)]
+fn start_transport_from_current_tick(
+    ctx: &mut TransportContext,
+    app_state: &AppContextState,
+    sample_rate: u32,
+) -> Result<(), String> {
+    start_transport_from_current_tick_with_expression_maps(
+        ctx,
+        app_state,
+        &ExpressionMapLibraryState::default(),
+        sample_rate,
+    )
+}
+
+fn transport_play_with_states_and_expression_maps(
+    state: &Mutex<TransportContext>,
+    app_state: &AppContextState,
+    expression_map_library: &ExpressionMapLibraryState,
+    sample_rate: u32,
+) -> Result<(), String> {
+    let mut ctx = state.lock().unwrap();
+    if ctx.shared.playing.load(Ordering::Acquire) {
+        return Ok(());
+    }
+
+    let stale_handle = ctx.thread_handle.take();
+    join_transport_thread(stale_handle)?;
+    clear_transport_playback();
+    start_transport_from_current_tick_with_expression_maps(
+        &mut ctx,
+        app_state,
+        expression_map_library,
+        sample_rate,
+    )?;
+
+    Ok(())
+}
+
+#[cfg_attr(not(test), allow(dead_code))]
+fn transport_play_with_states(
+    state: &Mutex<TransportContext>,
+    app_state: &AppContextState,
+    sample_rate: u32,
+) -> Result<(), String> {
+    transport_play_with_states_and_expression_maps(
+        state,
+        app_state,
+        &ExpressionMapLibraryState::default(),
+        sample_rate,
+    )
+}
+
+fn transport_seek_with_states_and_expression_maps(
+    state: &Mutex<TransportContext>,
+    app_state: &AppContextState,
+    expression_map_library: &ExpressionMapLibraryState,
+    sample_rate: u32,
+    tick: Tick,
+) -> Result<(), String> {
+    let mut ctx = state.lock().unwrap();
+    let playing = ctx.shared.playing.load(Ordering::Acquire);
+    if playing {
+        ctx.shared.stop_signal.store(true, Ordering::Release);
+        ctx.shared.playing.store(false, Ordering::Release);
+    }
+
+    let stale_handle = ctx.thread_handle.take();
+    join_transport_thread(stale_handle)?;
+
+    {
+        let app_ctx = app_state.lock().unwrap();
+        sync_transport_to_app_state(&ctx.shared, &app_ctx, tick);
+    }
+
+    reset_transport_runtime_state(
+        &ctx.shared,
+        ctx.shared.current_tick.load(Ordering::Relaxed),
+        || {},
+    );
+
+    if !playing {
+        return Ok(());
+    }
+
+    start_transport_from_current_tick_with_expression_maps(
+        &mut ctx,
+        app_state,
+        expression_map_library,
+        sample_rate,
+    )
+}
+
+#[cfg_attr(not(test), allow(dead_code))]
+fn transport_seek_with_states(
+    state: &Mutex<TransportContext>,
+    app_state: &AppContextState,
+    sample_rate: u32,
+    tick: Tick,
+) -> Result<(), String> {
+    transport_seek_with_states_and_expression_maps(
+        state,
+        app_state,
+        &ExpressionMapLibraryState::default(),
+        sample_rate,
+        tick,
+    )
+}
+
+fn transport_pause_with_states<F>(
+    state: &Mutex<TransportContext>,
+    app_state: &AppContextState,
+    flush_audio: F,
+) -> Result<(), String>
+where
+    F: FnOnce(),
+{
+    let (shared, handle) = {
+        let mut ctx = state.lock().unwrap();
+        ctx.shared.stop_signal.store(true, Ordering::Release);
+        ctx.shared.playing.store(false, Ordering::Release);
+
+        (ctx.shared.clone(), ctx.thread_handle.take())
+    };
+
+    join_transport_thread(handle)?;
+    let paused_tick = paused_tick_after_transport_stop(&shared);
+    reset_transport_runtime_state(&shared, paused_tick, flush_audio);
+
+    let app_ctx = app_state.lock().unwrap();
+    publish_app_tempo(&shared, &app_ctx, paused_tick);
+
+    Ok(())
+}
+
+fn reconcile_pending_playback_refresh<F>(
+    app_state: &AppContextState,
+    refresh_topology_runtime: F,
+) -> Result<(), String>
+where
+    F: FnOnce(&mut AppContext) -> Result<(), String>,
+{
+    let mut app_ctx = app_state.lock().unwrap();
+    if app_ctx.pending_playback_refresh_kind()
+        == Some(DeferredPlaybackRefreshKind::PlaybackTopology)
+    {
+        refresh_topology_runtime(&mut app_ctx)?;
+    }
+    app_ctx.clear_pending_playback_refresh();
+
+    Ok(())
+}
+
+// -- Tauri Commands --
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn transport_play(
+    app: tauri::AppHandle,
+    state: State<'_, Mutex<TransportContext>>,
+    app_state: State<'_, AppContextState>,
+    audio_state: State<'_, AudioContextState>,
+    renderer_state: State<'_, crate::RendererContextState>,
+    expression_map_library_state: State<'_, crate::ManagedExpressionMapLibraryContextState>,
+) -> Result<(), String> {
+    let sample_rate = {
+        let audio = audio_state.lock().unwrap();
+        audio.get_sample_rate()
+    };
+
+    reconcile_pending_playback_refresh(app_state.inner(), |app_ctx| {
+        app_ctx.refresh_playback_activation_runtime_from_app(&app);
+        Ok(())
+    })?;
+    let expression_map_library = expression_map_library_state.lock().unwrap().snapshot();
+    transport_play_with_states_and_expression_maps(
+        state.inner(),
+        app_state.inner(),
+        &expression_map_library,
+        sample_rate,
+    )?;
+
+    let mut app_ctx = app_state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
+    app_ctx.emit_general_state(&app, &mut renderer, None);
 
     Ok(())
 }
 
 #[tauri::command(rename_all = "snake_case")]
 pub fn transport_pause(
+    app: tauri::AppHandle,
     state: State<'_, Mutex<TransportContext>>,
     app_state: State<'_, AppContextState>,
     audio_state: State<'_, AudioContextState>,
+    renderer_state: State<'_, crate::RendererContextState>,
 ) -> Result<(), String> {
-    let (shared, handle, was_playing) = {
-        let mut ctx = state.lock().unwrap();
-        let was_playing = ctx.shared.playing.load(Ordering::Acquire);
+    transport_pause_with_states(state.inner(), app_state.inner(), || {
+        flush_active_audio(audio_state.inner())
+    })?;
 
-        if was_playing {
-            ctx.shared.stop_signal.store(true, Ordering::Release);
-            ctx.shared.playing.store(false, Ordering::Release);
-        }
+    reconcile_pending_playback_refresh(app_state.inner(), |app_ctx| {
+        app_ctx.refresh_playback_activation_runtime_from_app(&app);
+        Ok(())
+    })?;
 
-        (ctx.shared.clone(), ctx.thread_handle.take(), was_playing)
-    };
-
-    if was_playing {
-        join_transport_thread(handle)?;
-    }
-
-    flush_active_audio(audio_state.inner());
-
-    let current_tick = shared.current_tick.load(Ordering::Relaxed);
-    let app_ctx = app_state.lock().unwrap();
-    publish_app_tempo(&shared, &app_ctx, current_tick);
+    let mut app_ctx = app_state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
+    app_ctx.emit_general_state(&app, &mut renderer, None);
 
     Ok(())
 }
 
 #[tauri::command(rename_all = "snake_case")]
 pub fn transport_seek(
+    app: tauri::AppHandle,
     state: State<'_, Mutex<TransportContext>>,
     app_state: State<'_, AppContextState>,
+    audio_state: State<'_, AudioContextState>,
+    renderer_state: State<'_, crate::RendererContextState>,
+    expression_map_library_state: State<'_, crate::ManagedExpressionMapLibraryContextState>,
     tick: u64,
 ) -> Result<(), String> {
-    let (shared, playing) = {
-        let ctx = state.lock().unwrap();
-        (
-            ctx.shared.clone(),
-            ctx.shared.playing.load(Ordering::Acquire),
-        )
+    let sample_rate = {
+        let audio = audio_state.lock().unwrap();
+        audio.get_sample_rate()
     };
 
-    shared.current_tick.store(tick, Ordering::Relaxed);
+    reconcile_pending_playback_refresh(app_state.inner(), |app_ctx| {
+        app_ctx.refresh_playback_activation_runtime_from_app(&app);
+        Ok(())
+    })?;
+    let expression_map_library = expression_map_library_state.lock().unwrap().snapshot();
+    transport_seek_with_states_and_expression_maps(
+        state.inner(),
+        app_state.inner(),
+        &expression_map_library,
+        sample_rate,
+        tick,
+    )?;
 
-    if !playing {
-        let app_ctx = app_state.lock().unwrap();
-        publish_app_tempo(&shared, &app_ctx, tick);
-    }
+    let mut app_ctx = app_state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
+    app_ctx.emit_general_state(&app, &mut renderer, None);
 
     Ok(())
 }
@@ -827,24 +1162,104 @@ pub fn transport_get_state(state: State<'_, TransportSharedState>) -> TransportS
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::playback::audio::reset_transport_for_audio_rebuild_with_stop;
+    use crate::playback::engine::{
+        reset_continuous_render_engine_for_tests, transport_playback_debug_state,
+    };
+    use crate::playback::expression_maps::{
+        ExpressionMap, ExpressionMapAction, ExpressionMapCondition,
+        ExpressionMapEqualityComparator, ExpressionMapLibraryState,
+        ExpressionMapNoteLengthComparator, ExpressionMapRule,
+    };
+    use crate::playback::plugin_inventory::{
+        PluginInventoryAvailability, PluginInventoryContext, PluginInventoryEntry,
+    };
+    use crate::playback::runtime_activation::PlaybackActivationRuntime;
+    use crate::playback::runtime_activation::SingleInstrumentTrustGateBlocker;
+    use crate::score::components::articulation::{Articulation, Articulations};
     use crate::score::components::duration::NoteDuration;
     use crate::score::entries::{tempo::Tempo, Entry};
     use crate::score::flows::Flow;
     use crate::score::instruments::{defs::InstrumentType, Instrument};
+    use crate::score::playback::ResolvedPlaybackRouteStatus;
     use crate::score::players::{Player, PlayerType};
     use crate::score::staves::Stave;
     use crate::score::tracks::Track;
     use rustc_hash::FxHashSet;
-    use std::path::PathBuf;
+    use std::sync::OnceLock;
 
+    fn transport_test_mutex() -> &'static Mutex<()> {
+        static TRANSPORT_TEST_MUTEX: OnceLock<Mutex<()>> = OnceLock::new();
+        TRANSPORT_TEST_MUTEX.get_or_init(|| Mutex::new(()))
+    }
     fn make_transport_shared() -> TransportShared {
         TransportShared {
             playing: AtomicBool::new(false),
             current_tick: AtomicU64::new(0),
+            last_queued_tick: AtomicU64::new(0),
             stop_signal: AtomicBool::new(false),
             tempo_bits: AtomicU64::new(f64::from(DEFAULT_TEMPO_BPM).to_bits()),
             mix_params: RwLock::new(FxHashMap::default()),
         }
+    }
+
+    fn make_transport_context_state() -> Mutex<TransportContext> {
+        TransportContext::new().0
+    }
+
+    fn stop_test_transport(state: &Mutex<TransportContext>) {
+        let handle = {
+            let mut ctx = state.lock().unwrap();
+            ctx.shared.stop_signal.store(true, Ordering::Release);
+            ctx.shared.playing.store(false, Ordering::Release);
+            ctx.thread_handle.take()
+        };
+
+        join_transport_thread(handle).unwrap();
+
+        let ctx = state.lock().unwrap();
+        ctx.shared.stop_signal.store(false, Ordering::Release);
+        drop(ctx);
+
+        reset_continuous_render_engine_for_tests();
+    }
+
+    fn wait_for_transport_engine_work(slot_ids: &[UniqueId]) {
+        for _ in 0..1_000 {
+            if slot_ids.iter().all(|slot_id| {
+                transport_playback_debug_state(*slot_id).is_some_and(|state| {
+                    state.transport_active
+                        || state.queued_transport_event_count > 0
+                        || state.active_transport_note_count > 0
+                })
+            }) {
+                return;
+            }
+
+            std::thread::yield_now();
+        }
+
+        panic!("Timed out waiting for transport work to reach the engine");
+    }
+
+    fn transport_engine_work_is_cleared(slot_id: UniqueId) -> bool {
+        transport_playback_debug_state(slot_id).is_none_or(|state| {
+            !state.transport_active
+                && state.queued_transport_event_count == 0
+                && state.active_transport_note_count == 0
+        })
+    }
+
+    fn wait_for_transport_current_tick(shared: &TransportSharedState, expected_tick: Tick) {
+        for _ in 0..1_000 {
+            if shared.current_tick.load(Ordering::Relaxed) >= expected_tick {
+                return;
+            }
+
+            std::thread::yield_now();
+        }
+
+        panic!("Timed out waiting for transport tick to advance");
     }
 
     fn make_tempo(id: UniqueId, tick: Tick, bpm: u16) -> Tempo {
@@ -872,10 +1287,109 @@ mod tests {
 
         AppContext {
             ui,
+            playback_activation_runtime: make_playback_runtime_for_score(&score),
             score,
+            pending_playback_refresh: None,
             preferences: make_preferences(),
             next_id: 1,
             current_file_path: None,
+        }
+    }
+
+    fn make_playback_runtime_for_score(score: &Score) -> PlaybackActivationRuntime {
+        let inventory = PluginInventoryContext::with_entries_for_tests(
+            score
+                .playback
+                .rack
+                .by_id
+                .values()
+                .filter_map(|slot| slot.target.as_ref())
+                .map(|target| PluginInventoryEntry {
+                    id: target.plugin_id.clone(),
+                    name: target.plugin_id.clone(),
+                    bundle_path: format!("/tmp/{}.vst3", target.plugin_id),
+                    binary_path: Some(format!(
+                        "/tmp/{}.vst3/Contents/MacOS/{}",
+                        target.plugin_id, target.plugin_id
+                    )),
+                    source_root: String::from("/tmp"),
+                    availability: PluginInventoryAvailability::Available,
+                    validation_failure: None,
+                    editor_host_validation: None,
+                })
+                .collect(),
+        );
+
+        PlaybackActivationRuntime::from_score_and_inventory(score, &inventory)
+    }
+
+    fn make_playback_preparation_for_score(score: &Score, sample_rate: u32) -> PlaybackPreparation {
+        let runtime = make_playback_runtime_for_score(score);
+
+        crate::playback::preparation::prepare_supported_playback(score, &runtime, sample_rate)
+    }
+
+    fn staccato_articulations() -> Articulations {
+        Articulations::new().toggle(Articulation::Staccato)
+    }
+
+    fn proof_expression_map_library_state() -> ExpressionMapLibraryState {
+        ExpressionMapLibraryState {
+            order: vec![String::from("staccato-proof")],
+            by_id: FxHashMap::from_iter([(
+                String::from("staccato-proof"),
+                ExpressionMap {
+                    id: String::from("staccato-proof"),
+                    name: String::from("Staccato Proof"),
+                    creator: String::new(),
+                    version: 1,
+                    default_actions: vec![ExpressionMapAction::NoOp {
+                        id: String::from("default-proof-action"),
+                    }],
+                    rules: vec![
+                        ExpressionMapRule {
+                            id: String::from("short-staccato"),
+                            name: String::from("Short staccato"),
+                            conditions: vec![
+                                ExpressionMapCondition::Articulation {
+                                    id: String::from("short-staccato-articulation"),
+                                    comparator: ExpressionMapEqualityComparator::Equals,
+                                    articulation: Some(Articulation::Staccato),
+                                },
+                                ExpressionMapCondition::WrittenNoteLength {
+                                    id: String::from("short-staccato-length"),
+                                    comparator: ExpressionMapNoteLengthComparator::LessThanOrEqual,
+                                    note_duration: NoteDuration::Eighth,
+                                },
+                            ],
+                            actions: vec![
+                                ExpressionMapAction::KeyswitchNote {
+                                    id: String::from("short-staccato-keyswitch"),
+                                    midi_note: 24,
+                                    velocity: 96,
+                                },
+                                ExpressionMapAction::NoteLengthTransform {
+                                    id: String::from("short-staccato-length-transform"),
+                                    ratio_percent: 50,
+                                },
+                            ],
+                        },
+                        ExpressionMapRule {
+                            id: String::from("long-staccato"),
+                            name: String::from("Long staccato"),
+                            conditions: vec![ExpressionMapCondition::Articulation {
+                                id: String::from("long-staccato-articulation"),
+                                comparator: ExpressionMapEqualityComparator::Equals,
+                                articulation: Some(Articulation::Staccato),
+                            }],
+                            actions: vec![ExpressionMapAction::NoteLengthTransform {
+                                id: String::from("long-staccato-length-transform"),
+                                ratio_percent: 55,
+                            }],
+                        },
+                    ],
+                },
+            )]),
         }
     }
 
@@ -928,7 +1442,7 @@ mod tests {
         (score, flow_id)
     }
 
-    fn make_instrument(id: UniqueId, stave_id: UniqueId, plugin_id: &str) -> Instrument {
+    fn make_instrument(id: UniqueId, stave_id: UniqueId, _plugin_id: &str) -> Instrument {
         Instrument {
             id,
             definition_id: String::from("test.instrument"),
@@ -937,7 +1451,7 @@ mod tests {
             short_name: String::from("T."),
             stave_ids: vec![stave_id],
             count: None,
-            assigned_plugin_id: Some(plugin_id.to_string()),
+            playback_route: None,
             volume: 100,
             pan: 64,
             mute: false,
@@ -998,6 +1512,15 @@ mod tests {
             instrument_id,
             make_instrument(instrument_id, stave_id, "plugin-a"),
         );
+        score
+            .create_playback_slot(6)
+            .expect("slot creation should succeed");
+        score
+            .assign_plugin_to_slot(6, String::from("plugin-a"))
+            .expect("slot assignment should succeed");
+        score
+            .assign_instrument_route_to_slot(instrument_id, 6)
+            .expect("route assignment should succeed");
 
         (score, flow_id)
     }
@@ -1072,6 +1595,16 @@ mod tests {
                 instrument_id,
                 make_instrument_with_mix(instrument_id, stave_id, plugin_id, mute, solo),
             );
+            let slot_id = 200 + index as UniqueId;
+            score
+                .create_playback_slot(slot_id)
+                .expect("slot creation should succeed");
+            score
+                .assign_plugin_to_slot(slot_id, String::from(plugin_id))
+                .expect("slot assignment should succeed");
+            score
+                .assign_instrument_route_to_slot(instrument_id, slot_id)
+                .expect("route assignment should succeed");
             score
                 .players
                 .by_id
@@ -1100,27 +1633,6 @@ mod tests {
                     .flat_map(|notes| notes.iter().map(|note| note.start.clone()))
             })
             .collect()
-    }
-
-    #[test]
-    fn build_stream_request_threads_attack_offsets_into_playback_requests() {
-        let sample = crate::playback::sampler::CacheSample {
-            channels: 2,
-            container_path: PathBuf::from("/tmp/test.scvi"),
-            source_sample_rate: 44_100,
-            flac_offset: 512,
-            flac_length: 2_048,
-            attack_offset_frames: 321,
-        };
-
-        let (request, _buffer, channels) = build_stream_request(&sample, 0, 0.5, 48_000, 100, 64);
-
-        assert_eq!(channels, 2);
-        assert_eq!(request.attack_offset_frames, 321);
-        assert_eq!(request.source_sample_rate, 44_100);
-        assert_eq!(request.flac_offset, 512);
-        assert_eq!(request.max_output_frames, 31_200);
-        assert_eq!(request.fade_start_frame, 24_000);
     }
 
     #[test]
@@ -1205,6 +1717,34 @@ mod tests {
     }
 
     #[test]
+    fn transport_wait_duration_until_queue_window_caps_sleep_to_the_bounded_quantum() {
+        assert_eq!(
+            transport_wait_duration_until_queue_window(std::time::Duration::from_millis(20)),
+            Some(TRANSPORT_WAIT_QUANTUM)
+        );
+        assert_eq!(
+            transport_wait_duration_until_queue_window(TRANSPORT_LOOKAHEAD),
+            None
+        );
+    }
+
+    #[test]
+    fn transport_event_sample_offset_frames_include_lookahead_lead_time() {
+        assert_eq!(
+            transport_event_sample_offset_frames(
+                &PlaybackTick {
+                    numerator: 0,
+                    denominator: 1,
+                },
+                48_000,
+                120.0,
+                240,
+            ),
+            240
+        );
+    }
+
+    #[test]
     fn tick_schedule_state_rebases_when_seek_jumps_to_a_new_tick() {
         let mut state = TickScheduleState::new();
 
@@ -1244,6 +1784,1291 @@ mod tests {
         assert!(playback_can_start(31, 32));
         assert!(!playback_can_start(32, 32));
         assert!(!playback_can_start(64, 32));
+    }
+
+    #[test]
+    fn build_supported_playback_snapshot_uses_transport_only_mode_for_supported_playback() {
+        let mut track = Track::new(50);
+        track
+            .create_tone(80, 32, 16, 60, None, 96, Default::default(), None)
+            .unwrap();
+
+        let (score, flow_id) = make_flow_score_with_track(track);
+        let app_ctx = make_app_context(score, Some(flow_id));
+
+        let (snapshot, initial_tempo) =
+            build_supported_playback_snapshot(&app_ctx, 0, 48_000).expect("expected snapshot");
+
+        assert_eq!(initial_tempo, 120.0);
+        assert_eq!(
+            snapshot.execution_mode,
+            PlaybackExecutionMode::TransportOnly
+        );
+        assert_eq!(snapshot.preparation.sample_rate, 48_000);
+        assert_eq!(snapshot.scheduled_notes.get(&32).map(Vec::len), Some(1));
+    }
+
+    #[test]
+    fn build_supported_playback_snapshot_returns_none_when_start_tick_is_past_flow_end() {
+        let mut track = Track::new(50);
+        track
+            .create_tone(80, 32, 16, 60, None, 96, Default::default(), None)
+            .unwrap();
+
+        let (score, flow_id) = make_flow_score_with_track(track);
+        let app_ctx = make_app_context(score, Some(flow_id));
+
+        assert!(build_supported_playback_snapshot(&app_ctx, 160, 48_000).is_none());
+    }
+
+    #[test]
+    fn build_supported_playback_snapshot_keeps_transport_running_when_routes_are_missing_from_runtime_activation(
+    ) {
+        let mut track = Track::new(50);
+        track
+            .create_tone(80, 32, 16, 60, None, 96, Default::default(), None)
+            .unwrap();
+
+        let (score, flow_id) = make_flow_score_with_track(track);
+        let mut app_ctx = make_app_context(score, Some(flow_id));
+        app_ctx.playback_activation_runtime = PlaybackActivationRuntime::default();
+
+        let (snapshot, initial_tempo) =
+            build_supported_playback_snapshot(&app_ctx, 0, 48_000).expect("expected snapshot");
+
+        assert_eq!(initial_tempo, 120.0);
+        assert!(snapshot.preparation.supported_targets.is_empty());
+        assert!(snapshot.scheduled_notes.is_empty());
+        assert_eq!(
+            snapshot.preparation.blockers,
+            vec![SingleInstrumentTrustGateBlocker::RouteNotReady {
+                instrument_id: 4,
+                slot_id: 6,
+                status: ResolvedPlaybackRouteStatus::NeedsAttention,
+            }]
+        );
+    }
+
+    #[test]
+    fn build_supported_playback_snapshot_keeps_multiple_playable_routes_in_the_snapshot() {
+        let mut first_track = Track::new(50);
+        first_track
+            .create_tone(80, 32, 16, 60, None, 96, Default::default(), None)
+            .unwrap();
+        let mut second_track = Track::new(51);
+        second_track
+            .create_tone(81, 32, 16, 64, None, 96, Default::default(), None)
+            .unwrap();
+
+        let (score, flow_id, _instrument_ids) = make_flow_score_with_tracks(vec![
+            (first_track, "plugin-a", false, false),
+            (second_track, "plugin-b", false, false),
+        ]);
+        let app_ctx = make_app_context(score, Some(flow_id));
+
+        let (snapshot, initial_tempo) =
+            build_supported_playback_snapshot(&app_ctx, 0, 48_000).expect("snapshot");
+        let mut blockers = snapshot.preparation.blockers.clone();
+        for blocker in &mut blockers {
+            if let SingleInstrumentTrustGateBlocker::MultipleRoutedInstruments { instrument_ids } =
+                blocker
+            {
+                instrument_ids.sort_unstable();
+            }
+        }
+
+        assert_eq!(initial_tempo, 120.0);
+        assert_eq!(
+            snapshot
+                .preparation
+                .supported_targets
+                .first()
+                .map(|target| target.instrument_id),
+            Some(20)
+        );
+        assert_eq!(
+            snapshot
+                .preparation
+                .supported_targets
+                .iter()
+                .map(|target| target.instrument_id)
+                .collect::<Vec<_>>(),
+            vec![20, 21]
+        );
+        assert_eq!(
+            blockers,
+            vec![
+                SingleInstrumentTrustGateBlocker::MultipleRoutedInstruments {
+                    instrument_ids: vec![20, 21],
+                }
+            ]
+        );
+    }
+
+    #[test]
+    fn build_supported_playback_snapshot_allows_timing_only_when_no_route_is_assigned() {
+        let mut score = Score::new();
+        let flow_id = 10;
+        let master_id = 11;
+        let player_id = 12;
+        let instrument_id = 13;
+        let stave_id = 14;
+        let track_id = 15;
+
+        let mut flow = Flow::new(flow_id, master_id);
+        flow.length = 160;
+        flow.player_ids = FxHashSet::from_iter([player_id]);
+        flow.staves.by_id.insert(
+            stave_id,
+            Stave {
+                id: stave_id,
+                lines: vec![1, 1, 1, 1, 1],
+                master_id,
+                track_ids: vec![track_id],
+            },
+        );
+
+        let mut track = Track::new(track_id);
+        track
+            .create_tone(80, 32, 16, 60, None, 96, Default::default(), None)
+            .unwrap();
+
+        score.flows.order.push(flow_id);
+        score.flows.by_id.insert(flow_id, flow);
+        score.tracks.by_id.insert(master_id, Track::new(master_id));
+        score.tracks.by_id.insert(track_id, track);
+        score.players.order.push(player_id);
+        score
+            .players
+            .by_id
+            .insert(player_id, Player::new(player_id, PlayerType::Solo));
+        score
+            .players
+            .by_id
+            .get_mut(&player_id)
+            .unwrap()
+            .instrument_ids = vec![instrument_id];
+        score.instruments.by_id.insert(
+            instrument_id,
+            Instrument {
+                id: instrument_id,
+                definition_id: String::from("strings.violin"),
+                instrument_type: InstrumentType::Melodic,
+                long_name: String::from("Violin"),
+                short_name: String::from("Vln."),
+                stave_ids: vec![stave_id],
+                count: None,
+                playback_route: None,
+                volume: 100,
+                pan: 64,
+                mute: false,
+                solo: false,
+            },
+        );
+
+        let app_ctx = make_app_context(score, Some(flow_id));
+
+        let (snapshot, initial_tempo) =
+            build_supported_playback_snapshot(&app_ctx, 0, 48_000).expect("expected snapshot");
+
+        assert_eq!(initial_tempo, 120.0);
+        assert!(snapshot.scheduled_notes.is_empty());
+        assert_eq!(snapshot.preparation.sample_rate, 48_000);
+        assert_eq!(
+            snapshot.preparation.blockers,
+            vec![SingleInstrumentTrustGateBlocker::NoRoutedInstrument]
+        );
+    }
+
+    #[test]
+    fn transport_play_with_states_starts_transport_only_playback_from_supported_command_seam() {
+        let _guard = transport_test_mutex().lock().unwrap();
+
+        let mut track = Track::new(50);
+        track
+            .create_tone(80, 32, 16, 60, None, 96, Default::default(), None)
+            .unwrap();
+
+        let (score, flow_id) = make_flow_score_with_track(track);
+        let transport_state = make_transport_context_state();
+        let app_state = Mutex::new(make_app_context(score, Some(flow_id)));
+        transport_play_with_states(&transport_state, &app_state, 48_000).unwrap();
+
+        let ctx = transport_state.lock().unwrap();
+        assert!(ctx.shared.playing.load(Ordering::Acquire));
+        assert_eq!(ctx.shared.get_tempo(), 120.0);
+
+        let mix = ctx.shared.mix_params.read().unwrap();
+        assert_eq!(mix.len(), 1);
+        let params = mix.values().next().unwrap();
+        assert_eq!(params.volume, 100);
+        assert_eq!(params.pan, 64);
+        assert!(!params.mute);
+        assert!(!params.solo);
+        drop(mix);
+        drop(ctx);
+
+        stop_test_transport(&transport_state);
+    }
+
+    #[test]
+    fn effective_mix_params_only_honor_controls_supported_by_the_ready_route() {
+        let mut track = Track::new(50);
+        track
+            .create_tone(80, 32, 16, 60, None, 96, Default::default(), None)
+            .unwrap();
+
+        let (mut score, flow_id) = make_flow_score_with_track(track);
+        let instrument = score.instruments.by_id.get_mut(&4).unwrap();
+        instrument.volume = 24;
+        instrument.pan = 11;
+        instrument.mute = true;
+        instrument.solo = true;
+
+        let runtime = make_playback_runtime_for_score(&score);
+        let params = effective_mix_params_for_instrument(&score, &runtime, 4)
+            .expect("expected instrument mix params");
+
+        assert_eq!(flow_id, 1);
+        assert_eq!(params.volume, 24);
+        assert_eq!(params.pan, 11);
+        assert!(params.mute);
+        assert!(params.solo);
+    }
+
+    #[test]
+    fn transport_play_with_states_keeps_transport_stopped_when_tick_is_past_flow_end() {
+        let mut track = Track::new(50);
+        track
+            .create_tone(80, 32, 16, 60, None, 96, Default::default(), None)
+            .unwrap();
+
+        let (score, flow_id) = make_flow_score_with_track(track);
+        let transport_state = make_transport_context_state();
+        {
+            let ctx = transport_state.lock().unwrap();
+            ctx.shared.current_tick.store(160, Ordering::Relaxed);
+        }
+        let app_state = Mutex::new(make_app_context(score, Some(flow_id)));
+        transport_play_with_states(&transport_state, &app_state, 48_000).unwrap();
+
+        let ctx = transport_state.lock().unwrap();
+        assert!(!ctx.shared.playing.load(Ordering::Acquire));
+        assert_eq!(ctx.shared.get_tempo(), 120.0);
+        assert!(ctx.thread_handle.is_none());
+    }
+
+    #[test]
+    fn transport_play_with_states_clears_stale_stop_signal_and_starts_even_without_ready_routes() {
+        let _guard = transport_test_mutex().lock().unwrap();
+
+        let mut track = Track::new(50);
+        track
+            .create_tone(80, 32, 16, 60, None, 96, Default::default(), None)
+            .unwrap();
+
+        let (score, flow_id) = make_flow_score_with_track(track);
+        let transport_state = make_transport_context_state();
+        {
+            let ctx = transport_state.lock().unwrap();
+            ctx.shared.stop_signal.store(true, Ordering::Release);
+            ctx.shared.current_tick.store(32, Ordering::Relaxed);
+        }
+
+        let mut app_ctx = make_app_context(score, Some(flow_id));
+        app_ctx.playback_activation_runtime = PlaybackActivationRuntime::default();
+        let app_state = Mutex::new(app_ctx);
+
+        transport_play_with_states(&transport_state, &app_state, 48_000).unwrap();
+
+        let ctx = transport_state.lock().unwrap();
+        assert!(ctx.shared.playing.load(Ordering::Acquire));
+        assert!(!ctx.shared.stop_signal.load(Ordering::Acquire));
+        assert_eq!(ctx.shared.current_tick.load(Ordering::Relaxed), 32);
+        assert_eq!(ctx.shared.get_tempo(), 120.0);
+        assert!(ctx.thread_handle.is_some());
+        drop(ctx);
+
+        stop_test_transport(&transport_state);
+    }
+
+    #[test]
+    fn transport_play_with_states_starts_when_one_route_is_ready_and_another_needs_attention() {
+        let _guard = transport_test_mutex().lock().unwrap();
+
+        let mut ready_track = Track::new(50);
+        ready_track
+            .create_tone(80, 32, 16, 60, None, 96, Default::default(), None)
+            .unwrap();
+        let mut unresolved_track = Track::new(51);
+        unresolved_track
+            .create_tone(81, 32, 16, 67, None, 96, Default::default(), None)
+            .unwrap();
+
+        let (mut score, flow_id, instrument_ids) = make_flow_score_with_tracks(vec![
+            (ready_track, "plugin-a", false, false),
+            (unresolved_track, "plugin-b", false, false),
+        ]);
+        let unresolved_instrument_id = instrument_ids[1];
+        let unresolved_slot_id = score
+            .instruments
+            .by_id
+            .get(&unresolved_instrument_id)
+            .and_then(|instrument| instrument.playback_route.as_ref())
+            .map(|route| route.slot_id)
+            .expect("expected unresolved slot id");
+        score
+            .playback
+            .rack
+            .by_id
+            .get_mut(&unresolved_slot_id)
+            .unwrap()
+            .target = None;
+
+        let transport_state = make_transport_context_state();
+        let app_state = Mutex::new(make_app_context(score, Some(flow_id)));
+
+        transport_play_with_states(&transport_state, &app_state, 48_000).unwrap();
+
+        let ctx = transport_state.lock().unwrap();
+        assert!(ctx.shared.playing.load(Ordering::Acquire));
+        assert_eq!(ctx.shared.get_tempo(), 120.0);
+        assert!(ctx.thread_handle.is_some());
+        drop(ctx);
+
+        stop_test_transport(&transport_state);
+    }
+
+    #[test]
+    fn transport_play_with_states_starts_when_multiple_routes_are_ready() {
+        let _guard = transport_test_mutex().lock().unwrap();
+
+        let mut first_track = Track::new(50);
+        first_track
+            .create_tone(80, 32, 16, 60, None, 96, Default::default(), None)
+            .unwrap();
+        let mut second_track = Track::new(51);
+        second_track
+            .create_tone(81, 32, 16, 67, None, 96, Default::default(), None)
+            .unwrap();
+
+        let (score, flow_id, _instrument_ids) = make_flow_score_with_tracks(vec![
+            (first_track, "plugin-a", false, false),
+            (second_track, "plugin-b", false, false),
+        ]);
+        let transport_state = make_transport_context_state();
+        let app_state = Mutex::new(make_app_context(score, Some(flow_id)));
+
+        transport_play_with_states(&transport_state, &app_state, 48_000).unwrap();
+
+        let ctx = transport_state.lock().unwrap();
+        assert!(ctx.shared.playing.load(Ordering::Acquire));
+        assert_eq!(ctx.shared.get_tempo(), 120.0);
+        assert!(ctx.thread_handle.is_some());
+        drop(ctx);
+
+        stop_test_transport(&transport_state);
+    }
+
+    #[test]
+    fn scheduled_notes_for_tick_convert_to_engine_ready_transport_events() {
+        let mut track = Track::new(50);
+        track
+            .create_tuplet(70, 96, 3, 2, NoteDuration::Eighth, vec![3])
+            .unwrap();
+        track
+            .create_tone(80, 0, 16, 60, None, 96, Default::default(), Some(70))
+            .unwrap();
+        track
+            .create_tone(81, 16, 16, 62, None, 96, Default::default(), Some(70))
+            .unwrap();
+        track
+            .create_tone(82, 32, 16, 64, None, 96, Default::default(), Some(70))
+            .unwrap();
+
+        let (score, flow_id) = make_flow_score_with_track(track);
+        let app_ctx = make_app_context(score, Some(flow_id));
+        let (snapshot, _) =
+            build_supported_playback_snapshot(&app_ctx, 96, 48_000).expect("expected snapshot");
+
+        let current_tick_events = transport_events_for_tick(&snapshot, 96, 48_000, 120.0, 0);
+        assert_eq!(current_tick_events.len(), 1);
+        let current_tick_events = &current_tick_events[0];
+        assert_eq!(current_tick_events.slot_id, 6);
+        assert_eq!(current_tick_events.events.len(), 1);
+        assert_eq!(current_tick_events.events[0].pitch, 60);
+        assert_eq!(current_tick_events.events[0].velocity, 96);
+        assert_eq!(current_tick_events.events[0].sample_offset, 0);
+        assert_eq!(current_tick_events.events[0].duration_frames, 8_000);
+
+        let shared_tick_events = transport_events_for_tick(&snapshot, 106, 48_000, 120.0, 0);
+        assert_eq!(shared_tick_events.len(), 1);
+        let shared_tick_events = &shared_tick_events[0];
+        assert_eq!(shared_tick_events.slot_id, 6);
+        assert_eq!(shared_tick_events.events.len(), 1);
+        assert_eq!(shared_tick_events.events[0].pitch, 62);
+        assert_eq!(shared_tick_events.events[0].velocity, 96);
+        assert_eq!(shared_tick_events.events[0].sample_offset, 500);
+        assert_eq!(shared_tick_events.events[0].duration_frames, 8_000);
+    }
+
+    #[test]
+    fn transport_events_for_tick_returns_an_empty_list_without_supported_targets() {
+        let mut track = Track::new(50);
+        track
+            .create_tone(80, 32, 16, 60, None, 96, Default::default(), None)
+            .unwrap();
+
+        let (mut score, flow_id) = make_flow_score_with_track(track);
+        score.instruments.by_id.get_mut(&4).unwrap().playback_route = None;
+        let app_ctx = make_app_context(score, Some(flow_id));
+        let (snapshot, _) =
+            build_supported_playback_snapshot(&app_ctx, 32, 48_000).expect("expected snapshot");
+
+        assert!(transport_events_for_tick(&snapshot, 32, 48_000, 120.0, 0).is_empty());
+    }
+
+    #[test]
+    fn transport_events_for_tick_groups_multiple_playable_instruments_by_slot() {
+        let mut first_track = Track::new(50);
+        first_track
+            .create_tone(80, 32, 16, 60, None, 96, Default::default(), None)
+            .unwrap();
+        let mut second_track = Track::new(51);
+        second_track
+            .create_tone(81, 32, 16, 67, None, 96, Default::default(), None)
+            .unwrap();
+
+        let (score, flow_id, _instrument_ids) = make_flow_score_with_tracks(vec![
+            (first_track, "plugin-a", false, false),
+            (second_track, "plugin-b", false, false),
+        ]);
+        let app_ctx = make_app_context(score, Some(flow_id));
+        let (snapshot, _) =
+            build_supported_playback_snapshot(&app_ctx, 32, 48_000).expect("expected snapshot");
+
+        let tick_events = transport_events_for_tick(&snapshot, 32, 48_000, 120.0, 0);
+
+        assert_eq!(tick_events.len(), 2);
+        assert_eq!(tick_events[0].slot_id, 200);
+        assert_eq!(tick_events[0].events.len(), 1);
+        assert_eq!(tick_events[0].events[0].pitch, 60);
+        assert_eq!(tick_events[1].slot_id, 201);
+        assert_eq!(tick_events[1].events.len(), 1);
+        assert_eq!(tick_events[1].events[0].pitch, 67);
+    }
+
+    #[test]
+    fn transport_events_for_tick_emit_keyswitch_and_shortened_note_for_short_staccato_matches() {
+        let mut track = Track::new(50);
+        track
+            .create_tone(80, 32, 16, 60, None, 96, Default::default(), None)
+            .unwrap();
+        track.apply_articulations_to_tick(32, &staccato_articulations());
+
+        let (mut score, flow_id) = make_flow_score_with_track(track);
+        score
+            .instruments
+            .by_id
+            .get_mut(&4)
+            .unwrap()
+            .playback_route
+            .as_mut()
+            .unwrap()
+            .expression_map_id = Some(String::from("staccato-proof"));
+
+        let app_ctx = make_app_context(score, Some(flow_id));
+        let expression_maps = proof_expression_map_library_state();
+        let (snapshot, _) = build_supported_playback_snapshot_with_expression_maps(
+            &app_ctx,
+            32,
+            &expression_maps,
+            48_000,
+        )
+        .expect("expected snapshot");
+
+        let tick_events = transport_events_for_tick(&snapshot, 32, 48_000, 120.0, 0);
+
+        assert_eq!(tick_events.len(), 1);
+        assert_eq!(tick_events[0].slot_id, 6);
+        assert_eq!(tick_events[0].events.len(), 2);
+        assert_eq!(tick_events[0].events[0].pitch, 24);
+        assert_eq!(tick_events[0].events[0].velocity, 96);
+        assert_eq!(tick_events[0].events[1].pitch, 60);
+        assert_eq!(tick_events[0].events[1].duration_frames, 6_000);
+    }
+
+    #[test]
+    fn transport_events_for_tick_preserve_plugin_default_path_when_no_expression_rule_matches() {
+        let mut track = Track::new(50);
+        track
+            .create_tone(80, 32, 32, 60, None, 96, Default::default(), None)
+            .unwrap();
+
+        let (mut score, flow_id) = make_flow_score_with_track(track);
+        score
+            .instruments
+            .by_id
+            .get_mut(&4)
+            .unwrap()
+            .playback_route
+            .as_mut()
+            .unwrap()
+            .expression_map_id = Some(String::from("staccato-proof"));
+
+        let app_ctx = make_app_context(score, Some(flow_id));
+        let expression_maps = proof_expression_map_library_state();
+        let (snapshot, _) = build_supported_playback_snapshot_with_expression_maps(
+            &app_ctx,
+            32,
+            &expression_maps,
+            48_000,
+        )
+        .expect("expected snapshot");
+
+        let tick_events = transport_events_for_tick(&snapshot, 32, 48_000, 120.0, 0);
+
+        assert_eq!(tick_events.len(), 1);
+        assert_eq!(tick_events[0].events.len(), 1);
+        assert_eq!(tick_events[0].events[0].pitch, 60);
+        assert_eq!(tick_events[0].events[0].duration_frames, 24_000);
+    }
+
+    #[test]
+    fn transport_events_for_tick_resolve_shared_expression_maps_per_instrument_without_leakage() {
+        let mut short_track = Track::new(50);
+        short_track
+            .create_tone(80, 32, 16, 60, None, 96, Default::default(), None)
+            .unwrap();
+        short_track.apply_articulations_to_tick(32, &staccato_articulations());
+
+        let mut long_track = Track::new(51);
+        long_track
+            .create_tone(81, 32, 32, 67, None, 96, Default::default(), None)
+            .unwrap();
+        long_track.apply_articulations_to_tick(32, &staccato_articulations());
+
+        let (mut score, flow_id, instrument_ids) = make_flow_score_with_tracks(vec![
+            (short_track, "plugin-a", false, false),
+            (long_track, "plugin-b", false, false),
+        ]);
+        for instrument_id in instrument_ids {
+            score
+                .instruments
+                .by_id
+                .get_mut(&instrument_id)
+                .unwrap()
+                .playback_route
+                .as_mut()
+                .unwrap()
+                .expression_map_id = Some(String::from("staccato-proof"));
+        }
+
+        let app_ctx = make_app_context(score, Some(flow_id));
+        let expression_maps = proof_expression_map_library_state();
+        let (snapshot, _) = build_supported_playback_snapshot_with_expression_maps(
+            &app_ctx,
+            32,
+            &expression_maps,
+            48_000,
+        )
+        .expect("expected snapshot");
+
+        let tick_events = transport_events_for_tick(&snapshot, 32, 48_000, 120.0, 0);
+
+        assert_eq!(tick_events.len(), 2);
+        assert_eq!(tick_events[0].slot_id, 200);
+        assert_eq!(tick_events[0].events.len(), 2);
+        assert_eq!(tick_events[0].events[0].pitch, 24);
+        assert_eq!(tick_events[0].events[1].pitch, 60);
+        assert_eq!(tick_events[0].events[1].duration_frames, 6_000);
+
+        assert_eq!(tick_events[1].slot_id, 201);
+        assert_eq!(tick_events[1].events.len(), 1);
+        assert_eq!(tick_events[1].events[0].pitch, 67);
+        assert_eq!(tick_events[1].events[0].duration_frames, 13_200);
+    }
+
+    #[test]
+    fn transport_pause_with_states_republishes_tempo_at_the_paused_tick_and_joins_the_thread() {
+        reset_continuous_render_engine_for_tests();
+        let shared = Arc::new(make_transport_shared());
+        shared.current_tick.store(80, Ordering::Relaxed);
+        shared.playing.store(true, Ordering::Release);
+
+        let joined = Arc::new(AtomicBool::new(false));
+        let joined_flag = joined.clone();
+        let thread_shared = shared.clone();
+        let handle = std::thread::spawn(move || {
+            while !thread_shared.stop_signal.load(Ordering::Acquire) {
+                std::thread::yield_now();
+            }
+
+            joined_flag.store(true, Ordering::Release);
+        });
+
+        let transport_state = Mutex::new(TransportContext {
+            shared: shared.clone(),
+            thread_handle: Some(handle),
+        });
+        let (score, flow_id) = make_score_with_tempos(&[(0, 96), (64, 144)]);
+        let app_state = Mutex::new(make_app_context(score, Some(flow_id)));
+        let flush_count = Arc::new(AtomicU64::new(0));
+        let flush_counter = flush_count.clone();
+
+        transport_pause_with_states(&transport_state, &app_state, move || {
+            flush_counter.fetch_add(1, Ordering::Relaxed);
+        })
+        .unwrap();
+
+        let ctx = transport_state.lock().unwrap();
+        assert!(!ctx.shared.playing.load(Ordering::Acquire));
+        assert!(!ctx.shared.stop_signal.load(Ordering::Acquire));
+        assert_eq!(ctx.shared.current_tick.load(Ordering::Relaxed), 80);
+        assert_eq!(ctx.shared.get_tempo(), 144.0);
+        assert!(ctx.thread_handle.is_none());
+        drop(ctx);
+
+        assert!(joined.load(Ordering::Acquire));
+        assert_eq!(flush_count.load(Ordering::Relaxed), 1);
+    }
+
+    #[test]
+    fn transport_pause_with_states_clears_multi_target_engine_transport_work() {
+        let _guard = transport_test_mutex().lock().unwrap();
+
+        reset_continuous_render_engine_for_tests();
+
+        let mut first_track = Track::new(50);
+        first_track
+            .create_tone(80, 32, 16, 60, None, 96, Default::default(), None)
+            .unwrap();
+        let mut second_track = Track::new(51);
+        second_track
+            .create_tone(81, 32, 16, 67, None, 96, Default::default(), None)
+            .unwrap();
+
+        let (score, flow_id, _instrument_ids) = make_flow_score_with_tracks(vec![
+            (first_track, "plugin-a", false, false),
+            (second_track, "plugin-b", false, false),
+        ]);
+        let transport_state = make_transport_context_state();
+        {
+            let ctx = transport_state.lock().unwrap();
+            ctx.shared.current_tick.store(32, Ordering::Relaxed);
+        }
+        let app_state = Mutex::new(make_app_context(score, Some(flow_id)));
+
+        transport_play_with_states(&transport_state, &app_state, 48_000).unwrap();
+        wait_for_transport_engine_work(&[200, 201]);
+
+        transport_pause_with_states(&transport_state, &app_state, || {}).unwrap();
+
+        assert!(transport_engine_work_is_cleared(200));
+        assert!(transport_engine_work_is_cleared(201));
+
+        let ctx = transport_state.lock().unwrap();
+        assert!(!ctx.shared.playing.load(Ordering::Acquire));
+        assert!(ctx.thread_handle.is_none());
+    }
+
+    #[test]
+    fn transport_pause_with_states_rewinds_after_lookahead_queueing_clears_pending_work() {
+        let _guard = transport_test_mutex().lock().unwrap();
+
+        reset_continuous_render_engine_for_tests();
+
+        let mut track = Track::new(50);
+        track
+            .create_tone(80, 32, 16, 60, None, 96, Default::default(), None)
+            .unwrap();
+
+        let (score, flow_id) = make_flow_score_with_track(track);
+        let transport_state = make_transport_context_state();
+        {
+            let ctx = transport_state.lock().unwrap();
+            ctx.shared.current_tick.store(32, Ordering::Relaxed);
+        }
+        let app_state = Mutex::new(make_app_context(score, Some(flow_id)));
+
+        transport_play_with_states(&transport_state, &app_state, 48_000).unwrap();
+        wait_for_transport_engine_work(&[6]);
+
+        transport_pause_with_states(&transport_state, &app_state, || {}).unwrap();
+
+        let ctx = transport_state.lock().unwrap();
+        assert_eq!(ctx.shared.current_tick.load(Ordering::Relaxed), 32);
+        assert_eq!(ctx.shared.last_queued_tick.load(Ordering::Relaxed), 32);
+        drop(ctx);
+
+        assert!(transport_engine_work_is_cleared(6));
+    }
+
+    #[test]
+    fn transport_pause_with_states_rewinds_to_the_last_queued_tick_when_work_is_still_pending() {
+        let _guard = transport_test_mutex().lock().unwrap();
+
+        reset_continuous_render_engine_for_tests();
+
+        clear_transport_playback();
+        queue_transport_note(6, 0, 8, 60, 96);
+
+        let shared = Arc::new(make_transport_shared());
+        shared.current_tick.store(33, Ordering::Relaxed);
+        shared.last_queued_tick.store(32, Ordering::Relaxed);
+        shared.playing.store(true, Ordering::Release);
+
+        let thread_shared = shared.clone();
+        let handle = std::thread::spawn(move || {
+            while !thread_shared.stop_signal.load(Ordering::Acquire) {
+                std::thread::yield_now();
+            }
+        });
+
+        let transport_state = Mutex::new(TransportContext {
+            shared: shared.clone(),
+            thread_handle: Some(handle),
+        });
+        let (score, flow_id) = make_score_with_tempos(&[(0, 96), (64, 144)]);
+        let app_state = Mutex::new(make_app_context(score, Some(flow_id)));
+
+        transport_pause_with_states(&transport_state, &app_state, || {}).unwrap();
+
+        let ctx = transport_state.lock().unwrap();
+        assert_eq!(ctx.shared.current_tick.load(Ordering::Relaxed), 32);
+        assert_eq!(ctx.shared.last_queued_tick.load(Ordering::Relaxed), 32);
+    }
+
+    #[test]
+    fn transport_play_with_states_resumes_from_the_current_tick_with_a_fresh_tempo_snapshot() {
+        let _guard = transport_test_mutex().lock().unwrap();
+
+        let mut track = Track::new(50);
+        track
+            .create_tone(80, 32, 16, 60, None, 96, Default::default(), None)
+            .unwrap();
+
+        let (score, flow_id) = make_flow_score_with_track_and_tempos(track, &[(0, 96), (64, 144)]);
+        let transport_state = make_transport_context_state();
+        {
+            let ctx = transport_state.lock().unwrap();
+            ctx.shared.current_tick.store(80, Ordering::Relaxed);
+        }
+        let app_state = Mutex::new(make_app_context(score, Some(flow_id)));
+
+        transport_play_with_states(&transport_state, &app_state, 48_000).unwrap();
+
+        let ctx = transport_state.lock().unwrap();
+        assert!(ctx.shared.playing.load(Ordering::Acquire));
+        assert_eq!(ctx.shared.get_tempo(), 144.0);
+        drop(ctx);
+
+        stop_test_transport(&transport_state);
+    }
+
+    #[test]
+    fn transport_play_and_pause_with_states_remain_stable_across_repeated_cycles() {
+        let _guard = transport_test_mutex().lock().unwrap();
+
+        reset_continuous_render_engine_for_tests();
+        let mut track = Track::new(50);
+        track
+            .create_tone(80, 32, 16, 60, None, 96, Default::default(), None)
+            .unwrap();
+
+        let (score, flow_id) = make_flow_score_with_track(track);
+        let transport_state = make_transport_context_state();
+        let app_state = Mutex::new(make_app_context(score, Some(flow_id)));
+
+        for _ in 0..3 {
+            transport_play_with_states(&transport_state, &app_state, 48_000).unwrap();
+            {
+                let ctx = transport_state.lock().unwrap();
+                assert!(ctx.shared.playing.load(Ordering::Acquire));
+            }
+
+            transport_pause_with_states(&transport_state, &app_state, || {}).unwrap();
+
+            let ctx = transport_state.lock().unwrap();
+            assert!(!ctx.shared.playing.load(Ordering::Acquire));
+            assert!(!ctx.shared.stop_signal.load(Ordering::Acquire));
+            assert!(ctx.thread_handle.is_none());
+            drop(ctx);
+
+            assert!(transport_engine_work_is_cleared(6));
+        }
+
+        reset_continuous_render_engine_for_tests();
+    }
+
+    #[test]
+    fn transport_seek_with_states_updates_stopped_transport_without_starting_playback() {
+        let _guard = transport_test_mutex().lock().unwrap();
+
+        reset_continuous_render_engine_for_tests();
+
+        let mut track = Track::new(50);
+        track
+            .create_tone(80, 32, 16, 60, None, 96, Default::default(), None)
+            .unwrap();
+
+        let (score, flow_id) = make_flow_score_with_track_and_tempos(track, &[(0, 96), (64, 144)]);
+        let transport_state = make_transport_context_state();
+        let app_state = Mutex::new(make_app_context(score, Some(flow_id)));
+
+        transport_seek_with_states(&transport_state, &app_state, 48_000, 80).unwrap();
+
+        let ctx = transport_state.lock().unwrap();
+        assert!(!ctx.shared.playing.load(Ordering::Acquire));
+        assert!(ctx.thread_handle.is_none());
+        assert_eq!(ctx.shared.current_tick.load(Ordering::Relaxed), 80);
+        assert_eq!(ctx.shared.last_queued_tick.load(Ordering::Relaxed), 80);
+        assert_eq!(ctx.shared.get_tempo(), 144.0);
+    }
+
+    #[test]
+    fn transport_seek_with_states_restarts_playback_from_a_fresh_snapshot_and_clears_old_work() {
+        let _guard = transport_test_mutex().lock().unwrap();
+
+        reset_continuous_render_engine_for_tests();
+
+        let mut track = Track::new(50);
+        track
+            .create_tone(80, 32, 16, 60, None, 96, Default::default(), None)
+            .unwrap();
+        track
+            .create_tone(81, 96, 16, 64, None, 96, Default::default(), None)
+            .unwrap();
+
+        let (score, flow_id) = make_flow_score_with_track_and_tempos(track, &[(0, 96), (64, 144)]);
+        let transport_state = make_transport_context_state();
+        {
+            let ctx = transport_state.lock().unwrap();
+            ctx.shared.current_tick.store(32, Ordering::Relaxed);
+        }
+        let app_state = Mutex::new(make_app_context(score, Some(flow_id)));
+
+        transport_play_with_states(&transport_state, &app_state, 48_000).unwrap();
+        wait_for_transport_engine_work(&[6]);
+
+        transport_seek_with_states(&transport_state, &app_state, 48_000, 80).unwrap();
+
+        let ctx = transport_state.lock().unwrap();
+        assert!(ctx.shared.playing.load(Ordering::Acquire));
+        assert!(ctx.thread_handle.is_some());
+        assert_eq!(ctx.shared.current_tick.load(Ordering::Relaxed), 80);
+        assert_eq!(ctx.shared.last_queued_tick.load(Ordering::Relaxed), 80);
+        assert_eq!(ctx.shared.get_tempo(), 144.0);
+        drop(ctx);
+
+        let slot_state = transport_playback_debug_state(6).expect("expected slot state");
+        assert!(slot_state.transport_active);
+        assert_eq!(slot_state.queued_transport_event_count, 0);
+        assert_eq!(slot_state.active_transport_note_count, 0);
+
+        stop_test_transport(&transport_state);
+    }
+
+    #[test]
+    fn transport_seek_with_states_joins_the_previous_transport_thread_before_restarting() {
+        let _guard = transport_test_mutex().lock().unwrap();
+
+        reset_continuous_render_engine_for_tests();
+
+        let mut track = Track::new(50);
+        track
+            .create_tone(80, 32, 16, 60, None, 96, Default::default(), None)
+            .unwrap();
+
+        let (score, flow_id) = make_flow_score_with_track(track);
+        let shared = Arc::new(make_transport_shared());
+        shared.current_tick.store(32, Ordering::Relaxed);
+        shared.playing.store(true, Ordering::Release);
+
+        let joined = Arc::new(AtomicBool::new(false));
+        let joined_flag = joined.clone();
+        let thread_shared = shared.clone();
+        let handle = std::thread::spawn(move || {
+            while !thread_shared.stop_signal.load(Ordering::Acquire) {
+                std::thread::yield_now();
+            }
+
+            joined_flag.store(true, Ordering::Release);
+        });
+
+        let transport_state = Mutex::new(TransportContext {
+            shared: shared.clone(),
+            thread_handle: Some(handle),
+        });
+        let app_state = Mutex::new(make_app_context(score, Some(flow_id)));
+
+        transport_seek_with_states(&transport_state, &app_state, 48_000, 80).unwrap();
+
+        assert!(joined.load(Ordering::Acquire));
+        let ctx = transport_state.lock().unwrap();
+        assert!(ctx.shared.playing.load(Ordering::Acquire));
+        assert!(!ctx.shared.stop_signal.load(Ordering::Acquire));
+        assert!(ctx.thread_handle.is_some());
+        drop(ctx);
+
+        stop_test_transport(&transport_state);
+    }
+
+    #[test]
+    fn transport_seek_with_states_keeps_unresolved_routes_as_recoverable_no_ops() {
+        let _guard = transport_test_mutex().lock().unwrap();
+
+        reset_continuous_render_engine_for_tests();
+
+        let mut ready_track = Track::new(50);
+        ready_track
+            .create_tone(80, 32, 16, 60, None, 96, Default::default(), None)
+            .unwrap();
+        ready_track
+            .create_tone(82, 96, 16, 62, None, 96, Default::default(), None)
+            .unwrap();
+        let mut unresolved_track = Track::new(51);
+        unresolved_track
+            .create_tone(81, 32, 16, 67, None, 96, Default::default(), None)
+            .unwrap();
+        unresolved_track
+            .create_tone(83, 96, 16, 69, None, 96, Default::default(), None)
+            .unwrap();
+
+        let (mut score, flow_id, instrument_ids) = make_flow_score_with_tracks(vec![
+            (ready_track, "plugin-a", false, false),
+            (unresolved_track, "plugin-b", false, false),
+        ]);
+        let unresolved_instrument_id = instrument_ids[1];
+        let unresolved_slot_id = score
+            .instruments
+            .by_id
+            .get(&unresolved_instrument_id)
+            .and_then(|instrument| instrument.playback_route.as_ref())
+            .map(|route| route.slot_id)
+            .expect("expected unresolved slot id");
+        score
+            .playback
+            .rack
+            .by_id
+            .get_mut(&unresolved_slot_id)
+            .unwrap()
+            .target = None;
+
+        let transport_state = make_transport_context_state();
+        {
+            let ctx = transport_state.lock().unwrap();
+            ctx.shared.current_tick.store(32, Ordering::Relaxed);
+        }
+        let app_state = Mutex::new(make_app_context(score, Some(flow_id)));
+
+        transport_play_with_states(&transport_state, &app_state, 48_000).unwrap();
+        wait_for_transport_engine_work(&[200]);
+
+        transport_seek_with_states(&transport_state, &app_state, 48_000, 96).unwrap();
+        wait_for_transport_engine_work(&[200]);
+
+        let ctx = transport_state.lock().unwrap();
+        assert!(ctx.shared.playing.load(Ordering::Acquire));
+        assert_eq!(ctx.shared.current_tick.load(Ordering::Relaxed), 96);
+        assert_eq!(ctx.shared.last_queued_tick.load(Ordering::Relaxed), 96);
+        drop(ctx);
+
+        assert!(transport_playback_debug_state(200).is_some());
+        assert!(transport_playback_debug_state(unresolved_slot_id).is_none());
+
+        stop_test_transport(&transport_state);
+    }
+
+    #[test]
+    fn transport_seek_with_states_remains_stable_across_repeated_rebases() {
+        let _guard = transport_test_mutex().lock().unwrap();
+
+        reset_continuous_render_engine_for_tests();
+
+        let mut track = Track::new(50);
+        track
+            .create_tone(80, 32, 16, 60, None, 96, Default::default(), None)
+            .unwrap();
+        track
+            .create_tone(81, 96, 16, 64, None, 96, Default::default(), None)
+            .unwrap();
+
+        let (score, flow_id) = make_flow_score_with_track_and_tempos(track, &[(0, 96), (64, 144)]);
+        let transport_state = make_transport_context_state();
+        {
+            let ctx = transport_state.lock().unwrap();
+            ctx.shared.current_tick.store(32, Ordering::Relaxed);
+        }
+        let app_state = Mutex::new(make_app_context(score, Some(flow_id)));
+
+        transport_play_with_states(&transport_state, &app_state, 48_000).unwrap();
+        wait_for_transport_engine_work(&[6]);
+
+        for seek_tick in [80, 32, 96, 0] {
+            transport_seek_with_states(&transport_state, &app_state, 48_000, seek_tick).unwrap();
+
+            let ctx = transport_state.lock().unwrap();
+            assert!(ctx.shared.playing.load(Ordering::Acquire));
+            assert_eq!(ctx.shared.current_tick.load(Ordering::Relaxed), seek_tick);
+            assert_eq!(
+                ctx.shared.last_queued_tick.load(Ordering::Relaxed),
+                seek_tick
+            );
+            assert!(!ctx.shared.stop_signal.load(Ordering::Acquire));
+            assert!(ctx.thread_handle.is_some());
+        }
+
+        transport_pause_with_states(&transport_state, &app_state, || {}).unwrap();
+
+        let ctx = transport_state.lock().unwrap();
+        assert!(!ctx.shared.playing.load(Ordering::Acquire));
+        assert!(!ctx.shared.stop_signal.load(Ordering::Acquire));
+        assert!(ctx.thread_handle.is_none());
+        drop(ctx);
+
+        assert!(transport_engine_work_is_cleared(6));
+
+        reset_continuous_render_engine_for_tests();
+    }
+
+    #[test]
+    fn transport_seek_with_states_updates_paused_transport_without_restarting_playback() {
+        let _guard = transport_test_mutex().lock().unwrap();
+
+        reset_continuous_render_engine_for_tests();
+
+        let mut track = Track::new(50);
+        track
+            .create_tone(80, 32, 16, 60, None, 96, Default::default(), None)
+            .unwrap();
+
+        let (score, flow_id) = make_flow_score_with_track_and_tempos(track, &[(0, 96), (64, 144)]);
+        let transport_state = make_transport_context_state();
+        {
+            let ctx = transport_state.lock().unwrap();
+            ctx.shared.current_tick.store(32, Ordering::Relaxed);
+        }
+        let app_state = Mutex::new(make_app_context(score, Some(flow_id)));
+
+        transport_play_with_states(&transport_state, &app_state, 48_000).unwrap();
+        wait_for_transport_engine_work(&[6]);
+        transport_pause_with_states(&transport_state, &app_state, || {}).unwrap();
+
+        transport_seek_with_states(&transport_state, &app_state, 48_000, 80).unwrap();
+
+        let ctx = transport_state.lock().unwrap();
+        assert!(!ctx.shared.playing.load(Ordering::Acquire));
+        assert!(!ctx.shared.stop_signal.load(Ordering::Acquire));
+        assert!(ctx.thread_handle.is_none());
+        assert_eq!(ctx.shared.current_tick.load(Ordering::Relaxed), 80);
+        assert_eq!(ctx.shared.last_queued_tick.load(Ordering::Relaxed), 80);
+        assert_eq!(ctx.shared.get_tempo(), 144.0);
+        drop(ctx);
+
+        assert!(transport_engine_work_is_cleared(6));
+
+        reset_continuous_render_engine_for_tests();
+    }
+
+    #[test]
+    fn transport_thread_keeps_final_lookahead_work_alive_until_natural_end_drains() {
+        let _guard = transport_test_mutex().lock().unwrap();
+
+        reset_continuous_render_engine_for_tests();
+
+        let mut track = Track::new(50);
+        track
+            .create_tone(80, 159, 16, 60, None, 96, Default::default(), None)
+            .unwrap();
+
+        let (score, flow_id) = make_flow_score_with_track(track);
+        let transport_state = make_transport_context_state();
+        {
+            let ctx = transport_state.lock().unwrap();
+            ctx.shared.current_tick.store(159, Ordering::Relaxed);
+        }
+        let app_state = Mutex::new(make_app_context(score, Some(flow_id)));
+
+        transport_play_with_states(&transport_state, &app_state, 48_000).unwrap();
+        wait_for_transport_engine_work(&[6]);
+
+        let shared = {
+            let ctx = transport_state.lock().unwrap();
+            ctx.shared.clone()
+        };
+        wait_for_transport_current_tick(&shared, 160);
+
+        assert!(shared.playing.load(Ordering::Acquire));
+        assert!(transport_playback_has_pending_work());
+
+        stop_test_transport(&transport_state);
+    }
+
+    #[test]
+    fn transport_rebuild_reset_requires_the_next_snapshot_to_use_the_new_sample_rate() {
+        let _guard = transport_test_mutex().lock().unwrap();
+
+        reset_continuous_render_engine_for_tests();
+
+        let mut track = Track::new(50);
+        track
+            .create_tone(80, 32, 16, 60, None, 96, Default::default(), None)
+            .unwrap();
+
+        let (score, flow_id) = make_flow_score_with_track(track);
+        let transport_state = make_transport_context_state();
+        {
+            let ctx = transport_state.lock().unwrap();
+            ctx.shared.current_tick.store(32, Ordering::Relaxed);
+        }
+        let app_state = Mutex::new(make_app_context(score, Some(flow_id)));
+
+        transport_play_with_states(&transport_state, &app_state, 48_000).unwrap();
+        wait_for_transport_engine_work(&[6]);
+
+        reset_transport_for_audio_rebuild_with_stop(
+            &app_state,
+            || {
+                let (shared, handle) = {
+                    let mut ctx = transport_state.lock().unwrap();
+                    ctx.shared.stop_signal.store(true, Ordering::Release);
+                    ctx.shared.playing.store(false, Ordering::Release);
+
+                    (ctx.shared.clone(), ctx.thread_handle.take())
+                };
+
+                join_transport_thread(handle)?;
+                Ok(shared)
+            },
+            |_| Ok(()),
+        )
+        .unwrap();
+
+        let app_ctx = app_state.lock().unwrap();
+        let current_tick = {
+            let ctx = transport_state.lock().unwrap();
+            ctx.shared.current_tick.load(Ordering::Relaxed)
+        };
+        let (snapshot, _) =
+            build_supported_playback_snapshot(&app_ctx, current_tick, 96_000).expect("snapshot");
+        drop(app_ctx);
+
+        assert_eq!(snapshot.preparation.sample_rate, 96_000);
+        let tick_events = transport_events_for_tick(&snapshot, 32, 96_000, 120.0, 0);
+        assert_eq!(tick_events.len(), 1);
+        assert_eq!(tick_events[0].events[0].duration_frames, 24_000);
+
+        reset_continuous_render_engine_for_tests();
+    }
+
+    #[test]
+    fn transport_play_with_states_keeps_current_pass_running_when_score_changes_are_deferred() {
+        let _guard = transport_test_mutex().lock().unwrap();
+
+        reset_continuous_render_engine_for_tests();
+
+        let mut track = Track::new(50);
+        track
+            .create_tone(80, 32, 32, 60, None, 96, Default::default(), None)
+            .unwrap();
+
+        let (score, flow_id) = make_flow_score_with_track(track);
+        let transport_state = make_transport_context_state();
+        {
+            let ctx = transport_state.lock().unwrap();
+            ctx.shared.current_tick.store(32, Ordering::Relaxed);
+        }
+        let app_state = Mutex::new(make_app_context(score, Some(flow_id)));
+
+        transport_play_with_states(&transport_state, &app_state, 48_000).unwrap();
+        wait_for_transport_engine_work(&[6]);
+
+        {
+            let mut app_ctx = app_state.lock().unwrap();
+            app_ctx
+                .score
+                .tracks
+                .by_id
+                .get_mut(&50)
+                .unwrap()
+                .set_tone_pitch(80, 67, None, None);
+            app_ctx.defer_playback_refresh(DeferredPlaybackRefreshKind::ScoreStructure);
+        }
+
+        {
+            let ctx = transport_state.lock().unwrap();
+            assert!(ctx.shared.playing.load(Ordering::Acquire));
+            assert!(ctx.thread_handle.is_some());
+        }
+        let slot_state = transport_playback_debug_state(6).expect("expected slot state");
+        assert!(
+            slot_state.transport_active
+                || slot_state.queued_transport_event_count > 0
+                || slot_state.active_transport_note_count > 0
+        );
+        {
+            let app_ctx = app_state.lock().unwrap();
+            assert_eq!(
+                app_ctx.pending_playback_refresh_kind(),
+                Some(DeferredPlaybackRefreshKind::ScoreStructure)
+            );
+        }
+
+        stop_test_transport(&transport_state);
+    }
+
+    #[test]
+    fn playback_topology_refresh_priority_survives_later_score_structure_edits() {
+        let mut track = Track::new(50);
+        track
+            .create_tone(80, 32, 16, 60, None, 96, Default::default(), None)
+            .unwrap();
+
+        let (score, flow_id) = make_flow_score_with_track(track);
+        let mut app_ctx = make_app_context(score, Some(flow_id));
+
+        app_ctx.defer_playback_refresh(DeferredPlaybackRefreshKind::PlaybackTopology);
+        app_ctx.defer_playback_refresh(DeferredPlaybackRefreshKind::ScoreStructure);
+
+        assert_eq!(
+            app_ctx.pending_playback_refresh_kind(),
+            Some(DeferredPlaybackRefreshKind::PlaybackTopology)
+        );
+    }
+
+    #[test]
+    fn build_supported_playback_snapshot_uses_updated_score_after_deferred_edit_boundary() {
+        let mut track = Track::new(50);
+        track
+            .create_tone(80, 32, 16, 60, None, 96, Default::default(), None)
+            .unwrap();
+
+        let (score, flow_id) = make_flow_score_with_track(track);
+        let mut app_ctx = make_app_context(score, Some(flow_id));
+
+        let (before_snapshot, _) =
+            build_supported_playback_snapshot(&app_ctx, 32, 48_000).expect("snapshot");
+        let before_tick_events = transport_events_for_tick(&before_snapshot, 32, 48_000, 120.0, 0);
+        assert_eq!(before_tick_events.len(), 1);
+        assert_eq!(before_tick_events[0].events.len(), 1);
+        assert_eq!(before_tick_events[0].events[0].pitch, 60);
+
+        app_ctx
+            .score
+            .tracks
+            .by_id
+            .get_mut(&50)
+            .unwrap()
+            .set_tone_pitch(80, 67, None, None);
+        app_ctx.defer_playback_refresh(DeferredPlaybackRefreshKind::ScoreStructure);
+
+        let (after_snapshot, _) =
+            build_supported_playback_snapshot(&app_ctx, 32, 48_000).expect("snapshot");
+        let after_tick_events = transport_events_for_tick(&after_snapshot, 32, 48_000, 120.0, 0);
+        assert_eq!(after_tick_events.len(), 1);
+        assert_eq!(after_tick_events[0].events.len(), 1);
+        assert_eq!(after_tick_events[0].events[0].pitch, 67);
     }
 
     #[test]
@@ -1378,9 +3203,11 @@ mod tests {
         );
 
         let app_ctx = make_app_context(score, Some(selected_flow_id));
+        let preparation = make_playback_preparation_for_score(&app_ctx.score, 48_000);
         let scheduled = collect_scheduled_notes(
             &app_ctx.score,
             active_flow_id(&app_ctx).expect("expected active flow"),
+            &preparation,
         );
 
         assert_eq!(
@@ -1470,9 +3297,11 @@ mod tests {
         );
 
         let app_ctx = make_app_context(score, Some(selected_flow_id));
+        let preparation = make_playback_preparation_for_score(&app_ctx.score, 48_000);
         let scheduled = collect_scheduled_notes(
             &app_ctx.score,
             active_flow_id(&app_ctx).expect("expected active flow"),
+            &preparation,
         );
 
         assert_eq!(
@@ -1553,7 +3382,8 @@ mod tests {
 
         let app_ctx = make_app_context(score, None);
         let selected_flow_id = active_flow_id(&app_ctx).expect("expected fallback flow");
-        let scheduled = collect_scheduled_notes(&app_ctx.score, selected_flow_id);
+        let preparation = make_playback_preparation_for_score(&app_ctx.score, 48_000);
+        let scheduled = collect_scheduled_notes(&app_ctx.score, selected_flow_id, &preparation);
 
         assert_eq!(selected_flow_id, first_flow_id);
         assert_eq!(
@@ -1586,7 +3416,8 @@ mod tests {
             .unwrap();
 
         let (score, flow_id) = make_flow_score_with_track(track);
-        let scheduled = collect_scheduled_notes(&score, flow_id);
+        let preparation = make_playback_preparation_for_score(&score, 48_000);
+        let scheduled = collect_scheduled_notes(&score, flow_id, &preparation);
 
         assert_eq!(scheduled.get(&96).map(Vec::len), Some(1));
         assert_eq!(scheduled.get(&106).map(Vec::len), Some(1));
@@ -1610,7 +3441,8 @@ mod tests {
             .unwrap();
 
         let (score, flow_id) = make_flow_score_with_track(track);
-        let scheduled = collect_scheduled_notes(&score, flow_id);
+        let preparation = make_playback_preparation_for_score(&score, 48_000);
+        let scheduled = collect_scheduled_notes(&score, flow_id, &preparation);
 
         assert_eq!(
             flatten_scheduled_starts(&scheduled),
@@ -1643,7 +3475,8 @@ mod tests {
             .unwrap();
 
         let (score, flow_id) = make_flow_score_with_track(track);
-        let scheduled = collect_scheduled_notes(&score, flow_id);
+        let preparation = make_playback_preparation_for_score(&score, 48_000);
+        let scheduled = collect_scheduled_notes(&score, flow_id, &preparation);
         let bucket = scheduled
             .get(&106)
             .expect("expected mixed shared bucket at tick 106");
@@ -1681,7 +3514,8 @@ mod tests {
             .unwrap();
 
         let (score, flow_id) = make_flow_score_with_track(track);
-        let scheduled = collect_scheduled_notes(&score, flow_id);
+        let preparation = make_playback_preparation_for_score(&score, 48_000);
+        let scheduled = collect_scheduled_notes(&score, flow_id, &preparation);
 
         assert_eq!(
             flatten_scheduled_starts(&scheduled),
@@ -1710,7 +3544,8 @@ mod tests {
             .unwrap();
 
         let (score, flow_id) = make_flow_score_with_track(track);
-        let scheduled = collect_scheduled_notes(&score, flow_id);
+        let preparation = make_playback_preparation_for_score(&score, 48_000);
+        let scheduled = collect_scheduled_notes(&score, flow_id, &preparation);
 
         assert!(scheduled
             .values()
@@ -1720,20 +3555,17 @@ mod tests {
 
     #[test]
     fn collect_scheduled_notes_keeps_same_start_host_only_notes_in_deterministic_order() {
-        let mut first_track = Track::new(50);
-        first_track
+        let mut track = Track::new(50);
+        track
             .create_tone(80, 96, 16, 60, None, 96, Default::default(), None)
             .unwrap();
-        let mut second_track = Track::new(51);
-        second_track
-            .create_tone(81, 96, 16, 60, None, 96, Default::default(), None)
+        track
+            .create_tone(81, 96, 16, 64, None, 96, Default::default(), None)
             .unwrap();
 
-        let (score, flow_id, instrument_ids) = make_flow_score_with_tracks(vec![
-            (first_track, "plugin-a", false, false),
-            (second_track, "plugin-b", false, false),
-        ]);
-        let scheduled = collect_scheduled_notes(&score, flow_id);
+        let (score, flow_id) = make_flow_score_with_track(track);
+        let preparation = make_playback_preparation_for_score(&score, 48_000);
+        let scheduled = collect_scheduled_notes(&score, flow_id, &preparation);
         let bucket = scheduled
             .get(&96)
             .expect("expected host-only shared bucket");
@@ -1743,11 +3575,8 @@ mod tests {
             .iter()
             .all(|note| note.start == PlaybackTick::from_tick(96)));
         assert_eq!(
-            bucket
-                .iter()
-                .map(|note| note.instrument_id)
-                .collect::<Vec<_>>(),
-            instrument_ids
+            bucket.iter().map(|note| note.pitch).collect::<Vec<_>>(),
+            vec![60, 64]
         );
     }
 
@@ -1762,7 +3591,8 @@ mod tests {
             .unwrap();
 
         let (score, flow_id) = make_flow_score_with_track_and_tempos(track, &[(0, 84), (64, 132)]);
-        let scheduled = collect_scheduled_notes(&score, flow_id);
+        let preparation = make_playback_preparation_for_score(&score, 48_000);
+        let scheduled = collect_scheduled_notes(&score, flow_id, &preparation);
         let starts = flatten_scheduled_starts(&scheduled);
 
         assert_eq!(
@@ -1776,53 +3606,5 @@ mod tests {
                 .collect::<Vec<_>>(),
             vec![84.0, 132.0]
         );
-    }
-
-    #[test]
-    fn filter_audible_scheduled_notes_respects_mute_and_solo_for_host_only_passages() {
-        let mut muted_track = Track::new(50);
-        muted_track
-            .create_tone(80, 32, 16, 60, None, 96, Default::default(), None)
-            .unwrap();
-        let mut unmuted_track = Track::new(51);
-        unmuted_track
-            .create_tone(81, 32, 16, 62, None, 96, Default::default(), None)
-            .unwrap();
-        let mut solo_track = Track::new(52);
-        solo_track
-            .create_tone(82, 32, 16, 64, None, 96, Default::default(), None)
-            .unwrap();
-
-        let (score, flow_id, instrument_ids) = make_flow_score_with_tracks(vec![
-            (muted_track, "plugin-a", true, false),
-            (unmuted_track, "plugin-b", false, false),
-            (solo_track, "plugin-c", false, true),
-        ]);
-        let scheduled = collect_scheduled_notes(&score, flow_id);
-        let bucket = scheduled
-            .get(&32)
-            .expect("expected shared host-only bucket");
-        let local_mix = score
-            .instruments
-            .by_id
-            .iter()
-            .map(|(instrument_id, instrument)| {
-                (
-                    *instrument_id,
-                    InstrumentMixParams {
-                        volume: instrument.volume,
-                        pan: instrument.pan,
-                        mute: instrument.mute,
-                        solo: instrument.solo,
-                    },
-                )
-            })
-            .collect::<FxHashMap<_, _>>();
-
-        let audible = filter_audible_scheduled_notes(bucket, &local_mix, true);
-
-        assert_eq!(audible.len(), 1);
-        assert_eq!(audible[0].0.instrument_id, instrument_ids[2]);
-        assert_eq!(audible[0].0.start, PlaybackTick::from_tick(32));
     }
 }

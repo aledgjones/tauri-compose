@@ -1,10 +1,52 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { AppStateProvider } from "./provider";
-import { initialAppState } from "./context";
-import { AppState, NoteDuration } from "../types";
+import {
+  initialExpressionMapLibraryState,
+  initialAppState,
+  useAppState,
+  useExpressionMapLibraryState,
+  usePluginInventoryState,
+} from "./context";
+import {
+  AppState,
+  ExpressionMapLibraryState,
+  NoteDuration,
+  PluginInventoryState,
+} from "../types";
 import { invoke } from "@tauri-apps/api/core";
 import { actions } from "../actions";
+
+const PluginInventoryConsumer = () => {
+  const pluginInventoryState = usePluginInventoryState();
+
+  return (
+    <div>{pluginInventoryState.entries[0]?.name ?? "No plugin inventory"}</div>
+  );
+};
+
+const ExpressionMapLibraryConsumer = () => {
+  const expressionMapLibraryState = useExpressionMapLibraryState();
+
+  return (
+    <div>
+      {expressionMapLibraryState.by_id[expressionMapLibraryState.order[0]]
+        ?.name ?? "No expression maps"}
+    </div>
+  );
+};
+
+const ProjectLoadingConsumer = () => {
+  const appState = useAppState();
+
+  return <div>{appState.is_project_loading ? "loading" : "idle"}</div>;
+};
+
+const WindowFocusConsumer = () => {
+  const appState = useAppState();
+
+  return <div>{appState.is_window_focused ? "focused" : "blurred"}</div>;
+};
 
 const { listenMock, getStateMock } = vi.hoisted(() => ({
   listenMock: vi.fn(),
@@ -35,6 +77,8 @@ vi.mock("@tauri-apps/api/webviewWindow", () => ({
 vi.mock("../actions", () => ({
   actions: {
     initialize: vi.fn().mockResolvedValue(undefined),
+    openPluginManager: vi.fn().mockResolvedValue(undefined),
+    openExpressionMapManager: vi.fn().mockResolvedValue(undefined),
     transport: {
       play: vi.fn().mockResolvedValue(undefined),
       pause: vi.fn().mockResolvedValue(undefined),
@@ -56,6 +100,7 @@ describe("AppStateProvider", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useRealTimers();
+    vi.stubGlobal("alert", vi.fn());
     listenMock.mockReset();
     listenMock.mockResolvedValue(vi.fn());
     getStateMock.mockClear();
@@ -68,6 +113,7 @@ describe("AppStateProvider", () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.unstubAllGlobals();
   });
 
   it("renders children", async () => {
@@ -79,6 +125,53 @@ describe("AppStateProvider", () => {
       );
     });
     expect(screen.getByText("child content")).toBeInTheDocument();
+  });
+
+  it("updates expression map library state from the expression-maps event", async () => {
+    let expressionMapListener:
+      | ((event: { payload: ExpressionMapLibraryState }) => void)
+      | null = null;
+
+    listenMock.mockImplementation(async (eventName, callback) => {
+      if (eventName === "soloc://state/expression_maps") {
+        expressionMapListener = callback as (event: {
+          payload: ExpressionMapLibraryState;
+        }) => void;
+      }
+
+      return vi.fn();
+    });
+
+    await act(async () => {
+      render(
+        <AppStateProvider>
+          <ExpressionMapLibraryConsumer />
+        </AppStateProvider>,
+      );
+    });
+
+    expect(screen.getByText("No expression maps")).toBeInTheDocument();
+
+    await act(async () => {
+      expressionMapListener?.({
+        payload: {
+          ...initialExpressionMapLibraryState,
+          order: ["legato"],
+          by_id: {
+            legato: {
+              id: "legato",
+              name: "Legato",
+              creator: "",
+              version: 1,
+              default_actions: [{ id: "default-action", type: "no_op" }],
+              rules: [],
+            },
+          },
+        },
+      });
+    });
+
+    expect(screen.getByText("Legato")).toBeInTheDocument();
   });
 
   it("renders multiple children", async () => {
@@ -329,6 +422,15 @@ describe("AppStateProvider", () => {
 
   it("wires main-window file menu events and refreshes menus after init and recents changes", async () => {
     vi.useFakeTimers();
+    const saveMock = vi.mocked(actions.file.save);
+    const saveAsMock = vi.mocked(actions.file.saveAs);
+    const loadMock = vi.mocked(actions.file.load);
+    const loadFromPathMock = vi.mocked(actions.file.loadFromPath);
+    const resetMock = vi.mocked(actions.reset);
+    const openPluginManagerMock = vi.mocked(actions.openPluginManager);
+    const openExpressionMapManagerMock = vi.mocked(
+      actions.openExpressionMapManager,
+    );
 
     const listeners = new Map<string, (event: { payload: string }) => void>();
     listenMock.mockImplementation(async (eventName, callback) => {
@@ -355,6 +457,8 @@ describe("AppStateProvider", () => {
     expect(listeners.has("soloc://menu/open")).toBe(true);
     expect(listeners.has("soloc://menu/open-recent")).toBe(true);
     expect(listeners.has("soloc://menu/new")).toBe(true);
+    expect(listeners.has("soloc://menu/plugin-manager")).toBe(true);
+    expect(listeners.has("soloc://menu/expression-map-manager")).toBe(true);
     expect(listeners.has("soloc://recents-changed")).toBe(true);
 
     await act(async () => {
@@ -373,17 +477,23 @@ describe("AppStateProvider", () => {
         payload: "/Users/aledjones/example.soloc",
       });
       listeners.get("soloc://menu/new")?.({ payload: "" });
+      listeners.get("soloc://menu/plugin-manager")?.({ payload: "" });
+      listeners.get("soloc://menu/expression-map-manager")?.({ payload: "" });
       listeners.get("soloc://recents-changed")?.({ payload: "" });
+      await Promise.resolve();
+      await vi.advanceTimersByTimeAsync(0);
       await Promise.resolve();
     });
 
-    expect(actions.file.save).toHaveBeenCalledTimes(1);
-    expect(actions.file.saveAs).toHaveBeenCalledTimes(1);
-    expect(actions.file.load).toHaveBeenCalledTimes(1);
-    expect(actions.file.loadFromPath).toHaveBeenCalledWith(
+    expect(saveMock).toHaveBeenCalledTimes(1);
+    expect(saveAsMock).toHaveBeenCalledTimes(1);
+    expect(loadMock).toHaveBeenCalledTimes(1);
+    expect(loadFromPathMock).toHaveBeenCalledWith(
       "/Users/aledjones/example.soloc",
     );
-    expect(actions.reset).toHaveBeenCalledTimes(1);
+    expect(resetMock).toHaveBeenCalledTimes(1);
+    expect(openPluginManagerMock).toHaveBeenCalledTimes(1);
+    expect(openExpressionMapManagerMock).toHaveBeenCalledTimes(1);
 
     expect(invokeMock).toHaveBeenCalledWith("refresh_menus");
   });
@@ -405,10 +515,215 @@ describe("AppStateProvider", () => {
 
     expect(listeners.has("soloc://state/general")).toBe(true);
     expect(listeners.has("soloc://state/audio")).toBe(true);
-    expect(listeners.has("soloc://state/sampler")).toBe(true);
+    expect(listeners.has("soloc://state/plugin_inventory")).toBe(true);
     expect(listeners.has("soloc://menu/save")).toBe(false);
     expect(listeners.has("soloc://menu/open")).toBe(false);
     expect(listeners.has("soloc://menu/open-recent")).toBe(false);
+    expect(listeners.has("soloc://menu/plugin-manager")).toBe(false);
+    expect(listeners.has("soloc://menu/expression-map-manager")).toBe(false);
     expect(listeners.has("soloc://recents-changed")).toBe(false);
+  });
+
+  it("alerts once when plugin inventory errors are emitted", async () => {
+    let pluginInventoryListener:
+      | ((event: { payload: PluginInventoryState }) => void)
+      | null = null;
+
+    listenMock.mockImplementation(async (eventName, callback) => {
+      if (eventName === "soloc://state/plugin_inventory") {
+        pluginInventoryListener = callback as (event: {
+          payload: PluginInventoryState;
+        }) => void;
+      }
+
+      return vi.fn();
+    });
+
+    await act(async () => {
+      render(
+        <AppStateProvider isMainWindow={true}>
+          <div>child content</div>
+        </AppStateProvider>,
+      );
+    });
+
+    const payload: PluginInventoryState = {
+      entries: [],
+      errors: [
+        {
+          kind: "storage_error",
+          message:
+            "Failed to open plugin inventory database '/tmp/plugin_inventory': nope",
+        },
+      ],
+      last_discovered_at_ms: null,
+    };
+
+    await act(async () => {
+      pluginInventoryListener?.({ payload });
+    });
+
+    expect(globalThis.alert).toHaveBeenCalledTimes(1);
+    expect(globalThis.alert).toHaveBeenCalledWith(
+      expect.stringContaining("Failed to open plugin inventory database"),
+    );
+
+    await act(async () => {
+      pluginInventoryListener?.({ payload });
+    });
+
+    expect(globalThis.alert).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not alert for plugin inventory errors in secondary windows", async () => {
+    let pluginInventoryListener:
+      | ((event: { payload: PluginInventoryState }) => void)
+      | null = null;
+
+    listenMock.mockImplementation(async (eventName, callback) => {
+      if (eventName === "soloc://state/plugin_inventory") {
+        pluginInventoryListener = callback as (event: {
+          payload: PluginInventoryState;
+        }) => void;
+      }
+
+      return vi.fn();
+    });
+
+    await act(async () => {
+      render(
+        <AppStateProvider isMainWindow={false}>
+          <div>child content</div>
+        </AppStateProvider>,
+      );
+    });
+
+    await act(async () => {
+      pluginInventoryListener?.({
+        payload: {
+          entries: [],
+          errors: [
+            {
+              kind: "storage_error",
+              message:
+                "Failed to open plugin inventory database '/tmp/plugin_inventory': nope",
+            },
+          ],
+          last_discovered_at_ms: null,
+        },
+      });
+    });
+
+    expect(globalThis.alert).not.toHaveBeenCalled();
+  });
+
+  it("toggles project loading state around file load operations", async () => {
+    vi.useFakeTimers();
+
+    let resolveLoad: (() => void) | null = null;
+    vi.mocked(actions.file.load).mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveLoad = resolve;
+        }),
+    );
+
+    await act(async () => {
+      render(
+        <AppStateProvider isMainWindow={true}>
+          <ProjectLoadingConsumer />
+        </AppStateProvider>,
+      );
+    });
+
+    expect(screen.getByText("idle")).toBeInTheDocument();
+
+    const loadPromise = actions.file.load();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+
+    expect(screen.getByText("loading")).toBeInTheDocument();
+
+    await act(async () => {
+      resolveLoad?.();
+      await loadPromise;
+    });
+
+    expect(screen.getByText("idle")).toBeInTheDocument();
+  });
+
+  it("tracks window focus as transient app state", async () => {
+    await act(async () => {
+      render(
+        <AppStateProvider>
+          <WindowFocusConsumer />
+        </AppStateProvider>,
+      );
+    });
+
+    await act(async () => {
+      window.dispatchEvent(new Event("blur"));
+    });
+
+    expect(screen.getByText("blurred")).toBeInTheDocument();
+
+    await act(async () => {
+      window.dispatchEvent(new Event("focus"));
+    });
+
+    expect(screen.getByText("focused")).toBeInTheDocument();
+  });
+
+  it("applies startup-emitted plugin inventory state without a manual refresh", async () => {
+    let pluginInventoryListener:
+      | ((event: { payload: PluginInventoryState }) => void)
+      | null = null;
+
+    listenMock.mockImplementation(async (eventName, callback) => {
+      if (eventName === "soloc://state/plugin_inventory") {
+        pluginInventoryListener = callback as (event: {
+          payload: PluginInventoryState;
+        }) => void;
+      }
+
+      return vi.fn();
+    });
+
+    await act(async () => {
+      render(
+        <AppStateProvider>
+          <PluginInventoryConsumer />
+        </AppStateProvider>,
+      );
+    });
+
+    expect(screen.getByText("No plugin inventory")).toBeInTheDocument();
+
+    await act(async () => {
+      pluginInventoryListener?.({
+        payload: {
+          entries: [
+            {
+              id: "vst3:/Library/Audio/Plug-Ins/VST3/Alpha.vst3",
+              name: "Alpha",
+              bundle_path: "/Library/Audio/Plug-Ins/VST3/Alpha.vst3",
+              binary_path:
+                "/Library/Audio/Plug-Ins/VST3/Alpha.vst3/Contents/MacOS/Alpha",
+              source_root: "/Library/Audio/Plug-Ins/VST3",
+              availability: "available",
+              validation_failure: null,
+              editor_host_validation: null,
+            },
+          ],
+          errors: [],
+          last_discovered_at_ms: 123,
+        },
+      });
+    });
+
+    expect(screen.getByText("Alpha")).toBeInTheDocument();
+    expect(actions.initialize).toHaveBeenCalledTimes(1);
   });
 });

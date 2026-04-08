@@ -168,7 +168,7 @@ mod tests {
             short_name: String::new(),
             stave_ids,
             count: None,
-            assigned_plugin_id: None,
+            playback_route: None,
             volume: 100,
             pan: 64,
             mute: false,

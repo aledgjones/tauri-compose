@@ -23,15 +23,15 @@ describe("NoteInputAndEditing", () => {
     vi.clearAllMocks();
   });
 
-  it("renders the Auditioning heading", () => {
+  it("renders the Note Preview heading", () => {
     renderWithProviders(<NoteInputAndEditing />);
-    expect(screen.getByText("Auditioning")).toBeInTheDocument();
+    expect(screen.getByText("Note Preview")).toBeInTheDocument();
   });
 
   it("renders the audition switch label", () => {
     renderWithProviders(<NoteInputAndEditing />);
     expect(
-      screen.getByText("Play notes during note input and or modification"),
+      screen.getByText("Preview notes while writing or editing"),
     ).toBeInTheDocument();
   });
 

@@ -7,12 +7,11 @@ compose/                              # Project root
 ├── instrument-picker.html            # Instrument selection dialog
 ├── layout-settings.html              # Layout configuration dialog
 ├── player-settings.html              # Player/mixer settings dialog
-├── plugin-settings.html              # Plugin configuration dialog
 ├── preferences.html                  # Application preferences dialog
 ├── project-settings.html             # Project metadata dialog
 ├── package.json                      # Node dependencies, scripts (v1.23.1)
 ├── tsconfig.json                     # TypeScript strict config (ES2020, react-jsx)
-├── vite.config.ts                    # Multi-page Vite config (8 entry points)
+├── vite.config.ts                    # Multi-page Vite config (9 entry points)
 ├── postcss.config.js                 # Tailwind CSS 4 integration
 ├── eslint.config.js                  # ESLint flat config
 ├── styles.css                        # Global Tailwind + transparencies
@@ -30,7 +29,7 @@ compose/                              # Project root
 │   │   ├── popovers.ts              # Popover positioning logic
 │   │   ├── sequencer-utils.ts        # Piano roll / sequencer helpers
 │   │   └── state/                    # React context providers
-│   │       ├── context.tsx           # 4 contexts (App, Audio, Sampler, Transport) + initial values
+│   │       ├── context.tsx           # 4 contexts (App, Audio, PluginInventory, Transport) + initial values
 │   │       ├── provider.tsx          # AppStateProvider component + event listeners + RAF polling
 │   │       └── index.ts              # Barrel export
 │   │
@@ -77,7 +76,6 @@ compose/                              # Project root
 │   │   ├── instrument-picker/        # Instrument picker dialog
 │   │   ├── layout-settings/          # Layout settings dialog
 │   │   ├── player-settings/          # Player settings dialog
-│   │   ├── plugin-settings/          # Plugin settings dialog
 │   │   ├── preferences/              # Preferences dialog
 │   │   └── project-settings/         # Project settings dialog
 │   │
@@ -224,10 +222,10 @@ compose/                              # Project root
 │   │   │   ├── mod.rs
 │   │   │   ├── audio.rs              # cpal device management (280 lines)
 │   │   │   ├── transport.rs          # Transport thread + lock-free state (551 lines)
-│   │   │   ├── sampler.rs            # Plugin scanning + instrument caching (507 lines)
 │   │   │   ├── mixer.rs              # 64-slot lock-free voice mixer (163 lines)
-│   │   │   ├── streamer.rs           # Disk-streaming FLAC decode + resample (448 lines)
-│   │   │   └── scvi.rs               # SCVI binary container reader (217 lines)
+│   │   │   ├── plugin_inventory.rs   # Machine-local VST3 discovery + cache
+│   │   │   ├── runtime_activation.rs # Score intent + inventory -> runtime readiness
+│   │   │   └── vst3.rs               # VST3 host-facing types and helpers
 │   │   │
 │   │   ├── ui/                       # UI state management (Rust side)
 │   │   │   ├── mod.rs                # Ui struct, Tab enum, tab/layout/flow commands
@@ -240,9 +238,10 @@ compose/                              # Project root
 │   │   │   └── mod.rs                # Migration registry
 │   │   │
 │   │   └── bin/                      # CLI tools (compiled separately)
-│   │       ├── scvi_compress.rs      # Compress instruments → SCVI format
-│   │       ├── scvi_inspect.rs       # Inspect SCVI container contents
-│   │       └── generate_manifest.rs  # Generate instrument manifests
+│   │       ├── build_fixtures.rs     # Build `.soloc` visual-regression fixtures from JSON
+│   │       ├── generate_manifest.rs  # Generate instrument manifests
+│   │       ├── performance.rs        # Render/performance benchmark harness
+│   │       └── release.rs            # Release preparation/finalization tool
 │   │
 │   ├── capabilities/                 # Tauri security capabilities
 │   ├── gen/                          # Tauri generated code
@@ -268,10 +267,9 @@ compose/                              # Project root
 │   └── clarinet/
 │
 ├── scripts/                          # Build tools (compiled Rust binaries)
+│   ├── coverage-summary              # Print JS coverage totals from coverage-final.json
 │   ├── generate-manifest             # Instrument manifest generator
-│   ├── release                       # Version bump + release tool
-│   ├── scvi-compress                 # SCVI compression tool
-│   └── scvi-inspect                  # SCVI inspection tool
+│   └── release                       # Version bump + release tool
 │
 └── docs/                             # Project documentation
     └── project-context.md            # AI agent rules (52 rules)

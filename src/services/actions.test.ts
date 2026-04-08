@@ -19,14 +19,24 @@ vi.mock("@tauri-apps/plugin-dialog", () => ({
 }));
 
 vi.mock("@tauri-apps/api/webviewWindow", () => ({
-  WebviewWindow: vi.fn().mockImplementation(() => ({
-    once: vi.fn().mockResolvedValue(vi.fn()),
-    close: vi.fn(),
-  })),
+  WebviewWindow: Object.assign(
+    vi.fn(function MockWebviewWindow() {
+      return {
+        show: vi.fn(),
+        setFocus: vi.fn(),
+        once: vi.fn().mockResolvedValue(vi.fn()),
+        close: vi.fn(),
+      };
+    }),
+    {
+      getByLabel: vi.fn().mockResolvedValue(null),
+    },
+  ),
 }));
 
 import { invoke } from "@tauri-apps/api/core";
 import { save, open } from "@tauri-apps/plugin-dialog";
+import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { actions } from "./actions";
 import {
   Accidental,
@@ -45,6 +55,7 @@ import {
   Tab,
   TimeSignatureDrawType,
   Tool,
+  ExpressionMapEqualityComparator,
 } from "./types";
 
 // ---------------------------------------------------------------------------
@@ -74,6 +85,144 @@ describe("actions.reset", () => {
   });
 });
 
+describe("actions.openPluginManager", () => {
+  it("creates, shows, and focuses the dedicated plugin manager window", async () => {
+    vi.mocked(WebviewWindow.getByLabel).mockResolvedValueOnce(null);
+
+    await actions.openPluginManager();
+
+    const windowMock = vi.mocked(WebviewWindow).mock.results[0]?.value as {
+      show: ReturnType<typeof vi.fn>;
+      setFocus: ReturnType<typeof vi.fn>;
+    };
+
+    expect(WebviewWindow.getByLabel).toHaveBeenCalledWith("plugin-manager");
+    expect(WebviewWindow).toHaveBeenCalledWith(
+      "plugin-manager",
+      expect.objectContaining({
+        url: "/plugin-manager.html",
+        title: "Plugin Manager",
+        visible: false,
+      }),
+    );
+    expect(windowMock).toBeDefined();
+    expect(windowMock.show).toHaveBeenCalledTimes(1);
+    expect(windowMock.setFocus).toHaveBeenCalledTimes(1);
+  });
+
+  it("reuses and focuses the existing dedicated plugin manager window", async () => {
+    const existingWindow = {
+      show: vi.fn(),
+      setFocus: vi.fn(),
+    };
+
+    vi.mocked(WebviewWindow.getByLabel).mockResolvedValueOnce(
+      existingWindow as unknown as WebviewWindow,
+    );
+
+    const result = await actions.openPluginManager();
+
+    expect(WebviewWindow).not.toHaveBeenCalled();
+    expect(existingWindow.show).toHaveBeenCalledTimes(1);
+    expect(existingWindow.setFocus).toHaveBeenCalledTimes(1);
+    expect(result).toBe(existingWindow);
+  });
+});
+
+describe("actions.openExpressionMapWindow", () => {
+  it("creates, shows, and focuses the expression map manager window without a forced selection", async () => {
+    vi.mocked(WebviewWindow.getByLabel).mockResolvedValueOnce(null);
+
+    await actions.openExpressionMapManager();
+
+    const windowMock = vi.mocked(WebviewWindow).mock.results[0]?.value as {
+      show: ReturnType<typeof vi.fn>;
+      setFocus: ReturnType<typeof vi.fn>;
+    };
+
+    expect(WebviewWindow.getByLabel).toHaveBeenCalledWith("expression-map");
+    expect(WebviewWindow).toHaveBeenCalledWith(
+      "expression-map",
+      expect.objectContaining({
+        url: "/expression-map.html",
+        title: "Expression Map",
+        visible: false,
+      }),
+    );
+    expect(windowMock.show).toHaveBeenCalledTimes(1);
+    expect(windowMock.setFocus).toHaveBeenCalledTimes(1);
+  });
+
+  it("reuses the existing expression map manager window and resets it to the menu-owned selection", async () => {
+    const existingWindow = {
+      show: vi.fn(),
+      setFocus: vi.fn(),
+      emit: vi.fn().mockResolvedValue(undefined),
+    };
+
+    vi.mocked(WebviewWindow.getByLabel).mockResolvedValueOnce(
+      existingWindow as unknown as WebviewWindow,
+    );
+
+    const result = await actions.openExpressionMapManager();
+
+    expect(WebviewWindow).not.toHaveBeenCalled();
+    expect(existingWindow.emit).toHaveBeenCalledWith(
+      "soloc://expression-map/select",
+      { expression_map_id: "" },
+    );
+    expect(existingWindow.show).toHaveBeenCalledTimes(1);
+    expect(existingWindow.setFocus).toHaveBeenCalledTimes(1);
+    expect(result).toBe(existingWindow);
+  });
+
+  it("creates, shows, and focuses the dedicated expression map window for a selected map", async () => {
+    vi.mocked(WebviewWindow.getByLabel).mockResolvedValueOnce(null);
+
+    await actions.openExpressionMapWindow("legato");
+
+    const windowMock = vi.mocked(WebviewWindow).mock.results[0]?.value as {
+      show: ReturnType<typeof vi.fn>;
+      setFocus: ReturnType<typeof vi.fn>;
+    };
+
+    expect(WebviewWindow.getByLabel).toHaveBeenCalledWith("expression-map");
+    expect(WebviewWindow).toHaveBeenCalledWith(
+      "expression-map",
+      expect.objectContaining({
+        url: "/expression-map.html?expression_map_id=legato",
+        title: "Expression Map",
+        visible: false,
+      }),
+    );
+    expect(windowMock.show).toHaveBeenCalledTimes(1);
+    expect(windowMock.setFocus).toHaveBeenCalledTimes(1);
+  });
+
+  it("reuses the existing expression map window and retargets it to the selected map", async () => {
+    const existingWindow = {
+      show: vi.fn(),
+      setFocus: vi.fn(),
+      emit: vi.fn().mockResolvedValue(undefined),
+    };
+
+    vi.mocked(WebviewWindow.getByLabel).mockResolvedValueOnce(
+      existingWindow as unknown as WebviewWindow,
+    );
+
+    const result = await actions.openExpressionMapWindow("staccato");
+
+    expect(WebviewWindow).not.toHaveBeenCalled();
+    expect(existingWindow.emit).toHaveBeenCalledWith(
+      "soloc://expression-map/select",
+      { expression_map_id: "staccato" },
+    );
+    expect(existingWindow.show).toHaveBeenCalledTimes(1);
+    expect(existingWindow.setFocus).toHaveBeenCalledTimes(1);
+    expect(result).toBe(existingWindow);
+  });
+});
+
 // ---------------------------------------------------------------------------
 // audio
 // ---------------------------------------------------------------------------
@@ -99,41 +248,330 @@ describe("actions.audio", () => {
 });
 
 // ---------------------------------------------------------------------------
-// sampler
+// pluginInventory
 // ---------------------------------------------------------------------------
-describe("actions.sampler", () => {
-  it("rescanPlugins calls invoke correctly", async () => {
-    await actions.sampler.rescanPlugins();
-    expect(mockInvoke).toHaveBeenCalledWith("sampler_rescan_plugins");
+describe("actions.pluginInventory", () => {
+  it("discover calls invoke correctly", async () => {
+    await actions.pluginInventory.discover();
+    expect(mockInvoke).toHaveBeenCalledWith("plugin_inventory_discover");
   });
 
-  it("syncWithInstruments calls invoke with assigned_plugin_ids", async () => {
-    await actions.sampler.syncWithInstruments(["a", "b"]);
-    expect(mockInvoke).toHaveBeenCalledWith("sampler_sync_with_instruments", {
-      assigned_plugin_ids: ["a", "b"],
+  it("openEditorPoc calls invoke with inventory-backed plugin_id", async () => {
+    await actions.pluginInventory.openEditorPoc(
+      "vst3:/Library/Audio/Plug-Ins/VST3/Grand Piano.vst3",
+    );
+    expect(mockInvoke).toHaveBeenCalledWith("plugin_editor_poc_open", {
+      slot_id: null,
+      plugin_id: "vst3:/Library/Audio/Plug-Ins/VST3/Grand Piano.vst3",
+      plugin_path: null,
     });
   });
 
-  it("audition calls invoke with all required fields", async () => {
-    await actions.sampler.audition("plug-1", 60, 80, "artic-1", 300);
-    expect(mockInvoke).toHaveBeenCalledWith("sampler_audition", {
-      plugin_id: "plug-1",
-      note: 60,
-      velocity: 80,
-      articulation_id: "artic-1",
-      duration_ms: 300,
+  it("openEditorPoc forwards an optional slot_id for rack-targeted editor opens", async () => {
+    await actions.pluginInventory.openEditorPoc("vst3:grand-piano", {
+      slot_id: 12,
+    });
+    expect(mockInvoke).toHaveBeenCalledWith("plugin_editor_poc_open", {
+      slot_id: 12,
+      plugin_id: "vst3:grand-piano",
+      plugin_path: null,
+    });
+  });
+});
+
+describe("actions.expressionMaps", () => {
+  it("getState calls invoke correctly", async () => {
+    await actions.expressionMaps.getState();
+    expect(mockInvoke).toHaveBeenCalledWith("expression_maps_get_state");
+  });
+
+  it("create calls invoke with an optional name payload", async () => {
+    await actions.expressionMaps.create("Legato");
+
+    expect(mockInvoke).toHaveBeenCalledWith("expression_maps_create", {
+      name: "Legato",
     });
   });
 
-  it("audition uses defaults for optional params", async () => {
-    await actions.sampler.audition("plug-2", 62);
-    expect(mockInvoke).toHaveBeenCalledWith("sampler_audition", {
-      plugin_id: "plug-2",
-      note: 62,
-      velocity: 100,
-      articulation_id: null,
-      duration_ms: 250,
+  it("duplicate calls invoke with expression_map_id payload", async () => {
+    await actions.expressionMaps.duplicate("legato");
+
+    expect(mockInvoke).toHaveBeenCalledWith("expression_maps_duplicate", {
+      expression_map_id: "legato",
     });
+  });
+
+  it("metadata setters call invoke with expression_map_id payloads", async () => {
+    await actions.expressionMaps.setName("legato", "Legato Deluxe");
+    await actions.expressionMaps.setCreator("legato", "Aled");
+    await actions.expressionMaps.setVersion("legato", 4);
+
+    expect(mockInvoke).toHaveBeenCalledWith("expression_maps_name_set", {
+      expression_map_id: "legato",
+      name: "Legato Deluxe",
+    });
+    expect(mockInvoke).toHaveBeenCalledWith("expression_maps_creator_set", {
+      expression_map_id: "legato",
+      creator: "Aled",
+    });
+    expect(mockInvoke).toHaveBeenCalledWith("expression_maps_version_set", {
+      expression_map_id: "legato",
+      version: 4,
+    });
+  });
+
+  it("addRule calls invoke with expression_map_id payload", async () => {
+    await actions.expressionMaps.addRule("legato");
+
+    expect(mockInvoke).toHaveBeenCalledWith("expression_maps_rule_add", {
+      expression_map_id: "legato",
+    });
+  });
+
+  it("setRuleName calls invoke with expression_map_id, rule_id and name", async () => {
+    await actions.expressionMaps.setRuleName("legato", "rule-1", "Lead Accent");
+
+    expect(mockInvoke).toHaveBeenCalledWith("expression_maps_rule_name_set", {
+      expression_map_id: "legato",
+      rule_id: "rule-1",
+      name: "Lead Accent",
+    });
+  });
+
+  it("moveRule calls invoke with expression_map_id, rule_id and target index", async () => {
+    await actions.expressionMaps.moveRule("legato", "rule-1", 2);
+
+    expect(mockInvoke).toHaveBeenCalledWith("expression_maps_rule_move", {
+      expression_map_id: "legato",
+      rule_id: "rule-1",
+      to_index: 2,
+    });
+  });
+
+  it("removeRule calls invoke with expression_map_id and rule_id", async () => {
+    await actions.expressionMaps.removeRule("legato", "rule-1");
+
+    expect(mockInvoke).toHaveBeenCalledWith("expression_maps_rule_remove", {
+      expression_map_id: "legato",
+      rule_id: "rule-1",
+    });
+  });
+
+  it("nested condition and action commands use id-based payloads", async () => {
+    await actions.expressionMaps.addCondition("legato", "rule-1", "no_op");
+    await actions.expressionMaps.setConditionType(
+      "legato",
+      "rule-1",
+      "condition-1",
+      "written_note_length",
+    );
+    await actions.expressionMaps.updateCondition("legato", "rule-1", {
+      id: "condition-1",
+      type: "articulation",
+      comparator: ExpressionMapEqualityComparator.Equals,
+      articulation: Articulation.Accent,
+    });
+    await actions.expressionMaps.removeCondition(
+      "legato",
+      "rule-1",
+      "condition-1",
+    );
+    await actions.expressionMaps.addAction("legato", "rule-1", "no_op");
+    await actions.expressionMaps.setActionType(
+      "legato",
+      "rule-1",
+      "action-1",
+      "keyswitch_note",
+    );
+    await actions.expressionMaps.updateAction("legato", "rule-1", {
+      id: "action-1",
+      type: "keyswitch_note",
+      midi_note: 24,
+      velocity: 96,
+    });
+    await actions.expressionMaps.removeAction("legato", "rule-1", "action-1");
+
+    expect(mockInvoke).toHaveBeenCalledWith("expression_maps_condition_add", {
+      expression_map_id: "legato",
+      rule_id: "rule-1",
+      condition_type: "no_op",
+    });
+    expect(mockInvoke).toHaveBeenCalledWith(
+      "expression_maps_condition_set_type",
+      {
+        expression_map_id: "legato",
+        rule_id: "rule-1",
+        condition_id: "condition-1",
+        condition_type: "written_note_length",
+      },
+    );
+    expect(mockInvoke).toHaveBeenCalledWith(
+      "expression_maps_condition_update",
+      {
+        expression_map_id: "legato",
+        rule_id: "rule-1",
+        condition: {
+          id: "condition-1",
+          type: "articulation",
+          comparator: ExpressionMapEqualityComparator.Equals,
+          articulation: Articulation.Accent,
+        },
+      },
+    );
+    expect(mockInvoke).toHaveBeenCalledWith(
+      "expression_maps_condition_remove",
+      {
+        expression_map_id: "legato",
+        rule_id: "rule-1",
+        condition_id: "condition-1",
+      },
+    );
+    expect(mockInvoke).toHaveBeenCalledWith("expression_maps_action_add", {
+      expression_map_id: "legato",
+      rule_id: "rule-1",
+      action_type: "no_op",
+    });
+    expect(mockInvoke).toHaveBeenCalledWith("expression_maps_action_set_type", {
+      expression_map_id: "legato",
+      rule_id: "rule-1",
+      action_id: "action-1",
+      action_type: "keyswitch_note",
+    });
+    expect(mockInvoke).toHaveBeenCalledWith("expression_maps_action_update", {
+      expression_map_id: "legato",
+      rule_id: "rule-1",
+      action: {
+        id: "action-1",
+        type: "keyswitch_note",
+        midi_note: 24,
+        velocity: 96,
+      },
+    });
+    expect(mockInvoke).toHaveBeenCalledWith("expression_maps_action_remove", {
+      expression_map_id: "legato",
+      rule_id: "rule-1",
+      action_id: "action-1",
+    });
+  });
+
+  it("default action commands use map-level payloads", async () => {
+    await actions.expressionMaps.addDefaultAction("legato", "no_op");
+    await actions.expressionMaps.setDefaultActionType(
+      "legato",
+      "default-action-1",
+      "keyswitch_note",
+    );
+    await actions.expressionMaps.updateDefaultAction("legato", {
+      id: "default-action-1",
+      type: "keyswitch_note",
+      midi_note: 24,
+      velocity: 96,
+    });
+    await actions.expressionMaps.removeDefaultAction(
+      "legato",
+      "default-action-1",
+    );
+
+    expect(mockInvoke).toHaveBeenCalledWith(
+      "expression_maps_default_action_add",
+      {
+        expression_map_id: "legato",
+        action_type: "no_op",
+      },
+    );
+    expect(mockInvoke).toHaveBeenCalledWith(
+      "expression_maps_default_action_set_type",
+      {
+        expression_map_id: "legato",
+        action_id: "default-action-1",
+        action_type: "keyswitch_note",
+      },
+    );
+    expect(mockInvoke).toHaveBeenCalledWith(
+      "expression_maps_default_action_update",
+      {
+        expression_map_id: "legato",
+        action: {
+          id: "default-action-1",
+          type: "keyswitch_note",
+          midi_note: 24,
+          velocity: 96,
+        },
+      },
+    );
+    expect(mockInvoke).toHaveBeenCalledWith(
+      "expression_maps_default_action_remove",
+      {
+        expression_map_id: "legato",
+        action_id: "default-action-1",
+      },
+    );
+  });
+
+  it("delete calls invoke with expression_map_id payload", async () => {
+    await actions.expressionMaps.delete("legato");
+
+    expect(mockInvoke).toHaveBeenCalledWith("expression_maps_delete", {
+      expression_map_id: "legato",
+    });
+  });
+
+  it("importFromDialog opens a JSON picker and imports the selected file", async () => {
+    vi.mocked(open).mockResolvedValueOnce("/tmp/expression-maps.json");
+
+    await actions.expressionMaps.importFromDialog();
+
+    expect(open).toHaveBeenCalledWith(
+      expect.objectContaining({
+        multiple: false,
+        title: "Import Expression Maps",
+      }),
+    );
+    expect(mockInvoke).toHaveBeenCalledWith("expression_maps_import", {
+      file_path: "/tmp/expression-maps.json",
+    });
+  });
+
+  it("exportToDialog saves the selected expression maps as JSON", async () => {
+    vi.mocked(save).mockResolvedValueOnce("/tmp/expression-maps.json");
+
+    await actions.expressionMaps.exportToDialog(["legato", "staccato"]);
+
+    expect(save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "Export Expression Maps",
+      }),
+    );
+    expect(mockInvoke).toHaveBeenCalledWith("expression_maps_export", {
+      file_path: "/tmp/expression-maps.json",
+      expression_map_ids: ["legato", "staccato"],
+    });
+  });
+});
+
+describe("actions.score.instrument.setExpressionMap", () => {
+  it("calls invoke with instrument_id and expression_map_id payload", async () => {
+    await actions.score.instrument.setExpressionMap(12, "legato");
+
+    expect(mockInvoke).toHaveBeenCalledWith(
+      "score_instruments_set_expression_map",
+      {
+        instrument_id: 12,
+        expression_map_id: "legato",
+      },
+    );
+  });
+
+  it("supports clearing the current expression map linkage with null", async () => {
+    await actions.score.instrument.setExpressionMap(12, null);
+
+    expect(mockInvoke).toHaveBeenCalledWith(
+      "score_instruments_set_expression_map",
+      {
+        instrument_id: 12,
+        expression_map_id: null,
+      },
+    );
   });
 });
 
@@ -710,7 +1148,7 @@ describe("actions.score.layout", () => {
     await actions.score.layout.assignFlow(2, 3);
     expect(mockInvoke).toHaveBeenCalledWith("score_layouts_assign_flow", {
       layout_id: 2,
-      player_id: 3,
+      flow_id: 3,
     });
   });
 
@@ -718,7 +1156,7 @@ describe("actions.score.layout", () => {
     await actions.score.layout.unassignFlow(2, 3);
     expect(mockInvoke).toHaveBeenCalledWith("score_layouts_unassign_flow", {
       layout_id: 2,
-      player_id: 3,
+      flow_id: 3,
     });
   });
 
@@ -813,20 +1251,67 @@ describe("actions.score.instrument", () => {
     });
   });
 
-  it("assignPlugin calls invoke with plugin_id", async () => {
-    await actions.score.instrument.assignPlugin(10, "vst-1");
-    expect(mockInvoke).toHaveBeenCalledWith("score_instruments_assign_plugin", {
-      instrument_id: 10,
-      plugin_id: "vst-1",
+  it("assignSlotRoute calls invoke with explicit target and address", async () => {
+    await actions.score.instrument.assignSlotRoute(
+      10,
+      30,
+      { mode: 0, index: null },
+      { mode: 0, index: null },
+    );
+    expect(mockInvoke).toHaveBeenCalledWith(
+      "score_instruments_assign_slot_route",
+      {
+        instrument_id: 10,
+        route: {
+          slot_id: 30,
+          target: { mode: 0, index: null },
+          address: { mode: 0, index: null },
+        },
+      },
+    );
+  });
+
+  it("unassignRoute calls invoke correctly", async () => {
+    await actions.score.instrument.unassignRoute(10);
+    expect(mockInvoke).toHaveBeenCalledWith(
+      "score_instruments_unassign_route",
+      {
+        instrument_id: 10,
+      },
+    );
+  });
+
+  it("create playback slot calls invoke correctly", async () => {
+    await actions.score.playback.slot.create();
+    expect(mockInvoke).toHaveBeenCalledWith("score_playback_slots_create");
+  });
+
+  it("remove playback slot calls invoke correctly", async () => {
+    await actions.score.playback.slot.remove(55);
+    expect(mockInvoke).toHaveBeenCalledWith("score_playback_slots_remove", {
+      slot_id: 55,
     });
   });
 
-  it("assignPlugin accepts null plugin_id", async () => {
-    await actions.score.instrument.assignPlugin(10, null);
-    expect(mockInvoke).toHaveBeenCalledWith("score_instruments_assign_plugin", {
-      instrument_id: 10,
-      plugin_id: null,
-    });
+  it("assignPlugin to playback slot calls invoke correctly", async () => {
+    await actions.score.playback.slot.assignPlugin(55, "vst-1");
+    expect(mockInvoke).toHaveBeenCalledWith(
+      "score_playback_slots_assign_plugin",
+      {
+        slot_id: 55,
+        plugin_id: "vst-1",
+      },
+    );
+  });
+
+  it("unassignPlugin from playback slot calls invoke correctly", async () => {
+    await actions.score.playback.slot.unassignPlugin(55);
+    expect(mockInvoke).toHaveBeenCalledWith(
+      "score_playback_slots_unassign_plugin",
+      {
+        slot_id: 55,
+      },
+    );
   });
 
   it("setVolume calls invoke correctly", async () => {
@@ -1393,6 +1878,15 @@ describe("actions.transport", () => {
     const state = await actions.transport.getState();
     expect(mockInvoke).toHaveBeenCalledWith("transport_get_state");
     expect(state).toEqual(mockState);
+  });
+
+  it("auditionTone calls invoke with the addressed instrument and pitch", async () => {
+    await actions.transport.auditionTone(10, 64);
+
+    expect(mockInvoke).toHaveBeenCalledWith("playback_audition_tone", {
+      instrument_id: 10,
+      pitch_int: 64,
+    });
   });
 });
 

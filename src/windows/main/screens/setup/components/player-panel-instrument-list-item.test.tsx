@@ -26,7 +26,6 @@ const mockInstrument: Instrument = {
   short_name: "Vln.",
   stave_ids: [],
   count: null,
-  assigned_plugin_id: null,
   volume: 100,
   pan: 64,
   mute: false,

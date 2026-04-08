@@ -15,25 +15,34 @@ import { PlaybackLine } from "../../../components/playback-line";
 import { Select } from "../../../../../ui/select";
 import { mdiHeatWave } from "@mdi/js";
 import { actions } from "../../../../../services/actions";
+import { getInstrumentOverviewRowHeight } from "./instrument-overview-layout";
 
 type InstrumentWithPlayer = Instrument & { playerId: UniqueId };
 
 export const InstrumentOverview: FC = () => {
   const state = useAppState();
 
+  const firstAvailableFlowId = useMemo(() => {
+    return (
+      state.score.flows.order.find(
+        (candidateFlowId) => !!state.score.flows.by_id[candidateFlowId],
+      ) ?? null
+    );
+  }, [state.score.flows.by_id, state.score.flows.order]);
+
   const flowId = useMemo(() => {
-    if (state.score.flows.order.length === 0) {
+    if (!firstAvailableFlowId) {
       return null;
     }
 
-    const activeFlowId = state.ui.flow_id ?? state.score.flows.order[0] ?? null;
+    const activeFlowId = state.ui.flow_id ?? firstAvailableFlowId;
 
     if (activeFlowId && state.score.flows.by_id[activeFlowId]) {
       return activeFlowId;
     }
 
-    return state.score.flows.order[0] ?? null;
-  }, [state.score.flows.by_id, state.score.flows.order, state.ui.flow_id]);
+    return firstAvailableFlowId;
+  }, [firstAvailableFlowId, state.score.flows.by_id, state.ui.flow_id]);
 
   const flow = flowId ? state.score.flows.by_id[flowId] : null;
 
@@ -63,6 +72,21 @@ export const InstrumentOverview: FC = () => {
   const instrumentColors = useMemo(() => {
     return generateRainbowColors(instruments.length);
   }, [instruments.length]);
+
+  const rowHeights = useMemo(() => {
+    return instruments.map(() => getInstrumentOverviewRowHeight());
+  }, [instruments]);
+
+  const playbackLineHeight = useMemo(() => {
+    if (rowHeights.length === 0) {
+      return 0;
+    }
+
+    return (
+      rowHeights.reduce((total, height) => total + height, 0) +
+      (rowHeights.length - 1) * 2
+    );
+  }, [rowHeights]);
 
   // Get ticks for the flow (call hooks before any early returns)
   const master = flow?.master_id
@@ -100,7 +124,7 @@ export const InstrumentOverview: FC = () => {
       >
         <div className="sticky top-0 z-30 bg-neutral-950 mb-0.5">
           <div className="h-9 bg-neutral-900 w-full">
-            {flowId && flowOptions.length > 1 ? (
+            {flowId && flowOptions.length > 0 ? (
               <Select
                 className="w-full"
                 variant="standard"
@@ -153,13 +177,11 @@ export const InstrumentOverview: FC = () => {
                 ticks={ticks}
                 color={instrumentColors[index]}
                 isDisabled={!isInstrumentInSelectedFlow(instrument)}
+                rowHeightPx={rowHeights[index]}
               />
             ),
           )}
-          <PlaybackLine
-            ticks={ticks}
-            height={instruments.length * 96 + (instruments.length - 1) * 2}
-          />
+          <PlaybackLine ticks={ticks} height={playbackLineHeight} />
         </div>
       </div>
     </DragScroll>

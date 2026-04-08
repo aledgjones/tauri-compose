@@ -24,6 +24,7 @@ export const Tools: FC<Props> = ({ className }) => {
             url: "/project-settings.html",
             title: "Project Settings",
             visible: false,
+            hiddenTitle: true,
             titleBarStyle: "overlay",
             acceptFirstMouse: true,
             height: 976,
@@ -43,6 +44,7 @@ export const Tools: FC<Props> = ({ className }) => {
             url: "/debugger.html",
             title: "Debugger",
             visible: false,
+            hiddenTitle: true,
             titleBarStyle: "overlay",
             acceptFirstMouse: true,
             theme: "dark",
@@ -56,14 +58,14 @@ export const Tools: FC<Props> = ({ className }) => {
       <IconButton
         isDisabled
         className="text-white"
-        onClick={() => { }}
+        onClick={() => {}}
         variant="interactive"
         path={mdiUndo}
       />
       <IconButton
         isDisabled
         className="text-white"
-        onClick={() => { }}
+        onClick={() => {}}
         variant="interactive"
         path={mdiRedo}
       />

@@ -85,10 +85,11 @@ mod tests {
     fn get_vertical_spacing_with_no_instruments_returns_zero_height() {
         use crate::score::engraves::Engraves;
         use crate::score::flows::Flow;
+        use crate::score::instruments::Instrument;
         use crate::score::layouts::LayoutType;
 
         let flow = Flow::new(1, 100);
-        let instruments: Vec<&crate::score::instruments::Instrument> = vec![];
+        let instruments: Vec<&Instrument> = vec![];
         let engraves = Engraves::new();
         let engrave = &engraves.by_layout_type[&LayoutType::FullScore];
 
@@ -114,7 +115,7 @@ mod tests {
             short_name: String::from("Pno."),
             stave_ids: vec![stave_id],
             count: None,
-            assigned_plugin_id: None,
+            playback_route: None,
             volume: 100,
             pan: 64,
             mute: false,
@@ -161,7 +162,7 @@ mod tests {
             short_name: String::new(),
             stave_ids: vec![stave_id],
             count: None,
-            assigned_plugin_id: None,
+            playback_route: None,
             volume: 100,
             pan: 64,
             mute: false,

@@ -15,7 +15,6 @@ vi.mock("../../../../../services/actions", () => ({
         sequence: {
           bottomPanel: {
             setTab: vi.fn(),
-            instruments: { setShowActiveOnly: vi.fn() },
           },
         },
       },
@@ -28,13 +27,17 @@ vi.mock("../../../../../services/actions", () => ({
       },
     },
     score: {
+      playback: {
+        slot: {
+          create: vi.fn().mockResolvedValue(99),
+        },
+      },
       instrument: {
         setSolo: vi.fn(),
         setMute: vi.fn(),
         setVolume: vi.fn(),
       },
     },
-    sampler: { rescanPlugins: vi.fn().mockResolvedValue(undefined) },
   },
 }));
 
@@ -62,9 +65,34 @@ describe("Sequence BottomPanel", () => {
 
   it("renders tab buttons for Sequencer, Mixer, Instruments", () => {
     renderWithProviders(<BottomPanel />);
-    const buttons = screen.getAllByRole("button");
-    // At least 3 tab buttons
-    expect(buttons.length).toBeGreaterThanOrEqual(3);
+    expect(
+      screen.getByRole("button", { name: "Show sequencer panel" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Show mixer panel" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Show instruments panel" }),
+    ).toBeInTheDocument();
+  });
+
+  it("exposes the active bottom-panel tab as pressed", () => {
+    const appState = createAppState({
+      ui: {
+        screens: {
+          sequence: { bottom_panel_tab: BottomPanelTab.Mixer } as never,
+        },
+      } as never,
+    });
+
+    renderWithProviders(<BottomPanel />, { appState });
+
+    expect(
+      screen.getByRole("button", { name: "Show mixer panel" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    expect(
+      screen.getByRole("button", { name: "Show sequencer panel" }),
+    ).toHaveAttribute("aria-pressed", "false");
   });
 
   it("calls setTab when a tab button is clicked", () => {
@@ -96,19 +124,282 @@ describe("Sequence BottomPanel", () => {
     expect(buttons.length).toBeGreaterThanOrEqual(1);
   });
 
-  it("renders PluginsToolbar when Instruments tab is active", () => {
+  it("renders the current rack panel when Instruments tab is active", () => {
     const appState = createAppState({
       ui: {
         screens: {
           sequence: {
             bottom_panel_tab: BottomPanelTab.Instruments,
-            show_active_only: false,
+          } as never,
+        },
+        sequencer: { instrument: 10 } as never,
+      } as never,
+      resolved_playback_route_by_instrument_id: {
+        10: {
+          status: 1,
+          slot_id: 22,
+          slot_target: { plugin_id: "vst3:grand-piano" },
+          effective_plugin_id: "vst3:grand-piano",
+          target: { mode: 0, index: null },
+          address: { mode: 0, index: null },
+        },
+      },
+      score: {
+        playback: {
+          rack: {
+            order: [22, 23],
+            by_id: {
+              22: {
+                id: 22,
+                target: { plugin_id: "vst3:grand-piano" },
+              },
+              23: {
+                id: 23,
+                target: null,
+              },
+            },
+          },
+        },
+        players: {
+          order: [1],
+          by_id: {
+            1: { id: 1, player_type: 0, instrument_ids: [10] },
+          },
+        },
+        instruments: {
+          by_id: {
+            10: {
+              id: 10,
+              definition_id: "violin",
+              instrument_type: 0,
+              long_name: "Violin",
+              short_name: "Vln.",
+              stave_ids: [],
+              count: null,
+              volume: 100,
+              pan: 64,
+              mute: false,
+              solo: false,
+            },
+          },
+        },
+      } as never,
+    });
+    renderWithProviders(<BottomPanel />, {
+      appState,
+      pluginInventoryState: {
+        entries: [
+          {
+            id: "vst3:grand-piano",
+            name: "Grand Piano",
+            bundle_path: "/Library/Audio/Plug-Ins/VST3/Grand Piano.vst3",
+            binary_path:
+              "/Library/Audio/Plug-Ins/VST3/Grand Piano.vst3/Contents/MacOS/Grand Piano",
+            source_root: "/Library/Audio/Plug-Ins/VST3",
+            availability: "available",
+            validation_failure: null,
+            editor_host_validation: null,
+          },
+        ],
+      },
+    });
+    expect(
+      screen.getByRole("button", { name: "Add slot" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByPlaceholderText("Search plugins..."),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Slot 1")).toBeInTheDocument();
+    expect(screen.getByText("Slot 2")).toBeInTheDocument();
+  });
+
+  it("keeps the slot search input inline with the add-slot button", () => {
+    const appState = createAppState({
+      ui: {
+        screens: {
+          sequence: {
+            bottom_panel_tab: BottomPanelTab.Instruments,
+          } as never,
+        },
+      } as never,
+      score: {
+        playback: {
+          rack: {
+            order: [22],
+            by_id: {
+              22: {
+                id: 22,
+                target: { plugin_id: "vst3:grand-piano" },
+              },
+            },
+          },
+        },
+      } as never,
+    });
+
+    renderWithProviders(<BottomPanel />, {
+      appState,
+      pluginInventoryState: {
+        entries: [
+          {
+            id: "vst3:grand-piano",
+            name: "Grand Piano",
+            bundle_path: "/Library/Audio/Plug-Ins/VST3/Grand Piano.vst3",
+            binary_path:
+              "/Library/Audio/Plug-Ins/VST3/Grand Piano.vst3/Contents/MacOS/Grand Piano",
+            source_root: "/Library/Audio/Plug-Ins/VST3",
+            availability: "available",
+            validation_failure: null,
+            editor_host_validation: null,
+          },
+        ],
+      },
+    });
+
+    const addSlotButton = screen.getByRole("button", { name: "Add slot" });
+    const searchInput = screen.getByPlaceholderText("Search plugins...");
+    const headerRow = addSlotButton.parentElement;
+
+    expect(headerRow).not.toBeNull();
+    expect(headerRow).toContainElement(searchInput);
+  });
+
+  it("filters rack slots from the inline header search", () => {
+    const appState = createAppState({
+      ui: {
+        screens: {
+          sequence: {
+            bottom_panel_tab: BottomPanelTab.Instruments,
+          } as never,
+        },
+      } as never,
+      score: {
+        playback: {
+          rack: {
+            order: [22, 23],
+            by_id: {
+              22: {
+                id: 22,
+                target: { plugin_id: "vst3:grand-piano" },
+              },
+              23: {
+                id: 23,
+                target: { plugin_id: "vst3:string-ensemble" },
+              },
+            },
+          },
+        },
+      } as never,
+    });
+
+    renderWithProviders(<BottomPanel />, {
+      appState,
+      pluginInventoryState: {
+        entries: [
+          {
+            id: "vst3:grand-piano",
+            name: "Grand Piano",
+            bundle_path: "/Library/Audio/Plug-Ins/VST3/Grand Piano.vst3",
+            binary_path:
+              "/Library/Audio/Plug-Ins/VST3/Grand Piano.vst3/Contents/MacOS/Grand Piano",
+            source_root: "/Library/Audio/Plug-Ins/VST3",
+            availability: "available",
+            validation_failure: null,
+            editor_host_validation: null,
+          },
+          {
+            id: "vst3:string-ensemble",
+            name: "String Ensemble",
+            bundle_path: "/Library/Audio/Plug-Ins/VST3/String Ensemble.vst3",
+            binary_path:
+              "/Library/Audio/Plug-Ins/VST3/String Ensemble.vst3/Contents/MacOS/String Ensemble",
+            source_root: "/Library/Audio/Plug-Ins/VST3",
+            availability: "available",
+            validation_failure: null,
+            editor_host_validation: null,
+          },
+        ],
+      },
+    });
+
+    fireEvent.change(screen.getByPlaceholderText("Search plugins..."), {
+      target: { value: "grand" },
+    });
+
+    expect(screen.getByText("Slot 1")).toBeInTheDocument();
+    expect(screen.queryByText("Slot 2")).toBeNull();
+  });
+
+  it("keeps app-scoped inventory browsing out of the Sequence panel header", () => {
+    const appState = createAppState({
+      ui: {
+        screens: {
+          sequence: {
+            bottom_panel_tab: BottomPanelTab.Instruments,
+          } as never,
+        },
+      } as never,
+      score: {
+        playback: {
+          rack: {
+            order: [22],
+            by_id: {
+              22: {
+                id: 22,
+                target: { plugin_id: "vst3:grand-piano" },
+              },
+            },
+          },
+        },
+      } as never,
+    });
+
+    renderWithProviders(<BottomPanel />, {
+      appState,
+      pluginInventoryState: {
+        entries: [
+          {
+            id: "vst3:grand-piano",
+            name: "Grand Piano",
+            bundle_path: "/Library/Audio/Plug-Ins/VST3/Grand Piano.vst3",
+            binary_path:
+              "/Library/Audio/Plug-Ins/VST3/Grand Piano.vst3/Contents/MacOS/Grand Piano",
+            source_root: "/Library/Audio/Plug-Ins/VST3",
+            availability: "available",
+            validation_failure: null,
+            editor_host_validation: null,
+          },
+        ],
+      },
+    });
+
+    expect(
+      screen.getByRole("button", { name: "Add slot" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /refresh plugin inventory/i }),
+    ).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: /plugin manager/i }),
+    ).toBeNull();
+  });
+
+  it("creates a slot from the Instruments tab top bar", async () => {
+    const appState = createAppState({
+      ui: {
+        screens: {
+          sequence: {
+            bottom_panel_tab: BottomPanelTab.Instruments,
           } as never,
         },
       } as never,
     });
+
     renderWithProviders(<BottomPanel />, { appState });
-    expect(screen.getByText("Active only")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Add slot" }));
+
+    expect(actions.score.playback.slot.create).toHaveBeenCalled();
   });
 
   it("renders Sequencer toolbar when Sequencer tab is active", () => {

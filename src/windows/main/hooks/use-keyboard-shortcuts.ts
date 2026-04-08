@@ -1,8 +1,12 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useAppState, useTransportState } from "../../../services/state";
 import { Accidental, Articulation } from "../../../services/types";
 import { actions } from "../../../services/actions";
 import { getSelectedTone } from "./use-selected-tone-info";
+import {
+  auditionInstrumentPitch,
+  canAuditionInstrument,
+} from "../utils/audition";
 
 type Modifiers = { command: boolean; control: boolean; option: boolean };
 
@@ -53,6 +57,8 @@ const isEditableTarget = (target: EventTarget | null) => {
 export const useKeyboardShortcuts = () => {
   const state = useAppState();
   const transport = useTransportState();
+  const hasObservedInitialSelectionRef = useRef(false);
+  const lastAuditionedSelectionKeyRef = useRef<string | null>(null);
   const selection = state.ui.sequencer.selection;
   const selectionFlowId = selection?.flow_id ?? null;
 
@@ -132,6 +138,30 @@ export const useKeyboardShortcuts = () => {
     };
   }, [selection, state.score.tracks.by_id]);
 
+  const selectedToneAudition = useMemo(() => {
+    if (!toneSelectionInfo) {
+      return null;
+    }
+
+    return {
+      selectionKey: [
+        toneSelectionInfo.flowId,
+        toneSelectionInfo.trackId,
+        toneSelectionInfo.tupletId ?? "root",
+        toneSelectionInfo.toneId,
+      ].join(":"),
+      instrumentId: toneSelectionInfo.instrumentId,
+      pitch: toneSelectionInfo.tone.pitch.int,
+    };
+  }, [toneSelectionInfo]);
+
+  const canAutoAuditionSelectedTone = useMemo(() => {
+    return Boolean(
+      selectedToneAudition &&
+      canAuditionInstrument(state, selectedToneAudition.instrumentId),
+    );
+  }, [selectedToneAudition, state]);
+
   const deletionInfo = useMemo(() => {
     if (selection === null) {
       return null;
@@ -201,24 +231,45 @@ export const useKeyboardShortcuts = () => {
   }, [selection, toneSelectionInfo]);
 
   useEffect(() => {
-    const activeToneSelectionInfo = toneSelectionInfo;
+    const currentSelectionKey = selectedToneAudition?.selectionKey ?? null;
 
-    const auditionTone = (pitch: number) => {
-      if (!activeToneSelectionInfo) {
-        return;
+    if (!hasObservedInitialSelectionRef.current) {
+      hasObservedInitialSelectionRef.current = true;
+
+      if (currentSelectionKey !== null && canAutoAuditionSelectedTone) {
+        lastAuditionedSelectionKeyRef.current = currentSelectionKey;
+      } else {
+        lastAuditionedSelectionKeyRef.current = null;
       }
 
-      if (!state.preferences.audition) {
-        return;
-      }
+      return;
+    }
 
-      const instrument =
-        state.score.instruments.by_id[activeToneSelectionInfo.instrumentId];
-      if (!instrument?.assigned_plugin_id) {
-        return;
-      }
+    if (currentSelectionKey === null) {
+      lastAuditionedSelectionKeyRef.current = null;
+      return;
+    }
 
-      actions.sampler.audition(instrument.assigned_plugin_id, pitch);
+    if (lastAuditionedSelectionKeyRef.current === currentSelectionKey) {
+      return;
+    }
+
+    if (!selectedToneAudition || !canAutoAuditionSelectedTone) {
+      return;
+    }
+
+    lastAuditionedSelectionKeyRef.current = currentSelectionKey;
+
+    void auditionInstrumentPitch(
+      state,
+      selectedToneAudition.instrumentId,
+      selectedToneAudition.pitch,
+    );
+  }, [canAutoAuditionSelectedTone, selectedToneAudition, state]);
+
+  useEffect(() => {
+    const auditionTone = async (instrumentId: number, pitch: number) => {
+      await auditionInstrumentPitch(state, instrumentId, pitch);
     };
 
     const toneShortcuts: Array<{
@@ -228,8 +279,8 @@ export const useKeyboardShortcuts = () => {
       shouldAudition?: boolean;
     }> = [];
 
-    if (activeToneSelectionInfo) {
-      const { trackId, toneId, tupletId } = activeToneSelectionInfo;
+    if (toneSelectionInfo) {
+      const { trackId, toneId, tupletId } = toneSelectionInfo;
 
       const shiftPitchByStep = (steps: number) =>
         actions.score.tone.shiftPitchByStep(trackId, tupletId, toneId, steps);
@@ -415,8 +466,12 @@ export const useKeyboardShortcuts = () => {
           e.preventDefault();
           const result = await shortcut.action();
 
-          if (shortcut.shouldAudition && typeof result === "number") {
-            auditionTone(result);
+          if (
+            shortcut.shouldAudition &&
+            typeof result === "number" &&
+            toneSelectionInfo
+          ) {
+            await auditionTone(toneSelectionInfo.instrumentId, result);
           }
 
           return; // Stop after first match
@@ -433,9 +488,7 @@ export const useKeyboardShortcuts = () => {
     selection,
     selectionFlowId,
     selectionTick,
-    state.preferences.audition,
-    state.ui.flow_id,
-    state.score.instruments.by_id,
+    state,
     toneSelectionInfo,
     transport.playing,
   ]);

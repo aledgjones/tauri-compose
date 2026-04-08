@@ -1,8 +1,18 @@
+import React from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { useKeyboardShortcuts } from "./use-keyboard-shortcuts";
 import { createWrapper, createAppState } from "../../../services/test-utils";
 import { Accidental, Articulation, PlayerType } from "../../../services/types";
+import {
+  AppContext,
+  AudioContext,
+  initialAudioState,
+  initialPluginInventoryState,
+  initialTransportState,
+  PluginInventoryContext,
+  TransportContext,
+} from "../../../services/state/context";
 
 // ---------------------------------------------------------------------------
 // Mock the actions module
@@ -40,10 +50,8 @@ vi.mock("../../../services/actions", () => ({
         clearSelection: vi.fn().mockResolvedValue(undefined),
       },
     },
-    sampler: {
-      audition: vi.fn(),
-    },
     transport: {
+      auditionTone: vi.fn().mockResolvedValue(undefined),
       play: vi.fn().mockResolvedValue(undefined),
       pause: vi.fn().mockResolvedValue(undefined),
       seek: vi.fn().mockResolvedValue(undefined),
@@ -88,7 +96,6 @@ const buildStateWithToneSelection = () => {
             short_name: "Pno.",
             stave_ids: [STAVE_ID],
             count: null,
-            assigned_plugin_id: null, // no audition
             volume: 100,
             pan: 0,
             mute: false,
@@ -156,7 +163,6 @@ const buildStateWithLaterFlowToneSelection = () => {
             short_name: "Pno.",
             stave_ids: [STAVE_ID, 101],
             count: null,
-            assigned_plugin_id: null,
             volume: 100,
             pan: 0,
             mute: false,
@@ -224,7 +230,6 @@ const buildStateWithTupletToneSelection = () => {
             short_name: "Pno.",
             stave_ids: [STAVE_ID],
             count: null,
-            assigned_plugin_id: null,
             volume: 100,
             pan: 0,
             mute: false,
@@ -307,7 +312,6 @@ const buildStateWithTupletSelection = () => {
             short_name: "Pno.",
             stave_ids: [STAVE_ID],
             count: null,
-            assigned_plugin_id: null,
             volume: 100,
             pan: 0,
             mute: false,
@@ -390,7 +394,6 @@ const buildStateWithTupletRestSelection = () => {
             short_name: "Pno.",
             stave_ids: [STAVE_ID],
             count: null,
-            assigned_plugin_id: null,
             volume: 100,
             pan: 0,
             mute: false,
@@ -459,12 +462,16 @@ const dispatchKeyFromElement = (
 };
 
 describe("useKeyboardShortcuts", () => {
+  let consoleError: ReturnType<typeof vi.spyOn>;
+
   beforeEach(() => {
     vi.clearAllMocks();
+    consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
   });
 
   afterEach(() => {
     vi.clearAllMocks();
+    consoleError.mockRestore();
   });
 
   it("mounts without errors when no selection", () => {
@@ -774,6 +781,7 @@ describe("useKeyboardShortcuts", () => {
       TONE_ID,
       1,
     );
+    expect(actions.transport.auditionTone).not.toHaveBeenCalled();
   });
 
   it("dispatches shiftPitchByStep(-1) on ArrowDown+Option", async () => {
@@ -1450,10 +1458,9 @@ describe("useKeyboardShortcuts", () => {
     );
   });
 
-  it("calls audition when shouldAudition=true and result is a number with assigned plugin", async () => {
+  it("shifts the selected tone upward by step when the shortcut is pressed", async () => {
     const PLUGIN_ID = "plugin-abc";
     const state = buildStateWithToneSelection();
-    // give the instrument an assigned plugin so audition fires
     (state.score.instruments.by_id as Record<number, unknown>)[INSTRUMENT_ID] =
       {
         id: INSTRUMENT_ID,
@@ -1463,15 +1470,24 @@ describe("useKeyboardShortcuts", () => {
         short_name: "Pno.",
         stave_ids: [STAVE_ID],
         count: null,
-        assigned_plugin_id: PLUGIN_ID,
         volume: 100,
         pan: 0,
         mute: false,
         solo: false,
       };
+    state.resolved_playback_route_by_instrument_id = {
+      [INSTRUMENT_ID]: {
+        status: 1,
+        slot_id: 77,
+        slot_target: { plugin_id: PLUGIN_ID },
+        effective_plugin_id: PLUGIN_ID,
+        target: null,
+        address: null,
+      },
+    };
+    state.single_instrument_transport_ready = true;
     state.preferences = { ...state.preferences, audition: true };
 
-    // shiftPitchByStep returns a new pitch int (number) → audition should fire
     vi.mocked(actions.score.tone.shiftPitchByStep).mockResolvedValueOnce(61);
 
     renderHook(() => useKeyboardShortcuts(), {
@@ -1484,10 +1500,19 @@ describe("useKeyboardShortcuts", () => {
       );
     });
 
-    expect(actions.sampler.audition).toHaveBeenCalledWith(PLUGIN_ID, 61);
+    expect(actions.score.tone.shiftPitchByStep).toHaveBeenCalledWith(
+      TRACK_ID,
+      null,
+      TONE_ID,
+      1,
+    );
+    expect(actions.transport.auditionTone).toHaveBeenCalledWith(
+      INSTRUMENT_ID,
+      61,
+    );
   });
 
-  it("does not audition when audition preference is disabled", async () => {
+  it("still shifts pitch when audition preference is disabled", async () => {
     const PLUGIN_ID = "plugin-abc";
     const state = buildStateWithToneSelection();
     (state.score.instruments.by_id as Record<number, unknown>)[INSTRUMENT_ID] =
@@ -1499,12 +1524,22 @@ describe("useKeyboardShortcuts", () => {
         short_name: "Pno.",
         stave_ids: [STAVE_ID],
         count: null,
-        assigned_plugin_id: PLUGIN_ID,
         volume: 100,
         pan: 0,
         mute: false,
         solo: false,
       };
+    state.resolved_playback_route_by_instrument_id = {
+      [INSTRUMENT_ID]: {
+        status: 1,
+        slot_id: 77,
+        slot_target: { plugin_id: PLUGIN_ID },
+        effective_plugin_id: PLUGIN_ID,
+        target: null,
+        address: null,
+      },
+    };
+    state.single_instrument_transport_ready = true;
     state.preferences = { ...state.preferences, audition: false };
 
     vi.mocked(actions.score.tone.shiftPitchByStep).mockResolvedValueOnce(61);
@@ -1519,13 +1554,78 @@ describe("useKeyboardShortcuts", () => {
       );
     });
 
-    expect(actions.sampler.audition).not.toHaveBeenCalled();
+    expect(actions.score.tone.shiftPitchByStep).toHaveBeenCalledWith(
+      TRACK_ID,
+      null,
+      TONE_ID,
+      1,
+    );
+    expect(actions.transport.auditionTone).not.toHaveBeenCalled();
   });
 
-  it("does not audition when instrument has no assigned plugin", async () => {
+  it("auditions a newly selected tone when selection changes to a ready routed instrument", async () => {
+    const initialState = createAppState({
+      ui: {
+        sequencer: {
+          selection: null,
+        },
+      } as never,
+    });
+    const selectedState = buildStateWithToneSelection();
+    selectedState.resolved_playback_route_by_instrument_id = {
+      [INSTRUMENT_ID]: {
+        status: 1,
+        slot_id: 77,
+        slot_target: { plugin_id: "plugin-abc" },
+        effective_plugin_id: "plugin-abc",
+        target: null,
+        address: null,
+      },
+    };
+    selectedState.single_instrument_transport_ready = true;
+
+    let currentAppState = initialState;
+
+    const Wrapper = ({ children }: { children: React.ReactNode }) => {
+      return React.createElement(
+        AppContext.Provider,
+        { value: currentAppState },
+        React.createElement(
+          AudioContext.Provider,
+          { value: structuredClone(initialAudioState) },
+          React.createElement(
+            PluginInventoryContext.Provider,
+            { value: structuredClone(initialPluginInventoryState) },
+            React.createElement(
+              TransportContext.Provider,
+              { value: structuredClone(initialTransportState) },
+              children,
+            ),
+          ),
+        ),
+      );
+    };
+
+    const { rerender } = renderHook(() => useKeyboardShortcuts(), {
+      wrapper: Wrapper,
+    });
+
+    currentAppState = selectedState;
+    rerender();
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(actions.transport.auditionTone).toHaveBeenCalledWith(
+      INSTRUMENT_ID,
+      60,
+    );
+  });
+
+  it("still shifts pitch when instrument has no assigned plugin", async () => {
     const state = buildStateWithToneSelection();
     state.preferences = { ...state.preferences, audition: true };
-    // instrument has no assigned plugin (null by default in buildStateWithToneSelection)
 
     vi.mocked(actions.score.tone.shiftPitchByStep).mockResolvedValueOnce(62);
 
@@ -1539,7 +1639,147 @@ describe("useKeyboardShortcuts", () => {
       );
     });
 
-    expect(actions.sampler.audition).not.toHaveBeenCalled();
+    expect(actions.score.tone.shiftPitchByStep).toHaveBeenCalledWith(
+      TRACK_ID,
+      null,
+      TONE_ID,
+      1,
+    );
+  });
+
+  it("auditions the selected tone when its route becomes ready even if transport trust stays false", async () => {
+    const initialState = buildStateWithToneSelection();
+    initialState.preferences = { ...initialState.preferences, audition: true };
+    initialState.single_instrument_transport_ready = false;
+
+    const readyState = structuredClone(initialState);
+    readyState.resolved_playback_route_by_instrument_id = {
+      [INSTRUMENT_ID]: {
+        status: 1,
+        slot_id: 77,
+        slot_target: { plugin_id: "plugin-abc" },
+        effective_plugin_id: "plugin-abc",
+        target: null,
+        address: null,
+      },
+    };
+
+    let currentAppState = initialState;
+
+    const Wrapper = ({ children }: { children: React.ReactNode }) => {
+      return React.createElement(
+        AppContext.Provider,
+        { value: currentAppState },
+        React.createElement(
+          AudioContext.Provider,
+          { value: structuredClone(initialAudioState) },
+          React.createElement(
+            PluginInventoryContext.Provider,
+            { value: structuredClone(initialPluginInventoryState) },
+            React.createElement(
+              TransportContext.Provider,
+              { value: structuredClone(initialTransportState) },
+              children,
+            ),
+          ),
+        ),
+      );
+    };
+
+    const { rerender } = renderHook(() => useKeyboardShortcuts(), {
+      wrapper: Wrapper,
+    });
+
+    currentAppState = readyState;
+    rerender();
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(actions.transport.auditionTone).toHaveBeenCalledWith(
+      INSTRUMENT_ID,
+      60,
+    );
+  });
+
+  it("auditions pitch edits when the route is ready even if single-instrument transport trust is false", async () => {
+    const state = buildStateWithToneSelection();
+    state.single_instrument_transport_ready = false;
+    state.preferences = { ...state.preferences, audition: true };
+    state.resolved_playback_route_by_instrument_id = {
+      [INSTRUMENT_ID]: {
+        status: 1,
+        slot_id: 77,
+        slot_target: { plugin_id: "plugin-abc" },
+        effective_plugin_id: "plugin-abc",
+        target: null,
+        address: null,
+      },
+    };
+
+    vi.mocked(actions.score.tone.shiftPitchByStep).mockResolvedValueOnce(61);
+
+    renderHook(() => useKeyboardShortcuts(), {
+      wrapper: createWrapper({ appState: state }),
+    });
+
+    await act(async () => {
+      window.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "ArrowUp", altKey: true }),
+      );
+      await Promise.resolve();
+    });
+
+    expect(actions.score.tone.shiftPitchByStep).toHaveBeenCalledWith(
+      TRACK_ID,
+      null,
+      TONE_ID,
+      1,
+    );
+    expect(actions.transport.auditionTone).toHaveBeenCalledWith(
+      INSTRUMENT_ID,
+      61,
+    );
+  });
+
+  it("logs audition failures without blocking the pitch edit", async () => {
+    const state = buildStateWithToneSelection();
+    state.resolved_playback_route_by_instrument_id = {
+      [INSTRUMENT_ID]: {
+        status: 1,
+        slot_id: 77,
+        slot_target: { plugin_id: "plugin-abc" },
+        effective_plugin_id: "plugin-abc",
+        target: null,
+        address: null,
+      },
+    };
+    state.single_instrument_transport_ready = true;
+    state.preferences = { ...state.preferences, audition: true };
+
+    const error = new Error("audition failed");
+    vi.mocked(actions.score.tone.shiftPitchByStep).mockResolvedValueOnce(61);
+    vi.mocked(actions.transport.auditionTone).mockRejectedValueOnce(error);
+
+    renderHook(() => useKeyboardShortcuts(), {
+      wrapper: createWrapper({ appState: state }),
+    });
+
+    await act(async () => {
+      window.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "ArrowUp", altKey: true }),
+      );
+      await Promise.resolve();
+    });
+
+    expect(actions.score.tone.shiftPitchByStep).toHaveBeenCalledWith(
+      TRACK_ID,
+      null,
+      TONE_ID,
+      1,
+    );
+    expect(consoleError).toHaveBeenCalledWith("Failed to audition tone", error);
   });
 
   it("does not fire any action for unknown key", async () => {

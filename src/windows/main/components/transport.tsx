@@ -58,12 +58,16 @@ export const Transport: FC<Props> = ({ className }) => {
         variant="interactive"
         onClick={handleSkipPrevious}
         path={mdiSkipPrevious}
+        aria-label="Return transport to start"
+        title="Return transport to start"
       />
       <IconButton
         variant="interactive"
         color={isPlaying ? "#ff0" : "#0f0"}
         onClick={handlePlayPause}
         path={isPlaying ? mdiPause : mdiPlay}
+        aria-label={isPlaying ? "Pause playback" : "Start playback"}
+        title={isPlaying ? "Pause playback" : "Start playback"}
       />
       <p className="text-white font-mono text-sm bg-neutral-900 px-3 py-2">
         {position}

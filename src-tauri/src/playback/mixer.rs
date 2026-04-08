@@ -1,6 +1,60 @@
-use crate::playback::streamer::StreamBuffer;
+use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
+
+/// Shared buffer between a producer thread and the audio mixer.
+#[cfg_attr(not(test), allow(dead_code))]
+pub struct StreamBuffer {
+    buffer: Mutex<VecDeque<f32>>,
+    finished: AtomicBool,
+    canceled: AtomicBool,
+}
+
+impl StreamBuffer {
+    #[cfg_attr(not(test), allow(dead_code))]
+    pub fn new() -> Self {
+        Self {
+            buffer: Mutex::new(VecDeque::with_capacity(48000 * 2)),
+            finished: AtomicBool::new(false),
+            canceled: AtomicBool::new(false),
+        }
+    }
+
+    #[cfg_attr(not(test), allow(dead_code))]
+    pub fn push(&self, samples: &[f32]) {
+        if self.canceled.load(Ordering::Acquire) {
+            return;
+        }
+
+        let mut buf = self.buffer.lock().unwrap();
+        buf.extend(samples);
+    }
+
+    #[allow(dead_code)]
+    pub fn finish(&self) {
+        self.finished.store(true, Ordering::Release);
+    }
+
+    pub fn drain_mix(&self, output: &mut [f32]) -> usize {
+        let mut buf = self.buffer.lock().unwrap();
+        let sample_count = output.len().min(buf.len());
+        for index in 0..sample_count {
+            output[index] += buf[index];
+        }
+        buf.drain(..sample_count);
+        sample_count
+    }
+
+    pub fn cancel(&self) {
+        self.canceled.store(true, Ordering::Release);
+        self.finished.store(true, Ordering::Release);
+        self.buffer.lock().unwrap().clear();
+    }
+
+    pub fn is_exhausted(&self) -> bool {
+        self.finished.load(Ordering::Acquire) && self.buffer.lock().unwrap().is_empty()
+    }
+}
 
 /// A single playing voice backed by a disk-streaming buffer.
 struct Voice {
@@ -31,7 +85,7 @@ struct VoiceList {
 }
 
 struct VoiceSlot {
-    voice: std::sync::Mutex<Option<Arc<Voice>>>,
+    voice: Mutex<Option<Arc<Voice>>>,
     active: AtomicBool,
 }
 
@@ -39,7 +93,7 @@ impl VoiceList {
     fn new() -> Self {
         VoiceList {
             slots: Box::new(std::array::from_fn(|_| VoiceSlot {
-                voice: std::sync::Mutex::new(None),
+                voice: Mutex::new(None),
                 active: AtomicBool::new(false),
             })),
         }
@@ -60,6 +114,7 @@ pub fn create_mixer() -> (MixerHandle, MixerReader) {
 impl MixerHandle {
     /// Submit a streaming voice. The disk thread pushes decoded audio
     /// into the stream buffer; the mixer drains it in the audio callback.
+    #[cfg_attr(not(test), allow(dead_code))]
     pub fn play(&self, stream: Arc<StreamBuffer>, channels: usize) -> bool {
         let voice = Arc::new(Voice {
             stream,
@@ -106,12 +161,7 @@ impl MixerHandle {
 }
 
 impl MixerReader {
-    /// Mix all active voices into the output buffer (additive mixing).
-    /// Called from the audio callback — must be fast.
-    pub fn fill_buffer(&self, output: &mut [f32], channels: usize) {
-        // Zero the output first
-        output.fill(0.0);
-
+    pub fn mix_into_buffer(&self, output: &mut [f32], channels: usize) {
         for slot in self.voices.slots.iter() {
             if !slot.active.load(Ordering::Acquire) {
                 continue;
@@ -169,11 +219,23 @@ impl MixerReader {
                 slot.active.store(false, Ordering::Release);
             }
         }
+    }
 
-        // Clamp output to prevent clipping from overlapping voices
+    pub fn clamp_buffer(output: &mut [f32]) {
         for sample in output.iter_mut() {
             *sample = sample.clamp(-1.0, 1.0);
         }
+    }
+
+    /// Mix all active voices into the output buffer (additive mixing).
+    /// Called from the audio callback — must be fast.
+    #[cfg_attr(not(test), allow(dead_code))]
+    pub fn fill_buffer(&self, output: &mut [f32], channels: usize) {
+        // Zero the output first
+        output.fill(0.0);
+
+        self.mix_into_buffer(output, channels);
+        Self::clamp_buffer(output);
     }
 }
 

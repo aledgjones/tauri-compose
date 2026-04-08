@@ -2,21 +2,31 @@ import { FC, useState } from "react";
 import { useAppState } from "../../../../../services/state";
 import { BottomPanelTab } from "../../../../../services/types";
 import { actions } from "../../../../../services/actions";
-import { mdiCableData, mdiPiano, mdiTuneVertical } from "@mdi/js";
+import {
+  mdiCableData,
+  mdiMagnify,
+  mdiPiano,
+  mdiPlus,
+  mdiTuneVertical,
+} from "@mdi/js";
 import { IconButton } from "../../../../../ui/buttons/icon-button";
+import { Input } from "../../../../../ui/input";
 import { Sequencer, SequencerToolbar } from "../../../components/sequencer";
 import { Mixer, MixerToolbar } from "../../../components/mixer";
-import { Plugins, PluginsToolbar } from "../../../components/plugins";
 import { useBottomPanelState } from "../../../hooks/use-bottom-panel-state";
+import { PlaybackRackPanel } from "./playback-rack-panel";
 
 const SEQUENCE_TABS = [
-  { tab: BottomPanelTab.Sequencer, icon: mdiPiano },
-  { tab: BottomPanelTab.Mixer, icon: mdiTuneVertical },
-  { tab: BottomPanelTab.Instruments, icon: mdiCableData },
+  { tab: BottomPanelTab.Sequencer, icon: mdiPiano, label: "sequencer" },
+  { tab: BottomPanelTab.Mixer, icon: mdiTuneVertical, label: "mixer" },
+  { tab: BottomPanelTab.Instruments, icon: mdiCableData, label: "instruments" },
 ];
 
 export const BottomPanel: FC = () => {
   const state = useAppState();
+  const [isCreatingSlot, setIsCreatingSlot] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [slotSearchTerm, setSlotSearchTerm] = useState("");
   const {
     instruments,
     instrumentOptions,
@@ -29,8 +39,25 @@ export const BottomPanel: FC = () => {
     snapValue,
   } = useBottomPanelState();
   const tab = state.ui.screens.sequence.bottom_panel_tab;
-  const showActiveOnly = state.ui.screens.sequence.show_active_only;
-  const [searchTerm, setSearchTerm] = useState("");
+
+  const handleCreateSlot = async () => {
+    if (isCreatingSlot) {
+      return;
+    }
+
+    setIsCreatingSlot(true);
+    setCreateError(null);
+
+    try {
+      await actions.score.playback.slot.create();
+    } catch (error) {
+      setCreateError(
+        error instanceof Error ? error.message : "Failed to create slot.",
+      );
+    } finally {
+      setIsCreatingSlot(false);
+    }
+  };
 
   return (
     <div className="flex flex-col min-h-0 overflow-hidden">
@@ -49,19 +76,34 @@ export const BottomPanel: FC = () => {
           />
         )}
         {tab === BottomPanelTab.Mixer && (
-          <MixerToolbar instruments={instruments} />
-        )}
-        {tab === BottomPanelTab.Instruments && (
-          <PluginsToolbar
-            searchTerm={searchTerm}
-            onSearchTermChange={setSearchTerm}
-            showActiveOnly={showActiveOnly}
-            onShowActiveOnlyChange={(value) =>
-              actions.ui.screens.sequence.bottomPanel.instruments.setShowActiveOnly(
-                value,
-              )
+          <MixerToolbar
+            instruments={instruments}
+            resolvedPlaybackRouteByInstrumentId={
+              state.resolved_playback_route_by_instrument_id
             }
           />
+        )}
+        {tab === BottomPanelTab.Instruments && (
+          <div className="flex flex-1 gap-0.5">
+            <IconButton
+              path={mdiPlus}
+              variant="interactive"
+              onClick={handleCreateSlot}
+              isDisabled={isCreatingSlot}
+              title="Add slot"
+            />
+
+            <Input
+              type="text"
+              variant="dark"
+              leadingIcon={mdiMagnify}
+              value={slotSearchTerm}
+              onChange={setSlotSearchTerm}
+              placeholder="Search plugins..."
+              className="w-lg bg-neutral-900"
+            />
+            <div className="bg-neutral-900 flex flex-1 items-center" />
+          </div>
         )}
         <div className="flex flex-1 justify-end gap-0.5">
           <div className="bg-neutral-900 flex-1" />
@@ -71,6 +113,8 @@ export const BottomPanel: FC = () => {
               path={tabConfig.icon}
               variant="interactive"
               isSelected={tab === tabConfig.tab}
+              aria-label={`Show ${tabConfig.label} panel`}
+              title={`Show ${tabConfig.label} panel`}
               onClick={() => {
                 actions.ui.screens.sequence.bottomPanel.setTab(tabConfig.tab);
               }}
@@ -87,9 +131,19 @@ export const BottomPanel: FC = () => {
           instruments={instruments}
         />
       )}
-      {tab === BottomPanelTab.Mixer && <Mixer instruments={instruments} />}
+      {tab === BottomPanelTab.Mixer && (
+        <Mixer
+          instruments={instruments}
+          resolvedPlaybackRouteByInstrumentId={
+            state.resolved_playback_route_by_instrument_id
+          }
+        />
+      )}
       {tab === BottomPanelTab.Instruments && (
-        <Plugins searchTerm={searchTerm} showActiveOnly={showActiveOnly} />
+        <PlaybackRackPanel
+          createError={createError}
+          searchTerm={slotSearchTerm}
+        />
       )}
     </div>
   );

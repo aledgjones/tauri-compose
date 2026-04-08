@@ -13,9 +13,12 @@ import Big from "big.js";
 export const NumberInput: FC<NumberInputProps> = ({
   value,
   onChange,
+  defaultValue,
   className,
   label,
+  ariaLabel,
   readOnly,
+  disabled,
   step,
   decimalPlaces,
   units,
@@ -50,6 +53,18 @@ export const NumberInput: FC<NumberInputProps> = ({
   // Local state for user input (only when actively editing)
   const [display, setDisplay] = useState<string>(derivedDisplay);
 
+  const fallbackValue = useMemo(() => {
+    if (defaultValue !== undefined) {
+      return defaultValue;
+    }
+
+    if (value !== undefined) {
+      return value;
+    }
+
+    return 0;
+  }, [defaultValue, value]);
+
   // Sync display with derived value when value prop changes
   useEffect(() => {
     setDisplay(derivedDisplay);
@@ -59,13 +74,14 @@ export const NumberInput: FC<NumberInputProps> = ({
   const handleBlur = useCallback(() => {
     try {
       const val = toPrecision(display);
-      const parsed = toValue(val)!;
-      setDisplay(val);
+      const parsed = toValue(val) ?? fallbackValue;
+      const formatted = toPrecision(parsed);
+      setDisplay(formatted);
       onChange(parsed);
     } catch {
       setDisplay(derivedDisplay);
     }
-  }, [toPrecision, display, toValue, onChange, derivedDisplay]);
+  }, [toPrecision, display, toValue, onChange, derivedDisplay, fallbackValue]);
 
   const onIncrease = useCallback(() => {
     if (value === undefined) {
@@ -110,9 +126,12 @@ export const NumberInput: FC<NumberInputProps> = ({
       type="text"
       value={display}
       onChange={setDisplay}
+      useLocalDraftWhileFocused={false}
       className={className}
       label={label}
+      ariaLabel={ariaLabel}
       readOnly={readOnly}
+      disabled={disabled}
       onKeyDown={handleKeyDown}
       onBlur={handleBlur}
       units={units}
