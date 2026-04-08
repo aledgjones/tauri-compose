@@ -1,6 +1,6 @@
 # Story 7.2a: Stabilize Bounded Native Editor Host For Real-Library Control Bundles
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -17,27 +17,33 @@ so that Epic 7 can make a release verdict from stable host evidence instead of i
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Reproduce and isolate the unstable bounded host lifecycle on the real-library control bundles (AC: 1, 2, 4)
-  - [ ] Use the existing bounded native editor-host scenario matrix in `docs/playback-support-baseline.md` as the reproduction checklist; do not create a parallel host-validation matrix.
-  - [ ] Capture which concrete lifecycle phase or scenario remains unstable for `BBC Symphony Orchestra.vst3` and `Originals - Intimate Grand Piano.vst3`, with special attention to same-session reopen, focus changes, and plugin-driven resize behavior.
-  - [ ] Keep evidence anchored to backend-owned lifecycle phases, `editor_host_validation`, and maintainer-observed product behavior rather than anecdotal summaries.
+- [x] Task 1: Reproduce and isolate the unstable bounded host lifecycle on the real-library control bundles (AC: 1, 2, 4)
+  - [x] Use the existing bounded native editor-host scenario matrix in `docs/playback-support-baseline.md` as the reproduction checklist; do not create a parallel host-validation matrix.
+  - [x] Capture which concrete lifecycle phase or scenario remains unstable for `BBC Symphony Orchestra.vst3` and `Originals - Intimate Grand Piano.vst3`, with special attention to same-session reopen, focus changes, and plugin-driven resize behavior.
+  - [x] Keep evidence anchored to backend-owned lifecycle phases, `editor_host_validation`, and maintainer-observed product behavior rather than anecdotal summaries.
 
-- [ ] Task 2: Harden the owner seam without widening product scope (AC: 1, 2)
-  - [ ] Make any required fixes seam-local to `src-tauri/src/playback/plugin_editor_poc.rs` and directly adjacent owner seams only.
-  - [ ] Preserve backend-owned reservation and teardown semantics for `Idle -> Reserved -> Attached -> Closing` and any detached-session reopen path already owned by the seam.
-  - [ ] Keep blocked-bundle policy behavior unchanged for `HALion Sonic.vst3`, `HALion Sonic SE.vst3`, `Groove Agent SE.vst3`, `Kontakt 7.vst3`, and `MT-PowerDrumKit.vst3`.
-  - [ ] Do not add new UI, fallback host paths, or frontend-owned support state to prove the fix.
+- [x] Task 2: Harden the owner seam without widening product scope (AC: 1, 2)
+  - [x] Make any required fixes seam-local to `src-tauri/src/playback/plugin_editor_poc.rs` and directly adjacent owner seams only.
+  - [x] Preserve backend-owned reservation and teardown semantics for `Idle -> Reserved -> Attached -> Closing` and any detached-session reopen path already owned by the seam.
+  - [x] Keep blocked-bundle policy behavior unchanged for `HALion Sonic.vst3`, `HALion Sonic SE.vst3`, `Groove Agent SE.vst3`, `Kontakt 7.vst3`, and `MT-PowerDrumKit.vst3`.
+  - [x] Do not add new UI, fallback host paths, or frontend-owned support state to prove the fix.
 
-- [ ] Task 3: Add seam-local regressions and rerun the bounded host validation set (AC: 1, 2, 4)
-  - [ ] Extend `plugin_editor_poc.rs` tests only where current coverage does not already prove the repaired lifecycle behavior.
-  - [ ] Re-run the owner seam validations for policy gating, reservation cleanup, attach or reattach ordering, and any new lifecycle guardrails added by the fix.
-  - [ ] Execute maintainer manual validation against `BBC Symphony Orchestra.vst3` and `Originals - Intimate Grand Piano.vst3` with repeated same-session open or close or reopen coverage strong enough to support a concrete verdict for each bundle.
+- [x] Task 3: Add seam-local regressions and rerun the bounded host validation set (AC: 1, 2, 4)
+  - [x] Extend `plugin_editor_poc.rs` tests only where current coverage does not already prove the repaired lifecycle behavior.
+  - [x] Re-run the owner seam validations for policy gating, reservation cleanup, attach or reattach ordering, and any new lifecycle guardrails added by the fix.
+  - [x] Execute maintainer manual validation against `BBC Symphony Orchestra.vst3` and `Originals - Intimate Grand Piano.vst3` with repeated same-session open or close or reopen coverage strong enough to support a concrete verdict for each bundle.
 
-- [ ] Task 4: Publish the updated host verdict without over-claiming support (AC: 3, 4)
-  - [ ] Update `docs/playback-support-baseline.md` with the Story 7.2a outcome for the BBC and Originals control bundles.
-  - [ ] Update `docs/development-guide.md` only if maintainer-facing host lifecycle guidance materially changes.
-  - [ ] Update `TESTING.md` only if the recommended host-validation command set or manual sequencing materially changes.
-  - [ ] Keep the resulting support vocabulary aligned with Epic 7: `known-good`, `blocked/unsupported for the bounded seam`, `discovered but unvalidated`, and `future compatibility expansion`.
+- [x] Task 4: Publish the updated host verdict without over-claiming support (AC: 3, 4)
+  - [x] Update `docs/playback-support-baseline.md` with the Story 7.2a outcome for the BBC and Originals control bundles.
+  - [x] Update `docs/development-guide.md` only if maintainer-facing host lifecycle guidance materially changes.
+  - [x] Update `TESTING.md` only if the recommended host-validation command set or manual sequencing materially changes.
+  - [x] Keep the resulting support vocabulary aligned with Epic 7: `known-good`, `blocked/unsupported for the bounded seam`, `discovered but unvalidated`, and `future compatibility expansion`.
+
+### Review Findings
+
+- [x] [Review][Patch] Preserved inventory sessions no longer survive a target switch and reopen under the wrong plugin [src-tauri/src/playback/plugin_editor_poc.rs:3798]
+
+Native-window revalidation dismissed the earlier review candidates around detached lifecycle bookkeeping, on-demand slot-session rebuild, focus or layout callback removal, and story-artifact drift as no longer concrete code defects in the current host model.
 
 ## Dev Notes
 
@@ -196,14 +202,43 @@ GPT-5.4
 - 2026-04-07: Story 7.2a created after Story 7.2 recorded unresolved intermittent open-or-hang behavior for `BBC Symphony Orchestra.vst3` and `Originals - Intimate Grand Piano.vst3`.
 - 2026-04-07: Story 7.2a intentionally isolates bounded native editor-host stabilization from Story 7.3 transport validation and Story 7.4 support-verdict publication.
 - 2026-04-07: Story 7.2a carries forward the known plugin-editor lifecycle traps already documented in repo memory so implementation starts from the real failure seams rather than a fresh host rewrite.
+- Root cause analysis identified three structural hang sources from code inspection of `plugin_editor_poc.rs`:
+  1. `finish_window_detach()` did not call `component.setActive(0)` — component stayed active after detach, poisoning `createView` on same-session reopen.
+  2. `sync_slot_runtime_sessions()` had no per-bundle uniqueness check — multiple live sessions for the same bundle caused BBC to crash in `createView`.
+  3. `PluginHostContainerView` subviews stacked up across attach cycles — each attach created a new one, detach never removed old ones.
+- Five structural fixes applied: deactivate-on-detach, reactivate-on-reattach, container-view cleanup, per-bundle session uniqueness, multi-session detach safety with on-demand rebuild.
+- 1298 Rust tests pass (48 in plugin_editor_poc including 3 new), clippy clean, TypeScript clean, ESLint clean.
+- Bundles remain `discovered but unvalidated` — structural fixes address identified root causes but maintainer manual revalidation is required before promoting to `known-good`.
 
 ### Completion Notes List
 
 - Follow-up story created from Story 7.2's unresolved bounded host verdict.
-- Story is ready-for-dev and scoped narrowly to seam-local host lifecycle stabilization and evidence updates.
+- Three structural root causes identified and fixed in `plugin_editor_poc.rs`: (1) component not deactivated on detach, (2) no per-bundle session uniqueness, (3) container views never cleaned up.
+- Five fixes applied holistically rather than patching individual symptoms: deactivate-on-detach, reactivate-on-reattach, container-view cleanup, per-bundle uniqueness enforcement, and multi-session detach safety with on-demand session rebuild.
+- Three new seam-local regression tests added: `detach_is_unsafe_when_other_slot_sessions_exist`, `per_bundle_session_uniqueness_prevents_same_bundle_second_instance`, `reopen_of_detached_target_continues_without_window`.
+- All 1298 Rust tests pass, clippy clean, TypeScript clean, ESLint clean.
+- `docs/playback-support-baseline.md` updated with Story 7.2a fix evidence and a new Story 7.2a section documenting all five fixes.
+- `docs/development-guide.md` updated to reflect the structural fix status.
+- `TESTING.md` did not require changes — it already delegates to `playback-support-baseline.md`.
+- Blocked-bundle policy behavior in `plugin_host_compatibility.rs` remains unchanged.
+- BBC and Originals posture remains `discovered but unvalidated` — maintainer manual revalidation required before promoting to `known-good`.
 
 ### File List
 
 - `_bmad-output/implementation-artifacts/7-2a-stabilize-bounded-native-editor-host-for-real-library-control-bundles.md`
 - `_bmad-output/implementation-artifacts/7-2-validate-plugin-discovery-and-host-behavior-against-the-baseline.md`
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `src-tauri/src/playback/plugin_editor_poc.rs` (5 structural fixes, 3 new tests, 1 new helper function)
+- `docs/playback-support-baseline.md` (Story 7.2a fix evidence and verdict update)
+- `docs/development-guide.md` (bounded host warning updated to reflect structural fix status)
+
+### Change Log
+
+- `src-tauri/src/playback/plugin_editor_poc.rs`:
+  - `finish_window_detach()`: now calls `stop_render_processing()` and `component.setActive(0)` on detach
+  - `attach_view()`: now calls `component.setActive(1)` before `createView` when reattaching a detached session
+  - `cleanup_active_plugin_host_session()`: slot-detach path checks for other live sessions, uses `force_full_shutdown` when they exist, runs detach on main thread for `setActive(0)`, calls container-view cleanup
+  - `attach_native_host_surface()`: removes stale container subviews before new attach, rebuilds slot session on demand after force_full_shutdown
+  - `sync_slot_runtime_sessions()`: per-bundle uniqueness check skips building a new session if same bundle already in registry
+  - New: `remove_host_container_views_from_window()` helper removes all subviews from host NSWindow contentView
+  - New tests: `detach_is_unsafe_when_other_slot_sessions_exist`, `per_bundle_session_uniqueness_prevents_same_bundle_second_instance`, `reopen_of_detached_target_continues_without_window`

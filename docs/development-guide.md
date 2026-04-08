@@ -238,7 +238,7 @@ What it does not yet do:
 - implement a production-ready Steinberg host contract, automation, preset/state persistence, or transport integration
 - provide full keyboard or wheel coverage across all plugins
 
-Story 7.2 maintainer validation updated the current bounded host verdict for the two real-library control bundles. `BBC Symphony Orchestra.vst3` and `Originals - Intimate Grand Piano.vst3` currently show intermittent open-or-hang behavior in the native editor-host flow, so maintainers must not treat them as `known-good` for release posture until that lifecycle instability is resolved and `docs/playback-support-baseline.md` is updated again.
+Story 7.2 maintainer validation found intermittent hangs on the two real-library control bundles. Story 7.2a identified three structural root causes (component not deactivated on detach, missing per-bundle session uniqueness, stale container views) and applied fixes in `plugin_editor_poc.rs`. The bundles remain `discovered but unvalidated` until maintainer manual revalidation confirms stability. See `docs/playback-support-baseline.md` for the current verdict and evidence.
 
 ## Canonical MVP Playback Baseline
 
