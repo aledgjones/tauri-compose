@@ -4480,7 +4480,7 @@ dependencies = [
 
 [[package]]
 name = "solo-compose"
-version = "2.1.0"
+version = "2.2.0"
 dependencies = [
  "audioadapter-buffers",
  "axum 0.8.8",

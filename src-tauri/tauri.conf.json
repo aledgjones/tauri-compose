@@ -17,6 +17,7 @@
         "backgroundColor": "#0a0a0a",
         "dragDropEnabled": false,
         "height": 600,
+        "hiddenTitle": true,
         "maximized": true,
         "minWidth": 1300,
         "theme": "Dark",
@@ -24,8 +25,7 @@
         "titleBarStyle": "Overlay",
         "transparent": true,
         "url": "index.html",
-        "width": 800,
-        "hiddenTitle": true
+        "width": 800
       }
     ]
   },
@@ -51,5 +51,5 @@
   },
   "identifier": "com.soloapps.compose",
   "productName": "Solo Compose",
-  "version": "2.1.0"
+  "version": "2.2.0"
 }

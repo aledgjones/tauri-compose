@@ -1,3 +1,134 @@
+## Release Notes for v2.2.0
+
+### 🏗️ Features
+
+- feat(7.4): playback support baseline
+- feat(7.3): validation of vst routes
+- feat(7.2a): natuve plugin ui fixes
+- feat(7.2): validation
+- feat(7.1): playback support docs.
+- feat(6.4): expression playback
+- feat(6.3): expression map creation
+- feat(6.2): expression dselection
+- feat(6.1): expression map setup
+- feat(5.5): cleanup story
+- feat(5.4): reopen
+- feat(5.3): audio refresh
+- feat(5.2a): clock fixes
+- feat(5.2): seek fixes
+- feat(5.0): playback alignment with expectations
+- feat(5.1): partial implementation before blocking
+- feat(4.5): cleanup
+- feat(4.4): mixer actions
+- feat(4.3): audio playback
+- feat(4.2): auditioning
+- feat(4.1): playback prep
+- feat(3.4): slot consistency
+- feat(3.3): slot validity
+- feat(3.2): slot sanity
+- feat(3.1): rack attention states
+- feat(2.4): plugin ui checks
+- feat(2.3): cleanup plugin assignment ux
+- feat(2.2): plugin refrest check
+- feat(2.1): plugin registry
+- feat(1.6): vst state persitance
+- feat(1.5): transient plugin editors
+- feat(1.4): plugin stability
+- feat(1.3): plugin readiness and course correction of arch
+- feat(1.2): cleanliness check
+- feat(1.1): sampler cleanup
+- feat: course correction
+- feat(3.8): vst management.
+- feat: blocked stories
+- feat: investigate HALion
+- feat(3.4): slot assignment
+- feat(3.3): slot assignment
+- feat(3.2): assignment readieness
+- feat(3.1): massive cleanup
+- feat(3.2): old pas at epic 3 stories
+- feat(3.1): playback assignment setup
+- feat(2.8): abandon plugin image
+- feat(2.6): plugin ui
+- feat(2.5): bind plugin ui
+- feat: finish manual plugin inventory rescan workflow
+- feat(2.3): plugin manager
+- feat: epic 2 stoires
+- feat(2.2): plugin cache behaviour
+- feat(2.1): vst discovery
+- feat: update bmm workflows with latest copilot instructions and principles
+- feat(1.4): documentation cleanup
+- feat(1.3): continued scvi cleanup
+- feat(1.2): saving cleanup 2
+- feat(1.1): scvi cleanup part 1
+- feat: score structure lookups
+- feat: vst poc
+
+### 🐞 Fixes
+
+- fix: type error
+- fix(SC-170): input caret jump
+- fix: plugin search
+- fix(SC-170): input caret jump
+- fix(renderer): keep max start clef spacing
+- fix(renderer): highlight selected rhythm dots
+- fix(ui): preserve caret in text inputs
+- fix(sequence): rename rack search placeholder
+- fix(sequence): add rack slot search
+- fix(sequence): add plugin UI button to overview
+- fix(app): add icon to about metadata
+- fix(plugins): mute unsupported plugin badges
+- fix(ui): match textarea hover state to inputs
+- fix(sequence): place flow selector in left header
+- fix: loading style tweaks
+- fix: center app bar title
+- fix: draggable title
+- fix: formatting
+- fix: tweak triplet number offsets
+
+### 🔧 Chores
+
+- chore: epic 7 retro
+- chore: deps to latest
+- chore: playing techniques epic
+- chore: epic 6 retro
+- chore: epic 6 story creation
+- chore: cleanup dead documentation
+- chore: auto formatting
+- chore(plugin-host): remove plugin poc debug logs
+- chore: bump deps
+- chore: epic 5 retro
+- chore: story prep
+- chore: epic 4 retro
+- chore: update bmad
+- chore: story creation
+- chore: update plan to fix audtion holistically
+- chore: epic 3 retro
+- chore: prep epic 3 stories
+- chore: epic 1 retro
+- chore: bmad venv setup
+- chore: formatting fix
+- chore: tracking consistency
+- chore: update bmad
+- chore: epic 3 redirection
+- chore: block 3.7
+- chore: proposed rack ux improvements
+- chore: twirl epic 3 stories
+- chore: epic 2 retro
+- chore(2.3): close out story
+- chore(2.1): cleanup code review
+- chore: unify scvi removal intent
+- chore: epic 1 retro
+- chore(1.5): verification pass
+- chore: spec vst work
+- chore: cleanup old artifacts
+
+### 📝 Other
+
+- Merge pull request #16 from aledgjones/feat/vst
+- Complete Epic 5 transport playback hardening
+- chor: epic 2 retro
+- Configure Dependabot for npm and cargo updates
+
 ## Release Notes for v2.1.0
 
 ### 🔧 Chores
