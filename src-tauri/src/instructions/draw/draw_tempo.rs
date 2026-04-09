@@ -2,7 +2,7 @@ use crate::renderer::text_measurer::TextMeasurer;
 use crate::renderer::{HitTarget, RendererContext};
 use crate::score::components::measurements::Point;
 use crate::score::entries::tempo::{
-    Tempo, TEMPO_DOT_GAP, TEMPO_METRONOME_EQUALS_GAP, TEMPO_STAVE_OFFSET, TEMPO_TEXT_GAP,
+    Tempo, TEMPO_DOT_GAP, TEMPO_METRONOME_EQUALS_GAP, TEMPO_TEXT_GAP,
 };
 use crate::ui::sequencer::Selection;
 use crate::utils::UniqueId;

@@ -4,13 +4,12 @@ use crate::playback::engine::{
 };
 use crate::playback::expression_maps::{
     resolve_expression_map_playback, ExpressionMapAction, ExpressionMapLibraryState,
-    ExpressionMapPlaybackContext,
 };
 use crate::playback::preparation::{
-    effective_playback_mix_for_instrument, prepare_supported_playback_with_expression_maps,
-    PlaybackPreparation,
+    effective_playback_mix_for_instrument, prepare_supported_note_events_for_flow,
+    prepare_supported_playback_with_expression_maps, PlaybackPreparation,
 };
-use crate::playback::tuplet_projection::{collect_track_playback_events, PlaybackTick};
+use crate::playback::tuplet_projection::{PlaybackTick, PlaybackToneEvent};
 use crate::score::components::duration::Tick;
 use crate::score::entries::tempo::{EffectiveTempoResolver, DEFAULT_TEMPO_BPM};
 use crate::score::instruments::Instrument;
@@ -494,6 +493,16 @@ fn collect_scheduled_notes(
     flow_id: UniqueId,
     preparation: &PlaybackPreparation,
 ) -> FxHashMap<Tick, Vec<ScheduledNote>> {
+    let note_events_by_instrument_id =
+        prepare_supported_note_events_for_flow(score, flow_id, preparation);
+
+    collect_scheduled_notes_from_prepared_events(preparation, &note_events_by_instrument_id)
+}
+
+fn collect_scheduled_notes_from_prepared_events(
+    preparation: &PlaybackPreparation,
+    note_events_by_instrument_id: &FxHashMap<UniqueId, Vec<PlaybackToneEvent>>,
+) -> FxHashMap<Tick, Vec<ScheduledNote>> {
     let mut notes_by_tick: FxHashMap<Tick, Vec<ScheduledNote>> = FxHashMap::default();
     let supported_targets_by_instrument_id = preparation
         .supported_targets
@@ -504,99 +513,56 @@ fn collect_scheduled_notes(
         return notes_by_tick;
     }
 
-    let flow = match score.flows.by_id.get(&flow_id) {
-        Some(f) => f,
-        None => return notes_by_tick,
-    };
-
-    // Walk all players assigned to this flow
-    for player_id in &flow.player_ids {
-        let player = match score.players.by_id.get(player_id) {
-            Some(p) => p,
-            None => continue,
+    for (instrument_id, tones) in note_events_by_instrument_id {
+        let Some(prepared_target) = supported_targets_by_instrument_id.get(instrument_id) else {
+            continue;
         };
 
-        for instrument_id in &player.instrument_ids {
-            let Some(prepared_target) = supported_targets_by_instrument_id.get(instrument_id)
-            else {
-                continue;
-            };
+        let plugin_id = prepared_target.plugin_id.clone();
 
-            let instrument = match score.instruments.by_id.get(instrument_id) {
-                Some(i) => i,
-                None => continue,
-            };
+        for tone in tones {
+            let mut keyswitches = Vec::new();
+            let mut duration_ratio_percent = 100;
 
-            let plugin_id = prepared_target.plugin_id.clone();
+            if let Some(expression_map) = prepared_target.expression_map.as_ref() {
+                let resolved =
+                    resolve_expression_map_playback(expression_map, &tone.expression_map_context);
 
-            // Find staves for this instrument in this flow
-            for stave_id in &instrument.stave_ids {
-                let stave = match flow.staves.by_id.get(stave_id) {
-                    Some(s) => s,
-                    None => continue,
-                };
-
-                // Walk the tracks of this stave
-                for track_id in &stave.track_ids {
-                    let track = match score.tracks.by_id.get(track_id) {
-                        Some(t) => t,
-                        None => continue,
-                    };
-
-                    for tone in collect_track_playback_events(track) {
-                        let mut keyswitches = Vec::new();
-                        let mut duration_ratio_percent = 100;
-
-                        if let Some(expression_map) = prepared_target.expression_map.as_ref() {
-                            let resolved = resolve_expression_map_playback(
-                                expression_map,
-                                &ExpressionMapPlaybackContext {
-                                    articulations: tone.articulations.clone(),
-                                    written_duration_ticks: tone.written_duration_ticks,
-                                },
-                            );
-
-                            for action in resolved.actions {
-                                match action {
-                                    ExpressionMapAction::KeyswitchNote {
-                                        midi_note,
-                                        velocity,
-                                        ..
-                                    } => {
-                                        keyswitches.push(ScheduledKeyswitch {
-                                            pitch: midi_note,
-                                            velocity,
-                                        });
-                                    }
-                                    ExpressionMapAction::NoteLengthTransform {
-                                        ratio_percent,
-                                        ..
-                                    } => {
-                                        duration_ratio_percent = ratio_percent;
-                                    }
-                                    ExpressionMapAction::ControlChange { .. }
-                                    | ExpressionMapAction::NoOp { .. } => {}
-                                }
-                            }
-                        }
-
-                        notes_by_tick
-                            .entry(tone.start.floor())
-                            .or_default()
-                            .push(ScheduledNote {
-                                start: tone.start,
-                                duration: tone.duration,
-                                slot_id: prepared_target.slot_id,
-                                plugin_id: plugin_id.clone(),
-                                pitch: tone.pitch,
-                                velocity: tone.velocity,
-                                instrument_id: *instrument_id,
-                                keyswitches,
-                                duration_ratio_percent,
+                for action in resolved.actions {
+                    match action {
+                        ExpressionMapAction::KeyswitchNote {
+                            midi_note,
+                            velocity,
+                            ..
+                        } => {
+                            keyswitches.push(ScheduledKeyswitch {
+                                pitch: midi_note,
+                                velocity,
                             });
+                        }
+                        ExpressionMapAction::NoteLengthTransform { ratio_percent, .. } => {
+                            duration_ratio_percent = ratio_percent;
+                        }
+                        ExpressionMapAction::ControlChange { .. }
+                        | ExpressionMapAction::NoOp { .. } => {}
                     }
                 }
             }
+
+            notes_by_tick
+                .entry(tone.start.floor())
+                .or_default()
+                .push(ScheduledNote {
+                    start: tone.start.clone(),
+                    duration: tone.duration.clone(),
+                    slot_id: prepared_target.slot_id,
+                    plugin_id: plugin_id.clone(),
+                    pitch: tone.pitch,
+                    velocity: tone.velocity,
+                    instrument_id: *instrument_id,
+                    keyswitches,
+                    duration_ratio_percent,
+                });
         }
     }
 
@@ -3782,6 +3748,55 @@ mod tests {
                 .map(|start| resolve_score_tempo_bpm(&score, Some(flow_id), start.floor()))
                 .collect::<Vec<_>>(),
             vec![84.0, 132.0]
+        );
+    }
+
+    #[test]
+    fn collect_scheduled_notes_from_prepared_events_no_longer_reads_master_tracks() {
+        let mut track = Track::new(50);
+        track
+            .create_tone(80, 96, 16, 60, None, 96, Default::default(), None)
+            .unwrap();
+
+        let (mut score, flow_id) = make_flow_score_with_track(track);
+        score
+            .tracks
+            .by_id
+            .get_mut(&2)
+            .unwrap()
+            .insert_entry(Entry::PlayingTechnique(
+                crate::score::entries::playing_technique::PlayingTechnique::new(
+                    200,
+                    96,
+                    crate::score::entries::playing_technique::PlayingTechniqueKind::Pizz,
+                ),
+            ));
+
+        let preparation = make_playback_preparation_for_score(&score, 48_000);
+        let prepared_note_events =
+            crate::playback::preparation::prepare_supported_note_events_for_flow(
+                &score,
+                flow_id,
+                &preparation,
+            );
+
+        score.tracks.by_id.remove(&2);
+
+        let scheduled =
+            collect_scheduled_notes_from_prepared_events(&preparation, &prepared_note_events);
+
+        assert_eq!(
+            flatten_scheduled_starts(&scheduled),
+            vec![PlaybackTick::from_tick(96)]
+        );
+        assert_eq!(
+            scheduled
+                .get(&96)
+                .expect("expected scheduled note bucket")
+                .iter()
+                .map(|note| note.pitch)
+                .collect::<Vec<_>>(),
+            vec![60]
         );
     }
 }

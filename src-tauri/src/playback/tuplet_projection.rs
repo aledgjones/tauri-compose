@@ -1,5 +1,8 @@
-use crate::score::components::articulation::Articulations;
+use crate::playback::expression_maps::ExpressionMapPlaybackContext;
 use crate::score::components::duration::{Tick, Ticks};
+use crate::score::entries::playing_technique::{
+    EffectivePlayingTechniqueContext, EffectivePlayingTechniqueResolver,
+};
 use crate::score::entries::tone::Tone;
 use crate::score::entries::tuplet::{Tuplet, TupletEntry};
 use crate::score::entries::Entry;
@@ -71,8 +74,7 @@ pub struct PlaybackToneEvent {
     pub duration: PlaybackTick,
     pub pitch: u8,
     pub velocity: u8,
-    pub articulations: Articulations,
-    pub written_duration_ticks: Ticks,
+    pub expression_map_context: ExpressionMapPlaybackContext,
 }
 
 #[derive(Clone, Copy)]
@@ -95,7 +97,10 @@ impl TupletBoundary {
     }
 }
 
-pub fn collect_track_playback_events(track: &Track) -> Vec<PlaybackToneEvent> {
+pub fn collect_track_playback_events(
+    track: &Track,
+    technique_resolver: Option<&EffectivePlayingTechniqueResolver>,
+) -> Vec<PlaybackToneEvent> {
     let boundaries = collect_tuplet_boundaries(track);
     let mut events = Vec::new();
 
@@ -130,7 +135,34 @@ pub fn collect_track_playback_events(track: &Track) -> Vec<PlaybackToneEvent> {
             .then(left.velocity.cmp(&right.velocity))
     });
 
+    apply_effective_playing_techniques(&mut events, technique_resolver);
+
     events
+}
+
+fn apply_effective_playing_techniques(
+    events: &mut [PlaybackToneEvent],
+    technique_resolver: Option<&EffectivePlayingTechniqueResolver>,
+) {
+    let Some(technique_resolver) = technique_resolver else {
+        return;
+    };
+
+    let mut context = EffectivePlayingTechniqueContext::new();
+    let mut next_change_index = 0;
+
+    for event in events {
+        while let Some(change) = technique_resolver.changes().get(next_change_index) {
+            if change.tick > event.start.floor() {
+                break;
+            }
+
+            context.set_active(change.kind);
+            next_change_index += 1;
+        }
+
+        event.expression_map_context.effective_playing_techniques = context.clone();
+    }
 }
 
 fn push_tone_event(
@@ -150,8 +182,11 @@ fn push_tone_event(
             duration,
             pitch: tone.pitch.int,
             velocity: tone.velocity.int(),
-            articulations: tone.articulations.clone(),
-            written_duration_ticks: tone.duration,
+            expression_map_context: ExpressionMapPlaybackContext {
+                articulations: tone.articulations.clone(),
+                written_duration_ticks: tone.duration,
+                effective_playing_techniques: EffectivePlayingTechniqueContext::new(),
+            },
         });
     }
 }
@@ -245,6 +280,9 @@ mod tests {
     use crate::score::components::duration::NoteDuration;
     use crate::score::components::pitch::{Accidental, Pitch};
     use crate::score::components::velocity::Velocity;
+    use crate::score::entries::playing_technique::{
+        PlayingTechnique, PlayingTechniqueExclusivityGroup, PlayingTechniqueKind,
+    };
     use crate::score::entries::tone::Tone;
     use crate::score::entries::tuplet::{Tuplet, TupletEntries, TupletEntry};
     use crate::score::entries::Entry;
@@ -286,14 +324,43 @@ mod tests {
         pitch: u8,
         written_duration_ticks: Ticks,
     ) -> PlaybackToneEvent {
+        expected_event_with_context(
+            start,
+            duration,
+            pitch,
+            written_duration_ticks,
+            EffectivePlayingTechniqueContext::new(),
+        )
+    }
+
+    fn expected_event_with_context(
+        start: PlaybackTick,
+        duration: PlaybackTick,
+        pitch: u8,
+        written_duration_ticks: Ticks,
+        effective_playing_techniques: EffectivePlayingTechniqueContext,
+    ) -> PlaybackToneEvent {
         PlaybackToneEvent {
             start,
             duration,
             pitch,
             velocity: 96,
-            articulations: Articulations::new(),
-            written_duration_ticks,
+            expression_map_context: ExpressionMapPlaybackContext {
+                articulations: Articulations::new(),
+                written_duration_ticks,
+                effective_playing_techniques,
+            },
         }
+    }
+
+    fn bowed_context(kind: PlayingTechniqueKind) -> EffectivePlayingTechniqueContext {
+        let mut context = EffectivePlayingTechniqueContext::new();
+        context.set_active(kind);
+        context
+    }
+
+    fn make_playing_technique_entry(id: u64, tick: u64, kind: PlayingTechniqueKind) -> Entry {
+        Entry::PlayingTechnique(PlayingTechnique::new(id, tick, kind))
     }
 
     #[test]
@@ -304,7 +371,7 @@ mod tests {
             &[(10, 0, 16, 60), (11, 16, 16, 62), (12, 32, 16, 64)],
         ));
 
-        let events = collect_track_playback_events(&track);
+        let events = collect_track_playback_events(&track, None);
 
         assert_eq!(
             events,
@@ -326,7 +393,7 @@ mod tests {
         let mut track = Track::new(1);
         track.insert_entry(make_triplet(96, &[(10, 0, 16, 60), (12, 32, 16, 64)]));
 
-        let events = collect_track_playback_events(&track);
+        let events = collect_track_playback_events(&track, None);
 
         assert_eq!(
             events,
@@ -348,7 +415,7 @@ mod tests {
         track.insert_entry(Entry::Tone(make_tone(1, 80, 64, 60)));
         track.insert_entry(make_triplet(96, &[]));
 
-        let events = collect_track_playback_events(&track);
+        let events = collect_track_playback_events(&track, None);
 
         assert_eq!(
             events,
@@ -366,7 +433,7 @@ mod tests {
         let mut track = Track::new(1);
         track.insert_entry(make_triplet(96, &[(10, 32, 32, 60)]));
 
-        let events = collect_track_playback_events(&track);
+        let events = collect_track_playback_events(&track, None);
 
         assert_eq!(
             events,
@@ -389,7 +456,7 @@ mod tests {
         ));
         track.insert_entry(Entry::Tone(make_tone(2, 128, 16, 67)));
 
-        let starts: Vec<PlaybackTick> = collect_track_playback_events(&track)
+        let starts: Vec<PlaybackTick> = collect_track_playback_events(&track, None)
             .into_iter()
             .map(|event| event.start)
             .collect();
@@ -412,7 +479,7 @@ mod tests {
         track.insert_entry(Entry::Tone(make_tone(1, 32, 16, 60)));
         track.insert_entry(Entry::Tone(make_tone(2, 48, 32, 64)));
 
-        let events = collect_track_playback_events(&track);
+        let events = collect_track_playback_events(&track, None);
 
         assert_eq!(
             events,
@@ -440,7 +507,7 @@ mod tests {
         track.insert_entry(Entry::Tone(make_tone(2, 80, 24, 64)));
         track.insert_entry(Entry::Tone(make_tone(3, 111, 16, 67)));
 
-        let events = collect_track_playback_events(&track);
+        let events = collect_track_playback_events(&track, None);
 
         assert_eq!(
             events,
@@ -469,5 +536,208 @@ mod tests {
         assert!(events
             .iter()
             .all(|event| { event.start.denominator == 1 && event.duration.denominator == 1 }));
+    }
+
+    #[test]
+    fn collect_track_playback_events_applies_master_track_techniques_to_host_and_tuplet_tones() {
+        let mut track = Track::new(1);
+        track.insert_entry(Entry::Tone(make_tone(1, 96, 16, 60)));
+        track.insert_entry(make_triplet(128, &[(10, 0, 16, 62), (11, 16, 16, 64)]));
+        track.insert_entry(Entry::Tone(make_tone(2, 160, 16, 67)));
+
+        let mut master_track = Track::new(2);
+        master_track.insert_entry(make_playing_technique_entry(
+            100,
+            96,
+            PlayingTechniqueKind::Pizz,
+        ));
+        master_track.insert_entry(make_playing_technique_entry(
+            101,
+            128,
+            PlayingTechniqueKind::Arco,
+        ));
+
+        let resolver = master_track.effective_playing_technique_resolver();
+        let events = collect_track_playback_events(&track, Some(&resolver));
+
+        assert_eq!(
+            events,
+            vec![
+                expected_event_with_context(
+                    PlaybackTick::from_tick(96),
+                    PlaybackTick::from_tick(16),
+                    60,
+                    16,
+                    bowed_context(PlayingTechniqueKind::Pizz),
+                ),
+                expected_event_with_context(
+                    PlaybackTick::from_tick(128),
+                    PlaybackTick::new(32, 3),
+                    62,
+                    16,
+                    bowed_context(PlayingTechniqueKind::Arco),
+                ),
+                expected_event_with_context(
+                    PlaybackTick::new(416, 3),
+                    PlaybackTick::new(32, 3),
+                    64,
+                    16,
+                    bowed_context(PlayingTechniqueKind::Arco),
+                ),
+                expected_event_with_context(
+                    PlaybackTick::from_tick(160),
+                    PlaybackTick::from_tick(16),
+                    67,
+                    16,
+                    bowed_context(PlayingTechniqueKind::Arco),
+                ),
+            ]
+        );
+    }
+
+    #[test]
+    fn collect_track_playback_events_keeps_same_tick_conflicts_deterministic_for_prepared_context()
+    {
+        let mut track = Track::new(1);
+        track.insert_entry(Entry::Tone(make_tone(1, 96, 16, 60)));
+
+        let mut master_track = Track::new(2);
+        master_track.insert_entry(make_playing_technique_entry(
+            200,
+            96,
+            PlayingTechniqueKind::Arco,
+        ));
+        master_track.insert_entry(make_playing_technique_entry(
+            150,
+            96,
+            PlayingTechniqueKind::Pizz,
+        ));
+
+        let resolver = master_track.effective_playing_technique_resolver();
+        let events = collect_track_playback_events(&track, Some(&resolver));
+
+        assert_eq!(
+            events[0]
+                .expression_map_context
+                .effective_playing_techniques
+                .active_kind(PlayingTechniqueExclusivityGroup::Bowed),
+            Some(PlayingTechniqueKind::Arco)
+        );
+    }
+
+    #[test]
+    fn collect_track_playback_events_reuses_same_master_context_across_same_stave_tracks() {
+        let mut upper_track = Track::new(1);
+        upper_track.insert_entry(Entry::Tone(make_tone(1, 96, 16, 60)));
+        let mut lower_track = Track::new(2);
+        lower_track.insert_entry(Entry::Tone(make_tone(2, 128, 16, 55)));
+
+        let mut master_track = Track::new(3);
+        master_track.insert_entry(make_playing_technique_entry(
+            100,
+            96,
+            PlayingTechniqueKind::Pizz,
+        ));
+
+        let resolver = master_track.effective_playing_technique_resolver();
+        let upper_events = collect_track_playback_events(&upper_track, Some(&resolver));
+        let lower_events = collect_track_playback_events(&lower_track, Some(&resolver));
+
+        assert_eq!(
+            upper_events[0]
+                .expression_map_context
+                .effective_playing_techniques
+                .active_kind(PlayingTechniqueExclusivityGroup::Bowed),
+            Some(PlayingTechniqueKind::Pizz)
+        );
+        assert_eq!(
+            lower_events[0]
+                .expression_map_context
+                .effective_playing_techniques
+                .active_kind(PlayingTechniqueExclusivityGroup::Bowed),
+            Some(PlayingTechniqueKind::Pizz)
+        );
+    }
+
+    #[test]
+    fn collect_track_playback_events_keep_multi_stave_contexts_independent() {
+        let mut upper_track = Track::new(1);
+        upper_track.insert_entry(Entry::Tone(make_tone(1, 96, 16, 60)));
+        let mut lower_track = Track::new(2);
+        lower_track.insert_entry(Entry::Tone(make_tone(2, 96, 16, 55)));
+
+        let mut upper_master_track = Track::new(3);
+        upper_master_track.insert_entry(make_playing_technique_entry(
+            100,
+            96,
+            PlayingTechniqueKind::Pizz,
+        ));
+        let mut lower_master_track = Track::new(4);
+        lower_master_track.insert_entry(make_playing_technique_entry(
+            101,
+            96,
+            PlayingTechniqueKind::Arco,
+        ));
+
+        let upper_events = collect_track_playback_events(
+            &upper_track,
+            Some(&upper_master_track.effective_playing_technique_resolver()),
+        );
+        let lower_events = collect_track_playback_events(
+            &lower_track,
+            Some(&lower_master_track.effective_playing_technique_resolver()),
+        );
+
+        assert_eq!(
+            upper_events[0]
+                .expression_map_context
+                .effective_playing_techniques
+                .active_kind(PlayingTechniqueExclusivityGroup::Bowed),
+            Some(PlayingTechniqueKind::Pizz)
+        );
+        assert_eq!(
+            lower_events[0]
+                .expression_map_context
+                .effective_playing_techniques
+                .active_kind(PlayingTechniqueExclusivityGroup::Bowed),
+            Some(PlayingTechniqueKind::Arco)
+        );
+    }
+
+    #[test]
+    fn collect_track_playback_events_do_not_leak_between_flow_scoped_master_contexts() {
+        let mut active_flow_track = Track::new(1);
+        active_flow_track.insert_entry(Entry::Tone(make_tone(1, 96, 16, 60)));
+        let mut sibling_flow_track = Track::new(2);
+        sibling_flow_track.insert_entry(Entry::Tone(make_tone(2, 96, 16, 55)));
+
+        let mut active_flow_master = Track::new(3);
+        active_flow_master.insert_entry(make_playing_technique_entry(
+            100,
+            96,
+            PlayingTechniqueKind::Pizz,
+        ));
+        let sibling_flow_master = Track::new(4);
+
+        let active_events = collect_track_playback_events(
+            &active_flow_track,
+            Some(&active_flow_master.effective_playing_technique_resolver()),
+        );
+        let sibling_events = collect_track_playback_events(
+            &sibling_flow_track,
+            Some(&sibling_flow_master.effective_playing_technique_resolver()),
+        );
+
+        assert_eq!(
+            active_events[0]
+                .expression_map_context
+                .effective_playing_techniques
+                .active_kind(PlayingTechniqueExclusivityGroup::Bowed),
+            Some(PlayingTechniqueKind::Pizz)
+        );
+        assert!(sibling_events[0]
+            .expression_map_context
+            .effective_playing_techniques
+            .is_empty());
     }
 }

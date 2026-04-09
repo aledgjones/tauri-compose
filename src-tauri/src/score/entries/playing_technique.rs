@@ -7,6 +7,7 @@ use crate::score::tracks::Track;
 use crate::utils::UniqueId;
 use crate::AppContextState;
 use crate::RendererContextState;
+use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use tauri::State;
@@ -18,6 +19,107 @@ use super::Entry;
 pub enum PlayingTechniqueKind {
     Pizz,
     Arco,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum PlayingTechniqueExclusivityGroup {
+    Bowed,
+}
+
+impl PlayingTechniqueKind {
+    pub fn exclusivity_group(self) -> PlayingTechniqueExclusivityGroup {
+        match self {
+            Self::Pizz | Self::Arco => PlayingTechniqueExclusivityGroup::Bowed,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct EffectivePlayingTechniqueContext {
+    by_group: FxHashMap<PlayingTechniqueExclusivityGroup, PlayingTechniqueKind>,
+}
+
+impl EffectivePlayingTechniqueContext {
+    pub fn new() -> Self {
+        Self {
+            by_group: FxHashMap::default(),
+        }
+    }
+
+    #[cfg_attr(not(test), allow(dead_code))]
+    pub fn is_empty(&self) -> bool {
+        self.by_group.is_empty()
+    }
+
+    #[cfg_attr(not(test), allow(dead_code))]
+    pub fn active_kind(
+        &self,
+        group: PlayingTechniqueExclusivityGroup,
+    ) -> Option<PlayingTechniqueKind> {
+        self.by_group.get(&group).copied()
+    }
+
+    #[cfg_attr(not(test), allow(dead_code))]
+    pub fn contains(&self, kind: PlayingTechniqueKind) -> bool {
+        self.active_kind(kind.exclusivity_group()) == Some(kind)
+    }
+
+    pub(crate) fn set_active(&mut self, kind: PlayingTechniqueKind) {
+        self.by_group.insert(kind.exclusivity_group(), kind);
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct EffectivePlayingTechniqueChange {
+    pub tick: Tick,
+    pub kind: PlayingTechniqueKind,
+}
+
+#[derive(Clone, Default)]
+pub struct EffectivePlayingTechniqueResolver {
+    changes: Vec<EffectivePlayingTechniqueChange>,
+}
+
+impl EffectivePlayingTechniqueResolver {
+    pub fn from_track(track: &Track) -> Self {
+        let mut changes = track
+            .entries
+            .by_id
+            .values()
+            .filter_map(|entry| match entry {
+                Entry::PlayingTechnique(playing_technique) => Some((
+                    playing_technique.tick,
+                    playing_technique.id,
+                    playing_technique.kind,
+                )),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+
+        changes.sort_unstable_by(|left, right| left.0.cmp(&right.0).then(left.1.cmp(&right.1)));
+
+        Self {
+            changes: changes
+                .into_iter()
+                .map(|(tick, _id, kind)| EffectivePlayingTechniqueChange { tick, kind })
+                .collect(),
+        }
+    }
+
+    #[cfg_attr(not(test), allow(dead_code))]
+    pub fn resolve(&self, tick: Tick) -> EffectivePlayingTechniqueContext {
+        let mut context = EffectivePlayingTechniqueContext::new();
+
+        for change in self.changes.iter().take_while(|change| change.tick <= tick) {
+            context.set_active(change.kind);
+        }
+
+        context
+    }
+
+    pub(crate) fn changes(&self) -> &[EffectivePlayingTechniqueChange] {
+        &self.changes
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -124,6 +226,10 @@ impl Track {
                 _ => None,
             })
             .collect()
+    }
+
+    pub fn effective_playing_technique_resolver(&self) -> EffectivePlayingTechniqueResolver {
+        EffectivePlayingTechniqueResolver::from_track(self)
     }
 }
 
@@ -430,5 +536,148 @@ mod tests {
         };
         assert!(playing_technique.hidden);
         assert_eq!(playing_technique.kind, PlayingTechniqueKind::Pizz);
+    }
+
+    #[test]
+    fn playing_technique_kind_reports_bowed_exclusivity_group() {
+        assert_eq!(
+            PlayingTechniqueKind::Pizz.exclusivity_group(),
+            PlayingTechniqueExclusivityGroup::Bowed
+        );
+        assert_eq!(
+            PlayingTechniqueKind::Arco.exclusivity_group(),
+            PlayingTechniqueExclusivityGroup::Bowed
+        );
+    }
+
+    #[test]
+    fn effective_playing_technique_resolver_defaults_to_no_active_technique() {
+        let track = Track::new(1);
+        let resolver = track.effective_playing_technique_resolver();
+
+        assert!(resolver.resolve(64).is_empty());
+    }
+
+    #[test]
+    fn effective_playing_technique_resolver_applies_same_tick_changes_immediately() {
+        let mut track = Track::new(1);
+        insert_playing_technique_like_create(
+            &mut track,
+            make_playing_technique(10, 64, PlayingTechniqueKind::Pizz),
+        );
+
+        let resolver = track.effective_playing_technique_resolver();
+
+        assert!(resolver.resolve(63).is_empty());
+        assert_eq!(
+            resolver
+                .resolve(64)
+                .active_kind(PlayingTechniqueExclusivityGroup::Bowed),
+            Some(PlayingTechniqueKind::Pizz)
+        );
+    }
+
+    #[test]
+    fn effective_playing_technique_resolver_replaces_same_group_over_time() {
+        let mut track = Track::new(1);
+        insert_playing_technique_like_create(
+            &mut track,
+            make_playing_technique(10, 64, PlayingTechniqueKind::Pizz),
+        );
+        insert_playing_technique_like_create(
+            &mut track,
+            make_playing_technique(11, 96, PlayingTechniqueKind::Arco),
+        );
+
+        let resolver = track.effective_playing_technique_resolver();
+
+        assert!(resolver.resolve(80).contains(PlayingTechniqueKind::Pizz));
+        assert!(resolver.resolve(95).contains(PlayingTechniqueKind::Pizz));
+        assert!(resolver.resolve(96).contains(PlayingTechniqueKind::Arco));
+        assert!(resolver.resolve(128).contains(PlayingTechniqueKind::Arco));
+    }
+
+    #[test]
+    fn effective_playing_technique_resolver_keeps_hidden_entries_semantic() {
+        let mut track = Track::new(1);
+        let mut hidden = make_playing_technique(10, 64, PlayingTechniqueKind::Pizz);
+        hidden.hidden = true;
+        insert_playing_technique_like_create(&mut track, hidden);
+
+        let resolver = track.effective_playing_technique_resolver();
+
+        assert!(resolver.resolve(64).contains(PlayingTechniqueKind::Pizz));
+    }
+
+    #[test]
+    fn effective_playing_technique_resolver_uses_highest_id_for_same_tick_conflicts() {
+        let mut track = Track::new(1);
+        track.insert_entry(Entry::PlayingTechnique(make_playing_technique(
+            20,
+            64,
+            PlayingTechniqueKind::Arco,
+        )));
+        track.insert_entry(Entry::PlayingTechnique(make_playing_technique(
+            10,
+            64,
+            PlayingTechniqueKind::Pizz,
+        )));
+
+        let resolver = track.effective_playing_technique_resolver();
+
+        assert_eq!(
+            resolver
+                .resolve(64)
+                .active_kind(PlayingTechniqueExclusivityGroup::Bowed),
+            Some(PlayingTechniqueKind::Arco)
+        );
+    }
+
+    #[test]
+    fn effective_playing_technique_resolver_stays_scoped_to_each_track() {
+        let mut left_track = Track::new(1);
+        let mut right_track = Track::new(2);
+        insert_playing_technique_like_create(
+            &mut left_track,
+            make_playing_technique(10, 64, PlayingTechniqueKind::Pizz),
+        );
+        insert_playing_technique_like_create(
+            &mut right_track,
+            make_playing_technique(11, 64, PlayingTechniqueKind::Arco),
+        );
+
+        let left_resolver = left_track.effective_playing_technique_resolver();
+        let right_resolver = right_track.effective_playing_technique_resolver();
+
+        assert!(left_resolver
+            .resolve(64)
+            .contains(PlayingTechniqueKind::Pizz));
+        assert!(!left_resolver
+            .resolve(64)
+            .contains(PlayingTechniqueKind::Arco));
+        assert!(right_resolver
+            .resolve(64)
+            .contains(PlayingTechniqueKind::Arco));
+        assert!(!right_resolver
+            .resolve(64)
+            .contains(PlayingTechniqueKind::Pizz));
+    }
+
+    #[test]
+    fn effective_playing_technique_resolver_does_not_leak_into_unmarked_tracks() {
+        let mut marked_track = Track::new(1);
+        let unmarked_track = Track::new(2);
+        insert_playing_technique_like_create(
+            &mut marked_track,
+            make_playing_technique(10, 64, PlayingTechniqueKind::Pizz),
+        );
+
+        let marked_resolver = marked_track.effective_playing_technique_resolver();
+        let unmarked_resolver = unmarked_track.effective_playing_technique_resolver();
+
+        assert!(marked_resolver
+            .resolve(64)
+            .contains(PlayingTechniqueKind::Pizz));
+        assert!(unmarked_resolver.resolve(64).is_empty());
     }
 }

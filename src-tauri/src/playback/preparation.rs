@@ -2,6 +2,7 @@ use crate::playback::expression_maps::{ExpressionMap, ExpressionMapLibraryState}
 use crate::playback::runtime_activation::{
     PlaybackActivationRuntime, SingleInstrumentTrustGateBlocker,
 };
+use crate::playback::tuplet_projection::{collect_track_playback_events, PlaybackToneEvent};
 use crate::score::playback::{
     PlaybackRouteAddress, PlaybackRouteTarget, PlaybackSlotPluginState, ResolvedPlaybackRoute,
     ResolvedPlaybackRouteStatus, SupportedPlaybackMixControls,
@@ -130,6 +131,71 @@ pub struct PreparedPlaybackTarget {
     pub address: PlaybackRouteAddress,
     pub supported_mix_controls: SupportedPlaybackMixControls,
     pub effective_mix: EffectivePlaybackMix,
+}
+
+pub fn prepare_supported_note_events_for_flow(
+    score: &Score,
+    flow_id: UniqueId,
+    preparation: &PlaybackPreparation,
+) -> FxHashMap<UniqueId, Vec<PlaybackToneEvent>> {
+    let Some(flow) = score.flows.by_id.get(&flow_id) else {
+        return FxHashMap::default();
+    };
+
+    let supported_targets_by_instrument_id = preparation
+        .supported_targets
+        .iter()
+        .map(|target| (target.instrument_id, target))
+        .collect::<FxHashMap<_, _>>();
+    if supported_targets_by_instrument_id.is_empty() {
+        return FxHashMap::default();
+    }
+
+    let mut note_events_by_instrument_id = FxHashMap::default();
+
+    for player_id in &flow.player_ids {
+        let Some(player) = score.players.by_id.get(player_id) else {
+            continue;
+        };
+
+        for instrument_id in &player.instrument_ids {
+            let Some(_prepared_target) = supported_targets_by_instrument_id.get(instrument_id)
+            else {
+                continue;
+            };
+
+            let Some(instrument) = score.instruments.by_id.get(instrument_id) else {
+                continue;
+            };
+
+            let mut note_events = Vec::new();
+
+            for stave_id in &instrument.stave_ids {
+                let Some(stave) = flow.staves.by_id.get(stave_id) else {
+                    continue;
+                };
+                let Some(master_track) = score.tracks.by_id.get(&stave.master_id) else {
+                    continue;
+                };
+                let technique_resolver = master_track.effective_playing_technique_resolver();
+
+                for track_id in &stave.track_ids {
+                    let Some(track) = score.tracks.by_id.get(track_id) else {
+                        continue;
+                    };
+
+                    note_events.extend(collect_track_playback_events(
+                        track,
+                        Some(&technique_resolver),
+                    ));
+                }
+            }
+
+            note_events_by_instrument_id.insert(*instrument_id, note_events);
+        }
+    }
+
+    note_events_by_instrument_id
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -291,9 +357,9 @@ pub fn prepare_supported_playback(
 #[cfg(test)]
 mod tests {
     use super::{
-        effective_playback_mix_for_instrument, prepare_supported_playback,
-        prepare_supported_playback_with_expression_maps, EffectivePlaybackMix,
-        PreparedPlaybackTarget,
+        effective_playback_mix_for_instrument, prepare_supported_note_events_for_flow,
+        prepare_supported_playback, prepare_supported_playback_with_expression_maps,
+        EffectivePlaybackMix, PreparedPlaybackTarget,
     };
     use crate::playback::expression_maps::{
         ExpressionMap, ExpressionMapAction, ExpressionMapCondition, ExpressionMapLibraryState,
@@ -307,15 +373,22 @@ mod tests {
     };
     use crate::score::components::articulation::Articulation;
     use crate::score::components::duration::NoteDuration;
+    use crate::score::entries::playing_technique::{
+        PlayingTechnique, PlayingTechniqueExclusivityGroup, PlayingTechniqueKind,
+    };
+    use crate::score::entries::Entry;
+    use crate::score::flows::Flow;
     use crate::score::instruments::{defs::InstrumentType, Instrument, Instruments};
     use crate::score::playback::{
         InstrumentPlaybackRoute, PlaybackRackSlot, PlaybackSlotPluginState, PlaybackSlotTarget,
         ResolvedPlaybackRouteStatus, SupportedPlaybackMixControls,
     };
     use crate::score::players::{Player, PlayerType, Players};
+    use crate::score::staves::Stave;
+    use crate::score::tracks::Track;
     use crate::score::Score;
     use crate::utils::UniqueId;
-    use rustc_hash::FxHashMap;
+    use rustc_hash::{FxHashMap, FxHashSet};
     use std::path::PathBuf;
 
     fn available_entry(id: &str, bundle_path: &str) -> PluginInventoryEntry {
@@ -372,6 +445,77 @@ mod tests {
                 }),
             },
         );
+    }
+
+    fn make_flow_score_with_track_and_master(
+        track: Track,
+        master_track: Track,
+    ) -> (Score, UniqueId) {
+        let flow_id = 1;
+        let player_id = 2;
+        let instrument_id = 10;
+        let stave_id = 20;
+        let master_id = master_track.id;
+        let track_id = track.id;
+        let mut score = Score::new();
+        let mut flow = Flow::new(flow_id, 999);
+        flow.player_ids = FxHashSet::from_iter([player_id]);
+        flow.staves.by_id.insert(
+            stave_id,
+            Stave {
+                id: stave_id,
+                lines: vec![1, 1, 1, 1, 1],
+                master_id,
+                track_ids: vec![track_id],
+            },
+        );
+
+        score.flows.order.push(flow_id);
+        score.flows.by_id.insert(flow_id, flow);
+        score.players.order.push(player_id);
+        score
+            .players
+            .by_id
+            .insert(player_id, Player::new(player_id, PlayerType::Section));
+        score
+            .players
+            .by_id
+            .get_mut(&player_id)
+            .unwrap()
+            .instrument_ids = vec![instrument_id];
+        score.instruments.by_id.insert(
+            instrument_id,
+            Instrument {
+                id: instrument_id,
+                definition_id: String::from("strings.violin"),
+                instrument_type: InstrumentType::Melodic,
+                long_name: String::from("Violin"),
+                short_name: String::from("Vln."),
+                stave_ids: vec![stave_id],
+                count: None,
+                playback_route: Some(InstrumentPlaybackRoute::direct(100)),
+                volume: 100,
+                pan: 64,
+                mute: false,
+                solo: false,
+            },
+        );
+        score.tracks.by_id.insert(master_id, master_track);
+        score.tracks.by_id.insert(track_id, track);
+        assign_slot(&mut score, 100, "plugin-a");
+
+        (score, flow_id)
+    }
+
+    fn insert_playing_technique(
+        track: &mut Track,
+        id: UniqueId,
+        tick: u64,
+        kind: PlayingTechniqueKind,
+    ) {
+        track.insert_entry(Entry::PlayingTechnique(PlayingTechnique::new(
+            id, tick, kind,
+        )));
     }
 
     fn expression_map_library_with_staccato_map() -> ExpressionMapLibraryState {
@@ -965,6 +1109,49 @@ mod tests {
                 .unwrap()
                 .status,
             ResolvedPlaybackRouteStatus::Unrouted
+        );
+    }
+
+    #[test]
+    fn prepare_supported_note_events_for_flow_derives_master_track_playing_techniques() {
+        let inventory = PluginInventoryContext::with_entries_for_tests(vec![available_entry(
+            "plugin-a",
+            "/Library/Audio/Plug-Ins/VST3/Plugin A.vst3",
+        )]);
+        let mut note_track = Track::new(30);
+        note_track
+            .create_tone(300, 96, 16, 60, None, 96, Default::default(), None)
+            .unwrap();
+        note_track
+            .create_tone(301, 128, 16, 62, None, 96, Default::default(), None)
+            .unwrap();
+
+        let mut master_track = Track::new(31);
+        insert_playing_technique(&mut master_track, 200, 96, PlayingTechniqueKind::Pizz);
+        insert_playing_technique(&mut master_track, 201, 128, PlayingTechniqueKind::Arco);
+
+        let (score, flow_id) = make_flow_score_with_track_and_master(note_track, master_track);
+        let runtime = PlaybackActivationRuntime::from_score_and_inventory(&score, &inventory);
+        let preparation = prepare_supported_playback(&score, &runtime, 48_000);
+        let prepared_events = prepare_supported_note_events_for_flow(&score, flow_id, &preparation);
+        let note_events = prepared_events
+            .get(&10)
+            .expect("expected prepared note events for instrument 10");
+
+        assert_eq!(note_events.len(), 2);
+        assert_eq!(
+            note_events[0]
+                .expression_map_context
+                .effective_playing_techniques
+                .active_kind(PlayingTechniqueExclusivityGroup::Bowed),
+            Some(PlayingTechniqueKind::Pizz)
+        );
+        assert_eq!(
+            note_events[1]
+                .expression_map_context
+                .effective_playing_techniques
+                .active_kind(PlayingTechniqueExclusivityGroup::Bowed),
+            Some(PlayingTechniqueKind::Arco)
         );
     }
 }

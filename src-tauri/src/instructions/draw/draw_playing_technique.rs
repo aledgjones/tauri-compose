@@ -8,6 +8,7 @@ use skia_safe::Color;
 
 pub const PLAYING_TECHNIQUE_STAVE_OFFSET: f32 = 4.0;
 
+#[allow(clippy::too_many_arguments)]
 pub fn draw_playing_technique(
     origin: &Point,
     playing_technique: &PlayingTechnique,

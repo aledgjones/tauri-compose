@@ -1,5 +1,6 @@
 use crate::score::components::articulation::{Articulation, Articulations};
 use crate::score::components::duration::{NoteDuration, Ticks};
+use crate::score::entries::playing_technique::EffectivePlayingTechniqueContext;
 use crate::score::playback::ResolvedExpressionMapLink;
 use crate::score::Score;
 use crate::utils::UniqueId;
@@ -121,6 +122,7 @@ pub struct ExpressionMap {
 pub struct ExpressionMapPlaybackContext {
     pub articulations: Articulations,
     pub written_duration_ticks: Ticks,
+    pub effective_playing_techniques: EffectivePlayingTechniqueContext,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -258,10 +260,7 @@ impl ExpressionMapLibraryContext {
         self.state.by_id.get(expression_map_id)
     }
 
-    pub fn add_default_rule(
-        &mut self,
-        expression_map_id: &str,
-    ) -> Result<ExpressionMap, String> {
+    pub fn add_default_rule(&mut self, expression_map_id: &str) -> Result<ExpressionMap, String> {
         self.update_expression_map(expression_map_id, |expression_map| {
             expression_map
                 .rules
@@ -290,7 +289,9 @@ impl ExpressionMapLibraryContext {
     ) -> Result<ExpressionMap, String> {
         self.update_expression_map(expression_map_id, |expression_map| {
             if expression_map.rules.is_empty() {
-                return Err(String::from("Cannot move a rule in an empty expression map."));
+                return Err(String::from(
+                    "Cannot move a rule in an empty expression map.",
+                ));
             }
 
             if to_index >= expression_map.rules.len() {
@@ -517,7 +518,9 @@ impl ExpressionMapLibraryContext {
                 .retain(|action| action.id() != action_id);
 
             if expression_map.default_actions.len() == action_count_before {
-                return Err(format!("Unknown default expression map action: {action_id}"));
+                return Err(format!(
+                    "Unknown default expression map action: {action_id}"
+                ));
             }
 
             Ok(())
@@ -754,9 +757,7 @@ fn expression_map_condition_matches(
 
             match comparator {
                 ExpressionMapNoteLengthComparator::LessThan => written_ticks < rule_ticks,
-                ExpressionMapNoteLengthComparator::LessThanOrEqual => {
-                    written_ticks <= rule_ticks
-                }
+                ExpressionMapNoteLengthComparator::LessThanOrEqual => written_ticks <= rule_ticks,
                 ExpressionMapNoteLengthComparator::Exactly => written_ticks == rule_ticks,
                 ExpressionMapNoteLengthComparator::NotEqual => written_ticks != rule_ticks,
                 ExpressionMapNoteLengthComparator::GreaterThanOrEqual => {
@@ -832,10 +833,7 @@ fn create_default_expression_map_condition() -> ExpressionMapCondition {
 }
 
 fn create_expression_map_condition(condition_type: &str) -> Result<ExpressionMapCondition, String> {
-    create_expression_map_condition_with_id(
-        condition_type,
-        generate_expression_map_condition_id(),
-    )
+    create_expression_map_condition_with_id(condition_type, generate_expression_map_condition_id())
 }
 
 fn create_expression_map_condition_with_id(
@@ -854,7 +852,9 @@ fn create_expression_map_condition_with_id(
             comparator: ExpressionMapNoteLengthComparator::Exactly,
             note_duration: NoteDuration::Quarter,
         }),
-        _ => Err(format!("Unsupported expression map condition type: {condition_type}")),
+        _ => Err(format!(
+            "Unsupported expression map condition type: {condition_type}"
+        )),
     }
 }
 
@@ -892,7 +892,9 @@ fn create_expression_map_action_with_id(
             ratio_percent: 100,
         }),
         "no_op" => Ok(ExpressionMapAction::NoOp { id }),
-        _ => Err(format!("Unsupported expression map action type: {action_type}")),
+        _ => Err(format!(
+            "Unsupported expression map action type: {action_type}"
+        )),
     }
 }
 
@@ -1079,9 +1081,8 @@ fn load_persisted_state(db: &Db) -> Result<Option<ExpressionMapLibraryState>, St
 mod tests {
     use super::{
         resolve_expression_map_playback, ExpressionMap, ExpressionMapAction,
-        ExpressionMapCondition, ExpressionMapPlaybackContext,
-        ExpressionMapEqualityComparator, ExpressionMapLibraryContext,
-        ExpressionMapNoteLengthComparator, ExpressionMapRule,
+        ExpressionMapCondition, ExpressionMapEqualityComparator, ExpressionMapLibraryContext,
+        ExpressionMapNoteLengthComparator, ExpressionMapPlaybackContext, ExpressionMapRule,
         ResolvedExpressionMapPlaybackSource,
     };
     use crate::score::components::articulation::{Articulation, Articulations};
@@ -1350,7 +1351,9 @@ mod tests {
     fn expression_map_library_creates_maps_with_backend_owned_uuid_ids() {
         let mut library = ExpressionMapLibraryContext::with_maps_for_tests(vec![]);
 
-        let expression_map = library.create_expression_map(Some(String::from("Legato"))).unwrap();
+        let expression_map = library
+            .create_expression_map(Some(String::from("Legato")))
+            .unwrap();
 
         assert_eq!(expression_map.name, "Legato");
         assert!(Uuid::parse_str(&expression_map.id).is_ok());
@@ -1365,9 +1368,7 @@ mod tests {
                 "legato", "Legato",
             )]);
 
-        let expression_map = library
-            .duplicate_expression_map("legato")
-            .unwrap();
+        let expression_map = library.duplicate_expression_map("legato").unwrap();
 
         assert_eq!(expression_map.name, "Legato Copy");
         assert_ne!(expression_map.id, "legato");
@@ -1479,6 +1480,7 @@ mod tests {
             &ExpressionMapPlaybackContext {
                 articulations: Articulations::new(),
                 written_duration_ticks: NoteDuration::Quarter.to_ticks(),
+                effective_playing_techniques: Default::default(),
             },
         );
 
@@ -1525,6 +1527,7 @@ mod tests {
             &ExpressionMapPlaybackContext {
                 articulations: Articulations::new(),
                 written_duration_ticks: NoteDuration::Quarter.to_ticks(),
+                effective_playing_techniques: Default::default(),
             },
         );
 
@@ -1552,6 +1555,7 @@ mod tests {
             &ExpressionMapPlaybackContext {
                 articulations,
                 written_duration_ticks: NoteDuration::Eighth.to_ticks(),
+                effective_playing_techniques: Default::default(),
             },
         );
 
@@ -1581,6 +1585,7 @@ mod tests {
             &ExpressionMapPlaybackContext {
                 articulations,
                 written_duration_ticks: NoteDuration::Quarter.to_ticks(),
+                effective_playing_techniques: Default::default(),
             },
         );
 

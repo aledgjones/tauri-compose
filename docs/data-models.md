@@ -154,7 +154,11 @@ Playing techniques are first-class score markings on stave master tracks. They p
 
 This entry family is intentionally additive and minimal. Semantic exclusivity, cancellation behavior, expression-map matching, and playback meaning are derived later from the inner `kind` variant rather than persisted directly on the entry. Multiple `PlayingTechnique` entries may coexist at the same tick when their kinds differ, but inserting the same kind again at the same tick replaces the existing identical marking instead of accumulating duplicates.
 
-No migration step is needed for this schema addition. Older released `.soloc` payloads simply omit the new tagged variant and continue to load through the existing typed project-file path unchanged.
+Story 8.4 establishes the first derived semantic layer for this entry family. `Pizz` and `Arco` currently share one exclusive bowed-technique group, and the backend resolves an `EffectivePlayingTechniqueContext` per note from the owning stave master track before transport scheduling. That derived context is explicit by absence: before the first relevant marking on a stave there is no implicit `Arco` fallback. Hidden entries remain semantic even though they are visually suppressed, and conflicting same-group markings at the same tick resolve deterministically by highest `UniqueId` so save or load order cannot change the answer.
+
+That derived context is preparation-owned rather than transport-owned. `PlaybackToneEvent` now carries one prepared `ExpressionMapPlaybackContext` containing articulations, written duration, and the effective playing-technique context for the note start tick, so later expression-map stories can consume note-time meaning without reconstructing cancellation logic from raw score entries.
+
+No migration step is needed for Story 8.4 because it does not add a persisted field or a new `Entry` variant. Older released `.soloc` payloads continue to load through the existing typed project-file path unchanged.
 
 #### Tempo
 
