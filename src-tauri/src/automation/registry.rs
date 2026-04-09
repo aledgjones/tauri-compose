@@ -33,6 +33,10 @@ use crate::score::entries::key_signature::{
     score_entries_key_signature_clear, score_entries_key_signature_create,
     score_entries_key_signature_update, KeySignature, KeySignatureMode,
 };
+use crate::score::entries::playing_technique::{
+    score_entries_playing_technique_create, score_entries_playing_technique_remove,
+    score_entries_playing_technique_update, PlayingTechnique, PlayingTechniqueKind,
+};
 use crate::score::entries::tempo::{
     score_entries_tempo_clear, score_entries_tempo_create, score_entries_tempo_update, Tempo,
 };
@@ -321,6 +325,36 @@ pub fn action_definitions() -> Vec<ActionDefinition> {
             ],
         ),
         action(
+            "score.playingTechnique.create",
+            "Create or replace a playing-technique entry on a stave master track. PlayingTechniqueKind values: 0=Pizz, 1=Arco.",
+            vec![
+                arg("flow_id", "Numeric flow id."),
+                arg("stave_id", "Numeric stave id."),
+                arg("tick", "Tick position."),
+                arg("kind", "Numeric PlayingTechniqueKind enum value. Use 0=Pizz or 1=Arco."),
+                arg("hidden", "Whether the playing-technique entry is hidden."),
+            ],
+        ),
+        action(
+            "score.playingTechnique.remove",
+            "Remove one playing-technique entry by id from a specific stave.",
+            vec![
+                arg("flow_id", "Numeric flow id."),
+                arg("stave_id", "Numeric stave id."),
+                arg("playing_technique_id", "Numeric playing-technique entry id."),
+            ],
+        ),
+        action(
+            "score.playingTechnique.update",
+            "Update an existing playing-technique entry.",
+            vec![
+                arg("flow_id", "Numeric flow id."),
+                arg("stave_id", "Numeric stave id."),
+                arg("playing_technique_id", "Numeric playing-technique entry id."),
+                arg("hidden", "Whether the playing-technique entry is hidden."),
+            ],
+        ),
+        action(
             "score.meta.setTitle",
             "Set the score title.",
             vec![arg("title", "Score title.")],
@@ -596,7 +630,7 @@ pub fn action_definitions() -> Vec<ActionDefinition> {
         ),
         action(
             "score.lookup.getTrackEvents",
-            "Inspect track-level tone and tuplet events within an optional tick range.",
+            "Inspect track-level tone, tuplet, and playing-technique events within an optional tick range.",
             vec![
                 arg("track_id", "Numeric track id."),
                 optional_arg("start_tick", "Optional inclusive start tick. Defaults to 0."),
@@ -848,6 +882,39 @@ pub async fn execute_action(app: &AppHandle, name: &str, args: &[Value]) -> Resu
                 arg_id(args, 0, "flow_id")?,
                 arg_id(args, 1, "stave_id")?,
                 arg_id(args, 2, "clef_id")?,
+                arg_bool(args, 3, "hidden")?,
+            )?;
+            Ok(Value::Null)
+        }
+        "score.playingTechnique.create" => Ok(json!(score_entries_playing_technique_create(
+            app.clone(),
+            app.state::<AppContextState>(),
+            app.state::<RendererContextState>(),
+            arg_id(args, 0, "flow_id")?,
+            arg_id(args, 1, "stave_id")?,
+            arg_u64(args, 2, "tick")?,
+            arg_enum::<PlayingTechniqueKind>(args, 3, "kind")?,
+            arg_bool(args, 4, "hidden")?,
+        )?)),
+        "score.playingTechnique.remove" => {
+            score_entries_playing_technique_remove(
+                app.clone(),
+                app.state::<AppContextState>(),
+                app.state::<RendererContextState>(),
+                arg_id(args, 0, "flow_id")?,
+                arg_id(args, 1, "stave_id")?,
+                arg_id(args, 2, "playing_technique_id")?,
+            )?;
+            Ok(Value::Null)
+        }
+        "score.playingTechnique.update" => {
+            score_entries_playing_technique_update(
+                app.clone(),
+                app.state::<AppContextState>(),
+                app.state::<RendererContextState>(),
+                arg_id(args, 0, "flow_id")?,
+                arg_id(args, 1, "stave_id")?,
+                arg_id(args, 2, "playing_technique_id")?,
                 arg_bool(args, 3, "hidden")?,
             )?;
             Ok(Value::Null)
@@ -1953,6 +2020,13 @@ fn derive_track_events(
         .filter(|tuplet| tick_in_half_open_range(tuplet.tick, start_tick, end_tick))
         .map(serialize_tuplet)
         .collect::<Vec<_>>();
+    let playing_techniques = collect_playing_techniques(track)
+        .into_iter()
+        .filter(|playing_technique| {
+            tick_in_half_open_range(playing_technique.tick, start_tick, end_tick)
+        })
+        .map(serialize_playing_technique)
+        .collect::<Vec<_>>();
 
     Ok(json!({
         "track_id": track.id,
@@ -1960,6 +2034,7 @@ fn derive_track_events(
         "end_tick": end_tick,
         "tones": tones,
         "tuplets": tuplets,
+        "playing_techniques": playing_techniques,
     }))
 }
 
@@ -2017,6 +2092,21 @@ fn collect_tempos(track: &crate::score::tracks::Track) -> Vec<&Tempo> {
         .collect::<Vec<_>>();
     tempos.sort_by_key(|tempo| (tempo.tick, tempo.id));
     tempos
+}
+
+fn collect_playing_techniques(track: &crate::score::tracks::Track) -> Vec<&PlayingTechnique> {
+    let mut playing_techniques = track
+        .entries
+        .by_id
+        .values()
+        .filter_map(|entry| match entry {
+            Entry::PlayingTechnique(playing_technique) => Some(playing_technique),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    playing_techniques
+        .sort_by_key(|playing_technique| (playing_technique.tick, playing_technique.id));
+    playing_techniques
 }
 
 fn collect_tones(track: &crate::score::tracks::Track) -> Vec<&Tone> {
@@ -2093,6 +2183,15 @@ fn serialize_tempo(tempo: &Tempo) -> Value {
     })
 }
 
+fn serialize_playing_technique(playing_technique: &PlayingTechnique) -> Value {
+    json!({
+        "playing_technique_id": playing_technique.id,
+        "tick": playing_technique.tick,
+        "kind": playing_technique.kind,
+        "hidden": playing_technique.hidden,
+    })
+}
+
 fn serialize_tone(tone: &Tone) -> Value {
     json!({
         "tone_id": tone.id,
@@ -2130,6 +2229,10 @@ fn serialize_tuplet(tuplet: &Tuplet) -> Value {
 }
 
 fn max_track_tick(track: &crate::score::tracks::Track) -> Option<u64> {
+    let playing_technique_end = collect_playing_techniques(track)
+        .into_iter()
+        .map(|playing_technique| playing_technique.tick.saturating_add(1))
+        .max();
     let tone_end = collect_tones(track)
         .into_iter()
         .map(|tone| tone.tick + tone.duration)
@@ -2139,7 +2242,11 @@ fn max_track_tick(track: &crate::score::tracks::Track) -> Option<u64> {
         .map(|tuplet| tuplet.tick + tuplet.consumed_ticks())
         .max();
 
-    tone_end.into_iter().chain(tuplet_end).max()
+    playing_technique_end
+        .into_iter()
+        .chain(tone_end)
+        .chain(tuplet_end)
+        .max()
 }
 
 fn tick_in_half_open_range(tick: u64, start_tick: u64, end_tick: u64) -> bool {
@@ -2307,6 +2414,9 @@ mod tests {
             .collect::<Vec<_>>();
 
         assert!(names.contains(&"app.getActiveScore"));
+        assert!(names.contains(&"score.playingTechnique.create"));
+        assert!(names.contains(&"score.playingTechnique.remove"));
+        assert!(names.contains(&"score.playingTechnique.update"));
         assert!(names.contains(&"score.lookup.getBarMap"));
         assert!(names.contains(&"score.lookup.getFlowMarkers"));
         assert!(names.contains(&"score.lookup.getTrackEvents"));

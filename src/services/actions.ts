@@ -14,6 +14,7 @@ import {
   KeySignatureMode,
   LayoutType,
   NoteDuration,
+  PlayingTechniqueKind,
   PlayerType,
   SetupSelectionType,
   Tab,
@@ -1044,6 +1045,47 @@ export const actions = {
           flow_id,
           stave_id,
           clef_id,
+          hidden,
+        });
+      },
+    },
+    playingTechnique: {
+      create: (
+        flow_id: UniqueId,
+        tick: Tick,
+        stave_id: UniqueId,
+        kind: PlayingTechniqueKind,
+        hidden = false,
+      ) => {
+        return invoke<UniqueId>("score_entries_playing_technique_create", {
+          flow_id,
+          tick,
+          stave_id,
+          kind,
+          hidden,
+        });
+      },
+      remove: (
+        flow_id: UniqueId,
+        stave_id: UniqueId,
+        playing_technique_id: UniqueId,
+      ) => {
+        return invoke<void>("score_entries_playing_technique_remove", {
+          flow_id,
+          stave_id,
+          playing_technique_id,
+        });
+      },
+      update: (
+        flow_id: UniqueId,
+        stave_id: UniqueId,
+        playing_technique_id: UniqueId,
+        hidden: boolean,
+      ) => {
+        return invoke<void>("score_entries_playing_technique_update", {
+          flow_id,
+          stave_id,
+          playing_technique_id,
           hidden,
         });
       },

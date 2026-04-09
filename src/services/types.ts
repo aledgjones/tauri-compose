@@ -345,6 +345,11 @@ export enum KeySignatureMode {
   Minor,
 }
 
+export enum PlayingTechniqueKind {
+  Pizz,
+  Arco,
+}
+
 export enum TimeSignatureDrawType {
   Regular = 1, // 4/4 etc
   CommonTime = 2, // C
@@ -402,6 +407,14 @@ export type KeySignature = {
   offset: number;
 };
 
+export type PlayingTechnique = {
+  id: UniqueId;
+  tick: Tick;
+  type: "PlayingTechnique";
+  hidden: boolean;
+  kind: PlayingTechniqueKind;
+};
+
 export type Tone = {
   id: UniqueId;
   tick: Tick;
@@ -435,6 +448,7 @@ export type Entry =
   | Clef
   | TimeSignature
   | KeySignature
+  | PlayingTechnique
   | Tone
   | Tempo
   | Tuplet;

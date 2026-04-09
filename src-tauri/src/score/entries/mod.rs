@@ -1,6 +1,7 @@
 pub mod barline;
 pub mod clef;
 pub mod key_signature;
+pub mod playing_technique;
 pub mod tempo;
 pub mod time_signature;
 pub mod tone;
@@ -11,6 +12,7 @@ use crate::utils::UniqueId;
 use barline::Barline;
 use clef::Clef;
 use key_signature::KeySignature;
+use playing_technique::PlayingTechnique;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DisplayFromStr};
@@ -43,6 +45,7 @@ pub enum Entry {
     Barline(Barline),
     Clef(Clef),
     KeySignature(KeySignature),
+    PlayingTechnique(PlayingTechnique),
     Tempo(Tempo),
     TimeSignature(TimeSignature),
     Tone(Tone),
@@ -56,6 +59,7 @@ impl Entry {
             Entry::Barline(barline) => barline.id,
             Entry::Clef(clef) => clef.id,
             Entry::KeySignature(key_signature) => key_signature.id,
+            Entry::PlayingTechnique(playing_technique) => playing_technique.id,
             Entry::Tempo(tempo) => tempo.id,
             Entry::TimeSignature(time_signature) => time_signature.id,
             Entry::Tone(tone) => tone.id,
@@ -69,6 +73,7 @@ impl Entry {
             Entry::Barline(barline) => barline.tick,
             Entry::Clef(clef) => clef.tick,
             Entry::KeySignature(key_signature) => key_signature.tick,
+            Entry::PlayingTechnique(playing_technique) => playing_technique.tick,
             Entry::Tempo(tempo) => tempo.tick,
             Entry::TimeSignature(time_signature) => time_signature.tick,
             Entry::Tone(tone) => tone.tick,
@@ -85,6 +90,7 @@ impl Entry {
             Entry::Barline(barline) => barline.tick = tick,
             Entry::Clef(clef) => clef.tick = tick,
             Entry::KeySignature(key_signature) => key_signature.tick = tick,
+            Entry::PlayingTechnique(playing_technique) => playing_technique.tick = tick,
             Entry::Tempo(tempo) => tempo.tick = tick,
             Entry::TimeSignature(time_signature) => time_signature.tick = tick,
             Entry::Tone(tone) => tone.tick = tick,
@@ -105,6 +111,7 @@ mod tests {
     use barline::{Barline, BarlineDrawType};
     use clef::{Clef, ClefDrawType};
     use key_signature::{KeySignature, KeySignatureMode};
+    use playing_technique::{PlayingTechnique, PlayingTechniqueKind};
     use tempo::Tempo;
     use time_signature::{TimeSignature, TimeSignatureDrawType};
     use tone::Tone;
@@ -141,6 +148,10 @@ mod tests {
             TimeSignatureDrawType::Regular,
             None,
         ))
+    }
+
+    fn make_playing_technique(id: UniqueId, tick: Tick) -> Entry {
+        Entry::PlayingTechnique(PlayingTechnique::new(id, tick, PlayingTechniqueKind::Pizz))
     }
 
     fn make_tempo(id: UniqueId, tick: Tick) -> Entry {
@@ -221,6 +232,12 @@ mod tests {
     }
 
     #[test]
+    fn playing_technique_id_returns_correct_value() {
+        let entry = make_playing_technique(8, 0);
+        assert_eq!(entry.id(), 8);
+    }
+
+    #[test]
     fn time_signature_id_returns_correct_value() {
         let entry = make_time_signature(4, 0);
         assert_eq!(entry.id(), 4);
@@ -262,6 +279,12 @@ mod tests {
     fn key_signature_tick_returns_correct_value() {
         let entry = make_key_signature(3, 256);
         assert_eq!(entry.tick(), 256);
+    }
+
+    #[test]
+    fn playing_technique_tick_returns_correct_value() {
+        let entry = make_playing_technique(8, 320);
+        assert_eq!(entry.tick(), 320);
     }
 
     #[test]
@@ -309,6 +332,13 @@ mod tests {
         let mut entry = make_key_signature(12, 0);
         entry.set_tick(50);
         assert_eq!(entry.tick(), 50);
+    }
+
+    #[test]
+    fn set_tick_updates_playing_technique() {
+        let mut entry = make_playing_technique(17, 0);
+        entry.set_tick(140);
+        assert_eq!(entry.tick(), 140);
     }
 
     #[test]

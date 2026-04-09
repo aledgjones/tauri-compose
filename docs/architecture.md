@@ -186,6 +186,7 @@ Score Data (Entry variants in FxHashMaps)
 
 - `TimeSignature`, `KeySignature`, and `Tempo` entries live on the flow master track.
 - `Clef` entries live on stave master tracks.
+- `PlayingTechnique` entries also live on stave master tracks as durable musical markings. Their persisted shape stays limited to `id`, `tick`, `hidden`, and an inner `kind` enum; exclusivity, cancellation, and playback meaning are derived later from that variant instead of being stored as separate state.
 - Tempo markings do not reserve horizontal spacing; they align to the existing time-signature slot when present, otherwise to the accidental slot, and render once above the top stave in the draw phase.
 - Tempo, time-signature, key-signature, and clef markings now emit native renderer hit targets and participate in the shared sequencer selection model as `Selection::Tempo`, `Selection::TimeSignature`, `Selection::KeySignature`, and `Selection::Clef`, so score clicks, highlight state, and popover coordinates stay inside the Rust render pipeline instead of being approximated in React.
 - Flow-master time signatures and key signatures render a hit target on every visible stave instance, but each instance maps back to the same logical selection payload; popover anchoring intentionally resolves to the first/top-stave match.

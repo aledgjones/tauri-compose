@@ -82,7 +82,8 @@ _This file contains critical rules and patterns that AI agents must follow when 
 - Tauri commands should live near the domain they mutate or query; `src-tauri/src/lib.rs` is for app-wide wiring and setup unless a clear cross-domain reason justifies otherwise
 - `AppContext` behind `Mutex` — lock, mutate, call `emit()` to push state to all FE windows
 - Score uses `Space` unit system (staff spaces) — pixel conversion via `Converter::spaces_to_px()`
-- `Entry` is a tagged enum (`#[serde(tag = "type")]`) with 7 variants: Barline, Clef, KeySignature, Tempo, TimeSignature, Tone, Tuplet
+- `Entry` is a tagged enum (`#[serde(tag = "type")]`) with 8 variants: Barline, Clef, KeySignature, PlayingTechnique, Tempo, TimeSignature, Tone, Tuplet
+- `PlayingTechnique` is a stave-master-owned directive-style entry family whose persisted meaning comes from its inner `PlayingTechniqueKind` variant; do not persist separate exclusivity, cancellation, or playback-routing state on the entry itself
 - `Tuplet` persists ratio metadata as `note_count`, `in_space_of`, `base_note_value`, `groupings`, and child `entries`; MVP child content is intentionally single-level, so nested tuplets are rejected by the owning backend type
 - Tuplets follow one backend-owned semantic model across persistence, parsing, rendering, playback, and editing; do not add frontend-owned parallel tuplet truth or subsystem-local reinterpretations of ownership, boundaries, or continuity
 - Preserve the tuplet timing invariant: host geometry stays compressed to the denominator span, but any crossing tone still consumes its full literal duration on the canonical expanded timeline
@@ -199,7 +200,7 @@ The score page is rendered natively by Rust/Skia/Metal — all other UI (panels,
 #### Serialization Gotchas
 
 - Enums are serialized as integers via `serde_repr` — when adding a new enum variant, it MUST be added at the same position in both Rust and TypeScript with matching integer values
-- `Entry` uses `#[serde(tag = "type")]` — the `type` field discriminates variants. Always handle all 7 variants when pattern-matching
+- `Entry` uses `#[serde(tag = "type")]` — the `type` field discriminates variants. Always handle all 8 variants when pattern-matching
 - Adding a new field to a Rust struct that serializes to FE requires updating the corresponding TypeScript type in `types.ts` — they must stay in sync manually
 
 #### Render Pipeline Gotchas

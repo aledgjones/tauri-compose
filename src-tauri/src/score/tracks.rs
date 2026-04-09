@@ -81,6 +81,7 @@ mod tests {
         velocity::Velocity,
     };
     use crate::score::entries::{
+        playing_technique::{PlayingTechnique, PlayingTechniqueKind},
         tone::Tone,
         tuplet::{Tuplet, TupletEntries, TupletEntry},
         Entry,
@@ -117,6 +118,10 @@ mod tests {
             groupings: vec![3],
             entries,
         }))
+    }
+
+    fn make_playing_technique(id: UniqueId, tick: Tick) -> Entry {
+        Entry::PlayingTechnique(PlayingTechnique::new(id, tick, PlayingTechniqueKind::Pizz))
     }
 
     #[test]
@@ -177,6 +182,43 @@ mod tests {
         let mut track = Track::new(1);
         let removed = track.remove_entry(999);
         assert!(removed.is_none());
+    }
+
+    #[test]
+    fn insert_playing_technique_adds_to_both_indices() {
+        let mut track = Track::new(1);
+        track.insert_entry(make_playing_technique(30, 80));
+
+        assert!(track.entries.by_id.contains_key(&30));
+        let ids = track.entries.by_tick.get(&80).unwrap();
+        assert!(ids.contains(&30));
+    }
+
+    #[test]
+    fn shift_playing_technique_moves_to_new_tick() {
+        let mut track = Track::new(1);
+        track.insert_entry(make_playing_technique(31, 80));
+
+        track.shift_entry(31, 144);
+
+        let at_80 = track.entries.by_tick.get(&80).unwrap();
+        assert!(!at_80.contains(&31));
+        let at_144 = track.entries.by_tick.get(&144).unwrap();
+        assert!(at_144.contains(&31));
+        assert_eq!(track.entries.by_id.get(&31).unwrap().tick(), 144);
+    }
+
+    #[test]
+    fn remove_playing_technique_removes_from_both_indices() {
+        let mut track = Track::new(1);
+        track.insert_entry(make_playing_technique(32, 160));
+
+        let removed = track.remove_entry(32);
+
+        assert!(removed.is_some());
+        assert!(!track.entries.by_id.contains_key(&32));
+        let at_160 = track.entries.by_tick.get(&160).unwrap();
+        assert!(!at_160.contains(&32));
     }
 
     #[test]

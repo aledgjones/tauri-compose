@@ -387,6 +387,7 @@ mod tests {
         velocity::Velocity,
     };
     use crate::score::entries::{
+        playing_technique::{PlayingTechnique, PlayingTechniqueKind},
         tone::Tone,
         tuplet::{Tuplet, TupletEntries, TupletEntry},
         Entry,
@@ -1577,6 +1578,53 @@ mod tests {
         project_file
     }
 
+    fn make_round_trip_playing_technique_project() -> ProjectFile {
+        let mut ui = Ui::new();
+        ui.layout_id = Some(0);
+        ui.flow_id = Some(10);
+
+        let mut project_file = ProjectFile {
+            ui,
+            score: build_score_with_visible_flows(&[10], &[10]),
+            next_id: 260,
+        };
+
+        project_file.score.tracks.by_id.insert(108, Track::new(108));
+        project_file
+            .score
+            .flows
+            .by_id
+            .get_mut(&10)
+            .unwrap()
+            .staves
+            .by_id
+            .insert(
+                80,
+                crate::score::staves::Stave {
+                    id: 80,
+                    lines: vec![1, 1, 1, 1, 1],
+                    master_id: 108,
+                    track_ids: Vec::new(),
+                },
+            );
+
+        let stave_master_track = project_file.score.tracks.by_id.get_mut(&108).unwrap();
+        stave_master_track.insert_entry(Entry::PlayingTechnique(PlayingTechnique {
+            id: 140,
+            tick: 64,
+            hidden: false,
+            kind: PlayingTechniqueKind::Pizz,
+        }));
+        stave_master_track.insert_entry(Entry::PlayingTechnique(PlayingTechnique {
+            id: 141,
+            tick: 64,
+            hidden: true,
+            kind: PlayingTechniqueKind::Arco,
+        }));
+
+        project_file
+    }
+
     #[test]
     fn parse_soloc_container_round_trips_project_payload() {
         let container = build_test_container();
@@ -2017,6 +2065,33 @@ mod tests {
     }
 
     #[test]
+    fn soloc_round_trip_preserves_playing_technique_entries() {
+        let project_file = make_round_trip_playing_technique_project();
+
+        let restored = round_trip_project_file(&project_file);
+        let restored_track = restored.score.tracks.by_id.get(&108).unwrap();
+
+        assert_eq!(
+            serde_json::to_value(&restored).unwrap(),
+            serde_json::to_value(&project_file).unwrap()
+        );
+        assert_eq!(
+            restored_track.entries.by_tick.get(&64),
+            Some(&vec![140, 141])
+        );
+        assert!(matches!(
+            restored_track.entries.by_id.get(&140),
+            Some(Entry::PlayingTechnique(playing_technique))
+                if !playing_technique.hidden && playing_technique.kind == PlayingTechniqueKind::Pizz
+        ));
+        assert!(matches!(
+            restored_track.entries.by_id.get(&141),
+            Some(Entry::PlayingTechnique(playing_technique))
+                if playing_technique.hidden && playing_technique.kind == PlayingTechniqueKind::Arco
+        ));
+    }
+
+    #[test]
     fn soloc_round_trip_preserves_tuplet_ownership_and_groupings() {
         let project_file = make_round_trip_tuplet_project();
 
@@ -2162,6 +2237,29 @@ mod tests {
                 .and_then(|track| track.entries.by_id.get(&70)),
             Some(Entry::Tempo(tempo)) if tempo.text.is_empty()
         ));
+    }
+
+    #[test]
+    fn legacy_non_playing_technique_soloc_payloads_do_not_invent_playing_technique_entries() {
+        let legacy_version = legacy_non_tuplet_fixture_payload()["score"]["meta"]["app_version"]
+            .as_str()
+            .unwrap()
+            .to_string();
+        let legacy_project = legacy_non_tuplet_fixture_payload();
+
+        let compressed_payload =
+            compress_project_payload(&serde_json::to_vec(&legacy_project).unwrap()).unwrap();
+        let container =
+            build_soloc_container(legacy_version.as_str(), &compressed_payload).unwrap();
+        let restored = project_file_from_container_bytes(&container).unwrap();
+
+        assert!(!restored
+            .score
+            .tracks
+            .by_id
+            .values()
+            .flat_map(|track| track.entries.by_id.values())
+            .any(|entry| matches!(entry, Entry::PlayingTechnique(_))));
     }
 
     #[test]

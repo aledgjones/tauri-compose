@@ -23,7 +23,7 @@ Score
 ├── Tracks            — Collection of all Tracks (by_id only)
 │   └── Track         — Contains Entries (the actual musical content)
 │       └── Entries   — Dual-indexed: by_tick + by_id
-│           └── Entry — Tagged enum: Tone | Barline | Clef | KeySignature | Tempo | TimeSignature | Tuplet
+│           └── Entry — Tagged enum: Tone | Barline | Clef | KeySignature | PlayingTechnique | Tempo | TimeSignature | Tuplet
 ├── Layouts           — Ordered collection of score layouts
 │   └── Layout        — Type (FullScore/Part), player and flow assignments
 └── Engraves          — Engraving settings per layout type
@@ -69,6 +69,7 @@ pub enum Entry {
     Barline(Barline),
     Clef(Clef),
     KeySignature(KeySignature),
+    PlayingTechnique(PlayingTechnique),
     Tempo(Tempo),
     TimeSignature(TimeSignature),
     Tone(Tone),
@@ -139,6 +140,21 @@ The audible musical note. **Never directly drawn** in the score — the parse pi
 | `groupings` | `Vec<u8>`               | Beat grouping subdivisions                      |
 
 The frontend `TimeSignature` mirror now includes both `draw_type` and `hidden`, because the write-screen Properties tab can switch valid 4/4 and 2/2 signatures between stacked numerals and common-time symbols while also hiding the persisted directive without changing its musical meaning.
+
+#### PlayingTechnique
+
+Playing techniques are first-class score markings on stave master tracks. They persist durable musical intent, not plugin-specific playback instructions.
+
+| Field    | Type                   | Description                                                        |
+| -------- | ---------------------- | ------------------------------------------------------------------ |
+| `id`     | `UniqueId`             | Stable identifier                                                  |
+| `tick`   | `Tick`                 | Tick where the technique marking is attached                       |
+| `hidden` | `bool`                 | If true, the entry persists but does not render once drawing lands |
+| `kind`   | `PlayingTechniqueKind` | Initial bounded vocabulary: `Pizz`, `Arco`                         |
+
+This entry family is intentionally additive and minimal. Semantic exclusivity, cancellation behavior, expression-map matching, and playback meaning are derived later from the inner `kind` variant rather than persisted directly on the entry. Multiple `PlayingTechnique` entries may coexist at the same tick when their kinds differ, but inserting the same kind again at the same tick replaces the existing identical marking instead of accumulating duplicates.
+
+No migration step is needed for this schema addition. Older released `.soloc` payloads simply omit the new tagged variant and continue to load through the existing typed project-file path unchanged.
 
 #### Tempo
 

@@ -64,6 +64,10 @@ use score::entries::key_signature::{
     score_entries_key_signature_clear, score_entries_key_signature_create,
     score_entries_key_signature_update,
 };
+use score::entries::playing_technique::{
+    score_entries_playing_technique_create, score_entries_playing_technique_remove,
+    score_entries_playing_technique_update,
+};
 use score::entries::tempo::{
     score_entries_tempo_clear, score_entries_tempo_create, score_entries_tempo_update,
 };
@@ -672,7 +676,8 @@ fn expression_maps_condition_add(
 ) -> Result<ExpressionMap, String> {
     let (expression_map, library_state) = {
         let mut library = state.lock().unwrap();
-        let expression_map = library.add_condition(&expression_map_id, &rule_id, &condition_type)?;
+        let expression_map =
+            library.add_condition(&expression_map_id, &rule_id, &condition_type)?;
         let library_state = library.snapshot();
         (expression_map, library_state)
     };
@@ -732,7 +737,8 @@ fn expression_maps_condition_remove(
 ) -> Result<ExpressionMap, String> {
     let (expression_map, library_state) = {
         let mut library = state.lock().unwrap();
-        let expression_map = library.remove_condition(&expression_map_id, &rule_id, &condition_id)?;
+        let expression_map =
+            library.remove_condition(&expression_map_id, &rule_id, &condition_id)?;
         let library_state = library.snapshot();
         (expression_map, library_state)
     };
@@ -769,12 +775,8 @@ fn expression_maps_action_set_type(
 ) -> Result<ExpressionMap, String> {
     let (expression_map, library_state) = {
         let mut library = state.lock().unwrap();
-        let expression_map = library.set_action_type(
-            &expression_map_id,
-            &rule_id,
-            &action_id,
-            &action_type,
-        )?;
+        let expression_map =
+            library.set_action_type(&expression_map_id, &rule_id, &action_id, &action_type)?;
         let library_state = library.snapshot();
         (expression_map, library_state)
     };
@@ -1257,6 +1259,9 @@ pub fn run() {
             score_entries_key_signature_create,
             score_entries_key_signature_clear,
             score_entries_key_signature_update,
+            score_entries_playing_technique_create,
+            score_entries_playing_technique_remove,
+            score_entries_playing_technique_update,
             score_entries_tempo_create,
             score_entries_tempo_clear,
             score_entries_tempo_update,
