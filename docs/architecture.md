@@ -190,8 +190,8 @@ Score Data (Entry variants in FxHashMaps)
 - Tempo markings do not reserve horizontal spacing; they align to the existing time-signature slot when present, otherwise to the accidental slot, and render once above the top stave in the draw phase.
 - Tempo, time-signature, key-signature, and clef markings now emit native renderer hit targets and participate in the shared sequencer selection model as `Selection::Tempo`, `Selection::TimeSignature`, `Selection::KeySignature`, and `Selection::Clef`, so score clicks, highlight state, and popover coordinates stay inside the Rust render pipeline instead of being approximated in React.
 - Flow-master time signatures and key signatures render a hit target on every visible stave instance, but each instance maps back to the same logical selection payload; popover anchoring intentionally resolves to the first/top-stave match.
-- Hidden tempo, time-signature, key-signature, and clef entries do not emit draw instructions or hit targets, so they remain non-selectable until they are visible again.
-- Selected tempo, time-signature, key-signature, and clef markings render with the same sky accent used by selected tones and rests.
+- Hidden tempo, time-signature, key-signature, clef, and playing-technique entries do not emit draw instructions or hit targets, so they remain non-selectable until they are visible again.
+- Selected tempo, time-signature, key-signature, clef, and playing-technique markings render with the same sky accent used by selected tones and rests.
 - Delete/Backspace handling for these directive selections is centralized in the write-screen keyboard shortcut hook: non-opening directives clear the selection after deletion, tick-0 time signatures remain protected, and tick-0 clef deletion restores the stave's instrument-default opening clef in place.
 - Immediate absolute score tempo markings now drive transport tempo during playback and while stopped-state transport position is queried.
 
@@ -203,6 +203,7 @@ Score Data (Entry variants in FxHashMaps)
 - Time-signature selections edit symbol form through `TimeSignaturePropertiesSection`, which only enables `CommonTime` / `SplitCommonTime` for valid 4/4 and 2/2 signatures, and also expose the shared `Hidden` toggle.
 - Key-signature selections now route to `KeySignaturePropertiesSection`, which currently exposes the shared `Common` section for hidden state without any key-signature-specific controls yet.
 - Clef selections now route to `ClefPropertiesSection`, which currently exposes the shared `Common` section for hidden state without any clef-specific controls yet.
+- Playing-technique selections now route to `PlayingTechniquePropertiesSection`, which currently exposes only the shared `Common` section with the `Hidden` toggle and intentionally does not widen into technique-kind editing or playback controls.
 - Tempo text commits on blur or Enter; beat type, BPM, show/hide toggles, parenthesized state, and directive hidden state all apply through dedicated backend update commands.
 - Unsupported selection types still render an explicit empty state instead of misleading controls.
 

@@ -19,6 +19,7 @@ const TEMPO_ID = 44;
 const TIME_SIGNATURE_ID = 45;
 const KEY_SIGNATURE_ID = 46;
 const CLEF_ID = 47;
+const PLAYING_TECHNIQUE_ID = 48;
 
 const buildBaseScore = () => ({
   flows: {
@@ -88,7 +89,7 @@ const buildBaseScore = () => ({
       [STAVE_MASTER_ID]: {
         id: STAVE_MASTER_ID,
         entries: {
-          by_tick: { 64: [CLEF_ID] },
+          by_tick: { 64: [CLEF_ID, PLAYING_TECHNIQUE_ID] },
           by_id: {
             [CLEF_ID]: {
               id: CLEF_ID,
@@ -98,6 +99,13 @@ const buildBaseScore = () => ({
               draw_as: 1,
               pitch: { int: 67, accidental: 0 },
               offset: 2,
+            },
+            [PLAYING_TECHNIQUE_ID]: {
+              id: PLAYING_TECHNIQUE_ID,
+              tick: 64,
+              type: "PlayingTechnique",
+              hidden: false,
+              kind: 0,
             },
           },
         },
@@ -213,6 +221,27 @@ describe("PropertiesPanel", () => {
             flow_id: FLOW_ID,
             stave_id: STAVE_ID,
             clef_id: CLEF_ID,
+            tick: 64,
+          },
+        },
+      } as never,
+    });
+
+    renderWithProviders(<PropertiesPanel />, { appState });
+    expect(screen.getByText("Common")).toBeInTheDocument();
+    expect(screen.getByRole("switch", { name: "Hidden" })).toBeInTheDocument();
+  });
+
+  it("routes playing-technique selections to the playing-technique properties section", () => {
+    const appState = createAppState({
+      score: buildBaseScore() as never,
+      ui: {
+        sequencer: {
+          selection: {
+            type: "PlayingTechnique",
+            flow_id: FLOW_ID,
+            stave_id: STAVE_ID,
+            playing_technique_id: PLAYING_TECHNIQUE_ID,
             tick: 64,
           },
         },

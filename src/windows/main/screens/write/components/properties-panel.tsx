@@ -2,10 +2,12 @@ import { FC, PropsWithChildren } from "react";
 import { useAppState } from "../../../../../services/state";
 import { useSelectedClef } from "../../../hooks/use-selected-clef";
 import { useSelectedKeySignature } from "../../../hooks/use-selected-key-signature";
+import { useSelectedPlayingTechnique } from "../../../hooks/use-selected-playing-technique";
 import { useSelectedTempo } from "../../../hooks/use-selected-tempo";
 import { useSelectedTimeSignature } from "../../../hooks/use-selected-time-signature";
 import { ClefPropertiesSection } from "./clef-properties-section";
 import { KeySignaturePropertiesSection } from "./key-signature-properties-section";
+import { PlayingTechniquePropertiesSection } from "./playing-technique-properties-section";
 import { TimeSignaturePropertiesSection } from "./time-signature-properties-section";
 import { TempoPropertiesSection } from "./tempo-properties-section";
 
@@ -48,6 +50,7 @@ export const PropertiesPanel: FC = () => {
   const selectedTimeSignature = useSelectedTimeSignature();
   const selectedKeySignature = useSelectedKeySignature();
   const selectedClef = useSelectedClef();
+  const selectedPlayingTechnique = useSelectedPlayingTechnique();
 
   if (selection === null) {
     return <div className="bg-neutral-900 flex-1" />;
@@ -93,6 +96,18 @@ export const PropertiesPanel: FC = () => {
           flowId={selectedClef.flow_id}
           staveId={selectedClef.stave_id}
           clef={selectedClef.clef}
+        />
+      </Panel>
+    );
+  }
+
+  if (selection.type === "PlayingTechnique" && selectedPlayingTechnique) {
+    return (
+      <Panel data-testid="playing-technique-properties-section">
+        <PlayingTechniquePropertiesSection
+          flowId={selectedPlayingTechnique.flow_id}
+          staveId={selectedPlayingTechnique.stave_id}
+          playingTechnique={selectedPlayingTechnique.playing_technique}
         />
       </Panel>
     );
