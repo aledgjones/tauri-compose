@@ -362,8 +362,9 @@ mod tests {
         EffectivePlaybackMix, PreparedPlaybackTarget,
     };
     use crate::playback::expression_maps::{
-        ExpressionMap, ExpressionMapAction, ExpressionMapCondition, ExpressionMapLibraryState,
-        ExpressionMapRule,
+        resolve_expression_map_playback, ExpressionMap, ExpressionMapAction,
+        ExpressionMapCondition, ExpressionMapEqualityComparator, ExpressionMapLibraryState,
+        ExpressionMapRule, ResolvedExpressionMapPlaybackSource,
     };
     use crate::playback::plugin_inventory::{
         PluginInventoryAvailability, PluginInventoryContext, PluginInventoryEntry,
@@ -555,6 +556,38 @@ mod tests {
                         actions: vec![ExpressionMapAction::NoteLengthTransform {
                             id: String::from("fallback-note-length-action"),
                             ratio_percent: 55,
+                        }],
+                    }],
+                },
+            )]),
+        }
+    }
+
+    fn expression_map_library_with_pizz_map() -> ExpressionMapLibraryState {
+        ExpressionMapLibraryState {
+            order: vec![String::from("pizz-map")],
+            by_id: FxHashMap::from_iter([(
+                String::from("pizz-map"),
+                ExpressionMap {
+                    id: String::from("pizz-map"),
+                    name: String::from("Pizz Map"),
+                    creator: String::new(),
+                    version: 1,
+                    default_actions: vec![ExpressionMapAction::NoOp {
+                        id: String::from("default-action"),
+                    }],
+                    rules: vec![ExpressionMapRule {
+                        id: String::from("pizz-rule"),
+                        name: String::from("Pizz"),
+                        conditions: vec![ExpressionMapCondition::PlayingTechnique {
+                            id: String::from("pizz-condition"),
+                            comparator: ExpressionMapEqualityComparator::Equals,
+                            playing_technique: Some(PlayingTechniqueKind::Pizz),
+                        }],
+                        actions: vec![ExpressionMapAction::KeyswitchNote {
+                            id: String::from("pizz-action"),
+                            midi_note: 24,
+                            velocity: 96,
                         }],
                     }],
                 },
@@ -1152,6 +1185,67 @@ mod tests {
                 .effective_playing_techniques
                 .active_kind(PlayingTechniqueExclusivityGroup::Bowed),
             Some(PlayingTechniqueKind::Arco)
+        );
+    }
+
+    #[test]
+    fn prepared_playing_technique_context_reaches_expression_map_rule_resolution() {
+        let inventory = PluginInventoryContext::with_entries_for_tests(vec![available_entry(
+            "plugin-a",
+            "/Library/Audio/Plug-Ins/VST3/Plugin A.vst3",
+        )]);
+        let mut note_track = Track::new(30);
+        note_track
+            .create_tone(300, 96, 16, 60, None, 96, Default::default(), None)
+            .unwrap();
+
+        let mut master_track = Track::new(31);
+        insert_playing_technique(&mut master_track, 200, 96, PlayingTechniqueKind::Pizz);
+
+        let (mut score, flow_id) = make_flow_score_with_track_and_master(note_track, master_track);
+        score
+            .instruments
+            .by_id
+            .get_mut(&10)
+            .unwrap()
+            .playback_route
+            .as_mut()
+            .unwrap()
+            .expression_map_id = Some(String::from("pizz-map"));
+
+        let runtime = PlaybackActivationRuntime::from_score_and_inventory(&score, &inventory);
+        let expression_maps = expression_map_library_with_pizz_map();
+        let preparation = prepare_supported_playback_with_expression_maps(
+            &score,
+            &runtime,
+            &expression_maps,
+            48_000,
+        );
+        let prepared_events = prepare_supported_note_events_for_flow(&score, flow_id, &preparation);
+        let note_event = &prepared_events
+            .get(&10)
+            .expect("expected prepared note events for instrument 10")[0];
+        let expression_map = preparation
+            .supported_target_for_instrument(10)
+            .and_then(|target| target.expression_map.as_ref())
+            .expect("expected linked expression map");
+
+        let resolved =
+            resolve_expression_map_playback(expression_map, &note_event.expression_map_context);
+
+        assert_eq!(
+            resolved.source,
+            ResolvedExpressionMapPlaybackSource::Rule {
+                id: String::from("pizz-rule"),
+            }
+        );
+        assert_eq!(
+            resolved.actions,
+            vec![ExpressionMapAction::KeyswitchNote {
+                id: String::from("pizz-action"),
+                midi_note: 24,
+                velocity: 96,
+            }]
         );
     }
 }

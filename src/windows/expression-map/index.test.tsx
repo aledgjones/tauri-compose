@@ -1,5 +1,6 @@
 import { listen } from "@tauri-apps/api/event";
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "../../services/test-utils";
 import {
@@ -8,6 +9,7 @@ import {
   ExpressionMapLibraryState,
   ExpressionMapNoteLengthComparator,
   NoteDuration,
+  PlayingTechniqueKind,
 } from "../../services/types";
 import { Main } from "./index";
 
@@ -520,6 +522,28 @@ describe("Expression Map Main", () => {
     });
   });
 
+  it("offers the playing-technique condition type in the expression map window", async () => {
+    const user = userEvent.setup();
+
+    renderWithProviders(<Main />, {
+      expressionMapLibraryState,
+    });
+
+    await user.click(
+      screen.getByRole("button", { name: "Rule 1 condition 1 type" }),
+    );
+    await user.click(screen.getByRole("option", { name: "Playing Technique" }));
+
+    await waitFor(() => {
+      expect(windowMocks.setConditionTypeMock).toHaveBeenCalledWith(
+        "legato",
+        "accent-keyswitch",
+        "accent-condition",
+        "playing_technique",
+      );
+    });
+  });
+
   it("adds an action to the selected rule", async () => {
     renderWithProviders(<Main />, {
       expressionMapLibraryState,
@@ -593,6 +617,69 @@ describe("Expression Map Main", () => {
       screen.getByRole("button", { name: "Rule 1 condition 1 type" }),
     ).toHaveTextContent("--");
     expect(screen.queryByText("Select articulation")).not.toBeInTheDocument();
+  });
+
+  it("renders playing-technique controls and dispatches targeted condition updates", async () => {
+    const user = userEvent.setup();
+
+    renderWithProviders(<Main />, {
+      expressionMapLibraryState: {
+        order: ["technique-map"],
+        by_id: {
+          "technique-map": {
+            id: "technique-map",
+            name: "Technique Map",
+            creator: "Solo Compose",
+            version: 1,
+            default_actions: [{ id: "default-action", type: "no_op" }],
+            rules: [
+              {
+                id: "pizz-rule",
+                name: "Pizz",
+                conditions: [
+                  {
+                    id: "pizz-condition",
+                    type: "playing_technique",
+                    comparator: ExpressionMapEqualityComparator.Equals,
+                    playing_technique: PlayingTechniqueKind.Pizz,
+                  },
+                ],
+                actions: [{ id: "pizz-action", type: "no_op" }],
+              },
+            ],
+          },
+        },
+      },
+    });
+
+    expect(
+      screen.getByRole("button", { name: "Rule 1 condition 1 comparator" }),
+    ).toHaveTextContent("==");
+    expect(
+      screen.getByRole("button", {
+        name: "Rule 1 condition 1 playing technique value",
+      }),
+    ).toHaveTextContent("pizz");
+
+    await user.click(
+      screen.getByRole("button", {
+        name: "Rule 1 condition 1 playing technique value",
+      }),
+    );
+    await user.click(screen.getByRole("option", { name: "arco" }));
+
+    await waitFor(() => {
+      expect(windowMocks.updateConditionMock).toHaveBeenCalledWith(
+        "technique-map",
+        "pizz-rule",
+        {
+          id: "pizz-condition",
+          type: "playing_technique",
+          comparator: ExpressionMapEqualityComparator.Equals,
+          playing_technique: PlayingTechniqueKind.Arco,
+        },
+      );
+    });
   });
 
   it("reuses the smallest available default rule name after gaps", async () => {

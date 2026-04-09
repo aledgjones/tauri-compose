@@ -483,6 +483,7 @@ pub struct ExpressionMapRule {
 pub enum ExpressionMapCondition {
     NoOp { id: String },
     Articulation { id: String, ... },
+    PlayingTechnique { id: String, ... },
     WrittenNoteLength { id: String, ... },
 }
 
@@ -509,8 +510,10 @@ Rust owns the reusable expression-map data model and all mutation lookup. React 
 
 Nested ids are part of the required persisted expression-map contract, not an optional compatibility layer. Rule, condition, and action payloads without ids are invalid.
 
-- conditions: no-op, articulation, written note length
+- conditions: no-op, articulation, playing technique, written note length
 - actions: keyswitch note, control change, no-op, note-length transform
+
+The playing-technique condition is intentionally bounded and additive. It uses the same `==` / `!=` comparator row model as articulation, but it matches membership of one derived `PlayingTechniqueKind` inside the prepared `EffectivePlayingTechniqueContext` carried on `ExpressionMapPlaybackContext`. The first shipped value set is `pizz` and `arco`, and `.soloc` files remain unchanged because routes still persist only `expression_map_id` references into the app-scoped library rather than embedding reusable map payloads.
 
 New rules and newly added conditions scaffold with a `NoOp` condition placeholder. That placeholder is an explicit non-matching editor state, replacing the older null-articulation sentinel so unfinished rules do not accidentally imply an articulation-specific condition.
 

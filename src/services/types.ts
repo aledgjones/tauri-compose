@@ -157,6 +157,12 @@ export type ExpressionMapCondition =
     }
   | {
       id: string;
+      type: "playing_technique";
+      comparator: ExpressionMapEqualityComparator;
+      playing_technique: PlayingTechniqueKind | null;
+    }
+  | {
+      id: string;
       type: "written_note_length";
       comparator: ExpressionMapNoteLengthComparator;
       note_duration: NoteDuration;

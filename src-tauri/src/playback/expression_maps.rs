@@ -1,6 +1,8 @@
 use crate::score::components::articulation::{Articulation, Articulations};
 use crate::score::components::duration::{NoteDuration, Ticks};
-use crate::score::entries::playing_technique::EffectivePlayingTechniqueContext;
+use crate::score::entries::playing_technique::{
+    EffectivePlayingTechniqueContext, PlayingTechniqueKind,
+};
 use crate::score::playback::ResolvedExpressionMapLink;
 use crate::score::Score;
 use crate::utils::UniqueId;
@@ -47,6 +49,12 @@ pub enum ExpressionMapCondition {
         comparator: ExpressionMapEqualityComparator,
         articulation: Option<Articulation>,
     },
+    PlayingTechnique {
+        id: String,
+        #[serde(default)]
+        comparator: ExpressionMapEqualityComparator,
+        playing_technique: Option<PlayingTechniqueKind>,
+    },
     WrittenNoteLength {
         id: String,
         #[serde(default)]
@@ -60,6 +68,7 @@ impl ExpressionMapCondition {
         match self {
             Self::NoOp { id }
             | Self::Articulation { id, .. }
+            | Self::PlayingTechnique { id, .. }
             | Self::WrittenNoteLength { id, .. } => id.as_str(),
         }
     }
@@ -747,6 +756,23 @@ fn expression_map_condition_matches(
                 ExpressionMapEqualityComparator::NotEquals => !contains,
             }
         }
+        ExpressionMapCondition::PlayingTechnique {
+            comparator,
+            playing_technique,
+            ..
+        } => {
+            let Some(playing_technique) = playing_technique else {
+                return false;
+            };
+
+            let contains = context
+                .effective_playing_techniques
+                .contains(*playing_technique);
+            match comparator {
+                ExpressionMapEqualityComparator::Equals => contains,
+                ExpressionMapEqualityComparator::NotEquals => !contains,
+            }
+        }
         ExpressionMapCondition::WrittenNoteLength {
             comparator,
             note_duration,
@@ -846,6 +872,11 @@ fn create_expression_map_condition_with_id(
             id,
             comparator: ExpressionMapEqualityComparator::Equals,
             articulation: None,
+        }),
+        "playing_technique" => Ok(ExpressionMapCondition::PlayingTechnique {
+            id,
+            comparator: ExpressionMapEqualityComparator::Equals,
+            playing_technique: None,
         }),
         "written_note_length" => Ok(ExpressionMapCondition::WrittenNoteLength {
             id,
@@ -1087,6 +1118,9 @@ mod tests {
     };
     use crate::score::components::articulation::{Articulation, Articulations};
     use crate::score::components::duration::NoteDuration;
+    use crate::score::entries::playing_technique::{
+        EffectivePlayingTechniqueContext, PlayingTechniqueKind,
+    };
     use crate::score::instruments::{defs::InstrumentType, Instrument, Instruments};
     use crate::score::playback::{
         InstrumentPlaybackRoute, PlaybackRouteAddress, PlaybackRouteTarget,
@@ -1174,6 +1208,18 @@ mod tests {
                 },
             ],
         }
+    }
+
+    fn effective_playing_technique_context(
+        kinds: &[PlayingTechniqueKind],
+    ) -> EffectivePlayingTechniqueContext {
+        let mut context = EffectivePlayingTechniqueContext::new();
+
+        for kind in kinds {
+            context.set_active(*kind);
+        }
+
+        context
     }
 
     fn make_score_with_expression_map_reference(expression_map_id: Option<&str>) -> Score {
@@ -1407,6 +1453,31 @@ mod tests {
     }
 
     #[test]
+    fn expression_map_library_decodes_additive_playing_technique_condition_payloads() {
+        let payload = r#"{"order":["legato"],"by_id":{"legato":{"id":"legato","name":"Legato","creator":"","version":1,"default_actions":[{"id":"default-action-1","type":"no_op"}],"rules":[{"id":"pizz-rule","conditions":[{"id":"condition-1","type":"playing_technique","comparator":"equals","playing_technique":0},{"id":"condition-2","type":"articulation","comparator":"equals","articulation":4}],"actions":[{"id":"action-1","type":"no_op"}]}]}}}"#;
+
+        let state = serde_json::from_str::<super::ExpressionMapLibraryState>(payload).unwrap();
+        let rule = &state.by_id["legato"].rules[0];
+
+        assert_eq!(
+            rule.conditions[0],
+            ExpressionMapCondition::PlayingTechnique {
+                id: String::from("condition-1"),
+                comparator: ExpressionMapEqualityComparator::Equals,
+                playing_technique: Some(PlayingTechniqueKind::Pizz),
+            }
+        );
+        assert_eq!(
+            rule.conditions[1],
+            ExpressionMapCondition::Articulation {
+                id: String::from("condition-2"),
+                comparator: ExpressionMapEqualityComparator::Equals,
+                articulation: Some(Articulation::Accent),
+            }
+        );
+    }
+
+    #[test]
     fn expression_map_library_rejects_payloads_without_nested_ids() {
         let payload = r#"{"order":["legato"],"by_id":{"legato":{"id":"legato","name":"Legato","creator":"","version":1,"rules":[{"id":"accent-rule","conditions":[{"type":"articulation","comparator":"equals","articulation":4}],"actions":[{"type":"no_op"}]}]}}}"#;
 
@@ -1463,6 +1534,73 @@ mod tests {
     }
 
     #[test]
+    fn expression_map_library_threads_playing_technique_conditions_through_existing_mutations() {
+        let mut library = ExpressionMapLibraryContext::with_maps_for_tests(vec![ExpressionMap {
+            id: String::from("legato"),
+            name: String::from("Legato"),
+            creator: String::new(),
+            version: 1,
+            default_actions: vec![ExpressionMapAction::NoOp {
+                id: String::from("default-action"),
+            }],
+            rules: vec![ExpressionMapRule {
+                id: String::from("rule-1"),
+                name: String::new(),
+                conditions: vec![ExpressionMapCondition::NoOp {
+                    id: String::from("condition-1"),
+                }],
+                actions: vec![ExpressionMapAction::NoOp {
+                    id: String::from("action-1"),
+                }],
+            }],
+        }]);
+
+        let added = library
+            .add_condition("legato", "rule-1", "playing_technique")
+            .unwrap();
+        assert!(matches!(
+            added.rules[0].conditions[1],
+            ExpressionMapCondition::PlayingTechnique {
+                comparator: ExpressionMapEqualityComparator::Equals,
+                playing_technique: None,
+                ..
+            }
+        ));
+
+        let set_type = library
+            .set_condition_type("legato", "rule-1", "condition-1", "playing_technique")
+            .unwrap();
+        assert_eq!(
+            set_type.rules[0].conditions[0],
+            ExpressionMapCondition::PlayingTechnique {
+                id: String::from("condition-1"),
+                comparator: ExpressionMapEqualityComparator::Equals,
+                playing_technique: None,
+            }
+        );
+
+        let updated = library
+            .update_condition(
+                "legato",
+                "rule-1",
+                ExpressionMapCondition::PlayingTechnique {
+                    id: String::from("condition-1"),
+                    comparator: ExpressionMapEqualityComparator::Equals,
+                    playing_technique: Some(PlayingTechniqueKind::Pizz),
+                },
+            )
+            .unwrap();
+        assert_eq!(
+            updated.rules[0].conditions[0],
+            ExpressionMapCondition::PlayingTechnique {
+                id: String::from("condition-1"),
+                comparator: ExpressionMapEqualityComparator::Equals,
+                playing_technique: Some(PlayingTechniqueKind::Pizz),
+            }
+        );
+    }
+
+    #[test]
     fn resolve_expression_map_playback_uses_default_actions_when_no_rule_matches() {
         let resolved = resolve_expression_map_playback(
             &ExpressionMap {
@@ -1495,6 +1633,154 @@ mod tests {
                 midi_note: 12,
                 velocity: 100,
             }]
+        );
+    }
+
+    #[test]
+    fn resolve_expression_map_playback_matches_playing_technique_membership() {
+        let resolved = resolve_expression_map_playback(
+            &ExpressionMap {
+                id: String::from("strings-map"),
+                name: String::from("Strings"),
+                creator: String::new(),
+                version: 1,
+                default_actions: vec![ExpressionMapAction::NoOp {
+                    id: String::from("default-action"),
+                }],
+                rules: vec![ExpressionMapRule {
+                    id: String::from("pizz-rule"),
+                    name: String::from("Pizz"),
+                    conditions: vec![ExpressionMapCondition::PlayingTechnique {
+                        id: String::from("pizz-condition"),
+                        comparator: ExpressionMapEqualityComparator::Equals,
+                        playing_technique: Some(PlayingTechniqueKind::Pizz),
+                    }],
+                    actions: vec![ExpressionMapAction::KeyswitchNote {
+                        id: String::from("pizz-action"),
+                        midi_note: 24,
+                        velocity: 96,
+                    }],
+                }],
+            },
+            &ExpressionMapPlaybackContext {
+                articulations: Articulations::new(),
+                written_duration_ticks: NoteDuration::Quarter.to_ticks(),
+                effective_playing_techniques: effective_playing_technique_context(&[
+                    PlayingTechniqueKind::Pizz,
+                ]),
+            },
+        );
+
+        assert_eq!(
+            resolved.source,
+            ResolvedExpressionMapPlaybackSource::Rule {
+                id: String::from("pizz-rule"),
+            }
+        );
+    }
+
+    #[test]
+    fn resolve_expression_map_playback_combines_playing_technique_and_articulation_with_logical_and(
+    ) {
+        let mut articulations = Articulations::new();
+        articulations = articulations.toggle(Articulation::Staccato);
+
+        let resolved = resolve_expression_map_playback(
+            &ExpressionMap {
+                id: String::from("strings-map"),
+                name: String::from("Strings"),
+                creator: String::new(),
+                version: 1,
+                default_actions: vec![ExpressionMapAction::NoOp {
+                    id: String::from("default-action"),
+                }],
+                rules: vec![ExpressionMapRule {
+                    id: String::from("pizz-staccato-rule"),
+                    name: String::from("Pizz staccato"),
+                    conditions: vec![
+                        ExpressionMapCondition::PlayingTechnique {
+                            id: String::from("pizz-condition"),
+                            comparator: ExpressionMapEqualityComparator::Equals,
+                            playing_technique: Some(PlayingTechniqueKind::Pizz),
+                        },
+                        ExpressionMapCondition::Articulation {
+                            id: String::from("staccato-condition"),
+                            comparator: ExpressionMapEqualityComparator::Equals,
+                            articulation: Some(Articulation::Staccato),
+                        },
+                    ],
+                    actions: vec![ExpressionMapAction::KeyswitchNote {
+                        id: String::from("pizz-staccato-action"),
+                        midi_note: 28,
+                        velocity: 90,
+                    }],
+                }],
+            },
+            &ExpressionMapPlaybackContext {
+                articulations,
+                written_duration_ticks: NoteDuration::Quarter.to_ticks(),
+                effective_playing_techniques: effective_playing_technique_context(&[
+                    PlayingTechniqueKind::Pizz,
+                ]),
+            },
+        );
+
+        assert_eq!(
+            resolved.source,
+            ResolvedExpressionMapPlaybackSource::Rule {
+                id: String::from("pizz-staccato-rule"),
+            }
+        );
+    }
+
+    #[test]
+    fn resolve_expression_map_playback_combines_playing_technique_and_note_length_with_logical_and()
+    {
+        let resolved = resolve_expression_map_playback(
+            &ExpressionMap {
+                id: String::from("strings-map"),
+                name: String::from("Strings"),
+                creator: String::new(),
+                version: 1,
+                default_actions: vec![ExpressionMapAction::NoOp {
+                    id: String::from("default-action"),
+                }],
+                rules: vec![ExpressionMapRule {
+                    id: String::from("pizz-short-rule"),
+                    name: String::from("Pizz short"),
+                    conditions: vec![
+                        ExpressionMapCondition::PlayingTechnique {
+                            id: String::from("pizz-condition"),
+                            comparator: ExpressionMapEqualityComparator::Equals,
+                            playing_technique: Some(PlayingTechniqueKind::Pizz),
+                        },
+                        ExpressionMapCondition::WrittenNoteLength {
+                            id: String::from("short-condition"),
+                            comparator: ExpressionMapNoteLengthComparator::LessThanOrEqual,
+                            note_duration: NoteDuration::Eighth,
+                        },
+                    ],
+                    actions: vec![ExpressionMapAction::KeyswitchNote {
+                        id: String::from("pizz-short-action"),
+                        midi_note: 26,
+                        velocity: 88,
+                    }],
+                }],
+            },
+            &ExpressionMapPlaybackContext {
+                articulations: Articulations::new(),
+                written_duration_ticks: NoteDuration::Eighth.to_ticks(),
+                effective_playing_techniques: effective_playing_technique_context(&[
+                    PlayingTechniqueKind::Pizz,
+                ]),
+            },
+        );
+
+        assert_eq!(
+            resolved.source,
+            ResolvedExpressionMapPlaybackSource::Rule {
+                id: String::from("pizz-short-rule"),
+            }
         );
     }
 
@@ -1576,6 +1862,83 @@ mod tests {
     }
 
     #[test]
+    fn resolve_expression_map_playback_prefers_more_specific_playing_technique_rules_top_down() {
+        let mut articulations = Articulations::new();
+        articulations = articulations.toggle(Articulation::Staccato);
+
+        let resolved = resolve_expression_map_playback(
+            &ExpressionMap {
+                id: String::from("strings-map"),
+                name: String::from("Strings"),
+                creator: String::new(),
+                version: 1,
+                default_actions: vec![ExpressionMapAction::NoOp {
+                    id: String::from("default-action"),
+                }],
+                rules: vec![
+                    ExpressionMapRule {
+                        id: String::from("specific-rule"),
+                        name: String::from("Pizz staccato"),
+                        conditions: vec![
+                            ExpressionMapCondition::PlayingTechnique {
+                                id: String::from("specific-technique"),
+                                comparator: ExpressionMapEqualityComparator::Equals,
+                                playing_technique: Some(PlayingTechniqueKind::Pizz),
+                            },
+                            ExpressionMapCondition::Articulation {
+                                id: String::from("specific-articulation"),
+                                comparator: ExpressionMapEqualityComparator::Equals,
+                                articulation: Some(Articulation::Staccato),
+                            },
+                        ],
+                        actions: vec![ExpressionMapAction::KeyswitchNote {
+                            id: String::from("specific-action"),
+                            midi_note: 30,
+                            velocity: 92,
+                        }],
+                    },
+                    ExpressionMapRule {
+                        id: String::from("fallback-pizz-rule"),
+                        name: String::from("Pizz"),
+                        conditions: vec![ExpressionMapCondition::PlayingTechnique {
+                            id: String::from("fallback-technique"),
+                            comparator: ExpressionMapEqualityComparator::Equals,
+                            playing_technique: Some(PlayingTechniqueKind::Pizz),
+                        }],
+                        actions: vec![ExpressionMapAction::KeyswitchNote {
+                            id: String::from("fallback-action"),
+                            midi_note: 24,
+                            velocity: 96,
+                        }],
+                    },
+                ],
+            },
+            &ExpressionMapPlaybackContext {
+                articulations,
+                written_duration_ticks: NoteDuration::Quarter.to_ticks(),
+                effective_playing_techniques: effective_playing_technique_context(&[
+                    PlayingTechniqueKind::Pizz,
+                ]),
+            },
+        );
+
+        assert_eq!(
+            resolved.source,
+            ResolvedExpressionMapPlaybackSource::Rule {
+                id: String::from("specific-rule"),
+            }
+        );
+        assert_eq!(
+            resolved.actions,
+            vec![ExpressionMapAction::KeyswitchNote {
+                id: String::from("specific-action"),
+                midi_note: 30,
+                velocity: 92,
+            }]
+        );
+    }
+
+    #[test]
     fn resolve_expression_map_playback_falls_back_to_plugin_default_when_no_rule_matches() {
         let mut articulations = Articulations::new();
         articulations = articulations.toggle(Articulation::Accent);
@@ -1597,6 +1960,56 @@ mod tests {
             resolved.actions,
             vec![ExpressionMapAction::NoOp {
                 id: String::from("staccato-default-action"),
+            }]
+        );
+    }
+
+    #[test]
+    fn resolve_expression_map_playback_uses_default_actions_when_playing_technique_rules_do_not_match(
+    ) {
+        let resolved = resolve_expression_map_playback(
+            &ExpressionMap {
+                id: String::from("strings-map"),
+                name: String::from("Strings"),
+                creator: String::new(),
+                version: 1,
+                default_actions: vec![ExpressionMapAction::KeyswitchNote {
+                    id: String::from("default-reset"),
+                    midi_note: 12,
+                    velocity: 100,
+                }],
+                rules: vec![ExpressionMapRule {
+                    id: String::from("pizz-rule"),
+                    name: String::from("Pizz"),
+                    conditions: vec![ExpressionMapCondition::PlayingTechnique {
+                        id: String::from("pizz-condition"),
+                        comparator: ExpressionMapEqualityComparator::Equals,
+                        playing_technique: Some(PlayingTechniqueKind::Pizz),
+                    }],
+                    actions: vec![ExpressionMapAction::KeyswitchNote {
+                        id: String::from("pizz-action"),
+                        midi_note: 24,
+                        velocity: 96,
+                    }],
+                }],
+            },
+            &ExpressionMapPlaybackContext {
+                articulations: Articulations::new(),
+                written_duration_ticks: NoteDuration::Quarter.to_ticks(),
+                effective_playing_techniques: EffectivePlayingTechniqueContext::new(),
+            },
+        );
+
+        assert_eq!(
+            resolved.source,
+            ResolvedExpressionMapPlaybackSource::FallbackDefault
+        );
+        assert_eq!(
+            resolved.actions,
+            vec![ExpressionMapAction::KeyswitchNote {
+                id: String::from("default-reset"),
+                midi_note: 12,
+                velocity: 100,
             }]
         );
     }

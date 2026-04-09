@@ -7,6 +7,7 @@ import {
   ExpressionMapEqualityComparator,
   ExpressionMapNoteLengthComparator,
   ExpressionMapRule,
+  PlayingTechniqueKind,
 } from "../../services/types";
 import { Input } from "../../ui/input";
 import { Select } from "../../ui/select";
@@ -17,6 +18,7 @@ import {
   equalityComparatorOptions,
   noteDurationOptions,
   noteLengthComparatorOptions,
+  playingTechniqueOptions,
 } from "./model";
 import { ExpressionMapActionSection } from "./expression-map-action-section";
 
@@ -145,6 +147,42 @@ export const ExpressionMapRuleCard: FC<Props> = ({
                   ariaLabel={`Rule ${displayNumber} condition ${conditionIndex + 1} articulation value`}
                   variant="filled"
                   placeholder="Select articulation"
+                />
+              </>
+            ) : condition.type === "playing_technique" ? (
+              <>
+                <Select
+                  className="w-24"
+                  value={condition.comparator}
+                  options={equalityComparatorOptions.map((option) => ({
+                    value: option.value,
+                    label: option.label,
+                  }))}
+                  onChange={(value) =>
+                    onUpdateCondition(rule.id, {
+                      ...condition,
+                      comparator: value as ExpressionMapEqualityComparator,
+                    })
+                  }
+                  ariaLabel={`Rule ${displayNumber} condition ${conditionIndex + 1} comparator`}
+                  variant="filled"
+                />
+                <Select
+                  className="flex-1"
+                  value={condition.playing_technique}
+                  options={playingTechniqueOptions.map((option) => ({
+                    value: option.value,
+                    label: option.label,
+                  }))}
+                  onChange={(value) =>
+                    onUpdateCondition(rule.id, {
+                      ...condition,
+                      playing_technique: value as PlayingTechniqueKind,
+                    })
+                  }
+                  ariaLabel={`Rule ${displayNumber} condition ${conditionIndex + 1} playing technique value`}
+                  variant="filled"
+                  placeholder="Select playing technique"
                 />
               </>
             ) : condition.type === "written_note_length" ? (

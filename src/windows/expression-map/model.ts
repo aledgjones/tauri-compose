@@ -3,6 +3,7 @@ import {
   ExpressionMapEqualityComparator,
   ExpressionMapNoteLengthComparator,
   NoteDuration,
+  PlayingTechniqueKind,
 } from "../../services/types";
 
 export const articulationOptions = [
@@ -59,8 +60,14 @@ export const equalityComparatorOptions = [
   { value: ExpressionMapEqualityComparator.NotEquals, label: "!=" },
 ] as const;
 
+export const playingTechniqueOptions = [
+  { value: PlayingTechniqueKind.Pizz, label: "pizz" },
+  { value: PlayingTechniqueKind.Arco, label: "arco" },
+] as const;
+
 export const conditionTypeOptions = [
   { value: "articulation", label: "Articulation" },
+  { value: "playing_technique", label: "Playing Technique" },
   { value: "written_note_length", label: "Written Note Length" },
   { value: "no_op", label: "--" },
 ] as const;
