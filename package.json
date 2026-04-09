@@ -56,11 +56,6 @@
     ]
   },
   "name": "compose",
-  "overrides": {
-    "react-inspector": {
-      "react": "^19.0.0"
-    }
-  },
   "private": true,
   "scripts": {
     "bmad:init": "./scripts/bmad-init",
