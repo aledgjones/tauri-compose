@@ -624,6 +624,14 @@ type ClefSelection = {
   tick: Tick;
 };
 
+type PlayingTechniqueSelection = {
+  type: "PlayingTechnique";
+  flow_id: UniqueId;
+  stave_id: UniqueId;
+  playing_technique_id: UniqueId;
+  tick: Tick;
+};
+
 type TupletSelection = {
   type: "Tuplet";
   flow_id: UniqueId;
@@ -641,6 +649,7 @@ export type Selection =
   | TimeSignatureSelection
   | KeySignatureSelection
   | ClefSelection
+  | PlayingTechniqueSelection
   | TupletSelection;
 
 export type AppState = {

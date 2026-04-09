@@ -106,7 +106,7 @@ pub fn draw_tempo(
             width: metrics.width.max(1.2),
             height: metrics.height.max(1.0),
             popover_x: origin.x,
-            popover_y: stave_top - TEMPO_STAVE_OFFSET,
+            popover_y: stave_top - 3.0,
         });
     }
 }

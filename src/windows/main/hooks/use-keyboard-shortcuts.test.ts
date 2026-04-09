@@ -23,6 +23,9 @@ vi.mock("../../../services/actions", () => ({
       clef: {
         clear: vi.fn().mockResolvedValue(undefined),
       },
+      playingTechnique: {
+        remove: vi.fn().mockResolvedValue(undefined),
+      },
       keySignature: {
         clearAtTick: vi.fn().mockResolvedValue(undefined),
       },
@@ -1248,6 +1251,37 @@ describe("useKeyboardShortcuts", () => {
       FLOW_ID,
       64,
       STAVE_ID,
+    );
+    expect(actions.ui.sequencer.clearSelection).not.toHaveBeenCalled();
+  });
+
+  it("deletes the selected playing-technique entry by id", async () => {
+    const state = createAppState({
+      ui: {
+        sequencer: {
+          selection: {
+            type: "PlayingTechnique",
+            flow_id: FLOW_ID,
+            stave_id: STAVE_ID,
+            playing_technique_id: 880,
+            tick: 64,
+          },
+        },
+      } as never,
+    });
+
+    renderHook(() => useKeyboardShortcuts(), {
+      wrapper: createWrapper({ appState: state }),
+    });
+
+    await act(async () => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Delete" }));
+    });
+
+    expect(actions.score.playingTechnique.remove).toHaveBeenCalledWith(
+      FLOW_ID,
+      STAVE_ID,
+      880,
     );
     expect(actions.ui.sequencer.clearSelection).not.toHaveBeenCalled();
   });

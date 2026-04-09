@@ -52,6 +52,7 @@ export const useSelectedToneInfo = () => {
       selection.type === "TimeSignature" ||
       selection.type === "KeySignature" ||
       selection.type === "Clef" ||
+      selection.type === "PlayingTechnique" ||
       selection.type === "Tuplet"
     ) {
       return null;

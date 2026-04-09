@@ -150,6 +150,15 @@ export const Renderer: FC<Props> = ({ className }) => {
             );
             return;
           }
+          case "PlayingTechnique": {
+            await actions.ui.sequencer.selectPlayingTechnique(
+              hitResult.flow_id,
+              hitResult.stave_id,
+              hitResult.playing_technique_id,
+              hitResult.tick,
+            );
+            return;
+          }
           case "Tuplet": {
             await actions.ui.sequencer.selectTuplet(
               hitResult.flow_id,

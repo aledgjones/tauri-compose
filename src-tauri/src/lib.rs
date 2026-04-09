@@ -134,10 +134,10 @@ use ui::screens::write::{ui_write_bottom_panel_minimized_toggle, ui_write_bottom
 use ui::sequencer::{
     ui_sequencer_coords_set, ui_sequencer_instrument_set, ui_sequencer_selection_clear,
     ui_sequencer_selection_set_clef, ui_sequencer_selection_set_key_signature,
-    ui_sequencer_selection_set_rest, ui_sequencer_selection_set_tempo,
-    ui_sequencer_selection_set_time_signature, ui_sequencer_selection_set_tone,
-    ui_sequencer_selection_set_tuplet, ui_sequencer_snap_set, ui_sequencer_tool_set,
-    ui_sequencer_track_set,
+    ui_sequencer_selection_set_playing_technique, ui_sequencer_selection_set_rest,
+    ui_sequencer_selection_set_tempo, ui_sequencer_selection_set_time_signature,
+    ui_sequencer_selection_set_tone, ui_sequencer_selection_set_tuplet, ui_sequencer_snap_set,
+    ui_sequencer_tool_set, ui_sequencer_track_set,
 };
 use ui::{ui_flow_id_set, ui_get_selection_coordinates, ui_layout_id_set, ui_tab_set, Ui};
 use utils::UniqueId;
@@ -1343,6 +1343,7 @@ pub fn run() {
             ui_sequencer_selection_clear,
             ui_sequencer_selection_set_clef,
             ui_sequencer_selection_set_key_signature,
+            ui_sequencer_selection_set_playing_technique,
             ui_sequencer_selection_set_rest,
             ui_sequencer_selection_set_tempo,
             ui_sequencer_selection_set_time_signature,

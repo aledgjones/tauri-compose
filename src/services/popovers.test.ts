@@ -3,6 +3,7 @@ import {
   parseBarlinePopover,
   parseClefPopover,
   parseKeySignaturePopover,
+  parsePlayingTechniquePopover,
   parseTupletPopover,
   parseTempoPopover,
   parseTimeSignaturePopover,
@@ -12,6 +13,7 @@ import {
   ClefDrawType,
   KeySignatureMode,
   NoteDuration,
+  PlayingTechniqueKind,
   TimeSignatureDrawType,
 } from "./types";
 
@@ -42,6 +44,11 @@ vi.mock("./actions", () => ({
         create: vi.fn().mockResolvedValue(104),
         clearAtTick: vi.fn().mockResolvedValue(undefined),
       },
+      playingTechnique: {
+        create: vi.fn().mockResolvedValue(106),
+        remove: vi.fn().mockResolvedValue(undefined),
+        update: vi.fn().mockResolvedValue(undefined),
+      },
       tuplet: {
         create: vi.fn().mockResolvedValue(105),
       },
@@ -52,6 +59,7 @@ vi.mock("./actions", () => ({
         selectTimeSignature: vi.fn().mockResolvedValue(undefined),
         selectKeySignature: vi.fn().mockResolvedValue(undefined),
         selectClef: vi.fn().mockResolvedValue(undefined),
+        selectPlayingTechnique: vi.fn().mockResolvedValue(undefined),
         selectTuplet: vi.fn().mockResolvedValue(undefined),
       },
     },
@@ -518,6 +526,56 @@ describe("parseTempoPopover", () => {
     await expect(parseTempoPopover("Vivace", FLOW_ID, TICK)).rejects.toThrow(
       "Unknown input: Vivace",
     );
+  });
+});
+
+describe("parsePlayingTechniquePopover", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("creates a pizz marking and selects it", async () => {
+    await parsePlayingTechniquePopover("pizz", FLOW_ID, TICK, STAVE_ID);
+
+    expect(actions.score.playingTechnique.create).toHaveBeenCalledWith(
+      FLOW_ID,
+      TICK,
+      STAVE_ID,
+      PlayingTechniqueKind.Pizz,
+      false,
+    );
+    expect(actions.ui.sequencer.selectPlayingTechnique).toHaveBeenCalledWith(
+      FLOW_ID,
+      STAVE_ID,
+      106,
+      TICK,
+    );
+  });
+
+  it("creates an arco marking and selects it", async () => {
+    await parsePlayingTechniquePopover("arco", FLOW_ID, TICK, STAVE_ID);
+
+    expect(actions.score.playingTechnique.create).toHaveBeenCalledWith(
+      FLOW_ID,
+      TICK,
+      STAVE_ID,
+      PlayingTechniqueKind.Arco,
+      false,
+    );
+    expect(actions.ui.sequencer.selectPlayingTechnique).toHaveBeenCalledWith(
+      FLOW_ID,
+      STAVE_ID,
+      106,
+      TICK,
+    );
+  });
+
+  it("rejects any token outside the bounded lower-case vocabulary", async () => {
+    await expect(
+      parsePlayingTechniquePopover("Pizz", FLOW_ID, TICK, STAVE_ID),
+    ).rejects.toThrow("Unknown input: Pizz");
+
+    expect(actions.score.playingTechnique.create).not.toHaveBeenCalled();
   });
 });
 

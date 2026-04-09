@@ -4,6 +4,7 @@ import {
   ClefDrawType,
   KeySignatureMode,
   NoteDuration,
+  PlayingTechniqueKind,
   Tick,
   TimeSignatureDrawType,
   UniqueId,
@@ -17,6 +18,7 @@ export enum PopoverType {
   TimeSignature,
   Tempo,
   Tuplet,
+  PlayingTechnique,
 }
 
 const TUPLET_BASE_NOTE_BY_SUFFIX: Record<string, NoteDuration> = {
@@ -940,4 +942,42 @@ export const parseTempoPopover = async (
   );
 
   await actions.ui.sequencer.selectTempo(tempo_id, flow_id, tick);
+};
+
+export const parsePlayingTechniquePopover = async (
+  input: string,
+  flow_id: UniqueId,
+  tick: Tick,
+  stave_id: UniqueId,
+) => {
+  let kind: PlayingTechniqueKind;
+
+  switch (input) {
+    case "pizz": {
+      kind = PlayingTechniqueKind.Pizz;
+      break;
+    }
+    case "arco": {
+      kind = PlayingTechniqueKind.Arco;
+      break;
+    }
+    default: {
+      throw new Error(`Unknown input: ${input}`);
+    }
+  }
+
+  const playing_technique_id = await actions.score.playingTechnique.create(
+    flow_id,
+    tick,
+    stave_id,
+    kind,
+    false,
+  );
+
+  await actions.ui.sequencer.selectPlayingTechnique(
+    flow_id,
+    stave_id,
+    playing_technique_id,
+    tick,
+  );
 };

@@ -50,6 +50,7 @@ import {
   KeySignatureMode,
   LayoutType,
   NoteDuration,
+  PlayingTechniqueKind,
   PlayerType,
   SetupSelectionType,
   Tab,
@@ -759,6 +760,19 @@ describe("actions.ui", () => {
       );
     });
 
+    it("selectPlayingTechnique calls invoke with the playing-technique selection payload", async () => {
+      await actions.ui.sequencer.selectPlayingTechnique(4, 3, 10, 64);
+      expect(mockInvoke).toHaveBeenCalledWith(
+        "ui_sequencer_selection_set_playing_technique",
+        {
+          flow_id: 4,
+          stave_id: 3,
+          playing_technique_id: 10,
+          tick: 64,
+        },
+      );
+    });
+
     it("selectTuplet calls invoke with the tuplet selection payload", async () => {
       await actions.ui.sequencer.selectTuplet(4, 5, 3, 2, 10, 64);
       expect(mockInvoke).toHaveBeenCalledWith(
@@ -1053,6 +1067,56 @@ describe("actions.score.tempo", () => {
       flow_id: 5,
       tick: 64,
     });
+  });
+});
+
+describe("actions.score.playingTechnique", () => {
+  it("create calls invoke with the playing-technique payload", async () => {
+    await actions.score.playingTechnique.create(
+      5,
+      64,
+      7,
+      PlayingTechniqueKind.Pizz,
+      true,
+    );
+
+    expect(mockInvoke).toHaveBeenCalledWith(
+      "score_entries_playing_technique_create",
+      {
+        flow_id: 5,
+        tick: 64,
+        stave_id: 7,
+        kind: PlayingTechniqueKind.Pizz,
+        hidden: true,
+      },
+    );
+  });
+
+  it("remove calls invoke with the playing-technique identity payload", async () => {
+    await actions.score.playingTechnique.remove(5, 7, 9);
+
+    expect(mockInvoke).toHaveBeenCalledWith(
+      "score_entries_playing_technique_remove",
+      {
+        flow_id: 5,
+        stave_id: 7,
+        playing_technique_id: 9,
+      },
+    );
+  });
+
+  it("update calls invoke with the bounded hidden payload", async () => {
+    await actions.score.playingTechnique.update(5, 7, 9, true);
+
+    expect(mockInvoke).toHaveBeenCalledWith(
+      "score_entries_playing_technique_update",
+      {
+        flow_id: 5,
+        stave_id: 7,
+        playing_technique_id: 9,
+        hidden: true,
+      },
+    );
   });
 });
 

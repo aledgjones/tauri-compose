@@ -16,6 +16,7 @@ import {
   parseBarlinePopover,
   parseClefPopover,
   parseKeySignaturePopover,
+  parsePlayingTechniquePopover,
   parseTempoPopover,
   parseTimeSignaturePopover,
   PopoverType,
@@ -26,6 +27,7 @@ import {
   mdiAlphaCBoxOutline,
   mdiAlphaKBoxOutline,
   mdiAlphaMBoxOutline,
+  mdiAlphaPBoxOutline,
   mdiMetronome,
   mdiNumeric3BoxOutline,
 } from "@mdi/js";
@@ -98,6 +100,42 @@ const getStaveIdFromSelection = (state: AppState) => {
   return selection.stave_id;
 };
 
+const getFirstStaveIdForFlow = (state: AppState, flowId: number) => {
+  const flow = state.score.flows.by_id[flowId];
+
+  if (!flow) {
+    return null;
+  }
+
+  for (const playerId of state.score.players.order) {
+    if (!flow.player_ids.includes(playerId)) {
+      continue;
+    }
+
+    const player = state.score.players.by_id[playerId];
+
+    if (!player) {
+      continue;
+    }
+
+    for (const instrumentId of player.instrument_ids) {
+      const instrument = state.score.instruments.by_id[instrumentId];
+
+      if (!instrument) {
+        continue;
+      }
+
+      for (const staveId of instrument.stave_ids) {
+        if (flow.staves.by_id[staveId]) {
+          return staveId;
+        }
+      }
+    }
+  }
+
+  return null;
+};
+
 const getTrackIdFromSelection = (state: AppState) => {
   const selection = state.ui.sequencer.selection;
 
@@ -106,7 +144,8 @@ const getTrackIdFromSelection = (state: AppState) => {
     selection.type === "Tempo" ||
     selection.type === "TimeSignature" ||
     selection.type === "KeySignature" ||
-    selection.type === "Clef"
+    selection.type === "Clef" ||
+    selection.type === "PlayingTechnique"
   ) {
     return null;
   }
@@ -122,7 +161,8 @@ const getInstrumentIdFromSelection = (state: AppState) => {
     selection.type === "Tempo" ||
     selection.type === "TimeSignature" ||
     selection.type === "KeySignature" ||
-    selection.type === "Clef"
+    selection.type === "Clef" ||
+    selection.type === "PlayingTechnique"
   ) {
     return null;
   }
@@ -197,6 +237,12 @@ const getMeta = (type: PopoverType) => {
         icon: mdiNumeric3BoxOutline,
       };
     }
+    case PopoverType.PlayingTechnique: {
+      return {
+        label: "Playing Technique",
+        icon: mdiAlphaPBoxOutline,
+      };
+    }
     default:
       return { label: "", icon: mdiAlphaKBoxOutline };
   }
@@ -263,6 +309,11 @@ export const Popover: FC<Props> = ({ popover, setPopover }) => {
       if (e.shiftKey && e.key === "T") {
         e.preventDefault();
         await openPopoverAtSelection(PopoverType.Tempo);
+      }
+
+      if (e.shiftKey && e.key === "P") {
+        e.preventDefault();
+        await openPopoverAtSelection(PopoverType.PlayingTechnique);
       }
 
       if (
@@ -341,6 +392,18 @@ export const Popover: FC<Props> = ({ popover, setPopover }) => {
             }
             case PopoverType.Tempo: {
               await parseTempoPopover(term, flow_id, tick);
+              break;
+            }
+            case PopoverType.PlayingTechnique: {
+              const stave_id =
+                getStaveIdFromSelection(state) ??
+                getFirstStaveIdForFlow(state, flow_id);
+
+              if (!stave_id) {
+                return;
+              }
+
+              await parsePlayingTechniquePopover(term, flow_id, tick, stave_id);
               break;
             }
             case PopoverType.Tuplet: {

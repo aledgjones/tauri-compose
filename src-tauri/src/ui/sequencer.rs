@@ -51,6 +51,12 @@ pub enum Selection {
         clef_id: UniqueId,
         tick: u64,
     },
+    PlayingTechnique {
+        flow_id: UniqueId,
+        stave_id: UniqueId,
+        playing_technique_id: UniqueId,
+        tick: u64,
+    },
     Tuplet {
         flow_id: UniqueId,
         instrument_id: UniqueId,
@@ -70,6 +76,7 @@ impl Selection {
             | Selection::TimeSignature { flow_id, .. }
             | Selection::KeySignature { flow_id, .. }
             | Selection::Clef { flow_id, .. }
+            | Selection::PlayingTechnique { flow_id, .. }
             | Selection::Tuplet { flow_id, .. } => *flow_id,
         }
     }
@@ -422,6 +429,44 @@ pub fn ui_sequencer_selection_set_clef(
 
 #[allow(clippy::too_many_arguments)]
 #[tauri::command(rename_all = "snake_case")]
+pub fn ui_sequencer_selection_set_playing_technique(
+    app: tauri::AppHandle,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
+    transport_shared: State<'_, TransportSharedState>,
+    flow_id: UniqueId,
+    stave_id: UniqueId,
+    playing_technique_id: UniqueId,
+    tick: u64,
+) {
+    let mut state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
+    let recalculation_request = FlowRenderRecalculationRequest::for_local_update(
+        state
+            .ui
+            .sequencer
+            .selection
+            .as_ref()
+            .map(Selection::flow_id),
+        Some(flow_id),
+    );
+
+    apply_selection(
+        &mut state.ui,
+        Selection::PlayingTechnique {
+            flow_id,
+            stave_id,
+            playing_technique_id,
+            tick,
+        },
+    );
+    sync_transport_to_app_state(transport_shared.inner(), &state, 0);
+
+    state.emit_general_state(&app, &mut renderer, recalculation_request);
+}
+
+#[allow(clippy::too_many_arguments)]
+#[tauri::command(rename_all = "snake_case")]
 pub fn ui_sequencer_selection_set_tuplet(
     app: tauri::AppHandle,
     state: State<'_, AppContextState>,
@@ -579,6 +624,24 @@ mod tests {
         assert_eq!(json["flow_id"], 11);
         assert_eq!(json["stave_id"], 4);
         assert_eq!(json["clef_id"], 15);
+        assert_eq!(json["tick"], 96);
+    }
+
+    #[test]
+    fn playing_technique_selection_serializes_with_expected_shape() {
+        let selection = Selection::PlayingTechnique {
+            flow_id: 11,
+            stave_id: 4,
+            playing_technique_id: 16,
+            tick: 96,
+        };
+
+        let json = serde_json::to_value(selection).unwrap();
+
+        assert_eq!(json["type"], "PlayingTechnique");
+        assert_eq!(json["flow_id"], 11);
+        assert_eq!(json["stave_id"], 4);
+        assert_eq!(json["playing_technique_id"], 16);
         assert_eq!(json["tick"], 96);
     }
 

@@ -216,6 +216,16 @@ export const useKeyboardShortcuts = () => {
             ),
         };
       }
+      case "PlayingTechnique": {
+        return {
+          deleteSelection: () =>
+            actions.score.playingTechnique.remove(
+              selection.flow_id,
+              selection.stave_id,
+              selection.playing_technique_id,
+            ),
+        };
+      }
       case "Tuplet": {
         return {
           deleteSelection: () =>

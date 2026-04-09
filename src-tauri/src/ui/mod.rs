@@ -246,4 +246,34 @@ mod tests {
 
         assert_eq!(coordinates, Some((32.65, 18.125)));
     }
+
+    #[test]
+    fn resolves_playing_technique_selection_coordinates_from_the_exact_matching_hit_target() {
+        let selected_target = Selection::PlayingTechnique {
+            flow_id: 20,
+            stave_id: 3,
+            playing_technique_id: 40,
+            tick: 64,
+        };
+        let ui_renderer = renderer::Renderer {
+            zoom: 150,
+            pan_x: -5.0,
+            pan_y: 8.0,
+            debug: false,
+        };
+        let renderer = make_renderer_context(vec![HitTarget {
+            entry: selected_target.clone(),
+            x: 25.0,
+            y: 6.0,
+            width: 1.0,
+            height: 1.0,
+            popover_x: 25.1,
+            popover_y: 6.75,
+        }]);
+
+        let coordinates =
+            resolve_selection_coordinates(Some(&selected_target), &ui_renderer, &renderer);
+
+        assert_eq!(coordinates, Some((32.65, 18.125)));
+    }
 }

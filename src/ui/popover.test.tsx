@@ -17,6 +17,11 @@ vi.mock("../services/actions", () => ({
       keySignature: { create: vi.fn(), clearAtTick: vi.fn() },
       timeSignature: { create: vi.fn(), clearAtTick: vi.fn() },
       tempo: { create: vi.fn(), clearAtTick: vi.fn() },
+      playingTechnique: {
+        create: vi.fn(),
+        remove: vi.fn(),
+        update: vi.fn(),
+      },
     },
     ui: {
       renderer: {
@@ -36,6 +41,7 @@ vi.mock("../services/popovers", async (importOriginal) => {
     parseKeySignaturePopover: vi.fn(),
     parseTupletPopover: vi.fn(),
     parseTempoPopover: vi.fn(),
+    parsePlayingTechniquePopover: vi.fn(),
     parseTimeSignaturePopover: vi.fn(),
   };
 });
@@ -46,6 +52,7 @@ import {
   parseKeySignaturePopover,
   parseTupletPopover,
   parseTempoPopover,
+  parsePlayingTechniquePopover,
   parseTimeSignaturePopover,
 } from "../services/popovers";
 
@@ -138,6 +145,11 @@ describe("Popover", () => {
   it("shows 'Tempo' label for PopoverType.Tempo", () => {
     renderPopover({ x: 0, y: 0, type: PopoverType.Tempo });
     expect(screen.getByText("Tempo")).toBeInTheDocument();
+  });
+
+  it("shows 'Playing Technique' label for PopoverType.PlayingTechnique", () => {
+    renderPopover({ x: 0, y: 0, type: PopoverType.PlayingTechnique });
+    expect(screen.getByText("Playing Technique")).toBeInTheDocument();
   });
 
   it("shows 'Tuplet' label for PopoverType.Tuplet", () => {
@@ -235,6 +247,19 @@ describe("Popover", () => {
     renderPopover({ x: 0, y: 0, type: PopoverType.Tempo });
     await user.type(screen.getByRole("textbox"), "Allegro{Enter}");
     expect(parseTempoPopover).toHaveBeenCalledWith("Allegro", FLOW_ID, TICK);
+    expect(setPopover).toHaveBeenCalledWith(null);
+  });
+
+  it("Enter with valid playing-technique input calls parsePlayingTechniquePopover and closes", async () => {
+    const user = userEvent.setup();
+    renderPopover({ x: 0, y: 0, type: PopoverType.PlayingTechnique });
+    await user.type(screen.getByRole("textbox"), "pizz{Enter}");
+    expect(parsePlayingTechniquePopover).toHaveBeenCalledWith(
+      "pizz",
+      FLOW_ID,
+      TICK,
+      STAVE_ID,
+    );
     expect(setPopover).toHaveBeenCalledWith(null);
   });
 
@@ -506,6 +531,119 @@ describe("Popover", () => {
         type: PopoverType.Tempo,
       });
     });
+  });
+
+  it("Shift+P fires setPopover with PlayingTechnique type", async () => {
+    renderPopover(null);
+    fireEvent.keyDown(document, { key: "P", shiftKey: true });
+    await waitFor(() => {
+      expect(setPopover).toHaveBeenCalledWith({
+        x: 100,
+        y: 200,
+        type: PopoverType.PlayingTechnique,
+      });
+    });
+  });
+
+  it("uses canonical player order when a tick-only selection opens the playing-technique popover", async () => {
+    const user = userEvent.setup();
+    const tempoSelectionState = createAppState({
+      score: {
+        flows: {
+          by_id: {
+            [FLOW_ID]: {
+              id: FLOW_ID,
+              title: "Flow",
+              player_ids: [20, 30],
+              length: 256,
+              master_id: 30,
+              staves: {
+                by_id: {
+                  200: {
+                    id: 200,
+                  },
+                  [STAVE_ID]: {
+                    id: STAVE_ID,
+                  },
+                },
+              },
+            },
+          },
+        },
+        players: {
+          order: [30, 20],
+          by_id: {
+            20: {
+              id: 20,
+              player_type: 0,
+              instrument_ids: [10],
+            },
+            30: {
+              id: 30,
+              player_type: 0,
+              instrument_ids: [11],
+            },
+          },
+        },
+        instruments: {
+          by_id: {
+            10: {
+              id: 10,
+              definition_id: "piano",
+              instrument_type: 0,
+              long_name: "Piano",
+              short_name: "Pno.",
+              stave_ids: [STAVE_ID],
+              count: null,
+              volume: 100,
+              pan: 0,
+              mute: false,
+              solo: false,
+            },
+            11: {
+              id: 11,
+              definition_id: "violin",
+              instrument_type: 0,
+              long_name: "Violin",
+              short_name: "Vln.",
+              stave_ids: [200],
+              count: null,
+              volume: 100,
+              pan: 0,
+              mute: false,
+              solo: false,
+            },
+          },
+        },
+      } as never,
+      ui: {
+        sequencer: {
+          selection: {
+            type: "Tempo",
+            flow_id: FLOW_ID,
+            tempo_id: 99,
+            tick: TICK,
+          },
+        },
+      } as never,
+    });
+
+    renderWithProviders(
+      <Popover
+        popover={{ x: 0, y: 0, type: PopoverType.PlayingTechnique }}
+        setPopover={setPopover}
+      />,
+      { appState: tempoSelectionState },
+    );
+
+    await user.type(screen.getByRole("textbox"), "arco{Enter}");
+
+    expect(parsePlayingTechniquePopover).toHaveBeenCalledWith(
+      "arco",
+      FLOW_ID,
+      TICK,
+      200,
+    );
   });
 
   it("semicolon fires setPopover with Tuplet type", async () => {

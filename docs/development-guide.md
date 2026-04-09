@@ -359,6 +359,17 @@ Test files are colocated next to the source files they test (e.g. `utils.ts` →
 
 For manual visual regression checks, create temporary local cases on demand rather than committing fixture corpora.
 
+## Playing-Technique Authoring Guardrails
+
+- Treat the shipped playing-technique workflow as a native score-directive path. Visible markings render in the Rust score renderer, participate in native hit testing, and use the shared backend-owned selection model.
+- Open the bounded playing-technique popover with `Shift+P` from any current score selection that carries a tick.
+- Keep the accepted popover vocabulary intentionally narrow: `pizz` and `arco` only. Do not add aliases such as `pizz.` or a broader technique dictionary without an explicit follow-up story.
+- If the current selection already has a `stave_id`, create the new playing-technique marking on that stave. If the selection only carries a tick, such as tempo, key signature, or time signature, resolve creation to the first stave in the selected flow's existing score order.
+- When the popover is submitted from an already selected playing-technique marking, create the new marking at the same tick under the existing coexistence rules instead of mutating the selected entry in place.
+- Hidden playing-technique entries remain non-rendered and non-selectable. Do not add frontend-only hidden-state affordances for them.
+- Multiple visible same-tick playing-technique markings on one stave currently reuse the same canonical x and y anchor, even if that means the text overlaps. Treat collision avoidance, horizontal spreading, or vertical stacking as future work rather than implied shipped behavior.
+- `Delete` and `Backspace` remove only the currently selected playing-technique entry through the remove-by-id seam. Do not replace that with a clear-at-tick behavior that would remove sibling same-tick markings.
+
 ## Tuplet Authoring Guardrails
 
 - Treat the shipped authoring path as popover-first container creation plus sequencer editing of owned tones inside the resulting region. Do not imply a second freeform tuplet-construction workflow in the sequencer.

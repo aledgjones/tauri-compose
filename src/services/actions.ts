@@ -553,6 +553,19 @@ export const actions = {
           tick,
         });
       },
+      selectPlayingTechnique: (
+        flow_id: number,
+        stave_id: number,
+        playing_technique_id: number,
+        tick: number,
+      ) => {
+        return invoke("ui_sequencer_selection_set_playing_technique", {
+          flow_id,
+          stave_id,
+          playing_technique_id,
+          tick,
+        });
+      },
       selectTuplet: (
         flow_id: number,
         instrument_id: number,

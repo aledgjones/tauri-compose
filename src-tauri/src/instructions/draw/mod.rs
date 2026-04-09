@@ -11,6 +11,7 @@ pub mod draw_key_signature;
 pub mod draw_ledger_lines;
 pub mod draw_names;
 pub mod draw_notehead;
+pub mod draw_playing_technique;
 pub mod draw_rest;
 pub mod draw_staves;
 pub mod draw_stem;

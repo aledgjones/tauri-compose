@@ -1,4 +1,8 @@
+use crate::renderer::converter::Space;
+use crate::renderer::text_measurer::TextMeasurer;
 use crate::score::components::duration::Tick;
+use crate::score::components::measurements::BoundingBox;
+use crate::score::components::text::{Align, Font, FontFamily, Justify};
 use crate::score::tracks::Track;
 use crate::utils::UniqueId;
 use crate::AppContextState;
@@ -33,6 +37,58 @@ impl PlayingTechnique {
             kind,
         }
     }
+
+    pub fn text_font() -> Font {
+        Font {
+            size: 1.7,
+            family: FontFamily::LibreBaskerville,
+            justify: Justify::Start,
+            align: Align::Bottom,
+        }
+    }
+
+    pub fn display_text(&self) -> &'static str {
+        match self.kind {
+            PlayingTechniqueKind::Pizz => "pizz",
+            PlayingTechniqueKind::Arco => "arco",
+        }
+    }
+
+    fn text_width(&self, text_measurer: &TextMeasurer<'_>) -> Space {
+        if self.hidden {
+            return 0.0;
+        }
+
+        text_measurer
+            .measure(self.display_text(), &Self::text_font())
+            .width
+    }
+
+    fn text_height(&self, text_measurer: &TextMeasurer<'_>) -> Space {
+        if self.hidden {
+            return 0.0;
+        }
+
+        text_measurer
+            .measure(self.display_text(), &Self::text_font())
+            .height
+    }
+
+    pub fn metrics(&self, text_measurer: &TextMeasurer<'_>) -> BoundingBox {
+        if self.hidden {
+            return BoundingBox {
+                width: 0.0,
+                height: 0.0,
+                right_padding: 0.0,
+            };
+        }
+
+        BoundingBox {
+            width: self.text_width(text_measurer),
+            height: self.text_height(text_measurer),
+            right_padding: 0.0,
+        }
+    }
 }
 
 impl Track {
@@ -55,7 +111,6 @@ impl Track {
     }
 }
 
-#[cfg(test)]
 impl Track {
     pub fn get_playing_techniques_at_tick(&self, at: &Tick) -> Vec<&PlayingTechnique> {
         let Some(entry_keys) = self.entries.by_tick.get(at) else {

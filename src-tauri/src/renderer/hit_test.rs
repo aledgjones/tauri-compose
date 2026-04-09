@@ -202,6 +202,35 @@ mod tests {
     }
 
     #[test]
+    fn returns_playing_technique_selection_when_click_is_inside_hit_target() {
+        let mut renderer = make_test_renderer();
+        renderer.hit_targets.push(HitTarget {
+            entry: Selection::PlayingTechnique {
+                flow_id: 4,
+                stave_id: 3,
+                playing_technique_id: 10,
+                tick: 128,
+            },
+            x: 9.0,
+            y: 2.0,
+            width: 3.0,
+            height: 2.0,
+            popover_x: 9.0,
+            popover_y: 1.0,
+        });
+
+        assert_eq!(
+            hit_test_selection(&renderer, 10.5, 3.0, 0.0, 0.0, 100.0),
+            Some(Selection::PlayingTechnique {
+                flow_id: 4,
+                stave_id: 3,
+                playing_technique_id: 10,
+                tick: 128,
+            })
+        );
+    }
+
+    #[test]
     fn returns_tuplet_selection_when_click_is_inside_tuplet_hit_target() {
         let mut renderer = make_test_renderer();
         renderer.hit_targets.push(HitTarget {

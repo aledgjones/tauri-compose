@@ -33,6 +33,7 @@ use draw::draw_key_signature::{draw_key_signature, KeySignatureDrawContext};
 use draw::draw_ledger_lines::draw_ledger_lines;
 use draw::draw_names::draw_names;
 use draw::draw_notehead::draw_notehead;
+use draw::draw_playing_technique::{draw_playing_technique, PLAYING_TECHNIQUE_STAVE_OFFSET};
 use draw::draw_rest::draw_rest;
 use draw::draw_staves::draw_staves;
 use draw::draw_stem::draw_stem;
@@ -897,6 +898,34 @@ fn build_flow_render_segment(
                         stave_top,
                         &mut segment_renderer,
                     )
+                }
+
+                let mut visible_playing_techniques = stave_master
+                    .get_playing_techniques_at_tick(&tick)
+                    .into_iter()
+                    .filter(|playing_technique| !playing_technique.hidden)
+                    .collect::<Vec<_>>();
+
+                visible_playing_techniques.sort_by_key(|playing_technique| playing_technique.id);
+
+                if !visible_playing_techniques.is_empty() {
+                    let span = horizontal_spacing.get(tick, Slot::NoteSpacing);
+
+                    for playing_technique in visible_playing_techniques {
+                        draw_playing_technique(
+                            &Point {
+                                x: stave_left + span.x,
+                                y: stave_top - PLAYING_TECHNIQUE_STAVE_OFFSET,
+                            },
+                            playing_technique,
+                            &text_measurer,
+                            selection,
+                            flow_id,
+                            *stave_id,
+                            stave_top,
+                            &mut segment_renderer,
+                        );
+                    }
                 }
             }
 

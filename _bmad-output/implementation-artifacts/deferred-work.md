@@ -1,8 +1,3 @@
-## Deferred from: one-shot fix of story-6.3-dnd-alignment (2026-04-06)
+## Deferred from: code review of 8-2-render-and-select-playing-technique-markings-above-the-stave.md (2026-04-09)
 
-- Expression-map selected-rule tracking still relies on object identity across a backend/store refresh; after refreshed rule objects arrive, selection can fall back to a stale pre-reorder index and point the editor at the wrong rule.
-- Expression-map ID rekey still leaves the rest of the editor writable while the rekey request is in flight, so follow-up autosaves can race the old and new IDs.
-
-## Deferred from: code review of 6-3-create-one-dedicated-expression-map-editor-window.md (2026-04-06)
-
-- Legacy expression-map library payloads that lack the new nested ids or metadata fields still need a migration path before release; deferred for now because no legacy expression maps exist while the feature remains development-only.
+- Same-tick playing-technique siblings are not individually selectable because coexistence currently reuses one canonical anchor and overlapping hit targets. Deferred for now because this story is proving the concept; proper text collision and coexistence handling will be addressed later as a larger holistic change.

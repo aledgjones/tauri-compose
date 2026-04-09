@@ -18,6 +18,7 @@ vi.mock("../../../services/actions", () => ({
         selectTimeSignature: vi.fn().mockResolvedValue(undefined),
         selectKeySignature: vi.fn().mockResolvedValue(undefined),
         selectClef: vi.fn().mockResolvedValue(undefined),
+        selectPlayingTechnique: vi.fn().mockResolvedValue(undefined),
         selectTuplet: vi.fn().mockResolvedValue(undefined),
         clearSelection: vi.fn().mockResolvedValue(undefined),
       },
@@ -257,6 +258,32 @@ describe("Renderer", () => {
 
     await waitFor(() => {
       expect(actions.ui.sequencer.selectClef).toHaveBeenCalledWith(
+        4,
+        3,
+        10,
+        64,
+      );
+    });
+  });
+
+  it("dispatches playing-technique selection when hit testing resolves a playing-technique target", async () => {
+    vi.mocked(hitTest).mockResolvedValueOnce({
+      type: "PlayingTechnique",
+      flow_id: 4,
+      stave_id: 3,
+      playing_technique_id: 10,
+      tick: 64,
+    });
+
+    const { container } = render(<Renderer />, {
+      wrapper: createWrapper({ appState: createAppState() }),
+    });
+
+    const overlay = container.querySelector('[data-testid="renderer"] > div');
+    fireEvent.pointerDown(overlay!, { clientX: 10, clientY: 10 });
+
+    await waitFor(() => {
+      expect(actions.ui.sequencer.selectPlayingTechnique).toHaveBeenCalledWith(
         4,
         3,
         10,
