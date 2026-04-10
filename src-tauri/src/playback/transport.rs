@@ -1144,7 +1144,11 @@ mod tests {
     use crate::playback::runtime_activation::SingleInstrumentTrustGateBlocker;
     use crate::score::components::articulation::{Articulation, Articulations};
     use crate::score::components::duration::NoteDuration;
-    use crate::score::entries::{tempo::Tempo, Entry};
+    use crate::score::entries::{
+        playing_technique::{PlayingTechnique, PlayingTechniqueKind},
+        tempo::Tempo,
+        Entry,
+    };
     use crate::score::flows::Flow;
     use crate::score::instruments::{defs::InstrumentType, Instrument};
     use crate::score::playback::ResolvedPlaybackRouteStatus;
@@ -1359,6 +1363,54 @@ mod tests {
         }
     }
 
+    fn proof_playing_technique_expression_map_library_state() -> ExpressionMapLibraryState {
+        ExpressionMapLibraryState {
+            order: vec![String::from("bowed-proof")],
+            by_id: FxHashMap::from_iter([(
+                String::from("bowed-proof"),
+                ExpressionMap {
+                    id: String::from("bowed-proof"),
+                    name: String::from("Bowed Technique Proof"),
+                    creator: String::new(),
+                    version: 1,
+                    default_actions: vec![ExpressionMapAction::NoOp {
+                        id: String::from("bowed-default-action"),
+                    }],
+                    rules: vec![
+                        ExpressionMapRule {
+                            id: String::from("pizz-rule"),
+                            name: String::from("Pizz"),
+                            conditions: vec![ExpressionMapCondition::PlayingTechnique {
+                                id: String::from("pizz-condition"),
+                                comparator: ExpressionMapEqualityComparator::Equals,
+                                playing_technique: Some(PlayingTechniqueKind::Pizz),
+                            }],
+                            actions: vec![ExpressionMapAction::KeyswitchNote {
+                                id: String::from("pizz-keyswitch"),
+                                midi_note: 24,
+                                velocity: 96,
+                            }],
+                        },
+                        ExpressionMapRule {
+                            id: String::from("arco-rule"),
+                            name: String::from("Arco"),
+                            conditions: vec![ExpressionMapCondition::PlayingTechnique {
+                                id: String::from("arco-condition"),
+                                comparator: ExpressionMapEqualityComparator::Equals,
+                                playing_technique: Some(PlayingTechniqueKind::Arco),
+                            }],
+                            actions: vec![ExpressionMapAction::KeyswitchNote {
+                                id: String::from("arco-keyswitch"),
+                                midi_note: 25,
+                                velocity: 96,
+                            }],
+                        },
+                    ],
+                },
+            )]),
+        }
+    }
+
     fn add_flow_with_tempos(
         score: &mut Score,
         flow_id: UniqueId,
@@ -1489,6 +1541,17 @@ mod tests {
             .expect("route assignment should succeed");
 
         (score, flow_id)
+    }
+
+    fn insert_playing_technique(
+        track: &mut Track,
+        id: UniqueId,
+        tick: Tick,
+        kind: PlayingTechniqueKind,
+    ) {
+        track.insert_entry(Entry::PlayingTechnique(PlayingTechnique::new(
+            id, tick, kind,
+        )));
     }
 
     fn make_flow_score_with_track_and_tempos(
@@ -2288,6 +2351,153 @@ mod tests {
         assert_eq!(tick_events[0].events[0].velocity, 96);
         assert_eq!(tick_events[0].events[1].pitch, 60);
         assert_eq!(tick_events[0].events[1].duration_frames, 6_000);
+    }
+
+    #[test]
+    fn transport_events_for_tick_emit_pizz_keyswitch_from_prepared_playing_technique_context() {
+        let mut track = Track::new(50);
+        track
+            .create_tone(80, 96, 16, 60, None, 96, Default::default(), None)
+            .unwrap();
+
+        let (mut score, flow_id) = make_flow_score_with_track(track);
+        let master_id = score.flows.by_id.get(&flow_id).unwrap().master_id;
+        insert_playing_technique(
+            score.tracks.by_id.get_mut(&master_id).unwrap(),
+            200,
+            96,
+            PlayingTechniqueKind::Pizz,
+        );
+        score
+            .instruments
+            .by_id
+            .get_mut(&4)
+            .unwrap()
+            .playback_route
+            .as_mut()
+            .unwrap()
+            .expression_map_id = Some(String::from("bowed-proof"));
+
+        let app_ctx = make_app_context(score, Some(flow_id));
+        let expression_maps = proof_playing_technique_expression_map_library_state();
+        let (snapshot, _) = build_supported_playback_snapshot_with_expression_maps(
+            &app_ctx,
+            96,
+            &expression_maps,
+            48_000,
+        )
+        .expect("expected snapshot");
+
+        let tick_events = transport_events_for_tick(&snapshot, 96, 48_000, 120.0, 0);
+
+        assert_eq!(tick_events.len(), 1);
+        assert_eq!(tick_events[0].slot_id, 6);
+        assert_eq!(tick_events[0].events.len(), 2);
+        assert_eq!(tick_events[0].events[0].pitch, 24);
+        assert_eq!(tick_events[0].events[0].velocity, 96);
+        assert_eq!(tick_events[0].events[1].pitch, 60);
+    }
+
+    #[test]
+    fn transport_events_for_tick_switch_playing_technique_rules_from_pizz_to_arco_on_marking_tick()
+    {
+        let mut track = Track::new(50);
+        track
+            .create_tone(80, 96, 16, 60, None, 96, Default::default(), None)
+            .unwrap();
+        track
+            .create_tone(81, 128, 16, 62, None, 96, Default::default(), None)
+            .unwrap();
+        track
+            .create_tone(82, 144, 16, 64, None, 96, Default::default(), None)
+            .unwrap();
+
+        let (mut score, flow_id) = make_flow_score_with_track(track);
+        let master_id = score.flows.by_id.get(&flow_id).unwrap().master_id;
+        let master_track = score.tracks.by_id.get_mut(&master_id).unwrap();
+        insert_playing_technique(master_track, 200, 96, PlayingTechniqueKind::Pizz);
+        insert_playing_technique(master_track, 201, 128, PlayingTechniqueKind::Arco);
+        score
+            .instruments
+            .by_id
+            .get_mut(&4)
+            .unwrap()
+            .playback_route
+            .as_mut()
+            .unwrap()
+            .expression_map_id = Some(String::from("bowed-proof"));
+
+        let app_ctx = make_app_context(score, Some(flow_id));
+        let expression_maps = proof_playing_technique_expression_map_library_state();
+        let (snapshot, _) = build_supported_playback_snapshot_with_expression_maps(
+            &app_ctx,
+            96,
+            &expression_maps,
+            48_000,
+        )
+        .expect("expected snapshot");
+
+        let pizz_events = transport_events_for_tick(&snapshot, 96, 48_000, 120.0, 0);
+        assert_eq!(pizz_events.len(), 1);
+        assert_eq!(pizz_events[0].events.len(), 2);
+        assert_eq!(pizz_events[0].events[0].pitch, 24);
+        assert_eq!(pizz_events[0].events[1].pitch, 60);
+
+        let arco_events = transport_events_for_tick(&snapshot, 128, 48_000, 120.0, 0);
+        assert_eq!(arco_events.len(), 1);
+        assert_eq!(arco_events[0].events.len(), 2);
+        assert_eq!(arco_events[0].events[0].pitch, 25);
+        assert_eq!(arco_events[0].events[1].pitch, 62);
+
+        let later_events = transport_events_for_tick(&snapshot, 144, 48_000, 120.0, 0);
+        assert_eq!(later_events.len(), 1);
+        assert_eq!(later_events[0].events.len(), 2);
+        assert_eq!(later_events[0].events[0].pitch, 25);
+        assert_eq!(later_events[0].events[1].pitch, 64);
+    }
+
+    #[test]
+    fn transport_events_for_tick_preserve_plugin_default_path_before_first_playing_technique_marking(
+    ) {
+        let mut track = Track::new(50);
+        track
+            .create_tone(80, 64, 16, 60, None, 96, Default::default(), None)
+            .unwrap();
+
+        let (mut score, flow_id) = make_flow_score_with_track(track);
+        let master_id = score.flows.by_id.get(&flow_id).unwrap().master_id;
+        insert_playing_technique(
+            score.tracks.by_id.get_mut(&master_id).unwrap(),
+            200,
+            96,
+            PlayingTechniqueKind::Pizz,
+        );
+        score
+            .instruments
+            .by_id
+            .get_mut(&4)
+            .unwrap()
+            .playback_route
+            .as_mut()
+            .unwrap()
+            .expression_map_id = Some(String::from("bowed-proof"));
+
+        let app_ctx = make_app_context(score, Some(flow_id));
+        let expression_maps = proof_playing_technique_expression_map_library_state();
+        let (snapshot, _) = build_supported_playback_snapshot_with_expression_maps(
+            &app_ctx,
+            64,
+            &expression_maps,
+            48_000,
+        )
+        .expect("expected snapshot");
+
+        let tick_events = transport_events_for_tick(&snapshot, 64, 48_000, 120.0, 0);
+
+        assert_eq!(tick_events.len(), 1);
+        assert_eq!(tick_events[0].events.len(), 1);
+        assert_eq!(tick_events[0].events[0].pitch, 60);
+        assert_eq!(tick_events[0].events[0].duration_frames, 12_000);
     }
 
     #[test]
@@ -3752,27 +3962,39 @@ mod tests {
     }
 
     #[test]
-    fn collect_scheduled_notes_from_prepared_events_no_longer_reads_master_tracks() {
+    fn collect_scheduled_notes_from_prepared_events_keep_prepared_playing_technique_context_after_master_track_removal(
+    ) {
         let mut track = Track::new(50);
         track
             .create_tone(80, 96, 16, 60, None, 96, Default::default(), None)
             .unwrap();
 
         let (mut score, flow_id) = make_flow_score_with_track(track);
+        let master_id = score.flows.by_id.get(&flow_id).unwrap().master_id;
+        score.tracks.by_id.get_mut(&master_id).unwrap();
+        insert_playing_technique(
+            score.tracks.by_id.get_mut(&master_id).unwrap(),
+            200,
+            96,
+            PlayingTechniqueKind::Pizz,
+        );
         score
-            .tracks
+            .instruments
             .by_id
-            .get_mut(&2)
+            .get_mut(&4)
             .unwrap()
-            .insert_entry(Entry::PlayingTechnique(
-                crate::score::entries::playing_technique::PlayingTechnique::new(
-                    200,
-                    96,
-                    crate::score::entries::playing_technique::PlayingTechniqueKind::Pizz,
-                ),
-            ));
+            .playback_route
+            .as_mut()
+            .unwrap()
+            .expression_map_id = Some(String::from("bowed-proof"));
 
-        let preparation = make_playback_preparation_for_score(&score, 48_000);
+        let expression_maps = proof_playing_technique_expression_map_library_state();
+        let preparation = prepare_supported_playback_with_expression_maps(
+            &score,
+            &make_playback_runtime_for_score(&score),
+            &expression_maps,
+            48_000,
+        );
         let prepared_note_events =
             crate::playback::preparation::prepare_supported_note_events_for_flow(
                 &score,
@@ -3780,23 +4002,26 @@ mod tests {
                 &preparation,
             );
 
-        score.tracks.by_id.remove(&2);
+        score.tracks.by_id.remove(&master_id);
 
         let scheduled =
             collect_scheduled_notes_from_prepared_events(&preparation, &prepared_note_events);
+        let scheduled_notes = scheduled
+            .get(&96)
+            .expect("expected scheduled note bucket after removing master track");
 
         assert_eq!(
             flatten_scheduled_starts(&scheduled),
             vec![PlaybackTick::from_tick(96)]
         );
+        assert_eq!(scheduled_notes.len(), 1);
+        assert_eq!(scheduled_notes[0].pitch, 60);
         assert_eq!(
-            scheduled
-                .get(&96)
-                .expect("expected scheduled note bucket")
-                .iter()
-                .map(|note| note.pitch)
-                .collect::<Vec<_>>(),
-            vec![60]
+            scheduled_notes[0].keyswitches,
+            vec![ScheduledKeyswitch {
+                pitch: 24,
+                velocity: 96,
+            }]
         );
     }
 }

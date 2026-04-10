@@ -595,6 +595,54 @@ mod tests {
         }
     }
 
+    fn expression_map_library_with_bowed_map() -> ExpressionMapLibraryState {
+        ExpressionMapLibraryState {
+            order: vec![String::from("bowed-map")],
+            by_id: FxHashMap::from_iter([(
+                String::from("bowed-map"),
+                ExpressionMap {
+                    id: String::from("bowed-map"),
+                    name: String::from("Bowed Map"),
+                    creator: String::new(),
+                    version: 1,
+                    default_actions: vec![ExpressionMapAction::NoOp {
+                        id: String::from("default-action"),
+                    }],
+                    rules: vec![
+                        ExpressionMapRule {
+                            id: String::from("pizz-rule"),
+                            name: String::from("Pizz"),
+                            conditions: vec![ExpressionMapCondition::PlayingTechnique {
+                                id: String::from("pizz-condition"),
+                                comparator: ExpressionMapEqualityComparator::Equals,
+                                playing_technique: Some(PlayingTechniqueKind::Pizz),
+                            }],
+                            actions: vec![ExpressionMapAction::KeyswitchNote {
+                                id: String::from("pizz-action"),
+                                midi_note: 24,
+                                velocity: 96,
+                            }],
+                        },
+                        ExpressionMapRule {
+                            id: String::from("arco-rule"),
+                            name: String::from("Arco"),
+                            conditions: vec![ExpressionMapCondition::PlayingTechnique {
+                                id: String::from("arco-condition"),
+                                comparator: ExpressionMapEqualityComparator::Equals,
+                                playing_technique: Some(PlayingTechniqueKind::Arco),
+                            }],
+                            actions: vec![ExpressionMapAction::KeyswitchNote {
+                                id: String::from("arco-action"),
+                                midi_note: 25,
+                                velocity: 96,
+                            }],
+                        },
+                    ],
+                },
+            )]),
+        }
+    }
+
     #[test]
     fn prepare_supported_playback_returns_single_ready_target_and_sample_rate() {
         let inventory = PluginInventoryContext::with_entries_for_tests(vec![available_entry(
@@ -1244,6 +1292,87 @@ mod tests {
             vec![ExpressionMapAction::KeyswitchNote {
                 id: String::from("pizz-action"),
                 midi_note: 24,
+                velocity: 96,
+            }]
+        );
+    }
+
+    #[test]
+    fn prepared_playing_technique_context_switches_bowed_expression_map_rules_on_arco_tick() {
+        let inventory = PluginInventoryContext::with_entries_for_tests(vec![available_entry(
+            "plugin-a",
+            "/Library/Audio/Plug-Ins/VST3/Plugin A.vst3",
+        )]);
+        let mut note_track = Track::new(30);
+        note_track
+            .create_tone(300, 96, 16, 60, None, 96, Default::default(), None)
+            .unwrap();
+        note_track
+            .create_tone(301, 128, 16, 62, None, 96, Default::default(), None)
+            .unwrap();
+
+        let mut master_track = Track::new(31);
+        insert_playing_technique(&mut master_track, 200, 96, PlayingTechniqueKind::Pizz);
+        insert_playing_technique(&mut master_track, 201, 128, PlayingTechniqueKind::Arco);
+
+        let (mut score, flow_id) = make_flow_score_with_track_and_master(note_track, master_track);
+        score
+            .instruments
+            .by_id
+            .get_mut(&10)
+            .unwrap()
+            .playback_route
+            .as_mut()
+            .unwrap()
+            .expression_map_id = Some(String::from("bowed-map"));
+
+        let runtime = PlaybackActivationRuntime::from_score_and_inventory(&score, &inventory);
+        let expression_maps = expression_map_library_with_bowed_map();
+        let preparation = prepare_supported_playback_with_expression_maps(
+            &score,
+            &runtime,
+            &expression_maps,
+            48_000,
+        );
+        let prepared_events = prepare_supported_note_events_for_flow(&score, flow_id, &preparation);
+        let note_events = prepared_events
+            .get(&10)
+            .expect("expected prepared note events for instrument 10");
+        let expression_map = preparation
+            .supported_target_for_instrument(10)
+            .and_then(|target| target.expression_map.as_ref())
+            .expect("expected linked expression map");
+
+        let resolved_pizz =
+            resolve_expression_map_playback(expression_map, &note_events[0].expression_map_context);
+        let resolved_arco =
+            resolve_expression_map_playback(expression_map, &note_events[1].expression_map_context);
+
+        assert_eq!(
+            resolved_pizz.source,
+            ResolvedExpressionMapPlaybackSource::Rule {
+                id: String::from("pizz-rule"),
+            }
+        );
+        assert_eq!(
+            resolved_pizz.actions,
+            vec![ExpressionMapAction::KeyswitchNote {
+                id: String::from("pizz-action"),
+                midi_note: 24,
+                velocity: 96,
+            }]
+        );
+        assert_eq!(
+            resolved_arco.source,
+            ResolvedExpressionMapPlaybackSource::Rule {
+                id: String::from("arco-rule"),
+            }
+        );
+        assert_eq!(
+            resolved_arco.actions,
+            vec![ExpressionMapAction::KeyswitchNote {
+                id: String::from("arco-action"),
+                midi_note: 25,
                 velocity: 96,
             }]
         );

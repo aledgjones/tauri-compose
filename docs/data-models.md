@@ -158,6 +158,8 @@ Story 8.4 establishes the first derived semantic layer for this entry family. `P
 
 That derived context is preparation-owned rather than transport-owned. `PlaybackToneEvent` now carries one prepared `ExpressionMapPlaybackContext` containing articulations, written duration, and the effective playing-technique context for the note start tick, so later expression-map stories can consume note-time meaning without reconstructing cancellation logic from raw score entries.
 
+Story 8.6 proves that the prepared payload now reaches the audible routed-transport path unchanged. Transport consumes `PlaybackToneEvent.expression_map_context` through scheduled-note preparation instead of re-deriving technique state from score tracks, so a linked Expression Map can hold a `pizz` rule until a later `arco` marking and switch immediately for notes that start on the `arco` tick. That shipped audible proof remains intentionally bounded to the bowed `pizz` or `arco` exclusive-group MVP case.
+
 No migration step is needed for Story 8.4 because it does not add a persisted field or a new `Entry` variant. Older released `.soloc` payloads continue to load through the existing typed project-file path unchanged.
 
 #### Tempo
