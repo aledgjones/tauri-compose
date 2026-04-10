@@ -1,6 +1,6 @@
 # Story 8.6: Prove Technique-Driven Playback Through Derived Context
 
-Status: review
+Status: done
 
 ## Story
 
@@ -236,3 +236,4 @@ GPT-5.4
 
 - 2026-04-09: Created Story 8.6 implementation context and updated sprint tracking to ready-for-dev.
 - 2026-04-09: Added bounded technique-driven transport and preparation proof coverage, documented the shipped routed playback proof, ran full validation, and moved the story to review.
+- 2026-04-10: Closed review and marked the story done after final artifact sync.
