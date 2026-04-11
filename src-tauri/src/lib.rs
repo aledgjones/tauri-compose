@@ -19,7 +19,10 @@ use crate::playback::expression_maps::{
     ExpressionMap, ExpressionMapLibraryContext, ExpressionMapLibraryContextState,
     ExpressionMapLibraryState,
 };
-use crate::playback::plugin_editor_poc::{plugin_editor_poc_open, sync_slot_runtime_sessions};
+use crate::playback::plugin_editor_poc::{
+    plugin_editor_poc_open, plugin_editor_poc_prepare_probe_log, plugin_editor_poc_probe_load_init,
+    plugin_editor_poc_read_probe_log, sync_slot_runtime_sessions,
+};
 use crate::playback::plugin_inventory::{
     plugin_inventory_discover, PluginInventoryContext, PluginInventoryContextState,
 };
@@ -1228,6 +1231,9 @@ pub fn run() {
             audio_devices_refresh,
             plugin_inventory_discover,
             plugin_editor_poc_open,
+            plugin_editor_poc_prepare_probe_log,
+            plugin_editor_poc_probe_load_init,
+            plugin_editor_poc_read_probe_log,
             playback_audition_tone,
             transport_play,
             transport_pause,

@@ -536,6 +536,10 @@ pub struct PlaybackActivationRuntime {
 
 The backend also emits per-slot `PlaybackRouteChoice` lists through `route_target_options_by_slot_id` on `soloc://state/general`. Sequence must consume that Rust-owned contract when offering route targets; if Rust can only prove the direct plugin output for a slot, React must expose only that direct choice and must not invent speculative part or MIDI-channel options. Separate plugin-assignment pickers remain bounded to plugins whose inventory entries are both `availability === "available"` and not `editor_host_validation.status === "blocked"`.
 
+Machine-local plugin inventory entries may also carry optional maintainer-only load/init evidence on `editor_host_validation.maintainer_load_init_probe`. That nested payload records the investigation status (`blocked_by_host_contract`, `blocked_by_plugin_failure`, or `load_init_safe`), the last successful phase, the first failing phase and raw message, and the ordered per-phase results. It remains backend-owned diagnostic truth only: it does not alter direct-root route-choice behavior or `.soloc` persistence by itself.
+
+The maintainer-facing `plugin_editor_poc_prepare_probe_log` and `plugin_editor_poc_read_probe_log` commands return a separate backend-owned `PluginEditorPocProbeLog` snapshot with `path`, `contents`, and optional `crash_hint`. That hint is derived from the persisted probe log only when the last recorded phase entry is still `status=starting`, so the debugger can surface likely hard-abort context without inventing its own failure-phase interpretation.
+
 ```rust
 pub struct ResolvedPlaybackRoute {
     pub status: ResolvedPlaybackRouteStatus,   // Unrouted | Ready | NeedsAttention

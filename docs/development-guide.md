@@ -193,6 +193,62 @@ What the current bounded handoff does:
 
 The supported user-facing entry point for this bounded handoff is the Sequence score-context rack action on a prepared slot. Keep that handoff distinct from the canonical Sequence-menu `Plugin Manager...` inventory window, and do not treat the native editor seam as the default answer to assignment, playback, or routine plugin troubleshooting workflows.
 
+### Maintainer load/init probe
+
+Story 9.1 adds a maintainer-only diagnostic command that reuses the same backend-owned host build and editor-attach order, but bypasses the ordinary blocked-target gate for investigation only.
+
+The preferred workflow is now the Debugger window panel, which can target either a discovered inventory plugin or an explicit bundle path, prepares the persisted backend probe log before invoking the risky host probe, and renders both the returned validation payload and the last saved log snapshot.
+
+If you need to script it directly, the same backend command is still available:
+
+```ts
+import { invoke } from "@tauri-apps/api/core";
+
+const probe = await invoke("plugin_editor_poc_probe_load_init", {
+  plugin_path: "/Library/Audio/Plug-Ins/VST3/Steinberg/HALion Sonic.vst3",
+});
+```
+
+You can also pass an inventory-backed `plugin_id` instead of `plugin_path`. The command updates the machine-local inventory entry's `editor_host_validation` payload and returns the same validation object.
+
+If you want a durable breadcrumb before the risky host call starts, `plugin_editor_poc_prepare_probe_log` resolves the target, resets the persisted log, and returns the exact on-disk log path plus current contents. The debugger now calls this preflight automatically before `plugin_editor_poc_probe_load_init`.
+
+The backend also writes a persisted log before each risky maintainer probe phase and keeps appending phase transitions as the probe advances. Reopen the Debugger window after a crash to inspect that saved log and its exact file path, or fetch the same path-plus-contents snapshot programmatically with `plugin_editor_poc_read_probe_log`.
+
+Both probe-log commands now also return an optional backend-derived `crash_hint` when the last persisted phase entry is still `status=starting`. The debugger uses that field to show a maintainer warning such as a likely hard crash during `controller_initialize` without re-deriving phase truth in React.
+
+The maintainer probe now also supports multiple controller-init profiles through the Debugger window:
+
+- `default`: preserves the current bounded host contract for comparison.
+- `controller_init_host_only_lifecycle_aligned`: keeps the normal full host context for factory and component setup, but passes a pure `IHostApplication` context into `controller.initialize()`. For the empty Steinberg wrapper-marker probes it still reports `kNoInterface`, but now returns a balanced non-null `FUnknown` fallback object so the experiment can distinguish a null-release crash from a broader host-surface requirement.
+
+Earlier maintainer-only controller-init profile permutations were retired after repeated HALion reruns left the failure boundary at `controller_initialize`. The remaining non-default profile keeps the debugger focused on the current blind spot: what HALion queries from a host-only init-time context.
+
+Use the non-default profile only for investigation. It must not change ordinary blocked posture, ordinary editor-open behavior, or the product support claim until a later change deliberately promotes a proved-safe fix.
+
+During the active maintainer probe, the backend now also logs host callbacks such as `IHostApplication::getName`, `IHostApplication::createInstance`, and direct `FUnknown::queryInterface` requests to the same persisted log and `MAINTAINER_PROBE` stderr stream. Recognized Steinberg interfaces are logged by name, and unmapped requests now fall back to raw IID hex such as `unknown_interface(70A4156F-6E6E4026-989148BF-AA60D8D1)`. That gives the next HALion run a way to show whether the controller is touching a standard host seam we missed or a private extension before the crash.
+
+The first resolved HALion-only unknown IIDs were `IVst3ToVst2Wrapper`, `IVst3ToAAXWrapper`, and `IVst3ToAUWrapper`. Those look like Steinberg wrapper-detection probes rather than ordinary native-VST3 host services. The current host-only maintainer profile still reports `kNoInterface` for them, but it now hands back a balanced non-null `FUnknown` fallback object because HALion may be releasing the returned COM object without trusting the result code. That fallback is investigation-only and must not be treated as proof that Compose implements any real wrapper environment.
+
+After HALion proved that it reaches `IHostApplication::getName` during `controller_initialize`, the next bounded maintainer profile removes even `IPlugInterfaceSupport` from the init-time context. The Rust `vst3` binding aliases `kResultTrue` to `kResultOk`, so changing only the `getName` success code would not materially change host behavior.
+
+Those same maintainer probe events are now mirrored directly to the Rust process stderr with a `MAINTAINER_PROBE` prefix and an explicit flush on every event. When running `npm run start:dev`, watch the terminal for lines such as `[MAINTAINER_PROBE][timestamp][phase][status] ...` during the crashy path.
+
+The maintainer-facing nested payload is `editor_host_validation.maintainer_load_init_probe`. It records:
+
+- `status`: `blocked_by_host_contract`, `blocked_by_plugin_failure`, or `load_init_safe`
+- `last_successful_phase`
+- `first_failing_phase`
+- `first_failing_message`
+- ordered `phase_results`
+
+Use the probe with these rules:
+
+- If the result is not `load_init_safe`, stop there. Do not start capability probing, route-choice experiments, or shared-slot work.
+- If the result is `load_init_safe`, ordinary product support posture is still unchanged until a later Epic 9 story proves plugin-derived capability and explicitly updates the support claim.
+- Keep HALion-family bundles as the multi-instrument reference case. `BBC Symphony Orchestra.vst3` remains part of the existing single-target control matrix, not multi-instrument proof.
+- Treat the stored result as machine-local maintainer evidence only. Do not write it into `.soloc` files or surface it as a user-facing support claim.
+
 Plugin inventory startup behavior:
 
 - Compose persists the machine-local VST3 inventory under the app config directory and reuses that cache on startup so known plugins are visible immediately.

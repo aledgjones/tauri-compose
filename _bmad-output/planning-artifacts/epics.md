@@ -8,13 +8,14 @@ inputDocuments:
   - "/Users/aledjones/compose/_bmad-output/planning-artifacts/architecture.md"
   - "/Users/aledjones/compose/_bmad-output/planning-artifacts/ux-design-specification.md"
   - "/Users/aledjones/compose/_bmad-output/planning-artifacts/sprint-change-proposal-2026-03-24.md"
+  - "/Users/aledjones/compose/_bmad-output/implementation-artifacts/tech-spec-investigate-multi-instrument-vst-support-with-halion.md"
 ---
 
 # compose - Epic Breakdown
 
 ## Overview
 
-This document provides the complete epic and story breakdown scaffold for compose, decomposing the requirements from the PRD, UX Design, Architecture, and the approved 2026-03-24 sprint course correction into implementable stories.
+This document provides the complete epic and story breakdown scaffold for compose, decomposing the requirements from the PRD, UX Design, Architecture, the approved 2026-03-24 sprint course correction, and the 2026-04-10 HALion / multi-instrument expansion research into implementable stories.
 
 ## Requirements Inventory
 
@@ -216,6 +217,16 @@ Composers can use an initial durable expression-map model to make playback more 
 
 Maintainers can validate discovery, plugin-host behavior, transport trust, and representative plugin-library coverage so the supported VST subset is explicit and shippable.
 **FRs covered:** FR6, FR17, FR37, FR38, FR39, FR40
+
+### Epic 8: Derive Playback From Score-Level Playing Techniques
+
+Composers can author playing-technique markings in the score, and Compose derives exclusive-group-aware technique context for notes so expression maps can drive more realistic playback from score meaning rather than note-local properties alone.
+**Expansion scope:** Score-authored playing-technique semantics and derived playback context.
+
+### Epic 9: Investigate Bounded Multi-Instrument Plugin Support
+
+Maintainers can investigate whether HALion-style multi-instrument support is even viable in the current architecture without changing the current MVP support claim.
+**Scope note:** Investigation-only follow-up to the deferred expansion path already acknowledged in the PRD and support baseline.
 
 ## Epic 1: Trust One VST-Only Playback Foundation
 
@@ -1199,3 +1210,99 @@ So that score-authored technique intent can drive realistic sample selection bey
 **When** the first playing-technique-driven playback proof is delivered
 **Then** the system derives the audible result from score-authored technique markings plus the user-authored expression map
 **And** it does not require users to manually author hidden playback-state regions outside the score model or separately manage exclusive-group playback logic themselves
+
+## Epic 9: Harden The VST Host Boundary For Single- And Multi-Timbral Instruments
+
+Compose preserves the proven single-instrument VST path while hardening the backend-owned VST3 host seam toward richer instrument types, using HALion-class failures as the reference case and prior-art host patterns as the design baseline. The epic does not broaden the current MVP support claim, change direct-root product behavior, or promise shared-slot workflows until hardened host-core evidence proves it is safe to do so.
+
+### Story 9.1: Classify Reference Multi-Instrument Plugin Load And Initialization Failures
+
+As a maintainer,
+I want Compose to record the first failing phase when a reference multi-instrument plugin is loaded,
+So that we can distinguish blocked host-contract work from plugin-side failure before claiming advanced support.
+
+**Acceptance Criteria:**
+
+**Given** a maintainer runs a reference multi-instrument plugin through the bounded diagnostic path
+**When** the probe executes
+**Then** Compose records phase-specific results for module load, factory resolution, component creation, controller creation and initialization, connection-point setup, and view creation or attach
+**And** the first failing phase is preserved instead of being collapsed into a generic blocked verdict
+
+**Given** a reference plugin fails or crashes before a bounded non-crashing load or initialization state is reached
+**When** normal product support posture or route choices are computed
+**Then** the plugin remains blocked in ordinary user-facing flows
+**And** Compose does not claim multi-instrument capability for that plugin
+
+**Given** the diagnostic result changes the repo's understanding of support posture
+**When** the investigation output is recorded
+**Then** the support baseline and developer-facing docs are updated in the same change
+**And** the blocked reason remains explicit about whether the first failure appears host-contract-related or plugin-side
+
+### Story 9.2: Extract A Stable Backend-Owned VST3 Host Core From The POC
+
+As a maintainer,
+I want the lifecycle-critical VST3 host logic extracted into a stable backend-owned seam,
+So that Compose can preserve the working single-instrument path while making HALion-class initialization failures fixable through one truthful host core.
+
+**Acceptance Criteria:**
+
+**Given** lifecycle-critical host logic currently lives mostly inside the bounded native host proof-of-concept
+**When** Story 9.2 completes
+**Then** Compose exposes a clearer backend-owned VST3 host-core seam for factory host context, component and controller setup, handler timing, connection-point wiring, view ownership, and deterministic teardown
+**And** maintainer-only diagnostic paths consume that seam instead of remaining the sole owner of lifecycle truth
+
+**Given** the single-instrument baseline is already proven and current blocked bundles remain blocked in ordinary flows
+**When** the host core is extracted
+**Then** the existing supported single-instrument editor-host and playback-adjacent behavior stays stable
+**And** blocked-bundle policy, direct-root route emission, and unsupported non-root activation remain unchanged in ordinary product behavior
+
+**Given** the extraction is grounded in Steinberg, JUCE, Ardour, and Carla prior art plus the completed HALion research
+**When** the story is documented and reviewed
+**Then** the implementation explicitly cites those host patterns as the rationale for the new seam
+**And** obsolete probe-only branches or dead-end controller-init variants are retired or clearly isolated if they no longer contribute to the hardened path
+
+### Story 9.3: Add A Scanner-Style Compatibility Lane And Regression Cohort
+
+As a maintainer,
+I want a scanner-style compatibility lane around the hardened host core,
+So that Compose can classify richer plugin lifecycle behavior outside the main interactive runtime and keep a trustworthy control matrix for both working and failing bundles.
+
+**Acceptance Criteria:**
+
+**Given** the hardened host core exists
+**When** the compatibility lane runs
+**Then** it can exercise staged lifecycle checks without depending on the normal editor-open flow
+**And** it records bounded results suitable for maintainer diagnosis and regression testing
+
+**Given** Compose already has a working single-instrument control path and a failing HALion-class reference case
+**When** the compatibility cohort is defined
+**Then** it includes at least one currently supported single-instrument control bundle and one currently failing HALion-class bundle
+**And** their results remain clearly separated from shipping support claims
+
+**Given** the scanner-style lane changes maintainer workflow or host diagnostics materially
+**When** the story completes
+**Then** the relevant maintainer docs are updated in the same change
+**And** current user-facing support posture remains unchanged unless later evidence explicitly broadens it
+
+### Story 9.4: Advance HALion-Class Initialization Through The Hardened Host Core
+
+As a maintainer,
+I want HALion-class initialization rerun against the hardened host core,
+So that Compose can determine whether the failure boundary moves, reaches a bounded non-crashing state, or remains blocked for a now narrower and better-instrumented reason.
+
+**Acceptance Criteria:**
+
+**Given** the hardened host core and compatibility lane exist
+**When** HALion Sonic and the selected control cohort are rerun through the new seam
+**Then** Compose records whether the first failing phase changes, whether initialization reaches a bounded safe state, or whether the plugin remains blocked at the same host-contract boundary
+**And** the results are comparable against the earlier Story 9.1 investigation evidence
+
+**Given** HALion-class behavior remains blocked after the hardened rerun
+**When** the result is documented
+**Then** the repo records the narrower remaining blocker precisely enough to guide the next fix
+**And** ordinary product posture remains blocked without implying multi-timbral support exists
+
+**Given** the hardened rerun does reach a bounded non-crashing load or initialization state
+**When** the outcome is published
+**Then** Compose may update maintainer-facing status to reflect `load_init_safe` evidence
+**And** route-choice, `PluginPart`, `MidiChannel`, shared-slot, and UX expansion remain out of scope until later plugin-derived capability proof exists

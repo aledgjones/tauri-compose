@@ -4,7 +4,9 @@ use crate::playback::engine::{set_slot_editor_render_active, LiveRenderEvent};
 use crate::playback::plugin_host_compatibility::bounded_editor_host_unsupported_reason;
 use crate::playback::plugin_inventory::{
     blocked_editor_host_validation, PluginCapabilityEvidence, PluginCapabilityEvidenceStatus,
-    PluginEditorHostValidation, PluginEditorHostValidationPhase, PluginEditorHostValidationStatus,
+    PluginEditorHostLoadInitProbe, PluginEditorHostLoadInitProbeStatus, PluginEditorHostValidation,
+    PluginEditorHostValidationPhase, PluginEditorHostValidationPhaseResult,
+    PluginEditorHostValidationPhaseResultStatus, PluginEditorHostValidationStatus,
 };
 use crate::playback::runtime_activation::ActivatedSlotTarget;
 use crate::playback::vst3::{
@@ -16,14 +18,291 @@ use crate::score::Score;
 use crate::utils::UniqueId;
 use crate::{AppContextState, ManagedPluginInventoryContextState};
 use rustc_hash::FxHashMap;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
+use std::cell::RefCell;
 use std::fmt;
+use std::fs::{self, OpenOptions};
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
+use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Manager, State};
 
 const WINDOW_LABEL: &str = "plugin-host-poc";
 const PLUGIN_PATH_ENV: &str = "SOLOC_PLUGIN_EDITOR_POC_VST3_PATH";
+const MAINTAINER_LOAD_INIT_PROBE_LOG_FILE: &str = "plugin-editor-poc-load-init-probe.log";
+
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PluginEditorPocProbeProfile {
+    #[default]
+    Default,
+    ControllerInitHostOnlyLifecycleAligned,
+}
+
+fn current_timestamp_ms() -> u128 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis()
+}
+
+fn normalize_probe_log_message(message: &str) -> String {
+    message.replace("\r\n", "\\n").replace('\n', "\\n")
+}
+
+fn probe_profile_code(profile: PluginEditorPocProbeProfile) -> &'static str {
+    match profile {
+        PluginEditorPocProbeProfile::Default => "default",
+        PluginEditorPocProbeProfile::ControllerInitHostOnlyLifecycleAligned => {
+            "controller_init_host_only_lifecycle_aligned"
+        }
+    }
+}
+
+fn parse_probe_profile_code(value: &str) -> Option<PluginEditorPocProbeProfile> {
+    match value {
+        "default" => Some(PluginEditorPocProbeProfile::Default),
+        "controller_init_host_only_lifecycle_aligned" => {
+            Some(PluginEditorPocProbeProfile::ControllerInitHostOnlyLifecycleAligned)
+        }
+        _ => None,
+    }
+}
+
+fn probe_profile_defers_component_handler(profile: PluginEditorPocProbeProfile) -> bool {
+    matches!(
+        profile,
+        PluginEditorPocProbeProfile::ControllerInitHostOnlyLifecycleAligned
+    )
+}
+
+fn probe_profile_delays_component_runtime_setup(profile: PluginEditorPocProbeProfile) -> bool {
+    matches!(
+        profile,
+        PluginEditorPocProbeProfile::ControllerInitHostOnlyLifecycleAligned
+    )
+}
+
+thread_local! {
+    static ACTIVE_MAINTAINER_PROBE_CALLBACK_LOG: RefCell<Option<MaintainerProbeLog>> = const { RefCell::new(None) };
+    static ACTIVE_MAINTAINER_PROBE_CALLBACK_PHASE: RefCell<Option<PluginEditorHostValidationPhase>> = const { RefCell::new(None) };
+}
+
+struct ActiveMaintainerProbeCallbackScope;
+
+impl ActiveMaintainerProbeCallbackScope {
+    fn install(probe_log: MaintainerProbeLog) -> Self {
+        ACTIVE_MAINTAINER_PROBE_CALLBACK_LOG.with(|active_log| {
+            *active_log.borrow_mut() = Some(probe_log);
+        });
+        ACTIVE_MAINTAINER_PROBE_CALLBACK_PHASE.with(|active_phase| {
+            *active_phase.borrow_mut() = None;
+        });
+
+        Self
+    }
+}
+
+impl Drop for ActiveMaintainerProbeCallbackScope {
+    fn drop(&mut self) {
+        ACTIVE_MAINTAINER_PROBE_CALLBACK_PHASE.with(|active_phase| {
+            *active_phase.borrow_mut() = None;
+        });
+        ACTIVE_MAINTAINER_PROBE_CALLBACK_LOG.with(|active_log| {
+            *active_log.borrow_mut() = None;
+        });
+    }
+}
+
+fn set_active_probe_callback_phase(phase: Option<PluginEditorHostValidationPhase>) {
+    ACTIVE_MAINTAINER_PROBE_CALLBACK_PHASE.with(|active_phase| {
+        *active_phase.borrow_mut() = phase;
+    });
+}
+
+fn log_active_probe_host_callback(message: &str) {
+    let probe_log =
+        ACTIVE_MAINTAINER_PROBE_CALLBACK_LOG.with(|active_log| active_log.borrow().clone());
+    let Some(probe_log) = probe_log else {
+        return;
+    };
+
+    let phase_code = ACTIVE_MAINTAINER_PROBE_CALLBACK_PHASE.with(|active_phase| {
+        active_phase
+            .borrow()
+            .map(editor_host_phase_code)
+            .unwrap_or("general")
+    });
+
+    probe_log.append_note(&format!("Host callback during {}: {}", phase_code, message));
+}
+
+fn host_callback_iid_name(iid: &vst3::Steinberg::TUID) -> Option<&'static str> {
+    if *iid == vst3::Steinberg::Vst::IAttributeList_iid {
+        Some("IAttributeList")
+    } else if *iid == vst3::Steinberg::Vst::IAutomationState_iid {
+        Some("IAutomationState")
+    } else if *iid == vst3::Steinberg::Vst::IComponent_iid {
+        Some("IComponent")
+    } else if *iid == vst3::Steinberg::Vst::IConnectionPoint_iid {
+        Some("IConnectionPoint")
+    } else if *iid == vst3::Steinberg::Vst::IComponentHandler_iid {
+        Some("IComponentHandler")
+    } else if *iid == vst3::Steinberg::Vst::IComponentHandler2_iid {
+        Some("IComponentHandler2")
+    } else if *iid == vst3::Steinberg::Vst::IComponentHandler3_iid {
+        Some("IComponentHandler3")
+    } else if *iid == vst3::Steinberg::Vst::IComponentHandlerBusActivation_iid {
+        Some("IComponentHandlerBusActivation")
+    } else if *iid == vst3::Steinberg::Vst::IComponentHandlerSystemTime_iid {
+        Some("IComponentHandlerSystemTime")
+    } else if *iid == vst3::Steinberg::Vst::IContextMenu_iid {
+        Some("IContextMenu")
+    } else if *iid == vst3::Steinberg::Vst::IContextMenuTarget_iid {
+        Some("IContextMenuTarget")
+    } else if *iid == vst3::Steinberg::Vst::IDataExchangeHandler_iid {
+        Some("IDataExchangeHandler")
+    } else if *iid == vst3::Steinberg::Vst::IEditController_iid {
+        Some("IEditController")
+    } else if *iid == vst3::Steinberg::Vst::IEditController2_iid {
+        Some("IEditController2")
+    } else if *iid == vst3::Steinberg::Vst::IEditControllerHostEditing_iid {
+        Some("IEditControllerHostEditing")
+    } else if *iid == vst3::Steinberg::Vst::IEventList_iid {
+        Some("IEventList")
+    } else if *iid == vst3::Steinberg::FUnknown_iid {
+        Some("FUnknown")
+    } else if *iid == vst3::Steinberg::Vst::IHostApplication_iid {
+        Some("IHostApplication")
+    } else if *iid == vst3::Steinberg::Vst::IMessage_iid {
+        Some("IMessage")
+    } else if *iid == vst3::Steinberg::Vst::IPlugInterfaceSupport_iid {
+        Some("IPlugInterfaceSupport")
+    } else if *iid == vst3::Steinberg::IPluginBase_iid {
+        Some("IPluginBase")
+    } else if *iid == vst3::Steinberg::Vst::IProgramListData_iid {
+        Some("IProgramListData")
+    } else if *iid == vst3::Steinberg::Vst::IProgress_iid {
+        Some("IProgress")
+    } else if *iid == vst3::Steinberg::Linux::IRunLoop_iid {
+        Some("IRunLoop")
+    } else if *iid == vst3::Steinberg::Vst::IUnitData_iid {
+        Some("IUnitData")
+    } else if *iid == vst3::Steinberg::Vst::IUnitHandler_iid {
+        Some("IUnitHandler")
+    } else if *iid == vst3::Steinberg::Vst::IUnitHandler2_iid {
+        Some("IUnitHandler2")
+    } else if *iid == vst3::Steinberg::Vst::IUnitInfo_iid {
+        Some("IUnitInfo")
+    } else if *iid == vst3::Steinberg::Vst::IVst3ToAAXWrapper_iid {
+        Some("IVst3ToAAXWrapper")
+    } else if *iid == vst3::Steinberg::Vst::IVst3ToAUWrapper_iid {
+        Some("IVst3ToAUWrapper")
+    } else if *iid == vst3::Steinberg::Vst::IVst3ToVst2Wrapper_iid {
+        Some("IVst3ToVst2Wrapper")
+    } else if *iid == vst3::Steinberg::Vst::IVst3WrapperMPESupport_iid {
+        Some("IVst3WrapperMPESupport")
+    } else {
+        None
+    }
+}
+
+fn host_callback_iid_hex(iid: &vst3::Steinberg::TUID) -> String {
+    iid.chunks_exact(4)
+        .map(|chunk| {
+            chunk
+                .iter()
+                .map(|byte| format!("{:02X}", *byte as u8))
+                .collect::<String>()
+        })
+        .collect::<Vec<_>>()
+        .join("-")
+}
+
+fn host_callback_iid_label(iid: &vst3::Steinberg::TUID) -> String {
+    host_callback_iid_name(iid)
+        .map(str::to_owned)
+        .unwrap_or_else(|| format!("unknown_interface({})", host_callback_iid_hex(iid)))
+}
+
+fn host_callback_iid_name_from_ptr(iid: *const vst3::Steinberg::TUID) -> String {
+    if iid.is_null() {
+        String::from("null")
+    } else {
+        unsafe { host_callback_iid_label(&*iid) }
+    }
+}
+
+fn is_wrapper_probe_interface(iid: &vst3::Steinberg::TUID) -> bool {
+    *iid == vst3::Steinberg::Vst::IVst3ToAAXWrapper_iid
+        || *iid == vst3::Steinberg::Vst::IVst3ToAUWrapper_iid
+        || *iid == vst3::Steinberg::Vst::IVst3ToVst2Wrapper_iid
+}
+
+fn emit_probe_console_event(
+    status: &str,
+    phase: Option<PluginEditorHostValidationPhase>,
+    message: &str,
+) {
+    let mut stderr = std::io::stderr();
+    let line = format!(
+        "[MAINTAINER_PROBE][{}][{}][{}] {}\n",
+        current_timestamp_ms(),
+        phase.map(editor_host_phase_code).unwrap_or("general"),
+        status,
+        normalize_probe_log_message(message),
+    );
+
+    let _ = stderr.write_all(line.as_bytes());
+    let _ = stderr.flush();
+}
+
+fn parse_probe_log_field<'a>(line: &'a str, field_name: &str) -> Option<&'a str> {
+    let field_start = line.find(field_name)? + field_name.len();
+    let remainder = &line[field_start..];
+    let field_end = remainder
+        .find(char::is_whitespace)
+        .unwrap_or(remainder.len());
+    Some(&remainder[..field_end])
+}
+
+fn derive_probe_log_profile(contents: Option<&str>) -> Option<PluginEditorPocProbeProfile> {
+    let value = contents?
+        .lines()
+        .map(str::trim)
+        .find_map(|line| line.strip_prefix("probe_profile="))?;
+
+    parse_probe_profile_code(value)
+}
+
+fn derive_probe_log_crash_hint(contents: Option<&str>) -> Option<PluginEditorPocProbeLogCrashHint> {
+    let last_line = contents?.lines().map(str::trim).rev().find(|line| {
+        if line.is_empty() {
+            return false;
+        }
+
+        matches!(
+            parse_probe_log_field(line, "status="),
+            Some("starting" | "completed" | "failed" | "skipped")
+        )
+    })?;
+
+    let phase = parse_probe_log_field(last_line, "phase=")?;
+    let status = parse_probe_log_field(last_line, "status=")?;
+
+    if status != "starting" {
+        return None;
+    }
+
+    Some(PluginEditorPocProbeLogCrashHint {
+        phase: phase.to_string(),
+        last_line: last_line.to_string(),
+        message: format!(
+            "Likely hard crash during {phase}. The last recorded probe event started but never completed or failed."
+        ),
+    })
+}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum SlotRuntimeRenderOutcome {
@@ -104,6 +383,197 @@ impl fmt::Display for PluginEditorTarget {
             None => write!(f, "path={}", self.plugin_path.display()),
         }
     }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct MaintainerProbeLog {
+    path: PathBuf,
+}
+
+impl MaintainerProbeLog {
+    fn resolve(app: &AppHandle) -> Self {
+        let path = app
+            .path()
+            .app_config_dir()
+            .map(|dir| {
+                dir.join("diagnostics")
+                    .join(MAINTAINER_LOAD_INIT_PROBE_LOG_FILE)
+            })
+            .unwrap_or_else(|_| {
+                std::env::temp_dir()
+                    .join(format!("compose-{}", MAINTAINER_LOAD_INIT_PROBE_LOG_FILE))
+            });
+
+        Self { path }
+    }
+
+    #[cfg(test)]
+    fn from_path(path: PathBuf) -> Self {
+        Self { path }
+    }
+
+    fn reset_for_probe(
+        &self,
+        target_description: &str,
+        blocked_reason: Option<&str>,
+        profile: PluginEditorPocProbeProfile,
+    ) {
+        emit_probe_console_event(
+            "reset",
+            None,
+            &format!(
+                "Preparing maintainer probe log at {} for target={} profile={} blocked_reason={}",
+                self.path.display(),
+                target_description,
+                probe_profile_code(profile),
+                blocked_reason.unwrap_or("none"),
+            ),
+        );
+
+        if let Err(error) = self.try_reset_for_probe(target_description, blocked_reason, profile) {
+            eprintln!("Failed to reset maintainer probe log: {error}");
+        }
+    }
+
+    fn append_note(&self, message: &str) {
+        emit_probe_console_event("info", None, message);
+
+        if let Err(error) = self.try_append_event("info", None, message) {
+            eprintln!("Failed to append maintainer probe note: {error}");
+        }
+    }
+
+    fn append_phase_event(
+        &self,
+        phase: PluginEditorHostValidationPhase,
+        status: &str,
+        message: &str,
+    ) {
+        emit_probe_console_event(status, Some(phase), message);
+
+        if let Err(error) = self.try_append_event(status, Some(phase), message) {
+            eprintln!("Failed to append maintainer probe phase event: {error}");
+        }
+    }
+
+    fn read_contents(&self) -> Result<Option<String>, String> {
+        match fs::read_to_string(&self.path) {
+            Ok(contents) => Ok(Some(contents)),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
+            Err(error) => Err(format!(
+                "Failed to read maintainer probe log '{}': {error}",
+                self.path.display()
+            )),
+        }
+    }
+
+    fn snapshot(&self) -> Result<PluginEditorPocProbeLog, String> {
+        let contents = self.read_contents()?;
+
+        Ok(PluginEditorPocProbeLog {
+            path: self.path.display().to_string(),
+            profile: derive_probe_log_profile(contents.as_deref()),
+            crash_hint: derive_probe_log_crash_hint(contents.as_deref()),
+            contents,
+        })
+    }
+
+    fn try_reset_for_probe(
+        &self,
+        target_description: &str,
+        blocked_reason: Option<&str>,
+        profile: PluginEditorPocProbeProfile,
+    ) -> Result<(), String> {
+        let mut file = self.open_file(true)?;
+
+        writeln!(file, "=== maintainer load/init probe ===").map_err(|error| error.to_string())?;
+        writeln!(file, "timestamp_ms={}", current_timestamp_ms())
+            .map_err(|error| error.to_string())?;
+        writeln!(file, "probe_profile={}", probe_profile_code(profile))
+            .map_err(|error| error.to_string())?;
+        writeln!(
+            file,
+            "target={}",
+            normalize_probe_log_message(target_description)
+        )
+        .map_err(|error| error.to_string())?;
+
+        if let Some(reason) = blocked_reason {
+            writeln!(
+                file,
+                "ordinary_blocked_reason={}",
+                normalize_probe_log_message(reason)
+            )
+            .map_err(|error| error.to_string())?;
+        }
+
+        writeln!(file).map_err(|error| error.to_string())?;
+        file.flush().map_err(|error| error.to_string())?;
+        file.sync_all().map_err(|error| error.to_string())?;
+        Ok(())
+    }
+
+    fn try_append_event(
+        &self,
+        status: &str,
+        phase: Option<PluginEditorHostValidationPhase>,
+        message: &str,
+    ) -> Result<(), String> {
+        let mut file = self.open_file(false)?;
+        writeln!(
+            file,
+            "[{}] phase={} status={} message={}",
+            current_timestamp_ms(),
+            phase.map(editor_host_phase_code).unwrap_or("general"),
+            status,
+            normalize_probe_log_message(message),
+        )
+        .map_err(|error| error.to_string())?;
+        file.flush().map_err(|error| error.to_string())?;
+        file.sync_all().map_err(|error| error.to_string())?;
+        Ok(())
+    }
+
+    fn open_file(&self, truncate: bool) -> Result<std::fs::File, String> {
+        if let Some(parent) = self.path.parent() {
+            fs::create_dir_all(parent).map_err(|error| {
+                format!(
+                    "Failed to create maintainer probe log directory '{}': {error}",
+                    parent.display()
+                )
+            })?;
+        }
+
+        let mut options = OpenOptions::new();
+        options.create(true).write(true);
+        if truncate {
+            options.truncate(true);
+        } else {
+            options.append(true);
+        }
+
+        options.open(&self.path).map_err(|error| {
+            format!(
+                "Failed to open maintainer probe log '{}': {error}",
+                self.path.display()
+            )
+        })
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Eq, PartialEq)]
+pub struct PluginEditorPocProbeLogCrashHint {
+    pub phase: String,
+    pub last_line: String,
+    pub message: String,
+}
+
+#[derive(Clone, Debug, Serialize, Eq, PartialEq)]
+pub struct PluginEditorPocProbeLog {
+    pub path: String,
+    pub profile: Option<PluginEditorPocProbeProfile>,
+    pub crash_hint: Option<PluginEditorPocProbeLogCrashHint>,
+    pub contents: Option<String>,
 }
 
 #[derive(Debug)]
@@ -278,19 +748,338 @@ pub struct PluginEditorPocOpenResult {
     pub native_host_attached: bool,
 }
 
+fn editor_host_phase_code(phase: PluginEditorHostValidationPhase) -> &'static str {
+    match phase {
+        PluginEditorHostValidationPhase::PolicyGate => "policy_gate",
+        PluginEditorHostValidationPhase::ModuleLoad => "module_load",
+        PluginEditorHostValidationPhase::FactoryCreate => "factory_create",
+        PluginEditorHostValidationPhase::HostContext => "host_context",
+        PluginEditorHostValidationPhase::ComponentCreate => "component_create",
+        PluginEditorHostValidationPhase::ComponentInitialize => "component_initialize",
+        PluginEditorHostValidationPhase::ComponentRuntimeSetup => "component_runtime_setup",
+        PluginEditorHostValidationPhase::ControllerCreate => "controller_create",
+        PluginEditorHostValidationPhase::ControllerSetComponentHandlerPreInit => {
+            "controller_set_component_handler_pre_init"
+        }
+        PluginEditorHostValidationPhase::ControllerInitialize => "controller_initialize",
+        PluginEditorHostValidationPhase::ComponentStateSync => "component_state_sync",
+        PluginEditorHostValidationPhase::ControllerSetComponentHandler => {
+            "controller_set_component_handler"
+        }
+        PluginEditorHostValidationPhase::ConnectionPointHandshake => "connection_point_handshake",
+        PluginEditorHostValidationPhase::ViewCreate => "view_create",
+        PluginEditorHostValidationPhase::ViewSetFrame => "view_set_frame",
+        PluginEditorHostValidationPhase::ViewAttach => "view_attach",
+        PluginEditorHostValidationPhase::Attached => "attached",
+    }
+}
+
+fn editor_host_validation_status_code(status: PluginEditorHostValidationStatus) -> &'static str {
+    match status {
+        PluginEditorHostValidationStatus::Blocked => "blocked",
+        PluginEditorHostValidationStatus::Failed => "failed",
+        PluginEditorHostValidationStatus::Attached => "attached",
+    }
+}
+
+fn load_init_probe_status_code(status: PluginEditorHostLoadInitProbeStatus) -> &'static str {
+    match status {
+        PluginEditorHostLoadInitProbeStatus::BlockedByHostContract => "blocked_by_host_contract",
+        PluginEditorHostLoadInitProbeStatus::BlockedByPluginFailure => "blocked_by_plugin_failure",
+        PluginEditorHostLoadInitProbeStatus::LoadInitSafe => "load_init_safe",
+    }
+}
+
+fn load_init_probe_phase_order() -> &'static [PluginEditorHostValidationPhase] {
+    &[
+        PluginEditorHostValidationPhase::ModuleLoad,
+        PluginEditorHostValidationPhase::FactoryCreate,
+        PluginEditorHostValidationPhase::HostContext,
+        PluginEditorHostValidationPhase::ComponentCreate,
+        PluginEditorHostValidationPhase::ComponentInitialize,
+        PluginEditorHostValidationPhase::ComponentStateSync,
+        PluginEditorHostValidationPhase::ComponentRuntimeSetup,
+        PluginEditorHostValidationPhase::ControllerCreate,
+        PluginEditorHostValidationPhase::ControllerInitialize,
+        PluginEditorHostValidationPhase::ConnectionPointHandshake,
+        PluginEditorHostValidationPhase::ViewCreate,
+        PluginEditorHostValidationPhase::ViewAttach,
+        PluginEditorHostValidationPhase::Attached,
+    ]
+}
+
+fn build_load_init_probe_summary(
+    profile: PluginEditorPocProbeProfile,
+    status: PluginEditorHostLoadInitProbeStatus,
+    first_failing_phase: Option<PluginEditorHostValidationPhase>,
+    first_failing_message: Option<&str>,
+) -> String {
+    match status {
+        PluginEditorHostLoadInitProbeStatus::BlockedByHostContract => format!(
+            "Maintainer load/init probe ({}) first failed at {} and appears host-contract-related: {}",
+            probe_profile_code(profile),
+            first_failing_phase
+                .map(editor_host_phase_code)
+                .unwrap_or("unknown_phase"),
+            first_failing_message
+                .unwrap_or("No maintainer-facing error message was recorded."),
+        ),
+        PluginEditorHostLoadInitProbeStatus::BlockedByPluginFailure => format!(
+            "Maintainer load/init probe ({}) first failed at {} and appears plugin-side: {}",
+            probe_profile_code(profile),
+            first_failing_phase
+                .map(editor_host_phase_code)
+                .unwrap_or("unknown_phase"),
+            first_failing_message
+                .unwrap_or("No maintainer-facing error message was recorded."),
+        ),
+        PluginEditorHostLoadInitProbeStatus::LoadInitSafe => format!(
+            "Maintainer load/init probe ({}) reached a bounded non-crashing attach. Ordinary product support remains unchanged until later stories prove more.",
+            probe_profile_code(profile),
+        ),
+    }
+}
+
+#[derive(Clone, Debug, Default)]
+struct PluginHostBuildTelemetry {
+    enabled: bool,
+    probe_profile: PluginEditorPocProbeProfile,
+    probe_log: Option<MaintainerProbeLog>,
+    last_successful_phase: Option<PluginEditorHostValidationPhase>,
+    first_failing_phase: Option<PluginEditorHostValidationPhase>,
+    first_failing_message: Option<String>,
+    failure_status: Option<PluginEditorHostLoadInitProbeStatus>,
+    phase_results: Vec<PluginEditorHostValidationPhaseResult>,
+}
+
+impl PluginHostBuildTelemetry {
+    fn disabled() -> Self {
+        Self::default()
+    }
+
+    #[cfg(test)]
+    fn enabled() -> Self {
+        Self {
+            enabled: true,
+            probe_profile: PluginEditorPocProbeProfile::Default,
+            ..Self::default()
+        }
+    }
+
+    fn enabled_with_probe_log(
+        probe_profile: PluginEditorPocProbeProfile,
+        probe_log: MaintainerProbeLog,
+    ) -> Self {
+        Self {
+            enabled: true,
+            probe_profile,
+            probe_log: Some(probe_log),
+            ..Self::default()
+        }
+    }
+
+    fn log_phase_event(&self, phase: PluginEditorHostValidationPhase, status: &str, message: &str) {
+        if !self.enabled {
+            return;
+        }
+
+        if let Some(probe_log) = &self.probe_log {
+            probe_log.append_phase_event(phase, status, message);
+        }
+    }
+
+    fn log_note(&self, message: &str) {
+        if !self.enabled {
+            return;
+        }
+
+        if let Some(probe_log) = &self.probe_log {
+            probe_log.append_note(message);
+        }
+    }
+
+    fn record_starting(&self, phase: PluginEditorHostValidationPhase, message: impl Into<String>) {
+        if !self.enabled {
+            return;
+        }
+
+        let message = message.into();
+        set_active_probe_callback_phase(Some(phase));
+        self.log_phase_event(phase, "starting", &message);
+    }
+
+    fn record_completed(
+        &mut self,
+        phase: PluginEditorHostValidationPhase,
+        message: impl Into<String>,
+    ) {
+        if !self.enabled {
+            return;
+        }
+
+        let message = message.into();
+        self.last_successful_phase = Some(phase);
+        self.log_phase_event(phase, "completed", &message);
+        set_active_probe_callback_phase(None);
+        self.phase_results
+            .push(PluginEditorHostValidationPhaseResult {
+                phase,
+                status: PluginEditorHostValidationPhaseResultStatus::Completed,
+                message,
+            });
+    }
+
+    fn record_skipped(
+        &mut self,
+        phase: PluginEditorHostValidationPhase,
+        message: impl Into<String>,
+    ) {
+        if !self.enabled {
+            return;
+        }
+
+        let message = message.into();
+        self.log_phase_event(phase, "skipped", &message);
+        set_active_probe_callback_phase(None);
+        self.phase_results
+            .push(PluginEditorHostValidationPhaseResult {
+                phase,
+                status: PluginEditorHostValidationPhaseResultStatus::Skipped,
+                message,
+            });
+    }
+
+    fn record_failed(
+        &mut self,
+        phase: PluginEditorHostValidationPhase,
+        probe_status: PluginEditorHostLoadInitProbeStatus,
+        message: impl Into<String>,
+    ) {
+        if !self.enabled {
+            return;
+        }
+
+        let message = message.into();
+        if self.first_failing_phase.is_none() {
+            self.first_failing_phase = Some(phase);
+            self.first_failing_message = Some(message.clone());
+            self.failure_status = Some(probe_status);
+        }
+
+        self.log_phase_event(phase, "failed", &message);
+        set_active_probe_callback_phase(None);
+
+        self.phase_results
+            .push(PluginEditorHostValidationPhaseResult {
+                phase,
+                status: PluginEditorHostValidationPhaseResultStatus::Failed,
+                message,
+            });
+    }
+
+    fn finish(mut self) -> Option<PluginEditorHostLoadInitProbe> {
+        if !self.enabled {
+            return None;
+        }
+
+        if let Some(first_failing_phase) = self.first_failing_phase {
+            for phase in load_init_probe_phase_order() {
+                if self
+                    .phase_results
+                    .iter()
+                    .any(|result| result.phase == *phase)
+                {
+                    continue;
+                }
+
+                self.phase_results
+                    .push(PluginEditorHostValidationPhaseResult {
+                        phase: *phase,
+                        status: PluginEditorHostValidationPhaseResultStatus::Skipped,
+                        message: format!(
+                        "Skipped because the probe stopped after the first failing phase at {}.",
+                        editor_host_phase_code(first_failing_phase)
+                    ),
+                    });
+            }
+        }
+
+        let status = self
+            .failure_status
+            .unwrap_or(PluginEditorHostLoadInitProbeStatus::LoadInitSafe);
+        let summary = build_load_init_probe_summary(
+            self.probe_profile,
+            status,
+            self.first_failing_phase,
+            self.first_failing_message.as_deref(),
+        );
+
+        self.log_note(&format!(
+            "Finished maintainer load/init probe with profile={} status={} summary={}",
+            probe_profile_code(self.probe_profile),
+            load_init_probe_status_code(status),
+            summary,
+        ));
+
+        let probe = PluginEditorHostLoadInitProbe {
+            status,
+            last_successful_phase: self.last_successful_phase,
+            first_failing_phase: self.first_failing_phase,
+            first_failing_message: self.first_failing_message.clone(),
+            summary,
+            phase_results: self.phase_results,
+        };
+
+        Some(probe)
+    }
+}
+
 #[derive(Clone, Debug)]
 struct PluginEditorHostAttemptError {
     phase: PluginEditorHostValidationPhase,
     message: String,
+    probe_status: PluginEditorHostLoadInitProbeStatus,
 }
 
 impl PluginEditorHostAttemptError {
-    fn new(phase: PluginEditorHostValidationPhase, message: impl Into<String>) -> Self {
+    fn new(
+        phase: PluginEditorHostValidationPhase,
+        probe_status: PluginEditorHostLoadInitProbeStatus,
+        message: impl Into<String>,
+    ) -> Self {
         Self {
             phase,
             message: message.into(),
+            probe_status,
         }
     }
+
+    fn host_contract_failure(
+        phase: PluginEditorHostValidationPhase,
+        message: impl Into<String>,
+    ) -> Self {
+        Self::new(
+            phase,
+            PluginEditorHostLoadInitProbeStatus::BlockedByHostContract,
+            message,
+        )
+    }
+
+    fn plugin_failure(phase: PluginEditorHostValidationPhase, message: impl Into<String>) -> Self {
+        Self::new(
+            phase,
+            PluginEditorHostLoadInitProbeStatus::BlockedByPluginFailure,
+            message,
+        )
+    }
+}
+
+fn record_probe_failure(
+    telemetry: &mut PluginHostBuildTelemetry,
+    error: PluginEditorHostAttemptError,
+) -> PluginEditorHostAttemptError {
+    telemetry.record_failed(error.phase, error.probe_status, error.message.clone());
+    error
 }
 
 #[derive(Clone, Debug)]
@@ -313,6 +1102,7 @@ fn failed_editor_host_validation(
         phase,
         message: message.into(),
         capability_evidence: None,
+        maintainer_load_init_probe: None,
     }
 }
 
@@ -329,6 +1119,59 @@ fn attached_editor_host_validation() -> PluginEditorHostValidation {
                 "The current bounded seam does not yet inspect HALion Sonic for multi-part or channel capability facts.",
             ),
         }),
+        maintainer_load_init_probe: None,
+    }
+}
+
+fn with_maintainer_load_init_probe(
+    mut validation: PluginEditorHostValidation,
+    probe: PluginEditorHostLoadInitProbe,
+) -> PluginEditorHostValidation {
+    validation.maintainer_load_init_probe = Some(probe);
+    validation
+}
+
+fn blocked_editor_host_validation_message_with_probe(
+    blocked_reason: &str,
+    probe: &PluginEditorHostLoadInitProbe,
+) -> String {
+    format!(
+        "{blocked_reason} Maintainer load/init probe summary: {}",
+        probe.summary
+    )
+}
+
+fn validation_from_load_init_probe(
+    blocked_reason: Option<String>,
+    probe: PluginEditorHostLoadInitProbe,
+) -> PluginEditorHostValidation {
+    match blocked_reason {
+        Some(reason) => with_maintainer_load_init_probe(
+            blocked_editor_host_validation(blocked_editor_host_validation_message_with_probe(
+                &reason, &probe,
+            )),
+            probe,
+        ),
+        None => match probe.status {
+            PluginEditorHostLoadInitProbeStatus::LoadInitSafe => {
+                with_maintainer_load_init_probe(attached_editor_host_validation(), probe)
+            }
+            PluginEditorHostLoadInitProbeStatus::BlockedByHostContract
+            | PluginEditorHostLoadInitProbeStatus::BlockedByPluginFailure => {
+                with_maintainer_load_init_probe(
+                    failed_editor_host_validation(
+                        probe
+                            .first_failing_phase
+                            .unwrap_or(PluginEditorHostValidationPhase::ModuleLoad),
+                        probe
+                            .first_failing_message
+                            .clone()
+                            .unwrap_or_else(|| probe.summary.clone()),
+                    ),
+                    probe,
+                )
+            }
+        },
     }
 }
 
@@ -708,7 +1551,7 @@ mod macos_host {
     use std::ffi::{c_void, CStr, CString};
     use std::mem::zeroed;
     use std::path::{Path, PathBuf};
-    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
     use std::sync::{Arc, Mutex as StdMutex};
     use std::time::Instant;
     use tauri::AppHandle;
@@ -740,17 +1583,17 @@ mod macos_host {
         IAttributeList_iid, IAutomationState_iid, IComponentHandler2_iid, IComponentHandler3_iid,
         IComponentHandlerBusActivation_iid, IComponentHandlerSystemTime_iid, IComponentHandler_iid,
         IContextMenuTarget_iid, IDataExchangeHandler_iid, IEditControllerHostEditing_iid,
-        IHostApplication_iid, IMessage_iid, IPlugInterfaceSupport_iid,
+        IHostApplicationVtbl, IHostApplication_iid, IMessage_iid, IPlugInterfaceSupport_iid,
         IProgress_::{ProgressType, ID as ProgressID},
         IProgress_iid, IUnitHandler2_iid, IUnitHandler_iid, NoteOffEvent, NoteOnEvent, ProcessData,
         ProcessSetup,
     };
     use vst3::Steinberg::{
-        self, int64, kInvalidArgument, kNotImplemented, kPlatformTypeNSView, kResultFalse,
-        kResultOk, kResultTrue, tresult, uint32, FIDString, FUnknown, FUnknown_iid, IBStream,
-        IBStreamTrait, IPlugFrame, IPlugFrameTrait, IPlugView, IPlugViewTrait, IPluginBaseTrait,
-        IPluginFactory, IPluginFactory2, IPluginFactory2Trait, IPluginFactory3,
-        IPluginFactory3Trait, IPluginFactoryTrait, TBool, ViewRect, TUID,
+        self, int64, kInvalidArgument, kNoInterface, kNotImplemented, kPlatformTypeNSView,
+        kResultFalse, kResultOk, kResultTrue, tresult, uint32, FIDString, FUnknown, FUnknownVtbl,
+        FUnknown_iid, IBStream, IBStreamTrait, IPlugFrame, IPlugFrameTrait, IPlugView,
+        IPlugViewTrait, IPluginBaseTrait, IPluginFactory, IPluginFactory2, IPluginFactory2Trait,
+        IPluginFactory3, IPluginFactory3Trait, IPluginFactoryTrait, TBool, ViewRect, TUID,
     };
     use vst3::{Class, ComPtr, ComWrapper};
 
@@ -1830,11 +2673,15 @@ mod macos_host {
         ((*(*ptr).vtbl).queryInterface)(ptr, iid, obj)
     }
 
-    fn host_supports_interface(iid: &TUID) -> bool {
-        *iid == IMessage_iid
-            || *iid == IAttributeList_iid
-            || *iid == IAutomationState_iid
+    fn full_host_supports_interface(iid: &TUID) -> bool {
+        *iid == IAutomationState_iid
             || *iid == IComponentHandler_iid
+            || *iid == IHostApplication_iid
+            || *iid == IPlugInterfaceSupport_iid
+            || *iid == IRunLoop_iid
+            || *iid == FUnknown_iid
+            || *iid == IMessage_iid
+            || *iid == IAttributeList_iid
             || *iid == IComponentHandler2_iid
             || *iid == IComponentHandler3_iid
             || *iid == IComponentHandlerBusActivation_iid
@@ -1842,13 +2689,294 @@ mod macos_host {
             || *iid == IContextMenuTarget_iid
             || *iid == IDataExchangeHandler_iid
             || *iid == IEditControllerHostEditing_iid
-            || *iid == IHostApplication_iid
-            || *iid == IPlugInterfaceSupport_iid
             || *iid == IProgress_iid
-            || *iid == IRunLoop_iid
             || *iid == IUnitHandler_iid
             || *iid == IUnitHandler2_iid
-            || *iid == FUnknown_iid
+    }
+
+    unsafe fn host_application_create_instance(
+        cid: *mut TUID,
+        iid: *mut TUID,
+        obj: *mut *mut c_void,
+    ) -> tresult {
+        super::log_active_probe_host_callback(&format!(
+            "IHostApplication::createInstance requested cid={} iid={}",
+            super::host_callback_iid_name_from_ptr(cid.cast_const()),
+            super::host_callback_iid_name_from_ptr(iid.cast_const())
+        ));
+
+        if !obj.is_null() {
+            *obj = std::ptr::null_mut();
+        }
+
+        if tuid_matches(cid, &IMessage_iid) || tuid_matches(iid, &IMessage_iid) {
+            let Ok(message) = HostMessage::new() else {
+                return kNotImplemented;
+            };
+            let Some(instance) = ComWrapper::new(message).to_com_ptr::<FUnknown>() else {
+                return kNotImplemented;
+            };
+            return query_host_support_interface(instance, iid, obj);
+        }
+
+        if tuid_matches(cid, &IAttributeList_iid) || tuid_matches(iid, &IAttributeList_iid) {
+            let Some(instance) =
+                ComWrapper::new(HostAttributeList::default()).to_com_ptr::<FUnknown>()
+            else {
+                return kNotImplemented;
+            };
+            return query_host_support_interface(instance, iid, obj);
+        }
+
+        kNotImplemented
+    }
+
+    unsafe fn host_application_support_result(
+        iid: *const TUID,
+        supports: fn(&TUID) -> bool,
+    ) -> tresult {
+        if iid.is_null() {
+            return kInvalidArgument;
+        }
+
+        let interface_name = super::host_callback_iid_label(&*iid);
+        let is_supported = supports(&*iid);
+        super::log_active_probe_host_callback(&format!(
+            "IPlugInterfaceSupport::isPlugInterfaceSupported queried {} => {}",
+            interface_name,
+            if is_supported {
+                "supported"
+            } else {
+                "unsupported"
+            }
+        ));
+
+        if is_supported {
+            kResultTrue
+        } else {
+            kResultFalse
+        }
+    }
+
+    #[repr(C)]
+    struct WrapperProbeFallbackUnknown {
+        unknown: FUnknown,
+        parent: *mut LoggingHostOnlyInitHostApplication,
+    }
+
+    impl WrapperProbeFallbackUnknown {
+        fn new() -> Self {
+            Self {
+                unknown: FUnknown {
+                    vtbl: &WRAPPER_PROBE_FALLBACK_UNKNOWN_VTBL,
+                },
+                parent: std::ptr::null_mut(),
+            }
+        }
+    }
+
+    #[repr(C)]
+    struct LoggingHostOnlyInitHostApplication {
+        host_application: IHostApplication,
+        ref_count: AtomicU32,
+        wrapper_probe_fallback_unknown: WrapperProbeFallbackUnknown,
+    }
+
+    impl LoggingHostOnlyInitHostApplication {
+        fn new() -> Self {
+            Self {
+                host_application: IHostApplication {
+                    vtbl: &LOGGING_HOST_ONLY_INIT_HOST_APPLICATION_VTBL,
+                },
+                ref_count: AtomicU32::new(1),
+                wrapper_probe_fallback_unknown: WrapperProbeFallbackUnknown::new(),
+            }
+        }
+    }
+
+    static WRAPPER_PROBE_FALLBACK_UNKNOWN_VTBL: FUnknownVtbl = FUnknownVtbl {
+        queryInterface: wrapper_probe_fallback_unknown_query_interface,
+        addRef: wrapper_probe_fallback_unknown_add_ref,
+        release: wrapper_probe_fallback_unknown_release,
+    };
+
+    static LOGGING_HOST_ONLY_INIT_HOST_APPLICATION_VTBL: IHostApplicationVtbl =
+        IHostApplicationVtbl {
+            base: FUnknownVtbl {
+                queryInterface: logging_host_only_init_query_interface,
+                addRef: logging_host_only_init_add_ref,
+                release: logging_host_only_init_release,
+            },
+            getName: logging_host_only_init_get_name,
+            createInstance: logging_host_only_init_create_instance,
+        };
+
+    unsafe fn logging_host_only_init_instance_from_unknown(
+        this: *mut FUnknown,
+    ) -> *mut LoggingHostOnlyInitHostApplication {
+        this.cast::<LoggingHostOnlyInitHostApplication>()
+    }
+
+    unsafe fn wrapper_probe_fallback_unknown_from_unknown(
+        this: *mut FUnknown,
+    ) -> *mut WrapperProbeFallbackUnknown {
+        this.cast::<WrapperProbeFallbackUnknown>()
+    }
+
+    unsafe fn logging_host_only_init_add_ref_count(
+        instance: *mut LoggingHostOnlyInitHostApplication,
+    ) -> uint32 {
+        (*instance).ref_count.fetch_add(1, Ordering::AcqRel) + 1
+    }
+
+    unsafe fn logging_host_only_init_release_ref_count(
+        instance: *mut LoggingHostOnlyInitHostApplication,
+    ) -> uint32 {
+        let remaining = (*instance).ref_count.fetch_sub(1, Ordering::AcqRel) - 1;
+        if remaining == 0 {
+            drop(Box::from_raw(instance));
+        }
+        remaining
+    }
+
+    unsafe fn wrapper_probe_fallback_parent(
+        this: *mut FUnknown,
+    ) -> *mut LoggingHostOnlyInitHostApplication {
+        (*wrapper_probe_fallback_unknown_from_unknown(this)).parent
+    }
+
+    unsafe extern "system" fn wrapper_probe_fallback_unknown_query_interface(
+        this: *mut FUnknown,
+        iid: *const TUID,
+        obj: *mut *mut c_void,
+    ) -> tresult {
+        if !obj.is_null() {
+            *obj = std::ptr::null_mut();
+        }
+
+        if iid.is_null() {
+            return kInvalidArgument;
+        }
+
+        if *iid != FUnknown_iid {
+            return kNoInterface;
+        }
+
+        let instance = wrapper_probe_fallback_unknown_from_unknown(this);
+        let parent = wrapper_probe_fallback_parent(this);
+        let _ = logging_host_only_init_add_ref_count(parent);
+        if !obj.is_null() {
+            *obj = std::ptr::addr_of_mut!((*instance).unknown).cast::<c_void>();
+        }
+
+        kResultOk
+    }
+
+    unsafe extern "system" fn wrapper_probe_fallback_unknown_add_ref(
+        this: *mut FUnknown,
+    ) -> uint32 {
+        logging_host_only_init_add_ref_count(wrapper_probe_fallback_parent(this))
+    }
+
+    unsafe extern "system" fn wrapper_probe_fallback_unknown_release(
+        this: *mut FUnknown,
+    ) -> uint32 {
+        logging_host_only_init_release_ref_count(wrapper_probe_fallback_parent(this))
+    }
+
+    unsafe extern "system" fn logging_host_only_init_query_interface(
+        this: *mut FUnknown,
+        iid: *const TUID,
+        obj: *mut *mut c_void,
+    ) -> tresult {
+        if !obj.is_null() {
+            *obj = std::ptr::null_mut();
+        }
+
+        if iid.is_null() {
+            return kInvalidArgument;
+        }
+
+        let requested_interface = super::host_callback_iid_label(&*iid);
+        let is_supported = *iid == IHostApplication_iid || *iid == FUnknown_iid;
+        let uses_wrapper_fallback = super::is_wrapper_probe_interface(&*iid);
+        super::log_active_probe_host_callback(&format!(
+            "Init host context queryInterface requested {} => {}",
+            requested_interface,
+            if is_supported {
+                "supported"
+            } else if uses_wrapper_fallback {
+                "unsupported_with_fallback"
+            } else {
+                "unsupported"
+            }
+        ));
+
+        let instance = logging_host_only_init_instance_from_unknown(this);
+
+        if !is_supported && !uses_wrapper_fallback {
+            return kNoInterface;
+        }
+
+        let _ = logging_host_only_init_add_ref_count(instance);
+        if !obj.is_null() {
+            *obj = if uses_wrapper_fallback {
+                std::ptr::addr_of_mut!((*instance).wrapper_probe_fallback_unknown.unknown)
+                    .cast::<c_void>()
+            } else {
+                std::ptr::addr_of_mut!((*instance).host_application).cast::<c_void>()
+            };
+        }
+
+        if uses_wrapper_fallback {
+            return kNoInterface;
+        }
+
+        kResultOk
+    }
+
+    unsafe extern "system" fn logging_host_only_init_add_ref(this: *mut FUnknown) -> uint32 {
+        let instance = logging_host_only_init_instance_from_unknown(this);
+        logging_host_only_init_add_ref_count(instance)
+    }
+
+    unsafe extern "system" fn logging_host_only_init_release(this: *mut FUnknown) -> uint32 {
+        let instance = logging_host_only_init_instance_from_unknown(this);
+        logging_host_only_init_release_ref_count(instance)
+    }
+
+    unsafe extern "system" fn logging_host_only_init_get_name(
+        _this: *mut IHostApplication,
+        name: *mut String128,
+    ) -> tresult {
+        if name.is_null() {
+            return kInvalidArgument;
+        }
+
+        super::log_active_probe_host_callback("IHostApplication::getName invoked");
+        write_string128(&mut *name, "Solo Compose Plugin Host POC");
+        kResultOk
+    }
+
+    unsafe extern "system" fn logging_host_only_init_create_instance(
+        _this: *mut IHostApplication,
+        cid: *mut TUID,
+        iid: *mut TUID,
+        obj: *mut *mut c_void,
+    ) -> tresult {
+        host_application_create_instance(cid, iid, obj)
+    }
+
+    fn create_logging_host_only_init_host_application() -> ComPtr<IHostApplication> {
+        let instance = Box::new(LoggingHostOnlyInitHostApplication::new());
+        let raw_instance = Box::into_raw(instance);
+        unsafe {
+            (*raw_instance).wrapper_probe_fallback_unknown.parent = raw_instance;
+        }
+        let host_application_ptr =
+            unsafe { std::ptr::addr_of_mut!((*raw_instance).host_application) };
+
+        unsafe { ComPtr::from_raw_unchecked(host_application_ptr) }
     }
 
     pub struct PluginHostSession {
@@ -1860,6 +2988,8 @@ mod macos_host {
         controller: ComPtr<IEditController>,
         view: Option<ComPtr<IPlugView>>,
         _host_application: ComPtr<IHostApplication>,
+        _controller_initialize_host_application: ComPtr<IHostApplication>,
+        _component_handler_host_application: ComPtr<IHostApplication>,
         _plug_frame: Option<ComPtr<IPlugFrame>>,
         host_view_ptr: usize,
         plugin_can_resize: bool,
@@ -1882,6 +3012,7 @@ mod macos_host {
             &mut self,
             ns_window: *mut NSWindow,
             parent_view: &NSView,
+            telemetry: &mut super::PluginHostBuildTelemetry,
         ) -> Result<(), PluginEditorHostAttemptError> {
             eprintln!(
                 "[DIAG] attach_view: start (close_prepared={}, view_attached={}, view_exists={})",
@@ -1890,44 +3021,50 @@ mod macos_host {
                 self.view.is_some()
             );
 
-            // Reactivate the component if it was deactivated during a previous close.
             if self.component_initialized && self.close_prepared {
                 let _ = unsafe { self.component.setActive(1) };
             }
 
+            telemetry.record_starting(
+                PluginEditorHostValidationPhase::ViewCreate,
+                "About to create and prepare the VST3 editor view.",
+            );
             let plug_frame = ComWrapper::new(PluginHostFrame {
                 ns_window_ptr: ns_window,
             })
             .to_com_ptr::<IPlugFrame>()
             .ok_or_else(|| {
-                PluginEditorHostAttemptError::new(
-                    PluginEditorHostValidationPhase::ViewCreate,
-                    "Failed to allocate the VST3 plug-frame shim.",
+                super::record_probe_failure(
+                    telemetry,
+                    PluginEditorHostAttemptError::host_contract_failure(
+                        PluginEditorHostValidationPhase::ViewCreate,
+                        "Failed to allocate the VST3 plug-frame shim.",
+                    ),
                 )
             })?;
 
-            // Steinberg editorhost createViewAndShow pattern:
-            // 1. createView
-            // 2. getSize → resize window to plugin's preferred size
-            // 3. setFrame
-            // 4. attached
             let view = unsafe { ComPtr::from_raw(self.controller.createView(ViewType::kEditor)) }
                 .ok_or_else(|| {
-                    PluginEditorHostAttemptError::new(
-                        PluginEditorHostValidationPhase::ViewCreate,
-                        "Plugin editor POC did not receive a plugin editor view. The selected VST3 may not expose an editor.",
+                    super::record_probe_failure(
+                        telemetry,
+                        PluginEditorHostAttemptError::plugin_failure(
+                            PluginEditorHostValidationPhase::ViewCreate,
+                            "Plugin editor POC did not receive a plugin editor view. The selected VST3 may not expose an editor.",
+                        ),
                     )
                 })?;
 
             let platform_supported = unsafe { view.isPlatformTypeSupported(kPlatformTypeNSView) };
             if platform_supported != kResultOk {
-                return Err(PluginEditorHostAttemptError::new(
-                    PluginEditorHostValidationPhase::ViewCreate,
-                    "Plugin editor POC editor view does not report NSView support.",
+                return Err(super::record_probe_failure(
+                    telemetry,
+                    PluginEditorHostAttemptError::plugin_failure(
+                        PluginEditorHostValidationPhase::ViewCreate,
+                        "Plugin editor POC editor view does not report NSView support.",
+                    ),
                 ));
             }
 
-            // Step 2: getSize and resize window to match, BEFORE setFrame/attached.
             let mut plug_view_size = ViewRect {
                 left: 0,
                 top: 0,
@@ -1946,7 +3083,6 @@ mod macos_host {
             }
 
             let plugin_can_resize = unsafe { view.canResize() } == kResultOk;
-            // Update window style mask for resizability.
             if let Some(ns_win) = unsafe { Retained::retain(ns_window) } {
                 let mut style = ns_win.styleMask();
                 if plugin_can_resize {
@@ -1957,21 +3093,36 @@ mod macos_host {
                 ns_win.setStyleMask(style);
             }
 
-            // Step 3: setFrame
+            telemetry.record_completed(
+                PluginEditorHostValidationPhase::ViewCreate,
+                "Created the VST3 editor view and prepared the host window.",
+            );
+
             let _ = unsafe { view.setFrame(plug_frame.as_ptr()) };
 
-            // Step 4: attached to contentView
+            telemetry.record_starting(
+                PluginEditorHostValidationPhase::ViewAttach,
+                "About to attach the VST3 editor view to the bounded host surface.",
+            );
             let parent_ptr = (parent_view as *const NSView).cast_mut().cast::<c_void>();
             let attached = unsafe { view.attached(parent_ptr, kPlatformTypeNSView) };
             if attached != kResultOk {
-                return Err(PluginEditorHostAttemptError::new(
-                    PluginEditorHostValidationPhase::ViewAttach,
-                    format!(
-                        "Plugin editor POC failed to attach the VST3 editor view to NSView (tresult = {}).",
-                        attached
+                return Err(super::record_probe_failure(
+                    telemetry,
+                    PluginEditorHostAttemptError::plugin_failure(
+                        PluginEditorHostValidationPhase::ViewAttach,
+                        format!(
+                            "Plugin editor POC failed to attach the VST3 editor view to NSView (tresult = {}).",
+                            attached
+                        ),
                     ),
                 ));
             }
+
+            telemetry.record_completed(
+                PluginEditorHostValidationPhase::ViewAttach,
+                "Attached the plugin editor view to the bounded host surface.",
+            );
 
             self.view = Some(view);
             self._plug_frame = Some(plug_frame);
@@ -2062,6 +3213,258 @@ mod macos_host {
         }
     }
 
+    macro_rules! impl_common_host_application_traits {
+        ($ty:ty, $supports:path) => {
+            impl IHostApplicationTrait for $ty {
+                unsafe fn getName(&self, name: *mut String128) -> tresult {
+                    if name.is_null() {
+                        return kInvalidArgument;
+                    }
+
+                    super::log_active_probe_host_callback("IHostApplication::getName invoked");
+                    write_string128(&mut *name, "Solo Compose Plugin Host POC");
+                    kResultOk
+                }
+
+                unsafe fn createInstance(
+                    &self,
+                    cid: *mut TUID,
+                    iid: *mut TUID,
+                    obj: *mut *mut c_void,
+                ) -> tresult {
+                    host_application_create_instance(cid, iid, obj)
+                }
+            }
+
+            impl IPlugInterfaceSupportTrait for $ty {
+                unsafe fn isPlugInterfaceSupported(&self, iid: *const TUID) -> tresult {
+                    host_application_support_result(iid, $supports)
+                }
+            }
+
+            impl IAutomationStateTrait for $ty {
+                unsafe fn setAutomationState(&self, _state: i32) -> tresult {
+                    kResultOk
+                }
+            }
+
+            impl IRunLoopTrait for $ty {
+                unsafe fn registerEventHandler(
+                    &self,
+                    handler: *mut IEventHandler,
+                    _fd: FileDescriptor,
+                ) -> tresult {
+                    if handler.is_null() {
+                        return kInvalidArgument;
+                    }
+                    kResultOk
+                }
+
+                unsafe fn unregisterEventHandler(&self, handler: *mut IEventHandler) -> tresult {
+                    if handler.is_null() {
+                        return kInvalidArgument;
+                    }
+                    kResultOk
+                }
+
+                unsafe fn registerTimer(
+                    &self,
+                    handler: *mut ITimerHandler,
+                    _milliseconds: TimerInterval,
+                ) -> tresult {
+                    if handler.is_null() {
+                        return kInvalidArgument;
+                    }
+                    kResultOk
+                }
+
+                unsafe fn unregisterTimer(&self, handler: *mut ITimerHandler) -> tresult {
+                    if handler.is_null() {
+                        return kInvalidArgument;
+                    }
+                    kResultOk
+                }
+            }
+
+            impl IComponentHandlerTrait for $ty {
+                unsafe fn beginEdit(&self, _id: Vst::ParamID) -> tresult {
+                    kResultOk
+                }
+
+                unsafe fn performEdit(
+                    &self,
+                    _id: Vst::ParamID,
+                    _value_normalized: Vst::ParamValue,
+                ) -> tresult {
+                    kResultOk
+                }
+
+                unsafe fn endEdit(&self, _id: Vst::ParamID) -> tresult {
+                    kResultOk
+                }
+
+                unsafe fn restartComponent(&self, _flags: i32) -> tresult {
+                    kResultOk
+                }
+            }
+        };
+    }
+
+    macro_rules! impl_extended_host_application_traits {
+        ($ty:ty) => {
+            impl IComponentHandler2Trait for $ty {
+                unsafe fn setDirty(&self, _state: TBool) -> tresult {
+                    kResultOk
+                }
+
+                unsafe fn requestOpenEditor(&self, _name: FIDString) -> tresult {
+                    kResultOk
+                }
+
+                unsafe fn startGroupEdit(&self) -> tresult {
+                    kResultOk
+                }
+
+                unsafe fn finishGroupEdit(&self) -> tresult {
+                    kResultOk
+                }
+            }
+
+            impl IComponentHandler3Trait for $ty {
+                unsafe fn createContextMenu(
+                    &self,
+                    _plugView: *mut IPlugView,
+                    _paramID: *const Vst::ParamID,
+                ) -> *mut IContextMenu {
+                    std::ptr::null_mut()
+                }
+            }
+
+            impl IComponentHandlerBusActivationTrait for $ty {
+                unsafe fn requestBusActivation(
+                    &self,
+                    _type: Vst::MediaType,
+                    _dir: Vst::BusDirection,
+                    _index: i32,
+                    _state: TBool,
+                ) -> tresult {
+                    kResultOk
+                }
+            }
+
+            impl IComponentHandlerSystemTimeTrait for $ty {
+                unsafe fn getSystemTime(&self, systemTime: *mut int64) -> tresult {
+                    if systemTime.is_null() {
+                        return kInvalidArgument;
+                    }
+
+                    let now = std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .map(|duration| duration.as_millis() as int64)
+                        .unwrap_or_default();
+                    *systemTime = now;
+                    kResultOk
+                }
+            }
+
+            impl IContextMenuTargetTrait for $ty {
+                unsafe fn executeMenuItem(&self, _tag: i32) -> tresult {
+                    kResultOk
+                }
+            }
+
+            impl IDataExchangeHandlerTrait for $ty {
+                unsafe fn openQueue(
+                    &self,
+                    _processor: *mut Vst::IAudioProcessor,
+                    _blockSize: uint32,
+                    _numBlocks: uint32,
+                    _alignment: uint32,
+                    _userContextID: Vst::DataExchangeUserContextID,
+                    outID: *mut Vst::DataExchangeQueueID,
+                ) -> tresult {
+                    if !outID.is_null() {
+                        *outID = 0;
+                    }
+                    kResultOk
+                }
+
+                unsafe fn closeQueue(&self, _queueID: Vst::DataExchangeQueueID) -> tresult {
+                    kResultOk
+                }
+
+                unsafe fn lockBlock(
+                    &self,
+                    _queueId: Vst::DataExchangeQueueID,
+                    _block: *mut Vst::DataExchangeBlock,
+                ) -> tresult {
+                    kResultOk
+                }
+
+                unsafe fn freeBlock(
+                    &self,
+                    _queueId: Vst::DataExchangeQueueID,
+                    _blockID: Vst::DataExchangeBlockID,
+                    _sendToController: TBool,
+                ) -> tresult {
+                    kResultOk
+                }
+            }
+
+            impl IEditControllerHostEditingTrait for $ty {
+                unsafe fn beginEditFromHost(&self, _paramID: Vst::ParamID) -> tresult {
+                    kResultOk
+                }
+
+                unsafe fn endEditFromHost(&self, _paramID: Vst::ParamID) -> tresult {
+                    kResultOk
+                }
+            }
+
+            impl IUnitHandlerTrait for $ty {
+                unsafe fn notifyUnitSelection(&self, _unitId: Vst::UnitID) -> tresult {
+                    kResultOk
+                }
+
+                unsafe fn notifyProgramListChange(
+                    &self,
+                    _listId: Vst::ProgramListID,
+                    _programIndex: i32,
+                ) -> tresult {
+                    kResultOk
+                }
+            }
+
+            impl IUnitHandler2Trait for $ty {
+                unsafe fn notifyUnitByBusChange(&self) -> tresult {
+                    kResultOk
+                }
+            }
+
+            impl IProgressTrait for $ty {
+                unsafe fn start(
+                    &self,
+                    _type: ProgressType,
+                    _optionalDescription: *const vst3::Steinberg::tchar,
+                    outID: *mut ProgressID,
+                ) -> tresult {
+                    if !outID.is_null() {
+                        *outID = 0;
+                    }
+                    kResultOk
+                }
+
+                unsafe fn update(&self, _id: ProgressID, _normValue: Vst::ParamValue) -> tresult {
+                    kResultOk
+                }
+
+                unsafe fn finish(&self, _id: ProgressID) -> tresult {
+                    kResultOk
+                }
+            }
+        };
+    }
+
     pub(crate) struct PluginHostApplication;
 
     impl Class for PluginHostApplication {
@@ -2084,278 +3487,28 @@ mod macos_host {
         );
     }
 
-    impl IHostApplicationTrait for PluginHostApplication {
-        unsafe fn getName(&self, name: *mut String128) -> tresult {
-            if name.is_null() {
-                return kInvalidArgument;
-            }
+    impl_common_host_application_traits!(PluginHostApplication, full_host_supports_interface);
+    impl_extended_host_application_traits!(PluginHostApplication);
 
-            write_string128(&mut *name, "Solo Compose Plugin Host POC");
-            kResultOk
-        }
-
-        unsafe fn createInstance(
-            &self,
-            cid: *mut TUID,
-            iid: *mut TUID,
-            obj: *mut *mut c_void,
-        ) -> tresult {
-            if !obj.is_null() {
-                *obj = std::ptr::null_mut();
-            }
-
-            if tuid_matches(cid, &IMessage_iid) || tuid_matches(iid, &IMessage_iid) {
-                let Ok(message) = HostMessage::new() else {
-                    return kNotImplemented;
-                };
-                let Some(instance) = ComWrapper::new(message).to_com_ptr::<FUnknown>() else {
-                    return kNotImplemented;
-                };
-                return query_host_support_interface(instance, iid, obj);
-            }
-
-            if tuid_matches(cid, &IAttributeList_iid) || tuid_matches(iid, &IAttributeList_iid) {
-                let Some(instance) =
-                    ComWrapper::new(HostAttributeList::default()).to_com_ptr::<FUnknown>()
-                else {
-                    return kNotImplemented;
-                };
-                return query_host_support_interface(instance, iid, obj);
-            }
-
-            kNotImplemented
-        }
-    }
-
-    impl IPlugInterfaceSupportTrait for PluginHostApplication {
-        unsafe fn isPlugInterfaceSupported(&self, iid: *const TUID) -> tresult {
-            if iid.is_null() {
-                return kInvalidArgument;
-            }
-
-            if host_supports_interface(&*iid) {
-                kResultTrue
-            } else {
-                kResultFalse
+    pub(crate) fn create_controller_init_host_application(
+        profile: super::PluginEditorPocProbeProfile,
+    ) -> Result<ComPtr<IHostApplication>, String> {
+        match profile {
+            super::PluginEditorPocProbeProfile::Default => ComWrapper::new(PluginHostApplication)
+                .to_com_ptr::<IHostApplication>()
+                .ok_or_else(|| String::from("Failed to allocate the VST3 host-application shim.")),
+            super::PluginEditorPocProbeProfile::ControllerInitHostOnlyLifecycleAligned => {
+                Ok(create_logging_host_only_init_host_application())
             }
         }
     }
 
-    impl IAutomationStateTrait for PluginHostApplication {
-        unsafe fn setAutomationState(&self, _state: i32) -> tresult {
-            kResultOk
-        }
-    }
-
-    impl IRunLoopTrait for PluginHostApplication {
-        unsafe fn registerEventHandler(
-            &self,
-            handler: *mut IEventHandler,
-            _fd: FileDescriptor,
-        ) -> tresult {
-            if handler.is_null() {
-                return kInvalidArgument;
-            }
-            kResultOk
-        }
-
-        unsafe fn unregisterEventHandler(&self, handler: *mut IEventHandler) -> tresult {
-            if handler.is_null() {
-                return kInvalidArgument;
-            }
-            kResultOk
-        }
-
-        unsafe fn registerTimer(
-            &self,
-            handler: *mut ITimerHandler,
-            _milliseconds: TimerInterval,
-        ) -> tresult {
-            if handler.is_null() {
-                return kInvalidArgument;
-            }
-            kResultOk
-        }
-
-        unsafe fn unregisterTimer(&self, handler: *mut ITimerHandler) -> tresult {
-            if handler.is_null() {
-                return kInvalidArgument;
-            }
-            kResultOk
-        }
-    }
-
-    impl IComponentHandlerTrait for PluginHostApplication {
-        unsafe fn beginEdit(&self, _id: Vst::ParamID) -> tresult {
-            kResultOk
-        }
-
-        unsafe fn performEdit(
-            &self,
-            _id: Vst::ParamID,
-            _value_normalized: Vst::ParamValue,
-        ) -> tresult {
-            kResultOk
-        }
-
-        unsafe fn endEdit(&self, _id: Vst::ParamID) -> tresult {
-            kResultOk
-        }
-
-        unsafe fn restartComponent(&self, _flags: i32) -> tresult {
-            kResultOk
-        }
-    }
-
-    impl IComponentHandler2Trait for PluginHostApplication {
-        unsafe fn setDirty(&self, _state: TBool) -> tresult {
-            kResultOk
-        }
-
-        unsafe fn requestOpenEditor(&self, _name: FIDString) -> tresult {
-            kResultOk
-        }
-
-        unsafe fn startGroupEdit(&self) -> tresult {
-            kResultOk
-        }
-
-        unsafe fn finishGroupEdit(&self) -> tresult {
-            kResultOk
-        }
-    }
-
-    impl IComponentHandler3Trait for PluginHostApplication {
-        unsafe fn createContextMenu(
-            &self,
-            _plugView: *mut IPlugView,
-            _paramID: *const Vst::ParamID,
-        ) -> *mut IContextMenu {
-            std::ptr::null_mut()
-        }
-    }
-
-    impl IComponentHandlerBusActivationTrait for PluginHostApplication {
-        unsafe fn requestBusActivation(
-            &self,
-            _type: Vst::MediaType,
-            _dir: Vst::BusDirection,
-            _index: i32,
-            _state: TBool,
-        ) -> tresult {
-            kResultOk
-        }
-    }
-
-    impl IComponentHandlerSystemTimeTrait for PluginHostApplication {
-        unsafe fn getSystemTime(&self, systemTime: *mut int64) -> tresult {
-            if systemTime.is_null() {
-                return kInvalidArgument;
-            }
-
-            let now = std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .map(|duration| duration.as_millis() as int64)
-                .unwrap_or_default();
-            *systemTime = now;
-            kResultOk
-        }
-    }
-
-    impl IContextMenuTargetTrait for PluginHostApplication {
-        unsafe fn executeMenuItem(&self, _tag: i32) -> tresult {
-            kResultOk
-        }
-    }
-
-    impl IDataExchangeHandlerTrait for PluginHostApplication {
-        unsafe fn openQueue(
-            &self,
-            _processor: *mut Vst::IAudioProcessor,
-            _blockSize: uint32,
-            _numBlocks: uint32,
-            _alignment: uint32,
-            _userContextID: Vst::DataExchangeUserContextID,
-            outID: *mut Vst::DataExchangeQueueID,
-        ) -> tresult {
-            if !outID.is_null() {
-                *outID = 0;
-            }
-            kResultOk
-        }
-
-        unsafe fn closeQueue(&self, _queueID: Vst::DataExchangeQueueID) -> tresult {
-            kResultOk
-        }
-
-        unsafe fn lockBlock(
-            &self,
-            _queueId: Vst::DataExchangeQueueID,
-            _block: *mut Vst::DataExchangeBlock,
-        ) -> tresult {
-            kResultOk
-        }
-
-        unsafe fn freeBlock(
-            &self,
-            _queueId: Vst::DataExchangeQueueID,
-            _blockID: Vst::DataExchangeBlockID,
-            _sendToController: TBool,
-        ) -> tresult {
-            kResultOk
-        }
-    }
-
-    impl IEditControllerHostEditingTrait for PluginHostApplication {
-        unsafe fn beginEditFromHost(&self, _paramID: Vst::ParamID) -> tresult {
-            kResultOk
-        }
-
-        unsafe fn endEditFromHost(&self, _paramID: Vst::ParamID) -> tresult {
-            kResultOk
-        }
-    }
-
-    impl IUnitHandlerTrait for PluginHostApplication {
-        unsafe fn notifyUnitSelection(&self, _unitId: Vst::UnitID) -> tresult {
-            kResultOk
-        }
-
-        unsafe fn notifyProgramListChange(
-            &self,
-            _listId: Vst::ProgramListID,
-            _programIndex: i32,
-        ) -> tresult {
-            kResultOk
-        }
-    }
-
-    impl IUnitHandler2Trait for PluginHostApplication {
-        unsafe fn notifyUnitByBusChange(&self) -> tresult {
-            kResultOk
-        }
-    }
-
-    impl IProgressTrait for PluginHostApplication {
-        unsafe fn start(
-            &self,
-            _type: ProgressType,
-            _optionalDescription: *const vst3::Steinberg::tchar,
-            outID: *mut ProgressID,
-        ) -> tresult {
-            if !outID.is_null() {
-                *outID = 0;
-            }
-            kResultOk
-        }
-
-        unsafe fn update(&self, _id: ProgressID, _normValue: Vst::ParamValue) -> tresult {
-            kResultOk
-        }
-
-        unsafe fn finish(&self, _id: ProgressID) -> tresult {
-            kResultOk
-        }
+    fn create_component_handler_host_application(
+        _profile: super::PluginEditorPocProbeProfile,
+    ) -> Result<ComPtr<IHostApplication>, String> {
+        ComWrapper::new(PluginHostApplication)
+            .to_com_ptr::<IHostApplication>()
+            .ok_or_else(|| String::from("Failed to allocate the VST3 component-handler host shim."))
     }
 
     struct PluginHostFrame {
@@ -2902,15 +4055,24 @@ mod macos_host {
         let _ = component_connection.disconnect(controller_connection.as_ptr());
     }
 
+    enum ConnectionPointHandshakeOutcome {
+        Connected(String),
+        Skipped(String),
+    }
+
     fn connect_component_and_controller(
         component: &ComPtr<IComponent>,
         controller: &ComPtr<IEditController>,
-    ) -> bool {
+    ) -> ConnectionPointHandshakeOutcome {
         let Some(component_connection) = component.cast::<IConnectionPoint>() else {
-            return false;
+            return ConnectionPointHandshakeOutcome::Skipped(String::from(
+                "Plugin component does not expose IConnectionPoint; handshake skipped.",
+            ));
         };
         let Some(controller_connection) = controller.cast::<IConnectionPoint>() else {
-            return false;
+            return ConnectionPointHandshakeOutcome::Skipped(String::from(
+                "Plugin controller does not expose IConnectionPoint; handshake skipped.",
+            ));
         };
 
         let component_connect_result =
@@ -2918,13 +4080,46 @@ mod macos_host {
         let controller_connect_result =
             unsafe { controller_connection.connect(component_connection.as_ptr()) };
         if component_connect_result == kResultOk && controller_connect_result == kResultOk {
-            return true;
+            return ConnectionPointHandshakeOutcome::Connected(String::from(
+                "Connected component and controller connection points.",
+            ));
         }
         unsafe {
             let _ = controller_connection.disconnect(component_connection.as_ptr());
             let _ = component_connection.disconnect(controller_connection.as_ptr());
         }
-        false
+        ConnectionPointHandshakeOutcome::Skipped(format!(
+            "Component/controller connection-point handshake returned component={} and controller={}; continuing without a connected pair.",
+            component_connect_result, controller_connect_result
+        ))
+    }
+
+    fn apply_component_runtime_setup(
+        component: &ComPtr<IComponent>,
+        telemetry: &mut super::PluginHostBuildTelemetry,
+    ) -> Result<(), PluginEditorHostAttemptError> {
+        if let Some(processor) = component.cast::<Vst::IAudioProcessor>() {
+            activate_component_buses(component).map_err(|error| {
+                super::record_probe_failure(
+                    telemetry,
+                    PluginEditorHostAttemptError::plugin_failure(
+                        PluginEditorHostValidationPhase::ComponentRuntimeSetup,
+                        error,
+                    ),
+                )
+            })?;
+
+            let mut setup = Vst::ProcessSetup {
+                processMode: 0,
+                symbolicSampleSize: 0,
+                maxSamplesPerBlock: 1024,
+                sampleRate: 44100.0,
+            };
+            let _ = unsafe { processor.setupProcessing(&mut setup) };
+            let _ = unsafe { component.setActive(1) };
+        }
+
+        Ok(())
     }
 
     fn attach_error_message(
@@ -2959,68 +4154,193 @@ mod macos_host {
         target: &super::PluginEditorTarget,
         restorable_plugin_state: Option<&PlaybackSlotPluginState>,
     ) -> Result<PluginHostSession, PluginEditorHostAttemptError> {
-        let plugin_path = target.path();
-        let module = load_vst3_module(plugin_path).map_err(|error| {
-            PluginEditorHostAttemptError::new(PluginEditorHostValidationPhase::ModuleLoad, error)
-        })?;
-        let factory = create_plugin_factory(&module).map_err(|error| {
-            PluginEditorHostAttemptError::new(PluginEditorHostValidationPhase::FactoryCreate, error)
-        })?;
+        let mut telemetry = super::PluginHostBuildTelemetry::disabled();
+        build_plugin_host_session_with_telemetry(
+            target,
+            restorable_plugin_state,
+            super::PluginEditorPocProbeProfile::Default,
+            &mut telemetry,
+        )
+    }
 
-        let host_application = ComWrapper::new(PluginHostApplication)
-            .to_com_ptr::<IHostApplication>()
-            .ok_or_else(|| {
-                PluginEditorHostAttemptError::new(
-                    PluginEditorHostValidationPhase::HostContext,
-                    "Failed to allocate the VST3 host-application shim.",
+    fn build_plugin_host_session_with_telemetry(
+        target: &super::PluginEditorTarget,
+        restorable_plugin_state: Option<&PlaybackSlotPluginState>,
+        probe_profile: super::PluginEditorPocProbeProfile,
+        telemetry: &mut super::PluginHostBuildTelemetry,
+    ) -> Result<PluginHostSession, PluginEditorHostAttemptError> {
+        let plugin_path = target.path();
+        telemetry.record_starting(
+            PluginEditorHostValidationPhase::ModuleLoad,
+            "About to load the VST3 module binary.",
+        );
+        let module = load_vst3_module(plugin_path).map_err(|error| {
+            super::record_probe_failure(
+                telemetry,
+                PluginEditorHostAttemptError::host_contract_failure(
+                    PluginEditorHostValidationPhase::ModuleLoad,
+                    error,
+                ),
+            )
+        })?;
+        telemetry.record_completed(
+            PluginEditorHostValidationPhase::ModuleLoad,
+            "Loaded the VST3 module binary.",
+        );
+        telemetry.record_starting(
+            PluginEditorHostValidationPhase::FactoryCreate,
+            "About to resolve the VST3 plugin factory.",
+        );
+        let factory = create_plugin_factory(&module).map_err(|error| {
+            super::record_probe_failure(
+                telemetry,
+                PluginEditorHostAttemptError::plugin_failure(
+                    PluginEditorHostValidationPhase::FactoryCreate,
+                    error,
+                ),
+            )
+        })?;
+        telemetry.record_completed(
+            PluginEditorHostValidationPhase::FactoryCreate,
+            "Resolved the VST3 plugin factory.",
+        );
+
+        telemetry.record_starting(
+            PluginEditorHostValidationPhase::HostContext,
+            "About to allocate the VST3 host application and configure the factory host context.",
+        );
+        let host_application =
+            create_component_handler_host_application(probe_profile).map_err(|error| {
+                super::record_probe_failure(
+                    telemetry,
+                    PluginEditorHostAttemptError::host_contract_failure(
+                        PluginEditorHostValidationPhase::HostContext,
+                        error,
+                    ),
+                )
+            })?;
+        let controller_initialize_host_application = match probe_profile {
+            super::PluginEditorPocProbeProfile::Default => host_application.clone(),
+            super::PluginEditorPocProbeProfile::ControllerInitHostOnlyLifecycleAligned => {
+                create_controller_init_host_application(probe_profile).map_err(|error| {
+                    super::record_probe_failure(
+                        telemetry,
+                        PluginEditorHostAttemptError::host_contract_failure(
+                            PluginEditorHostValidationPhase::HostContext,
+                            error,
+                        ),
+                    )
+                })?
+            }
+        };
+        let component_handler_host_application =
+            create_component_handler_host_application(probe_profile).map_err(|error| {
+                super::record_probe_failure(
+                    telemetry,
+                    PluginEditorHostAttemptError::host_contract_failure(
+                        PluginEditorHostValidationPhase::HostContext,
+                        error,
+                    ),
                 )
             })?;
         let host_context = host_application.clone().upcast::<FUnknown>();
         configure_factory_host_context(&factory, &host_context);
+        telemetry.record_completed(
+            PluginEditorHostValidationPhase::HostContext,
+            "Created the host context and configured the VST3 factory.",
+        );
 
+        telemetry.record_starting(
+            PluginEditorHostValidationPhase::ComponentCreate,
+            "About to create the VST3 component instance.",
+        );
         let component = create_component(&factory, plugin_path).map_err(|error| {
-            PluginEditorHostAttemptError::new(
-                PluginEditorHostValidationPhase::ComponentCreate,
-                error,
+            super::record_probe_failure(
+                telemetry,
+                PluginEditorHostAttemptError::plugin_failure(
+                    PluginEditorHostValidationPhase::ComponentCreate,
+                    error,
+                ),
             )
         })?;
+        telemetry.record_completed(
+            PluginEditorHostValidationPhase::ComponentCreate,
+            "Created the VST3 component instance.",
+        );
+        let delay_component_runtime_setup =
+            super::probe_profile_delays_component_runtime_setup(probe_profile);
+        telemetry.record_starting(
+            PluginEditorHostValidationPhase::ComponentInitialize,
+            if delay_component_runtime_setup {
+                "About to initialize the VST3 component. Runtime bus activation and processing setup will be deferred until after controller initialization."
+            } else {
+                "About to initialize the VST3 component before controller initialization."
+            },
+        );
         let component_init = unsafe { component.initialize(host_context.as_ptr()) };
         if component_init != kResultOk {
-            return Err(PluginEditorHostAttemptError::new(
-                PluginEditorHostValidationPhase::ComponentInitialize,
-                format!(
-                    "Plugin editor POC failed to initialize the VST3 component (tresult = {}).",
-                    component_init
+            return Err(super::record_probe_failure(
+                telemetry,
+                PluginEditorHostAttemptError::plugin_failure(
+                    PluginEditorHostValidationPhase::ComponentInitialize,
+                    format!(
+                        "Plugin editor POC failed to initialize the VST3 component (tresult = {}).",
+                        component_init
+                    ),
                 ),
             ));
         }
 
         if let Some(plugin_state) = restorable_plugin_state {
+            telemetry.record_starting(
+                PluginEditorHostValidationPhase::ComponentStateSync,
+                "About to restore the portable component state into the VST3 component.",
+            );
             restore_component_state(&component, plugin_state).map_err(|error| {
-                PluginEditorHostAttemptError::new(
-                    PluginEditorHostValidationPhase::ComponentStateSync,
-                    error,
+                super::record_probe_failure(
+                    telemetry,
+                    PluginEditorHostAttemptError::plugin_failure(
+                        PluginEditorHostValidationPhase::ComponentStateSync,
+                        error,
+                    ),
                 )
             })?;
+            telemetry.record_completed(
+                PluginEditorHostValidationPhase::ComponentStateSync,
+                "Restored the portable component state into the VST3 component.",
+            );
+        } else {
+            telemetry.record_skipped(
+                PluginEditorHostValidationPhase::ComponentStateSync,
+                "Skipped because no portable component state was provided.",
+            );
         }
 
-        if let Some(processor) = component.cast::<Vst::IAudioProcessor>() {
-            activate_component_buses(&component).map_err(|error| {
-                PluginEditorHostAttemptError::new(
-                    PluginEditorHostValidationPhase::ComponentInitialize,
-                    error,
-                )
-            })?;
-            let mut setup = Vst::ProcessSetup {
-                processMode: 0,        // kRealtime
-                symbolicSampleSize: 0, // kSample32
-                maxSamplesPerBlock: 1024,
-                sampleRate: 44100.0,
-            };
-            let _ = unsafe { processor.setupProcessing(&mut setup) };
-            let _ = unsafe { component.setActive(1) };
+        telemetry.record_completed(
+            PluginEditorHostValidationPhase::ComponentInitialize,
+            if delay_component_runtime_setup {
+                "Initialized the VST3 component and deferred runtime bus activation, processing setup, and component activation until after controller initialization."
+            } else {
+                "Initialized the VST3 component."
+            },
+        );
+
+        if !delay_component_runtime_setup {
+            telemetry.record_starting(
+                PluginEditorHostValidationPhase::ComponentRuntimeSetup,
+                "About to activate buses, configure processing, and activate the VST3 component before controller initialization.",
+            );
+            apply_component_runtime_setup(&component, telemetry)?;
+            telemetry.record_completed(
+                PluginEditorHostValidationPhase::ComponentRuntimeSetup,
+                "Activated buses, configured processing, and activated the VST3 component before controller initialization.",
+            );
         }
 
+        telemetry.record_starting(
+            PluginEditorHostValidationPhase::ControllerCreate,
+            "About to create the VST3 edit controller.",
+        );
         let CreatedController {
             controller,
             shared_with_component: controller_shared_with_component,
@@ -3030,12 +4350,19 @@ mod macos_host {
                 unsafe {
                     let _ = component.terminate();
                 }
-                return Err(PluginEditorHostAttemptError::new(
-                    PluginEditorHostValidationPhase::ControllerCreate,
-                    error,
+                return Err(super::record_probe_failure(
+                    telemetry,
+                    PluginEditorHostAttemptError::plugin_failure(
+                        PluginEditorHostValidationPhase::ControllerCreate,
+                        error,
+                    ),
                 ));
             }
         };
+        telemetry.record_completed(
+            PluginEditorHostValidationPhase::ControllerCreate,
+            "Created the VST3 edit controller.",
+        );
 
         // IComponentHandler is now on PluginHostApplication, so we use
         // the host_application ComPtr cast for setComponentHandler.
@@ -3043,14 +4370,40 @@ mod macos_host {
         // Set the component handler BEFORE controller.initialize().
         // HALion Sonic's controller may rely on having a valid handler
         // during initialization.
-        let component_handler_ptr = host_application
+        let component_handler_ptr = component_handler_host_application
             .clone()
             .upcast::<FUnknown>()
             .cast::<IComponentHandler>()
             .expect("PluginHostApplication must expose IComponentHandler");
+        let set_component_handler_pre_init =
+            !super::probe_profile_defers_component_handler(probe_profile);
 
         if !controller_shared_with_component {
-            let _ = unsafe { controller.setComponentHandler(component_handler_ptr.as_ptr()) };
+            if set_component_handler_pre_init {
+                telemetry.record_starting(
+                    PluginEditorHostValidationPhase::ControllerSetComponentHandlerPreInit,
+                    "About to set the VST3 component handler before controller initialization.",
+                );
+                let _ = unsafe { controller.setComponentHandler(component_handler_ptr.as_ptr()) };
+                telemetry.log_phase_event(
+                    PluginEditorHostValidationPhase::ControllerSetComponentHandlerPreInit,
+                    "completed",
+                    "Set the VST3 component handler before controller initialization.",
+                );
+            } else {
+                telemetry.record_skipped(
+                    PluginEditorHostValidationPhase::ControllerSetComponentHandlerPreInit,
+                    format!(
+                        "Skipped because the {} probe profile defers component-handler wiring until after controller initialization.",
+                        super::probe_profile_code(probe_profile)
+                    ),
+                );
+            }
+        } else {
+            telemetry.record_skipped(
+                PluginEditorHostValidationPhase::ControllerSetComponentHandlerPreInit,
+                "Skipped because the edit controller is shared with the component instance.",
+            );
         }
 
         // Initialize the edit controller on the main thread.
@@ -3058,20 +4411,60 @@ mod macos_host {
         // with pre-init setComponentHandler, 15 interfaces, and factory
         // host context.
         let controller_initialized = if controller_shared_with_component {
+            telemetry.record_skipped(
+                PluginEditorHostValidationPhase::ControllerInitialize,
+                "Skipped because the edit controller is shared with the component instance.",
+            );
+            telemetry.record_skipped(
+                PluginEditorHostValidationPhase::ControllerSetComponentHandler,
+                "Skipped because the edit controller is shared with the component instance.",
+            );
             false
         } else {
-            let controller_init = unsafe { controller.initialize(host_context.as_ptr()) };
+            let controller_initialize_host_context = controller_initialize_host_application
+                .clone()
+                .upcast::<FUnknown>();
+            telemetry.record_starting(
+                PluginEditorHostValidationPhase::ControllerInitialize,
+                "About to initialize the VST3 edit controller.",
+            );
+            let controller_init =
+                unsafe { controller.initialize(controller_initialize_host_context.as_ptr()) };
             if controller_init != kResultOk {
                 unsafe {
                     let _ = component.terminate();
                 }
-                return Err(PluginEditorHostAttemptError::new(
-                    PluginEditorHostValidationPhase::ControllerInitialize,
-                    format!(
-                        "Plugin editor POC failed to initialize the VST3 edit controller (tresult = {}).",
-                        controller_init
+                return Err(super::record_probe_failure(
+                    telemetry,
+                    PluginEditorHostAttemptError::plugin_failure(
+                        PluginEditorHostValidationPhase::ControllerInitialize,
+                        format!(
+                            "Plugin editor POC failed to initialize the VST3 edit controller (tresult = {}).",
+                            controller_init
+                        ),
                     ),
                 ));
+            }
+            telemetry.record_completed(
+                PluginEditorHostValidationPhase::ControllerInitialize,
+                "Initialized the VST3 edit controller.",
+            );
+
+            if set_component_handler_pre_init {
+                telemetry.record_skipped(
+                    PluginEditorHostValidationPhase::ControllerSetComponentHandler,
+                    "Skipped because the default probe profile already wired the component handler before controller initialization.",
+                );
+            } else {
+                telemetry.record_starting(
+                    PluginEditorHostValidationPhase::ControllerSetComponentHandler,
+                    "About to set the VST3 component handler after controller initialization.",
+                );
+                let _ = unsafe { controller.setComponentHandler(component_handler_ptr.as_ptr()) };
+                telemetry.record_completed(
+                    PluginEditorHostValidationPhase::ControllerSetComponentHandler,
+                    "Set the VST3 component handler after controller initialization.",
+                );
             }
             true
         };
@@ -3081,14 +4474,59 @@ mod macos_host {
 
         // State sync before connect points
         if !controller_shared_with_component {
+            telemetry.log_phase_event(
+                PluginEditorHostValidationPhase::ComponentStateSync,
+                "starting",
+                "About to synchronize the live component state into the controller before connection-point setup.",
+            );
             sync_component_state_to_controller(&component, &controller);
+            telemetry.log_phase_event(
+                PluginEditorHostValidationPhase::ComponentStateSync,
+                "completed",
+                "Synchronized the live component state into the controller before connection-point setup.",
+            );
         }
 
         let connection_points_connected = if controller_shared_with_component {
+            telemetry.record_skipped(
+                PluginEditorHostValidationPhase::ConnectionPointHandshake,
+                "Skipped because the component and controller share one instance.",
+            );
             false
         } else {
-            connect_component_and_controller(&component, &controller)
+            telemetry.record_starting(
+                PluginEditorHostValidationPhase::ConnectionPointHandshake,
+                "About to connect the VST3 component and controller connection points.",
+            );
+            match connect_component_and_controller(&component, &controller) {
+                ConnectionPointHandshakeOutcome::Connected(message) => {
+                    telemetry.record_completed(
+                        PluginEditorHostValidationPhase::ConnectionPointHandshake,
+                        message,
+                    );
+                    true
+                }
+                ConnectionPointHandshakeOutcome::Skipped(message) => {
+                    telemetry.record_skipped(
+                        PluginEditorHostValidationPhase::ConnectionPointHandshake,
+                        message,
+                    );
+                    false
+                }
+            }
         };
+
+        if delay_component_runtime_setup {
+            telemetry.record_starting(
+                PluginEditorHostValidationPhase::ComponentRuntimeSetup,
+                "About to activate buses, configure processing, and activate the VST3 component after controller initialization.",
+            );
+            apply_component_runtime_setup(&component, telemetry)?;
+            telemetry.record_completed(
+                PluginEditorHostValidationPhase::ComponentRuntimeSetup,
+                "Activated buses, configured processing, and activated the VST3 component after controller initialization.",
+            );
+        }
 
         Ok(PluginHostSession {
             target: target.clone(),
@@ -3099,6 +4537,8 @@ mod macos_host {
             controller,
             view: None,
             _host_application: host_application,
+            _controller_initialize_host_application: controller_initialize_host_application,
+            _component_handler_host_application: component_handler_host_application,
             _plug_frame: None,
             host_view_ptr: 0,
             plugin_can_resize: false,
@@ -3631,7 +5071,9 @@ mod macos_host {
                                     .map_err(|error| error.message.clone())?
                             }
                         };
-                        let result = session.attach_view(ns_window_ptr, &content_view);
+                        let mut telemetry = super::PluginHostBuildTelemetry::disabled();
+                        let result =
+                            session.attach_view(ns_window_ptr, &content_view, &mut telemetry);
                         slot_runtime_sessions()
                             .lock()
                             .map_err(|_| String::from("Failed to restore slot runtime session"))?
@@ -3655,7 +5097,9 @@ mod macos_host {
                                     .map_err(|error| error.message.clone())?,
                             }
                         };
-                        let result = session.attach_view(ns_window_ptr, &content_view);
+                        let mut telemetry = super::PluginHostBuildTelemetry::disabled();
+                        let result =
+                            session.attach_view(ns_window_ptr, &content_view, &mut telemetry);
                         active_plugin_host_session()
                             .lock()
                             .map_err(|_| {
@@ -3710,12 +5154,162 @@ mod macos_host {
         log_main_thread_wait_finish("attach_native_host_surface", wait_started_at);
         received?
     }
+
+    pub fn probe_plugin_host_load_init(
+        app: &AppHandle,
+        target: &super::PluginEditorTarget,
+        profile: super::PluginEditorPocProbeProfile,
+    ) -> Result<crate::playback::plugin_inventory::PluginEditorHostValidation, String> {
+        let (sender, receiver) = std::sync::mpsc::channel();
+        let app_clone = app.clone();
+        let target = target.clone();
+        let blocked_reason = super::bounded_editor_host_unsupported_reason(target.path());
+        let probe_log = super::MaintainerProbeLog::resolve(app);
+        probe_log.reset_for_probe(&target.to_string(), blocked_reason.as_deref(), profile);
+        probe_log.append_note(&format!(
+            "Using maintainer load/init probe profile={}",
+            super::probe_profile_code(profile)
+        ));
+        probe_log.append_note("Scheduling the maintainer load/init probe on the main thread.");
+        let probe_log_for_main = probe_log.clone();
+
+        app_clone
+            .run_on_main_thread(move || {
+                probe_log_for_main.append_note(
+                    "Maintainer load/init probe entered the main thread.",
+                );
+                let result = (|| -> Result<crate::playback::plugin_inventory::PluginEditorHostValidation, String> {
+                    let _callback_scope = super::ActiveMaintainerProbeCallbackScope::install(
+                        probe_log_for_main.clone(),
+                    );
+                    let mtm = MainThreadMarker::new().ok_or_else(|| {
+                        String::from("Maintainer load/init probe must run on the main thread")
+                    })?;
+                    let mut telemetry = super::PluginHostBuildTelemetry::enabled_with_probe_log(
+                        profile,
+                        probe_log_for_main.clone(),
+                    );
+
+                    let mut session = match build_plugin_host_session_with_telemetry(
+                        &target,
+                        target.plugin_state.as_ref(),
+                        profile,
+                        &mut telemetry,
+                    ) {
+                        Ok(session) => session,
+                        Err(_error) => {
+                            let probe = telemetry.finish().ok_or_else(|| {
+                                String::from(
+                                    "Failed to finalize maintainer load/init probe after host build failure.",
+                                )
+                            })?;
+                            return Ok(super::validation_from_load_init_probe(
+                                blocked_reason.clone(),
+                                probe,
+                            ));
+                        }
+                    };
+
+                    telemetry.log_note(
+                        "Creating a temporary AppKit window for the maintainer probe attach pass.",
+                    );
+
+                    let probe_window = unsafe {
+                        NSWindow::initWithContentRect_styleMask_backing_defer(
+                            mtm.alloc(),
+                            NSRect::new(NSPoint::new(0.0, 0.0), NSSize::new(640.0, 480.0)),
+                            NSWindowStyleMask::Titled,
+                            NSBackingStoreType::Buffered,
+                            false,
+                        )
+                    };
+                    let title = NSString::from_str("Plugin Load Probe");
+                    probe_window.setTitle(&title);
+
+                    let Some(content_view) = probe_window.contentView() else {
+                        telemetry.record_failed(
+                            PluginEditorHostValidationPhase::ViewCreate,
+                            crate::playback::plugin_inventory::PluginEditorHostLoadInitProbeStatus::BlockedByHostContract,
+                            "Failed to resolve the temporary maintainer probe content view.",
+                        );
+                        session.shutdown();
+                        let probe = telemetry.finish().ok_or_else(|| {
+                            String::from(
+                                "Failed to finalize maintainer load/init probe after temporary window setup failed.",
+                            )
+                        })?;
+                        return Ok(super::validation_from_load_init_probe(
+                            blocked_reason.clone(),
+                            probe,
+                        ));
+                    };
+
+                    let ns_window_ptr = (&*probe_window as *const NSWindow).cast_mut();
+                    match session.attach_view(ns_window_ptr, &content_view, &mut telemetry) {
+                        Ok(()) => telemetry.record_completed(
+                            PluginEditorHostValidationPhase::Attached,
+                            "Reached a bounded editor-view attach on the temporary maintainer probe surface.",
+                        ),
+                        Err(_error) => {}
+                    }
+
+                    session.shutdown();
+
+                    let probe = telemetry.finish().ok_or_else(|| {
+                        String::from(
+                            "Failed to finalize maintainer load/init probe after the attach pass.",
+                        )
+                    })?;
+
+                    let validation = super::validation_from_load_init_probe(
+                        blocked_reason.clone(),
+                        probe,
+                    );
+                    probe_log_for_main.append_note(&format!(
+                        "Maintainer load/init probe completed with profile={} validation_status={} validation_phase={}",
+                        super::probe_profile_code(profile),
+                        super::editor_host_validation_status_code(validation.status),
+                        super::editor_host_phase_code(validation.phase),
+                    ));
+
+                    Ok(validation)
+                })();
+
+                if let Err(error) = &result {
+                    probe_log_for_main.append_note(&format!(
+                        "Maintainer load/init probe returned an outer error: {}",
+                        error
+                    ));
+                }
+
+                let _ = sender.send(result);
+            })
+            .map_err(|error| {
+                probe_log.append_note(&format!(
+                    "Failed to schedule maintainer load/init probe: {}",
+                    error
+                ));
+                format!("Failed to schedule maintainer load/init probe: {error}")
+            })?;
+
+        let wait_started_at = log_main_thread_wait_start("probe_plugin_host_load_init");
+        let received = receiver.recv().map_err(|error| {
+            probe_log.append_note(&format!(
+                "Failed to receive maintainer load/init probe result: {}",
+                error
+            ));
+            format!("Failed to receive maintainer load/init probe result: {error}")
+        });
+        log_main_thread_wait_finish("probe_plugin_host_load_init", wait_started_at);
+        received?
+    }
 }
 
 #[cfg(target_os = "macos")]
 use macos_host::{
     attach_native_host_surface as attach_native_host_surface_impl,
     capture_slot_runtime_plugin_state as capture_slot_runtime_plugin_state_impl,
+    probe_plugin_host_load_init as probe_plugin_host_load_init_impl,
     render_slot_runtime_block as render_slot_runtime_block_impl,
     stop_slot_runtime_render as stop_slot_runtime_render_impl,
     sync_slot_runtime_sessions as sync_slot_runtime_sessions_impl, PluginHostSession,
@@ -3727,6 +5321,15 @@ fn attach_native_host_surface(
     target: &PluginEditorTarget,
 ) -> Result<PluginHostAttachOutcome, String> {
     attach_native_host_surface_impl(app, target)
+}
+
+#[cfg(target_os = "macos")]
+fn probe_plugin_host_load_init(
+    app: &AppHandle,
+    target: &PluginEditorTarget,
+    profile: PluginEditorPocProbeProfile,
+) -> Result<PluginEditorHostValidation, String> {
+    probe_plugin_host_load_init_impl(app, target, profile)
 }
 
 #[cfg(target_os = "macos")]
@@ -3838,6 +5441,55 @@ fn attach_native_host_surface(
     Err(String::from("plugin_editor_poc_open is macOS-only"))
 }
 
+#[cfg(not(target_os = "macos"))]
+fn probe_plugin_host_load_init(
+    _app: &AppHandle,
+    _target: &PluginEditorTarget,
+    _profile: PluginEditorPocProbeProfile,
+) -> Result<PluginEditorHostValidation, String> {
+    Err(String::from(
+        "plugin_editor_poc_probe_load_init is macOS-only",
+    ))
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub async fn plugin_editor_poc_read_probe_log(
+    app: AppHandle,
+) -> Result<PluginEditorPocProbeLog, String> {
+    MaintainerProbeLog::resolve(&app).snapshot()
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub async fn plugin_editor_poc_prepare_probe_log(
+    app: AppHandle,
+    app_state: State<'_, AppContextState>,
+    plugin_inventory_state: State<'_, ManagedPluginInventoryContextState>,
+    plugin_id: Option<String>,
+    plugin_path: Option<String>,
+    profile: Option<PluginEditorPocProbeProfile>,
+) -> Result<PluginEditorPocProbeLog, String> {
+    let target = resolve_plugin_target(
+        None,
+        plugin_id.as_deref(),
+        plugin_path.as_deref(),
+        app_state.inner(),
+        plugin_inventory_state.inner(),
+    )?;
+    let blocked_reason = bounded_editor_host_unsupported_reason(target.path());
+    let probe_log = MaintainerProbeLog::resolve(&app);
+    let profile = profile.unwrap_or_default();
+
+    probe_log.reset_for_probe(&target.to_string(), blocked_reason.as_deref(), profile);
+    probe_log.append_note(
+        &format!(
+            "Prepared the maintainer load/init probe log before invoking the risky host probe with profile={}",
+            probe_profile_code(profile)
+        ),
+    );
+
+    probe_log.snapshot()
+}
+
 #[tauri::command(rename_all = "snake_case")]
 pub async fn plugin_editor_poc_open(
     app: AppHandle,
@@ -3939,6 +5591,34 @@ pub async fn plugin_editor_poc_open(
     })
 }
 
+#[tauri::command(rename_all = "snake_case")]
+pub async fn plugin_editor_poc_probe_load_init(
+    app: AppHandle,
+    app_state: State<'_, AppContextState>,
+    plugin_inventory_state: State<'_, ManagedPluginInventoryContextState>,
+    plugin_id: Option<String>,
+    plugin_path: Option<String>,
+    profile: Option<PluginEditorPocProbeProfile>,
+) -> Result<PluginEditorHostValidation, String> {
+    let target = resolve_plugin_target(
+        None,
+        plugin_id.as_deref(),
+        plugin_path.as_deref(),
+        app_state.inner(),
+        plugin_inventory_state.inner(),
+    )?;
+
+    let validation = probe_plugin_host_load_init(&app, &target, profile.unwrap_or_default())?;
+    emit_editor_host_validation(
+        &app,
+        plugin_inventory_state.inner(),
+        target.path(),
+        validation.clone(),
+    );
+
+    Ok(validation)
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
@@ -3948,11 +5628,17 @@ mod tests {
         PluginHostLifecyclePhase, PluginTargetReservation,
     };
     use crate::playback::plugin_host_compatibility::bounded_editor_host_unsupported_reason;
+    use crate::playback::plugin_inventory::{
+        PluginEditorHostLoadInitProbe, PluginEditorHostLoadInitProbeStatus,
+        PluginEditorHostValidationPhase, PluginEditorHostValidationPhaseResultStatus,
+        PluginEditorHostValidationStatus,
+    };
     use crate::playback::runtime_activation::ActivatedSlotTarget;
     use crate::score::playback::{PlaybackSlotPluginState, PlaybackSlotTarget};
     use crate::utils::UniqueId;
     #[cfg(target_os = "macos")]
     use std::ffi::c_void;
+    use std::fs;
     use std::path::{Path, PathBuf};
     use std::sync::{Mutex, OnceLock};
 
@@ -4582,6 +6268,52 @@ mod tests {
         let _keep_alive: ComPtr<IHostApplication> = host_application;
     }
 
+    #[test]
+    fn host_callback_iid_label_names_additional_standard_interfaces() {
+        use vst3::Steinberg::Vst::{IConnectionPoint_iid, IUnitInfo_iid};
+
+        assert_eq!(
+            super::host_callback_iid_label(&IConnectionPoint_iid),
+            "IConnectionPoint"
+        );
+        assert_eq!(super::host_callback_iid_label(&IUnitInfo_iid), "IUnitInfo");
+    }
+
+    #[test]
+    fn host_callback_iid_label_names_wrapper_probe_interfaces() {
+        use vst3::Steinberg::Vst::{
+            IVst3ToAAXWrapper_iid, IVst3ToAUWrapper_iid, IVst3ToVst2Wrapper_iid,
+        };
+
+        assert_eq!(
+            super::host_callback_iid_label(&IVst3ToVst2Wrapper_iid),
+            "IVst3ToVst2Wrapper"
+        );
+        assert_eq!(
+            super::host_callback_iid_label(&IVst3ToAAXWrapper_iid),
+            "IVst3ToAAXWrapper"
+        );
+        assert_eq!(
+            super::host_callback_iid_label(&IVst3ToAUWrapper_iid),
+            "IVst3ToAUWrapper"
+        );
+    }
+
+    #[test]
+    fn host_callback_iid_label_falls_back_to_raw_hex_for_unknown_interfaces() {
+        use vst3::Steinberg::TUID;
+
+        let unknown_iid: TUID = [
+            0x10_i8, 0x20_i8, 0x30_i8, 0x40_i8, 0x50_i8, 0x60_i8, 0x70_i8, 0x11_i8, 0x22_i8,
+            0x33_i8, 0x44_i8, 0x55_i8, 0x66_i8, 0x77_i8, 0x7F_i8, 0x01_i8,
+        ];
+
+        assert_eq!(
+            super::host_callback_iid_label(&unknown_iid),
+            "unknown_interface(10203040-50607011-22334455-66777F01)"
+        );
+    }
+
     #[cfg(target_os = "macos")]
     #[test]
     fn host_application_exposes_full_interface_set() {
@@ -4616,6 +6348,63 @@ mod tests {
         let unknown = host_application.upcast::<FUnknown>();
 
         assert!(unknown.cast::<IPlugInterfaceSupport>().is_some());
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn host_only_init_host_application_exposes_only_host_application() {
+        use vst3::Steinberg::FUnknown;
+        use vst3::Steinberg::Linux::IRunLoop;
+        use vst3::Steinberg::Vst::{
+            IAutomationState, IComponentHandler, IHostApplication, IPlugInterfaceSupport,
+        };
+
+        let host_application = super::macos_host::create_controller_init_host_application(
+            super::PluginEditorPocProbeProfile::ControllerInitHostOnlyLifecycleAligned,
+        )
+        .unwrap();
+        let unknown = host_application.clone().upcast::<FUnknown>();
+
+        assert!(unknown.cast::<IHostApplication>().is_some());
+        assert!(unknown.cast::<IPlugInterfaceSupport>().is_none());
+        assert!(unknown.cast::<IComponentHandler>().is_none());
+        assert!(unknown.cast::<IRunLoop>().is_none());
+        assert!(unknown.cast::<IAutomationState>().is_none());
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn host_only_init_host_application_returns_non_null_fallback_for_wrapper_probes() {
+        use std::ffi::c_void;
+        use vst3::Steinberg::Vst::{IHostApplication, IVst3ToAUWrapper_iid};
+        use vst3::Steinberg::{kNoInterface, FUnknown};
+
+        let host_application = super::macos_host::create_controller_init_host_application(
+            super::PluginEditorPocProbeProfile::ControllerInitHostOnlyLifecycleAligned,
+        )
+        .unwrap();
+        let unknown = host_application.clone().upcast::<FUnknown>();
+        let mut wrapper_iid = IVst3ToAUWrapper_iid;
+        let mut raw_interface: *mut c_void = std::ptr::null_mut();
+
+        let result = unsafe {
+            ((*(*unknown.as_ptr()).vtbl).queryInterface)(
+                unknown.as_ptr(),
+                &mut wrapper_iid,
+                &mut raw_interface,
+            )
+        };
+
+        assert_eq!(result, kNoInterface);
+        assert!(!raw_interface.is_null());
+        assert_ne!(raw_interface, host_application.as_ptr().cast::<c_void>());
+
+        let fallback_unknown = raw_interface.cast::<FUnknown>();
+        let remaining = unsafe { ((*(*fallback_unknown).vtbl).release)(fallback_unknown) };
+
+        assert_eq!(remaining, 2);
+
+        let _keep_alive: vst3::ComPtr<IHostApplication> = host_application;
     }
 
     #[cfg(target_os = "macos")]
@@ -4660,5 +6449,264 @@ mod tests {
             !super::macos_host::resizing_from_plugin().load(Ordering::Acquire),
             "Guard should be clear after reset"
         );
+    }
+
+    #[test]
+    fn load_init_probe_marks_remaining_phases_skipped_after_first_failure() {
+        let mut telemetry = super::PluginHostBuildTelemetry::enabled();
+
+        telemetry.record_completed(
+            PluginEditorHostValidationPhase::ModuleLoad,
+            "Loaded the VST3 module binary.",
+        );
+        telemetry.record_completed(
+            PluginEditorHostValidationPhase::FactoryCreate,
+            "Resolved the VST3 plugin factory.",
+        );
+        telemetry.record_completed(
+            PluginEditorHostValidationPhase::ControllerCreate,
+            "Created the VST3 edit controller.",
+        );
+        telemetry.record_failed(
+            PluginEditorHostValidationPhase::ControllerInitialize,
+            PluginEditorHostLoadInitProbeStatus::BlockedByPluginFailure,
+            "controller init failed",
+        );
+
+        let probe = telemetry.finish().unwrap();
+
+        assert_eq!(
+            probe.status,
+            PluginEditorHostLoadInitProbeStatus::BlockedByPluginFailure
+        );
+        assert_eq!(
+            probe.last_successful_phase,
+            Some(PluginEditorHostValidationPhase::ControllerCreate)
+        );
+        assert_eq!(
+            probe.first_failing_phase,
+            Some(PluginEditorHostValidationPhase::ControllerInitialize)
+        );
+        assert_eq!(
+            probe.first_failing_message.as_deref(),
+            Some("controller init failed")
+        );
+        assert_eq!(
+            probe
+                .phase_results
+                .iter()
+                .find(|result| result.phase == PluginEditorHostValidationPhase::ViewAttach)
+                .map(|result| result.status),
+            Some(PluginEditorHostValidationPhaseResultStatus::Skipped)
+        );
+    }
+
+    #[test]
+    fn blocked_validation_keeps_policy_gate_status_while_preserving_probe_payload() {
+        let probe = PluginEditorHostLoadInitProbe {
+            status: PluginEditorHostLoadInitProbeStatus::BlockedByPluginFailure,
+            last_successful_phase: Some(PluginEditorHostValidationPhase::ControllerCreate),
+            first_failing_phase: Some(PluginEditorHostValidationPhase::ControllerInitialize),
+            first_failing_message: Some(String::from("controller init failed")),
+            summary: String::from(
+                "Maintainer load/init probe first failed at controller_initialize and appears plugin-side: controller init failed",
+            ),
+            phase_results: vec![],
+        };
+
+        let validation = super::validation_from_load_init_probe(
+            Some(String::from("Blocked for ordinary user-facing flows.")),
+            probe.clone(),
+        );
+
+        assert_eq!(validation.status, PluginEditorHostValidationStatus::Blocked);
+        assert_eq!(
+            validation.phase,
+            PluginEditorHostValidationPhase::PolicyGate
+        );
+        assert!(validation.message.contains("controller_initialize"));
+        assert_eq!(validation.maintainer_load_init_probe, Some(probe));
+    }
+
+    #[test]
+    fn maintainer_probe_log_persists_phase_events() {
+        let root = std::env::temp_dir().join(format!(
+            "plugin-editor-poc-log-test-{}-{}",
+            std::process::id(),
+            super::current_timestamp_ms()
+        ));
+        let log = super::MaintainerProbeLog::from_path(root.join("probe.log"));
+
+        log.try_reset_for_probe(
+            "path=/Library/Audio/Plug-Ins/VST3/HALion Sonic.vst3",
+            Some("Blocked for ordinary user-facing flows."),
+            super::PluginEditorPocProbeProfile::Default,
+        )
+        .unwrap();
+        log.try_append_event(
+            "starting",
+            Some(PluginEditorHostValidationPhase::ModuleLoad),
+            "About to load the VST3 module binary.",
+        )
+        .unwrap();
+        log.try_append_event(
+            "failed",
+            Some(PluginEditorHostValidationPhase::ControllerInitialize),
+            "controller init failed",
+        )
+        .unwrap();
+
+        let contents = log.read_contents().unwrap().unwrap();
+
+        assert!(contents.contains("=== maintainer load/init probe ==="));
+        assert!(contents.contains("target=path=/Library/Audio/Plug-Ins/VST3/HALion Sonic.vst3"));
+        assert!(
+            contents.contains("ordinary_blocked_reason=Blocked for ordinary user-facing flows.")
+        );
+        assert!(contents.contains("probe_profile=default"));
+        assert!(contents.contains("phase=module_load status=starting"));
+        assert!(contents
+            .contains("phase=controller_initialize status=failed message=controller init failed"));
+
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn maintainer_probe_log_snapshot_derives_likely_crash_hint_from_unfinished_phase() {
+        let root = std::env::temp_dir().join(format!(
+            "plugin-editor-poc-log-snapshot-test-{}-{}",
+            std::process::id(),
+            super::current_timestamp_ms()
+        ));
+        let log = super::MaintainerProbeLog::from_path(root.join("probe.log"));
+
+        log.try_reset_for_probe(
+            "path=/Library/Audio/Plug-Ins/VST3/HALion Sonic.vst3",
+            Some("Blocked for ordinary user-facing flows."),
+            super::PluginEditorPocProbeProfile::ControllerInitHostOnlyLifecycleAligned,
+        )
+        .unwrap();
+        log.try_append_event(
+            "starting",
+            Some(PluginEditorHostValidationPhase::ControllerInitialize),
+            "About to initialize the VST3 edit controller.",
+        )
+        .unwrap();
+
+        let snapshot = log.snapshot().unwrap();
+        assert_eq!(
+            snapshot.profile,
+            Some(super::PluginEditorPocProbeProfile::ControllerInitHostOnlyLifecycleAligned)
+        );
+        let crash_hint = snapshot.crash_hint.unwrap();
+
+        assert_eq!(crash_hint.phase, "controller_initialize");
+        assert!(crash_hint
+            .last_line
+            .contains("phase=controller_initialize status=starting"));
+        assert_eq!(
+            crash_hint.message,
+            "Likely hard crash during controller_initialize. The last recorded probe event started but never completed or failed."
+        );
+
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn maintainer_probe_log_snapshot_ignores_info_lines_after_started_phase() {
+        let root = std::env::temp_dir().join(format!(
+            "plugin-editor-poc-log-info-after-start-test-{}-{}",
+            std::process::id(),
+            super::current_timestamp_ms()
+        ));
+        let log = super::MaintainerProbeLog::from_path(root.join("probe.log"));
+
+        log.try_reset_for_probe(
+            "path=/Library/Audio/Plug-Ins/VST3/HALion Sonic.vst3",
+            Some("Blocked for ordinary user-facing flows."),
+            super::PluginEditorPocProbeProfile::ControllerInitHostOnlyLifecycleAligned,
+        )
+        .unwrap();
+        log.try_append_event(
+            "starting",
+            Some(PluginEditorHostValidationPhase::ControllerInitialize),
+            "About to initialize the VST3 edit controller.",
+        )
+        .unwrap();
+        log.try_append_event(
+            "info",
+            None,
+            "Host callback during controller_initialize: Init host context queryInterface requested IVst3ToAUWrapper => unsupported_with_fallback",
+        )
+        .unwrap();
+
+        let snapshot = log.snapshot().unwrap();
+        let crash_hint = snapshot.crash_hint.unwrap();
+
+        assert_eq!(crash_hint.phase, "controller_initialize");
+        assert!(crash_hint
+            .last_line
+            .contains("phase=controller_initialize status=starting"));
+
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn maintainer_probe_log_snapshot_parses_host_only_lifecycle_aligned_profile() {
+        let root = std::env::temp_dir().join(format!(
+            "plugin-editor-poc-log-profile-test-{}-{}",
+            std::process::id(),
+            super::current_timestamp_ms()
+        ));
+        let log = super::MaintainerProbeLog::from_path(root.join("probe.log"));
+
+        log.try_reset_for_probe(
+            "path=/Library/Audio/Plug-Ins/VST3/HALion Sonic.vst3",
+            Some("Blocked for ordinary user-facing flows."),
+            super::PluginEditorPocProbeProfile::ControllerInitHostOnlyLifecycleAligned,
+        )
+        .unwrap();
+
+        let snapshot = log.snapshot().unwrap();
+
+        assert_eq!(
+            snapshot.profile,
+            Some(super::PluginEditorPocProbeProfile::ControllerInitHostOnlyLifecycleAligned)
+        );
+
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn maintainer_probe_log_snapshot_omits_crash_hint_after_terminal_phase_event() {
+        let root = std::env::temp_dir().join(format!(
+            "plugin-editor-poc-log-terminal-test-{}-{}",
+            std::process::id(),
+            super::current_timestamp_ms()
+        ));
+        let log = super::MaintainerProbeLog::from_path(root.join("probe.log"));
+
+        log.try_reset_for_probe(
+            "path=/Library/Audio/Plug-Ins/VST3/HALion Sonic.vst3",
+            Some("Blocked for ordinary user-facing flows."),
+            super::PluginEditorPocProbeProfile::Default,
+        )
+        .unwrap();
+        log.try_append_event(
+            "failed",
+            Some(PluginEditorHostValidationPhase::ControllerInitialize),
+            "controller init failed",
+        )
+        .unwrap();
+
+        let snapshot = log.snapshot().unwrap();
+
+        assert_eq!(
+            snapshot.profile,
+            Some(super::PluginEditorPocProbeProfile::Default)
+        );
+        assert_eq!(snapshot.crash_hint, None);
+
+        fs::remove_dir_all(&root).unwrap();
     }
 }

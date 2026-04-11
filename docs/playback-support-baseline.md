@@ -135,15 +135,23 @@ Those are the relevant real-library coverage targets currently evidenced in repo
 
 These bundles are intentionally blocked by the current macOS native editor-host seam. They may still appear in the machine-local inventory as discovered and available bundles, but they are outside the MVP support claim for bounded native editor hosting.
 
-| Bundle                 | Bounded-seam posture                       | Current reason from owner seam                                                         |
-| ---------------------- | ------------------------------------------ | -------------------------------------------------------------------------------------- |
-| `HALion Sonic.vst3`    | `blocked/unsupported for the bounded seam` | Crashes at a null internal pointer during controller initialization.                   |
-| `HALion Sonic SE.vst3` | `blocked/unsupported for the bounded seam` | Returns a null plugin factory.                                                         |
-| `Groove Agent SE.vst3` | `blocked/unsupported for the bounded seam` | Crashes during controller initialization.                                              |
-| `Kontakt 7.vst3`       | `blocked/unsupported for the bounded seam` | Crashes during component `createInstance`.                                             |
-| `MT-PowerDrumKit.vst3` | `blocked/unsupported for the bounded seam` | Currently requires a teardown exception the bounded seam intentionally does not carry. |
+| Bundle                 | Bounded-seam posture                       | Current reason from owner seam                                                                                                                               |
+| ---------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `HALion Sonic.vst3`    | `blocked/unsupported for the bounded seam` | Maintainer load/init probe classifies the first failing phase at `controller_initialize` after `controller_create`, so current evidence appears plugin-side. |
+| `HALion Sonic SE.vst3` | `blocked/unsupported for the bounded seam` | Maintainer load/init probe classifies the first failing phase at `factory_create` after `module_load`, so current evidence appears plugin-side.              |
+| `Groove Agent SE.vst3` | `blocked/unsupported for the bounded seam` | Crashes during controller initialization.                                                                                                                    |
+| `Kontakt 7.vst3`       | `blocked/unsupported for the bounded seam` | Crashes during component `createInstance`.                                                                                                                   |
+| `MT-PowerDrumKit.vst3` | `blocked/unsupported for the bounded seam` | Currently requires a teardown exception the bounded seam intentionally does not carry.                                                                       |
 
 The blocked list is owned by `src-tauri/src/playback/plugin_host_compatibility.rs`. If that seam changes, this baseline must be updated to match the live code path.
+
+Story 9.1 adds a maintainer-only `plugin_editor_poc_probe_load_init` path that records ordered load/init phase results on a concrete bundle without relaxing this ordinary blocked posture. The current reference classifications are:
+
+- `HALion Sonic.vst3`: `blocked_by_plugin_failure`, last successful phase `controller_create`, first failing phase `controller_initialize`.
+- `HALion Sonic SE.vst3`: `blocked_by_plugin_failure`, last successful phase `module_load`, first failing phase `factory_create`.
+- `BBC Symphony Orchestra.vst3` remains part of the existing single-target control matrix; Story 9.1 does not change its posture or turn it into multi-instrument evidence.
+
+Treat those maintainer probe results as investigation evidence only. Even a future `load_init_safe` result would not, by itself, widen route choices, shared-slot behavior, or the MVP support claim.
 
 ### Discovered but unvalidated boundary
 

@@ -278,6 +278,45 @@ describe("actions.pluginInventory", () => {
       plugin_path: null,
     });
   });
+
+  it("probeLoadInit calls invoke with the maintainer probe payload", async () => {
+    await actions.pluginInventory.probeLoadInit({
+      plugin_id: "vst3:halion-sonic",
+      plugin_path: "/Library/Audio/Plug-Ins/VST3/HALion Sonic.vst3",
+      profile: "controller_init_host_only_lifecycle_aligned",
+    });
+
+    expect(mockInvoke).toHaveBeenCalledWith(
+      "plugin_editor_poc_probe_load_init",
+      {
+        plugin_id: "vst3:halion-sonic",
+        plugin_path: "/Library/Audio/Plug-Ins/VST3/HALion Sonic.vst3",
+        profile: "controller_init_host_only_lifecycle_aligned",
+      },
+    );
+  });
+
+  it("prepareProbeLog calls invoke with the maintainer probe payload", async () => {
+    await actions.pluginInventory.prepareProbeLog({
+      plugin_id: "vst3:halion-sonic",
+      plugin_path: "/Library/Audio/Plug-Ins/VST3/HALion Sonic.vst3",
+      profile: "controller_init_host_only_lifecycle_aligned",
+    });
+
+    expect(mockInvoke).toHaveBeenCalledWith(
+      "plugin_editor_poc_prepare_probe_log",
+      {
+        plugin_id: "vst3:halion-sonic",
+        plugin_path: "/Library/Audio/Plug-Ins/VST3/HALion Sonic.vst3",
+        profile: "controller_init_host_only_lifecycle_aligned",
+      },
+    );
+  });
+
+  it("readProbeLog calls invoke correctly", async () => {
+    await actions.pluginInventory.readProbeLog();
+    expect(mockInvoke).toHaveBeenCalledWith("plugin_editor_poc_read_probe_log");
+  });
 });
 
 describe("actions.expressionMaps", () => {

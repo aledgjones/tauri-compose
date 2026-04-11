@@ -36,7 +36,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-03-25T00:12:37Z
-last_updated: 2026-04-10T07:47:29Z
+last_updated: 2026-04-09T22:47:36Z
 project: compose
 project_key: NOKEY
 tracking_system: file-system
@@ -99,11 +99,11 @@ development_status:
   7-4-publish-the-mvp-support-verdict-and-boundaries: done
   epic-7-retrospective: done
 
-  epic-8: done
+  epic-8: in-progress
   8-1-add-durable-playing-technique-score-entries: done
   8-2-render-and-select-playing-technique-markings-above-the-stave: done
   8-3-add-playing-technique-properties-panels: done
   8-4-derive-effective-playing-technique-context-for-notes: done
   8-5-extend-expression-maps-to-match-playing-technique-context: done
-  8-6-prove-technique-driven-playback-through-derived-context: done
-  epic-8-retrospective: done
+  8-6-prove-technique-driven-playback-through-derived-context: review
+  epic-8-retrospective: optional

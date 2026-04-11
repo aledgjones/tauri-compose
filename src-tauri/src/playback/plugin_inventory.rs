@@ -37,7 +37,7 @@ pub struct PluginInventoryFailure {
     pub message: String,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum PluginEditorHostValidationStatus {
     Blocked,
@@ -45,7 +45,7 @@ pub enum PluginEditorHostValidationStatus {
     Attached,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum PluginEditorHostValidationPhase {
     PolicyGate,
@@ -54,6 +54,7 @@ pub enum PluginEditorHostValidationPhase {
     HostContext,
     ComponentCreate,
     ComponentInitialize,
+    ComponentRuntimeSetup,
     ControllerCreate,
     ControllerSetComponentHandlerPreInit,
     ControllerInitialize,
@@ -64,6 +65,40 @@ pub enum PluginEditorHostValidationPhase {
     ViewSetFrame,
     ViewAttach,
     Attached,
+}
+
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum PluginEditorHostValidationPhaseResultStatus {
+    Completed,
+    Failed,
+    Skipped,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+pub struct PluginEditorHostValidationPhaseResult {
+    pub phase: PluginEditorHostValidationPhase,
+    pub status: PluginEditorHostValidationPhaseResultStatus,
+    pub message: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum PluginEditorHostLoadInitProbeStatus {
+    BlockedByHostContract,
+    BlockedByPluginFailure,
+    LoadInitSafe,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+pub struct PluginEditorHostLoadInitProbe {
+    pub status: PluginEditorHostLoadInitProbeStatus,
+    pub last_successful_phase: Option<PluginEditorHostValidationPhase>,
+    pub first_failing_phase: Option<PluginEditorHostValidationPhase>,
+    pub first_failing_message: Option<String>,
+    pub summary: String,
+    #[serde(default)]
+    pub phase_results: Vec<PluginEditorHostValidationPhaseResult>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
@@ -85,6 +120,8 @@ pub struct PluginEditorHostValidation {
     pub message: String,
     #[serde(default)]
     pub capability_evidence: Option<PluginCapabilityEvidence>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub maintainer_load_init_probe: Option<PluginEditorHostLoadInitProbe>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
@@ -312,6 +349,7 @@ pub fn blocked_editor_host_validation(message: String) -> PluginEditorHostValida
         phase: PluginEditorHostValidationPhase::PolicyGate,
         message,
         capability_evidence: None,
+        maintainer_load_init_probe: None,
     }
 }
 
@@ -598,9 +636,12 @@ pub fn plugin_inventory_discover(
 mod tests {
     use super::{
         blocked_editor_host_validation, discover_inventory_in_roots, load_persisted_state,
-        resolve_available_bundle_path_in_entries, PluginEditorHostValidationPhase,
-        PluginEditorHostValidationStatus, PluginInventoryAvailability, PluginInventoryContext,
-        PluginInventoryEntry, PluginInventoryFailure, PluginInventoryFailureKind,
+        resolve_available_bundle_path_in_entries, PluginEditorHostLoadInitProbe,
+        PluginEditorHostLoadInitProbeStatus, PluginEditorHostValidation,
+        PluginEditorHostValidationPhase, PluginEditorHostValidationPhaseResult,
+        PluginEditorHostValidationPhaseResultStatus, PluginEditorHostValidationStatus,
+        PluginInventoryAvailability, PluginInventoryContext, PluginInventoryEntry,
+        PluginInventoryFailure, PluginInventoryFailureKind,
     };
     use sled::Db;
     use std::path::{Path, PathBuf};
@@ -1213,5 +1254,41 @@ mod tests {
             context.snapshot().entries[0].editor_host_validation,
             Some(blocked_editor_host_validation(String::from("blocked")))
         );
+    }
+
+    #[test]
+    fn maintainer_load_init_probe_round_trips_through_serialization() {
+        let validation = PluginEditorHostValidation {
+            status: PluginEditorHostValidationStatus::Blocked,
+            phase: PluginEditorHostValidationPhase::PolicyGate,
+            message: String::from("blocked"),
+            capability_evidence: None,
+            maintainer_load_init_probe: Some(PluginEditorHostLoadInitProbe {
+                status: PluginEditorHostLoadInitProbeStatus::BlockedByPluginFailure,
+                last_successful_phase: Some(PluginEditorHostValidationPhase::ControllerCreate),
+                first_failing_phase: Some(PluginEditorHostValidationPhase::ControllerInitialize),
+                first_failing_message: Some(String::from("controller init failed")),
+                summary: String::from(
+                    "Maintainer load/init probe first failed at controller_initialize and appears plugin-side.",
+                ),
+                phase_results: vec![
+                    PluginEditorHostValidationPhaseResult {
+                        phase: PluginEditorHostValidationPhase::ModuleLoad,
+                        status: PluginEditorHostValidationPhaseResultStatus::Completed,
+                        message: String::from("Loaded module."),
+                    },
+                    PluginEditorHostValidationPhaseResult {
+                        phase: PluginEditorHostValidationPhase::ControllerInitialize,
+                        status: PluginEditorHostValidationPhaseResultStatus::Failed,
+                        message: String::from("controller init failed"),
+                    },
+                ],
+            }),
+        };
+
+        let serialized = serde_json::to_string(&validation).unwrap();
+        let deserialized: PluginEditorHostValidation = serde_json::from_str(&serialized).unwrap();
+
+        assert_eq!(deserialized, validation);
     }
 }

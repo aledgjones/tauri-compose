@@ -24,6 +24,9 @@ import {
   Tool,
   TransportState,
   PlaybackRouteAddress,
+  PluginEditorPocProbeLog,
+  PluginEditorHostValidation,
+  PluginEditorPocProbeProfile,
   PlaybackRouteTarget,
   UniqueId,
   ExpressionMapExportPayload,
@@ -184,6 +187,39 @@ export const actions = {
         plugin_id,
         plugin_path: options?.plugin_path ?? null,
       });
+    },
+    probeLoadInit: (options?: {
+      plugin_id?: string | null;
+      plugin_path?: string | null;
+      profile?: PluginEditorPocProbeProfile | null;
+    }) => {
+      return invoke<PluginEditorHostValidation>(
+        "plugin_editor_poc_probe_load_init",
+        {
+          plugin_id: options?.plugin_id ?? null,
+          plugin_path: options?.plugin_path ?? null,
+          profile: options?.profile ?? null,
+        },
+      );
+    },
+    prepareProbeLog: (options?: {
+      plugin_id?: string | null;
+      plugin_path?: string | null;
+      profile?: PluginEditorPocProbeProfile | null;
+    }) => {
+      return invoke<PluginEditorPocProbeLog>(
+        "plugin_editor_poc_prepare_probe_log",
+        {
+          plugin_id: options?.plugin_id ?? null,
+          plugin_path: options?.plugin_path ?? null,
+          profile: options?.profile ?? null,
+        },
+      );
+    },
+    readProbeLog: () => {
+      return invoke<PluginEditorPocProbeLog>(
+        "plugin_editor_poc_read_probe_log",
+      );
     },
   },
   expressionMaps: {
