@@ -223,10 +223,10 @@ Maintainers can validate discovery, plugin-host behavior, transport trust, and r
 Composers can author playing-technique markings in the score, and Compose derives exclusive-group-aware technique context for notes so expression maps can drive more realistic playback from score meaning rather than note-local properties alone.
 **Expansion scope:** Score-authored playing-technique semantics and derived playback context.
 
-### Epic 9: Investigate Bounded Multi-Instrument Plugin Support
+### Epic 9: Harden The VST Host Boundary For Single- And Multi-Timbral Instruments
 
-Maintainers can investigate whether HALion-style multi-instrument support is even viable in the current architecture without changing the current MVP support claim.
-**Scope note:** Investigation-only follow-up to the deferred expansion path already acknowledged in the PRD and support baseline.
+Maintainers can harden the backend-owned VST3 host seam around HALion-class failures while preserving the proven single-instrument path and current MVP support boundaries.
+**Scope note:** Real host-owned contract implementation first; HALion remains the acceptance bar, but route-choice, shared-slot, and broader multi-instrument claims stay blocked until bounded non-crashing initialization and later capability proof exist.
 
 ## Epic 1: Trust One VST-Only Playback Foundation
 
@@ -1213,7 +1213,7 @@ So that score-authored technique intent can drive realistic sample selection bey
 
 ## Epic 9: Harden The VST Host Boundary For Single- And Multi-Timbral Instruments
 
-Compose preserves the proven single-instrument VST path while hardening the backend-owned VST3 host seam toward richer instrument types, using HALion-class failures as the reference case and prior-art host patterns as the design baseline. The epic does not broaden the current MVP support claim, change direct-root product behavior, or promise shared-slot workflows until hardened host-core evidence proves it is safe to do so.
+Compose preserves the proven single-instrument VST path while hardening the backend-owned VST3 host seam toward richer instrument types, using HALion-class failures as the reference case and prior-art host patterns as the design baseline. The epic does not broaden the current MVP support claim, change direct-root product behavior, or promise shared-slot workflows until hardened host-core evidence proves it is safe to do so. HALion remains the acceptance bar, and Epic 9 progress must come from real host-owned public-contract hardening plus cleanup-in-place rather than guessed success-path shims for private init-time probes.
 
 ### Story 9.1: Classify Reference Multi-Instrument Plugin Load And Initialization Failures
 
@@ -1261,48 +1261,48 @@ So that Compose can preserve the working single-instrument path while making HAL
 **Then** the implementation explicitly cites those host patterns as the rationale for the new seam
 **And** obsolete probe-only branches or dead-end controller-init variants are retired or clearly isolated if they no longer contribute to the hardened path
 
-### Story 9.3: Add A Scanner-Style Compatibility Lane And Regression Cohort
+### Story 9.3: Replace Probe-Era Shims With A Real Host-Owned Init Contract
 
 As a maintainer,
-I want a scanner-style compatibility lane around the hardened host core,
-So that Compose can classify richer plugin lifecycle behavior outside the main interactive runtime and keep a trustworthy control matrix for both working and failing bundles.
+I want the HALion-class initialization path to rely on a real host-owned VST3 contract rather than maintainer-only success-path shims,
+So that Compose can test and fix the remaining failure boundary through one truthful implementation seam.
 
 **Acceptance Criteria:**
 
-**Given** the hardened host core exists
-**When** the compatibility lane runs
-**Then** it can exercise staged lifecycle checks without depending on the normal editor-open flow
-**And** it records bounded results suitable for maintainer diagnosis and regression testing
+**Given** Story 9.2 extracted the shared host core
+**When** Story 9.3 completes
+**Then** ordinary bounded editor-host opens and maintainer reruns use the same host-owned init contract for factory host context, component and controller initialization, component-handler timing, peer wiring, view preparation, and any newly implemented public host services
+**And** no probe-era private-GUID success-path shim remains the main owner of HALion progress
 
-**Given** Compose already has a working single-instrument control path and a failing HALion-class reference case
-**When** the compatibility cohort is defined
-**Then** it includes at least one currently supported single-instrument control bundle and one currently failing HALion-class bundle
-**And** their results remain clearly separated from shipping support claims
+**Given** current maintainer probes still contain wrapper-marker aliases, opaque stubs, or toxic-result guards introduced during diagnosis
+**When** the real host-owned contract is implemented
+**Then** superseded shim branches are removed or clearly quarantined behind maintainer-only diagnostics
+**And** unknown or private init-time GUIDs default to truthful unsupported or logged behavior unless public evidence justifies a real host implementation
 
-**Given** the scanner-style lane changes maintainer workflow or host diagnostics materially
-**When** the story completes
-**Then** the relevant maintainer docs are updated in the same change
-**And** current user-facing support posture remains unchanged unless later evidence explicitly broadens it
+**Given** the single-instrument baseline and blocked-bundle posture are already proven
+**When** Story 9.3 lands
+**Then** the known-good single-instrument control path remains stable
+**And** direct-root route emission, unsupported non-root activation, and current blocked user-facing posture remain unchanged
 
-### Story 9.4: Advance HALion-Class Initialization Through The Hardened Host Core
+### Story 9.4: Rerun HALION Against The Hardened Host Contract
 
 As a maintainer,
-I want HALion-class initialization rerun against the hardened host core,
-So that Compose can determine whether the failure boundary moves, reaches a bounded non-crashing state, or remains blocked for a now narrower and better-instrumented reason.
+I want HALion-class initialization rerun against the hardened real host contract,
+So that Compose can determine whether the remaining blocker is cleared or narrowed without relying on fake support behavior.
 
 **Acceptance Criteria:**
 
-**Given** the hardened host core and compatibility lane exist
-**When** HALion Sonic and the selected control cohort are rerun through the new seam
-**Then** Compose records whether the first failing phase changes, whether initialization reaches a bounded safe state, or whether the plugin remains blocked at the same host-contract boundary
-**And** the results are comparable against the earlier Story 9.1 investigation evidence
+**Given** Story 9.3 hardened the shared host contract
+**When** HALion Sonic and at least one currently working control bundle are rerun through the automated probe flow
+**Then** Compose records whether HALion reaches a bounded non-crashing load/init state or the first remaining blocker moves to a narrower public-contract boundary
+**And** the control bundle continues to validate the proven single-instrument path
 
-**Given** HALion-class behavior remains blocked after the hardened rerun
+**Given** HALion still requests unknown or private interfaces after public-contract hardening
 **When** the result is documented
-**Then** the repo records the narrower remaining blocker precisely enough to guide the next fix
-**And** ordinary product posture remains blocked without implying multi-timbral support exists
+**Then** the repo records those requests as diagnostic evidence rather than as implicit implementation requirements
+**And** ordinary product posture remains blocked without implying multi-instrument support exists
 
-**Given** the hardened rerun does reach a bounded non-crashing load or initialization state
+**Given** the hardened rerun reaches a bounded non-crashing load or initialization state
 **When** the outcome is published
-**Then** Compose may update maintainer-facing status to reflect `load_init_safe` evidence
+**Then** maintainer-facing docs and the support baseline may record `load_init_safe` evidence
 **And** route-choice, `PluginPart`, `MidiChannel`, shared-slot, and UX expansion remain out of scope until later plugin-derived capability proof exists

@@ -515,3 +515,24 @@ fn compose_getting_started_guide() -> Value {
         "domainModel": domain_model
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::tool_definitions;
+
+    #[test]
+    fn tool_definitions_include_plugin_editor_probe_tools() {
+        let tool_names = tool_definitions()
+            .into_iter()
+            .filter_map(|tool| {
+                tool.get("name")
+                    .and_then(serde_json::Value::as_str)
+                    .map(str::to_owned)
+            })
+            .collect::<Vec<_>>();
+
+        assert!(tool_names.contains(&String::from("compose_action_plugin_editorHost_prepareLoadInitProbeLog")));
+        assert!(tool_names.contains(&String::from("compose_action_plugin_editorHost_probeLoadInit")));
+        assert!(tool_names.contains(&String::from("compose_action_plugin_editorHost_readProbeLog")));
+    }
+}

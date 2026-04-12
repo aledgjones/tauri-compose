@@ -29,7 +29,7 @@ This investigation originally fed Epic 9 as an investigation-only scaffold. That
 
 ### Recommended Outcome
 
-The immediate next step is a small implementation sequence grounded in the completed research: extract a stable backend-owned VST3 host core from the current proof-of-concept, add a scanner-style compatibility lane and regression cohort around that seam, and then rerun HALion-class initialization against the hardened path. Only after a bounded non-crashing load or initialization gate is cleared should Compose consider capability probing, multi-target route choices, or shared-slot follow-on work.
+The immediate next step is now a tighter implementation sequence grounded in the completed research and the 2026-04-12 HALION reruns: keep Story 9.2's extracted host core as the canonical seam, replace probe-era guessed private-interface success paths with real host-owned public-contract hardening plus cleanup-in-place, and then rerun HALION-class initialization against that seam with one known-good control bundle for regression comparison. Scanner-style or broader compatibility-lane work is no longer the next story. Only after a bounded non-crashing load or initialization gate is cleared should Compose consider capability probing, multi-target route choices, or shared-slot follow-on work.
 
 ### Scope
 
@@ -109,7 +109,7 @@ MuseScore is useful here not because Compose should copy its UX, but because its
 3. The largest missing seam is backend-owned capability discovery from a real plugin instance after it has reached a bounded non-crashing state.
 4. HALion should remain the reference target for investigation, not the first product promise.
 5. The current host shim is good enough to attempt richer diagnostics, but it does not yet prove advanced multi-timbral structure or routing.
-6. The next correct slice is a crash-and-capability spec, not shared-slot UX and not a new epic.
+6. The next correct slice is a real host-contract hardening spec, not more private-GUID shim experiments, shared-slot UX, or a new epic.
 
 ## Epic Seed Plan
 

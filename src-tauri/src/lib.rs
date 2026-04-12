@@ -118,7 +118,7 @@ use score::players::{
 use score::Score;
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::Ordering;
-use std::sync::Mutex;
+use std::sync::{Mutex, OnceLock};
 use std::time::Instant;
 use tauri::menu::{AboutMetadata, Menu, MenuItem, PredefinedMenuItem, Submenu};
 use tauri::{include_image, AppHandle, Emitter, Manager, State};
@@ -1009,6 +1009,37 @@ pub(crate) fn reset_app_state(
     reset(app, state, renderer_state, audio_state, transport_state)
 }
 
+#[cfg(debug_assertions)]
+extern "C" fn debug_process_exit_trace() {
+    use std::backtrace::Backtrace;
+    use std::io::{self, Write};
+
+    let mut stderr = io::stderr();
+    let _ = writeln!(
+        stderr,
+        "[DIAG] process exiting pid={} thread={:?}\n{}",
+        std::process::id(),
+        std::thread::current().id(),
+        Backtrace::force_capture()
+    );
+    let _ = stderr.flush();
+}
+
+#[cfg(debug_assertions)]
+fn register_debug_process_exit_trace() {
+    extern "C" {
+        fn atexit(callback: extern "C" fn()) -> i32;
+    }
+
+    static REGISTERED: OnceLock<()> = OnceLock::new();
+
+    REGISTERED.get_or_init(|| unsafe {
+        if atexit(debug_process_exit_trace) != 0 {
+            eprintln!("[DIAG] failed to register debug process exit trace");
+        }
+    });
+}
+
 pub fn run() {
     let mut builder = tauri::Builder::default();
 
@@ -1020,6 +1051,9 @@ pub fn run() {
 
     builder
         .setup(|app| {
+            #[cfg(debug_assertions)]
+            register_debug_process_exit_trace();
+
             let app_handle = app.app_handle();
 
             app.manage(AppContext::new(app_handle));

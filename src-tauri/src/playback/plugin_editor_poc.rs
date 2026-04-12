@@ -20,6 +20,7 @@ use crate::{AppContextState, ManagedPluginInventoryContextState};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
+use std::ffi::c_void;
 use std::fmt;
 use std::fs::{self, OpenOptions};
 use std::io::Write;
@@ -31,6 +32,63 @@ use tauri::{AppHandle, Manager, State};
 const WINDOW_LABEL: &str = "plugin-host-poc";
 const PLUGIN_PATH_ENV: &str = "SOLOC_PLUGIN_EDITOR_POC_VST3_PATH";
 const MAINTAINER_LOAD_INIT_PROBE_LOG_FILE: &str = "plugin-editor-poc-load-init-probe.log";
+const HALION_PRIMARY_OPAQUE_PAYLOAD_ENV: &str = "SOLOC_HALION_PRIMARY_OPAQUE_PAYLOAD";
+const HALION_CONTROLLER_INIT_MARKER_IIDS: [vst3::Steinberg::TUID; 3] = [
+    [
+        0xEE_u8 as i8,
+        0xC8_u8 as i8,
+        0x96_u8 as i8,
+        0x83_u8 as i8,
+        0x80_u8 as i8,
+        0xDB_u8 as i8,
+        0x43_u8 as i8,
+        0x36_u8 as i8,
+        0x91_u8 as i8,
+        0x77_u8 as i8,
+        0x27_u8 as i8,
+        0x3E_u8 as i8,
+        0x13_u8 as i8,
+        0x8A_u8 as i8,
+        0x76_u8 as i8,
+        0x3B_u8 as i8,
+    ],
+    [
+        0x97_u8 as i8,
+        0xE5_u8 as i8,
+        0x07_u8 as i8,
+        0xDA_u8 as i8,
+        0xE5_u8 as i8,
+        0x59_u8 as i8,
+        0x4E_u8 as i8,
+        0xEA_u8 as i8,
+        0xA5_u8 as i8,
+        0xAC_u8 as i8,
+        0x40_u8 as i8,
+        0x42_u8 as i8,
+        0xE4_u8 as i8,
+        0x58_u8 as i8,
+        0xF2_u8 as i8,
+        0xB4_u8 as i8,
+    ],
+    [
+        0xCC_u8 as i8,
+        0x0B_u8 as i8,
+        0x77_u8 as i8,
+        0x16_u8 as i8,
+        0x36_u8 as i8,
+        0x2B_u8 as i8,
+        0x4E_u8 as i8,
+        0xE5_u8 as i8,
+        0x89_u8 as i8,
+        0xEE_u8 as i8,
+        0x5F_u8 as i8,
+        0x41_u8 as i8,
+        0x54_u8 as i8,
+        0x58_u8 as i8,
+        0x46_u8 as i8,
+        0x3F_u8 as i8,
+    ],
+];
 
 #[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -68,20 +126,6 @@ fn parse_probe_profile_code(value: &str) -> Option<PluginEditorPocProbeProfile> 
         }
         _ => None,
     }
-}
-
-fn probe_profile_defers_component_handler(profile: PluginEditorPocProbeProfile) -> bool {
-    matches!(
-        profile,
-        PluginEditorPocProbeProfile::ControllerInitHostOnlyLifecycleAligned
-    )
-}
-
-fn probe_profile_delays_component_runtime_setup(profile: PluginEditorPocProbeProfile) -> bool {
-    matches!(
-        profile,
-        PluginEditorPocProbeProfile::ControllerInitHostOnlyLifecycleAligned
-    )
 }
 
 thread_local! {
@@ -220,6 +264,42 @@ fn host_callback_iid_hex(iid: &vst3::Steinberg::TUID) -> String {
         .join("-")
 }
 
+const MIN_PROBABLE_HOST_CALLBACK_POINTER_ADDRESS: usize = 0x1_0000_0000;
+
+fn is_probable_host_callback_pointer<T>(pointer: *const T) -> bool {
+    let pointer_address = pointer as usize;
+    !pointer.is_null()
+        && pointer_address >= MIN_PROBABLE_HOST_CALLBACK_POINTER_ADDRESS
+        && pointer_address.is_multiple_of(std::mem::align_of::<T>())
+}
+
+fn host_callback_pointer_label<T>(pointer: *const T) -> String {
+    if pointer.is_null() {
+        String::from("null")
+    } else {
+        format!("invalid_pointer(0x{:X})", pointer as usize)
+    }
+}
+
+unsafe fn copy_host_callback_tuid(
+    iid: *const vst3::Steinberg::TUID,
+) -> Option<vst3::Steinberg::TUID> {
+    if !is_probable_host_callback_pointer(iid) {
+        return None;
+    }
+
+    Some(*iid)
+}
+
+unsafe fn clear_host_callback_object_output(obj: *mut *mut c_void) -> bool {
+    if !is_probable_host_callback_pointer(obj.cast_const()) {
+        return false;
+    }
+
+    *obj = std::ptr::null_mut();
+    true
+}
+
 fn host_callback_iid_label(iid: &vst3::Steinberg::TUID) -> String {
     host_callback_iid_name(iid)
         .map(str::to_owned)
@@ -227,10 +307,10 @@ fn host_callback_iid_label(iid: &vst3::Steinberg::TUID) -> String {
 }
 
 fn host_callback_iid_name_from_ptr(iid: *const vst3::Steinberg::TUID) -> String {
-    if iid.is_null() {
-        String::from("null")
-    } else {
-        unsafe { host_callback_iid_label(&*iid) }
+    unsafe {
+        copy_host_callback_tuid(iid)
+            .map(|value| host_callback_iid_label(&value))
+            .unwrap_or_else(|| host_callback_pointer_label(iid))
     }
 }
 
@@ -238,6 +318,33 @@ fn is_wrapper_probe_interface(iid: &vst3::Steinberg::TUID) -> bool {
     *iid == vst3::Steinberg::Vst::IVst3ToAAXWrapper_iid
         || *iid == vst3::Steinberg::Vst::IVst3ToAUWrapper_iid
         || *iid == vst3::Steinberg::Vst::IVst3ToVst2Wrapper_iid
+}
+
+fn is_halion_controller_init_marker_interface(iid: &vst3::Steinberg::TUID) -> bool {
+    HALION_CONTROLLER_INIT_MARKER_IIDS
+        .iter()
+        .any(|marker_iid| iid == marker_iid)
+}
+
+fn is_halion_controller_init_opaque_stub_interface(iid: &vst3::Steinberg::TUID) -> bool {
+    is_halion_controller_init_marker_interface(iid)
+}
+
+fn is_host_only_init_supported_interface(iid: &vst3::Steinberg::TUID) -> bool {
+    *iid == vst3::Steinberg::Vst::IHostApplication_iid || *iid == vst3::Steinberg::FUnknown_iid
+}
+
+#[cfg_attr(not(test), allow(dead_code))]
+fn host_only_init_query_interface_outcome(iid: &vst3::Steinberg::TUID) -> &'static str {
+    if is_host_only_init_supported_interface(iid) {
+        "supported"
+    } else if is_wrapper_probe_interface(iid) {
+        "unsupported_null_output"
+    } else if is_halion_controller_init_opaque_stub_interface(iid) {
+        "supported_opaque_stub"
+    } else {
+        "unsupported_with_fallback"
+    }
 }
 
 fn emit_probe_console_event(
@@ -1280,7 +1387,7 @@ fn release_preserved_inventory_session_for_target_switch(
         .map_err(|_| String::from("Failed to inspect preserved inventory plugin host session"))?
         .as_ref()
         .and_then(|session| {
-            preserved_inventory_target_to_replace(requested_target, Some(&session.target))
+            preserved_inventory_target_to_replace(requested_target, Some(session.target()))
         });
 
     let Some(preserved_target) = preserved_target else {
@@ -1706,7 +1813,7 @@ mod macos_host {
                 Some(slot_id) => slot_runtime_sessions().lock().ok().and_then(|sessions| {
                     sessions
                         .get(&slot_id)
-                        .and_then(PluginHostSession::view_state)
+                        .and_then(|session| session.view_state())
                 }),
                 None => active_plugin_host_session()
                     .lock()
@@ -1714,7 +1821,7 @@ mod macos_host {
                     .and_then(|active_session| {
                         active_session
                             .as_ref()
-                            .and_then(PluginHostSession::view_state)
+                            .and_then(|session| session.view_state())
                     }),
             },
             None => None,
@@ -2660,17 +2767,14 @@ mod macos_host {
         kResultOk
     }
 
-    unsafe fn tuid_matches(candidate: *mut TUID, expected: &TUID) -> bool {
-        !candidate.is_null() && *candidate == *expected
-    }
-
     unsafe fn query_host_support_interface(
         instance: ComPtr<FUnknown>,
-        iid: *mut TUID,
+        iid: &TUID,
         obj: *mut *mut c_void,
     ) -> tresult {
         let ptr = instance.as_ptr();
-        ((*(*ptr).vtbl).queryInterface)(ptr, iid, obj)
+        let mut iid_copy = *iid;
+        ((*(*ptr).vtbl).queryInterface)(ptr, &mut iid_copy, obj)
     }
 
     fn full_host_supports_interface(iid: &TUID) -> bool {
@@ -2699,33 +2803,48 @@ mod macos_host {
         iid: *mut TUID,
         obj: *mut *mut c_void,
     ) -> tresult {
+        let cid_value = super::copy_host_callback_tuid(cid.cast_const());
+        let iid_value = super::copy_host_callback_tuid(iid.cast_const());
         super::log_active_probe_host_callback(&format!(
             "IHostApplication::createInstance requested cid={} iid={}",
             super::host_callback_iid_name_from_ptr(cid.cast_const()),
             super::host_callback_iid_name_from_ptr(iid.cast_const())
         ));
 
-        if !obj.is_null() {
-            *obj = std::ptr::null_mut();
+        if obj.is_null() {
+            super::log_active_probe_host_callback(
+                "IHostApplication::createInstance received null output pointer and returned ok",
+            );
+            return kResultOk;
         }
 
-        if tuid_matches(cid, &IMessage_iid) || tuid_matches(iid, &IMessage_iid) {
+        if !super::clear_host_callback_object_output(obj) {
+            super::log_active_probe_host_callback(&format!(
+                "IHostApplication::createInstance ignored invalid output pointer {} and returned ok",
+                super::host_callback_pointer_label(obj.cast_const())
+            ));
+            return kResultOk;
+        }
+
+        if cid_value == Some(IMessage_iid) || iid_value == Some(IMessage_iid) {
             let Ok(message) = HostMessage::new() else {
                 return kNotImplemented;
             };
             let Some(instance) = ComWrapper::new(message).to_com_ptr::<FUnknown>() else {
                 return kNotImplemented;
             };
-            return query_host_support_interface(instance, iid, obj);
+            let requested_iid = iid_value.unwrap_or(IMessage_iid);
+            return query_host_support_interface(instance, &requested_iid, obj);
         }
 
-        if tuid_matches(cid, &IAttributeList_iid) || tuid_matches(iid, &IAttributeList_iid) {
+        if cid_value == Some(IAttributeList_iid) || iid_value == Some(IAttributeList_iid) {
             let Some(instance) =
                 ComWrapper::new(HostAttributeList::default()).to_com_ptr::<FUnknown>()
             else {
                 return kNotImplemented;
             };
-            return query_host_support_interface(instance, iid, obj);
+            let requested_iid = iid_value.unwrap_or(IAttributeList_iid);
+            return query_host_support_interface(instance, &requested_iid, obj);
         }
 
         kNotImplemented
@@ -2739,8 +2858,16 @@ mod macos_host {
             return kInvalidArgument;
         }
 
-        let interface_name = super::host_callback_iid_label(&*iid);
-        let is_supported = supports(&*iid);
+        let Some(iid_value) = super::copy_host_callback_tuid(iid) else {
+            super::log_active_probe_host_callback(&format!(
+                "IPlugInterfaceSupport::isPlugInterfaceSupported queried {} => unsupported",
+                super::host_callback_pointer_label(iid)
+            ));
+            return kResultFalse;
+        };
+
+        let interface_name = super::host_callback_iid_label(&iid_value);
+        let is_supported = supports(&iid_value);
         super::log_active_probe_host_callback(&format!(
             "IPlugInterfaceSupport::isPlugInterfaceSupported queried {} => {}",
             interface_name,
@@ -2759,18 +2886,221 @@ mod macos_host {
     }
 
     #[repr(C)]
-    struct WrapperProbeFallbackUnknown {
+    struct UnsupportedProbeFallbackUnknown {
         unknown: FUnknown,
         parent: *mut LoggingHostOnlyInitHostApplication,
     }
 
-    impl WrapperProbeFallbackUnknown {
+    type HalionControllerInitOpaqueStubSlot0Method = unsafe extern "system" fn(
+        *mut FUnknown,
+        usize,
+        usize,
+        usize,
+        usize,
+        usize,
+        usize,
+        usize,
+    ) -> *mut c_void;
+
+    type HalionControllerInitOpaqueStubSlot1Method = unsafe extern "system" fn(
+        *mut FUnknown,
+        usize,
+        usize,
+        usize,
+        usize,
+        usize,
+        usize,
+        usize,
+    ) -> *mut c_void;
+
+    type HalionControllerInitOpaqueStubMethod = unsafe extern "system" fn(
+        *mut FUnknown,
+        usize,
+        usize,
+        usize,
+        usize,
+        usize,
+        usize,
+        usize,
+    ) -> tresult;
+
+    #[repr(C)]
+    struct HalionControllerInitOpaqueStubVtbl {
+        base: FUnknownVtbl,
+        slot_0: HalionControllerInitOpaqueStubSlot0Method,
+        slot_1: HalionControllerInitOpaqueStubSlot1Method,
+        slot_2: HalionControllerInitOpaqueStubMethod,
+        slot_3: HalionControllerInitOpaqueStubMethod,
+        slot_4: HalionControllerInitOpaqueStubMethod,
+        slot_5: HalionControllerInitOpaqueStubMethod,
+        slot_6: HalionControllerInitOpaqueStubMethod,
+        slot_7: HalionControllerInitOpaqueStubMethod,
+    }
+
+    #[repr(C)]
+    struct HalionControllerInitOpaqueStub {
+        unknown: FUnknown,
+        parent: *mut LoggingHostOnlyInitHostApplication,
+        iid: TUID,
+        slot_0_utf16_payload: [u16; 32],
+    }
+
+    fn halion_primary_opaque_payload_text() -> String {
+        std::env::var(super::HALION_PRIMARY_OPAQUE_PAYLOAD_ENV)
+            .ok()
+            .filter(|value| !value.is_empty())
+            .unwrap_or_else(|| String::from("HS:Custom"))
+    }
+
+    fn halion_controller_init_opaque_payload_text(iid: &TUID) -> String {
+        if *iid == super::HALION_CONTROLLER_INIT_MARKER_IIDS[0] {
+            halion_primary_opaque_payload_text()
+        } else {
+            String::from("Solo Compose")
+        }
+    }
+
+    fn write_utf16_z(buffer: &mut [u16], value: &str) {
+        buffer.fill(0);
+        for (index, code_unit) in value
+            .encode_utf16()
+            .take(buffer.len().saturating_sub(1))
+            .enumerate()
+        {
+            buffer[index] = code_unit;
+        }
+    }
+
+    fn decode_utf16_z(buffer: &[u16]) -> String {
+        let terminator_index = buffer
+            .iter()
+            .position(|code_unit| *code_unit == 0)
+            .unwrap_or(buffer.len());
+        String::from_utf16_lossy(&buffer[..terminator_index])
+    }
+
+    fn decode_utf16_pointer(pointer: usize, max_code_units: usize) -> Option<String> {
+        if !super::is_probable_host_callback_pointer(pointer as *const u16) {
+            return None;
+        }
+
+        let code_units =
+            unsafe { std::slice::from_raw_parts(pointer as *const u16, max_code_units) };
+        Some(decode_utf16_z(code_units))
+    }
+
+    fn decode_utf16_range(start: usize, end: usize) -> Option<String> {
+        if !super::is_probable_host_callback_pointer(start as *const u16)
+            || !super::is_probable_host_callback_pointer(end as *const u16)
+            || end < start
+        {
+            return None;
+        }
+
+        let byte_len = end - start;
+        if byte_len == 0 || !byte_len.is_multiple_of(std::mem::size_of::<u16>()) {
+            return None;
+        }
+
+        let code_unit_len = byte_len / std::mem::size_of::<u16>();
+        if code_unit_len > 64 {
+            return None;
+        }
+
+        let code_units = unsafe { std::slice::from_raw_parts(start as *const u16, code_unit_len) };
+        Some(String::from_utf16_lossy(code_units))
+    }
+
+    fn decode_packed_utf16_words(value: usize) -> Option<String> {
+        if value == 0 {
+            return None;
+        }
+
+        let packed = value as u64;
+        let mut code_units = Vec::with_capacity(4);
+        for shift in [0, 16, 32, 48] {
+            let code_unit = ((packed >> shift) & 0xFFFF) as u16;
+            if code_unit == 0 {
+                break;
+            }
+            code_units.push(code_unit);
+        }
+
+        if code_units.is_empty() {
+            None
+        } else {
+            Some(String::from_utf16_lossy(&code_units))
+        }
+    }
+
+    fn decode_c_string_buffer(pointer: usize, max_len: usize) -> Option<String> {
+        if max_len == 0
+            || max_len > 64
+            || !super::is_probable_host_callback_pointer(pointer as *const u8)
+        {
+            return None;
+        }
+
+        let bytes = unsafe { std::slice::from_raw_parts(pointer as *const u8, max_len) };
+        let terminator_index = bytes
+            .iter()
+            .position(|byte| *byte == 0)
+            .unwrap_or(bytes.len());
+        Some(String::from_utf8_lossy(&bytes[..terminator_index]).into_owned())
+    }
+
+    fn write_c_string_buffer(pointer: usize, max_len: usize, value: &str) -> bool {
+        if max_len == 0
+            || max_len > 64
+            || !super::is_probable_host_callback_pointer(pointer as *mut u8)
+        {
+            return false;
+        }
+
+        let bytes = unsafe { std::slice::from_raw_parts_mut(pointer as *mut u8, max_len) };
+        bytes.fill(0);
+        let value_bytes = value.as_bytes();
+        let copy_len = value_bytes.len().min(bytes.len().saturating_sub(1));
+        bytes[..copy_len].copy_from_slice(&value_bytes[..copy_len]);
+        true
+    }
+
+    fn opaque_stub_backtrace_excerpt() -> String {
+        let rendered = format!("{}", std::backtrace::Backtrace::force_capture());
+        rendered
+            .lines()
+            .map(str::trim)
+            .filter(|line| !line.is_empty())
+            .take(12)
+            .collect::<Vec<_>>()
+            .join(" | ")
+    }
+
+    impl UnsupportedProbeFallbackUnknown {
         fn new() -> Self {
             Self {
                 unknown: FUnknown {
-                    vtbl: &WRAPPER_PROBE_FALLBACK_UNKNOWN_VTBL,
+                    vtbl: &UNSUPPORTED_PROBE_FALLBACK_UNKNOWN_VTBL,
                 },
                 parent: std::ptr::null_mut(),
+            }
+        }
+    }
+
+    impl HalionControllerInitOpaqueStub {
+        fn new(iid: TUID) -> Self {
+            let mut slot_0_utf16_payload = [0_u16; 32];
+            let payload_text = halion_controller_init_opaque_payload_text(&iid);
+            write_utf16_z(&mut slot_0_utf16_payload, &payload_text);
+
+            Self {
+                unknown: FUnknown {
+                    vtbl: std::ptr::addr_of!(HALION_CONTROLLER_INIT_OPAQUE_STUB_VTBL)
+                        .cast::<FUnknownVtbl>(),
+                },
+                parent: std::ptr::null_mut(),
+                iid,
+                slot_0_utf16_payload,
             }
         }
     }
@@ -2779,26 +3109,135 @@ mod macos_host {
     struct LoggingHostOnlyInitHostApplication {
         host_application: IHostApplication,
         ref_count: AtomicU32,
-        wrapper_probe_fallback_unknown: WrapperProbeFallbackUnknown,
+        delegate_host_application: Option<ComPtr<FUnknown>>,
+        unsupported_probe_fallback_unknown: UnsupportedProbeFallbackUnknown,
+        halion_controller_init_opaque_stubs: [HalionControllerInitOpaqueStub; 3],
     }
 
     impl LoggingHostOnlyInitHostApplication {
-        fn new() -> Self {
+        fn new(delegate_host_application: Option<ComPtr<FUnknown>>) -> Self {
             Self {
                 host_application: IHostApplication {
                     vtbl: &LOGGING_HOST_ONLY_INIT_HOST_APPLICATION_VTBL,
                 },
                 ref_count: AtomicU32::new(1),
-                wrapper_probe_fallback_unknown: WrapperProbeFallbackUnknown::new(),
+                delegate_host_application,
+                unsupported_probe_fallback_unknown: UnsupportedProbeFallbackUnknown::new(),
+                halion_controller_init_opaque_stubs: [
+                    HalionControllerInitOpaqueStub::new(
+                        super::HALION_CONTROLLER_INIT_MARKER_IIDS[0],
+                    ),
+                    HalionControllerInitOpaqueStub::new(
+                        super::HALION_CONTROLLER_INIT_MARKER_IIDS[1],
+                    ),
+                    HalionControllerInitOpaqueStub::new(
+                        super::HALION_CONTROLLER_INIT_MARKER_IIDS[2],
+                    ),
+                ],
             }
         }
     }
 
-    static WRAPPER_PROBE_FALLBACK_UNKNOWN_VTBL: FUnknownVtbl = FUnknownVtbl {
-        queryInterface: wrapper_probe_fallback_unknown_query_interface,
-        addRef: wrapper_probe_fallback_unknown_add_ref,
-        release: wrapper_probe_fallback_unknown_release,
+    static UNSUPPORTED_PROBE_FALLBACK_UNKNOWN_VTBL: FUnknownVtbl = FUnknownVtbl {
+        queryInterface: unsupported_probe_fallback_unknown_query_interface,
+        addRef: unsupported_probe_fallback_unknown_add_ref,
+        release: unsupported_probe_fallback_unknown_release,
     };
+
+    unsafe extern "system" fn halion_controller_init_opaque_stub_method_0(
+        this: *mut FUnknown,
+        arg1: usize,
+        arg2: usize,
+        arg3: usize,
+        arg4: usize,
+        arg5: usize,
+        arg6: usize,
+        arg7: usize,
+    ) -> *mut c_void {
+        halion_controller_init_opaque_stub_slot_0_method(
+            this,
+            [arg1, arg2, arg3, arg4, arg5, arg6, arg7],
+        )
+    }
+
+    unsafe extern "system" fn halion_controller_init_opaque_stub_method_1(
+        this: *mut FUnknown,
+        arg1: usize,
+        arg2: usize,
+        arg3: usize,
+        arg4: usize,
+        arg5: usize,
+        arg6: usize,
+        arg7: usize,
+    ) -> *mut c_void {
+        halion_controller_init_opaque_stub_slot_1_method(
+            this,
+            [arg1, arg2, arg3, arg4, arg5, arg6, arg7],
+        )
+    }
+
+    macro_rules! define_halion_controller_init_opaque_stub_method {
+        ($name:ident, $slot_index:expr) => {
+            unsafe extern "system" fn $name(
+                this: *mut FUnknown,
+                arg1: usize,
+                arg2: usize,
+                arg3: usize,
+                arg4: usize,
+                arg5: usize,
+                arg6: usize,
+                arg7: usize,
+            ) -> tresult {
+                halion_controller_init_opaque_stub_method(
+                    this,
+                    $slot_index,
+                    [arg1, arg2, arg3, arg4, arg5, arg6, arg7],
+                )
+            }
+        };
+    }
+
+    define_halion_controller_init_opaque_stub_method!(
+        halion_controller_init_opaque_stub_method_2,
+        2
+    );
+    define_halion_controller_init_opaque_stub_method!(
+        halion_controller_init_opaque_stub_method_3,
+        3
+    );
+    define_halion_controller_init_opaque_stub_method!(
+        halion_controller_init_opaque_stub_method_4,
+        4
+    );
+    define_halion_controller_init_opaque_stub_method!(
+        halion_controller_init_opaque_stub_method_5,
+        5
+    );
+    define_halion_controller_init_opaque_stub_method!(
+        halion_controller_init_opaque_stub_method_6,
+        6
+    );
+    define_halion_controller_init_opaque_stub_method!(
+        halion_controller_init_opaque_stub_method_7,
+        7
+    );
+
+    static HALION_CONTROLLER_INIT_OPAQUE_STUB_VTBL: HalionControllerInitOpaqueStubVtbl =
+        HalionControllerInitOpaqueStubVtbl {
+            base: FUnknownVtbl {
+                queryInterface: halion_controller_init_opaque_stub_query_interface,
+                addRef: halion_controller_init_opaque_stub_add_ref,
+                release: halion_controller_init_opaque_stub_release,
+            },
+            slot_0: halion_controller_init_opaque_stub_method_0,
+            slot_1: halion_controller_init_opaque_stub_method_1,
+            slot_2: halion_controller_init_opaque_stub_method_2,
+            slot_3: halion_controller_init_opaque_stub_method_3,
+            slot_4: halion_controller_init_opaque_stub_method_4,
+            slot_5: halion_controller_init_opaque_stub_method_5,
+            slot_6: halion_controller_init_opaque_stub_method_6,
+            slot_7: halion_controller_init_opaque_stub_method_7,
+        };
 
     static LOGGING_HOST_ONLY_INIT_HOST_APPLICATION_VTBL: IHostApplicationVtbl =
         IHostApplicationVtbl {
@@ -2817,10 +3256,16 @@ mod macos_host {
         this.cast::<LoggingHostOnlyInitHostApplication>()
     }
 
-    unsafe fn wrapper_probe_fallback_unknown_from_unknown(
+    unsafe fn unsupported_probe_fallback_unknown_from_unknown(
         this: *mut FUnknown,
-    ) -> *mut WrapperProbeFallbackUnknown {
-        this.cast::<WrapperProbeFallbackUnknown>()
+    ) -> *mut UnsupportedProbeFallbackUnknown {
+        this.cast::<UnsupportedProbeFallbackUnknown>()
+    }
+
+    unsafe fn halion_controller_init_opaque_stub_from_unknown(
+        this: *mut FUnknown,
+    ) -> *mut HalionControllerInitOpaqueStub {
+        this.cast::<HalionControllerInitOpaqueStub>()
     }
 
     unsafe fn logging_host_only_init_add_ref_count(
@@ -2839,31 +3284,232 @@ mod macos_host {
         remaining
     }
 
-    unsafe fn wrapper_probe_fallback_parent(
+    unsafe fn unsupported_probe_fallback_parent(
         this: *mut FUnknown,
     ) -> *mut LoggingHostOnlyInitHostApplication {
-        (*wrapper_probe_fallback_unknown_from_unknown(this)).parent
+        (*unsupported_probe_fallback_unknown_from_unknown(this)).parent
     }
 
-    unsafe extern "system" fn wrapper_probe_fallback_unknown_query_interface(
+    unsafe fn halion_controller_init_opaque_stub_parent(
+        this: *mut FUnknown,
+    ) -> *mut LoggingHostOnlyInitHostApplication {
+        (*halion_controller_init_opaque_stub_from_unknown(this)).parent
+    }
+
+    unsafe fn halion_controller_init_opaque_stub_for_iid(
+        instance: *mut LoggingHostOnlyInitHostApplication,
+        iid: &TUID,
+    ) -> Option<*mut HalionControllerInitOpaqueStub> {
+        (*instance)
+            .halion_controller_init_opaque_stubs
+            .iter_mut()
+            .find(|stub| stub.iid == *iid)
+            .map(|stub| stub as *mut HalionControllerInitOpaqueStub)
+    }
+
+    unsafe fn logging_host_only_init_query_delegate_interface(
+        instance: *mut LoggingHostOnlyInitHostApplication,
+        iid: &TUID,
+        obj: *mut *mut c_void,
+    ) -> tresult {
+        let Some(delegate_host_application) = (*instance).delegate_host_application.clone() else {
+            return kNoInterface;
+        };
+
+        query_host_support_interface(delegate_host_application, iid, obj)
+    }
+
+    unsafe extern "system" fn halion_controller_init_opaque_stub_query_interface(
         this: *mut FUnknown,
         iid: *const TUID,
         obj: *mut *mut c_void,
     ) -> tresult {
-        if !obj.is_null() {
-            *obj = std::ptr::null_mut();
+        if obj.is_null() {
+            return kNoInterface;
+        }
+
+        if !super::clear_host_callback_object_output(obj) {
+            return kNoInterface;
         }
 
         if iid.is_null() {
             return kInvalidArgument;
         }
 
-        if *iid != FUnknown_iid {
+        let Some(iid_value) = super::copy_host_callback_tuid(iid) else {
+            return kNoInterface;
+        };
+
+        let instance = halion_controller_init_opaque_stub_from_unknown(this);
+        if iid_value != FUnknown_iid && iid_value != (*instance).iid {
             return kNoInterface;
         }
 
-        let instance = wrapper_probe_fallback_unknown_from_unknown(this);
-        let parent = wrapper_probe_fallback_parent(this);
+        let _ =
+            logging_host_only_init_add_ref_count(halion_controller_init_opaque_stub_parent(this));
+        *obj = std::ptr::addr_of_mut!((*instance).unknown).cast::<c_void>();
+        kResultOk
+    }
+
+    unsafe extern "system" fn halion_controller_init_opaque_stub_add_ref(
+        this: *mut FUnknown,
+    ) -> uint32 {
+        logging_host_only_init_add_ref_count(halion_controller_init_opaque_stub_parent(this))
+    }
+
+    unsafe extern "system" fn halion_controller_init_opaque_stub_release(
+        this: *mut FUnknown,
+    ) -> uint32 {
+        logging_host_only_init_release_ref_count(halion_controller_init_opaque_stub_parent(this))
+    }
+
+    fn halion_controller_init_opaque_stub_arg_label(argument: usize) -> String {
+        if argument == 0 {
+            String::from("0x0")
+        } else if super::is_probable_host_callback_pointer(argument as *const c_void) {
+            format!("ptr(0x{argument:X})")
+        } else {
+            format!("0x{argument:X}")
+        }
+    }
+
+    unsafe fn halion_controller_init_opaque_stub_slot_0_method(
+        this: *mut FUnknown,
+        args: [usize; 7],
+    ) -> *mut c_void {
+        let instance = halion_controller_init_opaque_stub_from_unknown(this);
+        let arg_summary = args
+            .into_iter()
+            .map(halion_controller_init_opaque_stub_arg_label)
+            .collect::<Vec<_>>()
+            .join(", ");
+        let returned_pointer = std::ptr::addr_of_mut!((*instance).slot_0_utf16_payload)
+            .cast::<u16>()
+            .cast::<c_void>();
+        super::log_active_probe_host_callback(&format!(
+            "HALION opaque init interface {} slot 0 invoked with args=[{}] and returned utf16_payload={} text={:?}",
+            super::host_callback_iid_label(&(*instance).iid),
+            arg_summary,
+            halion_controller_init_opaque_stub_arg_label(returned_pointer as usize),
+            decode_utf16_z(&(*instance).slot_0_utf16_payload),
+        ));
+        returned_pointer
+    }
+
+    unsafe fn halion_controller_init_opaque_stub_slot_1_method(
+        this: *mut FUnknown,
+        args: [usize; 7],
+    ) -> *mut c_void {
+        let instance = halion_controller_init_opaque_stub_from_unknown(this);
+        let arg_summary = args
+            .into_iter()
+            .map(halion_controller_init_opaque_stub_arg_label)
+            .collect::<Vec<_>>()
+            .join(", ");
+        let returned_pointer = std::ptr::addr_of_mut!((*instance).unknown).cast::<c_void>();
+        let mut detail_summary = Vec::new();
+        let slot0_pointer =
+            std::ptr::addr_of!((*instance).slot_0_utf16_payload).cast::<u16>() as usize;
+        let returned_text = decode_utf16_z(&(*instance).slot_0_utf16_payload);
+        if args[0] >= slot0_pointer {
+            let byte_offset = args[0] - slot0_pointer;
+            if byte_offset.is_multiple_of(std::mem::size_of::<u16>()) {
+                detail_summary.push(format!(
+                    "arg1_offset_code_units={}",
+                    byte_offset / std::mem::size_of::<u16>()
+                ));
+            }
+        }
+        detail_summary.push(format!("slot0_text={:?}", returned_text));
+        if let Some(text) = decode_utf16_pointer(args[0], 16) {
+            detail_summary.push(format!("arg1_utf16_prefix={:?}", text));
+        }
+        if let Some(text) = decode_utf16_range(args[3], args[2]) {
+            detail_summary.push(format!("arg4_to_arg3_utf16={:?}", text));
+        }
+        if let Some(text) = decode_packed_utf16_words(args[5]) {
+            detail_summary.push(format!("arg6_packed_utf16={:?}", text));
+        }
+        detail_summary.push(format!("backtrace={}", opaque_stub_backtrace_excerpt()));
+        super::log_active_probe_host_callback(&format!(
+            "HALION opaque init interface {} slot 1 invoked with args=[{}] details=[{}] and returned opaque_handle={}",
+            super::host_callback_iid_label(&(*instance).iid),
+            arg_summary,
+            detail_summary.join("; "),
+            halion_controller_init_opaque_stub_arg_label(returned_pointer as usize),
+        ));
+        returned_pointer
+    }
+
+    unsafe fn halion_controller_init_opaque_stub_method(
+        this: *mut FUnknown,
+        slot_index: usize,
+        args: [usize; 7],
+    ) -> tresult {
+        let instance = halion_controller_init_opaque_stub_from_unknown(this);
+        let arg_summary = args
+            .into_iter()
+            .map(halion_controller_init_opaque_stub_arg_label)
+            .collect::<Vec<_>>()
+            .join(", ");
+        let mut detail_summary = Vec::new();
+        if slot_index == 2 {
+            let slot0_text = decode_utf16_z(&(*instance).slot_0_utf16_payload);
+            let wrote_arg4_c_string = write_c_string_buffer(args[3], args[4], &slot0_text);
+            detail_summary.push(format!("slot0_text={:?}", slot0_text));
+            detail_summary.push(format!("arg4_c_string_written={}", wrote_arg4_c_string));
+            if let Some(text) = decode_c_string_buffer(args[3], args[4]) {
+                detail_summary.push(format!("arg4_c_string={:?}", text));
+            }
+            if let Some(text) = decode_utf16_pointer(args[3], 16) {
+                detail_summary.push(format!("arg4_utf16_prefix={:?}", text));
+            }
+            if let Some(text) = decode_packed_utf16_words(args[5]) {
+                detail_summary.push(format!("arg6_packed_utf16={:?}", text));
+            }
+            detail_summary.push(format!("backtrace={}", opaque_stub_backtrace_excerpt()));
+        }
+        super::log_active_probe_host_callback(&format!(
+            "HALION opaque init interface {} slot {} invoked with args=[{}]{} and returned ok",
+            super::host_callback_iid_label(&(*instance).iid),
+            slot_index,
+            arg_summary,
+            if detail_summary.is_empty() {
+                String::new()
+            } else {
+                format!(" details=[{}]", detail_summary.join("; "))
+            },
+        ));
+        kResultOk
+    }
+
+    unsafe extern "system" fn unsupported_probe_fallback_unknown_query_interface(
+        this: *mut FUnknown,
+        iid: *const TUID,
+        obj: *mut *mut c_void,
+    ) -> tresult {
+        if obj.is_null() {
+            return kNoInterface;
+        }
+
+        if !super::clear_host_callback_object_output(obj) {
+            return kNoInterface;
+        }
+
+        if iid.is_null() {
+            return kInvalidArgument;
+        }
+
+        let Some(iid_value) = super::copy_host_callback_tuid(iid) else {
+            return kNoInterface;
+        };
+
+        if iid_value != FUnknown_iid {
+            return kNoInterface;
+        }
+
+        let instance = unsupported_probe_fallback_unknown_from_unknown(this);
+        let parent = unsupported_probe_fallback_parent(this);
         let _ = logging_host_only_init_add_ref_count(parent);
         if !obj.is_null() {
             *obj = std::ptr::addr_of_mut!((*instance).unknown).cast::<c_void>();
@@ -2872,16 +3518,16 @@ mod macos_host {
         kResultOk
     }
 
-    unsafe extern "system" fn wrapper_probe_fallback_unknown_add_ref(
+    unsafe extern "system" fn unsupported_probe_fallback_unknown_add_ref(
         this: *mut FUnknown,
     ) -> uint32 {
-        logging_host_only_init_add_ref_count(wrapper_probe_fallback_parent(this))
+        logging_host_only_init_add_ref_count(unsupported_probe_fallback_parent(this))
     }
 
-    unsafe extern "system" fn wrapper_probe_fallback_unknown_release(
+    unsafe extern "system" fn unsupported_probe_fallback_unknown_release(
         this: *mut FUnknown,
     ) -> uint32 {
-        logging_host_only_init_release_ref_count(wrapper_probe_fallback_parent(this))
+        logging_host_only_init_release_ref_count(unsupported_probe_fallback_parent(this))
     }
 
     unsafe extern "system" fn logging_host_only_init_query_interface(
@@ -2889,50 +3535,115 @@ mod macos_host {
         iid: *const TUID,
         obj: *mut *mut c_void,
     ) -> tresult {
-        if !obj.is_null() {
-            *obj = std::ptr::null_mut();
+        if obj.is_null() {
+            super::log_active_probe_host_callback(
+                "Init host context queryInterface received null output pointer and returned no_interface",
+            );
+            return kNoInterface;
+        }
+
+        if !super::clear_host_callback_object_output(obj) {
+            super::log_active_probe_host_callback(&format!(
+                "Init host context queryInterface ignored invalid output pointer {} and returned no_interface",
+                super::host_callback_pointer_label(obj.cast_const())
+            ));
+            return kNoInterface;
         }
 
         if iid.is_null() {
             return kInvalidArgument;
         }
 
-        let requested_interface = super::host_callback_iid_label(&*iid);
-        let is_supported = *iid == IHostApplication_iid || *iid == FUnknown_iid;
-        let uses_wrapper_fallback = super::is_wrapper_probe_interface(&*iid);
-        super::log_active_probe_host_callback(&format!(
-            "Init host context queryInterface requested {} => {}",
-            requested_interface,
-            if is_supported {
-                "supported"
-            } else if uses_wrapper_fallback {
-                "unsupported_with_fallback"
-            } else {
-                "unsupported"
+        let instance = logging_host_only_init_instance_from_unknown(this);
+        let Some(iid_value) = super::copy_host_callback_tuid(iid) else {
+            super::log_active_probe_host_callback(&format!(
+                "Init host context queryInterface requested {} => unsupported_with_fallback",
+                super::host_callback_pointer_label(iid)
+            ));
+
+            if !obj.is_null() {
+                let _ = logging_host_only_init_add_ref_count(instance);
+                *obj =
+                    std::ptr::addr_of_mut!((*instance).unsupported_probe_fallback_unknown.unknown)
+                        .cast::<c_void>();
             }
+            return kNoInterface;
+        };
+
+        let requested_interface = super::host_callback_iid_label(&iid_value);
+        let is_supported = super::is_host_only_init_supported_interface(&iid_value);
+        let is_wrapper_probe = super::is_wrapper_probe_interface(&iid_value);
+        let uses_opaque_stub = super::is_halion_controller_init_opaque_stub_interface(&iid_value);
+        if is_supported {
+            super::log_active_probe_host_callback(&format!(
+                "Init host context queryInterface requested {} => supported",
+                requested_interface,
+            ));
+            let _ = logging_host_only_init_add_ref_count(instance);
+            if !obj.is_null() {
+                *obj = std::ptr::addr_of_mut!((*instance).host_application).cast::<c_void>();
+            }
+            return kResultOk;
+        }
+
+        if uses_opaque_stub {
+            super::log_active_probe_host_callback(&format!(
+                "Init host context queryInterface requested {} => supported_opaque_stub",
+                requested_interface,
+            ));
+            let Some(opaque_stub) =
+                halion_controller_init_opaque_stub_for_iid(instance, &iid_value)
+            else {
+                return kNoInterface;
+            };
+            let _ = logging_host_only_init_add_ref_count(instance);
+            if !obj.is_null() {
+                *obj = std::ptr::addr_of_mut!((*opaque_stub).unknown).cast::<c_void>();
+            }
+            return kResultOk;
+        }
+
+        let delegate_result =
+            logging_host_only_init_query_delegate_interface(instance, &iid_value, obj);
+        if delegate_result == kResultOk && !(*obj).is_null() {
+            super::log_active_probe_host_callback(&format!(
+                "Init host context queryInterface requested {} => supported_delegate",
+                requested_interface,
+            ));
+            return kResultOk;
+        }
+
+        if delegate_result != kNoInterface && delegate_result != kResultFalse {
+            super::log_active_probe_host_callback(&format!(
+                "Init host context queryInterface requested {} => delegate_result({})",
+                requested_interface, delegate_result,
+            ));
+            return delegate_result;
+        }
+
+        if is_wrapper_probe {
+            super::log_active_probe_host_callback(&format!(
+                "Init host context queryInterface requested {} => unsupported_null_output",
+                requested_interface,
+            ));
+            return kNoInterface;
+        }
+
+        super::log_active_probe_host_callback(&format!(
+            "Init host context queryInterface requested {} => unsupported_with_fallback",
+            requested_interface,
         ));
 
-        let instance = logging_host_only_init_instance_from_unknown(this);
-
-        if !is_supported && !uses_wrapper_fallback {
-            return kNoInterface;
-        }
-
-        let _ = logging_host_only_init_add_ref_count(instance);
         if !obj.is_null() {
-            *obj = if uses_wrapper_fallback {
-                std::ptr::addr_of_mut!((*instance).wrapper_probe_fallback_unknown.unknown)
-                    .cast::<c_void>()
-            } else {
-                std::ptr::addr_of_mut!((*instance).host_application).cast::<c_void>()
-            };
+            if !obj.is_null() {
+                let _ = logging_host_only_init_add_ref_count(instance);
+                *obj =
+                    std::ptr::addr_of_mut!((*instance).unsupported_probe_fallback_unknown.unknown)
+                        .cast::<c_void>();
+            }
         }
 
-        if uses_wrapper_fallback {
-            return kNoInterface;
-        }
-
-        kResultOk
+        kNoInterface
     }
 
     unsafe extern "system" fn logging_host_only_init_add_ref(this: *mut FUnknown) -> uint32 {
@@ -2949,13 +3660,7 @@ mod macos_host {
         _this: *mut IHostApplication,
         name: *mut String128,
     ) -> tresult {
-        if name.is_null() {
-            return kInvalidArgument;
-        }
-
-        super::log_active_probe_host_callback("IHostApplication::getName invoked");
-        write_string128(&mut *name, "Solo Compose Plugin Host POC");
-        kResultOk
+        host_application_get_name(name)
     }
 
     unsafe extern "system" fn logging_host_only_init_create_instance(
@@ -2967,223 +3672,23 @@ mod macos_host {
         host_application_create_instance(cid, iid, obj)
     }
 
-    fn create_logging_host_only_init_host_application() -> ComPtr<IHostApplication> {
-        let instance = Box::new(LoggingHostOnlyInitHostApplication::new());
+    fn create_logging_host_only_init_host_application(
+        delegate_host_application: Option<ComPtr<FUnknown>>,
+    ) -> ComPtr<IHostApplication> {
+        let instance = Box::new(LoggingHostOnlyInitHostApplication::new(
+            delegate_host_application,
+        ));
         let raw_instance = Box::into_raw(instance);
         unsafe {
-            (*raw_instance).wrapper_probe_fallback_unknown.parent = raw_instance;
+            (*raw_instance).unsupported_probe_fallback_unknown.parent = raw_instance;
+            for opaque_stub in &mut (*raw_instance).halion_controller_init_opaque_stubs {
+                opaque_stub.parent = raw_instance;
+            }
         }
         let host_application_ptr =
             unsafe { std::ptr::addr_of_mut!((*raw_instance).host_application) };
 
         unsafe { ComPtr::from_raw_unchecked(host_application_ptr) }
-    }
-
-    pub struct PluginHostSession {
-        pub target: super::PluginEditorTarget,
-        pub plugin_path: PathBuf,
-        restorable_plugin_state: Option<PlaybackSlotPluginState>,
-        _module: LoadedVst3Module,
-        component: ComPtr<IComponent>,
-        controller: ComPtr<IEditController>,
-        view: Option<ComPtr<IPlugView>>,
-        _host_application: ComPtr<IHostApplication>,
-        _controller_initialize_host_application: ComPtr<IHostApplication>,
-        _component_handler_host_application: ComPtr<IHostApplication>,
-        _plug_frame: Option<ComPtr<IPlugFrame>>,
-        host_view_ptr: usize,
-        plugin_can_resize: bool,
-        view_attached: bool,
-        connection_points_connected: bool,
-        component_initialized: bool,
-        controller_initialized: bool,
-        controller_shared_with_component: bool,
-        close_prepared: bool,
-        render_processing_active: bool,
-        render_sample_rate: Option<u32>,
-        render_max_block_size: i32,
-        render_buses_activated: bool,
-        render_output_buses: Vec<OutputBusLayout>,
-        render_scratch: RenderScratch,
-    }
-
-    impl PluginHostSession {
-        fn attach_view(
-            &mut self,
-            ns_window: *mut NSWindow,
-            parent_view: &NSView,
-            telemetry: &mut super::PluginHostBuildTelemetry,
-        ) -> Result<(), PluginEditorHostAttemptError> {
-            eprintln!(
-                "[DIAG] attach_view: start (close_prepared={}, view_attached={}, view_exists={})",
-                self.close_prepared,
-                self.view_attached,
-                self.view.is_some()
-            );
-
-            if self.component_initialized && self.close_prepared {
-                let _ = unsafe { self.component.setActive(1) };
-            }
-
-            telemetry.record_starting(
-                PluginEditorHostValidationPhase::ViewCreate,
-                "About to create and prepare the VST3 editor view.",
-            );
-            let plug_frame = ComWrapper::new(PluginHostFrame {
-                ns_window_ptr: ns_window,
-            })
-            .to_com_ptr::<IPlugFrame>()
-            .ok_or_else(|| {
-                super::record_probe_failure(
-                    telemetry,
-                    PluginEditorHostAttemptError::host_contract_failure(
-                        PluginEditorHostValidationPhase::ViewCreate,
-                        "Failed to allocate the VST3 plug-frame shim.",
-                    ),
-                )
-            })?;
-
-            let view = unsafe { ComPtr::from_raw(self.controller.createView(ViewType::kEditor)) }
-                .ok_or_else(|| {
-                    super::record_probe_failure(
-                        telemetry,
-                        PluginEditorHostAttemptError::plugin_failure(
-                            PluginEditorHostValidationPhase::ViewCreate,
-                            "Plugin editor POC did not receive a plugin editor view. The selected VST3 may not expose an editor.",
-                        ),
-                    )
-                })?;
-
-            let platform_supported = unsafe { view.isPlatformTypeSupported(kPlatformTypeNSView) };
-            if platform_supported != kResultOk {
-                return Err(super::record_probe_failure(
-                    telemetry,
-                    PluginEditorHostAttemptError::plugin_failure(
-                        PluginEditorHostValidationPhase::ViewCreate,
-                        "Plugin editor POC editor view does not report NSView support.",
-                    ),
-                ));
-            }
-
-            let mut plug_view_size = ViewRect {
-                left: 0,
-                top: 0,
-                right: 0,
-                bottom: 0,
-            };
-            if unsafe { view.getSize(&mut plug_view_size) } == kResultOk {
-                let width = (plug_view_size.right - plug_view_size.left).max(1) as f64;
-                let height = (plug_view_size.bottom - plug_view_size.top).max(1) as f64;
-                eprintln!(
-                    "[DIAG] attach_view: getSize returned {width}x{height}, calling setContentSize"
-                );
-                if let Some(ns_win) = unsafe { Retained::retain(ns_window) } {
-                    ns_win.setContentSize(NSSize::new(width, height));
-                }
-            }
-
-            let plugin_can_resize = unsafe { view.canResize() } == kResultOk;
-            if let Some(ns_win) = unsafe { Retained::retain(ns_window) } {
-                let mut style = ns_win.styleMask();
-                if plugin_can_resize {
-                    style |= NSWindowStyleMask::Resizable;
-                } else {
-                    style -= NSWindowStyleMask::Resizable;
-                }
-                ns_win.setStyleMask(style);
-            }
-
-            telemetry.record_completed(
-                PluginEditorHostValidationPhase::ViewCreate,
-                "Created the VST3 editor view and prepared the host window.",
-            );
-
-            let _ = unsafe { view.setFrame(plug_frame.as_ptr()) };
-
-            telemetry.record_starting(
-                PluginEditorHostValidationPhase::ViewAttach,
-                "About to attach the VST3 editor view to the bounded host surface.",
-            );
-            let parent_ptr = (parent_view as *const NSView).cast_mut().cast::<c_void>();
-            let attached = unsafe { view.attached(parent_ptr, kPlatformTypeNSView) };
-            if attached != kResultOk {
-                return Err(super::record_probe_failure(
-                    telemetry,
-                    PluginEditorHostAttemptError::plugin_failure(
-                        PluginEditorHostValidationPhase::ViewAttach,
-                        format!(
-                            "Plugin editor POC failed to attach the VST3 editor view to NSView (tresult = {}).",
-                            attached
-                        ),
-                    ),
-                ));
-            }
-
-            telemetry.record_completed(
-                PluginEditorHostValidationPhase::ViewAttach,
-                "Attached the plugin editor view to the bounded host surface.",
-            );
-
-            self.view = Some(view);
-            self._plug_frame = Some(plug_frame);
-            self.host_view_ptr = parent_ptr as usize;
-            self.plugin_can_resize = plugin_can_resize;
-            self.view_attached = true;
-            self.close_prepared = false;
-
-            Ok(())
-        }
-
-        fn prepare_for_window_close(&mut self) {
-            unsafe {
-                if self.close_prepared {
-                    return;
-                }
-
-                if self.view_attached {
-                    let Some(view) = self.view.as_ref() else {
-                        self.view_attached = false;
-                        self.close_prepared = true;
-                        return;
-                    };
-                    let _ = view.setFrame(std::ptr::null_mut());
-                    let _ = view.removed();
-                    self.view_attached = false;
-                    self.view = None;
-                    self._plug_frame = None;
-                }
-                self.close_prepared = true;
-            }
-        }
-
-        fn shutdown(mut self) {
-            self.prepare_for_window_close();
-
-            unsafe {
-                if self.controller_initialized && !self.controller_shared_with_component {
-                    let _ = self.controller.setComponentHandler(std::ptr::null_mut());
-                }
-                if self.connection_points_connected {
-                    disconnect_component_and_controller(&self.component, &self.controller);
-                    self.connection_points_connected = false;
-                }
-                if self.controller_initialized && !self.controller_shared_with_component {
-                    let _ = self.controller.terminate();
-                    self.controller_initialized = false;
-                }
-                if self.component_initialized {
-                    let _ = self.component.setActive(0);
-                    let _ = self.component.terminate();
-                    self.component_initialized = false;
-                }
-            }
-        }
-
-        fn view_state(&self) -> Option<(ComPtr<IPlugView>, usize, bool)> {
-            self.view
-                .as_ref()
-                .map(|view| (view.clone(), self.host_view_ptr, self.plugin_can_resize))
-        }
     }
 
     // These helper functions are no longer needed — the synchronous
@@ -3217,13 +3722,7 @@ mod macos_host {
         ($ty:ty, $supports:path) => {
             impl IHostApplicationTrait for $ty {
                 unsafe fn getName(&self, name: *mut String128) -> tresult {
-                    if name.is_null() {
-                        return kInvalidArgument;
-                    }
-
-                    super::log_active_probe_host_callback("IHostApplication::getName invoked");
-                    write_string128(&mut *name, "Solo Compose Plugin Host POC");
-                    kResultOk
+                    host_application_get_name(name)
                 }
 
                 unsafe fn createInstance(
@@ -3491,25 +3990,28 @@ mod macos_host {
     impl_extended_host_application_traits!(PluginHostApplication);
 
     pub(crate) fn create_controller_init_host_application(
-        profile: super::PluginEditorPocProbeProfile,
     ) -> Result<ComPtr<IHostApplication>, String> {
-        match profile {
-            super::PluginEditorPocProbeProfile::Default => ComWrapper::new(PluginHostApplication)
-                .to_com_ptr::<IHostApplication>()
-                .ok_or_else(|| String::from("Failed to allocate the VST3 host-application shim.")),
-            super::PluginEditorPocProbeProfile::ControllerInitHostOnlyLifecycleAligned => {
-                Ok(create_logging_host_only_init_host_application())
-            }
-        }
+        Ok(create_logging_host_only_init_host_application(None))
     }
 
-    fn create_component_handler_host_application(
-        _profile: super::PluginEditorPocProbeProfile,
+    pub(crate) fn create_controller_init_host_application_with_delegate(
+        delegate_host_application: &ComPtr<IHostApplication>,
     ) -> Result<ComPtr<IHostApplication>, String> {
+        Ok(create_logging_host_only_init_host_application(Some(
+            delegate_host_application.clone().upcast::<FUnknown>(),
+        )))
+    }
+
+    fn create_component_handler_host_application() -> Result<ComPtr<IHostApplication>, String> {
         ComWrapper::new(PluginHostApplication)
             .to_com_ptr::<IHostApplication>()
             .ok_or_else(|| String::from("Failed to allocate the VST3 component-handler host shim."))
     }
+
+    #[path = "vst3_host_core.rs"]
+    pub(super) mod vst3_host_core;
+
+    pub(crate) type PluginHostSession = vst3_host_core::PluginHostCoreSession;
 
     struct PluginHostFrame {
         /// Raw pointer to the native NSWindow.  The PluginHostFrame does not own
@@ -3621,6 +4123,25 @@ mod macos_host {
             resizing_from_plugin().store(false, Ordering::Release);
             result
         }
+    }
+
+    const MIN_HOST_APPLICATION_NAME_BUFFER_ADDRESS: usize = 4096;
+
+    unsafe fn host_application_get_name(name: *mut String128) -> tresult {
+        let name_address = name.cast::<TChar>() as usize;
+        if name.is_null()
+            || name_address < MIN_HOST_APPLICATION_NAME_BUFFER_ADDRESS
+            || !name_address.is_multiple_of(std::mem::align_of::<TChar>())
+        {
+            super::log_active_probe_host_callback(&format!(
+                "IHostApplication::getName ignored invalid buffer 0x{name_address:X} and returned ok"
+            ));
+            return kResultOk;
+        }
+
+        super::log_active_probe_host_callback("IHostApplication::getName invoked");
+        write_string128(&mut *name, "Solo Compose");
+        kResultOk
     }
 
     fn write_string128(buffer: &mut String128, value: &str) {
@@ -4169,392 +4690,12 @@ mod macos_host {
         probe_profile: super::PluginEditorPocProbeProfile,
         telemetry: &mut super::PluginHostBuildTelemetry,
     ) -> Result<PluginHostSession, PluginEditorHostAttemptError> {
-        let plugin_path = target.path();
-        telemetry.record_starting(
-            PluginEditorHostValidationPhase::ModuleLoad,
-            "About to load the VST3 module binary.",
-        );
-        let module = load_vst3_module(plugin_path).map_err(|error| {
-            super::record_probe_failure(
-                telemetry,
-                PluginEditorHostAttemptError::host_contract_failure(
-                    PluginEditorHostValidationPhase::ModuleLoad,
-                    error,
-                ),
-            )
-        })?;
-        telemetry.record_completed(
-            PluginEditorHostValidationPhase::ModuleLoad,
-            "Loaded the VST3 module binary.",
-        );
-        telemetry.record_starting(
-            PluginEditorHostValidationPhase::FactoryCreate,
-            "About to resolve the VST3 plugin factory.",
-        );
-        let factory = create_plugin_factory(&module).map_err(|error| {
-            super::record_probe_failure(
-                telemetry,
-                PluginEditorHostAttemptError::plugin_failure(
-                    PluginEditorHostValidationPhase::FactoryCreate,
-                    error,
-                ),
-            )
-        })?;
-        telemetry.record_completed(
-            PluginEditorHostValidationPhase::FactoryCreate,
-            "Resolved the VST3 plugin factory.",
-        );
-
-        telemetry.record_starting(
-            PluginEditorHostValidationPhase::HostContext,
-            "About to allocate the VST3 host application and configure the factory host context.",
-        );
-        let host_application =
-            create_component_handler_host_application(probe_profile).map_err(|error| {
-                super::record_probe_failure(
-                    telemetry,
-                    PluginEditorHostAttemptError::host_contract_failure(
-                        PluginEditorHostValidationPhase::HostContext,
-                        error,
-                    ),
-                )
-            })?;
-        let controller_initialize_host_application = match probe_profile {
-            super::PluginEditorPocProbeProfile::Default => host_application.clone(),
-            super::PluginEditorPocProbeProfile::ControllerInitHostOnlyLifecycleAligned => {
-                create_controller_init_host_application(probe_profile).map_err(|error| {
-                    super::record_probe_failure(
-                        telemetry,
-                        PluginEditorHostAttemptError::host_contract_failure(
-                            PluginEditorHostValidationPhase::HostContext,
-                            error,
-                        ),
-                    )
-                })?
-            }
-        };
-        let component_handler_host_application =
-            create_component_handler_host_application(probe_profile).map_err(|error| {
-                super::record_probe_failure(
-                    telemetry,
-                    PluginEditorHostAttemptError::host_contract_failure(
-                        PluginEditorHostValidationPhase::HostContext,
-                        error,
-                    ),
-                )
-            })?;
-        let host_context = host_application.clone().upcast::<FUnknown>();
-        configure_factory_host_context(&factory, &host_context);
-        telemetry.record_completed(
-            PluginEditorHostValidationPhase::HostContext,
-            "Created the host context and configured the VST3 factory.",
-        );
-
-        telemetry.record_starting(
-            PluginEditorHostValidationPhase::ComponentCreate,
-            "About to create the VST3 component instance.",
-        );
-        let component = create_component(&factory, plugin_path).map_err(|error| {
-            super::record_probe_failure(
-                telemetry,
-                PluginEditorHostAttemptError::plugin_failure(
-                    PluginEditorHostValidationPhase::ComponentCreate,
-                    error,
-                ),
-            )
-        })?;
-        telemetry.record_completed(
-            PluginEditorHostValidationPhase::ComponentCreate,
-            "Created the VST3 component instance.",
-        );
-        let delay_component_runtime_setup =
-            super::probe_profile_delays_component_runtime_setup(probe_profile);
-        telemetry.record_starting(
-            PluginEditorHostValidationPhase::ComponentInitialize,
-            if delay_component_runtime_setup {
-                "About to initialize the VST3 component. Runtime bus activation and processing setup will be deferred until after controller initialization."
-            } else {
-                "About to initialize the VST3 component before controller initialization."
-            },
-        );
-        let component_init = unsafe { component.initialize(host_context.as_ptr()) };
-        if component_init != kResultOk {
-            return Err(super::record_probe_failure(
-                telemetry,
-                PluginEditorHostAttemptError::plugin_failure(
-                    PluginEditorHostValidationPhase::ComponentInitialize,
-                    format!(
-                        "Plugin editor POC failed to initialize the VST3 component (tresult = {}).",
-                        component_init
-                    ),
-                ),
-            ));
-        }
-
-        if let Some(plugin_state) = restorable_plugin_state {
-            telemetry.record_starting(
-                PluginEditorHostValidationPhase::ComponentStateSync,
-                "About to restore the portable component state into the VST3 component.",
-            );
-            restore_component_state(&component, plugin_state).map_err(|error| {
-                super::record_probe_failure(
-                    telemetry,
-                    PluginEditorHostAttemptError::plugin_failure(
-                        PluginEditorHostValidationPhase::ComponentStateSync,
-                        error,
-                    ),
-                )
-            })?;
-            telemetry.record_completed(
-                PluginEditorHostValidationPhase::ComponentStateSync,
-                "Restored the portable component state into the VST3 component.",
-            );
-        } else {
-            telemetry.record_skipped(
-                PluginEditorHostValidationPhase::ComponentStateSync,
-                "Skipped because no portable component state was provided.",
-            );
-        }
-
-        telemetry.record_completed(
-            PluginEditorHostValidationPhase::ComponentInitialize,
-            if delay_component_runtime_setup {
-                "Initialized the VST3 component and deferred runtime bus activation, processing setup, and component activation until after controller initialization."
-            } else {
-                "Initialized the VST3 component."
-            },
-        );
-
-        if !delay_component_runtime_setup {
-            telemetry.record_starting(
-                PluginEditorHostValidationPhase::ComponentRuntimeSetup,
-                "About to activate buses, configure processing, and activate the VST3 component before controller initialization.",
-            );
-            apply_component_runtime_setup(&component, telemetry)?;
-            telemetry.record_completed(
-                PluginEditorHostValidationPhase::ComponentRuntimeSetup,
-                "Activated buses, configured processing, and activated the VST3 component before controller initialization.",
-            );
-        }
-
-        telemetry.record_starting(
-            PluginEditorHostValidationPhase::ControllerCreate,
-            "About to create the VST3 edit controller.",
-        );
-        let CreatedController {
-            controller,
-            shared_with_component: controller_shared_with_component,
-        } = match create_controller(&factory, &component) {
-            Ok(controller) => controller,
-            Err(error) => {
-                unsafe {
-                    let _ = component.terminate();
-                }
-                return Err(super::record_probe_failure(
-                    telemetry,
-                    PluginEditorHostAttemptError::plugin_failure(
-                        PluginEditorHostValidationPhase::ControllerCreate,
-                        error,
-                    ),
-                ));
-            }
-        };
-        telemetry.record_completed(
-            PluginEditorHostValidationPhase::ControllerCreate,
-            "Created the VST3 edit controller.",
-        );
-
-        // IComponentHandler is now on PluginHostApplication, so we use
-        // the host_application ComPtr cast for setComponentHandler.
-
-        // Set the component handler BEFORE controller.initialize().
-        // HALion Sonic's controller may rely on having a valid handler
-        // during initialization.
-        let component_handler_ptr = component_handler_host_application
-            .clone()
-            .upcast::<FUnknown>()
-            .cast::<IComponentHandler>()
-            .expect("PluginHostApplication must expose IComponentHandler");
-        let set_component_handler_pre_init =
-            !super::probe_profile_defers_component_handler(probe_profile);
-
-        if !controller_shared_with_component {
-            if set_component_handler_pre_init {
-                telemetry.record_starting(
-                    PluginEditorHostValidationPhase::ControllerSetComponentHandlerPreInit,
-                    "About to set the VST3 component handler before controller initialization.",
-                );
-                let _ = unsafe { controller.setComponentHandler(component_handler_ptr.as_ptr()) };
-                telemetry.log_phase_event(
-                    PluginEditorHostValidationPhase::ControllerSetComponentHandlerPreInit,
-                    "completed",
-                    "Set the VST3 component handler before controller initialization.",
-                );
-            } else {
-                telemetry.record_skipped(
-                    PluginEditorHostValidationPhase::ControllerSetComponentHandlerPreInit,
-                    format!(
-                        "Skipped because the {} probe profile defers component-handler wiring until after controller initialization.",
-                        super::probe_profile_code(probe_profile)
-                    ),
-                );
-            }
-        } else {
-            telemetry.record_skipped(
-                PluginEditorHostValidationPhase::ControllerSetComponentHandlerPreInit,
-                "Skipped because the edit controller is shared with the component instance.",
-            );
-        }
-
-        // Initialize the edit controller on the main thread.
-        // The committed working version (ffaad55a) uses main-thread init
-        // with pre-init setComponentHandler, 15 interfaces, and factory
-        // host context.
-        let controller_initialized = if controller_shared_with_component {
-            telemetry.record_skipped(
-                PluginEditorHostValidationPhase::ControllerInitialize,
-                "Skipped because the edit controller is shared with the component instance.",
-            );
-            telemetry.record_skipped(
-                PluginEditorHostValidationPhase::ControllerSetComponentHandler,
-                "Skipped because the edit controller is shared with the component instance.",
-            );
-            false
-        } else {
-            let controller_initialize_host_context = controller_initialize_host_application
-                .clone()
-                .upcast::<FUnknown>();
-            telemetry.record_starting(
-                PluginEditorHostValidationPhase::ControllerInitialize,
-                "About to initialize the VST3 edit controller.",
-            );
-            let controller_init =
-                unsafe { controller.initialize(controller_initialize_host_context.as_ptr()) };
-            if controller_init != kResultOk {
-                unsafe {
-                    let _ = component.terminate();
-                }
-                return Err(super::record_probe_failure(
-                    telemetry,
-                    PluginEditorHostAttemptError::plugin_failure(
-                        PluginEditorHostValidationPhase::ControllerInitialize,
-                        format!(
-                            "Plugin editor POC failed to initialize the VST3 edit controller (tresult = {}).",
-                            controller_init
-                        ),
-                    ),
-                ));
-            }
-            telemetry.record_completed(
-                PluginEditorHostValidationPhase::ControllerInitialize,
-                "Initialized the VST3 edit controller.",
-            );
-
-            if set_component_handler_pre_init {
-                telemetry.record_skipped(
-                    PluginEditorHostValidationPhase::ControllerSetComponentHandler,
-                    "Skipped because the default probe profile already wired the component handler before controller initialization.",
-                );
-            } else {
-                telemetry.record_starting(
-                    PluginEditorHostValidationPhase::ControllerSetComponentHandler,
-                    "About to set the VST3 component handler after controller initialization.",
-                );
-                let _ = unsafe { controller.setComponentHandler(component_handler_ptr.as_ptr()) };
-                telemetry.record_completed(
-                    PluginEditorHostValidationPhase::ControllerSetComponentHandler,
-                    "Set the VST3 component handler after controller initialization.",
-                );
-            }
-            true
-        };
-
-        // Match original POC order exactly:
-        // setComponentHandler → init → state sync → connect points
-
-        // State sync before connect points
-        if !controller_shared_with_component {
-            telemetry.log_phase_event(
-                PluginEditorHostValidationPhase::ComponentStateSync,
-                "starting",
-                "About to synchronize the live component state into the controller before connection-point setup.",
-            );
-            sync_component_state_to_controller(&component, &controller);
-            telemetry.log_phase_event(
-                PluginEditorHostValidationPhase::ComponentStateSync,
-                "completed",
-                "Synchronized the live component state into the controller before connection-point setup.",
-            );
-        }
-
-        let connection_points_connected = if controller_shared_with_component {
-            telemetry.record_skipped(
-                PluginEditorHostValidationPhase::ConnectionPointHandshake,
-                "Skipped because the component and controller share one instance.",
-            );
-            false
-        } else {
-            telemetry.record_starting(
-                PluginEditorHostValidationPhase::ConnectionPointHandshake,
-                "About to connect the VST3 component and controller connection points.",
-            );
-            match connect_component_and_controller(&component, &controller) {
-                ConnectionPointHandshakeOutcome::Connected(message) => {
-                    telemetry.record_completed(
-                        PluginEditorHostValidationPhase::ConnectionPointHandshake,
-                        message,
-                    );
-                    true
-                }
-                ConnectionPointHandshakeOutcome::Skipped(message) => {
-                    telemetry.record_skipped(
-                        PluginEditorHostValidationPhase::ConnectionPointHandshake,
-                        message,
-                    );
-                    false
-                }
-            }
-        };
-
-        if delay_component_runtime_setup {
-            telemetry.record_starting(
-                PluginEditorHostValidationPhase::ComponentRuntimeSetup,
-                "About to activate buses, configure processing, and activate the VST3 component after controller initialization.",
-            );
-            apply_component_runtime_setup(&component, telemetry)?;
-            telemetry.record_completed(
-                PluginEditorHostValidationPhase::ComponentRuntimeSetup,
-                "Activated buses, configured processing, and activated the VST3 component after controller initialization.",
-            );
-        }
-
-        Ok(PluginHostSession {
-            target: target.clone(),
-            plugin_path: plugin_path.to_path_buf(),
-            restorable_plugin_state: restorable_plugin_state.cloned(),
-            _module: module,
-            component,
-            controller,
-            view: None,
-            _host_application: host_application,
-            _controller_initialize_host_application: controller_initialize_host_application,
-            _component_handler_host_application: component_handler_host_application,
-            _plug_frame: None,
-            host_view_ptr: 0,
-            plugin_can_resize: false,
-            view_attached: false,
-            connection_points_connected,
-            component_initialized: true,
-            controller_initialized,
-            controller_shared_with_component,
-            close_prepared: false,
-            render_processing_active: false,
-            render_sample_rate: None,
-            render_max_block_size: 0,
-            render_buses_activated: false,
-            render_output_buses: Vec::new(),
-            render_scratch: RenderScratch::default(),
-        })
+        vst3_host_core::build_plugin_host_core_session_with_telemetry(
+            target,
+            restorable_plugin_state,
+            probe_profile,
+            telemetry,
+        )
     }
 
     fn prepare_plugin_host_session_for_close_now() {
@@ -4577,10 +4718,11 @@ mod macos_host {
             }
         }
 
-        let session = active_plugin_host_session()
-            .lock()
-            .ok()
-            .and_then(|mut active_session| active_session.take());
+        let session = if let Ok(mut active_session) = active_plugin_host_session().lock() {
+            active_session.take()
+        } else {
+            None
+        };
         if let Some(mut session) = session {
             session.prepare_for_window_close();
             if let Ok(mut active_session) = active_plugin_host_session().lock() {
@@ -4695,7 +4837,8 @@ mod macos_host {
             return Ok(());
         }
 
-        let session_state = Arc::new(StdMutex::new(Some(session)));
+        let session_state: Arc<StdMutex<Option<PluginHostSession>>> =
+            Arc::new(StdMutex::new(Some(session)));
         let session_state_for_main = Arc::clone(&session_state);
         let (sender, receiver) = std::sync::mpsc::channel();
         app.run_on_main_thread(move || {
@@ -6314,6 +6457,47 @@ mod tests {
         );
     }
 
+    #[test]
+    fn host_callback_iid_name_from_ptr_marks_invalid_sentinel_pointers() {
+        use vst3::Steinberg::TUID;
+
+        assert_eq!(
+            super::host_callback_iid_name_from_ptr(0xFFFF_FFFF_usize as *const TUID),
+            "invalid_pointer(0xFFFFFFFF)"
+        );
+    }
+
+    #[test]
+    fn host_only_init_query_interface_outcome_matches_halion_opaque_stubs() {
+        use vst3::Steinberg::Vst::{IHostApplication_iid, IVst3ToAUWrapper_iid};
+        use vst3::Steinberg::TUID;
+
+        assert_eq!(
+            super::host_only_init_query_interface_outcome(&IHostApplication_iid),
+            "supported"
+        );
+        assert_eq!(
+            super::host_only_init_query_interface_outcome(&IVst3ToAUWrapper_iid),
+            "unsupported_null_output"
+        );
+        assert_eq!(
+            super::host_only_init_query_interface_outcome(
+                &super::HALION_CONTROLLER_INIT_MARKER_IIDS[1]
+            ),
+            "supported_opaque_stub"
+        );
+
+        let unknown_iid: TUID = [
+            0x10_i8, 0x20_i8, 0x30_i8, 0x40_i8, 0x50_i8, 0x60_i8, 0x70_i8, 0x11_i8, 0x22_i8,
+            0x33_i8, 0x44_i8, 0x55_i8, 0x66_i8, 0x77_i8, 0x7F_i8, 0x01_i8,
+        ];
+
+        assert_eq!(
+            super::host_only_init_query_interface_outcome(&unknown_iid),
+            "unsupported_with_fallback"
+        );
+    }
+
     #[cfg(target_os = "macos")]
     #[test]
     fn host_application_exposes_full_interface_set() {
@@ -6359,10 +6543,8 @@ mod tests {
             IAutomationState, IComponentHandler, IHostApplication, IPlugInterfaceSupport,
         };
 
-        let host_application = super::macos_host::create_controller_init_host_application(
-            super::PluginEditorPocProbeProfile::ControllerInitHostOnlyLifecycleAligned,
-        )
-        .unwrap();
+        let host_application =
+            super::macos_host::create_controller_init_host_application().unwrap();
         let unknown = host_application.clone().upcast::<FUnknown>();
 
         assert!(unknown.cast::<IHostApplication>().is_some());
@@ -6374,15 +6556,55 @@ mod tests {
 
     #[cfg(target_os = "macos")]
     #[test]
-    fn host_only_init_host_application_returns_non_null_fallback_for_wrapper_probes() {
+    fn controller_init_host_application_with_delegate_exposes_full_host_interfaces() {
+        use vst3::ComWrapper;
+        use vst3::Steinberg::FUnknown;
+        use vst3::Steinberg::Vst::{
+            IComponentHandler, IHostApplication, IPlugInterfaceSupport, IVst3ToAUWrapper_iid,
+        };
+
+        let full_host_application = ComWrapper::new(super::macos_host::PluginHostApplication)
+            .to_com_ptr::<IHostApplication>()
+            .unwrap();
+        let host_application =
+            super::macos_host::create_controller_init_host_application_with_delegate(
+                &full_host_application,
+            )
+            .unwrap();
+        let unknown = host_application.clone().upcast::<FUnknown>();
+
+        assert!(unknown.cast::<IHostApplication>().is_some());
+        assert!(unknown.cast::<IPlugInterfaceSupport>().is_some());
+        assert!(unknown.cast::<IComponentHandler>().is_some());
+
+        let mut wrapper_iid = IVst3ToAUWrapper_iid;
+        let mut raw_interface = std::ptr::null_mut();
+        let result = unsafe {
+            ((*(*unknown.as_ptr()).vtbl).queryInterface)(
+                unknown.as_ptr(),
+                &mut wrapper_iid,
+                &mut raw_interface,
+            )
+        };
+
+        assert_eq!(result, vst3::Steinberg::kResultOk);
+        assert_eq!(raw_interface, host_application.as_ptr().cast());
+
+        let aliased_unknown = raw_interface.cast::<FUnknown>();
+        let remaining = unsafe { ((*(*aliased_unknown).vtbl).release)(aliased_unknown) };
+
+        assert_eq!(remaining, 2);
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn host_only_init_host_application_returns_null_for_wrapper_markers() {
         use std::ffi::c_void;
         use vst3::Steinberg::Vst::{IHostApplication, IVst3ToAUWrapper_iid};
         use vst3::Steinberg::{kNoInterface, FUnknown};
 
-        let host_application = super::macos_host::create_controller_init_host_application(
-            super::PluginEditorPocProbeProfile::ControllerInitHostOnlyLifecycleAligned,
-        )
-        .unwrap();
+        let host_application =
+            super::macos_host::create_controller_init_host_application().unwrap();
         let unknown = host_application.clone().upcast::<FUnknown>();
         let mut wrapper_iid = IVst3ToAUWrapper_iid;
         let mut raw_interface: *mut c_void = std::ptr::null_mut();
@@ -6391,6 +6613,212 @@ mod tests {
             ((*(*unknown.as_ptr()).vtbl).queryInterface)(
                 unknown.as_ptr(),
                 &mut wrapper_iid,
+                &mut raw_interface,
+            )
+        };
+
+        assert_eq!(result, kNoInterface);
+        assert!(raw_interface.is_null());
+
+        let _keep_alive: vst3::ComPtr<IHostApplication> = host_application;
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn host_only_init_host_application_keeps_wrapper_markers_null_after_halion_opaque_probe() {
+        use std::ffi::c_void;
+        use vst3::Steinberg::Vst::{IHostApplication, IVst3ToAUWrapper_iid};
+        use vst3::Steinberg::{kNoInterface, kResultOk, FUnknown};
+
+        let host_application =
+            super::macos_host::create_controller_init_host_application().unwrap();
+        let unknown = host_application.clone().upcast::<FUnknown>();
+
+        let mut opaque_iid = super::HALION_CONTROLLER_INIT_MARKER_IIDS[0];
+        let mut opaque_interface: *mut c_void = std::ptr::null_mut();
+        let opaque_result = unsafe {
+            ((*(*unknown.as_ptr()).vtbl).queryInterface)(
+                unknown.as_ptr(),
+                &mut opaque_iid,
+                &mut opaque_interface,
+            )
+        };
+
+        assert_eq!(opaque_result, kResultOk);
+        assert!(!opaque_interface.is_null());
+
+        let opaque_unknown = opaque_interface.cast::<FUnknown>();
+        let opaque_remaining = unsafe { ((*(*opaque_unknown).vtbl).release)(opaque_unknown) };
+
+        assert_eq!(opaque_remaining, 2);
+
+        let mut wrapper_iid = IVst3ToAUWrapper_iid;
+        let mut raw_interface: *mut c_void = std::ptr::null_mut();
+        let result = unsafe {
+            ((*(*unknown.as_ptr()).vtbl).queryInterface)(
+                unknown.as_ptr(),
+                &mut wrapper_iid,
+                &mut raw_interface,
+            )
+        };
+
+        assert_eq!(result, kNoInterface);
+        assert!(raw_interface.is_null());
+
+        let _keep_alive: vst3::ComPtr<IHostApplication> = host_application;
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn host_only_init_host_application_exposes_halion_controller_init_opaque_stubs() {
+        use std::ffi::c_void;
+        use vst3::Steinberg::Vst::IHostApplication;
+        use vst3::Steinberg::{kResultOk, tresult, FUnknown, FUnknownVtbl};
+
+        type OpaqueStubSlot0Method = unsafe extern "system" fn(
+            *mut FUnknown,
+            usize,
+            usize,
+            usize,
+            usize,
+            usize,
+            usize,
+            usize,
+        ) -> *mut c_void;
+
+        type OpaqueStubSlot1Method = unsafe extern "system" fn(
+            *mut FUnknown,
+            usize,
+            usize,
+            usize,
+            usize,
+            usize,
+            usize,
+            usize,
+        ) -> *mut c_void;
+
+        type OpaqueStubMethod = unsafe extern "system" fn(
+            *mut FUnknown,
+            usize,
+            usize,
+            usize,
+            usize,
+            usize,
+            usize,
+            usize,
+        ) -> tresult;
+
+        #[repr(C)]
+        struct OpaqueStubVtbl {
+            base: FUnknownVtbl,
+            slot_0: OpaqueStubSlot0Method,
+            slot_1: OpaqueStubSlot1Method,
+            slot_2: OpaqueStubMethod,
+            slot_3: OpaqueStubMethod,
+            slot_4: OpaqueStubMethod,
+            slot_5: OpaqueStubMethod,
+            slot_6: OpaqueStubMethod,
+            slot_7: OpaqueStubMethod,
+        }
+
+        let host_application =
+            super::macos_host::create_controller_init_host_application().unwrap();
+        let unknown = host_application.clone().upcast::<FUnknown>();
+
+        for mut marker_iid in super::HALION_CONTROLLER_INIT_MARKER_IIDS {
+            let mut raw_interface: *mut c_void = std::ptr::null_mut();
+
+            let result = unsafe {
+                ((*(*unknown.as_ptr()).vtbl).queryInterface)(
+                    unknown.as_ptr(),
+                    &mut marker_iid,
+                    &mut raw_interface,
+                )
+            };
+
+            assert_eq!(result, kResultOk);
+            assert!(!raw_interface.is_null());
+            assert_ne!(raw_interface, host_application.as_ptr().cast::<c_void>());
+
+            let opaque_unknown = raw_interface.cast::<FUnknown>();
+            let opaque_vtbl = unsafe { (*opaque_unknown).vtbl.cast::<OpaqueStubVtbl>() };
+            let returned_pointer =
+                unsafe { ((*opaque_vtbl).slot_0)(opaque_unknown, 0, 0, 0, 0, 0, 0, 0) };
+            let slot_1_pointer =
+                unsafe { ((*opaque_vtbl).slot_1)(opaque_unknown, 0, 0, 0, 0, 0, 0, 0) };
+            let slot_result =
+                unsafe { ((*opaque_vtbl).slot_2)(opaque_unknown, 0, 0, 0, 0, 0, 0, 0) };
+            let returned_utf16 =
+                unsafe { std::slice::from_raw_parts(returned_pointer.cast::<u16>(), 16) };
+            let expected_utf16: Vec<u16> =
+                if marker_iid == super::HALION_CONTROLLER_INIT_MARKER_IIDS[0] {
+                    "HS:Custom"
+                } else {
+                    "Solo Compose"
+                }
+                .encode_utf16()
+                .chain(std::iter::once(0))
+                .collect();
+
+            assert_ne!(returned_pointer, raw_interface);
+            assert_eq!(slot_1_pointer, raw_interface);
+            assert_eq!(
+                &returned_utf16[..expected_utf16.len()],
+                expected_utf16.as_slice()
+            );
+            assert_eq!(slot_result, kResultOk);
+
+            if marker_iid == super::HALION_CONTROLLER_INIT_MARKER_IIDS[1] {
+                let mut narrow_buffer = [0_u8; 13];
+                let slot_result = unsafe {
+                    ((*opaque_vtbl).slot_2)(
+                        opaque_unknown,
+                        0,
+                        0,
+                        0,
+                        narrow_buffer.as_mut_ptr() as usize,
+                        narrow_buffer.len(),
+                        0,
+                        0,
+                    )
+                };
+                let written_len = narrow_buffer
+                    .iter()
+                    .position(|byte| *byte == 0)
+                    .unwrap_or(narrow_buffer.len());
+
+                assert_eq!(slot_result, kResultOk);
+                assert_eq!(&narrow_buffer[..written_len], b"Solo Compose");
+            }
+
+            let remaining = unsafe { ((*(*opaque_unknown).vtbl).release)(opaque_unknown) };
+
+            assert_eq!(remaining, 2);
+        }
+
+        let _keep_alive: vst3::ComPtr<IHostApplication> = host_application;
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn host_only_init_host_application_returns_non_null_fallback_for_unknown_probes() {
+        use std::ffi::c_void;
+        use vst3::Steinberg::Vst::IHostApplication;
+        use vst3::Steinberg::{kNoInterface, FUnknown, TUID};
+
+        let host_application =
+            super::macos_host::create_controller_init_host_application().unwrap();
+        let unknown = host_application.clone().upcast::<FUnknown>();
+        let mut unknown_iid: TUID = [
+            0x10_i8, 0x20_i8, 0x30_i8, 0x40_i8, 0x50_i8, 0x60_i8, 0x70_i8, 0x11_i8, 0x22_i8,
+            0x33_i8, 0x44_i8, 0x55_i8, 0x66_i8, 0x77_i8, 0x7F_i8, 0x01_i8,
+        ];
+        let mut raw_interface: *mut c_void = std::ptr::null_mut();
+
+        let result = unsafe {
+            ((*(*unknown.as_ptr()).vtbl).queryInterface)(
+                unknown.as_ptr(),
+                &mut unknown_iid,
                 &mut raw_interface,
             )
         };
@@ -6409,6 +6837,204 @@ mod tests {
 
     #[cfg(target_os = "macos")]
     #[test]
+    fn host_only_init_host_application_returns_non_null_fallback_for_invalid_query_interface_pointer(
+    ) {
+        use std::ffi::c_void;
+        use vst3::Steinberg::Vst::IHostApplication;
+        use vst3::Steinberg::{kNoInterface, FUnknown, TUID};
+
+        let host_application =
+            super::macos_host::create_controller_init_host_application().unwrap();
+        let unknown = host_application.clone().upcast::<FUnknown>();
+        let mut raw_interface: *mut c_void = std::ptr::null_mut();
+
+        let result = unsafe {
+            ((*(*unknown.as_ptr()).vtbl).queryInterface)(
+                unknown.as_ptr(),
+                0xFFFF_FFFF_usize as *mut TUID,
+                &mut raw_interface,
+            )
+        };
+
+        assert_eq!(result, kNoInterface);
+        assert!(!raw_interface.is_null());
+        assert_ne!(raw_interface, host_application.as_ptr().cast::<c_void>());
+
+        let fallback_unknown = raw_interface.cast::<FUnknown>();
+        let remaining = unsafe { ((*(*fallback_unknown).vtbl).release)(fallback_unknown) };
+
+        assert_eq!(remaining, 2);
+
+        let _keep_alive: vst3::ComPtr<IHostApplication> = host_application;
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn host_only_init_host_application_create_instance_uses_valid_iid_when_cid_pointer_is_invalid()
+    {
+        use std::ffi::c_void;
+        use vst3::Steinberg::Vst::{IHostApplicationTrait, IMessage_iid};
+        use vst3::Steinberg::{kResultOk, FUnknown, TUID};
+
+        let host_application =
+            super::macos_host::create_controller_init_host_application().unwrap();
+        let mut raw_message: *mut c_void = std::ptr::null_mut();
+        let mut message_iid = IMessage_iid;
+
+        let result = unsafe {
+            host_application.createInstance(
+                0xFFFF_FFFF_usize as *mut TUID,
+                &mut message_iid,
+                &mut raw_message,
+            )
+        };
+
+        assert_eq!(result, kResultOk);
+        assert!(!raw_message.is_null());
+
+        let raw_unknown = raw_message.cast::<FUnknown>();
+        let remaining = unsafe { ((*(*raw_unknown).vtbl).release)(raw_unknown) };
+
+        assert_eq!(remaining, 0);
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn host_only_init_host_application_create_instance_uses_valid_cid_when_iid_pointer_is_invalid()
+    {
+        use std::ffi::c_void;
+        use vst3::Steinberg::Vst::{IHostApplicationTrait, IMessage_iid};
+        use vst3::Steinberg::{kResultOk, FUnknown, TUID};
+
+        let host_application =
+            super::macos_host::create_controller_init_host_application().unwrap();
+        let mut raw_message: *mut c_void = std::ptr::null_mut();
+        let mut message_cid = IMessage_iid;
+
+        let result = unsafe {
+            host_application.createInstance(
+                &mut message_cid,
+                0xFFFF_FFFF_usize as *mut TUID,
+                &mut raw_message,
+            )
+        };
+
+        assert_eq!(result, kResultOk);
+        assert!(!raw_message.is_null());
+
+        let raw_unknown = raw_message.cast::<FUnknown>();
+        let remaining = unsafe { ((*(*raw_unknown).vtbl).release)(raw_unknown) };
+
+        assert_eq!(remaining, 0);
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn host_only_init_host_application_create_instance_returns_ok_for_null_output_pointer() {
+        use vst3::Steinberg::Vst::{IHostApplicationTrait, IMessage_iid};
+        use vst3::Steinberg::{kResultOk, TUID};
+
+        let host_application =
+            super::macos_host::create_controller_init_host_application().unwrap();
+        let mut message_iid = IMessage_iid;
+
+        let result = unsafe {
+            host_application.createInstance(
+                0xFFFF_FFFF_usize as *mut TUID,
+                &mut message_iid,
+                std::ptr::null_mut(),
+            )
+        };
+
+        assert_eq!(result, kResultOk);
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn host_only_init_host_application_create_instance_returns_ok_for_invalid_output_pointer() {
+        use std::ffi::c_void;
+        use vst3::Steinberg::Vst::{IHostApplicationTrait, IMessage_iid};
+        use vst3::Steinberg::{kResultOk, TUID};
+
+        let host_application =
+            super::macos_host::create_controller_init_host_application().unwrap();
+        let mut message_iid = IMessage_iid;
+
+        let result = unsafe {
+            host_application.createInstance(
+                0xFFFF_FFFF_usize as *mut TUID,
+                &mut message_iid,
+                0x1_usize as *mut *mut c_void,
+            )
+        };
+
+        assert_eq!(result, kResultOk);
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn host_only_init_host_application_query_interface_ignores_invalid_output_pointer() {
+        use vst3::Steinberg::Vst::IVst3ToAUWrapper_iid;
+        use vst3::Steinberg::{kNoInterface, FUnknown};
+
+        let host_application =
+            super::macos_host::create_controller_init_host_application().unwrap();
+        let unknown = host_application.clone().upcast::<FUnknown>();
+        let mut wrapper_iid = IVst3ToAUWrapper_iid;
+
+        let result = unsafe {
+            ((*(*unknown.as_ptr()).vtbl).queryInterface)(
+                unknown.as_ptr(),
+                &mut wrapper_iid,
+                0x1_usize as *mut *mut c_void,
+            )
+        };
+
+        assert_eq!(result, kNoInterface);
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn host_only_init_host_application_ignores_obviously_invalid_get_name_buffers() {
+        use vst3::Steinberg::kResultOk;
+        use vst3::Steinberg::Vst::String128;
+
+        let host_application =
+            super::macos_host::create_controller_init_host_application().unwrap();
+
+        let result = unsafe {
+            ((*(*host_application.as_ptr()).vtbl).getName)(
+                host_application.as_ptr(),
+                0x60_usize as *mut String128,
+            )
+        };
+
+        assert_eq!(result, kResultOk);
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn host_only_init_host_application_writes_name_for_valid_get_name_buffers() {
+        use vst3::Steinberg::kResultOk;
+        use vst3::Steinberg::Vst::String128;
+
+        let host_application =
+            super::macos_host::create_controller_init_host_application().unwrap();
+        let mut name: String128 = [0; 128];
+
+        let result = unsafe {
+            ((*(*host_application.as_ptr()).vtbl).getName)(host_application.as_ptr(), &mut name)
+        };
+
+        let expected: Vec<u16> = "Solo Compose".encode_utf16().collect();
+
+        assert_eq!(result, kResultOk);
+        assert_eq!(&name[..expected.len()], expected.as_slice());
+        assert_eq!(name[expected.len()], 0);
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
     fn controller_initialize_always_passes_host_context() {
         use vst3::Steinberg::{kNotImplemented, kResultOk};
 
@@ -6422,6 +7048,81 @@ mod tests {
             ))
         );
         assert!(super::macos_host::should_pass_host_context_to_controller_initialize(Some(3)));
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn host_core_default_profile_keeps_product_lifecycle_timing() {
+        let profile =
+            super::macos_host::vst3_host_core::Vst3HostCoreLifecycleProfile::from_probe_profile(
+                super::PluginEditorPocProbeProfile::Default,
+            );
+
+        assert!(profile.uses_pre_init_component_handler());
+        assert!(!profile.delays_component_runtime_setup());
+        assert!(!profile.uses_host_only_controller_initialize_application());
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn host_core_investigation_profile_isolated_from_product_path() {
+        let profile =
+            super::macos_host::vst3_host_core::Vst3HostCoreLifecycleProfile::from_probe_profile(
+                super::PluginEditorPocProbeProfile::ControllerInitHostOnlyLifecycleAligned,
+            );
+
+        assert!(!profile.uses_pre_init_component_handler());
+        assert!(profile.delays_component_runtime_setup());
+        assert!(profile.uses_host_only_controller_initialize_application());
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn host_core_teardown_steps_preserve_reverse_teardown_order() {
+        use super::macos_host::vst3_host_core::{
+            teardown_steps, Vst3HostCoreTeardownState, Vst3HostCoreTeardownStep,
+        };
+
+        let steps = teardown_steps(Vst3HostCoreTeardownState {
+            component_initialized: true,
+            controller_initialized: true,
+            controller_shared_with_component: false,
+            connection_points_connected: true,
+        });
+
+        assert_eq!(
+            steps,
+            vec![
+                Vst3HostCoreTeardownStep::PrepareWindowClose,
+                Vst3HostCoreTeardownStep::ClearControllerComponentHandler,
+                Vst3HostCoreTeardownStep::DisconnectConnectionPoints,
+                Vst3HostCoreTeardownStep::TerminateController,
+                Vst3HostCoreTeardownStep::TerminateComponent,
+            ]
+        );
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn host_core_teardown_skips_controller_only_steps_for_shared_instances() {
+        use super::macos_host::vst3_host_core::{
+            teardown_steps, Vst3HostCoreTeardownState, Vst3HostCoreTeardownStep,
+        };
+
+        let steps = teardown_steps(Vst3HostCoreTeardownState {
+            component_initialized: true,
+            controller_initialized: true,
+            controller_shared_with_component: true,
+            connection_points_connected: false,
+        });
+
+        assert_eq!(
+            steps,
+            vec![
+                Vst3HostCoreTeardownStep::PrepareWindowClose,
+                Vst3HostCoreTeardownStep::TerminateComponent,
+            ]
+        );
     }
 
     #[cfg(target_os = "macos")]
@@ -6636,7 +7337,7 @@ mod tests {
         log.try_append_event(
             "info",
             None,
-            "Host callback during controller_initialize: Init host context queryInterface requested IVst3ToAUWrapper => unsupported_with_fallback",
+            "Host callback during controller_initialize: Init host context queryInterface requested IVst3ToAUWrapper => supported_empty_marker_alias",
         )
         .unwrap();
 

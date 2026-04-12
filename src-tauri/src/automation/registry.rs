@@ -5,6 +5,10 @@ use serde_json::{json, Value};
 use tauri::{AppHandle, Manager};
 
 use crate::files::load_project_from_file;
+use crate::playback::plugin_editor_poc::{
+    plugin_editor_poc_prepare_probe_log, plugin_editor_poc_probe_load_init,
+    plugin_editor_poc_read_probe_log, PluginEditorPocProbeProfile,
+};
 use crate::playback::transport::TransportSharedState;
 use crate::score::components::articulation::{Articulation, Articulations};
 use crate::score::components::duration::NoteDuration;
@@ -87,7 +91,7 @@ use crate::score::players::{
 use crate::utils::UniqueId;
 use crate::{
     get_general_state_snapshot, reset_app_state, AppContextState, AudioContextState,
-    RendererContextState,
+    ManagedPluginInventoryContextState, RendererContextState,
 };
 
 #[derive(Clone, Serialize)]
@@ -147,6 +151,35 @@ pub fn action_definitions() -> Vec<ActionDefinition> {
             "file.loadFromPath",
             "Load a project from a specific file path.",
             vec![arg("filePath", "Absolute path to a .soloc project file.")],
+        ),
+        action(
+            "plugin.editorHost.prepareLoadInitProbeLog",
+            "Resolve a maintainer probe target, reset the persisted probe log, and return the current probe-log snapshot before a risky probe run.",
+            vec![
+                optional_arg("plugin_id", "Optional inventory plugin id string."),
+                optional_arg("plugin_path", "Optional absolute .vst3 bundle path."),
+                optional_arg(
+                    "profile",
+                    "Optional PluginEditorPocProbeProfile value. Use default or controller_init_host_only_lifecycle_aligned.",
+                ),
+            ],
+        ),
+        action(
+            "plugin.editorHost.probeLoadInit",
+            "Run the maintainer-only load/init probe against a plugin target and return the backend-owned validation payload.",
+            vec![
+                optional_arg("plugin_id", "Optional inventory plugin id string."),
+                optional_arg("plugin_path", "Optional absolute .vst3 bundle path."),
+                optional_arg(
+                    "profile",
+                    "Optional PluginEditorPocProbeProfile value. Use default or controller_init_host_only_lifecycle_aligned.",
+                ),
+            ],
+        ),
+        action(
+            "plugin.editorHost.readProbeLog",
+            "Read the persisted maintainer probe-log snapshot, including any derived crash hint from the last risky run.",
+            vec![],
         ),
         action(
             "score.config.setSoloAutoCountStyle",
@@ -664,6 +697,31 @@ pub async fn execute_action(app: &AppHandle, name: &str, args: &[Value]) -> Resu
             )
             .await?;
             Ok(Value::Null)
+        }
+        "plugin.editorHost.prepareLoadInitProbeLog" => Ok(json!(
+            plugin_editor_poc_prepare_probe_log(
+                app.clone(),
+                app.state::<AppContextState>(),
+                app.state::<ManagedPluginInventoryContextState>(),
+                arg_opt_string(args, 0, "plugin_id")?,
+                arg_opt_string(args, 1, "plugin_path")?,
+                arg_optional_enum::<PluginEditorPocProbeProfile>(args, 2)?,
+            )
+            .await?
+        )),
+        "plugin.editorHost.probeLoadInit" => Ok(json!(
+            plugin_editor_poc_probe_load_init(
+                app.clone(),
+                app.state::<AppContextState>(),
+                app.state::<ManagedPluginInventoryContextState>(),
+                arg_opt_string(args, 0, "plugin_id")?,
+                arg_opt_string(args, 1, "plugin_path")?,
+                arg_optional_enum::<PluginEditorPocProbeProfile>(args, 2)?,
+            )
+            .await?
+        )),
+        "plugin.editorHost.readProbeLog" => {
+            Ok(json!(plugin_editor_poc_read_probe_log(app.clone()).await?))
         }
         "score.config.setSoloAutoCountStyle" => {
             score_config_auto_count_styles_solo_set(
@@ -2414,11 +2472,37 @@ mod tests {
             .collect::<Vec<_>>();
 
         assert!(names.contains(&"app.getActiveScore"));
+        assert!(names.contains(&"plugin.editorHost.prepareLoadInitProbeLog"));
+        assert!(names.contains(&"plugin.editorHost.probeLoadInit"));
+        assert!(names.contains(&"plugin.editorHost.readProbeLog"));
         assert!(names.contains(&"score.playingTechnique.create"));
         assert!(names.contains(&"score.playingTechnique.remove"));
         assert!(names.contains(&"score.playingTechnique.update"));
         assert!(names.contains(&"score.lookup.getBarMap"));
         assert!(names.contains(&"score.lookup.getFlowMarkers"));
         assert!(names.contains(&"score.lookup.getTrackEvents"));
+    }
+
+    #[test]
+    fn plugin_editor_probe_action_definition_uses_optional_target_and_profile_args() {
+        let definition = action_definitions()
+            .into_iter()
+            .find(|definition| definition.name == "plugin.editorHost.probeLoadInit")
+            .expect("expected plugin.editorHost.probeLoadInit action definition");
+
+        let args = definition
+            .args
+            .into_iter()
+            .map(|arg| (arg.name, arg.required))
+            .collect::<Vec<_>>();
+
+        assert_eq!(
+            args,
+            vec![
+                ("plugin_id", false),
+                ("plugin_path", false),
+                ("profile", false),
+            ]
+        );
     }
 }

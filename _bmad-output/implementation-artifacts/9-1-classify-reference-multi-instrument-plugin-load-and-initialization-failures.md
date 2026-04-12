@@ -46,7 +46,7 @@ so that we can distinguish blocked host-contract work from plugin-side failure b
 
 ### Story Intent
 
-- Story 9.1 is the first implementation slice of Epic 9's investigation-only path.
+- Story 9.1 is the first implementation slice of Epic 9's host-hardening sequence.
 - The job here is not to make HALion or any other multi-instrument plugin "supported." The job is to record how far a real reference plugin gets through bounded host setup before the first failure.
 - The output of this story should give later Epic 9 stories a trustworthy starting point: are we still blocked at load/init, and if so, at which phase and for what likely reason?
 
@@ -245,7 +245,7 @@ GPT-5.4
 ### Completion Notes List
 
 - Story context created for Story 9.1.
-- Story 9.1 is ready for dev and keeps Epic 9 investigation-only.
+- Story 9.1 is ready for dev and preserves blocked product posture while later Epic 9 stories harden the host boundary.
 - The story explicitly roots implementation guidance in Steinberg and MuseScore prior art to avoid guessed host or routing behavior.
 - Sprint tracking should move Epic 9 to `in-progress` and Story 9.1 to `ready-for-dev` in the same pass.
 

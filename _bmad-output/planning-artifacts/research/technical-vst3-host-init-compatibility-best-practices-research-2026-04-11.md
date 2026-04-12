@@ -361,7 +361,7 @@ This research shows that HALion-class initialization failures are best interpret
 
 For Compose, that leads to a practical conclusion. The right next step is not another round of debugger-only toggles or probe variants. It is extraction and hardening of a backend-owned host core that turns the proven parts of the current proof-of-concept into a reusable subsystem. Compose already shows the right instincts in its existing host seam, especially around factory host context, component-handler timing experiments, and connection-point handshakes, but those capabilities remain concentrated in an experimental path rather than a stable product seam.
 
-The strategic opportunity is therefore narrow and concrete: adopt a layered host-core architecture, add a scanner or validator-style compatibility lane, keep interface exposure truthful and bounded, and measure compatibility as explicit lifecycle phases instead of as a single editor-open outcome. That approach matches current Steinberg guidance and the strongest patterns from JUCE, Ardour, and Carla.
+The strategic opportunity is therefore narrow and concrete: adopt a layered host-core architecture, harden the real public host-owned init contract through that seam, keep interface exposure truthful and bounded, and measure compatibility as explicit lifecycle phases instead of as a single editor-open outcome. A broader scanner or validator-style lane may still be useful later, but it is no longer the next story. That approach matches current Steinberg guidance and the strongest patterns from JUCE, Ardour, and Carla.
 
 **Key Technical Findings:**
 
