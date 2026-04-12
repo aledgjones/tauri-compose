@@ -17,14 +17,7 @@ enum ComponentRuntimeSetupTiming {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum ControllerInitializeHostApplicationMode {
-    SharedMainHostApplication,
-    HostOnlyLifecycleAligned,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct Vst3HostCoreLifecycleProfile {
-    controller_initialize_host_application_mode: ControllerInitializeHostApplicationMode,
     component_handler_timing: ComponentHandlerTiming,
     component_runtime_setup_timing: ComponentRuntimeSetupTiming,
 }
@@ -33,15 +26,11 @@ impl Vst3HostCoreLifecycleProfile {
     pub(crate) fn from_probe_profile(profile: PluginEditorPocProbeProfile) -> Self {
         match profile {
             PluginEditorPocProbeProfile::Default => Self {
-                controller_initialize_host_application_mode:
-                    ControllerInitializeHostApplicationMode::SharedMainHostApplication,
                 component_handler_timing: ComponentHandlerTiming::BeforeControllerInitialize,
                 component_runtime_setup_timing:
                     ComponentRuntimeSetupTiming::BeforeControllerInitialize,
             },
             PluginEditorPocProbeProfile::ControllerInitHostOnlyLifecycleAligned => Self {
-                controller_initialize_host_application_mode:
-                    ControllerInitializeHostApplicationMode::HostOnlyLifecycleAligned,
                 component_handler_timing: ComponentHandlerTiming::AfterControllerInitialize,
                 component_runtime_setup_timing:
                     ComponentRuntimeSetupTiming::AfterControllerInitialize,
@@ -65,24 +54,14 @@ impl Vst3HostCoreLifecycleProfile {
 
     #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) fn uses_host_only_controller_initialize_application(self) -> bool {
-        matches!(
-            self.controller_initialize_host_application_mode,
-            ControllerInitializeHostApplicationMode::HostOnlyLifecycleAligned
-        )
+        false
     }
 
     fn controller_initialize_host_application(
         self,
         host_application: &ComPtr<IHostApplication>,
     ) -> Result<ComPtr<IHostApplication>, String> {
-        match self.controller_initialize_host_application_mode {
-            ControllerInitializeHostApplicationMode::SharedMainHostApplication => {
-                super::create_controller_init_host_application_with_delegate(host_application)
-            }
-            ControllerInitializeHostApplicationMode::HostOnlyLifecycleAligned => {
-                super::create_controller_init_host_application()
-            }
-        }
+        super::create_controller_init_host_application_with_delegate(host_application)
     }
 }
 

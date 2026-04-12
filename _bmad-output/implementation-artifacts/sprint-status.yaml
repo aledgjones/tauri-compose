@@ -36,7 +36,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-03-25T00:12:37Z
-last_updated: 2026-04-12T15:59:09Z
+last_updated: 2026-04-12T18:14:26Z
 project: compose
 project_key: NOKEY
 tracking_system: file-system
@@ -111,6 +111,6 @@ development_status:
   epic-9: in-progress
   9-1-classify-reference-multi-instrument-plugin-load-and-initialization-failures: ready-for-dev
   9-2-extract-a-stable-backend-owned-vst3-host-core-from-the-poc: review
-  9-3-replace-probe-era-shims-with-a-real-host-owned-init-contract: backlog
-  9-4-rerun-halion-against-the-hardened-host-contract: backlog
+  9-3-replace-probe-era-shims-with-a-real-host-owned-init-contract: review
+  9-4-continue-adding-real-host-abilities-until-halion-works-in-the-product-path: ready-for-dev
   epic-9-retrospective: optional

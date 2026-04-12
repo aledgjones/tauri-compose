@@ -7,7 +7,7 @@ Workflow: Correct Course
 Mode: Batch
 Recommended path: Direct Adjustment + Focused Epic 9 Rebaseline
 Approval status: Approved and applied
-Resolution status: Epic 9 artifacts updated to treat real host-owned contract hardening as the next slice.
+Resolution status: Epic 9 artifacts updated to treat real host-owned contract hardening as Story 9.3 and continued real-host remediation toward the HALION product path as Story 9.4.
 
 ## 1. Issue Summary
 
@@ -36,7 +36,7 @@ The latest private-GUID aliasing and opaque-stub experiments were useful diagnos
 - Epic 9 remains the correct home for this work.
 - Stories 9.1 and 9.2 remain valid foundation slices and should not be reopened as mistakes.
 - Story 9.3 should be repurposed from a scanner-style compatibility lane into real host-owned init-contract hardening.
-- Story 9.4 should narrow to rerunning HALION against that hardened contract with one known-good control bundle for regression comparison.
+- Story 9.4 should no longer stop at rerun-and-evidence publication. It should continue adding real host-owned abilities on the shared seam until HALION reaches the bounded ordinary product path, while keeping one known-good control bundle in the regression matrix.
 
 ### Story and artifact impact
 
@@ -51,12 +51,12 @@ The latest private-GUID aliasing and opaque-stub experiments were useful diagnos
 
 - `src-tauri/src/playback/plugin_editor_poc/macos_host/vst3_host_core.rs` remains the canonical seam for follow-on hardening.
 - Probe-era private-GUID aliases, opaque stubs, and related fake-success branches become cleanup targets or bounded diagnostic residue rather than the main implementation strategy.
-- The automated probe and MCP flow remains the right rerun harness; no new probe-only lifecycle should be introduced.
+- The ordinary product path plus shared host-core logging becomes the only rerun harness; no retained probe-only lifecycle or parallel probe path should remain.
 
 ### Documentation and instruction impact
 
-- A focused spec is required now so the next implementation slice is explicit.
-- AI-agent instructions need one durable rule update: Epic 9 host work must prefer real public-contract hardening over fake-success private-GUID shims.
+- A focused spec is required for each active Epic 9 implementation slice so the next remediation step stays explicit instead of collapsing back into vague probe work.
+- AI-agent instructions already capture the durable Epic 9 rule: prefer real public-contract hardening over fake-success private-GUID shims. This course correction changes story scope, not that durable rule.
 - Implementation docs such as `docs/architecture.md`, `docs/development-guide.md`, and `docs/playback-support-baseline.md` should update when the hardened rerun lands.
 
 ## 3. Recommended Approach
@@ -65,7 +65,7 @@ Selected approach: Direct adjustment with a narrow Epic 9 rebaseline.
 
 1. Keep Stories 9.1 and 9.2 as valid completed or in-review foundation work.
 2. Reframe Story 9.3 as real host-owned init-contract hardening with cleanup-in-place.
-3. Reframe Story 9.4 as the HALION rerun and evidence publication step after 9.3.
+3. Reframe Story 9.4 as continued real host-owned ability work against the hardened seam until HALION works in the bounded product path, with reruns and evidence publication serving that implementation goal.
 4. Add a focused implementation spec now so the next slice stays tight.
 
 ### Rationale
@@ -93,16 +93,18 @@ Selected approach: Direct adjustment with a narrow Epic 9 rebaseline.
 - Remove the scanner-style compatibility-lane framing as the next story.
 - Replace it with real host-owned init-contract hardening that grows the shared host core and cleans up superseded probe-era shim branches.
 
-### Proposal 3: Narrow Story 9.4 to the evidence step
+### Proposal 3: Reframe Story 9.4 as the HALION product-path remediation step
 
-- Make Story 9.4 the HALION rerun against the hardened contract.
-- Require one known-good single-instrument control bundle in the same rerun matrix so the proven path stays protected.
+- Make Story 9.4 continue adding real host-owned abilities on the shared host core until HALION reaches the ordinary bounded product path.
+- Keep one known-good single-instrument control bundle in the same rerun matrix so the proven path stays protected.
+- Treat ordinary-path runs plus shared host-core logging as proof gates inside the story, not a separate probe workflow.
 
 ### Proposal 4: Add a focused implementation spec
 
 - Create `tech-spec-halion-host-contract-hardening.md` as the immediate guidance artifact for Story 9.3.
 - Make documentation impact explicit inside the spec.
 - Keep the scope tight: real host-owned public-contract hardening first, capability probing later.
+- Follow Story 9.3 with a dedicated Story 9.4 implementation spec or story artifact that turns the new product-path remediation goal into concrete host-seam tasks and proof gates.
 
 ### Proposal 5: Update durable repo guidance
 
@@ -116,18 +118,20 @@ Moderate.
 
 ### Handoff recipients
 
-- Development team or dev agent for Story 9.3 implementation.
-- Architecture-aware reviewer for the host-contract seam and cleanup-in-place verification.
+- Development team or dev agent for Story 9.4 implementation.
+- Architecture-aware reviewer for the host-contract seam and ordinary-product-path boundary.
 
 ### Responsibilities
 
 - Implement the focused Story 9.3 host-contract hardening against the shared host core.
 - Remove or quarantine superseded probe-era shim branches as real host-owned seams replace them.
-- Run Story 9.4 HALION and control-bundle reruns through the automated probe flow.
-- Update docs and support posture only when the hardened rerun changes the evidence.
+- Create or update the Story 9.4 implementation spec so product-path remediation tasks, constraints, and proof gates are explicit before coding begins.
+- Implement Story 9.4 host-seam additions against the shared backend-owned host core until HALION reaches the bounded ordinary product path or the remaining blocker becomes specific enough for a narrower follow-on slice.
+- Use ordinary-path runs plus shared host-core logging as proof gates for each meaningful host-seam change.
+- Update docs, support posture, and blocked-bundle policy only when the product-path evidence changes.
 
 ### Success criteria
 
 - Epic 9 artifacts, sprint status, and the focused spec all describe the same next slice.
-- The next implementation step targets real host-owned contract hardening, not private-GUID success-path shims.
-- HALION remains the acceptance bar while current user-facing support posture stays blocked until stronger evidence exists.
+- Story 9.3 remains the cleanup-and-hardening slice, and Story 9.4 now owns the next real host-owned ability work against HALION.
+- HALION remains the acceptance bar while current user-facing support posture stays blocked until ordinary product-path evidence justifies changing it.

@@ -1284,25 +1284,31 @@ So that Compose can test and fix the remaining failure boundary through one trut
 **Then** the known-good single-instrument control path remains stable
 **And** direct-root route emission, unsupported non-root activation, and current blocked user-facing posture remain unchanged
 
-### Story 9.4: Rerun HALION Against The Hardened Host Contract
+### Story 9.4: Continue Adding Real Host Abilities Until HALION Works In The Product Path
 
 As a maintainer,
-I want HALion-class initialization rerun against the hardened real host contract,
-So that Compose can determine whether the remaining blocker is cleared or narrowed without relying on fake support behavior.
+I want Compose to keep adding real host-owned abilities on the shared VST3 host seam until HALION works through the ordinary product path,
+So that HALION progress comes from truthful backend-owned contract improvements rather than maintainer-only reruns or fake support behavior.
 
 **Acceptance Criteria:**
 
 **Given** Story 9.3 hardened the shared host contract
-**When** HALion Sonic and at least one currently working control bundle are rerun through the automated probe flow
-**Then** Compose records whether HALion reaches a bounded non-crashing load/init state or the first remaining blocker moves to a narrower public-contract boundary
-**And** the control bundle continues to validate the proven single-instrument path
+**When** Story 9.4 continues extending that same real host-owned seam with additional public-contract abilities and lifecycle work that HALION-class plugins reasonably require
+**Then** HALion Sonic reaches a bounded non-crashing load/init state through the ordinary direct-root product path rather than only through maintainer diagnostics
+**And** shared-seam phase logging on that ordinary direct-root path provides the maintainer evidence needed to classify the next blocker instead of a separate probe-only rerun lane
+**And** Compose can mount the proven HALION bundle on an instrument slot without relying on maintainer-only fake-success behavior
 
 **Given** HALion still requests unknown or private interfaces after public-contract hardening
-**When** the result is documented
-**Then** the repo records those requests as diagnostic evidence rather than as implicit implementation requirements
-**And** ordinary product posture remains blocked without implying multi-instrument support exists
+**When** Story 9.4 adds more host behavior in response
+**Then** every new host ability grows the shared backend-owned seam and is justified by public Steinberg-visible contract evidence, comparator-host structure, or bounded repo-owned proof rather than guessed private-GUID success paths
+**And** any still-unknown or still-unimplemented private interface requests remain logged from that shared seam and unsupported by default instead of being treated as implicit requirements
 
-**Given** the hardened rerun reaches a bounded non-crashing load or initialization state
-**When** the outcome is published
-**Then** maintainer-facing docs and the support baseline may record `load_init_safe` evidence
-**And** route-choice, `PluginPart`, `MidiChannel`, shared-slot, and UX expansion remain out of scope until later plugin-derived capability proof exists
+**Given** HALion reaches the ordinary bounded product path during Story 9.4
+**When** the outcome is published and product posture is updated
+**Then** the blocked-bundle policy, maintainer-facing docs, and support baseline reflect the newly proven bounded HALION path
+**And** route-choice, `PluginPart`, `MidiChannel`, shared-slot, and broader multi-instrument UX claims remain out of scope until later plugin-derived capability proof exists
+
+**Given** at least one currently working control bundle already proves the single-instrument baseline
+**When** Story 9.4 lands
+**Then** that control bundle continues to validate the proven single-instrument path on the same shared seam
+**And** HALION-specific work does not regress ordinary bounded editor-host behavior for already-proven bundles
