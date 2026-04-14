@@ -1,6 +1,6 @@
 [package]
 name = "solo-compose"
-version = "2.2.0"
+version = "2.3.0"
 description = "Music composition simplified."
 authors = ["Aled Jones <aledjones.viola@gmail.com>"]
 edition = "2021"

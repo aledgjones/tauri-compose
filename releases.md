@@ -1,3 +1,32 @@
+## Release Notes for v2.3.0
+
+### 🏗️ Features
+
+- feat: vst hosting
+- feat(9.3): hardening
+- feat(9.2): abandon probe direction
+- feat(9.1): investigate multi vst issues
+- feat(8.6): close out 8.6 and 8 retro
+- feat(8.6): bowed playback tests
+- feat(8.5): expression maps
+- feat(8.5): expression map prep
+- feat(8.3): selection panel
+- feat(8.2): playback technique rendering
+- feat(8.1): playing technique setup
+
+### 🔧 Chores
+
+- chore: epic 10 setup
+- chore: epic 9 review
+- chore: restructure files
+- chore: update deps
+- chore: cleanup migrations
+
+### 📝 Other
+
+- Merge pull request #24 from aledgjones/feat/vst-harderning
+- gix: remove unused resolutions
+
 ## Release Notes for v2.2.0
 
 ### 🏗️ Features
