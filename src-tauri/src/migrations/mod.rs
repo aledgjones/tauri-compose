@@ -5,6 +5,8 @@ mod v1_25_0;
 mod v1_25_2;
 #[path = "2.2.0.rs"]
 mod v2_2_0;
+#[path = "next.rs"]
+mod next;
 
 // BEGIN SUPPORT MODULES
 // Add non-version helper modules here. The release tool preserves this section.
@@ -56,6 +58,7 @@ lazy_static! {
         MigrationDescriptor::shipped("1.25.0", v1_25_0::migrate),
         MigrationDescriptor::shipped("1.25.2", v1_25_2::migrate),
         MigrationDescriptor::shipped("2.2.0", v2_2_0::migrate),
+        MigrationDescriptor::pending_next(next::migrate),
     ];
 }
 
