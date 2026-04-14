@@ -5,7 +5,7 @@ use serde_json::{json, Value};
 use tauri::{AppHandle, Manager};
 
 use crate::files::load_project_from_file;
-use crate::playback::plugin_editor_poc::plugin_editor_poc_open;
+use crate::playback::plugin_host::plugin_host_open;
 use crate::playback::transport::TransportSharedState;
 use crate::score::components::articulation::{Articulation, Articulations};
 use crate::score::components::duration::NoteDuration;
@@ -679,7 +679,7 @@ pub async fn execute_action(app: &AppHandle, name: &str, args: &[Value]) -> Resu
             Ok(Value::Null)
         }
         "plugin.editorHost.open" => Ok(json!(
-            plugin_editor_poc_open(
+            plugin_host_open(
                 app.clone(),
                 app.state::<AppContextState>(),
                 app.state::<ManagedPluginInventoryContextState>(),

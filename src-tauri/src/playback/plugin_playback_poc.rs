@@ -1,4 +1,4 @@
-use crate::playback::plugin_editor_poc::{resolve_plugin_target, same_bundle_path};
+use crate::playback::plugin_host::{resolve_plugin_target, same_bundle_path};
 use crate::ManagedPluginInventoryContextState;
 use rack::plugin_info::{PluginInfo, PluginType};
 use rack::vst3::{Vst3Plugin, Vst3Scanner};

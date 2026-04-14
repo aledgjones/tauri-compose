@@ -19,7 +19,7 @@ use crate::playback::expression_maps::{
     ExpressionMap, ExpressionMapLibraryContext, ExpressionMapLibraryContextState,
     ExpressionMapLibraryState,
 };
-use crate::playback::plugin_editor_poc::{plugin_editor_poc_open, sync_slot_runtime_sessions};
+use crate::playback::plugin_host::{plugin_host_open, sync_slot_runtime_sessions};
 use crate::playback::plugin_inventory::{
     plugin_inventory_discover, PluginInventoryContext, PluginInventoryContextState,
 };
@@ -1261,7 +1261,7 @@ pub fn run() {
             audio_device_sample_rate_set,
             audio_devices_refresh,
             plugin_inventory_discover,
-            plugin_editor_poc_open,
+            plugin_host_open,
             playback_audition_tone,
             transport_play,
             transport_pause,

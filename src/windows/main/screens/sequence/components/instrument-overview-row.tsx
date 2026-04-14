@@ -362,7 +362,7 @@ export const InstrumentOverviewRow: FC<InstrumentOverviewRowProps> = ({
     setIsOpeningPluginEditor(true);
 
     try {
-      await actions.pluginInventory.openEditorPoc(selectedPlugin.id, {
+      await actions.pluginInventory.openEditorHost(selectedPlugin.id, {
         slot_id: selectedSlotId,
       });
     } catch (error) {

@@ -190,7 +190,7 @@ export const PlaybackRackPanel: FC<PlaybackRackPanelProps> = ({
     setOpeningEditorSlotId(slotId);
 
     try {
-      await actions.pluginInventory.openEditorPoc(plugin.id, {
+      await actions.pluginInventory.openEditorHost(plugin.id, {
         slot_id: slotId,
       });
     } catch (error) {

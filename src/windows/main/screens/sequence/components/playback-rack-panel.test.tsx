@@ -6,7 +6,7 @@ import { PlaybackRackPanel } from "./playback-rack-panel";
 vi.mock("../../../../../services/actions", () => ({
   actions: {
     pluginInventory: {
-      openEditorPoc: vi.fn().mockResolvedValue(undefined),
+      openEditorHost: vi.fn().mockResolvedValue(undefined),
     },
     score: {
       playback: {
@@ -24,7 +24,7 @@ import { actions } from "../../../../../services/actions";
 describe("PlaybackRackPanel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(actions.pluginInventory.openEditorPoc).mockResolvedValue(
+    vi.mocked(actions.pluginInventory.openEditorHost).mockResolvedValue(
       undefined,
     );
     vi.mocked(actions.score.playback.slot.assignPlugin).mockResolvedValue(
@@ -217,7 +217,7 @@ describe("PlaybackRackPanel", () => {
     );
 
     await waitFor(() => {
-      expect(actions.pluginInventory.openEditorPoc).toHaveBeenCalledWith(
+      expect(actions.pluginInventory.openEditorHost).toHaveBeenCalledWith(
         "vst3:grand-piano",
         { slot_id: 9 },
       );
@@ -225,7 +225,7 @@ describe("PlaybackRackPanel", () => {
   });
 
   it("surfaces a local error when opening the assigned plugin UI fails", async () => {
-    vi.mocked(actions.pluginInventory.openEditorPoc).mockRejectedValueOnce(
+    vi.mocked(actions.pluginInventory.openEditorHost).mockRejectedValueOnce(
       new Error("Attach failed"),
     );
 

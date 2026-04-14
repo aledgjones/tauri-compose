@@ -12,7 +12,7 @@ vi.mock("../../../services/actions", () => ({
   actions: {
     pluginInventory: {
       discover: vi.fn().mockResolvedValue(undefined),
-      openEditorPoc: vi.fn().mockResolvedValue(undefined),
+      openEditorHost: vi.fn().mockResolvedValue(undefined),
     },
   },
 }));

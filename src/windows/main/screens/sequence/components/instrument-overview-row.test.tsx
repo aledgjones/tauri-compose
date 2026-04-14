@@ -13,7 +13,7 @@ vi.mock("../../../../../services/actions", () => ({
   actions: {
     openExpressionMapWindow: vi.fn().mockResolvedValue(undefined),
     pluginInventory: {
-      openEditorPoc: vi.fn().mockResolvedValue(undefined),
+      openEditorHost: vi.fn().mockResolvedValue(undefined),
     },
     ui: {
       sequencer: {
@@ -59,7 +59,7 @@ const mockInstrument: Instrument = {
 describe("InstrumentOverviewRow", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(actions.pluginInventory.openEditorPoc).mockResolvedValue(
+    vi.mocked(actions.pluginInventory.openEditorHost).mockResolvedValue(
       undefined,
     );
   });
@@ -574,7 +574,7 @@ describe("InstrumentOverviewRow", () => {
     );
 
     await waitFor(() => {
-      expect(actions.pluginInventory.openEditorPoc).toHaveBeenCalledWith(
+      expect(actions.pluginInventory.openEditorHost).toHaveBeenCalledWith(
         "vst3:grand-piano",
         { slot_id: 7 },
       );

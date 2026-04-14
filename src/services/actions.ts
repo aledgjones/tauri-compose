@@ -198,12 +198,12 @@ export const actions = {
   },
   pluginInventory: {
     discover: () => invoke("plugin_inventory_discover"),
-    openEditorPoc: (
+    openEditorHost: (
       plugin_id: string,
       options?: { plugin_path?: string | null; slot_id?: UniqueId | null },
     ) => {
       return invokeWithTimeout(
-        "plugin_editor_poc_open",
+        "plugin_host_open",
         {
           slot_id: options?.slot_id ?? null,
           plugin_id,

@@ -17,7 +17,7 @@ fn build_steinberg_host_bridge() {
     println!(
         "cargo:rerun-if-changed={}",
         manifest_dir
-            .join("src/playback/plugin_editor_poc/macos_host/steinberg_sdk_host_bridge.cpp")
+            .join("src/playback/plugin_host/macos_host/steinberg_sdk_host_bridge.cpp")
             .display()
     );
 
@@ -32,7 +32,7 @@ fn build_steinberg_host_bridge() {
         .file(sdk_root.join("pluginterfaces/base/coreiids.cpp"))
         .file(
             manifest_dir
-                .join("src/playback/plugin_editor_poc/macos_host/steinberg_sdk_host_bridge.cpp"),
+                .join("src/playback/plugin_host/macos_host/steinberg_sdk_host_bridge.cpp"),
         )
         .file(sdk_root.join("public.sdk/source/vst/vstinitiids.cpp"))
         .file(sdk_root.join("public.sdk/source/vst/hosting/hostclasses.cpp"))
