@@ -5,6 +5,7 @@ use serde_json::{json, Value};
 use tauri::{AppHandle, Manager};
 
 use crate::files::load_project_from_file;
+use crate::playback::plugin_host::plugin_host_open;
 use crate::playback::transport::TransportSharedState;
 use crate::score::components::articulation::{Articulation, Articulations};
 use crate::score::components::duration::NoteDuration;
@@ -87,7 +88,7 @@ use crate::score::players::{
 use crate::utils::UniqueId;
 use crate::{
     get_general_state_snapshot, reset_app_state, AppContextState, AudioContextState,
-    RendererContextState,
+    ManagedPluginInventoryContextState, RendererContextState,
 };
 
 #[derive(Clone, Serialize)]
@@ -147,6 +148,18 @@ pub fn action_definitions() -> Vec<ActionDefinition> {
             "file.loadFromPath",
             "Load a project from a specific file path.",
             vec![arg("filePath", "Absolute path to a .soloc project file.")],
+        ),
+        action(
+            "plugin.editorHost.open",
+            "Open or focus the bounded native plugin editor window on the ordinary product path.",
+            vec![
+                optional_arg(
+                    "slot_id",
+                    "Optional numeric playback slot id. When provided, target resolution starts from the score-owned slot.",
+                ),
+                optional_arg("plugin_id", "Optional inventory plugin id string."),
+                optional_arg("plugin_path", "Optional absolute .vst3 bundle path."),
+            ],
         ),
         action(
             "score.config.setSoloAutoCountStyle",
@@ -665,6 +678,17 @@ pub async fn execute_action(app: &AppHandle, name: &str, args: &[Value]) -> Resu
             .await?;
             Ok(Value::Null)
         }
+        "plugin.editorHost.open" => Ok(json!(
+            plugin_host_open(
+                app.clone(),
+                app.state::<AppContextState>(),
+                app.state::<ManagedPluginInventoryContextState>(),
+                arg_optional_id(args, 0)?,
+                arg_opt_string(args, 1, "plugin_id")?,
+                arg_opt_string(args, 2, "plugin_path")?,
+            )
+            .await?
+        )),
         "score.config.setSoloAutoCountStyle" => {
             score_config_auto_count_styles_solo_set(
                 app.clone(),
@@ -2407,18 +2431,45 @@ mod tests {
     }
 
     #[test]
-    fn action_definitions_include_new_lookup_tools() {
+    fn action_definitions_include_plugin_editor_open_and_lookup_tools() {
         let names = action_definitions()
             .into_iter()
             .map(|definition| definition.name)
             .collect::<Vec<_>>();
 
         assert!(names.contains(&"app.getActiveScore"));
+        assert!(names.contains(&"plugin.editorHost.open"));
+        assert!(!names.contains(&"plugin.editorHost.prepareLoadInitProbeLog"));
+        assert!(!names.contains(&"plugin.editorHost.probeLoadInit"));
+        assert!(!names.contains(&"plugin.editorHost.readProbeLog"));
         assert!(names.contains(&"score.playingTechnique.create"));
         assert!(names.contains(&"score.playingTechnique.remove"));
         assert!(names.contains(&"score.playingTechnique.update"));
         assert!(names.contains(&"score.lookup.getBarMap"));
         assert!(names.contains(&"score.lookup.getFlowMarkers"));
         assert!(names.contains(&"score.lookup.getTrackEvents"));
+    }
+
+    #[test]
+    fn plugin_editor_open_action_definition_uses_optional_slot_and_target_args() {
+        let definition = action_definitions()
+            .into_iter()
+            .find(|definition| definition.name == "plugin.editorHost.open")
+            .expect("expected plugin.editorHost.open action definition");
+
+        let args = definition
+            .args
+            .into_iter()
+            .map(|arg| (arg.name, arg.required))
+            .collect::<Vec<_>>();
+
+        assert_eq!(
+            args,
+            vec![
+                ("slot_id", false),
+                ("plugin_id", false),
+                ("plugin_path", false),
+            ]
+        );
     }
 }

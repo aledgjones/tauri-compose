@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { screen } from "../../services/test-utils";
 import { renderWithProviders } from "../../services/test-utils";
 import { Main } from "./index";
@@ -43,6 +43,7 @@ vi.mock("./components/performance-timings", () => ({
 describe("Debugger Main", () => {
   beforeEach(() => {
     mockObjectInspector.mockClear();
+    mockToggleDebug.mockClear();
   });
 
   it("renders the app bar drag region", () => {
@@ -52,8 +53,21 @@ describe("Debugger Main", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders the toggle debug switch", () => {
+  it("renders the timing and debug surfaces", () => {
     renderWithProviders(<Main />);
+
+    expect(screen.getByTestId("performance-timings")).toBeInTheDocument();
     expect(screen.getByText("Render Spacing Debugging")).toBeInTheDocument();
+    expect(screen.getAllByTestId("object-inspector")).toHaveLength(2);
+  });
+
+  it("does not render the retired VST probe workflow", () => {
+    renderWithProviders(<Main />);
+
+    expect(
+      screen.queryByRole("button", { name: /Run Load\/Init Probe/i }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/Persisted Probe Log/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Probe Profile:/i)).not.toBeInTheDocument();
   });
 });

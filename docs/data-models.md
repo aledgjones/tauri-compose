@@ -194,6 +194,8 @@ This schema changed in `1.25.0`; older `.soloc` payloads that still contain `tex
 
 Unreleased directive visibility work also adds `hidden: bool` to clef, key-signature, and time-signature entries, and migrates legacy time signatures that previously encoded hidden state as `draw_type: 0` into `hidden: true` plus `draw_type: Regular` in `src-tauri/src/migrations/next.rs`.
 
+Machine-local plugin inventory entries may still carry optional `editor_host_validation.maintainer_load_init_probe` evidence from earlier maintainer investigation runs. Story 9.4 Task 1 retires the dedicated probe commands and Debugger workflow, so future diagnostics should move to backend-owned logging on the ordinary bounded editor-open path instead of reviving a separate persisted probe lane.
+
 #### Tuplet
 
 Tuplets are persisted as first-class container entries on the host track. The container owns the exact rhythmic context for notes that start inside the tuplet span, while keeping the existing dual-index storage model both at the host track and inside the tuplet.
@@ -535,6 +537,10 @@ pub struct PlaybackActivationRuntime {
 `PlaybackActivationRuntime` lives inside backend app state rather than `.soloc` data. It is rebuilt from persisted rack or route intent plus machine-local inventory truth after slot assignment, slot unassignment, slot removal, route assignment, route clearing, project load, and inventory refresh. Story 3.8 keeps that runtime bounded to single-target plugin-output routes only, and Story 5.4 confirms that project reopen reuses the same rebuild contract without persisting extra activation payloads, active transport playback, queued work, or machine-local inventory truth into score files.
 
 The backend also emits per-slot `PlaybackRouteChoice` lists through `route_target_options_by_slot_id` on `soloc://state/general`. Sequence must consume that Rust-owned contract when offering route targets; if Rust can only prove the direct plugin output for a slot, React must expose only that direct choice and must not invent speculative part or MIDI-channel options. Separate plugin-assignment pickers remain bounded to plugins whose inventory entries are both `availability === "available"` and not `editor_host_validation.status === "blocked"`.
+
+Machine-local plugin inventory entries may also carry optional maintainer-only load/init evidence on `editor_host_validation.maintainer_load_init_probe`. That nested payload records the investigation status (`blocked_by_host_contract`, `blocked_by_plugin_failure`, or `load_init_safe`), the last successful phase, the first failing phase and raw message, and the ordered per-phase results. It remains backend-owned diagnostic truth only: it does not alter direct-root route-choice behavior or `.soloc` persistence by itself.
+
+Story 9.2 keeps those validation payloads on one owner path: both ordinary `editor_host_validation` updates and any earlier nested `maintainer_load_init_probe` evidence come from the backend-owned VST3 host core in `src-tauri/src/playback/plugin_editor_poc/macos_host/vst3_host_core.rs`. That seam owns factory host-context setup, ordered component/controller initialization, component-handler timing, state sync, optional connection-point wiring, view preparation, and reverse teardown. Story 9.4 Task 1 retires the dedicated probe commands and Debugger workflow, so future diagnostics should attach to the ordinary bounded editor-open path rather than a separate persisted probe-log surface.
 
 ```rust
 pub struct ResolvedPlaybackRoute {

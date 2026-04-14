@@ -765,6 +765,7 @@ export type PluginEditorHostValidationPhase =
   | "host_context"
   | "component_create"
   | "component_initialize"
+  | "component_runtime_setup"
   | "controller_create"
   | "controller_set_component_handler_pre_init"
   | "controller_initialize"
@@ -775,6 +776,31 @@ export type PluginEditorHostValidationPhase =
   | "view_set_frame"
   | "view_attach"
   | "attached";
+
+export type PluginEditorHostValidationPhaseResultStatus =
+  | "completed"
+  | "failed"
+  | "skipped";
+
+export type PluginEditorHostValidationPhaseResult = {
+  phase: PluginEditorHostValidationPhase;
+  status: PluginEditorHostValidationPhaseResultStatus;
+  message: string;
+};
+
+export type PluginEditorHostLoadInitProbeStatus =
+  | "blocked_by_host_contract"
+  | "blocked_by_plugin_failure"
+  | "load_init_safe";
+
+export type PluginEditorHostLoadInitProbe = {
+  status: PluginEditorHostLoadInitProbeStatus;
+  last_successful_phase: PluginEditorHostValidationPhase | null;
+  first_failing_phase: PluginEditorHostValidationPhase | null;
+  first_failing_message: string | null;
+  summary: string;
+  phase_results: PluginEditorHostValidationPhaseResult[];
+};
 
 export type PluginCapabilityEvidenceStatus = "not_proven";
 
@@ -788,6 +814,7 @@ export type PluginEditorHostValidation = {
   phase: PluginEditorHostValidationPhase;
   message: string;
   capability_evidence: PluginCapabilityEvidence | null;
+  maintainer_load_init_probe?: PluginEditorHostLoadInitProbe;
 };
 
 export type PluginInventoryEntry = {

@@ -1,6 +1,6 @@
 use crate::instructions::FlowRenderRecalculationRequest;
 use crate::migrations::{MigrationKind, MIGRATIONS};
-use crate::playback::plugin_editor_poc::sync_score_slot_targets_with_runtime_state;
+use crate::playback::plugin_host::sync_score_slot_targets_with_runtime_state;
 use crate::playback::transport::{
     stop_transport_playback, sync_transport_to_app_state, TransportContext, TransportSharedState,
 };

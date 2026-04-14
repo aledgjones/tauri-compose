@@ -214,6 +214,8 @@ Users should think in a direct relationship: this instrument routes to this play
 
 For the current MVP, the user should only need to think this instrument routes to this playback destination. If Compose later grows into explicit multi-target routing, that should be added as a bounded extension of the same direct relationship rather than as a different mode of working.
 
+For the bounded addressed HALion workflow, that same direct relationship remains intact. The user still chooses one playback destination from the Sequence instrument overview, but that destination is expressed as one slot selector plus one adjacent address selector. `Root` must remain explicit, richer address choices appear only when the backend proves them truthfully for the selected slot, and the rack UI remains a mounted-plugin visibility surface rather than a second address-authoring workflow.
+
 Current Compose already points toward the right mental model because its direct routing flow is efficient even when the control styling is awkward. Users are likely to expect that same immediacy to remain. Confusion is most likely to appear when scopes blur, especially between direct instrument routing, reusable playback configuration, expression-map authoring, and plugin-owned settings.
 
 ### 2.3 Success Criteria
@@ -273,6 +275,8 @@ Because playback introduces new layers of scope, accessibility also depends on c
 The primary playback routing surface should remain close to the instrument itself. The instrument row should continue to own quick visibility and quick rerouting because routing is a core musical action rather than an advanced setup action. The row must stay compact, so it should use a concise routing control that shows current playback truth and a small readiness or health signal.
 
 For the current MVP, the routing flow should stay single-target and explicit. Users should be able to see which playback destination the current instrument is using without being asked to manage parts, channels, or shared-slot relationships before first-audible playback is working.
+
+For the bounded addressed HALion extension, the Sequence instrument row should continue to own the ordinary score-context authoring surface by showing the selected address directly beside the slot selection. Users still should not manage host topology or invent addresses themselves; they choose from backend-proven address options for the selected slot, with `Root` shown explicitly when it is the only truthful choice.
 
 The instrument panel should act as the expanded score-context surface for that same route. It should not introduce a second model. Instead, it should reveal more metadata, richer status explanation, and deeper contextual controls for the currently selected instrument and its linked playback route.
 

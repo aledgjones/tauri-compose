@@ -5,7 +5,8 @@ Root-level implementation artifacts in this folder represent the active BMAD del
 ## Current State
 
 - The active root-level implementation tracking artifact is `sprint-status.yaml`.
-- There are currently no active root-level story, tech-spec, or retrospective artifacts yet for the reset plan.
+- Root-level story artifacts track the active playback delivery cycle, including Epic 8 closeout and Epic 9 host-hardening work.
+- Root-level tech specs and sprint-change proposals record the active delivery direction; if an older artifact is still useful background but no longer describes the next step, mark it as superseded in place or archive it rather than letting it imply current intent.
 - Completed implementation cycles and completed standalone tech specs live under `archive/`.
 
 ## Working Rule

@@ -1,5 +1,5 @@
 use crate::playback::audition::AuditionNote;
-use crate::playback::plugin_editor_poc::{
+use crate::playback::plugin_host::{
     render_slot_runtime_block, stop_slot_runtime_render, SlotRuntimeRenderOutcome,
 };
 use crate::playback::preparation::EffectivePlaybackMix;

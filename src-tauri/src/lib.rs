@@ -19,7 +19,7 @@ use crate::playback::expression_maps::{
     ExpressionMap, ExpressionMapLibraryContext, ExpressionMapLibraryContextState,
     ExpressionMapLibraryState,
 };
-use crate::playback::plugin_editor_poc::{plugin_editor_poc_open, sync_slot_runtime_sessions};
+use crate::playback::plugin_host::{plugin_host_open, sync_slot_runtime_sessions};
 use crate::playback::plugin_inventory::{
     plugin_inventory_discover, PluginInventoryContext, PluginInventoryContextState,
 };
@@ -115,7 +115,7 @@ use score::players::{
 use score::Score;
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::Ordering;
-use std::sync::Mutex;
+use std::sync::{Mutex, OnceLock};
 use std::time::Instant;
 use tauri::menu::{AboutMetadata, Menu, MenuItem, PredefinedMenuItem, Submenu};
 use tauri::{include_image, AppHandle, Emitter, Manager, State};
@@ -1006,6 +1006,37 @@ pub(crate) fn reset_app_state(
     reset(app, state, renderer_state, audio_state, transport_state)
 }
 
+#[cfg(debug_assertions)]
+extern "C" fn debug_process_exit_trace() {
+    use std::ffi::c_void;
+
+    const STDERR_FD: i32 = 2;
+    const MESSAGE: &[u8] = b"[DIAG] process exiting\n";
+
+    unsafe {
+        unsafe extern "C" {
+            fn write(fd: i32, buffer: *const c_void, count: usize) -> isize;
+        }
+
+        let _ = write(STDERR_FD, MESSAGE.as_ptr().cast(), MESSAGE.len());
+    }
+}
+
+#[cfg(debug_assertions)]
+fn register_debug_process_exit_trace() {
+    extern "C" {
+        fn atexit(callback: extern "C" fn()) -> i32;
+    }
+
+    static REGISTERED: OnceLock<()> = OnceLock::new();
+
+    REGISTERED.get_or_init(|| unsafe {
+        if atexit(debug_process_exit_trace) != 0 {
+            eprintln!("[DIAG] failed to register debug process exit trace");
+        }
+    });
+}
+
 pub fn run() {
     let mut builder = tauri::Builder::default();
 
@@ -1017,6 +1048,9 @@ pub fn run() {
 
     builder
         .setup(|app| {
+            #[cfg(debug_assertions)]
+            register_debug_process_exit_trace();
+
             let app_handle = app.app_handle();
 
             app.manage(AppContext::new(app_handle));
@@ -1227,7 +1261,7 @@ pub fn run() {
             audio_device_sample_rate_set,
             audio_devices_refresh,
             plugin_inventory_discover,
-            plugin_editor_poc_open,
+            plugin_host_open,
             playback_audition_tone,
             transport_play,
             transport_pause,

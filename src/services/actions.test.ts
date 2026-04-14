@@ -257,26 +257,42 @@ describe("actions.pluginInventory", () => {
     expect(mockInvoke).toHaveBeenCalledWith("plugin_inventory_discover");
   });
 
-  it("openEditorPoc calls invoke with inventory-backed plugin_id", async () => {
-    await actions.pluginInventory.openEditorPoc(
+  it("openEditorHost calls invoke with inventory-backed plugin_id", async () => {
+    await actions.pluginInventory.openEditorHost(
       "vst3:/Library/Audio/Plug-Ins/VST3/Grand Piano.vst3",
     );
-    expect(mockInvoke).toHaveBeenCalledWith("plugin_editor_poc_open", {
+    expect(mockInvoke).toHaveBeenCalledWith("plugin_host_open", {
       slot_id: null,
       plugin_id: "vst3:/Library/Audio/Plug-Ins/VST3/Grand Piano.vst3",
       plugin_path: null,
     });
   });
 
-  it("openEditorPoc forwards an optional slot_id for rack-targeted editor opens", async () => {
-    await actions.pluginInventory.openEditorPoc("vst3:grand-piano", {
+  it("openEditorHost forwards an optional slot_id for rack-targeted editor opens", async () => {
+    await actions.pluginInventory.openEditorHost("vst3:grand-piano", {
       slot_id: 12,
     });
-    expect(mockInvoke).toHaveBeenCalledWith("plugin_editor_poc_open", {
+    expect(mockInvoke).toHaveBeenCalledWith("plugin_host_open", {
       slot_id: 12,
       plugin_id: "vst3:grand-piano",
       plugin_path: null,
     });
+  });
+
+  it("openEditorHost times out when the backend call never settles", async () => {
+    vi.useFakeTimers();
+    mockInvoke.mockImplementationOnce(() => new Promise(() => {}));
+
+    try {
+      const result = actions.pluginInventory.openEditorHost("vst3:grand-piano");
+      await vi.advanceTimersByTimeAsync(12000);
+
+      await expect(result).rejects.toThrow(
+        "Opening the plugin UI timed out. Compose may have stalled while initializing the plugin host.",
+      );
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 
@@ -1366,6 +1382,22 @@ describe("actions.score.instrument", () => {
         plugin_id: "vst-1",
       },
     );
+  });
+
+  it("assignPlugin to playback slot times out when the backend call never settles", async () => {
+    vi.useFakeTimers();
+    mockInvoke.mockImplementationOnce(() => new Promise(() => {}));
+
+    try {
+      const result = actions.score.playback.slot.assignPlugin(55, "vst-1");
+      await vi.advanceTimersByTimeAsync(12000);
+
+      await expect(result).rejects.toThrow(
+        "Assigning the plugin to the slot timed out. Compose may have stalled while initializing the plugin.",
+      );
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("unassignPlugin from playback slot calls invoke correctly", async () => {

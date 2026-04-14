@@ -1,8 +1,3 @@
-use crate::playback::plugin_host_compatibility::bounded_editor_host_unsupported_reason;
-use crate::playback::vst3::{
-    default_vst3_search_roots, list_vst3_candidates_in_root, validate_vst3_bundle,
-    vst3_bundle_binary_path, Vst3BundleError, Vst3BundleErrorKind,
-};
 use crate::{AppContextState, RendererContextState};
 use serde::{Deserialize, Serialize};
 use sled::Db;
@@ -37,7 +32,7 @@ pub struct PluginInventoryFailure {
     pub message: String,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum PluginEditorHostValidationStatus {
     Blocked,
@@ -45,7 +40,7 @@ pub enum PluginEditorHostValidationStatus {
     Attached,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum PluginEditorHostValidationPhase {
     PolicyGate,
@@ -54,6 +49,7 @@ pub enum PluginEditorHostValidationPhase {
     HostContext,
     ComponentCreate,
     ComponentInitialize,
+    ComponentRuntimeSetup,
     ControllerCreate,
     ControllerSetComponentHandlerPreInit,
     ControllerInitialize,
@@ -64,6 +60,40 @@ pub enum PluginEditorHostValidationPhase {
     ViewSetFrame,
     ViewAttach,
     Attached,
+}
+
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum PluginEditorHostValidationPhaseResultStatus {
+    Completed,
+    Failed,
+    Skipped,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+pub struct PluginEditorHostValidationPhaseResult {
+    pub phase: PluginEditorHostValidationPhase,
+    pub status: PluginEditorHostValidationPhaseResultStatus,
+    pub message: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum PluginEditorHostLoadInitProbeStatus {
+    BlockedByHostContract,
+    BlockedByPluginFailure,
+    LoadInitSafe,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+pub struct PluginEditorHostLoadInitProbe {
+    pub status: PluginEditorHostLoadInitProbeStatus,
+    pub last_successful_phase: Option<PluginEditorHostValidationPhase>,
+    pub first_failing_phase: Option<PluginEditorHostValidationPhase>,
+    pub first_failing_message: Option<String>,
+    pub summary: String,
+    #[serde(default)]
+    pub phase_results: Vec<PluginEditorHostValidationPhaseResult>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
@@ -85,6 +115,8 @@ pub struct PluginEditorHostValidation {
     pub message: String,
     #[serde(default)]
     pub capability_evidence: Option<PluginCapabilityEvidence>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub maintainer_load_init_probe: Option<PluginEditorHostLoadInitProbe>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
@@ -312,6 +344,7 @@ pub fn blocked_editor_host_validation(message: String) -> PluginEditorHostValida
         phase: PluginEditorHostValidationPhase::PolicyGate,
         message,
         capability_evidence: None,
+        maintainer_load_init_probe: None,
     }
 }
 
@@ -594,15 +627,271 @@ pub fn plugin_inventory_discover(
     Ok(())
 }
 
+// ── VST3 bundle discovery ────────────────────────────────────────────
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Vst3BundleErrorKind {
+    InvalidBundle,
+    MissingBundleBinary,
+    IoError,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Vst3BundleError {
+    pub kind: Vst3BundleErrorKind,
+    pub message: String,
+}
+
+impl Vst3BundleError {
+    fn invalid_bundle(message: String) -> Self {
+        Self {
+            kind: Vst3BundleErrorKind::InvalidBundle,
+            message,
+        }
+    }
+
+    fn missing_bundle_binary(message: String) -> Self {
+        Self {
+            kind: Vst3BundleErrorKind::MissingBundleBinary,
+            message,
+        }
+    }
+
+    fn io_error(message: String) -> Self {
+        Self {
+            kind: Vst3BundleErrorKind::IoError,
+            message,
+        }
+    }
+}
+
+pub const MACOS_VST3_SEARCH_ROOTS: [&str; 2] = [
+    "~/Library/Audio/Plug-Ins/VST3",
+    "/Library/Audio/Plug-Ins/VST3",
+];
+
+pub fn default_vst3_search_roots() -> Vec<PathBuf> {
+    #[cfg(target_os = "macos")]
+    {
+        MACOS_VST3_SEARCH_ROOTS
+            .iter()
+            .filter_map(|root| expand_home_dir(root))
+            .filter(|root| root.is_dir())
+            .collect()
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        Vec::new()
+    }
+}
+
+pub fn expand_home_dir(path: &str) -> Option<PathBuf> {
+    if path == "~" {
+        return std::env::var_os("HOME").map(PathBuf::from);
+    }
+
+    if let Some(stripped) = path.strip_prefix("~/") {
+        return std::env::var_os("HOME").map(|home| PathBuf::from(home).join(stripped));
+    }
+
+    Some(PathBuf::from(path))
+}
+
+pub fn validate_vst3_bundle(path: &Path) -> Result<(), Vst3BundleError> {
+    if path.extension().and_then(|extension| extension.to_str()) != Some("vst3") {
+        return Err(Vst3BundleError::invalid_bundle(format!(
+            "Expected a .vst3 bundle path, got '{}'.",
+            path.display()
+        )));
+    }
+
+    if !path.exists() {
+        return Err(Vst3BundleError::invalid_bundle(format!(
+            "VST3 target does not exist: '{}'.",
+            path.display()
+        )));
+    }
+
+    if !path.is_dir() {
+        return Err(Vst3BundleError::invalid_bundle(format!(
+            "Expected a VST3 bundle directory, got '{}'.",
+            path.display()
+        )));
+    }
+
+    Ok(())
+}
+
+pub fn vst3_bundle_binary_path(path: &Path) -> Result<PathBuf, Vst3BundleError> {
+    let macos_dir = path.join("Contents").join("MacOS");
+    if !macos_dir.is_dir() {
+        return Err(Vst3BundleError::missing_bundle_binary(format!(
+            "Expected a Contents/MacOS directory inside '{}'.",
+            path.display()
+        )));
+    }
+
+    if let Some(bundle_name) = path.file_stem().and_then(|value| value.to_str()) {
+        let preferred = macos_dir.join(bundle_name);
+        if preferred.is_file() {
+            return Ok(preferred);
+        }
+    }
+
+    let mut binaries = Vec::new();
+    let read_dir = std::fs::read_dir(&macos_dir).map_err(|error| {
+        Vst3BundleError::io_error(format!(
+            "Failed to read VST3 bundle binary directory '{}': {error}",
+            macos_dir.display()
+        ))
+    })?;
+
+    for entry in read_dir {
+        let entry = entry.map_err(|error| {
+            Vst3BundleError::io_error(format!(
+                "Failed to inspect VST3 bundle binary entry in '{}': {error}",
+                macos_dir.display()
+            ))
+        })?;
+        let path = entry.path();
+
+        if path.is_file() {
+            binaries.push(path);
+        }
+    }
+
+    binaries.sort();
+
+    match binaries.len() {
+        0 => Err(Vst3BundleError::missing_bundle_binary(format!(
+            "Did not find a bundle executable inside '{}'.",
+            macos_dir.display()
+        ))),
+        _ => Ok(binaries.remove(0)),
+    }
+}
+
+pub fn list_vst3_candidates_in_root(root: &Path) -> Result<Vec<PathBuf>, String> {
+    let mut entries = Vec::new();
+    let mut roots_to_visit = vec![root.to_path_buf()];
+    let mut visited_roots = BTreeSet::new();
+
+    while let Some(current_root) = roots_to_visit.pop() {
+        let visited_key = std::fs::canonicalize(&current_root).unwrap_or(current_root.clone());
+        if !visited_roots.insert(visited_key) {
+            continue;
+        }
+
+        let read_dir = std::fs::read_dir(&current_root).map_err(|error| {
+            format!(
+                "Failed to read VST3 discovery root '{}': {error}",
+                current_root.display()
+            )
+        })?;
+
+        for entry in read_dir {
+            let entry = entry.map_err(|error| {
+                format!(
+                    "Failed to inspect VST3 discovery root entry in '{}': {error}",
+                    current_root.display()
+                )
+            })?;
+            let path = entry.path();
+
+            if path.extension().and_then(|value| value.to_str()) == Some("vst3") {
+                entries.push(path);
+                continue;
+            }
+
+            if path.is_dir() {
+                roots_to_visit.push(path);
+            }
+        }
+    }
+
+    entries.sort();
+    Ok(entries)
+}
+
+pub fn discover_first_valid_vst3_in_roots(roots: &[PathBuf]) -> Option<PathBuf> {
+    for root in roots {
+        if let Ok(candidates) = list_vst3_candidates_in_root(root) {
+            for path in candidates {
+                if validate_vst3_bundle(&path).is_ok() {
+                    return Some(path);
+                }
+            }
+        }
+    }
+
+    None
+}
+
+// ── Plugin host compatibility ────────────────────────────────────────
+
+struct UnsupportedEditorHostBundle {
+    name: &'static str,
+    reason: &'static str,
+}
+
+const UNSUPPORTED_EDITOR_HOST_BUNDLES: &[UnsupportedEditorHostBundle] = &[
+    UnsupportedEditorHostBundle {
+        name: "HALion Sonic SE",
+        reason: "it returns a null plugin factory during factory creation on the bounded seam.",
+    },
+    UnsupportedEditorHostBundle {
+        name: "Groove Agent SE",
+        reason: "it crashes during controller initialization.",
+    },
+    UnsupportedEditorHostBundle {
+        name: "Kontakt 7",
+        reason: "it crashes during component createInstance.",
+    },
+    UnsupportedEditorHostBundle {
+        name: "MT-PowerDrumKit",
+        reason: "it currently requires an MVP-host teardown exception we do not want to carry in the bounded seam.",
+    },
+];
+
+fn bundle_stem(path: &Path) -> Option<&str> {
+    path.file_stem().and_then(|value| value.to_str())
+}
+
+fn unsupported_editor_host_bundle(path: &Path) -> Option<&'static UnsupportedEditorHostBundle> {
+    let bundle_stem = bundle_stem(path)?;
+
+    UNSUPPORTED_EDITOR_HOST_BUNDLES
+        .iter()
+        .find(|bundle| bundle_stem.eq_ignore_ascii_case(bundle.name))
+}
+
+pub fn bounded_editor_host_unsupported_reason(plugin_path: &Path) -> Option<String> {
+    unsupported_editor_host_bundle(plugin_path).map(|bundle| {
+        format!(
+            "Unsupported plugin target for the current macOS native editor host POC: {} remains on the current unsupported list for the bounded seam because {} Other discovered bundles remain eligible unless they demonstrate host-seam issues and are added to this unsupported list.",
+            bundle.name, bundle.reason
+        )
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
-        blocked_editor_host_validation, discover_inventory_in_roots, load_persisted_state,
-        resolve_available_bundle_path_in_entries, PluginEditorHostValidationPhase,
+        blocked_editor_host_validation, bounded_editor_host_unsupported_reason,
+        discover_first_valid_vst3_in_roots, discover_inventory_in_roots, expand_home_dir,
+        list_vst3_candidates_in_root, load_persisted_state,
+        resolve_available_bundle_path_in_entries, validate_vst3_bundle, vst3_bundle_binary_path,
+        PluginEditorHostLoadInitProbe, PluginEditorHostLoadInitProbeStatus,
+        PluginEditorHostValidation, PluginEditorHostValidationPhase,
+        PluginEditorHostValidationPhaseResult, PluginEditorHostValidationPhaseResultStatus,
         PluginEditorHostValidationStatus, PluginInventoryAvailability, PluginInventoryContext,
         PluginInventoryEntry, PluginInventoryFailure, PluginInventoryFailureKind,
+        Vst3BundleErrorKind,
     };
     use sled::Db;
+    #[cfg(unix)]
+    use std::os::unix::fs::symlink;
     use std::path::{Path, PathBuf};
 
     fn available_entry(id: &str, name: &str, bundle_path: &str) -> PluginInventoryEntry {
@@ -1156,7 +1445,7 @@ mod tests {
     }
 
     #[test]
-    fn discover_inventory_marks_halion_sonic_as_blocked_without_hiding_bundle_availability() {
+    fn discover_inventory_leaves_halion_sonic_available_for_real_path_investigation() {
         let root = std::env::temp_dir().join(format!(
             "plugin-inventory-halion-sonic-{}",
             std::process::id()
@@ -1175,20 +1464,7 @@ mod tests {
             PluginInventoryAvailability::Available
         );
         assert_eq!(discovery.entries[0].validation_failure, None);
-        assert_eq!(
-            discovery.entries[0]
-                .editor_host_validation
-                .as_ref()
-                .map(|validation| &validation.status),
-            Some(&PluginEditorHostValidationStatus::Blocked)
-        );
-        assert_eq!(
-            discovery.entries[0]
-                .editor_host_validation
-                .as_ref()
-                .map(|validation| &validation.phase),
-            Some(&PluginEditorHostValidationPhase::PolicyGate)
-        );
+        assert_eq!(discovery.entries[0].editor_host_validation, None);
 
         let _ = std::fs::remove_dir_all(&root);
     }
@@ -1213,5 +1489,269 @@ mod tests {
             context.snapshot().entries[0].editor_host_validation,
             Some(blocked_editor_host_validation(String::from("blocked")))
         );
+    }
+
+    #[test]
+    fn maintainer_load_init_probe_round_trips_through_serialization() {
+        let validation = PluginEditorHostValidation {
+            status: PluginEditorHostValidationStatus::Blocked,
+            phase: PluginEditorHostValidationPhase::PolicyGate,
+            message: String::from("blocked"),
+            capability_evidence: None,
+            maintainer_load_init_probe: Some(PluginEditorHostLoadInitProbe {
+                status: PluginEditorHostLoadInitProbeStatus::BlockedByPluginFailure,
+                last_successful_phase: Some(PluginEditorHostValidationPhase::ControllerCreate),
+                first_failing_phase: Some(PluginEditorHostValidationPhase::ControllerInitialize),
+                first_failing_message: Some(String::from("controller init failed")),
+                summary: String::from(
+                    "Maintainer load/init probe first failed at controller_initialize and appears plugin-side.",
+                ),
+                phase_results: vec![
+                    PluginEditorHostValidationPhaseResult {
+                        phase: PluginEditorHostValidationPhase::ModuleLoad,
+                        status: PluginEditorHostValidationPhaseResultStatus::Completed,
+                        message: String::from("Loaded module."),
+                    },
+                    PluginEditorHostValidationPhaseResult {
+                        phase: PluginEditorHostValidationPhase::ControllerInitialize,
+                        status: PluginEditorHostValidationPhaseResultStatus::Failed,
+                        message: String::from("controller init failed"),
+                    },
+                ],
+            }),
+        };
+
+        let serialized = serde_json::to_string(&validation).unwrap();
+        let deserialized: PluginEditorHostValidation = serde_json::from_str(&serialized).unwrap();
+
+        assert_eq!(deserialized, validation);
+    }
+
+    // ── VST3 bundle discovery tests ──────────────────────────────────
+
+    #[test]
+    fn validate_vst3_bundle_rejects_non_vst3_paths() {
+        let error = validate_vst3_bundle(Path::new("/tmp/test-plugin.component")).unwrap_err();
+        assert_eq!(error.kind, Vst3BundleErrorKind::InvalidBundle);
+        assert!(error.message.contains(".vst3 bundle path"));
+    }
+
+    #[test]
+    fn validate_vst3_bundle_rejects_missing_paths() {
+        let error = validate_vst3_bundle(Path::new("/tmp/missing-test-plugin.vst3")).unwrap_err();
+        assert_eq!(error.kind, Vst3BundleErrorKind::InvalidBundle);
+        assert!(error.message.contains("does not exist"));
+    }
+
+    #[test]
+    fn validate_vst3_bundle_rejects_non_directory_vst3_paths() {
+        let path = std::env::temp_dir().join("vst3-helper-file.vst3");
+        std::fs::write(&path, b"not-a-bundle").unwrap();
+
+        let error = validate_vst3_bundle(&path).unwrap_err();
+        assert_eq!(error.kind, Vst3BundleErrorKind::InvalidBundle);
+        assert!(error.message.contains("bundle directory"));
+
+        std::fs::remove_file(path).unwrap();
+    }
+
+    #[test]
+    fn discover_first_valid_vst3_in_roots_prefers_sorted_valid_bundle() {
+        let root = std::env::temp_dir().join(format!("vst3-helper-search-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&root).unwrap();
+
+        std::fs::write(root.join("Ignore Me.vst3"), b"not-a-bundle").unwrap();
+
+        let later_bundle = root.join("Zoo Instrument.vst3");
+        let earlier_bundle = root.join("Alpha Instrument.vst3");
+        std::fs::create_dir_all(&later_bundle).unwrap();
+        std::fs::create_dir_all(&earlier_bundle).unwrap();
+
+        let discovered = discover_first_valid_vst3_in_roots(std::slice::from_ref(&root)).unwrap();
+        assert_eq!(discovered, earlier_bundle);
+
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn list_vst3_candidates_in_root_ignores_non_vst3_entries() {
+        let root =
+            std::env::temp_dir().join(format!("vst3-helper-candidates-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&root).unwrap();
+
+        std::fs::create_dir_all(root.join("Alpha.vst3")).unwrap();
+        std::fs::create_dir_all(root.join("Beta.component")).unwrap();
+
+        let candidates = list_vst3_candidates_in_root(&root).unwrap();
+        assert_eq!(candidates, vec![root.join("Alpha.vst3")]);
+
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn list_vst3_candidates_in_root_recurses_into_nested_folders() {
+        let root = std::env::temp_dir().join(format!("vst3-helper-nested-{}", std::process::id()));
+        let nested = root.join("Steinberg").join("VST3");
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&nested).unwrap();
+
+        let nested_bundle = nested.join("HALion Sonic.vst3");
+        let top_level_bundle = root.join("Alpha.vst3");
+        std::fs::create_dir_all(&nested_bundle).unwrap();
+        std::fs::create_dir_all(&top_level_bundle).unwrap();
+
+        let candidates = list_vst3_candidates_in_root(&root).unwrap();
+        assert_eq!(candidates, vec![top_level_bundle, nested_bundle]);
+
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn list_vst3_candidates_in_root_does_not_descend_into_bundle_contents() {
+        let root = std::env::temp_dir().join(format!(
+            "vst3-helper-bundle-recursion-{}",
+            std::process::id()
+        ));
+        let bundle = root.join("NestedHost.vst3");
+        let fake_nested_bundle = bundle.join("Contents").join("MacOS").join("Ghost.vst3");
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&fake_nested_bundle).unwrap();
+
+        let candidates = list_vst3_candidates_in_root(&root).unwrap();
+        assert_eq!(candidates, vec![bundle]);
+
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn list_vst3_candidates_in_root_skips_symlink_cycles() {
+        let root =
+            std::env::temp_dir().join(format!("vst3-helper-symlink-cycle-{}", std::process::id()));
+        let loop_dir = root.join("loop");
+        let bundle = root.join("Alpha.vst3");
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&root).unwrap();
+        std::fs::create_dir_all(&bundle).unwrap();
+        symlink(&root, &loop_dir).unwrap();
+
+        let candidates = list_vst3_candidates_in_root(&root).unwrap();
+
+        assert_eq!(candidates, vec![bundle]);
+
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn expand_home_dir_replaces_tilde_prefix() {
+        let previous = std::env::var_os("HOME");
+        std::env::set_var("HOME", "/tmp/vst3-helper-home");
+
+        let expanded = expand_home_dir("~/Library/Audio/Plug-Ins/VST3").unwrap();
+        assert_eq!(
+            expanded,
+            Path::new("/tmp/vst3-helper-home/Library/Audio/Plug-Ins/VST3")
+        );
+
+        match previous {
+            Some(value) => std::env::set_var("HOME", value),
+            None => std::env::remove_var("HOME"),
+        }
+    }
+
+    #[test]
+    fn vst3_bundle_binary_path_prefers_named_executable() {
+        let root = std::env::temp_dir().join(format!("vst3-helper-bundle-{}", std::process::id()));
+        let bundle = root.join("My Instrument.vst3");
+        let macos = bundle.join("Contents").join("MacOS");
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&macos).unwrap();
+        std::fs::write(macos.join("OtherBinary"), b"x").unwrap();
+        let expected = macos.join("My Instrument");
+        std::fs::write(&expected, b"x").unwrap();
+
+        let resolved = vst3_bundle_binary_path(&bundle).unwrap();
+        assert_eq!(resolved, expected);
+
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn list_vst3_candidates_in_root_reports_read_errors() {
+        let root =
+            std::env::temp_dir().join(format!("vst3-helper-file-root-{}", std::process::id()));
+        let _ = std::fs::remove_file(&root);
+        std::fs::write(&root, b"not-a-directory").unwrap();
+
+        let error = list_vst3_candidates_in_root(&root).unwrap_err();
+        assert!(error.contains("Failed to read VST3 discovery root"));
+
+        let _ = std::fs::remove_file(&root);
+    }
+
+    // ── Plugin host compatibility tests ──────────────────────────────
+
+    #[test]
+    fn rejects_known_unsupported_vendor_example() {
+        let path = Path::new("/Library/Audio/Plug-Ins/VST3/Steinberg/Groove Agent SE.vst3");
+
+        let reason = bounded_editor_host_unsupported_reason(path).unwrap();
+
+        assert!(reason.contains("current unsupported list"));
+        assert!(reason.contains("Groove Agent SE"));
+        assert!(reason.contains("controller initialization"));
+    }
+
+    #[test]
+    fn allows_unknown_bundle_even_without_a_vendor_folder() {
+        let path = Path::new("/tmp/Some Future Plugin.vst3");
+
+        assert_eq!(bounded_editor_host_unsupported_reason(path), None);
+    }
+
+    #[test]
+    fn rejects_kontakt_7_bundle_name() {
+        let path = Path::new("/Library/Audio/Plug-Ins/VST3/Kontakt 7.vst3");
+
+        let reason = bounded_editor_host_unsupported_reason(path).unwrap();
+
+        assert!(reason.contains("Kontakt 7"));
+        assert!(reason.contains("component createInstance"));
+    }
+
+    #[test]
+    fn rejects_mt_power_drumkit_bundle_name() {
+        let path = Path::new("/Library/Audio/Plug-Ins/VST3/MT-PowerDrumKit.vst3");
+
+        let reason = bounded_editor_host_unsupported_reason(path).unwrap();
+
+        assert!(reason.contains("MT-PowerDrumKit"));
+        assert!(reason.contains("MVP-host teardown exception"));
+    }
+
+    #[test]
+    fn allows_halion_sonic_bundle_name() {
+        let path = Path::new("/Library/Audio/Plug-Ins/VST3/Steinberg/HALion Sonic.vst3");
+
+        assert_eq!(bounded_editor_host_unsupported_reason(path), None);
+    }
+
+    #[test]
+    fn rejects_halion_sonic_se_bundle_name() {
+        let path = Path::new("/Library/Audio/Plug-Ins/VST3/Steinberg/HALion Sonic SE.vst3");
+
+        let reason = bounded_editor_host_unsupported_reason(path).unwrap();
+
+        assert!(reason.contains("HALion Sonic SE"));
+        assert!(reason.contains("null plugin factory"));
+    }
+
+    #[test]
+    fn allows_non_unsupported_control_case() {
+        let path = Path::new("/Library/Audio/Plug-Ins/VST3/BBC Symphony Orchestra.vst3");
+
+        assert_eq!(bounded_editor_host_unsupported_reason(path), None);
     }
 }

@@ -7,6 +7,11 @@ import { chromeDark, ObjectInspector } from "react-inspector";
 import { Switch } from "../../ui/switch";
 import { PerformanceTimings } from "./components/performance-timings";
 
+const inspectorTheme = {
+  ...chromeDark,
+  BASE_BACKGROUND_COLOR: "transparent",
+} as unknown as string;
+
 export const Main = () => {
   const state = useAppState();
   const audio = useAudioState();
@@ -43,12 +48,7 @@ export const Main = () => {
             current_file_path: state.current_file_path,
           }}
           name="state"
-          theme={
-            {
-              ...chromeDark,
-              BASE_BACKGROUND_COLOR: "transparent",
-            } as unknown as string
-          }
+          theme={inspectorTheme}
           expandPaths={["$"]}
         />
       </div>
@@ -57,12 +57,7 @@ export const Main = () => {
         <ObjectInspector
           data={audio}
           name="audio"
-          theme={
-            {
-              ...chromeDark,
-              BASE_BACKGROUND_COLOR: "transparent",
-            } as unknown as string
-          }
+          theme={inspectorTheme}
           expandPaths={["$"]}
         />
       </div>
