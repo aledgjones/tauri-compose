@@ -24,14 +24,34 @@ import {
   Tool,
   TransportState,
   PlaybackRouteAddress,
-  PluginEditorPocProbeLog,
-  PluginEditorHostValidation,
-  PluginEditorPocProbeProfile,
   PlaybackRouteTarget,
   UniqueId,
   ExpressionMapExportPayload,
 } from "./types";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
+
+const PLUGIN_HOST_IPC_TIMEOUT_MS = 12000;
+
+const invokeWithTimeout = <T>(
+  command: string,
+  args: Record<string, unknown> | undefined,
+  timeoutMessage: string,
+  timeoutMs = PLUGIN_HOST_IPC_TIMEOUT_MS,
+) => {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+  return new Promise<T>((resolve, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error(timeoutMessage));
+    }, timeoutMs);
+
+    invoke<T>(command, args).then(resolve, reject);
+  }).finally(() => {
+    if (timeoutId !== null) {
+      clearTimeout(timeoutId);
+    }
+  });
+};
 
 export const actions = {
   initialize: () => {
@@ -182,43 +202,14 @@ export const actions = {
       plugin_id: string,
       options?: { plugin_path?: string | null; slot_id?: UniqueId | null },
     ) => {
-      return invoke("plugin_editor_poc_open", {
-        slot_id: options?.slot_id ?? null,
-        plugin_id,
-        plugin_path: options?.plugin_path ?? null,
-      });
-    },
-    probeLoadInit: (options?: {
-      plugin_id?: string | null;
-      plugin_path?: string | null;
-      profile?: PluginEditorPocProbeProfile | null;
-    }) => {
-      return invoke<PluginEditorHostValidation>(
-        "plugin_editor_poc_probe_load_init",
+      return invokeWithTimeout(
+        "plugin_editor_poc_open",
         {
-          plugin_id: options?.plugin_id ?? null,
+          slot_id: options?.slot_id ?? null,
+          plugin_id,
           plugin_path: options?.plugin_path ?? null,
-          profile: options?.profile ?? null,
         },
-      );
-    },
-    prepareProbeLog: (options?: {
-      plugin_id?: string | null;
-      plugin_path?: string | null;
-      profile?: PluginEditorPocProbeProfile | null;
-    }) => {
-      return invoke<PluginEditorPocProbeLog>(
-        "plugin_editor_poc_prepare_probe_log",
-        {
-          plugin_id: options?.plugin_id ?? null,
-          plugin_path: options?.plugin_path ?? null,
-          profile: options?.profile ?? null,
-        },
-      );
-    },
-    readProbeLog: () => {
-      return invoke<PluginEditorPocProbeLog>(
-        "plugin_editor_poc_read_probe_log",
+        "Opening the plugin UI timed out. Compose may have stalled while initializing the plugin host.",
       );
     },
   },
@@ -959,15 +950,23 @@ export const actions = {
           });
         },
         assignPlugin: (slot_id: number, plugin_id: string) => {
-          return invoke<void>("score_playback_slots_assign_plugin", {
-            slot_id,
-            plugin_id,
-          });
+          return invokeWithTimeout<void>(
+            "score_playback_slots_assign_plugin",
+            {
+              slot_id,
+              plugin_id,
+            },
+            "Assigning the plugin to the slot timed out. Compose may have stalled while initializing the plugin.",
+          );
         },
         unassignPlugin: (slot_id: number) => {
-          return invoke<void>("score_playback_slots_unassign_plugin", {
-            slot_id,
-          });
+          return invokeWithTimeout<void>(
+            "score_playback_slots_unassign_plugin",
+            {
+              slot_id,
+            },
+            "Removing the plugin from the slot timed out. Compose may have stalled while shutting the plugin down.",
+          );
         },
       },
     },

@@ -1,15 +1,17 @@
----
 title: "HALION Product-Path Remediation"
 type: "implementation-spec"
 created: "2026-04-12"
-status: "approved"
+status: "in-progress"
+baseline_commit: "8db3c1f0"
 context:
-  - "../../docs/project-context.md"
-  - "../../docs/architecture.md"
-  - "../../docs/development-guide.md"
-  - "../planning-artifacts/epics.md"
-  - "9-4-continue-adding-real-host-abilities-until-halion-works-in-the-product-path.md"
-  - "tech-spec-halion-host-contract-hardening.md"
+
+- "../../docs/project-context.md"
+- "../../docs/architecture.md"
+- "../../docs/development-guide.md"
+- "../planning-artifacts/epics.md"
+- "9-4-continue-adding-real-host-abilities-until-halion-works-in-the-product-path.md"
+- "tech-spec-halion-host-contract-hardening.md"
+
 ---
 
 ## Intent
@@ -75,6 +77,15 @@ This spec interprets that instruction narrowly and deliberately:
 - Use the next real ordinary-path failure boundary to choose the next host addition.
 - Add only the public-contract behavior needed to move past that boundary.
 - Test each increment on the ordinary slot-mounted path first, using real-flow logs from that same path to classify the next missing host behavior.
+- Treat the 2026-04-13 Steinberg `IPlugInterfaceSupport` correction plus `ConnectionProxy` port as already tried and ruled out for the current blocker: the subsequent ordinary rerun kept the same early `controller_initialize` crash boundary, never queried `IPlugInterfaceSupport`, and repeated the same `KERN_INVALID_ADDRESS 0x40` crash inside HALion Sonic.
+- Treat the 2026-04-13 direct Rust recreation of Steinberg `PlugProvider` and MuseScore's post-provider handler/state order as already tried and ruled out too: the shared host core now uses one provider-style setup path, restores persisted component state only after provider initialization, mirrors it into separate controllers through `setComponentState(...)`, and still crashes at the same `controller_initialize` boundary on the next ordinary HALION rerun. Fresh crash report `solo-compose-2026-04-13-124708.ips` repeated the same `KERN_INVALID_ADDRESS 0x40` fault while Rust remained inside `IPluginBaseTrait::initialize` from `initialize_steinberg_plug_provider(...)`.
+- Treat the 2026-04-13 Steinberg-style `IHostApplication` success-result correction as already tried and ruled out as well: after `solo-compose-2026-04-13-125859.ips` reconfirmed the same provider-path crash envelope, Compose aligned `IHostApplication::getName(...)` and successful `createInstance(...)` returns with Steinberg `kResultTrue`, focused tests still passed at 55/55, the next ordinary rerun logged `IHostApplication::getName returned true`, and fresh crash report `solo-compose-2026-04-13-130949.ips` still repeated the same `KERN_INVALID_ADDRESS 0x40` fault while Rust remained inside `initialize_steinberg_plug_provider(...)`.
+- Treat the later rollback from host-owned `ConnectionProxy` peers back to direct symmetric component/controller `IConnectionPoint` hookup as already tried and now the trusted live baseline too: focused tests still passed at 57/57, a fresh real slot-path control rerun kept `ProEQ.vst3` healthy, and fresh crash report `solo-compose-2026-04-13-163533.ips` still repeated the same `KERN_INVALID_ADDRESS 0x40` fault while Rust remained inside `initialize_steinberg_plug_provider(...)`. That rules out connection-proxy ownership as the active lever and keeps the restored direct handshake as the comparison point for the next change.
+- Treat the 2026-04-13 unsupported-host `queryInterface` parity cleanup as already tried host-contract cleanup too: Compose now returns Steinberg `kNoInterface` instead of `kResultFalse` for unsupported host `FUnknown::queryInterface` requests, focused tests still passed at 57/57, and `ProEQ.vst3` remained healthy on the ordinary bounded path.
+- Treat crash report `solo-compose-2026-04-13-165657.ips` as invalid HALION evidence. That rerun reused an already-open native host window and crashed Compose itself on a `tokio-rt-worker` inside `focus_native_host_window` because `makeKeyAndOrderFront:` ran off the main thread. The ordinary product path now routes existing-window focus and error-path close through `run_on_main_thread`, and the same-window fast path was revalidated by opening `ProEQ.vst3` twice while automation health stayed up.
+- A fresh ordinary HALION rerun after that fix again started from `existing_window=false`, advanced through the same faithful provider-path session build, repeated the same unsupported wrapper-marker query bursts plus successful `IHostApplication::getName`, and then killed the backend before `controller.initialize(...)` returned. No fresh `.ips` had been emitted yet at capture time, so the real-flow terminal trace plus `solo-compose-2026-04-13-163533.ips` remain the current unchanged-boundary evidence.
+- Treat the next late 2026-04-13 blank-shell slot-path rerun on the current worktree as changed but still incomplete evidence: `reset`, `score.playback.slot.create`, and `score.playback.slot.assignPlugin` for `HALion Sonic.vst3` again dropped with `curl: (52) Empty reply from server`, and the live trace still reached `controller_initialize`, but the last emitted line was only the stable controller, host-context, host-application, and component-handler pointer summary immediately before `controller.initialize(...)`. That rerun no longer showed the earlier wrapper-marker `queryInterface(...)` or `IHostApplication::getName` callbacks before exit, and no new `.ips` landed during capture. The next investigation therefore has to distinguish between a genuinely earlier controller-init crash window and a regression in host-callback visibility on the current seam before drawing a stronger native-boundary conclusion.
+- The next credible investigation target is therefore still not lifecycle order, connection-proxy ownership, pre-vs-post-provider state placement, unsupported-host `queryInterface` result parity, or the existing-window fast path. It is the remaining controller-init interoperability on that already-faithful provider path, with immediate emphasis on distinguishing a genuinely earlier pre-`getName` crash window from a regression in host-callback visibility.
 
 ### 4. Preserve The Bounded Product Claim
 

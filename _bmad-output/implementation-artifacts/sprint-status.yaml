@@ -112,5 +112,5 @@ development_status:
   9-1-classify-reference-multi-instrument-plugin-load-and-initialization-failures: ready-for-dev
   9-2-extract-a-stable-backend-owned-vst3-host-core-from-the-poc: review
   9-3-replace-probe-era-shims-with-a-real-host-owned-init-contract: review
-  9-4-continue-adding-real-host-abilities-until-halion-works-in-the-product-path: ready-for-dev
+  9-4-continue-adding-real-host-abilities-until-halion-works-in-the-product-path: in-progress
   epic-9-retrospective: optional

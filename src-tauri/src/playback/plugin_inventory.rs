@@ -1197,7 +1197,7 @@ mod tests {
     }
 
     #[test]
-    fn discover_inventory_marks_halion_sonic_as_blocked_without_hiding_bundle_availability() {
+    fn discover_inventory_leaves_halion_sonic_available_for_real_path_investigation() {
         let root = std::env::temp_dir().join(format!(
             "plugin-inventory-halion-sonic-{}",
             std::process::id()
@@ -1216,20 +1216,7 @@ mod tests {
             PluginInventoryAvailability::Available
         );
         assert_eq!(discovery.entries[0].validation_failure, None);
-        assert_eq!(
-            discovery.entries[0]
-                .editor_host_validation
-                .as_ref()
-                .map(|validation| &validation.status),
-            Some(&PluginEditorHostValidationStatus::Blocked)
-        );
-        assert_eq!(
-            discovery.entries[0]
-                .editor_host_validation
-                .as_ref()
-                .map(|validation| &validation.phase),
-            Some(&PluginEditorHostValidationPhase::PolicyGate)
-        );
+        assert_eq!(discovery.entries[0].editor_host_validation, None);
 
         let _ = std::fs::remove_dir_all(&root);
     }

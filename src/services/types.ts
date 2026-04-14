@@ -817,23 +817,6 @@ export type PluginEditorHostValidation = {
   maintainer_load_init_probe?: PluginEditorHostLoadInitProbe;
 };
 
-export type PluginEditorPocProbeLog = {
-  path: string;
-  profile: PluginEditorPocProbeProfile | null;
-  crash_hint: PluginEditorPocProbeLogCrashHint | null;
-  contents: string | null;
-};
-
-export type PluginEditorPocProbeProfile =
-  | "default"
-  | "controller_init_host_only_lifecycle_aligned";
-
-export type PluginEditorPocProbeLogCrashHint = {
-  phase: string;
-  last_line: string;
-  message: string;
-};
-
 export type PluginInventoryEntry = {
   id: string;
   name: string;

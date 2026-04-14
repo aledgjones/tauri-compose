@@ -4486,6 +4486,7 @@ dependencies = [
  "axum 0.8.8",
  "base64 0.22.1",
  "blake3",
+ "cc",
  "core-foundation",
  "core-foundation-sys",
  "cpal",

@@ -1,67 +1,26 @@
 use super::super::{
-    probe_profile_code, record_probe_failure, PluginEditorPocProbeProfile, PluginEditorTarget,
-    PluginHostBuildTelemetry,
+    record_phase_failure, PluginEditorPocProbeProfile, PluginEditorTarget, PluginHostPhaseLogger,
 };
 use super::*;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum ComponentHandlerTiming {
-    BeforeControllerInitialize,
-    AfterControllerInitialize,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum ComponentRuntimeSetupTiming {
-    BeforeControllerInitialize,
-    AfterControllerInitialize,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct Vst3HostCoreLifecycleProfile {
-    component_handler_timing: ComponentHandlerTiming,
-    component_runtime_setup_timing: ComponentRuntimeSetupTiming,
+    delay_component_runtime_setup: bool,
 }
 
 impl Vst3HostCoreLifecycleProfile {
-    pub(crate) fn from_probe_profile(profile: PluginEditorPocProbeProfile) -> Self {
-        match profile {
-            PluginEditorPocProbeProfile::Default => Self {
-                component_handler_timing: ComponentHandlerTiming::BeforeControllerInitialize,
-                component_runtime_setup_timing:
-                    ComponentRuntimeSetupTiming::BeforeControllerInitialize,
-            },
-            PluginEditorPocProbeProfile::ControllerInitHostOnlyLifecycleAligned => Self {
-                component_handler_timing: ComponentHandlerTiming::AfterControllerInitialize,
-                component_runtime_setup_timing:
-                    ComponentRuntimeSetupTiming::AfterControllerInitialize,
-            },
+    pub(crate) fn from_probe_profile(_profile: PluginEditorPocProbeProfile) -> Self {
+        Self {
+            // Richer instruments such as HALion can consult controller-side state that
+            // depends on an already-prepared processor, so initialize the controller
+            // against a runtime-ready component instead of deferring setup until later.
+            delay_component_runtime_setup: false,
         }
     }
 
-    pub(crate) fn uses_pre_init_component_handler(self) -> bool {
-        matches!(
-            self.component_handler_timing,
-            ComponentHandlerTiming::BeforeControllerInitialize
-        )
-    }
-
+    #[allow(dead_code)] // Runtime setup deferral field is no longer consulted; init always defers to ensure_render_processing.
     pub(crate) fn delays_component_runtime_setup(self) -> bool {
-        matches!(
-            self.component_runtime_setup_timing,
-            ComponentRuntimeSetupTiming::AfterControllerInitialize
-        )
-    }
-
-    #[cfg_attr(not(test), allow(dead_code))]
-    pub(crate) fn uses_host_only_controller_initialize_application(self) -> bool {
-        false
-    }
-
-    fn controller_initialize_host_application(
-        self,
-        host_application: &ComPtr<IHostApplication>,
-    ) -> Result<ComPtr<IHostApplication>, String> {
-        super::create_controller_init_host_application_with_delegate(host_application)
+        self.delay_component_runtime_setup
     }
 }
 
@@ -101,6 +60,282 @@ pub(crate) fn teardown_steps(state: Vst3HostCoreTeardownState) -> Vec<Vst3HostCo
     steps
 }
 
+struct SteinbergPlugProviderSetup {
+    host_application: PluginHostApplicationHandle,
+    component_handler: ComPtr<IComponentHandler>,
+    component: ComPtr<IComponent>,
+    controller: ComPtr<IEditController>,
+    controller_shared_with_component: bool,
+    controller_initialized: bool,
+    connection_points_connected: bool,
+    component_connection_proxy: Option<ComPtr<IConnectionPoint>>,
+    controller_connection_proxy: Option<ComPtr<IConnectionPoint>>,
+}
+
+fn initialize_steinberg_plug_provider(
+    plugin_path: &Path,
+    host_application: PluginHostApplicationHandle,
+    factory: &ComPtr<IPluginFactory>,
+    _lifecycle_profile: Vst3HostCoreLifecycleProfile,
+    telemetry: &mut PluginHostPhaseLogger,
+) -> Result<SteinbergPlugProviderSetup, PluginEditorHostAttemptError> {
+    telemetry.record_starting(
+        PluginEditorHostValidationPhase::HostContext,
+        "About to configure the preallocated VST3 host application and factory host context.",
+    );
+    let host_context = host_application.clone_interface().upcast::<FUnknown>();
+    let component_handler = create_component_handler().map_err(|error| {
+        record_phase_failure(
+            telemetry,
+            PluginEditorHostAttemptError::host_contract_failure(
+                PluginEditorHostValidationPhase::HostContext,
+                error,
+            ),
+        )
+    })?;
+    let factory_host_context_result = configure_factory_host_context(factory, &host_context);
+    let factory_host_context_message = match factory_host_context_result {
+        Some(result) => format!(
+            "Configured factory host context host_application_ptr={} host_context_ptr={} set_host_context_tresult={}",
+            super::interface_pointer_label(host_application.as_ptr()),
+            super::interface_pointer_label(host_context.as_ptr()),
+            result,
+        ),
+        None => format!(
+            "Configured factory host context host_application_ptr={} host_context_ptr={} set_host_context_result=factory3_unavailable",
+            super::interface_pointer_label(host_application.as_ptr()),
+            super::interface_pointer_label(host_context.as_ptr()),
+        ),
+    };
+    telemetry.log_phase_event(
+        PluginEditorHostValidationPhase::HostContext,
+        "info",
+        &factory_host_context_message,
+    );
+    telemetry.record_completed(
+        PluginEditorHostValidationPhase::HostContext,
+        "Created the host context and configured the VST3 factory.",
+    );
+
+    telemetry.record_starting(
+        PluginEditorHostValidationPhase::ComponentCreate,
+        "About to create the VST3 component instance.",
+    );
+    let component = create_component(factory, plugin_path).map_err(|error| {
+        record_phase_failure(
+            telemetry,
+            PluginEditorHostAttemptError::plugin_failure(
+                PluginEditorHostValidationPhase::ComponentCreate,
+                error,
+            ),
+        )
+    })?;
+    telemetry.record_completed(
+        PluginEditorHostValidationPhase::ComponentCreate,
+        "Created the VST3 component instance.",
+    );
+
+    telemetry.record_starting(
+        PluginEditorHostValidationPhase::ComponentInitialize,
+        "About to initialize the VST3 component (MuseScore/PlugProvider order: component init → controller init → connect → setComponentHandler; NO runtime setup during init).",
+    );
+    let component_init = unsafe { component.initialize(host_context.as_ptr()) };
+    if component_init != kResultOk {
+        return Err(record_phase_failure(
+            telemetry,
+            PluginEditorHostAttemptError::plugin_failure(
+                PluginEditorHostValidationPhase::ComponentInitialize,
+                format!(
+                    "Plugin editor POC failed to initialize the VST3 component (tresult = {}).",
+                    component_init
+                ),
+            ),
+        ));
+    }
+    telemetry.record_completed(
+        PluginEditorHostValidationPhase::ComponentInitialize,
+        "Initialized the VST3 component.",
+    );
+
+    // MuseScore / Steinberg PlugProvider pattern: NO component runtime setup
+    // (bus activation, setupProcessing, setActive) during initialization.
+    // Audio setup is deferred to ensure_render_processing when playback starts.
+    telemetry.record_skipped(
+        PluginEditorHostValidationPhase::ComponentRuntimeSetup,
+        "Skipped — runtime bus activation and processing setup is deferred to first render pass (MuseScore/PlugProvider pattern).",
+    );
+
+    telemetry.record_starting(
+        PluginEditorHostValidationPhase::ControllerCreate,
+        "About to create the VST3 edit controller.",
+    );
+    let CreatedController {
+        controller,
+        shared_with_component: controller_shared_with_component,
+    } = match create_controller(factory, &component) {
+        Ok(controller) => controller,
+        Err(error) => {
+            unsafe {
+                let _ = component.terminate();
+            }
+            return Err(record_phase_failure(
+                telemetry,
+                PluginEditorHostAttemptError::plugin_failure(
+                    PluginEditorHostValidationPhase::ControllerCreate,
+                    error,
+                ),
+            ));
+        }
+    };
+    telemetry.record_completed(
+        PluginEditorHostValidationPhase::ControllerCreate,
+        "Created the VST3 edit controller.",
+    );
+
+    telemetry.record_skipped(
+        PluginEditorHostValidationPhase::ControllerSetComponentHandlerPreInit,
+        "Skipped because the shared host core now follows Steinberg PlugProvider order and MuseScore's provider wiring: the controller initializes with the host context first, and only then receives the component handler.",
+    );
+
+    if controller_shared_with_component {
+        telemetry.record_skipped(
+            PluginEditorHostValidationPhase::ControllerInitialize,
+            "Skipped because the edit controller is shared with the component instance.",
+        );
+        telemetry.record_skipped(
+            PluginEditorHostValidationPhase::ConnectionPointHandshake,
+            "Skipped because the component and controller share one instance.",
+        );
+        telemetry.record_skipped(
+            PluginEditorHostValidationPhase::ControllerSetComponentHandler,
+            "Skipped because the edit controller is shared with the component instance.",
+        );
+
+        return Ok(SteinbergPlugProviderSetup {
+            host_application,
+            component_handler,
+            component,
+            controller,
+            controller_shared_with_component,
+            controller_initialized: false,
+            connection_points_connected: false,
+            component_connection_proxy: None,
+            controller_connection_proxy: None,
+        });
+    }
+
+    let controller_pointer_label = super::interface_pointer_label(controller.as_ptr());
+    let host_context_label = super::interface_pointer_label(host_context.as_ptr());
+    let host_application_label = super::interface_pointer_label(host_application.as_ptr());
+    let component_handler_pointer_label =
+        super::interface_pointer_label(component_handler.as_ptr());
+    telemetry.record_starting(
+        PluginEditorHostValidationPhase::ControllerInitialize,
+        "About to initialize the VST3 edit controller.",
+    );
+    let controller_initialize_details = format!(
+        "Controller initialize pointers controller_ptr={} host_context_ptr={} host_application_ptr={} component_handler_ptr={}",
+        controller_pointer_label,
+        host_context_label,
+        host_application_label,
+        component_handler_pointer_label,
+    );
+    telemetry.log_phase_event(
+        PluginEditorHostValidationPhase::ControllerInitialize,
+        "info",
+        &controller_initialize_details,
+    );
+    let controller_init = unsafe { controller.initialize(host_context.as_ptr()) };
+    let controller_initialize_return = format!(
+        "controller.initialize returned tresult={} controller_ptr={}",
+        controller_init, controller_pointer_label,
+    );
+    telemetry.log_phase_event(
+        PluginEditorHostValidationPhase::ControllerInitialize,
+        "info",
+        &controller_initialize_return,
+    );
+    if controller_init != kResultOk {
+        unsafe {
+            let _ = component.terminate();
+        }
+        return Err(record_phase_failure(
+            telemetry,
+            PluginEditorHostAttemptError::plugin_failure(
+                PluginEditorHostValidationPhase::ControllerInitialize,
+                format!(
+                    "Plugin editor POC failed to initialize the VST3 edit controller (tresult = {}).",
+                    controller_init
+                ),
+            ),
+        ));
+    }
+    telemetry.record_completed(
+        PluginEditorHostValidationPhase::ControllerInitialize,
+        "Initialized the VST3 edit controller.",
+    );
+
+    telemetry.record_starting(
+        PluginEditorHostValidationPhase::ConnectionPointHandshake,
+        "About to connect the VST3 component and controller connection points via ConnectionProxy (MuseScore/PlugProvider pattern).",
+    );
+    let (connection_points_connected, component_connection_proxy, controller_connection_proxy) =
+        match connect_component_and_controller(&component, &controller) {
+            ConnectionPointHandshakeOutcome::Connected {
+                message,
+                component_proxy,
+                controller_proxy,
+            } => {
+                telemetry.record_completed(
+                    PluginEditorHostValidationPhase::ConnectionPointHandshake,
+                    &message,
+                );
+                (true, Some(component_proxy), Some(controller_proxy))
+            }
+            ConnectionPointHandshakeOutcome::Skipped(message) => {
+                telemetry.record_skipped(
+                    PluginEditorHostValidationPhase::ConnectionPointHandshake,
+                    &message,
+                );
+                (false, None, None)
+            }
+        };
+
+    telemetry.record_starting(
+        PluginEditorHostValidationPhase::ControllerSetComponentHandler,
+        "About to set the VST3 component handler after controller initialization and connection-point setup.",
+    );
+    let set_component_handler_result =
+        unsafe { controller.setComponentHandler(component_handler.as_ptr()) };
+    let set_component_handler_message = format!(
+        "controller.setComponentHandler (post-connection) returned tresult={} controller_ptr={} component_handler_ptr={}",
+        set_component_handler_result,
+        super::interface_pointer_label(controller.as_ptr()),
+        super::interface_pointer_label(component_handler.as_ptr()),
+    );
+    telemetry.log_phase_event(
+        PluginEditorHostValidationPhase::ControllerSetComponentHandler,
+        if set_component_handler_result == kResultOk {
+            "completed"
+        } else {
+            "failed"
+        },
+        &set_component_handler_message,
+    );
+
+    Ok(SteinbergPlugProviderSetup {
+        host_application,
+        component_handler,
+        component,
+        controller,
+        controller_shared_with_component,
+        controller_initialized: true,
+        connection_points_connected,
+        component_connection_proxy,
+        controller_connection_proxy,
+    })
+}
+
 pub(crate) struct PluginHostCoreSession {
     pub(super) target: PluginEditorTarget,
     pub(super) plugin_path: PathBuf,
@@ -109,19 +344,21 @@ pub(crate) struct PluginHostCoreSession {
     pub(super) component: ComPtr<IComponent>,
     pub(super) controller: ComPtr<IEditController>,
     pub(super) view: Option<ComPtr<IPlugView>>,
-    pub(super) _host_application: ComPtr<IHostApplication>,
-    pub(super) _controller_initialize_host_application: ComPtr<IHostApplication>,
-    pub(super) _component_handler_host_application: ComPtr<IHostApplication>,
+    pub(super) _host_application: PluginHostApplicationHandle,
+    pub(super) _component_handler: ComPtr<IComponentHandler>,
     pub(super) _plug_frame: Option<ComPtr<IPlugFrame>>,
     pub(super) host_view_ptr: usize,
     pub(super) plugin_can_resize: bool,
     pub(super) view_attached: bool,
     pub(super) connection_points_connected: bool,
+    pub(super) _component_connection_proxy: Option<ComPtr<IConnectionPoint>>,
+    pub(super) _controller_connection_proxy: Option<ComPtr<IConnectionPoint>>,
     pub(super) component_initialized: bool,
     pub(super) controller_initialized: bool,
     pub(super) controller_shared_with_component: bool,
     pub(super) close_prepared: bool,
     pub(super) render_processing_active: bool,
+    pub(super) render_component_active: bool,
     pub(super) render_sample_rate: Option<u32>,
     pub(super) render_max_block_size: i32,
     pub(super) render_buses_activated: bool,
@@ -147,7 +384,7 @@ impl PluginHostCoreSession {
         &mut self,
         ns_window: *mut NSWindow,
         parent_view: &NSView,
-        telemetry: &mut PluginHostBuildTelemetry,
+        telemetry: &mut PluginHostPhaseLogger,
     ) -> Result<(), PluginEditorHostAttemptError> {
         eprintln!(
             "[DIAG] attach_view: start (close_prepared={}, view_attached={}, view_exists={})",
@@ -169,7 +406,7 @@ impl PluginHostCoreSession {
         })
         .to_com_ptr::<IPlugFrame>()
         .ok_or_else(|| {
-            record_probe_failure(
+            record_phase_failure(
                 telemetry,
                 PluginEditorHostAttemptError::host_contract_failure(
                     PluginEditorHostValidationPhase::ViewCreate,
@@ -180,7 +417,7 @@ impl PluginHostCoreSession {
 
         let view = unsafe { ComPtr::from_raw(self.controller.createView(ViewType::kEditor)) }
             .ok_or_else(|| {
-                record_probe_failure(
+                record_phase_failure(
                     telemetry,
                     PluginEditorHostAttemptError::plugin_failure(
                         PluginEditorHostValidationPhase::ViewCreate,
@@ -191,7 +428,7 @@ impl PluginHostCoreSession {
 
         let platform_supported = unsafe { view.isPlatformTypeSupported(kPlatformTypeNSView) };
         if platform_supported != kResultOk {
-            return Err(record_probe_failure(
+            return Err(record_phase_failure(
                 telemetry,
                 PluginEditorHostAttemptError::plugin_failure(
                     PluginEditorHostValidationPhase::ViewCreate,
@@ -242,7 +479,7 @@ impl PluginHostCoreSession {
         let parent_ptr = (parent_view as *const NSView).cast_mut().cast::<c_void>();
         let attached = unsafe { view.attached(parent_ptr, kPlatformTypeNSView) };
         if attached != kResultOk {
-            return Err(record_probe_failure(
+            return Err(record_phase_failure(
                 telemetry,
                 PluginEditorHostAttemptError::plugin_failure(
                     PluginEditorHostValidationPhase::ViewAttach,
@@ -304,11 +541,15 @@ impl PluginHostCoreSession {
                 },
                 Vst3HostCoreTeardownStep::DisconnectConnectionPoints => {
                     unsafe {
-                        super::disconnect_component_and_controller(
+                        super::disconnect_connection_proxies(
                             &self.component,
                             &self.controller,
+                            &self._component_connection_proxy,
+                            &self._controller_connection_proxy,
                         );
                     }
+                    self._component_connection_proxy = None;
+                    self._controller_connection_proxy = None;
                     self.connection_points_connected = false;
                 }
                 Vst3HostCoreTeardownStep::TerminateController => unsafe {
@@ -331,20 +572,26 @@ impl PluginHostCoreSession {
     }
 }
 
-pub(super) fn build_plugin_host_core_session_with_telemetry(
+pub(super) fn build_plugin_host_core_session_with_logger(
     target: &PluginEditorTarget,
     restorable_plugin_state: Option<&PlaybackSlotPluginState>,
     probe_profile: PluginEditorPocProbeProfile,
-    telemetry: &mut PluginHostBuildTelemetry,
+    telemetry: &mut PluginHostPhaseLogger,
 ) -> Result<PluginHostCoreSession, PluginEditorHostAttemptError> {
     let lifecycle_profile = Vst3HostCoreLifecycleProfile::from_probe_profile(probe_profile);
     let plugin_path = target.path();
+    let host_application = create_plugin_host_application().map_err(|error| {
+        PluginEditorHostAttemptError::host_contract_failure(
+            PluginEditorHostValidationPhase::HostContext,
+            error,
+        )
+    })?;
     telemetry.record_starting(
         PluginEditorHostValidationPhase::ModuleLoad,
         "About to load the VST3 module binary.",
     );
     let module = load_vst3_module(plugin_path).map_err(|error| {
-        record_probe_failure(
+        record_phase_failure(
             telemetry,
             PluginEditorHostAttemptError::host_contract_failure(
                 PluginEditorHostValidationPhase::ModuleLoad,
@@ -361,7 +608,7 @@ pub(super) fn build_plugin_host_core_session_with_telemetry(
         "About to resolve the VST3 plugin factory.",
     );
     let factory = create_plugin_factory(&module).map_err(|error| {
-        record_probe_failure(
+        record_phase_failure(
             telemetry,
             PluginEditorHostAttemptError::plugin_failure(
                 PluginEditorHostValidationPhase::FactoryCreate,
@@ -374,306 +621,68 @@ pub(super) fn build_plugin_host_core_session_with_telemetry(
         "Resolved the VST3 plugin factory.",
     );
 
-    telemetry.record_starting(
-        PluginEditorHostValidationPhase::HostContext,
-        "About to allocate the VST3 host application and configure the factory host context.",
-    );
-    let host_application = create_component_handler_host_application().map_err(|error| {
-        record_probe_failure(
-            telemetry,
-            PluginEditorHostAttemptError::host_contract_failure(
-                PluginEditorHostValidationPhase::HostContext,
-                error,
-            ),
-        )
-    })?;
-    let controller_initialize_host_application = lifecycle_profile
-        .controller_initialize_host_application(&host_application)
-        .map_err(|error| {
-            record_probe_failure(
-                telemetry,
-                PluginEditorHostAttemptError::host_contract_failure(
-                    PluginEditorHostValidationPhase::HostContext,
-                    error,
-                ),
-            )
-        })?;
-    let component_handler_host_application =
-        create_component_handler_host_application().map_err(|error| {
-            record_probe_failure(
-                telemetry,
-                PluginEditorHostAttemptError::host_contract_failure(
-                    PluginEditorHostValidationPhase::HostContext,
-                    error,
-                ),
-            )
-        })?;
-    let host_context = host_application.clone().upcast::<FUnknown>();
-    configure_factory_host_context(&factory, &host_context);
-    telemetry.record_completed(
-        PluginEditorHostValidationPhase::HostContext,
-        "Created the host context and configured the VST3 factory.",
-    );
-
-    telemetry.record_starting(
-        PluginEditorHostValidationPhase::ComponentCreate,
-        "About to create the VST3 component instance.",
-    );
-    let component = create_component(&factory, plugin_path).map_err(|error| {
-        record_probe_failure(
-            telemetry,
-            PluginEditorHostAttemptError::plugin_failure(
-                PluginEditorHostValidationPhase::ComponentCreate,
-                error,
-            ),
-        )
-    })?;
-    telemetry.record_completed(
-        PluginEditorHostValidationPhase::ComponentCreate,
-        "Created the VST3 component instance.",
-    );
-    let delay_component_runtime_setup = lifecycle_profile.delays_component_runtime_setup();
-    telemetry.record_starting(
-        PluginEditorHostValidationPhase::ComponentInitialize,
-        if delay_component_runtime_setup {
-            "About to initialize the VST3 component. Runtime bus activation and processing setup will be deferred until after controller initialization."
-        } else {
-            "About to initialize the VST3 component before controller initialization."
-        },
-    );
-    let component_init = unsafe { component.initialize(host_context.as_ptr()) };
-    if component_init != kResultOk {
-        return Err(record_probe_failure(
-            telemetry,
-            PluginEditorHostAttemptError::plugin_failure(
-                PluginEditorHostValidationPhase::ComponentInitialize,
-                format!(
-                    "Plugin editor POC failed to initialize the VST3 component (tresult = {}).",
-                    component_init
-                ),
-            ),
-        ));
-    }
+    let SteinbergPlugProviderSetup {
+        host_application,
+        component_handler,
+        component,
+        controller,
+        controller_shared_with_component,
+        controller_initialized,
+        connection_points_connected,
+        component_connection_proxy,
+        controller_connection_proxy,
+    } = initialize_steinberg_plug_provider(
+        plugin_path,
+        host_application,
+        &factory,
+        lifecycle_profile,
+        telemetry,
+    )?;
 
     if let Some(plugin_state) = restorable_plugin_state {
         telemetry.record_starting(
             PluginEditorHostValidationPhase::ComponentStateSync,
-            "About to restore the portable component state into the VST3 component.",
+            if controller_shared_with_component {
+                "About to restore the portable component state after prior-art provider initialization."
+            } else {
+                "About to restore the portable component state after prior-art provider initialization and mirror it into the controller via setComponentState."
+            },
         );
-        restore_component_state(&component, plugin_state).map_err(|error| {
-            record_probe_failure(
-                telemetry,
-                PluginEditorHostAttemptError::plugin_failure(
-                    PluginEditorHostValidationPhase::ComponentStateSync,
-                    error,
-                ),
-            )
-        })?;
+        let component_state_bytes =
+            restore_component_state(&component, plugin_state).map_err(|error| {
+                record_phase_failure(
+                    telemetry,
+                    PluginEditorHostAttemptError::plugin_failure(
+                        PluginEditorHostValidationPhase::ComponentStateSync,
+                        error,
+                    ),
+                )
+            })?;
+        if !controller_shared_with_component {
+            sync_component_state_to_controller(&controller, &component_state_bytes).map_err(
+                |error| {
+                    record_phase_failure(
+                        telemetry,
+                        PluginEditorHostAttemptError::plugin_failure(
+                            PluginEditorHostValidationPhase::ComponentStateSync,
+                            error,
+                        ),
+                    )
+                },
+            )?;
+        }
         telemetry.record_completed(
             PluginEditorHostValidationPhase::ComponentStateSync,
-            "Restored the portable component state into the VST3 component.",
+            if controller_shared_with_component {
+                "Restored the portable component state after provider initialization."
+            } else {
+                "Restored the portable component state after provider initialization and mirrored it into the controller via setComponentState."
+            },
         );
     } else {
         telemetry.record_skipped(
             PluginEditorHostValidationPhase::ComponentStateSync,
             "Skipped because no portable component state was provided.",
-        );
-    }
-
-    telemetry.record_completed(
-        PluginEditorHostValidationPhase::ComponentInitialize,
-        if delay_component_runtime_setup {
-            "Initialized the VST3 component and deferred runtime bus activation, processing setup, and component activation until after controller initialization."
-        } else {
-            "Initialized the VST3 component."
-        },
-    );
-
-    if !delay_component_runtime_setup {
-        telemetry.record_starting(
-            PluginEditorHostValidationPhase::ComponentRuntimeSetup,
-            "About to activate buses, configure processing, and activate the VST3 component before controller initialization.",
-        );
-        apply_component_runtime_setup(&component, telemetry)?;
-        telemetry.record_completed(
-            PluginEditorHostValidationPhase::ComponentRuntimeSetup,
-            "Activated buses, configured processing, and activated the VST3 component before controller initialization.",
-        );
-    }
-
-    telemetry.record_starting(
-        PluginEditorHostValidationPhase::ControllerCreate,
-        "About to create the VST3 edit controller.",
-    );
-    let CreatedController {
-        controller,
-        shared_with_component: controller_shared_with_component,
-    } = match create_controller(&factory, &component) {
-        Ok(controller) => controller,
-        Err(error) => {
-            unsafe {
-                let _ = component.terminate();
-            }
-            return Err(record_probe_failure(
-                telemetry,
-                PluginEditorHostAttemptError::plugin_failure(
-                    PluginEditorHostValidationPhase::ControllerCreate,
-                    error,
-                ),
-            ));
-        }
-    };
-    telemetry.record_completed(
-        PluginEditorHostValidationPhase::ControllerCreate,
-        "Created the VST3 edit controller.",
-    );
-
-    let component_handler_ptr = component_handler_host_application
-        .clone()
-        .upcast::<FUnknown>()
-        .cast::<IComponentHandler>()
-        .expect("PluginHostApplication must expose IComponentHandler");
-    let set_component_handler_pre_init = lifecycle_profile.uses_pre_init_component_handler();
-
-    if !controller_shared_with_component {
-        if set_component_handler_pre_init {
-            telemetry.record_starting(
-                PluginEditorHostValidationPhase::ControllerSetComponentHandlerPreInit,
-                "About to set the VST3 component handler before controller initialization.",
-            );
-            let _ = unsafe { controller.setComponentHandler(component_handler_ptr.as_ptr()) };
-            telemetry.log_phase_event(
-                PluginEditorHostValidationPhase::ControllerSetComponentHandlerPreInit,
-                "completed",
-                "Set the VST3 component handler before controller initialization.",
-            );
-        } else {
-            telemetry.record_skipped(
-                PluginEditorHostValidationPhase::ControllerSetComponentHandlerPreInit,
-                format!(
-                    "Skipped because the {} probe profile defers component-handler wiring until after controller initialization.",
-                    probe_profile_code(probe_profile)
-                ),
-            );
-        }
-    } else {
-        telemetry.record_skipped(
-            PluginEditorHostValidationPhase::ControllerSetComponentHandlerPreInit,
-            "Skipped because the edit controller is shared with the component instance.",
-        );
-    }
-
-    let controller_initialized = if controller_shared_with_component {
-        telemetry.record_skipped(
-            PluginEditorHostValidationPhase::ControllerInitialize,
-            "Skipped because the edit controller is shared with the component instance.",
-        );
-        telemetry.record_skipped(
-            PluginEditorHostValidationPhase::ControllerSetComponentHandler,
-            "Skipped because the edit controller is shared with the component instance.",
-        );
-        false
-    } else {
-        let controller_initialize_host_context = controller_initialize_host_application
-            .clone()
-            .upcast::<FUnknown>();
-        telemetry.record_starting(
-            PluginEditorHostValidationPhase::ControllerInitialize,
-            "About to initialize the VST3 edit controller.",
-        );
-        let controller_init =
-            unsafe { controller.initialize(controller_initialize_host_context.as_ptr()) };
-        if controller_init != kResultOk {
-            unsafe {
-                let _ = component.terminate();
-            }
-            return Err(record_probe_failure(
-                telemetry,
-                PluginEditorHostAttemptError::plugin_failure(
-                    PluginEditorHostValidationPhase::ControllerInitialize,
-                    format!(
-                        "Plugin editor POC failed to initialize the VST3 edit controller (tresult = {}).",
-                        controller_init
-                    ),
-                ),
-            ));
-        }
-        telemetry.record_completed(
-            PluginEditorHostValidationPhase::ControllerInitialize,
-            "Initialized the VST3 edit controller.",
-        );
-
-        if set_component_handler_pre_init {
-            telemetry.record_skipped(
-                PluginEditorHostValidationPhase::ControllerSetComponentHandler,
-                "Skipped because the default probe profile already wired the component handler before controller initialization.",
-            );
-        } else {
-            telemetry.record_starting(
-                PluginEditorHostValidationPhase::ControllerSetComponentHandler,
-                "About to set the VST3 component handler after controller initialization.",
-            );
-            let _ = unsafe { controller.setComponentHandler(component_handler_ptr.as_ptr()) };
-            telemetry.record_completed(
-                PluginEditorHostValidationPhase::ControllerSetComponentHandler,
-                "Set the VST3 component handler after controller initialization.",
-            );
-        }
-        true
-    };
-
-    if !controller_shared_with_component {
-        telemetry.log_phase_event(
-            PluginEditorHostValidationPhase::ComponentStateSync,
-            "starting",
-            "About to synchronize the live component state into the controller before connection-point setup.",
-        );
-        sync_component_state_to_controller(&component, &controller);
-        telemetry.log_phase_event(
-            PluginEditorHostValidationPhase::ComponentStateSync,
-            "completed",
-            "Synchronized the live component state into the controller before connection-point setup.",
-        );
-    }
-
-    let connection_points_connected = if controller_shared_with_component {
-        telemetry.record_skipped(
-            PluginEditorHostValidationPhase::ConnectionPointHandshake,
-            "Skipped because the component and controller share one instance.",
-        );
-        false
-    } else {
-        telemetry.record_starting(
-            PluginEditorHostValidationPhase::ConnectionPointHandshake,
-            "About to connect the VST3 component and controller connection points.",
-        );
-        match connect_component_and_controller(&component, &controller) {
-            ConnectionPointHandshakeOutcome::Connected(message) => {
-                telemetry.record_completed(
-                    PluginEditorHostValidationPhase::ConnectionPointHandshake,
-                    message,
-                );
-                true
-            }
-            ConnectionPointHandshakeOutcome::Skipped(message) => {
-                telemetry.record_skipped(
-                    PluginEditorHostValidationPhase::ConnectionPointHandshake,
-                    message,
-                );
-                false
-            }
-        }
-    };
-
-    if delay_component_runtime_setup {
-        telemetry.record_starting(
-            PluginEditorHostValidationPhase::ComponentRuntimeSetup,
-            "About to activate buses, configure processing, and activate the VST3 component after controller initialization.",
-        );
-        apply_component_runtime_setup(&component, telemetry)?;
-        telemetry.record_completed(
-            PluginEditorHostValidationPhase::ComponentRuntimeSetup,
-            "Activated buses, configured processing, and activated the VST3 component after controller initialization.",
         );
     }
 
@@ -686,18 +695,20 @@ pub(super) fn build_plugin_host_core_session_with_telemetry(
         controller,
         view: None,
         _host_application: host_application,
-        _controller_initialize_host_application: controller_initialize_host_application,
-        _component_handler_host_application: component_handler_host_application,
+        _component_handler: component_handler,
         _plug_frame: None,
         host_view_ptr: 0,
         plugin_can_resize: false,
         view_attached: false,
         connection_points_connected,
+        _component_connection_proxy: component_connection_proxy,
+        _controller_connection_proxy: controller_connection_proxy,
         component_initialized: true,
         controller_initialized,
         controller_shared_with_component,
         close_prepared: false,
         render_processing_active: false,
+        render_component_active: false,
         render_sample_rate: None,
         render_max_block_size: 0,
         render_buses_activated: false,

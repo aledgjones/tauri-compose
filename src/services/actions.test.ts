@@ -279,43 +279,20 @@ describe("actions.pluginInventory", () => {
     });
   });
 
-  it("probeLoadInit calls invoke with the maintainer probe payload", async () => {
-    await actions.pluginInventory.probeLoadInit({
-      plugin_id: "vst3:halion-sonic",
-      plugin_path: "/Library/Audio/Plug-Ins/VST3/HALion Sonic.vst3",
-      profile: "controller_init_host_only_lifecycle_aligned",
-    });
+  it("openEditorPoc times out when the backend call never settles", async () => {
+    vi.useFakeTimers();
+    mockInvoke.mockImplementationOnce(() => new Promise(() => {}));
 
-    expect(mockInvoke).toHaveBeenCalledWith(
-      "plugin_editor_poc_probe_load_init",
-      {
-        plugin_id: "vst3:halion-sonic",
-        plugin_path: "/Library/Audio/Plug-Ins/VST3/HALion Sonic.vst3",
-        profile: "controller_init_host_only_lifecycle_aligned",
-      },
-    );
-  });
+    try {
+      const result = actions.pluginInventory.openEditorPoc("vst3:grand-piano");
+      await vi.advanceTimersByTimeAsync(12000);
 
-  it("prepareProbeLog calls invoke with the maintainer probe payload", async () => {
-    await actions.pluginInventory.prepareProbeLog({
-      plugin_id: "vst3:halion-sonic",
-      plugin_path: "/Library/Audio/Plug-Ins/VST3/HALion Sonic.vst3",
-      profile: "controller_init_host_only_lifecycle_aligned",
-    });
-
-    expect(mockInvoke).toHaveBeenCalledWith(
-      "plugin_editor_poc_prepare_probe_log",
-      {
-        plugin_id: "vst3:halion-sonic",
-        plugin_path: "/Library/Audio/Plug-Ins/VST3/HALion Sonic.vst3",
-        profile: "controller_init_host_only_lifecycle_aligned",
-      },
-    );
-  });
-
-  it("readProbeLog calls invoke correctly", async () => {
-    await actions.pluginInventory.readProbeLog();
-    expect(mockInvoke).toHaveBeenCalledWith("plugin_editor_poc_read_probe_log");
+      await expect(result).rejects.toThrow(
+        "Opening the plugin UI timed out. Compose may have stalled while initializing the plugin host.",
+      );
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 
@@ -1405,6 +1382,22 @@ describe("actions.score.instrument", () => {
         plugin_id: "vst-1",
       },
     );
+  });
+
+  it("assignPlugin to playback slot times out when the backend call never settles", async () => {
+    vi.useFakeTimers();
+    mockInvoke.mockImplementationOnce(() => new Promise(() => {}));
+
+    try {
+      const result = actions.score.playback.slot.assignPlugin(55, "vst-1");
+      await vi.advanceTimersByTimeAsync(12000);
+
+      await expect(result).rejects.toThrow(
+        "Assigning the plugin to the slot timed out. Compose may have stalled while initializing the plugin.",
+      );
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("unassignPlugin from playback slot calls invoke correctly", async () => {

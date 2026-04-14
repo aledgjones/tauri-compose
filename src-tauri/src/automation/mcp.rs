@@ -521,7 +521,7 @@ mod tests {
     use super::tool_definitions;
 
     #[test]
-    fn tool_definitions_include_plugin_editor_probe_tools() {
+    fn tool_definitions_include_plugin_editor_open_and_not_retired_probe_tools() {
         let tool_names = tool_definitions()
             .into_iter()
             .filter_map(|tool| {
@@ -531,8 +531,15 @@ mod tests {
             })
             .collect::<Vec<_>>();
 
-        assert!(tool_names.contains(&String::from("compose_action_plugin_editorHost_prepareLoadInitProbeLog")));
-        assert!(tool_names.contains(&String::from("compose_action_plugin_editorHost_probeLoadInit")));
-        assert!(tool_names.contains(&String::from("compose_action_plugin_editorHost_readProbeLog")));
+        assert!(tool_names.contains(&String::from("compose_action_plugin_editorHost_open")));
+        assert!(!tool_names.contains(&String::from(
+            "compose_action_plugin_editorHost_prepareLoadInitProbeLog"
+        )));
+        assert!(!tool_names.contains(&String::from(
+            "compose_action_plugin_editorHost_probeLoadInit"
+        )));
+        assert!(!tool_names.contains(&String::from(
+            "compose_action_plugin_editorHost_readProbeLog"
+        )));
     }
 }

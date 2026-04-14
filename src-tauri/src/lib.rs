@@ -19,10 +19,7 @@ use crate::playback::expression_maps::{
     ExpressionMap, ExpressionMapLibraryContext, ExpressionMapLibraryContextState,
     ExpressionMapLibraryState,
 };
-use crate::playback::plugin_editor_poc::{
-    plugin_editor_poc_open, plugin_editor_poc_prepare_probe_log, plugin_editor_poc_probe_load_init,
-    plugin_editor_poc_read_probe_log, sync_slot_runtime_sessions,
-};
+use crate::playback::plugin_editor_poc::{plugin_editor_poc_open, sync_slot_runtime_sessions};
 use crate::playback::plugin_inventory::{
     plugin_inventory_discover, PluginInventoryContext, PluginInventoryContextState,
 };
@@ -1011,18 +1008,18 @@ pub(crate) fn reset_app_state(
 
 #[cfg(debug_assertions)]
 extern "C" fn debug_process_exit_trace() {
-    use std::backtrace::Backtrace;
-    use std::io::{self, Write};
+    use std::ffi::c_void;
 
-    let mut stderr = io::stderr();
-    let _ = writeln!(
-        stderr,
-        "[DIAG] process exiting pid={} thread={:?}\n{}",
-        std::process::id(),
-        std::thread::current().id(),
-        Backtrace::force_capture()
-    );
-    let _ = stderr.flush();
+    const STDERR_FD: i32 = 2;
+    const MESSAGE: &[u8] = b"[DIAG] process exiting\n";
+
+    unsafe {
+        unsafe extern "C" {
+            fn write(fd: i32, buffer: *const c_void, count: usize) -> isize;
+        }
+
+        let _ = write(STDERR_FD, MESSAGE.as_ptr().cast(), MESSAGE.len());
+    }
 }
 
 #[cfg(debug_assertions)]
@@ -1265,9 +1262,6 @@ pub fn run() {
             audio_devices_refresh,
             plugin_inventory_discover,
             plugin_editor_poc_open,
-            plugin_editor_poc_prepare_probe_log,
-            plugin_editor_poc_probe_load_init,
-            plugin_editor_poc_read_probe_log,
             playback_audition_tone,
             transport_play,
             transport_pause,
