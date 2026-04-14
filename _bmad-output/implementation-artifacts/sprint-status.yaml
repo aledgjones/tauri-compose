@@ -99,18 +99,18 @@ development_status:
   7-4-publish-the-mvp-support-verdict-and-boundaries: done
   epic-7-retrospective: done
 
-  epic-8: in-progress
+  epic-8: done
   8-1-add-durable-playing-technique-score-entries: done
   8-2-render-and-select-playing-technique-markings-above-the-stave: done
   8-3-add-playing-technique-properties-panels: done
   8-4-derive-effective-playing-technique-context-for-notes: done
   8-5-extend-expression-maps-to-match-playing-technique-context: done
-  8-6-prove-technique-driven-playback-through-derived-context: review
-  epic-8-retrospective: optional
+  8-6-prove-technique-driven-playback-through-derived-context: done
+  epic-8-retrospective: done
 
   epic-9: in-progress
-  9-1-classify-reference-multi-instrument-plugin-load-and-initialization-failures: ready-for-dev
-  9-2-extract-a-stable-backend-owned-vst3-host-core-from-the-poc: review
-  9-3-replace-probe-era-shims-with-a-real-host-owned-init-contract: review
-  9-4-continue-adding-real-host-abilities-until-halion-works-in-the-product-path: in-progress
+  9-1-classify-reference-multi-instrument-plugin-load-and-initialization-failures: done
+  9-2-extract-a-stable-backend-owned-vst3-host-core-from-the-poc: done
+  9-3-replace-probe-era-shims-with-a-real-host-owned-init-contract: done
+  9-4-continue-adding-real-host-abilities-until-halion-works-in-the-product-path: done
   epic-9-retrospective: optional

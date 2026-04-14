@@ -58,7 +58,6 @@ type BundleExitFn = unsafe extern "system" fn() -> bool;
 
 unsafe extern "C" {
     fn solo_compose_create_steinberg_host_application() -> *mut IHostApplication;
-    fn solo_compose_destroy_steinberg_host_application(host_application: *mut IHostApplication);
 }
 
 // ── NSWindowDelegate for the native host window ──────────────────────
@@ -1048,10 +1047,12 @@ impl PluginHostApplicationHandle {
 
 impl Drop for PluginHostApplicationHandle {
     fn drop(&mut self) {
-        let raw = self.interface.as_ptr();
+        // ComPtr::drop calls Release(), which decrements the COM refcount
+        // to zero and lets FObject::release() delete the C++ HostApplication.
+        // Do NOT also call solo_compose_destroy_steinberg_host_application —
+        // that would double-free the already-destroyed object.
         unsafe {
             ManuallyDrop::drop(&mut self.interface);
-            solo_compose_destroy_steinberg_host_application(raw);
         }
     }
 }
