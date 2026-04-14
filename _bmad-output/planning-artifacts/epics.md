@@ -3,6 +3,7 @@ stepsCompleted:
   - "step-01-validate-prerequisites"
   - "step-02-design-epics"
   - "step-03-create-stories"
+  - "step-04-final-validation"
 inputDocuments:
   - "/Users/aledjones/compose/_bmad-output/planning-artifacts/prd.md"
   - "/Users/aledjones/compose/_bmad-output/planning-artifacts/architecture.md"
@@ -181,6 +182,10 @@ FR39: Epic 7 - establish a release-credible workflow for a known-good subset of 
 FR40: Epic 7 - determine whether playback is trustworthy enough to support real composition work.
 FR41: Epic 5 - support editing during playback without collapsing the workflow.
 
+### Expansion Follow-On Coverage
+
+- Epic 10 extends FR7, FR10, FR11, FR12, FR13, FR18, FR19, FR32, FR33, FR34, FR35, FR38, FR39, and FR40 into truthful HALion-backed addressed playback and persistent route-address authoring on the Sequence instrument overview.
+
 ## Epic List
 
 ### Epic 1: Trust One VST-Only Playback Foundation
@@ -227,6 +232,11 @@ Composers can author playing-technique markings in the score, and Compose derive
 
 Maintainers can harden the backend-owned VST3 host seam around HALion-class failures while preserving the proven single-instrument path and current MVP support boundaries.
 **Scope note:** Real host-owned contract implementation first; HALion remains the acceptance bar, but route-choice, shared-slot, and broader multi-instrument claims stay blocked until bounded non-crashing initialization and later capability proof exist.
+
+### Epic 10: Deliver Addressed HALion Playback Through The Score Workflow
+
+Composers can route multiple score instruments through one HALion-backed slot using truthful, persistent address selection in the Sequence instrument overview, so addressed playback becomes a real score-first workflow rather than a hidden host experiment.
+**FRs covered:** FR7, FR10, FR11, FR12, FR13, FR18, FR19, FR32, FR33, FR34, FR35, FR38, FR39, FR40
 
 ## Epic 1: Trust One VST-Only Playback Foundation
 
@@ -1308,7 +1318,127 @@ So that HALION progress comes from truthful backend-owned contract improvements 
 **Then** the blocked-bundle policy, maintainer-facing docs, and support baseline reflect the newly proven bounded HALION path
 **And** route-choice, `PluginPart`, `MidiChannel`, shared-slot, and broader multi-instrument UX claims remain out of scope until later plugin-derived capability proof exists
 
+## Epic 10: Deliver Addressed HALion Playback Through The Score Workflow
+
+Composers can route multiple score instruments through one HALion-backed slot using truthful, persistent address selection in the Sequence instrument overview, so addressed playback becomes a real score-first workflow rather than a hidden host experiment.
+
+### Story 10.1: Expose Truthful Address Topology For A Mounted HALion Slot
+
+As a composer,
+I want Compose to reveal only the truthful address choices for a mounted HALion-backed slot,
+So that I can see which destinations are actually available before I assign one.
+
+**Acceptance Criteria:**
+
+**Given** HALion Sonic is mounted through the ordinary shared host path on a score rack slot
+**When** Compose inspects the mounted slot through public-contract and plugin-backed evidence already available on the backend seam
+**Then** the backend exposes one authoritative list of route-address choices for that slot
+**And** the list always includes an explicit `Root` choice even when no richer address is proven
+
+**Given** the Sequence instrument overview needs to present address choices for a selected mounted slot
+**When** the user inspects or opens the address chooser for that slot
+**Then** Compose presents only the backend-owned address choices for that slot
+**And** it does not invent local labels, parts, channels, or fallback addresses in React
+
+**Given** a mounted plugin does not expose richer address topology
+**When** the user inspects the available address choices
+**Then** the workflow remains bounded to explicit `Root`
+**And** the rest of the score workflow continues to treat the slot as a direct-root destination only
+
+### Story 10.2: Show Persistent Route Address Controls In The Sequence Instrument Overview
+
+As a composer,
+I want the Sequence instrument overview to always show the selected route address beside the slot selection,
+So that this static route configuration remains visible and editable where I author playback.
+
+**Acceptance Criteria:**
+
+**Given** the user is working in the Sequence instrument overview
+**When** an instrument row renders its playback route controls
+**Then** the row always shows an address control alongside the slot-selection control
+**And** `Root` is shown explicitly even when it is the only truthful choice
+
+**Given** the backend exposes richer address choices for the selected slot
+**When** the user opens or changes the address control on the instrument row
+**Then** the row presents those backend-owned choices directly
+**And** it does not invent local address labels or options in React
+
+**Given** the user changes slot or address from the Sequence instrument overview
+**When** the backend accepts the change
+**Then** the row updates to the new durable route truth
+**And** the Sequence instrument overview remains the canonical ordinary score-context address-authoring surface for this epic
+**And** the rack UI remains limited to showing which plugin is mounted on each slot rather than becoming a second address-authoring surface
+
+### Story 10.3: Make One HALion Slot Drive Distinct Addressed Playback Routes
+
+As a composer,
+I want multiple score instruments to use different addresses on one HALion-backed slot,
+So that one mounted plugin instance can serve a real addressed score workflow.
+
+**Acceptance Criteria:**
+
+**Given** a mounted HALion slot exposes more than one truthful address choice
+**When** two score instruments are assigned to different addresses on that same slot
+**Then** Compose persists two distinct instrument routes against the shared slot
+**And** the runtime and preparation seams treat them as distinct supported destinations rather than collapsing them back to one direct-root route
+
+**Given** addressed routes on one HALion-backed slot are active
+**When** the user auditions notes or starts transport playback
+**Then** each routed instrument is sent to its assigned proven address on that shared slot
+**And** the resulting playback remains on the backend-owned ordinary path rather than a maintainer-only or probe-only workflow
+
+**Given** a chosen non-root address later becomes unsupported or unavailable for the mounted slot
+**When** Compose rebuilds route readiness
+**Then** the affected route degrades to an explicit recoverable attention-needed state
+**And** other unaffected routes remain usable
+
+### Story 10.4: Persist And Restore Addressed HALion Routes Cleanly
+
+As a composer,
+I want addressed routes on a shared HALion slot to survive save and reopen,
+So that addressed playback stays part of my real project workflow instead of a single-session experiment.
+
+**Acceptance Criteria:**
+
+**Given** one or more instruments are routed to distinct addresses on the same HALion-backed slot
+**When** the project is saved
+**Then** `.soloc` persists the shared slot intent plus each instrument's selected target and address
+**And** no machine-local host runtime state is written into the project file
+
+**Given** a saved project containing addressed HALion routes is reopened on a machine where the required plugin and addresses are still available
+**When** Compose restores rack and route intent
+**Then** the shared HALion slot and its addressed instrument routes are rebuilt on the ordinary backend path
+**And** the reopened score shows the same slot selection and address selection the user saved
+
+**Given** a previously saved address cannot be restored truthfully on reopen
+**When** Compose resolves the route state
+**Then** the affected route degrades to an explicit recoverable non-ready state
+**And** the score remains editable without silently rewriting the user's route intent
+
+### Story 10.5: Publish A Validated Addressed HALion Workflow Baseline
+
+As a maintainer,
+I want Compose to validate and document one real addressed HALion workflow,
+So that the supported addressed score path has a repeatable proof baseline and explicit scope boundary for future work.
+
+**Acceptance Criteria:**
+
+**Given** the addressed HALion route flow is implemented on the ordinary backend path
+**When** Compose is validated against one representative shared-slot HALion scenario and one known-good direct-root control bundle
+**Then** the HALion scenario proves at least two score instruments can play through distinct truthful addresses on one slot
+**And** the control bundle remains stable on the existing direct-root path
+
+**Given** the addressed workflow changes supported product behavior and developer expectations
+**When** the story completes
+**Then** the relevant support-baseline, architecture, data-model, and development-guide docs are updated in the same change
+**And** the documented scope names the proven addressed HALion workflow, the unchanged direct-root control path, and the still-blocked unsupported address cases rather than generalized routing claims
+
+**Given** unsupported plugins or unsupported address shapes still exist after this epic
+**When** the validation baseline is published
+**Then** Compose keeps those cases explicitly blocked or attention-needed
+**And** the repo does not imply broader multi-target support than the validated addressed HALion workflow actually proves
+
 **Given** at least one currently working control bundle already proves the single-instrument baseline
-**When** Story 9.4 lands
+**When** Story 10.5 lands
 **Then** that control bundle continues to validate the proven single-instrument path on the same shared seam
 **And** HALION-specific work does not regress ordinary bounded editor-host behavior for already-proven bundles

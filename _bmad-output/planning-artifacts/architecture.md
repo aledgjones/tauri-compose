@@ -143,6 +143,7 @@ The architecture should treat the current foundation as fixed and spend decision
 - Native plugin editor hosting remains a bounded backend-owned seam, secondary to Compose-owned playback UX.
 - Native editor attach, focus, resize, detach, and teardown are editor-host responsibilities, but that seam must not become the creator of canonical slot runtime state.
 - The current reset phase is intentionally single-instrument-VST-instance and single-target trust-first; richer multi-target or HALion-style multi-timbral workflows are explicitly deferred until the base path is trustworthy.
+- Any addressed-routing extension must remain a bounded score-first route model: Rust owns address truth, the Sequence instrument overview renders and mutates the selected address beside slot selection for backend-proven slots, and rack UI remains non-authoring for per-instrument address choice.
 - Validation and trust-restoration criteria must be explicit architectural seams, because seam-local tests alone are not enough to claim product trust.
 
 **Deferred Decisions (Post-MVP or Post-Reset):**
@@ -207,6 +208,7 @@ The system already suffers from ambiguity when ownership drifts. These communica
 - Local frontend state is limited to transient presentation concerns such as open/closed state, hover, draft input, and window-local affordances.
 - Score-context surfaces own:
   - route visibility
+  - durable slot-plus-address route authoring for backend-proven addressed workflows in the Sequence instrument overview
   - readiness summary
   - contextual recovery
   - contextual handoff into deeper windows
@@ -216,6 +218,8 @@ The system already suffers from ambiguity when ownership drifts. These communica
   - deep editing workflows
 - Native plugin UI is a secondary handoff surface, not the primary home of Compose-owned playback semantics.
 - Compact user-facing readiness states remain presentation summaries over deeper backend truth, not replacements for it.
+- Address choices are backend-owned route truth. React renders the current selected address and available choices for the selected slot, but it does not infer, synthesize, or relabel address topology locally.
+- Rack surfaces may show which plugin is mounted on each slot, but per-instrument address authoring stays in the Sequence instrument overview rather than expanding the rack UI into a second address-selection surface.
 - UI added solely to prove acceptance criteria separately is an architectural anti-pattern unless it creates real product value.
 
 **Rationale:**
