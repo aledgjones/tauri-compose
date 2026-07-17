@@ -126,7 +126,7 @@ impl AudioContext {
         let ch = channels as usize;
         let stream = device
             .build_output_stream(
-                &stream_config,
+                stream_config,
                 move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
                     data.fill(0.0);
                     engine::process_audio_block(data, ch, sample_rate);
