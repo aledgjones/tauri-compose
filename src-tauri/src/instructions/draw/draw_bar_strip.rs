@@ -14,16 +14,21 @@ use skia_safe::Color;
 const BAR_SEPARATOR: f32 = 0.24;
 const CONTROL_SIZE: f32 = 2.4;
 const ICON_LINE_WIDTH: f32 = 0.16;
+const ADD_POINTER_HEIGHT: f32 = 0.8;
 const BAR_VERTICAL_PADDING_PX: f32 = 1.0;
 const DELETE_LEFT_PADDING_PX: f32 = 2.0;
-const ADD_RIGHT_PADDING_PX: f32 = BAR_VERTICAL_PADDING_PX;
 const NUMBER_LEFT_PADDING_PX: f32 = 6.0;
+const NUMBER_VERTICAL_OFFSET_PX: f32 = 0.5;
 const MIN_STAVE_CLEARANCE: f32 = 4.0;
 const MIN_NOTE_CLEARANCE: f32 = 2.0;
 const NOTEHEAD_HALF_HEIGHT: f32 = 0.5;
 
 pub fn bar_strip_height(converter: &Converter) -> f32 {
     CONTROL_SIZE + converter.px_to_spaces(BAR_VERTICAL_PADDING_PX * 2.0)
+}
+
+pub fn bar_strip_top_offset() -> f32 {
+    CONTROL_SIZE + ADD_POINTER_HEIGHT
 }
 
 pub fn bar_strip_top_reserve(
@@ -40,7 +45,7 @@ pub fn bar_strip_top_reserve(
         })
         .map_or(stave_limit, |note_limit| stave_limit.min(note_limit));
 
-    (bar_strip_height(converter) - bottom_limit).max(0.0)
+    (bar_strip_top_offset() + bar_strip_height(converter) - bottom_limit).max(0.0)
 }
 
 fn bar_boundary_x(
@@ -124,6 +129,44 @@ fn draw_add_icon(renderer: &mut RendererContext, x: f32, y: f32) {
     );
 }
 
+fn draw_add_control(renderer: &mut RendererContext, boundary_x: f32, strip_top: f32) {
+    let color = Color::from_rgb(14, 165, 233);
+    let top = strip_top - bar_strip_top_offset();
+    let radius = CONTROL_SIZE / 2.0;
+    let center_y = top + radius;
+    let arc = [
+        (-0.8, 0.6),
+        (-0.9659, 0.2588),
+        (-1.0, 0.0),
+        (-0.9659, -0.2588),
+        (-0.866, -0.5),
+        (-0.7071, -0.7071),
+        (-0.5, -0.866),
+        (-0.2588, -0.9659),
+        (0.0, -1.0),
+        (0.2588, -0.9659),
+        (0.5, -0.866),
+        (0.7071, -0.7071),
+        (0.866, -0.5),
+        (0.9659, -0.2588),
+        (1.0, 0.0),
+        (0.9659, 0.2588),
+        (0.8, 0.6),
+    ];
+    let mut points = Vec::with_capacity(arc.len() + 1);
+    points.push(Point {
+        x: boundary_x,
+        y: strip_top,
+    });
+    points.extend(arc.map(|(x, y)| Point {
+        x: boundary_x + (x * radius),
+        y: center_y + (y * radius),
+    }));
+
+    renderer.shape(color, points);
+    draw_add_icon(renderer, boundary_x - radius, top);
+}
+
 fn draw_delete_icon(renderer: &mut RendererContext, x: f32, y: f32) {
     let color = Color::from_rgb(14, 165, 233);
     renderer.rectangle(
@@ -170,8 +213,9 @@ pub fn draw_bar_strip(
     };
     let strip_height = bar_strip_height(&renderer.converter);
     let number_left_padding = renderer.converter.px_to_spaces(NUMBER_LEFT_PADDING_PX);
+    let number_vertical_offset = renderer.converter.px_to_spaces(NUMBER_VERTICAL_OFFSET_PX);
     let delete_left_padding = renderer.converter.px_to_spaces(DELETE_LEFT_PADDING_PX);
-    let add_right_padding = renderer.converter.px_to_spaces(ADD_RIGHT_PADDING_PX);
+    let mut selected_controls = None;
 
     for (index, start) in starts.iter().copied().enumerate() {
         let end = starts.get(index + 1).copied().unwrap_or(flow_length);
@@ -202,7 +246,7 @@ pub fn draw_bar_strip(
                 &font,
                 &Point {
                     x: box_left + number_left_padding,
-                    y: origin.y + (strip_height / 2.0),
+                    y: origin.y + (strip_height / 2.0) - number_vertical_offset,
                 },
                 Color::from_rgb(150, 150, 150),
             );
@@ -220,43 +264,35 @@ pub fn draw_bar_strip(
         );
 
         if selected {
-            let controls_top = origin.y + ((strip_height - CONTROL_SIZE) / 2.0);
-            let delete_x = box_left + delete_left_padding;
-            let add_x = box_left + box_width - add_right_padding - CONTROL_SIZE;
-
-            draw_delete_icon(renderer, delete_x, controls_top);
-            push_hit_target(
-                renderer,
-                Selection::DeleteBar {
-                    flow_id,
-                    tick: start,
-                },
-                delete_x,
-                controls_top,
-                CONTROL_SIZE,
-                CONTROL_SIZE,
-            );
-
-            renderer.rectangle(
-                add_x,
-                controls_top,
-                CONTROL_SIZE,
-                CONTROL_SIZE,
-                Color::from_rgb(14, 165, 233),
-            );
-            draw_add_icon(renderer, add_x, controls_top);
-            push_hit_target(
-                renderer,
-                Selection::InsertBarAfter {
-                    flow_id,
-                    tick: start,
-                },
-                add_x,
-                controls_top,
-                CONTROL_SIZE,
-                CONTROL_SIZE,
-            );
+            selected_controls = Some((start, box_left, right));
         }
+    }
+
+    if let Some((tick, box_left, boundary_x)) = selected_controls {
+        let controls_top = origin.y + ((strip_height - CONTROL_SIZE) / 2.0);
+        let add_x = boundary_x - (CONTROL_SIZE / 2.0);
+        let delete_x = box_left + delete_left_padding;
+        let add_y = origin.y - bar_strip_top_offset();
+
+        draw_delete_icon(renderer, delete_x, controls_top);
+        push_hit_target(
+            renderer,
+            Selection::DeleteBar { flow_id, tick },
+            delete_x,
+            controls_top,
+            CONTROL_SIZE,
+            CONTROL_SIZE,
+        );
+
+        draw_add_control(renderer, boundary_x, origin.y);
+        push_hit_target(
+            renderer,
+            Selection::InsertBarAfter { flow_id, tick },
+            add_x,
+            add_y,
+            CONTROL_SIZE,
+            bar_strip_top_offset(),
+        );
     }
 }
 
@@ -316,7 +352,7 @@ mod tests {
     #[test]
     fn top_reserve_keeps_four_spaces_above_an_empty_stave() {
         let renderer = make_test_renderer();
-        let height = bar_strip_height(&renderer.converter);
+        let height = bar_strip_top_offset() + bar_strip_height(&renderer.converter);
 
         assert_eq!(
             bar_strip_top_reserve(2.0, 4.0, None, &renderer.converter),
@@ -327,7 +363,7 @@ mod tests {
     #[test]
     fn top_reserve_moves_above_a_note_higher_than_stave_clearance() {
         let renderer = make_test_renderer();
-        let height = bar_strip_height(&renderer.converter);
+        let height = bar_strip_top_offset() + bar_strip_height(&renderer.converter);
 
         assert_eq!(
             bar_strip_top_reserve(2.0, 4.0, Some(-16), &renderer.converter),
@@ -338,7 +374,7 @@ mod tests {
     #[test]
     fn top_reserve_keeps_stave_clearance_when_notes_are_lower() {
         let renderer = make_test_renderer();
-        let height = bar_strip_height(&renderer.converter);
+        let height = bar_strip_top_offset() + bar_strip_height(&renderer.converter);
 
         assert_eq!(
             bar_strip_top_reserve(2.0, 4.0, Some(2), &renderer.converter),
@@ -375,26 +411,27 @@ mod tests {
             .filter_map(|instruction| match instruction {
                 DrawInstruction::Rectangle {
                     x,
+                    y,
                     width,
                     height,
                     color,
                     ..
-                } => Some((*x, *width, *height, *color)),
+                } => Some((*x, *y, *width, *height, *color)),
                 _ => None,
             })
             .collect::<Vec<_>>();
         assert_eq!(rectangles.len(), 2);
         assert!(rectangles
             .iter()
-            .all(|(_, _, _, color)| *color == Color::from_rgb(241, 245, 249)));
+            .all(|(_, _, _, _, color)| *color == Color::from_rgb(241, 245, 249)));
         assert!(rectangles[0].0 > renderer.converter.spaces_to_px(5.0));
-        assert!(rectangles[0].1 < renderer.converter.spaces_to_px(12.0));
+        assert!(rectangles[0].2 < renderer.converter.spaces_to_px(12.0));
         assert_eq!(
-            rectangles[0].2,
+            rectangles[0].3,
             renderer.converter.spaces_to_px(CONTROL_SIZE) + 2.0
         );
         assert!(
-            (rectangles[1].0 + rectangles[1].1 - renderer.converter.spaces_to_px(35.0)).abs()
+            (rectangles[1].0 + rectangles[1].2 - renderer.converter.spaces_to_px(35.0)).abs()
                 < 0.001
         );
 
@@ -404,10 +441,23 @@ mod tests {
                 text,
                 font_family: FontFamily::SystemSans,
                 justify: Justify::Start,
-                point,
                 ..
-            } if text == "1" && point.0 < renderer.converter.spaces_to_px(11.0)
+            } if text == "1"
         )));
+        let number_y = renderer
+            .instructions
+            .iter()
+            .find_map(|instruction| match instruction {
+                DrawInstruction::Text { text, point, .. } if text == "1" => Some(point.1),
+                _ => None,
+            })
+            .unwrap();
+        let expected_number_y =
+            rectangles[0].1 + (rectangles[0].3 / 2.0) - NUMBER_VERTICAL_OFFSET_PX;
+        assert!(
+            (number_y - expected_number_y).abs() < 0.001,
+            "number y {number_y}, expected {expected_number_y}"
+        );
     }
 
     #[test]
@@ -453,9 +503,6 @@ mod tests {
                 )
             })
             .collect::<Vec<_>>();
-        assert!(controls
-            .iter()
-            .all(|target| (target.width - target.height).abs() < f32::EPSILON));
         let selected_bar = renderer
             .hit_targets
             .iter()
@@ -483,24 +530,26 @@ mod tests {
             .iter()
             .find(|target| matches!(target.entry, Selection::InsertBarAfter { .. }))
             .unwrap();
-        let selected_box_left = selected_bar.x + (BAR_SEPARATOR / 2.0);
-        let selected_box_right = selected_bar.x + selected_bar.width;
+        assert!((delete.width - delete.height).abs() < f32::EPSILON);
+        assert_eq!(add.width, CONTROL_SIZE);
+        assert_eq!(add.height, bar_strip_top_offset());
+        let selected_boundary = selected_bar.x + selected_bar.width;
         assert!(
             (renderer
                 .converter
-                .spaces_to_px(delete.x - selected_box_left)
+                .spaces_to_px(add.x + (add.width / 2.0) - selected_boundary))
+            .abs()
+                < 0.001
+        );
+        assert!(
+            (renderer
+                .converter
+                .spaces_to_px(delete.x - (selected_bar.x + (BAR_SEPARATOR / 2.0)))
                 - DELETE_LEFT_PADDING_PX)
                 .abs()
                 < 0.001
         );
-        assert!(
-            (renderer
-                .converter
-                .spaces_to_px(selected_box_right - add.x - add.width)
-                - ADD_RIGHT_PADDING_PX)
-                .abs()
-                < 0.001
-        );
+        assert_eq!(add.y + add.height, selected_bar.y);
         assert!(!renderer.instructions.iter().any(|instruction| matches!(
             instruction,
             DrawInstruction::Text { text, .. } if text == "2"
@@ -523,17 +572,32 @@ mod tests {
                 .iter()
                 .filter(|instruction| matches!(
                     instruction,
-                    DrawInstruction::Rectangle {
-                        width,
-                        height,
-                        color,
-                        ..
-                    } if (*width - renderer.converter.spaces_to_px(CONTROL_SIZE)).abs() < f32::EPSILON
-                        && (*height - renderer.converter.spaces_to_px(CONTROL_SIZE)).abs() < f32::EPSILON
-                        && *color == Color::from_rgb(14, 165, 233)
+                    DrawInstruction::Shape { color, .. }
+                        if *color == Color::from_rgb(14, 165, 233)
                 ))
                 .count(),
             1
         );
+        let silhouette_width = renderer
+            .instructions
+            .iter()
+            .find_map(|instruction| match instruction {
+                DrawInstruction::Shape { points, color }
+                    if *color == Color::from_rgb(14, 165, 233) =>
+                {
+                    let min_x = points
+                        .iter()
+                        .map(|point| point.0)
+                        .fold(f32::INFINITY, f32::min);
+                    let max_x = points
+                        .iter()
+                        .map(|point| point.0)
+                        .fold(f32::NEG_INFINITY, f32::max);
+                    Some(max_x - min_x)
+                }
+                _ => None,
+            })
+            .unwrap();
+        assert!((silhouette_width - renderer.converter.spaces_to_px(CONTROL_SIZE)).abs() < 0.001);
     }
 }

@@ -22,7 +22,7 @@ use crate::ui::sequencer::Selection;
 use crate::AppContext;
 use draw::draw_accidentals::draw_accidental;
 use draw::draw_articulations::draw_articulations;
-use draw::draw_bar_strip::{bar_strip_top_reserve, draw_bar_strip};
+use draw::draw_bar_strip::{bar_strip_top_offset, bar_strip_top_reserve, draw_bar_strip};
 use draw::draw_barline::{draw_barline, BarlineInteraction};
 use draw::draw_beam::draw_beam;
 use draw::draw_braces::draw_braces;
@@ -596,7 +596,7 @@ fn build_flow_render_segment(
     let layout_start = Instant::now();
     let mut page_padding = engrave.page_padding.to_spaces(&engrave.space);
     let show_bar_strip = state.ui.is_write_tab();
-    let bar_strip_top = page_padding.top;
+    let bar_strip_top = page_padding.top + bar_strip_top_offset();
     let max_name_width = get_max_instrument_name_width(&instruments, engrave, &text_measurer);
     let max_bracket_width = get_max_brackets_width(&vertical_spacing, &vertical_spans, engrave);
     timings.layout = layout_start.elapsed();
