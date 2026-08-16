@@ -80,6 +80,7 @@ fn debug_box_color(font_family: FontFamily) -> Color {
     match font_family {
         FontFamily::LibreBaskerville => Color::from_argb(64, 249, 115, 22),
         FontFamily::Bravura => Color::from_argb(64, 14, 165, 233),
+        FontFamily::SystemSans => Color::from_argb(64, 34, 197, 94),
     }
 }
 

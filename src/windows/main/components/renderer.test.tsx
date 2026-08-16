@@ -5,6 +5,12 @@ import { Renderer } from "./renderer";
 
 vi.mock("../../../services/actions", () => ({
   actions: {
+    score: {
+      flow: {
+        insertBarAfter: vi.fn().mockResolvedValue(256),
+        deleteBar: vi.fn().mockResolvedValue(128),
+      },
+    },
     ui: {
       renderer: {
         setBounds: vi.fn().mockResolvedValue(undefined),
@@ -12,6 +18,7 @@ vi.mock("../../../services/actions", () => ({
         setZoom: vi.fn().mockResolvedValue([100, 0, 0]),
       },
       sequencer: {
+        selectBar: vi.fn().mockResolvedValue(undefined),
         selectTone: vi.fn().mockResolvedValue(undefined),
         selectRest: vi.fn().mockResolvedValue(undefined),
         selectTempo: vi.fn().mockResolvedValue(undefined),
@@ -71,6 +78,62 @@ describe("Renderer", () => {
 
     await waitFor(() => {
       expect(actions.ui.sequencer.selectTempo).toHaveBeenCalledWith(8, 4, 64);
+    });
+  });
+
+  it("dispatches bar selection when hit testing resolves a bar target", async () => {
+    vi.mocked(hitTest).mockResolvedValueOnce({
+      type: "Bar",
+      flow_id: 4,
+      tick: 128,
+    });
+
+    const { container } = render(<Renderer />, {
+      wrapper: createWrapper({ appState: createAppState() }),
+    });
+    const overlay = container.querySelector('[data-testid="renderer"] > div');
+    fireEvent.pointerDown(overlay!, { clientX: 10, clientY: 10 });
+
+    await waitFor(() => {
+      expect(actions.ui.sequencer.selectBar).toHaveBeenCalledWith(4, 128);
+    });
+  });
+
+  it("inserts after a bar control hit and selects the inserted bar", async () => {
+    vi.mocked(hitTest).mockResolvedValueOnce({
+      type: "InsertBarAfter",
+      flow_id: 4,
+      tick: 128,
+    });
+
+    const { container } = render(<Renderer />, {
+      wrapper: createWrapper({ appState: createAppState() }),
+    });
+    const overlay = container.querySelector('[data-testid="renderer"] > div');
+    fireEvent.pointerDown(overlay!, { clientX: 10, clientY: 10 });
+
+    await waitFor(() => {
+      expect(actions.score.flow.insertBarAfter).toHaveBeenCalledWith(4, 128);
+      expect(actions.ui.sequencer.selectBar).toHaveBeenCalledWith(4, 256);
+    });
+  });
+
+  it("deletes a bar control hit and selects the returned neighbor", async () => {
+    vi.mocked(hitTest).mockResolvedValueOnce({
+      type: "DeleteBar",
+      flow_id: 4,
+      tick: 128,
+    });
+
+    const { container } = render(<Renderer />, {
+      wrapper: createWrapper({ appState: createAppState() }),
+    });
+    const overlay = container.querySelector('[data-testid="renderer"] > div');
+    fireEvent.pointerDown(overlay!, { clientX: 10, clientY: 10 });
+
+    await waitFor(() => {
+      expect(actions.score.flow.deleteBar).toHaveBeenCalledWith(4, 128);
+      expect(actions.ui.sequencer.selectBar).toHaveBeenCalledWith(4, 128);
     });
   });
 

@@ -9,6 +9,7 @@ pub mod meta;
 pub mod playback;
 pub mod players;
 pub mod staves;
+pub mod time_range;
 pub mod tracks;
 
 use config::Config;

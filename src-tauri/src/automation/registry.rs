@@ -58,8 +58,9 @@ use crate::score::entries::tuplet::{
 };
 use crate::score::entries::Entry;
 use crate::score::flows::{
-    score_flows_assign_player, score_flows_create, score_flows_move, score_flows_remove,
-    score_flows_rename, score_flows_unassign_player,
+    score_flows_assign_player, score_flows_create, score_flows_delete_time,
+    score_flows_insert_time, score_flows_move, score_flows_remove, score_flows_rename,
+    score_flows_unassign_player,
 };
 use crate::score::instruments::defs::score_instruments_get_all_definitions;
 use crate::score::instruments::{
@@ -400,6 +401,24 @@ pub fn action_definitions() -> Vec<ActionDefinition> {
             "score.flow.move",
             "Reorder flows by moving one flow index to another.",
             vec![arg("from_index", "Zero-based source index."), arg("to_index", "Zero-based destination index.")],
+        ),
+        action(
+            "score.flow.insertTime",
+            "Insert an arbitrary duration into a flow and shift later score events.",
+            vec![
+                arg("flow_id", "Numeric flow id."),
+                arg("tick", "Insertion tick from the start of the flow."),
+                arg("duration", "Positive duration to insert in ticks."),
+            ],
+        ),
+        action(
+            "score.flow.deleteTime",
+            "Delete an arbitrary time range from a flow and close the resulting gap.",
+            vec![
+                arg("flow_id", "Numeric flow id."),
+                arg("start_tick", "First tick in the deleted range."),
+                arg("duration", "Positive duration to delete in ticks."),
+            ],
         ),
         action(
             "score.flow.assignPlayer",
@@ -1120,6 +1139,28 @@ pub async fn execute_action(app: &AppHandle, name: &str, args: &[Value]) -> Resu
                 arg_usize(args, 0, "from_index")?,
                 arg_usize(args, 1, "to_index")?,
             );
+            Ok(Value::Null)
+        }
+        "score.flow.insertTime" => {
+            score_flows_insert_time(
+                app.clone(),
+                app.state::<AppContextState>(),
+                app.state::<RendererContextState>(),
+                arg_id(args, 0, "flow_id")?,
+                arg_u64(args, 1, "tick")?,
+                arg_u64(args, 2, "duration")?,
+            )?;
+            Ok(Value::Null)
+        }
+        "score.flow.deleteTime" => {
+            score_flows_delete_time(
+                app.clone(),
+                app.state::<AppContextState>(),
+                app.state::<RendererContextState>(),
+                arg_id(args, 0, "flow_id")?,
+                arg_u64(args, 1, "start_tick")?,
+                arg_u64(args, 2, "duration")?,
+            )?;
             Ok(Value::Null)
         }
         "score.flow.assignPlayer" => {
@@ -2661,6 +2702,28 @@ mod tests {
                 "base_note_value",
                 "groupings",
             ]
+        );
+    }
+
+    #[test]
+    fn flow_time_actions_expose_arbitrary_tick_ranges() {
+        let definitions = action_definitions();
+        let insert = definitions
+            .iter()
+            .find(|definition| definition.name == "score.flow.insertTime")
+            .expect("expected score.flow.insertTime action");
+        let delete = definitions
+            .iter()
+            .find(|definition| definition.name == "score.flow.deleteTime")
+            .expect("expected score.flow.deleteTime action");
+
+        assert_eq!(
+            insert.args.iter().map(|arg| arg.name).collect::<Vec<_>>(),
+            vec!["flow_id", "tick", "duration"]
+        );
+        assert_eq!(
+            delete.args.iter().map(|arg| arg.name).collect::<Vec<_>>(),
+            vec!["flow_id", "start_tick", "duration"]
         );
     }
 

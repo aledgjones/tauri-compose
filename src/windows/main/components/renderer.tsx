@@ -95,6 +95,29 @@ export const Renderer: FC<Props> = ({ className }) => {
         e.preventDefault();
 
         switch (hitResult.type) {
+          case "InsertBarAfter": {
+            const tick = await actions.score.flow.insertBarAfter(
+              hitResult.flow_id,
+              hitResult.tick,
+            );
+            await actions.ui.sequencer.selectBar(hitResult.flow_id, tick);
+            return;
+          }
+          case "DeleteBar": {
+            const tick = await actions.score.flow.deleteBar(
+              hitResult.flow_id,
+              hitResult.tick,
+            );
+            await actions.ui.sequencer.selectBar(hitResult.flow_id, tick);
+            return;
+          }
+          case "Bar": {
+            await actions.ui.sequencer.selectBar(
+              hitResult.flow_id,
+              hitResult.tick,
+            );
+            return;
+          }
           case "Tone": {
             await actions.ui.sequencer.selectTone(
               hitResult.tone_id,

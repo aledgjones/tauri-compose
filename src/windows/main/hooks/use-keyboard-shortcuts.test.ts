@@ -20,6 +20,9 @@ import {
 vi.mock("../../../services/actions", () => ({
   actions: {
     score: {
+      flow: {
+        deleteBar: vi.fn().mockResolvedValue(128),
+      },
       clef: {
         clear: vi.fn().mockResolvedValue(undefined),
       },
@@ -50,6 +53,7 @@ vi.mock("../../../services/actions", () => ({
     ui: {
       setActiveFlowId: vi.fn().mockResolvedValue(undefined),
       sequencer: {
+        selectBar: vi.fn().mockResolvedValue(undefined),
         clearSelection: vi.fn().mockResolvedValue(undefined),
       },
     },
@@ -75,6 +79,16 @@ const SECOND_TRACK_ID = 301;
 const TONE_ID = 999;
 const SECOND_TONE_ID = 1000;
 const TUPLET_ID = 2000;
+
+const buildStateWithBarSelection = () =>
+  createAppState({
+    ui: {
+      flow_id: FLOW_ID,
+      sequencer: {
+        selection: { type: "Bar", flow_id: FLOW_ID, tick: 256 },
+      },
+    } as never,
+  });
 
 const buildStateWithToneSelection = () => {
   return createAppState({
@@ -1054,6 +1068,19 @@ describe("useKeyboardShortcuts", () => {
       null,
       TONE_ID,
     );
+  });
+
+  it("deletes a selected bar and selects the returned neighbor", async () => {
+    renderHook(() => useKeyboardShortcuts(), {
+      wrapper: createWrapper({ appState: buildStateWithBarSelection() }),
+    });
+
+    await act(async () => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Delete" }));
+    });
+
+    expect(actions.score.flow.deleteBar).toHaveBeenCalledWith(FLOW_ID, 256);
+    expect(actions.ui.sequencer.selectBar).toHaveBeenCalledWith(FLOW_ID, 128);
   });
 
   it("deletes selected tempo and clears selection", async () => {

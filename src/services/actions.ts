@@ -504,6 +504,9 @@ export const actions = {
       setCoords: (x: number, y: number) => {
         return invoke("ui_sequencer_coords_set", { x, y });
       },
+      selectBar: (flow_id: number, tick: number) => {
+        return invoke("ui_sequencer_selection_set_bar", { flow_id, tick });
+      },
       selectTone: (
         tone_id: number,
         track_id: number,
@@ -766,6 +769,32 @@ export const actions = {
       },
       move: (from_index: number, to_index: number) => {
         return invoke<void>("score_flows_move", { from_index, to_index });
+      },
+      insertTime: (flow_id: UniqueId, tick: number, duration: number) => {
+        return invoke<void>("score_flows_insert_time", {
+          flow_id,
+          tick,
+          duration,
+        });
+      },
+      deleteTime: (flow_id: UniqueId, start_tick: number, duration: number) => {
+        return invoke<void>("score_flows_delete_time", {
+          flow_id,
+          start_tick,
+          duration,
+        });
+      },
+      insertBarAfter: (flow_id: UniqueId, bar_start_tick: number) => {
+        return invoke<number>("score_flows_insert_bar_after", {
+          flow_id,
+          bar_start_tick,
+        });
+      },
+      deleteBar: (flow_id: UniqueId, bar_start_tick: number) => {
+        return invoke<number>("score_flows_delete_bar", {
+          flow_id,
+          bar_start_tick,
+        });
       },
       assignPlayer: (flow_id: UniqueId, player_id: UniqueId) => {
         return invoke<void>("score_flows_assign_player", {

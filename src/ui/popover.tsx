@@ -90,6 +90,9 @@ const getStaveIdFromSelection = (state: AppState) => {
 
   if (
     !selection ||
+    selection.type === "Bar" ||
+    selection.type === "InsertBarAfter" ||
+    selection.type === "DeleteBar" ||
     selection.type === "Tempo" ||
     selection.type === "TimeSignature" ||
     selection.type === "KeySignature"
@@ -141,6 +144,9 @@ const getTrackIdFromSelection = (state: AppState) => {
 
   if (
     !selection ||
+    selection.type === "Bar" ||
+    selection.type === "InsertBarAfter" ||
+    selection.type === "DeleteBar" ||
     selection.type === "Tempo" ||
     selection.type === "TimeSignature" ||
     selection.type === "KeySignature" ||
@@ -158,6 +164,9 @@ const getInstrumentIdFromSelection = (state: AppState) => {
 
   if (
     !selection ||
+    selection.type === "Bar" ||
+    selection.type === "InsertBarAfter" ||
+    selection.type === "DeleteBar" ||
     selection.type === "Tempo" ||
     selection.type === "TimeSignature" ||
     selection.type === "KeySignature" ||

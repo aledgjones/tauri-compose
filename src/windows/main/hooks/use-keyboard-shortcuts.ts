@@ -168,6 +168,20 @@ export const useKeyboardShortcuts = () => {
     }
 
     switch (selection.type) {
+      case "Bar": {
+        return {
+          deleteSelection: async () => {
+            const tick = await actions.score.flow.deleteBar(
+              selection.flow_id,
+              selection.tick,
+            );
+            await actions.ui.sequencer.selectBar(selection.flow_id, tick);
+          },
+        };
+      }
+      case "InsertBarAfter":
+      case "DeleteBar":
+        return null;
       case "Tone": {
         if (!toneSelectionInfo) {
           return null;

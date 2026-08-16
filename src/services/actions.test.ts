@@ -1163,6 +1163,44 @@ describe("actions.score.flow", () => {
     });
   });
 
+  it("insertTime accepts an arbitrary tick duration", async () => {
+    await actions.score.flow.insertTime(1, 65, 17);
+    expect(mockInvoke).toHaveBeenCalledWith("score_flows_insert_time", {
+      flow_id: 1,
+      tick: 65,
+      duration: 17,
+    });
+  });
+
+  it("deleteTime accepts an arbitrary tick range", async () => {
+    await actions.score.flow.deleteTime(1, 65, 17);
+    expect(mockInvoke).toHaveBeenCalledWith("score_flows_delete_time", {
+      flow_id: 1,
+      start_tick: 65,
+      duration: 17,
+    });
+  });
+
+  it("insertBarAfter returns the inserted bar tick", async () => {
+    mockInvoke.mockResolvedValueOnce(256);
+    const tick = await actions.score.flow.insertBarAfter(1, 128);
+    expect(mockInvoke).toHaveBeenCalledWith("score_flows_insert_bar_after", {
+      flow_id: 1,
+      bar_start_tick: 128,
+    });
+    expect(tick).toBe(256);
+  });
+
+  it("deleteBar returns the adjacent bar tick", async () => {
+    mockInvoke.mockResolvedValueOnce(128);
+    const tick = await actions.score.flow.deleteBar(1, 256);
+    expect(mockInvoke).toHaveBeenCalledWith("score_flows_delete_bar", {
+      flow_id: 1,
+      bar_start_tick: 256,
+    });
+    expect(tick).toBe(128);
+  });
+
   it("assignPlayer calls invoke correctly", async () => {
     await actions.score.flow.assignPlayer(1, 10);
     expect(mockInvoke).toHaveBeenCalledWith("score_flows_assign_player", {

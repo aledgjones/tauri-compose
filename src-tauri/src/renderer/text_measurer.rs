@@ -17,6 +17,7 @@ impl<'a> TextMeasurer<'a> {
         let typeface = match font.family {
             FontFamily::Bravura => &FONTS.bravura,
             FontFamily::LibreBaskerville => &FONTS.libre_baskerville,
+            FontFamily::SystemSans => &FONTS.system_sans,
         };
 
         let skia_font = SkiaFont::new(typeface.clone(), self.converter.spaces_to_px(font.size));

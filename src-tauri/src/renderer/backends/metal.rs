@@ -363,6 +363,7 @@ impl MetalRenderer {
                     let typeface = match font_family {
                         FontFamily::Bravura => &FONTS.bravura,
                         FontFamily::LibreBaskerville => &FONTS.libre_baskerville,
+                        FontFamily::SystemSans => &FONTS.system_sans,
                     };
                     // Create font with correct size
                     let font = Font::new(typeface, *font_size);

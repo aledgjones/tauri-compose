@@ -22,6 +22,7 @@ use crate::ui::sequencer::Selection;
 use crate::AppContext;
 use draw::draw_accidentals::draw_accidental;
 use draw::draw_articulations::draw_articulations;
+use draw::draw_bar_strip::{bar_strip_top_reserve, draw_bar_strip};
 use draw::draw_barline::draw_barline;
 use draw::draw_beam::draw_beam;
 use draw::draw_braces::draw_braces;
@@ -66,7 +67,7 @@ use parse::get_tone_offsets::ToneVerticalOffsets;
 use parse::get_vertical_spacing::get_vertical_spacing;
 use parse::get_vertical_spans::get_vertical_spans;
 use parse::get_written_durations::{
-    get_written_durations, AnchoredNotationTrack, Notation, NotationTrack,
+    get_written_durations, AnchoredNotationTrack, Notation, NotationByTrack, NotationTrack,
 };
 use rustc_hash::FxHashMap;
 use serde::Serialize;
@@ -593,7 +594,9 @@ fn build_flow_render_segment(
     timings.vertical = vertical_start.elapsed();
 
     let layout_start = Instant::now();
-    let page_padding = engrave.page_padding.to_spaces(&engrave.space);
+    let mut page_padding = engrave.page_padding.to_spaces(&engrave.space);
+    let show_bar_strip = state.ui.is_write_tab();
+    let bar_strip_top = page_padding.top;
     let max_name_width = get_max_instrument_name_width(&instruments, engrave, &text_measurer);
     let max_bracket_width = get_max_brackets_width(&vertical_spacing, &vertical_spans, engrave);
     timings.layout = layout_start.elapsed();
@@ -661,6 +664,36 @@ fn build_flow_render_segment(
     );
     timings.stems = stems_start.elapsed();
 
+    if show_bar_strip {
+        let top_stave = instruments
+            .iter()
+            .flat_map(|instrument| instrument.stave_ids.iter())
+            .find_map(|stave_id| {
+                Some((
+                    flow.staves.by_id.get(stave_id)?,
+                    vertical_spacing.staves.get(stave_id)?,
+                ))
+            });
+        let (stave_center, stave_height, highest_tone_offset) =
+            top_stave.map_or((0.0, 0.0, None), |(stave, position)| {
+                (
+                    position.y,
+                    position.height,
+                    highest_tone_offset_for_tracks(
+                        &stave.track_ids,
+                        &notation_by_track,
+                        &tone_offsets,
+                    ),
+                )
+            });
+        page_padding.top += bar_strip_top_reserve(
+            stave_center,
+            stave_height,
+            highest_tone_offset,
+            converter,
+        );
+    }
+
     let setup_start = Instant::now();
     let stave_left =
         page_padding.left + max_name_width + engrave.instrument_name_spacing + max_bracket_width;
@@ -669,6 +702,22 @@ fn build_flow_render_segment(
 
     segment_renderer.width = width;
     segment_renderer.height = height;
+
+    if show_bar_strip {
+        draw_bar_strip(
+            &Point {
+                x: stave_left,
+                y: bar_strip_top,
+            },
+            flow_id,
+            flow.length,
+            &measures,
+            &barlines,
+            &horizontal_spacing,
+            selection,
+            &mut segment_renderer,
+        );
+    }
 
     draw_names(
         &Point {
@@ -1125,6 +1174,27 @@ fn build_flow_render_segment(
         hit_targets: segment_renderer.hit_targets,
         timings,
     }
+}
+
+fn highest_tone_offset_for_tracks(
+    track_ids: &[crate::utils::UniqueId],
+    notation_by_track: &NotationByTrack,
+    tone_offsets: &ToneVerticalOffsets,
+) -> Option<i8> {
+    track_ids
+        .iter()
+        .filter_map(|track_id| notation_by_track.get(track_id))
+        .flat_map(|notation| {
+            notation.track.values().chain(
+                notation
+                    .anchored_tracks
+                    .iter()
+                    .flat_map(|anchored| anchored.notation.track.values()),
+            )
+        })
+        .flat_map(|entry| entry.tones.iter())
+        .filter_map(|tone| tone_offsets.get(&tone.id).copied())
+        .min()
 }
 
 fn build_render_converter(

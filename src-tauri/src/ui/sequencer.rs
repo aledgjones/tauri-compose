@@ -14,6 +14,18 @@ use tauri::State;
 #[derive(Clone, Serialize, Deserialize, PartialEq, Debug)]
 #[serde(tag = "type")]
 pub enum Selection {
+    Bar {
+        flow_id: UniqueId,
+        tick: u64,
+    },
+    InsertBarAfter {
+        flow_id: UniqueId,
+        tick: u64,
+    },
+    DeleteBar {
+        flow_id: UniqueId,
+        tick: u64,
+    },
     Tone {
         flow_id: UniqueId,
         instrument_id: UniqueId,
@@ -70,7 +82,10 @@ pub enum Selection {
 impl Selection {
     fn flow_id(&self) -> UniqueId {
         match self {
-            Selection::Tone { flow_id, .. }
+            Selection::Bar { flow_id, .. }
+            | Selection::InsertBarAfter { flow_id, .. }
+            | Selection::DeleteBar { flow_id, .. }
+            | Selection::Tone { flow_id, .. }
             | Selection::Rest { flow_id, .. }
             | Selection::Tempo { flow_id, .. }
             | Selection::TimeSignature { flow_id, .. }
@@ -504,6 +519,32 @@ pub fn ui_sequencer_selection_set_tuplet(
     );
     sync_transport_to_app_state(transport_shared.inner(), &state, 0);
 
+    state.emit_general_state(&app, &mut renderer, recalculation_request);
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn ui_sequencer_selection_set_bar(
+    app: tauri::AppHandle,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
+    transport_shared: State<'_, TransportSharedState>,
+    flow_id: UniqueId,
+    tick: u64,
+) {
+    let mut state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
+    let recalculation_request = FlowRenderRecalculationRequest::for_local_update(
+        state
+            .ui
+            .sequencer
+            .selection
+            .as_ref()
+            .map(Selection::flow_id),
+        Some(flow_id),
+    );
+
+    apply_selection(&mut state.ui, Selection::Bar { flow_id, tick });
+    sync_transport_to_app_state(transport_shared.inner(), &state, 0);
     state.emit_general_state(&app, &mut renderer, recalculation_request);
 }
 

@@ -30,6 +30,7 @@ pub enum Align {
 pub enum FontFamily {
     Bravura,
     LibreBaskerville,
+    SystemSans,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

@@ -131,6 +131,45 @@ mod tests {
     }
 
     #[test]
+    fn compact_bar_control_wins_over_containing_bar_target() {
+        let mut renderer = make_test_renderer();
+        renderer.hit_targets.push(HitTarget {
+            entry: Selection::Bar {
+                flow_id: 4,
+                tick: 128,
+            },
+            x: 1.0,
+            y: 2.0,
+            width: 12.0,
+            height: 5.0,
+            popover_x: 7.0,
+            popover_y: 2.0,
+        });
+        renderer.hit_targets.push(HitTarget {
+            entry: Selection::InsertBarAfter {
+                flow_id: 4,
+                tick: 128,
+            },
+            x: 9.0,
+            y: 2.3,
+            width: 2.2,
+            height: 4.4,
+            popover_x: 10.1,
+            popover_y: 2.3,
+        });
+
+        let hit = hit_test_selection(&renderer, 10.1, 4.5, 0.0, 0.0, 100.0);
+
+        assert_eq!(
+            hit,
+            Some(Selection::InsertBarAfter {
+                flow_id: 4,
+                tick: 128,
+            })
+        );
+    }
+
+    #[test]
     fn returns_new_directive_selection_variants_when_click_is_inside_hit_target() {
         let mut renderer = make_test_renderer();
         renderer.hit_targets.push(HitTarget {

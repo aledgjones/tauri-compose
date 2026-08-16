@@ -1,7 +1,8 @@
-use super::components::duration::Tick;
+use super::components::duration::{Tick, Ticks};
+use super::entries::tone::Tone;
 use super::entries::{Entries, Entry};
 use crate::utils::UniqueId;
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -24,6 +25,17 @@ pub struct Track {
 }
 
 impl Track {
+    fn stateful_entry_kind(entry: &Entry) -> Option<u8> {
+        match entry {
+            Entry::Clef(_) => Some(0),
+            Entry::KeySignature(_) => Some(1),
+            Entry::PlayingTechnique(_) => Some(2),
+            Entry::Tempo(_) => Some(3),
+            Entry::TimeSignature(_) => Some(4),
+            Entry::Barline(_) | Entry::Tone(_) | Entry::Tuplet(_) => None,
+        }
+    }
+
     pub fn new(id: UniqueId) -> Track {
         Track {
             id,
@@ -68,6 +80,146 @@ impl Track {
         };
 
         self.entries.by_id.remove(&entry_id)
+    }
+
+    fn validate_splice_boundary(&self, tick: Tick) -> Result<(), String> {
+        for entry in self.entries.by_id.values() {
+            let Entry::Tuplet(tuplet) = entry else {
+                continue;
+            };
+            let end = tuplet.tick + tuplet.consumed_ticks();
+            if tick > tuplet.tick && tick < end {
+                return Err(format!(
+                    "Tick {tick} cuts through tuplet {} on track {}",
+                    tuplet.id, self.id
+                ));
+            }
+        }
+        Ok(())
+    }
+
+    pub fn insert_time(
+        &mut self,
+        tick: Tick,
+        duration: Ticks,
+        mut generate_id: impl FnMut() -> UniqueId,
+    ) -> Result<(), String> {
+        if duration == 0 {
+            return Err("Inserted duration must be greater than zero".to_string());
+        }
+        tick.checked_add(duration)
+            .ok_or_else(|| "Inserted time exceeds the tick range".to_string())?;
+        self.validate_splice_boundary(tick)?;
+
+        let entries = self.entries.by_id.values().cloned().collect::<Vec<_>>();
+        for entry in entries {
+            match entry {
+                Entry::Tone(tone) if tone.tick < tick && tone.tick + tone.duration > tick => {
+                    let tail_duration = tone.tick + tone.duration - tick;
+                    self.set_tone_duration(tone.id, tick - tone.tick, None)?;
+                    self.insert_entry(Entry::Tone(Tone::new(
+                        generate_id(),
+                        tick + duration,
+                        tail_duration,
+                        tone.pitch,
+                        tone.velocity,
+                        tone.articulations,
+                    )));
+                }
+                entry if entry.tick() >= tick => {
+                    let shifted_tick = entry
+                        .tick()
+                        .checked_add(duration)
+                        .ok_or_else(|| "Shifted entry exceeds the tick range".to_string())?;
+                    self.shift_entry(entry.id(), shifted_tick);
+                }
+                _ => {}
+            }
+        }
+
+        Ok(())
+    }
+
+    pub fn delete_time(&mut self, start: Tick, duration: Ticks) -> Result<(), String> {
+        if duration == 0 {
+            return Err("Deleted duration must be greater than zero".to_string());
+        }
+        let end = start
+            .checked_add(duration)
+            .ok_or_else(|| "Deleted time exceeds the tick range".to_string())?;
+        self.validate_splice_boundary(start)?;
+        self.validate_splice_boundary(end)?;
+
+        let entries = self.entries.by_id.values().cloned().collect::<Vec<_>>();
+        let stateful_kinds_at_end = entries
+            .iter()
+            .filter(|entry| entry.tick() == end)
+            .filter_map(Self::stateful_entry_kind)
+            .collect::<FxHashSet<_>>();
+        let mut latest_stateful = FxHashMap::<u8, (Tick, UniqueId)>::default();
+        for entry in &entries {
+            if entry.tick() < start || entry.tick() >= end {
+                continue;
+            }
+            let Some(kind) = Self::stateful_entry_kind(entry) else {
+                continue;
+            };
+            if stateful_kinds_at_end.contains(&kind) {
+                continue;
+            }
+            let candidate = (entry.tick(), entry.id());
+            if latest_stateful
+                .get(&kind)
+                .is_none_or(|current| candidate.0 >= current.0)
+            {
+                latest_stateful.insert(kind, candidate);
+            }
+        }
+        let preserved_ids = latest_stateful
+            .values()
+            .map(|(_, id)| *id)
+            .collect::<FxHashSet<_>>();
+
+        for entry in entries {
+            match entry {
+                Entry::Tone(tone) => {
+                    let tone_end = tone.tick + tone.duration;
+                    if tone_end <= start {
+                        continue;
+                    }
+                    if tone.tick >= end {
+                        self.shift_entry(tone.id, tone.tick - duration);
+                    } else if tone.tick >= start && tone_end <= end {
+                        self.remove_entry(tone.id);
+                    } else if tone.tick < start && tone_end <= end {
+                        self.set_tone_duration(tone.id, start - tone.tick, None)?;
+                    } else if tone.tick >= start && tone.tick < end && tone_end > end {
+                        self.set_tone_position_and_duration(
+                            tone.id,
+                            start,
+                            tone_end - end,
+                            None,
+                            None,
+                        )?;
+                    } else if tone.tick < start && tone_end > end {
+                        self.set_tone_duration(tone.id, tone.duration - duration, None)?;
+                    }
+                }
+                entry if entry.tick() >= start && entry.tick() < end => {
+                    if preserved_ids.contains(&entry.id()) {
+                        self.shift_entry(entry.id(), start);
+                    } else {
+                        self.remove_entry(entry.id());
+                    }
+                }
+                entry if entry.tick() >= end => {
+                    self.shift_entry(entry.id(), entry.tick() - duration);
+                }
+                _ => {}
+            }
+        }
+
+        Ok(())
     }
 }
 
@@ -118,6 +270,182 @@ mod tests {
             groupings: vec![3],
             entries,
         }))
+    }
+
+    #[test]
+    fn insert_time_splits_crossing_tone_and_leaves_an_empty_gap() {
+        let mut track = Track::new(1);
+        track.insert_entry(make_tone(5, 64));
+
+        track.insert_time(80, 32, || 6).unwrap();
+
+        let Entry::Tone(head) = &track.entries.by_id[&5] else {
+            panic!("expected head tone");
+        };
+        let Entry::Tone(tail) = &track.entries.by_id[&6] else {
+            panic!("expected tail tone");
+        };
+        assert_eq!((head.tick, head.duration), (64, 16));
+        assert_eq!((tail.tick, tail.duration), (112, 16));
+        assert_eq!(track.entries.by_tick.get(&112), Some(&vec![6]));
+    }
+
+    #[test]
+    fn insert_time_shifts_entries_and_whole_tuplets_at_boundary() {
+        let mut track = Track::new(1);
+        track.insert_entry(make_tone(5, 96));
+        track.insert_entry(make_tuplet(20, 128));
+
+        track.insert_time(96, 32, || 99).unwrap();
+
+        assert_eq!(track.entries.by_id[&5].tick(), 128);
+        assert_eq!(track.entries.by_id[&20].tick(), 160);
+    }
+
+    #[test]
+    fn insert_time_rejects_boundary_inside_tuplet_without_mutating() {
+        let mut track = Track::new(1);
+        track.insert_entry(make_tuplet(20, 64));
+        let original = track.clone();
+
+        let error = track.insert_time(72, 32, || 99).unwrap_err();
+
+        assert!(error.contains("cuts through tuplet 20"));
+        assert_eq!(
+            track.entries.by_id[&20].tick(),
+            original.entries.by_id[&20].tick()
+        );
+    }
+
+    #[test]
+    fn delete_time_reconciles_all_root_tone_overlap_shapes() {
+        let mut track = Track::new(1);
+        let mut before = make_tone(1, 0);
+        let mut clipped_head = make_tone(2, 48);
+        let mut spanning = make_tone(3, 48);
+        let mut removed = make_tone(4, 72);
+        let mut clipped_tail = make_tone(5, 80);
+        let mut shifted = make_tone(6, 128);
+        if let Entry::Tone(tone) = &mut before {
+            tone.duration = 32;
+        }
+        if let Entry::Tone(tone) = &mut clipped_head {
+            tone.duration = 32;
+        }
+        if let Entry::Tone(tone) = &mut spanning {
+            tone.duration = 96;
+        }
+        if let Entry::Tone(tone) = &mut removed {
+            tone.duration = 16;
+        }
+        if let Entry::Tone(tone) = &mut clipped_tail {
+            tone.duration = 64;
+        }
+        if let Entry::Tone(tone) = &mut shifted {
+            tone.duration = 16;
+        }
+        for entry in [
+            before,
+            clipped_head,
+            spanning,
+            removed,
+            clipped_tail,
+            shifted,
+        ] {
+            track.insert_entry(entry);
+        }
+
+        track.delete_time(64, 32).unwrap();
+
+        let tone = |id| match &track.entries.by_id[&id] {
+            Entry::Tone(tone) => (tone.tick, tone.duration),
+            _ => panic!("expected tone"),
+        };
+        assert_eq!(tone(1), (0, 32));
+        assert_eq!(tone(2), (48, 16));
+        assert_eq!(tone(3), (48, 64));
+        assert!(!track.entries.by_id.contains_key(&4));
+        assert_eq!(tone(5), (64, 48));
+        assert_eq!(tone(6), (96, 16));
+    }
+
+    #[test]
+    fn delete_time_removes_and_shifts_whole_tuplets() {
+        let mut track = Track::new(1);
+        track.insert_entry(make_tuplet(20, 64));
+        track.insert_entry(make_tuplet(30, 128));
+
+        track.delete_time(64, 64).unwrap();
+
+        assert!(!track.entries.by_id.contains_key(&20));
+        assert_eq!(track.entries.by_id[&30].tick(), 64);
+    }
+
+    #[test]
+    fn delete_time_rejects_boundary_inside_tuplet_without_mutating() {
+        let mut track = Track::new(1);
+        track.insert_entry(make_tuplet(20, 64));
+
+        let error = track.delete_time(72, 16).unwrap_err();
+
+        assert!(error.contains("cuts through tuplet 20"));
+        assert_eq!(track.entries.by_id[&20].tick(), 64);
+    }
+
+    #[test]
+    fn delete_time_preserves_latest_stateful_entry_at_splice_point() {
+        use crate::score::entries::time_signature::{TimeSignature, TimeSignatureDrawType};
+
+        let mut track = Track::new(1);
+        track.insert_entry(Entry::TimeSignature(TimeSignature::new(
+            10,
+            0,
+            4,
+            NoteDuration::Quarter,
+            TimeSignatureDrawType::Regular,
+            None,
+        )));
+        track.insert_entry(Entry::TimeSignature(TimeSignature::new(
+            11,
+            32,
+            3,
+            NoteDuration::Quarter,
+            TimeSignatureDrawType::Regular,
+            None,
+        )));
+
+        track.delete_time(0, 64).unwrap();
+
+        assert!(!track.entries.by_id.contains_key(&10));
+        assert_eq!(track.entries.by_id[&11].tick(), 0);
+    }
+
+    #[test]
+    fn delete_time_prefers_stateful_entry_at_end_boundary() {
+        use crate::score::entries::time_signature::{TimeSignature, TimeSignatureDrawType};
+
+        let mut track = Track::new(1);
+        track.insert_entry(Entry::TimeSignature(TimeSignature::new(
+            10,
+            64,
+            3,
+            NoteDuration::Quarter,
+            TimeSignatureDrawType::Regular,
+            None,
+        )));
+        track.insert_entry(Entry::TimeSignature(TimeSignature::new(
+            11,
+            128,
+            5,
+            NoteDuration::Quarter,
+            TimeSignatureDrawType::Regular,
+            None,
+        )));
+
+        track.delete_time(64, 64).unwrap();
+
+        assert!(!track.entries.by_id.contains_key(&10));
+        assert_eq!(track.entries.by_id[&11].tick(), 64);
     }
 
     fn make_playing_technique(id: UniqueId, tick: Tick) -> Entry {

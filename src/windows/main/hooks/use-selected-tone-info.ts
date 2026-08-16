@@ -48,6 +48,9 @@ export const useSelectedToneInfo = () => {
     }
 
     if (
+      selection.type === "Bar" ||
+      selection.type === "InsertBarAfter" ||
+      selection.type === "DeleteBar" ||
       selection.type === "Tempo" ||
       selection.type === "TimeSignature" ||
       selection.type === "KeySignature" ||

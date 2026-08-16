@@ -1,4 +1,4 @@
-use super::components::duration::{NoteDuration, Ticks};
+use super::components::duration::{NoteDuration, Tick, Ticks};
 use super::entries::{
     clef::Clef,
     time_signature::{TimeSignature, TimeSignatureDrawType},
@@ -8,6 +8,7 @@ use super::instruments::defs::get_instrument_definition;
 use super::staves::{Stave, Staves};
 use super::tracks::Track;
 use crate::instructions::FlowRenderRecalculationRequest;
+use crate::playback::transport::DeferredPlaybackRefreshKind;
 use crate::{utils::UniqueId, AppContext, AppContextState, RendererContextState};
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
@@ -220,6 +221,80 @@ pub fn score_flows_rename(
         &mut renderer,
         Some(FlowRenderRecalculationRequest::full_visible_flows()),
     );
+}
+
+fn emit_flow_time_change(
+    state: &mut AppContext,
+    app: &tauri::AppHandle,
+    renderer: &mut crate::renderer::RendererContext,
+    flow_id: UniqueId,
+) {
+    state.defer_playback_refresh(DeferredPlaybackRefreshKind::ScoreStructure);
+    state.emit_affected_flows(app, renderer, &[flow_id]);
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn score_flows_insert_time(
+    app: tauri::AppHandle,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
+    flow_id: UniqueId,
+    tick: Tick,
+    duration: Ticks,
+) -> Result<(), String> {
+    let mut state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
+    state.insert_flow_time(flow_id, tick, duration)?;
+    emit_flow_time_change(&mut state, &app, &mut renderer, flow_id);
+    Ok(())
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn score_flows_delete_time(
+    app: tauri::AppHandle,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
+    flow_id: UniqueId,
+    start_tick: Tick,
+    duration: Ticks,
+) -> Result<(), String> {
+    let mut state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
+    state
+        .score
+        .delete_flow_time(flow_id, start_tick, duration)?;
+    emit_flow_time_change(&mut state, &app, &mut renderer, flow_id);
+    Ok(())
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn score_flows_insert_bar_after(
+    app: tauri::AppHandle,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
+    flow_id: UniqueId,
+    bar_start_tick: Tick,
+) -> Result<Tick, String> {
+    let mut state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
+    let insertion_tick = state.insert_bar_after(flow_id, bar_start_tick)?;
+    emit_flow_time_change(&mut state, &app, &mut renderer, flow_id);
+    Ok(insertion_tick)
+}
+
+#[tauri::command(rename_all = "snake_case")]
+pub fn score_flows_delete_bar(
+    app: tauri::AppHandle,
+    state: State<'_, AppContextState>,
+    renderer_state: State<'_, RendererContextState>,
+    flow_id: UniqueId,
+    bar_start_tick: Tick,
+) -> Result<Tick, String> {
+    let mut state = state.lock().unwrap();
+    let mut renderer = renderer_state.lock().unwrap();
+    let selection_tick = state.score.delete_bar(flow_id, bar_start_tick)?;
+    emit_flow_time_change(&mut state, &app, &mut renderer, flow_id);
+    Ok(selection_tick)
 }
 
 #[tauri::command(rename_all = "snake_case")]

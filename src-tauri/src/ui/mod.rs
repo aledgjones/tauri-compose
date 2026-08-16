@@ -90,6 +90,10 @@ impl Ui {
             screens: Screens::new(),
         }
     }
+
+    pub(crate) fn is_write_tab(&self) -> bool {
+        matches!(self.tab, Tab::Write)
+    }
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -103,7 +107,11 @@ pub fn ui_tab_set(
     let mut renderer = renderer_state.lock().unwrap();
 
     state.ui.tab = tab;
-    state.emit_general_state(&app, &mut renderer, None);
+    state.emit_general_state(
+        &app,
+        &mut renderer,
+        Some(FlowRenderRecalculationRequest::full_visible_flows()),
+    );
 }
 
 #[tauri::command(rename_all = "snake_case")]

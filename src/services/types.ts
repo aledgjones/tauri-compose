@@ -648,7 +648,28 @@ type TupletSelection = {
   tick: Tick;
 };
 
+type BarSelection = {
+  type: "Bar";
+  flow_id: UniqueId;
+  tick: Tick;
+};
+
+type InsertBarAfterHit = {
+  type: "InsertBarAfter";
+  flow_id: UniqueId;
+  tick: Tick;
+};
+
+type DeleteBarHit = {
+  type: "DeleteBar";
+  flow_id: UniqueId;
+  tick: Tick;
+};
+
 export type Selection =
+  | BarSelection
+  | InsertBarAfterHit
+  | DeleteBarHit
   | ToneSelection
   | RestSelection
   | TempoSelection
@@ -754,9 +775,7 @@ export type PluginInventoryFailure = {
 };
 
 export type PluginEditorHostValidationStatus =
-  | "blocked"
-  | "failed"
-  | "attached";
+  "blocked" | "failed" | "attached";
 
 export type PluginEditorHostValidationPhase =
   | "policy_gate"
@@ -778,9 +797,7 @@ export type PluginEditorHostValidationPhase =
   | "attached";
 
 export type PluginEditorHostValidationPhaseResultStatus =
-  | "completed"
-  | "failed"
-  | "skipped";
+  "completed" | "failed" | "skipped";
 
 export type PluginEditorHostValidationPhaseResult = {
   phase: PluginEditorHostValidationPhase;
@@ -789,9 +806,7 @@ export type PluginEditorHostValidationPhaseResult = {
 };
 
 export type PluginEditorHostLoadInitProbeStatus =
-  | "blocked_by_host_contract"
-  | "blocked_by_plugin_failure"
-  | "load_init_safe";
+  "blocked_by_host_contract" | "blocked_by_plugin_failure" | "load_init_safe";
 
 export type PluginEditorHostLoadInitProbe = {
   status: PluginEditorHostLoadInitProbeStatus;

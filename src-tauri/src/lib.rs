@@ -84,7 +84,8 @@ use score::entries::tone::{
 };
 use score::entries::tuplet::{score_entries_tuplet_create, score_entries_tuplet_remove};
 use score::flows::{
-    score_flows_assign_player, score_flows_create, score_flows_move, score_flows_remove,
+    score_flows_assign_player, score_flows_create, score_flows_delete_bar, score_flows_delete_time,
+    score_flows_insert_bar_after, score_flows_insert_time, score_flows_move, score_flows_remove,
     score_flows_rename, score_flows_unassign_player,
 };
 use score::instruments::defs::score_instruments_get_all_definitions;
@@ -133,11 +134,12 @@ use ui::screens::setup::{
 use ui::screens::write::{ui_write_bottom_panel_minimized_toggle, ui_write_bottom_panel_tab_set};
 use ui::sequencer::{
     ui_sequencer_coords_set, ui_sequencer_instrument_set, ui_sequencer_selection_clear,
-    ui_sequencer_selection_set_clef, ui_sequencer_selection_set_key_signature,
-    ui_sequencer_selection_set_playing_technique, ui_sequencer_selection_set_rest,
-    ui_sequencer_selection_set_tempo, ui_sequencer_selection_set_time_signature,
-    ui_sequencer_selection_set_tone, ui_sequencer_selection_set_tuplet, ui_sequencer_snap_set,
-    ui_sequencer_tool_set, ui_sequencer_track_set,
+    ui_sequencer_selection_set_bar, ui_sequencer_selection_set_clef,
+    ui_sequencer_selection_set_key_signature, ui_sequencer_selection_set_playing_technique,
+    ui_sequencer_selection_set_rest, ui_sequencer_selection_set_tempo,
+    ui_sequencer_selection_set_time_signature, ui_sequencer_selection_set_tone,
+    ui_sequencer_selection_set_tuplet, ui_sequencer_snap_set, ui_sequencer_tool_set,
+    ui_sequencer_track_set,
 };
 use ui::{ui_flow_id_set, ui_get_selection_coordinates, ui_layout_id_set, ui_tab_set, Ui};
 use utils::UniqueId;
@@ -457,6 +459,32 @@ impl AppContext {
         let id = self.next_id;
         self.next_id += 1;
         id
+    }
+
+    pub(crate) fn insert_flow_time(
+        &mut self,
+        flow_id: UniqueId,
+        tick: u64,
+        duration: u64,
+    ) -> Result<(), String> {
+        let mut next_id = self.next_id;
+        self.score
+            .insert_flow_time(flow_id, tick, duration, &mut next_id)?;
+        self.next_id = next_id;
+        Ok(())
+    }
+
+    pub(crate) fn insert_bar_after(
+        &mut self,
+        flow_id: UniqueId,
+        bar_start_tick: u64,
+    ) -> Result<u64, String> {
+        let mut next_id = self.next_id;
+        let tick = self
+            .score
+            .insert_bar_after(flow_id, bar_start_tick, &mut next_id)?;
+        self.next_id = next_id;
+        Ok(tick)
     }
 }
 
@@ -1322,6 +1350,10 @@ pub fn run() {
             score_flows_assign_player,
             score_flows_unassign_player,
             score_flows_remove,
+            score_flows_insert_time,
+            score_flows_delete_time,
+            score_flows_insert_bar_after,
+            score_flows_delete_bar,
             score_instruments_create,
             score_instruments_get_all_definitions,
             score_instruments_move,
@@ -1382,6 +1414,7 @@ pub fn run() {
             ui_sequencer_selection_set_tempo,
             ui_sequencer_selection_set_time_signature,
             ui_sequencer_selection_set_tone,
+            ui_sequencer_selection_set_bar,
             ui_sequencer_selection_set_tuplet,
             ui_sequencer_snap_set,
             ui_sequencer_tool_set,
