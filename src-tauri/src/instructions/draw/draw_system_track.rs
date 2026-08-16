@@ -246,7 +246,7 @@ pub fn draw_system_track(
                 &font,
                 &Point {
                     x: box_left + number_left_padding,
-                    y: origin.y + (track_height / 2.0) - number_vertical_offset,
+                    y: origin.y + (track_height / 2.0) + number_vertical_offset,
                 },
                 Color::from_rgb(150, 150, 150),
             );
