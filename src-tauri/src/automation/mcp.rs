@@ -391,7 +391,7 @@ fn compose_getting_started_guide() -> Value {
     let recommended_first_steps = json!([
         format!("Call {GET_STARTED_TOOL_NAME} before any {ACTION_TOOL_PREFIX}* tool when you need to create or edit score content."),
         "Create flows, instruments, and players first, then assign instruments to players and players to flows/layouts before resolving playable track ids.",
-        "Inspect score.lookup.getScoreSlice and score.lookup.getBarMap after creating a flow. All host-timeline writes must fit inside the reported flow_length_ticks.",
+        "Inspect score.lookup.getScoreSlice and score.lookup.getBarMap after creating a flow. Extend it with score.flow.insertBarAfter when needed; all host-timeline writes must fit inside the reported flow_length_ticks.",
         "Execute dependent mutations sequentially. Each action renders immediately, so do not create entries at later ticks in parallel with operations intended to establish or change the timeline.",
         "Use score.lookup.getInstrumentTracks to resolve playable user track_ids before calling score.tone.create.",
         "For tuplets, create the container on the playable user track first, then create child tones on that same track with tuplet-local ticks and a tuplet_id.",
@@ -497,7 +497,8 @@ fn compose_getting_started_guide() -> Value {
                     "Host timeline ticks are zero-based and must be less than flow_length_ticks; events with duration must also end at or before flow_length_ticks.",
                     "A newly created flow currently contains 2048 ticks: 16 bars of 4/4 at 128 ticks per bar.",
                     "Use score.lookup.getScoreSlice to read flow_length_ticks and score.lookup.getBarMap to resolve bar starts. Do not infer writable ticks from a requested composition length.",
-                    "The current MCP action set does not expose a flow-resize or bar-count operation. Do not write beyond the existing flow to simulate extending it."
+                    "To extend a flow, call score.flow.insertBarAfter with an existing bar start tick from score.lookup.getBarMap. The inserted bar uses that bar's time signature and the action returns its start tick.",
+                    "Insert or delete multiple bars sequentially, then refresh score.lookup.getBarMap before writing entries into the changed timeline."
                 ],
                 "noteValueTicks": {
                     "whole": 128,
@@ -529,7 +530,7 @@ mod tests {
     use super::{compose_getting_started_guide, tool_definitions};
 
     #[test]
-    fn tool_definitions_include_plugin_editor_open_and_not_retired_probe_tools() {
+    fn tool_definitions_include_supported_generated_actions() {
         let tool_names = tool_definitions()
             .into_iter()
             .filter_map(|tool| {
@@ -540,6 +541,8 @@ mod tests {
             .collect::<Vec<_>>();
 
         assert!(tool_names.contains(&String::from("compose_action_plugin_editorHost_open")));
+        assert!(tool_names.contains(&String::from("compose_action_score_flow_insertBarAfter")));
+        assert!(tool_names.contains(&String::from("compose_action_score_flow_deleteBar")));
         assert!(!tool_names.contains(&String::from(
             "compose_action_plugin_editorHost_prepareLoadInitProbeLog"
         )));
@@ -552,13 +555,14 @@ mod tests {
     }
 
     #[test]
-    fn getting_started_guide_documents_flow_bounds_and_sequential_writes() {
+    fn getting_started_guide_documents_flow_extension_and_sequential_writes() {
         let guide = compose_getting_started_guide();
         let serialized = serde_json::to_string(&guide).expect("guide should serialize");
 
         assert!(serialized.contains("flow_length_ticks"));
         assert!(serialized.contains("2048 ticks"));
         assert!(serialized.contains("dependent mutations sequentially"));
-        assert!(serialized.contains("does not expose a flow-resize or bar-count operation"));
+        assert!(serialized.contains("score.flow.insertBarAfter"));
+        assert!(serialized.contains("Insert or delete multiple bars sequentially"));
     }
 }
