@@ -20,10 +20,6 @@ name = "performance"
 path = "src/bin/performance.rs"
 
 [[bin]]
-name = "generate-manifest"
-path = "src/bin/generate_manifest.rs"
-
-[[bin]]
 name = "solo-compose"
 path = "src/main.rs"
 

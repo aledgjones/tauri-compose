@@ -69,8 +69,6 @@
     "finalize-release": "./scripts/release finalize",
     "format": "prettier --check .",
     "format:fix": "prettier --write .",
-    "generate-manifest": "./scripts/generate-manifest",
-    "generate-manifest:build": "cd src-tauri && cargo build --release --bin generate-manifest && cp target/release/generate-manifest ../scripts/generate-manifest",
     "lint": "eslint 'src/**/*.{ts,tsx}'",
     "lint:fix": "eslint 'src/**/*.{ts,tsx}' --fix",
     "perf:render": "cd src-tauri && cargo run --release --bin performance --",
