@@ -91,6 +91,10 @@ use crate::{
     ManagedPluginInventoryContextState, RendererContextState,
 };
 
+const FLOW_TICK_DESCRIPTION: &str = "Host tick in the existing flow. Must be less than flow_length_ticks; call score.lookup.getBarMap or score.lookup.getScoreSlice before writing.";
+const TRACK_TICK_DESCRIPTION: &str = "Host tick on the owning flow timeline. The event must fit within flow_length_ticks; call score.lookup.getBarMap or score.lookup.getScoreSlice before writing.";
+const OWNED_TONE_TICK_DESCRIPTION: &str = "New tick in the target ownership context. Without target_tuplet_id, the full tone must fit within flow_length_ticks; with target_tuplet_id, tick is tuplet-local and the full tone must fit within local_length_ticks.";
+
 #[derive(Clone, Serialize)]
 pub struct ActionArgMetadata {
     name: &'static str,
@@ -296,7 +300,7 @@ pub fn action_definitions() -> Vec<ActionDefinition> {
             "Create or replace a barline entry at a tick in a flow. BarlineDrawType values: 0=Single, 1=Double, 2=Triple, 3=Dashed, 4=Final, 5=StartRepeat, 6=EndRepeat, 7=EndStartRepeat.",
             vec![
                 arg("flow_id", "Numeric flow id."),
-                arg("tick", "Tick position."),
+                arg("tick", FLOW_TICK_DESCRIPTION),
                 arg("barline_draw_type", "Numeric BarlineDrawType enum value."),
             ],
         ),
@@ -311,7 +315,7 @@ pub fn action_definitions() -> Vec<ActionDefinition> {
             vec![
                 arg("flow_id", "Numeric flow id."),
                 arg("stave_id", "Numeric stave id."),
-                arg("tick", "Tick position."),
+                arg("tick", FLOW_TICK_DESCRIPTION),
                 arg("pitch", "Pitch integer for the clef reference pitch."),
                 arg("offset", "Visual offset from the middle stave line."),
                 arg("clef_draw_type", "Numeric ClefDrawType enum value. Use 1=G, 2=F, 3=C, or 4=Percussion."),
@@ -343,7 +347,7 @@ pub fn action_definitions() -> Vec<ActionDefinition> {
             vec![
                 arg("flow_id", "Numeric flow id."),
                 arg("stave_id", "Numeric stave id."),
-                arg("tick", "Tick position."),
+                arg("tick", FLOW_TICK_DESCRIPTION),
                 arg("kind", "Numeric PlayingTechniqueKind enum value. Use 0=Pizz or 1=Arco."),
                 arg("hidden", "Whether the playing-technique entry is hidden."),
             ],
@@ -515,7 +519,7 @@ pub fn action_definitions() -> Vec<ActionDefinition> {
             "Create a key signature entry.",
             vec![
                 arg("flow_id", "Numeric flow id."),
-                arg("tick", "Tick position."),
+                arg("tick", FLOW_TICK_DESCRIPTION),
                 arg("mode", "Numeric KeySignatureMode enum value. Use 0=Major or 1=Minor."),
                 arg("offset", "Key signature accidental offset."),
                 arg("hidden", "Whether the key signature is hidden."),
@@ -536,7 +540,7 @@ pub fn action_definitions() -> Vec<ActionDefinition> {
             "Create a time signature entry.",
             vec![
                 arg("flow_id", "Numeric flow id."),
-                arg("tick", "Tick position."),
+                arg("tick", FLOW_TICK_DESCRIPTION),
                 arg("beats", "Number of beats."),
                 arg("beat_type", "Numeric NoteDuration enum value for the beat unit. Common values are 1=Whole, 2=Half, 4=Quarter, 8=Eighth, 16=Sixteenth, 32=ThirtySecond, 64=SixtyFourth, 128=HundredTwentyEighth."),
                 arg("draw_type", "Numeric TimeSignatureDrawType enum value. Use 1=Regular, 2=CommonTime, 3=SplitCommonTime, 4=Open. Do not use 0; legacy hidden time signatures were migrated to hidden=true with draw_type=1."),
@@ -563,7 +567,7 @@ pub fn action_definitions() -> Vec<ActionDefinition> {
             "Create a tempo entry on the flow master track.",
             vec![
                 arg("flow_id", "Numeric flow id."),
-                arg("tick", "Tick position."),
+                arg("tick", FLOW_TICK_DESCRIPTION),
                 arg("text", "Tempo text such as Allegro, or an empty string."),
                 arg("beat_type", "Numeric NoteDuration enum value for the metronome beat unit. Common values are 1=Whole, 2=Half, 4=Quarter, 8=Eighth, 16=Sixteenth, 32=ThirtySecond, 64=SixtyFourth, 128=HundredTwentyEighth."),
                 arg("dots", "Number of augmentation dots on the metronome beat."),
@@ -595,7 +599,7 @@ pub fn action_definitions() -> Vec<ActionDefinition> {
             "Create a tone entry on a track.",
             vec![
                 arg("track_id", "Numeric track id."),
-                arg("tick", "Tick position."),
+                arg("tick", TRACK_TICK_DESCRIPTION),
                 arg("duration", "Tone duration in ticks."),
                 arg("pitch_int", "Chromatic pitch integer as a MIDI note number. Examples: C0=12, C4=60."),
                 arg("accidental", "Accidental enum value or null. Use -2=DoubleFlat, -1=Flat, 0=Natural, 1=Sharp, 2=DoubleSharp."),
@@ -608,14 +612,14 @@ pub fn action_definitions() -> Vec<ActionDefinition> {
         action("score.tone.slice", "Split a tone at a specific tick and return the new tone id when successful.", vec![arg("track_id", "Numeric track id."), arg("tone_id", "Numeric tone id."), arg("slice_tick", "Tick position where the tone should be sliced in the target ownership context."), optional_arg("current_tuplet_id", "Optional tuplet id for the original owning context when slicing a tuplet-owned tone."), optional_arg("target_tuplet_id", "Optional tuplet id for the resulting tail tone when the split lands inside a tuplet context.")]),
         action("score.tone.setPitch", "Set the pitch of an existing tone.", vec![arg("track_id", "Numeric track id."), arg("tone_id", "Numeric tone id."), arg("pitch_int", "Chromatic pitch integer as a MIDI note number. Examples: C0=12, C4=60."), arg("accidental", "Accidental enum value or null. Use -2=DoubleFlat, -1=Flat, 0=Natural, 1=Sharp, 2=DoubleSharp."), optional_arg("tuplet_id", "Optional tuplet id used to address a nested tone directly on the owning track.")]),
         action("score.tone.remove", "Remove an existing tone entry.", vec![arg("track_id", "Numeric track id."), arg("tone_id", "Numeric tone id."), optional_arg("tuplet_id", "Optional tuplet id used to address a nested tone directly on the owning track.")]),
-        action("score.tone.setPositionAndDuration", "Set the position and duration of an existing tone.", vec![arg("track_id", "Numeric track id."), arg("tone_id", "Numeric tone id."), arg("tick", "New tick position."), arg("duration", "New duration in ticks."), optional_arg("current_tuplet_id", "Optional tuplet id for the original owning context when moving a tuplet-owned tone."), optional_arg("target_tuplet_id", "Optional tuplet id for the resulting owning context when the moved tone lands inside a tuplet.")]),
-        action("score.tone.shift", "Shift an existing tone entry to a new tick.", vec![arg("track_id", "Numeric track id."), arg("tone_id", "Numeric tone id."), arg("new_tick", "New tick position."), optional_arg("current_tuplet_id", "Optional tuplet id for the original owning context when shifting a tuplet-owned tone."), optional_arg("target_tuplet_id", "Optional tuplet id for the resulting owning context when the shifted tone lands inside a tuplet.")]),
+        action("score.tone.setPositionAndDuration", "Set the position and duration of an existing tone.", vec![arg("track_id", "Numeric track id."), arg("tone_id", "Numeric tone id."), arg("tick", OWNED_TONE_TICK_DESCRIPTION), arg("duration", "New duration in ticks."), optional_arg("current_tuplet_id", "Optional tuplet id for the original owning context when moving a tuplet-owned tone."), optional_arg("target_tuplet_id", "Optional tuplet id for the resulting owning context when the moved tone lands inside a tuplet.")]),
+        action("score.tone.shift", "Shift an existing tone entry to a new tick.", vec![arg("track_id", "Numeric track id."), arg("tone_id", "Numeric tone id."), arg("new_tick", OWNED_TONE_TICK_DESCRIPTION), optional_arg("current_tuplet_id", "Optional tuplet id for the original owning context when shifting a tuplet-owned tone."), optional_arg("target_tuplet_id", "Optional tuplet id for the resulting owning context when the shifted tone lands inside a tuplet.")]),
         action("score.tone.unifyArticulations", "Apply the articulation set from one tone to all tones at the same tick.", vec![arg("track_id", "Numeric track id."), arg("tone_id", "Numeric tone id."), optional_arg("tuplet_id", "Optional tuplet id used to address a nested tone directly on the owning track.")]),
         action("score.tone.shiftPitchBySteps", "Shift a tone pitch diatonically by a number of steps.", vec![arg("track_id", "Numeric track id."), arg("tone_id", "Numeric tone id."), arg("steps", "Signed number of steps to shift."), optional_arg("tuplet_id", "Optional tuplet id used to address a nested tone directly on the owning track.")]),
         action("score.tone.shiftPitchByOctaves", "Shift a tone pitch by a number of octaves.", vec![arg("track_id", "Numeric track id."), arg("tone_id", "Numeric tone id."), arg("octaves", "Signed number of octaves to shift."), optional_arg("tuplet_id", "Optional tuplet id used to address a nested tone directly on the owning track.")]),
         action("score.tone.setAccidental", "Set the accidental on a tone.", vec![arg("track_id", "Numeric track id."), arg("tone_id", "Numeric tone id."), arg("accidental", "Accidental enum value. Use -2=DoubleFlat, -1=Flat, 0=Natural, 1=Sharp, 2=DoubleSharp."), optional_arg("tuplet_id", "Optional tuplet id used to address a nested tone directly on the owning track.")]),
         action("score.tone.toggleArticulation", "Toggle an articulation on a tone and apply the resulting articulation set across the tick.", vec![arg("track_id", "Numeric track id."), arg("tone_id", "Numeric tone id."), arg("articulation", "Numeric Articulation enum value. Use 0=Staccato, 1=Tenuto, 2=Staccatissimo, 3=StaccatoTenuto, 4=Accent, 5=Marcato, 6=Stressed, 7=Unstressed."), optional_arg("tuplet_id", "Optional tuplet id used to address a nested tone directly on the owning track.")]),
-        action("score.tuplet.create", "Create a tuplet container on a track.", vec![arg("track_id", "Numeric track id."), arg("tick", "Tick position."), arg("note_count", "Number of notes in the tuplet group."), arg("in_space_of", "How many base notes the tuplet fits into."), arg("base_note_value", "Numeric NoteDuration enum value for the tuplet base note. Common values are 1=Whole, 2=Half, 4=Quarter, 8=Eighth, 16=Sixteenth, 32=ThirtySecond, 64=SixtyFourth, 128=HundredTwentyEighth."), arg("groupings", "Array of positive integer grouping sizes, such as [3] for a simple triplet.")]),
+        action("score.tuplet.create", "Create a tuplet container on a track.", vec![arg("track_id", "Numeric track id."), arg("tick", TRACK_TICK_DESCRIPTION), arg("note_count", "Number of notes in the tuplet group."), arg("in_space_of", "How many base notes the tuplet fits into."), arg("base_note_value", "Numeric NoteDuration enum value for the tuplet base note. Common values are 1=Whole, 2=Half, 4=Quarter, 8=Eighth, 16=Sixteenth, 32=ThirtySecond, 64=SixtyFourth, 128=HundredTwentyEighth."), arg("groupings", "Array of positive integer grouping sizes, such as [3] for a simple triplet.")]),
         action("score.tuplet.remove", "Remove a tuplet container and all of its child tones.", vec![arg("track_id", "Numeric track id."), arg("tuplet_id", "Numeric tuplet id.")]),
         action(
             "score.lookup.getInstrumentTracks",
@@ -857,14 +861,19 @@ pub async fn execute_action(app: &AppHandle, name: &str, args: &[Value]) -> Resu
             );
             Ok(Value::Null)
         }
-        "score.barline.create" => Ok(json!(score_entries_barline_create(
-            app.clone(),
-            app.state::<AppContextState>(),
-            app.state::<RendererContextState>(),
-            arg_id(args, 0, "flow_id")?,
-            arg_u64(args, 1, "tick")?,
-            arg_enum::<BarlineDrawType>(args, 2, "barline_draw_type")?,
-        ))),
+        "score.barline.create" => {
+            let flow_id = arg_id(args, 0, "flow_id")?;
+            let tick = arg_u64(args, 1, "tick")?;
+            validate_flow_tick(app, flow_id, tick, name)?;
+            Ok(json!(score_entries_barline_create(
+                app.clone(),
+                app.state::<AppContextState>(),
+                app.state::<RendererContextState>(),
+                flow_id,
+                tick,
+                arg_enum::<BarlineDrawType>(args, 2, "barline_draw_type")?,
+            )))
+        }
         "score.barline.clearAtTick" => {
             score_entries_barline_clear(
                 app.clone(),
@@ -875,18 +884,23 @@ pub async fn execute_action(app: &AppHandle, name: &str, args: &[Value]) -> Resu
             );
             Ok(Value::Null)
         }
-        "score.clef.create" => Ok(json!(score_entries_clef_create(
-            app.clone(),
-            app.state::<AppContextState>(),
-            app.state::<RendererContextState>(),
-            arg_id(args, 0, "flow_id")?,
-            arg_id(args, 1, "stave_id")?,
-            arg_u64(args, 2, "tick")?,
-            arg_u8(args, 3, "pitch")?,
-            arg_i8(args, 4, "offset")?,
-            arg_enum::<ClefDrawType>(args, 5, "clef_draw_type")?,
-            arg_bool(args, 6, "hidden")?,
-        ))),
+        "score.clef.create" => {
+            let flow_id = arg_id(args, 0, "flow_id")?;
+            let tick = arg_u64(args, 2, "tick")?;
+            validate_flow_tick(app, flow_id, tick, name)?;
+            Ok(json!(score_entries_clef_create(
+                app.clone(),
+                app.state::<AppContextState>(),
+                app.state::<RendererContextState>(),
+                flow_id,
+                arg_id(args, 1, "stave_id")?,
+                tick,
+                arg_u8(args, 3, "pitch")?,
+                arg_i8(args, 4, "offset")?,
+                arg_enum::<ClefDrawType>(args, 5, "clef_draw_type")?,
+                arg_bool(args, 6, "hidden")?,
+            )))
+        }
         "score.clef.clearAtTick" => {
             score_entries_clef_clear(
                 app.clone(),
@@ -910,16 +924,21 @@ pub async fn execute_action(app: &AppHandle, name: &str, args: &[Value]) -> Resu
             )?;
             Ok(Value::Null)
         }
-        "score.playingTechnique.create" => Ok(json!(score_entries_playing_technique_create(
-            app.clone(),
-            app.state::<AppContextState>(),
-            app.state::<RendererContextState>(),
-            arg_id(args, 0, "flow_id")?,
-            arg_id(args, 1, "stave_id")?,
-            arg_u64(args, 2, "tick")?,
-            arg_enum::<PlayingTechniqueKind>(args, 3, "kind")?,
-            arg_bool(args, 4, "hidden")?,
-        )?)),
+        "score.playingTechnique.create" => {
+            let flow_id = arg_id(args, 0, "flow_id")?;
+            let tick = arg_u64(args, 2, "tick")?;
+            validate_flow_tick(app, flow_id, tick, name)?;
+            Ok(json!(score_entries_playing_technique_create(
+                app.clone(),
+                app.state::<AppContextState>(),
+                app.state::<RendererContextState>(),
+                flow_id,
+                arg_id(args, 1, "stave_id")?,
+                tick,
+                arg_enum::<PlayingTechniqueKind>(args, 3, "kind")?,
+                arg_bool(args, 4, "hidden")?,
+            )?))
+        }
         "score.playingTechnique.remove" => {
             score_entries_playing_technique_remove(
                 app.clone(),
@@ -1399,16 +1418,21 @@ pub async fn execute_action(app: &AppHandle, name: &str, args: &[Value]) -> Resu
             );
             Ok(Value::Null)
         }
-        "score.keySignature.create" => Ok(json!(score_entries_key_signature_create(
-            app.clone(),
-            app.state::<AppContextState>(),
-            app.state::<RendererContextState>(),
-            arg_id(args, 0, "flow_id")?,
-            arg_u64(args, 1, "tick")?,
-            arg_enum::<KeySignatureMode>(args, 2, "mode")?,
-            arg_i8(args, 3, "offset")?,
-            arg_bool(args, 4, "hidden")?,
-        ))),
+        "score.keySignature.create" => {
+            let flow_id = arg_id(args, 0, "flow_id")?;
+            let tick = arg_u64(args, 1, "tick")?;
+            validate_flow_tick(app, flow_id, tick, name)?;
+            Ok(json!(score_entries_key_signature_create(
+                app.clone(),
+                app.state::<AppContextState>(),
+                app.state::<RendererContextState>(),
+                flow_id,
+                tick,
+                arg_enum::<KeySignatureMode>(args, 2, "mode")?,
+                arg_i8(args, 3, "offset")?,
+                arg_bool(args, 4, "hidden")?,
+            )))
+        }
         "score.keySignature.update" => {
             score_entries_key_signature_update(
                 app.clone(),
@@ -1430,17 +1454,22 @@ pub async fn execute_action(app: &AppHandle, name: &str, args: &[Value]) -> Resu
             );
             Ok(Value::Null)
         }
-        "score.timeSignature.create" => Ok(json!(score_entries_time_signature_create(
-            app.clone(),
-            app.state::<AppContextState>(),
-            app.state::<RendererContextState>(),
-            arg_id(args, 0, "flow_id")?,
-            arg_u64(args, 1, "tick")?,
-            arg_u8(args, 2, "beats")?,
-            arg_enum::<NoteDuration>(args, 3, "beat_type")?,
-            arg_enum::<TimeSignatureDrawType>(args, 4, "draw_type")?,
-            arg_bool(args, 5, "hidden")?,
-        ))),
+        "score.timeSignature.create" => {
+            let flow_id = arg_id(args, 0, "flow_id")?;
+            let tick = arg_u64(args, 1, "tick")?;
+            validate_flow_tick(app, flow_id, tick, name)?;
+            Ok(json!(score_entries_time_signature_create(
+                app.clone(),
+                app.state::<AppContextState>(),
+                app.state::<RendererContextState>(),
+                flow_id,
+                tick,
+                arg_u8(args, 2, "beats")?,
+                arg_enum::<NoteDuration>(args, 3, "beat_type")?,
+                arg_enum::<TimeSignatureDrawType>(args, 4, "draw_type")?,
+                arg_bool(args, 5, "hidden")?,
+            )))
+        }
         "score.timeSignature.update" => {
             score_entries_time_signature_update(
                 app.clone(),
@@ -1464,22 +1493,27 @@ pub async fn execute_action(app: &AppHandle, name: &str, args: &[Value]) -> Resu
             );
             Ok(Value::Null)
         }
-        "score.tempo.create" => Ok(json!(score_entries_tempo_create(
-            app.clone(),
-            app.state::<AppContextState>(),
-            app.state::<RendererContextState>(),
-            app.state::<TransportSharedState>(),
-            arg_id(args, 0, "flow_id")?,
-            arg_u64(args, 1, "tick")?,
-            arg_string(args, 2, "text")?,
-            arg_enum::<NoteDuration>(args, 3, "beat_type")?,
-            arg_u8(args, 4, "dots")?,
-            arg_u16(args, 5, "bpm")?,
-            arg_bool(args, 6, "hidden")?,
-            arg_bool(args, 7, "show_text")?,
-            arg_bool(args, 8, "show_metronome")?,
-            arg_bool(args, 9, "parenthesized")?,
-        ))),
+        "score.tempo.create" => {
+            let flow_id = arg_id(args, 0, "flow_id")?;
+            let tick = arg_u64(args, 1, "tick")?;
+            validate_flow_tick(app, flow_id, tick, name)?;
+            Ok(json!(score_entries_tempo_create(
+                app.clone(),
+                app.state::<AppContextState>(),
+                app.state::<RendererContextState>(),
+                app.state::<TransportSharedState>(),
+                flow_id,
+                tick,
+                arg_string(args, 2, "text")?,
+                arg_enum::<NoteDuration>(args, 3, "beat_type")?,
+                arg_u8(args, 4, "dots")?,
+                arg_u16(args, 5, "bpm")?,
+                arg_bool(args, 6, "hidden")?,
+                arg_bool(args, 7, "show_text")?,
+                arg_bool(args, 8, "show_metronome")?,
+                arg_bool(args, 9, "parenthesized")?,
+            )))
+        }
         "score.tempo.update" => {
             score_entries_tempo_update(
                 app.clone(),
@@ -1499,19 +1533,26 @@ pub async fn execute_action(app: &AppHandle, name: &str, args: &[Value]) -> Resu
             )?;
             Ok(Value::Null)
         }
-        "score.tone.create" => Ok(json!(score_entries_tone_create(
-            app.clone(),
-            app.state::<AppContextState>(),
-            app.state::<RendererContextState>(),
-            arg_id(args, 0, "track_id")?,
-            arg_u64(args, 1, "tick")?,
-            arg_u64(args, 2, "duration")?,
-            arg_u8(args, 3, "pitch_int")?,
-            arg_optional_enum::<Accidental>(args, 4)?,
-            arg_u8(args, 5, "velocity")?,
-            arg_articulations(args, 6)?,
-            arg_optional_id(args, 7)?,
-        )?)),
+        "score.tone.create" => {
+            let track_id = arg_id(args, 0, "track_id")?;
+            let tick = arg_u64(args, 1, "tick")?;
+            let duration = arg_u64(args, 2, "duration")?;
+            let tuplet_id = arg_optional_id(args, 7)?;
+            validate_tone_create_span(app, track_id, tick, duration, tuplet_id, name)?;
+            Ok(json!(score_entries_tone_create(
+                app.clone(),
+                app.state::<AppContextState>(),
+                app.state::<RendererContextState>(),
+                track_id,
+                tick,
+                duration,
+                arg_u8(args, 3, "pitch_int")?,
+                arg_optional_enum::<Accidental>(args, 4)?,
+                arg_u8(args, 5, "velocity")?,
+                arg_articulations(args, 6)?,
+                tuplet_id,
+            )?))
+        }
         "score.tone.setDuration" => {
             score_entries_tone_duration_set(
                 app.clone(),
@@ -1569,29 +1610,41 @@ pub async fn execute_action(app: &AppHandle, name: &str, args: &[Value]) -> Resu
             Ok(Value::Null)
         }
         "score.tone.setPositionAndDuration" => {
+            let track_id = arg_id(args, 0, "track_id")?;
+            let tick = arg_u64(args, 2, "tick")?;
+            let duration = arg_u64(args, 3, "duration")?;
+            let target_tuplet_id = arg_optional_id(args, 5)?;
+            validate_tone_target_span(app, track_id, tick, duration, target_tuplet_id, name)?;
             score_entries_tone_set_position_and_duration(
                 app.clone(),
                 app.state::<AppContextState>(),
                 app.state::<RendererContextState>(),
-                arg_id(args, 0, "track_id")?,
+                track_id,
                 arg_id(args, 1, "tone_id")?,
-                arg_u64(args, 2, "tick")?,
-                arg_u64(args, 3, "duration")?,
+                tick,
+                duration,
                 arg_optional_id(args, 4)?,
-                arg_optional_id(args, 5)?,
+                target_tuplet_id,
             );
             Ok(Value::Null)
         }
         "score.tone.shift" => {
+            let track_id = arg_id(args, 0, "track_id")?;
+            let tone_id = arg_id(args, 1, "tone_id")?;
+            let new_tick = arg_u64(args, 2, "new_tick")?;
+            let current_tuplet_id = arg_optional_id(args, 3)?;
+            let target_tuplet_id = arg_optional_id(args, 4)?;
+            let duration = tone_duration(app, track_id, tone_id, current_tuplet_id)?;
+            validate_tone_target_span(app, track_id, new_tick, duration, target_tuplet_id, name)?;
             score_entries_tone_shift(
                 app.clone(),
                 app.state::<AppContextState>(),
                 app.state::<RendererContextState>(),
-                arg_id(args, 0, "track_id")?,
-                arg_id(args, 1, "tone_id")?,
-                arg_u64(args, 2, "new_tick")?,
-                arg_optional_id(args, 3)?,
-                arg_optional_id(args, 4)?,
+                track_id,
+                tone_id,
+                new_tick,
+                current_tuplet_id,
+                target_tuplet_id,
             );
             Ok(Value::Null)
         }
@@ -1645,17 +1698,25 @@ pub async fn execute_action(app: &AppHandle, name: &str, args: &[Value]) -> Resu
             );
             Ok(Value::Null)
         }
-        "score.tuplet.create" => Ok(json!(score_entries_tuplet_create(
-            app.clone(),
-            app.state::<AppContextState>(),
-            app.state::<RendererContextState>(),
-            arg_id(args, 0, "track_id")?,
-            arg_u64(args, 1, "tick")?,
-            arg_u8(args, 2, "note_count")?,
-            arg_u8(args, 3, "in_space_of")?,
-            arg_enum::<NoteDuration>(args, 4, "base_note_value")?,
-            arg_u8_vec(args, 5, "groupings")?,
-        )?)),
+        "score.tuplet.create" => {
+            let track_id = arg_id(args, 0, "track_id")?;
+            let tick = arg_u64(args, 1, "tick")?;
+            let in_space_of = arg_u8(args, 3, "in_space_of")?;
+            let base_note_value = arg_enum::<NoteDuration>(args, 4, "base_note_value")?;
+            let consumed_ticks = u64::from(in_space_of) * base_note_value.to_ticks();
+            validate_host_track_span(app, track_id, tick, consumed_ticks, name)?;
+            Ok(json!(score_entries_tuplet_create(
+                app.clone(),
+                app.state::<AppContextState>(),
+                app.state::<RendererContextState>(),
+                track_id,
+                tick,
+                arg_u8(args, 2, "note_count")?,
+                in_space_of,
+                base_note_value,
+                arg_u8_vec(args, 5, "groupings")?,
+            )?))
+        }
         "score.lookup.getInstrumentTracks" => Ok(json!(derive_instrument_tracks(
             app,
             arg_id(args, 0, "flow_id")?,
@@ -1885,6 +1946,7 @@ fn derive_score_slice(
             json!({
                 "id": flow.id,
                 "title": flow.title,
+                "flow_length_ticks": flow.length,
                 "master_track_id": flow.master_id,
                 "player_ids": ordered_player_ids,
             })
@@ -2282,6 +2344,175 @@ fn arg_value<'a>(args: &'a [Value], index: usize, name: &str) -> Result<&'a Valu
         .ok_or_else(|| format!("Missing argument {name} at position {index}"))
 }
 
+fn validate_flow_tick(
+    app: &AppHandle,
+    flow_id: UniqueId,
+    tick: u64,
+    action_name: &str,
+) -> Result<(), String> {
+    let state = get_general_state_snapshot(app);
+    let flow = state
+        .score
+        .flows
+        .by_id
+        .get(&flow_id)
+        .ok_or_else(|| format!("Flow {flow_id} not found"))?;
+
+    validate_tick_before_flow_end(flow_id, flow.length, tick, action_name)
+}
+
+fn validate_tick_before_flow_end(
+    flow_id: UniqueId,
+    flow_length: u64,
+    tick: u64,
+    action_name: &str,
+) -> Result<(), String> {
+    if tick < flow_length {
+        return Ok(());
+    }
+
+    Err(format!(
+        "Action {action_name} requires tick < flow_length_ticks for flow {flow_id}; received tick {tick}, flow_length_ticks {flow_length}. Inspect score.lookup.getBarMap before writing timeline entries"
+    ))
+}
+
+fn validate_host_track_span(
+    app: &AppHandle,
+    track_id: UniqueId,
+    tick: u64,
+    duration: u64,
+    action_name: &str,
+) -> Result<(), String> {
+    let state = get_general_state_snapshot(app);
+    let flow = state
+        .score
+        .flows
+        .by_id
+        .values()
+        .find(|flow| {
+            flow.staves
+                .by_id
+                .values()
+                .any(|stave| stave.track_ids.contains(&track_id))
+        })
+        .ok_or_else(|| {
+            format!(
+                "Track {track_id} is not a playable user track in a flow; resolve it with score.lookup.getInstrumentTracks"
+            )
+        })?;
+
+    validate_span_within_limit(
+        tick,
+        duration,
+        flow.length,
+        action_name,
+        &format!("flow {}", flow.id),
+        "flow_length_ticks",
+    )
+}
+
+fn validate_tone_create_span(
+    app: &AppHandle,
+    track_id: UniqueId,
+    tick: u64,
+    duration: u64,
+    tuplet_id: Option<UniqueId>,
+    action_name: &str,
+) -> Result<(), String> {
+    validate_tone_target_span(app, track_id, tick, duration, tuplet_id, action_name)
+}
+
+fn validate_tone_target_span(
+    app: &AppHandle,
+    track_id: UniqueId,
+    tick: u64,
+    duration: u64,
+    target_tuplet_id: Option<UniqueId>,
+    action_name: &str,
+) -> Result<(), String> {
+    let Some(tuplet_id) = target_tuplet_id else {
+        return validate_host_track_span(app, track_id, tick, duration, action_name);
+    };
+
+    let state = get_general_state_snapshot(app);
+    let track = state
+        .score
+        .tracks
+        .by_id
+        .get(&track_id)
+        .ok_or_else(|| format!("Track {track_id} not found"))?;
+    let tuplet = match track.entries.by_id.get(&tuplet_id) {
+        Some(Entry::Tuplet(tuplet)) => tuplet,
+        _ => return Err(format!("Tuplet {tuplet_id} not found on track {track_id}")),
+    };
+
+    validate_span_within_limit(
+        tick,
+        duration,
+        tuplet.local_length_ticks(),
+        action_name,
+        &format!("tuplet {tuplet_id}"),
+        "local_length_ticks",
+    )
+}
+
+fn tone_duration(
+    app: &AppHandle,
+    track_id: UniqueId,
+    tone_id: UniqueId,
+    current_tuplet_id: Option<UniqueId>,
+) -> Result<u64, String> {
+    let state = get_general_state_snapshot(app);
+    let track = state
+        .score
+        .tracks
+        .by_id
+        .get(&track_id)
+        .ok_or_else(|| format!("Track {track_id} not found"))?;
+
+    match current_tuplet_id {
+        Some(tuplet_id) => match track.entries.by_id.get(&tuplet_id) {
+            Some(Entry::Tuplet(tuplet)) => tuplet
+                .entries
+                .by_id
+                .get(&tone_id)
+                .map(|entry| match entry {
+                    TupletEntry::Tone(tone) => tone.duration,
+                })
+                .ok_or_else(|| format!("Tone {tone_id} not found in tuplet {tuplet_id}")),
+            _ => Err(format!("Tuplet {tuplet_id} not found on track {track_id}")),
+        },
+        None => match track.entries.by_id.get(&tone_id) {
+            Some(Entry::Tone(tone)) => Ok(tone.duration),
+            _ => Err(format!("Tone {tone_id} not found on track {track_id}")),
+        },
+    }
+}
+
+fn validate_span_within_limit(
+    tick: u64,
+    duration: u64,
+    limit: u64,
+    action_name: &str,
+    owner: &str,
+    limit_name: &str,
+) -> Result<(), String> {
+    if duration == 0 {
+        return Err(format!("Action {action_name} requires duration > 0"));
+    }
+
+    let end_tick = tick
+        .checked_add(duration)
+        .ok_or_else(|| format!("Action {action_name} tick + duration overflowed"))?;
+    if tick < limit && end_tick <= limit {
+        return Ok(());
+    }
+
+    Err(format!(
+        "Action {action_name} requires the event span to fit within {owner}; received tick {tick}, duration {duration}, end_tick {end_tick}, {limit_name} {limit}"
+    ))
+}
+
 fn arg_string(args: &[Value], index: usize, name: &str) -> Result<String, String> {
     arg_value(args, index, name)?
         .as_str()
@@ -2402,7 +2633,10 @@ fn arg_u8_vec(args: &[Value], index: usize, name: &str) -> Result<Vec<u8>, Strin
 
 #[cfg(test)]
 mod tests {
-    use super::action_definitions;
+    use super::{
+        action_definitions, validate_span_within_limit, validate_tick_before_flow_end,
+        FLOW_TICK_DESCRIPTION,
+    };
 
     #[test]
     fn action_definitions_include_tuplet_create() {
@@ -2471,5 +2705,67 @@ mod tests {
                 ("plugin_path", false),
             ]
         );
+    }
+
+    #[test]
+    fn timeline_create_actions_document_existing_flow_bounds() {
+        for action_name in [
+            "score.barline.create",
+            "score.clef.create",
+            "score.playingTechnique.create",
+            "score.keySignature.create",
+            "score.timeSignature.create",
+            "score.tempo.create",
+        ] {
+            let definition = action_definitions()
+                .into_iter()
+                .find(|definition| definition.name == action_name)
+                .unwrap_or_else(|| panic!("expected {action_name} action definition"));
+            let tick = definition
+                .args
+                .into_iter()
+                .find(|argument| argument.name == "tick")
+                .unwrap_or_else(|| panic!("expected tick argument for {action_name}"));
+
+            assert_eq!(tick.description, FLOW_TICK_DESCRIPTION);
+        }
+    }
+
+    #[test]
+    fn timeline_validation_rejects_tick_at_or_after_flow_end() {
+        assert!(validate_tick_before_flow_end(1, 2048, 2047, "score.tempo.create").is_ok());
+
+        let error = validate_tick_before_flow_end(1, 2048, 3072, "score.tempo.create")
+            .expect_err("tick beyond the flow must be rejected");
+
+        assert!(error.contains("tick 3072"));
+        assert!(error.contains("flow_length_ticks 2048"));
+        assert!(error.contains("score.lookup.getBarMap"));
+    }
+
+    #[test]
+    fn timeline_span_validation_matches_sequencer_bounds() {
+        assert!(validate_span_within_limit(
+            2016,
+            32,
+            2048,
+            "score.tone.create",
+            "flow 1",
+            "flow_length_ticks",
+        )
+        .is_ok());
+
+        let error = validate_span_within_limit(
+            2040,
+            32,
+            2048,
+            "score.tone.create",
+            "flow 1",
+            "flow_length_ticks",
+        )
+        .expect_err("tone crossing the flow end must be rejected");
+
+        assert!(error.contains("end_tick 2072"));
+        assert!(error.contains("flow_length_ticks 2048"));
     }
 }

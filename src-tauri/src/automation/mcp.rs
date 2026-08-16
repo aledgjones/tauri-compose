@@ -391,6 +391,8 @@ fn compose_getting_started_guide() -> Value {
     let recommended_first_steps = json!([
         format!("Call {GET_STARTED_TOOL_NAME} before any {ACTION_TOOL_PREFIX}* tool when you need to create or edit score content."),
         "Create flows, instruments, and players first, then assign instruments to players and players to flows/layouts before resolving playable track ids.",
+        "Inspect score.lookup.getScoreSlice and score.lookup.getBarMap after creating a flow. All host-timeline writes must fit inside the reported flow_length_ticks.",
+        "Execute dependent mutations sequentially. Each action renders immediately, so do not create entries at later ticks in parallel with operations intended to establish or change the timeline.",
         "Use score.lookup.getInstrumentTracks to resolve playable user track_ids before calling score.tone.create.",
         "For tuplets, create the container on the playable user track first, then create child tones on that same track with tuplet-local ticks and a tuplet_id.",
         "Use score.lookup.getScoreSlice when you need current runtime ids and structural relationships without mutating the score."
@@ -491,6 +493,12 @@ fn compose_getting_started_guide() -> Value {
             "tickSystem": {
                 "summary": "Ticks are the timeline unit used for both absolute positions and durations.",
                 "baseRule": "A quarter note is 32 ticks.",
+                "flowBounds": [
+                    "Host timeline ticks are zero-based and must be less than flow_length_ticks; events with duration must also end at or before flow_length_ticks.",
+                    "A newly created flow currently contains 2048 ticks: 16 bars of 4/4 at 128 ticks per bar.",
+                    "Use score.lookup.getScoreSlice to read flow_length_ticks and score.lookup.getBarMap to resolve bar starts. Do not infer writable ticks from a requested composition length.",
+                    "The current MCP action set does not expose a flow-resize or bar-count operation. Do not write beyond the existing flow to simulate extending it."
+                ],
                 "noteValueTicks": {
                     "whole": 128,
                     "half": 64,
@@ -518,7 +526,7 @@ fn compose_getting_started_guide() -> Value {
 
 #[cfg(test)]
 mod tests {
-    use super::tool_definitions;
+    use super::{compose_getting_started_guide, tool_definitions};
 
     #[test]
     fn tool_definitions_include_plugin_editor_open_and_not_retired_probe_tools() {
@@ -541,5 +549,16 @@ mod tests {
         assert!(!tool_names.contains(&String::from(
             "compose_action_plugin_editorHost_readProbeLog"
         )));
+    }
+
+    #[test]
+    fn getting_started_guide_documents_flow_bounds_and_sequential_writes() {
+        let guide = compose_getting_started_guide();
+        let serialized = serde_json::to_string(&guide).expect("guide should serialize");
+
+        assert!(serialized.contains("flow_length_ticks"));
+        assert!(serialized.contains("2048 ticks"));
+        assert!(serialized.contains("dependent mutations sequentially"));
+        assert!(serialized.contains("does not expose a flow-resize or bar-count operation"));
     }
 }
