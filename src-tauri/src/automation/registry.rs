@@ -58,8 +58,9 @@ use crate::score::entries::tuplet::{
 };
 use crate::score::entries::Entry;
 use crate::score::flows::{
-    score_flows_assign_player, score_flows_create, score_flows_move, score_flows_remove,
-    score_flows_rename, score_flows_unassign_player,
+    score_flows_assign_player, score_flows_create, score_flows_delete_bar,
+    score_flows_insert_bar_after, score_flows_move, score_flows_remove, score_flows_rename,
+    score_flows_unassign_player,
 };
 use crate::score::instruments::defs::score_instruments_get_all_definitions;
 use crate::score::instruments::{
@@ -400,6 +401,22 @@ pub fn action_definitions() -> Vec<ActionDefinition> {
             "score.flow.move",
             "Reorder flows by moving one flow index to another.",
             vec![arg("from_index", "Zero-based source index."), arg("to_index", "Zero-based destination index.")],
+        ),
+        action(
+            "score.flow.insertBarAfter",
+            "Insert a bar after an existing bar, using that bar's time signature, and return the inserted bar's start tick.",
+            vec![
+                arg("flow_id", "Numeric flow id."),
+                arg("bar_start_tick", "Start tick of the existing bar after which to insert."),
+            ],
+        ),
+        action(
+            "score.flow.deleteBar",
+            "Delete an existing bar and return the tick to select after deletion.",
+            vec![
+                arg("flow_id", "Numeric flow id."),
+                arg("bar_start_tick", "Start tick of the bar to delete."),
+            ],
         ),
         action(
             "score.flow.assignPlayer",
@@ -1122,6 +1139,20 @@ pub async fn execute_action(app: &AppHandle, name: &str, args: &[Value]) -> Resu
             );
             Ok(Value::Null)
         }
+        "score.flow.insertBarAfter" => Ok(json!(score_flows_insert_bar_after(
+            app.clone(),
+            app.state::<AppContextState>(),
+            app.state::<RendererContextState>(),
+            arg_id(args, 0, "flow_id")?,
+            arg_u64(args, 1, "bar_start_tick")?,
+        )?)),
+        "score.flow.deleteBar" => Ok(json!(score_flows_delete_bar(
+            app.clone(),
+            app.state::<AppContextState>(),
+            app.state::<RendererContextState>(),
+            arg_id(args, 0, "flow_id")?,
+            arg_u64(args, 1, "bar_start_tick")?,
+        )?)),
         "score.flow.assignPlayer" => {
             score_flows_assign_player(
                 app.clone(),
@@ -2662,6 +2693,24 @@ mod tests {
                 "groupings",
             ]
         );
+    }
+
+    #[test]
+    fn action_definitions_include_flow_bar_operations() {
+        for action_name in ["score.flow.insertBarAfter", "score.flow.deleteBar"] {
+            let definition = action_definitions()
+                .into_iter()
+                .find(|definition| definition.name == action_name)
+                .unwrap_or_else(|| panic!("expected {action_name} action definition"));
+
+            let arg_names = definition
+                .args
+                .into_iter()
+                .map(|arg| arg.name)
+                .collect::<Vec<_>>();
+
+            assert_eq!(arg_names, vec!["flow_id", "bar_start_tick"]);
+        }
     }
 
     #[test]
