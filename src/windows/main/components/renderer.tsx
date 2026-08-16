@@ -4,6 +4,7 @@ import { actions } from "../../../services/actions";
 import { useAppState } from "../../../services/state";
 import { pxPerMm } from "../../../utils/mm";
 import { hitTest } from "../../../services/hit-test";
+import { Tab } from "../../../services/types";
 import { Popover, PopoverState } from "../../../ui/popover";
 
 type Props = { className?: string };
@@ -83,13 +84,16 @@ export const Renderer: FC<Props> = ({ className }) => {
       const relativeY = e.clientY - rect.top;
 
       // Check for hit target first
-      const hitResult = await hitTest(
-        relativeX,
-        relativeY,
-        panXRef.current,
-        panYRef.current,
-        zoomRef.current,
-      );
+      const hitResult =
+        state.ui.tab === Tab.Setup
+          ? null
+          : await hitTest(
+              relativeX,
+              relativeY,
+              panXRef.current,
+              panYRef.current,
+              zoomRef.current,
+            );
 
       if (hitResult) {
         e.preventDefault();
@@ -242,7 +246,7 @@ export const Renderer: FC<Props> = ({ className }) => {
       };
 
       const handlePointerUp = () => {
-        if (!hasMoved && popover === null) {
+        if (state.ui.tab !== Tab.Setup && !hasMoved && popover === null) {
           actions.ui.sequencer.clearSelection();
         }
 
@@ -296,6 +300,7 @@ export const Renderer: FC<Props> = ({ className }) => {
     state.preferences.audition,
     state.score.tracks.by_id,
     state.ui.sequencer.selection,
+    state.ui.tab,
   ]);
 
   return (

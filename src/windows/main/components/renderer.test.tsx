@@ -1,7 +1,14 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { fireEvent, render, waitFor } from "@testing-library/react";
-import { createWrapper, createAppState } from "../../../services/test-utils";
+import {
+  createWrapper,
+  createAppState as createBaseAppState,
+} from "../../../services/test-utils";
+import { Tab } from "../../../services/types";
 import { Renderer } from "./renderer";
+
+const createAppState = (tab = Tab.Write) =>
+  createBaseAppState({ ui: { tab } as never });
 
 vi.mock("../../../services/actions", () => ({
   actions: {
@@ -58,6 +65,22 @@ describe("Renderer", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.stubGlobal("ResizeObserver", ResizeObserverMock);
+  });
+
+  it("disables selection in Setup mode while retaining pointer handling", async () => {
+    const { container } = render(<Renderer />, {
+      wrapper: createWrapper({ appState: createAppState(Tab.Setup) }),
+    });
+    const overlay = container.querySelector('[data-testid="renderer"] > div');
+
+    fireEvent.pointerDown(overlay!, { clientX: 10, clientY: 10 });
+    fireEvent.pointerUp(document);
+
+    await waitFor(() => {
+      expect(hitTest).not.toHaveBeenCalled();
+      expect(actions.ui.sequencer.selectBar).not.toHaveBeenCalled();
+      expect(actions.ui.sequencer.clearSelection).not.toHaveBeenCalled();
+    });
   });
 
   it("dispatches tempo selection when hit testing resolves a tempo target", async () => {
