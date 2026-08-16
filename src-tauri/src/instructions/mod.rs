@@ -22,7 +22,6 @@ use crate::ui::sequencer::Selection;
 use crate::AppContext;
 use draw::draw_accidentals::draw_accidental;
 use draw::draw_articulations::draw_articulations;
-use draw::draw_bar_strip::{bar_strip_top_offset, bar_strip_top_reserve, draw_bar_strip};
 use draw::draw_barline::{draw_barline, BarlineInteraction};
 use draw::draw_beam::draw_beam;
 use draw::draw_braces::draw_braces;
@@ -39,6 +38,9 @@ use draw::draw_rest::draw_rest;
 use draw::draw_staves::draw_staves;
 use draw::draw_stem::draw_stem;
 use draw::draw_sub_brackets::draw_sub_brackets;
+use draw::draw_system_track::{
+    draw_system_track, system_track_top_offset, system_track_top_reserve,
+};
 use draw::draw_systemic_barline::draw_systemic_barline;
 use draw::draw_tempo::draw_tempo;
 use draw::draw_ties::{draw_tie_between_contexts, draw_ties, get_tie_directions};
@@ -595,8 +597,8 @@ fn build_flow_render_segment(
 
     let layout_start = Instant::now();
     let mut page_padding = engrave.page_padding.to_spaces(&engrave.space);
-    let show_bar_strip = state.ui.is_write_tab();
-    let bar_strip_top = page_padding.top + bar_strip_top_offset();
+    let show_system_track = state.ui.is_write_tab();
+    let system_track_top = page_padding.top + system_track_top_offset();
     let max_name_width = get_max_instrument_name_width(&instruments, engrave, &text_measurer);
     let max_bracket_width = get_max_brackets_width(&vertical_spacing, &vertical_spans, engrave);
     timings.layout = layout_start.elapsed();
@@ -664,7 +666,7 @@ fn build_flow_render_segment(
     );
     timings.stems = stems_start.elapsed();
 
-    if show_bar_strip {
+    if show_system_track {
         let top_stave = instruments
             .iter()
             .flat_map(|instrument| instrument.stave_ids.iter())
@@ -687,7 +689,7 @@ fn build_flow_render_segment(
                 )
             });
         page_padding.top +=
-            bar_strip_top_reserve(stave_center, stave_height, highest_tone_offset, converter);
+            system_track_top_reserve(stave_center, stave_height, highest_tone_offset, converter);
     }
 
     let setup_start = Instant::now();
@@ -699,11 +701,11 @@ fn build_flow_render_segment(
     segment_renderer.width = width;
     segment_renderer.height = height;
 
-    if show_bar_strip {
-        draw_bar_strip(
+    if show_system_track {
+        draw_system_track(
             &Point {
                 x: stave_left,
-                y: bar_strip_top,
+                y: system_track_top,
             },
             flow_id,
             flow.length,

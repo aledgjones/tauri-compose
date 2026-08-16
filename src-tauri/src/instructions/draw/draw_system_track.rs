@@ -23,15 +23,15 @@ const MIN_STAVE_CLEARANCE: f32 = 4.0;
 const MIN_NOTE_CLEARANCE: f32 = 2.0;
 const NOTEHEAD_HALF_HEIGHT: f32 = 0.5;
 
-pub fn bar_strip_height(converter: &Converter) -> f32 {
+pub fn system_track_height(converter: &Converter) -> f32 {
     CONTROL_SIZE + converter.px_to_spaces(BAR_VERTICAL_PADDING_PX * 2.0)
 }
 
-pub fn bar_strip_top_offset() -> f32 {
+pub fn system_track_top_offset() -> f32 {
     CONTROL_SIZE + ADD_POINTER_HEIGHT
 }
 
-pub fn bar_strip_top_reserve(
+pub fn system_track_top_reserve(
     stave_center: f32,
     stave_height: f32,
     highest_tone_offset: Option<i8>,
@@ -45,7 +45,7 @@ pub fn bar_strip_top_reserve(
         })
         .map_or(stave_limit, |note_limit| stave_limit.min(note_limit));
 
-    (bar_strip_top_offset() + bar_strip_height(converter) - bottom_limit).max(0.0)
+    (system_track_top_offset() + system_track_height(converter) - bottom_limit).max(0.0)
 }
 
 fn bar_boundary_x(
@@ -129,9 +129,9 @@ fn draw_add_icon(renderer: &mut RendererContext, x: f32, y: f32) {
     );
 }
 
-fn draw_add_control(renderer: &mut RendererContext, boundary_x: f32, strip_top: f32) {
+fn draw_add_control(renderer: &mut RendererContext, boundary_x: f32, track_top: f32) {
     let color = Color::from_rgb(14, 165, 233);
-    let top = strip_top - bar_strip_top_offset();
+    let top = track_top - system_track_top_offset();
     let radius = CONTROL_SIZE / 2.0;
     let center_y = top + radius;
     let arc = [
@@ -156,7 +156,7 @@ fn draw_add_control(renderer: &mut RendererContext, boundary_x: f32, strip_top: 
     let mut points = Vec::with_capacity(arc.len() + 1);
     points.push(Point {
         x: boundary_x,
-        y: strip_top,
+        y: track_top,
     });
     points.extend(arc.map(|(x, y)| Point {
         x: boundary_x + (x * radius),
@@ -193,7 +193,7 @@ fn draw_delete_icon(renderer: &mut RendererContext, x: f32, y: f32) {
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn draw_bar_strip(
+pub fn draw_system_track(
     origin: &Point,
     flow_id: UniqueId,
     flow_length: Ticks,
@@ -211,7 +211,7 @@ pub fn draw_bar_strip(
         justify: Justify::Start,
         align: Align::Middle,
     };
-    let strip_height = bar_strip_height(&renderer.converter);
+    let track_height = system_track_height(&renderer.converter);
     let number_left_padding = renderer.converter.px_to_spaces(NUMBER_LEFT_PADDING_PX);
     let number_vertical_offset = renderer.converter.px_to_spaces(NUMBER_VERTICAL_OFFSET_PX);
     let delete_left_padding = renderer.converter.px_to_spaces(DELETE_LEFT_PADDING_PX);
@@ -239,14 +239,14 @@ pub fn draw_bar_strip(
             right - (BAR_SEPARATOR / 2.0)
         };
         let box_width = (box_right - box_left).max(0.1);
-        renderer.rectangle(box_left, origin.y, box_width, strip_height, background);
+        renderer.rectangle(box_left, origin.y, box_width, track_height, background);
         if !selected {
             renderer.text(
                 &(index + 1).to_string(),
                 &font,
                 &Point {
                     x: box_left + number_left_padding,
-                    y: origin.y + (strip_height / 2.0) - number_vertical_offset,
+                    y: origin.y + (track_height / 2.0) - number_vertical_offset,
                 },
                 Color::from_rgb(150, 150, 150),
             );
@@ -260,7 +260,7 @@ pub fn draw_bar_strip(
             left,
             origin.y,
             width,
-            strip_height,
+            track_height,
         );
 
         if selected {
@@ -269,10 +269,10 @@ pub fn draw_bar_strip(
     }
 
     if let Some((tick, box_left, boundary_x)) = selected_controls {
-        let controls_top = origin.y + ((strip_height - CONTROL_SIZE) / 2.0);
+        let controls_top = origin.y + ((track_height - CONTROL_SIZE) / 2.0);
         let add_x = boundary_x - (CONTROL_SIZE / 2.0);
         let delete_x = box_left + delete_left_padding;
-        let add_y = origin.y - bar_strip_top_offset();
+        let add_y = origin.y - system_track_top_offset();
 
         draw_delete_icon(renderer, delete_x, controls_top);
         push_hit_target(
@@ -291,7 +291,7 @@ pub fn draw_bar_strip(
             add_x,
             add_y,
             CONTROL_SIZE,
-            bar_strip_top_offset(),
+            system_track_top_offset(),
         );
     }
 }
@@ -352,10 +352,10 @@ mod tests {
     #[test]
     fn top_reserve_keeps_four_spaces_above_an_empty_stave() {
         let renderer = make_test_renderer();
-        let height = bar_strip_top_offset() + bar_strip_height(&renderer.converter);
+        let height = system_track_top_offset() + system_track_height(&renderer.converter);
 
         assert_eq!(
-            bar_strip_top_reserve(2.0, 4.0, None, &renderer.converter),
+            system_track_top_reserve(2.0, 4.0, None, &renderer.converter),
             height + 4.0
         );
     }
@@ -363,10 +363,10 @@ mod tests {
     #[test]
     fn top_reserve_moves_above_a_note_higher_than_stave_clearance() {
         let renderer = make_test_renderer();
-        let height = bar_strip_top_offset() + bar_strip_height(&renderer.converter);
+        let height = system_track_top_offset() + system_track_height(&renderer.converter);
 
         assert_eq!(
-            bar_strip_top_reserve(2.0, 4.0, Some(-16), &renderer.converter),
+            system_track_top_reserve(2.0, 4.0, Some(-16), &renderer.converter),
             height + 8.5
         );
     }
@@ -374,10 +374,10 @@ mod tests {
     #[test]
     fn top_reserve_keeps_stave_clearance_when_notes_are_lower() {
         let renderer = make_test_renderer();
-        let height = bar_strip_top_offset() + bar_strip_height(&renderer.converter);
+        let height = system_track_top_offset() + system_track_height(&renderer.converter);
 
         assert_eq!(
-            bar_strip_top_reserve(2.0, 4.0, Some(2), &renderer.converter),
+            system_track_top_reserve(2.0, 4.0, Some(2), &renderer.converter),
             height + 4.0
         );
     }
@@ -385,7 +385,7 @@ mod tests {
     #[test]
     fn draws_one_hit_target_for_each_bar_at_spacing_boundaries() {
         let mut renderer = make_test_renderer();
-        draw_bar_strip(
+        draw_system_track(
             &Point { x: 5.0, y: 2.0 },
             7,
             256,
@@ -463,7 +463,7 @@ mod tests {
     #[test]
     fn selected_bar_adds_insert_and_delete_controls_only_for_that_bar() {
         let mut renderer = make_test_renderer();
-        draw_bar_strip(
+        draw_system_track(
             &Point { x: 5.0, y: 2.0 },
             7,
             256,
@@ -532,7 +532,7 @@ mod tests {
             .unwrap();
         assert!((delete.width - delete.height).abs() < f32::EPSILON);
         assert_eq!(add.width, CONTROL_SIZE);
-        assert_eq!(add.height, bar_strip_top_offset());
+        assert_eq!(add.height, system_track_top_offset());
         let selected_boundary = selected_bar.x + selected_bar.width;
         assert!(
             (renderer

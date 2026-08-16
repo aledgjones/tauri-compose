@@ -1,6 +1,5 @@
 pub mod draw_accidentals;
 pub mod draw_articulations;
-pub mod draw_bar_strip;
 pub mod draw_barline;
 pub mod draw_beam;
 pub mod draw_braces;
@@ -17,6 +16,7 @@ pub mod draw_rest;
 pub mod draw_staves;
 pub mod draw_stem;
 pub mod draw_sub_brackets;
+pub mod draw_system_track;
 pub mod draw_systemic_barline;
 pub mod draw_tempo;
 pub mod draw_ties;

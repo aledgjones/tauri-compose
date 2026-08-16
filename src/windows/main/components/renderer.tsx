@@ -96,19 +96,18 @@ export const Renderer: FC<Props> = ({ className }) => {
 
         switch (hitResult.type) {
           case "InsertBarAfter": {
-            const tick = await actions.score.flow.insertBarAfter(
+            await actions.score.flow.insertBarAfter(
               hitResult.flow_id,
               hitResult.tick,
             );
-            await actions.ui.sequencer.selectBar(hitResult.flow_id, tick);
             return;
           }
           case "DeleteBar": {
-            const tick = await actions.score.flow.deleteBar(
+            await actions.score.flow.deleteBar(
               hitResult.flow_id,
               hitResult.tick,
             );
-            await actions.ui.sequencer.selectBar(hitResult.flow_id, tick);
+            await actions.ui.sequencer.clearSelection();
             return;
           }
           case "Bar": {

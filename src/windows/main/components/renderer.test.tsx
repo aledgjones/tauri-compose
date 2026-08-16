@@ -118,7 +118,7 @@ describe("Renderer", () => {
     });
   });
 
-  it("inserts after a bar control hit and selects the inserted bar", async () => {
+  it("inserts after a bar control hit and keeps the current selection", async () => {
     vi.mocked(hitTest).mockResolvedValueOnce({
       type: "InsertBarAfter",
       flow_id: 4,
@@ -133,11 +133,12 @@ describe("Renderer", () => {
 
     await waitFor(() => {
       expect(actions.score.flow.insertBarAfter).toHaveBeenCalledWith(4, 128);
-      expect(actions.ui.sequencer.selectBar).toHaveBeenCalledWith(4, 256);
+      expect(actions.ui.sequencer.selectBar).not.toHaveBeenCalled();
+      expect(actions.ui.sequencer.clearSelection).not.toHaveBeenCalled();
     });
   });
 
-  it("deletes a bar control hit and selects the returned neighbor", async () => {
+  it("deletes a bar control hit and clears selection", async () => {
     vi.mocked(hitTest).mockResolvedValueOnce({
       type: "DeleteBar",
       flow_id: 4,
@@ -152,7 +153,8 @@ describe("Renderer", () => {
 
     await waitFor(() => {
       expect(actions.score.flow.deleteBar).toHaveBeenCalledWith(4, 128);
-      expect(actions.ui.sequencer.selectBar).toHaveBeenCalledWith(4, 128);
+      expect(actions.ui.sequencer.clearSelection).toHaveBeenCalledTimes(1);
+      expect(actions.ui.sequencer.selectBar).not.toHaveBeenCalled();
     });
   });
 
